@@ -30,6 +30,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerResult;
 import com.google.cloud.dataflow.sdk.util.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.TriggerTester;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
+import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -74,7 +75,9 @@ public class AfterFirstTest {
           Mockito.<Trigger<IntervalWindow>.OnElementContext>any()))
           .thenReturn(result2);
     }
-    tester.injectElement(element, new Instant(element));
+
+    tester.injectElements(
+        TimestampedValue.of(element, new Instant(element)));
   }
 
   @Test
@@ -212,21 +215,23 @@ public class AfterFirstTest {
 
     tester.advanceProcessingTime(new Instant(0));
     // 5 elements -> after pane fires
-    tester.injectElement(0, new Instant(0));
-    tester.injectElement(1, new Instant(0));
-    tester.injectElement(2, new Instant(1));
-    tester.injectElement(3, new Instant(1));
-    tester.injectElement(4, new Instant(1));
+    tester.injectElements(
+        TimestampedValue.of(0, new Instant(0)),
+        TimestampedValue.of(1, new Instant(0)),
+        TimestampedValue.of(2, new Instant(1)),
+        TimestampedValue.of(3, new Instant(1)),
+        TimestampedValue.of(4, new Instant(1)));
 
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(0, 1, 2, 3, 4), 0, 0, 50)));
 
     // 4 elements, advance processing time to 5 (shouldn't fire yet), then advance it to 6
     tester.advanceProcessingTime(new Instant(1));
-    tester.injectElement(5, new Instant(2));
-    tester.injectElement(6, new Instant(3));
-    tester.injectElement(7, new Instant(4));
-    tester.injectElement(8, new Instant(5));
+    tester.injectElements(
+        TimestampedValue.of(5, new Instant(2)),
+        TimestampedValue.of(6, new Instant(3)),
+        TimestampedValue.of(7, new Instant(4)),
+        TimestampedValue.of(8, new Instant(5)));
     tester.advanceProcessingTime(new Instant(5));
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
     tester.advanceProcessingTime(new Instant(6));
@@ -235,11 +240,12 @@ public class AfterFirstTest {
 
     // Now, send in 5 more elements, and make sure they come out as a group. State should not
     // be carried over.
-    tester.injectElement(9, new Instant(6));
-    tester.injectElement(10, new Instant(7));
-    tester.injectElement(11, new Instant(8));
-    tester.injectElement(12, new Instant(9));
-    tester.injectElement(13, new Instant(10));
+    tester.injectElements(
+        TimestampedValue.of(9, new Instant(6)),
+        TimestampedValue.of(10, new Instant(7)),
+        TimestampedValue.of(11, new Instant(8)),
+        TimestampedValue.of(12, new Instant(9)),
+        TimestampedValue.of(13, new Instant(10)));
 
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(9, 10, 11, 12, 13), 6, 0, 50)));
@@ -263,13 +269,15 @@ public class AfterFirstTest {
         Duration.millis(100));
 
     tester.advanceProcessingTime(new Instant(10));
-    tester.injectElement(1, new Instant(1)); // in [1, 11), timer for 15
-    tester.injectElement(2, new Instant(1)); // in [1, 11) count = 1
-    tester.injectElement(3, new Instant(2)); // in [2, 12), timer for 16
+    tester.injectElements(
+        TimestampedValue.of(1, new Instant(1)),   // in [1, 11), timer for 15
+        TimestampedValue.of(2, new Instant(1)),   // in [1, 11) count = 1
+        TimestampedValue.of(3, new Instant(2)));  // in [2, 12), timer for 16
 
     // Enough data comes in for 2 that combined, we should fire
-    tester.injectElement(4, new Instant(2));
-    tester.injectElement(5, new Instant(2));
+    tester.injectElements(
+        TimestampedValue.of(4, new Instant(2)),
+        TimestampedValue.of(5, new Instant(2)));
 
     tester.doMerge();
 

@@ -27,6 +27,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerResult;
 import com.google.cloud.dataflow.sdk.util.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.TriggerTester;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
+import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -65,7 +66,8 @@ public class RepeatedlyTest {
           Mockito.<Trigger<IntervalWindow>.OnElementContext>any()))
           .thenReturn(result1);
     }
-    tester.injectElement(element, new Instant(element));
+
+    tester.injectElements(TimestampedValue.of(element, new Instant(element)));
   }
 
   @Test

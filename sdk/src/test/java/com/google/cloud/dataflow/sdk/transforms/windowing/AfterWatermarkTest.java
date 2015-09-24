@@ -25,6 +25,7 @@ import com.google.cloud.dataflow.sdk.WindowMatchers;
 import com.google.cloud.dataflow.sdk.util.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.TriggerTester;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
+import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -48,10 +49,12 @@ public class AfterWatermarkTest {
         AccumulationMode.DISCARDING_FIRED_PANES,
         Duration.millis(100));
 
-    tester.injectElement(1, new Instant(1)); // first in window [0, 10), timer set for 6
+    tester.injectElements(
+        TimestampedValue.of(1, new Instant(1))); // first in window [0, 10), timer set for 6
     tester.advanceWatermark(new Instant(5));
-    tester.injectElement(2, new Instant(9));
-    tester.injectElement(3, new Instant(8));
+    tester.injectElements(
+        TimestampedValue.of(2, new Instant(9)),
+        TimestampedValue.of(3, new Instant(8)));
 
     tester.advanceWatermark(new Instant(6));
     assertThat(tester.extractOutput(), Matchers.contains(
@@ -59,7 +62,8 @@ public class AfterWatermarkTest {
 
     // This element belongs in the window that has already fired. It should not be re-output because
     // that trigger (which was one-time) has already gone off.
-    tester.injectElement(6, new Instant(2));
+    tester.injectElements(
+        TimestampedValue.of(6, new Instant(2)));
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
 
     assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(0), new Instant(10))));
@@ -83,9 +87,10 @@ public class AfterWatermarkTest {
     Instant zero = new Instant(0);
 
     // first in window [0, 1m), timer set for 6m
-    tester.injectElement(1, zero.plus(Duration.standardSeconds(1)));
-    tester.injectElement(2, zero.plus(Duration.standardSeconds(5)));
-    tester.injectElement(3, zero.plus(Duration.standardSeconds(55)));
+    tester.injectElements(
+        TimestampedValue.of(1, zero.plus(Duration.standardSeconds(1))),
+        TimestampedValue.of(2, zero.plus(Duration.standardSeconds(5))),
+        TimestampedValue.of(3, zero.plus(Duration.standardSeconds(55))));
 
     // Advance almost to 6m, but not quite. No output should be produced.
     tester.advanceWatermark(zero.plus(Duration.standardMinutes(6)).minus(1));
@@ -111,8 +116,9 @@ public class AfterWatermarkTest {
 
     tester.advanceWatermark(new Instant(1));
 
-    tester.injectElement(1, new Instant(1)); // in [1, 11), timer for 6
-    tester.injectElement(2, new Instant(2)); // in [2, 12), timer for 7
+    tester.injectElements(
+        TimestampedValue.of(1, new Instant(1)),  // in [1, 11), timer for 6
+        TimestampedValue.of(2, new Instant(2))); // in [2, 12), timer for 7
     tester.advanceWatermark(new Instant(6));
 
     // We merged, and updated the watermark timer to the earliest timer, which was still 6.
@@ -134,11 +140,13 @@ public class AfterWatermarkTest {
         AccumulationMode.DISCARDING_FIRED_PANES,
         Duration.millis(100));
 
-    tester.injectElement(1, new Instant(1)); // first in window [0, 10), timer set for 9
+    tester.injectElements(
+        TimestampedValue.of(1, new Instant(1))); // first in window [0, 10), timer set for 9
     tester.advanceWatermark(new Instant(8));
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
-    tester.injectElement(2, new Instant(9));
-    tester.injectElement(3, new Instant(8));
+    tester.injectElements(
+        TimestampedValue.of(2, new Instant(9)),
+        TimestampedValue.of(3, new Instant(8)));
 
     tester.advanceWatermark(new Instant(9));
     assertThat(tester.extractOutput(), Matchers.contains(
@@ -146,7 +154,8 @@ public class AfterWatermarkTest {
 
     // This element belongs in the window that has already fired. It should not be re-output because
     // that trigger (which was one-time) has already gone off.
-    tester.injectElement(6, new Instant(2));
+    tester.injectElements(
+        TimestampedValue.of(6, new Instant(2)));
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
 
     assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(0), new Instant(10))));
@@ -167,14 +176,16 @@ public class AfterWatermarkTest {
 
     tester.advanceWatermark(new Instant(1));
 
-    tester.injectElement(1, new Instant(1)); // in [1, 11), timer for 10
-    tester.injectElement(2, new Instant(2)); // in [2, 12), timer for 11
+    tester.injectElements(
+        TimestampedValue.of(1, new Instant(1)),  // in [1, 11), timer for 10
+        TimestampedValue.of(2, new Instant(2))); // in [2, 12), timer for 11
     tester.advanceWatermark(new Instant(10));
 
     // We merged, and updated the watermark timer to the end of the new window.
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
 
-    tester.injectElement(3, new Instant(1)); // in [1, 11), timer for 10
+    tester.injectElements(
+        TimestampedValue.of(3, new Instant(1))); // in [1, 11), timer for 10
     tester.advanceWatermark(new Instant(11));
 
     assertThat(tester.extractOutput(), Matchers.contains(
@@ -197,7 +208,8 @@ public class AfterWatermarkTest {
 
     tester.fireTimer(new IntervalWindow(new Instant(0), new Instant(10)),
         new Instant(15), TimeDomain.EVENT_TIME);
-    tester.injectElement(1, new Instant(1));
+    tester.injectElements(
+        TimestampedValue.of(1, new Instant(1)));
     tester.fireTimer(new IntervalWindow(new Instant(0), new Instant(10)),
         new Instant(9), TimeDomain.EVENT_TIME);
   }

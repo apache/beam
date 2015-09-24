@@ -143,7 +143,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
     }
   }
 
-  public void processElement(WindowedValue<InputT> value) {
+  private void processElement(WindowedValue<InputT> value) {
     Lateness lateness = getLateness(value);
     if (lateness.isPastAllowedLateness) {
       // Drop the element in all assigned windows if it is past the allowed lateness limit.

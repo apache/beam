@@ -31,6 +31,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerResult;
 import com.google.cloud.dataflow.sdk.util.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.TriggerTester;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
+import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -75,7 +76,9 @@ public class AfterEachTest {
           Mockito.<Trigger<IntervalWindow>.OnElementContext>any()))
           .thenReturn(result2);
     }
-    tester.injectElement(element, new Instant(element));
+
+    tester.injectElements(
+        TimestampedValue.of(element, new Instant(element)));
   }
 
   @Test
@@ -223,7 +226,7 @@ public class AfterEachTest {
 
     // Inject a bunch of elements
     for (int i = 0; i < 20; i++) {
-      tester.injectElement(i, new Instant(i));
+      tester.injectElements(TimestampedValue.of(i, new Instant(i)));
     }
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(0, 1, 2, 3, 4), 0, 0, 50),
@@ -250,20 +253,23 @@ public class AfterEachTest {
         Duration.millis(100));
 
     tester.advanceProcessingTime(new Instant(10));
-    tester.injectElement(1, new Instant(1)); // in [1, 11), timer for 15
+    tester.injectElements(
+        TimestampedValue.of(1, new Instant(1))); // in [1, 11), timer for 15
     tester.advanceProcessingTime(new Instant(15));
     assertThat(tester.extractOutput(), Matchers.contains(
         WindowMatchers.isSingleWindowedValue(Matchers.contains(1), 1, 1, 11)));
 
-    tester.injectElement(2, new Instant(1)); // in [1, 11) count = 1
-    tester.injectElement(3, new Instant(2)); // in [2, 12), timer for 16
+    tester.injectElements(
+        TimestampedValue.of(2, new Instant(1)),  // in [1, 11) count = 1
+        TimestampedValue.of(3, new Instant(2))); // in [2, 12), timer for 16
 
     // [2, 12) tries to fire, but gets merged; count = 2
     tester.advanceProcessingTime(new Instant(30));
 
-    tester.injectElement(4, new Instant(1));
-    tester.injectElement(5, new Instant(2));
-    tester.injectElement(6, new Instant(1)); // count = 5, but need to call merge to discover this
+    tester.injectElements(
+        TimestampedValue.of(4, new Instant(1)),
+        TimestampedValue.of(5, new Instant(2)),
+        TimestampedValue.of(6, new Instant(1))); // count = 5, but need to call merge fire
 
     tester.doMerge();
 

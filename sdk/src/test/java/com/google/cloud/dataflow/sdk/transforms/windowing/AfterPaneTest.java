@@ -26,6 +26,7 @@ import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.transforms.Sum.SumIntegerFn;
 import com.google.cloud.dataflow.sdk.util.TriggerTester;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
+import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -50,15 +51,17 @@ public class AfterPaneTest {
         VarIntCoder.of(),
         Duration.millis(100));
 
-    tester.injectElement(1, new Instant(1));
-    tester.injectElement(2, new Instant(9));
+    tester.injectElements(
+        TimestampedValue.of(1, new Instant(1)),
+        TimestampedValue.of(2, new Instant(9)));
 
     assertThat(tester.extractOutput(), Matchers.contains(
         WindowMatchers.isSingleWindowedValue(Matchers.equalTo(3), 1, 0, 10)));
 
     // This element should not be output because that trigger (which was one-time) has already
     // gone off.
-    tester.injectElement(6, new Instant(2));
+    tester.injectElements(
+        TimestampedValue.of(6, new Instant(2)));
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
 
     assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(0), new Instant(10))));
@@ -77,15 +80,17 @@ public class AfterPaneTest {
         AccumulationMode.DISCARDING_FIRED_PANES,
         Duration.millis(100));
 
-    tester.injectElement(1, new Instant(1)); // first in window [0, 10)
-    tester.injectElement(2, new Instant(9));
+    tester.injectElements(
+        TimestampedValue.of(1, new Instant(1)), // first in window [0, 10)
+        TimestampedValue.of(2, new Instant(9)));
 
     assertThat(tester.extractOutput(), Matchers.contains(
         WindowMatchers.isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
 
     // This element belongs in the window that has already fired. It should not be re-output because
     // that trigger (which was one-time) has already gone off.
-    tester.injectElement(6, new Instant(2));
+    tester.injectElements(
+        TimestampedValue.of(6, new Instant(2)));
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
 
     assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(0), new Instant(10))));
@@ -106,15 +111,17 @@ public class AfterPaneTest {
 
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
 
-    tester.injectElement(1, new Instant(1)); // in [1, 11)
-    tester.injectElement(2, new Instant(2)); // in [2, 12)
+    tester.injectElements(
+        TimestampedValue.of(1, new Instant(1)),  // in [1, 11)
+        TimestampedValue.of(2, new Instant(2))); // in [2, 12)
     tester.doMerge();
     assertThat(tester.extractOutput(), Matchers.contains(
         WindowMatchers.isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 1, 12)));
 
     // Because we closed the previous window, we don't have it around to merge with.
-    tester.injectElement(3, new Instant(7)); // in [7, 17)
-    tester.injectElement(4, new Instant(8)); // in [8, 18)
+    tester.injectElements(
+        TimestampedValue.of(3, new Instant(7)),  // in [7, 17)
+        TimestampedValue.of(4, new Instant(8))); // in [8, 18)
     tester.doMerge();
 
     assertThat(tester.extractOutput(), Matchers.contains(

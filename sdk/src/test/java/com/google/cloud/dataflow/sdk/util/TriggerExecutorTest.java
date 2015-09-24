@@ -49,6 +49,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.MergeResult;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerResult;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window.ClosingBehavior;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
+import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -86,7 +87,7 @@ public class TriggerExecutorTest {
     when(mockTrigger.onElement(
         Mockito.<Trigger<IntervalWindow>.OnElementContext>any()))
         .thenReturn(result);
-    tester.injectElement(element, new Instant(element));
+    tester.injectElements(TimestampedValue.of(element, new Instant(element)));
   }
 
   @Test
@@ -321,8 +322,9 @@ public class TriggerExecutorTest {
             .withClosingBehavior(ClosingBehavior.FIRE_ALWAYS));
 
     tester.advanceWatermark(new Instant(0));
-    tester.injectElement(1, new Instant(1));
-    tester.injectElement(2, new Instant(2));
+    tester.injectElements(
+        TimestampedValue.of(1, new Instant(1)),
+        TimestampedValue.of(2, new Instant(2)));
 
     List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
     assertThat(output, Matchers.contains(
@@ -362,8 +364,9 @@ public class TriggerExecutorTest {
             .withClosingBehavior(ClosingBehavior.FIRE_ALWAYS));
 
     tester.advanceWatermark(new Instant(0));
-    tester.injectElement(1, new Instant(1));
-    tester.injectElement(2, new Instant(2));
+    tester.injectElements(
+        TimestampedValue.of(1, new Instant(1)),
+        TimestampedValue.of(2, new Instant(2)));
 
     List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
     assertThat(output, Matchers.contains(
@@ -402,8 +405,9 @@ public class TriggerExecutorTest {
             .withClosingBehavior(ClosingBehavior.FIRE_ALWAYS));
 
     tester.advanceWatermark(new Instant(0));
-    tester.injectElement(1, new Instant(1));
-    tester.injectElement(2, new Instant(2));
+    tester.injectElements(
+        TimestampedValue.of(1, new Instant(1)),
+        TimestampedValue.of(2, new Instant(2)));
 
     assertThat(tester.extractOutput(), Matchers.contains(
         WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(true, false, Timing.EARLY, 0, -1))));
@@ -481,19 +485,22 @@ public class TriggerExecutorTest {
         VarIntCoder.of(),
         Duration.millis(20));
 
-    tester.injectElement(10, new Instant(23)); // [-60, 40), [-30, 70), [0, 100)
-    tester.injectElement(12, new Instant(40)); // [-30, 70), [0, 100), [30, 130)
+    tester.injectElements(
+        TimestampedValue.of(10, new Instant(23)),   // [-60, 40), [-30, 70), [0, 100)
+        TimestampedValue.of(12, new Instant(40))); // [-30, 70), [0, 100), [30, 130)
 
     assertEquals(0, tester.getElementsDroppedDueToLateness());
     assertEquals(0, tester.getElementsDroppedDueToClosedWindow());
 
     tester.advanceWatermark(new Instant(70));
-    tester.injectElement(14, new Instant(60)); // [-30, 70) = closed, [0, 100), [30, 130)
+    tester.injectElements(
+        TimestampedValue.of(14, new Instant(60))); // [-30, 70) = closed, [0, 100), [30, 130)
 
     assertEquals(0, tester.getElementsDroppedDueToLateness());
     assertEquals(1, tester.getElementsDroppedDueToClosedWindow());
 
-    tester.injectElement(16, new Instant(40)); // dropped due to lateness, assigned to 3 windows
+    tester.injectElements(
+        TimestampedValue.of(16, new Instant(40))); // dropped b/c lateness, assigned to 3 windows
 
     assertEquals(3, tester.getElementsDroppedDueToLateness());
     assertEquals(1, tester.getElementsDroppedDueToClosedWindow());
@@ -633,10 +640,11 @@ public class TriggerExecutorTest {
     tester.advanceWatermark(new Instant(0));
     tester.advanceProcessingTime(new Instant(0));
 
-    tester.injectElement(1, new Instant(1));
-    tester.injectElement(1, new Instant(3));
-    tester.injectElement(1, new Instant(7));
-    tester.injectElement(1, new Instant(5));
+    tester.injectElements(
+        TimestampedValue.of(1, new Instant(1)),
+        TimestampedValue.of(1, new Instant(3)),
+        TimestampedValue.of(1, new Instant(7)),
+        TimestampedValue.of(1, new Instant(5)));
 
     tester.advanceProcessingTime(new Instant(5));
 
@@ -677,27 +685,34 @@ public class TriggerExecutorTest {
     tester.advanceWatermark(new Instant(0));
     tester.advanceProcessingTime(new Instant(0));
 
-    tester.injectElement(1, new Instant(1));
-    tester.injectElement(1, new Instant(3));
-    tester.injectElement(1, new Instant(7));
-    tester.injectElement(1, new Instant(5));
+    tester.injectElements(
+        TimestampedValue.of(1, new Instant(1)),
+        TimestampedValue.of(1, new Instant(3)),
+        TimestampedValue.of(1, new Instant(7)),
+        TimestampedValue.of(1, new Instant(5)));
 
     tester.advanceProcessingTime(new Instant(5));
-    tester.injectElement(1, new Instant(8));
-    tester.injectElement(1, new Instant(4));
+    tester.injectElements(
+        TimestampedValue.of(1, new Instant(8)),
+        TimestampedValue.of(1, new Instant(4)));
 
     tester.advanceWatermark(new Instant(11));
-    tester.injectElement(1, new Instant(8));
-    tester.injectElement(1, new Instant(4));
-    tester.injectElement(1, new Instant(5));
+    tester.injectElements(
+        TimestampedValue.of(1, new Instant(8)),
+        TimestampedValue.of(1, new Instant(4)),
+        TimestampedValue.of(1, new Instant(5)));
 
     tester.advanceWatermark(new Instant(12));
-    tester.injectElement(1, new Instant(3));
+    tester.injectElements(
+        TimestampedValue.of(1, new Instant(3)));
+
     tester.advanceProcessingTime(new Instant(15));
-    tester.injectElement(1, new Instant(5));
+    tester.injectElements(
+        TimestampedValue.of(1, new Instant(5)));
     tester.advanceProcessingTime(new Instant(30));
 
-    tester.injectElement(1, new Instant(3));
+    tester.injectElements(
+        TimestampedValue.of(1, new Instant(3)));
     tester.advanceWatermark(new Instant(125));
 
     List<WindowedValue<Integer>> output = tester.extractOutput();
@@ -732,7 +747,7 @@ public class TriggerExecutorTest {
             AccumulationMode.DISCARDING_FIRED_PANES,
             Duration.standardDays(1));
 
-    tester.injectElement(1, new Instant(1));
+    tester.injectElements(TimestampedValue.of(1, new Instant(1)));
 
     ResultCaptor<TriggerResult> result = new ResultCaptor<>();
     doAnswer(result)

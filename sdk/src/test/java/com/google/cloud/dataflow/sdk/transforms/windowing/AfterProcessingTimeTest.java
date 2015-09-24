@@ -24,6 +24,7 @@ import com.google.cloud.dataflow.sdk.WindowMatchers;
 import com.google.cloud.dataflow.sdk.util.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.TriggerTester;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
+import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -50,7 +51,7 @@ public class AfterProcessingTimeTest {
 
     tester.fireTimer(new IntervalWindow(new Instant(0), new Instant(10)),
         new Instant(15), TimeDomain.PROCESSING_TIME);
-    tester.injectElement(1, new Instant(1));
+    tester.injectElements(TimestampedValue.of(1, new Instant(1)));
     tester.fireTimer(new IntervalWindow(new Instant(0), new Instant(10)),
         new Instant(5), TimeDomain.PROCESSING_TIME);
   }
@@ -68,16 +69,20 @@ public class AfterProcessingTimeTest {
 
     tester.advanceProcessingTime(new Instant(10));
 
-    tester.injectElement(1, new Instant(1)); // first in window [0, 10), timer set for 15
+    tester.injectElements(
+        // first in window [0, 10), timer set for 15
+        TimestampedValue.of(1, new Instant(1)));
     tester.advanceProcessingTime(new Instant(11));
-    tester.injectElement(2, new Instant(9));
+    tester.injectElements(
+        TimestampedValue.of(2, new Instant(9)));
 
     tester.advanceProcessingTime(new Instant(12));
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
 
-    tester.injectElement(3, new Instant(8));
-    tester.injectElement(4, new Instant(19));
-    tester.injectElement(5, new Instant(30));
+    tester.injectElements(
+        TimestampedValue.of(3, new Instant(8)),
+        TimestampedValue.of(4, new Instant(19)),
+        TimestampedValue.of(5, new Instant(30)));
 
     tester.advanceProcessingTime(new Instant(16));
     assertThat(tester.extractOutput(), Matchers.contains(
@@ -85,7 +90,7 @@ public class AfterProcessingTimeTest {
 
     // This element belongs in the window that has already fired. It should not be re-output because
     // that trigger (which was one-time) has already gone off.
-    tester.injectElement(6, new Instant(2));
+    tester.injectElements(TimestampedValue.of(6, new Instant(2)));
 
     tester.advanceProcessingTime(new Instant(19));
     assertThat(tester.extractOutput(), Matchers.containsInAnyOrder(
@@ -111,9 +116,11 @@ public class AfterProcessingTimeTest {
         Duration.millis(100));
 
     tester.advanceProcessingTime(new Instant(10));
-    tester.injectElement(1, new Instant(1)); // in [1, 11), timer for 15
+    tester.injectElements(
+        TimestampedValue.of(1, new Instant(1))); // in [1, 11), timer for 15
     tester.advanceProcessingTime(new Instant(11));
-    tester.injectElement(2, new Instant(2)); // in [2, 12), timer for 16
+    tester.injectElements(
+        TimestampedValue.of(2, new Instant(2))); // in [2, 12), timer for 16
 
     tester.advanceProcessingTime(new Instant(15));
     // This fires, because the earliest element in [1, 12) arrived at time 10

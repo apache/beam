@@ -45,9 +45,11 @@ import com.google.cloud.dataflow.sdk.util.state.StateNamespaces;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
 import com.google.cloud.dataflow.sdk.util.state.WatermarkStateInternal;
 import com.google.cloud.dataflow.sdk.values.KV;
+import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -65,8 +67,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
-import javax.annotation.Nullable;
 
 /**
  * Test utility that runs a {@link WindowFn}, {@link Trigger} using in-memory stub implementations
@@ -262,8 +262,7 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
     ImmutableList<WindowedValue<OutputT>> result = FluentIterable.from(stubContexts.outputs)
         .transform(new Function<WindowedValue<KV<String, OutputT>>, WindowedValue<OutputT>>() {
           @Override
-          @Nullable
-          public WindowedValue<OutputT> apply(@Nullable WindowedValue<KV<String, OutputT>> input) {
+          public WindowedValue<OutputT> apply(WindowedValue<KV<String, OutputT>> input) {
             return input.withValue(input.getValue().getValue());
           }
         })
@@ -291,10 +290,27 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
     timerInternals.advanceProcessingTime(runner, newProcessingTime);
   }
 
-  public void injectElement(InputT value, Instant timestamp) throws Exception {
-    Collection<W> windows = windowFn.assignWindows(new TriggerTester.StubAssignContext<W>(
-        windowFn, value, timestamp, Arrays.asList(GlobalWindow.INSTANCE)));
-    runner.processElement(WindowedValue.of(value, timestamp, windows, PaneInfo.NO_FIRING));
+  /**
+   * Inject all the timestamped values (after passing through the window function) as if they
+   * arrived in a single chunk of a bundle (or work-unit).
+   */
+  @SafeVarargs
+  public final void injectElements(TimestampedValue<InputT>... values) throws Exception {
+    runner.processElements(FluentIterable.of(values)
+        .transform(new Function<TimestampedValue<InputT>, WindowedValue<InputT>>() {
+          @Override
+          public WindowedValue<InputT> apply(TimestampedValue<InputT> input) {
+            try {
+              InputT value = input.getValue();
+              Instant timestamp = input.getTimestamp();
+              Collection<W> windows = windowFn.assignWindows(new TriggerTester.StubAssignContext<W>(
+                  windowFn, value, timestamp, Arrays.asList(GlobalWindow.INSTANCE)));
+              return WindowedValue.of(value, timestamp, windows, PaneInfo.NO_FIRING);
+            } catch (Exception e) {
+              throw Throwables.propagate(e);
+            }
+          }
+        }));
   }
 
   public void doMerge() throws Exception {

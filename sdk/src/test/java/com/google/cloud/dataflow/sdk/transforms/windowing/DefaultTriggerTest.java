@@ -24,6 +24,7 @@ import static org.junit.Assert.assertThat;
 import com.google.cloud.dataflow.sdk.util.TriggerTester;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
+import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -48,11 +49,12 @@ public class DefaultTriggerTest {
         AccumulationMode.DISCARDING_FIRED_PANES,
         Duration.millis(100));
 
-    tester.injectElement(1, new Instant(1));
-    tester.injectElement(2, new Instant(9));
-    tester.injectElement(3, new Instant(15));
-    tester.injectElement(4, new Instant(19));
-    tester.injectElement(5, new Instant(30));
+    tester.injectElements(
+        TimestampedValue.of(1, new Instant(1)),
+        TimestampedValue.of(2, new Instant(9)),
+        TimestampedValue.of(3, new Instant(15)),
+        TimestampedValue.of(4, new Instant(19)),
+        TimestampedValue.of(5, new Instant(30)));
 
     // Advance the watermark almost to the end of the first window.
     tester.advanceProcessingTime(new Instant(500));
@@ -86,15 +88,17 @@ public class DefaultTriggerTest {
         AccumulationMode.DISCARDING_FIRED_PANES,
         Duration.millis(100));
 
-    tester.injectElement(1, new Instant(1));
-    tester.injectElement(2, new Instant(9));
+    tester.injectElements(
+        TimestampedValue.of(1, new Instant(1)),
+        TimestampedValue.of(2, new Instant(9)));
 
     // no output, because we merged into the [9-19) session
     tester.advanceWatermark(new Instant(10));
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
 
-    tester.injectElement(3, new Instant(15));
-    tester.injectElement(4, new Instant(30));
+    tester.injectElements(
+        TimestampedValue.of(3, new Instant(15)),
+        TimestampedValue.of(4, new Instant(30)));
 
     tester.advanceWatermark(new Instant(100));
     assertThat(tester.extractOutput(), Matchers.contains(
@@ -115,9 +119,10 @@ public class DefaultTriggerTest {
         AccumulationMode.DISCARDING_FIRED_PANES,
         Duration.millis(100));
 
-    tester.injectElement(1, new Instant(1));
-    tester.injectElement(2, new Instant(4));
-    tester.injectElement(3, new Instant(9));
+    tester.injectElements(
+        TimestampedValue.of(1, new Instant(1)),
+        TimestampedValue.of(2, new Instant(4)),
+        TimestampedValue.of(3, new Instant(9)));
 
     tester.advanceWatermark(new Instant(100));
     assertThat(tester.extractOutput(), Matchers.contains(
@@ -126,7 +131,8 @@ public class DefaultTriggerTest {
         isSingleWindowedValue(Matchers.containsInAnyOrder(3), 10, 5, 15)));
 
     // This data is late, so it will hold the watermark to 109
-    tester.injectElement(4, new Instant(8));
+    tester.injectElements(
+        TimestampedValue.of(4, new Instant(8)));
 
     tester.advanceWatermark(new Instant(101));
     assertThat(tester.getWatermarkHold(), Matchers.equalTo(new Instant(109)));
@@ -149,9 +155,10 @@ public class DefaultTriggerTest {
         AccumulationMode.DISCARDING_FIRED_PANES,
         Duration.millis(100));
 
-    tester.injectElement(1, new Instant(1));
-    tester.injectElement(2, new Instant(9));
-    tester.injectElement(3, new Instant(7));
+    tester.injectElements(
+        TimestampedValue.of(1, new Instant(1)),
+        TimestampedValue.of(2, new Instant(9)),
+        TimestampedValue.of(3, new Instant(7)));
 
     tester.advanceWatermark(new Instant(20));
     Iterable<WindowedValue<Iterable<Integer>>> extractOutput = tester.extractOutput();

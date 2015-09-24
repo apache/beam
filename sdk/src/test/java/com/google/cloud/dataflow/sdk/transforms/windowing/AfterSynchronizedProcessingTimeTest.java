@@ -23,6 +23,7 @@ import com.google.cloud.dataflow.sdk.WindowMatchers;
 import com.google.cloud.dataflow.sdk.util.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.TriggerTester;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
+import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -50,9 +51,10 @@ public class AfterSynchronizedProcessingTimeTest {
 
     tester.advanceProcessingTime(new Instant(10));
 
-    tester.injectElement(1, new Instant(1)); // first in window [0, 10), timer set for 15
-    tester.injectElement(2, new Instant(9));
-    tester.injectElement(3, new Instant(8));
+    tester.injectElements(
+        TimestampedValue.of(1, new Instant(1)), // first in window [0, 10), timer set for 15
+        TimestampedValue.of(2, new Instant(9)),
+        TimestampedValue.of(3, new Instant(8)));
 
     tester.advanceProcessingTime(new Instant(16));
     assertThat(tester.extractOutput(), Matchers.contains(
@@ -60,7 +62,8 @@ public class AfterSynchronizedProcessingTimeTest {
 
     // This element belongs in the window that has already fired. It should not be re-output because
     // that trigger (which was one-time) has already gone off.
-    tester.injectElement(6, new Instant(2));
+    tester.injectElements(
+        TimestampedValue.of(6, new Instant(2)));
 
     assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(0), new Instant(10))));
     tester.assertHasOnlyGlobalAndFinishedSetsFor(
@@ -77,8 +80,9 @@ public class AfterSynchronizedProcessingTimeTest {
         Duration.millis(100));
 
     tester.advanceProcessingTime(new Instant(10));
-    tester.injectElement(1, new Instant(1)); // in [1, 11), synchronized timer for 10
-    tester.injectElement(2, new Instant(2)); // in [2, 12), synchronized timer for 10
+    tester.injectElements(
+        TimestampedValue.of(1, new Instant(1)),   // in [1, 11), synchronized timer for 10
+        TimestampedValue.of(2, new Instant(2)));  // in [2, 12), synchronized timer for 10
     tester.advanceProcessingTime(new Instant(11));
 
     assertThat(tester.extractOutput(), Matchers.contains(
@@ -101,14 +105,16 @@ public class AfterSynchronizedProcessingTimeTest {
     tester.advanceProcessingTime(new Instant(10));
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
 
-    tester.injectElement(1, new Instant(1)); // in [1, 11), timer for 15
+    tester.injectElements(
+        TimestampedValue.of(1, new Instant(1))); // in [1, 11), synchronized timer for 15
 
     tester.advanceProcessingTime(new Instant(16));
     assertThat(tester.extractOutput(), Matchers.contains(
         WindowMatchers.isSingleWindowedValue(Matchers.contains(1), 1, 1, 11)));
 
     // Because we discarded the previous window, we don't have it around to merge with.
-    tester.injectElement(2, new Instant(2)); // in [2, 12), timer for 21
+    tester.injectElements(
+        TimestampedValue.of(2, new Instant(2))); // in [2, 12), synchronized timer for 21
 
     tester.advanceProcessingTime(new Instant(100));
     assertThat(tester.extractOutput(), Matchers.contains(
@@ -132,7 +138,8 @@ public class AfterSynchronizedProcessingTimeTest {
     tester.fireTimer(new IntervalWindow(new Instant(0), new Instant(10)),
         new Instant(15), TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
     tester.advanceProcessingTime(new Instant(5));
-    tester.injectElement(1, new Instant(1));
+    tester.injectElements(
+        TimestampedValue.of(1, new Instant(1)));
     tester.fireTimer(new IntervalWindow(new Instant(0), new Instant(10)),
         new Instant(0), TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
   }
