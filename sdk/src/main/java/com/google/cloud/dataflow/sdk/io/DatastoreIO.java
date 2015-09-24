@@ -23,17 +23,22 @@ import static com.google.api.services.datastore.client.DatastoreHelper.getProper
 import static com.google.api.services.datastore.client.DatastoreHelper.makeFilter;
 import static com.google.api.services.datastore.client.DatastoreHelper.makeOrder;
 import static com.google.api.services.datastore.client.DatastoreHelper.makeValue;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.Sleeper;
-import com.google.api.services.datastore.DatastoreV1;
 import com.google.api.services.datastore.DatastoreV1.CommitRequest;
 import com.google.api.services.datastore.DatastoreV1.Entity;
+import com.google.api.services.datastore.DatastoreV1.EntityResult;
 import com.google.api.services.datastore.DatastoreV1.Key;
 import com.google.api.services.datastore.DatastoreV1.Key.PathElement;
+import com.google.api.services.datastore.DatastoreV1.PartitionId;
 import com.google.api.services.datastore.DatastoreV1.Query;
+import com.google.api.services.datastore.DatastoreV1.QueryResultBatch;
+import com.google.api.services.datastore.DatastoreV1.RunQueryRequest;
+import com.google.api.services.datastore.DatastoreV1.RunQueryResponse;
 import com.google.api.services.datastore.client.Datastore;
 import com.google.api.services.datastore.client.DatastoreException;
 import com.google.api.services.datastore.client.DatastoreFactory;
@@ -46,15 +51,17 @@ import com.google.cloud.dataflow.sdk.coders.EntityCoder;
 import com.google.cloud.dataflow.sdk.coders.SerializableCoder;
 import com.google.cloud.dataflow.sdk.io.Sink.WriteOperation;
 import com.google.cloud.dataflow.sdk.io.Sink.Writer;
-import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
+import com.google.cloud.dataflow.sdk.options.DataflowPipelineWorkerPoolOptions;
 import com.google.cloud.dataflow.sdk.options.GcpOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.Write;
 import com.google.cloud.dataflow.sdk.util.AttemptBoundedExponentialBackOff;
 import com.google.cloud.dataflow.sdk.util.RetryHttpRequestInitializer;
 import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
+import com.google.common.collect.ImmutableList;
+import com.google.common.primitives.Ints;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,51 +73,53 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+import javax.annotation.Nullable;
+
 /**
- * {@link com.google.cloud.dataflow.sdk.transforms.PTransform}s for reading and writing
+ * <p>{@link DatastoreIO} provides an API to Read and Write {@link PCollection PCollections} of
  * <a href="https://developers.google.com/datastore/">Google Cloud Datastore</a>
- * entities.
+ * {@link Entity} objects.
  *
- * <p>The {@link DatastoreIO} class provides an API to Read and Write a
- * {@link PCollection} of Datastore Entity.  This API currently requires an
- * authentication workaround described below.
+ * <p>Google Cloud Datastore is a fully managed NoSQL data storage service.
+ * An {@code Entity} is an object in Datastore, analogous to a row in traditional
+ * database table.
  *
- * <p>Datastore is a fully managed NoSQL data storage service.
- * An Entity is an object in Datastore, analogous to a row in traditional
- * database table.  DatastoreIO supports Read/Write from/to Datastore within
- * Dataflow SDK service.
- *
- * <p>To use {@link DatastoreIO}, users must use gcloud to get credential for Datastore:
+ * <p>This API currently requires an authentication workaround. To use {@link DatastoreIO}, users
+ * must use the {@code gcloud} command line tool to get credentials for Datastore:
  * <pre>
-  * $ gcloud auth login
+ * $ gcloud auth login
  * </pre>
  *
- * <p>To read a {@link PCollection} from a query to Datastore, use
- * {@link DatastoreIO#read} and its methods {#link DatastoreIO.Read#withDataset}
- * and {#link DatastoreIO.Read#withQuery} to specify dataset to read, the query
- * to read from, and optionally {@link DatastoreIO.Source#withHost} to specify
- * the host of Datastore.
- * For example:
+ * <p>To read a {@link PCollection} from a query to Datastore, use {@link DatastoreIO#source} and
+ * its methods {@link DatastoreIO.Source#withDataset} and {@link DatastoreIO.Source#withQuery} to
+ * specify the dataset to query and the query to read from. You can optionally provide a namespace
+ * to query within using {@link DatastoreIO.Source#withNamespace} or a Datastore host using
+ * {@link DatastoreIO.Source#withHost}.
+ *
+ * <p>For example:
  *
  * <pre> {@code
  * // Read a query from Datastore
- * PipelineOptions options =
- *     PipelineOptionsFactory.fromArgs(args).create();
+ * PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
+ * Query query = ...;
+ * String dataset = "...";
+ *
  * Pipeline p = Pipeline.create(options);
  * PCollection<Entity> entities = p.apply(
- *     Read.from(DatastoreIO.read()
+ *     Read.from(DatastoreIO.source()
  *         .withDataset(datasetId)
  *         .withQuery(query)
  *         .withHost(host)));
- * p.run();
  * } </pre>
  *
  * <p>or:
  *
  * <pre> {@code
- * // Read a query from Datastore
- * PipelineOptions options =
- *     PipelineOptionsFactory.fromArgs(args).create();
+ * // Read a query from Datastore using the default namespace and host
+ * PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
+ * Query query = ...;
+ * String dataset = "...";
+ *
  * Pipeline p = Pipeline.create(options);
  * PCollection<Entity> entities = p.apply(DatastoreIO.readFrom(datasetId, query));
  * p.run();
@@ -126,29 +135,37 @@ import java.util.NoSuchElementException;
  * } </pre>
  *
  * <p>To optionally change the host that is used to write to the Datastore, use {@link
- * DatastoreIO#sink} to build a DatastoreIO {@link Sink} and write to it using the {@link Write}
+ * DatastoreIO#sink} to build a {@link DatastoreIO.Sink} and write to it using the {@link Write}
  * transform:
  *
  * <pre> {@code
  * PCollection<Entity> entities = ...;
  * entities.apply(Write.to(DatastoreIO.sink().withDataset(dataset).withHost(host)));
- * p.run();
  * } </pre>
  *
- * <p>Entities in the PCollection to be written must have complete keys.  Complete keys specify the
- * name/id of the entity, where incomplete keys do not. Entities will be committed as upsert (update
- * or insert) mutations. Please read
+ * <p>{@link Entity Entities} in the {@code PCollection} to be written must have complete
+ * {@link Key Keys}. Complete {@code Keys} specify the {@code name} and {@code id} of the
+ * {@code Entity}, where incomplete {@code Keys} do not. A {@code namespace} other than the
+ * project default may be written to by specifying it in the {@code Entity} {@code Keys}.
+ *
+ * <pre>{@code
+ * Key.Builder keyBuilder = DatastoreHelper.makeKey(...);
+ * keyBuilder.getPartitionIdBuilder().setNamespace(namespace);
+ * }</pre>
+ *
+ * <p>{@code Entities} will be committed as upsert (update or insert) mutations. Please read
  * <a href="https://cloud.google.com/datastore/docs/concepts/entities">Entities, Properties, and
- * Keys</a> for more information about entity keys.
+ * Keys</a> for more information about {@code Entity} keys.
  *
  * <p><h3>Permissions</h3>
- * Permission requirements depend on the
- * {@link com.google.cloud.dataflow.sdk.runners.PipelineRunner PipelineRunner} that is
- * used to execute the Dataflow job. Please refer to the documentation of corresponding
- * {@code PipelineRunner}s for more details.
+ * Permission requirements depend on the {@code PipelineRunner} that is used to execute the
+ * Dataflow job. Please refer to the documentation of corresponding {@code PipelineRunner}s for
+ * more details.
  *
  * <p>Please see <a href="https://cloud.google.com/datastore/docs/activate">Cloud Datastore Sign Up
  * </a>for security and permission related information specific to Datastore.
+ *
+ * @see com.google.cloud.dataflow.sdk.runners.PipelineRunner
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class DatastoreIO {
@@ -161,12 +178,29 @@ public class DatastoreIO {
   public static final int DATASTORE_BATCH_UPDATE_LIMIT = 500;
 
   /**
-   * Returns an empty {@code DatastoreIO.Read} builder with the default host.
-   * You'll need to configure the dataset and query using {@link DatastoreIO.Source#withDataset}
-   * and {@link DatastoreIO.Source#withQuery}.
+   * Returns an empty {@link DatastoreIO.Source} builder with the default {@code host}.
+   * Configure the {@code dataset}, {@code query}, and {@code namespace} using
+   * {@link DatastoreIO.Source#withDataset}, {@link DatastoreIO.Source#withQuery},
+   * and {@link DatastoreIO.Source#withNamespace}.
+   *
+   * @deprecated the name and return type do not match. Use {@link #source()}.
    */
+  @Deprecated
   public static Source read() {
-    return new Source(DEFAULT_HOST, null, null);
+    return source();
+  }
+
+  /**
+   * Returns an empty {@link DatastoreIO.Source} builder with the default {@code host}.
+   * Configure the {@code dataset}, {@code query}, and {@code namespace} using
+   * {@link DatastoreIO.Source#withDataset}, {@link DatastoreIO.Source#withQuery},
+   * and {@link DatastoreIO.Source#withNamespace}.
+   *
+   * <p>The resulting {@link Source} object can be passed to {@link Read} to create a
+   * {@code PTransform} that will read from Datastore.
+   */
+  public static Source source() {
+    return new Source(DEFAULT_HOST, null, null, null);
   }
 
   /**
@@ -174,114 +208,64 @@ public class DatastoreIO {
    * against the given dataset.
    */
   public static Read.Bounded<Entity> readFrom(String datasetId, Query query) {
-    return Read.from(new Source(DEFAULT_HOST, datasetId, query));
+    return Read.from(new Source(DEFAULT_HOST, datasetId, query, null));
   }
 
   /**
    * Returns a {@code PTransform} that reads Datastore entities from the query
    * against the given dataset and host.
+   *
+   * @deprecated prefer {@link #source()} with {@link Source#withHost}, {@link Source#withDataset},
+   *    {@link Source#withQuery}s.
    */
+  @Deprecated
   public static Read.Bounded<Entity> readFrom(String host, String datasetId, Query query) {
-    return Read.from(new Source(host, datasetId, query));
+    return Read.from(new Source(host, datasetId, query, null));
   }
 
   /**
    * A {@link Source} that reads the result rows of a Datastore query as {@code Entity} objects.
    */
   public static class Source extends BoundedSource<Entity> {
-    private static final Logger LOG = LoggerFactory.getLogger(Source.class);
-    String host;
-    String datasetId;
-    Query query;
+    public String getHost() {
+      return host;
+    }
 
-    /** For testing only. */
-    private QuerySplitter mockSplitter;
-    private Long mockEstimateSizeBytes;
+    public String getDataset() {
+      return datasetId;
+    }
 
-    private Source(String host, String datasetId, Query query) {
-      this.host = host;
-      this.datasetId = datasetId;
-      this.query = query;
+    public Query getQuery() {
+      return query;
+    }
+
+    @Nullable
+    public String getNamespace() {
+      return namespace;
     }
 
     public Source withDataset(String datasetId) {
-      return new Source(host, datasetId, query);
+      checkNotNull(datasetId, "datasetId");
+      return new Source(host, datasetId, query, namespace);
     }
 
     public Source withQuery(Query query) {
-      return new Source(host, datasetId, query);
+      checkNotNull(query, "query");
+      return new Source(host, datasetId, query, namespace);
     }
 
     public Source withHost(String host) {
-      return new Source(host, datasetId, query);
+      checkNotNull(host, "host");
+      return new Source(host, datasetId, query, namespace);
+    }
+
+    public Source withNamespace(@Nullable String namespace) {
+      return new Source(host, datasetId, query, namespace);
     }
 
     @Override
     public Coder<Entity> getDefaultOutputCoder() {
       return EntityCoder.of();
-    }
-
-    @Override
-    public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
-      // Datastore provides no way to get a good estimate of how large the result of a query
-      // will be. As a rough approximation, we attempt to fetch the statistics of the whole
-      // entity kind being queried, using the __Stat_Kind__ system table, assuming exactly 1 kind
-      // is specified in the query.
-      if (mockEstimateSizeBytes != null) {
-        return mockEstimateSizeBytes;
-      }
-
-      Datastore datastore = getDatastore(options);
-      if (query.getKindCount() != 1) {
-        throw new UnsupportedOperationException(
-            "Can only estimate size for queries specifying exactly 1 kind.");
-      }
-      String ourKind = query.getKind(0).getName();
-      long latestTimestamp = queryLatestStatisticsTimestamp(datastore);
-      Query.Builder query = Query.newBuilder();
-      query.addKindBuilder().setName("__Stat_Kind__");
-      query.setFilter(makeFilter(
-          makeFilter("kind_name", EQUAL, makeValue(ourKind)).build(),
-          makeFilter("timestamp", EQUAL, makeValue(latestTimestamp)).build()));
-      DatastoreV1.RunQueryRequest request =
-          DatastoreV1.RunQueryRequest.newBuilder().setQuery(query).build();
-
-      long now = System.currentTimeMillis();
-      DatastoreV1.RunQueryResponse response = datastore.runQuery(request);
-      LOG.info("Query for per-kind statistics took {}ms", System.currentTimeMillis() - now);
-
-      DatastoreV1.QueryResultBatch batch = response.getBatch();
-      if (batch.getEntityResultCount() == 0) {
-        throw new NoSuchElementException(
-            "Datastore statistics for kind " + ourKind + " unavailable");
-      }
-      Entity entity = batch.getEntityResult(0).getEntity();
-      return getPropertyMap(entity).get("entity_bytes").getIntegerValue();
-    }
-
-    /**
-     * Datastore system tables with statistics are periodically updated. This method fetches
-     * the latest timestamp of statistics update using the __Stat_Total__ table.
-     */
-    private long queryLatestStatisticsTimestamp(Datastore datastore) throws DatastoreException {
-      Query.Builder query = Query.newBuilder();
-      query.addKindBuilder().setName("__Stat_Total__");
-      query.addOrder(makeOrder("timestamp", DESCENDING));
-      query.setLimit(1);
-      DatastoreV1.RunQueryRequest request =
-          DatastoreV1.RunQueryRequest.newBuilder().setQuery(query).build();
-
-      long now = System.currentTimeMillis();
-      DatastoreV1.RunQueryResponse response = datastore.runQuery(request);
-      LOG.info("Query for latest stats timestamp of dataset {} took {}ms", datasetId,
-          System.currentTimeMillis() - now);
-      DatastoreV1.QueryResultBatch batch = response.getBatch();
-      if (batch.getEntityResultCount() == 0) {
-        throw new NoSuchElementException(
-            "Datastore total statistics for dataset " + datasetId + " unavailable");
-      }
-      Entity entity = batch.getEntityResult(0).getEntity();
-      return getPropertyMap(entity).get("timestamp").getTimestampMicrosecondsValue();
     }
 
     @Override
@@ -293,34 +277,36 @@ public class DatastoreIO {
     @Override
     public List<Source> splitIntoBundles(long desiredBundleSizeBytes, PipelineOptions options)
         throws Exception {
-      DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
       long numSplits;
       try {
         numSplits = Math.round(((double) getEstimatedSizeBytes(options)) / desiredBundleSizeBytes);
       } catch (Exception e) {
-        LOG.warn("Estimated size unavailable, using number of workers", e);
-        // Fallback in case estimated size is unavailable.
-        numSplits = dataflowOptions.getNumWorkers();
+        // Fallback in case estimated size is unavailable. TODO: fix this, it's horrible.
+
+        // 1. Try Dataflow's numWorkers, which will be 0 for other workers.
+        DataflowPipelineWorkerPoolOptions poolOptions =
+            options.as(DataflowPipelineWorkerPoolOptions.class);
+        if (poolOptions.getNumWorkers() > 0) {
+          LOG.warn("Estimated size of unavailable, using the number of workers {}",
+              poolOptions.getNumWorkers(), e);
+          numSplits = poolOptions.getNumWorkers();
+        } else {
+          // 2. Default to 12 in the unknown case.
+          numSplits = 12;
+        }
       }
 
       // If the desiredBundleSize or number of workers results in 1 split, simply return
       // a source that reads from the original query.
       if (numSplits <= 1) {
-        return Lists.newArrayList(this);
+        return ImmutableList.of(this);
       }
 
-      List<Query> splitQueries;
-      if (mockSplitter == null) {
-        splitQueries = DatastoreHelper.getQuerySplitter().getSplits(
-            query, (int) numSplits, getDatastore(options));
-      } else {
-        splitQueries = mockSplitter.getSplits(query, (int) numSplits, null);
+      ImmutableList.Builder<Source> splits = ImmutableList.builder();
+      for (Query splitQuery : getSplitQueries(Ints.checkedCast(numSplits), options)) {
+        splits.add(new Source(host, datasetId, splitQuery, namespace));
       }
-      List<Source> res = new ArrayList<>();
-      for (Query splitQuery : splitQueries) {
-        res.add(new Source(host, datasetId, splitQuery));
-      }
-      return res;
+      return splits.build();
     }
 
     @Override
@@ -333,6 +319,149 @@ public class DatastoreIO {
       Preconditions.checkNotNull(host, "host");
       Preconditions.checkNotNull(query, "query");
       Preconditions.checkNotNull(datasetId, "datasetId");
+    }
+
+    @Override
+    public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
+      // Datastore provides no way to get a good estimate of how large the result of a query
+      // will be. As a rough approximation, we attempt to fetch the statistics of the whole
+      // entity kind being queried, using the __Stat_Kind__ system table, assuming exactly 1 kind
+      // is specified in the query.
+      //
+      // See https://cloud.google.com/datastore/docs/concepts/stats
+      if (mockEstimateSizeBytes != null) {
+        return mockEstimateSizeBytes;
+      }
+
+      Datastore datastore = getDatastore(options);
+      if (query.getKindCount() != 1) {
+        throw new UnsupportedOperationException(
+            "Can only estimate size for queries specifying exactly 1 kind.");
+      }
+      String ourKind = query.getKind(0).getName();
+      long latestTimestamp = queryLatestStatisticsTimestamp(datastore);
+      Query.Builder query = Query.newBuilder();
+      if (namespace == null) {
+        query.addKindBuilder().setName("__Stat_Kind__");
+      } else {
+        query.addKindBuilder().setName("__Ns_Stat_Kind__");
+      }
+      query.setFilter(makeFilter(
+          makeFilter("kind_name", EQUAL, makeValue(ourKind)).build(),
+          makeFilter("timestamp", EQUAL, makeValue(latestTimestamp)).build()));
+      RunQueryRequest request = makeRequest(query.build());
+
+      long now = System.currentTimeMillis();
+      RunQueryResponse response = datastore.runQuery(request);
+      LOG.info("Query for per-kind statistics took {}ms", System.currentTimeMillis() - now);
+
+      QueryResultBatch batch = response.getBatch();
+      if (batch.getEntityResultCount() == 0) {
+        throw new NoSuchElementException(
+            "Datastore statistics for kind " + ourKind + " unavailable");
+      }
+      Entity entity = batch.getEntityResult(0).getEntity();
+      return getPropertyMap(entity).get("entity_bytes").getIntegerValue();
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(getClass())
+          .add("host", host)
+          .add("dataset", datasetId)
+          .add("query", query)
+          .add("namespace", namespace)
+          .toString();
+    }
+
+    ///////////////////////////////////////////////////////////////////////////////////////////
+
+    private static final Logger LOG = LoggerFactory.getLogger(Source.class);
+    private final String host;
+    /** Not really nullable, but it may be {@code null} for in-progress {@code Source}s. */
+    @Nullable
+    private final String datasetId;
+    /** Not really nullable, but it may be {@code null} for in-progress {@code Source}s. */
+    @Nullable
+    private final Query query;
+    @Nullable
+    private final String namespace;
+
+    /** For testing only. TODO: This could be much cleaner with dependency injection. */
+    @Nullable
+    private QuerySplitter mockSplitter;
+    @Nullable
+    private Long mockEstimateSizeBytes;
+
+    /**
+     * Note that only {@code namespace} is really {@code @Nullable}. The other parameters may be
+     * {@code null} as a matter of build order, but if they are {@code null} at instantiation time,
+     * an error will be thrown.
+     */
+    private Source(
+        String host, @Nullable String datasetId, @Nullable Query query,
+        @Nullable String namespace) {
+      this.host = checkNotNull(host, "host");
+      this.datasetId = datasetId;
+      this.query = query;
+      this.namespace = namespace;
+    }
+
+    /**
+     * A helper function to get the split queries, taking into account the optional
+     * {@code namespace} and whether there is a mock splitter.
+     */
+    private List<Query> getSplitQueries(int numSplits, PipelineOptions options)
+        throws DatastoreException {
+      // If namespace is set, include it in the split request so splits are calculated accordingly.
+      PartitionId.Builder partitionBuilder = PartitionId.newBuilder();
+      if (namespace != null) {
+        partitionBuilder.setNamespace(namespace);
+      }
+
+      if (mockSplitter != null) {
+        // For testing.
+        return mockSplitter.getSplits(query, partitionBuilder.build(), numSplits, null);
+      }
+
+      return DatastoreHelper.getQuerySplitter().getSplits(
+          query, partitionBuilder.build(), numSplits, getDatastore(options));
+    }
+
+    /**
+     * Builds a {@link RunQueryRequest} from the {@code query}, using the properties set on this
+     * {@code Source}. For example, sets the {@code namespace} for the request.
+     */
+    private RunQueryRequest makeRequest(Query query) {
+      RunQueryRequest.Builder requestBuilder = RunQueryRequest.newBuilder().setQuery(query);
+      if (namespace != null) {
+        requestBuilder.getPartitionIdBuilder().setNamespace(namespace);
+      }
+      return requestBuilder.build();
+    }
+
+    /**
+     * Datastore system tables with statistics are periodically updated. This method fetches
+     * the latest timestamp of statistics update using the {@code __Stat_Total__} table.
+     */
+    private long queryLatestStatisticsTimestamp(Datastore datastore) throws DatastoreException {
+      Query.Builder query = Query.newBuilder();
+      query.addKindBuilder().setName("__Stat_Total__");
+      query.addOrder(makeOrder("timestamp", DESCENDING));
+      query.setLimit(1);
+      RunQueryRequest request = makeRequest(query.build());
+
+      long now = System.currentTimeMillis();
+      RunQueryResponse response = datastore.runQuery(request);
+      LOG.info("Query for latest stats timestamp of dataset {} took {}ms", datasetId,
+          System.currentTimeMillis() - now);
+      QueryResultBatch batch = response.getBatch();
+      if (batch.getEntityResultCount() == 0) {
+        throw new NoSuchElementException(
+            "Datastore total statistics for dataset " + datasetId + " unavailable");
+      }
+      Entity entity = batch.getEntityResult(0).getEntity();
+      return getPropertyMap(entity).get("timestamp").getTimestampMicrosecondsValue();
     }
 
     private Datastore getDatastore(PipelineOptions pipelineOptions) {
@@ -349,33 +478,18 @@ public class DatastoreIO {
 
     /** For testing only. */
     Source withMockSplitter(QuerySplitter splitter) {
-      Source res = new Source(host, datasetId, query);
+      Source res = new Source(host, datasetId, query, namespace);
       res.mockSplitter = splitter;
       res.mockEstimateSizeBytes = mockEstimateSizeBytes;
       return res;
     }
 
     /** For testing only. */
-    public Source withMockEstimateSizeBytes(Long estimateSizeBytes) {
-      Source res = new Source(host, datasetId, query);
+    Source withMockEstimateSizeBytes(Long estimateSizeBytes) {
+      Source res = new Source(host, datasetId, query, namespace);
       res.mockSplitter = mockSplitter;
       res.mockEstimateSizeBytes = estimateSizeBytes;
       return res;
-    }
-
-    @Override
-    public String toString() {
-      StringBuilder sb = new StringBuilder();
-      sb.append("Datastore: ");
-      sb.append("host ").append((host == null) ? "null" : host);
-      sb.append("; dataset ").append((datasetId == null) ? "null" : datasetId);
-      sb.append("; query: ");
-      if (query == null) {
-        sb.append("null");
-      } else {
-        sb.append("\n").append(query.toString());
-      }
-      return sb.toString();
     }
   }
 
@@ -414,6 +528,7 @@ public class DatastoreIO {
      * Returns a {@link Sink} that is like this one, but will write to the specified dataset.
      */
     public Sink withDataset(String datasetId) {
+      checkNotNull(datasetId, "datasetId");
       return new Sink(host, datasetId);
     }
 
@@ -422,6 +537,7 @@ public class DatastoreIO {
      * the {@link DatastoreIO#DEFAULT_HOST default host} will be used.
      */
     public Sink withHost(String host) {
+      checkNotNull(host, "host");
       return new Sink(host, datasetId);
     }
 
@@ -429,7 +545,7 @@ public class DatastoreIO {
      * Constructs a Sink with given host and dataset.
      */
     protected Sink(String host, String datasetId) {
-      this.host = host;
+      this.host = checkNotNull(host, "host");
       this.datasetId = datasetId;
     }
 
@@ -657,7 +773,7 @@ public class DatastoreIO {
 
   /**
    * A {@link Source.Reader} over the records from a query of the datastore.
-
+   *
    * <p>Timestamped records are currently not supported.
    * All records implicitly have the timestamp of {@code BoundedWindow.TIMESTAMP_MIN_VALUE}.
    */
@@ -677,12 +793,12 @@ public class DatastoreIO {
     /**
      * Iterator over records.
      */
-    private java.util.Iterator<DatastoreV1.EntityResult> entities;
+    private java.util.Iterator<EntityResult> entities;
 
     /**
      * Current batch of query results.
      */
-    private DatastoreV1.QueryResultBatch currentBatch;
+    private QueryResultBatch currentBatch;
 
     /**
      * Maximum number of results to request per query.
@@ -760,7 +876,7 @@ public class DatastoreIO {
      * and updates the cursor to get the next batch as needed.
      * Query has specified limit and offset from InputSplit.
      */
-    private Iterator<DatastoreV1.EntityResult> getIteratorAndMoveCursor()
+    private Iterator<EntityResult> getIteratorAndMoveCursor()
         throws DatastoreException {
       Query.Builder query = this.source.query.toBuilder().clone();
       query.setLimit(QUERY_LIMIT);
@@ -768,9 +884,8 @@ public class DatastoreIO {
         query.setStartCursor(currentBatch.getEndCursor());
       }
 
-      DatastoreV1.RunQueryRequest request =
-          DatastoreV1.RunQueryRequest.newBuilder().setQuery(query).build();
-      DatastoreV1.RunQueryResponse response = datastore.runQuery(request);
+      RunQueryRequest request = source.makeRequest(query.build());
+      RunQueryResponse response = datastore.runQuery(request);
 
       currentBatch = response.getBatch();
 

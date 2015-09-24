@@ -21,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.argThat;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -43,6 +44,7 @@ import org.mockito.ArgumentMatcher;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Unit tests for {@code DatastoreSource}.
@@ -51,12 +53,19 @@ import java.util.List;
 public class DatastoreReaderTest {
   private static final String TEST_KIND = "mykind";
   private static final String TEST_PROPERTY = "myproperty";
+  private static final String TEST_NAMESPACE = "mynamespace";
 
-  private static class IsValidRequest extends ArgumentMatcher<RunQueryRequest> {
+  private static class IsValidRequestWithNamespace extends ArgumentMatcher<RunQueryRequest> {
+    private final String namespace;
+
+    public IsValidRequestWithNamespace(String namespace) {
+      this.namespace = namespace;
+    }
     @Override
     public boolean matches(Object o) {
       RunQueryRequest request = (RunQueryRequest) o;
-      return request.hasQuery();
+      return request.hasQuery()
+          && Objects.equals(request.getPartitionId().getNamespace(), namespace);
     }
   }
 
@@ -71,6 +80,7 @@ public class DatastoreReaderTest {
     RunQueryResponse.Builder firstResponseBuilder = RunQueryResponse.newBuilder();
     RunQueryResponse.Builder secondResponseBuilder = RunQueryResponse.newBuilder();
     RunQueryResponse.Builder thirdResponseBuilder = RunQueryResponse.newBuilder();
+    RunQueryResponse.Builder firstNamespaceResponseBuilder = RunQueryResponse.newBuilder();
     {
       QueryResultBatch.Builder resultsBatch = QueryResultBatch.newBuilder();
       resultsBatch.addEntityResult(0, createEntityResult("val0"));
@@ -105,10 +115,29 @@ public class DatastoreReaderTest {
 
       thirdResponseBuilder.setBatch(resultsBatch.build());
     }
-    when(datastore.runQuery(argThat(new IsValidRequest())))
+    {
+      QueryResultBatch.Builder resultsBatch = QueryResultBatch.newBuilder();
+      resultsBatch.addEntityResult(0, createEntityResult("nsval0"));
+      resultsBatch.addEntityResult(1, createEntityResult("nsval1"));
+      resultsBatch.addEntityResult(2, createEntityResult("nsval2"));
+      resultsBatch.addEntityResult(3, createEntityResult("nsval3"));
+      resultsBatch.addEntityResult(4, createEntityResult("nsval4"));
+      resultsBatch.setEntityResultType(ResultType.FULL);
+
+      resultsBatch.setMoreResults(MoreResultsType.NO_MORE_RESULTS);
+
+      firstNamespaceResponseBuilder.setBatch(resultsBatch.build());
+    }
+    // Without namespace
+    when(datastore.runQuery(argThat(new IsValidRequestWithNamespace(""))))
         .thenReturn(firstResponseBuilder.build())
         .thenReturn(secondResponseBuilder.build())
         .thenReturn(thirdResponseBuilder.build());
+
+    // With namespace
+    doReturn(firstNamespaceResponseBuilder.build()).when(datastore)
+    .runQuery(argThat(new IsValidRequestWithNamespace(TEST_NAMESPACE)));
+
     return datastore;
   }
 
@@ -124,7 +153,7 @@ public class DatastoreReaderTest {
     List<Entity> entityResults = new ArrayList<Entity>();
 
     try (DatastoreIO.DatastoreReader iterator =
-            new DatastoreIO.DatastoreReader(DatastoreIO.read().withQuery(query), datastore)) {
+            new DatastoreIO.DatastoreReader(DatastoreIO.source().withQuery(query), datastore)) {
       while (iterator.advance()) {
         entityResults.add(iterator.getCurrent());
       }
@@ -138,6 +167,34 @@ public class DatastoreReaderTest {
       assertTrue(entityResults.get(i).getPropertyList().get(0).getValue().hasStringValue());
       assertEquals(
           entityResults.get(i).getPropertyList().get(0).getValue().getStringValue(), "val" + i);
+    }
+  }
+
+  @Test
+  public void testReadWithNamespace() throws Exception {
+    Datastore datastore = buildMockDatastore();
+
+    Query.Builder q = Query.newBuilder();
+    q.addKindBuilder().setName(TEST_KIND);
+    Query query = q.build();
+
+    List<Entity> entityResults = new ArrayList<Entity>();
+
+    try (DatastoreIO.DatastoreReader iterator = new DatastoreIO.DatastoreReader(
+        DatastoreIO.source().withQuery(query).withNamespace(TEST_NAMESPACE), datastore)) {
+      while (iterator.advance()) {
+        entityResults.add(iterator.getCurrent());
+      }
+    }
+
+    assertEquals(5, entityResults.size());
+    for (int i = 0; i < 5; i++) {
+      assertNotNull(entityResults.get(i).getPropertyList());
+      assertEquals(entityResults.get(i).getPropertyList().size(), 1);
+      assertTrue(entityResults.get(i).getPropertyList().get(0).hasValue());
+      assertTrue(entityResults.get(i).getPropertyList().get(0).getValue().hasStringValue());
+      assertEquals(
+          entityResults.get(i).getPropertyList().get(0).getValue().getStringValue(), "nsval" + i);
     }
   }
 }

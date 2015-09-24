@@ -16,7 +16,6 @@
 
 package com.google.cloud.dataflow.examples.cookbook;
 
-import com.google.api.services.datastore.DatastoreV1;
 import com.google.api.services.datastore.DatastoreV1.Entity;
 import com.google.api.services.datastore.DatastoreV1.Key;
 import com.google.api.services.datastore.DatastoreV1.Property;
@@ -26,6 +25,7 @@ import com.google.api.services.datastore.client.DatastoreHelper;
 import com.google.cloud.dataflow.examples.WordCount;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.io.DatastoreIO;
+import com.google.cloud.dataflow.sdk.io.Read;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.options.Default;
 import com.google.cloud.dataflow.sdk.options.Description;
@@ -37,6 +37,8 @@ import com.google.cloud.dataflow.sdk.transforms.ParDo;
 
 import java.util.Map;
 import java.util.UUID;
+
+import javax.annotation.Nullable;
 
 /**
  * A WordCount example using DatastoreIO.
@@ -72,7 +74,7 @@ public class DatastoreWordCount {
     @Override
     public void processElement(ProcessContext c) {
       Map<String, Value> props = DatastoreHelper.getPropertyMap(c.element());
-      DatastoreV1.Value value = props.get("content");
+      Value value = props.get("content");
       if (value != null) {
         c.output(DatastoreHelper.getString(value));
       }
@@ -83,19 +85,36 @@ public class DatastoreWordCount {
    * A DoFn that creates entity for every line in Shakespeare.
    */
   static class CreateEntityFn extends DoFn<String, Entity> {
-    private String kind;
+    private final String namespace;
+    private final String kind;
+    private final Key ancestorKey;
 
-    CreateEntityFn(String kind) {
+    CreateEntityFn(String namespace, String kind) {
+      this.namespace = namespace;
       this.kind = kind;
+
+      // Build the ancestor key for all created entities once, including the namespace.
+      Key.Builder keyBuilder = DatastoreHelper.makeKey(kind, "root");
+      if (namespace != null) {
+        keyBuilder.getPartitionIdBuilder().setNamespace(namespace);
+      }
+      ancestorKey = keyBuilder.build();
     }
 
     public Entity makeEntity(String content) {
       Entity.Builder entityBuilder = Entity.newBuilder();
-      // Create entities with same ancestor Key.
-      Key ancestorKey = DatastoreHelper.makeKey(kind, "root").build();
-      Key key = DatastoreHelper.makeKey(ancestorKey, kind, UUID.randomUUID().toString()).build();
 
-      entityBuilder.setKey(key);
+      // All created entities have the same ancestor Key.
+      Key.Builder keyBuilder =
+          DatastoreHelper.makeKey(ancestorKey, kind, UUID.randomUUID().toString());
+      // NOTE: Namespace is not inherited between keys created with DatastoreHelper.makeKey, so
+      // we must set the namespace on keyBuilder. TODO: Once partitionId inheritance is added,
+      // we can simplify this code.
+      if (namespace != null) {
+        keyBuilder.getPartitionIdBuilder().setNamespace(namespace);
+      }
+
+      entityBuilder.setKey(keyBuilder.build());
       entityBuilder.addProperty(Property.newBuilder().setName("content")
           .setValue(Value.newBuilder().setStringValue(content)));
       return entityBuilder.build();
@@ -133,6 +152,10 @@ public class DatastoreWordCount {
     String getKind();
     void setKind(String value);
 
+    @Description("Dataset namespace")
+    String getNamespace();
+    void setNamespace(@Nullable String value);
+
     @Description("Read an existing dataset, do not write first")
     boolean isReadOnly();
     void setReadOnly(boolean value);
@@ -150,7 +173,7 @@ public class DatastoreWordCount {
   public static void writeDataToDatastore(Options options) {
       Pipeline p = Pipeline.create(options);
       p.apply(TextIO.Read.named("ReadLines").from(options.getInput()))
-       .apply(ParDo.of(new CreateEntityFn(options.getKind())))
+       .apply(ParDo.of(new CreateEntityFn(options.getNamespace(), options.getKind())))
        .apply(DatastoreIO.writeTo(options.getDataset()));
 
       p.run();
@@ -165,22 +188,26 @@ public class DatastoreWordCount {
     q.addKindBuilder().setName(options.getKind());
     Query query = q.build();
 
+    // For Datastore sources, the read namespace can be set on the entire query.
+    DatastoreIO.Source source = DatastoreIO.source()
+        .withDataset(options.getDataset())
+        .withQuery(query)
+        .withNamespace(options.getNamespace());
+
     Pipeline p = Pipeline.create(options);
-    p.apply(DatastoreIO.readFrom(options.getDataset(), query).named("ReadShakespeareFromDatastore"))
-     .apply(ParDo.of(new GetContentFn()))
-     .apply(new WordCount.CountWords())
-     .apply(ParDo.of(new WordCount.FormatAsTextFn()))
-     .apply(TextIO.Write.named("WriteLines")
-                        .to(options.getOutput())
-                        .withNumShards(options.getNumShards()));
+    p.apply("ReadShakespeareFromDatastore", Read.from(source))
+        .apply("StringifyEntity", ParDo.of(new GetContentFn()))
+        .apply("CountWords", new WordCount.CountWords())
+        .apply("PrintWordCount", ParDo.of(new WordCount.FormatAsTextFn()))
+        .apply("WriteLines", TextIO.Write.to(options.getOutput())
+            .withNumShards(options.getNumShards()));
     p.run();
   }
 
   /**
-   * Main function.
-   * An example to demo how to use DatastoreIO.  The runner here is
-   * customizable, which means users could pass either DirectPipelineRunner
-   * or DataflowPipelineRunner in PipelineOptions.
+   * An example to demo how to use {@link DatastoreIO}.  The runner here is
+   * customizable, which means users could pass either {@code DirectPipelineRunner}
+   * or {@code DataflowPipelineRunner} in the pipeline options.
    */
   public static void main(String args[]) {
     // The options are used in two places, for Dataflow service, and
@@ -189,10 +216,11 @@ public class DatastoreWordCount {
 
     if (!options.isReadOnly()) {
       // First example: write data to Datastore for reading later.
-      // Note: this will insert new entries with the given kind. Existing entries
-      // should be cleared first, or the final counts will contain duplicates.
-      // The Datastore Admin tool in the AppEngine console can be used to erase
-      // all entries with a particular kind.
+      //
+      // NOTE: this write does not delete any existing Entities in the Datastore, so if run
+      // multiple times with the same output dataset, there may be duplicate entries. The
+      // Datastore Query tool in the Google Developers Console can be used to inspect or erase all
+      // entries with a particular namespace and/or kind.
       DatastoreWordCount.writeDataToDatastore(options);
     }
 
