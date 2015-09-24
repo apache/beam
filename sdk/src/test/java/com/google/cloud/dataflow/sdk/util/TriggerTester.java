@@ -65,7 +65,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.logging.Logger;
 
 import javax.annotation.Nullable;
 
@@ -84,8 +83,6 @@ import javax.annotation.Nullable;
  */
 public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
 
-  private static final Logger LOGGER = Logger.getLogger(TriggerTester.class.getName());
-
   private Instant watermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
   private Instant processingTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
@@ -96,19 +93,12 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
   private final Coder<OutputT> outputCoder;
 
   private static final String KEY = "TEST_KEY";
-  private boolean logInteractions = false;
   private ExecutableTrigger<W> executableTrigger;
 
   private final InMemoryLongSumAggregator droppedDueToClosedWindow =
       new InMemoryLongSumAggregator(ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER);
   private final InMemoryLongSumAggregator droppedDueToLateness =
       new InMemoryLongSumAggregator(ReduceFnRunner.DROPPED_DUE_TO_LATENESS_COUNTER);
-
-  private void logInteraction(String fmt, Object... args) {
-    if (logInteractions) {
-      LOGGER.warning("Trigger Interaction: " + String.format(fmt, args));
-    }
-  }
 
   public static <W extends BoundedWindow> TriggerTester<Integer, Iterable<Integer>, W> nonCombining(
       WindowingStrategy<?, W> windowingStrategy) throws Exception {
@@ -173,10 +163,6 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
 
   public ExecutableTrigger<W> getTrigger() {
     return executableTrigger;
-  }
-
-  public void logInteractions(boolean logInteractions) {
-    this.logInteractions = logInteractions;
   }
 
   public boolean isMarkedFinished(W window) {
@@ -291,7 +277,6 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
     Preconditions.checkState(!newWatermark.isBefore(watermark),
         "Cannot move watermark time backwards from %s to %s",
         watermark.getMillis(), newWatermark.getMillis());
-    logInteraction("Advancing watermark to %d", newWatermark.getMillis());
     watermark = newWatermark;
     timerInternals.advanceWatermark(runner, newWatermark);
   }
@@ -302,7 +287,6 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
     Preconditions.checkState(!newProcessingTime.isBefore(processingTime),
         "Cannot move processing time backwards from %s to %s",
         processingTime.getMillis(), newProcessingTime.getMillis());
-    logInteraction("Advancing processing time to %d", newProcessingTime.getMillis());
     processingTime = newProcessingTime;
     timerInternals.advanceProcessingTime(runner, newProcessingTime);
   }
@@ -310,8 +294,6 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
   public void injectElement(InputT value, Instant timestamp) throws Exception {
     Collection<W> windows = windowFn.assignWindows(new TriggerTester.StubAssignContext<W>(
         windowFn, value, timestamp, Arrays.asList(GlobalWindow.INSTANCE)));
-    logInteraction("Element %s at time %d put in windows %s",
-        value, timestamp.getMillis(), windows);
     runner.processElement(WindowedValue.of(value, timestamp, windows, PaneInfo.NO_FIRING));
   }
 
@@ -367,7 +349,6 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
       KV<String, OutputT> copy = SerializableUtils.<KV<String, OutputT>>ensureSerializableByCoder(
           KvCoder.of(StringUtf8Coder.of(), outputCoder), output, "outputForWindow");
       WindowedValue<KV<String, OutputT>> value = WindowedValue.of(copy, timestamp, windows, pane);
-      logInteraction("Outputting: %s", value);
       outputs.add(value);
     }
 
