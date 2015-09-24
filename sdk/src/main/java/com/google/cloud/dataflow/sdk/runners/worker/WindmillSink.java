@@ -17,7 +17,6 @@
 package com.google.cloud.dataflow.sdk.runners.worker;
 
 import static com.google.cloud.dataflow.sdk.util.Structs.getString;
-import static com.google.cloud.dataflow.sdk.util.ValueWithRecordId.ValueWithRecordIdCoder;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
@@ -29,6 +28,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo.PaneInfoCoder
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.ValueWithRecordId;
+import com.google.cloud.dataflow.sdk.util.ValueWithRecordId.ValueWithRecordIdCoder;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowedValue.FullWindowedValueCoder;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;

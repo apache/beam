@@ -22,11 +22,18 @@ import static org.mockito.Mockito.when;
 
 import com.google.cloud.dataflow.sdk.coders.BigEndianLongCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.coders.Coder.Context;
 import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
+import com.google.cloud.dataflow.sdk.coders.CollectionCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
+import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill.InputMessageBundle;
+import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill.Timer;
+import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill.WorkItem;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
+import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
@@ -41,7 +48,6 @@ import com.google.cloud.dataflow.sdk.util.NullSideInputReader;
 import com.google.cloud.dataflow.sdk.util.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.TimerInternals;
 import com.google.cloud.dataflow.sdk.util.TimerInternals.TimerData;
-import com.google.cloud.dataflow.sdk.util.TimerOrElement;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
@@ -50,6 +56,7 @@ import com.google.cloud.dataflow.sdk.util.state.StateNamespace;
 import com.google.cloud.dataflow.sdk.util.state.StateNamespaces;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
+import com.google.protobuf.ByteString;
 
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -62,18 +69,28 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /** Unit tests for {@link StreamingGroupAlsoByWindowsDoFn}. */
 @RunWith(JUnit4.class)
 public class StreamingGroupAlsoByWindowsDoFnTest {
+  private static final String KEY = "k";
+  private static final String STATE_FAMILY = "stateFamily";
+  private static final long WORK_TOKEN = 1000L;
+  private static final String SOURCE_COMPUTATION_ID = "sourceComputationId";
   private ExecutionContext execContext;
   private CounterSet counters;
 
   @Mock
   private TimerInternals mockTimerInternals;
+
+  private Coder<IntervalWindow> windowCoder = IntervalWindow.getCoder();
+  private Coder<Collection<IntervalWindow>> windowsCoder = CollectionCoder.of(windowCoder);
 
   @Before public void setUp() {
     MockitoAnnotations.initMocks(this);
@@ -96,7 +113,7 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
   @Test public void testEmpty() throws Exception {
     TupleTag<KV<String, Iterable<String>>> outputTag = new TupleTag<>();
     DoFnRunner.ListOutputManager outputManager = new DoFnRunner.ListOutputManager();
-    DoFnRunner<TimerOrElement<KV<String, String>>, KV<String, Iterable<String>>> runner =
+    DoFnRunner<KeyedWorkItem<String>, KV<String, Iterable<String>>> runner =
         makeRunner(
             outputTag, outputManager, WindowingStrategy.of(FixedWindows.of(Duration.millis(10))));
 
@@ -109,53 +126,76 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
     assertEquals(0, result.size());
   }
 
-  private <W extends BoundedWindow, V> TimerOrElement<KV<String, V>> timer(
-      Coder<W> windowCoder, W window, Instant timestamp, TimeDomain domain) {
+  private void addTimer(WorkItem.Builder workItem,
+      IntervalWindow window, Instant timestamp, Windmill.Timer.Type type) {
     StateNamespace namespace = StateNamespaces.window(windowCoder, window);
-    return TimerOrElement.<KV<String, V>>timer("k", TimerData.of(namespace, timestamp, domain));
+    workItem.getTimersBuilder().addTimersBuilder()
+        .setTag(StreamingModeExecutionContext.timerTag(TimerData.of(
+            namespace, timestamp,
+            type == Windmill.Timer.Type.WATERMARK
+                ? TimeDomain.EVENT_TIME : TimeDomain.PROCESSING_TIME)))
+        .setTimestamp(TimeUnit.MILLISECONDS.toMicros(timestamp.getMillis()))
+        .setType(type)
+        .setStateFamily(STATE_FAMILY);
+  }
+
+  private <V> void addElement(
+      InputMessageBundle.Builder messageBundle, Collection<IntervalWindow> windows,
+      Instant timestamp, Coder<V> valueCoder, V value) throws IOException {
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    Coder<Collection<? extends BoundedWindow>> windowsCoder =
+        (Coder) CollectionCoder.of(windowCoder);
+
+    ByteString.Output dataOutput = ByteString.newOutput();
+    valueCoder.encode(value, dataOutput, Context.OUTER);
+    messageBundle.addMessagesBuilder()
+        .setMetadata(WindmillSink.encodeMetadata(windowsCoder, windows, PaneInfo.NO_FIRING))
+        .setData(dataOutput.toByteString())
+        .setTimestamp(TimeUnit.MILLISECONDS.toMicros(timestamp.getMillis()));
+  }
+
+  private <T> WindowedValue<KeyedWorkItem<T>> createValue(
+      WorkItem.Builder workItem, Coder<T> valueCoder) {
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    Coder<Collection<? extends BoundedWindow>> wildcardWindowsCoder = (Coder) windowsCoder;
+    return WindowedValue.valueInEmptyWindows(KeyedWorkItem.workItem(
+        KEY, workItem.build(), windowCoder, wildcardWindowsCoder, valueCoder));
   }
 
   @Test public void testFixedWindows() throws Exception {
     TupleTag<KV<String, Iterable<String>>> outputTag = new TupleTag<>();
     DoFnRunner.ListOutputManager outputManager = new DoFnRunner.ListOutputManager();
-    DoFnRunner<TimerOrElement<KV<String, String>>, KV<String, Iterable<String>>> runner =
+    DoFnRunner<KeyedWorkItem<String>, KV<String, Iterable<String>>> runner =
         makeRunner(
             outputTag, outputManager, WindowingStrategy.of(FixedWindows.of(Duration.millis(10))));
-
-    Coder<IntervalWindow> windowCoder = FixedWindows.of(Duration.millis(10)).windowCoder();
 
     runner.startBundle();
     when(mockTimerInternals.currentWatermarkTime()).thenReturn(new Instant(0));
 
-    runner.processElement(WindowedValue.of(
-        TimerOrElement.element(KV.of("k", "v1")),
-        new Instant(1),
-        Arrays.asList(window(0, 10)),
-        PaneInfo.NO_FIRING));
+    WorkItem.Builder workItem1 = WorkItem.newBuilder();
+    workItem1.setKey(ByteString.copyFromUtf8(KEY));
+    workItem1.setWorkToken(WORK_TOKEN);
+    InputMessageBundle.Builder messageBundle = workItem1.addMessageBundlesBuilder();
+    messageBundle.setSourceComputationId(SOURCE_COMPUTATION_ID);
 
-    runner.processElement(WindowedValue.of(
-        TimerOrElement.element(KV.of("k", "v2")),
-        new Instant(2),
-        Arrays.asList(window(0, 10)),
-        PaneInfo.NO_FIRING));
+    Coder<String> valueCoder = StringUtf8Coder.of();
+    addElement(messageBundle, Arrays.asList(window(0, 10)), new Instant(1), valueCoder, "v1");
+    addElement(messageBundle, Arrays.asList(window(0, 10)), new Instant(2), valueCoder, "v2");
+    addElement(messageBundle, Arrays.asList(window(0, 10)), new Instant(0), valueCoder, "v0");
+    addElement(messageBundle, Arrays.asList(window(10, 20)), new Instant(13), valueCoder, "v3");
 
-    runner.processElement(WindowedValue.of(
-        TimerOrElement.element(KV.of("k", "v0")),
-        new Instant(0),
-        Arrays.asList(window(0, 10)),
-        PaneInfo.NO_FIRING));
+    runner.processElement(createValue(workItem1, valueCoder));
 
-    runner.processElement(WindowedValue.of(
-        TimerOrElement.element(KV.of("k", "v3")),
-        new Instant(13),
-        Arrays.asList(window(10, 20)),
-        PaneInfo.NO_FIRING));
+    runner.finishBundle();
+    runner.startBundle();
 
-    runner.processElement(WindowedValue.valueInEmptyWindows(this.<IntervalWindow, String>timer(
-            windowCoder, window(0, 10), new Instant(9), TimeDomain.EVENT_TIME)));
+    WorkItem.Builder workItem2 = WorkItem.newBuilder();
+    workItem2.setKey(ByteString.copyFromUtf8(KEY));
+    workItem2.setWorkToken(WORK_TOKEN);
+    addTimer(workItem2, window(0, 10), new Instant(9), Timer.Type.WATERMARK);
+    addTimer(workItem2, window(10, 20), new Instant(19), Timer.Type.WATERMARK);
 
-    runner.processElement(WindowedValue.valueInEmptyWindows(this.<IntervalWindow, String>timer(
-        windowCoder, window(10, 20), new Instant(19), TimeDomain.EVENT_TIME)));
+    runner.processElement(createValue(workItem2, valueCoder));
 
     runner.finishBundle();
 
@@ -164,13 +204,13 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
     assertEquals(2, result.size());
 
     WindowedValue<KV<String, Iterable<String>>> item0 = result.get(0);
-    assertEquals("k", item0.getValue().getKey());
+    assertEquals(KEY, item0.getValue().getKey());
     assertThat(item0.getValue().getValue(), Matchers.containsInAnyOrder("v0", "v1", "v2"));
     assertEquals(new Instant(0), item0.getTimestamp());
     assertThat(item0.getWindows(), Matchers.<BoundedWindow>contains(window(0, 10)));
 
     WindowedValue<KV<String, Iterable<String>>> item1 = result.get(1);
-    assertEquals("k", item1.getValue().getKey());
+    assertEquals(KEY, item1.getValue().getKey());
     assertThat(item1.getValue().getValue(), Matchers.containsInAnyOrder("v3"));
     assertEquals(new Instant(13), item1.getTimestamp());
     assertThat(item1.getWindows(), Matchers.<BoundedWindow>contains(window(10, 20)));
@@ -179,44 +219,43 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
   @Test public void testSlidingWindows() throws Exception {
     TupleTag<KV<String, Iterable<String>>> outputTag = new TupleTag<>();
     DoFnRunner.ListOutputManager outputManager = new DoFnRunner.ListOutputManager();
-    DoFnRunner<TimerOrElement<KV<String, String>>, KV<String, Iterable<String>>> runner =
+    DoFnRunner<KeyedWorkItem<String>, KV<String, Iterable<String>>> runner =
         makeRunner(
             outputTag,
             outputManager,
             WindowingStrategy.of(
             SlidingWindows.of(Duration.millis(20)).every(Duration.millis(10))));
 
-    Coder<IntervalWindow> windowCoder =
-        SlidingWindows.of(Duration.millis(10)).every(Duration.millis(10)).windowCoder();
-
     runner.startBundle();
     when(mockTimerInternals.currentWatermarkTime()).thenReturn(new Instant(0));
 
-    runner.processElement(WindowedValue.of(
-        TimerOrElement.element(KV.of("k", "v1")),
-        new Instant(5),
-        Arrays.asList(window(-10, 10), window(0, 20)),
-        PaneInfo.NO_FIRING));
+    WorkItem.Builder workItem1 = WorkItem.newBuilder();
+    workItem1.setKey(ByteString.copyFromUtf8(KEY));
+    workItem1.setWorkToken(WORK_TOKEN);
+    InputMessageBundle.Builder messageBundle = workItem1.addMessageBundlesBuilder();
+    messageBundle.setSourceComputationId(SOURCE_COMPUTATION_ID);
 
-    runner.processElement(WindowedValue.of(
-        TimerOrElement.element(KV.of("k", "v0")),
-        new Instant(2),
-        Arrays.asList(window(-10, 10), window(0, 20)),
-        PaneInfo.NO_FIRING));
+    Coder<String> valueCoder = StringUtf8Coder.of();
+    addElement(messageBundle,
+        Arrays.asList(window(-10, 10), window(0, 20)), new Instant(5), valueCoder, "v1");
+    addElement(messageBundle,
+        Arrays.asList(window(-10, 10), window(0, 20)), new Instant(2), valueCoder, "v0");
+    addElement(messageBundle,
+        Arrays.asList(window(0, 20), window(10, 30)), new Instant(15), valueCoder, "v2");
 
-    runner.processElement(WindowedValue.valueInEmptyWindows(this.<IntervalWindow, String>timer(
-        windowCoder, window(-10, 10), new Instant(9), TimeDomain.EVENT_TIME)));
+    runner.processElement(createValue(workItem1, valueCoder));
 
-    runner.processElement(WindowedValue.of(
-        TimerOrElement.element(KV.of("k", "v2")),
-        new Instant(5),
-        Arrays.asList(window(0, 20), window(10, 30)),
-        PaneInfo.NO_FIRING));
+    runner.finishBundle();
+    runner.startBundle();
 
-    runner.processElement(WindowedValue.valueInEmptyWindows(this.<IntervalWindow, String>timer(
-        windowCoder, window(0, 20), new Instant(19), TimeDomain.EVENT_TIME)));
-    runner.processElement(WindowedValue.valueInEmptyWindows(this.<IntervalWindow, String>timer(
-        windowCoder, window(10, 30), new Instant(29), TimeDomain.EVENT_TIME)));
+    WorkItem.Builder workItem2 = WorkItem.newBuilder();
+    workItem2.setKey(ByteString.copyFromUtf8(KEY));
+    workItem2.setWorkToken(WORK_TOKEN);
+    addTimer(workItem2, window(-10, 10), new Instant(9), Timer.Type.WATERMARK);
+    addTimer(workItem2, window(0, 20), new Instant(19), Timer.Type.WATERMARK);
+    addTimer(workItem2, window(10, 30), new Instant(29), Timer.Type.WATERMARK);
+
+    runner.processElement(createValue(workItem2, valueCoder));
 
     runner.finishBundle();
 
@@ -225,13 +264,13 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
     assertEquals(3, result.size());
 
     WindowedValue<KV<String, Iterable<String>>> item0 = result.get(0);
-    assertEquals("k", item0.getValue().getKey());
+    assertEquals(KEY, item0.getValue().getKey());
     assertThat(item0.getValue().getValue(), Matchers.containsInAnyOrder("v0", "v1"));
     assertEquals(new Instant(2), item0.getTimestamp());
     assertThat(item0.getWindows(), Matchers.<BoundedWindow>contains(window(-10, 10)));
 
     WindowedValue<KV<String, Iterable<String>>> item1 = result.get(1);
-    assertEquals("k", item1.getValue().getKey());
+    assertEquals(KEY, item1.getValue().getKey());
     assertThat(item1.getValue().getValue(), Matchers.containsInAnyOrder("v0", "v1", "v2"));
     // For this sliding window, the minimum output timestmap was 10, since we didn't want to overlap
     // with the previous window that was [-10, 10).
@@ -239,7 +278,7 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
     assertThat(item1.getWindows(), Matchers.<BoundedWindow>contains(window(0, 20)));
 
     WindowedValue<KV<String, Iterable<String>>> item2 = result.get(2);
-    assertEquals("k", item2.getValue().getKey());
+    assertEquals(KEY, item2.getValue().getKey());
     assertThat(item2.getValue().getValue(), Matchers.containsInAnyOrder("v2"));
     assertEquals(new Instant(20), item2.getTimestamp());
     assertThat(item2.getWindows(), Matchers.<BoundedWindow>contains(window(10, 30)));
@@ -248,47 +287,39 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
   @Test public void testSessions() throws Exception {
     TupleTag<KV<String, Iterable<String>>> outputTag = new TupleTag<>();
     DoFnRunner.ListOutputManager outputManager = new DoFnRunner.ListOutputManager();
-    DoFnRunner<TimerOrElement<KV<String, String>>, KV<String, Iterable<String>>> runner =
-        makeRunner(
-            outputTag,
-            outputManager,
-            WindowingStrategy.of(Sessions.withGapDuration(Duration.millis(10))));
+    DoFnRunner<KeyedWorkItem<String>, KV<String, Iterable<String>>> runner = makeRunner(
+        outputTag,
+        outputManager,
+        WindowingStrategy.of(Sessions.withGapDuration(Duration.millis(10))));
 
-    Coder<IntervalWindow> windowCoder =
-        Sessions.withGapDuration(Duration.millis(10)).windowCoder();
     runner.startBundle();
     when(mockTimerInternals.currentWatermarkTime()).thenReturn(new Instant(0));
 
-    runner.processElement(WindowedValue.of(
-        TimerOrElement.element(KV.of("k", "v1")),
-        new Instant(0),
-        Arrays.asList(window(0, 10)),
-        PaneInfo.NO_FIRING));
+    WorkItem.Builder workItem1 = WorkItem.newBuilder();
+    workItem1.setKey(ByteString.copyFromUtf8(KEY));
+    workItem1.setWorkToken(WORK_TOKEN);
+    InputMessageBundle.Builder messageBundle = workItem1.addMessageBundlesBuilder();
+    messageBundle.setSourceComputationId(SOURCE_COMPUTATION_ID);
 
-    runner.processElement(WindowedValue.of(
-        TimerOrElement.element(KV.of("k", "v2")),
-        new Instant(5),
-        Arrays.asList(window(5, 15)),
-        PaneInfo.NO_FIRING));
+    Coder<String> valueCoder = StringUtf8Coder.of();
+    addElement(messageBundle, Arrays.asList(window(0, 10)), new Instant(0), valueCoder, "v1");
+    addElement(messageBundle, Arrays.asList(window(5, 15)), new Instant(5), valueCoder, "v2");
+    addElement(messageBundle, Arrays.asList(window(15, 25)), new Instant(15), valueCoder, "v3");
+    addElement(messageBundle, Arrays.asList(window(3, 13)), new Instant(3), valueCoder, "v0");
 
-    runner.processElement(WindowedValue.of(
-        TimerOrElement.element(KV.of("k", "v3")),
-        new Instant(15),
-        Arrays.asList(window(15, 25)),
-        PaneInfo.NO_FIRING));
+    runner.processElement(createValue(workItem1, valueCoder));
 
-    runner.processElement(WindowedValue.of(
-        TimerOrElement.element(KV.of("k", "v0")),
-        new Instant(3),
-        Arrays.asList(window(3, 13)),
-        PaneInfo.NO_FIRING));
+    runner.finishBundle();
+    runner.startBundle();
 
-    runner.processElement(WindowedValue.valueInEmptyWindows(this.<IntervalWindow, String>timer(
-        windowCoder, window(0, 10), new Instant(9), TimeDomain.EVENT_TIME)));
-    runner.processElement(WindowedValue.valueInEmptyWindows(this.<IntervalWindow, String>timer(
-        windowCoder, window(0, 15), new Instant(14), TimeDomain.EVENT_TIME)));
-    runner.processElement(WindowedValue.valueInEmptyWindows(this.<IntervalWindow, String>timer(
-        windowCoder, window(15, 25), new Instant(24), TimeDomain.EVENT_TIME)));
+    WorkItem.Builder workItem2 = WorkItem.newBuilder();
+    workItem2.setKey(ByteString.copyFromUtf8(KEY));
+    workItem2.setWorkToken(WORK_TOKEN);
+    addTimer(workItem2, window(0, 10), new Instant(9), Timer.Type.WATERMARK);
+    addTimer(workItem2, window(0, 15), new Instant(14), Timer.Type.WATERMARK);
+    addTimer(workItem2, window(15, 25), new Instant(24), Timer.Type.WATERMARK);
+
+    runner.processElement(createValue(workItem2, valueCoder));
 
     runner.finishBundle();
 
@@ -297,13 +328,13 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
     assertEquals(2, result.size());
 
     WindowedValue<KV<String, Iterable<String>>> item0 = result.get(0);
-    assertEquals("k", item0.getValue().getKey());
+    assertEquals(KEY, item0.getValue().getKey());
     assertThat(item0.getValue().getValue(), Matchers.containsInAnyOrder("v0", "v1", "v2"));
     assertEquals(new Instant(0), item0.getTimestamp());
     assertThat(item0.getWindows(), Matchers.<BoundedWindow>contains(window(0, 15)));
 
     WindowedValue<KV<String, Iterable<String>>> item1 = result.get(1);
-    assertEquals("k", item1.getValue().getKey());
+    assertEquals(KEY, item1.getValue().getKey());
     assertThat(item1.getValue().getValue(), Matchers.containsInAnyOrder("v3"));
     assertEquals(new Instant(15), item1.getTimestamp());
     assertThat(item1.getWindows(), Matchers.<BoundedWindow>contains(window(15, 25)));
@@ -349,49 +380,40 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
         combineFn.asKeyedFn(), registry, KvCoder.of(StringUtf8Coder.of(), BigEndianLongCoder.of()));
 
     DoFnRunner.ListOutputManager outputManager = new DoFnRunner.ListOutputManager();
-    DoFnRunner<TimerOrElement<KV<String, Long>>, KV<String, Long>> runner =
-        makeRunner(
-            outputTag,
-            outputManager,
-            WindowingStrategy.of(Sessions.withGapDuration(Duration.millis(10))),
-            appliedCombineFn);
-
-    Coder<IntervalWindow> windowCoder =
-        Sessions.withGapDuration(Duration.millis(10)).windowCoder();
+    DoFnRunner<KeyedWorkItem<Long>, KV<String, Long>> runner = makeRunner(
+        outputTag,
+        outputManager,
+        WindowingStrategy.of(Sessions.withGapDuration(Duration.millis(10))),
+        appliedCombineFn);
 
     runner.startBundle();
     when(mockTimerInternals.currentWatermarkTime()).thenReturn(new Instant(0));
 
-    runner.processElement(WindowedValue.of(
-        TimerOrElement.element(KV.of("k", 1L)),
-        new Instant(0),
-        Arrays.asList(window(0, 10)),
-        PaneInfo.NO_FIRING));
+    WorkItem.Builder workItem1 = WorkItem.newBuilder();
+    workItem1.setKey(ByteString.copyFromUtf8(KEY));
+    workItem1.setWorkToken(WORK_TOKEN);
+    InputMessageBundle.Builder messageBundle = workItem1.addMessageBundlesBuilder();
+    messageBundle.setSourceComputationId(SOURCE_COMPUTATION_ID);
 
-    runner.processElement(WindowedValue.of(
-        TimerOrElement.element(KV.of("k", 2L)),
-        new Instant(5),
-        Arrays.asList(window(5, 15)),
-        PaneInfo.NO_FIRING));
+    Coder<Long> valueCoder = BigEndianLongCoder.of();
+    addElement(messageBundle, Arrays.asList(window(0, 10)), new Instant(0), valueCoder, 1L);
+    addElement(messageBundle, Arrays.asList(window(5, 15)), new Instant(5), valueCoder, 2L);
+    addElement(messageBundle, Arrays.asList(window(15, 25)), new Instant(15), valueCoder, 3L);
+    addElement(messageBundle, Arrays.asList(window(3, 13)), new Instant(3), valueCoder, 4L);
 
-    runner.processElement(WindowedValue.of(
-        TimerOrElement.element(KV.of("k", 3L)),
-        new Instant(15),
-        Arrays.asList(window(15, 25)),
-        PaneInfo.NO_FIRING));
+    runner.processElement(createValue(workItem1, valueCoder));
 
-    runner.processElement(WindowedValue.of(
-        TimerOrElement.element(KV.of("k", 4L)),
-        new Instant(3),
-        Arrays.asList(window(3, 13)),
-        PaneInfo.NO_FIRING));
+    runner.finishBundle();
+    runner.startBundle();
 
-    runner.processElement(WindowedValue.valueInEmptyWindows(this.<IntervalWindow, Long>timer(
-        windowCoder, window(0, 10), new Instant(9), TimeDomain.EVENT_TIME)));
-    runner.processElement(WindowedValue.valueInEmptyWindows(this.<IntervalWindow, Long>timer(
-        windowCoder, window(0, 15), new Instant(14), TimeDomain.EVENT_TIME)));
-    runner.processElement(WindowedValue.valueInEmptyWindows(this.<IntervalWindow, Long>timer(
-        windowCoder, window(15, 25), new Instant(24), TimeDomain.EVENT_TIME)));
+    WorkItem.Builder workItem2 = WorkItem.newBuilder();
+    workItem2.setKey(ByteString.copyFromUtf8(KEY));
+    workItem2.setWorkToken(WORK_TOKEN);
+    addTimer(workItem2, window(0, 10), new Instant(9), Timer.Type.WATERMARK);
+    addTimer(workItem2, window(0, 15), new Instant(14), Timer.Type.WATERMARK);
+    addTimer(workItem2, window(15, 25), new Instant(24), Timer.Type.WATERMARK);
+
+    runner.processElement(createValue(workItem2, valueCoder));
 
     runner.finishBundle();
 
@@ -400,47 +422,47 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
     assertEquals(2, result.size());
 
     WindowedValue<KV<String, Long>> item0 = result.get(0);
-    assertEquals("k", item0.getValue().getKey());
+    assertEquals(KEY, item0.getValue().getKey());
     assertEquals((Long) 7L, item0.getValue().getValue());
     assertEquals(new Instant(0), item0.getTimestamp());
     assertThat(item0.getWindows(), Matchers.<BoundedWindow>contains(window(0, 15)));
 
     WindowedValue<KV<String, Long>> item1 = result.get(1);
-    assertEquals("k", item1.getValue().getKey());
+    assertEquals(KEY, item1.getValue().getKey());
     assertEquals((Long) 3L, item1.getValue().getValue());
     assertEquals(new Instant(15), item1.getTimestamp());
     assertThat(item1.getWindows(), Matchers.<BoundedWindow>contains(window(15, 25)));
   }
 
-  private DoFnRunner<TimerOrElement<KV<String, String>>, KV<String, Iterable<String>>> makeRunner(
+  private DoFnRunner<KeyedWorkItem<String>, KV<String, Iterable<String>>> makeRunner(
           TupleTag<KV<String, Iterable<String>>> outputTag,
           DoFnRunner.OutputManager outputManager,
           WindowingStrategy<? super String, IntervalWindow> windowingStrategy) {
 
-    StreamingGroupAlsoByWindowsDoFn<String, String, Iterable<String>, IntervalWindow> fn =
+    DoFn<KeyedWorkItem<String>, KV<String, Iterable<String>>> fn =
         StreamingGroupAlsoByWindowsDoFn.createForIterable(windowingStrategy, StringUtf8Coder.of());
 
     return makeRunner(outputTag, outputManager, windowingStrategy, fn);
   }
 
-  private DoFnRunner<TimerOrElement<KV<String, Long>>, KV<String, Long>> makeRunner(
+  private DoFnRunner<KeyedWorkItem<Long>, KV<String, Long>> makeRunner(
           TupleTag<KV<String, Long>> outputTag,
           DoFnRunner.OutputManager outputManager,
           WindowingStrategy<? super String, IntervalWindow> windowingStrategy,
           AppliedCombineFn<String, Long, ?, Long> combineFn) {
 
-    StreamingGroupAlsoByWindowsDoFn<String, Long, Long, IntervalWindow> fn =
+    DoFn<KeyedWorkItem<Long>, KV<String, Long>> fn =
         StreamingGroupAlsoByWindowsDoFn.create(windowingStrategy, combineFn, StringUtf8Coder.of());
 
     return makeRunner(outputTag, outputManager, windowingStrategy, fn);
   }
 
   private <InputT, OutputT>
-      DoFnRunner<TimerOrElement<KV<String, InputT>>, KV<String, OutputT>> makeRunner(
+      DoFnRunner<KeyedWorkItem<InputT>, KV<String, OutputT>> makeRunner(
           TupleTag<KV<String, OutputT>> outputTag,
           DoFnRunner.OutputManager outputManager,
           WindowingStrategy<? super String, IntervalWindow> windowingStrategy,
-          StreamingGroupAlsoByWindowsDoFn<String, InputT, OutputT, IntervalWindow> fn) {
+          DoFn<KeyedWorkItem<InputT>, KV<String, OutputT>> fn) {
     return
         DoFnRunner.create(
             PipelineOptionsFactory.create(),

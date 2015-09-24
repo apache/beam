@@ -26,8 +26,7 @@ import com.google.cloud.dataflow.sdk.util.ReduceFnRunner;
 import com.google.cloud.dataflow.sdk.util.SystemDoFnInternal;
 import com.google.cloud.dataflow.sdk.util.SystemReduceFn;
 import com.google.cloud.dataflow.sdk.util.TimerInternals;
-import com.google.cloud.dataflow.sdk.util.TimerOrElement;
-import com.google.cloud.dataflow.sdk.util.WindowedValue;
+import com.google.cloud.dataflow.sdk.util.TimerInternals.TimerData;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.common.base.Preconditions;
@@ -42,7 +41,7 @@ import com.google.common.base.Preconditions;
  */
 @SystemDoFnInternal
 public abstract class StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends BoundedWindow>
-    extends DoFn<TimerOrElement<KV<K, InputT>>, KV<K, OutputT>> {
+    extends DoFn<KeyedWorkItem<InputT>, KV<K, OutputT>> {
 
   public static <K, InputT, AccumT, OutputT, W extends BoundedWindow>
       StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W> create(
@@ -55,7 +54,7 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W exte
   }
 
   public static <K, V, W extends BoundedWindow>
-  StreamingGroupAlsoByWindowsDoFn<K, V, Iterable<V>, W> createForIterable(
+  DoFn<KeyedWorkItem<V>, KV<K, Iterable<V>>> createForIterable(
       final WindowingStrategy<?, W> windowingStrategy,
       final Coder<V> inputCoder) {
     return new StreamingGABWViaWindowSetDoFn<>(
@@ -73,8 +72,6 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W exte
     private final WindowingStrategy<Object, W> windowingStrategy;
     private SystemReduceFn.Factory<K, InputT, OutputT, W> reduceFnFactory;
 
-    private transient ReduceFnRunner<K, InputT, OutputT, W> runner;
-
     public StreamingGABWViaWindowSetDoFn(WindowingStrategy<?, W> windowingStrategy,
         SystemReduceFn.Factory<K, InputT, OutputT, W> reduceFnFactory) {
       @SuppressWarnings("unchecked")
@@ -83,54 +80,25 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W exte
       this.reduceFnFactory = reduceFnFactory;
     }
 
-    private void initForKey(ProcessContext c, K key) throws Exception{
-      if (runner == null) {
-        TimerInternals timerInternals = c.windowingInternals().timerInternals();
-        runner = new ReduceFnRunner<>(
-            key, windowingStrategy, timerInternals, c.windowingInternals(),
-            droppedDueToClosedWindow, droppedDueToLateness, reduceFnFactory.create(key));
-      }
-    }
-
     @Override
     public void processElement(ProcessContext c) throws Exception {
-      if (c.element().isTimer()) {
-        processTimer(c);
-      } else {
-        processValue(c);
-      }
-    }
+      KeyedWorkItem<InputT> element = c.element();
 
-
-    private void processTimer(ProcessContext c) throws Exception {
       @SuppressWarnings("unchecked")
       K key = (K) c.element().key();
-      initForKey(c, key);
-      runner.onTimer(c.element().getTimer());
-    }
+      TimerInternals timerInternals = c.windowingInternals().timerInternals();
+      ReduceFnRunner<K, InputT, OutputT, W> runner = new ReduceFnRunner<>(
+            key, windowingStrategy, timerInternals, c.windowingInternals(),
+            droppedDueToClosedWindow, droppedDueToLateness, reduceFnFactory.create(key));
 
-    private void processValue(ProcessContext c) throws Exception {
-      K key = c.element().element().getKey();
-      initForKey(c, key);
-      InputT value = c.element().element().getValue();
-      runner.processElement(
-          WindowedValue.of(
-              value,
-              c.timestamp(),
-              c.windowingInternals().windows(),
-              c.pane()));
-    }
-
-    @Override
-    public void finishBundle(Context c) throws Exception {
-      if (runner != null) {
-        // Merge before finishing the bundle in case it causes triggers to fire.
-        runner.merge();
-        runner.persist();
+      for (TimerData timer : element.timersIterable()) {
+        runner.onTimer(timer);
       }
+      runner.processElements(element.elementsIterable());
 
-      // Prepare this DoFn for reuse.
-      runner = null;
+      // Merge before finishing the bundle in case it causes triggers to fire.
+      runner.merge();
+      runner.persist();
     }
   }
 }

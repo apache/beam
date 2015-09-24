@@ -29,6 +29,7 @@ import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.SideInputReader;
 import com.google.cloud.dataflow.sdk.util.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.TimerInternals;
+import com.google.cloud.dataflow.sdk.util.TimerInternals.TimerData;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler.StateKind;
@@ -270,6 +271,18 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
     return work.getSourceState().getFinalizeIdsList();
   }
 
+  /**
+   * Produce a tag that is guaranteed to be unique for the given namespace, domain and timestamp.
+   *
+   * <p>This is necessary because Windmill will deduplicate based only on this tag.
+   */
+  public static ByteString timerTag(TimerData key) {
+    String tagString = String.format("%s+%d:%d",
+        key.getNamespace().stringKey(), key.getDomain().ordinal(),
+        key.getTimestamp().getMillis());
+    return ByteString.copyFromUtf8(tagString);
+  }
+
   private static class WindmillTimerInternals implements TimerInternals {
 
     private Map<TimerData, Boolean> timers = new HashMap<>();
@@ -299,18 +312,6 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
     @Override
     public Instant currentWatermarkTime() {
       return inputDataWatermark;
-    }
-
-    /**
-     * Produce a tag that is guaranteed to be unique for the given namespace, domain and timestamp.
-     *
-     * <p>This is necessary because Windmill will deduplicate based only on this tag.
-     */
-    private ByteString timerTag(TimerData key) {
-      String tagString = String.format("%s+%d:%d",
-          key.getNamespace().stringKey(), key.getDomain().ordinal(),
-          key.getTimestamp().getMillis());
-      return ByteString.copyFromUtf8(tagString);
     }
 
     public void persistTo(Windmill.WorkItemCommitRequest.Builder outputBuilder) {
