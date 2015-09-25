@@ -108,7 +108,7 @@ public class StateSamplerTest {
 
       long toleranceMs = periodMs;
       assertTrue(s1 + s2 + s3 >= 4 * periodMs - toleranceMs);
-      assertTrue(s1 + s2 + s3 <= 16 * periodMs + toleranceMs);
+      assertTrue(s1 + s2 + s3 <= 18 * periodMs + toleranceMs);
     }
   }
 
