@@ -783,8 +783,8 @@ public class BigQueryIO {
           TableReference table) {
         try {
           Bigquery client = Transport.newBigQueryClient(options).build();
-          BigQueryTableInserter inserter = new BigQueryTableInserter(client, table);
-          if (!inserter.isEmpty()) {
+          BigQueryTableInserter inserter = new BigQueryTableInserter(client);
+          if (!inserter.isEmpty(table)) {
             throw new IllegalArgumentException(
                 "BigQuery table is not empty: " + BigQueryIO.toTableSpec(table));
           }
@@ -1020,8 +1020,8 @@ public class BigQueryIO {
           if (!createdTables.contains(tableSpec)) {
             TableSchema tableSchema = JSON_FACTORY.fromString(jsonTableSchema, TableSchema.class);
             Bigquery client = Transport.newBigQueryClient(options).build();
-            BigQueryTableInserter inserter = new BigQueryTableInserter(client, tableReference);
-            inserter.tryCreateTable(tableSchema);
+            BigQueryTableInserter inserter = new BigQueryTableInserter(client);
+            inserter.tryCreateTable(tableReference, tableSchema);
             createdTables.add(tableSpec);
           }
         }
@@ -1034,8 +1034,8 @@ public class BigQueryIO {
         List<TableRow> tableRows, List<String> uniqueIds) {
       if (!tableRows.isEmpty()) {
         try {
-          BigQueryTableInserter inserter = new BigQueryTableInserter(client, tableReference);
-          inserter.insertAll(tableRows, uniqueIds);
+          BigQueryTableInserter inserter = new BigQueryTableInserter(client);
+          inserter.insertAll(tableReference, tableRows, uniqueIds);
         } catch (IOException e) {
           throw new RuntimeException(e);
         }
@@ -1337,33 +1337,33 @@ public class BigQueryIO {
       Write.Bound transform, DirectPipelineRunner.EvaluationContext context) {
     BigQueryOptions options = context.getPipelineOptions();
     Bigquery client = Transport.newBigQueryClient(options).build();
+    BigQueryTableInserter inserter = new BigQueryTableInserter(client);
 
     try {
-      Map<BoundedWindow, List<TableRow>> tableRows = new HashMap<>();
+      Map<TableReference, List<TableRow>> tableRows = new HashMap<>();
       for (WindowedValue<TableRow> windowedValue : context.getPCollectionWindowedValues(
           context.getInput(transform))) {
         for (BoundedWindow window : windowedValue.getWindows()) {
-          List<TableRow> rows = getOrCreateMapListValue(tableRows, window);
+          TableReference ref;
+          if (transform.tableRefFunction != null) {
+            ref = transform.tableRefFunction.apply(window);
+          } else {
+            ref = transform.table;
+          }
+          if (ref.getProjectId() == null) {
+            ref.setProjectId(options.getProject());
+          }
+          LOG.info("Writing to BigQuery table {}", toTableSpec(ref));
+          inserter.getOrCreateTable(
+              ref, transform.writeDisposition, transform.createDisposition, transform.schema);
+
+          List<TableRow> rows = getOrCreateMapListValue(tableRows, ref);
           rows.add(windowedValue.getValue());
         }
       }
 
-      for (BoundedWindow window : tableRows.keySet()) {
-        TableReference ref;
-        if (transform.tableRefFunction != null) {
-          ref = transform.tableRefFunction.apply(window);
-        } else {
-          ref = transform.table;
-        }
-        if (ref.getProjectId() == null) {
-          ref.setProjectId(options.getProject());
-        }
-        LOG.info("Writing to BigQuery table {}", toTableSpec(ref));
-
-        BigQueryTableInserter inserter = new BigQueryTableInserter(client, ref);
-        inserter.getOrCreateTable(
-            transform.writeDisposition, transform.createDisposition, transform.schema);
-        inserter.insertAll(tableRows.get(window));
+      for (TableReference ref : tableRows.keySet()) {
+        inserter.insertAll(ref, tableRows.get(ref));
       }
     } catch (IOException e) {
       throw new RuntimeException(e);

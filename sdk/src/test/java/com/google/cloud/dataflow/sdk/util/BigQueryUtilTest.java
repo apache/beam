@@ -339,10 +339,9 @@ public class BigQueryUtilTest {
     TableReference ref = BigQueryIO
         .parseTableSpec("project:dataset.table");
 
-    BigQueryTableInserter inserter =
-        new BigQueryTableInserter(mockClient, ref);
+    BigQueryTableInserter inserter = new BigQueryTableInserter(mockClient);
 
-    inserter.getOrCreateTable(BigQueryIO.Write.WriteDisposition.WRITE_APPEND,
+    inserter.getOrCreateTable(ref, BigQueryIO.Write.WriteDisposition.WRITE_APPEND,
         BigQueryIO.Write.CreateDisposition.CREATE_NEVER, null);
 
     verifyTableGet();
@@ -358,10 +357,9 @@ public class BigQueryUtilTest {
     TableReference ref = BigQueryIO
         .parseTableSpec("project:dataset.table");
 
-    BigQueryTableInserter inserter =
-        new BigQueryTableInserter(mockClient, ref);
+    BigQueryTableInserter inserter = new BigQueryTableInserter(mockClient);
 
-    inserter.getOrCreateTable(BigQueryIO.Write.WriteDisposition.WRITE_EMPTY,
+    inserter.getOrCreateTable(ref, BigQueryIO.Write.WriteDisposition.WRITE_EMPTY,
         BigQueryIO.Write.CreateDisposition.CREATE_NEVER, null);
 
     verifyTableGet();
@@ -380,11 +378,10 @@ public class BigQueryUtilTest {
     TableReference ref = BigQueryIO
         .parseTableSpec("project:dataset.table");
 
-    BigQueryTableInserter inserter =
-        new BigQueryTableInserter(mockClient, ref);
+    BigQueryTableInserter inserter = new BigQueryTableInserter(mockClient);
 
     try {
-      inserter.getOrCreateTable(BigQueryIO.Write.WriteDisposition.WRITE_EMPTY,
+      inserter.getOrCreateTable(ref, BigQueryIO.Write.WriteDisposition.WRITE_EMPTY,
           BigQueryIO.Write.CreateDisposition.CREATE_NEVER, null);
     } finally {
       verifyTableGet();
@@ -405,7 +402,7 @@ public class BigQueryUtilTest {
 
     TableReference ref = BigQueryIO
         .parseTableSpec("project:dataset.table");
-    BigQueryTableInserter inserter = new BigQueryTableInserter(mockClient, ref, 5);
+    BigQueryTableInserter inserter = new BigQueryTableInserter(mockClient, 5);
 
     List<TableRow> rows = new ArrayList<>();
     List<String> ids = new ArrayList<>();
@@ -415,7 +412,7 @@ public class BigQueryUtilTest {
     }
 
     try {
-      inserter.insertAll(rows, ids);
+      inserter.insertAll(ref, rows, ids);
     } finally {
       verifyInsertAll(5);
     }

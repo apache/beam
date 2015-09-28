@@ -28,6 +28,7 @@ import com.google.cloud.dataflow.sdk.io.BigQueryIO;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO.Write.CreateDisposition;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO.Write.WriteDisposition;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.MoreExecutors;
 
@@ -66,7 +67,7 @@ public class BigQueryTableInserter {
   private static final long INITIAL_INSERT_BACKOFF_INTERVAL_MS = 200L;
 
   private final Bigquery client;
-  private final TableReference ref;
+  private final TableReference defaultRef;
   private final long maxRowsPerBatch;
 
   private static final ExecutorService executor = MoreExecutors.getExitingExecutorService(
@@ -76,11 +77,10 @@ public class BigQueryTableInserter {
    * Constructs a new row inserter.
    *
    * @param client a BigQuery client
-   * @param ref identifies the table to insert into
    */
-  public BigQueryTableInserter(Bigquery client, TableReference ref) {
+  public BigQueryTableInserter(Bigquery client) {
     this.client = client;
-    this.ref = ref;
+    this.defaultRef = null;
     this.maxRowsPerBatch = MAX_ROWS_PER_BATCH;
   }
 
@@ -88,26 +88,75 @@ public class BigQueryTableInserter {
    * Constructs a new row inserter.
    *
    * @param client a BigQuery client
-   * @param ref identifies the table to insert into
+   * @param defaultRef identifies the table to insert into
+   * @deprecated replaced by {@link #BigQueryTableInserter(Bigquery)}
    */
-  public BigQueryTableInserter(Bigquery client, TableReference ref, int maxRowsPerBatch) {
+  @Deprecated
+  public BigQueryTableInserter(Bigquery client, TableReference defaultRef) {
     this.client = client;
-    this.ref = ref;
+    this.defaultRef = defaultRef;
+    this.maxRowsPerBatch = MAX_ROWS_PER_BATCH;
+  }
+
+  /**
+   * Constructs a new row inserter.
+   *
+   * @param client a BigQuery client
+   */
+  public BigQueryTableInserter(Bigquery client, int maxRowsPerBatch) {
+    this.client = client;
+    this.defaultRef = null;
+    this.maxRowsPerBatch = maxRowsPerBatch;
+  }
+
+  /**
+   * Constructs a new row inserter.
+   *
+   * @param client a BigQuery client
+   * @param defaultRef identifies the default table to insert into
+   * @deprecated replaced by {@link #BigQueryTableInserter(Bigquery, int)}
+   */
+  @Deprecated
+  public BigQueryTableInserter(Bigquery client, TableReference defaultRef, int maxRowsPerBatch) {
+    this.client = client;
+    this.defaultRef = defaultRef;
     this.maxRowsPerBatch = maxRowsPerBatch;
   }
 
   /**
    * Insert all rows from the given list.
+   *
+   * @deprecated replaced by {@link #insertAll(TableReference, List<TableRow>)}
    */
+  @Deprecated
   public void insertAll(List<TableRow> rowList) throws IOException {
-    insertAll(rowList, null);
+    insertAll(defaultRef, rowList, null);
+  }
+
+  /**
+   * Insert all rows from the given list using specified insertIds if not null.
+   *
+   * @deprecated replaced by {@link #insertAll(TableReference, List<TableRow>, List<String>)}
+   */
+  @Deprecated
+  public void insertAll(List<TableRow> rowList,
+      @Nullable List<String> insertIdList) throws IOException {
+    insertAll(defaultRef, rowList, insertIdList);
+  }
+
+  /**
+   * Insert all rows from the given list.
+   */
+  public void insertAll(TableReference ref, List<TableRow> rowList) throws IOException {
+    insertAll(ref, rowList, null);
   }
 
   /**
    * Insert all rows from the given list using specified insertIds if not null.
    */
-  public void insertAll(List<TableRow> rowList,
+  public void insertAll(TableReference ref, List<TableRow> rowList,
       @Nullable List<String> insertIdList) throws IOException {
+    Preconditions.checkNotNull(ref, "ref");
     if (insertIdList != null && rowList.size() != insertIdList.size()) {
       throw new AssertionError("If insertIdList is not null it needs to have at least "
           + "as many elements as rowList");
@@ -238,6 +287,7 @@ public class BigQueryTableInserter {
    * {@code IOException} is thrown.
    */
   public Table getOrCreateTable(
+      TableReference ref,
       WriteDisposition writeDisposition,
       CreateDisposition createDisposition,
       @Nullable TableSchema schema) throws IOException {
@@ -262,7 +312,7 @@ public class BigQueryTableInserter {
         return table;
       }
 
-      boolean empty = isEmpty();
+      boolean empty = isEmpty(ref);
       if (empty) {
         if (writeDisposition == WriteDisposition.WRITE_TRUNCATE) {
           LOG.info("Empty table found, not removing {}", BigQueryIO.toTableSpec(ref));
@@ -292,13 +342,13 @@ public class BigQueryTableInserter {
     }
 
     // Create the table.
-    return tryCreateTable(schema);
+    return tryCreateTable(ref, schema);
   }
 
   /**
    * Checks if a table is empty.
    */
-  public boolean isEmpty() throws IOException {
+  public boolean isEmpty(TableReference ref) throws IOException {
     Bigquery.Tabledata.List list = client.tabledata()
         .list(ref.getProjectId(), ref.getDatasetId(), ref.getTableId());
     list.setMaxResults(1L);
@@ -320,7 +370,7 @@ public class BigQueryTableInserter {
    * @throws IOException if other error than already existing table occurs.
    */
   @Nullable
-  public Table tryCreateTable(TableSchema schema) throws IOException {
+  public Table tryCreateTable(TableReference ref, TableSchema schema) throws IOException {
     LOG.info("Trying to create BigQuery table: {}", BigQueryIO.toTableSpec(ref));
 
     Table content = new Table();
