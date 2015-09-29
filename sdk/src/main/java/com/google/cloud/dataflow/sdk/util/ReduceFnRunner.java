@@ -34,8 +34,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 
 import org.joda.time.Instant;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -69,8 +67,6 @@ import javax.annotation.Nullable;
  */
 public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
     implements MergeCallback<W> {
-
-  private static final Logger LOG = LoggerFactory.getLogger(ReduceFnRunner.class);
 
   public static final String DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER = "DroppedDueToClosedWindow";
   public static final String DROPPED_DUE_TO_LATENESS_COUNTER = "DroppedDueToLateness";
@@ -306,7 +302,9 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
       try {
         doCleanup(context, isAtWatermark);
       } catch (Exception e) {
-        LOG.error("Exception while garbage collecting window {}", windowNamespace.getWindow(), e);
+        Throwables.propagateIfInstanceOf(e, UserCodeException.class);
+        throw new RuntimeException(
+            "Exception while garbage collecting window " + windowNamespace.getWindow(), e);
       }
     } else {
       // Skip timers for expired windows.
@@ -375,7 +373,11 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
 
     // Cleanup the associated state.
     nonEmptyPanes.clearPane(context);
-    reduceFn.clearState(context);
+    try {
+      reduceFn.clearState(context);
+    } catch (Exception e) {
+      throw wrapMaybeUserException(e);
+    }
     triggerRunner.clearEverything(context);
     paneInfo.clear(context.state());
     watermarkHold.releaseOnTime(context);
