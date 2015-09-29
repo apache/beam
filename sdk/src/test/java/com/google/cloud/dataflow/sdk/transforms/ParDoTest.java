@@ -29,7 +29,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import com.google.api.client.util.Preconditions;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.Pipeline.PipelineExecutionException;
 import com.google.cloud.dataflow.sdk.coders.AtomicCoder;
@@ -51,6 +50,7 @@ import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.cloud.dataflow.sdk.values.TupleTagList;
+import com.google.common.base.Preconditions;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 

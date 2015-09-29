@@ -16,8 +16,6 @@ package com.google.cloud.dataflow.examples.common;
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.googleapis.services.AbstractGoogleClientRequest;
-import com.google.api.client.util.Lists;
-import com.google.api.client.util.Sets;
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.Bigquery.Datasets;
 import com.google.api.services.bigquery.Bigquery.Tables;
@@ -40,6 +38,8 @@ import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.IntraBundleParallelization;
 import com.google.cloud.dataflow.sdk.util.MonitoringUtil;
 import com.google.cloud.dataflow.sdk.util.Transport;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 
 import java.io.IOException;
 import java.util.Collection;

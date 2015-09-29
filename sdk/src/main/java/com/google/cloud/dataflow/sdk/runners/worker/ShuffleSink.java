@@ -18,7 +18,6 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.SUM;
 
-import com.google.api.client.util.Preconditions;
 import com.google.cloud.dataflow.sdk.coders.BigEndianLongCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.InstantCoder;
@@ -35,6 +34,7 @@ import com.google.cloud.dataflow.sdk.util.common.worker.ShuffleEntry;
 import com.google.cloud.dataflow.sdk.util.common.worker.Sink;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler.StateKind;
 import com.google.cloud.dataflow.sdk.values.KV;
+import com.google.common.base.Preconditions;
 
 import java.io.IOException;
 

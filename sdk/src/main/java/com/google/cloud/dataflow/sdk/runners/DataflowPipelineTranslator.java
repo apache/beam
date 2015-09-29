@@ -29,7 +29,6 @@ import static com.google.cloud.dataflow.sdk.util.Structs.addString;
 import static com.google.cloud.dataflow.sdk.util.Structs.getString;
 import static com.google.common.base.Preconditions.checkArgument;
 
-import com.google.api.client.util.Preconditions;
 import com.google.api.services.dataflow.model.AutoscalingSettings;
 import com.google.api.services.dataflow.model.DataflowPackage;
 import com.google.api.services.dataflow.model.Disk;
@@ -81,6 +80,7 @@ import com.google.cloud.dataflow.sdk.values.POutput;
 import com.google.cloud.dataflow.sdk.values.PValue;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.cloud.dataflow.sdk.values.TypedPValue;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
 import com.fasterxml.jackson.core.JsonProcessingException;

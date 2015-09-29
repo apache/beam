@@ -41,7 +41,6 @@ import com.google.api.client.testing.http.MockHttpTransport;
 import com.google.api.client.testing.http.MockLowLevelHttpRequest;
 import com.google.api.client.testing.http.MockLowLevelHttpResponse;
 import com.google.api.client.util.BackOff;
-import com.google.api.client.util.Throwables;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.model.Bucket;
 import com.google.api.services.storage.model.Objects;
@@ -52,6 +51,7 @@ import com.google.cloud.dataflow.sdk.testing.FastNanoClockAndSleeper;
 import com.google.cloud.dataflow.sdk.util.gcsfs.GcsPath;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadChannel;
 import com.google.cloud.hadoop.util.ClientRequestHelper;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 
 import org.junit.Rule;

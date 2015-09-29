@@ -16,7 +16,6 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
-import com.google.api.client.util.Throwables;
 import com.google.cloud.dataflow.sdk.options.GcsOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
@@ -28,6 +27,7 @@ import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
 
 import org.joda.time.Instant;
 

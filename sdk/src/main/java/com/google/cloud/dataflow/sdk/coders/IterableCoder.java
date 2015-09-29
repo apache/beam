@@ -18,9 +18,9 @@ package com.google.cloud.dataflow.sdk.coders;
 
 import static com.google.cloud.dataflow.sdk.util.Structs.addBoolean;
 
-import com.google.api.client.util.Preconditions;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
+import com.google.common.base.Preconditions;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;

@@ -16,9 +16,9 @@
 
 package com.google.cloud.dataflow.sdk.util.gcsfs;
 
-import com.google.api.client.util.Preconditions;
-import com.google.api.client.util.Strings;
 import com.google.api.services.storage.model.StorageObject;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 
 import java.io.File;
 import java.io.IOException;

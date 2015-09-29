@@ -21,7 +21,6 @@ import static com.google.cloud.dataflow.sdk.util.StringUtils.approximateSimpleNa
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
-import com.google.api.client.util.Joiner;
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.DataflowPackage;
 import com.google.api.services.dataflow.model.Job;
@@ -80,6 +79,7 @@ import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.cloud.dataflow.sdk.values.POutput;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;

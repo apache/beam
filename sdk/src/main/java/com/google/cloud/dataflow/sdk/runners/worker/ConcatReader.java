@@ -21,7 +21,6 @@ import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtil
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.splitRequestToApproximateProgress;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.api.client.util.Preconditions;
 import com.google.api.services.dataflow.model.ApproximateProgress;
 import com.google.api.services.dataflow.model.ConcatPosition;
 import com.google.api.services.dataflow.model.Source;
@@ -32,6 +31,8 @@ import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.AbstractBoundedReaderIterator;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.common.base.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

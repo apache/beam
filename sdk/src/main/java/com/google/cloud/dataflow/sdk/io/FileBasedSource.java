@@ -14,10 +14,10 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
-import com.google.api.client.util.Preconditions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.IOChannelFactory;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.Futures;

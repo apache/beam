@@ -16,7 +16,6 @@
 
 package com.google.cloud.dataflow.sdk.runners.dataflow;
 
-import com.google.api.client.util.Preconditions;
 import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.io.AvroIO;
 import com.google.cloud.dataflow.sdk.io.ShardNameTemplate;
@@ -25,6 +24,7 @@ import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator.Translat
 import com.google.cloud.dataflow.sdk.util.PathValidator;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
+import com.google.common.base.Preconditions;
 
 /**
  * Avro transform support code for the Dataflow backend.

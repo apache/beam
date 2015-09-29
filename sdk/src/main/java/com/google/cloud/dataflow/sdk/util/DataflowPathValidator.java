@@ -16,10 +16,10 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
-import com.google.api.client.util.Preconditions;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.gcsfs.GcsPath;
+import com.google.common.base.Preconditions;
 
 import java.io.IOException;
 

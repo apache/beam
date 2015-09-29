@@ -22,9 +22,9 @@ import static com.google.cloud.dataflow.sdk.options.DataflowWorkerLoggingOptions
 import static com.google.cloud.dataflow.sdk.options.DataflowWorkerLoggingOptions.Level.TRACE;
 import static com.google.cloud.dataflow.sdk.options.DataflowWorkerLoggingOptions.Level.WARN;
 
-import com.google.api.client.util.Lists;
 import com.google.cloud.dataflow.sdk.options.DataflowWorkerLoggingOptions;
 import com.google.common.collect.ImmutableBiMap;
+import com.google.common.collect.Lists;
 
 import java.io.File;
 import java.io.IOException;

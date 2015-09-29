@@ -21,7 +21,6 @@ import static com.google.cloud.dataflow.sdk.TestUtils.NO_LINES;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import com.google.api.client.util.Joiner;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
@@ -29,6 +28,7 @@ import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 
 import org.junit.Test;

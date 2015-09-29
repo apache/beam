@@ -16,7 +16,6 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
-import com.google.api.client.util.Preconditions;
 import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
@@ -33,6 +32,7 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollection.IsBounded;
 import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.cloud.dataflow.sdk.values.PInput;
+import com.google.common.base.Preconditions;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;

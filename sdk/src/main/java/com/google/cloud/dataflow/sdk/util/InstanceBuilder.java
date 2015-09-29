@@ -16,9 +16,9 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
-import com.google.api.client.util.Preconditions;
 import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 import com.google.common.base.Joiner;
+import com.google.common.base.Preconditions;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;

@@ -19,9 +19,9 @@ package com.google.cloud.dataflow.sdk.util;
 import static com.google.cloud.dataflow.sdk.util.CoderUtils.decodeFromByteArray;
 import static com.google.cloud.dataflow.sdk.util.CoderUtils.encodeToByteArray;
 
-import com.google.api.client.util.Preconditions;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
+import com.google.common.base.Preconditions;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;

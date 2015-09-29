@@ -16,7 +16,6 @@
 
 package com.google.cloud.dataflow.sdk.runners.worker;
 
-import com.google.api.client.util.Preconditions;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
@@ -29,6 +28,7 @@ import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 import com.google.cloud.dataflow.sdk.util.common.worker.ShuffleEntry;
 import com.google.cloud.dataflow.sdk.util.common.worker.ShuffleEntryReader;
 import com.google.cloud.dataflow.sdk.values.KV;
+import com.google.common.base.Preconditions;
 
 import java.io.IOException;
 import java.util.Iterator;

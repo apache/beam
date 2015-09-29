@@ -22,7 +22,6 @@ import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtil
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.splitRequestToApproximateProgress;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.SUM;
 
-import com.google.api.client.util.Preconditions;
 import com.google.api.services.dataflow.model.ApproximateProgress;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.IterableCoder;
@@ -46,6 +45,7 @@ import com.google.cloud.dataflow.sdk.util.common.worker.ShuffleEntryReader;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler.StateKind;
 import com.google.cloud.dataflow.sdk.values.KV;
+import com.google.common.base.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

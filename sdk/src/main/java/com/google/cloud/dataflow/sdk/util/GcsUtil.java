@@ -18,7 +18,6 @@ package com.google.cloud.dataflow.sdk.util;
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.util.BackOff;
-import com.google.api.client.util.Preconditions;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.model.Objects;
@@ -36,6 +35,7 @@ import com.google.cloud.hadoop.util.ClientRequestHelper;
 import com.google.cloud.hadoop.util.ResilientOperation;
 import com.google.cloud.hadoop.util.RetryDeterminer;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
 import org.slf4j.Logger;

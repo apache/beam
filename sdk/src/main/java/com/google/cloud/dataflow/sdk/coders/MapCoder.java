@@ -16,9 +16,9 @@
 
 package com.google.cloud.dataflow.sdk.coders;
 
-import com.google.api.client.util.Preconditions;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 
 import com.fasterxml.jackson.annotation.JsonCreator;

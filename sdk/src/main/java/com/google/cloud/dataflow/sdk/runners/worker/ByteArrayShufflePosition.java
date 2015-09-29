@@ -19,8 +19,8 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 import static com.google.api.client.util.Base64.decodeBase64;
 import static com.google.api.client.util.Base64.encodeBase64URLSafeString;
 
-import com.google.api.client.util.Preconditions;
 import com.google.cloud.dataflow.sdk.util.common.worker.ShufflePosition;
+import com.google.common.base.Preconditions;
 import com.google.common.primitives.UnsignedBytes;
 
 import java.util.Arrays;

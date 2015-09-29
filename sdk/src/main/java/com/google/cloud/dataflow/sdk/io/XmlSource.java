@@ -14,10 +14,10 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
-import com.google.api.client.util.Preconditions;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.JAXBCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.common.base.Preconditions;
 
 import org.codehaus.stax2.XMLInputFactory2;
 

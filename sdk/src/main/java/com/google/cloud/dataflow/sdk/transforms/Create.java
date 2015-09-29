@@ -16,7 +16,6 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
-import com.google.api.client.util.Preconditions;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
@@ -33,6 +32,7 @@ import com.google.cloud.dataflow.sdk.values.TimestampedValue.TimestampedValueCod
 import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 
 import org.joda.time.Instant;
