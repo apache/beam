@@ -33,15 +33,13 @@ import org.slf4j.LoggerFactory;
  *
  * <p>To run this starter example locally using DirectPipelineRunner, just
  * execute it without any additional parameters from your favorite development
- * environment. In Eclipse, this corresponds to the existing 'LOCAL' run
- * configuration.
+ * environment.
  *
  * <p>To run this starter example using managed resource in Google Cloud
  * Platform, you should specify the following command-line options:
  *   --project=<YOUR_PROJECT_ID>
  *   --stagingLocation=<STAGING_LOCATION_IN_CLOUD_STORAGE>
  *   --runner=BlockingDataflowPipelineRunner
- * In Eclipse, you can just modify the existing 'SERVICE' run configuration.
  */
 public class StarterPipeline {
   private static final Logger LOG = LoggerFactory.getLogger(StarterPipeline.class);
