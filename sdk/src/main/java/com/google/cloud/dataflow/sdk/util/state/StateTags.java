@@ -23,6 +23,7 @@ import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.common.base.MoreObjects;
 
+import java.io.Serializable;
 import java.util.Objects;
 
 /**
@@ -53,7 +54,7 @@ public class StateTags {
    * Create a simple state tag for values of type {@code T}.
    */
   public static <T> StateTag<ValueState<T>> value(String id, Coder<T> valueCoder) {
-    return new ValueStateTag<>(StateKind.USER, id, valueCoder);
+    return new ValueStateTag<>(new StructuredId(id), valueCoder);
   }
 
   /**
@@ -91,7 +92,7 @@ public class StateTags {
       String id, Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
     StateTag<CombiningValueStateInternal<InputT, AccumT, OutputT>> internal =
         new CombiningValueStateTag<InputT, AccumT, OutputT>(
-            StateKind.USER, id, accumCoder, combineFn);
+            new StructuredId(id), accumCoder, combineFn);
 
     // This is a safe cast, since StateTag only supports reading, and
     // CombiningValue<InputT, OutputT> is a super-interface of
@@ -106,14 +107,14 @@ public class StateTags {
    * occasionally retrieving all the values that have been added.
    */
   public static <T> StateTag<BagState<T>> bag(String id, Coder<T> elemCoder) {
-    return new BagStateTag<T>(StateKind.USER, id, elemCoder);
+    return new BagStateTag<T>(new StructuredId(id), elemCoder);
   }
 
   /**
    * Create a state tag for holding the watermark.
    */
   public static <T> StateTag<WatermarkStateInternal> watermarkStateInternal(String id) {
-    return new WatermarkStateTagInternal(StateKind.USER, id);
+    return new WatermarkStateTagInternal(new StructuredId(id));
   }
 
   /**
@@ -128,13 +129,61 @@ public class StateTags {
     return ((StateTagBase<StateT>) tag).asKind(StateKind.SYSTEM);
   }
 
+  private static class StructuredId implements Serializable {
+    private final StateKind kind;
+    private final String rawId;
+
+    private StructuredId(String rawId) {
+      this(StateKind.USER, rawId);
+    }
+
+    private StructuredId(StateKind kind, String rawId) {
+      this.kind = kind;
+      this.rawId = rawId;
+    }
+
+    public StructuredId asKind(StateKind kind) {
+      return new StructuredId(kind, rawId);
+    }
+
+    public String getIdString() {
+      return kind.prefix + rawId;
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(getClass())
+          .add("id", rawId)
+          .add("kind", kind)
+          .toString();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (obj == this) {
+        return true;
+      }
+
+      if (!(obj instanceof StructuredId)) {
+        return false;
+      }
+
+      StructuredId that = (StructuredId) obj;
+      return Objects.equals(this.kind, that.kind)
+          && Objects.equals(this.rawId, that.rawId);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(kind, rawId);
+    }
+  }
+
   private abstract static class StateTagBase<StateT extends State> implements StateTag<StateT> {
 
-    private final StateKind kind;
-    protected final String id;
+    protected final StructuredId id;
 
-    protected StateTagBase(StateKind kind, String id) {
-      this.kind = kind;
+    protected StateTagBase(StructuredId id) {
       this.id = id;
     }
 
@@ -143,12 +192,14 @@ public class StateTags {
      */
     @Override
     public String getId() {
-      return kind.prefix + id;
+      return id.getIdString();
     }
 
     @Override
     public String toString() {
-      return MoreObjects.toStringHelper(getClass()).add("id", id).toString();
+      return MoreObjects.toStringHelper(getClass())
+          .add("id", id)
+          .toString();
     }
 
     protected abstract StateTag<StateT> asKind(StateKind kind);
@@ -163,8 +214,8 @@ public class StateTags {
 
     private final Coder<T> coder;
 
-    private ValueStateTag(StateKind kind, String id, Coder<T> coder) {
-      super(kind, id);
+    private ValueStateTag(StructuredId id, Coder<T> coder) {
+      super(id);
       this.coder = coder;
     }
 
@@ -184,18 +235,18 @@ public class StateTags {
       }
 
       ValueStateTag<?> that = (ValueStateTag<?>) obj;
-      return Objects.equals(this.getId(), that.getId())
+      return Objects.equals(this.id, that.id)
           && Objects.equals(this.coder, that.coder);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(getClass(), getId(), coder);
+      return Objects.hash(getClass(), id, coder);
     }
 
     @Override
     protected StateTag<ValueState<T>> asKind(StateKind kind) {
-      return new ValueStateTag<T>(kind, id, coder);
+      return new ValueStateTag<T>(id.asKind(kind), coder);
     }
   }
 
@@ -213,9 +264,9 @@ public class StateTags {
     private final CombineFn<InputT, AccumT, OutputT> combineFn;
 
     private CombiningValueStateTag(
-        StateKind kind, String id,
+        StructuredId id,
         Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
-      super(kind, id);
+      super(id);
       this.combineFn = combineFn;
       this.accumCoder = accumCoder;
     }
@@ -236,19 +287,19 @@ public class StateTags {
       }
 
       CombiningValueStateTag<?, ?, ?> that = (CombiningValueStateTag<?, ?, ?>) obj;
-      return Objects.equals(this.getId(), that.getId())
+      return Objects.equals(this.id, that.id)
           && Objects.equals(this.accumCoder, that.accumCoder);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(getClass(), getId(), accumCoder);
+      return Objects.hash(getClass(), id, accumCoder);
     }
 
     @Override
     protected StateTag<CombiningValueStateInternal<InputT, AccumT, OutputT>> asKind(
         StateKind kind) {
-      return new CombiningValueStateTag<>(kind, id, accumCoder, combineFn);
+      return new CombiningValueStateTag<>(id.asKind(kind), accumCoder, combineFn);
     }
   }
 
@@ -262,8 +313,8 @@ public class StateTags {
 
     private final Coder<T> elemCoder;
 
-    private BagStateTag(StateKind kind, String id, Coder<T> elemCoder) {
-      super(kind, id);
+    private BagStateTag(StructuredId id, Coder<T> elemCoder) {
+      super(id);
       this.elemCoder = elemCoder;
     }
 
@@ -283,25 +334,25 @@ public class StateTags {
       }
 
       BagStateTag<?> that = (BagStateTag<?>) obj;
-      return Objects.equals(this.getId(), that.getId())
+      return Objects.equals(this.id, that.id)
           && Objects.equals(this.elemCoder, that.elemCoder);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(getClass(), getId(), elemCoder);
+      return Objects.hash(getClass(), id, elemCoder);
     }
 
     @Override
     protected StateTag<BagState<T>> asKind(StateKind kind) {
-      return new BagStateTag<>(kind, id, elemCoder);
+      return new BagStateTag<>(id.asKind(kind), elemCoder);
     }
   }
 
   private static class WatermarkStateTagInternal extends StateTagBase<WatermarkStateInternal> {
 
-    private WatermarkStateTagInternal(StateKind kind, String id) {
-      super(kind, id);
+    private WatermarkStateTagInternal(StructuredId id) {
+      super(id);
     }
 
     @Override
@@ -320,17 +371,17 @@ public class StateTags {
       }
 
       WatermarkStateTagInternal that = (WatermarkStateTagInternal) obj;
-      return Objects.equals(this.getId(), that.getId());
+      return Objects.equals(this.id, that.id);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(getClass(), getId());
+      return Objects.hash(getClass(), id);
     }
 
     @Override
     protected StateTag<WatermarkStateInternal> asKind(StateKind kind) {
-      return new WatermarkStateTagInternal(kind, id);
+      return new WatermarkStateTagInternal(id.asKind(kind));
     }
   }
 }
