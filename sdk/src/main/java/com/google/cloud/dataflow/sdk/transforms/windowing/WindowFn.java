@@ -129,7 +129,7 @@ public abstract class WindowFn<T, W extends BoundedWindow>
     * <p>The result must be between {@code inputTimestamp} and {@code window.maxTimestamp()}
    * (inclusive on both sides). If this {@link WindowFn} doesn't produce overlapping windows,
    * this can (and typically should) just return {@code inputTimestamp}. If this does produce
-   * overlapping windows, it is suggested that the that the result in later overlapping windows is
+   * overlapping windows, it is suggested that the result in later overlapping windows is
    * past the end of earlier windows so that the later windows don't prevent the watermark from
    * progressing past the end of the earlier window.
    *
