@@ -95,7 +95,7 @@ import javax.annotation.Nullable;
  *            {@code Trigger}
  */
 @Experimental(Experimental.Kind.TRIGGER)
-public abstract class Trigger<W extends BoundedWindow> implements Serializable {
+public abstract class Trigger<W extends BoundedWindow> implements Serializable, TriggerBuilder<W> {
 
   /**
    * {@code TriggerResult} enumerates the possible result a trigger can have when it is executed.
@@ -514,6 +514,11 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable {
    */
   public Trigger<W> orFinally(OnceTrigger<W> until) {
     return new OrFinallyTrigger<W>(this, until);
+  }
+
+  @Override
+  public Trigger<W> buildTrigger() {
+    return this;
   }
 
   /**

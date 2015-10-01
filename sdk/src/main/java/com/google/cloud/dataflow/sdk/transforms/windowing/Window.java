@@ -201,7 +201,7 @@ public class Window {
    * mode using either {@link #discardingFiredPanes()} or {@link #accumulatingFiredPanes()}.
    */
   @Experimental(Kind.TRIGGER)
-  public static <T> Bound<T> triggering(Trigger<?> trigger) {
+  public static <T> Bound<T> triggering(TriggerBuilder<?> trigger) {
     return new Unbound().triggering(trigger);
   }
 
@@ -296,7 +296,7 @@ public class Window {
      * mode using either {@link #discardingFiredPanes()} or {@link #accumulatingFiredPanes()}.
      */
     @Experimental(Kind.TRIGGER)
-    public <T> Bound<T> triggering(Trigger<?> trigger) {
+    public <T> Bound<T> triggering(TriggerBuilder<?> trigger) {
       return new Bound<T>(name).triggering(trigger);
     }
 
@@ -430,8 +430,9 @@ public class Window {
      * mode using either {@link #discardingFiredPanes()} or {@link #accumulatingFiredPanes()}.
      */
     @Experimental(Kind.TRIGGER)
-    public Bound<T> triggering(Trigger<?> trigger) {
-      return new Bound<T>(name, windowFn, trigger, mode, allowedLateness, closingBehavior);
+    public Bound<T> triggering(TriggerBuilder<?> trigger) {
+      return new Bound<T>(
+          name, windowFn, trigger.buildTrigger(), mode, allowedLateness, closingBehavior);
     }
 
    /**
