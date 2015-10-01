@@ -130,7 +130,8 @@ public class KvCoderComperator <K, V> extends TypeComparator<KV<K, V>> {
 				return arr[i] - arrOther[i];
 			}
 		}
-		return 0;	}
+		return 0;
+	}
 
 
 	@Override
