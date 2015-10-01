@@ -19,9 +19,7 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
-import com.google.cloud.dataflow.sdk.transforms.windowing.AfterPane;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Repeatedly;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -38,8 +36,7 @@ import org.joda.time.Duration;
  * @param <K> The type of key being reshuffled on.
  * @param <V> The type of value being reshuffled.
  */
-public class Reshuffle<K, V>
-  extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>> {
+public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>> {
 
   private Reshuffle() {
   }
@@ -52,8 +49,7 @@ public class Reshuffle<K, V>
   public PCollection<KV<K, V>> apply(PCollection<KV<K, V>> input) {
     WindowingStrategy<?, ?> originalStrategy = input.getWindowingStrategy();
     Window.Bound<KV<K, V>> rewindow = Window
-        .<KV<K, V>>triggering(Repeatedly.<BoundedWindow>forever(
-            AfterPane.<BoundedWindow>elementCountAtLeast(1)))
+        .<KV<K, V>>triggering(new ReshuffleTrigger<>())
         .discardingFiredPanes();
     if (!originalStrategy.isAllowedLatenessSpecified()) {
       rewindow = rewindow.withAllowedLateness(

@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
 import com.google.cloud.dataflow.sdk.coders.BigEndianLongCoder;
@@ -27,6 +28,7 @@ import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
 import com.google.cloud.dataflow.sdk.coders.CollectionCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
+import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill.InputMessageBundle;
@@ -45,6 +47,7 @@ import com.google.cloud.dataflow.sdk.util.DirectModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.DoFnRunner;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.NullSideInputReader;
+import com.google.cloud.dataflow.sdk.util.ReshuffleTriggerTest;
 import com.google.cloud.dataflow.sdk.util.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.TimerInternals;
 import com.google.cloud.dataflow.sdk.util.TimerInternals.TimerData;
@@ -108,6 +111,14 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
       }
     };
     counters = new CounterSet();
+  }
+
+  @Test public void testReshufle() throws Exception {
+    DoFn<?, ?> fn = StreamingGroupAlsoByWindowsDoFn.createForIterable(
+        WindowingStrategy.of(FixedWindows.of(Duration.standardSeconds(30)))
+        .withTrigger(ReshuffleTriggerTest.forTest()),
+        VarIntCoder.of());
+    assertTrue(fn instanceof StreamingGroupAlsoByWindowsReshuffleDoFn);
   }
 
   @Test public void testEmpty() throws Exception {

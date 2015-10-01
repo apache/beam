@@ -57,8 +57,13 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W exte
   DoFn<KeyedWorkItem<V>, KV<K, Iterable<V>>> createForIterable(
       final WindowingStrategy<?, W> windowingStrategy,
       final Coder<V> inputCoder) {
-    return new StreamingGABWViaWindowSetDoFn<>(
-        windowingStrategy, SystemReduceFn.<K, V, W>buffering(inputCoder));
+    // If the windowing strategy indicates we're doing a reshuffle, use the special-path.
+    if (StreamingGroupAlsoByWindowsReshuffleDoFn.isReshuffle(windowingStrategy)) {
+      return new StreamingGroupAlsoByWindowsReshuffleDoFn<>();
+    } else {
+      return new StreamingGABWViaWindowSetDoFn<>(
+          windowingStrategy, SystemReduceFn.<K, V, W>buffering(inputCoder));
+    }
   }
 
   private static class StreamingGABWViaWindowSetDoFn<K, InputT, OutputT, W extends BoundedWindow>
