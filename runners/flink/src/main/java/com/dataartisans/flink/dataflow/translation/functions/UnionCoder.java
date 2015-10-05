@@ -102,6 +102,13 @@ public class UnionCoder extends StandardCoder<RawUnionValue> {
 	}
 
 	@Override
+	public void verifyDeterministic() throws NonDeterministicException {
+		for (Coder coder : elementCoders) {
+			coder.verifyDeterministic();
+		}
+	}
+
+	@Override
 	public List<? extends Coder<?>> getComponents() {
 		return elementCoders;
 	}
@@ -140,16 +147,5 @@ public class UnionCoder extends StandardCoder<RawUnionValue> {
 
 	private UnionCoder(List<Coder<?>> elementCoders) {
 		this.elementCoders = elementCoders;
-	}
-
-	@Override
-	public boolean isDeterministic() {
-		for (Coder<?> elementCoder : elementCoders) {
-			if (!elementCoder.isDeterministic()) {
-				return false;
-			}
-		}
-
-		return true;
 	}
 }
