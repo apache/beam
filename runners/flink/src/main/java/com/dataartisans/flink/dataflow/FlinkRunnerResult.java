@@ -16,6 +16,11 @@
 package com.dataartisans.flink.dataflow;
 
 import com.google.cloud.dataflow.sdk.PipelineResult;
+import com.google.cloud.dataflow.sdk.runners.AggregatorRetrievalException;
+import com.google.cloud.dataflow.sdk.runners.AggregatorValues;
+import com.google.cloud.dataflow.sdk.transforms.Aggregator;
+import org.apache.flink.runtime.messages.accumulators.AccumulatorResultsNotFound;
+
 import java.util.Collections;
 import java.util.Map;
 
@@ -38,15 +43,25 @@ public class FlinkRunnerResult implements PipelineResult {
 		this.runtime = runtime;
 	}
 
-	/**
-	 * Return the final values of all {@link com.google.cloud.dataflow.sdk.transforms.Aggregator}s
-	 * used in the {@link com.google.cloud.dataflow.sdk.Pipeline}.
-	 */
-	public Map<String, Object> getAggregators() {
-		return aggregators;
+	@Override
+	public State getState() {
+		return null;
 	}
 
-	public long getRuntime() {
-		return runtime;
+	@Override
+	public <T> AggregatorValues<T> getAggregatorValues(final Aggregator<?, T> aggregator) throws AggregatorRetrievalException {
+		// TODO provide a list of all accumulator step values
+		Object value = aggregators.get(aggregator.getName());
+		if (value != null) {
+			return new AggregatorValues<T>() {
+				@Override
+				public Map<String, T> getValuesAtSteps() {
+					return (Map<String, T>) aggregators;
+				}
+			};
+		} else {
+			throw new AggregatorRetrievalException("Accumulator results not found.",
+					new RuntimeException("Accumulator does not exist."));
+		}
 	}
 }
