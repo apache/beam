@@ -94,10 +94,8 @@ public class DataflowWorkerHarnessTest {
     pipelineOptions.setGcpCredential(new TestCredential());
   }
 
-  @Test
-  public void testThatWeRetryIfTaskExecutionFailAgainAndAgain() throws Exception {
+  public void runTestThatWeRetryIfTaskExecutionFailsAgainAndAgain() throws Exception {
     final int numWorkers = Math.max(Runtime.getRuntime().availableProcessors(), 1);
-    when(mockDataflowWorker.getAndPerformWork()).thenReturn(false);
     final AtomicInteger sleepCount = new AtomicInteger(0);
     final AtomicInteger illegalIntervalCount = new AtomicInteger(0);
     DataflowWorkerHarness.processWork(
@@ -122,6 +120,24 @@ public class DataflowWorkerHarnessTest {
     verify(mockDataflowWorker, times(numWorkers + 1000)).getAndPerformWork();
     verifyNoMoreInteractions(mockDataflowWorker);
     assertEquals(0, illegalIntervalCount.get());
+  }
+
+  @Test
+  public void testThatWeRetryIfTaskExecutionFailAgainAndAgain() throws Exception {
+    when(mockDataflowWorker.getAndPerformWork()).thenReturn(false);
+    runTestThatWeRetryIfTaskExecutionFailsAgainAndAgain();
+  }
+
+  @Test
+  public void testThatWeRetryIfTaskExecutionFailAgainAndAgainByIOException() throws Exception {
+    when(mockDataflowWorker.getAndPerformWork()).thenThrow(new IOException());
+    runTestThatWeRetryIfTaskExecutionFailsAgainAndAgain();
+  }
+
+  @Test
+  public void testThatWeRetryIfTaskExecutionFailAgainAndAgainByUnknownException() throws Exception {
+    when(mockDataflowWorker.getAndPerformWork()).thenThrow(new RuntimeException());
+    runTestThatWeRetryIfTaskExecutionFailsAgainAndAgain();
   }
 
   @Test

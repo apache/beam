@@ -142,13 +142,7 @@ public class DataflowWorkerHarness {
       boolean success = true;
       try {
         do { // We loop getting and processing work.
-          try {
-            LOG.debug("Thread starting getAndPerformWork.");
-            success = worker.getAndPerformWork();
-            LOG.debug("{} processing one WorkItem.", success ? "Finished" : "Failed");
-          } catch (IOException e) {  // If there is a problem getting work.
-            success = false;
-          }
+          success = doWork();
           if (success) {
             backOff.reset();
           }
@@ -158,8 +152,25 @@ public class DataflowWorkerHarness {
         LOG.error("Already tried several attempts at working on tasks. Aborting.", e);
       } catch (InterruptedException e) {
         LOG.error("Interrupted during thread execution or sleep.", e);
+      } catch (Throwable t) {
+        LOG.error("Thread {} died.", Thread.currentThread().getId(), t);
       }
       return false;
+    }
+
+    private boolean doWork() {
+      try {
+        LOG.debug("Thread starting getAndPerformWork.");
+        boolean success = worker.getAndPerformWork();
+        LOG.debug("{} processing one WorkItem.", success ? "Finished" : "Failed");
+        return success;
+      } catch (IOException e) {  // If there is a problem getting work.
+        LOG.debug("There was a problem getting work.", e);
+        return false;
+      } catch (Exception e) {  // These exceptions are caused by bugs within the SDK
+        LOG.error("There was an unhandled error caused by the Dataflow SDK.", e);
+        return false;
+      }
     }
 
     private final DataflowWorker worker;
@@ -183,6 +194,7 @@ public class DataflowWorkerHarness {
     LOG.debug("Waiting for {} worker threads", numThreads);
     // We wait forever unless there is a big problem.
     executor.invokeAll(tasks);
+    LOG.error("All threads died.");
   }
 
   static DataflowWorker create(DataflowWorkerHarnessOptions options) {
