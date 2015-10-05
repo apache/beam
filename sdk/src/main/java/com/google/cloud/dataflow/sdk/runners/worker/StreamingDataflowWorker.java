@@ -22,7 +22,7 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.io.UnboundedSource;
 import com.google.cloud.dataflow.sdk.options.DataflowWorkerHarnessOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.runners.dataflow.BasicSerializableSourceFormat;
+import com.google.cloud.dataflow.sdk.runners.dataflow.CustomSources;
 import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingInitializer;
 import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingMDC;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
@@ -499,7 +499,7 @@ public class StreamingDataflowWorker {
 
         // If using a custom source, count bytes read for autoscaling.
         ParallelInstruction read = mapTask.getInstructions().get(0);
-        if (BasicSerializableSourceFormat.class.getName().equals(
+        if (CustomSources.class.getName().equals(
                 read.getRead().getSource().getSpec().get("@type"))) {
           readOperation.receivers[0].addOutputCounter(
               new OutputObjectAndByteCounter(

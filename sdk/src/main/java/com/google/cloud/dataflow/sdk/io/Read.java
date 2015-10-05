@@ -20,7 +20,7 @@ import static com.google.cloud.dataflow.sdk.util.StringUtils.approximateSimpleNa
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
-import com.google.cloud.dataflow.sdk.runners.dataflow.BasicSerializableSourceFormat;
+import com.google.cloud.dataflow.sdk.runners.dataflow.CustomSources;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -151,7 +151,7 @@ public class Read {
             @Override
             public void evaluate(
                 Bounded transform, DirectPipelineRunner.EvaluationContext context) {
-              BasicSerializableSourceFormat.evaluateReadHelper(transform, context);
+              CustomSources.evaluateReadHelper(transform, context);
             }
           });
     }

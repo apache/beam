@@ -18,10 +18,8 @@ package com.google.cloud.dataflow.sdk.runners.dataflow;
 
 import static com.google.api.client.util.Base64.decodeBase64;
 import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.splitRequestAtFraction;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudSourceOperationRequestToSourceOperationRequest;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.dictionaryToCloudSource;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.readerProgressToCloudProgress;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.sourceOperationResponseToCloudSourceOperationResponse;
 import static com.google.cloud.dataflow.sdk.testing.SourceTestUtils.readFromSource;
 import static com.google.cloud.dataflow.sdk.util.CoderUtils.encodeToByteArray;
 import static com.google.cloud.dataflow.sdk.util.SerializableUtils.deserializeFromByteArray;
@@ -47,6 +45,7 @@ import com.google.api.services.dataflow.model.DataflowPackage;
 import com.google.api.services.dataflow.model.DerivedSource;
 import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.SourceOperationRequest;
+import com.google.api.services.dataflow.model.SourceOperationResponse;
 import com.google.api.services.dataflow.model.SourceSplitRequest;
 import com.google.api.services.dataflow.model.SourceSplitResponse;
 import com.google.api.services.dataflow.model.Step;
@@ -79,7 +78,6 @@ import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.ValueWithRecordId;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
-import com.google.cloud.dataflow.sdk.util.common.worker.SourceFormat;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.base.Preconditions;
@@ -106,7 +104,7 @@ import java.util.concurrent.TimeUnit;
  * Tests for {@code BasicSerializableSourceFormat}.
  */
 @RunWith(JUnit4.class)
-public class BasicSerializableSourceFormatTest {
+public class CustomSourcesTest {
   @Rule
   public ExpectedException expectedException = ExpectedException.none();
 
@@ -378,15 +376,15 @@ public class BasicSerializableSourceFormatTest {
 
       assertNull(iterator.requestDynamicSplit(splitRequestAtFraction(0)));
       assertNull(iterator.requestDynamicSplit(splitRequestAtFraction(0.1f)));
-      BasicSerializableSourceFormat.BoundedSourceSplit<Integer> sourceSplit =
-          (BasicSerializableSourceFormat.BoundedSourceSplit<Integer>)
+      CustomSources.BoundedSourceSplit<Integer> sourceSplit =
+          (CustomSources.BoundedSourceSplit<Integer>)
               iterator.requestDynamicSplit(splitRequestAtFraction(0.5f));
       assertNotNull(sourceSplit);
       assertThat(readFromSource(sourceSplit.primary, options), contains(10, 11, 12, 13, 14));
       assertThat(readFromSource(sourceSplit.residual, options), contains(15, 16, 17, 18, 19));
 
       sourceSplit =
-          (BasicSerializableSourceFormat.BoundedSourceSplit<Integer>)
+          (CustomSources.BoundedSourceSplit<Integer>)
               iterator.requestDynamicSplit(splitRequestAtFraction(0.8f));
       assertNotNull(sourceSplit);
       assertThat(readFromSource(sourceSplit.primary, options), contains(10, 11, 12, 13));
@@ -596,11 +594,8 @@ public class BasicSerializableSourceFormatTest {
     splitRequest.setSource(source);
     SourceOperationRequest request = new SourceOperationRequest();
     request.setSplit(splitRequest);
-    SourceFormat.OperationRequest request1 =
-        cloudSourceOperationRequestToSourceOperationRequest(request);
-    SourceFormat.OperationResponse response =
-        new BasicSerializableSourceFormat(options).performSourceOperation(request1);
-    return sourceOperationResponseToCloudSourceOperationResponse(response).getSplit();
+    SourceOperationResponse response = CustomSources.performSourceOperation(request, options);
+    return response.getSplit();
   }
 
   @Test
@@ -608,10 +603,10 @@ public class BasicSerializableSourceFormatTest {
     DataflowPipelineOptions options =
         PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
     com.google.api.services.dataflow.model.Source source =
-        BasicSerializableSourceFormat.serializeToCloudSource(
+        CustomSources.serializeToCloudSource(
             new CountingSource(Integer.MAX_VALUE), options);
     List<String> serializedSplits =
-        getStrings(source.getSpec(), BasicSerializableSourceFormat.SERIALIZED_SOURCE_SPLITS, null);
+        getStrings(source.getSpec(), CustomSources.SERIALIZED_SOURCE_SPLITS, null);
     assertEquals(20, serializedSplits.size());
     for (String serializedSplit : serializedSplits) {
       assertTrue(
@@ -648,10 +643,10 @@ public class BasicSerializableSourceFormatTest {
 
       @SuppressWarnings({"unchecked", "rawtypes"})
       Reader<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>> reader = (Reader)
-          BasicSerializableSourceFormat.create(
-              (CloudObject) BasicSerializableSourceFormat.serializeToCloudSource(
+          CustomSources.create(
+              (CloudObject) CustomSources.serializeToCloudSource(
                   new CountingSource(Integer.MAX_VALUE), options)
-              .getSpec(),
+                  .getSpec(),
               options,
               context);
 

@@ -48,8 +48,8 @@ import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.DataflowWorkerHarnessOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.runners.dataflow.BasicSerializableSourceFormat;
 import com.google.cloud.dataflow.sdk.runners.dataflow.CountingSource;
+import com.google.cloud.dataflow.sdk.runners.dataflow.CustomSources;
 import com.google.cloud.dataflow.sdk.runners.worker.KeyedWorkItem.KeyedWorkItemCoder;
 import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingMDC;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
@@ -971,7 +971,7 @@ public class StreamingDataflowWorkerTest {
                 .setRead(
                     new ReadInstruction()
                         .setSource(
-                            BasicSerializableSourceFormat.serializeToCloudSource(
+                            CustomSources.serializeToCloudSource(
                                 new CountingSource(1), options)))
                 .setOutputs(
                     Arrays.asList(

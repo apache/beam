@@ -18,22 +18,21 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceOperationExecutor.SPLIT_RESPONSE_TOO_LARGE_ERROR;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceOperationExecutor.isSplitResponseTooLarge;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudSourceOperationResponseToSourceOperationResponse;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.readerProgressToCloudProgress;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.sourceOperationResponseToCloudSourceOperationResponse;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.toCloudPosition;
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.services.dataflow.model.MetricStructuredName;
 import com.google.api.services.dataflow.model.MetricUpdate;
 import com.google.api.services.dataflow.model.SideInputInfo;
+import com.google.api.services.dataflow.model.SourceOperationResponse;
 import com.google.api.services.dataflow.model.Status;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemServiceState;
 import com.google.api.services.dataflow.model.WorkItemStatus;
 import com.google.cloud.dataflow.sdk.options.DataflowWorkerHarnessOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.runners.dataflow.BasicSerializableSourceFormat;
+import com.google.cloud.dataflow.sdk.runners.dataflow.CustomSources;
 import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingHandler;
 import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.CloudCounterUtils;
@@ -46,7 +45,6 @@ import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.Metric;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
-import com.google.cloud.dataflow.sdk.util.common.worker.SourceFormat;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
 import com.google.cloud.dataflow.sdk.util.common.worker.WorkExecutor;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
@@ -155,7 +153,7 @@ public class DataflowWorker {
     LOG.debug("Executing: {}", workItem);
 
     WorkExecutor worker = null;
-    SourceFormat.OperationResponse operationResponse = null;
+    SourceOperationResponse operationResponse = null;
     long nextReportIndex = workItem.getInitialReportIndex();
     try {
       // Populate PipelineOptions with data from work unit.
@@ -214,8 +212,7 @@ public class DataflowWorker {
       // into the work update.
       operationResponse =
           (worker instanceof SourceOperationExecutor)
-              ? cloudSourceOperationResponseToSourceOperationResponse(
-                  ((SourceOperationExecutor) worker).getResponse())
+              ? ((SourceOperationExecutor) worker).getResponse()
               : null;
 
       try {
@@ -283,7 +280,7 @@ public class DataflowWorker {
 
   private void reportStatus(DataflowWorkerHarnessOptions options, String status, WorkItem workItem,
       @Nullable CounterSet counters, @Nullable Collection<Metric<?>> metrics,
-      @Nullable SourceFormat.OperationResponse operationResponse, @Nullable List<Status> errors,
+      @Nullable SourceOperationResponse operationResponse, @Nullable List<Status> errors,
       long reportIndex)
       throws IOException {
     String message = "{} processing work item {}";
@@ -301,7 +298,7 @@ public class DataflowWorker {
       @Nullable CounterSet counters, @Nullable Collection<Metric<?>> metrics,
       DataflowWorkerHarnessOptions options, @Nullable Reader.Progress progress,
       @Nullable Reader.DynamicSplitResult dynamicSplitResult,
-      @Nullable SourceFormat.OperationResponse operationResponse, @Nullable List<Status> errors,
+      @Nullable SourceOperationResponse operationResponse, @Nullable List<Status> errors,
       long reportIndex) {
 
     return buildStatus(workItem, completed, counters, metrics, options, progress,
@@ -312,7 +309,7 @@ public class DataflowWorker {
       @Nullable CounterSet counters, @Nullable Collection<Metric<?>> metrics,
       DataflowWorkerHarnessOptions options, @Nullable Reader.Progress progress,
       @Nullable Reader.DynamicSplitResult dynamicSplitResult,
-      @Nullable SourceFormat.OperationResponse operationResponse, @Nullable List<Status> errors,
+      @Nullable SourceOperationResponse operationResponse, @Nullable List<Status> errors,
       long reportIndex,
       @Nullable StateSampler.StateSamplerInfo stateSamplerInfo) {
     WorkItemStatus status = new WorkItemStatus();
@@ -378,18 +375,17 @@ public class DataflowWorker {
       Reader.DynamicSplitResultWithPosition asPosition =
           (Reader.DynamicSplitResultWithPosition) dynamicSplitResult;
       status.setStopPosition(toCloudPosition(asPosition.getAcceptedPosition()));
-    } else if (dynamicSplitResult instanceof BasicSerializableSourceFormat.BoundedSourceSplit) {
+    } else if (dynamicSplitResult instanceof CustomSources.BoundedSourceSplit) {
       status.setDynamicSourceSplit(
-          BasicSerializableSourceFormat.toSourceSplit(
-              (BasicSerializableSourceFormat.BoundedSourceSplit<?>) dynamicSplitResult, options));
+          CustomSources.toSourceSplit(
+              (CustomSources.BoundedSourceSplit<?>) dynamicSplitResult, options));
     } else if (dynamicSplitResult != null) {
       throw new IllegalArgumentException(
           "Unexpected type of dynamic split result: " + dynamicSplitResult);
     }
 
     if (workItem.getSourceOperationTask() != null) {
-      status.setSourceOperationResponse(
-          sourceOperationResponseToCloudSourceOperationResponse(operationResponse));
+      status.setSourceOperationResponse(operationResponse);
     }
 
     return status;

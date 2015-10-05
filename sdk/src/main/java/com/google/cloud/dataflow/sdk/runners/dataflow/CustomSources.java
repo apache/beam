@@ -18,9 +18,7 @@ package com.google.cloud.dataflow.sdk.runners.dataflow;
 
 import static com.google.api.client.util.Base64.decodeBase64;
 import static com.google.api.client.util.Base64.encodeBase64String;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudSourceOperationResponseToSourceOperationResponse;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudSourceToDictionary;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.sourceOperationRequestToCloudSourceOperationRequest;
 import static com.google.cloud.dataflow.sdk.util.SerializableUtils.deserializeFromByteArray;
 import static com.google.cloud.dataflow.sdk.util.SerializableUtils.serializeToByteArray;
 import static com.google.cloud.dataflow.sdk.util.Structs.addString;
@@ -33,8 +31,6 @@ import com.google.api.client.util.Base64;
 import com.google.api.services.dataflow.model.ApproximateProgress;
 import com.google.api.services.dataflow.model.DerivedSource;
 import com.google.api.services.dataflow.model.DynamicSourceSplit;
-import com.google.api.services.dataflow.model.SourceGetMetadataRequest;
-import com.google.api.services.dataflow.model.SourceGetMetadataResponse;
 import com.google.api.services.dataflow.model.SourceMetadata;
 import com.google.api.services.dataflow.model.SourceOperationRequest;
 import com.google.api.services.dataflow.model.SourceOperationResponse;
@@ -62,7 +58,6 @@ import com.google.cloud.dataflow.sdk.util.ValueWithRecordId;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
-import com.google.cloud.dataflow.sdk.util.common.worker.SourceFormat;
 import com.google.cloud.dataflow.sdk.values.PValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -84,11 +79,10 @@ import javax.annotation.Nullable;
 /**
  * A helper class for supporting sources defined as {@code Source}.
  *
- * <p>Provides a bridge between the high-level {@code Source} API and the raw
- * API-level {@code SourceFormat} API, by encoding the serialized
- * {@code Source} in a parameter of the API {@code Source} message.
+ * <p>Provides a bridge between the high-level {@code Source} API and the
+ * low-level {@code CloudSource} class.
  */
-public class BasicSerializableSourceFormat implements SourceFormat {
+public class CustomSources {
   private static final String SERIALIZED_SOURCE = "serialized_source";
   @VisibleForTesting static final String SERIALIZED_SOURCE_SPLITS = "serialized_source_splits";
   private static final long DEFAULT_DESIRED_BUNDLE_SIZE_BYTES = 64 * (1 << 20);
@@ -102,13 +96,7 @@ public class BasicSerializableSourceFormat implements SourceFormat {
   // Maximum number of custom source splits currently supported by Dataflow.
   private static final int MAX_NUMBER_OF_SPLITS = 16000;
 
-  private static final Logger LOG = LoggerFactory.getLogger(BasicSerializableSourceFormat.class);
-
-  private final PipelineOptions options;
-
-  public BasicSerializableSourceFormat(PipelineOptions options) {
-    this.options = options;
-  }
+  private static final Logger LOG = LoggerFactory.getLogger(CustomSources.class);
 
   /**
    * A {@code DynamicSplitResult} specified explicitly by a pair of {@code BoundedSource}
@@ -156,23 +144,20 @@ public class BasicSerializableSourceFormat implements SourceFormat {
    * by deserializing its source to a {@code BoundedSource}, splitting it, and
    * serializing results back.
    */
-  @Override
-  public OperationResponse performSourceOperation(OperationRequest request) throws Exception {
-    SourceOperationRequest cloudRequest =
-        sourceOperationRequestToCloudSourceOperationRequest(request);
-    SourceOperationResponse cloudResponse = new SourceOperationResponse();
-    if (cloudRequest.getGetMetadata() != null) {
-      cloudResponse.setGetMetadata(performGetMetadata(cloudRequest.getGetMetadata()));
-    } else if (cloudRequest.getSplit() != null) {
-      cloudResponse.setSplit(performSplit(cloudRequest.getSplit()));
+  public static SourceOperationResponse performSourceOperation(
+      SourceOperationRequest request, PipelineOptions options) throws Exception {
+    SourceOperationResponse response = new SourceOperationResponse();
+    if (request.getSplit() != null) {
+      response.setSplit(performSplit(request.getSplit(), options));
     } else {
-      throw new UnsupportedOperationException("Unknown source operation request");
+      throw new UnsupportedOperationException(
+          "Unsupported source operation request: " + request);
     }
-    return cloudSourceOperationResponseToSourceOperationResponse(cloudResponse);
+    return response;
   }
 
   /**
-   * Factory to create a {@link BasicSerializableSourceFormat} from a Dataflow API
+   * Factory to create a {@link CustomSources} from a Dataflow API
    * source specification.
    */
   public static class Factory implements ReaderFactory {
@@ -188,7 +173,7 @@ public class BasicSerializableSourceFormat implements SourceFormat {
       // The parameter "coder" is deliberately never used. It is an artifact of ReaderFactory:
       // some readers need a coder, some don't (i.e. for some it doesn't even make sense),
       // but ReaderFactory passes it to all readers anyway.
-      return BasicSerializableSourceFormat.create(spec, options, executionContext);
+      return CustomSources.create(spec, options, executionContext);
     }
   }
 
@@ -297,7 +282,9 @@ public class BasicSerializableSourceFormat implements SourceFormat {
     }
   }
 
-  private SourceSplitResponse performSplit(SourceSplitRequest request) throws Exception {
+  private static SourceSplitResponse performSplit(
+      SourceSplitRequest request, PipelineOptions options)
+      throws Exception {
     Source<?> anySource = deserializeFromCloudSource(request.getSource().getSpec());
     if (!(anySource instanceof BoundedSource)) {
       throw new UnsupportedOperationException("Cannot split a non-Bounded source: " + anySource);
@@ -349,20 +336,6 @@ public class BasicSerializableSourceFormat implements SourceFormat {
     return response;
   }
 
-  private SourceGetMetadataResponse performGetMetadata(SourceGetMetadataRequest request)
-      throws Exception {
-    Source<?> source = deserializeFromCloudSource(request.getSource().getSpec());
-    SourceMetadata metadata = new SourceMetadata();
-    if (source instanceof BoundedSource) {
-      BoundedSource<?> boundedSource = (BoundedSource<?>) source;
-      metadata.setProducesSortedKeys(boundedSource.producesSortedKeys(options));
-      metadata.setEstimatedSizeBytes(boundedSource.getEstimatedSizeBytes(options));
-    }
-    SourceGetMetadataResponse response = new SourceGetMetadataResponse();
-    response.setMetadata(metadata);
-    return response;
-  }
-
   public static Source<?> deserializeFromCloudSource(Map<String, Object> spec) throws Exception {
     Source<?> source = (Source<?>) deserializeFromByteArray(
         Base64.decodeBase64(getString(spec, SERIALIZED_SOURCE)), "Source");
@@ -390,7 +363,7 @@ public class BasicSerializableSourceFormat implements SourceFormat {
     com.google.api.services.dataflow.model.Source cloudSource =
         new com.google.api.services.dataflow.model.Source();
     // We ourselves act as the SourceFormat.
-    cloudSource.setSpec(CloudObject.forClass(BasicSerializableSourceFormat.class));
+    cloudSource.setSpec(CloudObject.forClass(CustomSources.class));
     addString(
         cloudSource.getSpec(), SERIALIZED_SOURCE, encodeBase64String(serializeToByteArray(source)));
 
@@ -655,7 +628,9 @@ public class BasicSerializableSourceFormat implements SourceFormat {
         }
         try {
           Thread.sleep(nextBackoff);
-        } catch (InterruptedException e) {}
+        } catch (InterruptedException e) {
+          // ignore.
+        }
       }
       return true;
     }

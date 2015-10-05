@@ -27,6 +27,6 @@ import com.google.cloud.dataflow.sdk.io.Read;
 public class ReadTranslator implements TransformTranslator<Read.Bounded<?>> {
   @Override
   public void translate(Read.Bounded<?> transform, TranslationContext context) {
-    BasicSerializableSourceFormat.translateReadHelper(transform.getSource(), transform, context);
+    CustomSources.translateReadHelper(transform.getSource(), transform, context);
   }
 }

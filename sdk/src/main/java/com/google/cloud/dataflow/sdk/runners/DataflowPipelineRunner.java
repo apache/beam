@@ -42,7 +42,7 @@ import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsValidator;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator.JobSpecification;
-import com.google.cloud.dataflow.sdk.runners.dataflow.BasicSerializableSourceFormat;
+import com.google.cloud.dataflow.sdk.runners.dataflow.CustomSources;
 import com.google.cloud.dataflow.sdk.runners.dataflow.DataflowAggregatorTransforms;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
@@ -599,7 +599,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
       @Override
       public void translate(ReadWithIds<?> transform,
           DataflowPipelineTranslator.TranslationContext context) {
-        BasicSerializableSourceFormat.translateReadHelper(
+        CustomSources.translateReadHelper(
             transform.getSource(), transform, context);
       }
     }

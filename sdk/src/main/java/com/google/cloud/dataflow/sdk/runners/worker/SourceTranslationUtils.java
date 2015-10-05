@@ -25,11 +25,8 @@ import com.google.api.services.dataflow.model.ApproximateProgress;
 import com.google.api.services.dataflow.model.Position;
 import com.google.api.services.dataflow.model.Source;
 import com.google.api.services.dataflow.model.SourceMetadata;
-import com.google.api.services.dataflow.model.SourceOperationRequest;
-import com.google.api.services.dataflow.model.SourceOperationResponse;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
-import com.google.cloud.dataflow.sdk.util.common.worker.SourceFormat;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -50,17 +47,6 @@ public class SourceTranslationUtils {
     return cloudPosition == null ? null : new DataflowReaderPosition(cloudPosition);
   }
 
-  public static SourceFormat.OperationRequest cloudSourceOperationRequestToSourceOperationRequest(
-      @Nullable SourceOperationRequest request) {
-    return request == null ? null : new DataflowSourceOperationRequest(request);
-  }
-
-  public static SourceFormat.OperationResponse
-      cloudSourceOperationResponseToSourceOperationResponse(
-          @Nullable SourceOperationResponse response) {
-    return response == null ? null : new DataflowSourceOperationResponse(response);
-  }
-
   public static ApproximateProgress readerProgressToCloudProgress(
       @Nullable Reader.Progress readerProgress) {
     return readerProgress == null ? null : ((DataflowReaderProgress) readerProgress).cloudProgress;
@@ -68,21 +54,6 @@ public class SourceTranslationUtils {
 
   public static Position toCloudPosition(@Nullable Reader.Position readerPosition) {
     return readerPosition == null ? null : ((DataflowReaderPosition) readerPosition).cloudPosition;
-  }
-
-
-  public static SourceOperationRequest sourceOperationRequestToCloudSourceOperationRequest(
-      @Nullable SourceFormat.OperationRequest request) {
-    return (request == null) ? null : ((DataflowSourceOperationRequest) request).cloudRequest;
-  }
-
-  public static SourceOperationResponse sourceOperationResponseToCloudSourceOperationResponse(
-      @Nullable SourceFormat.OperationResponse response) {
-    return (response == null) ? null : ((DataflowSourceOperationResponse) response).cloudResponse;
-  }
-
-  public static Source sourceSpecToCloudSource(@Nullable SourceFormat.SourceSpec spec) {
-    return (spec == null) ? null : ((DataflowSourceSpec) spec).cloudSource;
   }
 
   public static ApproximateProgress splitRequestToApproximateProgress(
@@ -120,45 +91,6 @@ public class SourceTranslationUtils {
     @Override
     public String toString() {
       return String.valueOf(cloudPosition);
-    }
-  }
-
-  static class DataflowSourceOperationRequest implements SourceFormat.OperationRequest {
-    public final SourceOperationRequest cloudRequest;
-
-    public DataflowSourceOperationRequest(SourceOperationRequest cloudRequest) {
-      this.cloudRequest = cloudRequest;
-    }
-
-    @Override
-    public String toString() {
-      return String.valueOf(cloudRequest);
-    }
-  }
-
-  static class DataflowSourceOperationResponse implements SourceFormat.OperationResponse {
-    public final SourceOperationResponse cloudResponse;
-
-    public DataflowSourceOperationResponse(SourceOperationResponse cloudResponse) {
-      this.cloudResponse = cloudResponse;
-    }
-
-    @Override
-    public String toString() {
-      return String.valueOf(cloudResponse);
-    }
-  }
-
-  static class DataflowSourceSpec implements SourceFormat.SourceSpec {
-    public final Source cloudSource;
-
-    public DataflowSourceSpec(Source cloudSource) {
-      this.cloudSource = cloudSource;
-    }
-
-    @Override
-    public String toString() {
-      return String.valueOf(cloudSource);
     }
   }
 

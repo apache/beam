@@ -19,7 +19,7 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 import com.google.api.services.dataflow.model.SideInputInfo;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.io.UnboundedSource;
-import com.google.cloud.dataflow.sdk.runners.dataflow.BasicSerializableSourceFormat;
+import com.google.cloud.dataflow.sdk.runners.dataflow.CustomSources;
 import com.google.cloud.dataflow.sdk.runners.worker.StateFetcher.SideInputState;
 import com.google.cloud.dataflow.sdk.runners.worker.StreamingDataflowWorker.ReaderCacheEntry;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
@@ -247,7 +247,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
 
       long backlogBytes = activeReader.getSplitBacklogBytes();
       if (backlogBytes == UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN
-          && BasicSerializableSourceFormat.isFirstUnboundedSourceSplit(getSerializedKey())) {
+          && CustomSources.isFirstUnboundedSourceSplit(getSerializedKey())) {
         // Only call getTotalBacklogBytes() on the first split.
         backlogBytes = activeReader.getTotalBacklogBytes();
       }
