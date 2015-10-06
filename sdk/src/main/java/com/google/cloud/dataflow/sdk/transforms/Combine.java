@@ -310,9 +310,10 @@ public class Combine {
    *   public Accum createAccumulator() {
    *     return new Accum();
    *   }
-   *   public void addInput(Accum accum, Integer input) {
+   *   public Accum addInput(Accum accum, Integer input) {
    *       accum.sum += input;
    *       accum.count++;
+   *       return accum;
    *   }
    *   public Accum mergeAccumulators(Iterable<Accum> accums) {
    *     Accum merged = createAccumulator();
@@ -1034,8 +1035,9 @@ public class Combine {
    *   public Accum createAccumulator(String key) {
    *     return new Accum();
    *   }
-   *   public void addInput(String key, Accum accum, Integer input) {
+   *   public Accum addInput(String key, Accum accum, Integer input) {
    *       accum.s += "+" + input;
+   *       return accum;
    *   }
    *   public Accum mergeAccumulators(String key, Iterable<Accum> accums) {
    *     Accum merged = new Accum();
@@ -1080,8 +1082,8 @@ public class Combine {
     public abstract AccumT createAccumulator(K key);
 
     /**
-     * Adds the given input value to the given accumulator,
-     * modifying the accumulator.
+     * Adds the given input value to the given accumulator, returning the
+     * new accumulator value.
      *
      * <p>For efficiency, the input accumulator may be modified and returned.
      *
