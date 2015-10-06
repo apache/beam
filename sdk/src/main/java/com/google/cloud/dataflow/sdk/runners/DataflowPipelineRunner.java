@@ -31,6 +31,8 @@ import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
+import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
+import com.google.cloud.dataflow.sdk.coders.ListCoder;
 import com.google.cloud.dataflow.sdk.io.AvroIO;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO;
 import com.google.cloud.dataflow.sdk.io.PubsubIO;
@@ -46,6 +48,7 @@ import com.google.cloud.dataflow.sdk.runners.dataflow.CustomSources;
 import com.google.cloud.dataflow.sdk.runners.dataflow.DataflowAggregatorTransforms;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
+import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
@@ -247,6 +250,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
         .put(View.AsMap.class, StreamingViewAsMap.class)
         .put(View.AsMultimap.class, StreamingViewAsMultimap.class)
         .put(View.AsSingleton.class, StreamingViewAsSingleton.class)
+        .put(View.AsList.class, StreamingViewAsList.class)
         .put(View.AsIterable.class, StreamingViewAsIterable.class)
         .put(Write.Bound.class, StreamingWrite.class)
         .put(PubsubIO.Write.Bound.class, StreamingPubsubIOWrite.class)
@@ -769,7 +773,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
               input.getCoder());
 
       return input
-          .apply(Combine.globally(new View.Concatenate<KV<K, V>>()).withoutDefaults())
+          .apply(Combine.globally(new Concatenate<KV<K, V>>()).withoutDefaults())
           .apply(ParDo.of(StreamingPCollectionViewWriterFn.create(view, input.getCoder())))
           .apply(View.CreatePCollectionView.<KV<K, V>, Map<K, V>>of(view));
     }
@@ -800,7 +804,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
               input.getCoder());
 
       return input
-          .apply(Combine.globally(new View.Concatenate<KV<K, V>>()).withoutDefaults())
+          .apply(Combine.globally(new Concatenate<KV<K, V>>()).withoutDefaults())
           .apply(ParDo.of(StreamingPCollectionViewWriterFn.create(view, input.getCoder())))
           .apply(View.CreatePCollectionView.<KV<K, V>, Map<K, Iterable<V>>>of(view));
     }
@@ -808,6 +812,30 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     @Override
     protected String getKindString() {
       return "StreamingViewAsMultimap";
+    }
+  }
+
+  /**
+   * Specialized implementation for {@link View.AsList} for the Dataflow runner in streaming mode.
+   */
+  private static class StreamingViewAsList<T>
+      extends PTransform<PCollection<T>, PCollectionView<List<T>>> {
+    /**
+     * Builds an instance of this class from the overridden transform.
+     */
+    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
+    public StreamingViewAsList(View.AsList<T> transform) {}
+
+    @Override
+    public PCollectionView<List<T>> apply(PCollection<T> input) {
+      // Using Combine.globally(...).asSingletonView() allows automatic propagation of
+      // the CombineFn's default value as the default value of the SingletonView.
+      return input.apply(Combine.globally(new Concatenate<T>()).asSingletonView());
+    }
+
+    @Override
+    protected String getKindString() {
+      return "StreamingViewAsList";
     }
   }
 
@@ -833,7 +861,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
       @SuppressWarnings({"rawtypes", "unchecked"})
       Combine.GloballyAsSingletonView<T, Iterable<T>> concatAndView =
       (Combine.GloballyAsSingletonView)
-      Combine.globally(new View.Concatenate<T>()).asSingletonView();
+      Combine.globally(new Concatenate<T>()).asSingletonView();
       return input.apply(concatAndView);
     }
 
@@ -945,6 +973,53 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     @Override
     protected String getKindString() {
       return "StreamingCombineGloballyAsSingletonView";
+    }
+  }
+
+  /**
+   * Combiner that combines {@code T}s into a single {@code List<T>} containing all inputs.
+   *
+   * <p>For internal use by {@link StreamingViewAsMap}, {@link StreamingViewAsMultimap},
+   * {@link StreamingViewAsList}, {@link StreamingViewAsIterable}.
+   * They require the input {@link PCollection} fits in memory.
+   * For a large {@link PCollection} this is expected to crash!
+   *
+   * @param <T> the type of elements to concatenate.
+   */
+  private static class Concatenate<T> extends CombineFn<T, List<T>, List<T>> {
+    @Override
+    public List<T> createAccumulator() {
+      return new ArrayList<T>();
+    }
+
+    @Override
+    public List<T> addInput(List<T> accumulator, T input) {
+      accumulator.add(input);
+      return accumulator;
+    }
+
+    @Override
+    public List<T> mergeAccumulators(Iterable<List<T>> accumulators) {
+      List<T> result = createAccumulator();
+      for (List<T> accumulator : accumulators) {
+        result.addAll(accumulator);
+      }
+      return result;
+    }
+
+    @Override
+    public List<T> extractOutput(List<T> accumulator) {
+      return accumulator;
+    }
+
+    @Override
+    public Coder<List<T>> getAccumulatorCoder(CoderRegistry registry, Coder<T> inputCoder) {
+      return ListCoder.of(inputCoder);
+    }
+
+    @Override
+    public Coder<List<T>> getDefaultOutputCoder(CoderRegistry registry, Coder<T> inputCoder) {
+      return ListCoder.of(inputCoder);
     }
   }
 

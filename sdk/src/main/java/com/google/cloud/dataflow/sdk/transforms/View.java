@@ -16,18 +16,13 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
-import com.google.cloud.dataflow.sdk.coders.ListCoder;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
-import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.util.PCollectionViews;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -239,7 +234,8 @@ public class View {
 
     @Override
     public PCollectionView<List<T>> apply(PCollection<T> input) {
-      return input.apply(Combine.globally(new Concatenate<T>()).asSingletonView());
+      return input.apply(CreatePCollectionView.<T, List<T>>of(PCollectionViews.listView(
+          input.getPipeline(), input.getWindowingStrategy(), input.getCoder())));
     }
   }
 
@@ -454,53 +450,6 @@ public class View {
               context.setPCollectionView(context.getOutput(transform), elems);
             }
           });
-    }
-  }
-
-  /**
-   * Combiner that combines {@code T}s into a single {@code List<T>} containing
-   * all inputs.
-   *
-   * <p>For internal use only by {@link View#asList()}, which views a tiny {@link PCollection}
-   * that fits in memory as a single {@code List}. For a large {@link PCollection} this is
-   * expected to crash!
-   *
-   * @param <T> the type of elements to concatenate.
-   */
-  public static class Concatenate<T> extends CombineFn<T, List<T>, List<T>> {
-    @Override
-    public List<T> createAccumulator() {
-      return new ArrayList<T>();
-    }
-
-    @Override
-    public List<T> addInput(List<T> accumulator, T input) {
-      accumulator.add(input);
-      return accumulator;
-    }
-
-    @Override
-    public List<T> mergeAccumulators(Iterable<List<T>> accumulators) {
-      List<T> result = createAccumulator();
-      for (List<T> accumulator : accumulators) {
-        result.addAll(accumulator);
-      }
-      return result;
-    }
-
-    @Override
-    public List<T> extractOutput(List<T> accumulator) {
-      return accumulator;
-    }
-
-    @Override
-    public Coder<List<T>> getAccumulatorCoder(CoderRegistry registry, Coder<T> inputCoder) {
-      return ListCoder.of(inputCoder);
-    }
-
-    @Override
-    public Coder<List<T>> getDefaultOutputCoder(CoderRegistry registry, Coder<T> inputCoder) {
-      return ListCoder.of(inputCoder);
     }
   }
 }

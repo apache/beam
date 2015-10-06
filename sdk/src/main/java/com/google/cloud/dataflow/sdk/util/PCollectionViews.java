@@ -29,12 +29,14 @@ import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.base.Function;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.HashMultimap;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Multimap;
 
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
@@ -72,6 +74,17 @@ public class PCollectionViews {
       WindowingStrategy<?, W> windowingStrategy,
       Coder<T> valueCoder) {
     return new IterablePCollectionView<>(pipeline, windowingStrategy, valueCoder);
+  }
+
+  /**
+   * Returns a {@code PCollectionView<List<T>>} capable of processing elements encoded using the
+   * provided {@link Coder} and windowed using the provided {@link WindowingStrategy}.
+   */
+  public static <T, W extends BoundedWindow> PCollectionView<List<T>> listView(
+      Pipeline pipeline,
+      WindowingStrategy<?, W> windowingStrategy,
+      Coder<T> valueCoder) {
+    return new ListPCollectionView<>(pipeline, windowingStrategy, valueCoder);
   }
 
   /**
@@ -175,6 +188,33 @@ public class PCollectionViews {
           return input.getValue();
         }
       });
+    }
+  }
+
+  /**
+   * Implementation of conversion {@code Iterable<WindowedValue<T>>} to {@code List<T>}.
+   *
+   * <p>For internal use only.
+   *
+   * <p>Instantiate via {@link PCollectionViews#listView}.
+   */
+  private static class ListPCollectionView<T, W extends BoundedWindow>
+      extends PCollectionViewBase<T, List<T>, W> {
+    public ListPCollectionView(
+        Pipeline pipeline, WindowingStrategy<?, W> windowingStrategy, Coder<T> valueCoder) {
+      super(pipeline, windowingStrategy, valueCoder);
+    }
+
+    @Override
+    protected List<T> fromElements(Iterable<WindowedValue<T>> contents) {
+      return ImmutableList.copyOf(
+          Iterables.transform(contents, new Function<WindowedValue<T>, T>() {
+            @SuppressWarnings("unchecked")
+            @Override
+            public T apply(WindowedValue<T> input) {
+              return input.getValue();
+            }
+          }));
     }
   }
 
