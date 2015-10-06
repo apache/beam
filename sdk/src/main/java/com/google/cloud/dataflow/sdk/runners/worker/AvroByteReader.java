@@ -18,13 +18,13 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 
 import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.worker.AbstractBoundedReaderIterator;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 
 import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericDatumReader;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -43,11 +43,11 @@ public class AvroByteReader<T> extends Reader<T> {
   final Coder<T> coder;
   private final Schema schema = Schema.create(Schema.Type.BYTES);
 
-  public AvroByteReader(
-      String filename, @Nullable Long startPosition, @Nullable Long endPosition, Coder<T> coder) {
+  public AvroByteReader(String filename, @Nullable Long startPosition, @Nullable Long endPosition,
+      Coder<T> coder, @Nullable PipelineOptions options) {
     this.coder = coder;
-    avroReader = new AvroReader<>(filename, startPosition, endPosition,
-        WindowedValue.getValueOnlyCoder(AvroCoder.of(ByteBuffer.class, schema)));
+    avroReader = new AvroReader<>(
+        filename, startPosition, endPosition, AvroCoder.of(ByteBuffer.class, schema), options);
   }
 
   @Override
@@ -59,7 +59,7 @@ public class AvroByteReader<T> extends Reader<T> {
     private final ReaderIterator<WindowedValue<ByteBuffer>> avroFileIterator;
 
     public AvroByteFileIterator() throws IOException {
-      avroFileIterator = avroReader.iterator(new GenericDatumReader<ByteBuffer>(schema));
+      avroFileIterator = avroReader.iterator();
     }
 
     @Override

@@ -222,6 +222,13 @@ public class AvroCoder<T> extends StandardCoder<T> {
     return type.getName();
   }
 
+  /**
+   * Returns the type this coder encodes/decodes.
+   */
+  public Class<T> getType() {
+    return type;
+  }
+
   private Object writeReplace() {
     // When serialized by Java, instances of AvroCoder should be replaced by
     // a SerializedAvroCoderProxy.
@@ -269,8 +276,12 @@ public class AvroCoder<T> extends StandardCoder<T> {
 
   /**
    * Returns a new DatumReader that can be used to read from
-   * an Avro file directly.
+   * an Avro file directly. Assumes the schema used to read is
+   * the same as the schema that was used when writing.
+   *
+   * @deprecated For {@code AvroCoder} internal use only.
    */
+  @Deprecated
   public DatumReader<T> createDatumReader() {
     if (type.equals(GenericRecord.class)) {
       return new GenericDatumReader<>(schema);
@@ -282,7 +293,10 @@ public class AvroCoder<T> extends StandardCoder<T> {
   /**
    * Returns a new DatumWriter that can be used to write to
    * an Avro file directly.
+   *
+   * @deprecated For {@code AvroCoder} internal use only.
    */
+  @Deprecated
   public DatumWriter<T> createDatumWriter() {
     if (type.equals(GenericRecord.class)) {
       return new GenericDatumWriter<>(schema);

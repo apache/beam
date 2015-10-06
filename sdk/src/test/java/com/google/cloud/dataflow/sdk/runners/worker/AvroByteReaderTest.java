@@ -24,7 +24,6 @@ import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
 import com.google.cloud.dataflow.sdk.util.MimeTypes;
 import com.google.cloud.dataflow.sdk.util.common.worker.ExecutorTestUtils;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileWriter;
@@ -56,6 +55,15 @@ public class AvroByteReaderTest {
   @Rule
   public TemporaryFolder tmpFolder = new TemporaryFolder();
 
+  /**
+   * Reads from a file generated from a collection of elements and verifies that the elements read
+   * are the same as the elements written.
+   *
+   * @param elemsList a list of blocks of elements, each of which is as a list of elements.
+   * @param coder the coder used to encode the elements
+   * @param requireExactMatch if true, each block must match exactly
+   * @throws Exception
+   */
   private <T> void runTestRead(List<List<T>> elemsList, Coder<T> coder, boolean requireExactMatch)
       throws Exception {
     File tmpFile = tmpFolder.newFile("file.avro");
@@ -68,6 +76,7 @@ public class AvroByteReaderTest {
     DatumWriter<ByteBuffer> datumWriter = new GenericDatumWriter<>(schema);
     List<Long> syncPoints = new ArrayList<>();
     List<Integer> expectedSizes = new ArrayList<>();
+    long expectedTotalSize = 0;
     try (DataFileWriter<ByteBuffer> fileWriter = new DataFileWriter<>(datumWriter)) {
       fileWriter.create(schema, outStream);
       boolean first = true;
@@ -83,6 +92,7 @@ public class AvroByteReaderTest {
           byte[] encodedElem = CoderUtils.encodeToByteArray(coder, elem);
           fileWriter.append(ByteBuffer.wrap(encodedElem));
           expectedSizes.add(encodedElem.length);
+          expectedTotalSize += encodedElem.length;
         }
       }
     }
@@ -121,20 +131,21 @@ public class AvroByteReaderTest {
       Assert.assertEquals(expected, actual);
     }
 
-    Assert.assertEquals(expectedSizes, actualSizes);
+    long actualTotalSize = 0;
+    for (int elemSize : actualSizes) {
+      actualTotalSize += elemSize;
+    }
+    Assert.assertEquals(expectedTotalSize, actualTotalSize);
   }
 
   private <T> List<T> readElems(String filename, @Nullable Long startOffset,
       @Nullable Long endOffset, Coder<T> coder, List<Integer> actualSizes) throws Exception {
-    AvroByteReader<T> avroReader = new AvroByteReader<>(filename, startOffset, endOffset, coder);
+    AvroByteReader<T> avroReader =
+        new AvroByteReader<>(filename, startOffset, endOffset, coder, null);
     new ExecutorTestUtils.TestReaderObserver(avroReader, actualSizes);
 
     List<T> actualElems = new ArrayList<>();
-    try (Reader.ReaderIterator<T> iterator = avroReader.iterator()) {
-      while (iterator.hasNext()) {
-        actualElems.add(iterator.next());
-      }
-    }
+    ReaderTestUtils.readRemainingFromReader(avroReader, actualElems);
     return actualElems;
   }
 

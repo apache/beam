@@ -28,6 +28,7 @@ import com.google.cloud.dataflow.sdk.io.AvroSource.AvroReader.Seeker;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.testing.SourceTestUtils;
+import com.google.common.base.MoreObjects;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
@@ -35,6 +36,8 @@ import org.apache.avro.file.DataFileConstants;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumWriter;
+import org.apache.avro.reflect.AvroDefault;
+import org.apache.avro.reflect.Nullable;
 import org.apache.avro.reflect.ReflectData;
 import org.junit.Rule;
 import org.junit.Test;
@@ -51,6 +54,7 @@ import java.io.PushbackInputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Random;
 
 /**
@@ -300,6 +304,24 @@ public class AvroSourceTest {
     assertEqualsWithGeneric(expected, records);
   }
 
+  @Test
+  public void testSchemaUpdate() throws Exception {
+    List<Bird> birds = createRandomRecords(100);
+    String filename = generateTestFile("tmp.avro", birds, SyncBehavior.SYNC_DEFAULT, 0,
+        AvroCoder.of(Bird.class), DataFileConstants.NULL_CODEC);
+
+    AvroSource<FancyBird> source = AvroSource.from(filename).withSchema(FancyBird.class);
+    List<FancyBird> actual = SourceTestUtils.readFromSource(source, null);
+
+    List<FancyBird> expected = new ArrayList<>();
+    for (Bird bird : birds) {
+      expected.add(new FancyBird(
+          bird.number, bird.species, bird.quality, bird.quantity, null, "MAXIMUM OVERDRIVE"));
+    }
+
+    assertThat(actual, containsInAnyOrder(expected.toArray()));
+  }
+
   private void assertEqualsWithGeneric(List<Bird> expected, List<GenericRecord> actual) {
     assertEquals(expected.size(), actual.size());
     for (int i = 0; i < expected.size(); i++) {
@@ -536,38 +558,36 @@ public class AvroSourceTest {
    * Class used as the record type in tests.
    */
   @DefaultCoder(AvroCoder.class)
-  public static class Bird {
-    private long number;
-    private String species;
-    private String quality;
-    private long quantity;
+  static class Bird {
+    long number;
+    String species;
+    String quality;
+    long quantity;
 
-    public String getQuality() {
-      return this.quality;
-    }
+    public Bird() {}
 
-    public String getSpecies() {
-      return this.species;
-    }
-
-    public long getQuantity() {
-      return quantity;
-    }
-
-    public long getNumber() {
-      return number;
+    public Bird(long number, String species, String quality, long quantity) {
+      this.number = number;
+      this.species = species;
+      this.quality = quality;
+      this.quantity = quantity;
     }
 
     @Override
     public String toString() {
-      return quantity + " " + quality + " " + species;
+      return MoreObjects.toStringHelper(Bird.class)
+          .addValue(number)
+          .addValue(species)
+          .addValue(quantity)
+          .addValue(quality)
+          .toString();
     }
 
     @Override
     public boolean equals(Object obj) {
       if (obj instanceof Bird) {
         Bird other = (Bird) obj;
-        return species.equals(other.species) && quality.equals(other.quality)
+        return Objects.equals(species, other.species) && Objects.equals(quality, other.quality)
             && quantity == other.quantity && number == other.number;
       }
       return false;
@@ -575,7 +595,68 @@ public class AvroSourceTest {
 
     @Override
     public int hashCode() {
-      return toString().hashCode();
+      return Objects.hash(number, species, quality, quantity);
+    }
+  }
+
+  /**
+   * Class used as the record type in tests.
+   *
+   * <p>Contains nullable fields and fields with default values. Can be read using a file written
+   * with the Bird schema.
+   */
+  @DefaultCoder(AvroCoder.class)
+  public static class FancyBird {
+    long number;
+    String species;
+    String quality;
+    long quantity;
+
+    @Nullable
+    String habitat;
+
+    @AvroDefault("\"MAXIMUM OVERDRIVE\"")
+    String fancinessLevel;
+
+    public FancyBird() {}
+
+    public FancyBird(long number, String species, String quality, long quantity, String habitat,
+        String fancinessLevel) {
+      this.number = number;
+      this.species = species;
+      this.quality = quality;
+      this.quantity = quantity;
+      this.habitat = habitat;
+      this.fancinessLevel = fancinessLevel;
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(FancyBird.class)
+          .addValue(number)
+          .addValue(species)
+          .addValue(quality)
+          .addValue(quantity)
+          .addValue(habitat)
+          .addValue(fancinessLevel)
+          .toString();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (obj instanceof FancyBird) {
+        FancyBird other = (FancyBird) obj;
+        return Objects.equals(species, other.species) && Objects.equals(quality, other.quality)
+            && quantity == other.quantity && number == other.number
+            && Objects.equals(fancinessLevel, other.fancinessLevel)
+            && Objects.equals(habitat, other.habitat);
+      }
+      return false;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(number, species, quality, quantity, habitat, fancinessLevel);
     }
   }
 

@@ -702,7 +702,7 @@ public class AvroIO {
   private static <T> void evaluateReadHelper(
       Read.Bound<T> transform, DirectPipelineRunner.EvaluationContext context) {
     AvroReader<T> reader = new AvroReader<>(transform.filepattern, null, null,
-        WindowedValue.getValueOnlyCoder(transform.getDefaultOutputCoder()));
+        (AvroCoder<T>) transform.getDefaultOutputCoder(), context.getPipelineOptions());
     List<WindowedValue<T>> elems = ReaderUtils.readElemsFromReader(reader);
     List<ValueWithMetadata<T>> output = new ArrayList<>();
     for (WindowedValue<T> elem : elems) {

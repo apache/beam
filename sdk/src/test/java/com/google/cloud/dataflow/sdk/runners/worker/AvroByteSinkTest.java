@@ -20,14 +20,8 @@ import com.google.cloud.dataflow.sdk.TestUtils;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
-import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
 import com.google.cloud.dataflow.sdk.util.common.worker.Sink;
 
-import org.apache.avro.Schema;
-import org.apache.avro.file.DataFileReader;
-import org.apache.avro.file.SeekableInput;
-import org.apache.avro.generic.GenericDatumReader;
-import org.apache.avro.io.DatumReader;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -36,8 +30,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.io.File;
-import java.nio.ByteBuffer;
-import java.nio.channels.SeekableByteChannel;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -64,31 +56,15 @@ public class AvroByteSinkTest {
     }
 
     // Read back the file.
+    AvroByteReader<T> reader = new AvroByteReader<>(filename, null, null, coder, null);
 
-    SeekableByteChannel inChannel =
-        (SeekableByteChannel) IOChannelUtils.getFactory(filename).open(filename);
-
-    SeekableInput seekableInput = new AvroReader.SeekableByteChannelInput(inChannel);
-
-    Schema schema = Schema.create(Schema.Type.BYTES);
-
-    DatumReader<ByteBuffer> datumReader = new GenericDatumReader<>(schema);
 
     List<T> actual = new ArrayList<>();
+    ReaderTestUtils.readRemainingFromReader(reader, actual);
     List<Long> expectedSizes = new ArrayList<>();
 
-    try (DataFileReader<ByteBuffer> fileReader = new DataFileReader<>(seekableInput, datumReader)) {
-      ByteBuffer inBuffer = ByteBuffer.allocate(10 * 1024);
-      while (fileReader.hasNext()) {
-        inBuffer = fileReader.next(inBuffer);
-        byte[] encodedElem = new byte[inBuffer.remaining()];
-        inBuffer.get(encodedElem);
-        assert inBuffer.remaining() == 0;
-        inBuffer.clear();
-        T elem = CoderUtils.decodeFromByteArray(coder, encodedElem);
-        actual.add(elem);
-        expectedSizes.add((long) encodedElem.length);
-      }
+    for (T value : actual) {
+      expectedSizes.add((long) CoderUtils.encodeToByteArray(coder, value).length);
     }
 
     // Compare the expected and the actual elements.

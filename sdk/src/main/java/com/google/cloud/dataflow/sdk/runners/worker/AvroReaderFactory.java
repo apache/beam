@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 import static com.google.cloud.dataflow.sdk.util.Structs.getLong;
 import static com.google.cloud.dataflow.sdk.util.Structs.getString;
 
+import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
@@ -46,19 +47,27 @@ public class AvroReaderFactory implements ReaderFactory {
       @Nullable CounterSet.AddCounterMutator addCounterMutator,
       @Nullable String operationName)
           throws Exception {
-    return create(spec, coder);
+    return create(spec, coder, options);
   }
 
-  Reader<?> create(CloudObject spec, Coder<?> coder) throws Exception {
+  Reader<?> create(CloudObject spec, Coder<?> coder, PipelineOptions options) throws Exception {
     String filename = getString(spec, PropertyNames.FILENAME);
     Long startOffset = getLong(spec, PropertyNames.START_OFFSET, null);
     Long endOffset = getLong(spec, PropertyNames.END_OFFSET, null);
 
+    // If the coder is a ValueOnlyWindowedValueCoder, the source is a user source. Otherwise,
+    // the coder is a FullWindowedValueCoder and the source is a materialized PCollection.
     if (coder instanceof ValueOnlyWindowedValueCoder) {
+      ValueOnlyWindowedValueCoder<?> valueCoder = (ValueOnlyWindowedValueCoder<?>) coder;
+      if (!(valueCoder.getValueCoder() instanceof AvroCoder)) {
+        throw new IllegalArgumentException(
+            "AvroReader requires an AvroCoder, but the instance given was "
+            + valueCoder.getValueCoder());
+      }
       return new AvroReader<>(
-          filename, startOffset, endOffset, (ValueOnlyWindowedValueCoder<?>) coder);
+          filename, startOffset, endOffset, (AvroCoder<?>) valueCoder.getValueCoder(), options);
     } else {
-      return new AvroByteReader<>(filename, startOffset, endOffset, coder);
+      return new AvroByteReader<>(filename, startOffset, endOffset, coder, options);
     }
   }
 }

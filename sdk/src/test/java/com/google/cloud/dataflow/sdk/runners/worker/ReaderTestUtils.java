@@ -22,10 +22,12 @@ import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtil
 import com.google.api.services.dataflow.model.ApproximateProgress;
 import com.google.api.services.dataflow.model.ConcatPosition;
 import com.google.api.services.dataflow.model.Position;
+import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader.ReaderIterator;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
 
 import javax.annotation.Nullable;
@@ -101,18 +103,59 @@ public class ReaderTestUtils {
   }
 
   /**
-   * Creates an {@link ReaderIterator} from the given {@code Reader} and reads it to the end.
+   * Creates a {@link ReaderIterator} from the given {@code Reader} and reads it to the end.
    *
    * @param reader {@code Reader} to read from
    * @param results elements that are read are added to this list. Will contain partially read
    * results if an exception is thrown
    * @throws IOException
    */
-  public static <T> void readFully(Reader<T> reader, List<T> results) throws IOException {
+  public static <T> void readRemainingFromReader(Reader<T> reader, List<T> results)
+      throws IOException {
     try (ReaderIterator<T> iterator = reader.iterator()) {
-      while (iterator.hasNext()) {
-        results.add(iterator.next());
-      }
+      readRemainingFromIterator(iterator, results);
+    }
+  }
+
+  /**
+   * Read elements from a {@code Reader} until either the reader is exhausted, or n elements are
+   * read.
+   */
+  public static <T> void readAtMostNElementsFromReader(
+      Reader<T> reader, long numElementsToRead, List<T> results) throws IOException {
+    try (ReaderIterator<T> iterator = reader.iterator()) {
+      readAtMostNElementsFromIterator(iterator, numElementsToRead, results);
+    }
+  }
+
+  /**
+   * Read elements from a {@link ReaderIterator} until either the iterator is exhausted, or n
+   * elements are read.
+   */
+  public static <T> void readAtMostNElementsFromIterator(
+      ReaderIterator<T> iterator, long numElementsToRead, List<T> results) throws IOException {
+    for (long i = 0L; i < numElementsToRead && iterator.hasNext(); i++) {
+      results.add(iterator.next());
+    }
+  }
+
+  /**
+   * Read all remaining elements from a {@link ReaderIterator}.
+   */
+  public static <T> void readRemainingFromIterator(ReaderIterator<T> iterator, List<T> results)
+      throws IOException {
+    while (iterator.hasNext()) {
+      results.add(iterator.next());
+    }
+  }
+
+  /**
+   * Appends all values from a collection of {@code WindowedValue} values to a collection of values.
+   */
+  public static <T> void windowedValuesToValues(
+      Collection<WindowedValue<T>> windowedValues, Collection<T> values) {
+    for (WindowedValue<T> windowedValue : windowedValues) {
+      values.add(windowedValue.getValue());
     }
   }
 }

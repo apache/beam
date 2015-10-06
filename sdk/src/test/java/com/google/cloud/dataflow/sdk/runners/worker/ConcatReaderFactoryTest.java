@@ -16,7 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.runners.worker;
 
-import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.readFully;
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.readRemainingFromReader;
 import static com.google.cloud.dataflow.sdk.util.CoderUtils.makeCloudEncoding;
 import static com.google.cloud.dataflow.sdk.util.Structs.addList;
 import static com.google.cloud.dataflow.sdk.util.Structs.addLong;
@@ -101,7 +101,7 @@ public class ConcatReaderFactoryTest {
     }
 
     List<String> actual = new ArrayList<>();
-    readFully(reader, actual);
+    readRemainingFromReader(reader, actual);
 
     assertEquals(actual.size(), 10);
     assertThat(actual, containsInAnyOrder(expected.toArray()));
@@ -124,7 +124,7 @@ public class ConcatReaderFactoryTest {
     }
 
     List<String> actual = new ArrayList<>();
-    readFully(reader, actual);
+    readRemainingFromReader(reader, actual);
 
     assertEquals(actual.size(), 150);
     assertThat(actual, containsInAnyOrder(expected.toArray()));

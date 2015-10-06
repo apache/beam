@@ -21,14 +21,17 @@ import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
 import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.common.base.Preconditions;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileConstants;
+import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.reflect.ReflectData;
+import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.apache.commons.compress.compressors.snappy.SnappyCompressorInputStream;
 import org.apache.commons.compress.compressors.xz.XZCompressorInputStream;
@@ -41,6 +44,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.zip.Inflater;
 import java.util.zip.InflaterInputStream;
 
@@ -119,7 +123,11 @@ public class AvroSource<T> extends BlockBasedSource<T> {
   static final long DEFAULT_MIN_BUNDLE_SIZE = 2 * DataFileConstants.DEFAULT_SYNC_INTERVAL;
 
   // The JSON schema used to encode records.
-  private final String schema;
+  private final String readSchemaString;
+
+  // The JSON schema that was used to write the source Avro file (may differ from the schema we will
+  // use to read from it).
+  private final String fileSchemaString;
 
   // The type of the records contained in the file.
   private final Class<T> type;
@@ -136,6 +144,12 @@ public class AvroSource<T> extends BlockBasedSource<T> {
 
   // Default output coder, lazily initialized.
   private transient AvroCoder<T> coder = null;
+
+  // Schema of the file, lazily initialized.
+  private transient Schema fileSchema;
+
+  // Schema used to encode records, lazily initialized.
+  private transient Schema readSchema;
 
   /**
    * Creates a {@code Read} transform that will read from an {@code AvroSource} that is configured
@@ -189,25 +203,27 @@ public class AvroSource<T> extends BlockBasedSource<T> {
    */
   public AvroSource<T> withMinBundleSize(long minBundleSize) {
     return new AvroSource<T>(
-        getFileOrPatternSpec(), minBundleSize, schema, type, codec, syncMarker);
+        getFileOrPatternSpec(), minBundleSize, readSchemaString, type, codec, syncMarker);
   }
 
   private AvroSource(String fileNameOrPattern, long minBundleSize, String schema, Class<T> type,
       String codec, byte[] syncMarker) {
     super(fileNameOrPattern, minBundleSize);
-    this.schema = schema;
+    this.readSchemaString = schema;
     this.codec = codec;
     this.syncMarker = syncMarker;
     this.type = type;
+    this.fileSchemaString = null;
   }
 
   private AvroSource(String fileName, long minBundleSize, long startOffset, long endOffset,
-      String schema, Class<T> type, String codec, byte[] syncMarker) {
+      String schema, Class<T> type, String codec, byte[] syncMarker, String fileSchema) {
     super(fileName, minBundleSize, startOffset, endOffset);
-    this.schema = schema;
+    this.readSchemaString = schema;
     this.codec = codec;
     this.syncMarker = syncMarker;
     this.type = type;
+    this.fileSchemaString = fileSchema;
   }
 
   @Override
@@ -296,28 +312,32 @@ public class AvroSource<T> extends BlockBasedSource<T> {
   public AvroSource<T> createForSubrangeOfFile(String fileName, long start, long end) {
     byte[] syncMarker = this.syncMarker;
     String codec = this.codec;
-    String schema = this.schema;
+    String readSchemaString = this.readSchemaString;
+    String fileSchemaString = this.fileSchemaString;
     // codec and syncMarker are initially null when the source is created, as they differ
     // across input files and must be read from the file. Here, when we are creating a source
     // for a subrange of a file, we can initialize these values. When the resulting AvroSource
     // is further split, they do not need to be read again.
-    if (codec == null || syncMarker == null) {
+    if (codec == null || syncMarker == null || fileSchemaString == null) {
       Metadata metadata;
       try {
+        Collection<String> files = FileBasedSource.expandFilePattern(fileName);
+        Preconditions.checkArgument(files.size() <= 1, "More than 1 file matched %s");
         metadata = readMetadataFromFile(fileName);
       } catch (IOException e) {
         throw new RuntimeException("Error reading metadata from file " + fileName, e);
       }
       codec = metadata.codec;
       syncMarker = metadata.syncMarker;
+      fileSchemaString = metadata.schema;
       // If the source was created with a null schema, use the schema that we read from the file's
       // metadata.
-      if (schema == null) {
-        schema = metadata.schema;
+      if (readSchemaString == null) {
+        readSchemaString = metadata.schema;
       }
     }
-    return new AvroSource<T>(
-        fileName, getMinBundleSize(), start, end, schema, type, codec, syncMarker);
+    return new AvroSource<T>(fileName, getMinBundleSize(), start, end, readSchemaString, type,
+        codec, syncMarker, fileSchemaString);
   }
 
   @Override
@@ -334,13 +354,39 @@ public class AvroSource<T> extends BlockBasedSource<T> {
   public AvroCoder<T> getDefaultOutputCoder() {
     if (coder == null) {
       Schema.Parser parser = new Schema.Parser();
-      coder = AvroCoder.of(type, parser.parse(schema));
+      coder = AvroCoder.of(type, parser.parse(readSchemaString));
     }
     return coder;
   }
 
   public String getSchema() {
-    return schema;
+    return readSchemaString;
+  }
+
+  private Schema getReadSchema() {
+    if (readSchemaString == null) {
+      return null;
+    }
+
+    // If the schema has not been parsed, parse it.
+    if (readSchema == null) {
+      Schema.Parser parser = new Schema.Parser();
+      readSchema = parser.parse(readSchemaString);
+    }
+    return readSchema;
+  }
+
+  private Schema getFileSchema() {
+    if (fileSchemaString == null) {
+      return null;
+    }
+
+    // If the schema has not been parsed, parse it.
+    if (fileSchema == null) {
+      Schema.Parser parser = new Schema.Parser();
+      fileSchema = parser.parse(fileSchemaString);
+    }
+    return fileSchema;
   }
 
   private byte[] getSyncMarker() {
@@ -351,8 +397,22 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     return codec;
   }
 
+  private DatumReader<T> createDatumReader() {
+    Schema readSchema = getReadSchema();
+    Schema fileSchema = getFileSchema();
+    Preconditions.checkNotNull(
+        readSchema, "No read schema has been initialized for source %s", this);
+    Preconditions.checkNotNull(
+        fileSchema, "No file schema has been initialized for source %s", this);
+    if (type == GenericRecord.class) {
+      return new GenericDatumReader<>(fileSchema, readSchema);
+    } else {
+      return new ReflectDatumReader<>(fileSchema, readSchema);
+    }
+  }
+
   /**
-   * A {@link BlockBasedSource.Block} of Avro records. Visible for testing.
+   * A {@link BlockBasedSource.Block} of Avro records.
    * @param <T> The type of records stored in the block.
    */
   @Experimental(Experimental.Kind.SOURCE_SINK)
@@ -410,7 +470,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
 
     AvroBlock(byte[] data, long numRecords, AvroSource<T> source) throws IOException {
       this.numRecords = numRecords;
-      this.reader = source.getDefaultOutputCoder().createDatumReader();
+      this.reader = source.createDatumReader();
       this.decoder =
           DecoderFactory.get().binaryDecoder(decodeAsInputStream(data, source.getCodec()), null);
     }

@@ -19,14 +19,9 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 import com.google.cloud.dataflow.sdk.TestUtils;
 import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
-import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.worker.Sink;
 
-import org.apache.avro.file.DataFileReader;
-import org.apache.avro.file.SeekableInput;
-import org.apache.avro.generic.GenericDatumReader;
-import org.apache.avro.io.DatumReader;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -35,7 +30,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.io.File;
-import java.nio.channels.SeekableByteChannel;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -62,22 +56,17 @@ public class AvroSinkTest {
     }
 
     // Read back the file.
+    AvroReader<T> reader = new AvroReader<>(filename, null, null, coder, null);
 
-    SeekableByteChannel inChannel =
-        (SeekableByteChannel) IOChannelUtils.getFactory(filename).open(filename);
-
-    SeekableInput seekableInput = new AvroReader.SeekableByteChannelInput(inChannel);
-
-    DatumReader<T> datumReader = new GenericDatumReader<>(coder.getSchema());
+    List<WindowedValue<T>> windowedValues = new ArrayList<>();
+    ReaderTestUtils.readRemainingFromReader(reader, windowedValues);
 
     List<T> actual = new ArrayList<>();
+    ReaderTestUtils.windowedValuesToValues(windowedValues, actual);
+
     List<Long> expectedSizes = new ArrayList<>();
-    try (DataFileReader<T> fileReader = new DataFileReader<>(seekableInput, datumReader)) {
-      while (fileReader.hasNext()) {
-        T next = fileReader.next();
-        actual.add(next);
-        expectedSizes.add((long) CoderUtils.encodeToByteArray(coder, next).length);
-      }
+    for (T value : actual) {
+      expectedSizes.add((long) CoderUtils.encodeToByteArray(coder, value).length);
     }
 
     // Compare the expected and the actual elements.

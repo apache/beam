@@ -405,7 +405,8 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
     }
   }
 
-  private static Collection<String> expandFilePattern(String fileOrPatternSpec) throws IOException {
+  protected static final Collection<String> expandFilePattern(String fileOrPatternSpec)
+      throws IOException {
     IOChannelFactory factory = IOChannelUtils.getFactory(fileOrPatternSpec);
     Collection<String> matches = factory.match(fileOrPatternSpec);
     LOG.info("Matched {} files for pattern {}", matches.size(), fileOrPatternSpec);

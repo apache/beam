@@ -17,7 +17,7 @@
 package com.google.cloud.dataflow.sdk.runners.worker;
 
 import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.positionFromSplitResult;
-import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.readFully;
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.readRemainingFromReader;
 import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.splitRequestAtConcatPosition;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.readerProgressToCloudProgress;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -238,7 +238,7 @@ public class ConcatReaderTest {
     List<String> expected = new ArrayList<>();
     ConcatReader<String> concatReader = createConcatReadersOfSizes(expected, recordsPerReader);
     List<String> actual = new ArrayList<>();
-    readFully(concatReader, actual);
+    readRemainingFromReader(concatReader, actual);
     assertThat(actual, containsInAnyOrder(expected.toArray()));
     assertEquals(recordedReaders.size(), recordsPerReader.length);
     assertAllOpenReadersClosed(recordedReaders);
@@ -324,7 +324,7 @@ public class ConcatReaderTest {
         sources);
     List<String> actual = new ArrayList<>();
     try {
-      readFully(concatReader, actual);
+      readRemainingFromReader(concatReader, actual);
       fail();
     } catch (IOException e) {
       assertThat(actual, containsInAnyOrder(expected.toArray()));
@@ -355,7 +355,7 @@ public class ConcatReaderTest {
         sources);
     List<String> actual = new ArrayList<>();
     try {
-      readFully(concatReader, actual);
+      readRemainingFromReader(concatReader, actual);
       fail();
     } catch (IOException e) {
       assertThat(actual, containsInAnyOrder(expected.toArray()));

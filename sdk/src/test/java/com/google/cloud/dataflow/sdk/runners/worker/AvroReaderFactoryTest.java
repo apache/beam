@@ -78,7 +78,7 @@ public class AvroReaderFactoryTest {
 
     Assert.assertThat(reader, new IsInstanceOf(AvroByteReader.class));
     AvroByteReader avroReader = (AvroByteReader) reader;
-    Assert.assertEquals(pathToAvroFile, avroReader.avroReader.filename);
+    Assert.assertEquals(pathToAvroFile, avroReader.avroReader.avroSource.getFileOrPatternSpec());
     Assert.assertEquals(null, avroReader.avroReader.startPosition);
     Assert.assertEquals(null, avroReader.avroReader.endPosition);
     Assert.assertEquals(coder, avroReader.coder);
@@ -92,7 +92,7 @@ public class AvroReaderFactoryTest {
 
     Assert.assertThat(reader, new IsInstanceOf(AvroByteReader.class));
     AvroByteReader avroReader = (AvroByteReader) reader;
-    Assert.assertEquals(pathToAvroFile, avroReader.avroReader.filename);
+    Assert.assertEquals(pathToAvroFile, avroReader.avroReader.avroSource.getFileOrPatternSpec());
     Assert.assertEquals(200L, (long) avroReader.avroReader.startPosition);
     Assert.assertEquals(500L, (long) avroReader.avroReader.endPosition);
     Assert.assertEquals(coder, avroReader.coder);
@@ -106,7 +106,7 @@ public class AvroReaderFactoryTest {
 
     Assert.assertThat(reader, new IsInstanceOf(AvroReader.class));
     AvroReader avroReader = (AvroReader) reader;
-    Assert.assertEquals(pathToAvroFile, avroReader.filename);
+    Assert.assertEquals(pathToAvroFile, avroReader.avroSource.getFileOrPatternSpec());
     Assert.assertEquals(200L, (long) avroReader.startPosition);
     Assert.assertEquals(500L, (long) avroReader.endPosition);
     Assert.assertEquals(coder.getValueCoder(), avroReader.avroCoder);

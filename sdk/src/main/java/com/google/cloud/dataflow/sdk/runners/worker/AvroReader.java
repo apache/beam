@@ -20,26 +20,19 @@ import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtil
 
 import com.google.api.services.dataflow.model.ApproximateProgress;
 import com.google.cloud.dataflow.sdk.coders.AvroCoder;
-import com.google.cloud.dataflow.sdk.util.CoderUtils;
-import com.google.cloud.dataflow.sdk.util.IOChannelFactory;
-import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
+import com.google.cloud.dataflow.sdk.io.AvroSource;
+import com.google.cloud.dataflow.sdk.io.BoundedSource;
+import com.google.cloud.dataflow.sdk.io.OffsetBasedSource;
+import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.worker.AbstractBoundedReaderIterator;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 
-import org.apache.avro.file.DataFileReader;
-import org.apache.avro.file.SeekableInput;
-import org.apache.avro.io.DatumReader;
+import org.apache.avro.generic.GenericRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.channels.ReadableByteChannel;
-import java.nio.channels.SeekableByteChannel;
-import java.util.Collection;
-import java.util.Iterator;
 
 import javax.annotation.Nullable;
 
@@ -49,169 +42,127 @@ import javax.annotation.Nullable;
  * @param <T> the type of the elements read from the source
  */
 public class AvroReader<T> extends Reader<WindowedValue<T>> {
-  private static final Logger LOG = LoggerFactory.getLogger(InMemoryReader.class);
+  private static final Logger LOG = LoggerFactory.getLogger(AvroReader.class);
 
-  final String filename;
   @Nullable
   final Long startPosition;
   @Nullable
   final Long endPosition;
+  final String filename;
+  final AvroSource<T> avroSource;
   final AvroCoder<T> avroCoder;
+  final PipelineOptions options;
 
+  @SuppressWarnings("unchecked")
   public AvroReader(String filename, @Nullable Long startPosition, @Nullable Long endPosition,
-      WindowedValue.ValueOnlyWindowedValueCoder<T> coder) {
+      AvroCoder<T> coder, @Nullable PipelineOptions options) {
 
-    if (!(coder.getValueCoder() instanceof AvroCoder)) {
-      throw new IllegalArgumentException("AvroReader requires an AvroCoder");
-    }
+    this.avroCoder = coder;
 
-    this.filename = filename;
     this.startPosition = startPosition;
     this.endPosition = endPosition;
-    this.avroCoder = (AvroCoder<T>) coder.getValueCoder();
-  }
+    this.filename = filename;
+    this.options = options;
 
-  public ReaderIterator<WindowedValue<T>> iterator(DatumReader<T> datumReader) throws IOException {
-    IOChannelFactory factory = IOChannelUtils.getFactory(filename);
-    Collection<String> inputs = factory.match(filename);
-    if (inputs.isEmpty()) {
-      throw new FileNotFoundException("No match for file pattern '" + filename + "'");
-    }
-
-    if (inputs.size() == 1) {
-      String input = inputs.iterator().next();
-      ReadableByteChannel reader = factory.open(input);
-      return new AvroFileIterator(datumReader, input, reader, startPosition, endPosition);
+    Class<T> type = avroCoder.getType();
+    AvroSource<T> source;
+    if (type.equals(GenericRecord.class)) {
+      source = (AvroSource<T>) AvroSource.from(filename).withSchema(avroCoder.getSchema());
     } else {
-      if (startPosition != null || endPosition != null) {
-        throw new IllegalArgumentException(
-            "Offset range specified: [" + startPosition + ", " + endPosition + "), so "
-            + "an exact filename was expected, but more than 1 file matched \"" + filename
-            + "\" (total " + inputs.size() + "): apparently a filepattern was given.");
-      }
-      return new AvroFileMultiIterator(datumReader, factory, inputs.iterator());
+      source = AvroSource.from(filename).withSchema(type);
     }
+
+
+    this.avroSource = source;
   }
 
   @Override
   public ReaderIterator<WindowedValue<T>> iterator() throws IOException {
-    return iterator(avroCoder.createDatumReader());
-  }
-
-  class AvroFileMultiIterator extends LazyMultiReaderIterator<WindowedValue<T>> {
-    private final IOChannelFactory factory;
-    private final DatumReader<T> datumReader;
-
-    public AvroFileMultiIterator(
-        DatumReader<T> datumReader, IOChannelFactory factory, Iterator<String> inputs) {
-      super(inputs);
-      this.factory = factory;
-      this.datumReader = datumReader;
+    Long endPosition = this.endPosition;
+    Long startPosition = this.startPosition;
+    if (endPosition == null) {
+      endPosition = Long.MAX_VALUE;
     }
-
-    @Override
-    protected ReaderIterator<WindowedValue<T>> open(String input) throws IOException {
-      return new AvroFileIterator(datumReader, input, factory.open(input), null, null);
+    if (startPosition == null) {
+      startPosition = 0L;
     }
+    BoundedSource.BoundedReader<T> reader;
+    if (startPosition == 0 && endPosition == Long.MAX_VALUE) {
+      // Read entire file (or collection of files).
+      reader = avroSource.createReader(options);
+    } else {
+      // Read a subrange of file.
+      reader = avroSource.createForSubrangeOfFile(filename, startPosition, endPosition)
+          .createReader(options);
+    }
+    return new AvroFileIterator((AvroSource.AvroReader<T>) reader);
   }
 
   class AvroFileIterator extends AbstractBoundedReaderIterator<WindowedValue<T>> {
-    final DataFileReader<T> fileReader;
-    final Long endOffset;
+    final AvroSource.AvroReader<T> reader;
+    boolean hasStarted = false;
+    long blockOffset = -1;
 
-    public AvroFileIterator(DatumReader<T> datumReader, String filename, ReadableByteChannel reader,
-        @Nullable Long startOffset, @Nullable Long endOffset) throws IOException {
-      if (!(reader instanceof SeekableByteChannel)) {
-        throw new UnsupportedOperationException(
-            "Unable to seek to offset in stream for " + filename);
-      }
-      SeekableByteChannel inChannel = (SeekableByteChannel) reader;
-      SeekableInput seekableInput = new SeekableByteChannelInput(inChannel);
-      this.fileReader = new DataFileReader<>(seekableInput, datumReader);
-      this.endOffset = endOffset;
-      if (startOffset != null && startOffset > 0) {
-        // Sync to the first record at or after startOffset.
-        fileReader.sync(startOffset);
-      }
-    }
-
-    @Override
-    protected boolean hasNextImpl() throws IOException {
-      return fileReader.hasNext() && (endOffset == null || !fileReader.pastSync(endOffset));
+    public AvroFileIterator(AvroSource.AvroReader<T> reader) {
+      this.reader = reader;
     }
 
     @Override
     protected WindowedValue<T> nextImpl() throws IOException {
-      T next = fileReader.next();
-      // DataFileReader doesn't seem to support getting the current position.
-      // Calls to tell() return how much has been read from the underlying Channel, which is a bad
-      // length approximation due to buffering. Use the coder instead.
-      // TODO: Avoid reencoding the record to get its length.
-      notifyElementRead(CoderUtils.encodeToByteArray(avroCoder, next).length);
+      T next = reader.getCurrent();
+      // Coarse-grained reporting of input bytes consumed.
+      // After completing reading a block, the block offset changes.
+      long currentOffset = reader.getCurrentBlockOffset();
+      if (currentOffset != blockOffset) {
+        notifyElementRead(reader.getCurrentBlockSize());
+        blockOffset = currentOffset;
+      }
       return WindowedValue.valueInGlobalWindow(next);
     }
 
     @Override
-    public Progress getProgress() {
-      com.google.api.services.dataflow.model.Position currentPosition =
-          new com.google.api.services.dataflow.model.Position();
-      ApproximateProgress progress = new ApproximateProgress();
-      // The fileReader.tell() result is computed from the underlying SeekableByteChannelInput, so
-      // its value is an overestimation of the current position. This is however enough to get a
-      // progress estimation, but would not be precise enough for dynamic splitting.
-      // TODO: Make the progress estimation more precise.
-      try {
-        currentPosition.setByteOffset(fileReader.tell());
-        progress.setPosition(currentPosition);
-      } catch (IOException e) {
-        // If fileReader.tell() throws an exception, we do not set the position.
-        LOG.warn("Avro source file {} failed to report current progress.", filename);
+    protected boolean hasNextImpl() throws IOException {
+      if (!hasStarted) {
+        hasStarted = true;
+        return reader.start();
       }
-      // We do not compute progress percentage, as the endOffset is not necessarily a correct block
-      // boundary.
+      return reader.advance();
+    }
+
+    @Override
+    public Progress getProgress() {
+      Double readerProgress = reader.getFractionConsumed();
+      if (readerProgress == null) {
+        return null;
+      }
+      ApproximateProgress progress = new ApproximateProgress();
+      progress.setPercentComplete(readerProgress.floatValue());
       return cloudProgressToReaderProgress(progress);
     }
 
     @Override
     public void close() throws IOException {
-      fileReader.close();
-    }
-  }
-
-  /**
-   * An implementation of an Avro SeekableInput wrapping a
-   * SeekableByteChannel.
-   */
-  static class SeekableByteChannelInput implements SeekableInput {
-    final SeekableByteChannel channel;
-
-    public SeekableByteChannelInput(SeekableByteChannel channel) {
-      this.channel = channel;
+      reader.close();
     }
 
     @Override
-    public void seek(long position) throws IOException {
-      channel.position(position);
-    }
-
-    @Override
-    public long tell() throws IOException {
-      return channel.position();
-    }
-
-    @Override
-    public long length() throws IOException {
-      return channel.size();
-    }
-
-    @Override
-    public int read(byte[] b, int offset, int length) throws IOException {
-      return channel.read(ByteBuffer.wrap(b, offset, length));
-    }
-
-    @Override
-    public void close() throws IOException {
-      channel.close();
+    public DynamicSplitResult requestDynamicSplit(DynamicSplitRequest splitRequest) {
+      ApproximateProgress splitProgress =
+          SourceTranslationUtils.splitRequestToApproximateProgress(splitRequest);
+      double splitAtFraction = splitProgress.getPercentComplete();
+      LOG.info("Received request for dynamic split at {}", splitAtFraction);
+      OffsetBasedSource<T> residual = reader.splitAtFraction(splitAtFraction);
+      if (residual == null) {
+        LOG.info("Rejected split request for split at {}", splitAtFraction);
+        return null;
+      }
+      com.google.api.services.dataflow.model.Position acceptedPosition =
+          new com.google.api.services.dataflow.model.Position();
+      acceptedPosition.setByteOffset(residual.getStartOffset());
+      LOG.info("Accepted split for position {} which resulted in a new source with byte offset {}",
+          splitAtFraction, residual.getStartOffset());
+      return new DynamicSplitResultWithPosition(
+          SourceTranslationUtils.cloudPositionToReaderPosition(acceptedPosition));
     }
   }
 }
