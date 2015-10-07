@@ -56,17 +56,18 @@ public class BigQueryReaderFactory implements ReaderFactory {
     String query = getString(spec, PropertyNames.BIGQUERY_QUERY, null);
     if (query != null) {
       GcpOptions gcpOptions = options.as(GcpOptions.class);
-      return new BigQueryReader(options.as(BigQueryOptions.class), query, gcpOptions.getProject());
+      return BigQueryReader.fromQueryWithOptions(
+          query, gcpOptions.getProject(), options.as(BigQueryOptions.class));
     }
 
     String tableId = getString(spec, PropertyNames.BIGQUERY_TABLE, null);
     if (tableId != null) {
-      return new BigQueryReader(
-          options.as(BigQueryOptions.class),
+      return BigQueryReader.fromTableWithOptions(
           new TableReference()
               .setProjectId(getString(spec, PropertyNames.BIGQUERY_PROJECT))
               .setDatasetId(getString(spec, PropertyNames.BIGQUERY_DATASET))
-              .setTableId(tableId));
+              .setTableId(tableId),
+          options.as(BigQueryOptions.class));
     }
 
     throw new IllegalArgumentException("Either a table or a query has to be specified");

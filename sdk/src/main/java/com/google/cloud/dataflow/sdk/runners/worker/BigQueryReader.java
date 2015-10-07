@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.runners.worker;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
@@ -28,6 +30,8 @@ import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 
 import java.io.IOException;
 
+import javax.annotation.Nullable;
+
 /**
  * A source that reads a BigQuery table and yields TableRow objects.
  *
@@ -37,60 +41,70 @@ import java.io.IOException;
  * read by each worker (i.e. the source is used as a side input).
  */
 public class BigQueryReader extends Reader<WindowedValue<TableRow>> {
-  final TableReference tableRef;
-  final BigQueryOptions bigQueryOptions;
-  final Bigquery bigQueryClient;
-  final String query;
-  final String projectId;
+  @Nullable private final TableReference tableRef;
+  @Nullable private final String query;
+  @Nullable private final String projectId;
+  private final Bigquery bigQueryClient;
 
-  /** Builds a BigQuery source using pipeline options to instantiate a Bigquery client. */
-  public BigQueryReader(BigQueryOptions bigQueryOptions, TableReference tableRef) {
-    // Save pipeline options so that we can construct the BigQuery client on-demand whenever an
-    // iterator gets created.
-    this.bigQueryOptions = bigQueryOptions;
+  private BigQueryReader(TableReference tableRef, String query,  String projectId,
+      Bigquery bigQueryClient) {
     this.tableRef = tableRef;
-    this.bigQueryClient = null;
-    this.query = null;
-    this.projectId = null;
-  }
-
-  public BigQueryReader(BigQueryOptions bigQueryOptions, String query, String projectId) {
-    this.bigQueryOptions = bigQueryOptions;
-    this.tableRef = null;
-    this.bigQueryClient = null;
     this.query = query;
     this.projectId = projectId;
+    this.bigQueryClient = checkNotNull(bigQueryClient, "bigQueryClient");
   }
 
-  /** Builds a BigQueryReader directly using a BigQuery client. */
-  public BigQueryReader(Bigquery bigQueryClient, TableReference tableRef) {
-    this.bigQueryOptions = null;
-    this.tableRef = tableRef;
-    this.bigQueryClient = bigQueryClient;
-    this.query = null;
-    this.projectId = null;
+  /**
+   * Returns a {@code BigQueryReader} that uses the specified client to read from the specified
+   * table.
+   */
+  public static BigQueryReader fromTable(TableReference tableRef, Bigquery bigQueryClient) {
+    return new BigQueryReader(tableRef, null, null, bigQueryClient);
   }
 
-  public BigQueryReader(Bigquery bigQueryClient, String query, String projectId) {
-    this.bigQueryOptions = null;
-    this.tableRef = null;
-    this.bigQueryClient = bigQueryClient;
-    this.query = query;
-    this.projectId = projectId;
+  /**
+   * Returns a {@code BigQueryReader} that reads from the specified table. The {@link Bigquery}
+   * client is constructed at runtime from the specified options.
+   */
+  public static BigQueryReader fromTableWithOptions(
+      TableReference tableRef, BigQueryOptions bigQueryOptions) {
+    Bigquery client = Transport.newBigQueryClient(bigQueryOptions).build();
+    return new BigQueryReader(tableRef, null, null, client);
+  }
+
+  /**
+   * Returns a {@code BigQueryReader} that uses the specified client to read the results from
+   * executing the specified query in the specified project.
+   */
+  public static BigQueryReader fromQuery(String query, String projectId, Bigquery bigQueryClient) {
+    return new BigQueryReader(null, query, projectId, bigQueryClient);
+  }
+
+  /**
+   * Returns a {@code BigQueryReader} that reads the results from executing the specified query in
+   * the specified project. The {@link Bigquery} client is constructed at runtime from the
+   * specified options.
+   */
+  public static BigQueryReader fromQueryWithOptions(
+      String query, String projectId, BigQueryOptions bigQueryOptions) {
+    Bigquery client = Transport.newBigQueryClient(bigQueryOptions).build();
+    return new BigQueryReader(null, query, projectId, client);
+  }
+
+  public TableReference getTableRef() {
+    return tableRef;
+  }
+
+  public String getQuery() {
+    return query;
   }
 
   @Override
   public ReaderIterator<WindowedValue<TableRow>> iterator() throws IOException {
     if (tableRef != null) {
-      return new BigQueryReaderIterator(
-          bigQueryClient != null
-              ? bigQueryClient : Transport.newBigQueryClient(bigQueryOptions).build(),
-          tableRef);
+      return new BigQueryReaderIterator(bigQueryClient, tableRef);
     } else {
-      return new BigQueryReaderIterator(
-          bigQueryClient != null
-              ? bigQueryClient : Transport.newBigQueryClient(bigQueryOptions).build(),
-          query, projectId);
+      return new BigQueryReaderIterator(bigQueryClient, query, projectId);
     }
   }
 
@@ -101,11 +115,11 @@ public class BigQueryReader extends Reader<WindowedValue<TableRow>> {
     private BigQueryTableRowIterator rowIterator;
 
     public BigQueryReaderIterator(Bigquery bigQueryClient, TableReference tableRef) {
-      rowIterator = new BigQueryTableRowIterator(bigQueryClient, tableRef);
+      rowIterator = BigQueryTableRowIterator.of(bigQueryClient, tableRef);
     }
 
     public BigQueryReaderIterator(Bigquery bigQueryClient, String query, String projectId) {
-      rowIterator = new BigQueryTableRowIterator(bigQueryClient, query, projectId);
+      rowIterator = BigQueryTableRowIterator.of(bigQueryClient, query, projectId);
     }
 
     @Override

@@ -126,7 +126,7 @@ public class BigQueryTableInserter {
   /**
    * Insert all rows from the given list.
    *
-   * @deprecated replaced by {@link #insertAll(TableReference, List<TableRow>)}
+   * @deprecated replaced by {@link #insertAll(TableReference, List)}
    */
   @Deprecated
   public void insertAll(List<TableRow> rowList) throws IOException {
@@ -136,7 +136,7 @@ public class BigQueryTableInserter {
   /**
    * Insert all rows from the given list using specified insertIds if not null.
    *
-   * @deprecated replaced by {@link #insertAll(TableReference, List<TableRow>, List<String>)}
+   * @deprecated replaced by {@link #insertAll(TableReference, List, List)}
    */
   @Deprecated
   public void insertAll(List<TableRow> rowList,

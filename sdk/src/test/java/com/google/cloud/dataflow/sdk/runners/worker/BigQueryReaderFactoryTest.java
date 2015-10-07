@@ -18,15 +18,19 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 
 import static com.google.cloud.dataflow.sdk.util.CoderUtils.makeCloudEncoding;
 import static com.google.cloud.dataflow.sdk.util.Structs.addString;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 
+import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.dataflow.model.Source;
+import com.google.cloud.dataflow.sdk.options.GcpOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.DirectModeExecutionContext;
+import com.google.cloud.dataflow.sdk.util.TestCredential;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 
 import org.hamcrest.core.IsInstanceOf;
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -47,17 +51,21 @@ public class BigQueryReaderFactoryTest {
     cloudSource.setSpec(spec);
     cloudSource.setCodec(encoding);
 
+    GcpOptions options = PipelineOptionsFactory.create().as(GcpOptions.class);
+    options.setGcpCredential(new TestCredential());
+
     Reader<?> reader = ReaderFactory.Registry.defaultRegistry().create(
         cloudSource,
-        PipelineOptionsFactory.create(),
+        options,
         DirectModeExecutionContext.create(),
         null,
         null);
-    Assert.assertThat(reader, new IsInstanceOf(BigQueryReader.class));
+    assertThat(reader, new IsInstanceOf(BigQueryReader.class));
     BigQueryReader bigQueryReader = (BigQueryReader) reader;
-    Assert.assertEquals(project, bigQueryReader.tableRef.getProjectId());
-    Assert.assertEquals(dataset, bigQueryReader.tableRef.getDatasetId());
-    Assert.assertEquals(table, bigQueryReader.tableRef.getTableId());
+    TableReference tableRef = bigQueryReader.getTableRef();
+    assertEquals(project, tableRef.getProjectId());
+    assertEquals(dataset, tableRef.getDatasetId());
+    assertEquals(table, tableRef.getTableId());
   }
 
   void runTestCreateBigQueryReaderFromQuery(String query, CloudObject encoding) throws Exception {
@@ -68,16 +76,19 @@ public class BigQueryReaderFactoryTest {
     cloudSource.setSpec(spec);
     cloudSource.setCodec(encoding);
 
+    GcpOptions options = PipelineOptionsFactory.create().as(GcpOptions.class);
+    options.setGcpCredential(new TestCredential());
+
     Reader<?> reader = ReaderFactory.Registry.defaultRegistry().create(
         cloudSource,
-        PipelineOptionsFactory.create(),
+        options,
         DirectModeExecutionContext.create(),
         null,
         null);
 
-    Assert.assertThat(reader, new IsInstanceOf(BigQueryReader.class));
+    assertThat(reader, new IsInstanceOf(BigQueryReader.class));
     BigQueryReader bigQueryReader = (BigQueryReader) reader;
-    Assert.assertEquals(query, bigQueryReader.query);
+    assertEquals(query, bigQueryReader.getQuery());
   }
 
   @Test

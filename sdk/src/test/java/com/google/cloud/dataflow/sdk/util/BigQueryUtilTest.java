@@ -189,7 +189,7 @@ public class BigQueryUtilTest {
     TableDataList dataList = rawDataList(rawRow("Arthur", "1.430397296789E9", 42));
     onTableList(dataList);
 
-    try (BigQueryTableRowIterator iterator = new BigQueryTableRowIterator(
+    try (BigQueryTableRowIterator iterator = BigQueryTableRowIterator.of(
         mockClient,
         BigQueryIO.parseTableSpec("project:dataset.table"))) {
 
@@ -230,7 +230,7 @@ public class BigQueryUtilTest {
     TableDataList dataList = rawDataList(rawRow("Arthur", 42));
     onTableList(dataList);
 
-    try (BigQueryTableRowIterator iterator = new BigQueryTableRowIterator(
+    try (BigQueryTableRowIterator iterator = BigQueryTableRowIterator.of(
         mockClient,
         BigQueryIO.parseTableSpec("project:dataset.table"))) {
 
@@ -260,7 +260,7 @@ public class BigQueryUtilTest {
         .setTotalRows(0L);
     onTableList(dataList);
 
-    try (BigQueryTableRowIterator iterator = new BigQueryTableRowIterator(
+    try (BigQueryTableRowIterator iterator = BigQueryTableRowIterator.of(
         mockClient,
         BigQueryIO.parseTableSpec("project:dataset.table"))) {
 
@@ -288,7 +288,7 @@ public class BigQueryUtilTest {
         .thenReturn(page1)
         .thenReturn(page2);
 
-    try (BigQueryTableRowIterator iterator = new BigQueryTableRowIterator(
+    try (BigQueryTableRowIterator iterator = BigQueryTableRowIterator.of(
         mockClient,
         BigQueryIO.parseTableSpec("project:dataset.table"))) {
 
@@ -321,7 +321,7 @@ public class BigQueryUtilTest {
     when(mockTablesGet.execute())
         .thenThrow(new IOException("No such table"));
 
-    try (BigQueryTableRowIterator iterator = new BigQueryTableRowIterator(
+    try (BigQueryTableRowIterator iterator = BigQueryTableRowIterator.of(
         mockClient,
         BigQueryIO.parseTableSpec("project:dataset.table"))) {
       try {

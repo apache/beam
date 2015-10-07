@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.runners.worker;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import static org.mockito.Matchers.contains;
@@ -41,7 +42,6 @@ import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 import com.google.common.collect.Lists;
 
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -526,8 +526,6 @@ public class BigQueryReaderTest {
   @Mock
   private MockHttpTransport mockTransport;
 
-  private Bigquery bigQueryClient;
-
   private void verifyDatasetInsert() throws IOException {
     verify(mockTransport, times(1)).buildRequest(eq("POST"), endsWith(QUERY_DATASET_INSERT_PATH));
   }
@@ -562,8 +560,8 @@ public class BigQueryReaderTest {
   public void testReadQuery() throws Exception {
     setUpMockQuery();
 
-    bigQueryClient = new Bigquery(mockTransport, Transport.getJsonFactory(), null);
-    BigQueryReader reader = new BigQueryReader(bigQueryClient, QUERY, PROJECT_ID);
+    Bigquery bigQueryClient = new Bigquery(mockTransport, Transport.getJsonFactory(), null);
+    BigQueryReader reader = BigQueryReader.fromQuery(QUERY, PROJECT_ID, bigQueryClient);
     Reader.ReaderIterator<WindowedValue<TableRow>> iterator = reader.iterator();
 
     assertTrue(iterator.hasNext());
@@ -733,53 +731,52 @@ public class BigQueryReaderTest {
   public void testReadTable() throws Exception {
     setUpMockTable();
 
-    bigQueryClient = new Bigquery(mockTransport, Transport.getJsonFactory(), null);
-
-    BigQueryReader reader = new BigQueryReader(
-        bigQueryClient,
-        new TableReference().setProjectId(PROJECT_ID).setDatasetId(DATASET).setTableId(TABLE));
+    Bigquery bigQueryClient = new Bigquery(mockTransport, Transport.getJsonFactory(), null);
+    BigQueryReader reader = BigQueryReader.fromTable(
+        new TableReference().setProjectId(PROJECT_ID).setDatasetId(DATASET).setTableId(TABLE),
+        bigQueryClient);
 
     Reader.ReaderIterator<WindowedValue<TableRow>> iterator = reader.iterator();
-    Assert.assertTrue(iterator.hasNext());
+    assertTrue(iterator.hasNext());
 
     TableRow row = iterator.next().getValue();
 
-    Assert.assertEquals("Arthur", row.get("name"));
-    Assert.assertEquals("42", row.get("integer"));
-    Assert.assertEquals(3.14159, row.get("float"));
-    Assert.assertEquals(false, row.get("bool"));
+    assertEquals("Arthur", row.get("name"));
+    assertEquals("42", row.get("integer"));
+    assertEquals(3.14159, row.get("float"));
+    assertEquals(false, row.get("bool"));
 
     TableRow nested = (TableRow) row.get("record");
-    Assert.assertEquals("43", nested.get("nestedInt"));
-    Assert.assertEquals(4.14159, nested.get("nestedFloat"));
+    assertEquals("43", nested.get("nestedInt"));
+    assertEquals(4.14159, nested.get("nestedFloat"));
 
-    Assert.assertEquals(Lists.newArrayList("42", "43", "79"), row.get("repeatedInt"));
-    Assert.assertTrue(((List<?>) row.get("repeatedFloat")).isEmpty());
-    Assert.assertTrue(((List<?>) row.get("repeatedRecord")).isEmpty());
+    assertEquals(Lists.newArrayList("42", "43", "79"), row.get("repeatedInt"));
+    assertTrue(((List<?>) row.get("repeatedFloat")).isEmpty());
+    assertTrue(((List<?>) row.get("repeatedRecord")).isEmpty());
 
     row = iterator.next().getValue();
 
-    Assert.assertEquals("Allison", row.get("name"));
-    Assert.assertEquals("79", row.get("integer"));
-    Assert.assertEquals(2.71828, row.get("float"));
-    Assert.assertEquals(true, row.get("bool"));
+    assertEquals("Allison", row.get("name"));
+    assertEquals("79", row.get("integer"));
+    assertEquals(2.71828, row.get("float"));
+    assertEquals(true, row.get("bool"));
 
     nested = (TableRow) row.get("record");
-    Assert.assertEquals("80", nested.get("nestedInt"));
-    Assert.assertEquals(3.71828, nested.get("nestedFloat"));
+    assertEquals("80", nested.get("nestedInt"));
+    assertEquals(3.71828, nested.get("nestedFloat"));
 
-    Assert.assertTrue(((List<?>) row.get("repeatedInt")).isEmpty());
-    Assert.assertEquals(Lists.newArrayList(3.14159, 2.71828), row.get("repeatedFloat"));
+    assertTrue(((List<?>) row.get("repeatedInt")).isEmpty());
+    assertEquals(Lists.newArrayList(3.14159, 2.71828), row.get("repeatedFloat"));
 
     @SuppressWarnings("unchecked")
     List<TableRow> nestedRecords = (List<TableRow>) row.get("repeatedRecord");
-    Assert.assertEquals(2, nestedRecords.size());
-    Assert.assertEquals("hello", nestedRecords.get(0).get("string"));
-    Assert.assertEquals(true, nestedRecords.get(0).get("bool"));
-    Assert.assertEquals("world", nestedRecords.get(1).get("string"));
-    Assert.assertEquals(false, nestedRecords.get(1).get("bool"));
+    assertEquals(2, nestedRecords.size());
+    assertEquals("hello", nestedRecords.get(0).get("string"));
+    assertEquals(true, nestedRecords.get(0).get("bool"));
+    assertEquals("world", nestedRecords.get(1).get("string"));
+    assertEquals(false, nestedRecords.get(1).get("bool"));
 
-    Assert.assertFalse(iterator.hasNext());
+    assertFalse(iterator.hasNext());
 
     verifyTableGet();
     verifyTabledataList();

@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.api.client.googleapis.services.AbstractGoogleClientRequest;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
@@ -84,19 +86,29 @@ public class BigQueryTableRowIterator implements Iterator<TableRow>, Closeable {
   // Temporary table used to store query results.
   private String temporaryTableId = null;
 
-  public BigQueryTableRowIterator(Bigquery client, TableReference ref) {
-    this.client = client;
+  private BigQueryTableRowIterator(
+      Bigquery client, TableReference ref, String query, String projectId) {
+    this.client = checkNotNull(client, "client");
     this.ref = ref;
-    this.query = null;
-    this.projectId = ref.getProjectId();
-  }
-
-  public BigQueryTableRowIterator(Bigquery client, String query, String projectId) {
-    this.client = client;
-    this.ref = null;
     this.query = query;
     this.projectId = projectId;
+  }
 
+  /**
+   * Constructs a {@code BigQueryTableRowIterator} that uses the specified client to read from
+   * the specified table.
+   */
+  public static BigQueryTableRowIterator of(Bigquery client, TableReference ref) {
+    checkNotNull(ref, "ref");
+    return new BigQueryTableRowIterator(client, ref, null, ref.getProjectId());
+  }
+
+  /**
+   * Constructs a {@code BigQueryTableRowIterator} that uses the specified client to read from
+   * the results of executing the specified client in the specified project.
+   */
+  public static BigQueryTableRowIterator of(Bigquery client, String query, String projectId) {
+    return new BigQueryTableRowIterator(client, null, query, projectId);
   }
 
   @Override

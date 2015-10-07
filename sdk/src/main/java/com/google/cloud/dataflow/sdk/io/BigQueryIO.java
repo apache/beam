@@ -1307,9 +1307,9 @@ public class BigQueryIO {
     BigQueryReader reader = null;
     if (transform.query != null) {
       LOG.info("Reading from BigQuery query {}", transform.query);
-      reader = new BigQueryReader(client, transform.query, options.getProject());
+      reader = BigQueryReader.fromQuery(transform.query, options.getProject(), client);
     } else {
-      reader = new BigQueryReader(client, transform.table);
+      reader = BigQueryReader.fromTable(transform.table, client);
       LOG.info("Reading from BigQuery table {}", toTableSpec(transform.table));
     }
 
