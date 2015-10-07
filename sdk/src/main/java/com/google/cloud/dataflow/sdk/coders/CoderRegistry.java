@@ -700,8 +700,11 @@ public class CoderRegistry implements CoderProvider {
       return getDefaultCoder((ParameterizedType) type, typeCoderBindings);
     } else if (type instanceof TypeVariable || type instanceof WildcardType) {
       // No default coder for an unknown generic type.
-      throw new CannotProvideCoderException("Cannot provide a coder for type variable "
-          + type + " because the actual type is unknown due to erasure.",
+      throw new CannotProvideCoderException(
+          String.format("Cannot provide a coder for type variable %s"
+          + " (declared by %s) because the actual type is unknown due to erasure.",
+          type,
+          ((TypeVariable<?>) type).getGenericDeclaration()),
           ReasonCode.TYPE_ERASURE);
     } else {
       throw new RuntimeException(

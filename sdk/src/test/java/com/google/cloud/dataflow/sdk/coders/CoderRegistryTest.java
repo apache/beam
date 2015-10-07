@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.coders;
 
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
@@ -348,6 +350,25 @@ public class CoderRegistryTest {
   }
 
   /**
+   * Tests that the error message for a type variable includes a mention of where the
+   * type variable was declared.
+   */
+  @Test
+  public void testTypeVariableErrorMessage() throws Exception {
+    CoderRegistry registry = new CoderRegistry();
+
+    thrown.expect(CannotProvideCoderException.class);
+    thrown.expectMessage(allOf(
+        containsString("TestGenericT"),
+        containsString("erasure"),
+        containsString("com.google.cloud.dataflow.sdk.coders.CoderRegistryTest$TestGenericClass")));
+    registry.getDefaultCoder(TypeDescriptor.of(
+        TestGenericClass.class.getTypeParameters()[0]));
+  }
+
+  private static class TestGenericClass<TestGenericT> { }
+
+  /**
    * In-context test that assures the functionality tested in
    * {@link #testDefaultCoderAnnotationGeneric} is invoked in the right ways.
    */
@@ -402,6 +423,7 @@ public class CoderRegistryTest {
       return INSTANCE;
     }
 
+    @SuppressWarnings("unused")
     public static List<Object> getInstanceComponents(
         @SuppressWarnings("unused") MyValue exampleValue) {
       return Arrays.asList();
@@ -471,5 +493,4 @@ public class CoderRegistryTest {
     @SuppressWarnings("unused")
     private T foo;
   }
-
 }
