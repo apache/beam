@@ -103,7 +103,6 @@ extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
   @Override
   public PCollection<OutputT> apply(PCollection<InputT> input) {
     return input.apply(ParDo.named("Map").of(new DoFn<InputT, OutputT>() {
-      private static final long serialVersionUID = 0L;
       @Override
       public void processElement(ProcessContext c) {
         c.output(fn.apply(c.element()));
