@@ -26,7 +26,7 @@ import com.google.api.client.util.Maps;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.io.AvroIO;
-import com.google.cloud.dataflow.sdk.io.ReadSource;
+import com.google.cloud.dataflow.sdk.io.Read;
 import com.google.cloud.dataflow.sdk.io.Source;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
@@ -87,7 +87,7 @@ public class FlinkTransformTranslators {
 		// we don't need this because we translate the Combine.PerKey directly
 		// TRANSLATORS.put(Combine.GroupedValues.class, new CombineGroupedValuesTranslator());
 
-		TRANSLATORS.put(Create.class, new CreateTranslator());
+		TRANSLATORS.put(Create.Values.class, new CreateTranslator());
 		TRANSLATORS.put(Flatten.FlattenPCollectionList.class, new FlattenPCollectionTranslator());
 		TRANSLATORS.put(GroupByKey.GroupByKeyOnly.class, new GroupByKeyOnlyTranslator());
 		TRANSLATORS.put(ParDo.BoundMulti.class, new ParDoBoundMultiTranslator());
@@ -104,7 +104,8 @@ public class FlinkTransformTranslators {
 		//TRANSLATORS.put(PubsubIO.Read.Bound.class, null);
 		//TRANSLATORS.put(PubsubIO.Write.Bound.class, null);
 
-		TRANSLATORS.put(ReadSource.Bound.class, new ReadSourceTranslator());
+		TRANSLATORS.put(Read.Bounded.class, new ReadSourceTranslator());
+//		TRANSLATORS.put(Write.Bound.class, new ReadSourceTranslator());
 
 		TRANSLATORS.put(TextIO.Read.Bound.class, new TextIOReadTranslator());
 		TRANSLATORS.put(TextIO.Write.Bound.class, new TextIOWriteTranslator());
@@ -120,10 +121,10 @@ public class FlinkTransformTranslators {
 		return TRANSLATORS.get(transform.getClass());
 	}
 
-	private static class ReadSourceTranslator<T> implements FlinkPipelineTranslator.TransformTranslator<ReadSource.Bound<T>> {
+	private static class ReadSourceTranslator<T> implements FlinkPipelineTranslator.TransformTranslator<Read.Bounded<T>> {
 
 		@Override
-		public void translateNode(ReadSource.Bound<T> transform, TranslationContext context) {
+		public void translateNode(Read.Bounded<T> transform, TranslationContext context) {
 			String name = transform.getName();
 			Source<T> source = transform.getSource();
 			Coder<T> coder = transform.getOutput().getCoder();
