@@ -23,7 +23,10 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
+import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
+import com.google.cloud.dataflow.sdk.values.PInput;
+import com.google.cloud.dataflow.sdk.values.POutput;
 import com.google.cloud.dataflow.sdk.values.PValue;
 import com.google.cloud.dataflow.sdk.values.TypedPValue;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -33,6 +36,8 @@ import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 
 import java.util.HashMap;
 import java.util.Map;
+
+import static com.google.common.base.Preconditions.checkArgument;
 
 public class TranslationContext {
 	
@@ -66,6 +71,10 @@ public class TranslationContext {
 	@SuppressWarnings("unchecked")
 	public <T> DataSet<T> getInputDataSet(PValue value) {
 		return (DataSet<T>) dataSets.get(value);
+	}
+
+	public <T> DataSet<T> getCurrentInputDataSet() {
+		return getInputDataSet(getCurrentInput());
 	}
 	
 	public void setOutputDataSet(PValue value, DataSet<?> set) {
@@ -112,5 +121,33 @@ public class TranslationContext {
 			}
 		}
 		return new GenericTypeInfo<T>((Class<T>)Object.class);
+	}
+
+	public <T> TypeInformation<T> getCurrentInputTypeInfo() {
+		return getTypeInfo((PValue) currentTransform.getInput());
+	}
+
+	public <T> TypeInformation<T> getCurrentOutputTypeInfo() {
+		return getTypeInfo((PValue) currentTransform.getOutput());
+	}
+
+	public PValue getCurrentInput() {
+		return (PValue) currentTransform.getInput();
+	}
+
+	public PValue getCurrentOutput() {
+		return (PValue) currentTransform.getOutput();
+	}
+
+	@SuppressWarnings("unchecked")
+	<I extends PInput> I getInput(PTransform<I, ?> transform) {
+		I input = (I) currentTransform.getInput();
+		return input;
+	}
+
+	@SuppressWarnings("unchecked")
+	<O extends POutput> O getOutput(PTransform<?, O> transform) {
+		O output = (O) currentTransform.getOutput();
+		return output;
 	}
 }
