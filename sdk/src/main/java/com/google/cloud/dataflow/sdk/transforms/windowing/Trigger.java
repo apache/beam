@@ -68,7 +68,7 @@ import javax.annotation.Nullable;
  *   <li> {@link AfterFirst#of} to create a trigger that fires after at least one of its arguments
  *   fires. An {@link AfterFirst} trigger finishes after it fires once.
  *   <li> {@link AfterAll#of} to create a trigger that fires after all least one of its arguments
- *   have fired at least once. An {@link AfterFirst} trigger finishes after it fires once.
+ *   have fired at least once. An {@link AfterAll} trigger finishes after it fires once.
  * </ul>
  *
  * <p>Each trigger tree is instantiated per-key and per-window. Every trigger in the tree is in one
