@@ -111,9 +111,6 @@ public class PCollectionTuple implements PInput, POutput {
           "PCollections come from different Pipelines");
     }
 
-    // The TypeDescriptor<T> in tag will often have good
-    // reflective information about T
-    pc.setTypeDescriptorInternal(tag.getTypeDescriptor());
     return new PCollectionTuple(pipeline,
         new ImmutableMap.Builder<TupleTag<?>, PCollection<?>>()
             .putAll(pcollectionMap)
