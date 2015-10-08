@@ -27,8 +27,10 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.Count;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.dataflow.sdk.transforms.MapElements;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
+import com.google.cloud.dataflow.sdk.transforms.SimpleFunction;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.util.gcsfs.GcsPath;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -116,11 +118,11 @@ public class WordCount {
     }
   }
 
-  /** A DoFn that converts a Word and Count into a printable string. */
-  public static class FormatAsTextFn extends DoFn<KV<String, Long>, String> {
+  /** A SimpleFunction that converts a Word and Count into a printable string. */
+  public static class FormatAsTextFn extends SimpleFunction<KV<String, Long>, String> {
     @Override
-    public void processElement(ProcessContext c) {
-      c.output(c.element().getKey() + ": " + c.element().getValue());
+    public String apply(KV<String, Long> input) {
+      return input.getKey() + ": " + input.getValue();
     }
   }
 
@@ -196,7 +198,7 @@ public class WordCount {
     // static FormatAsTextFn() to the ParDo transform.
     p.apply(TextIO.Read.named("ReadLines").from(options.getInputFile()))
      .apply(new CountWords())
-     .apply(ParDo.of(new FormatAsTextFn()))
+     .apply(MapElements.via(new FormatAsTextFn()))
      .apply(TextIO.Write.named("WriteCounts").to(options.getOutput()));
 
     p.run();

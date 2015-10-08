@@ -33,6 +33,7 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.options.Validation;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.dataflow.sdk.transforms.MapElements;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 
 import java.util.Map;
@@ -198,7 +199,7 @@ public class DatastoreWordCount {
     p.apply("ReadShakespeareFromDatastore", Read.from(source))
         .apply("StringifyEntity", ParDo.of(new GetContentFn()))
         .apply("CountWords", new WordCount.CountWords())
-        .apply("PrintWordCount", ParDo.of(new WordCount.FormatAsTextFn()))
+        .apply("PrintWordCount", MapElements.via(new WordCount.FormatAsTextFn()))
         .apply("WriteLines", TextIO.Write.to(options.getOutput())
             .withNumShards(options.getNumShards()));
     p.run();

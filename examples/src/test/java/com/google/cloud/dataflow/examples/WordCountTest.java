@@ -26,7 +26,7 @@ import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFnTester;
-import com.google.cloud.dataflow.sdk.transforms.ParDo;
+import com.google.cloud.dataflow.sdk.transforms.MapElements;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 
 import org.hamcrest.CoreMatchers;
@@ -77,7 +77,7 @@ public class WordCountTest {
     PCollection<String> input = p.apply(Create.of(WORDS).withCoder(StringUtf8Coder.of()));
 
     PCollection<String> output = input.apply(new CountWords())
-      .apply(ParDo.of(new FormatAsTextFn()));
+      .apply(MapElements.via(new FormatAsTextFn()));
 
     DataflowAssert.that(output).containsInAnyOrder(COUNTS_ARRAY);
     p.run();
