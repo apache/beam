@@ -43,7 +43,7 @@ import org.junit.Test;
 public class SerializationTest {
 
   public static class StringHolder { // not serializable
-    private String string;
+    private final String string;
 
     public StringHolder(String string) {
       this.string = string;
@@ -71,7 +71,7 @@ public class SerializationTest {
 
   public static class StringHolderUtf8Coder extends AtomicCoder<StringHolder> {
 
-    private StringUtf8Coder stringUtf8Coder = StringUtf8Coder.of();
+    private final StringUtf8Coder stringUtf8Coder = StringUtf8Coder.of();
 
     @Override
     public void encode(StringHolder value, OutputStream outStream, Context context) throws IOException {

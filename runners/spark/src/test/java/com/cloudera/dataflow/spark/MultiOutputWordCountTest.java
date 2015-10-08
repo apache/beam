@@ -65,6 +65,7 @@ public class MultiOutputWordCountTest {
 
     EvaluationResult res = SparkPipelineRunner.create().run(p);
     Iterable<KV<String, Long>> actualLower = res.get(luc.get(lowerCnts));
+    Assert.assertEquals("and", actualLower.iterator().next().getKey());
     Iterable<KV<String, Long>> actualUpper = res.get(luc.get(upperCnts));
     Assert.assertEquals("Here", actualUpper.iterator().next().getKey());
     Iterable<Long> actualUniqCount = res.get(unique);
@@ -85,9 +86,9 @@ public class MultiOutputWordCountTest {
    */
   static class ExtractWordsFn extends DoFn<String, String> {
 
-    private Aggregator<Integer, Integer> totalWords = createAggregator("totalWords",
+    private final Aggregator<Integer, Integer> totalWords = createAggregator("totalWords",
         new Sum.SumIntegerFn());
-    private Aggregator<Integer, Integer> maxWordLength = createAggregator("maxWordLength",
+    private final Aggregator<Integer, Integer> maxWordLength = createAggregator("maxWordLength",
         new Max.MaxIntegerFn());
     private final PCollectionView<String> regex;
 

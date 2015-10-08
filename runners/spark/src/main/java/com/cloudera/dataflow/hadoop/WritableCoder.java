@@ -20,6 +20,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -56,7 +57,9 @@ public class WritableCoder<T extends Writable> extends StandardCoder<T> {
    */
   public static <T extends Writable> WritableCoder<T> of(Class<T> clazz) {
     if (clazz.equals(NullWritable.class)) {
-      return (WritableCoder<T>) NullWritableCoder.of();
+      @SuppressWarnings("unchecked")
+      WritableCoder<T> result = (WritableCoder<T>) NullWritableCoder.of();
+      return result;
     }
     return new WritableCoder<>(clazz);
   }
@@ -87,11 +90,13 @@ public class WritableCoder<T extends Writable> extends StandardCoder<T> {
   @Override
   public T decode(InputStream inStream, Context context) throws IOException {
     try {
-      T t = type.newInstance();
+      T t = type.getConstructor().newInstance();
       t.readFields(new DataInputStream(inStream));
       return t;
-    } catch (InstantiationException | IllegalAccessException e) {
+    } catch (NoSuchMethodException | InstantiationException | IllegalAccessException e) {
       throw new CoderException("unable to deserialize record", e);
+    } catch (InvocationTargetException ite) {
+      throw new CoderException("unable to deserialize record", ite.getCause());
     }
   }
 

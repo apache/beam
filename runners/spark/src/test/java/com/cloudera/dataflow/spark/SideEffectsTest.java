@@ -37,7 +37,7 @@ public class SideEffectsTest implements Serializable {
     pipeline.getCoderRegistry().registerCoder(URI.class, StringDelegateCoder.of(URI.class));
 
     PCollection<String> strings = pipeline.apply(Create.of("a"));
-    PCollection<String> output = strings.apply(ParDo.of(new DoFn<String, String>() {
+    strings.apply(ParDo.of(new DoFn<String, String>() {
       @Override
       public void processElement(ProcessContext c) throws Exception {
         throw new IllegalStateException("Side effect");
@@ -49,7 +49,6 @@ public class SideEffectsTest implements Serializable {
       fail("Run should thrown an exception");
     } catch (Exception e) {
       // expected
-      e.printStackTrace();
     }
   }
 }

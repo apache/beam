@@ -23,7 +23,7 @@ class ByteArray implements Serializable, Comparable<ByteArray> {
 
   private final byte[] value;
 
-  public ByteArray(byte[] value) {
+  ByteArray(byte[] value) {
     this.value = value;
   }
 

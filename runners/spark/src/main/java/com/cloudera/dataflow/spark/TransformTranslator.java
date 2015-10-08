@@ -124,8 +124,8 @@ public final class TransformTranslator {
             (JavaRDDLike<KV<K, V>, ?>) context.getInputRDD(transform);
         @SuppressWarnings("unchecked")
         KvCoder<K, V> coder = (KvCoder<K, V>) context.getInput(transform).getCoder();
-        final Coder<K> keyCoder = coder.getKeyCoder();
-        final Coder<V> valueCoder = coder.getValueCoder();
+        Coder<K> keyCoder = coder.getKeyCoder();
+        Coder<V> valueCoder = coder.getValueCoder();
 
         // Use coders to convert objects in the PCollection to byte arrays, so they
         // can be transferred over the network for the shuffle.

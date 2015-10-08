@@ -66,7 +66,7 @@ public class CombineGloballyTest {
       StringBuilder sb = new StringBuilder();
       for (StringBuilder accum : accumulators) {
         if (accum != null) {
-          sb.append(accum.toString());
+          sb.append(accum);
         }
       }
       return sb;

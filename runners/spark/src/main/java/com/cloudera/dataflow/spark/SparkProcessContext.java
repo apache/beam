@@ -61,7 +61,7 @@ abstract class SparkProcessContext<I, O, V> extends DoFn<I, O>.ProcessContext {
   }
 
   void setup() {
-    super.setupDelegateAggregators();
+    setupDelegateAggregators();
   }
 
   @Override
@@ -190,7 +190,7 @@ abstract class SparkProcessContext<I, O, V> extends DoFn<I, O>.ProcessContext {
     private Iterator<V> outputIterator;
     private boolean calledFinish = false;
 
-    public ProcCtxtIterator(Iterator<I> iterator, DoFn<I, O> doFn) {
+    ProcCtxtIterator(Iterator<I> iterator, DoFn<I, O> doFn) {
       this.inputIterator = iterator;
       this.doFn = doFn;
       this.outputIterator = getOutputIterator();
@@ -215,7 +215,6 @@ abstract class SparkProcessContext<I, O, V> extends DoFn<I, O>.ProcessContext {
             throw new IllegalStateException(e);
           }
           outputIterator = getOutputIterator();
-          continue; // try to consume outputIterator from start of loop
         } else {
           // no more input to consume, but finishBundle can produce more output
           if (!calledFinish) {

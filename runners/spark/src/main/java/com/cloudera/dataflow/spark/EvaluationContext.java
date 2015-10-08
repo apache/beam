@@ -78,12 +78,12 @@ public class EvaluationContext implements EvaluationResult {
     private Coder<T> coder;
     private JavaRDDLike<T, ?> rdd;
 
-    public RDDHolder(Iterable<T> values, Coder<T> coder) {
+    RDDHolder(Iterable<T> values, Coder<T> coder) {
       this.values = values;
       this.coder = coder;
     }
 
-    public RDDHolder(JavaRDDLike<T, ?> rdd) {
+    RDDHolder(JavaRDDLike<T, ?> rdd) {
       this.rdd = rdd;
     }
 
