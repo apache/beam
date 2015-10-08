@@ -29,7 +29,7 @@ public class FlatMapElements<InputT, OutputT>
 extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
   /**
    * For a {@code SerializableFunction<InputT, ? extends Iterable<OutputT>>} {@code fn},
-   * returns a {@link PTransform that applies {@code fn} to every element of the input
+   * returns a {@link PTransform} that applies {@code fn} to every element of the input
    * {@code PCollection<InputT>} and outputs all of the elements to the output
    * {@code PCollection<OutputT>}.
    *
@@ -50,7 +50,7 @@ extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
 
   /**
    * For a {@code SimpleFunction<InputT, ? extends Iterable<OutputT>>} {@code fn},
-   * return a {@link PTransform that applies {@code fn} to every element of the input
+   * return a {@link PTransform} that applies {@code fn} to every element of the input
    * {@code PCollection<InputT>} and outputs all of the elements to the output
    * {@code PCollection<OutputT>}.
    *
@@ -68,7 +68,7 @@ extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
    *     });
    * }</pre>
    *
-   * <p>To use a Java 8 lambda, see {@link #of(SerializableFunction, TypeDescriptor)}.
+   * <p>To use a Java 8 lambda, see {@link #via(SerializableFunction)}.
    */
   public static <InputT, OutputT> FlatMapElements<InputT, OutputT>
   via(SimpleFunction<InputT, ? extends Iterable<OutputT>> fn) {
