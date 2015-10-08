@@ -52,7 +52,7 @@ public class WordCount {
 	}
 	
 	public static void main(String[] args) {
-		
+
 		Options options = PipelineOptionsFactory.fromArgs(args).as(Options.class);
 		options.setRunner(FlinkPipelineRunner.class);
 
