@@ -18,40 +18,33 @@
 package com.dataartisans.flink.dataflow.translation.wrappers;
 
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
-import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
-import com.google.cloud.dataflow.sdk.util.SerializableUtils;
+import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import org.apache.flink.api.common.accumulators.Accumulator;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
 /**
- * Wrapper that wraps a {@link com.google.cloud.dataflow.sdk.transforms.SerializableFunction}
+ * Wrapper that wraps a {@link com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn}
  * in a Flink {@link org.apache.flink.api.common.accumulators.Accumulator} for using
  * the function as an aggregator in a {@link com.google.cloud.dataflow.sdk.transforms.ParDo}
  * operation.
  */
-public class SerializableFnAggregatorWrapper<AI, AO> implements Aggregator<AI>, Accumulator<AI, Serializable> {
+public class SerializableFnAggregatorWrapper<AI, AO> implements Aggregator<AI, AO>, Accumulator<AI, Serializable> {
 
 	private AO aa;
-	private SerializableFunction<Iterable<AI>, AO> serFun;
+	private Combine.CombineFn<AI, ?, AO> combiner;
 
-	public SerializableFnAggregatorWrapper() {
-	}
-
-	public SerializableFnAggregatorWrapper(SerializableFunction<Iterable<AI>, AO> serFun) {
-		this.serFun = serFun;
+	public SerializableFnAggregatorWrapper(Combine.CombineFn<AI, ?, AO> combiner) {
+		this.combiner = combiner;
 		resetLocal();
 	}
 	
 	@Override
 	@SuppressWarnings("unchecked")
 	public void add(AI value) {
-		this.aa = serFun.apply(ImmutableList.of((AI) aa, value));
+		this.aa = combiner.apply(ImmutableList.of((AI) aa, value));
 	}
 
 	@Override
@@ -61,13 +54,13 @@ public class SerializableFnAggregatorWrapper<AI, AO> implements Aggregator<AI>, 
 
 	@Override
 	public void resetLocal() {
-		this.aa = serFun.apply(ImmutableList.<AI>of());
+		this.aa = combiner.apply(ImmutableList.<AI>of());
 	}
 
 	@Override
 	@SuppressWarnings("unchecked")
 	public void merge(Accumulator<AI, Serializable> other) {
-		this.aa = serFun.apply(ImmutableList.of((AI) aa, (AI) other.getLocalValue()));
+		this.aa = combiner.apply(ImmutableList.of((AI) aa, (AI) other.getLocalValue()));
 	}
 
 	@Override
@@ -76,11 +69,21 @@ public class SerializableFnAggregatorWrapper<AI, AO> implements Aggregator<AI>, 
 	}
 
 	@Override
+	public String getName() {
+		return "Aggregator :" + combiner.toString();
+	}
+
+	@Override
+	public Combine.CombineFn<AI, ?, AO> getCombineFn() {
+		return combiner;
+	}
+
+	@Override
 	public Accumulator<AI, Serializable> clone() {
 		// copy it by merging
-		AO resultCopy = serFun.apply(Lists.newArrayList((AI) aa));
+		AO resultCopy = combiner.apply(Lists.newArrayList((AI) aa));
 		SerializableFnAggregatorWrapper<AI, AO> result = new
-				SerializableFnAggregatorWrapper<>(serFun);
+				SerializableFnAggregatorWrapper<>(combiner);
 
 		result.aa = resultCopy;
 		return result;
