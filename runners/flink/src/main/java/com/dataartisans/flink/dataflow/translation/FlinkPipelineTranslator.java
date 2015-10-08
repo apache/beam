@@ -21,9 +21,12 @@ import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.Pipeline.PipelineVisitor;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.TransformTreeNode;
+import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.join.CoGroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.join.KeyedPCollectionTuple;
+import com.google.cloud.dataflow.sdk.values.PInput;
+import com.google.cloud.dataflow.sdk.values.POutput;
 import com.google.cloud.dataflow.sdk.values.PValue;
 import org.apache.flink.api.java.ExecutionEnvironment;
 
@@ -77,8 +80,7 @@ public class FlinkPipelineTranslator implements PipelineVisitor {
 			if (translator != null) {
 				inComposite = true;
 
-				if (transform instanceof CoGroupByKey &&
-						((CoGroupByKey<?>) transform).getInput().getKeyedCollections().size() != 2) {
+				if (transform instanceof CoGroupByKey && node.getInput().expand().size() != 2) {
 					// we can only optimize CoGroupByKey for input size 2
 					inComposite = false;
 				}
@@ -144,13 +146,17 @@ public class FlinkPipelineTranslator implements PipelineVisitor {
 		@SuppressWarnings("unchecked")
 		TransformTranslator<T> typedTranslator = (TransformTranslator<T>) translator;
 
+		// create the applied PTransform on the context
+		context.setCurrentTransform(AppliedPTransform.of(
+				node.getFullName(), node.getInput(), node.getOutput(), (PTransform) transform));
+
 		typedTranslator.translateNode(typedTransform, context);
 	}
 
 	/**
 	 * A translator of a {@link PTransform}.
 	 */
-	public static interface TransformTranslator<Type extends PTransform> {
+	public interface TransformTranslator<Type extends PTransform> {
 
 		void translateNode(Type transform, TranslationContext context);
 	}

@@ -22,6 +22,7 @@ import com.dataartisans.flink.dataflow.translation.types.KvCoderTypeInformation;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.PValue;
 import com.google.cloud.dataflow.sdk.values.TypedPValue;
@@ -37,9 +38,11 @@ public class TranslationContext {
 	
 	private final Map<PValue, DataSet<?>> dataSets;
 	private final Map<PCollectionView<?>, DataSet<?>> broadcastDataSets;
-	
+
 	private final ExecutionEnvironment env;
 	private final PipelineOptions options;
+
+	private AppliedPTransform<?, ?, ?> currentTransform;
 	
 	// ------------------------------------------------------------------------
 	
@@ -69,6 +72,22 @@ public class TranslationContext {
 		if (!dataSets.containsKey(value)) {
 			dataSets.put(value, set);
 		}
+	}
+
+	/**
+	 * Gets the applied AppliedPTransform which carries input/output.
+	 * @return
+	 */
+	public AppliedPTransform<?, ?, ?> getCurrentTransform() {
+		return currentTransform;
+	}
+
+	/**
+	 * Sets the AppliedPTransform which carries input/output.
+	 * @param currentTransform
+	 */
+	public void setCurrentTransform(AppliedPTransform<?, ?, ?> currentTransform) {
+		this.currentTransform = currentTransform;
 	}
 
 	@SuppressWarnings("unchecked")
