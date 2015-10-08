@@ -26,7 +26,9 @@ import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.transforms.join.RawUnionValue;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
+import com.google.cloud.dataflow.sdk.util.WindowingInternals;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.collect.ImmutableList;
@@ -104,18 +106,23 @@ public class FlinkMultiOutputDoFnFunction<IN, OUT> extends RichMapPartitionFunct
 		}
 
 		@Override
-		public DoFn.KeyedState keyedState() {
-			throw new UnsupportedOperationException("Getting the keyed state is not supported!");
-		}
-
-		@Override
 		public Instant timestamp() {
 			return Instant.now();
 		}
 
 		@Override
-		public Collection<? extends BoundedWindow> windows() {
-			return ImmutableList.of();
+		public BoundedWindow window() {
+			return GlobalWindow.INSTANCE;
+		}
+
+		@Override
+		public PaneInfo pane() {
+			return PaneInfo.NO_FIRING;
+		}
+
+		@Override
+		public WindowingInternals<IN, OUT> windowingInternals() {
+			return null;
 		}
 
 		@Override
@@ -129,7 +136,7 @@ public class FlinkMultiOutputDoFnFunction<IN, OUT> extends RichMapPartitionFunct
 					.getId());
 			List<WindowedValue<?>> windowedValueList = new ArrayList<>(sideInput.size());
 			for (T input : sideInput) {
-				windowedValueList.add(WindowedValue.of(input, Instant.now(), ImmutableList.of(GlobalWindow.INSTANCE)));
+				windowedValueList.add(WindowedValue.of(input, Instant.now(), ImmutableList.of(GlobalWindow.INSTANCE), pane()));
 			}
 			return view.fromIterableInternal(windowedValueList);
 		}
@@ -161,17 +168,11 @@ public class FlinkMultiOutputDoFnFunction<IN, OUT> extends RichMapPartitionFunct
 		}
 
 		@Override
-		public <AI, AA, AO> Aggregator<AI> createAggregator(String name, Combine.CombineFn<? super AI, AA, AO> combiner) {
-			CombineFnAggregatorWrapper<AI, AA, AO> wrapper = new CombineFnAggregatorWrapper<>(combiner);
+		protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregatorInternal(String name, Combine.CombineFn<AggInputT, ?, AggOutputT> combiner) {
+			SerializableFnAggregatorWrapper<AggInputT, AggOutputT> wrapper = new SerializableFnAggregatorWrapper<AggInputT, AggOutputT>(combiner);
 			getRuntimeContext().addAccumulator(name, wrapper);
-			return wrapper;
+			return null;
 		}
 
-		@Override
-		public <AI, AO> Aggregator<AI> createAggregator(String name, SerializableFunction<Iterable<AI>, AO> serializableFunction) {
-			SerializableFnAggregatorWrapper<AI, AO> wrapper = new SerializableFnAggregatorWrapper<>(serializableFunction);
-			getRuntimeContext().addAccumulator(name, wrapper);
-			return wrapper;
-		}
 	}
 }

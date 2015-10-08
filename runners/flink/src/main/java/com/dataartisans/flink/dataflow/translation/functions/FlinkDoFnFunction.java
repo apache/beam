@@ -25,10 +25,13 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
+import com.google.cloud.dataflow.sdk.util.WindowingInternals;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.collect.ImmutableList;
+import javafx.scene.layout.Pane;
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.util.Collector;
 import org.joda.time.Instant;
@@ -94,10 +97,6 @@ public class FlinkDoFnFunction<IN, OUT> extends RichMapPartitionFunction<IN, OUT
 			return this.inValue;
 		}
 
-		@Override
-		public DoFn.KeyedState keyedState() {
-			throw new UnsupportedOperationException("Getting the keyed state is not supported!");
-		}
 
 		@Override
 		public Instant timestamp() {
@@ -105,8 +104,18 @@ public class FlinkDoFnFunction<IN, OUT> extends RichMapPartitionFunction<IN, OUT
 		}
 
 		@Override
-		public Collection<? extends BoundedWindow> windows() {
-			return ImmutableList.of();
+		public BoundedWindow window() {
+			return GlobalWindow.INSTANCE;
+		}
+
+		@Override
+		public PaneInfo pane() {
+			return PaneInfo.NO_FIRING;
+		}
+
+		@Override
+		public WindowingInternals<IN, OUT> windowingInternals() {
+			return null;
 		}
 
 		@Override
@@ -119,7 +128,7 @@ public class FlinkDoFnFunction<IN, OUT> extends RichMapPartitionFunction<IN, OUT
 			List<T> sideInput = getRuntimeContext().getBroadcastVariable(view.getTagInternal().getId());
 			List<WindowedValue<?>> windowedValueList = new ArrayList<>(sideInput.size());
 			for (T input : sideInput) {
-				windowedValueList.add(WindowedValue.of(input, Instant.now(), ImmutableList.of(GlobalWindow.INSTANCE)));
+				windowedValueList.add(WindowedValue.of(input, Instant.now(), ImmutableList.of(GlobalWindow.INSTANCE), pane()));
 			}
 			return view.fromIterableInternal(windowedValueList);
 		}
@@ -147,17 +156,12 @@ public class FlinkDoFnFunction<IN, OUT> extends RichMapPartitionFunction<IN, OUT
 		}
 
 		@Override
-		public <AI, AA, AO> Aggregator<AI> createAggregator(String name, Combine.CombineFn<? super AI, AA, AO> combiner) {
-			CombineFnAggregatorWrapper<AI, AA, AO> wrapper = new CombineFnAggregatorWrapper<AI, AA, AO>(combiner);
+		protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregatorInternal(String name, Combine.CombineFn<AggInputT, ?, AggOutputT> combiner) {
+			SerializableFnAggregatorWrapper<AggInputT, AggOutputT> wrapper = new SerializableFnAggregatorWrapper<AggInputT, AggOutputT>(combiner);
 			getRuntimeContext().addAccumulator(name, wrapper);
-			return wrapper;
+			return null;
 		}
 
-		@Override
-		public <AI, AO> Aggregator<AI> createAggregator(String name, SerializableFunction<Iterable<AI>, AO> serializableFunction) {
-			SerializableFnAggregatorWrapper<AI, AO> wrapper = new SerializableFnAggregatorWrapper<AI, AO>(serializableFunction);
-			getRuntimeContext().addAccumulator(name, wrapper);
-			return wrapper;
-		}
+
 	}
 }
