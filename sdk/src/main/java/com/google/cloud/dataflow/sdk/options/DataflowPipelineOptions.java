@@ -31,7 +31,8 @@ import org.joda.time.format.DateTimeFormatter;
 public interface DataflowPipelineOptions extends
     PipelineOptions, GcpOptions, ApplicationNameOptions, DataflowPipelineDebugOptions,
     DataflowPipelineWorkerPoolOptions, BigQueryOptions,
-    GcsOptions, StreamingOptions, CloudDebuggerOptions, DataflowWorkerLoggingOptions {
+    GcsOptions, StreamingOptions, CloudDebuggerOptions, DataflowWorkerLoggingOptions,
+    DataflowProfilingOptions {
 
   static final String DATAFLOW_STORAGE_LOCATION = "Dataflow Storage Location";
 
