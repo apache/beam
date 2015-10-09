@@ -89,8 +89,8 @@ public class ReadOperation extends Operation {
   /** Invoked by tests. */
   ReadOperation(Reader<?> reader, OutputReceiver outputReceiver, String counterPrefix,
       CounterSet.AddCounterMutator addCounterMutator, StateSampler stateSampler) {
-    this("ReadOperation", reader, new OutputReceiver[] {outputReceiver}, counterPrefix,
-         addCounterMutator, stateSampler);
+    this("ReadOperation", reader, new OutputReceiver[]{outputReceiver}, counterPrefix,
+        addCounterMutator, stateSampler);
   }
 
   /**
@@ -173,13 +173,20 @@ public class ReadOperation extends Operation {
         }
         setProgressFromIterator();
       } finally {
-        readerIterator.close();
         if (progressUpdatePeriodMs != 0) {
           updateRequester.interrupt();
           updateRequester.join();
         }
       }
     }
+  }
+
+  @Override
+  public void finish() throws Exception {
+    // Mark operation finished before closing the reader, so that anybody who checks if
+    // it's finished (e.g. requestDynamicSplit) won't use a closed reader.
+    super.finish();
+    readerIterator.close();
   }
 
   private void setProgressFromIterator() {

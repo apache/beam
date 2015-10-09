@@ -28,7 +28,6 @@ import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.SUM;
 import static com.google.cloud.dataflow.sdk.util.common.worker.TestOutputReceiver.TestOutputCounter.getMeanByteCounterName;
 import static com.google.cloud.dataflow.sdk.util.common.worker.TestOutputReceiver.TestOutputCounter.getObjectCounterName;
-
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
@@ -43,6 +42,7 @@ import com.google.cloud.dataflow.sdk.io.range.OffsetRangeTracker;
 import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.ExecutorTestUtils.TestReader;
+import com.google.common.base.Preconditions;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -223,6 +223,51 @@ public class ReadOperationTest {
     thread.join();
   }
 
+  @Test
+  public void testRaceBetweenCloseAndDynamicSplit() throws Exception {
+    MockReaderIterator iterator = new MockReaderIterator(0, 10);
+    CounterSet counterSet = new CounterSet();
+    MockOutputReceiver receiver = new MockOutputReceiver();
+    final ReadOperation readOperation = new ReadOperation(
+        new MockReader(iterator), receiver, "test-",
+        counterSet.getAddCounterMutator(),
+        new StateSampler("test-", counterSet.getAddCounterMutator()));
+
+    final Exchanger<Void> startCompleted = new Exchanger<>();
+    final Exchanger<Void> requestDynamicSplitCompleted = new Exchanger<>();
+    Thread thread = new Thread() {
+      @Override
+      public void run() {
+        try {
+          readOperation.start();
+          startCompleted.exchange(null);
+          requestDynamicSplitCompleted.exchange(null);
+          readOperation.finish();
+        } catch (Exception e) {
+          e.printStackTrace();
+        }
+      }
+    };
+    thread.start();
+
+    for (int i = 0; i < 10; ++i) {
+      iterator.offerNext(i);
+      receiver.unblockProcess();
+    }
+    // Wait for ReadOperation.start() to finish
+    startCompleted.exchange(null);
+    // Check that requestDynamicSplit is safe (no-op) if the operation is done with start()
+    // but not yet done with finish()
+    readOperation.requestDynamicSplit(splitRequestAtIndex(5L));
+    // Allow thread to finish() and join.
+    requestDynamicSplitCompleted.exchange(null);
+
+    thread.join();
+
+    // Check once more that requestDynamicSplit on a finished operation is also safe (no-op).
+    readOperation.requestDynamicSplit(splitRequestAtIndex(5L));
+  }
+
   private Thread runReadLoopInThread(final ReadOperation readOperation) {
     Thread thread = new Thread() {
       @Override
@@ -243,6 +288,7 @@ public class ReadOperationTest {
     private final OffsetRangeTracker tracker;
     private Exchanger<Integer> exchanger = new Exchanger<>();
     private int current;
+    private volatile boolean isClosed;
 
     public MockReaderIterator(int from, int to) {
       this.tracker = new OffsetRangeTracker(from, to);
@@ -266,6 +312,7 @@ public class ReadOperationTest {
 
     @Override
     public Reader.Progress getProgress() {
+      Preconditions.checkState(!isClosed);
       return cloudProgressToReaderProgress(
           new ApproximateProgress().setPosition(new Position().setRecordIndex((long) current))
                                    .setPercentComplete((float) tracker.getFractionConsumed()));
@@ -274,6 +321,7 @@ public class ReadOperationTest {
     @Override
     public Reader.DynamicSplitResult requestDynamicSplit(
         Reader.DynamicSplitRequest splitRequest) {
+      Preconditions.checkState(!isClosed);
       ApproximateProgress progress = splitRequestToApproximateProgress(splitRequest);
       int index = progress.getPosition().getRecordIndex().intValue();
       if (!tracker.trySplitAtPosition(index)) {
@@ -289,6 +337,11 @@ public class ReadOperationTest {
       } catch (InterruptedException e) {
         throw new RuntimeException(e);
       }
+    }
+
+    @Override
+    public void close() throws IOException {
+      isClosed = true;
     }
   }
 
