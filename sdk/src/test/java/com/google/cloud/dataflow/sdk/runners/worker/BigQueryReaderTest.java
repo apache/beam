@@ -35,11 +35,13 @@ import com.google.api.client.testing.http.MockHttpTransport;
 import com.google.api.client.testing.http.MockLowLevelHttpRequest;
 import com.google.api.client.testing.http.MockLowLevelHttpResponse;
 import com.google.api.services.bigquery.Bigquery;
+import com.google.api.services.bigquery.model.TableCell;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.dataflow.sdk.util.Transport;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 import org.junit.Test;
@@ -70,6 +72,14 @@ public class BigQueryReaderTest {
 
   private static final String GET_TABLE_REQUEST_PATH =
       String.format("projects/%s/datasets/%s/tables/%s", PROJECT_ID, DATASET, TABLE);
+
+  private static final List<TableCell> makeCellList(Object... fields) {
+    ImmutableList.Builder<TableCell> cells = ImmutableList.builder();
+    for (Object o : fields) {
+      cells.add(new TableCell().setV(o));
+    }
+    return cells.build();
+  }
 
   // This is a real response (with some unused fields removed) for the table created from this
   // schema:
@@ -294,7 +304,6 @@ public class BigQueryReaderTest {
       + "  }\n"
       + " ]\n"
       + "}";
-
 
   private static final String INSERT_QUERY_JOB_PATH =
       String.format("https://www.googleapis.com/bigquery/v2/projects/%s/jobs", PROJECT_ID);
@@ -569,10 +578,12 @@ public class BigQueryReaderTest {
 
     assertEquals("Arthur", row.get("name"));
     assertEquals("42", row.get("integer"));
+    assertEquals(makeCellList("Arthur", "42"), row.getF());
 
     row = iterator.next().getValue();
     assertEquals("Allison", row.get("name"));
     assertEquals("79", row.get("integer"));
+    assertEquals(makeCellList("Allison", "79"), row.getF());
 
     iterator.close();
 
@@ -716,6 +727,30 @@ public class BigQueryReaderTest {
                 .setResponse(response);
           }
         });
+    when(mockTransport.buildRequest(eq("GET"), endsWith(GET_TABLE_WITH_F_REQUEST_PATH)))
+    .thenAnswer(new Answer<LowLevelHttpRequest>() {
+      @Override
+      public LowLevelHttpRequest answer(InvocationOnMock invocation) throws Throwable {
+        MockLowLevelHttpResponse response =
+            new MockLowLevelHttpResponse()
+                .setContentType(Json.MEDIA_TYPE)
+                .setContent(GET_TABLE_WITH_F_RESPONSE_JSON);
+        return new MockLowLevelHttpRequest((String) invocation.getArguments()[1])
+            .setResponse(response);
+      }
+    });
+    when(mockTransport.buildRequest(eq("GET"), endsWith(LIST_TABLE_WITH_F_DATA_REQUEST_PATH)))
+    .thenAnswer(new Answer<LowLevelHttpRequest>() {
+      @Override
+      public LowLevelHttpRequest answer(InvocationOnMock invocation) throws Throwable {
+        MockLowLevelHttpResponse response =
+            new MockLowLevelHttpResponse()
+                .setContentType(Json.MEDIA_TYPE)
+                .setContent(LIST_TABLE_WITH_F_DATA_RESPONSE_JSON);
+        return new MockLowLevelHttpRequest((String) invocation.getArguments()[1])
+            .setResponse(response);
+      }
+    });
     when(mockTransport.supportsMethod("GET")).thenReturn(true);
   }
 
@@ -749,6 +784,7 @@ public class BigQueryReaderTest {
     TableRow nested = (TableRow) row.get("record");
     assertEquals("43", nested.get("nestedInt"));
     assertEquals(4.14159, nested.get("nestedFloat"));
+    assertEquals(makeCellList("43", 4.14159), nested.getF());
 
     assertEquals(Lists.newArrayList("42", "43", "79"), row.get("repeatedInt"));
     assertTrue(((List<?>) row.get("repeatedFloat")).isEmpty());
@@ -764,6 +800,7 @@ public class BigQueryReaderTest {
     nested = (TableRow) row.get("record");
     assertEquals("80", nested.get("nestedInt"));
     assertEquals(3.71828, nested.get("nestedFloat"));
+    assertEquals(makeCellList("80", 3.71828), nested.getF());
 
     assertTrue(((List<?>) row.get("repeatedInt")).isEmpty());
     assertEquals(Lists.newArrayList(3.14159, 2.71828), row.get("repeatedFloat"));
@@ -773,8 +810,10 @@ public class BigQueryReaderTest {
     assertEquals(2, nestedRecords.size());
     assertEquals("hello", nestedRecords.get(0).get("string"));
     assertEquals(true, nestedRecords.get(0).get("bool"));
+    assertEquals(makeCellList(true, "hello"), nestedRecords.get(0).getF());
     assertEquals("world", nestedRecords.get(1).get("string"));
     assertEquals(false, nestedRecords.get(1).get("bool"));
+    assertEquals(makeCellList(false, "world"), nestedRecords.get(1).getF());
 
     assertFalse(iterator.hasNext());
 
@@ -783,5 +822,99 @@ public class BigQueryReaderTest {
 
     verify(mockTransport, atLeastOnce()).supportsMethod("GET");
     verifyNoMoreInteractions(mockTransport);
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  // Constants and tests for surviving a field named "f" in the table schema.
+  ////////////////////////////////////////////////////////////////////////////
+
+  // Modified from GET_TABLE_RESPONSE_JSON for a table with a field name "f"
+  // [
+  //  {"name":"int","type":"INTEGER"},
+  //  {"name":"f","type":"STRING"}
+  // ]
+  private static final String GET_TABLE_WITH_F_RESPONSE_JSON =
+      "{\n"
+      + " \"schema\": {\n"
+      + "  \"fields\": [\n"
+      + "   {\n"
+      + "    \"name\": \"int\",\n"
+      + "    \"type\": \"INTEGER\"\n"
+      + "   },\n"
+      + "   {\n"
+      + "    \"name\": \"f\",\n"
+      + "    \"type\": \"STRING\"\n"
+      + "   }\n"
+      + "  ]\n"
+      + " },\n"
+      + " \"numRows\": \"2\",\n"
+      + " \"type\": \"TABLE\"\n"
+      + "}";
+
+  private static final String TABLE_WITH_FIELD_F = "table_f";
+  private static final String GET_TABLE_WITH_F_REQUEST_PATH =
+      String.format("projects/%s/datasets/%s/tables/%s", PROJECT_ID, DATASET, TABLE_WITH_FIELD_F);
+  private static final String LIST_TABLE_WITH_F_DATA_REQUEST_PATH =
+      String.format("%s/data", GET_TABLE_WITH_F_REQUEST_PATH);
+
+  // Modified from LIST_TABLEDATA_RESPONSE_JSON for a table with a field named "f"
+  // with the following data:
+  // {"int": "5", "f": "Arthur"},
+  //
+  // {"int": "42", "f": "Allison"}
+  private static final String LIST_TABLE_WITH_F_DATA_RESPONSE_JSON =
+      "{\n"
+      + " \"totalRows\": \"2\",\n"
+      + " \"rows\": [\n"
+      + "  {\n"
+      + "   \"f\": [\n"
+      + "    {\n"
+      + "     \"v\": \"5\"\n"
+      + "    },\n"
+      + "    {\n"
+      + "     \"v\": \"Arthur\"\n"
+      + "    }\n"
+      + "   ]\n"
+      + "  },\n"
+      + "  {\n"
+      + "   \"f\": [\n"
+      + "    {\n"
+      + "     \"v\": \"42\"\n"
+      + "    },\n"
+      + "    {\n"
+      + "     \"v\": \"Allison\"\n"
+      + "    }\n"
+      + "   ]\n"
+      + "  }\n"
+      + " ]\n"
+      + "}";
+
+  /**
+   * This tests two different things:
+   *
+   * <ol>
+   * <li>{@link BigQueryReader} can handle a field named "f" without crashing.
+   * <li>The value of field named "f" can be retrieved positionally from {@link TableRow#getF()}
+   * </ol>
+   */
+  @Test
+  public void testReadTableWithFieldF() throws Exception {
+    setUpMockTable();
+
+    Bigquery bigQueryClient = new Bigquery(mockTransport, Transport.getJsonFactory(), null);
+    TableReference tableRef = new TableReference()
+        .setProjectId(PROJECT_ID).setDatasetId(DATASET).setTableId(TABLE_WITH_FIELD_F);
+    BigQueryReader reader = BigQueryReader.fromTable(tableRef, bigQueryClient);
+
+    Reader.ReaderIterator<WindowedValue<TableRow>> iterator = reader.iterator();
+    assertTrue(iterator.hasNext());
+
+    TableRow row = iterator.next().getValue();
+    assertEquals(makeCellList("5", "Arthur"), row.getF());
+    assertEquals("Arthur", row.getF().get(1).getV());
+
+    row = iterator.next().getValue();
+    assertEquals(makeCellList("42", "Allison"), row.getF());
+    assertEquals("Allison", row.getF().get(1).getV());
   }
 }

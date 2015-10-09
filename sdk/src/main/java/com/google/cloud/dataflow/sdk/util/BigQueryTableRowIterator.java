@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.util;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.googleapis.services.AbstractGoogleClientRequest;
 import com.google.api.client.util.BackOff;
@@ -32,12 +33,13 @@ import com.google.api.services.bigquery.model.JobConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationQuery;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.Table;
+import com.google.api.services.bigquery.model.TableCell;
 import com.google.api.services.bigquery.model.TableDataList;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 
 import org.joda.time.Duration;
 import org.joda.time.format.DateTimeFormat;
@@ -47,7 +49,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -56,16 +57,18 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Random;
 
+import javax.annotation.Nullable;
+
 /**
  * Iterates over all rows in a table.
  */
 public class BigQueryTableRowIterator implements Iterator<TableRow>, Closeable {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryTableRowIterator.class);
 
+  @Nullable private TableReference ref;
+  @Nullable private final String projectId;
+  @Nullable private TableSchema schema;
   private final Bigquery client;
-  private TableReference ref;
-  private final String projectId;
-  private TableSchema schema;
   private String pageToken;
   private Iterator<TableRow> rowIterator;
   // Set true when the final page is seen from the service.
@@ -87,28 +90,33 @@ public class BigQueryTableRowIterator implements Iterator<TableRow>, Closeable {
   private String temporaryTableId = null;
 
   private BigQueryTableRowIterator(
-      Bigquery client, TableReference ref, String query, String projectId) {
-    this.client = checkNotNull(client, "client");
+      @Nullable TableReference ref, @Nullable String query, @Nullable String projectId,
+      Bigquery client) {
     this.ref = ref;
     this.query = query;
     this.projectId = projectId;
+    this.client = checkNotNull(client, "client");
   }
 
   /**
-   * Constructs a {@code BigQueryTableRowIterator} that uses the specified client to read from
-   * the specified table.
+   * Constructs a {@code BigQueryTableRowIterator} that reads from the specified table.
    */
-  public static BigQueryTableRowIterator of(Bigquery client, TableReference ref) {
+  public static BigQueryTableRowIterator fromTable(TableReference ref, Bigquery client) {
     checkNotNull(ref, "ref");
-    return new BigQueryTableRowIterator(client, ref, null, ref.getProjectId());
+    checkNotNull(client, "client");
+    return new BigQueryTableRowIterator(ref, null, ref.getProjectId(), client);
   }
 
   /**
-   * Constructs a {@code BigQueryTableRowIterator} that uses the specified client to read from
-   * the results of executing the specified client in the specified project.
+   * Constructs a {@code BigQueryTableRowIterator} that reads from the results of executing the
+   * specified query in the specified project.
    */
-  public static BigQueryTableRowIterator of(Bigquery client, String query, String projectId) {
-    return new BigQueryTableRowIterator(client, null, query, projectId);
+  public static BigQueryTableRowIterator fromQuery(
+      String query, String projectId, Bigquery client) {
+    checkNotNull(query, "query");
+    checkNotNull(projectId, "projectId");
+    checkNotNull(client, "client");
+    return new BigQueryTableRowIterator(null, query, projectId, client);
   }
 
   @Override
@@ -125,20 +133,19 @@ public class BigQueryTableRowIterator implements Iterator<TableRow>, Closeable {
   }
 
   /**
-   * Adjusts a field returned from the API to
-   * match the type that will be seen when run on the
-   * backend service. The end result is:
+   * Adjusts a field returned from the BigQuery API to match the type that will be seen when
+   * run on the backend service. The end result is:
    *
-   * <p><ul>
-   *   <li> Nulls are {@code null}.
-   *   <li> Repeated fields are lists.
-   *   <li> Record columns are {@link TableRow}s.
-   *   <li> {@code BOOLEAN} columns are JSON booleans, hence Java {@link Boolean}s.
-   *   <li> {@code FLOAT} columns are JSON floats, hence Java {@link Double}s.
-   *   <li> {@code TIMESTAMP} columns are {@link String}s that are of the format
-   *        {yyyy-MM-dd HH:mm:ss.SSS UTC}.
-   *   <li> Every other atomic type is a {@link String}.
-   * </ul></p>
+   * <ul>
+   *   <li>Nulls are {@code null}.
+   *   <li>Repeated fields are {@code List} of objects.
+   *   <li>Record columns are {@link TableRow} objects.
+   *   <li>{@code BOOLEAN} columns are JSON booleans, hence Java {@code Boolean} objects.
+   *   <li>{@code FLOAT} columns are JSON floats, hence Java {@code Double} objects.
+   *   <li>{@code TIMESTAMP} columns are {@code String} objects that are of the format
+   *       {@code yyyy-MM-dd HH:mm:ss.SSS UTC}.
+   *   <li>Every other atomic type is a {@code String}.
+   * </ul>
    *
    * <p>Note that currently integers are encoded as strings to match
    * the behavior of the backend service.
@@ -155,12 +162,12 @@ public class BigQueryTableRowIterator implements Iterator<TableRow>, Closeable {
     if (Objects.equals(fieldSchema.getMode(), "REPEATED")) {
       TableFieldSchema elementSchema = fieldSchema.clone().setMode("REQUIRED");
       @SuppressWarnings("unchecked")
-      List<Map<String, Object>> rawValues = (List<Map<String, Object>>) v;
-      List<Object> values = new ArrayList<Object>(rawValues.size());
-      for (Map<String, Object> element : rawValues) {
+      List<Map<String, Object>> rawCells = (List<Map<String, Object>>) v;
+      ImmutableList.Builder<Object> values = ImmutableList.builder();
+      for (Map<String, Object> element : rawCells) {
         values.add(getTypedCellValue(elementSchema, element.get("v")));
       }
-      return values;
+      return values.build();
     }
 
     if (fieldSchema.getType().equals("RECORD")) {
@@ -188,19 +195,74 @@ public class BigQueryTableRowIterator implements Iterator<TableRow>, Closeable {
     return v;
   }
 
+  /**
+   * Converts a row returned from the BigQuery JSON API as a {@code Map<String, Object>} into a
+   * Java {@link TableRow} with nested {@link TableCell TableCells}. The {@code Object} values in
+   * the cells are converted to Java types according to the provided field schemas.
+   *
+   * <p>See {@link #getTypedCellValue(TableFieldSchema, Object)} for details on how BigQuery
+   * types are mapped to Java types.
+   */
   private TableRow getTypedTableRow(List<TableFieldSchema> fields, Map<String, Object> rawRow) {
-    @SuppressWarnings("unchecked")
-    List<Map<String, Object>> cells = (List<Map<String, Object>>) rawRow.get("f");
-    Preconditions.checkState(cells.size() == fields.size());
+    // If rawRow is a TableRow, use it. If not, create a new one.
+    TableRow row;
+    if (rawRow instanceof TableRow) {
+      // Since rawRow is a TableRow, we also know that rawRow.getF() returns a List<TableCell>.
+      // We do not need to do any type conversion.
+      row = (TableRow) rawRow;
+    } else {
+      row = new TableRow();
 
-    Iterator<Map<String, Object>> cellIt = cells.iterator();
+      // Since rawRow is a Map<String, Object> we use Map.get("f") instead of TableRow.getF() to
+      // get its cells. Similarly, when rawCell is a Map<String, Object> instead of a TableCell,
+      // we will use Map.get("v") instead of TableCell.getV() get its value.
+      @SuppressWarnings("unchecked")
+      List<Map<String, Object>> rawCells = (List<Map<String, Object>>) rawRow.get("f");
+
+      ImmutableList.Builder<TableCell> builder = ImmutableList.builder();
+      for (Map<String, Object> rawCell : rawCells) {
+        // If rawCell is a TableCell, use it. If not, create a new one.
+        if (rawCell instanceof TableCell) {
+          builder.add((TableCell) rawCell);
+        } else {
+          builder.add(new TableCell().setV(rawCell.get("v")));
+        }
+      }
+      row.setF(builder.build());
+    }
+
+    // From here, everything is a TableRow/TableCell, no need to interpret as Map<String,Object>.
+    List<TableCell> cells = row.getF();
+    checkState(cells.size() == fields.size(),
+        "Expected that the row has the same number of cells %s as fields in the schema %s",
+        cells.size(), fields.size());
+
+    // Loop through all the fields in the row, normalizing their types with the TableFieldSchema
+    // and also storing the normalized values by field name in the Map<String, Object> that
+    // underlies the TableRow.
+    Iterator<TableCell> cellIt = cells.iterator();
     Iterator<TableFieldSchema> fieldIt = fields.iterator();
-
-    TableRow row = new TableRow();
     while (cellIt.hasNext()) {
-      Map<String, Object> cell = cellIt.next();
+      TableCell cell = cellIt.next();
       TableFieldSchema fieldSchema = fieldIt.next();
-      row.set(fieldSchema.getName(), getTypedCellValue(fieldSchema, cell.get("v")));
+
+      // Convert the object in this cell to the Java type corresponding to its type in the schema.
+      Object convertedValue = getTypedCellValue(fieldSchema, cell.getV());
+      cell.setV(convertedValue);
+
+      String fieldName = fieldSchema.getName();
+      if (fieldName.equals("f")) {
+        // This is a workaround for a crash when the schema has a field named "f". Specifically,
+        // tableRow.set("f", value) is equivalent to tableRow.setF(value), and value must be a
+        // List<TableCell> or a ClassCastException will be thrown. To avoid the crash, we simply
+        // do not set the Map property named "f".
+        //
+        // The value for a field named "f" can instead be retrieved by calling tableRow.getF() and
+        // to get the list of cells, and accessing the positional entry that corresponds to the
+        // position of the "f" field in the TableSchema.
+        continue;
+      }
+      row.set(fieldName, convertedValue);
     }
     return row;
   }

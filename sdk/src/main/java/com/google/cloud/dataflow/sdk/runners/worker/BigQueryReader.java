@@ -102,24 +102,25 @@ public class BigQueryReader extends Reader<WindowedValue<TableRow>> {
   @Override
   public ReaderIterator<WindowedValue<TableRow>> iterator() throws IOException {
     if (tableRef != null) {
-      return new BigQueryReaderIterator(bigQueryClient, tableRef);
+      return new BigQueryReaderIterator(tableRef, bigQueryClient);
     } else {
-      return new BigQueryReaderIterator(bigQueryClient, query, projectId);
+      return new BigQueryReaderIterator(query, projectId, bigQueryClient);
     }
   }
 
   /**
    * A ReaderIterator that yields TableRow objects for each row of a BigQuery table.
    */
-  class BigQueryReaderIterator extends AbstractBoundedReaderIterator<WindowedValue<TableRow>> {
+  private static class BigQueryReaderIterator
+      extends AbstractBoundedReaderIterator<WindowedValue<TableRow>> {
     private BigQueryTableRowIterator rowIterator;
 
-    public BigQueryReaderIterator(Bigquery bigQueryClient, TableReference tableRef) {
-      rowIterator = BigQueryTableRowIterator.of(bigQueryClient, tableRef);
+    public BigQueryReaderIterator(TableReference tableRef, Bigquery bigQueryClient) {
+      rowIterator = BigQueryTableRowIterator.fromTable(tableRef, bigQueryClient);
     }
 
-    public BigQueryReaderIterator(Bigquery bigQueryClient, String query, String projectId) {
-      rowIterator = BigQueryTableRowIterator.of(bigQueryClient, query, projectId);
+    public BigQueryReaderIterator(String query, String projectId, Bigquery bigQueryClient) {
+      rowIterator = BigQueryTableRowIterator.fromQuery(query, projectId, bigQueryClient);
     }
 
     @Override

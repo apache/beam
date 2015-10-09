@@ -189,9 +189,9 @@ public class BigQueryUtilTest {
     TableDataList dataList = rawDataList(rawRow("Arthur", "1.430397296789E9", 42));
     onTableList(dataList);
 
-    try (BigQueryTableRowIterator iterator = BigQueryTableRowIterator.of(
-        mockClient,
-        BigQueryIO.parseTableSpec("project:dataset.table"))) {
+    try (BigQueryTableRowIterator iterator = BigQueryTableRowIterator.fromTable(
+        BigQueryIO.parseTableSpec("project:dataset.table"),
+        mockClient)) {
 
       Assert.assertTrue(iterator.hasNext());
       TableRow row = iterator.next();
@@ -230,9 +230,9 @@ public class BigQueryUtilTest {
     TableDataList dataList = rawDataList(rawRow("Arthur", 42));
     onTableList(dataList);
 
-    try (BigQueryTableRowIterator iterator = BigQueryTableRowIterator.of(
-        mockClient,
-        BigQueryIO.parseTableSpec("project:dataset.table"))) {
+    try (BigQueryTableRowIterator iterator = BigQueryTableRowIterator.fromTable(
+        BigQueryIO.parseTableSpec("project:dataset.table"),
+        mockClient)) {
 
       Assert.assertTrue(iterator.hasNext());
       TableRow row = iterator.next();
@@ -260,9 +260,9 @@ public class BigQueryUtilTest {
         .setTotalRows(0L);
     onTableList(dataList);
 
-    try (BigQueryTableRowIterator iterator = BigQueryTableRowIterator.of(
-        mockClient,
-        BigQueryIO.parseTableSpec("project:dataset.table"))) {
+    try (BigQueryTableRowIterator iterator = BigQueryTableRowIterator.fromTable(
+        BigQueryIO.parseTableSpec("project:dataset.table"),
+        mockClient)) {
 
       Assert.assertFalse(iterator.hasNext());
 
@@ -288,9 +288,9 @@ public class BigQueryUtilTest {
         .thenReturn(page1)
         .thenReturn(page2);
 
-    try (BigQueryTableRowIterator iterator = BigQueryTableRowIterator.of(
-        mockClient,
-        BigQueryIO.parseTableSpec("project:dataset.table"))) {
+    try (BigQueryTableRowIterator iterator = BigQueryTableRowIterator.fromTable(
+        BigQueryIO.parseTableSpec("project:dataset.table"),
+        mockClient)) {
 
       List<String> names = new LinkedList<>();
       Iterators.addAll(names,
@@ -321,9 +321,9 @@ public class BigQueryUtilTest {
     when(mockTablesGet.execute())
         .thenThrow(new IOException("No such table"));
 
-    try (BigQueryTableRowIterator iterator = BigQueryTableRowIterator.of(
-        mockClient,
-        BigQueryIO.parseTableSpec("project:dataset.table"))) {
+    try (BigQueryTableRowIterator iterator = BigQueryTableRowIterator.fromTable(
+        BigQueryIO.parseTableSpec("project:dataset.table"),
+        mockClient)) {
       try {
         Assert.assertFalse(iterator.hasNext());  // throws.
       } finally {
