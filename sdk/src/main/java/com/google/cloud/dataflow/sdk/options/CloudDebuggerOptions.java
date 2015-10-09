@@ -23,6 +23,7 @@ import com.google.cloud.dataflow.sdk.annotations.Experimental;
  */
 @Description("[Experimental] Used to configure the Cloud Debugger")
 @Experimental
+@Hidden
 public interface CloudDebuggerOptions {
 
   /**
