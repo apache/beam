@@ -20,6 +20,7 @@ import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -87,17 +88,36 @@ public class GcsUtilTest {
     assertEquals("foo-[0-9][^/]*", GcsUtil.globToRegexp("foo-[0-9]*"));
   }
 
-  @Test
-  public void testCreationWithDefaultOptions() {
+  private static GcsOptions gcsOptionsWithTestCredential() {
     GcsOptions pipelineOptions = PipelineOptionsFactory.as(GcsOptions.class);
     pipelineOptions.setGcpCredential(new TestCredential());
+    return pipelineOptions;
+  }
+
+  @Test
+  public void testCreationWithDefaultOptions() {
+    GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
     assertNotNull(pipelineOptions.getGcpCredential());
   }
 
   @Test
+  public void testUploadBufferSizeDefault() {
+    GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
+    GcsUtil util = pipelineOptions.getGcsUtil();
+    assertNull(util.getUploadBufferSizeBytes());
+  }
+
+  @Test
+  public void testUploadBufferSizeUserSpecified() {
+    GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
+    pipelineOptions.setGcsUploadBufferSizeBytes(12345);
+    GcsUtil util = pipelineOptions.getGcsUtil();
+    assertEquals((Integer) 12345, util.getUploadBufferSizeBytes());
+  }
+
+  @Test
   public void testCreationWithExecutorServiceProvided() {
-    GcsOptions pipelineOptions = PipelineOptionsFactory.as(GcsOptions.class);
-    pipelineOptions.setGcpCredential(new TestCredential());
+    GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
     pipelineOptions.setExecutorService(Executors.newCachedThreadPool());
     assertSame(pipelineOptions.getExecutorService(), pipelineOptions.getGcsUtil().executorService);
   }
@@ -145,8 +165,7 @@ public class GcsUtilTest {
 
   @Test
   public void testGlobExpansion() throws IOException {
-    GcsOptions pipelineOptions = PipelineOptionsFactory.as(GcsOptions.class);
-    pipelineOptions.setGcpCredential(new TestCredential());
+    GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
     GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
 
     Storage mockStorage = Mockito.mock(Storage.class);
@@ -227,8 +246,7 @@ public class GcsUtilTest {
   // Patterns that contain recursive wildcards ('**') are not supported.
   @Test
   public void testRecursiveGlobExpansionFails() throws IOException {
-    GcsOptions pipelineOptions = PipelineOptionsFactory.as(GcsOptions.class);
-    pipelineOptions.setGcpCredential(new TestCredential());
+    GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
     GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
     GcsPath pattern = GcsPath.fromUri("gs://testbucket/test**");
 
@@ -241,8 +259,7 @@ public class GcsUtilTest {
   // listing is only eventually consistent.
   @Test
   public void testNonExistent() throws IOException {
-    GcsOptions pipelineOptions = PipelineOptionsFactory.as(GcsOptions.class);
-    pipelineOptions.setGcpCredential(new TestCredential());
+    GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
     GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
 
     Storage mockStorage = Mockito.mock(Storage.class);
@@ -281,8 +298,7 @@ public class GcsUtilTest {
 
   @Test
   public void testGetSizeBytes() throws Exception {
-    GcsOptions pipelineOptions = PipelineOptionsFactory.as(GcsOptions.class);
-    pipelineOptions.setGcpCredential(new TestCredential());
+    GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
     GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
 
     Storage mockStorage = Mockito.mock(Storage.class);
@@ -308,8 +324,7 @@ public class GcsUtilTest {
     MockHttpTransport mockTransport =
         new MockHttpTransport.Builder().setLowLevelHttpResponse(notFoundResponse).build();
 
-    GcsOptions pipelineOptions = PipelineOptionsFactory.as(GcsOptions.class);
-    pipelineOptions.setGcpCredential(new TestCredential());
+    GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
     GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
 
     gcsUtil.setStorageClient(new Storage(mockTransport, Transport.getJsonFactory(), null));
@@ -320,8 +335,7 @@ public class GcsUtilTest {
 
   @Test
   public void testRetryFileSize() throws IOException {
-    GcsOptions pipelineOptions = PipelineOptionsFactory.as(GcsOptions.class);
-    pipelineOptions.setGcpCredential(new TestCredential());
+    GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
     GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
 
     Storage mockStorage = Mockito.mock(Storage.class);
@@ -346,8 +360,7 @@ public class GcsUtilTest {
 
   @Test
   public void testBucketExists() throws IOException {
-    GcsOptions pipelineOptions = PipelineOptionsFactory.as(GcsOptions.class);
-    pipelineOptions.setGcpCredential(new TestCredential());
+    GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
     GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
 
     Storage mockStorage = Mockito.mock(Storage.class);
@@ -370,8 +383,7 @@ public class GcsUtilTest {
 
   @Test
   public void testBucketDoesNotExistBecauseOfAccessError() throws IOException {
-    GcsOptions pipelineOptions = PipelineOptionsFactory.as(GcsOptions.class);
-    pipelineOptions.setGcpCredential(new TestCredential());
+    GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
     GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
 
     Storage mockStorage = Mockito.mock(Storage.class);
@@ -396,8 +408,7 @@ public class GcsUtilTest {
 
   @Test
   public void testBucketDoesNotExist() throws IOException {
-    GcsOptions pipelineOptions = PipelineOptionsFactory.as(GcsOptions.class);
-    pipelineOptions.setGcpCredential(new TestCredential());
+    GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
     GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
 
     Storage mockStorage = Mockito.mock(Storage.class);

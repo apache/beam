@@ -52,6 +52,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import javax.annotation.Nullable;
+
 /**
  * Provides operations on GCS.
  */
@@ -70,10 +72,11 @@ public class GcsUtil {
      */
     @Override
     public GcsUtil create(PipelineOptions options) {
-      GcsOptions gcsOptions = options.as(GcsOptions.class);
       LOG.debug("Creating new GcsUtil");
+      GcsOptions gcsOptions = options.as(GcsOptions.class);
+
       return new GcsUtil(Transport.newStorageClient(gcsOptions).build(),
-          gcsOptions.getExecutorService());
+          gcsOptions.getExecutorService(), gcsOptions.getGcsUploadBufferSizeBytes());
     }
   }
 
@@ -96,7 +99,9 @@ public class GcsUtil {
   /////////////////////////////////////////////////////////////////////////////
 
   /** Client for the GCS API. */
-  private Storage storage;
+  private Storage storageClient;
+  /** Buffer size for GCS uploads (in bytes). */
+  @Nullable private final Integer uploadBufferSizeBytes;
 
   // Helper delegate for turning IOExceptions from API calls into higher-level semantics.
   private final ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
@@ -117,14 +122,17 @@ public class GcsUtil {
     return true;
   }
 
-  private GcsUtil(Storage storageClient, ExecutorService executorService) {
-    storage = storageClient;
+  private GcsUtil(
+      Storage storageClient, ExecutorService executorService,
+      @Nullable Integer uploadBufferSizeBytes) {
+    this.storageClient = storageClient;
+    this.uploadBufferSizeBytes = uploadBufferSizeBytes;
     this.executorService = executorService;
   }
 
   // Use this only for testing purposes.
-  protected void setStorageClient(Storage storage) {
-    this.storage = storage;
+  protected void setStorageClient(Storage storageClient) {
+    this.storageClient = storageClient;
   }
 
   /**
@@ -152,7 +160,7 @@ public class GcsUtil {
         prefix, p.toString());
 
     // List all objects that start with the prefix (including objects in sub-directories).
-    Storage.Objects.List listObject = storage.objects().list(gcsPattern.getBucket());
+    Storage.Objects.List listObject = storageClient.objects().list(gcsPattern.getBucket());
     listObject.setMaxResults(MAX_LIST_ITEMS_PER_CALL);
     listObject.setPrefix(prefix);
 
@@ -197,6 +205,12 @@ public class GcsUtil {
     return results;
   }
 
+  @VisibleForTesting
+  @Nullable
+  Integer getUploadBufferSizeBytes() {
+    return uploadBufferSizeBytes;
+  }
+
   /**
    * Returns the file size from GCS or throws {@link FileNotFoundException}
    * if the resource does not exist.
@@ -212,7 +226,7 @@ public class GcsUtil {
   @VisibleForTesting
   long fileSize(GcsPath path, BackOff backoff, Sleeper sleeper) throws IOException {
       Storage.Objects.Get getObject =
-          storage.objects().get(path.getBucket(), path.getObject());
+          storageClient.objects().get(path.getBucket(), path.getObject());
       try {
         StorageObject object = ResilientOperation.retry(
             ResilientOperation.getGoogleRequestCallable(getObject),
@@ -240,7 +254,7 @@ public class GcsUtil {
    */
   public SeekableByteChannel open(GcsPath path)
       throws IOException {
-    return new GoogleCloudStorageReadChannel(storage, path.getBucket(),
+    return new GoogleCloudStorageReadChannel(storageClient, path.getBucket(),
             path.getObject(), errorExtractor,
             new ClientRequestHelper<StorageObject>());
   }
@@ -260,14 +274,17 @@ public class GcsUtil {
       String type) throws IOException {
     GoogleCloudStorageWriteChannel channel = new GoogleCloudStorageWriteChannel(
         executorService,
-        storage,
+        storageClient,
         new ClientRequestHelper<StorageObject>(),
         path.getBucket(),
         path.getObject(),
-        (new AsyncWriteChannelOptions.Builder()).build(),
+        AsyncWriteChannelOptions.newBuilder().build(),
         new ObjectWriteConditions(),
         Collections.<String, String>emptyMap(),
         type);
+    if (uploadBufferSizeBytes != null) {
+      channel.setUploadBufferSize(uploadBufferSizeBytes);
+    }
     channel.initialize();
     return channel;
   }
@@ -287,7 +304,7 @@ public class GcsUtil {
   @VisibleForTesting
   boolean bucketExists(GcsPath path, BackOff backoff, Sleeper sleeper) throws IOException {
     Storage.Buckets.Get getBucket =
-        storage.buckets().get(path.getBucket());
+        storageClient.buckets().get(path.getBucket());
 
       try {
         ResilientOperation.retry(
