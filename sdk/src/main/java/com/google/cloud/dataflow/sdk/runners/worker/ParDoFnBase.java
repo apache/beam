@@ -62,9 +62,11 @@ public abstract class ParDoFnBase implements ParDoFn {
   private final ExecutionContext executionContext;
   private final CounterSet.AddCounterMutator addCounterMutator;
   private final StateSampler stateSampler;
+  private final boolean hasStreamingSideInput;
 
   /** The DoFnRunner executing a batch. Null between batches. */
   private DoFnRunner<Object, Object> fnRunner;
+  private Receiver[] receivers;
 
   public ExecutionContext getExecutionContext() {
     return executionContext;
@@ -101,6 +103,8 @@ public abstract class ParDoFnBase implements ParDoFn {
     this.executionContext = executionContext;
     this.addCounterMutator = addCounterMutator;
     this.stateSampler = stateSampler;
+    this.hasStreamingSideInput =
+        options.as(StreamingOptions.class).isStreaming() && !sideInputReader.isEmpty();
   }
 
   /**
@@ -109,12 +113,22 @@ public abstract class ParDoFnBase implements ParDoFn {
   protected abstract DoFnInfo<?, ?> getDoFnInfo();
 
   @Override
-  public void startBundle(final Receiver... receivers) throws Exception {
+  public void startBundle(Receiver... receivers) throws Exception {
     if (receivers.length != sideOutputTags.size() + 1) {
       throw new AssertionError(
           "unexpected number of receivers for DoFn");
     }
 
+    this.receivers = receivers;
+    if (hasStreamingSideInput) {
+      // There is non-trivial setup that needs to be performed for watermark propagation
+      // even on empty bundles.
+      reallyStartBundle();
+    }
+  }
+
+  private void reallyStartBundle() throws Exception {
+    Preconditions.checkState(fnRunner == null, "bundle already started (or not properly finished)");
     StepContext stepContext = null;
     if (executionContext != null) {
       stepContext = executionContext.getOrCreateStepContext(stepName, transformName, stateSampler);
@@ -164,7 +178,7 @@ public abstract class ParDoFnBase implements ParDoFn {
       }
     };
 
-    if (options.as(StreamingOptions.class).isStreaming() && !sideInputReader.isEmpty()) {
+    if (hasStreamingSideInput) {
       fnRunner = new StreamingSideInputDoFnRunner<Object, Object, BoundedWindow>(
           options,
           doFnInfo,
@@ -193,12 +207,17 @@ public abstract class ParDoFnBase implements ParDoFn {
   @Override
   @SuppressWarnings("unchecked")
   public void processElement(Object elem) throws Exception {
+    if (fnRunner == null) {
+      reallyStartBundle();
+    }
     fnRunner.processElement((WindowedValue<Object>) elem);
   }
 
   @Override
   public void finishBundle() throws Exception {
-    fnRunner.finishBundle();
-    fnRunner = null;
+    if (fnRunner != null) {
+      fnRunner.finishBundle();
+      fnRunner = null;
+    }
   }
 }

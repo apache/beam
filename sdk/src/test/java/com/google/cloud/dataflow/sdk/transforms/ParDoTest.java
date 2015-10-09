@@ -27,7 +27,6 @@ import static org.hamcrest.core.IsEqual.equalTo;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.Pipeline.PipelineExecutionException;
@@ -883,7 +882,6 @@ public class ParDoTest implements Serializable {
       }
 
       assertEquals(starteds.size(), finisheds.size());
-      assertTrue(starteds.size() > 0);
       for (String started : starteds) {
         assertEquals(sideOutputPrefix + "started", started);
       }

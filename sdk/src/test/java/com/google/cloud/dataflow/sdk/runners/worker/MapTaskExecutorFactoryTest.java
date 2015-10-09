@@ -43,6 +43,7 @@ import com.google.api.services.dataflow.model.WriteInstruction;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.runners.worker.ReaderFactoryTest.SingletonTestReaderFactory;
 import com.google.cloud.dataflow.sdk.runners.worker.ReaderFactoryTest.TestReader;
 import com.google.cloud.dataflow.sdk.runners.worker.ReaderFactoryTest.TestReaderFactory;
 import com.google.cloud.dataflow.sdk.runners.worker.SinkFactoryTest.TestSink;
@@ -56,6 +57,7 @@ import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.SerializableUtils;
 import com.google.cloud.dataflow.sdk.util.StringUtils;
+import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowedValue.FullWindowedValueCoder;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.util.common.Counter;
@@ -86,6 +88,9 @@ import java.util.List;
 @RunWith(JUnit4.class)
 public class MapTaskExecutorFactoryTest {
 
+  private static final CloudObject windowedStringCoder =
+      WindowedValue.getValueOnlyCoder(StringUtf8Coder.of()).asCloudObject();
+
   private PipelineOptions options;
   private ReaderFactory.Registry readerFactoryRegistry;
 
@@ -95,7 +100,10 @@ public class MapTaskExecutorFactoryTest {
     readerFactoryRegistry = ReaderFactory.Registry.defaultRegistry()
         .register(
             TestReaderFactory.class.getName(),
-            new TestReaderFactory());
+            new TestReaderFactory())
+        .register(
+            SingletonTestReaderFactory.class.getName(),
+            new SingletonTestReaderFactory());
   }
 
   @Test
@@ -182,10 +190,9 @@ public class MapTaskExecutorFactoryTest {
   @Test
   public void testExecutionContextPlumbing() throws Exception {
     List<ParallelInstruction> instructions = Arrays.asList(
-        createReadInstruction("Read"),
+        createReadInstruction("Read", SingletonTestReaderFactory.class),
         createParDoInstruction(0, 0, "DoFn1", "DoFnUserName"),
-        createParDoInstruction(1, 0, "DoFnWithContext", "DoFnWithContextUserName"),
-        createWriteInstruction(2, 0, "Write"));
+        createParDoInstruction(1, 0, "DoFnWithContext", "DoFnWithContextUserName"));
 
     MapTask mapTask = new MapTask();
     mapTask.setStageName("test");
@@ -213,18 +220,23 @@ public class MapTaskExecutorFactoryTest {
   }
 
   static ParallelInstruction createReadInstruction(String name) {
-    CloudObject spec = CloudObject.forClass(TestReaderFactory.class);
+    return createReadInstruction(name, TestReaderFactory.class);
+  }
+
+  static ParallelInstruction createReadInstruction(
+      String name, Class<? extends ReaderFactory> readerFactoryClass) {
+    CloudObject spec = CloudObject.forClass(readerFactoryClass);
 
     Source cloudSource = new Source();
     cloudSource.setSpec(spec);
-    cloudSource.setCodec(CloudObject.forClass(StringUtf8Coder.class));
+    cloudSource.setCodec(windowedStringCoder);
 
     ReadInstruction readInstruction = new ReadInstruction();
     readInstruction.setSource(cloudSource);
 
     InstructionOutput output = new InstructionOutput();
     output.setName("read_output_name");
-    output.setCodec(CloudObject.forClass(StringUtf8Coder.class));
+    output.setCodec(windowedStringCoder);
 
     ParallelInstruction instruction = new ParallelInstruction();
     instruction.setSystemName(name);
@@ -279,7 +291,7 @@ public class MapTaskExecutorFactoryTest {
     com.google.api.services.dataflow.model.Sink cloudSink =
         new com.google.api.services.dataflow.model.Sink();
     cloudSink.setSpec(spec);
-    cloudSink.setCodec(CloudObject.forClass(StringUtf8Coder.class));
+    cloudSink.setCodec(windowedStringCoder);
 
     WriteInstruction writeInstruction = new WriteInstruction();
     writeInstruction.setInput(cloudInput);
@@ -337,7 +349,9 @@ public class MapTaskExecutorFactoryTest {
 
   static class TestDoFn extends DoFn<String, String> {
     @Override
-    public void processElement(ProcessContext c) {}
+    public void processElement(ProcessContext c) {
+      c.output(c.element());
+    }
   }
 
   static ParallelInstruction createParDoInstruction(
@@ -368,7 +382,7 @@ public class MapTaskExecutorFactoryTest {
 
     InstructionOutput output = new InstructionOutput();
     output.setName(systemName + "_output");
-    output.setCodec(CloudObject.forClass(StringUtf8Coder.class));
+    output.setCodec(windowedStringCoder);
 
     ParallelInstruction instruction = new ParallelInstruction();
     instruction.setParDo(parDoInstruction);
@@ -408,8 +422,8 @@ public class MapTaskExecutorFactoryTest {
     assertEquals(parDoOperation.receivers.length, 1);
     assertEquals(parDoOperation.receivers[0].getReceiverCount(), 0);
     assertEquals(parDoOperation.initializationState, Operation.InitializationState.UNSTARTED);
-    assertThat(parDoOperation.fn, instanceOf(NormalParDoFn.class));
-    NormalParDoFn normalParDoFn = (NormalParDoFn) parDoOperation.fn;
+    assertThat(parDoOperation.getFn(), instanceOf(NormalParDoFn.class));
+    NormalParDoFn normalParDoFn = (NormalParDoFn) parDoOperation.getFn();
 
     assertThat(
         normalParDoFn.getDoFnInfo().getDoFn(),

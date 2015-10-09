@@ -17,12 +17,13 @@
 package com.google.cloud.dataflow.sdk.util.common.worker;
 
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
+import com.google.common.annotations.VisibleForTesting;
 
 /**
  * A ParDo mapping function.
  */
 public class ParDoOperation extends ReceivingOperation {
-  public final ParDoFn fn;
+  private final ParDoFn fn;
 
   public ParDoOperation(String operationName,
                         ParDoFn fn,
@@ -66,5 +67,10 @@ public class ParDoOperation extends ReceivingOperation {
   @Override
   public boolean supportsRestart() {
     return true;
+  }
+
+  @VisibleForTesting
+  public ParDoFn getFn() throws Exception {
+    return fn;
   }
 }

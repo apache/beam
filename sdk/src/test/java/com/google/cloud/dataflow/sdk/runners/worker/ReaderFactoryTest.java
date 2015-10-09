@@ -26,6 +26,7 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
+import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 
@@ -75,6 +76,48 @@ public class ReaderFactoryTest {
       @Override
       public Integer next() {
         throw new NoSuchElementException();
+      }
+
+      @Override
+      public void close() {}
+    }
+  }
+
+  static class SingletonTestReaderFactory implements ReaderFactory {
+    @Override
+    public Reader<?> create(
+        CloudObject spec,
+        @Nullable Coder<?> coder,
+        @Nullable PipelineOptions options,
+        @Nullable ExecutionContext executionContext,
+        @Nullable CounterSet.AddCounterMutator addCounterMutator,
+        @Nullable String operationName) {
+      return new SingletonTestReader();
+    }
+  }
+
+  static class SingletonTestReader extends Reader<WindowedValue<String>> {
+    @Override
+    public SingletonTestReaderIterator iterator() {
+      return new SingletonTestReaderIterator();
+    }
+
+    /** A source iterator that produces no values, for testing. */
+    class SingletonTestReaderIterator extends AbstractReaderIterator<WindowedValue<String>> {
+      private boolean seen = false;
+      @Override
+      public boolean hasNext() {
+        return !seen;
+      }
+
+      @Override
+      public WindowedValue<String> next() {
+        if (seen) {
+          throw new NoSuchElementException();
+        } else {
+          seen = true;
+          return WindowedValue.valueInGlobalWindow("something");
+        }
       }
 
       @Override

@@ -285,6 +285,7 @@ public class NormalParDoFnTest {
 
     try {
       normalParDoFn.startBundle(receiver);
+      normalParDoFn.processElement(null);
       fail("should have failed");
     } catch (Exception exn) {
       // Because we're calling this from inside the SDK and not from a
