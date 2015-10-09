@@ -82,5 +82,15 @@ public class AvroByteReader<T> extends Reader<T> {
     public void close() throws IOException {
       avroFileIterator.close();
     }
+
+    @Override
+    public Progress getProgress() {
+      return avroFileIterator.getProgress();
+    }
+
+    @Override
+    public DynamicSplitResult requestDynamicSplit(DynamicSplitRequest splitRequest) {
+      return avroFileIterator.requestDynamicSplit(splitRequest);
+    }
   }
 }
