@@ -51,4 +51,27 @@ public class MapElementsJava8Test implements Serializable {
     DataflowAssert.that(output).containsInAnyOrder(6, 2, 4);
     pipeline.run();
   }
+
+  /**
+   * Basic test of {@link MapElements} with a method reference.
+   */
+  @Test
+  public void testMapMethodReference() throws Exception {
+    Pipeline pipeline = TestPipeline.create();
+    PCollection<Integer> output = pipeline
+        .apply(Create.of(1, 2, 3))
+        .apply(MapElements
+            // Note that the type annotation is required (for Java, not for Dataflow)
+            .via(new Doubler()::doubleIt)
+            .withOutputType(new TypeDescriptor<Integer>() {}));
+
+    DataflowAssert.that(output).containsInAnyOrder(6, 2, 4);
+    pipeline.run();
+  }
+
+  private static class Doubler implements Serializable {
+    public int doubleIt(int val) {
+      return val * 2;
+    }
+  }
 }

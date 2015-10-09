@@ -96,4 +96,23 @@ public class FilterJava8Test implements Serializable {
     thrown.expect(CannotProvideCoderException.class);
     pipeline.getCoderRegistry().getDefaultCoder(output.getTypeDescriptor());
   }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testFilterByMethodReference() {
+    Pipeline pipeline = TestPipeline.create();
+
+    PCollection<Integer> output = pipeline
+        .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
+        .apply(Filter.byPredicate(new EvenFilter()::isEven));
+
+    DataflowAssert.that(output).containsInAnyOrder(2, 4, 6);
+    pipeline.run();
+  }
+
+  private static class EvenFilter implements Serializable {
+    public boolean isEven(int i) {
+      return i % 2 == 0;
+    }
+  }
 }

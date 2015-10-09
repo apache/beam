@@ -30,6 +30,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.io.Serializable;
+import java.util.List;
 
 /**
  * Java 8 Tests for {@link FlatMapElements}.
@@ -56,5 +57,28 @@ public class FlatMapElementsJava8Test implements Serializable {
 
     DataflowAssert.that(output).containsInAnyOrder(1, 3, -1, -3, 2, -2);
     pipeline.run();
+  }
+
+  /**
+   * Basic test of {@link FlatMapElements} with a method reference.
+   */
+  @Test
+  public void testFlatMapMethodReference() throws Exception {
+    Pipeline pipeline = TestPipeline.create();
+    PCollection<Integer> output = pipeline
+        .apply(Create.of(1, 2, 3))
+        .apply(FlatMapElements
+            // Note that the input type annotation is required.
+            .via(new Negater()::numAndNegation)
+            .withOutputType(new TypeDescriptor<Integer>() {}));
+
+    DataflowAssert.that(output).containsInAnyOrder(1, 3, -1, -3, 2, -2);
+    pipeline.run();
+  }
+
+  private static class Negater implements Serializable {
+    public List<Integer> numAndNegation(int input) {
+      return ImmutableList.of(input, -input);
+    }
   }
 }
