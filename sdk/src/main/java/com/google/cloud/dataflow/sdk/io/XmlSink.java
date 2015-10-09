@@ -20,7 +20,6 @@ import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.io.FileBasedSink.FileBasedWriteOperation;
 import com.google.cloud.dataflow.sdk.io.FileBasedSink.FileBasedWriter;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.transforms.Write;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.base.Preconditions;

@@ -17,7 +17,6 @@ package com.google.cloud.dataflow.sdk.io;
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.transforms.Write;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 
 import java.io.Serializable;
