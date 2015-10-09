@@ -156,19 +156,20 @@ public class AfterAllTest {
   public void testOnMergeFires() throws Exception {
     setUp(Sessions.withGapDuration(Duration.millis(10)));
 
-    injectElement(1, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
-    injectElement(12, TriggerResult.FIRE_AND_FINISH, TriggerResult.CONTINUE);
-    injectElement(5, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
+    when(mockTrigger1.onElement(Mockito.<Trigger<IntervalWindow>.OnElementContext>any()))
+        .thenReturn(TriggerResult.CONTINUE);
+    when(mockTrigger2.onElement(Mockito.<Trigger<IntervalWindow>.OnElementContext>any()))
+        .thenReturn(TriggerResult.CONTINUE);
+    tester.injectElements(
+        TimestampedValue.of(1, new Instant(1)),
+        TimestampedValue.of(5, new Instant(12)));
 
-    when(mockTrigger1.onMerge(
-        Mockito.<Trigger<IntervalWindow>.OnMergeContext>any()))
+    when(mockTrigger1.onMerge(Mockito.<Trigger<IntervalWindow>.OnMergeContext>any()))
         .thenReturn(MergeResult.ALREADY_FINISHED);
-
-    when(mockTrigger2.onMerge(
-        Mockito.<Trigger<IntervalWindow>.OnMergeContext>any()))
+    when(mockTrigger2.onMerge(Mockito.<Trigger<IntervalWindow>.OnMergeContext>any()))
         .thenReturn(MergeResult.FIRE_AND_FINISH);
-
-    tester.doMerge();
+    tester.injectElements(
+        TimestampedValue.of(12, new Instant(5)));
 
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 5, 12), 1, 1, 22)));
@@ -261,8 +262,6 @@ public class AfterAllTest {
     tester.injectElements(
         TimestampedValue.of(4, new Instant(2)),
         TimestampedValue.of(5, new Instant(2)));
-
-    tester.doMerge();
 
     // This fires, because the earliest element in [1, 12) arrived at time 10
     assertThat(tester.extractOutput(), Matchers.contains(WindowMatchers.isSingleWindowedValue(

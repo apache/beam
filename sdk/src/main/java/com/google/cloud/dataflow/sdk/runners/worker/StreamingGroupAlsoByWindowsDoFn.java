@@ -100,9 +100,6 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W exte
         runner.onTimer(timer);
       }
       runner.processElements(element.elementsIterable());
-
-      // Merge before finishing the bundle in case it causes triggers to fire.
-      runner.merge();
       runner.persist();
     }
   }

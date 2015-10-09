@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.util;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 
+import java.util.Collection;
 import java.util.Collections;
 
 /**
@@ -41,19 +42,33 @@ public class NonMergingActiveWindowSet<W extends BoundedWindow>
   }
 
   @Override
+  public boolean contains(W window) {
+    // Windows should never disappear, since we don't support merging.
+    return true;
+  }
+
+  @Override
   public void remove(W window) {}
 
   @Override
-  public boolean mergeIfAppropriate(W window, MergeCallback<W> reduceFnRunner)
-      throws Exception {
+  public void merge(MergeCallback<W> reduceFnRunner) throws Exception {
     // We never merge, so there is nothing to do here.
-    // The window (which existed before the merge) must still exist after the merge.
-    return true;
   }
 
   @Override
   public Iterable<W> sourceWindows(W window) {
     // There is no merging, so the only source window is the window itself.
     return Collections.singleton(window);
+  }
+
+  @Override
+  public int size() {
+    throw new UnsupportedOperationException("Cannot determine size of NonMergingActiveWindowSet");
+  }
+
+  @Override
+  public Collection<W> originalWindows(Collection<W> windows) {
+    throw new UnsupportedOperationException(
+        "Cannot determine original windows of NonMergingActiveWindowSet");
   }
 }

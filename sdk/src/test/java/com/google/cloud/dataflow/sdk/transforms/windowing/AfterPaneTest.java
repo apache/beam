@@ -114,7 +114,7 @@ public class AfterPaneTest {
     tester.injectElements(
         TimestampedValue.of(1, new Instant(1)),  // in [1, 11)
         TimestampedValue.of(2, new Instant(2))); // in [2, 12)
-    tester.doMerge();
+
     assertThat(tester.extractOutput(), Matchers.contains(
         WindowMatchers.isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 1, 12)));
 
@@ -122,7 +122,6 @@ public class AfterPaneTest {
     tester.injectElements(
         TimestampedValue.of(3, new Instant(7)),  // in [7, 17)
         TimestampedValue.of(4, new Instant(8))); // in [8, 18)
-    tester.doMerge();
 
     assertThat(tester.extractOutput(), Matchers.contains(
         WindowMatchers.isSingleWindowedValue(Matchers.containsInAnyOrder(3, 4), 7, 7, 18)));

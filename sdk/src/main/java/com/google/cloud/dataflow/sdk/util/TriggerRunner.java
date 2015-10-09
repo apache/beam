@@ -46,52 +46,6 @@ import java.util.Map;
  */
 public class TriggerRunner<W extends BoundedWindow> {
 
-  /**
-   * Result of trigger execution.
-   *
-   * <p>This includes the actual {@link TriggerResult} as well as an updated set of finished bits.
-   * The bits should typically be committed, but if the trigger fired we want to merge and apply
-   * the merging logic on the old finished bits, hence the need to delay committing these results.
-   */
-  public static class Result {
-
-    private final TriggerResult result;
-    private final boolean isFinishedSetUsed;
-    private final BitSet modifiedFinishedSet;
-
-    private Result(
-        TriggerResult result,
-        boolean isFinishedSetUsed,
-        BitSet modifiedFinishedSet) {
-      this.result = result;
-      this.isFinishedSetUsed = isFinishedSetUsed;
-      this.modifiedFinishedSet = modifiedFinishedSet;
-    }
-
-    public boolean isFire() {
-      return result.isFire();
-    }
-
-    public boolean isFinish() {
-      return result.isFinish();
-    }
-
-    public void persistFinishedSet(ReduceFn.StateContext state) {
-      if (!isFinishedSetUsed) {
-        return;
-      }
-
-      ValueState<BitSet> finishedSet = state.access(FINISHED_BITS_TAG);
-      if (!finishedSet.get().equals(modifiedFinishedSet)) {
-        if (modifiedFinishedSet.isEmpty()) {
-          finishedSet.clear();
-        } else {
-          finishedSet.set(modifiedFinishedSet);
-        }
-      }
-    }
-  }
-
   @VisibleForTesting static final StateTag<ValueState<BitSet>> FINISHED_BITS_TAG =
       StateTags.makeSystemTagInternal(StateTags.value("closed", BitSetCoder.of()));
 
@@ -124,18 +78,19 @@ public class TriggerRunner<W extends BoundedWindow> {
   /**
    * Run the trigger logic to deal with a new value.
    */
-  public Result processValue(ReduceFn<?, ?, ?, W>.ProcessValueContext c) throws Exception {
+  public TriggerResult processValue(ReduceFn<?, ?, ?, W>.ProcessValueContext c) throws Exception {
     // Clone so that we can detect changes and so that changes here don't pollute merging.
     BitSet finishedSet = (BitSet) readFinishedBits(c.state().access(FINISHED_BITS_TAG)).clone();
     Trigger<W>.OnElementContext triggerContext = contextFactory.create(c, rootTrigger, finishedSet);
     TriggerResult result = rootTrigger.invokeElement(triggerContext);
-    return new Result(result, isFinishedSetNeeded(), finishedSet);
+    persistFinishedSet(c.state(), finishedSet);
+    return result;
   }
 
   /**
    * Run the trigger merging logic as part of executing the specified merge.
    */
-  public Result onMerge(ReduceFn<?, ?, ?, W>.OnMergeContext c) throws Exception {
+  public TriggerResult onMerge(ReduceFn<?, ?, ?, W>.OnMergeContext c) throws Exception {
     // Clone so that we can detect changes and so that changes here don't pollute merging.
     BitSet finishedSet = (BitSet) readFinishedBits(c.state().access(FINISHED_BITS_TAG)).clone();
 
@@ -158,19 +113,36 @@ public class TriggerRunner<W extends BoundedWindow> {
       throw new IllegalStateException("Root trigger returned MergeResult.ALREADY_FINISHED.");
     }
 
-    return new Result(result.getTriggerResult(), isFinishedSetNeeded(), finishedSet);
+    persistFinishedSet(c.state(), finishedSet);
+    return result.getTriggerResult();
   }
 
   /**
    * Run the trigger logic appropriate for receiving a timer with the specified destination ID.
    */
-  public Result onTimer(ReduceFn<?, ?, ?, W>.Context c, TimerData timer) throws Exception {
+  public TriggerResult onTimer(ReduceFn<?, ?, ?, W>.Context c, TimerData timer) throws Exception {
     // Clone so that we can detect changes and so that changes here don't pollute merging.
     BitSet finishedSet = (BitSet) readFinishedBits(c.state().access(FINISHED_BITS_TAG)).clone();
     Trigger<W>.OnTimerContext triggerContext =
         contextFactory.create(c, rootTrigger, finishedSet, timer.getTimestamp(), timer.getDomain());
     TriggerResult result = rootTrigger.invokeTimer(triggerContext);
-    return new Result(result, isFinishedSetNeeded(), finishedSet);
+    persistFinishedSet(c.state(), finishedSet);
+    return result;
+  }
+
+  private void persistFinishedSet(ReduceFn.StateContext state, BitSet modifiedFinishedSet) {
+    if (!isFinishedSetNeeded()) {
+      return;
+    }
+
+    ValueState<BitSet> finishedSet = state.access(FINISHED_BITS_TAG);
+    if (!finishedSet.get().equals(modifiedFinishedSet)) {
+      if (modifiedFinishedSet.isEmpty()) {
+        finishedSet.clear();
+      } else {
+        finishedSet.set(modifiedFinishedSet);
+      }
+    }
   }
 
   /**

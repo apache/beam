@@ -127,14 +127,16 @@ public class RepeatedlyTest {
   public void testMerge() throws Exception {
     setUp(Sessions.withGapDuration(Duration.millis(10)));
 
-    injectElement(1, TriggerResult.CONTINUE);
-    injectElement(12, TriggerResult.CONTINUE);
-    injectElement(5, TriggerResult.CONTINUE);
+    when(mockRepeated.onElement(Mockito.<Trigger<IntervalWindow>.OnElementContext>any()))
+        .thenReturn(TriggerResult.CONTINUE);
+    tester.injectElements(
+        TimestampedValue.of(1, new Instant(1)),
+        TimestampedValue.of(5, new Instant(12)));
 
-    when(mockRepeated.onMerge(
-        Mockito.<Trigger<IntervalWindow>.OnMergeContext>any()))
+    when(mockRepeated.onMerge(Mockito.<Trigger<IntervalWindow>.OnMergeContext>any()))
         .thenReturn(MergeResult.FIRE_AND_FINISH);
-    tester.doMerge();
+    tester.injectElements(
+        TimestampedValue.of(12, new Instant(5)));
 
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 5, 12), 1, 1, 22)));

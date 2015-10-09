@@ -156,16 +156,21 @@ public class OrFinallyTriggerTest {
   public void testMergeActualFires() throws Exception {
     setUp(Sessions.withGapDuration(Duration.millis(10)));
 
-    injectElement(1, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
-    injectElement(12, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
-    injectElement(5, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
+    when(mockActual.onElement(Mockito.<Trigger<IntervalWindow>.OnElementContext>any()))
+        .thenReturn(TriggerResult.CONTINUE);
+    when(mockUntil.onElement(Mockito.<Trigger<IntervalWindow>.OnElementContext>any()))
+        .thenReturn(TriggerResult.CONTINUE);
 
-    when(mockActual.onMerge(
-        Mockito.<Trigger<IntervalWindow>.OnMergeContext>any())).thenReturn(MergeResult.FIRE);
+    tester.injectElements(
+        TimestampedValue.of(1, new Instant(1)),
+        TimestampedValue.of(12, new Instant(12)));
 
-    when(mockUntil.onMerge(
-        Mockito.<Trigger<IntervalWindow>.OnMergeContext>any())).thenReturn(MergeResult.CONTINUE);
-    tester.doMerge();
+    when(mockActual.onMerge(Mockito.<Trigger<IntervalWindow>.OnMergeContext>any()))
+        .thenReturn(MergeResult.FIRE);
+    when(mockUntil.onMerge(Mockito.<Trigger<IntervalWindow>.OnMergeContext>any()))
+        .thenReturn(MergeResult.CONTINUE);
+
+    tester.injectElements(TimestampedValue.of(5, new Instant(5)));
 
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 5, 12), 1, 1, 22)));
@@ -176,19 +181,21 @@ public class OrFinallyTriggerTest {
   public void testMergeUntilFires() throws Exception {
     setUp(Sessions.withGapDuration(Duration.millis(10)));
 
-    injectElement(1, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
-    injectElement(12, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
-    injectElement(5, TriggerResult.CONTINUE, TriggerResult.CONTINUE);
+    when(mockActual.onElement(Mockito.<Trigger<IntervalWindow>.OnElementContext>any()))
+        .thenReturn(TriggerResult.CONTINUE);
+    when(mockUntil.onElement(Mockito.<Trigger<IntervalWindow>.OnElementContext>any()))
+        .thenReturn(TriggerResult.CONTINUE);
+    tester.injectElements(
+        TimestampedValue.of(1, new Instant(1)),
+        TimestampedValue.of(12, new Instant(12)));
 
-    when(mockActual.onMerge(
-        Mockito.<Trigger<IntervalWindow>.OnMergeContext>any()))
+    when(mockActual.onMerge(Mockito.<Trigger<IntervalWindow>.OnMergeContext>any()))
         .thenReturn(MergeResult.CONTINUE);
-
-    when(mockUntil.onMerge(
-        Mockito.<Trigger<IntervalWindow>.OnMergeContext>any()))
+    when(mockUntil.onMerge(Mockito.<Trigger<IntervalWindow>.OnMergeContext>any()))
         .thenReturn(MergeResult.FIRE_AND_FINISH);
 
-    tester.doMerge();
+    tester.injectElements(
+        TimestampedValue.of(5, new Instant(5)));
 
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 5, 12), 1, 1, 22)));
@@ -289,16 +296,14 @@ public class OrFinallyTriggerTest {
 
     tester.advanceProcessingTime(new Instant(10));
     tester.injectElements(
-        TimestampedValue.of(1, new Instant(1)),   // in [1, 11), timer for 15
-        TimestampedValue.of(2, new Instant(1)),   // in [1, 11) count = 1
+        TimestampedValue.of(1, new Instant(1)),  // in [1, 11), timer for 15
+        TimestampedValue.of(2, new Instant(1)),  // in [1, 11) count = 1
         TimestampedValue.of(3, new Instant(2))); // in [2, 12), timer for 16
 
     // Enough data comes in for 2 that combined, we should fire
     tester.injectElements(
         TimestampedValue.of(4, new Instant(2)),
         TimestampedValue.of(5, new Instant(2)));
-
-    tester.doMerge();
 
     // This fires, because the earliest element in [1, 12) arrived at time 10
     assertThat(tester.extractOutput(), Matchers.contains(WindowMatchers.isSingleWindowedValue(

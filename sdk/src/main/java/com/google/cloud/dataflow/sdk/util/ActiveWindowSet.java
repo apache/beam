@@ -16,6 +16,7 @@
 package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 
 import java.util.Collection;
 
@@ -47,15 +48,21 @@ public interface ActiveWindowSet<W extends BoundedWindow> {
   boolean add(W window);
 
   /**
+   * Return true if the window is active.
+   */
+  boolean contains(W window);
+
+  /**
    * Remove a window from the {@code ActiveWindowSet}.
    */
   void remove(W window);
 
   /**
-   * Invoke {@code merge} on the associated {@code WindowFn}, and return true if the {@code window}
-   * still exists afterwards.
+   * Invoke {@link WindowFn#mergeWindows} on the {@code WindowFn} associated with this window set,
+   * merging as many of the active windows as possible. {@code mergeCallback} will be invoked for
+   * each group of windows that are merged.
    */
-  boolean mergeIfAppropriate(W window, MergeCallback<W> mergeCallback) throws Exception;
+  void merge(MergeCallback<W> mergeCallback) throws Exception;
 
   /**
    * Return the set of windows that were merged to produce {@code window}. If the associated
@@ -63,4 +70,14 @@ public interface ActiveWindowSet<W extends BoundedWindow> {
    * {@code window}.
    */
   Iterable<W> sourceWindows(W window);
+
+  /**
+   * Return the subset of {@code windows} that existed in the original merge tree.
+   */
+  Collection<W> originalWindows(Collection<W> windows);
+
+  /**
+   * Return the number of windows that are currently active.
+   */
+  int size();
 }

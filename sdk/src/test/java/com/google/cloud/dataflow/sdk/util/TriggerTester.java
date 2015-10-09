@@ -87,10 +87,11 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
   private Instant processingTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
   private final BatchTimerInternals timerInternals = new BatchTimerInternals(processingTime);
-  private final ReduceFnRunner<String, InputT, OutputT, W> runner;
   private final WindowFn<Object, W> windowFn;
   private final StubContexts stubContexts;
   private final Coder<OutputT> outputCoder;
+  private final WindowingStrategy<Object, W> objectStrategy;
+  private final ReduceFn<String, InputT, OutputT, W> reduceFn;
 
   private static final String KEY = "TEST_KEY";
   private ExecutableTrigger<W> executableTrigger;
@@ -151,12 +152,16 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
     @SuppressWarnings("unchecked")
     WindowingStrategy<Object, W> objectStrategy = (WindowingStrategy<Object, W>) wildcardStrategy;
 
+    this.objectStrategy = objectStrategy;
+    this.reduceFn = reduceFn;
     this.windowFn = objectStrategy.getWindowFn();
     this.stubContexts = new StubContexts();
     this.outputCoder = outputCoder;
     executableTrigger = wildcardStrategy.getTrigger();
+  }
 
-    this.runner = new ReduceFnRunner<>(
+  ReduceFnRunner<String, InputT, OutputT, W> createRunner() {
+    return new ReduceFnRunner<>(
         KEY, objectStrategy, timerInternals, stubContexts,
         droppedDueToClosedWindow, droppedDueToLateness, reduceFn);
   }
@@ -166,7 +171,7 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
   }
 
   public boolean isMarkedFinished(W window) {
-    return runner.isFinished(window);
+    return createRunner().isFinished(window);
   }
 
   @SafeVarargs
@@ -204,8 +209,6 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
    */
   private void assertHasOnlyGlobalAndAllowedTags(
       Set<W> expectedWindows, Set<StateTag<?>> allowedTags) {
-    runner.persist();
-
     Set<StateNamespace> expectedWindowsSet = new HashSet<>();
     for (W expectedWindow : expectedWindows) {
       expectedWindowsSet.add(windowNamespace(expectedWindow));
@@ -243,7 +246,6 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
   }
 
   public Instant getWatermarkHold() {
-    runner.persist();
     return stubContexts.state.minimumWatermarkHold();
   }
 
@@ -277,7 +279,9 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
         "Cannot move watermark time backwards from %s to %s",
         watermark.getMillis(), newWatermark.getMillis());
     watermark = newWatermark;
+    ReduceFnRunner<String, InputT, OutputT, W> runner = createRunner();
     timerInternals.advanceWatermark(runner, newWatermark);
+    runner.persist();
   }
 
   /** Advance the processing time to the specified time, firing any timers that should fire. */
@@ -287,7 +291,9 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
         "Cannot move processing time backwards from %s to %s",
         processingTime.getMillis(), newProcessingTime.getMillis());
     processingTime = newProcessingTime;
+    ReduceFnRunner<String, InputT, OutputT, W> runner = createRunner();
     timerInternals.advanceProcessingTime(runner, newProcessingTime);
+    runner.persist();
   }
 
   /**
@@ -296,6 +302,7 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
    */
   @SafeVarargs
   public final void injectElements(TimestampedValue<InputT>... values) throws Exception {
+    ReduceFnRunner<String, InputT, OutputT, W> runner = createRunner();
     runner.processElements(FluentIterable.of(values)
         .transform(new Function<TimestampedValue<InputT>, WindowedValue<InputT>>() {
           @Override
@@ -311,15 +318,16 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
             }
           }
         }));
-  }
 
-  public void doMerge() throws Exception {
-    runner.merge();
+    // Persist after each bundle.
+    runner.persist();
   }
 
   public void fireTimer(W window, Instant timestamp, TimeDomain domain) {
+    ReduceFnRunner<String, InputT, OutputT, W> runner = createRunner();
     runner.onTimer(TimerData.of(
         StateNamespaces.window(windowFn.windowCoder(), window), timestamp, domain));
+    runner.persist();
   }
 
   private static class TestingInMemoryStateInternals extends InMemoryStateInternals {

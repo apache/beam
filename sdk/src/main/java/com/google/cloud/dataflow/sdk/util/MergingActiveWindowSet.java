@@ -24,8 +24,11 @@ import com.google.cloud.dataflow.sdk.util.state.StateNamespaces;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
 import com.google.cloud.dataflow.sdk.util.state.StateTags;
 import com.google.cloud.dataflow.sdk.util.state.ValueState;
+import com.google.common.base.Predicates;
+import com.google.common.collect.Collections2;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -80,6 +83,11 @@ public class MergingActiveWindowSet<W extends BoundedWindow>
   }
 
   @Override
+  public boolean contains(W window) {
+    return mergeTree.containsKey(window);
+  }
+
+  @Override
   public boolean add(W window) {
     if (mergeTree.containsKey(window)) {
       return false;
@@ -117,9 +125,8 @@ public class MergingActiveWindowSet<W extends BoundedWindow>
   }
 
   @Override
-  public boolean mergeIfAppropriate(W window, MergeCallback<W> mergeCallback) throws Exception {
+  public void merge(MergeCallback<W> mergeCallback) throws Exception {
     windowFn.mergeWindows(new MergeContextImpl(mergeCallback));
-    return window == null || mergeTree.containsKey(window);
   }
 
   @Override
@@ -171,5 +178,16 @@ public class MergingActiveWindowSet<W extends BoundedWindow>
       newMergeTree.put(entry.getKey(), new HashSet<W>(entry.getValue()));
     }
     return newMergeTree;
+  }
+
+  @Override
+  public int size() {
+    return mergeTree.size();
+  }
+
+  @Override
+  public Collection<W> originalWindows(Collection<W> windows) {
+    return Collections.unmodifiableCollection(
+        Collections2.filter(windows, Predicates.in(originalMergeTree.keySet())));
   }
 }

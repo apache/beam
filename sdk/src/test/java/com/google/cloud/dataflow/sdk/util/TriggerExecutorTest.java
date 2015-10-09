@@ -456,18 +456,19 @@ public class TriggerExecutorTest {
         Duration.millis(0));
 
     // All on time data, verify watermark hold.
-    injectElement(tester, 1, TriggerResult.CONTINUE); // [1-11)
-    injectElement(tester, 10, TriggerResult.CONTINUE); // [10-20)
-
-    // Finalizing forces us to merge to merge, but we aren't ready to fire yet.
     when(mockTrigger.onMerge(Mockito.<Trigger<IntervalWindow>.OnMergeContext>any()))
         .thenReturn(MergeResult.CONTINUE);
+    when(mockTrigger.onElement(Mockito.<Trigger<IntervalWindow>.OnElementContext>any()))
+        .thenReturn(TriggerResult.CONTINUE, TriggerResult.CONTINUE);
+    tester.injectElements(
+        TimestampedValue.of(1, new Instant(1)),
+        TimestampedValue.of(10, new Instant(10)));
 
-    // Wasn't waiting for the ON_TIME firing
     when(mockTrigger.onTimer(Mockito.<Trigger<IntervalWindow>.OnTimerContext>any()))
         .thenReturn(TriggerResult.CONTINUE);
 
     tester.advanceWatermark(new Instant(100));
+
     List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
     assertThat(output.size(), Matchers.equalTo(1));
     assertThat(output.get(0), isSingleWindowedValue(Matchers.containsInAnyOrder(1, 10), 1, 1, 20));
@@ -486,7 +487,7 @@ public class TriggerExecutorTest {
         Duration.millis(20));
 
     tester.injectElements(
-        TimestampedValue.of(10, new Instant(23)),   // [-60, 40), [-30, 70), [0, 100)
+        TimestampedValue.of(10, new Instant(23)),  // [-60, 40), [-30, 70), [0, 100)
         TimestampedValue.of(12, new Instant(40))); // [-30, 70), [0, 100), [30, 130)
 
     assertEquals(0, tester.getElementsDroppedDueToLateness());
