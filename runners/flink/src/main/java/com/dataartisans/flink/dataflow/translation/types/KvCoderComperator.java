@@ -160,7 +160,6 @@ public class KvCoderComperator <K, V> extends TypeComparator<KV<K, V>> {
 
 	@Override
 	public int compareSerialized(DataInputView firstSource, DataInputView secondSource) throws IOException {
-		CoderTypeSerializer<KV<K, V>> serializer = new CoderTypeSerializer<KV<K, V>>(coder);
 		inputWrapper.setInputView(firstSource);
 		K firstKey = keyCoder.decode(inputWrapper, Coder.Context.NESTED);
 		inputWrapper.setInputView(secondSource);
