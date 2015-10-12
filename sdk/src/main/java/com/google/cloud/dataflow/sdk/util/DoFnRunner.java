@@ -526,7 +526,7 @@ public class DoFnRunner<InputT, OutputT> {
         throw new IllegalArgumentException(String.format(
             "Cannot output with timestamp %s. Output timestamps must be no earlier than the "
             + "timestamp of the current input (%s) minus the allowed skew (%s). See the "
-            + "DoFn#getAllowedTimestmapSkew() Javadoc for details on changing the allowed skew.",
+            + "DoFn#getAllowedTimestampSkew() Javadoc for details on changing the allowed skew.",
             timestamp, windowedValue.getTimestamp(),
             PeriodFormat.getDefault().print(fn.getAllowedTimestampSkew().toPeriod())));
       }
