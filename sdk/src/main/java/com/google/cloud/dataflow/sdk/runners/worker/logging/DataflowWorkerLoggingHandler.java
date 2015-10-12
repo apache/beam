@@ -19,9 +19,13 @@ package com.google.cloud.dataflow.sdk.runners.worker.logging;
 import static com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingInitializer.LEVELS;
 
 import com.google.common.base.MoreObjects;
+import com.google.common.base.Supplier;
+import com.google.common.io.CountingOutputStream;
 
 import com.fasterxml.jackson.core.JsonEncoding;
+import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.util.MinimalPrettyPrinter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.BufferedOutputStream;
@@ -31,6 +35,8 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.logging.ErrorManager;
 import java.util.logging.Handler;
 import java.util.logging.LogRecord;
@@ -57,21 +63,23 @@ public class DataflowWorkerLoggingHandler extends Handler {
     return sw.toString();
   }
 
-  // Null after close().
-  private JsonGenerator generator;
-
   /**
-   * Constructs a handler that writes to a file.
+   * Constructs a handler that writes to a rotating set of files.
    */
-  public DataflowWorkerLoggingHandler(String fileName) throws IOException {
-    this(new BufferedOutputStream(new FileOutputStream(new File(fileName), true /* append */)));
+  public DataflowWorkerLoggingHandler(String filename, long sizeLimit) throws IOException {
+    this(new FileOutputStreamFactory(filename), sizeLimit);
   }
 
   /**
-   * Constructs a handler that writes to an arbitrary output stream.
+   * Constructs a handler that writes to arbitrary output streams. No rollover if sizeLimit is
+   * zero or negative.
    */
-  public DataflowWorkerLoggingHandler(OutputStream output) throws IOException {
-    generator = new ObjectMapper().getFactory().createGenerator(output, JsonEncoding.UTF8);
+  DataflowWorkerLoggingHandler(Supplier<OutputStream> factory, long sizeLimit)
+      throws IOException {
+    this.outputStreamFactory = factory;
+    this.generatorFactory = new ObjectMapper().getFactory();
+    this.sizeLimit = sizeLimit < 1 ? Long.MAX_VALUE : sizeLimit;
+    createOutputStream();
   }
 
   @Override
@@ -79,6 +87,9 @@ public class DataflowWorkerLoggingHandler extends Handler {
     if (!isLoggable(record)) {
       return;
     }
+
+    rolloverOutputStreamIfNeeded();
+
     try {
       // Generating a JSON map like:
       // {"timestamp": {"seconds": 1435835832, "nanos": 123456789}, ...  "message": "hello"}
@@ -105,11 +116,10 @@ public class DataflowWorkerLoggingHandler extends Handler {
       writeIfNotNull("exception", formatException(record.getThrown()));
       generator.writeEndObject();
       generator.writeRaw(System.lineSeparator());
-    } catch (IOException e) {
-      if (getErrorManager() != null) {
-        getErrorManager().error("Unable to publish", e, ErrorManager.WRITE_FAILURE);
-      }
+    } catch (IOException | RuntimeException e) {
+      reportFailure("Unable to publish", e, ErrorManager.WRITE_FAILURE);
     }
+
     // This implementation is based on that of java.util.logging.FileHandler, which flushes in a
     // synchronized context like this. Unfortunately the maximum throughput for generating log
     // entries will be the inverse of the flush latency. That could be as little as one hundred
@@ -130,27 +140,16 @@ public class DataflowWorkerLoggingHandler extends Handler {
     return generator != null && record != null && super.isLoggable(record);
   }
 
-  /**
-   * Appends a JSON key/value pair if the specified val is not null.
-   */
-  private void writeIfNotNull(String name, String val) throws IOException {
-    if (val != null) {
-      generator.writeStringField(name, val);
-    }
-  }
-
   @Override
   public synchronized void flush() {
     try {
       if (generator != null) {
         generator.flush();
       }
-    } catch (IOException e) {
-      if (getErrorManager() != null) {
-        getErrorManager().error("Unable to flush", e, ErrorManager.FLUSH_FAILURE);
-      }
+    } catch (IOException | RuntimeException e) {
+      reportFailure("Unable to flush", e, ErrorManager.FLUSH_FAILURE);
     }
-  }
+}
 
   @Override
   public synchronized void close() {
@@ -162,11 +161,98 @@ public class DataflowWorkerLoggingHandler extends Handler {
       if (generator != null) {
         generator.close();
       }
-    } catch (IOException e) {
-      if (getErrorManager() != null) {
-        getErrorManager().error("Unable to close", e, ErrorManager.CLOSE_FAILURE);
+    } catch (IOException | RuntimeException e) {
+      reportFailure("Unable to close", e, ErrorManager.CLOSE_FAILURE);
+    } finally {
+      generator = null;
+      counter = null;
+    }
+  }
+
+  /**
+   * Unique file generator. Uses filenames with timestamp.
+   */
+  private static final class FileOutputStreamFactory implements Supplier<OutputStream> {
+    private final String filepath;
+    private final SimpleDateFormat formatter = new SimpleDateFormat("yyyy_MM_dd_hh_mm_ss_SSS");
+
+    public FileOutputStreamFactory(String filepath) {
+      this.filepath = filepath;
+    }
+
+    @Override
+    public OutputStream get() {
+      try {
+        String filename = filepath + "." + formatter.format(new Date());
+        return new BufferedOutputStream(
+            new FileOutputStream(new File(filename), true /* append */));
+      } catch (IOException e) {
+        throw new RuntimeException(e);
       }
     }
-    generator = null;
   }
+
+  private void createOutputStream() throws IOException {
+    CountingOutputStream stream = new CountingOutputStream(outputStreamFactory.get());
+    generator = generatorFactory.createGenerator(stream, JsonEncoding.UTF8);
+    counter = stream;
+
+    // Avoid 1 space indent for every line. We already add a newline after each log record.
+    generator.setPrettyPrinter(new MinimalPrettyPrinter(""));
+  }
+
+  /**
+   * Rollover to a new output stream (log file) if we have reached the size limit. Ensure that
+   * the rollover fails or succeeds atomically.
+   */
+  private void rolloverOutputStreamIfNeeded() {
+    if (counter.getCount() < sizeLimit) {
+      return;
+    }
+
+    try {
+      JsonGenerator old = generator;
+      createOutputStream();
+
+      try {
+        // Rollover successful. Attempt to close old stream, but ignore on failure.
+        old.close();
+      } catch (IOException | RuntimeException e) {
+        reportFailure("Unable to close old log file", e, ErrorManager.CLOSE_FAILURE);
+      }
+    } catch (IOException | RuntimeException e) {
+      reportFailure("Unable to create new log file", e, ErrorManager.OPEN_FAILURE);
+    }
+  }
+
+  /**
+   * Appends a JSON key/value pair if the specified val is not null.
+   */
+  private void writeIfNotNull(String name, String val) throws IOException {
+    if (val != null) {
+      generator.writeStringField(name, val);
+    }
+  }
+
+  /**
+   * Report logging failure to ErrorManager. Does not throw.
+   */
+  private void reportFailure(String message, Exception e, int code) {
+    try {
+      ErrorManager manager = getErrorManager();
+      if (manager != null) {
+        manager.error(message, e, code);
+      }
+    } catch (Throwable t) {
+      // Failed to report logging failure. No meaningful action left.
+    }
+  }
+
+  // Null after close().
+  private JsonGenerator generator;
+  private CountingOutputStream counter;
+
+  private final long sizeLimit;
+  private final Supplier<OutputStream> outputStreamFactory;
+  private final JsonFactory generatorFactory;
 }

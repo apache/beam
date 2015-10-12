@@ -31,28 +31,29 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.FileHandler;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
 
 /**
- * Sets up {@link java.util.logging} configuration on the Dataflow worker with a
+ * Sets up {@link java.util.logging} configuration on the Dataflow worker with a rotating
  * file logger. The file logger uses the {@link DataflowWorkerLoggingHandler} format.
  * A user can override the logging level by customizing the options found within
  * {@link DataflowWorkerLoggingOptions}. A user can override the location by specifying the
- * Java system property "dataflow.worker.logging.location". The default log level is INFO
- * and the default location is a file named dataflow.json.log within the systems temporary
- * directory.
+ * Java system property "dataflow.worker.logging.basepath" and the file size in MB before
+ * rolling over to a new file by specifying the Java system property "dataflow.worker.
+ * loggging.filesize_mb". The default log level is INFO, the default location is a file
+ * named dataflow-json.log within the system temporary directory and the default file size
+ * is 1 GB.
  */
 public class DataflowWorkerLoggingInitializer {
   private static final String ROOT_LOGGER_NAME = "";
   private static final String DEFAULT_LOGGING_LOCATION =
-      new File(System.getProperty("java.io.tmpdir"), "dataflow.json.log").getPath();
-  private static final String DATAFLOW_WORKER_LOGGING_LOCATION = "dataflow.worker.logging.location";
-  private static final String DATAFLOW_WORKER_JSON_LOGGING_LOCATION =
-      "dataflow.worker.json.logging.location";
+      new File(System.getProperty("java.io.tmpdir"), "dataflow-json.log").getPath();
+  private static final String FILEPATH_PROPERTY = "dataflow.worker.logging.filepath";
+  private static final String FILESIZE_MB_PROPERTY = "dataflow.worker.logging.filesize_mb";
+
   static final ImmutableBiMap<Level, DataflowWorkerLoggingOptions.Level> LEVELS =
       ImmutableBiMap.<Level, DataflowWorkerLoggingOptions.Level>builder()
           .put(Level.SEVERE, ERROR)
@@ -73,23 +74,24 @@ public class DataflowWorkerLoggingInitializer {
    * garbage collected. java.util.logging only has weak references to the loggers
    * so if they are garbage collection, our hierarchical configuration will be lost. */
   private static List<Logger> configuredLoggers = Lists.newArrayList();
-  private static FileHandler fileHandler;
   private static PrintStream originalStdOut;
   private static PrintStream originalStdErr;
+  private static boolean initialized = false;
 
   /**
    * Sets up the initial logging configuration.
    */
   public static synchronized void initialize() {
-    if (fileHandler != null) {
+    if (initialized) {
       return;
     }
+
     try {
+      String filepath = System.getProperty(FILEPATH_PROPERTY, DEFAULT_LOGGING_LOCATION);
+      int filesizeMb = Integer.parseInt(System.getProperty(FILESIZE_MB_PROPERTY, "1024"));
+
       DataflowWorkerLoggingHandler loggingHandler =
-          new DataflowWorkerLoggingHandler(
-              System.getProperty(
-                  DATAFLOW_WORKER_JSON_LOGGING_LOCATION,
-                  System.getProperty(DATAFLOW_WORKER_LOGGING_LOCATION, DEFAULT_LOGGING_LOCATION)));
+          new DataflowWorkerLoggingHandler(filepath, filesizeMb * 1024 * 1024);
       loggingHandler.setLevel(Level.ALL);
 
       // Reset the global log manager, get the root logger and remove the default log handlers.
@@ -108,7 +110,9 @@ public class DataflowWorkerLoggingInitializer {
       originalStdErr = System.err;
       System.setOut(JulLoggerPrintStreamAdapterFactory.create("System.out", Level.INFO));
       System.setErr(JulLoggerPrintStreamAdapterFactory.create("System.err", Level.SEVERE));
-    } catch (SecurityException | IOException e) {
+
+      initialized = true;
+    } catch (SecurityException | IOException | NumberFormatException e) {
       throw new ExceptionInInitializerError(e);
     }
   }
@@ -137,8 +141,8 @@ public class DataflowWorkerLoggingInitializer {
   // Visible for testing
   static void reset() {
     configuredLoggers = Lists.newArrayList();
-    fileHandler = null;
     System.setOut(originalStdOut);
     System.setErr(originalStdErr);
+    initialized = false;
   }
 }

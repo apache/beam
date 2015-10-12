@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.runners.worker.logging;
 import static org.junit.Assert.assertEquals;
 
 import com.google.cloud.dataflow.sdk.testing.RestoreDataflowLoggingMDC;
+import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -32,6 +33,7 @@ import org.junit.runners.JUnit4;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
@@ -60,16 +62,56 @@ public class DataflowWorkerLoggingHandlerTest {
   // Typically \n or \r\n
   private static String escapedNewline = escapeNewline();
 
+  private static class FixedOutputStreamFactory implements Supplier<OutputStream> {
+    private OutputStream[] streams;
+    private int next = 0;
+
+    public FixedOutputStreamFactory(OutputStream... streams) {
+      this.streams = streams;
+    }
+
+    @Override
+    public OutputStream get() {
+      return streams[next++];
+    }
+  }
+
   /**
    * Encodes a LogRecord into a Json string.
    */
   private static String createJson(LogRecord record) throws IOException {
     ByteArrayOutputStream output = new ByteArrayOutputStream();
-    DataflowWorkerLoggingHandler handler = new DataflowWorkerLoggingHandler(output);
+    FixedOutputStreamFactory factory = new FixedOutputStreamFactory(output);
+    DataflowWorkerLoggingHandler handler = new DataflowWorkerLoggingHandler(factory, 0);
     // Format the record as JSON.
     handler.publish(record);
     // Decode the binary output as UTF-8 and return the generated string.
     return new String(output.toByteArray(), StandardCharsets.UTF_8);
+  }
+
+  @Test
+  public void testOutputStreamRollover() throws IOException {
+    ByteArrayOutputStream first = new ByteArrayOutputStream();
+    ByteArrayOutputStream second = new ByteArrayOutputStream();
+
+    LogRecord record = createLogRecord("test.message", null);
+    String expected = "{\"timestamp\":{\"seconds\":0,\"nanos\":1000000},\"severity\":\"INFO\","
+        + "\"message\":\"test.message\",\"thread\":\"2\",\"logger\":\"LoggerName\"}"
+        + System.lineSeparator();
+
+    FixedOutputStreamFactory factory = new FixedOutputStreamFactory(first, second);
+    DataflowWorkerLoggingHandler handler
+        = new DataflowWorkerLoggingHandler(factory, expected.length() + 1 /* sizelimit */);
+
+    // Using |expected|+1 for size limit means that we will rollover after writing 2 log messages.
+    // We thus expect to see 2 messsages written to 'first' and 1 message to 'second',
+
+    handler.publish(record);
+    handler.publish(record);
+    handler.publish(record);
+
+    assertEquals(expected + expected, new String(first.toByteArray(), StandardCharsets.UTF_8));
+    assertEquals(expected, new String(second.toByteArray(), StandardCharsets.UTF_8));
   }
 
   @Test
