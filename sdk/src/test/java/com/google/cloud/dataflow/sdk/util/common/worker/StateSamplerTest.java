@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.util.common.worker;
 
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.util.common.Counter;
@@ -23,6 +24,7 @@ import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler.SamplingCallback;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler.StateKind;
 
+import org.hamcrest.Matchers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -131,8 +133,7 @@ public class StateSamplerTest {
     }
   }
 
-  @Test
-  public void noSamplingAfterCloseTest() throws Exception {
+  private void noSamplingAfterCloseTestOnce() throws Exception {
     CounterSet counters = new CounterSet();
     long periodMs = 50;
 
@@ -150,7 +151,15 @@ public class StateSamplerTest {
     }
     long cancelledTimeStamp = System.currentTimeMillis();
     Thread.sleep(2 * periodMs);
-    assertTrue(lastSampledTimeStamp.get() > 0);
-    assertTrue(lastSampledTimeStamp.get() <= cancelledTimeStamp);
+    assertThat(lastSampledTimeStamp.get(), Matchers.greaterThan(0L));
+    assertThat(lastSampledTimeStamp.get(), Matchers.lessThanOrEqualTo(cancelledTimeStamp));
+  }
+
+  @Test
+  public void noSamplingAfterCloseTest() throws Exception {
+    // Run it multiple times to detect flakyness.
+    for (int i = 0; i < 50; ++i) {
+      noSamplingAfterCloseTestOnce();
+    }
   }
 }

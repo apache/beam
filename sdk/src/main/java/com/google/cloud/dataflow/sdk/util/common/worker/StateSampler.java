@@ -119,21 +119,32 @@ public class StateSampler implements AutoCloseable {
     // The current implementation uses a fixed-rate timer with a period samplingPeriodMs as a
     // trampoline to a one-shot random timer which fires with a random delay within
     // samplingPeriodMs.
-    invocationTriggerFuture = executorService.scheduleAtFixedRate(new Runnable(){
-      @Override
-      public void run() {
-        long delay = rand.nextInt((int) samplingPeriodMs);
-        if (invocationFuture != null) {
-          invocationFuture.cancel(false);
-        }
-        invocationFuture = executorService.schedule(new Runnable(){
-          @Override
-          public void run() {
-            StateSampler.this.run();
-          }
-        }, delay, TimeUnit.MILLISECONDS);
-      }
-    }, 0, samplingPeriodMs, TimeUnit.MILLISECONDS);
+    invocationTriggerFuture =
+        executorService.scheduleAtFixedRate(
+            new Runnable() {
+              @Override
+              public void run() {
+                long delay = rand.nextInt((int) samplingPeriodMs);
+                synchronized (StateSampler.this) {
+                  if (invocationFuture != null) {
+                    invocationFuture.cancel(false);
+                  }
+                  invocationFuture =
+                      executorService.schedule(
+                          new Runnable() {
+                            @Override
+                            public void run() {
+                              StateSampler.this.run();
+                            }
+                          },
+                          delay,
+                          TimeUnit.MILLISECONDS);
+                }
+              }
+            },
+            0,
+            samplingPeriodMs,
+            TimeUnit.MILLISECONDS);
     stateTimestampNs = System.nanoTime();
   }
 
@@ -151,24 +162,16 @@ public class StateSampler implements AutoCloseable {
     this(prefix, counterSetMutator, DEFAULT_SAMPLING_PERIOD_MS);
   }
 
-  public void run() {
+  public synchronized void run() {
     long startTimestampNs = System.nanoTime();
     int state = currentState;
     if (state != DO_NOT_SAMPLE) {
-      long elapsedMs = 0;
       StateKind kind = null;
-      List<SamplingCallback> copyOfCallbacks = new ArrayList<>();
-      synchronized (this) {
-        elapsedMs =
-          TimeUnit.NANOSECONDS.toMillis(startTimestampNs - stateTimestampNs);
-        kind = kindsByState.get(state);
-        countersByState.get(state).addValue(elapsedMs);
-        for (SamplingCallback c : callbacks) {
-          copyOfCallbacks.add(c);
-        }
-      }
+      long elapsedMs = TimeUnit.NANOSECONDS.toMillis(startTimestampNs - stateTimestampNs);
+      kind = kindsByState.get(state);
+      countersByState.get(state).addValue(elapsedMs);
       // Invoke all callbacks.
-      for (SamplingCallback c : copyOfCallbacks) {
+      for (SamplingCallback c : callbacks) {
         c.run(state, kind, elapsedMs);
       }
     }
@@ -176,7 +179,8 @@ public class StateSampler implements AutoCloseable {
   }
 
   @Override
-  public void close() {
+  public synchronized void close() {
+    currentState = DO_NOT_SAMPLE;
     if (invocationTriggerFuture != null) {
       invocationTriggerFuture.cancel(false);
     }
