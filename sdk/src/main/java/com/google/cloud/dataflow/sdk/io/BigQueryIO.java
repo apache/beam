@@ -1353,9 +1353,6 @@ public class BigQueryIO {
           if (ref.getProjectId() == null) {
             ref.setProjectId(options.getProject());
           }
-          LOG.info("Writing to BigQuery table {}", toTableSpec(ref));
-          inserter.getOrCreateTable(
-              ref, transform.writeDisposition, transform.createDisposition, transform.schema);
 
           List<TableRow> rows = getOrCreateMapListValue(tableRows, ref);
           rows.add(windowedValue.getValue());
@@ -1363,6 +1360,12 @@ public class BigQueryIO {
       }
 
       for (TableReference ref : tableRows.keySet()) {
+        LOG.info("Writing to BigQuery table {}", toTableSpec(ref));
+        // {@link BigQueryTableInserter#getOrCreateTable} validates {@link CreateDisposition}
+        // and {@link WriteDisposition}.
+        // For each {@link TableReference}, it can only be called before rows are written.
+        inserter.getOrCreateTable(
+            ref, transform.writeDisposition, transform.createDisposition, transform.schema);
         inserter.insertAll(ref, tableRows.get(ref));
       }
     } catch (IOException e) {
