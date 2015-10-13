@@ -233,7 +233,7 @@ public class MapTaskExecutorFactory {
     return operation;
   }
 
-  private static ParDoFnFactory parDoFnFactory = new ParDoFnFactory.DefaultFactory();
+  private static ParDoFnFactory parDoFnFactory = new DefaultParDoFnFactory();
 
   static ParDoOperation createParDoOperation(
       PipelineOptions options,
@@ -519,3 +519,4 @@ public class MapTaskExecutorFactory {
     operation.attachInput(source, outputNum);
   }
 }
+

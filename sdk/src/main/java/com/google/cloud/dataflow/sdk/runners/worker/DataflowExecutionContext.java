@@ -22,22 +22,19 @@ import com.google.cloud.dataflow.sdk.util.SideInputReader;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 
 /**
- * Extensions to {@link com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext} specific to
- * the Dataflow worker.
+ * Extensions to {@link BaseExecutionContext} specific to the Dataflow worker.
  */
 public abstract class DataflowExecutionContext extends BaseExecutionContext {
   /**
    * Returns a {@link SideInputReader} for all the side inputs described in the given
-   * {@link SideInputInfo} descriptors. By default, throws {@link UnsupportedOperationException}.
-   * Individual workers should override this behavior.
+   * {@link SideInputInfo} descriptors.
    */
   public abstract SideInputReader getSideInputReader(
       Iterable<? extends SideInputInfo> sideInputInfos) throws Exception;
 
   /**
    * Returns a {@link SideInputReader} for all the provided views, where the execution context
-   * itself knows how to read data for the view. By default, throws
-   * {@code UnsupportedOperationException}. Particular workers should override this behavior.
+   * itself knows how to read data for the view.
    */
   public abstract SideInputReader getSideInputReaderForViews(
       Iterable<? extends PCollectionView<?>> views) throws Exception;

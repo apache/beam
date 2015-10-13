@@ -22,9 +22,7 @@ import com.google.cloud.dataflow.sdk.util.SideInputReader;
 import com.google.cloud.dataflow.sdk.util.Sized;
 import com.google.cloud.dataflow.sdk.util.SizedSideInputReader;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
-import com.google.common.base.Throwables;
 import com.google.common.cache.Cache;
-import com.google.common.util.concurrent.UncheckedExecutionException;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -41,8 +39,8 @@ import java.util.concurrent.ExecutionException;
 final class CachingSideInputReader
     extends SizedSideInputReader.Defaults
     implements SizedSideInputReader {
-  private SizedSideInputReader subReader;
-  private Cache<PCollectionViewWindow<?>, Sized<Object>> cache;
+  private final SizedSideInputReader subReader;
+  private final Cache<PCollectionViewWindow<?>, Sized<Object>> cache;
 
   private CachingSideInputReader(
       SizedSideInputReader subReader, Cache<PCollectionViewWindow<?>, Sized<Object>> cache) {
@@ -82,8 +80,10 @@ final class CachingSideInputReader
               }
             });
         return sideInputContents;
-      } catch (ExecutionException | UncheckedExecutionException exc) {
-        throw Throwables.propagate(exc.getCause());
+      } catch (ExecutionException checkedException) {
+        // The call to subReader.getSized() is not permitted to throw any checked exceptions,
+        // so the Callable created above should not throw any either.
+        throw new RuntimeException("Unexpected checked exception.", checkedException.getCause());
       }
     }
   }

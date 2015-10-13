@@ -197,7 +197,20 @@ public final class PCollectionViewTesting {
   /**
    * Prepares {@code values} for reading as the contents of a {@link PCollectionView} side input.
    */
+  @SafeVarargs
   public static <T> Iterable<WindowedValue<T>> contentsInDefaultWindow(T... values)
+      throws Exception {
+    List<WindowedValue<T>> windowedValues = Lists.newArrayList();
+    for (T value : values) {
+      windowedValues.add(valueInDefaultWindow(value));
+    }
+    return windowedValues;
+  }
+
+  /**
+   * Prepares {@code values} for reading as the contents of a {@link PCollectionView} side input.
+   */
+  public static <T> Iterable<WindowedValue<T>> contentsInDefaultWindow(Iterable<T> values)
       throws Exception {
     List<WindowedValue<T>> windowedValues = Lists.newArrayList();
     for (T value : values) {

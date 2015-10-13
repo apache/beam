@@ -39,26 +39,27 @@ import com.google.cloud.dataflow.sdk.util.common.worker.ParDoFn;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
 
 import org.hamcrest.Matchers;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 /**
- * Tests for ParDoFnFactory.
+ * Tests for {@link DefaultParDoFnFactory}.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings({"rawtypes", "unchecked"})
-public class ParDoFnFactoryTest {
-  static class TestDoFn extends DoFn<Integer, String> {
-    final String stringState;
-    final long longState;
+public class DefaultParDoFnFactoryTest {
 
-    TestDoFn(String stringState, long longState) {
-      this.stringState = stringState;
-      this.longState = longState;
+  private static class TestDoFn extends DoFn<Integer, String> {
+    final String stringField;
+    final long longField;
+
+    TestDoFn(String stringValue, long longValue) {
+      this.stringField = stringValue;
+      this.longField = longValue;
     }
 
     @Override
@@ -67,52 +68,66 @@ public class ParDoFnFactoryTest {
     }
   }
 
-  private static ParDoFnFactory factory = new ParDoFnFactory.DefaultFactory();
+  // Miscellaneous default values required by the ParDoFnFactory interface
+  private static final ParDoFnFactory DEFAULT_FACTORY = new DefaultParDoFnFactory();
+  private static final PipelineOptions DEFAULT_OPTIONS = PipelineOptionsFactory.create();
+  private static final DataflowExecutionContext DEFAULT_EXECUTION_CONTEXT =
+      BatchModeExecutionContext.fromOptions(DEFAULT_OPTIONS);
+  private static final CounterSet EMPTY_COUNTER_SET = new CounterSet();
+  private static final StateSampler EMPTY_STATE_SAMPLER =
+      new StateSampler("test", EMPTY_COUNTER_SET.getAddCounterMutator());
 
-  @Test
-  public void testCreateNormalParDoFn() throws Exception {
-    String stringState = "some state";
-    long longState = 42L;
+  private List<MultiOutputInfo> dummySingleOutputInfo;
 
-    TestDoFn fn = new TestDoFn(stringState, longState);
-
-    String serializedFn =
-        StringUtils.byteArrayToJsonString(
-            SerializableUtils.serializeToByteArray(
-                new DoFnInfo(fn, WindowingStrategy.globalDefault())));
-
-    CloudObject cloudUserFn = CloudObject.forClassName("DoFn");
-    addString(cloudUserFn, "serialized_fn", serializedFn);
-
+  @Before
+  public void setUp() throws Exception {
     String tag = "output";
     MultiOutputInfo multiOutputInfo = new MultiOutputInfo();
     multiOutputInfo.setTag(tag);
-    List<MultiOutputInfo> multiOutputInfos =
-        Arrays.asList(multiOutputInfo);
+    dummySingleOutputInfo = Collections.singletonList(multiOutputInfo);
+  }
 
-    PipelineOptions options = PipelineOptionsFactory.create();
-    DataflowExecutionContext context = BatchModeExecutionContext.fromOptions(options);
-    CounterSet counters = new CounterSet();
-    StateSampler stateSampler = new StateSampler(
-        "test", counters.getAddCounterMutator());
-    ParDoFn parDoFn = factory.create(
-        options,
+  /**
+   * Tests that a "normal" {@link DoFn} is correctly dispatched to {@link NormalParDoFn} and
+   * instantiated correctly.
+   */
+  @Test
+  public void testCreateNormalParDoFn() throws Exception {
+    // A serialized DoFn
+    String stringFieldValue = "some state";
+    long longFieldValue = 42L;
+    TestDoFn fn = new TestDoFn(stringFieldValue, longFieldValue);
+    String serializedFn =
+        StringUtils.byteArrayToJsonString(
+            SerializableUtils.serializeToByteArray(
+                new DoFnInfo<>(fn, WindowingStrategy.globalDefault())));
+    CloudObject cloudUserFn = CloudObject.forClassName("DoFn");
+    addString(cloudUserFn, "serialized_fn", serializedFn);
+
+    // Create the ParDoFn from the serialized DoFn
+    ParDoFn parDoFn = DEFAULT_FACTORY.create(
+        DEFAULT_OPTIONS,
         cloudUserFn,
         "name",
         "transformName",
         null,
-        multiOutputInfos,
+        dummySingleOutputInfo,
         1,
-        context,
-        counters.getAddCounterMutator(),
-        stateSampler);
+        DEFAULT_EXECUTION_CONTEXT,
+        EMPTY_COUNTER_SET.getAddCounterMutator(),
+        EMPTY_STATE_SAMPLER);
 
     // Test that the factory created the correct class
     assertThat(parDoFn, instanceOf(NormalParDoFn.class));
 
+    // TODO: move the asserts below into new tests in NormalParDoFnTest, and this test should
+    // simply assert that DefaultParDoFnFactory.create() matches NormalParDoFn.Factory.create()
+
     // Test that the DoFnInfo reflects the one passed in
     NormalParDoFn normalParDoFn = (NormalParDoFn) parDoFn;
+    @SuppressWarnings("rawtypes")
     DoFnInfo doFnInfo = normalParDoFn.getDoFnInfo();
+    @SuppressWarnings("rawtypes")
     DoFn actualDoFn = doFnInfo.getDoFn();
     assertThat(actualDoFn, instanceOf(TestDoFn.class));
     assertThat(
@@ -124,29 +139,27 @@ public class ParDoFnFactoryTest {
 
     // Test that the deserialized user DoFn is as expected
     TestDoFn actualTestDoFn = (TestDoFn) actualDoFn;
-    assertEquals(stringState, actualTestDoFn.stringState);
-    assertEquals(longState, actualTestDoFn.longState);
-    assertEquals(context, normalParDoFn.getExecutionContext());
+    assertEquals(stringFieldValue, actualTestDoFn.stringField);
+    assertEquals(longFieldValue, actualTestDoFn.longField);
+    assertEquals(DEFAULT_EXECUTION_CONTEXT, normalParDoFn.getExecutionContext());
   }
 
   @Test
   public void testCreateUnknownParDoFn() throws Exception {
+    // A bogus serialized DoFn
     CloudObject cloudUserFn = CloudObject.forClassName("UnknownKindOfDoFn");
     try {
-      CounterSet counters = new CounterSet();
-      StateSampler stateSampler = new StateSampler(
-          "test", counters.getAddCounterMutator());
-      factory.create(
-          PipelineOptionsFactory.create(),
+      DEFAULT_FACTORY.create(
+          DEFAULT_OPTIONS,
           cloudUserFn,
           "name",
           "transformName",
           null,
           null,
           1,
-          BatchModeExecutionContext.fromOptions(PipelineOptionsFactory.create()),
-          counters.getAddCounterMutator(),
-          stateSampler);
+          DEFAULT_EXECUTION_CONTEXT,
+          EMPTY_COUNTER_SET.getAddCounterMutator(),
+          EMPTY_STATE_SAMPLER);
       fail("should have thrown an exception");
     } catch (Exception exn) {
       assertThat(

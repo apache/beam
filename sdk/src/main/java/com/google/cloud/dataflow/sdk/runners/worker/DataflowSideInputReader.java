@@ -28,8 +28,8 @@ import com.google.cloud.dataflow.sdk.util.SizedSideInputReader;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Maps;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Observable;
 import java.util.Observer;
@@ -48,7 +48,7 @@ public class DataflowSideInputReader
   /** An observer for each side input to count its size as it is being read. */
   private final Map<TupleTag<Object>, ByteSizeObserver> observers;
 
-  /** An byte count saved as overhead per side input, not cleared when the observer is reset. */
+  /** A byte count saved as overhead per side input, not cleared when the observer is reset. */
   private final Map<TupleTag<Object>, Long> overheads;
 
   /** The underlying reader, which does not keep track of sizes. */
@@ -61,8 +61,8 @@ public class DataflowSideInputReader
     // Initializing the values may or may not actually read through the
     // source. The full size is the amount read here plus the amount
     // read when view.fromIterableInternal() is called.
-    this.observers = Maps.newHashMap();
-    this.overheads = Maps.newHashMap();
+    this.observers = new HashMap<>();
+    this.overheads = new HashMap<>();
 
     PTuple sideInputValues = PTuple.empty();
     for (SideInputInfo sideInputInfo : sideInputInfos) {

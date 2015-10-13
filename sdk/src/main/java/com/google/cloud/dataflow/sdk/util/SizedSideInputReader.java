@@ -33,15 +33,16 @@ public interface SizedSideInputReader extends SideInputReader {
    * object where {@link Sized#getValue()} returns {@code null} and {@link Sized#getSize()} may
    * still return any non-negative value.
    */
-  public <T> Sized<T> getSized(PCollectionView<T> view, BoundedWindow window);
+  <T> Sized<T> getSized(PCollectionView<T> view, BoundedWindow window);
 
   /**
    * Abstract class providing default implementations for methods of {@link SizedSideInputReader}.
    */
-  public abstract static class Defaults implements SizedSideInputReader {
+  abstract static class Defaults implements SizedSideInputReader {
     @Override
     public <T> T get(PCollectionView<T> view, BoundedWindow window) {
       return getSized(view, window).getValue();
     }
   }
 }
+

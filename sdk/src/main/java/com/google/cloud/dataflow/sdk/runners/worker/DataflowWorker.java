@@ -124,7 +124,7 @@ public class DataflowWorker {
     this.options = options;
     this.sideInputCache = CacheBuilder.newBuilder()
         .maximumWeight(options.getWorkerCacheMb() * MEGABYTES) // weights are in bytes
-        .weigher(new SizedWeigher<PCollectionViewWindow<?>, Object>(OVERHEAD_WEIGHT))
+        .weigher(SizedWeigher.<PCollectionViewWindow<?>, Object>withBaseWeight(OVERHEAD_WEIGHT))
         .softValues()
         .build();
   }

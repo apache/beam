@@ -30,9 +30,13 @@ import com.google.common.cache.Weigher;
  */
 class SizedWeigher<K, V> implements Weigher<K, Sized<V>>{
 
+  public static <K, V> SizedWeigher<K, V> withBaseWeight(int baseWeight) {
+    return new SizedWeigher<>(baseWeight);
+  }
+
   private final int baseWeight;
 
-  public SizedWeigher(int baseWeight) {
+  private SizedWeigher(int baseWeight) {
     Preconditions.checkArgument(
         baseWeight > 0,
         "base weight for SizedWeigher must be positive");

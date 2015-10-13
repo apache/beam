@@ -33,15 +33,16 @@ public interface SideInputReader {
    * return {@code null} for any other reason.
    */
   @Nullable
-  public <T> T get(PCollectionView<T> view, BoundedWindow window);
+  <T> T get(PCollectionView<T> view, BoundedWindow window);
 
   /**
    * Returns true if the given {@link PCollectionView} is valid for this reader.
    */
-  public <T> boolean contains(PCollectionView<T> view);
+  <T> boolean contains(PCollectionView<T> view);
 
   /**
    * Returns true if there are no side inputs in this reader.
    */
-  public boolean isEmpty();
+  boolean isEmpty();
 }
+
