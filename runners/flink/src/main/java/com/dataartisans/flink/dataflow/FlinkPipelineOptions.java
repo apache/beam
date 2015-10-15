@@ -16,6 +16,7 @@
 package com.dataartisans.flink.dataflow;
 
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.cloud.dataflow.sdk.options.ApplicationNameOptions;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.Default;
@@ -39,6 +40,7 @@ public interface FlinkPipelineOptions extends PipelineOptions, ApplicationNameOp
 	 */
 	@Description("Jar-Files to send to all workers and put on the classpath. " +
 			"The default value is all files from the classpath.")
+	@JsonIgnore
 	List<String> getFilesToStage();
 	void setFilesToStage(List<String> value);
 
