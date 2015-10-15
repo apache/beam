@@ -27,6 +27,7 @@ import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.io.AvroIO;
+import com.google.cloud.dataflow.sdk.io.BoundedSource;
 import com.google.cloud.dataflow.sdk.io.Read;
 import com.google.cloud.dataflow.sdk.io.Source;
 import com.google.cloud.dataflow.sdk.io.TextIO;
@@ -86,6 +87,7 @@ public class FlinkTransformTranslators {
 	// register the known translators
 	static {
 		TRANSLATORS.put(View.CreatePCollectionView.class, new CreatePCollectionViewTranslator());
+
 		TRANSLATORS.put(Combine.PerKey.class, new CombinePerKeyTranslator());
 		// we don't need this because we translate the Combine.PerKey directly
 		// TRANSLATORS.put(Combine.GroupedValues.class, new CombineGroupedValuesTranslator());
@@ -107,7 +109,7 @@ public class FlinkTransformTranslators {
 		//TRANSLATORS.put(PubsubIO.Read.Bound.class, null);
 		//TRANSLATORS.put(PubsubIO.Write.Bound.class, null);
 
-//		TRANSLATORS.put(Read.Bounded.class, new ReadSourceTranslator());
+		TRANSLATORS.put(Read.Bounded.class, new ReadSourceTranslator());
 //		TRANSLATORS.put(Write.Bound.class, new ReadSourceTranslator());
 
 		TRANSLATORS.put(TextIO.Read.Bound.class, new TextIOReadTranslator());
@@ -124,22 +126,22 @@ public class FlinkTransformTranslators {
 		return TRANSLATORS.get(transform.getClass());
 	}
 
-//	private static class ReadSourceTranslator<T> implements FlinkPipelineTranslator.TransformTranslator<Read.Bounded<T>> {
-//
-//		@Override
-//		public void translateNode(Read.Bounded<T> transform, TranslationContext context) {
-//			String name = transform.getName();
-//			Source<T> source = transform.getSource();
-//			PValue output = context.getCurrentTransform().getOutput().
-//			Coder<T> coder = output.getCoder();
-//
-//			TypeInformation<T> typeInformation = context.getTypeInfo(output);
-//
-//			DataSource<T> dataSource = new DataSource<>(context.getExecutionEnvironment(), new SourceInputFormat<>(source, context.getPipelineOptions(), coder), typeInformation, name);
-//
-//			context.setOutputDataSet(output, dataSource);
-//		}
-//	}
+	private static class ReadSourceTranslator<T> implements FlinkPipelineTranslator.TransformTranslator<Read.Bounded<T>> {
+
+		@Override
+		public void translateNode(Read.Bounded<T> transform, TranslationContext context) {
+			String name = transform.getName();
+			BoundedSource<T> source = transform.getSource();
+			PCollection<T> output = context.getOutput(transform);
+			Coder<T> coder = output.getCoder();
+
+			TypeInformation<T> typeInformation = context.getTypeInfo(output);
+
+			DataSource<T> dataSource = new DataSource<>(context.getExecutionEnvironment(), new SourceInputFormat<>(source, context.getPipelineOptions(), coder), typeInformation, name);
+
+			context.setOutputDataSet(output, dataSource);
+		}
+	}
 
 	private static class AvroIOReadTranslator<T> implements FlinkPipelineTranslator.TransformTranslator<AvroIO.Read.Bound<T>> {
 		private static final Logger LOG = LoggerFactory.getLogger(AvroIOReadTranslator.class);

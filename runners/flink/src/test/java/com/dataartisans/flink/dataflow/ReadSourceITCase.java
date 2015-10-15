@@ -18,19 +18,18 @@ package com.dataartisans.flink.dataflow;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.io.ReadSource;
-import com.google.cloud.dataflow.sdk.io.Source;
+import com.google.cloud.dataflow.sdk.io.BoundedSource;
+import com.google.cloud.dataflow.sdk.io.Read;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
-import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.base.Joiner;
+import org.apache.flink.shaded.com.google.common.base.Preconditions;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -66,7 +65,7 @@ public class ReadSourceITCase extends JavaProgramTestBase {
 		Pipeline p = FlinkTestPipeline.create();
 
 		PCollection<String> result = p
-				.apply(ReadSource.from(new Read(1, 10)))
+				.apply(Read.from(new ReadSource(1, 10)))
 				.apply(ParDo.of(new DoFn<Integer, String>() {
 					@Override
 					public void processElement(ProcessContext c) throws Exception {
@@ -79,23 +78,26 @@ public class ReadSourceITCase extends JavaProgramTestBase {
 	}
 }
 
-class Read extends Source<Integer> {
+class ReadSource extends BoundedSource<Integer> {
 	final int from;
 	final int to;
 
-	Read(int from, int to) {
+	ReadSource(int from, int to) {
 		this.from = from;
 		this.to = to;
 	}
 
 	@Override
-	public List<Read> splitIntoBundles(long desiredShardSizeBytes, PipelineOptions options)
+	public List<ReadSource> splitIntoBundles(long desiredShardSizeBytes, PipelineOptions options)
 			throws Exception {
-		List<Read> res = new ArrayList<>();
-		DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
-		float step = 1.0f * (to - from) / dataflowOptions.getNumWorkers();
-		for (int i = 0; i < dataflowOptions.getNumWorkers(); ++i) {
-			res.add(new Read(Math.round(from + i * step), Math.round(from + (i + 1) * step)));
+		List<ReadSource> res = new ArrayList<>();
+		FlinkPipelineOptions flinkOptions = options.as(FlinkPipelineOptions.class);
+		int numWorkers = flinkOptions.getParallelism();
+		Preconditions.checkArgument(numWorkers > 0, "Number of workers should be larger than 0.");
+
+		float step = 1.0f * (to - from) / numWorkers;
+		for (int i = 0; i < numWorkers; ++i) {
+			res.add(new ReadSource(Math.round(from + i * step), Math.round(from + (i + 1) * step)));
 		}
 		return res;
 	}
@@ -111,8 +113,7 @@ class Read extends Source<Integer> {
 	}
 
 	@Override
-	public Reader<Integer> createBasicReader(PipelineOptions options, Coder<Integer> coder,
-	                                         @Nullable ExecutionContext executionContext) throws IOException {
+	public BoundedReader<Integer> createReader(PipelineOptions options) throws IOException {
 		return new RangeReader(this);
 	}
 
@@ -124,10 +125,10 @@ class Read extends Source<Integer> {
 		return BigEndianIntegerCoder.of();
 	}
 
-	private class RangeReader implements Reader<Integer> {
+	private class RangeReader extends BoundedReader<Integer> {
 		private int current;
 
-		public RangeReader(Read source) {
+		public RangeReader(ReadSource source) {
 			this.current = source.from - 1;
 		}
 
@@ -150,6 +151,11 @@ class Read extends Source<Integer> {
 		@Override
 		public void close() throws IOException {
 			// Nothing
+		}
+
+		@Override
+		public BoundedSource<Integer> getCurrentSource() {
+			return ReadSource.this;
 		}
 	}
 }
