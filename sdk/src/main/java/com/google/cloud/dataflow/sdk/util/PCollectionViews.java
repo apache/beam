@@ -181,13 +181,14 @@ public class PCollectionViews {
 
     @Override
     protected Iterable<T> fromElements(Iterable<WindowedValue<T>> contents) {
-      return Iterables.transform(contents, new Function<WindowedValue<T>, T>() {
+      return Iterables.unmodifiableIterable(
+          Iterables.transform(contents, new Function<WindowedValue<T>, T>() {
         @SuppressWarnings("unchecked")
         @Override
         public T apply(WindowedValue<T> input) {
           return input.getValue();
         }
-      });
+      }));
     }
   }
 
@@ -243,7 +244,7 @@ public class PCollectionViews {
       // Safe covariant cast that Java cannot express without rawtypes, even with unchecked casts
       @SuppressWarnings({"unchecked", "rawtypes"})
       Map<K, Iterable<V>> resultMap = (Map) multimap.asMap();
-      return resultMap;
+      return Collections.unmodifiableMap(resultMap);
     }
   }
 
@@ -270,9 +271,10 @@ public class PCollectionViews {
       Map<K, V> map = new HashMap<>();
       for (WindowedValue<KV<K, V>> elem : elements) {
         KV<K, V> kv = elem.getValue();
-        if (map.put(kv.getKey(), kv.getValue()) != null) {
+        if (map.containsKey(kv.getKey())) {
           throw new IllegalArgumentException("Duplicate values for " + kv.getKey());
         }
+        map.put(kv.getKey(), kv.getValue());
       }
       return Collections.unmodifiableMap(map);
     }

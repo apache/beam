@@ -18,9 +18,15 @@ package com.google.cloud.dataflow.sdk.transforms;
 
 import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.Pipeline.PipelineExecutionException;
+import com.google.cloud.dataflow.sdk.coders.KvCoder;
+import com.google.cloud.dataflow.sdk.coders.NullableCoder;
+import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
@@ -43,6 +49,7 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -56,6 +63,9 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -183,6 +193,79 @@ public class ViewTest implements Serializable {
 
   @Test
   @Category(RunnableOnService.class)
+  public void testEmptyListSideInput() throws Exception {
+    Pipeline pipeline = TestPipeline.create();
+
+    final PCollectionView<List<Integer>> view = pipeline
+        .apply("CreateEmptyView", Create.<Integer>of().withCoder(VarIntCoder.of()))
+        .apply(View.<Integer>asList());
+
+    PCollection<Integer> results = pipeline
+        .apply("Create1", Create.of(1))
+        .apply("OutputSideInputs", ParDo.withSideInputs(view).of(
+            new DoFn<Integer, Integer>() {
+              @Override
+              public void processElement(ProcessContext c) {
+                assertTrue(c.sideInput(view).isEmpty());
+                c.output(1);
+              }
+            }));
+
+    // Pass at least one value through to guarantee that DoFn executes.
+    DataflowAssert.that(results).containsInAnyOrder(1);
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testListSideInputIsImmutable() {
+    Pipeline pipeline = TestPipeline.create();
+
+    final PCollectionView<List<Integer>> view = pipeline
+        .apply("CreateSideInput", Create.of(11))
+        .apply(View.<Integer>asList());
+
+    PCollection<Integer> output = pipeline
+        .apply("CreateMainInput", Create.of(29))
+        .apply("OutputSideInputs", ParDo.withSideInputs(view).of(
+            new DoFn<Integer, Integer>() {
+              @Override
+              public void processElement(ProcessContext c) {
+                try {
+                  c.sideInput(view).clear();
+                  fail("Expected UnsupportedOperationException on clear()");
+                } catch (UnsupportedOperationException expected) {
+                }
+                try {
+                  c.sideInput(view).add(4);
+                  fail("Expected UnsupportedOperationException on add()");
+                } catch (UnsupportedOperationException expected) {
+                }
+                try {
+                  c.sideInput(view).addAll(new ArrayList<Integer>());
+                  fail("Expected UnsupportedOperationException on addAll()");
+                } catch (UnsupportedOperationException expected) {
+                }
+                try {
+                  c.sideInput(view).remove(0);
+                  fail("Expected UnsupportedOperationException on remove()");
+                } catch (UnsupportedOperationException expected) {
+                }
+                for (Integer i : c.sideInput(view)) {
+                  c.output(i);
+                }
+              }
+            }));
+
+    // Pass at least one value through to guarantee that DoFn executes.
+    DataflowAssert.that(output).containsInAnyOrder(11);
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
   public void testIterableSideInput() {
     Pipeline pipeline = TestPipeline.create();
 
@@ -205,6 +288,65 @@ public class ViewTest implements Serializable {
     DataflowAssert.that(output).containsInAnyOrder(
         11, 13, 17, 23,
         11, 13, 17, 23);
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testEmptyIterableSideInput() throws Exception {
+    Pipeline pipeline = TestPipeline.create();
+
+    final PCollectionView<Iterable<Integer>> view = pipeline
+        .apply("CreateEmptyView", Create.<Integer>of().withCoder(VarIntCoder.of()))
+        .apply(View.<Integer>asIterable());
+
+    PCollection<Integer> results = pipeline
+        .apply("Create1", Create.of(1))
+        .apply("OutputSideInputs", ParDo.withSideInputs(view).of(
+            new DoFn<Integer, Integer>() {
+              @Override
+              public void processElement(ProcessContext c) {
+                assertFalse(c.sideInput(view).iterator().hasNext());
+                c.output(1);
+              }
+            }));
+
+    // Pass at least one value through to guarantee that DoFn executes.
+    DataflowAssert.that(results).containsInAnyOrder(1);
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testIterableSideInputIsImmutable() {
+    Pipeline pipeline = TestPipeline.create();
+
+    final PCollectionView<Iterable<Integer>> view = pipeline
+        .apply("CreateSideInput", Create.of(11))
+        .apply(View.<Integer>asIterable());
+
+    PCollection<Integer> output = pipeline
+        .apply("CreateMainInput", Create.of(29))
+        .apply("OutputSideInputs", ParDo.withSideInputs(view).of(
+            new DoFn<Integer, Integer>() {
+              @Override
+              public void processElement(ProcessContext c) {
+                Iterator<Integer> iterator = c.sideInput(view).iterator();
+                while (iterator.hasNext()) {
+                  try {
+                    iterator.remove();
+                    fail("Expected UnsupportedOperationException on remove()");
+                  } catch (UnsupportedOperationException expected) {
+                  }
+                  c.output(iterator.next());
+                }
+              }
+            }));
+
+    // Pass at least one value through to guarantee that DoFn executes.
+    DataflowAssert.that(output).containsInAnyOrder(11);
 
     pipeline.run();
   }
@@ -239,6 +381,80 @@ public class ViewTest implements Serializable {
 
   @Test
   @Category(RunnableOnService.class)
+  public void testEmptyMultimapSideInput() throws Exception {
+    Pipeline pipeline = TestPipeline.create();
+
+    final PCollectionView<Map<Integer, Iterable<Integer>>> view = pipeline
+        .apply("CreateEmptyView", Create.<KV<Integer, Integer>>of()
+            .withCoder(KvCoder.of(VarIntCoder.of(), VarIntCoder.of())))
+        .apply(View.<Integer, Integer>asMultimap());
+
+    PCollection<Integer> results = pipeline
+        .apply("Create1", Create.of(1))
+        .apply("OutputSideInputs", ParDo.withSideInputs(view).of(
+            new DoFn<Integer, Integer>() {
+              @Override
+              public void processElement(ProcessContext c) {
+                assertTrue(c.sideInput(view).isEmpty());
+                c.output(c.element());
+              }
+            }));
+
+    // Pass at least one value through to guarantee that DoFn executes.
+    DataflowAssert.that(results).containsInAnyOrder(1);
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testMultimapSideInputIsImmutable() {
+    Pipeline pipeline = TestPipeline.create();
+
+    final PCollectionView<Map<String, Iterable<Integer>>> view = pipeline
+        .apply("CreateSideInput", Create.of(KV.of("a", 1)))
+        .apply(View.<String, Integer>asMultimap());
+
+    PCollection<KV<String, Integer>> output = pipeline
+        .apply("CreateMainInput", Create.of("apple"))
+        .apply("OutputSideInputs", ParDo.withSideInputs(view).of(
+            new DoFn<String, KV<String, Integer>>() {
+              @Override
+              public void processElement(ProcessContext c) {
+                try {
+                  c.sideInput(view).clear();
+                  fail("Expected UnsupportedOperationException on clear()");
+                } catch (UnsupportedOperationException expected) {
+                }
+                try {
+                  c.sideInput(view).put("c", ImmutableList.of(3));
+                  fail("Expected UnsupportedOperationException on put()");
+                } catch (UnsupportedOperationException expected) {
+                }
+                try {
+                  c.sideInput(view).remove("c");
+                  fail("Expected UnsupportedOperationException on remove()");
+                } catch (UnsupportedOperationException expected) {
+                }
+                try {
+                  c.sideInput(view).putAll(new HashMap<String, Iterable<Integer>>());
+                  fail("Expected UnsupportedOperationException on putAll()");
+                } catch (UnsupportedOperationException expected) {
+                }
+                for (Integer v : c.sideInput(view).get(c.element().substring(0, 1))) {
+                  c.output(KV.of(c.element(), v));
+                }
+              }
+            }));
+
+    // Pass at least one value through to guarantee that DoFn executes.
+    DataflowAssert.that(output).containsInAnyOrder(KV.of("apple", 1));
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
   public void testMapSideInput() {
     Pipeline pipeline = TestPipeline.create();
 
@@ -259,6 +475,108 @@ public class ViewTest implements Serializable {
     DataflowAssert.that(output)
         .containsInAnyOrder(KV.of("apple", 1),
                             KV.of("banana", 3), KV.of("blackberry", 3));
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testEmptyMapSideInput() throws Exception {
+    Pipeline pipeline = TestPipeline.create();
+
+    final PCollectionView<Map<Integer, Integer>> view = pipeline
+        .apply("CreateEmptyView", Create.<KV<Integer, Integer>>of()
+            .withCoder(KvCoder.of(VarIntCoder.of(), VarIntCoder.of())))
+        .apply(View.<Integer, Integer>asMap());
+
+    PCollection<Integer> results = pipeline
+        .apply("Create1", Create.of(1))
+        .apply("OutputSideInputs", ParDo.withSideInputs(view).of(
+            new DoFn<Integer, Integer>() {
+              @Override
+              public void processElement(ProcessContext c) {
+                assertTrue(c.sideInput(view).isEmpty());
+                c.output(c.element());
+              }
+            }));
+
+    // Pass at least one value through to guarantee that DoFn executes.
+    DataflowAssert.that(results).containsInAnyOrder(1);
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testMapSideInputWithNullValuesCatchesDuplicates() {
+    Pipeline pipeline = TestPipeline.create();
+
+    final PCollectionView<Map<String, Integer>> view = pipeline
+        .apply("CreateSideInput", Create.of(KV.of("a", (Integer) null), KV.of("a", (Integer) null))
+            .withCoder(KvCoder.of(StringUtf8Coder.of(), NullableCoder.of(VarIntCoder.of()))))
+        .apply(View.<String, Integer>asMap());
+
+    PCollection<KV<String, Integer>> output = pipeline
+        .apply("CreateMainInput", Create.of("apple", "banana", "blackberry"))
+        .apply("OutputSideInputs", ParDo.withSideInputs(view).of(
+            new DoFn<String, KV<String, Integer>>() {
+              @Override
+              public void processElement(ProcessContext c) {
+                c.output(KV.of(c.element(), c.sideInput(view).get(c.element().substring(0, 1))));
+              }
+            }));
+
+    DataflowAssert.that(output)
+        .containsInAnyOrder(KV.of("apple", 1),
+                            KV.of("banana", 3), KV.of("blackberry", 3));
+
+    // PipelineExecutionException is thrown with cause having a message stating that a
+    // duplicate is not allowed.
+    thrown.expectCause(ThrowableMessageMatcher.hasMessage(
+        Matchers.containsString("Duplicate values for a")));
+    pipeline.run();
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testMapSideInputIsImmutable() {
+    Pipeline pipeline = TestPipeline.create();
+
+    final PCollectionView<Map<String, Integer>> view = pipeline
+        .apply("CreateSideInput", Create.of(KV.of("a", 1)))
+        .apply(View.<String, Integer>asMap());
+
+    PCollection<KV<String, Integer>> output = pipeline
+        .apply("CreateMainInput", Create.of("apple"))
+        .apply("OutputSideInputs", ParDo.withSideInputs(view).of(
+            new DoFn<String, KV<String, Integer>>() {
+              @Override
+              public void processElement(ProcessContext c) {
+                try {
+                  c.sideInput(view).clear();
+                  fail("Expected UnsupportedOperationException on clear()");
+                } catch (UnsupportedOperationException expected) {
+                }
+                try {
+                  c.sideInput(view).put("c", 3);
+                  fail("Expected UnsupportedOperationException on put()");
+                } catch (UnsupportedOperationException expected) {
+                }
+                try {
+                  c.sideInput(view).remove("c");
+                  fail("Expected UnsupportedOperationException on remove()");
+                } catch (UnsupportedOperationException expected) {
+                }
+                try {
+                  c.sideInput(view).putAll(new HashMap<String, Integer>());
+                  fail("Expected UnsupportedOperationException on putAll()");
+                } catch (UnsupportedOperationException expected) {
+                }
+                c.output(KV.of(c.element(), c.sideInput(view).get(c.element().substring(0, 1))));
+              }
+            }));
+
+    // Pass at least one value through to guarantee that DoFn executes.
+    DataflowAssert.that(output).containsInAnyOrder(KV.of("apple", 1));
 
     pipeline.run();
   }

@@ -828,9 +828,15 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
 
     @Override
     public PCollectionView<List<T>> apply(PCollection<T> input) {
-      // Using Combine.globally(...).asSingletonView() allows automatic propagation of
-      // the CombineFn's default value as the default value of the SingletonView.
-      return input.apply(Combine.globally(new Concatenate<T>()).asSingletonView());
+      PCollectionView<List<T>> view =
+          PCollectionViews.listView(
+              input.getPipeline(),
+              input.getWindowingStrategy(),
+              input.getCoder());
+
+      return input.apply(Combine.globally(new Concatenate<T>()).withoutDefaults())
+          .apply(ParDo.of(StreamingPCollectionViewWriterFn.create(view, input.getCoder())))
+          .apply(View.CreatePCollectionView.<T, List<T>>of(view));
     }
 
     @Override
@@ -853,16 +859,15 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
 
     @Override
     public PCollectionView<Iterable<T>> apply(PCollection<T> input) {
-      // Using Combine.globally(...).asSingletonView() allows automatic propagation of
-      // the CombineFn's default value as the default value of the SingletonView.
-      //
-      // safe covariant cast List<T> -> Iterable<T>
-      // not expressible in java, even with unchecked casts
-      @SuppressWarnings({"rawtypes", "unchecked"})
-      Combine.GloballyAsSingletonView<T, Iterable<T>> concatAndView =
-      (Combine.GloballyAsSingletonView)
-      Combine.globally(new Concatenate<T>()).asSingletonView();
-      return input.apply(concatAndView);
+      PCollectionView<Iterable<T>> view =
+          PCollectionViews.iterableView(
+              input.getPipeline(),
+              input.getWindowingStrategy(),
+              input.getCoder());
+
+      return input.apply(Combine.globally(new Concatenate<T>()).withoutDefaults())
+          .apply(ParDo.of(StreamingPCollectionViewWriterFn.create(view, input.getCoder())))
+          .apply(View.CreatePCollectionView.<T, Iterable<T>>of(view));
     }
 
     @Override
