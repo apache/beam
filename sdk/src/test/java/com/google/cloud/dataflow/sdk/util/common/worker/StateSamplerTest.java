@@ -68,7 +68,7 @@ public class StateSamplerTest {
       long s2 = getCounterLongValue(counters, "test-2-msecs");
 
       long toleranceMs = periodMs;
-      assertTrue(s1 + s2 >= 4 * periodMs - toleranceMs);
+      assertTrue(s1 + s2 >= 1 * periodMs - toleranceMs);
       assertTrue(s1 + s2 <= 10 * periodMs + toleranceMs);
     }
   }
@@ -129,7 +129,7 @@ public class StateSamplerTest {
       long s = getCounterLongValue(counters, "test-1-msecs");
 
       assertTrue(s >= periodMs - tolerance);
-      assertTrue(s <= 4 * periodMs + tolerance);
+      assertTrue(s <= 5 * periodMs + tolerance);
     }
   }
 
