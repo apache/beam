@@ -49,12 +49,11 @@ public class FlinkPartialReduceFunction<K, VI, VA> implements GroupCombineFuncti
 		K key = first.getKey();
 		VI value = first.getValue();
 		VA accumulator = keyedCombineFn.createAccumulator(key);
-		// manually add for the first element
-		keyedCombineFn.addInput(key, accumulator, value);
+		accumulator = keyedCombineFn.addInput(key, accumulator, value);
 
 		while(iterator.hasNext()) {
 			value = iterator.next().getValue();
-			keyedCombineFn.addInput(key, accumulator, value);
+			accumulator = keyedCombineFn.addInput(key, accumulator, value);
 		}
 
 		out.collect(KV.of(key, accumulator));
