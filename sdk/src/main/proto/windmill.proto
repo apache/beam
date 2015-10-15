@@ -143,6 +143,7 @@ message ComputationWorkItems {
 message GetWorkRequest {
   required fixed64 client_id = 1;
   optional int64 max_items = 2 [default = 0xffffffff];
+  optional int64 max_bytes = 3 [default = 0x7fffffffffffffff];
 }
 
 message GetWorkResponse {
