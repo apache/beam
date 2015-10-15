@@ -120,6 +120,9 @@ public class FlinkPipelineRunner extends PipelineRunner<FlinkRunnerResult> {
 		this.options = options;
 		this.flinkEnv = createExecutionEnvironment(options);
 
+		// set parallelism in the options (required by some execution code)
+		options.setParallelism(flinkEnv.getParallelism());
+
 		this.translator = new FlinkPipelineTranslator(flinkEnv, options);
 	}
 

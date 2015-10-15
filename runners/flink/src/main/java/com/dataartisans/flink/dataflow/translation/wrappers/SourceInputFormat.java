@@ -17,9 +17,12 @@
  */
 package com.dataartisans.flink.dataflow.translation.wrappers;
 
+import com.dataartisans.flink.dataflow.io.ConsoleIO;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.client.util.Lists;
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.io.BoundedSource;
+import com.google.cloud.dataflow.sdk.io.Read;
 import com.google.cloud.dataflow.sdk.io.Source;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
@@ -43,14 +46,14 @@ import java.util.List;
 public class SourceInputFormat<T> implements InputFormat<T, SourceInputSplit<T>> {
 	private static final Logger LOG = LoggerFactory.getLogger(SourceInputFormat.class);
 
-	private final Source<T> initialSource;
+	private final BoundedSource<T> initialSource;
 	private transient PipelineOptions options;
 	private final Coder<T> coder;
 
-	private Source.Reader<WindowedValue<T>> reader = null;
+	private BoundedSource.BoundedReader<T> reader = null;
 	private boolean reachedEnd = true;
 
-	public SourceInputFormat(Source<T> initialSource, PipelineOptions options, Coder<T> coder) {
+	public SourceInputFormat(BoundedSource<T> initialSource, PipelineOptions options, Coder<T> coder) {
 		this.initialSource = initialSource;
 		this.options = options;
 		this.coder = coder;
@@ -75,10 +78,7 @@ public class SourceInputFormat<T> implements InputFormat<T, SourceInputSplit<T>>
 
 	@Override
 	public void open(SourceInputSplit<T> sourceInputSplit) throws IOException {
-		WindowedValue.ValueOnlyWindowedValueCoder<T> windowedCoder = WindowedValue
-				.ValueOnlyWindowedValueCoder.of(coder);
-
-		reader = sourceInputSplit.getSource().createWindowedReader(options, windowedCoder, null);
+		reader = ((BoundedSource<T>) sourceInputSplit.getSource()).createReader(options);
 		reachedEnd = false;
 	}
 
@@ -157,7 +157,7 @@ public class SourceInputFormat<T> implements InputFormat<T, SourceInputSplit<T>>
 
 		reachedEnd = !reader.advance();
 		if (!reachedEnd) {
-			return reader.getCurrent().getValue();
+			return reader.getCurrent();
 		}
 		return null;
 	}
