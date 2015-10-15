@@ -73,22 +73,10 @@ public class TranslationContext {
 		return (DataSet<T>) dataSets.get(value);
 	}
 
-	public <T> DataSet<T> getCurrentInputDataSet() {
-		return getInputDataSet(getCurrentInput());
-	}
-	
 	public void setOutputDataSet(PValue value, DataSet<?> set) {
 		if (!dataSets.containsKey(value)) {
 			dataSets.put(value, set);
 		}
-	}
-
-	/**
-	 * Gets the applied AppliedPTransform which carries input/output.
-	 * @return
-	 */
-	public AppliedPTransform<?, ?, ?> getCurrentTransform() {
-		return currentTransform;
 	}
 
 	/**
@@ -129,14 +117,6 @@ public class TranslationContext {
 
 	public <T> TypeInformation<T> getCurrentOutputTypeInfo() {
 		return getTypeInfo((PValue) currentTransform.getOutput());
-	}
-
-	public PValue getCurrentInput() {
-		return (PValue) currentTransform.getInput();
-	}
-
-	public PValue getCurrentOutput() {
-		return (PValue) currentTransform.getOutput();
 	}
 
 	@SuppressWarnings("unchecked")
