@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 
 import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.positionFromSplitResult;
 import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.splitRequestAtByteOffset;
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.splitRequestAtFraction;
 import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.splitRequestAtPosition;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.readerProgressToCloudProgress;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -497,6 +498,42 @@ public class TextReaderTest {
             positionFromSplitResult(iterator.requestDynamicSplit(splitRequestAtByteOffset(stop)))
                 .getByteOffset());
         assertEquals(stop, iterator.getEndOffset());
+        assertEquals(fileContent[0], iterator.next());
+        assertEquals(fileContent[1], iterator.next());
+        assertFalse(iterator.hasNext());
+        assertEquals(
+            Arrays.asList(fileContent[0].length(), fileContent[1].length()),
+            observer.getActualSizes());
+      }
+    }
+
+    // Update based on fraction.
+    {
+      TextReader<String> textReader = new TextReader<>(tmpFile.getPath(), false, 0L, fileSize,
+          new WholeLineVerifyingCoder(), TextIO.CompressionType.UNCOMPRESSED);
+      ExecutorTestUtils.TestReaderObserver observer =
+          new ExecutorTestUtils.TestReaderObserver(textReader);
+
+      try (TextReader<String>.TextFileIterator iterator =
+          (TextReader<String>.TextFileIterator) textReader.iterator()) {
+        // Poke the iterator so we can test dynamic splitting.
+        assertTrue(iterator.hasNext());
+
+        // Trying to split at 0 or 1 will fail.
+        assertNull(iterator.requestDynamicSplit(splitRequestAtFraction(0)));
+        assertNull(iterator.requestDynamicSplit(splitRequestAtFraction(1)));
+
+        // must be less than or equal to (size of first two lines / size of file) for this test to
+        // pass.
+        float splitPos = 0.61f;
+
+        long stopPosition = (long) Math.ceil(fileSize * splitPos);
+        assertEquals(fileSize, iterator.getEndOffset());
+        assertEquals(
+            Long.valueOf(stopPosition),
+            positionFromSplitResult(iterator.requestDynamicSplit(splitRequestAtFraction(splitPos)))
+                .getByteOffset());
+        assertEquals(stopPosition, iterator.getEndOffset());
         assertEquals(fileContent[0], iterator.next());
         assertEquals(fileContent[1], iterator.next());
         assertFalse(iterator.hasNext());

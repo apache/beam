@@ -210,16 +210,42 @@ public abstract class FileBasedReader<T> extends Reader<T> {
       ApproximateProgress splitProgress = splitRequestToApproximateProgress(splitRequest);
       com.google.api.services.dataflow.model.Position splitPosition = splitProgress.getPosition();
       if (splitPosition == null) {
-        LOG.warn("FileBasedReader only supports split at a Position. Requested: {}",
+        if (splitProgress.getPercentComplete() != null) {
+          float percentageComplete = splitProgress.getPercentComplete().floatValue();
+          if (percentageComplete <= 0 || percentageComplete >= 1) {
+            LOG.warn(
+                "FileBasedReader cannot be split since the provided percentage of "
+                + "work to be completed is out of the valid range (0, 1). Requested: {}",
+                splitRequest);
+          }
+
+          splitPosition = new com.google.api.services.dataflow.model.Position();
+          if (getEndOffset() == Long.MAX_VALUE) {
+            LOG.warn(
+                "FileBasedReader cannot be split since the end offset is set to Long.MAX_VALUE."
+                + " Requested: {}",
+                splitRequest);
+            return null;
+          }
+
+          splitPosition.setByteOffset(
+              rangeTracker.getPositionForFractionConsumed(percentageComplete));
+        } else {
+          LOG.warn(
+              "FileBasedReader requires either a position or percentage of work to be complete to"
+              + " perform a dynamic split request. Requested: {}",
+              splitRequest);
+          return null;
+        }
+      } else if (splitPosition.getByteOffset() == null) {
+        LOG.warn(
+            "FileBasedReader cannot be split since the provided split position "
+            + "does not contain a valid offset. Requested: {}",
             splitRequest);
         return null;
       }
       Long splitOffset = splitPosition.getByteOffset();
-      if (splitOffset == null) {
-        LOG.warn("FileBasedReader only supports split at byte offset. Requested: {}",
-            splitPosition);
-        return null;
-      }
+
       if (rangeTracker.trySplitAtPosition(splitOffset)) {
         return new DynamicSplitResultWithPosition(cloudPositionToReaderPosition(splitPosition));
       } else {
@@ -229,10 +255,18 @@ public abstract class FileBasedReader<T> extends Reader<T> {
 
     /**
      * Returns the end offset of the iterator or Long.MAX_VALUE if unspecified.
-     * The method is called for test ONLY.
+     * This method is called for test ONLY.
      */
     long getEndOffset() {
       return rangeTracker.getStopPosition();
+    }
+
+    /**
+     * Returns the start offset of the iterator.
+     * This method is called for test ONLY.
+     */
+    long getStartOffset() {
+      return rangeTracker.getStartPosition();
     }
 
     @Override
