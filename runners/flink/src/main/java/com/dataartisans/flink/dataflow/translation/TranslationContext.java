@@ -99,7 +99,7 @@ public class TranslationContext {
 	}
 	
 	@SuppressWarnings("unchecked")
-	public <T> TypeInformation<T> getTypeInfo(PValue output) {
+	public <T> TypeInformation<T> getTypeInfo(PInput output) {
 		if (output instanceof TypedPValue) {
 			Coder<?> outputCoder = ((TypedPValue) output).getCoder();
 			if (outputCoder instanceof KvCoder) {
@@ -111,11 +111,11 @@ public class TranslationContext {
 		return new GenericTypeInfo<T>((Class<T>)Object.class);
 	}
 
-	public <T> TypeInformation<T> getCurrentInputTypeInfo() {
-		return getTypeInfo((PValue) currentTransform.getInput());
+	public <T> TypeInformation<T> getInputTypeInfo() {
+		return getTypeInfo(currentTransform.getInput());
 	}
 
-	public <T> TypeInformation<T> getCurrentOutputTypeInfo() {
+	public <T> TypeInformation<T> getOutputTypeInfo() {
 		return getTypeInfo((PValue) currentTransform.getOutput());
 	}
 

@@ -58,8 +58,7 @@ public class AvroITCase extends JavaProgramTestBase {
 	private static void runProgram(String tmpPath, String resultPath) {
 		Pipeline p = FlinkTestPipeline.create();
 
-		p.apply(Create.of(new User("Joe", 3, "red"), new User("Mary", 4, "blue")))
-				.setCoder(AvroCoder.of(User.class))
+		p.apply(Create.of(new User("Joe", 3, "red"), new User("Mary", 4, "blue")).withCoder(AvroCoder.of(User.class)))
 				.apply(AvroIO.Write.to(tmpPath).withSchema(User.class));
 
 		p.run();
