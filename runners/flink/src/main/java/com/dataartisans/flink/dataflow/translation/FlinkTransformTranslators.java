@@ -153,7 +153,7 @@ public class FlinkTransformTranslators {
 //			Schema schema = transform.getSchema();
 			PValue output = context.getOutput(transform);
 
-			TypeInformation<T> typeInformation = context.getCurrentInputTypeInfo();
+			TypeInformation<T> typeInformation = context.getInputTypeInfo();
 
 			// This is super hacky, but unfortunately we cannot get the type otherwise
 			Class<T> avroType = null;
@@ -277,7 +277,7 @@ public class FlinkTransformTranslators {
 			DataSet<KV<K, V>> inputDataSet = context.getInputDataSet(context.getInput(transform));
 			GroupReduceFunction<KV<K, V>, KV<K, Iterable<V>>> groupReduceFunction = new FlinkKeyedListAggregationFunction<>();
 
-			TypeInformation<KV<K, Iterable<V>>> typeInformation = context.getCurrentInputTypeInfo();
+			TypeInformation<KV<K, Iterable<V>>> typeInformation = context.getInputTypeInfo();
 
 			Grouping<KV<K, V>> grouping = new UnsortedGrouping<>(inputDataSet, new Keys.ExpressionKeys<>(new String[]{"key"}, inputDataSet.getType()));
 
@@ -456,7 +456,7 @@ public class FlinkTransformTranslators {
 
 		@Override
 		public void translateNode(Create.Values<OUT> transform, TranslationContext context) {
-			TypeInformation<OUT> typeInformation = context.getCurrentOutputTypeInfo();
+			TypeInformation<OUT> typeInformation = context.getOutputTypeInfo();
 			Iterable<OUT> elements = transform.getElements();
 
 			// we need to serialize the elements to byte arrays, since they might contain
@@ -519,7 +519,7 @@ public class FlinkTransformTranslators {
 			DataSet<KV<K,V1>> inputDataSet1 = context.getInputDataSet(collection1);
 			DataSet<KV<K,V2>> inputDataSet2 = context.getInputDataSet(collection2);
 
-			TypeInformation<KV<K,CoGbkResult>> typeInfo = context.getCurrentOutputTypeInfo();
+			TypeInformation<KV<K,CoGbkResult>> typeInfo = context.getOutputTypeInfo();
 
 			FlinkCoGroupKeyedListAggregator<K,V1,V2> aggregator = new FlinkCoGroupKeyedListAggregator<>(schema, tupleTag1, tupleTag2);
 
