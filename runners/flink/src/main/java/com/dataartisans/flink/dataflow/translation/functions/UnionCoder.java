@@ -1,31 +1,33 @@
 /*
- * Copyright 2015 Data Artisans GmbH
+ * Copyright (C) 2015 Google Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- *
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
  */
+
 package com.dataartisans.flink.dataflow.translation.functions;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
+
+import com.google.cloud.dataflow.sdk.transforms.join.RawUnionValue;
+
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.coders.StandardCoder;
-import com.google.cloud.dataflow.sdk.transforms.join.RawUnionValue;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.VarInt;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
+
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -75,7 +77,7 @@ public class UnionCoder extends StandardCoder<RawUnionValue> {
 			RawUnionValue union,
 			OutputStream outStream,
 			Context context)
-			throws IOException, CoderException {
+			throws IOException, CoderException  {
 		int index = getIndexForEncoding(union);
 		// Write out the union tag.
 		VarInt.encode(index, outStream);
@@ -99,13 +101,6 @@ public class UnionCoder extends StandardCoder<RawUnionValue> {
 	@Override
 	public List<? extends Coder<?>> getCoderArguments() {
 		return null;
-	}
-
-	@Override
-	public void verifyDeterministic() throws NonDeterministicException {
-		for (Coder coder : elementCoders) {
-			coder.verifyDeterministic();
-		}
 	}
 
 	@Override
@@ -147,5 +142,12 @@ public class UnionCoder extends StandardCoder<RawUnionValue> {
 
 	private UnionCoder(List<Coder<?>> elementCoders) {
 		this.elementCoders = elementCoders;
+	}
+
+	@Override
+	public void verifyDeterministic() throws NonDeterministicException {
+		verifyDeterministic(
+				"UnionCoder is only deterministic if all element coders are",
+				elementCoders);
 	}
 }
