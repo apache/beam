@@ -19,9 +19,7 @@ import com.google.cloud.dataflow.sdk.values.KV;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.util.Collector;
 
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
 
 /**
  * Flink {@link org.apache.flink.api.common.functions.GroupReduceFunction} for executing a
