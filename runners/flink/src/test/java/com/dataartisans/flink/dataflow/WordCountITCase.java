@@ -20,6 +20,7 @@ import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.transforms.Create;
+import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.base.Joiner;
 import org.apache.flink.test.util.JavaProgramTestBase;
@@ -63,6 +64,7 @@ public class WordCountITCase extends JavaProgramTestBase {
 
 		input
 				.apply(new WordCount.CountWords())
+				.apply(ParDo.of(new WordCount.FormatAsTextFn()))
 				.apply(TextIO.Write.to(resultPath));
 
 		p.run();

@@ -15,10 +15,8 @@
  */
 package com.dataartisans.flink.dataflow;
 
-import com.google.cloud.dataflow.examples.WordCount;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.io.TextIO;
-import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.transforms.*;
 import com.google.cloud.dataflow.sdk.transforms.join.CoGbkResult;
 import com.google.cloud.dataflow.sdk.transforms.join.CoGroupByKey;
@@ -43,7 +41,7 @@ public class WordCountJoin3ITCase extends JavaProgramTestBase {
 	static final String[] WORDS_3 = new String[] {
 			"hi stephan", "beauty", "hooray big fabian",
 			"hi yo", "", "please say hi"};
-	
+
 	static final String[] RESULTS = new String[] {
 			"beauty -> Tag1: Tag2: 1 Tag3: 1",
 			"bob -> Tag1: 2 Tag2: 1 Tag3: ",
@@ -78,12 +76,8 @@ public class WordCountJoin3ITCase extends JavaProgramTestBase {
 
 	@Override
 	protected void testProgram() throws Exception {
-		WordCount.Options options = PipelineOptionsFactory.create().as(WordCount.Options.class);
-		options.setOutput(resultPath);
 
-		options.setRunner(FlinkPipelineRunner.class);
-
-		Pipeline p = Pipeline.create(options);
+		Pipeline p = FlinkTestPipeline.create();
 
 		/* Create two PCollections and join them */
 		PCollection<KV<String,Long>> occurences1 = p.apply(Create.of(WORDS_1))
@@ -107,9 +101,7 @@ public class WordCountJoin3ITCase extends JavaProgramTestBase {
 
 		/* Format output */
 		mergedOccurences.apply(ParDo.of(new FormatCountsFn()))
-				.apply(TextIO.Write.named("test")
-						.to(options.getOutput())
-						.withNumShards(options.getNumShards()));
+				.apply(TextIO.Write.named("test").to(resultPath));
 
 		p.run();
 	}
@@ -155,5 +147,5 @@ public class WordCountJoin3ITCase extends JavaProgramTestBase {
 			c.output(key + " -> " + countTag1 + countTag2 + countTag3);
 		}
 	}
-	
+
 }
