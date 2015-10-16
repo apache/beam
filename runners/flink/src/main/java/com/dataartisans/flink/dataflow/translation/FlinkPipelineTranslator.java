@@ -22,11 +22,9 @@ import com.google.cloud.dataflow.sdk.Pipeline.PipelineVisitor;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.TransformTreeNode;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
+import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.join.CoGroupByKey;
-import com.google.cloud.dataflow.sdk.transforms.join.KeyedPCollectionTuple;
-import com.google.cloud.dataflow.sdk.values.PInput;
-import com.google.cloud.dataflow.sdk.values.POutput;
 import com.google.cloud.dataflow.sdk.values.PValue;
 import org.apache.flink.api.java.ExecutionEnvironment;
 
@@ -41,7 +39,10 @@ public class FlinkPipelineTranslator implements PipelineVisitor {
 
 	private int depth = 0;
 
-	private boolean inComposite = false;
+	/**
+	 * Composite transform that we want to translate before proceeding with other transforms
+	 */
+	private PTransform<?, ?> currentCompositeTransform;
 
 	public FlinkPipelineTranslator(ExecutionEnvironment env, PipelineOptions options) {
 		this.context = new TranslationContext(env, options);
@@ -74,15 +75,15 @@ public class FlinkPipelineTranslator implements PipelineVisitor {
 		System.out.println(genSpaces(this.depth) + "enterCompositeTransform- " + formatNodeName(node));
 		PTransform<?, ?> transform = node.getTransform();
 
-		if (transform != null) {
+		if (transform != null && currentCompositeTransform == null) {
 			TransformTranslator<?> translator = FlinkTransformTranslators.getTranslator(transform);
 
 			if (translator != null) {
-				inComposite = true;
+				currentCompositeTransform = transform;
 
 				if (transform instanceof CoGroupByKey && node.getInput().expand().size() != 2) {
 					// we can only optimize CoGroupByKey for input size 2
-					inComposite = false;
+					currentCompositeTransform = null;
 				}
 			}
 		}
@@ -97,10 +98,15 @@ public class FlinkPipelineTranslator implements PipelineVisitor {
 		if (transform != null) {
 			TransformTranslator<?> translator = FlinkTransformTranslators.getTranslator(transform);
 
-			if (translator != null) {
-				System.out.println(genSpaces(this.depth) + "doingCompositeTransform- " + formatNodeName(node));
-				applyTransform(transform, node, translator);
-				inComposite = false;
+			if (currentCompositeTransform == transform) {
+				if (translator != null) {
+					System.out.println(genSpaces(this.depth) + "doingCompositeTransform- " + formatNodeName(node));
+					applyTransform(transform, node, translator);
+					currentCompositeTransform = null;
+				} else {
+					throw new IllegalStateException("Attempted to translate composite transform " +
+							"but no translator was found: " + currentCompositeTransform);
+				}
 			}
 		}
 
@@ -111,7 +117,7 @@ public class FlinkPipelineTranslator implements PipelineVisitor {
 	@Override
 	public void visitTransform(TransformTreeNode node) {
 		System.out.println(genSpaces(this.depth) + "visitTransform- " + formatNodeName(node));
-		if (inComposite) {
+		if (currentCompositeTransform != null) {
 			// ignore it
 			return;
 		}
