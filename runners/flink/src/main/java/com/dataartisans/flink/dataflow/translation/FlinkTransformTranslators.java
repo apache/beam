@@ -155,7 +155,7 @@ public class FlinkTransformTranslators {
 //			Schema schema = transform.getSchema();
 			PValue output = context.getOutput(transform);
 
-			TypeInformation<T> typeInformation = context.getInputTypeInfo();
+			TypeInformation<T> typeInformation = context.getTypeInfo(output);
 
 			// This is super hacky, but unfortunately we cannot get the type otherwise
 			Class<T> avroType = null;
