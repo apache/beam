@@ -52,8 +52,6 @@ public class WordCount {
 
 		Pipeline p = Pipeline.create(options);
 
-		// Concepts #2 and #3: Our pipeline applies the composite CountWords transform, and passes the
-		// static FormatAsTextFn() to the ParDo transform.
 		p.apply(TextIO.Read.named("ReadLines").from(options.getInput()))
 				.apply(new CountWords())
 				.apply(ParDo.of(new com.google.cloud.dataflow.examples.WordCount.FormatAsTextFn()))
