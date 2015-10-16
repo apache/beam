@@ -29,7 +29,6 @@ import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.io.AvroIO;
 import com.google.cloud.dataflow.sdk.io.BoundedSource;
 import com.google.cloud.dataflow.sdk.io.Read;
-import com.google.cloud.dataflow.sdk.io.Source;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.Create;
@@ -47,11 +46,9 @@ import com.google.cloud.dataflow.sdk.transforms.join.RawUnionValue;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
-import com.google.cloud.dataflow.sdk.values.POutput;
 import com.google.cloud.dataflow.sdk.values.PValue;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.collect.Lists;
-import org.apache.avro.Schema;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
@@ -90,11 +87,16 @@ public class FlinkTransformTranslators {
 
 		TRANSLATORS.put(Combine.PerKey.class, new CombinePerKeyTranslator());
 		// we don't need this because we translate the Combine.PerKey directly
-		// TRANSLATORS.put(Combine.GroupedValues.class, new CombineGroupedValuesTranslator());
+		//TRANSLATORS.put(Combine.GroupedValues.class, new CombineGroupedValuesTranslator());
 
 		TRANSLATORS.put(Create.Values.class, new CreateTranslator());
+
 		TRANSLATORS.put(Flatten.FlattenPCollectionList.class, new FlattenPCollectionTranslator());
+
 		TRANSLATORS.put(GroupByKey.GroupByKeyOnly.class, new GroupByKeyOnlyTranslator());
+		// TODO we're currently ignoring windows here but that has to change in the future
+		TRANSLATORS.put(GroupByKey.class, new GroupByKeyTranslator());
+
 		TRANSLATORS.put(ParDo.BoundMulti.class, new ParDoBoundMultiTranslator());
 		TRANSLATORS.put(ParDo.Bound.class, new ParDoBoundTranslator());
 
@@ -277,12 +279,33 @@ public class FlinkTransformTranslators {
 			DataSet<KV<K, V>> inputDataSet = context.getInputDataSet(context.getInput(transform));
 			GroupReduceFunction<KV<K, V>, KV<K, Iterable<V>>> groupReduceFunction = new FlinkKeyedListAggregationFunction<>();
 
-			TypeInformation<KV<K, Iterable<V>>> typeInformation = context.getInputTypeInfo();
+			TypeInformation<KV<K, Iterable<V>>> typeInformation = context.getTypeInfo(context.getOutput(transform));
 
 			Grouping<KV<K, V>> grouping = new UnsortedGrouping<>(inputDataSet, new Keys.ExpressionKeys<>(new String[]{"key"}, inputDataSet.getType()));
 
 			GroupReduceOperator<KV<K, V>, KV<K, Iterable<V>>> outputDataSet =
 					new GroupReduceOperator<>(grouping, typeInformation, groupReduceFunction, transform.getName());
+			context.setOutputDataSet(context.getOutput(transform), outputDataSet);
+		}
+	}
+
+	/**
+	 * Translates a GroupByKey while ignoring window assignments. This is identical to the {@link GroupByKeyOnlyTranslator}
+	 */
+	private static class GroupByKeyTranslator<K, V> implements FlinkPipelineTranslator.TransformTranslator<GroupByKey<K, V>> {
+
+		@Override
+		public void translateNode(GroupByKey<K, V> transform, TranslationContext context) {
+			DataSet<KV<K, V>> inputDataSet = context.getInputDataSet(context.getInput(transform));
+			GroupReduceFunction<KV<K, V>, KV<K, Iterable<V>>> groupReduceFunction = new FlinkKeyedListAggregationFunction<>();
+
+			TypeInformation<KV<K, Iterable<V>>> typeInformation = context.getTypeInfo(context.getOutput(transform));
+
+			Grouping<KV<K, V>> grouping = new UnsortedGrouping<>(inputDataSet, new Keys.ExpressionKeys<>(new String[]{"key"}, inputDataSet.getType()));
+
+			GroupReduceOperator<KV<K, V>, KV<K, Iterable<V>>> outputDataSet =
+					new GroupReduceOperator<>(grouping, typeInformation, groupReduceFunction, transform.getName());
+
 			context.setOutputDataSet(context.getOutput(transform), outputDataSet);
 		}
 	}
