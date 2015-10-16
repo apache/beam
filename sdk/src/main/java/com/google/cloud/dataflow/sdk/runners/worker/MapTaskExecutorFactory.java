@@ -347,6 +347,11 @@ public class MapTaskExecutorFactory {
     }
 
     @Override
+    public AccumT compact(WindowedValue<K> windowedKey, AccumT accumulator) {
+      return this.combineFn.compact(windowedKey.getValue(), accumulator);
+    }
+
+    @Override
     public OutputT extract(WindowedValue<K> windowedKey, AccumT accumulator) {
       return this.combineFn.extractOutput(windowedKey.getValue(), accumulator);
     }

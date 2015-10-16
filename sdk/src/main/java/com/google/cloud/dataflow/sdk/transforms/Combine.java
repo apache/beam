@@ -378,6 +378,21 @@ public class Combine {
     public abstract OutputT extractOutput(AccumT accumulator);
 
     /**
+     * Returns an accumulator that represents the same logical value as the
+     * input accumulator, but may have a more compact representation.
+     * For most CombineFns this would be a no-op, but should be overridden
+     * by CombineFns that (for example) buffer up elements and combine
+     * them in batches.
+     *
+     * <p>For efficiency, the input accumulator may be modified and returned.
+     *
+     * <p>By default returns the original accumulator.
+     */
+    public AccumT compact(AccumT accumulator) {
+      return accumulator;
+    }
+
+    /**
      * Applies this {@code CombineFn} to a collection of input values
      * to produce a combined output value.
      *
@@ -493,6 +508,11 @@ public class Combine {
         @Override
         public OutputT extractOutput(K key, AccumT accumulator) {
           return CombineFn.this.extractOutput(accumulator);
+        }
+
+        @Override
+        public AccumT compact(K key, AccumT accumulator) {
+          return CombineFn.this.compact(accumulator);
         }
 
         @Override
@@ -1115,6 +1135,21 @@ public class Combine {
     public abstract OutputT extractOutput(K key, AccumT accumulator);
 
     /**
+     * Returns an accumulator that represents the same logical value as the
+     * input accumulator, but may have a more compact representation.
+     * For most CombineFns this would be a no-op, but should be overridden
+     * by CombineFns that (for example) buffer up elements and combine
+     * them in batches.
+     *
+     * <p>For efficiency, the input accumulator may be modified and returned.
+     *
+     * <p>By default returns the original accumulator.
+     */
+    public AccumT compact(K key, AccumT accumulator) {
+      return accumulator;
+    }
+
+    /**
      * Returns the a regular {@link CombineFn} that operates on a specific key.
      */
     public CombineFn<InputT, AccumT, OutputT> forKey(final K key, final Coder<K> keyCoder) {
@@ -1138,6 +1173,11 @@ public class Combine {
         @Override
         public OutputT extractOutput(AccumT accumulator) {
           return KeyedCombineFn.this.extractOutput(key, accumulator);
+        }
+
+        @Override
+        public AccumT compact(AccumT accumulator) {
+          return KeyedCombineFn.this.compact(key, accumulator);
         }
 
         @Override
@@ -1546,6 +1586,11 @@ public class Combine {
       return combiner.apply(accumulator);
     }
 
+    @Override
+    public List<V> compact(List<V> accumulator) {
+      return accumulator.size() > 1 ? mergeToSingleton(accumulator) : accumulator;
+    }
+
     private List<V> mergeToSingleton(Iterable<V> values) {
       List<V> singleton = new ArrayList<>();
       singleton.add(combiner.apply(values));
@@ -1757,6 +1802,10 @@ public class Combine {
               return fn.mergeAccumulators(key.getKey(), accumulators);
             }
             @Override
+            public AccumT compact(KV<K, Integer> key, AccumT accumulator) {
+              return fn.compact(key.getKey(), accumulator);
+            }
+            @Override
             public AccumT extractOutput(KV<K, Integer> key, AccumT accumulator) {
               return accumulator;
             }
@@ -1786,6 +1835,10 @@ public class Combine {
             @Override
             public AccumT mergeAccumulators(K key, Iterable<AccumT> accumulators) {
               return fn.mergeAccumulators(key, accumulators);
+            }
+            @Override
+            public AccumT compact(K key, AccumT accumulator) {
+              return fn.compact(key, accumulator);
             }
             @Override
             public OutputT extractOutput(K key, AccumT accumulator) {

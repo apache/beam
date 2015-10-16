@@ -497,7 +497,7 @@ class WindmillStateInternals extends MergingStateInternals {
     @Override
     public void persist(Windmill.WorkItemCommitRequest.Builder commitBuilder) throws IOException {
       if (hasLocalAdditions) {
-        bag.add(localAdditionsAccum);
+        bag.add(combineFn.compact(localAdditionsAccum));
         localAdditionsAccum = combineFn.createAccumulator();
         hasLocalAdditions = false;
       }

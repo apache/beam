@@ -165,6 +165,11 @@ public class PartialGroupByKeyOperationTest {
       }
 
       @Override
+      public Integer compact(WindowedValue<String> key, Integer accumulator) {
+        return accumulator;
+      }
+
+      @Override
       public Integer extract(WindowedValue<String> key, Integer accumulator) {
         return accumulator;
       }
@@ -324,6 +329,11 @@ public class PartialGroupByKeyOperationTest {
           sum += part;
         }
         return sum;
+      }
+
+      @Override
+      public Long compact(Object key, Long accumulator) {
+        return accumulator;
       }
 
       @Override

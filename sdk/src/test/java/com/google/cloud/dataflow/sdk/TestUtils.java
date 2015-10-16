@@ -174,10 +174,14 @@ public class TestUtils {
       Iterable<? extends Iterable<InputT>> shards,
       Matcher<? super OutputT> matcher) {
     List<AccumT> accumulators = new ArrayList<>();
+    int maybeCompact = 0;
     for (Iterable<InputT> shard : shards) {
       AccumT accumulator = fn.createAccumulator();
       for (InputT elem : shard) {
         accumulator = fn.addInput(accumulator, elem);
+      }
+      if (maybeCompact++ % 2 == 0) {
+        accumulator = fn.compact(accumulator);
       }
       accumulators.add(accumulator);
     }

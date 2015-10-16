@@ -63,6 +63,7 @@ public class PartialGroupByKeyOperation extends ReceivingOperation {
     public AccumT createAccumulator(K key);
     public AccumT add(K key, AccumT accumulator, InputT value);
     public AccumT merge(K key, Iterable<AccumT> accumulators);
+    public AccumT compact(K key, AccumT accumulator);
     public OutputT extract(K key, AccumT accumulator);
   }
 
@@ -298,6 +299,7 @@ public class PartialGroupByKeyOperation extends ReceivingOperation {
       public AccumT getValue();
       public void add(InputT value) throws Exception;
       public long getSize();
+      public void compact() throws Exception;
     }
 
     public abstract GroupingTableEntry<K, InputT, AccumT> createTableEntry(K key) throws Exception;
@@ -354,6 +356,7 @@ public class PartialGroupByKeyOperation extends ReceivingOperation {
      */
     private void output(GroupingTableEntry<K, InputT, AccumT> entry, Receiver receiver)
         throws Exception {
+      entry.compact();
       receiver.process(pairInfo.makeOutputPair(entry.getKey(), entry.getValue()));
     }
 
@@ -410,6 +413,9 @@ public class PartialGroupByKeyOperation extends ReceivingOperation {
         }
 
         @Override
+        public void compact() { }
+
+        @Override
         public void add(V value) throws Exception {
           values.add(value);
           size += BYTES_PER_JVM_WORD + valueSizer.estimateSize(value);
@@ -460,6 +466,15 @@ public class PartialGroupByKeyOperation extends ReceivingOperation {
         @Override
         public long getSize() {
           return keySize + accumulatorSize;
+        }
+
+        @Override
+        public void compact() throws Exception {
+          AccumT newAccumulator = combiner.compact(key, accumulator);
+          if (newAccumulator != accumulator) {
+            accumulator = newAccumulator;
+            accumulatorSize = accumulatorSizer.estimateSize(newAccumulator);
+          }
         }
 
         @Override

@@ -336,8 +336,12 @@ public class DirectPipelineRunner
         // create a new accumulator after index i is added, i.e. [0]
         // is guaranteed, [1] is an even 1/2, [2] is 1/4, etc. The
         // goal is to partition the inputs into accumulators, and make
-        // the accumulators potentially lumpy.
+        // the accumulators potentially lumpy.  Also compact about half
+        // of the accumulators.
         if (i == 0 || random.nextInt(1 << Math.min(i, 30)) == 0) {
+          if (i % 2 == 0) {
+            accumulator = fn.compact(key, accumulator);
+          }
           out.add(accumulator);
           accumulator = fn.createAccumulator(key);
           hasInput = false;

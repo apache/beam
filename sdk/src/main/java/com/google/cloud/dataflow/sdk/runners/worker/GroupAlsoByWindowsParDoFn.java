@@ -215,16 +215,15 @@ class GroupAlsoByWindowsParDoFn extends ParDoFnBase {
     @Override
     public List<AccumT> addInput(K key, List<AccumT> accumulator, AccumT input) {
       accumulator.add(input);
-      // TODO: Buffer more once we have compaction operation.
-      if (accumulator.size() > 1) {
-        return mergeToSingleton(key, accumulator);
-      } else {
-        return accumulator;
-      }
+      return accumulator;
     }
     @Override
     public List<AccumT> mergeAccumulators(K key, Iterable<List<AccumT>> accumulators) {
       return mergeToSingleton(key, Iterables.concat(accumulators));
+    }
+    @Override
+    public List<AccumT> compact(K key, List<AccumT> accumulator) {
+      return mergeToSingleton(key, accumulator);
     }
     @Override
     public AccumT extractOutput(K key, List<AccumT> accumulator) {
