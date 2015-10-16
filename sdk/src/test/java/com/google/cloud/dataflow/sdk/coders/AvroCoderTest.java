@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.coders;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -65,6 +66,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.SortedMap;
 import java.util.SortedSet;
 import java.util.TreeMap;
@@ -707,5 +709,46 @@ public class AvroCoderTest {
     assertNonDeterministic(AvroCoder.of(NullableNonDeterministicField.class),
         reasonField(UnorderedMapClass.class, "mapField",
             " may not be deterministically ordered"));
+  }
+
+  /**
+   * Tests that a parameterized class can have an automatically generated schema if the generic
+   * field is annotated with a union tag.
+   */
+  @Test
+  public void testGenericClassWithUnionAnnotation() throws Exception {
+    // Cast is safe as long as the same coder is used for encoding and decoding.
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    AvroCoder<GenericWithAnnotation<String>> coder =
+        (AvroCoder) AvroCoder.of(GenericWithAnnotation.class);
+
+    assertThat(coder.getSchema().getField("onlySomeTypesAllowed").schema().getType(),
+        equalTo(Schema.Type.UNION));
+
+    CoderProperties.coderDecodeEncodeEqual(coder, new GenericWithAnnotation<>("hello"));
+  }
+
+  private static class GenericWithAnnotation<T> {
+    @AvroSchema("[\"string\", \"int\"]")
+    private T onlySomeTypesAllowed;
+
+    public GenericWithAnnotation(T value) {
+      onlySomeTypesAllowed = value;
+    }
+
+    // For deserialization only
+    @SuppressWarnings("unused")
+    protected GenericWithAnnotation() { }
+
+    @Override
+    public boolean equals(Object other) {
+      return other instanceof GenericWithAnnotation
+          && onlySomeTypesAllowed.equals(((GenericWithAnnotation<?>) other).onlySomeTypesAllowed);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(getClass(), onlySomeTypesAllowed);
+    }
   }
 }
