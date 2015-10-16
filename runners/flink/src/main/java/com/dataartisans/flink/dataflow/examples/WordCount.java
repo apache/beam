@@ -24,6 +24,7 @@ import com.google.cloud.dataflow.sdk.options.Default;
 import com.google.cloud.dataflow.sdk.options.Description;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.transforms.ParDo;
 
 public class WordCount {
 
@@ -41,28 +42,22 @@ public class WordCount {
 		@Description("Path of the file to write to")
 		String getOutput();
 		void setOutput(String value);
-
-		/**
-		 * By default (numShards == 0), the system will choose the shard count.
-		 * Most programs will not need this option.
-		 */
-		@Description("Number of output shards (0 if the system should choose automatically)")
-		int getNumShards();
-		void setNumShards(int value);
 	}
 	
 	public static void main(String[] args) {
 
-		Options options = PipelineOptionsFactory.fromArgs(args).as(Options.class);
+		Options options = PipelineOptionsFactory.fromArgs(args).withValidation()
+				.as(Options.class);
 		options.setRunner(FlinkPipelineRunner.class);
 
 		Pipeline p = Pipeline.create(options);
 
+		// Concepts #2 and #3: Our pipeline applies the composite CountWords transform, and passes the
+		// static FormatAsTextFn() to the ParDo transform.
 		p.apply(TextIO.Read.named("ReadLines").from(options.getInput()))
 				.apply(new CountWords())
-				.apply(TextIO.Write.named("WriteCounts")
-						.to(options.getOutput())
-						.withNumShards(options.getNumShards()));
+				.apply(ParDo.of(new com.google.cloud.dataflow.examples.WordCount.FormatAsTextFn()))
+				.apply(TextIO.Write.named("WriteCounts").to(options.getOutput()));
 
 		p.run();
 	}
