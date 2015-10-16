@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dataartisans.flink.dataflow.examples;
+package com.dataartisans.flink.dataflow;
 
 import com.dataartisans.flink.dataflow.FlinkPipelineRunner;
 import com.google.cloud.dataflow.sdk.Pipeline;
@@ -23,43 +23,44 @@ import com.google.cloud.dataflow.sdk.options.*;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
+import com.google.common.base.Joiner;
+import org.apache.flink.test.util.JavaProgramTestBase;
 
-/**
- * Created by max on 18/02/15.
- */
-public class MaybeEmptyTest {
+import java.io.Serializable;
 
-	private static interface Options extends PipelineOptions {
-		@Description("Path to the directory or GCS prefix containing files to read from")
-		@Default.String("gs://dataflow-samples/shakespeare/")
-		String getInput();
-		void setInput(String value);
+public class MaybeEmptyTestITCase extends JavaProgramTestBase implements Serializable {
 
-		@Description("Prefix of output URI to write to")
-		@Validation.Required
-		String getOutput();
-		void setOutput(String value);
+	protected String resultPath;
+
+	protected final String expected = "test";
+
+	public MaybeEmptyTestITCase() {
 	}
-	
-	public static void main(String[] args ){
-		Options options = PipelineOptionsFactory.create().as(Options.class);
-		options.setOutput("/tmp/output2.txt");
-		options.setInput("/tmp/documents");
-		//options.setRunner(DirectPipelineRunner.class);
-		options.setRunner(FlinkPipelineRunner.class);
 
-		Pipeline p = Pipeline.create(options);
+	@Override
+	protected void preSubmit() throws Exception {
+		resultPath = getTempDirPath("result");
+	}
+
+	@Override
+	protected void postSubmit() throws Exception {
+		compareResultsByLinesInMemory(expected, resultPath);
+	}
+
+	@Override
+	protected void testProgram() throws Exception {
+
+		Pipeline p = FlinkTestPipeline.create();
 
 		p.apply(Create.of((Void) null)).setCoder(VoidCoder.of())
 				.apply(ParDo.of(
 						new DoFn<Void, String>() {
 							@Override
 							public void processElement(DoFn<Void, String>.ProcessContext c) {
-								System.out.println("hello");
-								c.output("test");
+								c.output(expected);
 							}
-						})).apply(TextIO.Write.to("bla"));
+						})).apply(TextIO.Write.to(resultPath));
 		p.run();
-		
 	}
+
 }
