@@ -91,6 +91,14 @@ message TagList {
   optional int64 end_timestamp = 2 [default=-0x8000000000000000];
   repeated Value values = 3;
   optional string state_family = 4;
+
+  // For a TagList fetch request, attempt to limit the size of each fetched tag
+  // list to this byte limit.
+  optional int64 fetch_max_bytes = 6 [default =  0x7fffffffffffffff];
+  // The continuation token is returned whenever partial results are returned
+  // due to fetch byte limiting. Subsequent requests should set the returned
+  // continuation token to retrieve the next set of tag list values.
+  optional bytes continuation_token = 5;
 }
 
 message GlobalDataId {
