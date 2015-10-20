@@ -34,6 +34,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
+import com.google.cloud.dataflow.sdk.transforms.windowing.TriggerBuilder;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.TimerInternals.TimerData;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
@@ -53,6 +54,7 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 
 import org.joda.time.Duration;
@@ -110,11 +112,11 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
   }
 
   public static <W extends BoundedWindow> TriggerTester<Integer, Iterable<Integer>, W> nonCombining(
-      WindowFn<?, W> windowFn, Trigger<W> trigger, AccumulationMode mode,
+      WindowFn<?, W> windowFn, TriggerBuilder<W> trigger, AccumulationMode mode,
       Duration allowedDataLateness) throws Exception {
 
     WindowingStrategy<?, W> strategy = WindowingStrategy.of(windowFn)
-        .withTrigger(trigger)
+        .withTrigger(trigger.buildTrigger())
         .withMode(mode)
         .withAllowedLateness(allowedDataLateness);
     return nonCombining(strategy);
@@ -303,8 +305,8 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
   @SafeVarargs
   public final void injectElements(TimestampedValue<InputT>... values) throws Exception {
     ReduceFnRunner<String, InputT, OutputT, W> runner = createRunner();
-    runner.processElements(FluentIterable.of(values)
-        .transform(new Function<TimestampedValue<InputT>, WindowedValue<InputT>>() {
+    runner.processElements(Iterables.transform(
+        Arrays.asList(values), new Function<TimestampedValue<InputT>, WindowedValue<InputT>>() {
           @Override
           public WindowedValue<InputT> apply(TimestampedValue<InputT> input) {
             try {

@@ -192,6 +192,11 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
     boolean isFinished();
 
     /**
+     * Return true if the given subtrigger is marked finished.
+     */
+    boolean isFinished(int subtriggerIndex);
+
+    /**
      * Returns true if all the sub-triggers of the current trigger are marked finished.
      */
     boolean areAllSubtriggersFinished();
@@ -216,6 +221,11 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
      * Sets the finished bit for the current trigger.
      */
     void setFinished(boolean finished);
+
+    /**
+     * Sets the finished bit for the given sub-trigger.
+     */
+    void setFinished(boolean finished, int subTriggerIndex);
   }
 
   /**

@@ -78,6 +78,7 @@ public class TriggerExecutorTest {
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
+    when(mockTrigger.buildTrigger()).thenReturn(mockTrigger);
     firstWindow = new IntervalWindow(new Instant(0), new Instant(10));
   }
 

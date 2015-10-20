@@ -61,7 +61,7 @@ public class ExecutableTrigger<W extends BoundedWindow> implements Serializable 
   }
 
   private ExecutableTrigger(Trigger<W> trigger, int nextUnusedIndex) {
-    this.trigger = trigger;
+    this.trigger = Preconditions.checkNotNull(trigger, "trigger must not be null");
     this.triggerIndex = nextUnusedIndex++;
 
     if (trigger.subTriggers() != null) {

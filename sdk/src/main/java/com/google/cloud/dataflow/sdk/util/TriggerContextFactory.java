@@ -118,6 +118,11 @@ class TriggerContextFactory<W extends BoundedWindow> {
     }
 
     @Override
+    public boolean isFinished(int subtriggerIndex) {
+      return finishedSet.get(subTrigger(subtriggerIndex).getTriggerIndex());
+    }
+
+    @Override
     public boolean areAllSubtriggersFinished() {
       return Iterables.isEmpty(unfinishedSubTriggers());
     }
@@ -153,6 +158,11 @@ class TriggerContextFactory<W extends BoundedWindow> {
     @Override
     public void setFinished(boolean finished) {
       finishedSet.set(trigger.getTriggerIndex(), finished);
+    }
+
+    @Override
+    public void setFinished(boolean finished, int subTriggerIndex) {
+      finishedSet.set(subTrigger(subTriggerIndex).getTriggerIndex(), finished);
     }
   }
 
