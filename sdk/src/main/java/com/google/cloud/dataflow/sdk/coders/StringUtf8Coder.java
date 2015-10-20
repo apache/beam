@@ -19,10 +19,12 @@ package com.google.cloud.dataflow.sdk.coders;
 import com.google.cloud.dataflow.sdk.util.ExposedByteArrayOutputStream;
 import com.google.cloud.dataflow.sdk.util.StreamUtils;
 import com.google.cloud.dataflow.sdk.util.VarInt;
+import com.google.common.base.Utf8;
+import com.google.common.io.ByteStreams;
+import com.google.common.io.CountingOutputStream;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 
-import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.EOFException;
@@ -119,11 +121,13 @@ public class StringUtf8Coder extends AtomicCoder<String> {
       throw new CoderException("cannot encode a null String");
     }
     if (context.isWholeStream) {
-      return value.getBytes(StandardCharsets.UTF_8).length;
+      return Utf8.encodedLength(value);
     } else {
-      DataOutputStream stream = new DataOutputStream(new ByteArrayOutputStream());
+      CountingOutputStream countingStream =
+          new CountingOutputStream(ByteStreams.nullOutputStream());
+      DataOutputStream stream = new DataOutputStream(countingStream);
       writeString(value, stream);
-      return stream.size();
+      return countingStream.getCount();
     }
   }
 }

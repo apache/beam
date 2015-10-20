@@ -18,7 +18,6 @@ package com.google.cloud.dataflow.sdk.runners;
 
 import static com.google.cloud.dataflow.sdk.util.StringUtils.approximatePTransformName;
 import static com.google.cloud.dataflow.sdk.util.StringUtils.approximateSimpleName;
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.services.dataflow.Dataflow;
@@ -85,6 +84,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.base.Utf8;
 import com.google.common.collect.ImmutableMap;
 
 import org.joda.time.DateTimeUtils;
@@ -391,7 +391,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     } catch (GoogleJsonResponseException e) {
       String errorMessages = "Unexpected errors";
       if (e.getDetails() != null) {
-        if (newJob.toString().getBytes(UTF_8).length >= CREATE_JOB_REQUEST_LIMIT_BYTES) {
+        if (Utf8.encodedLength(newJob.toString()) >= CREATE_JOB_REQUEST_LIMIT_BYTES) {
           errorMessages = "The size of the serialized JSON representation of the pipeline "
               + "exceeds the allowable limit. "
               + "For more information, please check the FAQ link below:\n"
@@ -1086,8 +1086,8 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     @Override
     public OutputT apply(InputT input) {
       throw new UnsupportedOperationException(
-          "The DataflowPipelineRunner in streaming mode does not support " +
-          approximatePTransformName(transform.getClass()));
+          "The DataflowPipelineRunner in streaming mode does not support "
+          + approximatePTransformName(transform.getClass()));
     }
 
   }
