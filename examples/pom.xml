@@ -245,29 +245,47 @@
           <bottom><![CDATA[<br>]]></bottom>
 
           <offlineLinks>
+            <!-- The Dataflow SDK docs -->
             <offlineLink>
               <url>https://cloud.google.com/dataflow/java-sdk/JavaDoc/</url>
               <location>${basedir}/../javadoc/dataflow-sdk-docs</location>
+            </offlineLink>
+            <!-- Other dependencies -->
+            <offlineLink>
+              <url>https://developers.google.com/api-client-library/java/google-api-java-client/reference/1.20.0/</url>
+              <location>${basedir}/../javadoc/apiclient-docs</location>
+            </offlineLink>
+            <offlineLink>
+              <url>http://avro.apache.org/docs/1.7.7/api/java/</url>
+              <location>${basedir}/../javadoc/avro-docs</location>
+            </offlineLink>
+            <offlineLink>
+              <url>https://developers.google.com/resources/api-libraries/documentation/bigquery/v2/java/latest/</url>
+              <location>${basedir}/../javadoc/bq-docs</location>
+            </offlineLink>
+            <offlineLink>
+              <url>https://cloud.google.com/datastore/docs/apis/javadoc/</url>
+              <location>${basedir}/../javadoc/datastore-docs</location>
             </offlineLink>
             <offlineLink>
               <url>http://docs.guava-libraries.googlecode.com/git-history/release18/javadoc/</url>
               <location>${basedir}/../javadoc/guava-docs</location>
             </offlineLink>
             <offlineLink>
-              <url>http://www.joda.org/joda-time/apidocs</url>
-              <location>${basedir}/../javadoc/joda-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>https://developers.google.com/resources/api-libraries/documentation/bigquery/v2/java/latest/</url>
-              <location>${basedir}/../javadoc//bq-docs</location>
+              <url>http://fasterxml.github.io/jackson-annotations/javadoc/2.4/</url>
+              <location>${basedir}/../javadoc/jackson-annotations-docs</location>
             </offlineLink>
             <offlineLink>
               <url>http://fasterxml.github.io/jackson-databind/javadoc/2.4/</url>
               <location>${basedir}/../javadoc/jackson-databind-docs</location>
             </offlineLink>
             <offlineLink>
-              <url>http://fasterxml.github.io/jackson-annotations/javadoc/2.4/</url>
-              <location>${basedir}/../javadoc/jackson-annotations-docs</location>
+              <url>http://www.joda.org/joda-time/apidocs</url>
+              <location>${basedir}/../javadoc/joda-docs</location>
+            </offlineLink>
+            <offlineLink>
+              <url>https://developers.google.com/api-client-library/java/google-oauth-java-client/reference/1.20.0/</url>
+              <location>${basedir}/../javadoc/oauth-docs</location>
             </offlineLink>
           </offlineLinks>
         </configuration>
@@ -350,6 +368,7 @@
     <dependency>
       <groupId>com.google.api-client</groupId>
       <artifactId>google-api-client</artifactId>
+      <!-- If updating version, please update the javadoc offlineLink -->
       <version>1.20.0</version>
       <exclusions>
         <!-- Exclude an old version of guava that is being pulled
@@ -378,6 +397,7 @@
     <dependency>
       <groupId>com.google.apis</groupId>
       <artifactId>google-api-services-bigquery</artifactId>
+      <!-- If updating version, please update the javadoc offlineLink -->
       <version>v2-rev187-1.19.1</version>
       <exclusions>
         <!-- Exclude an old version of guava that is being pulled
@@ -406,12 +426,14 @@
     <dependency>
       <groupId>org.apache.avro</groupId>
       <artifactId>avro</artifactId>
+      <!-- If updating version, please update the javadoc offlineLink -->
       <version>1.7.7</version>
     </dependency>
 
     <dependency>
       <groupId>com.google.apis</groupId>
       <artifactId>google-api-services-datastore-protobuf</artifactId>
+      <!-- If updating version, please update the javadoc offlineLink -->
       <version>v1beta2-rev1-2.1.2</version>
       <exclusions>
         <!-- Exclude an old version of guava that is being pulled
@@ -440,12 +462,14 @@
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
+      <!-- If updating version, please update the javadoc offlineLink -->
       <version>18.0</version>
     </dependency>
 
     <dependency>
       <groupId>joda-time</groupId>
       <artifactId>joda-time</artifactId>
+      <!-- If updating version, please update the javadoc offlineLink -->
       <version>2.4</version>
     </dependency>
 
@@ -461,6 +485,7 @@
     <dependency>
       <groupId>org.hamcrest</groupId>
       <artifactId>hamcrest-all</artifactId>
+      <!-- If updating version, please update the javadoc offlineLink -->
       <version>1.3</version>
     </dependency>
 
