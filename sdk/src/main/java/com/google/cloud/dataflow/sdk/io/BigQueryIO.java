@@ -110,6 +110,8 @@ import java.util.regex.Pattern;
  *         .from("clouddataflow-readonly:samples.weather_stations");
  * }</pre>
  *
+ * <p>See {@link TableRow} for more information on the {@code TableRow} object.
+ *
  * <p>Users may provide a query to read from rather than reading all of a BigQuery table. If
  * specified, the result obtained by executing the specified query will be used as the data of the
  * input transform.
@@ -171,8 +173,6 @@ import java.util.regex.Pattern;
  * }</pre>
  *
  * <p>Per-window tables are not yet supported in batch mode.
- *
- * @see <a href="https://developers.google.com/resources/api-libraries/documentation/bigquery/v2/java/latest/com/google/api/services/bigquery/model/TableRow.html">TableRow</a>
  *
  * <p><h3>Permissions</h3>
  * Permission requirements depend on the
@@ -499,7 +499,7 @@ public class BigQueryIO {
    * <p>By default, tables will be created if they do not exist, which
    * corresponds to a {@code CreateDisposition.CREATE_IF_NEEDED} disposition
    * that matches the default of BigQuery's Jobs API.  A schema must be
-   * provided (via {@link Write#withSchema}), or else the transform may fail
+   * provided (via {@link BigQueryIO.Write#withSchema}), or else the transform may fail
    * at runtime with an {@link java.lang.IllegalArgumentException}.
    *
    * <p>The dataset being written must already exist.
@@ -539,7 +539,7 @@ public class BigQueryIO {
        * Specifies that tables should be created if needed. This is the default
        * behavior.
        *
-       * <p>Requires that a table schema is provided via {@link Write#withSchema}.
+       * <p>Requires that a table schema is provided via {@link BigQueryIO.Write#withSchema}.
        * This precondition is checked before starting a job. The schema is
        * not required to match an existing table's schema.
        *

@@ -93,7 +93,7 @@ import javax.annotation.Nullable;
  *
  * <h2> Triggers </h2>
  *
- * <p>{@link Window.Bound#triggering(Trigger)} allows specifying a trigger to control when
+ * <p>{@link Window.Bound#triggering(TriggerBuilder)} allows specifying a trigger to control when
  * (in processing time) results for the given window can be produced. If unspecified, the default
  * behavior is to trigger first when the watermark passes the end of the window, and then trigger
  * again every time there is late arriving data.

@@ -477,7 +477,7 @@ public class TextIO {
        * Returns a new TextIO.Write PTransform that's like this one but
        * that writes to the file(s) with the given filename prefix.
        *
-       * <p>See {@link Write#to(String) Write.to(String)} for more information.
+       * <p>See {@link TextIO.Write#to(String) Write.to(String)} for more information.
        *
        * <p>Does not modify this object.
        */

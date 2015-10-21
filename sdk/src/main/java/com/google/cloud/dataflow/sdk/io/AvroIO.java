@@ -501,7 +501,7 @@ public class AvroIO {
        * Returns a new AvroIO.Write PTransform that's like this one but
        * that writes to the file(s) with the given filename prefix.
        *
-       * <p>See {@link Write#to(String) Write.to(String)} for more information.
+       * <p>See {@link AvroIO.Write#to(String)} for more information.
        *
        * <p>Does not modify this object.
        */

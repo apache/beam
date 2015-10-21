@@ -28,7 +28,7 @@ import java.util.Collection;
 public interface ActiveWindowSet<W extends BoundedWindow> {
 
   /**
-   * Callback for {@link #mergeIfAppropriate}.
+   * Callback for {@link #merge}.
    */
   public interface MergeCallback<W extends BoundedWindow> {
     void onMerge(Collection<W> mergedWindows, W resultWindow, boolean isResultNew) throws Exception;
