@@ -17,13 +17,11 @@
 package com.google.cloud.dataflow.sdk.transforms;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
-import com.google.cloud.dataflow.sdk.runners.RecordingPipelineVisitor;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -200,23 +198,6 @@ public class TopTest {
     expectedEx.expectMessage(Matchers.containsString(">= 0"));
 
     input.apply(Top.of(-1, new OrderByLength()));
-  }
-
-  @SuppressWarnings("deprecation")  // deprecated for testing
-  @Test
-  public void testTransformName() {
-    Pipeline p = TestPipeline.create();
-    PCollection<String> input =
-        p.apply(Create.of(Arrays.asList(COLLECTION))
-            .withCoder(StringUtf8Coder.of()));
-
-    PTransform<PCollection<String>, PCollection<List<String>>> top = Top
-        .of(10, new OrderByLength());
-    input.apply(top);
-
-    p.traverseTopologically(new RecordingPipelineVisitor());
-    // Check that the transform is named "Top" rather than "Combine".
-    assertThat(p.getFullNameForTesting(top), Matchers.startsWith("Top"));
   }
 
   @Test

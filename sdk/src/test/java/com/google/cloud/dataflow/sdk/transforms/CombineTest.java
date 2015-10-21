@@ -34,7 +34,6 @@ import com.google.cloud.dataflow.sdk.coders.SerializableCoder;
 import com.google.cloud.dataflow.sdk.coders.StandardCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
-import com.google.cloud.dataflow.sdk.runners.RecordingPipelineVisitor;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
@@ -309,28 +308,17 @@ public class CombineTest implements Serializable {
 
   // Checks that Min, Max, Mean, Sum (operations that pass-through to Combine),
   // provide their own top-level name.
-  @SuppressWarnings("deprecation")  // deprecated for testing
   @Test
   public void testCombinerNames() {
-    Pipeline p = TestPipeline.create();
-    PCollection<KV<String, Integer>> input = createInput(p, TABLE);
-
     Combine.PerKey<String, Integer, Integer> min = Min.integersPerKey();
     Combine.PerKey<String, Integer, Integer> max = Max.integersPerKey();
     Combine.PerKey<String, Integer, Double> mean = Mean.perKey();
     Combine.PerKey<String, Integer, Integer> sum = Sum.integersPerKey();
 
-    input.apply(min);
-    input.apply(max);
-    input.apply(mean);
-    input.apply(sum);
-
-    p.traverseTopologically(new RecordingPipelineVisitor());
-
-    assertThat(p.getFullNameForTesting(min), Matchers.startsWith("Min"));
-    assertThat(p.getFullNameForTesting(max), Matchers.startsWith("Max"));
-    assertThat(p.getFullNameForTesting(mean), Matchers.startsWith("Mean"));
-    assertThat(p.getFullNameForTesting(sum), Matchers.startsWith("Sum"));
+    assertThat(min.getName(), Matchers.startsWith("Min"));
+    assertThat(max.getName(), Matchers.startsWith("Max"));
+    assertThat(mean.getName(), Matchers.startsWith("Mean"));
+    assertThat(sum.getName(), Matchers.startsWith("Sum"));
   }
 
   @Test
