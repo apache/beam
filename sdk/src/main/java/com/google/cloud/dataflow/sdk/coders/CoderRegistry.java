@@ -248,11 +248,11 @@ public class CoderRegistry implements CoderProvider {
 
       List<Object> components = factory.getInstanceComponents(exampleValue);
       if (components == null) {
-        throw new CannotProvideCoderException(
-            "Cannot provide coder based on value with class "
-            + clazz + ": The registered CoderFactory with class "
-            + factory.getClass() + " failed to decompose the value, "
-            + "which is required in order to provide Coders for the components.");
+        throw new CannotProvideCoderException(String.format(
+            "Cannot provide coder based on value with class %s: The registered CoderFactory with "
+            + "class %s failed to decompose the value, which is required in order to provide "
+            + "Coders for the components.",
+            clazz.getCanonicalName(), factory.getClass().getCanonicalName()));
       }
 
       // componentcoders = components.map(this.getDefaultCoder)
@@ -263,7 +263,9 @@ public class CoderRegistry implements CoderProvider {
           componentCoders.add(componentCoder);
         } catch (CannotProvideCoderException exc) {
           throw new CannotProvideCoderException(
-              "Cannot provide coder based on value with class " + clazz, exc);
+              String.format("Cannot provide coder based on value with class %s",
+                  clazz.getCanonicalName()),
+              exc);
         }
       }
 
@@ -466,8 +468,8 @@ public class CoderRegistry implements CoderProvider {
       knownCoders = new Coder<?>[typeArgs.length];
     } else if (typeArgs.length != knownCoders.length) {
       throw new IllegalArgumentException(
-          "Class " + baseClass + " has " + typeArgs.length + " parameters, "
-          + "but " + knownCoders.length + " coders are requested.");
+          String.format("Class %s has %d parameters, but %d coders are requested.",
+              baseClass.getCanonicalName(), typeArgs.length, knownCoders.length));
     }
 
     Map<Type, Coder<?>> context = new HashMap<>();
@@ -639,8 +641,8 @@ public class CoderRegistry implements CoderProvider {
       return coderFactoryOrNull;
     } else {
       throw new CannotProvideCoderException(
-          "Cannot provide coder based on value with class "
-          + clazz + ": No CoderFactory has been registered for the class.");
+          String.format("Cannot provide coder based on value with class %s: No CoderFactory has "
+              + "been registered for the class.", clazz.getCanonicalName()));
     }
   }
 
@@ -769,7 +771,9 @@ public class CoderRegistry implements CoderProvider {
         typeArgumentCoders.add(typeArgumentCoder);
       } catch (CannotProvideCoderException exc) {
          throw new CannotProvideCoderException(
-          "Cannot provide coder for parameterized type " + type,
+          String.format("Cannot provide coder for parameterized type %s: %s",
+              type,
+              exc.getMessage()),
           exc);
       }
     }

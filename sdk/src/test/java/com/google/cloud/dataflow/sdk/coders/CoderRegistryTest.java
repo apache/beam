@@ -119,6 +119,7 @@ public class CoderRegistryTest {
   @Test
   public void testRegisterInstantiatedCoderInvalidRawtype() throws Exception {
     thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("may not be used with unspecialized generic classes");
     CoderRegistry registry = new CoderRegistry();
     registry.registerCoder(List.class, new MyListCoder());
   }
@@ -133,6 +134,11 @@ public class CoderRegistryTest {
   public void testSimpleUnknownDefaultCoder() throws Exception {
     CoderRegistry registry = getStandardRegistry();
     thrown.expect(CannotProvideCoderException.class);
+    thrown.expectMessage(allOf(
+        containsString(UnknownType.class.getCanonicalName()),
+        containsString("No CoderFactory has been registered"),
+        containsString("does not have a @DefaultCoder annotation"),
+        containsString("does not implement Serializable")));
     registry.getDefaultCoder(UnknownType.class);
   }
 
@@ -190,6 +196,11 @@ public class CoderRegistryTest {
     TypeDescriptor<List<UnknownType>> listUnknownToken = new TypeDescriptor<List<UnknownType>>() {};
 
     thrown.expect(CannotProvideCoderException.class);
+    thrown.expectMessage(String.format(
+        "Cannot provide coder for parameterized type %s: Unable to provide a default Coder for %s",
+        listUnknownToken,
+        UnknownType.class.getCanonicalName()));
+
     registry.getDefaultCoder(listUnknownToken);
   }
 
