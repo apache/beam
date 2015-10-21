@@ -33,6 +33,7 @@ import com.google.api.services.dataflow.model.ApproximateProgress;
 import com.google.api.services.dataflow.model.Position;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.coders.Coder.Context;
 import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
@@ -46,6 +47,7 @@ import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
+import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
 import com.google.cloud.dataflow.sdk.util.common.Reiterable;
 import com.google.cloud.dataflow.sdk.util.common.worker.ExecutorTestUtils;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
@@ -133,8 +135,11 @@ public class GroupingShuffleReaderTest {
 
   private List<KV<Integer, List<String>>> runIterationOverGroupingShuffleReader(
       BatchModeExecutionContext context, TestShuffleReader shuffleReader,
-      GroupingShuffleReader<Integer, String> groupingShuffleReader, ValuesToRead valuesToRead)
+      GroupingShuffleReader<Integer, String> groupingShuffleReader,
+      Coder<WindowedValue<KV<Integer, Iterable<String>>>> coder, ValuesToRead valuesToRead)
       throws Exception {
+    Counter<Long> elementByteSizeCounter = Counter.longs("element-byte-size-counter", SUM);
+    ElementByteSizeObserver elementObserver = new ElementByteSizeObserver(elementByteSizeCounter);
     List<KV<Integer, List<String>>> actual = new ArrayList<>();
     try (Reader.ReaderIterator<WindowedValue<KV<Integer, Reiterable<String>>>> iter =
         groupingShuffleReader.iterator(shuffleReader)) {
@@ -144,12 +149,18 @@ public class GroupingShuffleReaderTest {
         assertTrue(iter.hasNext());
         assertTrue(iter.hasNext());
 
-        WindowedValue<KV<Integer, Reiterable<String>>> windowedValue = iter.next();
+        @SuppressWarnings({"rawtypes", "unchecked"})  // safe co-variant cast.
+        WindowedValue<KV<Integer, Iterable<String>>> windowedValue = (WindowedValue) iter.next();
+        // Verify that the byte size observer is lazy for every value the GroupingShuffleReader
+        // produces.
+        coder.registerByteSizeObserver(windowedValue, elementObserver, Context.OUTER);
+        assertTrue(elementObserver.getIsLazy());
+
         // Verify value is in an empty windows.
         assertEquals(BoundedWindow.TIMESTAMP_MIN_VALUE, windowedValue.getTimestamp());
         assertEquals(0, windowedValue.getWindows().size());
 
-        KV<Integer, Reiterable<String>> elem = windowedValue.getValue();
+        KV<Integer, Iterable<String>> elem = windowedValue.getValue();
         Integer key = elem.getKey();
         List<String> values = new ArrayList<>();
         if (valuesToRead.ordinal() > ValuesToRead.SKIP_VALUES.ordinal()) {
@@ -230,7 +241,7 @@ public class GroupingShuffleReaderTest {
     }
 
     List<KV<Integer, List<String>>> actual = runIterationOverGroupingShuffleReader(
-        context, shuffleReader, groupingShuffleReader, valuesToRead);
+        context, shuffleReader, groupingShuffleReader, sourceElemCoder, valuesToRead);
 
     List<KV<Integer, List<String>>> expected = new ArrayList<>();
     for (KV<Integer, List<String>> kvs : input) {
@@ -305,7 +316,7 @@ public class GroupingShuffleReaderTest {
         addCounterMutator.addCounter(Counter.longs("dax-shuffle-test-wf-read-bytes", SUM));
 
     runIterationOverGroupingShuffleReader(
-        context, shuffleReader, groupingShuffleReader, valuesToRead);
+        context, shuffleReader, groupingShuffleReader, sourceElemCoder, valuesToRead);
 
     assertEquals(expectedReadBytes,
                  (long) groupingShuffleReader.perOperationPerDatasetBytesCounter.getAggregate());

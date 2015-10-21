@@ -33,6 +33,8 @@ import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowedValue.WindowedValueCoder;
 import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
+import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObservableIterable;
+import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObservableIterator;
 import com.google.cloud.dataflow.sdk.util.common.Reiterable;
 import com.google.cloud.dataflow.sdk.util.common.Reiterator;
 import com.google.cloud.dataflow.sdk.util.common.worker.AbstractBoundedReaderIterator;
@@ -171,7 +173,7 @@ public class GroupingShuffleReader<K, V> extends Reader<WindowedValue<KV<K, Reit
    * to the current key, which would introduce a performance
    * penalty.
    */
-  private final class GroupingShuffleReaderIterator
+  final class GroupingShuffleReaderIterator
       extends AbstractBoundedReaderIterator<WindowedValue<KV<K, Reiterable<V>>>> {
     // N.B. This class is *not* static; it uses the keyCoder, valueCoder, and
     // executionContext from its enclosing GroupingShuffleReader.
@@ -311,7 +313,8 @@ public class GroupingShuffleReader<K, V> extends Reader<WindowedValue<KV<K, Reit
      * of a {@code KV<K, Reiterable<V>>} entry produced by a
      * {@link GroupingShuffleReader}.
      */
-    private final class ValuesIterable implements Reiterable<V> {
+    private final class ValuesIterable extends ElementByteSizeObservableIterable<V, ValuesIterator>
+        implements Reiterable<V> {
       // N.B. This class is *not* static; it uses the valueCoder from
       // its enclosing GroupingShuffleReader.
 
@@ -325,6 +328,11 @@ public class GroupingShuffleReader<K, V> extends Reader<WindowedValue<KV<K, Reit
       public ValuesIterator iterator() {
         return new ValuesIterator(base.iterator());
       }
+
+      @Override
+      protected ValuesIterator createIterator() {
+        return iterator();
+      }
     }
 
     /**
@@ -332,7 +340,8 @@ public class GroupingShuffleReader<K, V> extends Reader<WindowedValue<KV<K, Reit
      * of a {@code KV<K, Reiterable<V>>} entry produced by a
      * {@link GroupingShuffleReader}.
      */
-    private final class ValuesIterator implements Reiterator<V> {
+    private final class ValuesIterator extends ElementByteSizeObservableIterator<V>
+        implements Reiterator<V> {
       // N.B. This class is *not* static; it uses the valueCoder from
       // its enclosing GroupingShuffleReader.
 
@@ -357,11 +366,14 @@ public class GroupingShuffleReader<K, V> extends Reader<WindowedValue<KV<K, Reit
             GroupingShuffleReaderIterator.this.stateSampler.scopedState(
                 GroupingShuffleReaderIterator.this.readState)) {
           ShuffleEntry entry = base.next();
+
           // The shuffle entries are handed over to the consumer of this iterator. Therefore, we can
           // mark the values are read and increment the bytes read counter.
+          long lastGroupSize = currentGroupSize.getAndSet(0L);
+          notifyValueReturned(lastGroupSize);
           if (GroupingShuffleReader.this.perOperationPerDatasetBytesCounter != null) {
             GroupingShuffleReader.this
-                .perOperationPerDatasetBytesCounter.addValue(currentGroupSize.getAndSet(0L));
+                .perOperationPerDatasetBytesCounter.addValue(lastGroupSize);
           }
           try {
             return CoderUtils.decodeFromByteArray(valueCoder, entry.getValue());
