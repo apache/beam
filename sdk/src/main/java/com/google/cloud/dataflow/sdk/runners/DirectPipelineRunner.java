@@ -966,9 +966,9 @@ public class DirectPipelineRunner
   /////////////////////////////////////////////////////////////////////////////
 
   private final DirectPipelineOptions options;
-  private boolean testSerializability = true;
-  private boolean testEncodability = true;
-  private boolean testUnorderedness = true;
+  private boolean testSerializability;
+  private boolean testEncodability;
+  private boolean testUnorderedness;
 
   /** Returns a new DirectPipelineRunner. */
   private DirectPipelineRunner(DirectPipelineOptions options) {
@@ -984,6 +984,10 @@ public class DirectPipelineRunner
 
     LOG.debug("DirectPipelineRunner using random seed {}.", randomSeed);
     rand = new Random(randomSeed);
+
+    testSerializability = options.isTestSerializability();
+    testEncodability = options.isTestEncodability();
+    testUnorderedness = options.isTestUnorderedness();
   }
 
   public DirectPipelineOptions getPipelineOptions() {
