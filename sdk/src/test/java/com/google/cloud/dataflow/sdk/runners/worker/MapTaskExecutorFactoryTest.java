@@ -117,6 +117,7 @@ public class MapTaskExecutorFactoryTest {
 
     MapTask mapTask = new MapTask();
     mapTask.setStageName("test");
+    mapTask.setSystemName("stageName");
     mapTask.setInstructions(instructions);
 
     CounterSet counterSet = new CounterSet();
@@ -157,6 +158,10 @@ public class MapTaskExecutorFactoryTest {
             Counter.longs(getObjectCounterName("read_output_name"), SUM).resetToValue(0L),
             Counter.longs(getMeanByteCounterName("read_output_name"), MEAN).resetMeanToValue(0, 0L),
             Counter.longs("Read-ByteCount", SUM).resetToValue(0L),
+            Counter.doubles(
+                "dataflow_total_parallelism-stageName", SUM).resetToValue(1e100),
+            Counter.doubles(
+                "dataflow_remaining_parallelism-stageName", SUM).resetToValue(0.0),
             Counter.longs("test-Read-start-msecs", SUM).resetToValue(0L),
             Counter.longs("test-Read-process-msecs", SUM).resetToValue(0L),
             Counter.longs("test-Read-finish-msecs", SUM).resetToValue(0L),
@@ -250,6 +255,7 @@ public class MapTaskExecutorFactoryTest {
   public void testCreateReadOperation() throws Exception {
     CounterSet counterSet = new CounterSet();
     String counterPrefix = "test-";
+    String systemStageName = "stageName";
     StateSampler stateSampler = new StateSampler(counterPrefix, counterSet.getAddCounterMutator());
     Operation operation = MapTaskExecutorFactory.createOperation(
         PipelineOptionsFactory.create(),
@@ -258,6 +264,7 @@ public class MapTaskExecutorFactoryTest {
         BatchModeExecutionContext.fromOptions(options),
         Collections.<Operation>emptyList(),
         counterPrefix,
+        systemStageName,
         counterSet.getAddCounterMutator(),
         stateSampler);
     assertThat(operation, instanceOf(ReadOperation.class));
@@ -272,6 +279,10 @@ public class MapTaskExecutorFactoryTest {
         new CounterSet(
             Counter.longs("test-Read-start-msecs", SUM).resetToValue(0L),
             Counter.longs("Read-ByteCount", SUM).resetToValue(0L),
+            Counter.doubles(
+                "dataflow_total_parallelism-stageName", SUM).resetToValue(1e100),
+            Counter.doubles(
+                "dataflow_remaining_parallelism-stageName", SUM).resetToValue(0.0),
             Counter.longs("test-Read-finish-msecs", SUM).resetToValue(0L),
             Counter.longs("test-Read-process-msecs", SUM),
             Counter.longs(getMeanByteCounterName("read_output_name"), MEAN).resetMeanToValue(0, 0L),
@@ -318,10 +329,11 @@ public class MapTaskExecutorFactoryTest {
 
     CounterSet counterSet = new CounterSet();
     String counterPrefix = "test-";
+    String systemStageName = "stageName";
     StateSampler stateSampler = new StateSampler(counterPrefix, counterSet.getAddCounterMutator());
     Operation operation = MapTaskExecutorFactory.createOperation(options,
         instruction, BatchModeExecutionContext.fromOptions(options), priorOperations, counterPrefix,
-        counterSet.getAddCounterMutator(), stateSampler);
+        systemStageName, counterSet.getAddCounterMutator(), stateSampler);
     assertThat(operation, instanceOf(WriteOperation.class));
     WriteOperation writeOperation = (WriteOperation) operation;
 
@@ -406,6 +418,7 @@ public class MapTaskExecutorFactoryTest {
     DataflowExecutionContext context = BatchModeExecutionContext.fromOptions(options);
     CounterSet counterSet = new CounterSet();
     String counterPrefix = "test-";
+    String systemStageName = "stageName";
     StateSampler stateSampler = new StateSampler(counterPrefix, counterSet.getAddCounterMutator());
     Operation operation = MapTaskExecutorFactory.createOperation(
         options,
@@ -414,6 +427,7 @@ public class MapTaskExecutorFactoryTest {
         context,
         priorOperations,
         counterPrefix,
+        systemStageName,
         counterSet.getAddCounterMutator(),
         stateSampler);
     assertThat(operation, instanceOf(ParDoOperation.class));
@@ -475,6 +489,7 @@ public class MapTaskExecutorFactoryTest {
 
     CounterSet counterSet = new CounterSet();
     String counterPrefix = "test-";
+    String systemStageName = "stageName";
     StateSampler stateSampler = new StateSampler(counterPrefix, counterSet.getAddCounterMutator());
     Operation operation = MapTaskExecutorFactory.createOperation(
         options,
@@ -483,6 +498,7 @@ public class MapTaskExecutorFactoryTest {
         BatchModeExecutionContext.fromOptions(options),
         priorOperations,
         counterPrefix,
+        systemStageName,
         counterSet.getAddCounterMutator(),
         stateSampler);
     assertThat(operation, instanceOf(PartialGroupByKeyOperation.class));
@@ -541,6 +557,7 @@ public class MapTaskExecutorFactoryTest {
 
     CounterSet counterSet = new CounterSet();
     String counterPrefix = "test-";
+    String systemStageName = "stageName";
     StateSampler stateSampler = new StateSampler(counterPrefix, counterSet.getAddCounterMutator());
     Operation operation = MapTaskExecutorFactory.createOperation(
         options,
@@ -549,6 +566,7 @@ public class MapTaskExecutorFactoryTest {
         BatchModeExecutionContext.fromOptions(options),
         priorOperations,
         counterPrefix,
+        systemStageName,
         counterSet.getAddCounterMutator(),
         stateSampler);
     assertThat(operation, instanceOf(FlattenOperation.class));

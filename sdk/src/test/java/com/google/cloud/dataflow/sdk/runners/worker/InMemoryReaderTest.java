@@ -186,4 +186,22 @@ public class InMemoryReaderTest {
       assertEquals(4, iterator.tracker.getStopPosition().longValue());
     }
   }
+
+  @Test
+  public void testParallelism() throws Exception {
+    List<Integer> elements = Arrays.asList(33, 44, 55, 66, 77, 88);
+
+    Coder<Integer> coder = BigEndianIntegerCoder.of();
+    InMemoryReader<Integer> inMemoryReader =
+        new InMemoryReader<>(encodedElements(elements, coder), 1L, 4L, coder);
+    int count = 0;
+    for (Reader.ReaderIterator iterator = inMemoryReader.iterator();
+        iterator.hasNext();
+        iterator.next()) {
+      assertTrue(iterator.getRemainingParallelism() >= 1);
+      assertEquals(3 - count, iterator.getRemainingParallelism(), 0 /*tolerance*/);
+      count++;
+    }
+    assertEquals(count, inMemoryReader.getTotalParallelism(), 0 /*tolerance*/);
+  }
 }

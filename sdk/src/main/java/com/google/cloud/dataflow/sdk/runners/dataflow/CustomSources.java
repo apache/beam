@@ -590,6 +590,11 @@ public class CustomSources {
       }
       return new BoundedSourceSplit<T>(primary, residual);
     }
+
+    @Override
+    public double getRemainingParallelism() {
+      return Double.NaN;
+    }
   }
 
   private static class UnboundedReaderIterator<T>
@@ -659,6 +664,11 @@ public class CustomSources {
     @Override
     public Reader.DynamicSplitResult requestDynamicSplit(Reader.DynamicSplitRequest request) {
       return null;
+    }
+
+    @Override
+    public double getRemainingParallelism() {
+      return Double.NaN;
     }
   }
 }

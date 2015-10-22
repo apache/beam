@@ -80,6 +80,11 @@ public class InMemoryReader<T> extends Reader<T> {
     return new InMemoryReaderIterator();
   }
 
+  @Override
+  public double getTotalParallelism() {
+    return this.endIndex - this.startIndex;
+  }
+
   /**
    * A ReaderIterator that yields an in-memory list of elements.
    */
@@ -121,6 +126,11 @@ public class InMemoryReader<T> extends Reader<T> {
       progress.setPosition(currentPosition);
 
       return cloudProgressToReaderProgress(progress);
+    }
+
+    @Override
+    public double getRemainingParallelism() {
+      return tracker.getStopPosition() - nextIndex;
     }
 
     @Override

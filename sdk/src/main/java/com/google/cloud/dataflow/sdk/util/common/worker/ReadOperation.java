@@ -47,6 +47,12 @@ public class ReadOperation extends Operation {
   /** The total byte counter for all data read by this operation. */
   final Counter<Long> byteCount;
 
+  /** The counter for estimating total parallelism in this task. */
+  private final Counter<Double> totalParallelismCounter;
+
+  /** The counter for estimating remaining parallelism in this task. */
+  private final Counter<Double> remainingParallelismCounter;
+
   /**
    * The Reader's iterator this operation reads from, created by start().
    * Guarded by sourceIteratorLock.
@@ -75,7 +81,7 @@ public class ReadOperation extends Operation {
 
 
   public ReadOperation(String operationName, Reader<?> reader, OutputReceiver[] receivers,
-      String counterPrefix, CounterSet.AddCounterMutator addCounterMutator,
+      String counterPrefix, String systemStageName, CounterSet.AddCounterMutator addCounterMutator,
       StateSampler stateSampler) {
     super(operationName, receivers, counterPrefix, addCounterMutator,
           stateSampler, reader.getStateSamplerStateKind());
@@ -84,13 +90,19 @@ public class ReadOperation extends Operation {
         Counter.longs(bytesCounterName(counterPrefix, operationName), SUM));
     reader.addObserver(new ReaderObserver());
     reader.setStateSamplerAndOperationName(stateSampler, operationName);
+    this.totalParallelismCounter = addCounterMutator.addCounter(
+        Counter.doubles(totalParallelismCounterName(systemStageName), SUM));
+    // Set only when a task is started or split.
+    totalParallelismCounter.resetToValue(fixJsonDouble(reader.getTotalParallelism()));
+    this.remainingParallelismCounter = addCounterMutator.addCounter(
+        Counter.doubles(remainingParallelismCounterName(systemStageName), SUM));
   }
 
-  /** Invoked by tests. */
-  ReadOperation(Reader<?> reader, OutputReceiver outputReceiver, String counterPrefix,
-      CounterSet.AddCounterMutator addCounterMutator, StateSampler stateSampler) {
-    this("ReadOperation", reader, new OutputReceiver[]{outputReceiver}, counterPrefix,
-        addCounterMutator, stateSampler);
+  static ReadOperation forTest(Reader<?> reader, OutputReceiver outputReceiver,
+      String counterPrefix, CounterSet.AddCounterMutator addCounterMutator,
+      StateSampler stateSampler) {
+    return new ReadOperation("ReadOperation", reader, new OutputReceiver[]{outputReceiver},
+        counterPrefix, "systemStageName", addCounterMutator, stateSampler);
   }
 
   /**
@@ -104,6 +116,14 @@ public class ReadOperation extends Operation {
 
   protected String bytesCounterName(String counterPrefix, String operationName) {
     return operationName + "-ByteCount";
+  }
+
+  protected String totalParallelismCounterName(String systemStageName) {
+    return "dataflow_total_parallelism-" + systemStageName;
+  }
+
+  protected String remainingParallelismCounterName(String systemStageName) {
+    return "dataflow_remaining_parallelism-" + systemStageName;
   }
 
   public Reader<?> getReader() {
@@ -192,6 +212,8 @@ public class ReadOperation extends Operation {
   private void setProgressFromIterator() {
     try {
       progress.set(readerIterator.getProgress());
+      remainingParallelismCounter.resetToValue(
+          fixJsonDouble(readerIterator.getRemainingParallelism()));
     } catch (UnsupportedOperationException e) {
       // Ignore: same semantics as null.
     } catch (Exception e) {
@@ -230,6 +252,7 @@ public class ReadOperation extends Operation {
       if (result != null) {
         // After a successful split, the stop position changed and progress has to be recomputed.
         setProgressFromIterator();
+        totalParallelismCounter.resetToValue(fixJsonDouble(reader.getTotalParallelism()));
       }
       return result;
     }
@@ -251,6 +274,24 @@ public class ReadOperation extends Operation {
       Preconditions.checkArgument(obs == reader, "unexpected observable");
       Preconditions.checkArgument(obj instanceof Long, "unexpected parameter object");
       byteCount.addValue((long) obj);
+    }
+  }
+
+  /**
+   * JSON doesn't correctly handle non-finite values.  For the reader parallelism counters,
+   * large enough values should be sufficient.
+   *
+   * <p>TODO: Remove this hack once we move to gRPC.
+   */
+  private static double fixJsonDouble(double x) {
+    if (Double.isNaN(x)) {
+      return -1e200;
+    } else if (x == Double.POSITIVE_INFINITY) {
+      return 1e100;
+    } else if (x == Double.NEGATIVE_INFINITY) {
+      return -1e100;
+    } else {
+      return x;
     }
   }
 }

@@ -117,6 +117,7 @@ public class MapTaskExecutorFactory {
           context,
           operations,
           counterPrefix,
+          mapTask.getSystemName(),
           counters.getAddCounterMutator(),
           stateSampler));
     }
@@ -135,6 +136,7 @@ public class MapTaskExecutorFactory {
       DataflowExecutionContext executionContext,
       List<Operation> priorOperations,
       String counterPrefix,
+      String systemStageName,
       CounterSet.AddCounterMutator addCounterMutator,
       StateSampler stateSampler)
           throws Exception {
@@ -145,6 +147,7 @@ public class MapTaskExecutorFactory {
         executionContext,
         priorOperations,
         counterPrefix,
+        systemStageName,
         addCounterMutator,
         stateSampler);
   }
@@ -160,6 +163,7 @@ public class MapTaskExecutorFactory {
       DataflowExecutionContext executionContext,
       List<Operation> priorOperations,
       String counterPrefix,
+      String systemStageName,
       CounterSet.AddCounterMutator addCounterMutator,
       StateSampler stateSampler)
           throws Exception {
@@ -171,6 +175,7 @@ public class MapTaskExecutorFactory {
           executionContext,
           priorOperations,
           counterPrefix,
+          systemStageName,
           addCounterMutator,
           stateSampler);
     } else if (instruction.getWrite() != null) {
@@ -197,6 +202,7 @@ public class MapTaskExecutorFactory {
       DataflowExecutionContext executionContext,
       @SuppressWarnings("unused") List<Operation> priorOperations,
       String counterPrefix,
+      String systemStageName,
       CounterSet.AddCounterMutator addCounterMutator,
       StateSampler stateSampler)
       throws Exception {
@@ -209,7 +215,7 @@ public class MapTaskExecutorFactory {
     OutputReceiver[] receivers =
         createOutputReceivers(instruction, counterPrefix, addCounterMutator, stateSampler, 1);
 
-    return new ReadOperation(operationName, reader, receivers, counterPrefix,
+    return new ReadOperation(operationName, reader, receivers, counterPrefix, systemStageName,
         addCounterMutator, stateSampler);
   }
 

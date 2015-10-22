@@ -342,12 +342,20 @@ public class GroupingShuffleReaderTest {
     runTestBytesReadCounter(NO_KVS, ValuesToRead.READ_ALL_VALUES, 0L);
   }
 
+  static byte[] fabricatePosition(int shard) throws Exception {
+    return fabricatePosition(shard, (Integer) null);
+  }
+
   static byte[] fabricatePosition(int shard, @Nullable byte[] key) throws Exception {
+    return fabricatePosition(shard, key == null ? null : Arrays.hashCode(key));
+  }
+
+  static byte[] fabricatePosition(int shard, @Nullable Integer keyHash) throws Exception {
     ByteArrayOutputStream os = new ByteArrayOutputStream();
     DataOutputStream dos = new DataOutputStream(os);
     dos.writeInt(shard);
-    if (key != null) {
-      dos.writeInt(Arrays.hashCode(key));
+    if (keyHash != null) {
+      dos.writeInt(keyHash);
     }
     return os.toByteArray();
   }
@@ -368,7 +376,7 @@ public class GroupingShuffleReaderTest {
     // Note that TestShuffleReader start/end positions are in the
     // space of keys not the positions (TODO: should probably always
     // use positions instead).
-    String stop = encodeBase64URLSafeString(fabricatePosition(kNumRecords, null));
+    String stop = encodeBase64URLSafeString(fabricatePosition(kNumRecords));
     GroupingShuffleReader<Integer, Integer> groupingShuffleReader = new GroupingShuffleReader<>(
         options, null, null, stop,
         WindowedValue.getFullCoder(
@@ -411,9 +419,74 @@ public class GroupingShuffleReaderTest {
     }
   }
 
+  @Test
+  public void testRemainingParallelism() throws Exception {
+    PipelineOptions options = PipelineOptionsFactory.create();
+    BatchModeExecutionContext context = BatchModeExecutionContext.fromOptions(options);
+    final int kFirstShard = 0;
+
+    TestShuffleReader shuffleReader = new TestShuffleReader();
+    final int kNumRecords = 5;
+    for (int i = 0; i < kNumRecords; ++i) {
+      byte[] key = CoderUtils.encodeToByteArray(BigEndianIntegerCoder.of(), i);
+      ShuffleEntry entry = new ShuffleEntry(fabricatePosition(kFirstShard, i), key, null, key);
+      shuffleReader.addEntry(entry);
+    }
+
+    GroupingShuffleReader<Integer, Integer> groupingShuffleReader =
+        new GroupingShuffleReader<>(
+            options,
+            null,
+            null,
+            null,
+            WindowedValue.getFullCoder(
+                KvCoder.of(
+                    BigEndianIntegerCoder.of(), IterableCoder.of(BigEndianIntegerCoder.of())),
+                IntervalWindow.getCoder()),
+            context,
+            null,
+            null);
+
+    try (Reader.ReaderIterator<WindowedValue<KV<Integer, Reiterable<Integer>>>> iter =
+            groupingShuffleReader.iterator(shuffleReader)) {
+
+      assertEquals(Double.POSITIVE_INFINITY, iter.getRemainingParallelism(), 0);
+
+      // The only way to set a stop *position* in tests is via a split. To do that,
+      // we must call hasNext() first.
+      assertTrue(iter.hasNext());
+      assertNotNull(
+          iter.requestDynamicSplit(
+              splitRequestAtPosition(
+                  makeShufflePosition(
+                      ByteArrayShufflePosition.of(fabricatePosition(kFirstShard, 2))
+                          .immediateSuccessor()
+                          .getPosition()))));
+      assertTrue(iter.hasNext());
+
+      assertEquals(Double.POSITIVE_INFINITY, iter.getRemainingParallelism(), 0);
+      iter.next();
+      assertEquals(Double.POSITIVE_INFINITY, iter.getRemainingParallelism(), 0);
+      assertTrue(iter.hasNext());
+      assertEquals(Double.POSITIVE_INFINITY, iter.getRemainingParallelism(), 0);
+      iter.next();
+      assertEquals(Double.POSITIVE_INFINITY, iter.getRemainingParallelism(), 0);
+      assertTrue(iter.hasNext());
+      assertEquals(1, iter.getRemainingParallelism(), 0);
+      iter.next();
+      assertEquals(1, iter.getRemainingParallelism(), 0);
+      assertFalse(iter.hasNext());
+      assertEquals(1, iter.getRemainingParallelism(), 0);
+    }
+  }
+
   private Position makeShufflePosition(int shard, byte[] key) throws Exception {
     return new Position().setShufflePosition(
         encodeBase64URLSafeString(fabricatePosition(shard, key)));
+  }
+
+  private Position makeShufflePosition(byte[] position) throws Exception {
+    return new Position().setShufflePosition(encodeBase64URLSafeString(position));
   }
 
   @Test
@@ -467,7 +540,7 @@ public class GroupingShuffleReaderTest {
           iter.requestDynamicSplit(splitRequestAtPosition(makeShufflePosition(kSecondShard, null)));
       assertNotNull(dynamicSplitResult);
       assertEquals(
-          encodeBase64URLSafeString(fabricatePosition(kSecondShard, null)),
+          encodeBase64URLSafeString(fabricatePosition(kSecondShard)),
           positionFromSplitResult(dynamicSplitResult).getShufflePosition());
 
       while (iter.hasNext()) {
@@ -524,7 +597,7 @@ public class GroupingShuffleReaderTest {
     final int kNumRecords = 10;
 
     for (int i = 0; i < kNumRecords; ++i) {
-      byte[] position = fabricatePosition(i, null);
+      byte[] position = fabricatePosition(i);
       byte[] keyByte = CoderUtils.encodeToByteArray(BigEndianIntegerCoder.of(), i);
       positionsList.add(position);
       ShuffleEntry entry = new ShuffleEntry(position, keyByte, null, keyByte);
@@ -552,7 +625,7 @@ public class GroupingShuffleReaderTest {
 
       // Cannot split since all input was consumed.
       Position proposedSplitPosition = new Position();
-      String stop = encodeBase64URLSafeString(fabricatePosition(0, null));
+      String stop = encodeBase64URLSafeString(fabricatePosition(0));
       proposedSplitPosition.setShufflePosition(stop);
       assertNull(
           readerIterator.requestDynamicSplit(

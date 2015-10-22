@@ -21,6 +21,7 @@ import static com.google.api.client.util.Base64.encodeBase64URLSafeString;
 
 import com.google.cloud.dataflow.sdk.util.common.worker.ShufflePosition;
 import com.google.common.base.Preconditions;
+import com.google.common.primitives.Bytes;
 import com.google.common.primitives.UnsignedBytes;
 
 import java.util.Arrays;
@@ -67,6 +68,15 @@ public class ByteArrayShufflePosition
 
   public String encodeBase64() {
     return encodeBase64URLSafeString(position);
+  }
+
+  /**
+   * Returns the {@link ByteArrayShufflePosition} that immediately follows this one, i.e. there
+   * are no possible {@link ByteArrayShufflePosition ByteArrayShufflePositions} between this and
+   * its successor.
+   */
+  public ByteArrayShufflePosition immediateSuccessor() {
+    return new ByteArrayShufflePosition(Bytes.concat(position, new byte[] {0}));
   }
 
   @Override

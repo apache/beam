@@ -251,6 +251,19 @@ public class GroupingShuffleReader<K, V> extends Reader<WindowedValue<KV<K, Reit
           KV.<K, Reiterable<V>>of(key, new ValuesIterable(group.values)));
     }
 
+    @Override
+    public double getRemainingParallelism() {
+      // Return 1 iff the stop position <= the lexicographic successor to the current position.
+      ByteArrayShufflePosition stopPosition = rangeTracker.getStopPosition();
+      if (stopPosition != null
+          && lastGroupStart != null
+          && stopPosition.compareTo(lastGroupStart.immediateSuccessor()) <= 0) {
+        return 1;
+      } else {
+        return Double.POSITIVE_INFINITY;
+      }
+    }
+
     /**
      * Returns the position before the next {@code KV<K, Reiterable<V>>} to be returned by the
      * {@link GroupingShuffleReaderIterator}. Returns null if the

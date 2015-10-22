@@ -166,6 +166,11 @@ public class ConcatReaderTest {
       public DynamicSplitResult requestDynamicSplit(DynamicSplitRequest request) {
         throw new UnsupportedOperationException();
       }
+
+      @Override
+      public double getRemainingParallelism() {
+        return Double.NaN;
+      }
     }
   }
 

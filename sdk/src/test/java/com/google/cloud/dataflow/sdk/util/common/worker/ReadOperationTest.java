@@ -94,7 +94,7 @@ public class ReadOperationTest {
     StateSampler stateSampler = new StateSampler(counterPrefix, counterSet.getAddCounterMutator());
     TestOutputReceiver receiver = new TestOutputReceiver(counterSet);
 
-    ReadOperation readOperation = new ReadOperation(
+    ReadOperation readOperation = ReadOperation.forTest(
         reader, receiver, counterPrefix, counterSet.getAddCounterMutator(), stateSampler);
 
     readOperation.start();
@@ -115,7 +115,7 @@ public class ReadOperationTest {
     MockReaderIterator iterator = new MockReaderIterator(0, 5);
     CounterSet counterSet = new CounterSet();
     String counterPrefix = "test-";
-    final ReadOperation readOperation = new ReadOperation(new MockReader(iterator),
+    final ReadOperation readOperation = ReadOperation.forTest(new MockReader(iterator),
         new TestOutputReceiver("out", null, counterSet), counterPrefix,
         counterSet.getAddCounterMutator(),
         new StateSampler(counterPrefix, counterSet.getAddCounterMutator()));
@@ -139,7 +139,7 @@ public class ReadOperationTest {
     MockReaderIterator iterator = new MockReaderIterator(0, 10);
     CounterSet counterSet = new CounterSet();
     MockOutputReceiver receiver = new MockOutputReceiver();
-    ReadOperation readOperation = new ReadOperation(new MockReader(iterator), receiver, "test-",
+    ReadOperation readOperation = ReadOperation.forTest(new MockReader(iterator), receiver, "test-",
         counterSet.getAddCounterMutator(),
         new StateSampler("test-", counterSet.getAddCounterMutator()));
     // Update progress on every iteration of the read loop.
@@ -201,7 +201,7 @@ public class ReadOperationTest {
     MockReaderIterator iterator = new MockReaderIterator(0, 10);
     CounterSet counterSet = new CounterSet();
     MockOutputReceiver receiver = new MockOutputReceiver();
-    ReadOperation readOperation = new ReadOperation(new MockReader(iterator), receiver, "test-",
+    ReadOperation readOperation = ReadOperation.forTest(new MockReader(iterator), receiver, "test-",
         counterSet.getAddCounterMutator(),
         new StateSampler("test-", counterSet.getAddCounterMutator()));
 
@@ -228,7 +228,7 @@ public class ReadOperationTest {
     MockReaderIterator iterator = new MockReaderIterator(0, 10);
     CounterSet counterSet = new CounterSet();
     MockOutputReceiver receiver = new MockOutputReceiver();
-    final ReadOperation readOperation = new ReadOperation(
+    final ReadOperation readOperation = ReadOperation.forTest(
         new MockReader(iterator), receiver, "test-",
         counterSet.getAddCounterMutator(),
         new StateSampler("test-", counterSet.getAddCounterMutator()));

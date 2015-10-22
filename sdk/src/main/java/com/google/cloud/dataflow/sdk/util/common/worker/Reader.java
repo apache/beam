@@ -74,6 +74,13 @@ public abstract class Reader<T> extends Observable {
    * {@link #requestDynamicSplit} is implemented.
    */
   public interface ReaderIterator<T> extends AutoCloseable {
+
+    /**
+     * A value to return from {@link #getRemainingParallelism()} when remaining parallelism
+     * can be interpolated from {@link Reader#getTotalParallelism} and the progress fraction.
+     */
+    public static final double REMAINING_PARALLELISM_FROM_PROGRESS_FRACTION = Double.NaN;
+
     /**
      * Returns whether the source has any more elements. Some sources,
      * such as GroupingShuffleReader, invalidate the return value of
@@ -140,6 +147,27 @@ public abstract class Reader<T> extends Observable {
      *   and residual part.
      */
     public DynamicSplitResult requestDynamicSplit(DynamicSplitRequest request);
+
+    /**
+     * Returns an estimate of the degree of parallelism that could be achieved by
+     * {@link #requestDynamicSplit()} taking into account what has already been consumed.
+     * E.g., if the reader has just returned the last record in the source, the remaining
+     * parallelism is 1 because it can't be split up any further. If the reader just
+     * returned the 3rd record in a perfectly parallelizable source with 5 records,
+     * the remaining parallelism is 3 because it could be processed in parallel by this
+     * worker and two others.  If the reader does not support dynamic splitting,
+     * the remaining parallelism is always 1.
+     *
+     * <p>An exact number isn't required, mostly we want to be able to distinguish
+     * between many, few, or one. Should not block.
+     *
+     * <p>An implementor may return {@link REMAINING_PARALLELISM_FROM_PROGRESS_FRACTION},
+     * in which case the remaining parallelism will be interpolated from
+     * {@link Reader#getTotalParallelism} using the current progress fraction.
+     * Infinity may also be returned (indicating no known bound on parallelism),
+     * as may fractional estimates (in which case the sum over all shards is taken).
+     */
+    public double getRemainingParallelism();
   }
 
   /** An abstract base class for ReaderIterator implementations. */
@@ -162,6 +190,11 @@ public abstract class Reader<T> extends Observable {
     @Override
     public DynamicSplitResult requestDynamicSplit(DynamicSplitRequest splitRequest) {
       return null;
+    }
+
+    @Override
+    public double getRemainingParallelism() {
+      return REMAINING_PARALLELISM_FROM_PROGRESS_FRACTION;
     }
   }
 
@@ -236,6 +269,24 @@ public abstract class Reader<T> extends Observable {
    */
   public boolean supportsRestart() {
     return false;
+  }
+
+  /**
+   * Returns an estimate of the parallelism of the source being read by this reader, i.e.
+   * the number of bundles it could be split into.  An exact number isn't required, mostly
+   * we want to be able to distinguish between many, few, or one.  Used to cap the parallelism
+   * Dataflow will allocate for this part of the pipeline.  Should not block.
+   *
+   * <p>Defaults to positive infinity, indicating unbounded parallelism.  An unsplittable source
+   * would have parallelism exactly 1.
+   *
+   * <p>See also {@link ReaderIterator#getRemainingParallelism} which may be implemented to
+   * complement this method if a better-than-linear estimate of remaining parallelism can be
+   * obtained (e.g. it is easy to detect when one is at the last record.
+   */
+  public double getTotalParallelism() {
+    // By default, don't assume any limitations.
+    return Double.POSITIVE_INFINITY;
   }
 
   /**

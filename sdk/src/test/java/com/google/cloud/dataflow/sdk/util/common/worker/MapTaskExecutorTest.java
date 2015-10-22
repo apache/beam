@@ -96,7 +96,8 @@ public class MapTaskExecutorTest {
 
     TestReadOperation(OutputReceiver outputReceiver, String counterPrefix,
         AddCounterMutator addCounterMutator, StateSampler stateSampler) {
-      super(new TestReader(), outputReceiver, counterPrefix, addCounterMutator, stateSampler);
+      super("ReadOperation", new TestReader(), new OutputReceiver[]{outputReceiver},
+          counterPrefix, "systemStageName", addCounterMutator, stateSampler);
     }
 
     @Override
