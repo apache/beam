@@ -15,6 +15,8 @@
  */
 package com.google.cloud.dataflow.sdk.util.common;
 
+import static java.util.Arrays.asList;
+
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
@@ -46,7 +48,7 @@ public class ReflectHelpers {
   public static final Function<Method, String> METHOD_FORMATTER = new Function<Method, String>() {
     @Override
     public String apply(Method input) {
-      String parameterTypes = FluentIterable.of(input.getParameterTypes())
+      String parameterTypes = FluentIterable.from(asList(input.getParameterTypes()))
           .transform(CLASS_SIMPLE_NAME)
           .join(COMMA_SEPARATOR);
       return String.format("%s(%s)",
@@ -137,7 +139,7 @@ public class ReflectHelpers {
       format(builder, t.getRawType());
       builder.append('<');
       COMMA_SEPARATOR.appendTo(builder,
-          FluentIterable.of(t.getActualTypeArguments())
+          FluentIterable.from(asList(t.getActualTypeArguments()))
           .transform(TYPE_SIMPLE_DESCRIPTION));
       builder.append('>');
     }
