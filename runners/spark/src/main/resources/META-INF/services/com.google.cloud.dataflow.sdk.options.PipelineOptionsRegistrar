@@ -14,3 +14,4 @@
 # limitations under the License.
 #
 com.cloudera.dataflow.spark.SparkPipelineOptionsRegistrar
+com.cloudera.dataflow.spark.streaming.SparkStreamingPipelineOptionsRegistrar

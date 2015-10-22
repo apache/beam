@@ -65,7 +65,7 @@ public class MultiOutputWordCountTest {
 
     EvaluationResult res = SparkPipelineRunner.create().run(p);
     Iterable<KV<String, Long>> actualLower = res.get(luc.get(lowerCnts));
-    Assert.assertEquals("and", actualLower.iterator().next().getKey());
+    Assert.assertEquals("are", actualLower.iterator().next().getKey());
     Iterable<KV<String, Long>> actualUpper = res.get(luc.get(upperCnts));
     Assert.assertEquals("Here", actualUpper.iterator().next().getKey());
     Iterable<Long> actualUniqCount = res.get(unique);

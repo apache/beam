@@ -20,15 +20,22 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsValidator;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.TransformTreeNode;
-import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.cloud.dataflow.sdk.values.POutput;
 import com.google.cloud.dataflow.sdk.values.PValue;
+
 import org.apache.spark.SparkException;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.streaming.Duration;
+import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.cloudera.dataflow.spark.streaming.SparkStreamingPipelineOptions;
+import com.cloudera.dataflow.spark.streaming.StreamingEvaluationContext;
+import com.cloudera.dataflow.spark.streaming.StreamingTransformTranslator;
+import com.cloudera.dataflow.spark.streaming.StreamingWindowPipelineDetector;
 
 /**
  * The SparkPipelineRunner translate operations defined on a pipeline to a representation
@@ -50,6 +57,8 @@ import org.slf4j.LoggerFactory;
  * options.setSparkMaster("spark://host:port");
  * EvaluationResult result = SparkPipelineRunner.create(options).run(p);
  * }
+ *
+ * To create a Spark streaming pipeline runner use {@link SparkStreamingPipelineOptions}
  */
 public final class SparkPipelineRunner extends PipelineRunner<EvaluationResult> {
 
@@ -104,16 +113,49 @@ public final class SparkPipelineRunner extends PipelineRunner<EvaluationResult> 
   @Override
   public EvaluationResult run(Pipeline pipeline) {
     try {
+      // validate streaming configuration
+      if (mOptions.isStreaming() && !(mOptions instanceof SparkStreamingPipelineOptions)) {
+        throw new RuntimeException("A streaming job must be configured with " +
+            SparkStreamingPipelineOptions.class.getSimpleName() + ", found " +
+            mOptions.getClass().getSimpleName());
+      }
       LOG.info("Executing pipeline using the SparkPipelineRunner.");
+      final JavaSparkContext jsc = SparkContextFactory.getSparkContext(mOptions
+              .getSparkMaster(), mOptions.getAppName());
 
-      JavaSparkContext jsc = SparkContextFactory.getSparkContext(mOptions.getSparkMaster());
-      EvaluationContext ctxt = new EvaluationContext(jsc, pipeline);
-      pipeline.traverseTopologically(new Evaluator(ctxt));
-      ctxt.computeOutputs();
+      if (mOptions.isStreaming()) {
+        SparkPipelineTranslator translator =
+                new StreamingTransformTranslator.Translator(new TransformTranslator.Translator());
+        // if streaming - fixed window should be defined on all UNBOUNDED inputs
+        StreamingWindowPipelineDetector streamingWindowPipelineDetector =
+            new StreamingWindowPipelineDetector(translator);
+        pipeline.traverseTopologically(streamingWindowPipelineDetector);
+        if (!streamingWindowPipelineDetector.isWindowing()) {
+          throw new IllegalStateException("Spark streaming pipeline must be windowed!");
+        }
 
-      LOG.info("Pipeline execution complete.");
+        Duration batchInterval = streamingWindowPipelineDetector.getBatchDuration();
+        LOG.info("Setting Spark streaming batchInterval to " +
+            batchInterval.milliseconds() + "msec");
+        EvaluationContext ctxt = createStreamingEvaluationContext(jsc, pipeline, batchInterval);
 
-      return ctxt;
+        pipeline.traverseTopologically(new SparkPipelineEvaluator(ctxt, translator));
+        ctxt.computeOutputs();
+
+        LOG.info("Streaming pipeline construction complete. Starting execution..");
+        ((StreamingEvaluationContext) ctxt).getStreamingContext().start();
+
+        return ctxt;
+      } else {
+        EvaluationContext ctxt = new EvaluationContext(jsc, pipeline);
+        SparkPipelineTranslator translator = new TransformTranslator.Translator();
+        pipeline.traverseTopologically(new SparkPipelineEvaluator(ctxt, translator));
+        ctxt.computeOutputs();
+
+        LOG.info("Pipeline execution complete.");
+
+        return ctxt;
+      }
     } catch (Exception e) {
       // Scala doesn't declare checked exceptions in the bytecode, and the Java compiler
       // won't let you catch something that is not declared, so we can't catch
@@ -122,7 +164,7 @@ public final class SparkPipelineRunner extends PipelineRunner<EvaluationResult> 
       // SparkProcessException), or just use the SparkException cause.
       if (e instanceof SparkException && e.getCause() != null) {
         if (e.getCause() instanceof SparkProcessContext.SparkProcessException &&
-            e.getCause().getCause() != null) {
+                e.getCause().getCause() != null) {
           throw new RuntimeException(e.getCause().getCause());
         } else {
           throw new RuntimeException(e.getCause());
@@ -133,21 +175,31 @@ public final class SparkPipelineRunner extends PipelineRunner<EvaluationResult> 
     }
   }
 
-  private static final class Evaluator implements Pipeline.PipelineVisitor {
+  private EvaluationContext
+      createStreamingEvaluationContext(JavaSparkContext jsc, Pipeline pipeline,
+      Duration batchDuration) {
+    SparkStreamingPipelineOptions streamingOptions = (SparkStreamingPipelineOptions) mOptions;
+    final JavaStreamingContext jssc = new JavaStreamingContext(jsc, batchDuration);
+    return new StreamingEvaluationContext(jsc, pipeline, jssc, streamingOptions.getTimeout());
+  }
 
-    private final EvaluationContext ctxt;
+  public abstract static class Evaluator implements Pipeline.PipelineVisitor {
+    protected static final Logger LOG = LoggerFactory.getLogger(Evaluator.class);
+
+    protected final SparkPipelineTranslator translator;
+
+    protected Evaluator(SparkPipelineTranslator translator) {
+      this.translator = translator;
+    }
 
     // Set upon entering a composite node which can be directly mapped to a single
     // TransformEvaluator.
     private TransformTreeNode currentTranslatedCompositeNode;
 
-    private Evaluator(EvaluationContext ctxt) {
-      this.ctxt = ctxt;
-    }
-
     /**
      * If true, we're currently inside a subtree of a composite node which directly maps to a
-     * single TransformEvaluator; children nodes are ignored, and upon post-visiting the translated
+     * single
+     * TransformEvaluator; children nodes are ignored, and upon post-visiting the translated
      * composite node, the associated TransformEvaluator will be visited.
      */
     private boolean inTranslatedCompositeNode() {
@@ -160,10 +212,12 @@ public final class SparkPipelineRunner extends PipelineRunner<EvaluationResult> 
         return;
       }
 
+      //noinspection unchecked
       if (node.getTransform() != null
-          && TransformTranslator.hasTransformEvaluator(node.getTransform().getClass())) {
+              && translator.hasTranslation(
+              (Class<? extends PTransform<?, ?>>) node.getTransform().getClass())) {
         LOG.info("Entering directly-translatable composite transform: '{}'",
-            node.getFullName());
+                node.getFullName());
         LOG.debug("Composite transform class: '{}'", node.getTransform().getClass());
         currentTranslatedCompositeNode = node;
       }
@@ -176,7 +230,7 @@ public final class SparkPipelineRunner extends PipelineRunner<EvaluationResult> 
       // within the tree.
       if (inTranslatedCompositeNode() && node.equals(currentTranslatedCompositeNode)) {
         LOG.info("Post-visiting directly-translatable composite transform: '{}'",
-            node.getFullName());
+                node.getFullName());
         doVisitTransform(node);
         currentTranslatedCompositeNode = null;
       }
@@ -191,23 +245,11 @@ public final class SparkPipelineRunner extends PipelineRunner<EvaluationResult> 
       doVisitTransform(node);
     }
 
-    private <PT extends PTransform<? super PInput, POutput>>
-        void doVisitTransform(TransformTreeNode node) {
-      @SuppressWarnings("unchecked")
-      PT transform = (PT) node.getTransform();
-      @SuppressWarnings("unchecked")
-      Class<PT> transformClass = (Class<PT>) (Class<?>) transform.getClass();
-      TransformEvaluator<PT> evaluator = TransformTranslator.getTransformEvaluator(transformClass);
-      LOG.info("Evaluating {}", transform);
-      AppliedPTransform<PInput, POutput, PT> appliedTransform =
-          AppliedPTransform.of(node.getFullName(), node.getInput(), node.getOutput(), transform);
-      ctxt.setCurrentTransform(appliedTransform);
-      evaluator.evaluate(transform, ctxt);
-      ctxt.setCurrentTransform(null);
-    }
+    protected abstract <PT extends PTransform<? super PInput, POutput>> void
+        doVisitTransform(TransformTreeNode node);
 
     @Override
-    public void visitValue(PValue pvalue, TransformTreeNode node) {
+    public void visitValue(PValue value, TransformTreeNode producer) {
     }
   }
 }

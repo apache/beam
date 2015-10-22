@@ -34,10 +34,10 @@ final class SparkContextFactory {
   private SparkContextFactory() {
   }
 
-  public static synchronized JavaSparkContext getSparkContext(String master) {
+  public static synchronized JavaSparkContext getSparkContext(String master, String appName) {
     if (Boolean.getBoolean(TEST_REUSE_SPARK_CONTEXT)) {
       if (sparkContext == null) {
-        sparkContext = createSparkContext(master);
+        sparkContext = createSparkContext(master, appName);
         sparkMaster = master;
       } else if (!master.equals(sparkMaster)) {
         throw new IllegalArgumentException(String.format("Cannot reuse spark context " +
@@ -46,7 +46,7 @@ final class SparkContextFactory {
       }
       return sparkContext;
     } else {
-      return createSparkContext(master);
+      return createSparkContext(master, appName);
     }
   }
 
@@ -56,10 +56,10 @@ final class SparkContextFactory {
     }
   }
 
-  private static JavaSparkContext createSparkContext(String master) {
+  private static JavaSparkContext createSparkContext(String master, String appName) {
     SparkConf conf = new SparkConf();
     conf.setMaster(master);
-    conf.setAppName("spark dataflow pipeline job");
+    conf.setAppName(appName);
     conf.set("spark.serializer", KryoSerializer.class.getCanonicalName());
     return new JavaSparkContext(conf);
   }

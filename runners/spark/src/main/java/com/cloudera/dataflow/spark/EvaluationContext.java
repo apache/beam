@@ -55,8 +55,8 @@ public class EvaluationContext implements EvaluationResult {
   private final Set<RDDHolder<?>> leafRdds = new LinkedHashSet<>();
   private final Set<PValue> multireads = new LinkedHashSet<>();
   private final Map<PValue, Object> pobjects = new LinkedHashMap<>();
-  private final Map<PValue, Iterable<WindowedValue<?>>> pview = new LinkedHashMap<>();
-  private AppliedPTransform<?, ?, ?> currentTransform;
+  private final Map<PValue, Iterable<? extends WindowedValue<?>>> pview = new LinkedHashMap<>();
+  protected AppliedPTransform<?, ?, ?> currentTransform;
 
   public EvaluationContext(JavaSparkContext jsc, Pipeline pipeline) {
     this.jsc = jsc;
@@ -76,21 +76,31 @@ public class EvaluationContext implements EvaluationResult {
 
     private Iterable<T> values;
     private Coder<T> coder;
-    private JavaRDDLike<T, ?> rdd;
+    private JavaRDDLike<WindowedValue<T>, ?> rdd;
 
     RDDHolder(Iterable<T> values, Coder<T> coder) {
       this.values = values;
       this.coder = coder;
     }
 
-    RDDHolder(JavaRDDLike<T, ?> rdd) {
+    RDDHolder(JavaRDDLike<WindowedValue<T>, ?> rdd) {
       this.rdd = rdd;
     }
 
-    public JavaRDDLike<T, ?> getRDD() {
+    public JavaRDDLike<WindowedValue<T>, ?> getRDD() {
       if (rdd == null) {
-        rdd = jsc.parallelize(CoderHelpers.toByteArrays(values, coder))
-            .map(CoderHelpers.fromByteFunction(coder));
+        Iterable<WindowedValue<T>> windowedValues = Iterables.transform(values,
+            new Function<T, WindowedValue<T>>() {
+            @Override
+            public WindowedValue<T> apply(T t) {
+             // TODO: this is wrong if T is a TimestampedValue
+              return WindowedValue.valueInEmptyWindows(t);
+            }
+        });
+        WindowedValue.ValueOnlyWindowedValueCoder<T> windowCoder =
+            WindowedValue.getValueOnlyCoder(coder);
+        rdd = jsc.parallelize(CoderHelpers.toByteArrays(windowedValues, windowCoder))
+            .map(CoderHelpers.fromByteFunction(windowCoder));
       }
       return rdd;
     }
@@ -98,7 +108,8 @@ public class EvaluationContext implements EvaluationResult {
     public Iterable<T> getValues(PCollection<T> pcollection) {
       if (values == null) {
         coder = pcollection.getCoder();
-        JavaRDDLike<byte[], ?> bytesRDD = rdd.map(CoderHelpers.toByteFunction(coder));
+        JavaRDDLike<byte[], ?> bytesRDD = rdd.map(WindowingHelpers.<T>unwindowFunction())
+            .map(CoderHelpers.toByteFunction(coder));
         List<byte[]> clientBytes = bytesRDD.collect();
         values = Iterables.transform(clientBytes, new Function<byte[], T>() {
           @Override
@@ -109,25 +120,38 @@ public class EvaluationContext implements EvaluationResult {
       }
       return values;
     }
+
+    public Iterable<WindowedValue<T>> getWindowedValues(PCollection<T> pcollection) {
+      return Iterables.transform(get(pcollection), new Function<T, WindowedValue<T>>() {
+        @Override
+        public WindowedValue<T> apply(T t) {
+          return WindowedValue.valueInEmptyWindows(t); // TODO: not the right place?
+        }
+      });
+    }
   }
 
-  JavaSparkContext getSparkContext() {
+  protected JavaSparkContext getSparkContext() {
     return jsc;
   }
 
-  Pipeline getPipeline() {
+  protected Pipeline getPipeline() {
     return pipeline;
   }
 
-  SparkRuntimeContext getRuntimeContext() {
+  protected SparkRuntimeContext getRuntimeContext() {
     return runtime;
   }
 
-  void setCurrentTransform(AppliedPTransform<?, ?, ?> transform) {
+  protected void setCurrentTransform(AppliedPTransform<?, ?, ?> transform) {
     this.currentTransform = transform;
   }
 
-  <I extends PInput> I getInput(PTransform<I, ?> transform) {
+  protected AppliedPTransform<?, ?, ?> getCurrentTransform() {
+    return currentTransform;
+  }
+
+  protected <I extends PInput> I getInput(PTransform<I, ?> transform) {
     checkArgument(currentTransform != null && currentTransform.getTransform() == transform,
         "can only be called with current transform");
     @SuppressWarnings("unchecked")
@@ -135,7 +159,7 @@ public class EvaluationContext implements EvaluationResult {
     return input;
   }
 
-  <O extends POutput> O getOutput(PTransform<?, O> transform) {
+  protected <O extends POutput> O getOutput(PTransform<?, O> transform) {
     checkArgument(currentTransform != null && currentTransform.getTransform() == transform,
         "can only be called with current transform");
     @SuppressWarnings("unchecked")
@@ -143,20 +167,26 @@ public class EvaluationContext implements EvaluationResult {
     return output;
   }
 
-  <T> void setOutputRDD(PTransform<?, ?> transform, JavaRDDLike<T, ?> rdd) {
+  protected  <T> void setOutputRDD(PTransform<?, ?> transform,
+      JavaRDDLike<WindowedValue<T>, ?> rdd) {
     setRDD((PValue) getOutput(transform), rdd);
   }
 
-  <T> void setOutputRDDFromValues(PTransform<?, ?> transform, Iterable<T> values,
+  protected  <T> void setOutputRDDFromValues(PTransform<?, ?> transform, Iterable<T> values,
       Coder<T> coder) {
     pcollections.put((PValue) getOutput(transform), new RDDHolder<>(values, coder));
   }
 
-  void setPView(PValue view, Iterable<WindowedValue<?>> value) {
+  void setPView(PValue view, Iterable<? extends WindowedValue<?>> value) {
     pview.put(view, value);
   }
 
-  JavaRDDLike<?, ?> getRDD(PValue pvalue) {
+  protected boolean hasOutputRDD(PTransform<? extends PInput, ?> transform) {
+    PValue pvalue = (PValue) getOutput(transform);
+    return pcollections.containsKey(pvalue);
+  }
+
+  protected JavaRDDLike<?, ?> getRDD(PValue pvalue) {
     RDDHolder<?> rddHolder = pcollections.get(pvalue);
     JavaRDDLike<?, ?> rdd = rddHolder.getRDD();
     leafRdds.remove(rddHolder);
@@ -169,7 +199,7 @@ public class EvaluationContext implements EvaluationResult {
     return rdd;
   }
 
-  <T> void setRDD(PValue pvalue, JavaRDDLike<T, ?> rdd) {
+  protected <T> void setRDD(PValue pvalue, JavaRDDLike<WindowedValue<T>, ?> rdd) {
     try {
       rdd.rdd().setName(pvalue.getName());
     } catch (IllegalStateException e) {
@@ -185,7 +215,7 @@ public class EvaluationContext implements EvaluationResult {
   }
 
 
-  <T> Iterable<WindowedValue<?>> getPCollectionView(PCollectionView<T> view) {
+  <T> Iterable<? extends WindowedValue<?>> getPCollectionView(PCollectionView<T> view) {
     return pview.get(view);
   }
 
@@ -194,7 +224,7 @@ public class EvaluationContext implements EvaluationResult {
    * actions (like saving to a file) registered on them (i.e. they are performed for side
    * effects).
    */
-  void computeOutputs() {
+  protected void computeOutputs() {
     for (RDDHolder<?> rddHolder : leafRdds) {
       JavaRDDLike<?, ?> rdd = rddHolder.getRDD();
       rdd.rdd().cache(); // cache so that any subsequent get() is cheap
@@ -235,6 +265,12 @@ public class EvaluationContext implements EvaluationResult {
     @SuppressWarnings("unchecked")
     RDDHolder<T> rddHolder = (RDDHolder<T>) pcollections.get(pcollection);
     return rddHolder.getValues(pcollection);
+  }
+
+  <T> Iterable<WindowedValue<T>> getWindowedValues(PCollection<T> pcollection) {
+    @SuppressWarnings("unchecked")
+    RDDHolder<T> rddHolder = (RDDHolder<T>) pcollections.get(pcollection);
+    return rddHolder.getWindowedValues(pcollection);
   }
 
   @Override

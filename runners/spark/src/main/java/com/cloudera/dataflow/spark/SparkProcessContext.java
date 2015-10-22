@@ -17,7 +17,6 @@ package com.cloudera.dataflow.spark;
 
 import java.io.IOException;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -27,7 +26,6 @@ import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.util.TimerInternals;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
@@ -36,6 +34,8 @@ import com.google.cloud.dataflow.sdk.util.state.StateInternals;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.collect.AbstractIterator;
+import com.google.common.collect.Iterables;
+
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,18 +44,17 @@ abstract class SparkProcessContext<I, O, V> extends DoFn<I, O>.ProcessContext {
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkProcessContext.class);
 
-  private static final Collection<? extends BoundedWindow> GLOBAL_WINDOWS =
-      Collections.singletonList(GlobalWindow.INSTANCE);
-
+  private final DoFn<I, O> fn;
   private final SparkRuntimeContext mRuntimeContext;
   private final Map<TupleTag<?>, BroadcastHelper<?>> mSideInputs;
 
-  protected I element;
+  protected WindowedValue<I> windowedValue;
 
   SparkProcessContext(DoFn<I, O> fn,
       SparkRuntimeContext runtime,
       Map<TupleTag<?>, BroadcastHelper<?>> sideInputs) {
     fn.super();
+    this.fn = fn;
     this.mRuntimeContext = runtime;
     this.mSideInputs = sideInputs;
   }
@@ -80,6 +79,8 @@ abstract class SparkProcessContext<I, O, V> extends DoFn<I, O>.ProcessContext {
 
   @Override
   public abstract void output(O output);
+
+  public abstract void output(WindowedValue<O> output);
 
   @Override
   public <T> void sideOutput(TupleTag<T> tupleTag, T t) {
@@ -107,27 +108,32 @@ abstract class SparkProcessContext<I, O, V> extends DoFn<I, O>.ProcessContext {
 
   @Override
   public I element() {
-    return element;
+    return windowedValue.getValue();
   }
 
   @Override
   public void outputWithTimestamp(O output, Instant timestamp) {
-    output(output);
+    output(WindowedValue.of(output, timestamp,
+        windowedValue.getWindows(), windowedValue.getPane()));
   }
 
   @Override
   public Instant timestamp() {
-    return Instant.now();
+    return windowedValue.getTimestamp();
   }
 
   @Override
   public BoundedWindow window() {
-    return GlobalWindow.INSTANCE;
+    if (!(fn instanceof DoFn.RequiresWindowAccess)) {
+      throw new UnsupportedOperationException(
+          "window() is only available in the context of a DoFn marked as RequiresWindow.");
+    }
+    return Iterables.getOnlyElement(windowedValue.getWindows());
   }
 
   @Override
   public PaneInfo pane() {
-    return PaneInfo.NO_FIRING;
+    return windowedValue.getPane();
   }
 
   @Override
@@ -136,13 +142,13 @@ abstract class SparkProcessContext<I, O, V> extends DoFn<I, O>.ProcessContext {
 
       @Override
       public Collection<? extends BoundedWindow> windows() {
-        return GLOBAL_WINDOWS;
+        return windowedValue.getWindows();
       }
 
       @Override
       public void outputWindowedValue(O output, Instant timestamp, Collection<?
           extends BoundedWindow> windows, PaneInfo paneInfo) {
-        output(output);
+        output(WindowedValue.of(output, timestamp, windows, paneInfo));
       }
 
       @Override
@@ -159,7 +165,7 @@ abstract class SparkProcessContext<I, O, V> extends DoFn<I, O>.ProcessContext {
 
       @Override
       public PaneInfo pane() {
-        return PaneInfo.NO_FIRING;
+        return windowedValue.getPane();
       }
 
       @Override
@@ -174,7 +180,8 @@ abstract class SparkProcessContext<I, O, V> extends DoFn<I, O>.ProcessContext {
   protected abstract void clearOutput();
   protected abstract Iterator<V> getOutputIterator();
 
-  protected Iterable<V> getOutputIterable(final Iterator<I> iter, final DoFn<I, O> doFn) {
+  protected Iterable<V> getOutputIterable(final Iterator<WindowedValue<I>> iter,
+      final DoFn<I, O> doFn) {
     return new Iterable<V>() {
       @Override
       public Iterator<V> iterator() {
@@ -185,12 +192,12 @@ abstract class SparkProcessContext<I, O, V> extends DoFn<I, O>.ProcessContext {
 
   private class ProcCtxtIterator extends AbstractIterator<V> {
 
-    private final Iterator<I> inputIterator;
+    private final Iterator<WindowedValue<I>> inputIterator;
     private final DoFn<I, O> doFn;
     private Iterator<V> outputIterator;
     private boolean calledFinish = false;
 
-    ProcCtxtIterator(Iterator<I> iterator, DoFn<I, O> doFn) {
+    ProcCtxtIterator(Iterator<WindowedValue<I>> iterator, DoFn<I, O> doFn) {
       this.inputIterator = iterator;
       this.doFn = doFn;
       this.outputIterator = getOutputIterator();
@@ -208,7 +215,7 @@ abstract class SparkProcessContext<I, O, V> extends DoFn<I, O>.ProcessContext {
           return outputIterator.next();
         } else if (inputIterator.hasNext()) {
           clearOutput();
-          element = inputIterator.next();
+          windowedValue = inputIterator.next();
           try {
             doFn.processElement(SparkProcessContext.this);
           } catch (Exception e) {

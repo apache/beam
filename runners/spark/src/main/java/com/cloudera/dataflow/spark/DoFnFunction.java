@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import org.apache.spark.api.java.function.FlatMapFunction;
 
@@ -30,7 +31,8 @@ import org.apache.spark.api.java.function.FlatMapFunction;
  * @param <I> Input element type.
  * @param <O> Output element type.
  */
-class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
+public class DoFnFunction<I, O> implements FlatMapFunction<Iterator<WindowedValue<I>>,
+    WindowedValue<O>> {
   private final DoFn<I, O> mFunction;
   private final SparkRuntimeContext mRuntimeContext;
   private final Map<TupleTag<?>, BroadcastHelper<?>> mSideInputs;
@@ -40,7 +42,7 @@ class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
    * @param runtime    Runtime to apply function in.
    * @param sideInputs Side inputs used in DoFunction.
    */
-  DoFnFunction(DoFn<I, O> fn,
+  public DoFnFunction(DoFn<I, O> fn,
                SparkRuntimeContext runtime,
                Map<TupleTag<?>, BroadcastHelper<?>> sideInputs) {
     this.mFunction = fn;
@@ -49,16 +51,17 @@ class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
   }
 
   @Override
-  public Iterable<O> call(Iterator<I> iter) throws Exception {
+  public Iterable<WindowedValue<O>> call(Iterator<WindowedValue<I>> iter) throws
+      Exception {
     ProcCtxt ctxt = new ProcCtxt(mFunction, mRuntimeContext, mSideInputs);
     ctxt.setup();
     mFunction.startBundle(ctxt);
     return ctxt.getOutputIterable(iter, mFunction);
   }
 
-  private class ProcCtxt extends SparkProcessContext<I, O, O> {
+  private class ProcCtxt extends SparkProcessContext<I, O, WindowedValue<O>> {
 
-    private final List<O> outputs = new LinkedList<>();
+    private final List<WindowedValue<O>> outputs = new LinkedList<>();
 
     ProcCtxt(DoFn<I, O> fn, SparkRuntimeContext runtimeContext, Map<TupleTag<?>,
         BroadcastHelper<?>> sideInputs) {
@@ -67,6 +70,12 @@ class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
 
     @Override
     public synchronized void output(O o) {
+      outputs.add(windowedValue != null ? windowedValue.withValue(o) :
+          WindowedValue.valueInEmptyWindows(o));
+    }
+
+    @Override
+    public synchronized void output(WindowedValue<O> o) {
       outputs.add(o);
     }
 
@@ -75,7 +84,7 @@ class DoFnFunction<I, O> implements FlatMapFunction<Iterator<I>, O> {
       outputs.clear();
     }
 
-    protected Iterator<O> getOutputIterator() {
+    protected Iterator<WindowedValue<O>> getOutputIterator() {
       return outputs.iterator();
     }
   }
