@@ -155,7 +155,7 @@ import java.util.regex.Pattern;
  * here's code that outputs daily tables to BigQuery:
  * <pre>{@code
  * PCollection<TableRow> quotes = ...
- * quotes.apply(Window.<TableRow>info(CalendarWindows.days(1)))
+ * quotes.apply(Window.<TableRow>into(CalendarWindows.days(1)))
  *       .apply(BigQueryIO.Write
  *         .named("Write")
  *         .withSchema(schema)
