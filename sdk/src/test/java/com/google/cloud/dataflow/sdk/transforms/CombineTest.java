@@ -443,11 +443,6 @@ public class CombineTest implements Serializable {
     public int identity() {
       return 1;
     }
-
-    @Override
-    public Counter<Integer> getCounter(String name) {
-      throw new UnsupportedOperationException();
-    }
   }
 
   private static final class TestProdObj extends Combine.BinaryCombineFn<Integer> {

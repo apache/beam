@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.transforms;
 
 import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind;
+import com.google.cloud.dataflow.sdk.util.common.CounterProvider;
 
 /**
  * {@code PTransform}s for computing the sum of the elements in a
@@ -117,7 +118,8 @@ public class Sum {
    * {@code Iterable} of {@code Integer}s, useful as an argument to
    * {@link Combine#globally} or {@link Combine#perKey}.
    */
-  public static class SumIntegerFn extends Combine.BinaryCombineIntegerFn {
+  public static class SumIntegerFn
+      extends Combine.BinaryCombineIntegerFn implements CounterProvider<Integer> {
     @Override
     public int apply(int a, int b) {
       return a + b;
@@ -139,7 +141,8 @@ public class Sum {
    * {@code Iterable} of {@code Long}s, useful as an argument to
    * {@link Combine#globally} or {@link Combine#perKey}.
    */
-  public static class SumLongFn extends Combine.BinaryCombineLongFn {
+  public static class SumLongFn
+      extends Combine.BinaryCombineLongFn implements CounterProvider<Long> {
     @Override
     public long apply(long a, long b) {
       return a + b;
@@ -161,7 +164,8 @@ public class Sum {
    * {@code Iterable} of {@code Double}s, useful as an argument to
    * {@link Combine#globally} or {@link Combine#perKey}.
    */
-  public static class SumDoubleFn extends Combine.BinaryCombineDoubleFn {
+  public static class SumDoubleFn
+      extends Combine.BinaryCombineDoubleFn implements CounterProvider<Double> {
     @Override
     public double apply(double a, double b) {
       return a + b;

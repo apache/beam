@@ -34,7 +34,7 @@ import com.google.cloud.dataflow.sdk.util.AppliedCombineFn;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.SerializableUtils;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
-import com.google.cloud.dataflow.sdk.util.common.CounterProvider;
+import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionList;
@@ -677,8 +677,7 @@ public class Combine {
    * An abstract subclass of {@link CombineFn} for implementing combiners that are more
    * easily expressed as binary operations on ints.
    */
-  public abstract static class BinaryCombineIntegerFn extends
-      CombineFn<Integer, int[], Integer> implements CounterProvider<Integer> {
+  public abstract static class BinaryCombineIntegerFn extends CombineFn<Integer, int[], Integer> {
 
     /**
      * Applies the binary operation to the two operands, returning the result.
@@ -748,15 +747,17 @@ public class Combine {
     private int[] wrap(int value) {
       return new int[] { value };
     }
+
+    public Counter<Integer> getCounter(String name) {
+      throw new UnsupportedOperationException("BinaryCombineDoubleFn does not support getCounter");
+    }
   }
 
   /**
    * An abstract subclass of {@link CombineFn} for implementing combiners that are more
    * easily expressed as binary operations on longs.
    */
-  public abstract static class BinaryCombineLongFn extends
-      CombineFn<Long, long[], Long> implements CounterProvider<Long> {
-
+  public abstract static class BinaryCombineLongFn extends CombineFn<Long, long[], Long> {
     /**
      * Applies the binary operation to the two operands, returning the result.
      */
@@ -824,14 +825,17 @@ public class Combine {
     private long[] wrap(long value) {
       return new long[] { value };
     }
+
+    public Counter<Long> getCounter(String name) {
+      throw new UnsupportedOperationException("BinaryCombineDoubleFn does not support getCounter");
+    }
   }
 
   /**
    * An abstract subclass of {@link CombineFn} for implementing combiners that are more
    * easily expressed as binary operations on doubles.
    */
-  public abstract static class BinaryCombineDoubleFn extends
-      CombineFn<Double, double[], Double> implements CounterProvider<Double> {
+  public abstract static class BinaryCombineDoubleFn extends CombineFn<Double, double[], Double> {
 
     /**
      * Applies the binary operation to the two operands, returning the result.
@@ -899,6 +903,10 @@ public class Combine {
 
     private double[] wrap(double value) {
       return new double[] { value };
+    }
+
+    public Counter<Double> getCounter(String name) {
+      throw new UnsupportedOperationException("BinaryCombineDoubleFn does not support getCounter");
     }
   }
 
