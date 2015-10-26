@@ -398,7 +398,7 @@
       <groupId>com.google.apis</groupId>
       <artifactId>google-api-services-bigquery</artifactId>
       <!-- If updating version, please update the javadoc offlineLink -->
-      <version>v2-rev187-1.19.1</version>
+      <version>v2-rev238-1.20.0</version>
       <exclusions>
         <!-- Exclude an old version of guava that is being pulled
              in by a transitive dependency google-api-client 1.20.0 -->
