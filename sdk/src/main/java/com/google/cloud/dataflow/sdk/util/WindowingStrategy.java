@@ -27,6 +27,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import org.joda.time.Duration;
 
 import java.io.Serializable;
+import java.util.Objects;
 
 /**
  * A {@code WindowingStrategy} describes the windowing behavior for a specific collection of values.
@@ -194,5 +195,28 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         StringUtils.approximateSimpleName(windowFn.getClass()),
         trigger.toString(),
         mode.toString());
+  }
+
+  @Override
+  public boolean equals(Object object) {
+    if (!(object instanceof WindowingStrategy)) {
+      return false;
+    }
+    WindowingStrategy<?, ?> other = (WindowingStrategy<?, ?>) object;
+    return
+        isTriggerSpecified() == other.isTriggerSpecified()
+        && isAllowedLatenessSpecified() == other.isAllowedLatenessSpecified()
+        && isModeSpecified() == other.isModeSpecified()
+        && getMode().equals(other.getMode())
+        && getAllowedLateness().equals(other.getAllowedLateness())
+        && getClosingBehavior().equals(other.getClosingBehavior())
+        && getTrigger().equals(other.getTrigger())
+        && getWindowFn().equals(other.getWindowFn());
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(triggerSpecified, allowedLatenessSpecified, modeSpecified,
+        windowFn, trigger, mode, allowedLateness, closingBehavior);
   }
 }

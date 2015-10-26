@@ -21,6 +21,8 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
+import java.util.Objects;
+
 /**
  * A {@link WindowFn} that windows values into fixed-size timestamp-based windows.
  *
@@ -86,9 +88,7 @@ public class FixedWindows extends PartitioningWindowFn<Object, IntervalWindow> {
 
   @Override
   public boolean isCompatible(WindowFn<?, ?> other) {
-    return (other instanceof FixedWindows)
-        && (size.equals(((FixedWindows) other).size))
-        && (offset.equals(((FixedWindows) other).offset));
+    return this.equals(other);
   }
 
   public Duration getSize() {
@@ -99,4 +99,18 @@ public class FixedWindows extends PartitioningWindowFn<Object, IntervalWindow> {
     return offset;
   }
 
+  @Override
+  public boolean equals(Object object) {
+    if (!(object instanceof FixedWindows)) {
+      return false;
+    }
+    FixedWindows other = (FixedWindows) object;
+    return getOffset().equals(other.getOffset())
+        && getSize().equals(other.getSize());
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(size, offset);
+  }
 }

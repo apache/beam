@@ -24,6 +24,7 @@ import org.joda.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * A {@link WindowFn} that windows values into possibly overlapping fixed-size
@@ -132,14 +133,7 @@ public class SlidingWindows extends NonMergingWindowFn<Object, IntervalWindow> {
 
   @Override
   public boolean isCompatible(WindowFn<?, ?> other) {
-    if (other instanceof SlidingWindows) {
-      SlidingWindows that = (SlidingWindows) other;
-      return period.equals(that.period)
-        && size.equals(that.size)
-        && offset.equals(that.offset);
-    } else {
-      return false;
-    }
+    return equals(other);
   }
 
   /**
@@ -187,5 +181,21 @@ public class SlidingWindows extends NonMergingWindowFn<Object, IntervalWindow> {
     return startOfLastSegment.isBefore(inputTimestamp)
         ? inputTimestamp
         : startOfLastSegment.plus(1);
+  }
+
+  @Override
+  public boolean equals(Object object) {
+    if (!(object instanceof SlidingWindows)) {
+      return false;
+    }
+    SlidingWindows other = (SlidingWindows) object;
+    return getOffset().equals(other.getOffset())
+        && getSize().equals(other.getSize())
+        && getPeriod().equals(other.getPeriod());
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(size, offset, period);
   }
 }
