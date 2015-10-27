@@ -75,7 +75,7 @@ public class TextReaderFactoryTest {
         null);
     Assert.assertThat(reader, new IsInstanceOf(TextReader.class));
     TextReader<?> textReader = (TextReader<?>) reader;
-    Assert.assertEquals(filename, textReader.filename);
+    Assert.assertEquals(filename, textReader.filepattern);
     Assert.assertEquals(
         stripTrailingNewlines == null ? true : stripTrailingNewlines,
         textReader.stripTrailingNewlines);

@@ -53,7 +53,10 @@ import javax.annotation.Nullable;
  */
 public abstract class FileBasedReader<T> extends Reader<T> {
   protected static final int BUF_SIZE = 200;
-  protected final String filename;
+  protected final String filepattern;
+
+  @Nullable
+  private Collection<String> expandedFilepattern;
 
   @Nullable
   protected final Long startPosition;
@@ -65,9 +68,9 @@ public abstract class FileBasedReader<T> extends Reader<T> {
 
   private static final Logger LOG = LoggerFactory.getLogger(FileBasedReader.class);
 
-  protected FileBasedReader(String filename, @Nullable Long startPosition,
+  protected FileBasedReader(String filepattern, @Nullable Long startPosition,
       @Nullable Long endPosition, Coder<T> coder, boolean useDefaultBufferSize) {
-    this.filename = filename;
+    this.filepattern = filepattern;
     this.startPosition = startPosition;
     this.endPosition = endPosition;
     this.coder = coder;
@@ -95,19 +98,27 @@ public abstract class FileBasedReader<T> extends Reader<T> {
   protected abstract ReaderIterator<T> newReaderIteratorForFiles(
       IOChannelFactory factory, Collection<String> files) throws IOException;
 
+  protected Collection<String> expandedFilepattern() throws IOException {
+    if (expandedFilepattern == null) {
+      IOChannelFactory factory = IOChannelUtils.getFactory(filepattern);
+      expandedFilepattern = factory.match(filepattern);
+    }
+    return expandedFilepattern;
+  }
+
   @Override
   public ReaderIterator<T> iterator() throws IOException {
-    IOChannelFactory factory = IOChannelUtils.getFactory(filename);
-    Collection<String> inputs = factory.match(filename);
+    IOChannelFactory factory = IOChannelUtils.getFactory(filepattern);
+    Collection<String> inputs = expandedFilepattern();
     if (inputs.isEmpty()) {
-      throw new FileNotFoundException("No match for file pattern '" + filename + "'");
+      throw new FileNotFoundException("No match for file pattern '" + filepattern + "'");
     }
 
     if (startPosition != null || endPosition != null) {
       if (inputs.size() != 1) {
         throw new IllegalArgumentException(
             "Offset range specified: [" + startPosition + ", " + endPosition + "), so "
-            + "an exact filename was expected, but more than 1 file matched \"" + filename
+            + "an exact filename was expected, but more than 1 file matched \"" + filepattern
             + "\" (total " + inputs.size() + "): apparently a filepattern was given.");
       }
 
@@ -305,8 +316,12 @@ public abstract class FileBasedReader<T> extends Reader<T> {
     }
 
     protected TextIO.CompressionType getCompressionTypeForAuto() {
+      return getCompressionTypeForAuto(filename);
+    }
+
+    protected static TextIO.CompressionType getCompressionTypeForAuto(String filepattern) {
       for (TextIO.CompressionType type : TextIO.CompressionType.values()) {
-        if (type.matches(filename) && type != TextIO.CompressionType.AUTO
+        if (type.matches(filepattern) && type != TextIO.CompressionType.AUTO
             && type != TextIO.CompressionType.UNCOMPRESSED) {
           return type;
         }

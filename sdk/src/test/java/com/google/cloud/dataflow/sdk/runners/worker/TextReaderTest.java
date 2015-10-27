@@ -766,6 +766,95 @@ public class TextReaderTest {
   }
 
   @Test
+  public void testParallelismEstimatesDeclaredNotCompressed() throws IOException {
+    File file =
+        createFileWithCompressionType(fileContent, "test.gz", CompressionType.UNCOMPRESSED);
+    TextReader<String> textReader =
+        new TextReader<>(
+            file.getPath(),
+            true /*stripTrailingNewlines*/,
+            null /*startPos*/,
+            null /*endPos*/,
+            new WholeLineVerifyingCoder(),
+            CompressionType.UNCOMPRESSED);
+    assertEquals(Double.POSITIVE_INFINITY, textReader.getTotalParallelism(), 0 /*tolerance*/);
+    file.delete();
+  }
+
+  @Test
+  public void testParallelismEstimatesDeclaredCompressed() throws IOException {
+    File file = createFileWithCompressionType(fileContent, "test.txt", CompressionType.GZIP);
+    TextReader<String> textReader =
+        new TextReader<>(
+            file.getPath(), true, null, null, new WholeLineVerifyingCoder(), CompressionType.GZIP);
+    assertEquals(1, textReader.getTotalParallelism(), 0 /*tolerance*/);
+    file.delete();
+  }
+
+  @Test
+  public void testParallelismEstimatesAutoNotCompressed() throws IOException {
+    File file =
+        createFileWithCompressionType(fileContent, "test.txt", CompressionType.UNCOMPRESSED);
+    TextReader<String> textReader =
+        new TextReader<>(
+            file.getPath(), true, null, null, new WholeLineVerifyingCoder(), CompressionType.AUTO);
+    assertEquals(Double.POSITIVE_INFINITY, textReader.getTotalParallelism(), 0 /*tolerance*/);
+    file.delete();
+  }
+
+  @Test
+  public void testParallelismEstimatesAutoCompressed() throws IOException {
+    File file = createFileWithCompressionType(fileContent, "test.gz", CompressionType.GZIP);
+    TextReader<String> textReader =
+        new TextReader<>(
+            file.getPath(), true, null, null, new WholeLineVerifyingCoder(), CompressionType.AUTO);
+    assertEquals(1, textReader.getTotalParallelism(), 0 /*tolerance*/);
+    file.delete();
+  }
+
+  @Test
+  public void testParallelismEstimatesPartialRead() throws IOException {
+    File file =
+        createFileWithCompressionType(fileContent, "test.txt", CompressionType.UNCOMPRESSED);
+    TextReader<String> textReader =
+        new TextReader<>(
+            file.getPath(),
+            true /*stripTrailingNewlines*/,
+            10L /*startPos*/,
+            17L /*endPos*/,
+            new WholeLineVerifyingCoder(),
+            CompressionType.AUTO);
+    assertEquals(7, textReader.getTotalParallelism(), 0 /*tolerance*/);
+    file.delete();
+  }
+
+  @Test
+  public void testParallelismEstimatesCompressedGlob() throws IOException {
+    File gzip = createFileWithCompressionType(fileContent, "test.gz", CompressionType.GZIP);
+    File bzip = createFileWithCompressionType(fileContent, "test.bz2", CompressionType.BZIP2);
+    String pattern = new File(tmpFolder.getRoot(), "*").getPath();
+    TextReader<String> textReader =
+        new TextReader<>(
+            pattern, true, null, null, new WholeLineVerifyingCoder(), CompressionType.AUTO);
+    assertEquals(2, textReader.getTotalParallelism(), 0 /*tolerance*/);
+    gzip.delete();
+    bzip.delete();
+  }
+
+  @Test
+  public void testParallelismEstimatesMixedGlob() throws IOException {
+    File gzip = createFileWithCompressionType(fileContent, "test.gz", CompressionType.GZIP);
+    File txt = createFileWithCompressionType(fileContent, "test.txt", CompressionType.UNCOMPRESSED);
+    String pattern = new File(tmpFolder.getRoot(), "*").getPath();
+    TextReader<String> textReader =
+        new TextReader<>(
+            pattern, true, null, null, new WholeLineVerifyingCoder(), CompressionType.AUTO);
+    assertEquals(Double.POSITIVE_INFINITY, textReader.getTotalParallelism(), 0 /*tolerance*/);
+    gzip.delete();
+    txt.delete();
+  }
+
+  @Test
   public void testErrorOnFileNotFound() throws Exception {
     expectedException.expect(FileNotFoundException.class);
     TextReader<String> textReader = new TextReader<>(

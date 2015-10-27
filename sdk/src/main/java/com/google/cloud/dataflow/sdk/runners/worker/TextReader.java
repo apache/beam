@@ -41,18 +41,53 @@ public class TextReader<T> extends FileBasedReader<T> {
   final boolean stripTrailingNewlines;
   final TextIO.CompressionType compressionType;
 
-  public TextReader(String filename, boolean stripTrailingNewlines, @Nullable Long startPosition,
+  public TextReader(String filepattern, boolean stripTrailingNewlines, @Nullable Long startPosition,
       @Nullable Long endPosition, Coder<T> coder, TextIO.CompressionType compressionType) {
-    this(filename, stripTrailingNewlines, startPosition, endPosition, coder, true,
+    this(filepattern, stripTrailingNewlines, startPosition, endPosition, coder, true,
         compressionType);
   }
 
-  protected TextReader(String filename, boolean stripTrailingNewlines, @Nullable Long startPosition,
-      @Nullable Long endPosition, Coder<T> coder, boolean useDefaultBufferSize,
-      TextIO.CompressionType compressionType) {
-    super(filename, startPosition, endPosition, coder, useDefaultBufferSize);
+  protected TextReader(String filepattern, boolean stripTrailingNewlines,
+      @Nullable Long startPosition, @Nullable Long endPosition, Coder<T> coder,
+      boolean useDefaultBufferSize, TextIO.CompressionType compressionType) {
+    super(filepattern, startPosition, endPosition, coder, useDefaultBufferSize);
     this.stripTrailingNewlines = stripTrailingNewlines;
     this.compressionType = compressionType;
+  }
+
+  public double getTotalParallelism() {
+    try {
+      if (compressionType == TextIO.CompressionType.UNCOMPRESSED) {
+        // All files are splittable.
+        return getTotalParallelismSplittable();
+      } else if (compressionType == TextIO.CompressionType.AUTO) {
+        for (String file : expandedFilepattern()) {
+          if (FilenameBasedStreamFactory.getCompressionTypeForAuto(file)
+              == TextIO.CompressionType.UNCOMPRESSED) {
+            // At least one file is splittable.
+            return getTotalParallelismSplittable();
+          }
+        }
+        // All files were compressed.
+        return getTotalParallelismUnsplittable();
+      } else {
+        // No compressed formats support liquid sharding yet.
+        return getTotalParallelismUnsplittable();
+      }
+    } catch (IOException exn) {
+      throw new RuntimeException(exn);
+    }
+  }
+
+  private double getTotalParallelismSplittable() {
+    // Assume splittable at every byte.
+    return (endPosition == null ? Double.POSITIVE_INFINITY : endPosition)
+        - (startPosition == null ? 0 : startPosition);
+  }
+
+  private double getTotalParallelismUnsplittable() throws IOException {
+    // Total parallelism is the number of files matched by the filepattern.
+    return expandedFilepattern().size();
   }
 
   @Override
