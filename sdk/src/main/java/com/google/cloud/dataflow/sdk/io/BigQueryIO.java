@@ -160,13 +160,14 @@ import java.util.regex.Pattern;
  *         .named("Write")
  *         .withSchema(schema)
  *         .to(new SerializableFunction<BoundedWindow, String>() {
- *               public String apply(BoundedWindow window) {
- *                 String dayString = DateTimeFormat.forPattern("yyyyMMdd").print(
- *                   ((IntervalWindow) window).start());
- *                 return "my-project:output.output_table_" + dayString;
- *               }
- *             }));
- *
+ *           public String apply(BoundedWindow window) {
+ *             // The cast below is safe because CalendarWindows.days(1) produces IntervalWindows.
+ *             String dayString = DateTimeFormat.forPattern("yyyy_MM_dd")
+ *                  .withZone(DateTimeZone.UTC)
+ *                  .print(((IntervalWindow) window).start());
+ *             return "my-project:output.output_table_" + dayString;
+ *           }
+ *         }));
  * }</pre>
  *
  * <p>Per-window tables are not yet supported in batch mode.
