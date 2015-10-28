@@ -155,14 +155,14 @@ import java.util.regex.Pattern;
  * here's code that outputs daily tables to BigQuery:
  * <pre>{@code
  * PCollection<TableRow> quotes = ...
- * quotes.apply(Window.<TableRow>info(CalendarWindows.days(1)))
+ * quotes.apply(Window.<TableRow>into(CalendarWindows.days(1)))
  *       .apply(BigQueryIO.Write
  *         .named("Write")
  *         .withSchema(schema)
  *         .to(new SerializableFunction<BoundedWindow, String>() {
  *               public String apply(BoundedWindow window) {
- *                 String dayString = DateTimeFormat.forPattern("yyyy_MM_dd").parseDateTime(
- *                   ((DaysWindow) window).getStartDate());
+ *                 String dayString = DateTimeFormat.forPattern("yyyyMMdd").print(
+ *                   ((IntervalWindow) window).start());
  *                 return "my-project:output.output_table_" + dayString;
  *               }
  *             }));
