@@ -77,8 +77,6 @@ module provides a set of basic Java APIs to program against.
 * The [`examples`](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples)
 module provides a few samples to get started. We recommend starting with the
 `WordCount` example.
-* The [`eclipse`](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/eclipse)
-directory contains the starter project for the Eclipse environment.
 * The [`contrib`](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/contrib)
 directory hosts community-contributed Dataflow modules.
 
@@ -103,8 +101,10 @@ You can speed up the build and install process by using the following options:
   locally.
 
 If you are using [Eclipse](https://eclipse.org/) integrated development
-environment (IDE), please additionally review our
-[Eclipse integration instructions](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/eclipse/README.md).
+environment (IDE), the
+[Cloud Dataflow Plugin for Eclipse](https://cloud.google.com/dataflow/getting-started-eclipse)
+provides tools to create and execute Dataflow pipelines locally and on the
+Dataflow Service.
 
 After building and installing, you can execute the `WordCount` and other
 example pipelines by following the instructions in this
