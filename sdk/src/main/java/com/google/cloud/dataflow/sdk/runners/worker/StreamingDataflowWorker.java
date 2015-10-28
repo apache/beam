@@ -493,7 +493,7 @@ public class StreamingDataflowWorker {
         ReadOperation readOperation = worker.getReadOperation();
         // Disable progress updates since its results are unused for streaming
         // and involves starting a thread.
-        readOperation.setProgressUpdatePeriodMs(0);
+        readOperation.setProgressUpdatePeriodMs(ReadOperation.DONT_UPDATE_PERIODICALLY);
         Preconditions.checkState(
             worker.supportsRestart(), "Streaming runner requires all operations support restart.");
 

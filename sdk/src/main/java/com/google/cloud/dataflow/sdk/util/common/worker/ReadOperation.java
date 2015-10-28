@@ -105,12 +105,16 @@ public class ReadOperation extends Operation {
         counterPrefix, "systemStageName", addCounterMutator, stateSampler);
   }
 
+  public static final long DONT_UPDATE_PERIODICALLY = -1;
+  public static final long UPDATE_ON_EACH_ITERATION = 0;
+
   /**
-   * Controls the frequency at which progress is updated. A value of zero means
-   * "update progress on each iteration". A value of less than zero means never
-   * update progress. Ignored after starting.
+   * Controls the frequency at which progress is updated.  The given value must
+   * be positive or one of the special values of DONT_UPDATE_PERIODICALLY or
+   * UPDATE_ON_EACH_ITERATION.
    */
   public void setProgressUpdatePeriodMs(long millis) {
+    assert millis > 0 || millis == DONT_UPDATE_PERIODICALLY || millis == UPDATE_ON_EACH_ITERATION;
     progressUpdatePeriodMs = millis;
   }
 
@@ -186,14 +190,15 @@ public class ReadOperation extends Operation {
           }
           value = readerIterator.next();
 
-          if (isProgressUpdateRequested.getAndSet(false) || progressUpdatePeriodMs == 0) {
+          if (isProgressUpdateRequested.getAndSet(false) ||
+              progressUpdatePeriodMs == UPDATE_ON_EACH_ITERATION) {
             setProgressFromIterator();
           }
           receiver.process(value);
         }
         setProgressFromIterator();
       } finally {
-        if (progressUpdatePeriodMs != 0) {
+        if (updateRequester != null) {
           updateRequester.interrupt();
           updateRequester.join();
         }

@@ -142,8 +142,7 @@ public class ReadOperationTest {
     ReadOperation readOperation = ReadOperation.forTest(new MockReader(iterator), receiver, "test-",
         counterSet.getAddCounterMutator(),
         new StateSampler("test-", counterSet.getAddCounterMutator()));
-    // Update progress on every iteration of the read loop.
-    readOperation.setProgressUpdatePeriodMs(0);
+    readOperation.setProgressUpdatePeriodMs(ReadOperation.UPDATE_ON_EACH_ITERATION);
 
     // An unstarted ReadOperation refuses split requests.
     assertNull(
