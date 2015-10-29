@@ -20,6 +20,7 @@ import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.
 
 import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
 import org.slf4j.Logger;
@@ -40,6 +41,18 @@ import java.util.concurrent.atomic.AtomicReference;
 public class ReadOperation extends Operation {
   private static final Logger LOG = LoggerFactory.getLogger(ReadOperation.class);
   private static final long DEFAULT_PROGRESS_UPDATE_PERIOD_MS = TimeUnit.SECONDS.toMillis(1);
+
+  /**
+   * For the reader parallelism counters, large enough values should be sufficient, and there
+   * are issues with arbitrarily large values.
+   *
+   * Specifically, When reporting parallelism as a part of a sum, we want to cap it at a value that
+   * won't impose an artifical constraint on the services view of available parallelism, but small
+   * enough that that adding and subtracting this value for every bundle will not overwhelm values
+   * as small as 1.0.
+   */
+  @VisibleForTesting
+  public static final double LARGE_PARALLELISM_BOUND = 1e7;
 
   /** The Reader this operation reads from. */
   public final Reader<?> reader;
@@ -93,7 +106,7 @@ public class ReadOperation extends Operation {
     this.totalParallelismCounter = addCounterMutator.addCounter(
         Counter.doubles(totalParallelismCounterName(systemStageName), SUM));
     // Set only when a task is started or split.
-    totalParallelismCounter.resetToValue(fixJsonDouble(reader.getTotalParallelism()));
+    totalParallelismCounter.resetToValue(boundParallelism(reader.getTotalParallelism()));
     this.remainingParallelismCounter = addCounterMutator.addCounter(
         Counter.doubles(remainingParallelismCounterName(systemStageName), SUM));
   }
@@ -218,7 +231,7 @@ public class ReadOperation extends Operation {
     try {
       progress.set(readerIterator.getProgress());
       remainingParallelismCounter.resetToValue(
-          fixJsonDouble(readerIterator.getRemainingParallelism()));
+          boundParallelism(readerIterator.getRemainingParallelism()));
     } catch (UnsupportedOperationException e) {
       // Ignore: same semantics as null.
     } catch (Exception e) {
@@ -257,7 +270,7 @@ public class ReadOperation extends Operation {
       if (result != null) {
         // After a successful split, the stop position changed and progress has to be recomputed.
         setProgressFromIterator();
-        totalParallelismCounter.resetToValue(fixJsonDouble(reader.getTotalParallelism()));
+        totalParallelismCounter.resetToValue(boundParallelism(reader.getTotalParallelism()));
       }
       return result;
     }
@@ -283,18 +296,23 @@ public class ReadOperation extends Operation {
   }
 
   /**
-   * JSON doesn't correctly handle non-finite values.  For the reader parallelism counters,
-   * large enough values should be sufficient.
+   * JSON doesn't correctly handle non-finite values, and we want to bound how large each
+   * term in the total sum is.  See {@link #LARGE_PARALLELISM_BOUND}.
    *
-   * <p>TODO: Remove this hack once we move to gRPC.
+   * <p>TODO: Remove this hack once we move to gRPC or report this value in a more structured
+   * format.
    */
-  private static double fixJsonDouble(double x) {
-    if (Double.isNaN(x)) {
-      return -1e200;
-    } else if (x == Double.POSITIVE_INFINITY) {
-      return 1e100;
-    } else if (x == Double.NEGATIVE_INFINITY) {
-      return -1e100;
+  private static double boundParallelism(double x) {
+    if (Double.isNaN(x) || x < 1) {
+      if (x < 1) {
+        LOG.warn("Invalid parallelism value: " + x);
+      }
+      // Irrational; sums won't come out to an integral value. This is to better avoid
+      // accidental coincidences which would imply the remaining parallelism is zero when it's not.
+      // Also, negative so that it's recognized as "invalid."
+      return -LARGE_PARALLELISM_BOUND * Math.sqrt(2);
+    } else if (x > LARGE_PARALLELISM_BOUND) {
+      return LARGE_PARALLELISM_BOUND;
     } else {
       return x;
     }

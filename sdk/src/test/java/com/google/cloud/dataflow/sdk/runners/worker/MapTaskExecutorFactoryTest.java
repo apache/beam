@@ -158,10 +158,9 @@ public class MapTaskExecutorFactoryTest {
             Counter.longs(getObjectCounterName("read_output_name"), SUM).resetToValue(0L),
             Counter.longs(getMeanByteCounterName("read_output_name"), MEAN).resetMeanToValue(0, 0L),
             Counter.longs("Read-ByteCount", SUM).resetToValue(0L),
-            Counter.doubles(
-                "dataflow_total_parallelism-stageName", SUM).resetToValue(1e100),
-            Counter.doubles(
-                "dataflow_remaining_parallelism-stageName", SUM).resetToValue(0.0),
+            Counter.doubles("dataflow_total_parallelism-stageName", SUM)
+                .resetToValue(ReadOperation.LARGE_PARALLELISM_BOUND),
+            Counter.doubles("dataflow_remaining_parallelism-stageName", SUM).resetToValue(0.0),
             Counter.longs("test-Read-start-msecs", SUM).resetToValue(0L),
             Counter.longs("test-Read-process-msecs", SUM).resetToValue(0L),
             Counter.longs("test-Read-finish-msecs", SUM).resetToValue(0L),
@@ -173,15 +172,15 @@ public class MapTaskExecutorFactoryTest {
             Counter.longs("test-DoFn1-finish-msecs", SUM).resetToValue(0L),
             Counter.longs(getElementCounterName("DoFnWithContext_output"), SUM).resetToValue(0L),
             Counter.longs(getObjectCounterName("DoFnWithContext_output"), SUM).resetToValue(0L),
-            Counter.longs(
-                getMeanByteCounterName("DoFnWithContext_output"), MEAN).resetMeanToValue(0, 0L),
+            Counter.longs(getMeanByteCounterName("DoFnWithContext_output"), MEAN)
+                .resetMeanToValue(0, 0L),
             Counter.longs("test-DoFnWithContext-start-msecs", SUM).resetToValue(0L),
             Counter.longs("test-DoFnWithContext-process-msecs", SUM).resetToValue(0L),
             Counter.longs("test-DoFnWithContext-finish-msecs", SUM).resetToValue(0L),
             Counter.longs(getElementCounterName("flatten_output_name"), SUM).resetToValue(0L),
             Counter.longs(getObjectCounterName("flatten_output_name"), SUM).resetToValue(0L),
-            Counter.longs(
-                getMeanByteCounterName("flatten_output_name"), MEAN).resetMeanToValue(0, 0L),
+            Counter.longs(getMeanByteCounterName("flatten_output_name"), MEAN)
+                .resetMeanToValue(0, 0L),
             Counter.longs("test-Flatten-start-msecs", SUM).resetToValue(0L),
             Counter.longs("test-Flatten-process-msecs", SUM).resetToValue(0L),
             Counter.longs("test-Flatten-finish-msecs", SUM).resetToValue(0L),
@@ -279,10 +278,9 @@ public class MapTaskExecutorFactoryTest {
         new CounterSet(
             Counter.longs("test-Read-start-msecs", SUM).resetToValue(0L),
             Counter.longs("Read-ByteCount", SUM).resetToValue(0L),
-            Counter.doubles(
-                "dataflow_total_parallelism-stageName", SUM).resetToValue(1e100),
-            Counter.doubles(
-                "dataflow_remaining_parallelism-stageName", SUM).resetToValue(0.0),
+            Counter.doubles("dataflow_total_parallelism-stageName", SUM)
+                .resetToValue(ReadOperation.LARGE_PARALLELISM_BOUND),
+            Counter.doubles("dataflow_remaining_parallelism-stageName", SUM).resetToValue(0.0),
             Counter.longs("test-Read-finish-msecs", SUM).resetToValue(0L),
             Counter.longs("test-Read-process-msecs", SUM),
             Counter.longs(getMeanByteCounterName("read_output_name"), MEAN).resetMeanToValue(0, 0L),
