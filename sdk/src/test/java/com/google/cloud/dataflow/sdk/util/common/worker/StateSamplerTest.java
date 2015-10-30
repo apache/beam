@@ -29,6 +29,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -36,6 +37,7 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 @RunWith(JUnit4.class)
 public class StateSamplerTest {
+
   public static long getCounterLongValue(CounterSet counters, String name) {
     @SuppressWarnings("unchecked")
     Counter<Long> counter = (Counter<Long>) counters.getExistingCounter(name);
@@ -135,9 +137,10 @@ public class StateSamplerTest {
 
   private void noSamplingAfterCloseTestOnce() throws Exception {
     CounterSet counters = new CounterSet();
-    long periodMs = 50;
+    long periodMs = 200;
 
     final AtomicLong lastSampledTimeStamp = new AtomicLong();
+    final Semaphore sampleHappened = new Semaphore(0);
     try (StateSampler stateSampler = new StateSampler("test-",
         counters.getAddCounterMutator(), periodMs)) {
       stateSampler.setState("test", StateKind.USER);
@@ -145,20 +148,20 @@ public class StateSamplerTest {
         @Override
         public void run(int state, StateKind kind, long elapsedMs) {
           lastSampledTimeStamp.set(System.currentTimeMillis());
+          sampleHappened.release();
         }
       });
-      Thread.sleep(3 * periodMs);
+      sampleHappened.acquire();
     }
-    long cancelledTimeStamp = System.currentTimeMillis();
+    long samplerStoppedTimeStamp = System.currentTimeMillis();
     Thread.sleep(2 * periodMs);
-    assertThat(lastSampledTimeStamp.get(), Matchers.greaterThan(0L));
-    assertThat(lastSampledTimeStamp.get(), Matchers.lessThanOrEqualTo(cancelledTimeStamp));
+    assertThat(lastSampledTimeStamp.get(), Matchers.lessThanOrEqualTo(samplerStoppedTimeStamp));
   }
 
   @Test
   public void noSamplingAfterCloseTest() throws Exception {
     // Run it multiple times to detect flakyness.
-    for (int i = 0; i < 50; ++i) {
+    for (int i = 0; i < 10; ++i) {
       noSamplingAfterCloseTestOnce();
     }
   }
