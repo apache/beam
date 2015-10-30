@@ -350,8 +350,9 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     Map<String, Object> environmentVersion = new HashMap<>();
     environmentVersion.put(PropertyNames.ENVIRONMENT_VERSION_MAJOR_KEY, ENVIRONMENT_MAJOR_VERSION);
     newJob.getEnvironment().setVersion(environmentVersion);
-    // Default jobType is DATA_PARALLEL, which is for java batch.
-    String jobType = "DATA_PARALLEL";
+    // Default jobType is JAVA_BATCH_AUTOSCALING: A Java job with workers that the job can
+    // autoscale if specified.
+    String jobType = "JAVA_BATCH_AUTOSCALING";
 
     if (options.isStreaming()) {
       jobType = "STREAMING";
