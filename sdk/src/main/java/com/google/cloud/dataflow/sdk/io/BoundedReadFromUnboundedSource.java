@@ -258,7 +258,9 @@ class BoundedReadFromUnboundedSource<T> extends PTransform<PInput, PCollection<T
       }
 
       @Override
-      public void close() {}
+      public void close() throws IOException {
+        reader.close();
+      }
 
       @Override
       public BoundedSource<ValueWithRecordId<T>> getCurrentSource() {
