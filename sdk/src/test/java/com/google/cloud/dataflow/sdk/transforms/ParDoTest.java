@@ -153,6 +153,11 @@ public class ParDoTest implements Serializable {
     }
   }
 
+  static class TestNoOutputDoFn extends DoFn<Integer, String> {
+    @Override
+    public void processElement(DoFn<Integer, String>.ProcessContext c) throws Exception {}
+  }
+
   static class TestDoFnWithContext extends DoFnWithContext<Integer, String> {
     enum State { UNSTARTED, STARTED, PROCESSING, FINISHED }
     State state = State.UNSTARTED;
@@ -374,10 +379,70 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category(RunnableOnService.class)
+  public void testParDoEmptyOutputs() {
+
+    Pipeline pipeline = TestPipeline.create();
+
+    List<Integer> inputs = Arrays.asList();
+
+    PCollection<String> output = pipeline
+        .apply(Create.of(inputs).withCoder(VarIntCoder.of()))
+        .apply("TestDoFn", ParDo.of(new TestNoOutputDoFn()));
+
+    DataflowAssert.that(output).empty();
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
   public void testParDoWithSideOutputs() {
     Pipeline pipeline = TestPipeline.create();
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
+
+    TupleTag<String> mainOutputTag = new TupleTag<String>("main"){};
+    TupleTag<String> sideOutputTag1 = new TupleTag<String>("side1"){};
+    TupleTag<String> sideOutputTag2 = new TupleTag<String>("side2"){};
+    TupleTag<String> sideOutputTag3 = new TupleTag<String>("side3"){};
+    TupleTag<String> sideOutputTagUnwritten = new TupleTag<String>("sideUnwritten"){};
+
+    PCollectionTuple outputs = pipeline
+        .apply(Create.of(inputs))
+        .apply(ParDo
+               .of(new TestDoFn(
+                   Arrays.<PCollectionView<Integer>>asList(),
+                   Arrays.asList(sideOutputTag1, sideOutputTag2, sideOutputTag3)))
+               .withOutputTags(
+                   mainOutputTag,
+                   TupleTagList.of(sideOutputTag3)
+                       .and(sideOutputTag1)
+                       .and(sideOutputTagUnwritten)
+                       .and(sideOutputTag2)));
+
+    DataflowAssert.that(outputs.get(mainOutputTag))
+        .satisfies(ParDoTest.HasExpectedOutput.forInput(inputs));
+
+    DataflowAssert.that(outputs.get(sideOutputTag1))
+        .satisfies(ParDoTest.HasExpectedOutput.forInput(inputs)
+                   .fromSideOutput(sideOutputTag1));
+    DataflowAssert.that(outputs.get(sideOutputTag2))
+        .satisfies(ParDoTest.HasExpectedOutput.forInput(inputs)
+                   .fromSideOutput(sideOutputTag2));
+    DataflowAssert.that(outputs.get(sideOutputTag3))
+        .satisfies(ParDoTest.HasExpectedOutput.forInput(inputs)
+                   .fromSideOutput(sideOutputTag3));
+    DataflowAssert.that(outputs.get(sideOutputTagUnwritten)).empty();
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testParDoEmptyWithSideOutputs() {
+    Pipeline pipeline = TestPipeline.create();
+
+    List<Integer> inputs = Arrays.asList();
 
     TupleTag<String> mainOutputTag = new TupleTag<String>("main"){};
     TupleTag<String> sideOutputTag1 = new TupleTag<String>("side1"){};
@@ -412,6 +477,34 @@ public class ParDoTest implements Serializable {
 
     pipeline.run();
   }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testParDoWithEmptySideOutputs() {
+    Pipeline pipeline = TestPipeline.create();
+
+    List<Integer> inputs = Arrays.asList();
+
+    TupleTag<String> mainOutputTag = new TupleTag<String>("main"){};
+    TupleTag<String> sideOutputTag1 = new TupleTag<String>("side1"){};
+    TupleTag<String> sideOutputTag2 = new TupleTag<String>("side2"){};
+
+    PCollectionTuple outputs = pipeline
+        .apply(Create.of(inputs))
+        .apply(ParDo
+               .of(new TestNoOutputDoFn())
+               .withOutputTags(
+                   mainOutputTag,
+                   TupleTagList.of(sideOutputTag1).and(sideOutputTag2)));
+
+    DataflowAssert.that(outputs.get(mainOutputTag)).empty();
+
+    DataflowAssert.that(outputs.get(sideOutputTag1)).empty();
+    DataflowAssert.that(outputs.get(sideOutputTag2)).empty();
+
+    pipeline.run();
+  }
+
 
   @Test
   @Category(RunnableOnService.class)
