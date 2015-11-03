@@ -92,13 +92,19 @@ message TagList {
   repeated Value values = 3;
   optional string state_family = 4;
 
+  // In request: A previously returned continuation_token from an
+  // earlier request. Indicates we wish to fetch the next page of
+  // values.
+  // In response: Copied from request.
+  optional bytes request_token = 7;
+  // In response only: Set when there are values after those returned
+  // above, but they were suppressed to respect the fetch_max_bytes
+  // limit. Subsequent requests should copy this to request_token to
+  // retrieve the next page of values.
+  optional bytes continuation_token = 5;
   // For a TagList fetch request, attempt to limit the size of each fetched tag
   // list to this byte limit.
   optional int64 fetch_max_bytes = 6 [default =  0x7fffffffffffffff];
-  // The continuation token is returned whenever partial results are returned
-  // due to fetch byte limiting. Subsequent requests should set the returned
-  // continuation token to retrieve the next set of tag list values.
-  optional bytes continuation_token = 5;
 }
 
 message GlobalDataId {
