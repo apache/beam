@@ -25,6 +25,7 @@ import com.google.cloud.dataflow.sdk.util.PTuple;
 import com.google.cloud.dataflow.sdk.util.SerializableUtils;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
+import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
@@ -304,10 +305,29 @@ public class DoFnTester<InputT, OutputT> {
     return resultElems;
   }
 
+  /**
+   * Returns the value of the provided {@link Aggregator}.
+   */
+  public <OutputT> OutputT getAggregatorValue(Aggregator<?, OutputT> agg) {
+    @SuppressWarnings("unchecked")
+    Counter<OutputT> counter =
+        (Counter<OutputT>) counterSet.getExistingCounter("user-" + STEP_NAME + "-" + agg.getName());
+    return counter.getAggregate();
+  }
+
   /////////////////////////////////////////////////////////////////////////////
 
   /** The possible states of processing a DoFn. */
-  enum State { UNSTARTED, STARTED, FINISHED }
+  enum State {
+    UNSTARTED,
+    STARTED,
+    FINISHED
+  }
+
+  /** The name of the step of a DoFnTester. */
+  static final String STEP_NAME = "stepName";
+  /** The name of the enclosing DoFn PTransform for a DoFnTester. */
+  static final String TRANSFORM_NAME = "transformName";
 
   final PipelineOptions options = PipelineOptionsFactory.create();
 
@@ -333,8 +353,6 @@ public class DoFnTester<InputT, OutputT> {
 
   /** Counters for user-defined Aggregators if processing is in progress. */
   CounterSet counterSet;
-  // TODO: expose counterSet through a getter method, once we have
-  // a convenient public API for it.
 
   /** The state of processing of the DoFn under test. */
   State state;
@@ -372,7 +390,7 @@ public class DoFnTester<InputT, OutputT> {
         outputManager,
         mainOutputTag,
         sideOutputTags,
-        DirectModeExecutionContext.create().getOrCreateStepContext("stepName", "stepName", null),
+        DirectModeExecutionContext.create().getOrCreateStepContext(STEP_NAME, TRANSFORM_NAME, null),
         counterSet.getAddCounterMutator(),
         WindowingStrategy.globalDefault());
   }
