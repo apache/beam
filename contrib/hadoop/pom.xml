@@ -36,7 +36,7 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <google-cloud-dataflow-version>manual_build</google-cloud-dataflow-version>
+    <google-cloud-dataflow-version>[1.2.0,2.0.0)</google-cloud-dataflow-version>
   </properties>
 
   <build>
@@ -114,11 +114,11 @@
           <offlineLinks>
             <offlineLink>
               <url>https://cloud.google.com/dataflow/java-sdk/JavaDoc/</url>
-              <location>${basedir}/../javadoc/dataflow-sdk-docs</location>
+              <location>${basedir}/../../javadoc/dataflow-sdk-docs</location>
             </offlineLink>
             <offlineLink>
               <url>http://docs.guava-libraries.googlecode.com/git-history/release18/javadoc/</url>
-              <location>${basedir}/../javadoc/guava-docs</location>
+              <location>${basedir}/../../javadoc/guava-docs</location>
             </offlineLink>
           </offlineLinks>
         </configuration>
@@ -141,6 +141,9 @@
       <version>${google-cloud-dataflow-version}</version>
     </dependency>
 
+	<!-- @tomwhite: Hadoop doesn't have great RPC client compatibility between one version and
+	another so it's common to mark the Hadoop dependency as provided and have users specify the
+	version they need in their project. -->
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-client</artifactId>
@@ -149,7 +152,6 @@
     </dependency>
 
     <!-- test dependencies -->
-
     <dependency>
       <groupId>org.hamcrest</groupId>
       <artifactId>hamcrest-all</artifactId>
@@ -161,14 +163,6 @@
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
       <version>4.11</version>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.cloud.dataflow</groupId>
-      <artifactId>google-cloud-dataflow-java-sdk-all</artifactId>
-      <version>${google-cloud-dataflow-version}</version>
-      <type>test-jar</type>
       <scope>test</scope>
     </dependency>
   </dependencies>
