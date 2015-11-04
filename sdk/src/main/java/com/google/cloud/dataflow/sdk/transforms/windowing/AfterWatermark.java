@@ -47,13 +47,13 @@ import java.util.Objects;
  * <p>For sources that provide heuristic watermarks (e.g.
  * {@link com.google.cloud.dataflow.sdk.io.PubsubIO} when using user-supplied event times), the
  * watermark itself becomes an <i>estimate</i> that no data with an event time earlier than that
- * watermark (i.e. "late data) will ever be observed in the pipeline. These heuristics can
+ * watermark (i.e. "late data") will ever be observed in the pipeline. These heuristics can
  * often be quite accurate, but the chance of seeing late data for any given window is non-zero.
  * Thus, if absolute correctness over time is important to your use case, you may want to consider
  * using a trigger that accounts for late data. The default trigger,
  * {@code Repeatedly.forever(AfterWatermark.pastEndOfWindow())}, which fires
  * once when the watermark passes the end of the window and then immediately therafter when any
- * late data arrive, is one such example.
+ * late data arrives, is one such example.
  *
  * <p>The watermark is the clock that defines {@link TimeDomain#EVENT_TIME}.
  *
