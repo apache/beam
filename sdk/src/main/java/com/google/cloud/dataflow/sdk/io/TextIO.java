@@ -23,11 +23,18 @@ import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.worker.FileBasedReader;
 import com.google.cloud.dataflow.sdk.runners.worker.TextReader;
 import com.google.cloud.dataflow.sdk.runners.worker.TextSink;
+import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import com.google.cloud.dataflow.sdk.transforms.ParDo;
+import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
+import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.util.ReaderUtils;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.util.common.worker.Sink;
+import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollection.IsBounded;
 import com.google.cloud.dataflow.sdk.values.PDone;
@@ -443,6 +450,9 @@ public class TextIO {
       /** Requested number of shards.  0 for automatic. */
       final int numShards;
 
+      /** Insert a shuffle before writing to decouple parallelism when numShards != 0. */
+      final boolean forceReshard;
+
       /** Shard template string. */
       final String shardTemplate;
 
@@ -450,16 +460,17 @@ public class TextIO {
       final boolean validate;
 
       Bound(Coder<T> coder) {
-        this(null, null, "", coder, 0, ShardNameTemplate.INDEX_OF_MAX, true);
+        this(null, null, "", coder, 0, true, ShardNameTemplate.INDEX_OF_MAX, true);
       }
 
       Bound(String name, String filenamePrefix, String filenameSuffix, Coder<T> coder,
-          int numShards, String shardTemplate, boolean validate) {
+          int numShards, boolean forceReshard, String shardTemplate, boolean validate) {
         super(name);
         this.coder = coder;
         this.filenamePrefix = filenamePrefix;
         this.filenameSuffix = filenameSuffix;
         this.numShards = numShards;
+        this.forceReshard = forceReshard;
         this.shardTemplate = shardTemplate;
         this.validate = validate;
       }
@@ -469,8 +480,8 @@ public class TextIO {
        * with the given step name.  Does not modify this object.
        */
       public Bound<T> named(String name) {
-        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards, shardTemplate,
-            validate);
+        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards,
+            forceReshard, shardTemplate, validate);
       }
 
       /**
@@ -483,8 +494,8 @@ public class TextIO {
        */
       public Bound<T> to(String filenamePrefix) {
         validateOutputComponent(filenamePrefix);
-        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards, shardTemplate,
-            validate);
+        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards, forceReshard,
+            shardTemplate, validate);
       }
 
       /**
@@ -497,8 +508,8 @@ public class TextIO {
        */
       public Bound<T> withSuffix(String nameExtension) {
         validateOutputComponent(nameExtension);
-        return new Bound<>(name, filenamePrefix, nameExtension, coder, numShards, shardTemplate,
-            validate);
+        return new Bound<>(name, filenamePrefix, nameExtension, coder, numShards, forceReshard,
+            shardTemplate, validate);
       }
 
       /**
@@ -516,9 +527,31 @@ public class TextIO {
        * @see ShardNameTemplate
        */
       public Bound<T> withNumShards(int numShards) {
+        return withNumShards(numShards, forceReshard);
+      }
+
+      /**
+       * Returns a new TextIO.Write PTransform that's like this one but
+       * that uses the provided shard count.
+       *
+       * <p>Constraining the number of shards is likely to reduce
+       * the performance of a pipeline.  If forceReshard is true, the output
+       * will be shuffled to obtain the desired sharding.  If it is false,
+       * data will not be reshuffled, but parallelism of preceeding stages
+       * may be constrained.  Setting this value is not recommended
+       * unless you require a specific number of output files.
+       *
+       * <p>Does not modify this object.
+       *
+       * @param numShards the number of shards to use, or 0 to let the system
+       *                  decide.
+       * @param forceReshard whether to force a reshard to obtain the desired sharding.
+       * @see ShardNameTemplate
+       */
+      private Bound<T> withNumShards(int numShards, boolean forceReshard) {
         Preconditions.checkArgument(numShards >= 0);
-        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards, shardTemplate,
-            validate);
+        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards, forceReshard,
+            shardTemplate, validate);
       }
 
       /**
@@ -530,8 +563,8 @@ public class TextIO {
        * @see ShardNameTemplate
        */
       public Bound<T> withShardNameTemplate(String shardTemplate) {
-        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards, shardTemplate,
-            validate);
+        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards, forceReshard,
+            shardTemplate, validate);
       }
 
       /**
@@ -544,7 +577,21 @@ public class TextIO {
        * <p>Does not modify this object.
        */
       public Bound<T> withoutSharding() {
-        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, 1, "", validate);
+        return withoutSharding(forceReshard);
+      }
+
+      /**
+       * Returns a new TextIO.Write PTransform that's like this one but
+       * that forces a single file as output.
+       *
+       * <p>This is a shortcut for
+       * {@code .withNumShards(1, forceReshard).withShardNameTemplate("")}
+       *
+       * <p>Does not modify this object.
+       */
+      private Bound<T> withoutSharding(boolean forceReshard) {
+        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, 1, forceReshard, "",
+            validate);
       }
 
       /**
@@ -556,8 +603,8 @@ public class TextIO {
        * @param <X> the type of the elements of the input PCollection
        */
       public <X> Bound<X> withCoder(Coder<X> coder) {
-        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards, shardTemplate,
-            validate);
+        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards, forceReshard,
+            shardTemplate, validate);
       }
 
       /**
@@ -570,8 +617,39 @@ public class TextIO {
        * available at execution time.
        */
       public Bound<T> withoutValidation() {
-        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards, shardTemplate,
-            false);
+        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards, forceReshard,
+            shardTemplate, false);
+      }
+
+      private static class ReshardForWrite<T> extends PTransform<PCollection<T>, PCollection<T>> {
+        public PCollection<T> apply(PCollection<T> input) {
+          return input
+              // TODO: This would need to be adapted to write per-window shards.
+              .apply(Window.<T>into(new GlobalWindows())
+                           .triggering(DefaultTrigger.of())
+                           .discardingFiredPanes())
+              .apply("RandomKey", ParDo.of(
+                  new DoFn<T, KV<Long, T>>() {
+                    transient long counter, step;
+                    public void startBundle(Context c) {
+                      counter = (long) (Math.random() * Long.MAX_VALUE);
+                      step = 1 + 2 * (long) (Math.random() * Long.MAX_VALUE);
+                    }
+                    public void processElement(ProcessContext c) {
+                      counter += step;
+                      c.output(KV.of(counter, c.element()));
+                    }
+                  }))
+              .apply(GroupByKey.<Long, T>create())
+              .apply("Ungroup", ParDo.of(
+                  new DoFn<KV<Long, Iterable<T>>, T>() {
+                    public void processElement(ProcessContext c) {
+                      for (T item : c.element().getValue()) {
+                        c.output(item);
+                      }
+                    }
+                  }));
+        }
       }
 
       @Override
@@ -580,7 +658,12 @@ public class TextIO {
           throw new IllegalStateException(
               "need to set the filename prefix of a TextIO.Write transform");
         }
-        return PDone.in(input.getPipeline());
+        if (numShards > 0 && forceReshard) {
+          // Reshard and re-apply a version of this write without resharding.
+          return input.apply(new ReshardForWrite<T>()).apply(withNumShards(numShards, false));
+        } else {
+          return PDone.in(input.getPipeline());
+        }
       }
 
       /**
