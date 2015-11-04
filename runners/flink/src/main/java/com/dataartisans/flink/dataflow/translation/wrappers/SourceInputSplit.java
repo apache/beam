@@ -18,12 +18,7 @@
 package com.dataartisans.flink.dataflow.translation.wrappers;
 
 import com.google.cloud.dataflow.sdk.io.Source;
-import com.google.cloud.dataflow.sdk.util.SerializableUtils;
 import org.apache.flink.core.io.InputSplit;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
-
-import java.io.IOException;
 
 /**
  * {@link org.apache.flink.core.io.InputSplit} for

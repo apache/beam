@@ -19,7 +19,6 @@ import com.google.cloud.dataflow.sdk.PipelineResult;
 import com.google.cloud.dataflow.sdk.runners.AggregatorRetrievalException;
 import com.google.cloud.dataflow.sdk.runners.AggregatorValues;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
-import org.apache.flink.runtime.messages.accumulators.AccumulatorResultsNotFound;
 
 import java.util.Collections;
 import java.util.Map;

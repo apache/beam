@@ -20,7 +20,6 @@ package com.dataartisans.flink.dataflow.translation.functions;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.values.KV;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
-import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.util.Collector;
 
 import java.util.Iterator;
