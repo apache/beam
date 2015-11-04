@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dataartisans.flink.dataflow;
+package com.dataartisans.flink.dataflow.util;
 
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.dataflow.sdk.Pipeline;
@@ -48,7 +48,7 @@ public class JoinExamples {
 	/**
 	 * Join two collections, using country code as the key.
 	 */
-	static PCollection<String> joinEvents(PCollection<TableRow> eventsTable,
+	public static PCollection<String> joinEvents(PCollection<TableRow> eventsTable,
 	                                      PCollection<TableRow> countryCodes) throws Exception {
 
 		final TupleTag<String> eventInfoTag = new TupleTag<String>();
