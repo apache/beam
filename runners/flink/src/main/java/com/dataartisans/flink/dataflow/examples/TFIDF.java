@@ -52,7 +52,6 @@ import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

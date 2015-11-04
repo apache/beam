@@ -19,15 +19,9 @@ package com.dataartisans.flink.dataflow.translation.wrappers;
 
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
-import com.google.cloud.dataflow.sdk.util.SerializableUtils;
 import com.google.common.collect.Lists;
 import org.apache.flink.api.common.accumulators.Accumulator;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
 /**
