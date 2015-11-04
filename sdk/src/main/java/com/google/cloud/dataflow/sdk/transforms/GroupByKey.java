@@ -397,15 +397,18 @@ public class GroupByKey<K, V>
       @SuppressWarnings("unchecked")
       KvCoder<K, Iterable<WindowedValue<V>>> inputKvCoder =
           (KvCoder<K, Iterable<WindowedValue<V>>>) input.getCoder();
+
       Coder<K> keyCoder = inputKvCoder.getKeyCoder();
       Coder<Iterable<WindowedValue<V>>> inputValueCoder =
           inputKvCoder.getValueCoder();
+
       IterableCoder<WindowedValue<V>> inputIterableValueCoder =
           (IterableCoder<WindowedValue<V>>) inputValueCoder;
       Coder<WindowedValue<V>> inputIterableElementCoder =
           inputIterableValueCoder.getElemCoder();
       WindowedValueCoder<V> inputIterableWindowedValueCoder =
           (WindowedValueCoder<V>) inputIterableElementCoder;
+
       Coder<V> inputIterableElementValueCoder =
           inputIterableWindowedValueCoder.getValueCoder();
       Coder<Iterable<V>> outputValueCoder =

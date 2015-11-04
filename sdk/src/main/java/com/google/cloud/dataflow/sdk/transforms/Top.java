@@ -24,6 +24,8 @@ import com.google.cloud.dataflow.sdk.coders.ListCoder;
 import com.google.cloud.dataflow.sdk.transforms.Combine.AccumulatingCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.Combine.AccumulatingCombineFn.Accumulator;
 import com.google.cloud.dataflow.sdk.transforms.Combine.PerKey;
+import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -74,6 +76,12 @@ public class Top {
    * is a {@code ListCoder} of the {@code Coder} of the elements of
    * the input {@code PCollection}.
    *
+   * <p>If the input {@code PCollection} is windowed into {@link GlobalWindows},
+   * an empty {@code List<T>} in the {@link GlobalWindow} will be output if the input
+   * {@code PCollection} is empty.  To use this with inputs with other windowing,
+   * either {@link Combine.Globally#withoutDefaults withoutDefaults} or
+   * {@link Combine.Globally#asSingletonView asSingletonView} must be called.
+   *
    * <p>See also {@link #smallest} and {@link #largest}, which sort
    * {@code Comparable} elements using their natural ordering.
    *
@@ -111,6 +119,12 @@ public class Top {
    * is a {@code ListCoder} of the {@code Coder} of the elements of
    * the input {@code PCollection}.
    *
+   * <p>If the input {@code PCollection} is windowed into {@link GlobalWindows},
+   * an empty {@code List<T>} in the {@link GlobalWindow} will be output if the input
+   * {@code PCollection} is empty.  To use this with inputs with other windowing,
+   * either {@link Combine.Globally#withoutDefaults withoutDefaults} or
+   * {@link Combine.Globally#asSingletonView asSingletonView} must be called.
+   *
    * <p>See also {@link #largest}.
    *
    * <p>See also {@link #of}, which sorts using a user-specified
@@ -120,8 +134,7 @@ public class Top {
    * {@link #largestPerKey}, which take a {@code PCollection} of
    * {@code KV}s and return the top values associated with each key.
    */
-  public static <T extends Comparable<T>>
-      Combine.Globally<T, List<T>> smallest(int count) {
+  public static <T extends Comparable<T>> Combine.Globally<T, List<T>> smallest(int count) {
     return Combine.globally(new TopCombineFn<>(count, new Smallest<T>()))
         .named("Smallest.Globally");
   }
@@ -151,6 +164,12 @@ public class Top {
    * is a {@code ListCoder} of the {@code Coder} of the elements of
    * the input {@code PCollection}.
    *
+   * <p>If the input {@code PCollection} is windowed into {@link GlobalWindows},
+   * an empty {@code List<T>} in the {@link GlobalWindow} will be output if the input
+   * {@code PCollection} is empty.  To use this with inputs with other windowing,
+   * either {@link Combine.Globally#withoutDefaults withoutDefaults} or
+   * {@link Combine.Globally#asSingletonView asSingletonView} must be called.
+   *
    * <p>See also {@link #smallest}.
    *
    * <p>See also {@link #of}, which sorts using a user-specified
@@ -160,10 +179,8 @@ public class Top {
    * {@link #largestPerKey}, which take a {@code PCollection} of
    * {@code KV}s and return the top values associated with each key.
    */
-  public static <T extends Comparable<T>>
-      Combine.Globally<T, List<T>> largest(int count) {
-    return Combine.globally(new TopCombineFn<>(count, new Largest<T>()))
-.named("Largest.Globally");
+  public static <T extends Comparable<T>> Combine.Globally<T, List<T>> largest(int count) {
+    return Combine.globally(new TopCombineFn<>(count, new Largest<T>())).named("Largest.Globally");
   }
 
   /**
@@ -257,8 +274,7 @@ public class Top {
   public static <K, V extends Comparable<V>>
       PTransform<PCollection<KV<K, V>>, PCollection<KV<K, List<V>>>>
       smallestPerKey(int count) {
-    return Combine.perKey(
-new TopCombineFn<>(count, new Smallest<V>()).<K>asKeyedFn())
+    return Combine.perKey(new TopCombineFn<>(count, new Smallest<V>()).<K>asKeyedFn())
         .named("Smallest.PerKey");
   }
 
@@ -368,6 +384,15 @@ new TopCombineFn<>(count, new Largest<V>()).<K>asKeyedFn())
     public Coder<BoundedHeap<T, ComparatorT>> getAccumulatorCoder(
         CoderRegistry registry, Coder<T> inputCoder) {
       return new BoundedHeapCoder<>(count, compareFn, inputCoder);
+    }
+
+    @Override
+    String getIncompatibleGlobalWindowErrorMessage() {
+      return "Default values are not supported in Top.[of, smallest, largest]() if the output "
+          + "PCollection is not windowed by GlobalWindows. Instead, use "
+          + "Top.[of, smallest, largest]().withoutDefaults() to output an empty PCollection if the"
+          + " input PCollection is empty, or Top.[of, smallest, largest]().asSingletonView() to "
+          + "get a PCollection containing the empty list if the input PCollection is empty.";
     }
   }
 

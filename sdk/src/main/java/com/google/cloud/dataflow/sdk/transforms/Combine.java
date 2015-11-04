@@ -441,6 +441,14 @@ public class Combine {
           .getType();
     }
 
+    String getIncompatibleGlobalWindowErrorMessage() {
+      return "Default values are not supported in Combine.globally() if the output "
+          + "PCollection is not windowed by GlobalWindows. Instead, use "
+          + "Combine.globally().withoutDefaults() to output an empty PCollection if the input "
+          + "PCollection is empty, or Combine.globally().asSingletonView() to get the default "
+          + "output of the CombineFn if the input PCollection is empty.";
+    }
+
     /**
      * Returns the {@code Coder} to use for accumulator {@code AccumT}
      * values, or null if it is not able to be inferred.
@@ -1317,7 +1325,8 @@ public class Combine {
    * <p>If the input {@code PCollection} is windowed into {@link GlobalWindows},
    * a default value in the {@link GlobalWindow} will be output if the input
    * {@code PCollection} is empty.  To use this with inputs with other windowing,
-   * either {@link #withoutDefaults} or {@link #asSingletonView} must be called.
+   * either {@link #withoutDefaults} or {@link #asSingletonView} must be called,
+   * as the default value cannot be automatically assigned to any single window.
    *
    * <p>By default, the {@code Coder} of the output {@code PValue<OutputT>}
    * is inferred from the concrete type of the
@@ -1408,10 +1417,7 @@ public class Combine {
 
       if (insertDefault) {
         if (!output.getWindowingStrategy().getWindowFn().isCompatible(new GlobalWindows())) {
-          throw new IllegalStateException(
-              "Attempted to add default value to PCollection not windowed by GlobalWindows. "
-              + "Instead, use Combine.globally().withoutDefaults() or "
-              + "Combine.globally().asSingletonView().");
+          throw new IllegalStateException(fn.getIncompatibleGlobalWindowErrorMessage());
         }
         return insertDefaultValueIfEmpty(output);
       } else {

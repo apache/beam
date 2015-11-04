@@ -24,10 +24,14 @@ import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
+import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Window.Bound;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 
 import org.hamcrest.Matchers;
+import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -36,6 +40,7 @@ import org.junit.runners.JUnit4;
 
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
@@ -136,6 +141,23 @@ public class TopTest {
     DataflowAssert.that(smallestPerKey).empty();
 
     p.run();
+  }
+
+  @Test
+  public void testTopEmptyWithIncompatibleWindows() {
+    Pipeline p = TestPipeline.create();
+    Bound<String> windowingFn = Window.<String>into(FixedWindows.of(Duration.standardDays(10L)));
+    PCollection<String> input =
+        p.apply(Create.timestamped(Collections.<String>emptyList(), Collections.<Long>emptyList()))
+         .apply(windowingFn);
+
+    expectedEx.expect(IllegalStateException.class);
+    expectedEx.expectMessage("Top");
+    expectedEx.expectMessage("GlobalWindows");
+    expectedEx.expectMessage("withoutDefaults");
+    expectedEx.expectMessage("asSingletonView");
+
+    input.apply(Top.of(1, new OrderByLength()));
   }
 
   @Test
