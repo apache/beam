@@ -15,6 +15,7 @@
  */
 package com.dataartisans.flink.dataflow;
 
+import com.dataartisans.flink.dataflow.util.JoinExamples;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.io.TextIO;
@@ -76,6 +77,7 @@ public class JoinExamplesITCase extends JavaProgramTestBase {
 			"Country code: BE, Country name: Belgium, Event info: Date: 20141213, Actor1: AFGHANISTAN, "
 					+ "url: http://cnn.com"
 	};
+
 	@Override
 	protected void preSubmit() throws Exception {
 		resultPath = getTempDirPath("result");
