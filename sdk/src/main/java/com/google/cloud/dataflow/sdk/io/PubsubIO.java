@@ -39,6 +39,7 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollection.IsBounded;
 import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.cloud.dataflow.sdk.values.PInput;
+import com.google.common.base.Throwables;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -606,6 +607,7 @@ public class PubsubIO {
 
           List<PubsubMessage> messages = new ArrayList<>();
 
+          Throwable finallyBlockException = null;
           try {
             while ((getMaxNumRecords() == 0 || messages.size() < getMaxNumRecords())
                 && Instant.now().isBefore(endTime)) {
@@ -641,9 +643,13 @@ public class PubsubIO {
               try {
                 pubsubClient.projects().subscriptions().delete(subscription).execute();
               } catch (IOException e) {
-                throw new RuntimeException("Failed to delete subscription: ", e);
+                finallyBlockException = new RuntimeException("Failed to delete subscription: ", e);
+                LOG.error("Failed to delete subscription: ", e);
               }
             }
+          }
+          if (finallyBlockException != null) {
+            Throwables.propagate(finallyBlockException);
           }
 
           for (PubsubMessage message : messages) {
