@@ -1162,15 +1162,4 @@ public class StreamingDataflowWorkerTest {
     assertEquals(true, activeWork.activateWork(key1, new MockWork(1)));
     activeWork.completeWork(key1);
   }
-
-  @Test
-  public void testPushback() throws Exception {
-    Runtime r = Mockito.mock(Runtime.class);
-    Mockito.when(r.maxMemory()).thenReturn(100000000L);
-    Mockito.when(r.freeMemory()).thenReturn(80000000L, 5000000L, 5000000L);
-    Mockito.when(r.totalMemory()).thenReturn(90000000L, 98000000L, 40000000L);
-    assertEquals(false, StreamingDataflowWorker.inPushback(r));
-    assertEquals(true, StreamingDataflowWorker.inPushback(r));
-    assertEquals(false, StreamingDataflowWorker.inPushback(r));
-  }
 }

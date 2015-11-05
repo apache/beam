@@ -17,25 +17,29 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.WindmillServerStub;
+import com.google.cloud.dataflow.sdk.util.MemoryMonitor;
 
 import java.io.PrintWriter;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Wrapper around a {@link WindmillServerStub} that tracks metrics for the number of in-flight
- * requests.
+ * requests and throttles requests when memory pressure is high.
  */
 public class MetricTrackingWindmillServerStub {
-
   private final AtomicInteger activeSideInputs = new AtomicInteger();
   private final AtomicInteger activeStateReads = new AtomicInteger();
   private final WindmillServerStub server;
+  private final MemoryMonitor gcThrashingMonitor;
 
-  public MetricTrackingWindmillServerStub(WindmillServerStub server) {
+  public MetricTrackingWindmillServerStub(
+      WindmillServerStub server, MemoryMonitor gcThrashingMonitor) {
     this.server = server;
+    this.gcThrashingMonitor = gcThrashingMonitor;
   }
 
   public Windmill.GetDataResponse getStateData(Windmill.GetDataRequest request) {
+    gcThrashingMonitor.waitForResources("GetStateData");
     activeStateReads.getAndIncrement();
     try {
       return server.getData(request);
@@ -45,6 +49,7 @@ public class MetricTrackingWindmillServerStub {
   }
 
   public Windmill.GetDataResponse getSideInputData(Windmill.GetDataRequest request) {
+    gcThrashingMonitor.waitForResources("GetSideInputData");
     activeSideInputs.getAndIncrement();
     try {
       return server.getData(request);
@@ -57,19 +62,5 @@ public class MetricTrackingWindmillServerStub {
     writer.println("Active Fetches:");
     writer.println("  Side Inputs: " + activeSideInputs.get());
     writer.println("  State Reads: " + activeStateReads.get());
-  }
-
-  public AutoCloseable sideInput() {
-    return initiate(activeSideInputs);
-  }
-
-  private AutoCloseable initiate(final AtomicInteger counter) {
-    counter.getAndIncrement();
-    return new AutoCloseable() {
-      @Override
-      public void close() {
-        counter.getAndDecrement();
-      }
-    };
   }
 }

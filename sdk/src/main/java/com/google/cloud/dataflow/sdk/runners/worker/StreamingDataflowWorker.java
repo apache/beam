@@ -28,6 +28,7 @@ import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggin
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.WindmillServerStub;
 import com.google.cloud.dataflow.sdk.util.BoundedQueueExecutor;
+import com.google.cloud.dataflow.sdk.util.MemoryMonitor;
 import com.google.cloud.dataflow.sdk.util.Serializer;
 import com.google.cloud.dataflow.sdk.util.Transport;
 import com.google.cloud.dataflow.sdk.util.UserCodeException;
@@ -91,11 +92,18 @@ public class StreamingDataflowWorker {
   static final int MAX_WORK_UNITS_QUEUED = 100;
   static final long MAX_COMMIT_BYTES = 32 << 20;
   static final int DEFAULT_STATUS_PORT = 8081;
-  // Memory threshold over which no new work will be processed.
-  // Set to a value >= 1 to disable pushback.
-  static final double PUSHBACK_THRESHOLD_RATIO = 0.9;
   static final String DEFAULT_WINDMILL_SERVER_CLASS_NAME =
       "com.google.cloud.dataflow.sdk.runners.worker.windmill.WindmillServer";
+
+  // Maximum size of the result of a GetWork request.
+  private static final long MAX_GET_WORK_FETCH_BYTES = 64L << 20; // 64m
+
+  /**
+   * Maximum number of items to return in a GetWork request.
+   */
+  private static final long MAX_GET_WORK_ITEMS = 100;
+
+  private static final MemoryMonitor memoryMonitor = new MemoryMonitor();
 
   /**
    * Indicates that the key token was invalid when data was attempted to be fetched.
@@ -119,6 +127,19 @@ public class StreamingDataflowWorker {
     return false;
   }
 
+  /**
+   * Returns whether an exception was caused by a {@link OutOfMemoryError}.
+   */
+  private static boolean isOutOfMemoryError(Throwable t) {
+    while (t != null) {
+      if (t instanceof OutOfMemoryError) {
+        return true;
+      }
+      t = t.getCause();
+    }
+    return false;
+  }
+
   static MapTask parseMapTask(String input) throws IOException {
     return Transport.getJsonFactory()
         .fromString(input, MapTask.class);
@@ -127,6 +148,8 @@ public class StreamingDataflowWorker {
   public static void main(String[] args) throws Exception {
     Thread.setDefaultUncaughtExceptionHandler(
         DataflowWorkerHarness.WorkerUncaughtExceptionHandler.INSTANCE);
+
+    new Thread(memoryMonitor).start();
 
     DataflowWorkerLoggingInitializer.initialize();
     DataflowWorkerHarnessOptions options =
@@ -169,7 +192,7 @@ public class StreamingDataflowWorker {
   }
 
   /**
-   * Entry in a per-key {@link UnboundedSource.UnboundedReader} cache.
+   * Entry in a per-key UnboundedSource#UnboundedReader cache.
    */
   public static class ReaderCacheEntry {
     UnboundedSource.UnboundedReader<?> reader;
@@ -255,7 +278,7 @@ public class StreamingDataflowWorker {
             },
             new ThreadPoolExecutor.DiscardPolicy());
     this.windmillServer = server;
-    this.metricTrackingWindmillServer = new MetricTrackingWindmillServerStub(server);
+    this.metricTrackingWindmillServer = new MetricTrackingWindmillServerStub(server, memoryMonitor);
     this.running = new AtomicBoolean();
     this.stateFetcher = new StateFetcher(metricTrackingWindmillServer);
     this.clientId = new Random().nextLong();
@@ -367,40 +390,10 @@ public class StreamingDataflowWorker {
     }
   }
 
-  private static long lastPushbackLog = 0;
-
-  protected static boolean inPushback(Runtime rt) {
-    // If free memory is less than a percentage of total memory, block
-    // until current work drains and memory is released.
-    // Also force a GC to try to get under the memory threshold if possible.
-    long currentMemorySize = rt.totalMemory();
-    long memoryUsed = currentMemorySize - rt.freeMemory();
-    long maxMemory = rt.maxMemory();
-
-    if (memoryUsed <= maxMemory * PUSHBACK_THRESHOLD_RATIO) {
-      return false;
-    }
-
-    if (lastPushbackLog < System.currentTimeMillis() - 60 * 1000) {
-      LOG.warn(
-          "In pushback, not accepting new work. Using {}MB / {}MB ({}MB currently used by JVM)",
-          memoryUsed >> 20, maxMemory >> 20, currentMemorySize >> 20);
-      lastPushbackLog = System.currentTimeMillis();
-    }
-
-    return true;
-  }
-
   private void dispatchLoop() {
     LOG.info("Dispatch starting");
-    Runtime rt = Runtime.getRuntime();
     while (running.get()) {
-      if (inPushback(rt)) {
-        System.gc();
-        while (inPushback(rt)) {
-          sleep(10);
-        }
-      }
+      memoryMonitor.waitForResources("GetWork");
 
       int backoff = 1;
       Windmill.GetWorkResponse workResponse;
@@ -584,13 +577,22 @@ public class StreamingDataflowWorker {
           worker.close();
         } catch (Exception e) {
           LOG.warn("Failed to close worker: ", e);
+        } finally {
+          // Release references to potentially large objects early.
+          worker = null;
+          context = null;
         }
       }
 
       t = t instanceof UserCodeException ? t.getCause() : t;
 
-      if (isKeyTokenInvalidException(t)) {
-        LOG.debug("Execution of work for {} for key {} failed due to token expiration, "
+      if (isOutOfMemoryError(t)) {
+        reportFailure(computation, work, t);
+        LOG.error("Received OutOfMemoryError, crashing.  Error was ", t);
+        System.exit(1);
+      } else if (isKeyTokenInvalidException(t)) {
+        LOG.debug(
+            "Execution of work for {} for key {} failed due to token expiration, "
             + "will not retry locally.",
             computation, work.getKey().toStringUtf8());
         activeWorkMap.get(computation).completeWork(work.getKey());
@@ -677,9 +679,10 @@ public class StreamingDataflowWorker {
   private Windmill.GetWorkResponse getWork() {
     return windmillServer.getWork(
         Windmill.GetWorkRequest.newBuilder()
-        .setClientId(clientId)
-        .setMaxItems(100)
-        .build());
+            .setClientId(clientId)
+            .setMaxItems(MAX_GET_WORK_ITEMS)
+            .setMaxBytes(MAX_GET_WORK_FETCH_BYTES)
+            .build());
   }
 
   private void commitWork(Windmill.CommitWorkRequest request) {
@@ -927,10 +930,12 @@ public class StreamingDataflowWorker {
         responseWriter.println("ok");
       } else if (target.equals("/threadz")) {
         printThreads(responseWriter);
+      } else if (target.equals("/heapz")) {
+        dumpHeap(responseWriter);
       } else {
         printHeader(responseWriter);
-        printMetrics(responseWriter);
         printResources(responseWriter);
+        printMetrics(responseWriter);
         printLastException(responseWriter);
         printSpecs(responseWriter);
       }
@@ -976,11 +981,8 @@ public class StreamingDataflowWorker {
   }
 
   private void printResources(PrintWriter response) {
-    Runtime rt = Runtime.getRuntime();
     response.append("<h2>Resources</h2>\n");
-    response.append("Total Memory: " + (rt.totalMemory() >> 20) + "MB<br>\n");
-    response.append("Used Memory: " + ((rt.totalMemory() - rt.freeMemory()) >> 20) + "MB<br>\n");
-    response.append("Max Memory: " + (rt.maxMemory() >> 20) + "MB<br>\n");
+    response.append("Memory is " + memoryMonitor.describeMemory() + "<br>\n");
   }
 
   private void printSpecs(PrintWriter response) {
@@ -1012,6 +1014,18 @@ public class StreamingDataflowWorker {
         response.println("&nbsp&nbsp" + element + "<br>");
       }
       response.println("<br>");
+    }
+  }
+
+  private void dumpHeap(PrintWriter response) {
+    try {
+      String dumpFile = MemoryMonitor.dumpHeap();
+      response.println("Dumped heap to " + dumpFile);
+    } catch (Exception e) {
+      response.println("Failed to dump heap: <br>");
+      StringWriter writer = new StringWriter();
+      e.printStackTrace(new PrintWriter(writer));
+      response.println(writer.toString().replace("\t", "&nbsp&nbsp").replace("\n", "<br>"));
     }
   }
 }
