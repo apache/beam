@@ -423,7 +423,11 @@ public class AfterWatermarkTest {
 
     tester.injectElements(TimestampedValue.of(3, new Instant(6L)));
 
-    tester.advanceProcessingTime(new Instant(100L));
+    tester.advanceProcessingTime(new Instant(100L)); // Fires the late trigger
+
+    tester.injectElements(TimestampedValue.of(4, new Instant(9L)));
+
+    tester.advanceProcessingTime(new Instant(100L)); // Fires the late trigger again
 
     List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
     assertThat(output, Matchers.contains(

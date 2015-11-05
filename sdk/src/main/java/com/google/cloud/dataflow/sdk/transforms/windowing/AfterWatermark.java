@@ -414,6 +414,7 @@ public class AfterWatermark<W extends BoundedWindow> {
         if (result.isFire()) {
           // the subtriggers are OnceTriggers that need an implicit repeat around them. So, reset
           // the trigger after it fires.
+          c.trigger().setFinished(false, LATE_INDEX);
           current.invokeClear(c);
           return TriggerResult.FIRE;
         } else {
