@@ -88,6 +88,8 @@ message TagValue {
 
 message TagList {
   required bytes tag = 1;
+  // In request: All items till this timestamp (inclusive) are deleted before
+  // adding the new ones listed below.
   optional int64 end_timestamp = 2 [default=-0x8000000000000000];
   repeated Value values = 3;
   optional string state_family = 4;
