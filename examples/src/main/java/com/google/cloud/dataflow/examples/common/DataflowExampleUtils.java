@@ -16,6 +16,9 @@ package com.google.cloud.dataflow.examples.common;
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.googleapis.services.AbstractGoogleClientRequest;
+import com.google.api.client.util.BackOff;
+import com.google.api.client.util.BackOffUtils;
+import com.google.api.client.util.Sleeper;
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.Bigquery.Datasets;
 import com.google.api.services.bigquery.Bigquery.Tables;
@@ -36,8 +39,10 @@ import com.google.cloud.dataflow.sdk.runners.DataflowPipelineJob;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.IntraBundleParallelization;
+import com.google.cloud.dataflow.sdk.util.AttemptBoundedExponentialBackOff;
 import com.google.cloud.dataflow.sdk.util.MonitoringUtil;
 import com.google.cloud.dataflow.sdk.util.Transport;
+import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
@@ -91,8 +96,23 @@ public class DataflowExampleUtils {
    * @throws IOException if there is a problem setting up the resources
    */
   public void setup() throws IOException {
-    setupPubsubTopic();
-    setupBigQueryTable();
+    Sleeper sleeper = Sleeper.DEFAULT;
+    BackOff backOff = new AttemptBoundedExponentialBackOff(3, 200);
+    Throwable lastException = null;
+    try {
+      do {
+        try {
+          setupPubsubTopic();
+          setupBigQueryTable();
+          return;
+        } catch (GoogleJsonResponseException e) {
+          lastException = e;
+        }
+      } while (BackOffUtils.next(sleeper, backOff));
+    } catch (InterruptedException e) {
+      // Ignore InterruptedException
+    }
+    Throwables.propagate(lastException);
   }
 
   /**
