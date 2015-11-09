@@ -25,13 +25,13 @@ import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.common.collect.Iterables;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Observer;
 
 /**
@@ -85,7 +85,7 @@ public class SideInputUtils {
       for (Source sideInputSource : sideInputSources) {
         shards.add(readSideInputSource(options, sideInputSource, observer, executionContext));
       }
-      return new ShardedIterable<>(shards);
+      return Iterables.concat(shards);
     }
   }
 
@@ -180,58 +180,6 @@ public class SideInputUtils {
 
 
   /////////////////////////////////////////////////////////////////////////////
-
-  static class ShardedIterable<T> implements Iterable<T> {
-    final List<Iterable<T>> shards;
-
-    public ShardedIterable(List<Iterable<T>> shards) {
-      this.shards = shards;
-    }
-
-    @Override
-    public Iterator<T> iterator() {
-      return new ShardedIterator<>(shards.iterator());
-    }
-  }
-
-  static class ShardedIterator<T> implements Iterator<T> {
-    final Iterator<Iterable<T>> shards;
-    Iterator<T> shard;
-
-    public ShardedIterator(Iterator<Iterable<T>> shards) {
-      this.shards = shards;
-      this.shard = null;
-    }
-
-    @Override
-    public boolean hasNext() {
-      boolean shardHasNext;
-      for (;;) {
-        shardHasNext = (shard != null && shard.hasNext());
-        if (shardHasNext) {
-          break;
-        }
-        if (!shards.hasNext()) {
-          break;
-        }
-        shard = shards.next().iterator();
-      }
-      return shardHasNext;
-    }
-
-    @Override
-    public T next() {
-      if (!hasNext()) {
-        throw new NoSuchElementException();
-      }
-      return shard.next();
-    }
-
-    @Override
-    public void remove() {
-      throw new UnsupportedOperationException();
-    }
-  }
 
   /**
    * Builds a {@link SideInputInfo} for a "singleton" side input.
