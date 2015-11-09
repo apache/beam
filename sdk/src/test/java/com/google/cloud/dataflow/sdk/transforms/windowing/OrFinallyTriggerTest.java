@@ -321,10 +321,12 @@ public class OrFinallyTriggerTest {
     Trigger<IntervalWindow> aOrFinallyB = triggerA.orFinally(triggerB);
     Trigger<IntervalWindow> bOrFinallyA = triggerB.orFinally(triggerA);
     assertEquals(
-        triggerA.getContinuationTrigger().orFinally(triggerB.getContinuationTrigger()),
+        Repeatedly.forever(
+            triggerA.getContinuationTrigger().orFinally(triggerB.getContinuationTrigger())),
         aOrFinallyB.getContinuationTrigger());
     assertEquals(
-        triggerB.getContinuationTrigger().orFinally(triggerA.getContinuationTrigger()),
+        Repeatedly.forever(
+            triggerB.getContinuationTrigger().orFinally(triggerA.getContinuationTrigger())),
         bOrFinallyA.getContinuationTrigger());
   }
 }

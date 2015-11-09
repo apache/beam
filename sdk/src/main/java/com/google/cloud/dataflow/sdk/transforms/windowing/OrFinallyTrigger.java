@@ -77,8 +77,11 @@ class OrFinallyTrigger<W extends BoundedWindow> extends Trigger<W> {
 
   @Override
   public Trigger<W> getContinuationTrigger(List<Trigger<W>> continuationTriggers) {
-    return new OrFinallyTrigger<W>(
-        continuationTriggers.get(ACTUAL),
-        (Trigger.OnceTrigger<W>) continuationTriggers.get(UNTIL));
+    // Use OrFinallyTrigger instead of AfterFirst because the continuation of ACTUAL
+    // may not be a OnceTrigger.
+    return Repeatedly.forever(
+        new OrFinallyTrigger<W>(
+            continuationTriggers.get(ACTUAL),
+            (Trigger.OnceTrigger<W>) continuationTriggers.get(UNTIL)));
   }
 }
