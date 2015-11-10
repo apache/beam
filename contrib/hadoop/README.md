@@ -1,14 +1,14 @@
-Hadoop module
-=============
+# Hadoop module
 
-This library provides Dataflow sources and sinks to make it possible to read and write
-Apache Hadoop file formats from Dataflow pipelines.
+This library provides Dataflow sources and sinks to make it possible to read and
+write Apache Hadoop file formats from Dataflow pipelines.
 
-Currently, only the read path is implemented. A `HadoopFileSource` allows any Hadoop
-`FileInputFormat` to be read as a `PCollection`.
+Currently, only the read path is implemented. A `HadoopFileSource` allows any
+Hadoop `FileInputFormat` to be read as a `PCollection`.
 
-A `HadoopFileSource` can be read from using the `com.google.cloud.dataflow.sdk.io.Read`
-transform. For example:
+A `HadoopFileSource` can be read from using the
+`com.google.cloud.dataflow.sdk.io.Read` transform. For example:
+>>>>>>> Merge pull request #76 from dhalperi/use-travis-containers
 
 ```java
 HadoopFileSource<K, V> source = HadoopFileSource.from(path, MyInputFormat.class,

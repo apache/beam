@@ -141,9 +141,9 @@
       <version>${google-cloud-dataflow-version}</version>
     </dependency>
 
-	<!-- @tomwhite: Hadoop doesn't have great RPC client compatibility between one version and
-	another so it's common to mark the Hadoop dependency as provided and have users specify the
-	version they need in their project. -->
+    <!-- @tomwhite: Hadoop doesn't have great RPC client compatibility between one version and
+    another so it's common to mark the Hadoop dependency as provided and have users specify the
+    version they need in their project. -->
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-client</artifactId>
