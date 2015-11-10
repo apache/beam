@@ -8,7 +8,6 @@ Hadoop `FileInputFormat` to be read as a `PCollection`.
 
 A `HadoopFileSource` can be read from using the
 `com.google.cloud.dataflow.sdk.io.Read` transform. For example:
->>>>>>> Merge pull request #76 from dhalperi/use-travis-containers
 
 ```java
 HadoopFileSource<K, V> source = HadoopFileSource.from(path, MyInputFormat.class,
