@@ -245,8 +245,8 @@ public class HadoopFileSource<K, V> extends BoundedSource<KV<K, V>> {
       for (FileStatus st : listStatus(createFormat(job), job)) {
         size += st.getLen();
       }
-    } catch (IOException | NoSuchMethodException | InvocationTargetException |
-        IllegalAccessException | InstantiationException e) {
+    } catch (IOException | NoSuchMethodException | InvocationTargetException
+        | IllegalAccessException | InstantiationException e) {
       // ignore, and return 0
     }
     return size;
@@ -454,8 +454,8 @@ public class HadoopFileSource<K, V> extends BoundedSource<KV<K, V>> {
     }
 
     public SerializableSplit(InputSplit split) {
-      Preconditions.checkArgument(split instanceof Writable, "Split is not writable: " +
-          split);
+      Preconditions.checkArgument(split instanceof Writable, "Split is not writable: "
+          + split);
       this.split = split;
     }
 
