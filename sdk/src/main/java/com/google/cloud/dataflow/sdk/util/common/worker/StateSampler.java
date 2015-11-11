@@ -210,7 +210,7 @@ public class StateSampler implements AutoCloseable {
         Counter<Long> counter = counterSetMutator.addCounter(
             Counter.longs(counterName, Counter.AggregationKind.SUM));
         state = countersByState.size();
-        statesByName.put(name, state);
+        statesByName.put(counterName, state);
         countersByState.add(counter);
         kindsByState.put(state, kind);
       }
