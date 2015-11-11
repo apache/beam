@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
@@ -73,12 +75,18 @@ class GroupAlsoByWindowsViaIteratorsDoFn<K, V, W extends BoundedWindow>
   }
 
   public GroupAlsoByWindowsViaIteratorsDoFn(WindowingStrategy<?, W> strategy) {
+    checkArgument(GroupAlsoByWindowsViaIteratorsDoFn.isSupported(strategy),
+        "%s does not support merging or non-default triggering, "
+        + "found in windowing strategy: %s",
+        getClass(),
+        strategy);
     this.strategy = strategy;
   }
 
   @Override
   public void processElement(ProcessContext c) throws Exception {
     K key = c.element().getKey();
+    // This iterable is required to be in order of increasing timestamps
     Iterable<WindowedValue<V>> value = c.element().getValue();
     PeekingReiterator<WindowedValue<V>> iterator;
 

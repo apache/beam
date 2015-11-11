@@ -73,9 +73,15 @@ class GroupAlsoByWindowsAndCombineDoFn<K, InputT, AccumT, OutputT, W extends Bou
   private WindowFn<Object, W> windowFn;
 
   public GroupAlsoByWindowsAndCombineDoFn(
-      WindowFn<Object, W> windowFn, KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn) {
-    this.windowFn = windowFn;
+      WindowFn<?, W> windowFn, KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn) {
     this.combineFn = combineFn;
+
+    // To make a MergeContext that is compatible with the type of windowFn, we need to remove
+    // the wildcard from the element type.
+    @SuppressWarnings("unchecked")
+    WindowFn<Object, W> objectWindowFn = (WindowFn<Object, W>) windowFn;
+    this.windowFn = objectWindowFn;
+
   }
 
   @Override
@@ -94,7 +100,7 @@ class GroupAlsoByWindowsAndCombineDoFn<K, InputT, AccumT, OutputT, W extends Bou
     final Map<W, AccumT> accumulators = Maps.newHashMap();
     final Map<W, Instant> minTimestamps = Maps.newHashMap();
 
-    WindowFn<Object, W>.MergeContext mergeContext = new CombiningMergeContext() {
+    WindowFn<Object, W>.MergeContext mergeContext = windowFn.new MergeContext() {
       @Override
       public Collection<W> windows() {
         return liveWindows;
@@ -169,12 +175,5 @@ class GroupAlsoByWindowsAndCombineDoFn<K, InputT, AccumT, OutputT, W extends Bou
         windowFn.getOutputTime(timestamp, w),
         Arrays.asList(w),
         PaneInfo.ON_TIME_AND_ONLY_FIRING);
-  }
-
-  private abstract class CombiningMergeContext extends WindowFn<Object, W>.MergeContext {
-
-    public CombiningMergeContext() {
-      windowFn.super();
-    }
   }
 }
