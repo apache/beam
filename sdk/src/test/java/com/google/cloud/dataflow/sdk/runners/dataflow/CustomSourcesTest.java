@@ -668,10 +668,10 @@ public class CustomSourcesTest {
       // Extract and verify state modifications.
       context.flushState();
       state = context.getOutputBuilder().getSourceStateUpdates().getState();
-      // CountingSource's watermark is the last record - 1.  i is now one past the last record,
-      // so the expected watermark is i-2 millis.
+      // CountingSource's watermark is the last record + 1.  i is now one past the last record,
+      // so the expected watermark is i millis.
       assertEquals(
-          TimeUnit.MILLISECONDS.toMicros(i - 2), context.getOutputBuilder().getSourceWatermark());
+          TimeUnit.MILLISECONDS.toMicros(i), context.getOutputBuilder().getSourceWatermark());
       assertEquals(
           1,
           context

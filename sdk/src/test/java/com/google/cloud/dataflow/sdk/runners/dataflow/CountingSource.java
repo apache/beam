@@ -24,7 +24,6 @@ import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.io.UnboundedSource;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.values.KV;
 
 import org.joda.time.Instant;
@@ -127,7 +126,6 @@ public class CountingSource
 
   private class CountingSourceReader extends UnboundedReader<KV<Integer, Integer>> {
     private int current;
-    private boolean done = false;
 
     public CountingSourceReader(int startingPoint) {
       this.current = startingPoint;
@@ -148,7 +146,6 @@ public class CountingSource
         current++;
         return true;
       } else {
-        done = true;
         return false;
       }
     }
@@ -182,7 +179,9 @@ public class CountingSource
 
     @Override
     public Instant getWatermark() {
-      return done ? BoundedWindow.TIMESTAMP_MAX_VALUE : new Instant(current - 1);
+      // The watermark is a promise about future elements, and the timestamps of elements are
+      // strictly increasing for this source.
+      return new Instant(current + 1);
     }
 
     @Override

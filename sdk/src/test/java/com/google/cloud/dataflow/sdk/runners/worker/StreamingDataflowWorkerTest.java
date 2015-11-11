@@ -1034,7 +1034,7 @@ public class StreamingDataflowWorkerTest {
                 "  state: \"\000\"" +
                 "  finalize_ids: " + finalizeId +
                 "} " +
-                "source_watermark: 9223372036854775000")).build()));
+                "source_watermark: 1000")).build()));
 
     assertEquals(
         16L,
@@ -1069,7 +1069,7 @@ public class StreamingDataflowWorkerTest {
             "  state: \"\000\"" +
             "  finalize_ids: " + finalizeId +
             "} " +
-            "source_watermark: 9223372036854775000").build()));
+            "source_watermark: 1000").build()));
 
     assertThat(finalizeTracker, contains(0));
 
@@ -1120,7 +1120,7 @@ public class StreamingDataflowWorkerTest {
                 "  state: \"\005\"" +
                 "  finalize_ids: " + finalizeId +
                 "} " +
-                "source_watermark: 9223372036854775000")).build()));
+                "source_watermark: 6000")).build()));
 
     assertEquals(
         16L,
