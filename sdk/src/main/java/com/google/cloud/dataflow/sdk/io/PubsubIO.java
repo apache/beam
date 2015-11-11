@@ -496,7 +496,7 @@ public class PubsubIO {
       /**
        * Sets the maximum number of records that will be read from Pubsub.
        *
-       * <p>Setting either this or {@link #maxNumRecords} will cause the output {@code PCollection}
+       * <p>Setting either this or {@link #maxReadTime} will cause the output {@code PCollection}
        * to be bounded.
        */
       public Bound<T> maxNumRecords(int maxNumRecords) {
