@@ -49,6 +49,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.PrintStream;
 import java.lang.Thread.UncaughtExceptionHandler;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -86,12 +87,27 @@ public class DataflowWorkerHarness {
   static class WorkerUncaughtExceptionHandler implements UncaughtExceptionHandler {
     static final WorkerUncaughtExceptionHandler INSTANCE = new WorkerUncaughtExceptionHandler();
 
+    // Cache the original System.err, because the logging infrastructure modifies it and redirects
+    // it to a logger.
+    private static final PrintStream originalStandardError = System.err;
+
     @Override
-    public void uncaughtException(Thread t, Throwable e) {
-      LOG.error("Uncaught exception in main thread. Exiting with status code 1.", e);
-      System.err.println("Uncaught exception in main thread. Exiting with status code 1.");
-      e.printStackTrace();
-      System.exit(1);
+    public void uncaughtException(Thread thread, Throwable e) {
+      try {
+        LOG.error("Uncaught exception in main thread. Exiting with status code 1.", e);
+        System.err.println("Uncaught exception in main thread. Exiting with status code 1.");
+        e.printStackTrace();
+      } catch (Throwable t) {
+        originalStandardError.println(
+            "Uncaught exception in main thread. Exiting with status code 1.");
+        e.printStackTrace(originalStandardError);
+
+        originalStandardError.println(
+            "UncaughtExceptionHandler caused another exception to be thrown, as follows:");
+        t.printStackTrace(originalStandardError);
+      } finally {
+        System.exit(1);
+      }
     }
   }
 
