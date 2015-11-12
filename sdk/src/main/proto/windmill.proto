@@ -143,13 +143,13 @@ message WorkItem {
   optional TimerBundle timers = 4;
   repeated GlobalDataId global_data_id_notifications = 5;
   optional SourceState source_state = 6;
+  optional int64 output_data_watermark = 8 [default=-0x8000000000000000];
 }
 
 message ComputationWorkItems {
   required string computation_id = 1;
   repeated WorkItem work = 2;
   optional int64 input_data_watermark = 3 [default=-0x8000000000000000];
-  optional int64 output_data_watermark = 4 [default=-0x8000000000000000];
 }
 
 ////////////////////////////////////////////////////////////////////////////////
