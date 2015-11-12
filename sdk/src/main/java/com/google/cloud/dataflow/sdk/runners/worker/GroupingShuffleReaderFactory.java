@@ -20,6 +20,7 @@ import static com.google.api.client.util.Base64.decodeBase64;
 import static com.google.cloud.dataflow.sdk.util.Structs.getString;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.options.DataflowPipelineDebugOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
@@ -29,6 +30,8 @@ import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 import com.google.cloud.dataflow.sdk.values.KV;
+
+import java.util.List;
 
 import javax.annotation.Nullable;
 
@@ -61,6 +64,14 @@ public class GroupingShuffleReaderFactory implements ReaderFactory {
       @Nullable CounterSet.AddCounterMutator addCounterMutator,
       @Nullable String operationName)
           throws Exception {
+    if (shouldUseGroupingShuffleReaderWithFaultyBytesReadCounter(options)) {
+      return new GroupingShuffleReaderWithFaultyBytesReadCounter<K, V>(options,
+          decodeBase64(getString(spec, PropertyNames.SHUFFLE_READER_CONFIG)),
+          getString(spec, PropertyNames.START_SHUFFLE_POSITION, null),
+          getString(spec, PropertyNames.END_SHUFFLE_POSITION, null), coder,
+          (BatchModeExecutionContext) executionContext, addCounterMutator, operationName);
+    }
+
     return new GroupingShuffleReader<K, V>(options,
         decodeBase64(getString(spec, PropertyNames.SHUFFLE_READER_CONFIG)),
         getString(spec, PropertyNames.START_SHUFFLE_POSITION, null),
@@ -68,5 +79,15 @@ public class GroupingShuffleReaderFactory implements ReaderFactory {
         coder,
         (BatchModeExecutionContext) executionContext,
         addCounterMutator, operationName);
+  }
+
+  /**
+   * Returns true if we should inject errors in the shuffle read bytes
+   * counter for testing.
+   */
+  private static boolean shouldUseGroupingShuffleReaderWithFaultyBytesReadCounter(
+      PipelineOptions options) {
+    List<String> experiments = options.as(DataflowPipelineDebugOptions.class).getExperiments();
+    return (experiments != null) && experiments.contains("inject_shuffle_read_count_error");
   }
 }
