@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.options;
 
+import com.google.auto.service.AutoService;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.options.GoogleApiDebugOptions.GoogleApiTracer;
 import com.google.cloud.dataflow.sdk.options.ProxyInvocationHandler.Deserializer;
@@ -38,7 +39,7 @@ import javax.annotation.concurrent.ThreadSafe;
 /**
  * PipelineOptions are used to configure Pipelines. You can extend {@link PipelineOptions}
  * to create custom configuration options specific to your {@link Pipeline},
- * for both local execution and execution via {@link PipelineRunner}.
+ * for both local execution and execution via a {@link PipelineRunner}.
  *
  * <p>{@link PipelineOptions} and their subinterfaces represent a collection of properties
  * which can be manipulated in a type safe manner. {@link PipelineOptions} is backed by a
@@ -53,7 +54,7 @@ import javax.annotation.concurrent.ThreadSafe;
  * {@link Context#getPipelineOptions()}.
  *
  * <p>For example:
- * <pre> {@code
+ * <pre>{@code
  * // The most common way to construct PipelineOptions is via command-line argument parsing:
  * public static void main(String[] args) {
  *   // Will parse the arguments passed into the application and construct a PipelineOptions
@@ -85,12 +86,12 @@ import javax.annotation.concurrent.ThreadSafe;
  *
  * // Prints out options which are available to be set on DataflowPipelineOptions
  * PipelineOptionsFactory.printHelp(System.out, DataflowPipelineOptions.class);
- * } </pre>
+ * }</pre>
  *
  * <h2>Defining Your Own PipelineOptions</h2>
  *
  * Defining your own {@link PipelineOptions} is the way for you to make configuration
- * options available for both local execution and execution via {@link PipelineRunner}.
+ * options available for both local execution and execution via a {@link PipelineRunner}.
  * By having PipelineOptionsFactory as your command-line interpreter, you will provide
  * a standardized way for users to interact with your application via the command-line.
  *
@@ -101,13 +102,13 @@ import javax.annotation.concurrent.ThreadSafe;
  * JavaBean properties</a>.
  *
  * <p>For example:
- * <pre> {@code
+ * <pre>{@code
  *  // Creates a user defined property called "myProperty"
  *  public interface MyOptions extends PipelineOptions {
  *    String getMyProperty();
  *    void setMyProperty(String value);
  *  }
- * } </pre>
+ * }</pre>
  *
  * <p>Note: Please see the section on Registration below when using custom property types.
  *
@@ -122,7 +123,7 @@ import javax.annotation.concurrent.ThreadSafe;
  *       getter and setter method.
  *   <li>Every method must conform to being a getter or setter for a JavaBean.
  *   <li>The derived interface of {@link PipelineOptions} must be composable with every interface
- *       part of allPipelineOptionsClasses.
+ *       part registered with the PipelineOptionsFactory.
  *   <li>Only getters may be annotated with {@link JsonIgnore @JsonIgnore}.
  *   <li>If any getter is annotated with {@link JsonIgnore @JsonIgnore}, then all getters for
  *       this property must be annotated with {@link JsonIgnore @JsonIgnore}.
@@ -164,8 +165,7 @@ import javax.annotation.concurrent.ThreadSafe;
  * and a concrete implementation of the {@link PipelineOptionsRegistrar} interface.
  *
  * <p>It is optional but recommended to use one of the many build time tools such as
- * {@link com.google.auto.service.AutoService} to generate the necessary META-INF
- * files automatically.
+ * {@link AutoService} to generate the necessary META-INF files automatically.
  *
  * <p>A list of registered options can be fetched from
  * {@link PipelineOptionsFactory#getRegisteredOptions()}.
@@ -213,9 +213,14 @@ public interface PipelineOptions {
    */
   <T extends PipelineOptions> T cloneAs(Class<T> kls);
 
+  /**
+   * The pipeline runner that will be used to execute the pipeline.
+   * For registered runners, the class name can be specified, otherwise the fully
+   * qualified name needs to be specified.
+   */
   @Validation.Required
   @Description("The pipeline runner that will be used to execute the pipeline. "
-      + "For registered runners, the class name can be specified, otherwise the fully"
+      + "For registered runners, the class name can be specified, otherwise the fully "
       + "qualified name needs to be specified.")
   @Default.Class(DirectPipelineRunner.class)
   Class<? extends PipelineRunner<?>> getRunner();
@@ -230,8 +235,12 @@ public interface PipelineOptions {
     ERROR;
   }
 
+  /**
+   * Whether to check for stable unique names on each transform. This is necessary to
+   * support updating of pipelines.
+   */
   @Validation.Required
-  @Description("Whether to check for stable unique names on each stage. This is necessary to "
+  @Description("Whether to check for stable unique names on each transform. This is necessary to "
       + "support updating of pipelines.")
   @Default.Enum("WARNING")
   CheckEnabled getStableUniqueNames();

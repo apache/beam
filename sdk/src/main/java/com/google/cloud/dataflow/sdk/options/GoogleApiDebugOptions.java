@@ -29,7 +29,15 @@ import java.util.Map;
  */
 public interface GoogleApiDebugOptions extends PipelineOptions {
   /**
-   * This option enables tracing of API calls to Google services used within the Dataflow SDK.
+   * This option enables tracing of API calls to Google services used within the
+   * Dataflow SDK. Values are expected in JSON format <code>{"ApiName":"TraceDestination",...}
+   * </code> where the {@code ApiName} represents the request classes canonical name. The
+   * {@code TraceDestination} is a logical trace consumer to whom the trace will be reported.
+   * Typically, "producer" is the right destination to use: this makes API traces available to the
+   * team offering the API. Note that by enabling this option, the contents of the requests to and
+   * from Google Cloud services will be made available to Google. For example, by specifying
+   * <code>{"Dataflow":"producer"}</code>, all calls to the Dataflow service will be made available
+   * to Google, specifically to the Google Cloud Dataflow team.
    */
   @Description("This option enables tracing of API calls to Google services used within the "
       + "Dataflow SDK. Values are expected in JSON format {\"ApiName\":\"TraceDestination\",...} "
