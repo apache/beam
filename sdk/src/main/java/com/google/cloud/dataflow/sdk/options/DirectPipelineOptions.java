@@ -42,11 +42,11 @@ public interface DirectPipelineOptions extends
 
   /**
    * Controls whether the runner should ensure that all of the elements of
-   * the pipeline can be serialized. Enabled by default.
+   * the pipeline, such as DoFns, can be serialized.
    */
   @JsonIgnore
   @Description("Controls whether the runner should ensure that all of the elements of the "
-      + "pipeline, such as DoFns, can be serialized. Enabled by default.")
+      + "pipeline, such as DoFns, can be serialized.")
   @Default.Boolean(true)
   boolean isTestSerializability();
   void setTestSerializability(boolean testSerializability);
@@ -54,22 +54,21 @@ public interface DirectPipelineOptions extends
   /**
    * Controls whether the runner should ensure that all of the elements of
    * every {@link PCollection} can be encoded using the appropriate
-   * {@link Coder}. Enabled by default.
+   * {@link Coder}.
    */
   @JsonIgnore
   @Description("Controls whether the runner should ensure that all of the elements of every "
-      + "PCollection can be encoded using the appropriate Coder. Enabled by default.")
+      + "PCollection can be encoded using the appropriate Coder.")
   @Default.Boolean(true)
   boolean isTestEncodability();
   void setTestEncodability(boolean testEncodability);
 
   /**
    * Controls whether the runner should randomize the order of each
-   * {@link PCollection}. Enabled by default.
+   * {@link PCollection}.
    */
   @JsonIgnore
-  @Description("Controls whether the runner randomizes the order of PCollections. "
-      + "Enabled by default.")
+  @Description("Controls whether the runner should randomize the order of each PCollection.")
   @Default.Boolean(true)
   boolean isTestUnorderedness();
   void setTestUnorderedness(boolean testUnorderedness);

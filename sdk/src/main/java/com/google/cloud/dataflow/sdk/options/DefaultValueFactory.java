@@ -17,10 +17,10 @@
 package com.google.cloud.dataflow.sdk.options;
 
 /**
- * An interface used with {@link Default.InstanceFactory} annotation to specify the class that will
- * be an instance factory to produce default values for a given getter on {@link PipelineOptions}.
- * When a property on a {@link PipelineOptions} is fetched, and is currently unset, the default
- * value factory will be instantiated and invoked.
+ * An interface used with the {@link Default.InstanceFactory} annotation to specify the class that
+ * will be an instance factory to produce default values for a given getter on
+ * {@link PipelineOptions}. When a property on a {@link PipelineOptions} is fetched, and is
+ * currently unset, the default value factory will be instantiated and invoked.
  *
  * <p>Care must be taken to not produce an infinite loop when accessing other fields on the
  * {@link PipelineOptions} object.
@@ -32,7 +32,7 @@ public interface DefaultValueFactory<T> {
    * Creates a default value for a getter marked with {@link Default.InstanceFactory}.
    *
    * @param options The current pipeline options.
-   * @return The default value to be used for the given pipeline options.
+   * @return The default value to be used for the annotated getter.
    */
   T create(PipelineOptions options);
 }
