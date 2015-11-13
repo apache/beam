@@ -28,7 +28,9 @@ import java.util.List;
 @Description("Options that are used to configure the Dataflow pipeline worker pool.")
 public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
   /**
-   * Number of workers to use when executing the Dataflow job.
+   * Number of workers to use when executing the Dataflow job. Note that selection of an autoscaling
+   * algorithm other then {@code NONE} will affect the size of the worker pool. If left unspecified,
+   * the Dataflow service will determine the number of workers.
    */
   @Description("Number of workers to use when executing the Dataflow job. Note that "
       + "selection of an autoscaling algorithm other then \"NONE\" will affect the "
@@ -63,15 +65,28 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
     }
   }
 
+  /**
+   * [Experimental] The autoscaling algorithm to use for the workerpool.
+   *
+   * <ul>
+   *   <li>NONE: does not change the size of the worker pool.</li>
+   *   <li>BASIC: autoscale the worker pool size up to maxNumWorkers until the job completes.</li>
+   *   <li>THROUGHPUT_BASED: autoscale the workerpool based on throughput (up to maxNumWorkers).
+   *   </li>
+   * </ul>
+   */
   @Description("[Experimental] The autoscaling algorithm to use for the workerpool. "
       + "NONE: does not change the size of the worker pool. "
-      + "BASIC: autoscale the worker pool size up to maxNumWorkers until the job completes.")
+      + "BASIC (deprecated): autoscale the worker pool size up to maxNumWorkers until the job "
+      + "completes. "
+      + "THROUGHPUT_BASED: autoscale the workerpool based on throughput (up to maxNumWorkers).")
   @Experimental(Experimental.Kind.AUTOSCALING)
   AutoscalingAlgorithmType getAutoscalingAlgorithm();
   void setAutoscalingAlgorithm(AutoscalingAlgorithmType value);
 
   /**
    * The maximum number of workers to use when using workerpool autoscaling.
+   * If left unspecified, the Dataflow service will compute a ceiling.
    */
   @Description("[Experimental] The maximum number of workers to use when using workerpool "
       + "autoscaling. If left unspecified, the Dataflow service will compute a ceiling.")
@@ -92,7 +107,9 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
    *
    * <p>Default is up to the Dataflow service.
    */
-  @Description("GCE network for launching workers. Default is up to the Dataflow service.")
+  @Description("GCE network for launching workers. For more information, see the reference "
+      + "documentation https://cloud.google.com/compute/docs/networking. "
+      + "Default is up to the Dataflow service.")
   String getNetwork();
   void setNetwork(String value);
 
@@ -102,7 +119,8 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
    *
    * <p>Default is up to the Dataflow service.
    */
-  @Description("GCE availability zone for launching workers. "
+  @Description("GCE availability zone for launching workers. See "
+      + "https://developers.google.com/compute/docs/zones for a list of valid options. "
       + "Default is up to the Dataflow service.")
   String getZone();
   void setZone(String value);
@@ -142,10 +160,10 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
   /**
    * The teardown policy for the VMs.
    *
-   * <p>By default this is left unset and the service sets the default policy.
+   * <p>If unset, the Dataflow service will choose a reasonable default.
    */
-  @Description("The teardown policy for the VMs. By default this is left unset "
-      + "and the service sets the default policy.")
+  @Description("The teardown policy for the VMs. If unset, the Dataflow service will "
+      + "choose a reasonable default.")
   TeardownPolicy getTeardownPolicy();
   void setTeardownPolicy(TeardownPolicy value);
 
