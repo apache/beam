@@ -32,6 +32,9 @@ import java.util.Objects;
  * {@code AfterProcessingTime} triggers fire based on the current processing time. They operate in
  * the real-time domain.
  *
+ * <p>The time at which to fire the timer can be adjusted via the methods in {@link TimeTrigger},
+ * such as {@link TimeTrigger#plusDelayOf} or {@link TimeTrigger#alignedTo}.
+ *
  * @param <W> {@link BoundedWindow} subclass used to represent the windows used
  */
 @Experimental(Experimental.Kind.TRIGGER)

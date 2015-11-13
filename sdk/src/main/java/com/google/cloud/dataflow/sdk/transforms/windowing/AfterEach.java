@@ -53,6 +53,9 @@ public class AfterEach<W extends BoundedWindow> extends Trigger<W> {
     Preconditions.checkArgument(subTriggers.size() > 1);
   }
 
+  /**
+   * Returns an {@code AfterEach} {@code Trigger} with the given subtriggers.
+   */
   @SafeVarargs
   public static <W extends BoundedWindow> Trigger<W> inOrder(Trigger<W>... triggers) {
     return new AfterEach<W>(Arrays.<Trigger<W>>asList(triggers));

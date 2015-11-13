@@ -57,6 +57,10 @@ import java.util.Objects;
  *
  * <p>The watermark is the clock that defines {@link TimeDomain#EVENT_TIME}.
  *
+ * Additionaly firings before or after the watermark can be requested by calling
+ * {@code AfterWatermark.pastEndOfWindow.withEarlyFirings(OnceTrigger)} or
+ * {@code AfterWatermark.pastEndOfWindow.withEarlyFirings(OnceTrigger)}.
+ *
  * @param <W> {@link BoundedWindow} subclass used to represent the windows used.
  */
 @Experimental(Experimental.Kind.TRIGGER)
@@ -211,7 +215,8 @@ public class AfterWatermark<W extends BoundedWindow> {
    */
   public interface AfterWatermarkEarly<W extends BoundedWindow> extends TriggerBuilder<W> {
     /**
-     * Provide a trigger for the late firings.
+     * Creates a new {@code Trigger} like the this, except that it fires repeatedly whenever
+     * the given {@code Trigger} fires before the watermark has passed the end of the window.
      */
     TriggerBuilder<W> withLateFirings(OnceTrigger<W> lateTrigger);
   }
@@ -221,7 +226,8 @@ public class AfterWatermark<W extends BoundedWindow> {
    */
   public interface AfterWatermarkLate<W extends BoundedWindow> extends TriggerBuilder<W> {
     /**
-     * Provide a trigger for the early firings.
+     * Creates a new {@code Trigger} like the this, except that it fires repeatedly whenever
+     * the given {@code Trigger} fires after the watermark has passed the end of the window.
      */
     TriggerBuilder<W> withEarlyFirings(OnceTrigger<W> earlyTrigger);
   }
@@ -469,12 +475,20 @@ public class AfterWatermark<W extends BoundedWindow> {
       super(null);
     }
 
+    /**
+     * Creates a new {@code Trigger} like the this, except that it fires repeatedly whenever
+     * the given {@code Trigger} fires before the watermark has passed the end of the window.
+     */
     public AfterWatermarkEarly<W> withEarlyFirings(OnceTrigger<W> earlyFirings) {
       Preconditions.checkNotNull(earlyFirings,
           "Must specify the trigger to use for early firings");
       return new AfterWatermarkEarlyAndLate<W>(earlyFirings, null);
     }
 
+    /**
+     * Creates a new {@code Trigger} like the this, except that it fires repeatedly whenever
+     * the given {@code Trigger} fires after the watermark has passed the end of the window.
+     */
     public AfterWatermarkLate<W> withLateFirings(OnceTrigger<W> lateFirings) {
       Preconditions.checkNotNull(lateFirings,
           "Must specify the trigger to use for late firings");

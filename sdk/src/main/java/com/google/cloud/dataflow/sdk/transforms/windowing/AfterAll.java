@@ -40,6 +40,9 @@ public class AfterAll<W extends BoundedWindow> extends OnceTrigger<W> {
     Preconditions.checkArgument(subTriggers.size() > 1);
   }
 
+  /**
+   * Returns an {@code AfterAll} {@code Trigger} with the given subtriggers.
+   */
   @SafeVarargs
   public static <W extends BoundedWindow> OnceTrigger<W> of(
       OnceTrigger<W>... triggers) {

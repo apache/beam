@@ -29,8 +29,8 @@ import java.util.List;
  *     Repeatedly.forever(AfterWatermark.isPastEndOfWindow());
  * } </pre>
  *
- * <p>{@code Repeatedly.forever(someTrigger)} behaves like the infinite
- * {@code SequenceOf(someTrigger, someTrigger, someTrigger, ...)}.
+ * <p>{@code Repeatedly.forever(someTrigger)} behaves like an infinite
+ * {@code AfterEach.inOrder(someTrigger, someTrigger, someTrigger, ...)}.
  *
  * @param <W> {@link BoundedWindow} subclass used to represent the windows used by this
  *            {@code Trigger}
