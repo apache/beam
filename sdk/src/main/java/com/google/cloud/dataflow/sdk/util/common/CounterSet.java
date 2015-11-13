@@ -131,7 +131,7 @@ public class CounterSet extends AbstractSet<Counter<?>> {
 
   /**
    * A nested class that supports adding additional counters into the
-   * enclosing CounterSet. This is useful as a mutator; hiding other
+   * enclosing CounterSet. This is useful as a mutator, hiding other
    * public methods of the CounterSet.
    */
   public class AddCounterMutator {
