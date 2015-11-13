@@ -22,12 +22,12 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * A {@link WindowFn} that merges overlapping {@link IntervalWindow}s.
+ * A utility function for merging overlapping {@link IntervalWindow}s.
  */
 public class MergeOverlappingIntervalWindows {
 
   /**
-   * Merge overlapping intervals.
+   * Merge overlapping {@link IntervalWindow}s.
    */
   public static void mergeWindows(WindowFn<?, IntervalWindow>.MergeContext c) throws Exception {
     // Merge any overlapping windows into a single window.

@@ -28,6 +28,9 @@ import java.io.OutputStream;
  * The default window into which all data is placed (via {@link GlobalWindows}).
  */
 public class GlobalWindow extends BoundedWindow {
+  /**
+   * Singleton instance of {@link GlobalWindow}.
+   */
   public static final GlobalWindow INSTANCE = new GlobalWindow();
 
   // Triggers use maxTimestamp to set timers' timestamp. Timers fires when
@@ -47,7 +50,7 @@ public class GlobalWindow extends BoundedWindow {
   private GlobalWindow() {}
 
   /**
-   * {@link Coder} for encoding and decoding {@code Window}s.
+   * {@link Coder} for encoding and decoding {@code GlobalWindow}s.
    */
   public static class Coder extends AtomicCoder<GlobalWindow> {
     public static final Coder INSTANCE = new Coder();

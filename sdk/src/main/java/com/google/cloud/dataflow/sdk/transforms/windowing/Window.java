@@ -114,14 +114,12 @@ import javax.annotation.Nullable;
  * <pre> {@code
  * PCollection<String> items = ...;
  * PCollection<String> windowed_items = items.apply(
- *   Window.<String>into(FixedWindows.of(Duration.standardMinutes(1))
- *      .triggering(AfterEach.inOrder(
- *          AfterWatermark.pastEndOfWindow(),
- *          Repeatedly
- *              .forever(AfterProcessingTime
- *                  .pastFirstElementInPane().plusDelay(Duration.standardMinutes(1)))
- *              .orFinally(AfterWatermark
- *                  .pastEndOfWindow().plusDelay(Duration.standardDays(1)))));
+ *   Window.<String>into(FixedWindows.of(Duration.standardMinutes(1)))
+ *      .triggering(
+ *          AfterWatermark.pastEndOfWindow()
+ *              .withLateFirings(AfterProcessingTime
+ *                  .pastFirstElementInPane().plusDelayOf(Duration.standardHours(1))))
+ *      .withAllowedLateness(Duration.standardDays(1)));
  * PCollection<KV<String, Long>> windowed_counts = windowed_items.apply(
  *   Count.<String>perElement());
  * } </pre>
@@ -132,15 +130,17 @@ import javax.annotation.Nullable;
  * <pre> {@code
  * PCollection<String> windowed_items = items.apply(
  *   Window.<String>into(FixedWindows.of(Duration.standardMinutes(1))
- *      .triggering(Repeatedly
- *              .forever(AfterProcessingTime
- *                  .pastFirstElementInPane().plusDelay(Duration.standardMinutes(1)))
- *              .orFinally(AfterWatermark.pastEndOfWindow())));
+ *      .triggering(
+ *      .triggering(
+ *          AfterWatermark.pastEndOfWindow()
+ *              .withEarlyFirings(AfterProcessingTime
+ *                  .pastFirstElementInPane().plusDelayOf(Duration.standardMinutes(1))))
+ *      .withAllowedLateness(Duration.ZERO));
  * } </pre>
  *
- * <p>After a {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey} the trigger is reset to
- * the default trigger. If you want to produce early results from a pipeline consisting of multiple
- * {@code GroupByKey}s, you must set a trigger before <i>each</i> {@code GroupByKey}.
+ * <p>After a {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey} the trigger is set to
+ * a trigger that will preserve the intent of the upstream trigger.  See
+ * {@link Trigger@getContinuationTrigger} for more information.
  *
  * <p>See {@link Trigger} for details on the available triggers.
  */
@@ -185,7 +185,7 @@ public class Window {
    *
    * <p>The resulting {@code PTransform}'s types have been bound, with both the
    * input and output being a {@code PCollection<T>}, inferred from the types of
-   * the argument {@code WindowFn<T, B>}.  It is ready to be applied, or further
+   * the argument {@code WindowFn}.  It is ready to be applied, or further
    * properties can be set on it first.
    */
   public static <T> Bound<T> into(WindowFn<? super T, ?> fn) {
@@ -360,7 +360,7 @@ public class Window {
 
   /**
    * A {@code PTransform} that windows the elements of a {@code PCollection<T>},
-   * into finite windows according to a user-specified {@code WindowFn<T, B>}.
+   * into finite windows according to a user-specified {@code WindowFn}.
    *
    * @param <T> The type of elements this {@code Window} is applied to
    */

@@ -171,8 +171,9 @@ public final class PaneInfo {
   }
 
   /**
-   * The zero-based index of this trigger firing that produced this pane. i.e.
-   * 0 for the first time the timer fires, 1 for the next time, etc.
+   * The zero-based index of this trigger firing that produced this pane.
+   *
+   * <p>This will return 0 for the first time the timer fires, 1 for the next time, etc.
    *
    * <p>A given (key, window, pane-index) is guaranteed to be unique in the
    * output of a group-by-key operation.
@@ -182,8 +183,10 @@ public final class PaneInfo {
   }
 
   /**
-   * The zero-based index of this trigger firing among non-speculative panes, i.e.
-   * 0 for the first non-{@link Timing#EARLY} timer firing, 1 for the next one, etc.
+   * The zero-based index of this trigger firing among non-speculative panes.
+   *
+   * <p> This will return 0 for the first non-{@link Timing#EARLY} timer firing, 1 for the next one,
+   * etc.
    *
    * <p>Always -1 for speculative data.
    */

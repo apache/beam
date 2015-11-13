@@ -24,7 +24,7 @@ import java.util.Collection;
 import java.util.Collections;
 
 /**
- * Default {@link WindowFn} where all data is in the same window.
+ * Default {@link WindowFn} that assigns all data to the same window.
  */
 public class GlobalWindows extends NonMergingWindowFn<Object, GlobalWindow> {
 

@@ -30,9 +30,14 @@ import java.util.Collection;
  * predefined {@code WindowFn}s.
  *
  * <p>Users will generally want to use the predefined
- * {@code WindowFn}s, but it is  also possible to create new
+ * {@code WindowFn}s, but it is also possible to create new
  * subclasses.
- * TODO: Describe how to properly create {@code WindowFn}s.
+ *
+ * <p>To create a custom {@code WindowFn}, inherit from this class and override all required
+ * methods.  If no merging is required, inherit from {@link NonMergingWindowFn}
+ * instead.  If no merging is required and each element is assigned to a single window, inherit from
+ * {@code PartitioningWindowFn}.  Inheriting from the most specific subclass will enable more
+ * optimizations in the runner.
  *
  * @param <T> type of elements being windowed
  * @param <W> {@link BoundedWindow} subclass used to represent the

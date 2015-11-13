@@ -29,7 +29,7 @@ public abstract class NonMergingWindowFn<T, W extends BoundedWindow>
   public final void mergeWindows(MergeContext c) { }
 
   @Override
-  public boolean isNonMerging() {
+  public final boolean isNonMerging() {
     return true;
   }
 }
