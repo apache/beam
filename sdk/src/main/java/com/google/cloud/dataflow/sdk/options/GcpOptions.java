@@ -40,18 +40,13 @@ import java.util.regex.Pattern;
 /**
  * Options used to configure Google Cloud Platform project and credentials.
  *
- * <p>These options configure which of the following 4 different mechanisms for obtaining a
+ * <p>These options configure which of the following three different mechanisms for obtaining a
  * credential are used:
  * <ol>
  *   <li>
  *     It can fetch the
  *     <a href="https://developers.google.com/accounts/docs/application-default-credentials">
  *     application default credentials</a>.
- *   </li>
- *   <li>
- *     It can run the gcloud tool in a subprocess to obtain a credential.
- *     This is the preferred mechanism.  The property "GCloudPath" can be
- *     used to specify where we search for gcloud data.
  *   </li>
  *   <li>
  *     The user can specify a client secrets file and go through the OAuth2
@@ -63,9 +58,10 @@ import java.util.regex.Pattern;
  *     with the service account name.
  *   </li>
  * </ol>
- * The default mechanism is to use the
+ *
+ * <p>The default mechanism is to use the
  * <a href="https://developers.google.com/accounts/docs/application-default-credentials">
- * application default credentials</a> falling back to gcloud. The other options can be
+ * application default credentials</a>. The other options can be
  * used by setting the corresponding properties.
  */
 @Description("Options used to configure Google Cloud Platform project and credentials.")
@@ -159,7 +155,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
    */
   @Description("The class of the credential factory that should be created and used to create "
       + "credentials. If gcpCredential has not been set explicitly, an instance of this class will "
-      + "be constructed and used as a credential factory. The default credential factory will")
+      + "be constructed and used as a credential factory.")
   @Default.Class(GcpCredentialFactory.class)
   Class<? extends CredentialFactory> getCredentialFactoryClass();
   void setCredentialFactoryClass(
@@ -180,8 +176,8 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
   void setGcpCredential(Credential value);
 
   /**
-   * Attempts to get infer the default project based upon the environment this application
-   * is executing within. Currently this only supports getting the default project from gCloud.
+   * Attempts to infer the default project based upon the environment this application
+   * is executing within. Currently this only supports getting the default project from gcloud.
    */
   public static class DefaultProjectFactory implements DefaultValueFactory<String> {
     private static final Logger LOG = LoggerFactory.getLogger(DefaultProjectFactory.class);
@@ -213,7 +209,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
             matcher = projectPattern.matcher(line);
             if (matcher.matches()) {
               String project = matcher.group(1).trim();
-              LOG.info("Inferred default GCP project '{}' from gCloud. If this is the incorrect "
+              LOG.info("Inferred default GCP project '{}' from gcloud. If this is the incorrect "
                   + "project, please cancel this Pipeline and specify the command-line "
                   + "argument --project.", project);
               return project;

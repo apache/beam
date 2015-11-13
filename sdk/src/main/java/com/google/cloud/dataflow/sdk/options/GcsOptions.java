@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.options;
 
 import com.google.cloud.dataflow.sdk.util.AppEngineEnvironment;
 import com.google.cloud.dataflow.sdk.util.GcsUtil;
+import com.google.cloud.hadoop.util.AbstractGoogleAsyncWriteChannel;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
@@ -68,6 +69,11 @@ public interface GcsOptions extends
   String getGcsEndpoint();
   void setGcsEndpoint(String value);
 
+  /**
+   * The buffer size (in bytes) to use when uploading files to GCS. Please see the documentation for
+   * {@link AbstractGoogleAsyncWriteChannel#setUploadBufferSize} for more information on the
+   * restrictions and performance implications of this value.
+   */
   @Description("The buffer size (in bytes) to use when uploading files to GCS. Please see the "
       + "documentation for AbstractGoogleAsyncWriteChannel.setUploadBufferSize for more "
       + "information on the restrictions and performance implications of this value.\n\n"
