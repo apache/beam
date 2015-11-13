@@ -22,9 +22,9 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Descriptions are used to generate human readable output when the --help
+ * Descriptions are used to generate human readable output when the {@code --help}
  * command is specified. Description annotations placed on interfaces that extend
- * {@link PipelineOptions} to describe groups of related options. Description annotations
+ * {@link PipelineOptions} will describe groups of related options. Description annotations
  * placed on getter methods will be used to provide human readable information
  * for the specific option.
  */

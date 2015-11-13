@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.options;
 
+import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -26,7 +27,6 @@ import java.lang.annotation.Target;
  * properties on {@link PipelineOptions} with information representing the validation criteria to
  * be used when validating with the {@link PipelineOptionsValidator}.
  */
-
 public @interface Validation {
   /**
    * This criteria specifies that the value must be not null. Note that this annotation
@@ -34,6 +34,7 @@ public @interface Validation {
    */
   @Target(value = ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
+  @Documented
   public @interface Required {
     /**
      * The groups that the annotated attribute is a member of. A member can be in 0 or more groups.

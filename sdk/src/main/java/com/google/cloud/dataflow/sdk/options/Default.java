@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.options;
 
+import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -32,6 +33,7 @@ public @interface Default {
    */
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
+  @Documented
   public @interface Class {
     java.lang.Class<?> value();
   }
@@ -42,6 +44,7 @@ public @interface Default {
    */
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
+  @Documented
   public @interface String {
     java.lang.String value();
   }
@@ -51,6 +54,7 @@ public @interface Default {
    */
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
+  @Documented
   public @interface Boolean {
     boolean value();
   }
@@ -60,6 +64,7 @@ public @interface Default {
    */
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
+  @Documented
   public @interface Character {
     char value();
   }
@@ -69,6 +74,7 @@ public @interface Default {
    */
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
+  @Documented
   public @interface Byte {
     byte value();
   }
@@ -77,6 +83,7 @@ public @interface Default {
    */
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
+  @Documented
   public @interface Short {
     short value();
   }
@@ -85,6 +92,7 @@ public @interface Default {
    */
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
+  @Documented
   public @interface Integer {
     int value();
   }
@@ -94,6 +102,7 @@ public @interface Default {
    */
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
+  @Documented
   public @interface Long {
     long value();
   }
@@ -103,6 +112,7 @@ public @interface Default {
    */
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
+  @Documented
   public @interface Float {
     float value();
   }
@@ -112,6 +122,7 @@ public @interface Default {
    */
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
+  @Documented
   public @interface Double {
     double value();
   }
@@ -122,18 +133,20 @@ public @interface Default {
    */
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
+  @Documented
   public @interface Enum {
     java.lang.String value();
   }
 
   /**
    * Value must be of type {@link DefaultValueFactory} and have a default constructor.
-   * Value is instantiated and then used as a type factory to generate the default.
+   * Value is instantiated and then used as a factory to generate the default.
    *
    * <p>See {@link DefaultValueFactory} for more details.
    */
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
+  @Documented
   public @interface InstanceFactory {
     java.lang.Class<? extends DefaultValueFactory<?>> value();
   }
