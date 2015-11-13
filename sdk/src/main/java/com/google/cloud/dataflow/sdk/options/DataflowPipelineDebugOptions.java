@@ -72,11 +72,11 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
    * <p>Defaults to the current version of the Google Cloud Dataflow
    * API, at the time the current SDK version was released.
    *
-   * <p>If the string contains "://", then this is treated as a url,
+   * <p>If the string contains "://", then this is treated as a URL,
    * otherwise {@link #getApiRootUrl()} is used as the root
-   * url.
+   * URL.
    */
-  @Description("The URL for the Dataflow API. If the string contains \"://\""
+  @Description("The URL for the Dataflow API. If the string contains \"://\", this"
       + " will be treated as the entire URL, otherwise will be treated relative to apiRootUrl.")
   @Default.String(Dataflow.DEFAULT_SERVICE_PATH)
   String getDataflowEndpoint();
@@ -106,12 +106,12 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
   void setPathValidatorClass(Class<? extends PathValidator> validatorClass);
 
   /**
-   * The path validator instance that should be created and used to validate paths.
+   * The path validator instance that should be used to validate paths.
    * If no path validator has been set explicitly, the default is to use the instance factory that
    * constructs a path validator based upon the currently set pathValidatorClass.
    */
   @JsonIgnore
-  @Description("The path validator instance that should be created and used to validate paths. "
+  @Description("The path validator instance that should be used to validate paths. "
       + "If no path validator has been set explicitly, the default is to use the instance factory "
       + "that constructs a path validator based upon the currently set pathValidatorClass.")
   @Default.InstanceFactory(PathValidatorFactory.class)
@@ -120,22 +120,23 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
 
   /**
    * The class responsible for staging resources to be accessible by workers
-   * during job execution.
+   * during job execution. If stager has not been set explicitly, an instance of this class
+   * will be created and used as the resource stager.
    */
   @Description("The class of the stager that should be created and used to stage resources. "
-      + "If stager has not been set explicitly, an instance of this class will be "
-      + "constructed and used as the resource stager.")
+      + "If stager has not been set explicitly, an instance of the this class will be created "
+      + "and used as the resource stager.")
   @Default.Class(GcsStager.class)
   Class<? extends Stager> getStagerClass();
   void setStagerClass(Class<? extends Stager> stagerClass);
 
   /**
-   * The resource stager instance that should be created and used to stage resources.
+   * The resource stager instance that should be used to stage resources.
    * If no stager has been set explicitly, the default is to use the instance factory
    * that constructs a resource stager based upon the currently set stagerClass.
    */
   @JsonIgnore
-  @Description("The resource stager instance that should be created and used to stage resources. "
+  @Description("The resource stager instance that should be used to stage resources. "
       + "If no stager has been set explicitly, the default is to use the instance factory "
       + "that constructs a resource stager based upon the currently set stagerClass.")
   @Default.InstanceFactory(StagerFactory.class)
@@ -179,8 +180,9 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
   void setUpdate(boolean value);
 
   /**
-   * Mapping of old PTranform names to new ones, specified as a semicolon-separated list of
-   * oldName=newName pairs. To mark a transform as deleted, omit newName.
+   * Mapping of old PTranform names to new ones, specified as JSON
+   * <code>{"oldName":"newName",...}</code>. To mark a transform as deleted, make newName the
+   * empty string.
    */
   @JsonIgnore
   @Description(
