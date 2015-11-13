@@ -21,6 +21,9 @@ package com.google.cloud.dataflow.sdk.options;
  */
 public interface StreamingOptions extends
     ApplicationNameOptions, GcpOptions, PipelineOptions {
+  /**
+   * Set to true if running a streaming pipeline.
+   */
   @Description("Set to true if running a streaming pipeline.")
   boolean isStreaming();
   void setStreaming(boolean value);

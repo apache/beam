@@ -130,8 +130,8 @@ public class PipelineOptionsFactory {
    *   --project=MyProject (simple property, will set the "project" property to "MyProject")
    *   --readOnly=true (for boolean properties, will set the "readOnly" property to "true")
    *   --readOnly (shorthand for boolean properties, will set the "readOnly" property to "true")
-   *   --x=1 --x=2 --x=3 (list style property, will set the "x" property to [1, 2, 3])
-   *   --x=1,2,3 (shorthand list style property, will set the "x" property to [1, 2, 3])
+   *   --x=1 --x=2 --x=3 (list style simple property, will set the "x" property to [1, 2, 3])
+   *   --x=1,2,3 (shorthand list style simple property, will set the "x" property to [1, 2, 3])
    *   --complexObject='{"key1":"value1",...} (JSON format for all other complex types)
    * </pre>
    *
@@ -164,8 +164,8 @@ public class PipelineOptionsFactory {
   }
 
   /**
-   * After creation we will validate that {@link PipelineOptions} conforms to all the
-   * validation criteria from {@code <T>}. See
+   * After creation we will validate that {@code <T>} conforms to all the
+   * validation criteria. See
    * {@link PipelineOptionsValidator#validate(Class, PipelineOptions)} for more details about
    * validation.
    */
@@ -201,8 +201,8 @@ public class PipelineOptionsFactory {
      *   --project=MyProject (simple property, will set the "project" property to "MyProject")
      *   --readOnly=true (for boolean properties, will set the "readOnly" property to "true")
      *   --readOnly (shorthand for boolean properties, will set the "readOnly" property to "true")
-     *   --x=1 --x=2 --x=3 (list style property, will set the "x" property to [1, 2, 3])
-     *   --x=1,2,3 (shorthand list style property, will set the "x" property to [1, 2, 3])
+     *   --x=1 --x=2 --x=3 (list style simple property, will set the "x" property to [1, 2, 3])
+     *   --x=1,2,3 (shorthand list style simple property, will set the "x" property to [1, 2, 3])
      *   --complexObject='{"key1":"value1",...} (JSON format for all other complex types)
      * </pre>
      *
@@ -468,7 +468,7 @@ public class PipelineOptionsFactory {
   /**
    * Finds the appropriate {@code ClassLoader} to be used by the
    * {@link ServiceLoader#load} call, which by default would use the context
-   * {@code ClassLoader}, which can be null. The fallback is as follow: context
+   * {@code ClassLoader}, which can be null. The fallback is as follows: context
    * ClassLoader, class ClassLoader and finaly the system ClassLoader.
    */
   static ClassLoader findClassLoader() {
@@ -649,9 +649,11 @@ public class PipelineOptionsFactory {
    *  --option1={@code <type>} or list of valid enum choices
    *     Default: value (if available, see {@link Default})
    *     ... option description ... (if available, see {@link Description})
+   *     Required groups (if available, see {@link Required})
    *  --option2={@code <type>} or list of valid enum choices
    *     Default: value (if available, see {@link Default})
    *     ... option description ... (if available, see {@link Description})
+   *     Required groups (if available, see {@link Required})
    * </pre>
    * This method will attempt to format its output to be compatible with a terminal window.
    */
@@ -1231,7 +1233,7 @@ public class PipelineOptionsFactory {
    * split up each string on ','.
    *
    * <p>We special case the "runner" option. It is mapped to the class of the {@link PipelineRunner}
-   * based off of the {@link PipelineRunner}s simple class name.
+   * based off of the {@link PipelineRunner}s simple class name or fully qualified class name.
    *
    * <p>If strict parsing is enabled, unknown options or options that cannot be converted to
    * the expected java type using an {@link ObjectMapper} will be ignored.
