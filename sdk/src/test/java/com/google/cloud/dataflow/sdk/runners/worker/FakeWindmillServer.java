@@ -133,7 +133,8 @@ class FakeWindmillServer extends WindmillServerStub {
     }
 
     assertFalse(
-        "Should have received commits after 10s, but only got " + commitsReceived,
+        "Should have received " + numCommits + " more commits beyond " + commitsRequested
+        + " commits already seen, but after 10s have only seen " + commitsReceived,
         commitsReceived.size() < commitsRequested + numCommits);
     commitsRequested += numCommits;
 

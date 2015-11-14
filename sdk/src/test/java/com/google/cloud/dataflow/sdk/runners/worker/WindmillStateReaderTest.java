@@ -25,6 +25,7 @@ import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill.KeyedGetDataRequest;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.common.collect.Iterables;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.ByteString.Output;
 
@@ -48,12 +49,12 @@ import java.util.concurrent.TimeUnit;
  */
 @RunWith(JUnit4.class)
 public class WindmillStateReaderTest {
-
   private static final VarIntCoder INT_CODER = VarIntCoder.of();
 
   private static final String COMPUTATION = "computation";
   private static final ByteString DATA_KEY = ByteString.copyFromUtf8("DATA_KEY");
   private static final long WORK_TOKEN = 5043L;
+  private static final ByteString CONT_TOKEN = ByteString.copyFromUtf8("CONT_TOKEN");
 
   private static final ByteString STATE_KEY_1 = ByteString.copyFromUtf8("key1");
   private static final ByteString STATE_KEY_2 = ByteString.copyFromUtf8("key2");
@@ -92,29 +93,108 @@ public class WindmillStateReaderTest {
     Mockito.verifyNoMoreInteractions(mockWindmill);
 
     Windmill.GetDataRequest.Builder expectedRequest = Windmill.GetDataRequest.newBuilder();
-    expectedRequest
-        .addRequestsBuilder().setComputationId(COMPUTATION)
-        .addRequestsBuilder().setKey(DATA_KEY).setWorkToken(WORK_TOKEN)
-        .addListsToFetch(Windmill.TagList.newBuilder()
-            .setTag(STATE_KEY_1).setStateFamily(STATE_FAMILY).setEndTimestamp(Long.MAX_VALUE));
+    expectedRequest.addRequestsBuilder()
+        .setComputationId(COMPUTATION)
+        .addRequestsBuilder()
+        .setKey(DATA_KEY)
+        .setWorkToken(WORK_TOKEN)
+        .addListsToFetch(
+            Windmill.TagList.newBuilder()
+                .setTag(STATE_KEY_1)
+                .setStateFamily(STATE_FAMILY)
+                .setEndTimestamp(Long.MAX_VALUE)
+                .setFetchMaxBytes(WindmillStateReader.MAX_LIST_BYTES));
 
     Windmill.GetDataResponse.Builder response = Windmill.GetDataResponse.newBuilder();
-    response
-        .addDataBuilder().setComputationId(COMPUTATION)
-        .addDataBuilder().setKey(DATA_KEY)
-        .addLists(Windmill.TagList.newBuilder()
-            .setTag(STATE_KEY_1)
-            .setStateFamily(STATE_FAMILY)
-            .addValues(intValue(5, true))
-            .addValues(intValue(6, true)));
+    response.addDataBuilder()
+        .setComputationId(COMPUTATION)
+        .addDataBuilder()
+        .setKey(DATA_KEY)
+        .addLists(
+            Windmill.TagList.newBuilder()
+                .setTag(STATE_KEY_1)
+                .setStateFamily(STATE_FAMILY)
+                .addValues(intValue(5, true))
+                .addValues(intValue(6, true)));
 
     Mockito.when(mockWindmill.getStateData(expectedRequest.build())).thenReturn(response.build());
 
     Iterable<Integer> results = future.get();
     Mockito.verify(mockWindmill).getStateData(expectedRequest.build());
+    Iterables.size(results);
     Mockito.verifyNoMoreInteractions(mockWindmill);
 
-    assertThat(results, Matchers.containsInAnyOrder(5, 6));
+    assertThat(results, Matchers.contains(5, 6));
+  }
+
+  @Test
+  public void testReadListWithContinuations() throws Exception {
+    Future<Iterable<Integer>> future = underTest.listFuture(STATE_KEY_1, STATE_FAMILY, INT_CODER);
+    Mockito.verifyNoMoreInteractions(mockWindmill);
+
+    Windmill.GetDataRequest.Builder expectedRequest1 = Windmill.GetDataRequest.newBuilder();
+    expectedRequest1.addRequestsBuilder()
+        .setComputationId(COMPUTATION)
+        .addRequestsBuilder()
+        .setKey(DATA_KEY)
+        .setWorkToken(WORK_TOKEN)
+        .addListsToFetch(
+            Windmill.TagList.newBuilder()
+                .setTag(STATE_KEY_1)
+                .setStateFamily(STATE_FAMILY)
+                .setEndTimestamp(Long.MAX_VALUE)
+                .setFetchMaxBytes(WindmillStateReader.MAX_LIST_BYTES));
+
+    Windmill.GetDataResponse.Builder response1 = Windmill.GetDataResponse.newBuilder();
+    response1.addDataBuilder()
+        .setComputationId(COMPUTATION)
+        .addDataBuilder()
+        .setKey(DATA_KEY)
+        .addLists(
+            Windmill.TagList.newBuilder()
+                .setTag(STATE_KEY_1)
+                .setStateFamily(STATE_FAMILY)
+                .setContinuationToken(CONT_TOKEN)
+                .addValues(intValue(5, true))
+                .addValues(intValue(6, true)));
+
+    Windmill.GetDataRequest.Builder expectedRequest2 = Windmill.GetDataRequest.newBuilder();
+    expectedRequest2.addRequestsBuilder()
+        .setComputationId(COMPUTATION)
+        .addRequestsBuilder()
+        .setKey(DATA_KEY)
+        .setWorkToken(WORK_TOKEN)
+        .addListsToFetch(
+            Windmill.TagList.newBuilder()
+                .setTag(STATE_KEY_1)
+                .setStateFamily(STATE_FAMILY)
+                .setEndTimestamp(Long.MAX_VALUE)
+                .setFetchMaxBytes(WindmillStateReader.MAX_LIST_BYTES)
+                .setRequestToken(CONT_TOKEN));
+
+    Windmill.GetDataResponse.Builder response2 = Windmill.GetDataResponse.newBuilder();
+    response2.addDataBuilder()
+        .setComputationId(COMPUTATION)
+        .addDataBuilder()
+        .setKey(DATA_KEY)
+        .addLists(
+            Windmill.TagList.newBuilder()
+                .setTag(STATE_KEY_1)
+                .setStateFamily(STATE_FAMILY)
+                .setRequestToken(CONT_TOKEN)
+                .addValues(intValue(7, true))
+                .addValues(intValue(8, true)));
+
+    Mockito.when(mockWindmill.getStateData(expectedRequest1.build())).thenReturn(response1.build());
+    Mockito.when(mockWindmill.getStateData(expectedRequest2.build())).thenReturn(response2.build());
+
+    Iterable<Integer> results = future.get();
+    Mockito.verify(mockWindmill).getStateData(expectedRequest1.build());
+    Iterables.size(results);
+    Mockito.verify(mockWindmill).getStateData(expectedRequest2.build());
+    Mockito.verifyNoMoreInteractions(mockWindmill);
+
+    assertThat(results, Matchers.contains(5, 6, 7, 8));
   }
 
   @Test
@@ -123,8 +203,7 @@ public class WindmillStateReaderTest {
     Mockito.verifyNoMoreInteractions(mockWindmill);
 
     Windmill.GetDataRequest.Builder expectedRequest = Windmill.GetDataRequest.newBuilder();
-    expectedRequest
-        .addRequestsBuilder()
+    expectedRequest.addRequestsBuilder()
         .setComputationId(COMPUTATION)
         .addRequestsBuilder()
         .setKey(DATA_KEY)
@@ -135,8 +214,7 @@ public class WindmillStateReaderTest {
                 .setStateFamily(STATE_FAMILY)
                 .build());
     Windmill.GetDataResponse.Builder response = Windmill.GetDataResponse.newBuilder();
-    response
-        .addDataBuilder()
+    response.addDataBuilder()
         .setComputationId(COMPUTATION)
         .addDataBuilder()
         .setKey(DATA_KEY)
@@ -170,14 +248,16 @@ public class WindmillStateReaderTest {
             Windmill.WatermarkHold.newBuilder().setTag(STATE_KEY_1).setStateFamily(STATE_FAMILY));
 
     Windmill.GetDataResponse.Builder response = Windmill.GetDataResponse.newBuilder();
-    response
-        .addDataBuilder().setComputationId(COMPUTATION)
-        .addDataBuilder().setKey(DATA_KEY)
-        .addWatermarkHolds(Windmill.WatermarkHold.newBuilder()
-            .setTag(STATE_KEY_1)
-            .setStateFamily(STATE_FAMILY)
-            .addTimestamps(5000000)
-            .addTimestamps(6000000));
+    response.addDataBuilder()
+        .setComputationId(COMPUTATION)
+        .addDataBuilder()
+        .setKey(DATA_KEY)
+        .addWatermarkHolds(
+            Windmill.WatermarkHold.newBuilder()
+                .setTag(STATE_KEY_1)
+                .setStateFamily(STATE_FAMILY)
+                .addTimestamps(5000000)
+                .addTimestamps(6000000));
 
     Mockito.when(mockWindmill.getStateData(expectedRequest.build())).thenReturn(response.build());
 
@@ -200,19 +280,22 @@ public class WindmillStateReaderTest {
         ArgumentCaptor.forClass(Windmill.GetDataRequest.class);
 
     Windmill.GetDataResponse.Builder response = Windmill.GetDataResponse.newBuilder();
-    response
-        .addDataBuilder().setComputationId(COMPUTATION)
-        .addDataBuilder().setKey(DATA_KEY)
-        .addWatermarkHolds(Windmill.WatermarkHold.newBuilder()
-            .setTag(STATE_KEY_2)
-            .setStateFamily(STATE_FAMILY)
-            .addTimestamps(5000000)
-            .addTimestamps(6000000))
-        .addLists(Windmill.TagList.newBuilder()
-            .setTag(STATE_KEY_1)
-            .setStateFamily(STATE_FAMILY)
-            .addValues(intValue(5, true))
-            .addValues(intValue(100, true)));
+    response.addDataBuilder()
+        .setComputationId(COMPUTATION)
+        .addDataBuilder()
+        .setKey(DATA_KEY)
+        .addWatermarkHolds(
+            Windmill.WatermarkHold.newBuilder()
+                .setTag(STATE_KEY_2)
+                .setStateFamily(STATE_FAMILY)
+                .addTimestamps(5000000)
+                .addTimestamps(6000000))
+        .addLists(
+            Windmill.TagList.newBuilder()
+                .setTag(STATE_KEY_1)
+                .setStateFamily(STATE_FAMILY)
+                .addValues(intValue(5, true))
+                .addValues(intValue(100, true)));
 
     Mockito.when(mockWindmill.getStateData(Mockito.isA(Windmill.GetDataRequest.class)))
         .thenReturn(response.build());
@@ -236,7 +319,7 @@ public class WindmillStateReaderTest {
     assertThat(result, Matchers.equalTo(new Instant(5000)));
     Mockito.verifyNoMoreInteractions(mockWindmill);
 
-    assertThat(listFuture.get(), Matchers.containsInAnyOrder(5, 100));
+    assertThat(listFuture.get(), Matchers.contains(5, 100));
     Mockito.verifyNoMoreInteractions(mockWindmill);
 
     // And verify that getting a future again returns the already completed future.
@@ -250,20 +333,15 @@ public class WindmillStateReaderTest {
     Mockito.verifyNoMoreInteractions(mockWindmill);
 
     Windmill.GetDataRequest.Builder expectedRequest = Windmill.GetDataRequest.newBuilder();
-    expectedRequest
-        .addRequestsBuilder()
+    expectedRequest.addRequestsBuilder()
         .setComputationId(COMPUTATION)
         .addRequestsBuilder()
         .setKey(DATA_KEY)
         .setWorkToken(WORK_TOKEN)
         .addValuesToFetch(
-            Windmill.TagValue.newBuilder()
-                .setTag(STATE_KEY_1)
-                .setStateFamily("")
-                .build());
+            Windmill.TagValue.newBuilder().setTag(STATE_KEY_1).setStateFamily("").build());
     Windmill.GetDataResponse.Builder response = Windmill.GetDataResponse.newBuilder();
-    response
-        .addDataBuilder()
+    response.addDataBuilder()
         .setComputationId(COMPUTATION)
         .addDataBuilder()
         .setKey(DATA_KEY)
@@ -280,7 +358,6 @@ public class WindmillStateReaderTest {
     Mockito.verifyNoMoreInteractions(mockWindmill);
 
     assertThat(result, Matchers.equalTo(8));
-
   }
 
   @Test
@@ -293,9 +370,11 @@ public class WindmillStateReaderTest {
     Mockito.verifyNoMoreInteractions(mockWindmill);
 
     Windmill.GetDataResponse.Builder response = Windmill.GetDataResponse.newBuilder();
-    response
-        .addDataBuilder().setComputationId(COMPUTATION)
-        .addDataBuilder().setKey(DATA_KEY).setFailed(true);
+    response.addDataBuilder()
+        .setComputationId(COMPUTATION)
+        .addDataBuilder()
+        .setKey(DATA_KEY)
+        .setFailed(true);
 
     Mockito.when(mockWindmill.getStateData(Mockito.isA(Windmill.GetDataRequest.class)))
         .thenReturn(response.build());
