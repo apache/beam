@@ -98,6 +98,11 @@ public class CoderTypeInformation<T> extends TypeInformation<T> implements Atomi
 	}
 
 	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof CoderTypeInformation;
+	}
+
+	@Override
 	public String toString() {
 		return "CoderTypeInformation{" +
 				"coder=" + coder +

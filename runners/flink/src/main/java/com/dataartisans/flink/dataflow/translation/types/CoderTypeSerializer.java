@@ -144,6 +144,11 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
 	}
 
 	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof CoderTypeSerializer;
+	}
+
+	@Override
 	public int hashCode() {
 		return coder.hashCode();
 	}

@@ -117,16 +117,10 @@ public class FlinkTransformTranslators {
 		TRANSLATORS.put(ParDo.BoundMulti.class, new ParDoBoundMultiTranslator());
 		TRANSLATORS.put(ParDo.Bound.class, new ParDoBoundTranslator());
 
+		TRANSLATORS.put(CoGroupByKey.class, new CoGroupByKeyTranslator());
+
 		TRANSLATORS.put(AvroIO.Read.Bound.class, new AvroIOReadTranslator());
 		TRANSLATORS.put(AvroIO.Write.Bound.class, new AvroIOWriteTranslator());
-
-		//TRANSLATORS.put(BigQueryIO.Read.Bound.class, null);
-		//TRANSLATORS.put(BigQueryIO.Write.Bound.class, null);
-
-		//TRANSLATORS.put(DatastoreIO.Sink.class, null);
-
-		//TRANSLATORS.put(PubsubIO.Read.Bound.class, null);
-		//TRANSLATORS.put(PubsubIO.Write.Bound.class, null);
 
 		TRANSLATORS.put(Read.Bounded.class, new ReadSourceTranslator());
 //		TRANSLATORS.put(Write.Bound.class, new ReadSourceTranslator());
@@ -136,8 +130,7 @@ public class FlinkTransformTranslators {
 
 		// Flink-specific
 		TRANSLATORS.put(ConsoleIO.Write.Bound.class, new ConsoleIOWriteTranslator());
-		
-		TRANSLATORS.put(CoGroupByKey.class, new CoGroupByKeyTranslator());
+
 	}
 
 

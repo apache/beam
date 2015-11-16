@@ -18,14 +18,19 @@
 package com.dataartisans.flink.dataflow.translation.types;
 
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
+import com.google.cloud.dataflow.sdk.options.Default;
 import com.google.cloud.dataflow.sdk.values.KV;
+import com.google.common.primitives.Ints;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.typeutils.runtime.TupleComparator;
 import org.apache.flink.shaded.com.google.common.base.Preconditions;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -36,10 +41,12 @@ public class KvCoderTypeInformation<K, V> extends CompositeType<KV<K, V>> {
 
 	private KvCoder<K, V> coder;
 
+	// We don't have the Class, so we have to pass null here. What a shame...
+	private static Object DUMMY = new Object();
+
 	@SuppressWarnings("unchecked")
 	public KvCoderTypeInformation(KvCoder<K, V> coder) {
-		// We don't have the Class, so we have to pass null here. What a shame...
-		super(null);
+		super(((Class<KV<K,V>>) DUMMY.getClass()));
 		this.coder = coder;
 		Preconditions.checkNotNull(coder);
 	}
@@ -153,18 +160,28 @@ public class KvCoderTypeInformation<K, V> extends CompositeType<KV<K, V>> {
 		}
 	}
 
-	// These three we only have because we support CompositeType, we create our own comparator
-	// in createComparator.
-	@Override
-	protected void initializeNewComparator(int localKeyCount) {}
-	@Override
-	protected void addCompareField(int fieldId, TypeComparator<?> comparator) {}
-	@Override
-	protected TypeComparator<KV<K, V>> getNewComparator(ExecutionConfig config) { return null; }
-
 	@Override
 	public void getFlatFields(String fieldExpression, int offset, List<FlatFieldDescriptor> result) {
 			CoderTypeInformation keyTypeInfo = new CoderTypeInformation<>(coder.getKeyCoder());
 			result.add(new FlatFieldDescriptor(0, keyTypeInfo));
+	}
+
+	@Override
+	protected TypeComparatorBuilder<KV<K, V>> createTypeComparatorBuilder() {
+		return new KvCoderTypeComparatorBuilder();
+	}
+
+	private class KvCoderTypeComparatorBuilder implements TypeComparatorBuilder<KV<K, V>> {
+
+		@Override
+		public void initializeTypeComparatorBuilder(int size) {}
+
+		@Override
+		public void addComparatorField(int fieldId, TypeComparator<?> comparator) {}
+
+		@Override
+		public TypeComparator<KV<K, V>> createTypeComparator(ExecutionConfig config) {
+			return new KvCoderComperator<>(coder);
+		}
 	}
 }

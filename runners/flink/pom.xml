@@ -21,7 +21,7 @@ Copyright 2015 Stephan Ewen, Aljoscha Krettek, Max Michels, dataArtisans
 
 	<groupId>com.dataartisans</groupId>
 	<artifactId>flink-dataflow</artifactId>
-	<version>0.1</version>
+	<version>0.2</version>
 
 	<name>Flink Dataflow Runner</name>
 	<packaging>jar</packaging>
@@ -39,7 +39,7 @@ Copyright 2015 Stephan Ewen, Aljoscha Krettek, Max Michels, dataArtisans
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-                <flink.version>0.9.1</flink.version>
+                <flink.version>0.10.0</flink.version>
 
                 <!-- Default parameters for mvn exec:exec -->
                 <clazz>com.dataartisans.flink.dataflow.examples.WordCount</clazz>
