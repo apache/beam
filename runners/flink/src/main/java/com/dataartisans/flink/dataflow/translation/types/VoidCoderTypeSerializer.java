@@ -17,7 +17,9 @@
  */
 package com.dataartisans.flink.dataflow.translation.types;
 
+import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.typeutils.runtime.ValueSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -81,6 +83,26 @@ public class VoidCoderTypeSerializer extends TypeSerializer<VoidCoderTypeSeriali
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		source.readByte();
 		target.writeByte(1);
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (obj instanceof VoidCoderTypeSerializer) {
+			VoidCoderTypeSerializer other = (VoidCoderTypeSerializer) obj;
+			return other.canEqual(this);
+		} else {
+			return false;
+		}
+	}
+
+	@Override
+	public boolean canEqual(Object obj) {
+		return obj instanceof VoidCoderTypeSerializer;
+	}
+
+	@Override
+	public int hashCode() {
+		return 0;
 	}
 
 	public static class VoidValue {
