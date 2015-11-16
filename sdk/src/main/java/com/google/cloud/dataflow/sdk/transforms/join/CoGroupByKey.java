@@ -43,30 +43,30 @@ import java.util.List;
  * <p>Example of performing a {@link CoGroupByKey} followed by a
  * {@link ParDo} that consumes
  * the results:
- * <pre> <code>
- * {@literal PCollection<KV<K, V1>>} pt1 = ...;
- * {@literal PCollection<KV<K, V2>>} pt2 = ...;
+ * <pre> {@code
+ * PCollection<KV<K, V1>> pt1 = ...;
+ * PCollection<KV<K, V2>> pt2 = ...;
  *
- * final {@literal TupleTag<V1>} t1 = new {@literal TupleTag<>()};
- * final {@literal TupleTag<V2>} t2 = new {@literal TupleTag<>()};
- * {@literal PCollection<KV<K, CoGbkResult>>} coGbkResultCollection =
+ * final TupleTag<V1> t1 = new TupleTag<>();
+ * final TupleTag<V2> t2 = new TupleTag<>();
+ * PCollection<KV<K, CoGbkResult>> coGbkResultCollection =
  *   KeyedPCollectionTuple.of(t1, pt1)
  *                        .and(t2, pt2)
- *                        .apply({@literal CoGroupByKey.<K>create()});
+ *                        .apply(CoGroupByKey.<K>create());
  *
- * {@literal PCollection<T>} finalResultCollection =
+ * PCollection<T> finalResultCollection =
  *   coGbkResultCollection.apply(ParDo.of(
- *     new {@literal DoFn<KV<K, CoGbkResult>, T>()} {
- *       {@literal @}Override
+ *     new DoFn<KV<K, CoGbkResult>, T>() {
+ *       @Override
  *       public void processElement(ProcessContext c) {
- *         {@literal KV<K, CoGbkResult>} e = c.element();
- *         {@literal Iterable<V1>} pt1Vals = e.getValue().getAll(t1);
+ *         KV<K, CoGbkResult> e = c.element();
+ *         Iterable<V1> pt1Vals = e.getValue().getAll(t1);
  *         V2 pt2Val = e.getValue().getOnly(t2);
  *          ... Do Something ....
  *         c.output(...some T...);
  *       }
  *     }));
- * </code> </pre>
+ * } </pre>
  *
  * @param <K> the type of the keys in the input and output
  * {@code PCollection}s

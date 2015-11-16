@@ -80,7 +80,7 @@ public class CoGbkResultSchema implements Serializable {
   }
 
   /**
-   * Returns the JoinTupleTag at the given index.
+   * Returns the tuple tag at the given index.
    */
   public TupleTag<?> getTag(int index) {
     return tupleTagList.get(index);

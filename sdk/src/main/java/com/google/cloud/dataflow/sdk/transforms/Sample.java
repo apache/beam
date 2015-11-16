@@ -55,7 +55,7 @@ public class Sample {
    * <pre> {@code
    * PCollection<String> input = ...;
    * PCollection<String> output = input.apply(Sample.<String>any(100));
-   * } </pre>bla
+   * } </pre>
    *
    * @param <T> the type of the elements of the input and output
    * {@code PCollection}s

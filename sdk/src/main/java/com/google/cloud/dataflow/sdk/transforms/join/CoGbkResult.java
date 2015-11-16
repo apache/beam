@@ -65,7 +65,7 @@ public class CoGbkResult {
   private static final Logger LOG = LoggerFactory.getLogger(CoGbkResult.class);
 
   /**
-   * A row in the PCollection resulting from a CoGroupByKey transform.
+   * A row in the {@link PCollection} resulting from a {@link CoGroupByKey} transform.
    * Currently, this row must fit into memory.
    *
    * @param schema the set of tuple tags used to refer to input tables and
@@ -156,7 +156,7 @@ public class CoGbkResult {
   }
 
   /**
-   * Returns the schema used by this CoGbkResult.
+   * Returns the schema used by this {@link CoGbkResult}.
    */
   public CoGbkResultSchema getSchema() {
     return schema;
@@ -172,7 +172,7 @@ public class CoGbkResult {
    * {@code TupleTag<V>} as an {@code Iterable<V>} (which may be empty if there
    * are no results).
    *
-   * <p>If tag was not part of the original CoGroupByKey,
+   * <p>If tag was not part of the original {@link CoGroupByKey},
    * throws an IllegalArgumentException.
    */
   public <V> Iterable<V> getAll(TupleTag<V> tag) {
@@ -190,7 +190,7 @@ public class CoGbkResult {
    * If there is a singleton value for the given tag, returns it.
    * Otherwise, throws an IllegalArgumentException.
    *
-   * <p>If tag was not part of the original CoGroupByKey,
+   * <p>If tag was not part of the original {@link CoGroupByKey},
    * throws an IllegalArgumentException.
    */
   public <V> V getOnly(TupleTag<V> tag) {
@@ -201,7 +201,7 @@ public class CoGbkResult {
    * If there is a singleton value for the given tag, returns it.  If there is
    * no value for the given tag, returns the defaultValue.
    *
-   * <p>If tag was not part of the original CoGroupByKey,
+   * <p>If tag was not part of the original {@link CoGroupByKey},
    * throws an IllegalArgumentException.
    */
   public <V> V getOnly(TupleTag<V> tag, V defaultValue) {
@@ -217,7 +217,7 @@ public class CoGbkResult {
     private final UnionCoder unionCoder;
 
     /**
-     * Returns a CoGbkResultCoder for the given schema and unionCoder.
+     * Returns a {@link CoGbkResultCoder} for the given schema and {@link UnionCoder}.
      */
     public static CoGbkResultCoder of(
         CoGbkResultSchema schema,
@@ -331,7 +331,7 @@ public class CoGbkResult {
   }
 
   /**
-   * Returns a new CoGbkResult based on this, with the given tag and given data
+   * Returns a new {@link CoGbkResult} based on this, with the given tag and given data
    * added to it.
    */
   public <V> CoGbkResult and(TupleTag<V> tag, List<V> data) {
@@ -348,7 +348,7 @@ public class CoGbkResult {
   }
 
   /**
-   * Returns an empty CoGbkResult.
+   * Returns an empty {@link CoGbkResult}.
    */
   public static <V> CoGbkResult empty() {
     return new CoGbkResult(new CoGbkResultSchema(TupleTagList.empty()),
