@@ -370,7 +370,7 @@
       <plugin>
         <groupId>org.apache.avro</groupId>
         <artifactId>avro-maven-plugin</artifactId>
-        <version>1.7.7</version>
+        <version>${avro.version}</version>
         <executions>
           <execution>
             <id>schemas</id>
@@ -416,7 +416,7 @@
     <dependency>
       <groupId>com.google.apis</groupId>
       <artifactId>google-api-services-dataflow</artifactId>
-      <version>v1b3-rev10-1.20.0</version>
+      <version>${dataflow.version}</version>
       <exclusions>
         <!-- Exclude an old version of guava that is being pulled
              in by a transitive dependency google-api-client 1.19.0 -->
@@ -436,8 +436,7 @@
     <dependency>
       <groupId>com.google.api-client</groupId>
       <artifactId>google-api-client</artifactId>
-      <!-- If updating version, please update the javadoc offlineLink -->
-      <version>1.20.0</version>
+      <version>${google-clients.version}</version>
       <exclusions>
         <exclusion>
           <groupId>com.google.guava</groupId>
@@ -449,8 +448,7 @@
     <dependency>
       <groupId>com.google.apis</groupId>
       <artifactId>google-api-services-bigquery</artifactId>
-      <!-- If updating version, please update the javadoc offlineLink -->
-      <version>v2-rev238-1.20.0</version>
+      <version>${bigquery.version}</version>
       <exclusions>
         <!-- Exclude an old version of guava that is being pulled
              in by a transitive dependency google-api-client 1.20.0 -->
@@ -464,7 +462,7 @@
     <dependency>
       <groupId>com.google.apis</groupId>
       <artifactId>google-api-services-pubsub</artifactId>
-      <version>v1-rev3-1.20.0</version>
+      <version>${pubsub.version}</version>
       <exclusions>
         <!-- Exclude an old version of guava that is being pulled
              in by a transitive dependency google-api-client 1.20.0 -->
@@ -478,7 +476,7 @@
     <dependency>
       <groupId>com.google.apis</groupId>
       <artifactId>google-api-services-storage</artifactId>
-      <version>v1-rev25-1.19.1</version>
+      <version>${storage.version}</version>
       <exclusions>
         <!-- Exclude an old version of guava that is being pulled
              in by a transitive dependency google-api-client 1.20.0 -->
@@ -492,7 +490,7 @@
     <dependency>
       <groupId>com.google.http-client</groupId>
       <artifactId>google-http-client-jackson2</artifactId>
-      <version>1.20.0</version>
+      <version>${google-clients.version}</version>
       <exclusions>
         <!-- Exclude an old version of guava that is being pulled
              in by a transitive dependency google-api-client 1.20.0 -->
@@ -506,14 +504,13 @@
     <dependency>
       <groupId>com.google.http-client</groupId>
       <artifactId>google-http-client</artifactId>
-      <version>1.20.0</version>
+      <version>${google-clients.version}</version>
     </dependency>
 
     <dependency>
       <groupId>com.google.oauth-client</groupId>
       <artifactId>google-oauth-client-java6</artifactId>
-      <!-- If updating version, please update the javadoc offlineLink -->
-      <version>1.20.0</version>
+      <version>${google-clients.version}</version>
       <exclusions>
         <!-- Exclude an old version of guava that is being pulled
              in by a transitive dependency google-api-client 1.20.0 -->
@@ -527,8 +524,7 @@
     <dependency>
       <groupId>com.google.oauth-client</groupId>
       <artifactId>google-oauth-client</artifactId>
-      <!-- If updating version, please update the javadoc offlineLink -->
-      <version>1.20.0</version>
+      <version>${google-clients.version}</version>
       <exclusions>
         <!-- Exclude an old version of guava that is being pulled
              in by a transitive dependency google-api-client 1.20.0 -->
@@ -542,8 +538,7 @@
     <dependency>
       <groupId>com.google.apis</groupId>
       <artifactId>google-api-services-datastore-protobuf</artifactId>
-      <!-- If updating version, please update the javadoc offlineLink -->
-      <version>v1beta2-rev1-3.0.2</version>
+      <version>${datastore.version}</version>
       <exclusions>
         <!-- Exclude an old version of guava that is being pulled
              in by a transitive dependency google-api-client 1.19.0 -->
@@ -570,47 +565,43 @@
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
       <!-- If updating version, please update the javadoc offlineLink -->
-      <version>18.0</version>
+      <version>${guava.version}</version>
     </dependency>
 
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
-      <version>2.5.0</version>
+      <version>${protobuf.version}</version>
     </dependency>
 
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-core</artifactId>
-      <!-- If updating version, please update the javadoc offlineLink -->
-      <version>2.4.2</version>
+      <version>${jackson.version}</version>
     </dependency>
 
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-annotations</artifactId>
-      <!-- If updating version, please update the javadoc offlineLink -->
-      <version>2.4.2</version>
+      <version>${jackson.version}</version>
     </dependency>
 
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
-      <!-- If updating version, please update the javadoc offlineLink -->
-      <version>2.4.2</version>
+      <version>${jackson.version}</version>
     </dependency>
 
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
-      <version>1.7.7</version>
+      <version>${slf4j.version}</version>
     </dependency>
 
     <dependency>
       <groupId>org.apache.avro</groupId>
       <artifactId>avro</artifactId>
-      <!-- If updating version, please update the javadoc offlineLink -->
-      <version>1.7.7</version>
+      <version>${avro.version}</version>
     </dependency>
 
     <dependency>
@@ -622,8 +613,7 @@
     <dependency>
       <groupId>joda-time</groupId>
       <artifactId>joda-time</artifactId>
-      <!-- If updating version, please update the javadoc offlineLink -->
-      <version>2.4</version>
+      <version>${joda.version}</version>
     </dependency>
 
     <dependency>
@@ -685,22 +675,21 @@
     <dependency>
       <groupId>org.hamcrest</groupId>
       <artifactId>hamcrest-all</artifactId>
-      <!-- If updating version, please update the javadoc offlineLink -->
-      <version>1.3</version>
+      <version>${hamcrest.version}</version>
       <scope>provided</scope>
     </dependency>
 
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
-      <version>4.11</version>
+      <version>${junit.version}</version>
       <scope>provided</scope>
     </dependency>
 
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-jdk14</artifactId>
-      <version>1.7.7</version>
+      <version>${slf4j.version}</version>
       <scope>test</scope>
     </dependency>
 
