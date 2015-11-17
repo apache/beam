@@ -464,6 +464,8 @@ public class AvroIO {
       final int numShards;
       /** Shard template string. */
       final String shardTemplate;
+      /** Insert a shuffle before writing to decouple parallelism when numShards != 0. */
+      final boolean forceReshard;
       /** The class type of the records. */
       final Class<T> type;
       /** The schema of the output file. */
@@ -473,16 +475,18 @@ public class AvroIO {
       final boolean validate;
 
       Bound(Class<T> type) {
-        this(null, null, "", 0, ShardNameTemplate.INDEX_OF_MAX, type, null, true);
+        this(null, null, "", 0, ShardNameTemplate.INDEX_OF_MAX, true, type, null, true);
       }
 
       Bound(String name, String filenamePrefix, String filenameSuffix, int numShards,
-          String shardTemplate, Class<T> type, Schema schema, boolean validate) {
+          String shardTemplate, boolean forceReshard, Class<T> type, Schema schema,
+          boolean validate) {
         super(name);
         this.filenamePrefix = filenamePrefix;
         this.filenameSuffix = filenameSuffix;
         this.numShards = numShards;
         this.shardTemplate = shardTemplate;
+        this.forceReshard = forceReshard;
         this.type = type;
         this.schema = schema;
         this.validate = validate;
@@ -494,7 +498,8 @@ public class AvroIO {
        */
       public Bound<T> named(String name) {
         return new Bound<>(
-            name, filenamePrefix, filenameSuffix, numShards, shardTemplate, type, schema, validate);
+            name, filenamePrefix, filenameSuffix, numShards, shardTemplate, forceReshard,
+            type, schema, validate);
       }
 
       /**
@@ -508,7 +513,8 @@ public class AvroIO {
       public Bound<T> to(String filenamePrefix) {
         validateOutputComponent(filenamePrefix);
         return new Bound<>(
-            name, filenamePrefix, filenameSuffix, numShards, shardTemplate, type, schema, validate);
+            name, filenamePrefix, filenameSuffix, numShards, shardTemplate, forceReshard,
+            type, schema, validate);
       }
 
       /**
@@ -522,7 +528,8 @@ public class AvroIO {
       public Bound<T> withSuffix(String filenameSuffix) {
         validateOutputComponent(filenameSuffix);
         return new Bound<>(
-            name, filenamePrefix, filenameSuffix, numShards, shardTemplate, type, schema, validate);
+            name, filenamePrefix, filenameSuffix, numShards, shardTemplate, forceReshard, type,
+            schema, validate);
       }
 
       /**
@@ -540,9 +547,32 @@ public class AvroIO {
        * @see ShardNameTemplate
        */
       public Bound<T> withNumShards(int numShards) {
+        return withNumShards(numShards, forceReshard);
+      }
+
+      /**
+       * Returns a new AvroIO.Write PTransform that's like this one but
+       * that uses the provided shard count.
+       *
+       * <p>Constraining the number of shards is likely to reduce
+       * the performance of a pipeline.  If forceReshard is true, the output
+       * will be shuffled to obtain the desired sharding.  If it is false,
+       * data will not be reshuffled, but parallelism of preceeding stages
+       * may be constrained.  Setting this value is not recommended
+       * unless you require a specific number of output files.
+       *
+       * <p>Does not modify this object.
+       *
+       * @param numShards the number of shards to use, or 0 to let the system
+       *                  decide.
+       * @param forceReshard whether to force a reshard to obtain the desired sharding.
+       * @see ShardNameTemplate
+       */
+      private Bound<T> withNumShards(int numShards, boolean forceReshard) {
         Preconditions.checkArgument(numShards >= 0);
         return new Bound<>(
-            name, filenamePrefix, filenameSuffix, numShards, shardTemplate, type, schema, validate);
+            name, filenamePrefix, filenameSuffix, numShards, shardTemplate, forceReshard,
+            type, schema, validate);
       }
 
       /**
@@ -555,7 +585,8 @@ public class AvroIO {
        */
       public Bound<T> withShardNameTemplate(String shardTemplate) {
         return new Bound<>(
-            name, filenamePrefix, filenameSuffix, numShards, shardTemplate, type, schema, validate);
+            name, filenamePrefix, filenameSuffix, numShards, shardTemplate, forceReshard,
+            type, schema, validate);
       }
 
       /**
@@ -568,7 +599,23 @@ public class AvroIO {
        * <p>Does not modify this object.
        */
       public Bound<T> withoutSharding() {
-        return new Bound<>(name, filenamePrefix, filenameSuffix, 1, "", type, schema, validate);
+        return withoutSharding(forceReshard);
+      }
+
+      /**
+       * Returns a new AvroIO.Write PTransform that's like this one but
+       * that forces a single file as output.
+       *
+       * <p>This is a shortcut for
+       * {@code .withNumShards(1, forceReshard).withShardNameTemplate("")}
+       *
+       * <p>Does not modify this object.
+       *
+       * @param forceReshard whether to force a reshard to obtain the desired sharding.
+       */
+      private Bound<T> withoutSharding(boolean forceReshard) {
+        return new Bound<>(name, filenamePrefix, filenameSuffix, 1, "", forceReshard,
+            type, schema, validate);
       }
 
       /**
@@ -579,8 +626,8 @@ public class AvroIO {
        * @param <X> the type of the elements of the input PCollection
        */
       public <X> Bound<X> withSchema(Class<X> type) {
-        return new Bound<>(name, filenamePrefix, filenameSuffix, numShards, shardTemplate, type,
-            ReflectData.get().getSchema(type), validate);
+        return new Bound<>(name, filenamePrefix, filenameSuffix, numShards, shardTemplate,
+            forceReshard, type, ReflectData.get().getSchema(type), validate);
       }
 
       /**
@@ -590,7 +637,7 @@ public class AvroIO {
        */
       public Bound<GenericRecord> withSchema(Schema schema) {
         return new Bound<>(name, filenamePrefix, filenameSuffix, numShards, shardTemplate,
-            GenericRecord.class, schema, validate);
+            forceReshard, GenericRecord.class, schema, validate);
       }
 
       /**
@@ -613,7 +660,8 @@ public class AvroIO {
        */
       public Bound<T> withoutValidation() {
         return new Bound<>(
-            name, filenamePrefix, filenameSuffix, numShards, shardTemplate, type, schema, false);
+            name, filenamePrefix, filenameSuffix, numShards, shardTemplate, forceReshard,
+            type, schema, false);
       }
 
       @Override
@@ -626,7 +674,14 @@ public class AvroIO {
           throw new IllegalStateException("need to set the schema of an AvroIO.Write transform");
         }
 
-        return PDone.in(input.getPipeline());
+        if (numShards > 0 && forceReshard) {
+          // Reshard and re-apply a version of this write without resharding.
+          return input
+              .apply(new FileBasedSink.ReshardForWrite<T>())
+              .apply(withNumShards(numShards, false));
+        } else {
+          return PDone.in(input.getPipeline());
+        }
       }
 
       /**

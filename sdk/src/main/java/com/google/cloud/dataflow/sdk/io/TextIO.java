@@ -23,18 +23,11 @@ import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.worker.FileBasedReader;
 import com.google.cloud.dataflow.sdk.runners.worker.TextReader;
 import com.google.cloud.dataflow.sdk.runners.worker.TextSink;
-import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
-import com.google.cloud.dataflow.sdk.transforms.ParDo;
-import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
-import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.util.ReaderUtils;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.util.common.worker.Sink;
-import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollection.IsBounded;
 import com.google.cloud.dataflow.sdk.values.PDone;
@@ -621,37 +614,6 @@ public class TextIO {
             shardTemplate, false);
       }
 
-      private static class ReshardForWrite<T> extends PTransform<PCollection<T>, PCollection<T>> {
-        public PCollection<T> apply(PCollection<T> input) {
-          return input
-              // TODO: This would need to be adapted to write per-window shards.
-              .apply(Window.<T>into(new GlobalWindows())
-                           .triggering(DefaultTrigger.of())
-                           .discardingFiredPanes())
-              .apply("RandomKey", ParDo.of(
-                  new DoFn<T, KV<Long, T>>() {
-                    transient long counter, step;
-                    public void startBundle(Context c) {
-                      counter = (long) (Math.random() * Long.MAX_VALUE);
-                      step = 1 + 2 * (long) (Math.random() * Long.MAX_VALUE);
-                    }
-                    public void processElement(ProcessContext c) {
-                      counter += step;
-                      c.output(KV.of(counter, c.element()));
-                    }
-                  }))
-              .apply(GroupByKey.<Long, T>create())
-              .apply("Ungroup", ParDo.of(
-                  new DoFn<KV<Long, Iterable<T>>, T>() {
-                    public void processElement(ProcessContext c) {
-                      for (T item : c.element().getValue()) {
-                        c.output(item);
-                      }
-                    }
-                  }));
-        }
-      }
-
       @Override
       public PDone apply(PCollection<T> input) {
         if (filenamePrefix == null) {
@@ -660,7 +622,9 @@ public class TextIO {
         }
         if (numShards > 0 && forceReshard) {
           // Reshard and re-apply a version of this write without resharding.
-          return input.apply(new ReshardForWrite<T>()).apply(withNumShards(numShards, false));
+          return input
+              .apply(new FileBasedSink.ReshardForWrite<T>())
+              .apply(withNumShards(numShards, false));
         } else {
           return PDone.in(input.getPipeline());
         }
