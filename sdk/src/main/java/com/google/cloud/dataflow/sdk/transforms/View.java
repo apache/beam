@@ -27,10 +27,22 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Transforms for creating {@link PCollectionView}s from {@link PCollection}s,
- * for consuming the contents of those {@link PCollection}s as side inputs
- * to {@link ParDo} transforms. These transforms support viewing a {@link PCollection}
- * as a single value, an iterable, a map, or a multimap.
+ * Transforms for creating {@link PCollectionView PCollectionViews} from
+ * {@link PCollection PCollections} (to read them as side inputs).
+ *
+ * <p>While a {@link PCollection PCollection&lt;ElemT&gt;} has many values of type {@code ElemT} per
+ * window, a {@link PCollectionView PCollectionView&lt;ViewT&gt;} has a single value of type
+ * {@code ViewT} for each window. It can be thought of as a mapping from windows to values of
+ * type {@code ViewT}. The transforms here represent ways of converting the {@code ElemT} values
+ * in a window into a {@code ViewT} for that window.
+ *
+ * <p>When a {@link ParDo} tranform is processing a main input
+ * element in a window {@code w} and a {@link PCollectionView} is read via
+ * {@link DoFn.ProcessContext#sideInput}, the value of the view for {@code w} is
+ * returned.
+ *
+ * <p>The SDK supports viewing a {@link PCollection}, per window, as a single value,
+ * a {@link List}, an {@link Iterable}, a {@link Map}, or a multimap (iterable-valued {@link Map}).
  *
  * <p>For a {@link PCollection} that contains a single value of type {@code T}
  * per window, such as the output of {@link Combine#globally},
@@ -44,9 +56,9 @@ import java.util.Map;
  * }
  * </pre>
  *
- * <p>For a small {@link PCollection} that can fit entirely in memory,
+ * <p>For a small {@link PCollection} with windows that can fit entirely in memory,
  * use {@link View#asList()} to prepare it for use as a {@code List}.
- * When read as a side input, the entire list will be cached in memory.
+ * When read as a side input, the entire list for a window will be cached in memory.
  *
  * <pre>
  * {@code
@@ -56,7 +68,7 @@ import java.util.Map;
  * </pre>
  *
  * <p>If a {@link PCollection} of {@code KV<K, V>} is known to
- * have a single value for each key, then use {@link View#asMap()}
+ * have a single value per window for each key, then use {@link View#asMap()}
  * to view it as a {@code Map<K, V>}:
  *
  * <pre>
@@ -126,9 +138,10 @@ public class View {
   private View() { }
 
   /**
-   * Returns a {@link AsSingleton} transform that takes a singleton
-   * {@link PCollection} as input and produces a {@link PCollectionView}
-   * of the single value, to be consumed as a side input.
+   * Returns a {@link AsSingleton} transform that takes a
+   * {@link PCollection} with a single value per window
+   * as input and produces a {@link PCollectionView} that returns
+   * the value in the main input window when read as a side input.
    *
    * <pre>
    * {@code
@@ -152,33 +165,37 @@ public class View {
   }
 
   /**
-   * Returns a transform that takes a {@link PCollection} and returns a
-   * {@code List} containing all of its elements, to be consumed as
-   * a side input.
+   * Returns a {@link View.AsList} transform that takes a {@link PCollection} and returns a
+   * {@link PCollectionView} mapping each window to a {@link List} containing
+   * all of the elements in the window.
    *
    * <p>The resulting list is required to fit in memory.
    */
-  public static <T> PTransform<PCollection<T>, PCollectionView<List<T>>> asList() {
+  public static <T> AsList<T> asList() {
     return new AsList<>();
   }
 
   /**
-   * Returns a {@link AsIterable} that takes a
-   * {@link PCollection} as input and produces a {@link PCollectionView}
-   * of the values, to be consumed as an iterable side input.  The values of
-   * this {@code Iterable} may not be cached; if that behavior is desired, use
-   * {@link #asList}.
+   * Returns a {@link View.AsIterable} transform that takes a {@link PCollection} as input
+   * and produces a {@link PCollectionView} mapping each window to an
+   * {@link Iterable} of the values in that window.
+   *
+   * <p>The values of the {@link Iterable} for a window are not required to fit in memory,
+   * but they may also not be effectively cached. If it is known that every window fits in memory,
+   * and stronger caching is desired, use {@link #asList}.
    */
   public static <T> AsIterable<T> asIterable() {
     return new AsIterable<>();
   }
 
   /**
-   * Returns an {@link AsMap} transform that takes a {@link PCollection} as input
-   * and produces a {@link PCollectionView} of the values to be consumed
-   * as a {@code Map<K, V>} side input. It is required that each key of the input be
-   * associated with a single value. If this is not the case, precede this
-   * view with {@code Combine.perKey}, as below, or alternatively use {@link View#asMultimap()}.
+   * Returns a {@link View.AsMap} transform that takes a
+   * {@link PCollection PCollection&lt;KV&lt;K V&gt;&gt;} as
+   * input and produces a {@link PCollectionView} mapping each window to
+   * a {@link Map Map&gt;K, V&gt;}. It is required that each key of the input be
+   * associated with a single value, per window. If this is not the case, precede this
+   * view with {@code Combine.perKey}, as in the example below, or alternatively
+   * use {@link View#asMultimap()}.
    *
    * <pre>
    * {@code
@@ -196,9 +213,11 @@ public class View {
   }
 
   /**
-   * Returns an {@link AsMultimap} transform that takes a {@link PCollection}
-   * of {@code KV<K, V>} pairs as input and produces a {@link PCollectionView} of
-   * its contents as a {@code Map<K, Iterable<V>>} for use as a side input.
+   * Returns a {@link View.AsMultimap} transform that takes a
+   * {@link PCollection PCollection&lt;KV&ltK, V&gt;&gt;}
+   * as input and produces a {@link PCollectionView} mapping
+   * each window to its contents as a {@link Map Map&lt;K, Iterable&lt;V&gt;&gt;}
+   * for use as a side input.
    * In contrast to {@link View#asMap()}, it is not required that the keys in the
    * input collection be unique.
    *
@@ -215,10 +234,10 @@ public class View {
   }
 
   /**
-   * A {@link PTransform} that produces a {@link PCollectionView} of a singleton
-   * {@link PCollection} yielding the single element it contains.
+   * Not intended for direct use by pipeline authors; public only so a {@link PipelineRunner} may
+   * override its behavior.
    *
-   * <p>Instantiate via {@link View#asIterable}.
+   * <p>See {@link View#asList()}.
    */
   public static class AsList<T> extends PTransform<PCollection<T>, PCollectionView<List<T>>> {
     private AsList() { }
@@ -240,10 +259,10 @@ public class View {
   }
 
   /**
-   * A {@link PTransform} that produces a {@link PCollectionView} of a singleton
-   * {@link PCollection} yielding the single element it contains.
+   * Not intended for direct use by pipeline authors; public only so a {@link PipelineRunner} may
+   * override its behavior.
    *
-   * <p>Instantiate via {@link View#asIterable}.
+   * <p>See {@link View#asIterable()}.
    */
   public static class AsIterable<T>
       extends PTransform<PCollection<T>, PCollectionView<Iterable<T>>> {
@@ -266,10 +285,10 @@ public class View {
   }
 
   /**
-   * A {@link PTransform} that produces a {@link PCollectionView} of a singleton
-   * {@link PCollection} yielding the single element it contains.
+   * Not intended for direct use by pipeline authors; public only so a {@link PipelineRunner} may
+   * override its behavior.
    *
-   * <p>Instantiate via {@link View#asIterable}.
+   * <p>See {@link View#asSingleton()}.
    */
   public static class AsSingleton<T> extends PTransform<PCollection<T>, PCollectionView<T>> {
     private final T defaultValue;
@@ -327,10 +346,10 @@ public class View {
   }
 
   /**
-   * A {@link PTransform} that produces a {@link PCollectionView} of a keyed {@link PCollection}
-   * yielding a map of keys to all associated values.
+   * Not intended for direct use by pipeline authors; public only so a {@link PipelineRunner} may
+   * override its behavior.
    *
-   * <p>Instantiate via {@link View#asMap}.
+   * <p>See {@link View#asMultimap()}.
    */
   public static class AsMultimap<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollectionView<Map<K, Iterable<V>>>> {
@@ -356,19 +375,10 @@ public class View {
   }
 
   /**
-   * A {@link PTransform} that produces a {@link PCollectionView} of a keyed {@link PCollection}
-   * yielding a map from each key to its unique associated value. When converting
-   * a {@link PCollection} that has more than one value per key, precede this transform with a
-   * {@code Combine.perKey}:
+   * Not intended for direct use by pipeline authors; public only so a {@link PipelineRunner} may
+   * override its behavior.
    *
-   * <pre>
-   * {@code
-   * PCollectionView<Map<K, OutputT>> input
-   *     .apply(Combine.perKey(myCombineFunction))
-   *     .apply(View.<K, OutputT>asMap());
-   * }</pre>
-   *
-   * <p>Instantiate via {@link View#asMap}.
+   * <p>See {@link View#asMap()}.
    */
   public static class AsMap<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollectionView<Map<K, V>>> {
