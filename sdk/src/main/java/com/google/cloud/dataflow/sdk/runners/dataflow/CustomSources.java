@@ -524,11 +524,6 @@ public class CustomSources {
     }
 
     @Override
-    public BoundedReaderIterator<T> copy() throws IOException {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
     public void close() throws IOException {
       reader.close();
     }
@@ -646,11 +641,6 @@ public class CustomSources {
       elemsRead++;
       return result.withValue(
           new ValueWithRecordId<>(result.getValue(), reader.getCurrentRecordId()));
-    }
-
-    @Override
-    public UnboundedReaderIterator<T> copy() throws IOException {
-      throw new UnsupportedOperationException();
     }
 
     @Override

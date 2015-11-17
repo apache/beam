@@ -96,15 +96,6 @@ public abstract class Reader<T> extends Observable {
      */
     public T next() throws IOException, NoSuchElementException;
 
-    /**
-     * Copies the current ReaderIterator.
-     *
-     * @throws UnsupportedOperationException if the particular implementation
-     * does not support copy
-     * @throws IOException if copying the iterator involves IO that fails
-     */
-    public ReaderIterator<T> copy() throws IOException;
-
     @Override
     public void close() throws IOException;
 
@@ -172,10 +163,6 @@ public abstract class Reader<T> extends Observable {
 
   /** An abstract base class for ReaderIterator implementations. */
   public abstract static class AbstractReaderIterator<T> implements ReaderIterator<T> {
-    @Override
-    public ReaderIterator<T> copy() throws IOException {
-      throw new UnsupportedOperationException();
-    }
 
     @Override
     public void close() throws IOException {

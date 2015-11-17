@@ -346,43 +346,6 @@ public class TextReaderTest {
   }
 
   @Test
-  public void testCloneIteratorWithEndPositionAndFinalBytesInBuffer() throws Exception {
-    String line = "a\n";
-    boolean stripNewlines = false;
-    File tmpFile = tmpFolder.newFile();
-    List<String> expected = new ArrayList<>();
-    try (PrintStream writer = new PrintStream(new FileOutputStream(tmpFile))) {
-      // Write 5x the size of the buffer and 10 extra trailing bytes
-      for (long bytesWritten = 0; bytesWritten < TextReader.BUF_SIZE * 3 + 10; ) {
-        writer.print(line);
-        expected.add(line);
-        bytesWritten += line.length();
-      }
-    }
-    Long fileSize = tmpFile.length();
-
-    TextReader<String> textReader = new TextReader<>(tmpFile.getPath(), stripNewlines, null,
-        fileSize, StringUtf8Coder.of(), TextIO.CompressionType.UNCOMPRESSED);
-
-    List<String> actual = new ArrayList<>();
-    Reader.ReaderIterator<String> iterator = textReader.iterator();
-    while (true) {
-      Reader.ReaderIterator<String> copy;
-      try {
-        if (!iterator.hasNext()) {
-          break;
-        }
-        actual.add(iterator.next());
-        copy = iterator.copy();
-      } finally {
-        iterator.close();
-      }
-      iterator = copy;
-    }
-    assertEquals(expected, actual);
-  }
-
-  @Test
   public void testNonStringCoders() throws Exception {
     File tmpFile = tmpFolder.newFile();
     List<Integer> expected = TestUtils.INTS;

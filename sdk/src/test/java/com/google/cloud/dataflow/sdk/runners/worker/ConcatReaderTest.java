@@ -144,11 +144,6 @@ public class ConcatReaderTest {
       }
 
       @Override
-      public ReaderIterator<T> copy() throws IOException {
-        return new TestIterator<T>(iteratorImpl.copy());
-      }
-
-      @Override
       public void close() throws IOException {
         isClosed = true;
         if (failWhenClosing) {

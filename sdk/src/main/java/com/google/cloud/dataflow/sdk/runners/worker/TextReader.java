@@ -19,7 +19,6 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.util.IOChannelFactory;
-import com.google.cloud.dataflow.sdk.util.common.worker.ProgressTracker;
 import com.google.cloud.dataflow.sdk.util.common.worker.ProgressTrackerGroup;
 
 import java.io.ByteArrayOutputStream;
@@ -161,51 +160,20 @@ public class TextReader<T> extends FileBasedReader<T> {
   }
 
   class TextFileIterator extends FileBasedIterator {
-    private final boolean stripTrailingNewlines;
     private ScanState state;
 
     TextFileIterator(CopyableSeekableByteChannel seeker, boolean stripTrailingNewlines,
         long startOffset, @Nullable Long endOffset,
         FileBasedReader.DecompressingStreamFactory compressionStreamFactory) throws IOException {
-      this(seeker, stripTrailingNewlines, startOffset, startOffset, endOffset,
+      super(seeker, startOffset, startOffset, endOffset,
           new ProgressTrackerGroup<Integer>() {
             @Override
             protected void report(Integer lineLength) {
               notifyElementRead(lineLength.longValue());
             }
-          }.start(),
-          new ScanState(BUF_SIZE, !stripTrailingNewlines),
-          compressionStreamFactory);
-    }
+          }.start(), compressionStreamFactory);
 
-    private TextFileIterator(CopyableSeekableByteChannel seeker, boolean stripTrailingNewlines,
-        long startOffset, long offset, @Nullable Long endOffset, ProgressTracker<Integer> tracker,
-        ScanState state, FileBasedReader.DecompressingStreamFactory compressionStreamFactory)
-            throws IOException {
-      super(seeker, startOffset, offset, endOffset, tracker, compressionStreamFactory);
-
-      this.stripTrailingNewlines = stripTrailingNewlines;
-      this.state = state;
-    }
-
-    private TextFileIterator(TextFileIterator it) throws IOException {
-      // Correctly adjust the start position of the seeker given
-      // that it may hold bytes that have been read and now reside
-      // in the read buffer (that is copied during cloning).
-      this(
-          it.seeker.copy(),
-          it.stripTrailingNewlines,
-          it.rangeTracker.getStartPosition() + it.state.totalBytesRead,
-          it.offset,
-          it.rangeTracker.getStopPosition(),
-          it.progressTracker.copy(),
-          it.state.copy(),
-          it.compressionStreamFactory);
-    }
-
-    @Override
-    public ReaderIterator<T> copy() throws IOException {
-      return new TextFileIterator(this);
+      this.state = new ScanState(BUF_SIZE, stripTrailingNewlines);
     }
 
     /**
@@ -216,7 +184,7 @@ public class TextReader<T> extends FileBasedReader<T> {
      *
      * @return a {@code ByteArrayOutputStream} containing the contents of the
      *     line, with any line-termination characters stripped if
-     *     keepNewlines==false, or {@code null} if the end of the stream has
+     *     stripTrailingNewlines==true, or {@code null} if the end of the stream has
      *     been reached.
      * @throws IOException if an I/O error occurs
      */
@@ -262,36 +230,16 @@ public class TextReader<T> extends FileBasedReader<T> {
     private int start; // Valid bytes in buf start at this index
     private int pos; // Where the separator is in the buf (if one was found)
     private int end; // the index of the end of bytes in buf
-    private byte[] buf;
-    private boolean keepNewlines;
+    private final byte[] buf;
+    private final boolean stripTrailingNewlines;
     private byte lastByteRead;
-    private long totalBytesRead;
 
-    public ScanState(int size, boolean keepNewlines) {
+    public ScanState(int size, boolean stripTrailingNewlines) {
       this.start = 0;
       this.pos = 0;
       this.end = 0;
       this.buf = new byte[size];
-      this.keepNewlines = keepNewlines;
-      totalBytesRead = 0;
-    }
-
-    public ScanState copy() {
-      byte[] bufCopy = new byte[buf.length]; // copy :(
-      System.arraycopy(buf, start, bufCopy, start, end - start);
-      return new ScanState(
-          this.keepNewlines, this.start, this.pos, this.end, bufCopy, this.lastByteRead, 0);
-    }
-
-    private ScanState(boolean keepNewlines, int start, int pos, int end, byte[] buf,
-        byte lastByteRead, long totalBytesRead) {
-      this.start = start;
-      this.pos = pos;
-      this.end = end;
-      this.buf = buf;
-      this.keepNewlines = keepNewlines;
-      this.lastByteRead = lastByteRead;
-      this.totalBytesRead = totalBytesRead;
+      this.stripTrailingNewlines = stripTrailingNewlines;
     }
 
     public boolean readBytes(PushbackInputStream stream) throws IOException {
@@ -303,7 +251,6 @@ public class TextReader<T> extends FileBasedReader<T> {
       if (bytesRead == -1) {
         return false;
       }
-      totalBytesRead += bytesRead;
       end += bytesRead;
       return true;
     }
@@ -348,11 +295,11 @@ public class TextReader<T> extends FileBasedReader<T> {
     /**
      * Copies data from the input buffer to the output buffer.
      *
-     * <p>If keepNewlines==true, line-termination characters are included in the copy.
+     * <p>If stripTrailing==false, line-termination characters are included in the copy.
      */
     private void copyToOutputBuffer(ByteArrayOutputStream out) {
       int charsCopied = pos - start;
-      if (keepNewlines && separatorFound()) {
+      if (!stripTrailingNewlines && separatorFound()) {
         charsCopied++;
       }
       out.write(buf, start, charsCopied);
@@ -362,7 +309,7 @@ public class TextReader<T> extends FileBasedReader<T> {
      * Scans the input buffer to determine if a matched carriage return
      * has an accompanying linefeed and process the input buffer accordingly.
      *
-     * <p>If keepNewlines==true and a linefeed character is detected,
+     * <p>If stripTrailingNewlines==false and a linefeed character is detected,
      * it is included in the copy.
      *
      * @return the number of characters consumed
@@ -376,7 +323,7 @@ public class TextReader<T> extends FileBasedReader<T> {
           charsConsumed++;
           pos++;
           start++;
-          if (keepNewlines) {
+          if (!stripTrailingNewlines) {
             out.write('\n');
           }
         }
@@ -386,8 +333,7 @@ public class TextReader<T> extends FileBasedReader<T> {
         int b = stream.read();
         if (b == '\n') {
           charsConsumed++;
-          totalBytesRead++;
-          if (keepNewlines) {
+          if (!stripTrailingNewlines) {
             out.write(b);
           }
         } else if (b != -1) {
