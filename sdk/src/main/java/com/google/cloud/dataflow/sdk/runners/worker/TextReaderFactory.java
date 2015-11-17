@@ -65,7 +65,6 @@ public class TextReaderFactory implements ReaderFactory {
         getBoolean(spec, PropertyNames.STRIP_TRAILING_NEWLINES, true),
         getLong(spec, PropertyNames.START_OFFSET, null),
         getLong(spec, PropertyNames.END_OFFSET, null), coder,
-        true /* useDefaultBufferSize */,
         Enum.valueOf(TextIO.CompressionType.class,
             getString(spec, PropertyNames.COMPRESSION_TYPE, "AUTO")));
   }

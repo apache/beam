@@ -78,7 +78,7 @@ public class IOFactoryTest {
 
 
     TextReader<String> reader = new TextReader<>(
-        tmpFolder.getRoot() + "/file*", true/* strip newlines */, null, null, StringUtf8Coder.of(),
+        tmpFolder.getRoot() + "/file*", true /* strip newlines */, null, null, StringUtf8Coder.of(),
         TextIO.CompressionType.UNCOMPRESSED);
 
     Set<String> records = new TreeSet<>();

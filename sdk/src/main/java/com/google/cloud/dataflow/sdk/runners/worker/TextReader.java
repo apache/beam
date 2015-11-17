@@ -16,14 +16,34 @@
 
 package com.google.cloud.dataflow.sdk.runners.worker;
 
+import static com.google.api.client.util.Preconditions.checkNotNull;
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudPositionToReaderPosition;
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.splitRequestToApproximateProgress;
+
+import com.google.api.services.dataflow.model.ApproximateProgress;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.io.TextIO;
+import com.google.cloud.dataflow.sdk.io.range.OffsetRangeTracker;
+import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.IOChannelFactory;
+import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
+import com.google.cloud.dataflow.sdk.util.common.worker.AbstractBoundedReaderIterator;
+import com.google.cloud.dataflow.sdk.util.common.worker.ProgressTracker;
 import com.google.cloud.dataflow.sdk.util.common.worker.ProgressTrackerGroup;
+import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.common.annotations.VisibleForTesting;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PushbackInputStream;
+import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
 import java.util.Collection;
@@ -36,20 +56,27 @@ import javax.annotation.Nullable;
  *
  * @param <T> the type of the elements read from the source
  */
-public class TextReader<T> extends FileBasedReader<T> {
-  final boolean stripTrailingNewlines;
-  final TextIO.CompressionType compressionType;
+public class TextReader<T> extends Reader<T> {
+  private static final Logger LOG = LoggerFactory.getLogger(TextReader.class);
 
-  public TextReader(String filepattern, boolean stripTrailingNewlines, @Nullable Long startPosition,
-      @Nullable Long endPosition, Coder<T> coder, TextIO.CompressionType compressionType) {
-    this(filepattern, stripTrailingNewlines, startPosition, endPosition, coder, true,
-        compressionType);
-  }
+  @VisibleForTesting static final int BUF_SIZE = 200;
 
-  protected TextReader(String filepattern, boolean stripTrailingNewlines,
-      @Nullable Long startPosition, @Nullable Long endPosition, Coder<T> coder,
-      boolean useDefaultBufferSize, TextIO.CompressionType compressionType) {
-    super(filepattern, startPosition, endPosition, coder, useDefaultBufferSize);
+  // The following fields are package-private to be visible in tests.
+  @VisibleForTesting final String filepattern;
+  @VisibleForTesting @Nullable final Long startPosition;
+  @VisibleForTesting @Nullable final Long endPosition;
+  @VisibleForTesting final Coder<T> coder;
+  @VisibleForTesting final TextIO.CompressionType compressionType;
+  @VisibleForTesting final boolean stripTrailingNewlines;
+  @VisibleForTesting @Nullable private Collection<String> expandedFilepattern;
+
+  public TextReader(String filepattern, boolean stripTrailingNewlines,
+                    @Nullable Long startPosition, @Nullable Long endPosition, Coder<T> coder,
+                    TextIO.CompressionType compressionType) {
+    this.filepattern = filepattern;
+    this.startPosition = startPosition;
+    this.endPosition = endPosition;
+    this.coder = coder;
     this.stripTrailingNewlines = stripTrailingNewlines;
     this.compressionType = compressionType;
   }
@@ -89,8 +116,7 @@ public class TextReader<T> extends FileBasedReader<T> {
     return expandedFilepattern().size();
   }
 
-  @Override
-  protected ReaderIterator<T> newReaderIteratorForRangeInFile(IOChannelFactory factory,
+  private ReaderIterator<T> newReaderIteratorForRangeInFile(IOChannelFactory factory,
       String oneFile, long startPosition, @Nullable Long endPosition) throws IOException {
     // Position before the first record, so we can find the record beginning.
     final long start = startPosition > 0 ? startPosition - 1 : 0;
@@ -106,8 +132,7 @@ public class TextReader<T> extends FileBasedReader<T> {
     return iterator;
   }
 
-  @Override
-  protected ReaderIterator<T> newReaderIteratorForFiles(
+  private ReaderIterator<T> newReaderIteratorForFiles(
       IOChannelFactory factory, Collection<String> files) throws IOException {
     if (files.size() == 1) {
       return newReaderIteratorForFile(factory, files.iterator().next(), stripTrailingNewlines);
@@ -139,10 +164,93 @@ public class TextReader<T> extends FileBasedReader<T> {
 
     return new TextFileIterator(
         new CopyableSeekableByteChannel(seeker), stripTrailingNewlines, startOffset, endOffset,
-        new FileBasedReader.FilenameBasedStreamFactory(input, compressionType));
+        new FilenameBasedStreamFactory(input, compressionType));
   }
 
-  class TextFileMultiIterator extends LazyMultiReaderIterator<T> {
+  private Collection<String> expandedFilepattern() throws IOException {
+    if (expandedFilepattern == null) {
+      IOChannelFactory factory = IOChannelUtils.getFactory(filepattern);
+      expandedFilepattern = factory.match(filepattern);
+    }
+    return expandedFilepattern;
+  }
+
+  @Override
+  public ReaderIterator<T> iterator() throws IOException {
+    IOChannelFactory factory = IOChannelUtils.getFactory(filepattern);
+    Collection<String> inputs = expandedFilepattern();
+    if (inputs.isEmpty()) {
+      throw new FileNotFoundException("No match for file pattern '" + filepattern + "'");
+    }
+
+    if (startPosition != null || endPosition != null) {
+      if (inputs.size() != 1) {
+        throw new IllegalArgumentException(
+            "Offset range specified: [" + startPosition + ", " + endPosition + "), so "
+            + "an exact filename was expected, but more than 1 file matched \"" + filepattern
+            + "\" (total " + inputs.size() + "): apparently a filepattern was given.");
+      }
+
+      return newReaderIteratorForRangeInFile(factory, inputs.iterator().next(),
+          startPosition == null ? 0 : startPosition, endPosition);
+    } else {
+      return newReaderIteratorForFiles(factory, inputs);
+    }
+  }
+
+  /**
+   * Factory interface for creating a decompressing {@link InputStream}.
+   */
+  public interface DecompressingStreamFactory {
+    /**
+     * Create a decompressing {@link InputStream} from an existing {@link InputStream}.
+     *
+     * @param inputStream the existing stream
+     * @return a stream that decompresses the contents of the existing stream
+     * @throws IOException
+     */
+    public InputStream createInputStream(InputStream inputStream) throws IOException;
+  }
+
+  /**
+   * Factory for creating decompressing input streams based on a filename and
+   * a {@link TextIO.CompressionType}.  If the compression mode is AUTO, the filename
+   * is checked against known extensions to determine a compression type to use.
+   */
+  protected static class FilenameBasedStreamFactory
+      implements DecompressingStreamFactory {
+    private String filename;
+    private TextIO.CompressionType compressionType;
+
+    public FilenameBasedStreamFactory(String filename, TextIO.CompressionType compressionType) {
+      this.filename = filename;
+      this.compressionType = compressionType;
+    }
+
+    protected TextIO.CompressionType getCompressionTypeForAuto() {
+      return getCompressionTypeForAuto(filename);
+    }
+
+    protected static TextIO.CompressionType getCompressionTypeForAuto(String filepattern) {
+      for (TextIO.CompressionType type : TextIO.CompressionType.values()) {
+        if (type.matches(filepattern) && type != TextIO.CompressionType.AUTO
+            && type != TextIO.CompressionType.UNCOMPRESSED) {
+          return type;
+        }
+      }
+      return TextIO.CompressionType.UNCOMPRESSED;
+    }
+
+    @Override
+    public InputStream createInputStream(InputStream inputStream) throws IOException {
+      if (compressionType == TextIO.CompressionType.AUTO) {
+        return getCompressionTypeForAuto().createInputStream(inputStream);
+      }
+      return compressionType.createInputStream(inputStream);
+    }
+  }
+
+  private class TextFileMultiIterator extends LazyMultiReaderIterator<T> {
     private final IOChannelFactory factory;
     private final boolean stripTrailingNewlines;
 
@@ -159,19 +267,33 @@ public class TextReader<T> extends FileBasedReader<T> {
     }
   }
 
-  class TextFileIterator extends FileBasedIterator {
+  class TextFileIterator extends AbstractBoundedReaderIterator<T> {
+    private final CopyableSeekableByteChannel seeker;
+    private final PushbackInputStream stream;
+    private final OffsetRangeTracker rangeTracker;
+    private final ProgressTracker<Integer> progressTracker;
+    private long offset;
+    private ByteArrayOutputStream nextElement;
     private ScanState state;
 
     TextFileIterator(CopyableSeekableByteChannel seeker, boolean stripTrailingNewlines,
         long startOffset, @Nullable Long endOffset,
-        FileBasedReader.DecompressingStreamFactory compressionStreamFactory) throws IOException {
-      super(seeker, startOffset, startOffset, endOffset,
-          new ProgressTrackerGroup<Integer>() {
+        DecompressingStreamFactory compressionStreamFactory) throws IOException {
+      this.seeker = checkNotNull(seeker);
+      this.seeker.position(startOffset);
+      InputStream inputStream =
+          compressionStreamFactory.createInputStream(Channels.newInputStream(seeker));
+      BufferedInputStream bufferedStream = new BufferedInputStream(inputStream);
+      this.stream = new PushbackInputStream(bufferedStream, BUF_SIZE);
+      long stopOffset = (endOffset == null) ? OffsetRangeTracker.OFFSET_INFINITY : endOffset;
+      this.rangeTracker = new OffsetRangeTracker(startOffset, stopOffset);
+      this.offset = startOffset;
+      this.progressTracker = checkNotNull(new ProgressTrackerGroup<Integer>() {
             @Override
             protected void report(Integer lineLength) {
               notifyElementRead(lineLength.longValue());
             }
-          }.start(), compressionStreamFactory);
+          }.start());
 
       this.state = new ScanState(BUF_SIZE, stripTrailingNewlines);
     }
@@ -188,7 +310,6 @@ public class TextReader<T> extends FileBasedReader<T> {
      *     been reached.
      * @throws IOException if an I/O error occurs
      */
-    @Override
     protected ByteArrayOutputStream readElement() throws IOException {
       ByteArrayOutputStream buffer = new ByteArrayOutputStream(BUF_SIZE);
 
@@ -219,6 +340,116 @@ public class TextReader<T> extends FileBasedReader<T> {
 
       offset += charsConsumed;
       return buffer;
+    }
+
+    @Override
+    protected boolean hasNextImpl() throws IOException {
+      long startOffset = offset;
+      ByteArrayOutputStream element = readElement(); // As a side effect, updates "offset"
+      if (element != null && rangeTracker.tryReturnRecordAt(true, startOffset)) {
+        nextElement = element;
+        progressTracker.saw((int) (offset - startOffset));
+      } else {
+        nextElement = null;
+      }
+      return nextElement != null;
+    }
+
+    @Override
+    protected T nextImpl() throws IOException {
+      return CoderUtils.decodeFromByteArray(coder, nextElement.toByteArray());
+    }
+
+    @Override
+    public Progress getProgress() {
+      // Currently we assume that only a offset position and fraction are reported as
+      // current progress. An implementor can override this method to update
+      // other metrics, e.g. report a different completion percentage or remaining time.
+      com.google.api.services.dataflow.model.Position currentPosition =
+          new com.google.api.services.dataflow.model.Position();
+      currentPosition.setByteOffset(offset);
+
+      ApproximateProgress progress = new ApproximateProgress();
+      progress.setPosition(currentPosition);
+
+      // If endOffset is unspecified, we don't know the fraction consumed.
+      if (rangeTracker.getStopPosition() != Long.MAX_VALUE) {
+        progress.setPercentComplete((float) rangeTracker.getFractionConsumed());
+      }
+
+      return cloudProgressToReaderProgress(progress);
+    }
+
+    @Override
+    public DynamicSplitResult requestDynamicSplit(DynamicSplitRequest splitRequest) {
+      checkNotNull(splitRequest);
+
+      // Currently, file-based Reader only supports split at a byte offset.
+      ApproximateProgress splitProgress = splitRequestToApproximateProgress(splitRequest);
+      com.google.api.services.dataflow.model.Position splitPosition = splitProgress.getPosition();
+      if (splitPosition == null) {
+        if (splitProgress.getPercentComplete() != null) {
+          float percentageComplete = splitProgress.getPercentComplete().floatValue();
+          if (percentageComplete <= 0 || percentageComplete >= 1) {
+            LOG.warn(
+                "TextReader cannot be split since the provided percentage of "
+                + "work to be completed is out of the valid range (0, 1). Requested: {}",
+                splitRequest);
+          }
+
+          splitPosition = new com.google.api.services.dataflow.model.Position();
+          if (getEndOffset() == Long.MAX_VALUE) {
+            LOG.warn(
+                "TextReader cannot be split since the end offset is set to Long.MAX_VALUE."
+                + " Requested: {}",
+                splitRequest);
+            return null;
+          }
+
+          splitPosition.setByteOffset(
+              rangeTracker.getPositionForFractionConsumed(percentageComplete));
+        } else {
+          LOG.warn(
+              "TextReader requires either a position or percentage of work to be complete to"
+              + " perform a dynamic split request. Requested: {}",
+              splitRequest);
+          return null;
+        }
+      } else if (splitPosition.getByteOffset() == null) {
+        LOG.warn(
+            "TextReader cannot be split since the provided split position "
+            + "does not contain a valid offset. Requested: {}",
+            splitRequest);
+        return null;
+      }
+      Long splitOffset = splitPosition.getByteOffset();
+
+      if (rangeTracker.trySplitAtPosition(splitOffset)) {
+        return new DynamicSplitResultWithPosition(cloudPositionToReaderPosition(splitPosition));
+      } else {
+        return null;
+      }
+    }
+
+    /**
+     * Returns the end offset of the iterator or Long.MAX_VALUE if unspecified.
+     * This method is called for test ONLY.
+     */
+    long getEndOffset() {
+      return rangeTracker.getStopPosition();
+    }
+
+    /**
+     * Returns the start offset of the iterator.
+     * This method is called for test ONLY.
+     */
+    long getStartOffset() {
+      return rangeTracker.getStartPosition();
+    }
+
+    @Override
+    public void close() throws IOException {
+      stream.close();
     }
   }
 

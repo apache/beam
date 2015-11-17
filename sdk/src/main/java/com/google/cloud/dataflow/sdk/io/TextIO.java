@@ -20,7 +20,6 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
-import com.google.cloud.dataflow.sdk.runners.worker.FileBasedReader;
 import com.google.cloud.dataflow.sdk.runners.worker.TextReader;
 import com.google.cloud.dataflow.sdk.runners.worker.TextSink;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
@@ -682,7 +681,7 @@ public class TextIO {
   /**
    * Possible text file compression types.
    */
-  public static enum CompressionType implements FileBasedReader.DecompressingStreamFactory {
+  public static enum CompressionType implements TextReader.DecompressingStreamFactory {
     /**
      * Automatically determine the compression type based on filename extension.
      */
