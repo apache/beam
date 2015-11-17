@@ -16,12 +16,14 @@
 
 package com.google.cloud.dataflow.sdk.util.common.worker;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler.SamplingCallback;
+import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler.ScopedState;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler.StateKind;
 
 import org.hamcrest.Matchers;
@@ -164,5 +166,32 @@ public class StateSamplerTest {
     for (int i = 0; i < 10; ++i) {
       noSamplingAfterCloseTestOnce();
     }
+  }
+
+  @Test
+  public void reuseStateByNameTest() throws Exception {
+    StateSampler stateSampler = new StateSampler("test-",
+        new CounterSet().getAddCounterMutator(), 200);
+    int state1 = stateSampler.stateForName("test_state", StateKind.USER);
+    int state2 = stateSampler.stateForName("test_state", StateKind.USER);
+    assertEquals(state1, state2);
+    stateSampler.close();
+  }
+
+  @Test
+  public void reuseManyStatesByName() throws Exception {
+    // Issue big number of stateForName() and setState calls to StateSampler.
+    CounterSet counters = new CounterSet();
+    StateSampler stateSampler = new StateSampler("test-",
+        counters.getAddCounterMutator(), 200);
+    for (int i = 0; i < 10000; i++) {
+      for (int j = 0; j < 10000; j++) {
+        int state = stateSampler.stateForName("state" + j, StateKind.USER);
+        try (ScopedState scope = stateSampler.scopedState(state)) {}
+      }
+    }
+    // All counters got reused.
+    assertEquals(10000, counters.size());
+    stateSampler.close();
   }
 }

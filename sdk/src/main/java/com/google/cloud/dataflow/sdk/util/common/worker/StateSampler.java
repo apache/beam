@@ -203,14 +203,14 @@ public class StateSampler implements AutoCloseable {
       return DO_NOT_SAMPLE;
     }
 
-    String counterName = prefix + name + "-msecs";
     synchronized (this) {
-      Integer state = statesByName.get(counterName);
+      Integer state = statesByName.get(name);
       if (state == null) {
+        String counterName = prefix + name + "-msecs";
         Counter<Long> counter = counterSetMutator.addCounter(
             Counter.longs(counterName, Counter.AggregationKind.SUM));
         state = countersByState.size();
-        statesByName.put(counterName, state);
+        statesByName.put(name, state);
         countersByState.add(counter);
         kindsByState.put(state, kind);
       }
