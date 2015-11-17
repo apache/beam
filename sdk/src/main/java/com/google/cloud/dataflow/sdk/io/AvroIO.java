@@ -21,6 +21,7 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner.ValueWithMetadata;
+import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.worker.AvroReader;
 import com.google.cloud.dataflow.sdk.runners.worker.AvroSink;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
@@ -58,8 +59,8 @@ import javax.annotation.Nullable;
  *
  * <p>It is required to specify {@link AvroIO.Read#withSchema}. To
  * read specific records, such as Avro-generated classes, provide an
- * Avro-generated class type. To read GenericRecords, provide either
- * an org.apache.avro.Schema or a schema in a JSON-encoded string form.
+ * Avro-generated class type. To read {@link GenericRecord GenericRecords}, provide either
+ * a {@link Schema} object or an Avro schema in a JSON-encoded string form.
  * An exception will be thrown if a record doesn't match the specified
  * schema.
  *
@@ -74,8 +75,7 @@ import javax.annotation.Nullable;
  *
  * // A Read from a GCS file (runs locally and via the Google Cloud
  * // Dataflow service):
- * Schema schema = new Schema.Parser().parse(new File(
- *     "gs://my_bucket/path/to/schema.avsc"));
+ * Schema schema = new Schema.Parser().parse(new File("schema.avsc"));
  * PCollection<GenericRecord> records =
  *     p.apply(AvroIO.Read.named("ReadFromAvro")
  *                        .from("gs://my_bucket/path/to/records-*.avro")
@@ -92,8 +92,8 @@ import javax.annotation.Nullable;
  *
  * <p>It is required to specify {@link AvroIO.Write#withSchema}. To
  * write specific records, such as Avro-generated classes, provide an
- * Avro-generated class type. To write GenericRecords, provide either
- * an org.apache.avro.Schema or a schema in a JSON-encoded string form.
+ * Avro-generated class type. To write {@link GenericRecord GenericRecords}, provide either
+ * a {@link Schema} object or a schema in a JSON-encoded string form.
  * An exception will be thrown if a record doesn't match the specified
  * schema.
  *
@@ -106,8 +106,7 @@ import javax.annotation.Nullable;
  *
  * // A Write to a sharded GCS file (runs locally and via the Google Cloud
  * // Dataflow service):
- * Schema schema = new Schema.Parser().parse(new File(
- *     "gs://my_bucket/path/to/schema.avsc"));
+ * Schema schema = new Schema.Parser().parse(new File("schema.avsc"));
  * PCollection<GenericRecord> records = ...;
  * records.apply(AvroIO.Write.named("WriteToAvro")
  *                           .to("gs://my_bucket/path/to/numbers")
@@ -116,10 +115,9 @@ import javax.annotation.Nullable;
  * } </pre>
  *
  * <p><h3>Permissions</h3>
- * Permission requirements depend on the
- * {@link com.google.cloud.dataflow.sdk.runners.PipelineRunner PipelineRunner} that is
- * used to execute the Dataflow job. Please refer to the documentation of corresponding
- * {@code PipelineRunner}s for more details.
+ * Permission requirements depend on the {@link PipelineRunner} that is used to execute the
+ * Dataflow job. Please refer to the documentation of corresponding {@link PipelineRunner}s for
+ * more details.
  */
 public class AvroIO {
   /**
@@ -129,39 +127,39 @@ public class AvroIO {
    */
   public static class Read {
     /**
-     * Returns an AvroIO.Read PTransform with the given step name.
+     * Returns a {@link PTransform} with the given step name.
      */
     public static Bound<GenericRecord> named(String name) {
       return new Bound<>(GenericRecord.class).named(name);
     }
 
     /**
-     * Returns an AvroIO.Read PTransform that reads from the file(s)
-     * with the given name or pattern.  This can be a local filename
+     * Returns a {@link PTransform} that reads from the file(s)
+     * with the given name or pattern. This can be a local filename
      * or filename pattern (if running locally), or a Google Cloud
      * Storage filename or filename pattern of the form
-     * {@code "gs://<bucket>/<filepath>"}) (if running locally or via
-     * the Google Cloud Dataflow service).  Standard
-     * <a href="http://docs.oracle.com/javase/tutorial/essential/io/find.html"
-     * >Java Filesystem glob patterns</a> ("*", "?", "[..]") are supported.
+     * {@code "gs://<bucket>/<filepath>"} (if running locally or via
+     * the Google Cloud Dataflow service). Standard
+     * <a href="http://docs.oracle.com/javase/tutorial/essential/io/find.html">Java
+     * Filesystem glob patterns</a> ("*", "?", "[..]") are supported.
      */
     public static Bound<GenericRecord> from(String filepattern) {
       return new Bound<>(GenericRecord.class).from(filepattern);
     }
 
     /**
-     * Returns an AvroIO.Read PTransform that reads Avro file(s)
+     * Returns a {@link PTransform} that reads Avro file(s)
      * containing records whose type is the specified Avro-generated class.
      *
      * @param <T> the type of the decoded elements, and the elements
-     * of the resulting PCollection
+     * of the resulting {@link PCollection}
      */
     public static <T> Bound<T> withSchema(Class<T> type) {
       return new Bound<>(type).withSchema(type);
     }
 
     /**
-     * Returns an AvroIO.Read PTransform that reads Avro file(s)
+     * Returns a {@link PTransform} that reads Avro file(s)
      * containing records of the specified schema.
      */
     public static Bound<GenericRecord> withSchema(Schema schema) {
@@ -169,7 +167,7 @@ public class AvroIO {
     }
 
     /**
-     * Returns an AvroIO.Read PTransform that reads Avro file(s)
+     * Returns a {@link PTransform} that reads Avro file(s)
      * containing records of the specified schema in a JSON-encoded
      * string form.
      */
@@ -178,8 +176,8 @@ public class AvroIO {
     }
 
     /**
-     * Returns a AvroIO.Read PTransform that has GCS path validation on
-     * pipeline creation disabled.
+     * Returns a {@link PTransform} that reads Avro file(s)
+     * that has GCS path validation on pipeline creation disabled.
      *
      * <p>This can be useful in the case where the GCS input location does
      * not exist at the pipeline creation time, but is expected to be available
@@ -222,29 +220,35 @@ public class AvroIO {
       }
 
       /**
-       * Returns a new AvroIO.Read PTransform that's like this one but
-       * with the given step name.  Does not modify this object.
+       * Returns a new {@link PTransform} that's like this one but
+       * with the given step name.
+       *
+       * <p>Does not modify this object.
        */
       public Bound<T> named(String name) {
         return new Bound<>(name, filepattern, type, schema, validate);
       }
 
       /**
-       * Returns a new AvroIO.Read PTransform that's like this one but
+       * Returns a new {@link PTransform} that's like this one but
        * that reads from the file(s) with the given name or pattern.
        * (See {@link AvroIO.Read#from} for a description of
-       * filepatterns.)  Does not modify this object.
+       * filepatterns.)
+       *
+       * <p>Does not modify this object.
        */
       public Bound<T> from(String filepattern) {
         return new Bound<>(name, filepattern, type, schema, validate);
       }
 
       /**
-       * Returns a new AvroIO.Read PTransform that's like this one but
+       * Returns a new {@link PTransform} that's like this one but
        * that reads Avro file(s) containing records whose type is the
-       * specified Avro-generated class.  Does not modify this object.
+       * specified Avro-generated class.
        *
-       * @param <X> the type of the decoded elements, and the elements of
+       * <p>Does not modify this object.
+       *
+       * @param <X> the type of the decoded elements and the elements of
        * the resulting PCollection
        */
       public <X> Bound<X> withSchema(Class<X> type) {
@@ -252,27 +256,31 @@ public class AvroIO {
       }
 
       /**
-       * Returns a new AvroIO.Read PTransform that's like this one but
+       * Returns a new {@link PTransform} that's like this one but
        * that reads Avro file(s) containing records of the specified schema.
-       * Does not modify this object.
+       *
+       * <p>Does not modify this object.
        */
       public Bound<GenericRecord> withSchema(Schema schema) {
         return new Bound<>(name, filepattern, GenericRecord.class, schema, validate);
       }
 
       /**
-       * Returns a new AvroIO.Read PTransform that's like this one but
+       * Returns a new {@link PTransform} that's like this one but
        * that reads Avro file(s) containing records of the specified schema
-       * in a JSON-encoded string form.  Does not modify this object.
+       * in a JSON-encoded string form.
+       *
+       * <p>Does not modify this object.
        */
       public Bound<GenericRecord> withSchema(String schema) {
         return withSchema((new Schema.Parser()).parse(schema));
       }
 
       /**
-       * Returns a new TextIO.Read PTransform that's like this one but
+       * Returns a new {@link PTransform} that's like this one but
        * that has GCS input path validation on pipeline creation disabled.
-       * Does not modify this object.
+       *
+       * <p>Does not modify this object.
        *
        * <p>This can be useful in the case where the GCS input location does
        * not exist at the pipeline creation time, but is expected to be
@@ -334,6 +342,9 @@ public class AvroIO {
             Bound.class, transformEvaluator);
       }
     }
+
+    /** Disallow construction of utility class. */
+    private Read() {}
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -344,17 +355,17 @@ public class AvroIO {
    */
   public static class Write {
     /**
-     * Returns an AvroIO.Write PTransform with the given step name.
+     * Returns a {@link PTransform} with the given step name.
      */
     public static Bound<GenericRecord> named(String name) {
       return new Bound<>(GenericRecord.class).named(name);
     }
 
     /**
-     * Returns an AvroIO.Write PTransform that writes to the file(s)
-     * with the given prefix.  This can be a local filename
+     * Returns a {@link PTransform} that writes to the file(s)
+     * with the given prefix. This can be a local filename
      * (if running locally), or a Google Cloud Storage filename of
-     * the form {@code "gs://<bucket>/<filepath>"})
+     * the form {@code "gs://<bucket>/<filepath>"}
      * (if running locally or via the Google Cloud Dataflow service).
      *
      * <p>The files written will begin with this prefix, followed by
@@ -366,7 +377,7 @@ public class AvroIO {
     }
 
     /**
-     * Returns an AvroIO.Write PTransform that writes to the file(s) with the
+     * Returns a {@link PTransform} that writes to the file(s) with the
      * given filename suffix.
      */
     public static Bound<GenericRecord> withSuffix(String filenameSuffix) {
@@ -374,7 +385,7 @@ public class AvroIO {
     }
 
     /**
-     * Returns an AvroIO.Write PTransform that uses the provided shard count.
+     * Returns a {@link PTransform} that uses the provided shard count.
      *
      * <p>Constraining the number of shards is likely to reduce
      * the performance of a pipeline. Setting this value is not recommended
@@ -388,7 +399,7 @@ public class AvroIO {
     }
 
     /**
-     * Returns an AvroIO.Write PTransform that uses the given shard name
+     * Returns a {@link PTransform} that uses the given shard name
      * template.
      *
      * <p>See {@link ShardNameTemplate} for a description of shard templates.
@@ -398,11 +409,11 @@ public class AvroIO {
     }
 
     /**
-     * Returns an AvroIO.Write PTransform that forces a single file as
+     * Returns a {@link PTransform} that forces a single file as
      * output.
      *
      * <p>Constraining the number of shards is likely to reduce
-     * the performance of a pipeline.  Setting this value is not recommended
+     * the performance of a pipeline. Setting this value is not recommended
      * unless you require a specific number of output files.
      */
     public static Bound<GenericRecord> withoutSharding() {
@@ -410,7 +421,7 @@ public class AvroIO {
     }
 
     /**
-     * Returns an AvroIO.Write PTransform that writes Avro file(s)
+     * Returns a {@link PTransform} that writes Avro file(s)
      * containing records whose type is the specified Avro-generated class.
      *
      * @param <T> the type of the elements of the input PCollection
@@ -420,7 +431,7 @@ public class AvroIO {
     }
 
     /**
-     * Returns an AvroIO.Write PTransform that writes Avro file(s)
+     * Returns a {@link PTransform} that writes Avro file(s)
      * containing records of the specified schema.
      */
     public static Bound<GenericRecord> withSchema(Schema schema) {
@@ -428,7 +439,7 @@ public class AvroIO {
     }
 
     /**
-     * Returns an AvroIO.Write PTransform that writes Avro file(s)
+     * Returns a {@link PTransform} that writes Avro file(s)
      * containing records of the specified schema in a JSON-encoded
      * string form.
      */
@@ -437,7 +448,7 @@ public class AvroIO {
     }
 
     /**
-     * Returns a AvroIO.Write PTransform that has GCS path validation on
+     * Returns a {@link PTransform} that writes Avro file(s) that has GCS path validation on
      * pipeline creation disabled.
      *
      * <p>This can be useful in the case where the GCS output location does
@@ -460,7 +471,7 @@ public class AvroIO {
       final String filenamePrefix;
       /** Suffix to use for each filename. */
       final String filenameSuffix;
-      /** Requested number of shards.  0 for automatic. */
+      /** Requested number of shards. 0 for automatic. */
       final int numShards;
       /** Shard template string. */
       final String shardTemplate;
@@ -493,8 +504,10 @@ public class AvroIO {
       }
 
       /**
-       * Returns a new AvroIO.Write PTransform that's like this one but
-       * with the given step name.  Does not modify this object.
+       * Returns a new {@link PTransform} that's like this one but
+       * with the given step name.
+       *
+       * <p>Does not modify this object.
        */
       public Bound<T> named(String name) {
         return new Bound<>(
@@ -503,10 +516,11 @@ public class AvroIO {
       }
 
       /**
-       * Returns a new AvroIO.Write PTransform that's like this one but
+       * Returns a new {@link PTransform} that's like this one but
        * that writes to the file(s) with the given filename prefix.
        *
-       * <p>See {@link AvroIO.Write#to(String)} for more information.
+       * <p>See {@link AvroIO.Write#to(String)} for more information
+       * about filenames.
        *
        * <p>Does not modify this object.
        */
@@ -518,12 +532,12 @@ public class AvroIO {
       }
 
       /**
-       * Returns a new AvroIO.Write PTransform that's like this one but
+       * Returns a new {@link PTransform} that's like this one but
        * that writes to the file(s) with the given filename suffix.
        *
-       * <p>Does not modify this object.
+       * <p>See {@link ShardNameTemplate} for a description of shard templates.
        *
-       * @see ShardNameTemplate
+       * <p>Does not modify this object.
        */
       public Bound<T> withSuffix(String filenameSuffix) {
         validateOutputComponent(filenameSuffix);
@@ -533,11 +547,11 @@ public class AvroIO {
       }
 
       /**
-       * Returns a new AvroIO.Write PTransform that's like this one but
+       * Returns a new {@link PTransform} that's like this one but
        * that uses the provided shard count.
        *
        * <p>Constraining the number of shards is likely to reduce
-       * the performance of a pipeline.  Setting this value is not recommended
+       * the performance of a pipeline. Setting this value is not recommended
        * unless you require a specific number of output files.
        *
        * <p>Does not modify this object.
@@ -551,14 +565,14 @@ public class AvroIO {
       }
 
       /**
-       * Returns a new AvroIO.Write PTransform that's like this one but
+       * Returns a new {@link PTransform} that's like this one but
        * that uses the provided shard count.
        *
        * <p>Constraining the number of shards is likely to reduce
-       * the performance of a pipeline.  If forceReshard is true, the output
-       * will be shuffled to obtain the desired sharding.  If it is false,
+       * the performance of a pipeline. If forceReshard is true, the output
+       * will be shuffled to obtain the desired sharding. If it is false,
        * data will not be reshuffled, but parallelism of preceeding stages
-       * may be constrained.  Setting this value is not recommended
+       * may be constrained. Setting this value is not recommended
        * unless you require a specific number of output files.
        *
        * <p>Does not modify this object.
@@ -576,7 +590,7 @@ public class AvroIO {
       }
 
       /**
-       * Returns a new AvroIO.Write PTransform that's like this one but
+       * Returns a new {@link PTransform} that's like this one but
        * that uses the given shard name template.
        *
        * <p>Does not modify this object.
@@ -590,7 +604,7 @@ public class AvroIO {
       }
 
       /**
-       * Returns a new AvroIO.Write PTransform that's like this one but
+       * Returns a new {@link PTransform} that's like this one but
        * that forces a single file as output.
        *
        * <p>This is a shortcut for
@@ -603,7 +617,7 @@ public class AvroIO {
       }
 
       /**
-       * Returns a new AvroIO.Write PTransform that's like this one but
+       * Returns a new {@link PTransform} that's like this one but
        * that forces a single file as output.
        *
        * <p>This is a shortcut for
@@ -619,9 +633,11 @@ public class AvroIO {
       }
 
       /**
-       * Returns a new AvroIO.Write PTransform that's like this one but
+       * Returns a new {@link PTransform} that's like this one but
        * that writes to Avro file(s) containing records whose type is the
-       * specified Avro-generated class.  Does not modify this object.
+       * specified Avro-generated class.
+       *
+       * <p>Does not modify this object.
        *
        * @param <X> the type of the elements of the input PCollection
        */
@@ -631,9 +647,11 @@ public class AvroIO {
       }
 
       /**
-       * Returns a new AvroIO.Write PTransform that's like this one but
+       * Returns a new {@link PTransform} that's like this one but
        * that writes to Avro file(s) containing records of the specified
-       * schema.  Does not modify this object.
+       * schema.
+       *
+       * <p>Does not modify this object.
        */
       public Bound<GenericRecord> withSchema(Schema schema) {
         return new Bound<>(name, filenamePrefix, filenameSuffix, numShards, shardTemplate,
@@ -641,18 +659,21 @@ public class AvroIO {
       }
 
       /**
-       * Returns a new AvroIO.Write PTransform that's like this one but
+       * Returns a new {@link PTransform} that's like this one but
        * that writes to Avro file(s) containing records of the specified
-       * schema in a JSON-encoded string form.  Does not modify this object.
+       * schema in a JSON-encoded string form.
+       *
+       * <p>Does not modify this object.
        */
       public Bound<GenericRecord> withSchema(String schema) {
         return withSchema((new Schema.Parser()).parse(schema));
       }
 
       /**
-       * Returns a new TextIO.Write PTransform that's like this one but
+       * Returns a new {@link PTransform} that's like this one but
        * that has GCS output path validation on pipeline creation disabled.
-       * Does not modify this object.
+       *
+       * <p>Does not modify this object.
        *
        * <p>This can be useful in the case where the GCS output location does
        * not exist at the pipeline creation time, but is expected to be
@@ -739,6 +760,9 @@ public class AvroIO {
             Bound.class, transformEvaluator);
       }
     }
+
+    /** Disallow construction of utility class. */
+    private Write() {}
   }
 
   // Pattern which matches old-style shard output patterns, which are now
@@ -753,6 +777,9 @@ public class AvroIO {
   }
 
   /////////////////////////////////////////////////////////////////////////////
+
+  /** Disallow construction of utility class. */
+  private AvroIO() {}
 
   private static <T> void evaluateReadHelper(
       Read.Bound<T> transform, DirectPipelineRunner.EvaluationContext context) {
@@ -772,7 +799,7 @@ public class AvroIO {
         context.getPCollectionWindowedValues(context.getInput(transform));
     int numShards = transform.numShards;
     if (numShards < 1) {
-      // System gets to choose.  For direct mode, choose 1.
+      // System gets to choose. For direct mode, choose 1.
       numShards = 1;
     }
     AvroSink<T> writer = new AvroSink<>(transform.filenamePrefix, transform.shardTemplate,
