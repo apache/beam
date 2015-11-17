@@ -30,26 +30,32 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 
 import javax.annotation.Nullable;
 
 /**
- * A {@code Coder<T>} defines how to encode and decode values of type {@code T} into byte streams.
- *
- * <p>All methods of a {@link Coder} are required to be thread safe.
+ * A {@link Coder<T>} defines how to encode and decode values of type {@code T} into byte streams.
  *
  * <p>{@link Coder} instances are serialized during job creation and deserialized
- * before use, via JSON serialization.
- *
- * <p>See {@link SerializableCoder} for an example of a {@code Coder} that adds a custom field to
+ * before use, via JSON serialization. See {@link SerializableCoder} for an example of a
+ * {@link Coder} that adds a custom field to
  * the {@link Coder} serialization. It provides a constructor annotated with
  * {@link com.fasterxml.jackson.annotation.JsonCreator}, which is a factory method used when
  * deserializing a {@link Coder} instance.
  *
- * <p>See {@link KvCoder} for an example of a nested {@code Coder} type.
+ * <p>{@link Coder} classes for compound types are often composed from coder classes for types
+ * contains therein. The composition of {@link Coder} instances into a coder for the compound
+ * class is the subject of the {@link CoderFactory} type, which enables automatic generic
+ * composition of {@link Coder} classes within the {@link CoderRegistry}. With particular
+ * static methods on a compound {@link Coder} class, a {@link CoderFactory} can be automatically
+ * inferred. See {@link KvCoder} for an example of a simple compound {@link Coder} that supports
+ * automatic composition in the {@link CoderRegistry}.
  *
  * <p>The binary format of a {@link Coder} is identified by {@link #getEncodingId()}; be sure to
  * understand the requirements for evolving coder formats.
+ *
+ * <p>All methods of a {@link Coder} are required to be thread safe.
  *
  * @param <T> the type of the values being transcoded
  */
@@ -57,13 +63,13 @@ public interface Coder<T> extends Serializable {
   /** The context in which encoding or decoding is being done. */
   public static class Context {
     /**
-     * The outer context.  The value being encoded or decoded takes
-     * up the remainder of the whole record/stream contents.
+     * The outer context: the value being encoded or decoded takes
+     * up the remainder of the record/stream contents.
      */
     public static final Context OUTER = new Context(true);
 
     /**
-     * The nested context.  The value being encoded or decoded is
+     * The nested context: the value being encoded or decoded is
      * (potentially) a part of a larger record/stream contents, and
      * may have other parts encoded or decoded after it.
      */
@@ -141,9 +147,10 @@ public interface Coder<T> extends Serializable {
   public void verifyDeterministic() throws Coder.NonDeterministicException;
 
   /**
-   * Returns true if whenever the encoded bytes of two values are equal, then the original values
-   * are equal according to {@code Objects.equals()} (note that this is well-defined for
-   * {@code null}). In other words, encoding is injective.
+   * Returns {@code true} if this {@link Coder} is injective with respect to {@link Objects#equals}.
+   *
+   * <p>Whenever the encoded bytes of two values are equal, then the original values are equal
+   * according to {@code Objects.equals()}. Note that this is well-defined for {@code null}.
    *
    * <p>This condition is most notably false for arrays. More generally, this condition is false
    * whenever {@code equals()} compares object identity, rather than performing a
@@ -227,7 +234,7 @@ public interface Coder<T> extends Serializable {
 
   /**
    * Exception thrown by {@link Coder#verifyDeterministic()} if the encoding is
-   * not deterministic.
+   * not deterministic, including details of why the encoding is not deterministic.
    */
   public static class NonDeterministicException extends Throwable {
     private Coder<?> coder;

@@ -27,7 +27,7 @@ import java.io.OutputStream;
 import java.io.UTFDataFormatException;
 
 /**
- * A {@code BigEndianIntegerCoder} encodes {@code Integer}s in 4 bytes, big-endian.
+ * A {@link BigEndianIntegerCoder} encodes {@link Integer Integers} in 4 bytes, big-endian.
  */
 public class BigEndianIntegerCoder extends AtomicCoder<Integer> {
 
@@ -63,19 +63,31 @@ public class BigEndianIntegerCoder extends AtomicCoder<Integer> {
     }
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * @return {@code true}. This coder is injective.
+   */
   @Override
   public boolean consistentWithEquals() {
     return true;
   }
 
   /**
-   * Returns true since registerByteSizeObserver() runs in constant time.
+   * {@inheritDoc}
+   *
+   * @return {@code true}, because {@link #getEncodedElementByteSize} runs in constant time.
    */
   @Override
   public boolean isRegisterByteSizeObserverCheap(Integer value, Context context) {
     return true;
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * @return {@code 4}, the size in bytes of an integer's big endian encoding.
+   */
   @Override
   protected long getEncodedElementByteSize(Integer value, Context context)
       throws Exception {

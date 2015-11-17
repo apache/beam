@@ -27,17 +27,15 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * A {@code SetCoder<T>} encodes any {@code Set<T>}
- * as an encoding of an iterable of its elements. The elements
- * may not be in a deterministic order, depending on the
- * {@code Set} implementation.
+ * A {@link SetCoder} encodes any {@link Set} using the format of {@link IterableLikeCoder}. The
+ * elements may not be in a deterministic order, depending on the {@code Set} implementation.
  *
  * @param <T> the type of the elements of the set
  */
 public class SetCoder<T> extends IterableLikeCoder<T, Set<T>> {
 
   /**
-   * Produces a SetCoder with the given elementCoder.
+   * Produces a {@link SetCoder} with the given {@code elementCoder}.
    */
   public static <T> SetCoder<T> of(Coder<T> elementCoder) {
     return new SetCoder<>(elementCoder);
@@ -56,10 +54,10 @@ public class SetCoder<T> extends IterableLikeCoder<T, Set<T>> {
   }
 
   /**
-   * Not all sets have a deterministic encoding.
+   * {@inheritDoc}
    *
-   * <p>For example, {@code HashSet} comparison does not depend on element order, so
-   * two {@code HashSet} instances may be equal but produce different encodings.
+   * @throws NonDeterministicException always. Sets are not ordered, but
+   *         they are encoded in the order of an arbitrary iteration.
    */
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
@@ -79,6 +77,12 @@ public class SetCoder<T> extends IterableLikeCoder<T, Set<T>> {
   /////////////////////////////////////////////////////////////////////////////
   // Internal operations below here.
 
+  /**
+   * {@inheritDoc}
+   *
+   * @return A new {@link Set} built from the elements in the {@link List} decoded by
+   * {@link IterableLikeCoder}.
+   */
   @Override
   protected final Set<T> decodeToIterable(List<T> decodedElements) {
     return new HashSet<>(decodedElements);

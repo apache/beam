@@ -22,7 +22,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 /**
- * A {@code VoidCoder} encodes {@code Void}s. Uses zero bytes per {@code Void}.
+ * A {@link Coder} for {@link Void}. Uses zero bytes per {@link Void}.
  */
 public class VoidCoder extends AtomicCoder<Void> {
 
@@ -48,13 +48,20 @@ public class VoidCoder extends AtomicCoder<Void> {
     return null;
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * @return  {@code true}. {@link VoidCoder} is (vacuously) injective.
+   */
   @Override
   public boolean consistentWithEquals() {
     return true;
   }
 
   /**
-   * Returns true since registerByteSizeObserver() runs in constant time.
+   * {@inheritDoc}
+   *
+   * @return {@code true}. {@link VoidCoder#getEncodedElementByteSize()} runs in constant time.
    */
   @Override
   public boolean isRegisterByteSizeObserverCheap(Void value, Context context) {

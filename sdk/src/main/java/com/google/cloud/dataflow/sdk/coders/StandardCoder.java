@@ -37,47 +37,37 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * A {@code StandardCoder} is a {@link Coder} that defines equality,
- * hashing, and printing via the class name and recursively using
- * {@link #getComponents}.
+ * An abstract base class to implement a {@link Coder} that defines equality, hashing, and printing
+ * via the class name and recursively using {@link #getComponents}.
  *
- * @param <T> the type of the values being transcoded
+ * <p>To extend {@link StandardCoder}, override the following methods as appropriate:
+ *
+ * <ul>
+ *   <li>{@link #getComponents}: the default implementation returns {@link #getCoderArguments}.</li>
+ *   <li>{@link #getEncodedElementByteSize} and
+ *       {@link #isRegisterByteSizeObserverCheap}: the
+ *       default implementation encodes values to bytes and counts the bytes, which is considered
+ *       expensive.</li>
+ *   <li>{@link #getEncodingId} and {@link #getAllowedEncodings}: by default, the encoding id
+ *       is the empty string, so only the canonical name of the subclass will be used for
+ *       compatibility checks, and no other encoding ids are allowed.</li>
+ * </ul>
  */
 public abstract class StandardCoder<T> implements Coder<T> {
   protected StandardCoder() {}
 
-  /**
-   * A unique identifier for the binary format written by {@link #encode}. If a subclass is
-   * modified to write a new format, it is imperative that this method be overridden to return
-   * a distinct value.
-   *
-   * <p>By default, this is an empty string so only the fully qualified name of the class is
-   * used.
-   *
-   * @see #getAllowedEncodings()
-   */
   @Override
   public String getEncodingId() {
     return "";
   }
 
-  /**
-   * A collection of encodings supported by {@link #decode} in addition to the value of
-   * {@link #getEncodingId()}.
-   *
-   * <p>By default, this is empty.
-   *
-   *@see #getEncodingId()
-   */
   @Override
   public Collection<String> getAllowedEncodings() {
     return Collections.emptyList();
   }
 
   /**
-   * Returns the list of {@code Coder}s that are components of this
-   * {@code Coder}.  Returns an empty list if this is an {@link AtomicCoder} (or
-   * other {@code Coder} with no components).
+   * Returns the list of {@link Coder Coders} that are components of this {@link Coder}.
    */
   public List<? extends Coder<?>> getComponents() {
     List<? extends Coder<?>> coderArguments = getCoderArguments();
@@ -88,6 +78,12 @@ public abstract class StandardCoder<T> implements Coder<T> {
     }
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * @return {@code true} if the two {@link StandardCoder} instances have the
+   * same class and equal components.
+   */
   @Override
   public boolean equals(Object o) {
     if (o == null || this.getClass() != o.getClass()) {
@@ -151,9 +147,11 @@ public abstract class StandardCoder<T> implements Coder<T> {
   }
 
   /**
-   * {@code StandardCoder} requires elements to be fully encoded and copied
-   * into a byte stream to determine the byte size of the element, which is
-   * considered expensive.
+   * {@inheritDoc}
+   *
+   * @return {@code false} unless it is overridden. {@link StandardCoder#registerByteSizeObserver}
+   *         invokes {@link #getEncodedElementByteSize} which requires re-encoding an element
+   *         unless it is overridden. This is considered expensive.
    */
   @Override
   public boolean isRegisterByteSizeObserverCheap(T value, Context context) {
@@ -161,9 +159,7 @@ public abstract class StandardCoder<T> implements Coder<T> {
   }
 
   /**
-   * Returns the size in bytes of the encoded value using this
-   * coder. Derived classes override this method if byte size can be
-   * computed with less computation or copying.
+   * Returns the size in bytes of the encoded value using this coder.
    */
   protected long getEncodedElementByteSize(T value, Context context)
       throws Exception {
@@ -178,9 +174,10 @@ public abstract class StandardCoder<T> implements Coder<T> {
   }
 
   /**
-   * Notifies {@code observer} about the byte size of the encoded value using this coder.
-   * Calls {@link #getEncodedElementByteSize} and notifies {@code observer} using
-   * {@link ElementByteSizeObserver#update(Object)}.
+   * {@inheritDoc}
+   *
+   * <p>For {@link StandardCoder} subclasses, this notifies {@code observer} about the byte size
+   * of the encoded value using this coder as returned by {@link #getEncodedElementByteSize}.
    */
   @Override
   public void registerByteSizeObserver(
@@ -205,6 +202,11 @@ public abstract class StandardCoder<T> implements Coder<T> {
     verifyDeterministic(message, Arrays.asList(coders));
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * @return {@code false} for {@link StandardCoder} unless overridden.
+   */
   @Override
   public boolean consistentWithEquals() {
     return false;

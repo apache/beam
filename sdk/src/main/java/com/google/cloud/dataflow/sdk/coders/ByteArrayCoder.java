@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.coders;
 
+import com.google.cloud.dataflow.sdk.coders.Coder.Context;
 import com.google.cloud.dataflow.sdk.util.ExposedByteArrayOutputStream;
 import com.google.cloud.dataflow.sdk.util.StreamUtils;
 import com.google.cloud.dataflow.sdk.util.VarInt;
@@ -29,10 +30,15 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 /**
- * A {@code ByteArrayCoder} encodes {@code byte[]} objects.
+ * A {@link Coder} for {@code byte[]}.
  *
- * <p>If in a nested context, prefixes the encoded array with its
- * length, encoded via a {@link VarIntCoder}.
+ * <p>The encoding format is as follows:
+ * <ul>
+ * <li>If in a non-nested context (the {@code byte[]} is the only value in the stream), the
+ * bytes are read/written directly.</li>
+ * <li>If in a nested context, the bytes are prefixed with the length of the array,
+ * encoded via a {@link VarIntCoder}.</li>
+ * </ul>
  */
 public class ByteArrayCoder extends AtomicCoder<byte[]> {
 
@@ -98,13 +104,21 @@ public class ByteArrayCoder extends AtomicCoder<byte[]> {
     }
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * @return objects that are equal if the two arrays contain the same bytes.
+   */
   @Override
   public Object structuralValue(byte[] value) {
     return new StructuralByteArray(value);
   }
 
   /**
-   * Returns true since registerByteSizeObserver() runs in constant time.
+   * {@inheritDoc}
+   *
+   * @return {@code true} since {@link #getEncodedElementByteSize()} runs in constant time using
+   * the {@code length} of the provided array.
    */
   @Override
   public boolean isRegisterByteSizeObserverCheap(byte[] value, Context context) {

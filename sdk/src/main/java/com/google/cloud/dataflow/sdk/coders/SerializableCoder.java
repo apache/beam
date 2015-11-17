@@ -31,8 +31,7 @@ import java.io.OutputStream;
 import java.io.Serializable;
 
 /**
- * A {@code SerializableCoder} is a {@link Coder} for a
- * Java class that implements {@link java.io.Serializable}.
+ * A {@link Coder} for Java classes that implement {@link Serializable}.
  *
  * <p>To use, specify the coder type on a PCollection:
  * <pre>
@@ -42,8 +41,8 @@ import java.io.Serializable;
  * }
  * </pre>
  *
- * <p>SerializableCoder does not guarantee a deterministic encoding, as Java
- * Serialization may produce different binary encodings for two equivalent
+ * <p>{@link SerializableCoder} does not guarantee a deterministic encoding, as Java
+ * serialization may produce different binary encodings for two equivalent
  * objects.
  *
  * @param <T> the type of elements handled by this coder
@@ -51,7 +50,7 @@ import java.io.Serializable;
 public class SerializableCoder<T extends Serializable> extends AtomicCoder<T> {
 
   /**
-   * Returns a {@code SerializableCoder} instance for the provided element type.
+   * Returns a {@link SerializableCoder} instance for the provided element type.
    * @param <T> the element type
    */
   public static <T extends Serializable> SerializableCoder<T> of(TypeDescriptor<T> type) {
@@ -61,7 +60,7 @@ public class SerializableCoder<T extends Serializable> extends AtomicCoder<T> {
   }
 
   /**
-   * Returns a {@code SerializableCoder} instance for the provided element class.
+   * Returns a {@link SerializableCoder} instance for the provided element class.
    * @param <T> the element type
    */
   public static <T extends Serializable> SerializableCoder<T> of(Class<T> clazz) {
@@ -149,6 +148,12 @@ public class SerializableCoder<T extends Serializable> extends AtomicCoder<T> {
     return result;
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * @throws NonDeterministicException always. Java serialization is not
+   *         deterministic with respect to {@link Object#equals} for all types.
+   */
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
     throw new NonDeterministicException(this,

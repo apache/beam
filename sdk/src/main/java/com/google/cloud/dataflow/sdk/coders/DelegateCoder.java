@@ -43,7 +43,7 @@ import java.util.List;
  */
 public class DelegateCoder<T, IntermediateT> extends CustomCoder<T> {
   /**
-   * A {@code CodingFunction<InputT, OutputT>} is a serializable function
+   * A {@link CodingFunction CodingFunction&ltInputT, OutputT&gt;} is a serializable function
    * from {@code InputT} to {@code OutputT} that
    * may throw any {@code Exception}.
    */
@@ -77,15 +77,24 @@ public class DelegateCoder<T, IntermediateT> extends CustomCoder<T> {
   }
 
   /**
-   * A delegate coder is deterministic if the underlying coder is deterministic.
-   * For this to be safe, the intermediate {@code CodingFunction<T, IntermediateT>} must
-   * also be deterministic.
+   * {@inheritDoc}
+   *
+   * @throws NonDeterministicException when the underlying coder's {@code verifyDeterministic()}
+   *         throws a {@link NonDeterministicException}. For this to be safe, the intermediate
+   *         {@code CodingFunction<T, IntermediateT>} must also be deterministic.
    */
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
     coder.verifyDeterministic();
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * @return a structural for a value of type {@code T} obtained by first converting to
+   *         {@code IntermediateT} and then obtaining a structural value according to the underlying
+   *         coder.
+   */
   @Override
   public Object structuralValue(T value) throws Exception {
     return coder.structuralValue(toFn.apply(value));
@@ -97,17 +106,24 @@ public class DelegateCoder<T, IntermediateT> extends CustomCoder<T> {
   }
 
   /**
-   * The encoding id for the binary format of the delegate coder is a combination of the underlying
-   * coder class and its encoding id.
+   * {@inheritDoc}
    *
-   * <p>Note that this omits any description of the coding functions. These should be modified with
-   * care.
+   * @return a {@link String} composed from the underlying coder class name and its encoding id.
+   *         Note that this omits any description of the coding functions. These should be modified
+   *         with care.
    */
   @Override
   public String getEncodingId() {
     return delegateEncodingId(coder.getClass(), coder.getEncodingId());
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * @return allowed encodings which are composed from the underlying coder class and its allowed
+   *         encoding ids. Note that this omits any description of the coding functions. These
+   *         should be modified with care.
+   */
   @Override
   public Collection<String> getAllowedEncodings() {
     List<String> allowedEncodings = Lists.newArrayList();

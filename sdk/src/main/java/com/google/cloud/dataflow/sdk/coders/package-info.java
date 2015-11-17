@@ -15,7 +15,7 @@
  */
 
 /**
- * Defines {@link com.google.cloud.dataflow.sdk.coders.Coder}s
+ * Defines {@link com.google.cloud.dataflow.sdk.coders.Coder Coders}
  * to specify how data is encoded to and decoded from byte strings.
  *
  * <p>During execution of a Pipeline, elements in a

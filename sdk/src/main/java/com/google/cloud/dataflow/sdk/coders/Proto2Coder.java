@@ -41,12 +41,12 @@ import java.util.Objects;
 import javax.annotation.Nullable;
 
 /**
- * An encoder using Google Protocol Buffers 2 binary format.
+ * A {@link Coder} using Google Protocol Buffers 2 binary format.
  *
  * <p>To learn more about Protocol Buffers, visit:
  * <a href="https://developers.google.com/protocol-buffers">https://developers.google.com/protocol-buffers</a>
  *
- * <p>To use, specify the {@code Coder} type on a PCollection:
+ * <p>To use, specify the {@link Coder} type on a PCollection containing Protocol Buffers messages.
  *
  * <pre>
  * {@code

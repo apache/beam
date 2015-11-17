@@ -23,8 +23,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 /**
- * A {@code TextualIntegerCoder} encodes {@code Integer}s
- * as their textual, decimal, representation.
+ * A {@link Coder} that encodes {@code Integer Integers} as the ASCII bytes of
+ * their textual, decimal, representation.
  */
 public class TextualIntegerCoder extends AtomicCoder<Integer> {
 
@@ -57,9 +57,6 @@ public class TextualIntegerCoder extends AtomicCoder<Integer> {
       throw new CoderException("error when decoding a textual integer", exn);
     }
   }
-
-  @Override
-  public void verifyDeterministic() { }
 
   @Override
   protected long getEncodedElementByteSize(Integer value, Context context) throws Exception {

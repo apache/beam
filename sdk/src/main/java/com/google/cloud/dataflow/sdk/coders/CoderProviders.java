@@ -28,8 +28,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 
 /**
- * A {@code CoderProvider} may create a {@link Coder} for
- * any concrete class.
+ * Static utility methods for working with {@link CoderProvider CoderProviders}.
  */
 public final class CoderProviders {
 
@@ -38,7 +37,8 @@ public final class CoderProviders {
 
   /**
    * Creates a {@link CoderProvider} built from particular static methods of a class that
-   * implements {@link Coder}, particularly for use in {@link DefaultCoder} annotations.
+   * implements {@link Coder}. The requirements for this method are precisely the requirements
+   * for a {@link Coder} class to be usable with {@link DefaultCoder} annotations.
    *
    * <p>The class must have the following static method:
    *

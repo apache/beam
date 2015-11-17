@@ -27,7 +27,7 @@ import java.io.OutputStream;
 import java.io.UTFDataFormatException;
 
 /**
- * A {@code VarLongCoder} encodes longs using between 1 and 10 bytes. Negative
+ * A {@link Coder} that encodes {@link Long Longs} using between 1 and 10 bytes. Negative
  * numbers always take 10 bytes, so {@link BigEndianLongCoder} may be preferable for
  * longs that are known to often be large or negative.
  */
@@ -65,16 +65,20 @@ public class VarLongCoder extends AtomicCoder<Long> {
     }
   }
 
-  @Override
-  public void verifyDeterministic() { }
-
+  /**
+   * {@inheritDoc}
+   *
+   * @return {@code true}. {@link VarLongCoder} is injective.
+   */
   @Override
   public boolean consistentWithEquals() {
     return true;
   }
 
   /**
-   * Returns true since registerByteSizeObserver() runs in constant time.
+   * {@inheritDoc}
+   *
+   * @return {@code true}. {@link VarLongCoder#getEncodedElementByteSize()} runs in constant time.
    */
   @Override
   public boolean isRegisterByteSizeObserverCheap(Long value, Context context) {

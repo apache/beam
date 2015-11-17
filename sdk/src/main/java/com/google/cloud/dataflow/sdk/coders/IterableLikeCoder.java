@@ -36,6 +36,21 @@ import java.util.Observer;
  * An abstract base class with functionality for assembling a
  * {@link Coder} for a class that implements {@code Iterable}.
  *
+ * <p>To complete a subclass, implement the {@link #decodeToIterable} method. This superclass
+ * will decode the elements in the input stream into a {@link List} and then pass them to that
+ * method to be converted into the appropriate iterable type. Note that this means the input
+ * iterables must fit into memory.
+ *
+ * <p>The format of this coder is as follows:
+ *
+ * <ul>
+ *   <li>If the input {@link Iterable} has a known and finite size, then the size is written to the
+ *       output stream in big endian format, followed by all of the encoded elements.</li>
+ *   <li>If the input {@link Iterable} is not known to have a finite size, then each element
+ *       of the input is preceded by {@code true} encoded as a byte (indicating "more data")
+ *       followed by the encoded element, and terminated by {@code false} encoded as a byte.</li>
+ * </ul>
+ *
  * @param <T> the type of the elements of the {@code Iterable}s being transcoded
  * @param <IterableT> the type of the Iterables being transcoded
  */
@@ -46,10 +61,8 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
   }
 
   /**
-   * Builds an instance of the coder's associated {@code Iterable} from a list
-   * of decoded elements.  If {@code IterableT} is a supertype of {@code List<T>}, the
-   * derived class implementation is permitted to return {@code decodedElements}
-   * directly.
+   * Builds an instance of {@code IterableT}, this coder's associated {@link Iterable}-like
+   * subtype, from a list of decoded elements.
    */
   protected abstract IterableT decodeToIterable(List<T> decodedElements);
 
@@ -60,7 +73,7 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
   private final String iterableName;
 
   /**
-   * Returns the first element in this iterable-like if it is non-empty,
+   * Returns the first element in the iterable-like {@code exampleValue} if it is non-empty,
    * otherwise returns {@code null}.
    */
   protected static <T, IterableT extends Iterable<T>>
@@ -141,7 +154,11 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
   }
 
   /**
-   * Encoding is not deterministic for the general Iterable case, as it depends
+   * {@inheritDoc}
+   *
+   * @throws
+   * {@link NonDeterministicException} always.
+   * Encoding is not deterministic for the general {@link Iterable} case, as it depends
    * upon the type of iterable. This may allow two objects to compare as equal
    * while the encoding differs.
    */
@@ -152,8 +169,10 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
   }
 
   /**
-   * Returns whether iterable can use lazy counting, since that
-   * requires minimal extra computation.
+   * {@inheritDoc}
+   *
+   * @return {@code true} if the iterable is of a known class that supports lazy counting
+   * of byte size, since that requires minimal extra computation.
    */
   @Override
   public boolean isRegisterByteSizeObserverCheap(
@@ -161,10 +180,6 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
     return iterable instanceof ElementByteSizeObservableIterable;
   }
 
-  /**
-   * Notifies ElementByteSizeObserver about the byte size of the
-   * encoded value using this coder.
-   */
   @Override
   public void registerByteSizeObserver(
       IterableT iterable, ElementByteSizeObserver observer, Context context)

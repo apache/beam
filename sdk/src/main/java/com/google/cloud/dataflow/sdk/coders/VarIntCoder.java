@@ -27,7 +27,7 @@ import java.io.OutputStream;
 import java.io.UTFDataFormatException;
 
 /**
- * A {@code VarIntCoder} encodes {@code Integer}s using between 1 and 5 bytes. Negative
+ * A {@link Coder} that encodes {@link Integer Integers} using between 1 and 5 bytes. Negative
  * numbers always take 5 bytes, so {@link BigEndianIntegerCoder} may be preferable for
  * integers that are known to often be large or negative.
  */
@@ -66,13 +66,20 @@ public class VarIntCoder extends AtomicCoder<Integer> {
     }
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * @return {@code true}. {@link VarIntCoder} is injective.
+   */
   @Override
   public boolean consistentWithEquals() {
     return true;
   }
 
   /**
-   * Returns true since registerByteSizeObserver() runs in constant time.
+   * {@inheritDoc}
+   *
+   * @return {@code true}. {@link VarIntCoder#getEncodedElementByteSize()} runs in constant time.
    */
   @Override
   public boolean isRegisterByteSizeObserverCheap(Integer value, Context context) {

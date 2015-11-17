@@ -35,7 +35,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 /**
- * A {@code MapCoder} encodes {@code Map}s.
+ * A {@link Coder} for {@link Map Maps} that encodes them according to provided
+ * coders for keys and values.
  *
  * @param <K> the type of the keys of the KVs being transcoded
  * @param <V> the type of the values of the KVs being transcoded
@@ -121,16 +122,23 @@ public class MapCoder<K, V> extends MapCoderBase<Map<K, V>> {
     return retval;
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * @return a {@link List} containing the key coder at index 0 at the and value coder at index 1.
+   */
   @Override
   public List<? extends Coder<?>> getCoderArguments() {
     return Arrays.asList(keyCoder, valueCoder);
   }
 
   /**
-   * Not all maps have a deterministic encoding.
+   * {@inheritDoc}
    *
-   * <p>For example, HashMap comparison does not depend on element order, so
-   * two HashMap instances may be equal but produce different encodings.
+   * @throws
+   * {@link NonDeterministicException} always. Not all maps have a deterministic encoding.
+   * For example, {@link HashMap} comparison does not depend on element order, so
+   * two {@link HashMap} instances may be equal but produce different encodings.
    */
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
@@ -138,10 +146,6 @@ public class MapCoder<K, V> extends MapCoderBase<Map<K, V>> {
         "Ordering of entries in a Map may be non-deterministic.");
   }
 
-  /**
-   * Notifies ElementByteSizeObserver about the byte size of the
-   * encoded value using this coder.
-   */
   @Override
   public void registerByteSizeObserver(
       Map<K, V> map, ElementByteSizeObserver observer, Context context)

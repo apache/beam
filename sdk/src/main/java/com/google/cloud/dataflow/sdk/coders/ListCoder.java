@@ -25,7 +25,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 
 /**
- * A {@code ListCoder} encodes {@code List}s.
+ * A {@link Coder} for {@link List}, using the format of {@link IterableLikeCoder}.
  *
  * @param <T> the type of the elements of the Lists being transcoded
  */
@@ -60,7 +60,7 @@ public class ListCoder<T> extends IterableLikeCoder<T, List<T>> {
     return getInstanceComponentsHelper(exampleValue);
   }
 
-  ListCoder(Coder<T> elemCoder) {
+  protected ListCoder(Coder<T> elemCoder) {
     super(elemCoder, "List");
   }
 

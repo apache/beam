@@ -80,7 +80,16 @@ public class CannotProvideCoderException extends Exception {
    * Indicates the reason that {@link Coder} inference failed.
    */
   public static enum ReasonCode {
+    /**
+     * The reason a coder could not be provided is unknown or does have an established
+     * {@link ReasonCode}.
+     */
     UNKNOWN,
+
+    /**
+     * The reason a coder could not be provided is type erasure, for example when requesting
+     * coder inference for a {@code List<T>} where {@code T} is unknown.
+     */
     TYPE_ERASURE
   }
 }

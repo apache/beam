@@ -28,7 +28,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 /**
- * A {@link Coder} for a joda {@link Duration}.
+ * A {@link Coder} that encodes a joda {@link Duration} as a {@link Long} using the format of
+ * {@link VarLongCoder}.
  */
 public class DurationCoder extends AtomicCoder<ReadableDuration> {
 
@@ -41,7 +42,7 @@ public class DurationCoder extends AtomicCoder<ReadableDuration> {
 
   private static final DurationCoder INSTANCE = new DurationCoder();
 
-  private final Coder<Long> longCoder = VarLongCoder.of();
+  private final VarLongCoder longCoder = VarLongCoder.of();
 
   private DurationCoder() {}
 
@@ -68,11 +69,21 @@ public class DurationCoder extends AtomicCoder<ReadableDuration> {
       return fromLong(longCoder.decode(inStream, context));
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * @return {@code true}. This coder is injective.
+   */
   @Override
   public boolean consistentWithEquals() {
     return true;
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * @return {@code true}, because it is cheap to ascertain the byte size of a long.
+   */
   @Override
   public boolean isRegisterByteSizeObserverCheap(ReadableDuration value, Context context) {
     return longCoder.isRegisterByteSizeObserverCheap(toLong(value), context);

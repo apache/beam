@@ -28,7 +28,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 /**
- * A {@code InstantCoder} is a {@link Coder} for a joda {@link Instant}.
+ * A {@link Coder} for joda {@link Instant} that encodes it as a big endian {@link Long}
+ * shifted such that lexicographic ordering of the bytes corresponds to chronological order.
  */
 public class InstantCoder extends AtomicCoder<Instant> {
 
@@ -41,7 +42,7 @@ public class InstantCoder extends AtomicCoder<Instant> {
 
   private static final InstantCoder INSTANCE = new InstantCoder();
 
-  private final Coder<Long> longCoder = BigEndianLongCoder.of();
+  private final BigEndianLongCoder longCoder = BigEndianLongCoder.of();
 
   private InstantCoder() {}
 
@@ -82,11 +83,21 @@ public class InstantCoder extends AtomicCoder<Instant> {
     return ORDER_PRESERVING_CONVERTER.reverse().convert(longCoder.decode(inStream, context));
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * @return {@code true}. This coder is injective.
+   */
   @Override
   public boolean consistentWithEquals() {
     return true;
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * @return {@code true}. The byte size for a big endian long is a constant.
+   */
   @Override
   public boolean isRegisterByteSizeObserverCheap(Instant value, Context context) {
     return longCoder.isRegisterByteSizeObserverCheap(

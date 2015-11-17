@@ -19,7 +19,7 @@ package com.google.cloud.dataflow.sdk.coders;
 import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 
 /**
- * A {@code CoderProvider} may create a {@link Coder} for
+ * A {@link CoderProvider} may create a {@link Coder} for
  * any concrete class.
  */
 public interface CoderProvider {

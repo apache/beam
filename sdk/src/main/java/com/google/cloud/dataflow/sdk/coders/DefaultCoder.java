@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.coders;
 
+import com.google.cloud.dataflow.sdk.values.PCollection;
+
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -23,42 +25,37 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * The {@code DefaultCoder} annotation
+ * The {@link DefaultCoder} annotation
  * specifies a default {@link Coder} class to handle encoding and decoding
  * instances of the annotated class.
  *
- * <p>The specified {@code Coder} must implement a function with the following
- * signature:
- * <pre>{@code
- * public static Coder<T> of(Class<T> clazz) {...}
- * }</pre>
+ * <p>The specified {@link Coder} must satisfy the requirements of
+ * {@link CoderProviders#fromStaticMethods}. Two classes provided by the SDK that
+ * are intended for use with this annotation include {@link SerializableCoder}
+ * and {@link AvroCoder}.
  *
- * <p>For example, to configure the use of Java serialization as the default
+ * <p>To configure the use of Java serialization as the default
  * for a class, annotate the class to use
- * {@link com.google.cloud.dataflow.sdk.coders.SerializableCoder} as follows:the
+ * {@link SerializableCoder} as follows:
  *
- * <pre><code>
- * {@literal @}DefaultCoder(SerializableCoder.class)
- * public class MyCustomDataType {
+ * <pre><code>{@literal @}DefaultCoder(SerializableCoder.class)
+ * public class MyCustomDataType implements Serializable {
  *   // ...
- * }
- * </code></pre>
+ * }</code></pre>
  *
  * <p>Similarly, to configure the use of
- * {@link com.google.cloud.dataflow.sdk.coders.AvroCoder} as the default:
- * <pre><code>
- * {@literal @}DefaultCoder(AvroCoder.class)
+ * {@link AvroCoder} as the default:
+ * <pre><code>{@literal @}DefaultCoder(AvroCoder.class)
  * public class MyCustomDataType {
- *   public MyCustomDataType() {}   // Avro requires an empty constructor.
+ *   public MyCustomDataType() {}  // Avro requires an empty constructor.
  *   // ...
- * }
- * </code></pre>
+ * }</code></pre>
  *
  * <p>Coders specified explicitly via
- * {@link com.google.cloud.dataflow.sdk.values.PCollection#setCoder(Coder)
- *  PCollection.setCoder}
+ * {@link PCollection#setCoder}
  * take precedence, followed by Coders registered at runtime via
- * {@link CoderRegistry#registerCoder}.
+ * {@link CoderRegistry#registerCoder}. See {@link CoderRegistry} for a more detailed discussion
+ * of the precedence rules.
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)

@@ -26,9 +26,8 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * A {@code CollectionCoder} encodes {@code Collection}s.
- *
- * @param <T> the type of the elements of the Collections being transcoded
+ * A {@link CollectionCoder} encodes {@link Collection Collections} in the format
+ * of {@link IterableLikeCoder}.
  */
 public class CollectionCoder<T> extends IterableLikeCoder<T, Collection<T>> {
 
@@ -39,6 +38,12 @@ public class CollectionCoder<T> extends IterableLikeCoder<T, Collection<T>> {
   /////////////////////////////////////////////////////////////////////////////
   // Internal operations below here.
 
+  /**
+   * {@inheritDoc}
+   *
+   * @return the decoded elements directly, since {@link List} is a subtype of
+   * {@link Collection}.
+   */
   @Override
   protected final Collection<T> decodeToIterable(List<T> decodedElements) {
     return decodedElements;

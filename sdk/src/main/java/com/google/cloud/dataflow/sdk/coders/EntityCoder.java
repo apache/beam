@@ -25,7 +25,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 /**
- * An {@code EntityCoder} is a {@link Coder} for {@link Entity} objects.
+ * A {@link Coder} for {@link Entity} objects based on their encoded Protocol Buffer form.
  */
 public class EntityCoder extends AtomicCoder<Entity> {
 
@@ -72,8 +72,11 @@ public class EntityCoder extends AtomicCoder<Entity> {
   }
 
   /**
-   * A datastore kind can hold arbitrary Object instances, which
-   * makes the encoding non-deterministic.
+   * {@inheritDoc}
+   *
+   * @throws NonDeterministicException always.
+   *         A datastore kind can hold arbitrary {@link Object} instances, which
+   *         makes the encoding non-deterministic.
    */
   @Override
   public void verifyDeterministic() throws NonDeterministicException {

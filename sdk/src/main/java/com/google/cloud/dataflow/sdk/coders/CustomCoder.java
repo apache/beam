@@ -33,7 +33,7 @@ import java.io.Serializable;
 import java.util.Collection;
 
 /**
- * An abstract base class for writing {@link Coder}s that encodes itself via java
+ * An abstract base class for writing a {@link Coder} class that encodes itself via Java
  * serialization.
  *
  * <p>To complete an implementation, subclasses must implement {@link Coder#encode}
@@ -67,6 +67,11 @@ public abstract class CustomCoder<T> extends AtomicCoder<T>
         type);
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * @return A thin {@link CloudObject} wrapping of the Java serialization of {@code this}.
+   */
   @Override
   public CloudObject asCloudObject() {
     // N.B. We use the CustomCoder class, not the derived class, since during
@@ -92,6 +97,12 @@ public abstract class CustomCoder<T> extends AtomicCoder<T>
     return result;
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * @throws {@link NonDeterministicException}. A {@link CustomCoder} is presumed
+   * nondeterministic.
+   */
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
     throw new NonDeterministicException(this,
@@ -99,6 +110,15 @@ public abstract class CustomCoder<T> extends AtomicCoder<T>
         + " or they are presumed nondeterministic.");
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * @return The canonical class name for this coder. For stable data formats that are independent
+   *         of class name, it is recommended to override this method.
+   *
+   * @throws UnsupportedOperationException when an anonymous class is used, since they do not have
+   *         a stable canonical class name.
+   */
   @Override
   public String getEncodingId() {
     if (getClass().isAnonymousClass()) {

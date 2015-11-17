@@ -19,9 +19,9 @@ package com.google.cloud.dataflow.sdk.coders;
 import java.util.List;
 
 /**
- * A {@code CoderFactory} creates coders and decomposes values.
- * It may operate on a parameterized type, such as {@code List},
- * in which case the {@code create} method accepts a list of
+ * A {@link CoderFactory} creates coders and decomposes values.
+ * It may operate on a parameterized type, such as {@link List},
+ * in which case the {@link #create} method accepts a list of
  * coders to use for the type parameters.
  */
 public interface CoderFactory {

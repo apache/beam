@@ -48,19 +48,31 @@ import java.util.Set;
 import javax.annotation.Nullable;
 
 /**
- * A {@code CoderRegistry} allows registering the default {@link Coder} to use for a Java class,
+ * A {@link CoderRegistry} allows registering the default {@link Coder} to use for a Java class,
  * and looking up and instantiating the default {@link Coder} for a Java type.
  *
- * <p>{@code CoderRegistry} uses the following mechanisms to determine a default {@link Coder} for a
+ * <p>{@link CoderRegistry} uses the following mechanisms to determine a default {@link Coder} for a
  * Java class, in order of precedence:
  * <ol>
- *   <li>Registration: A {@link Coder} class can be registered explicitly via
- *       {@link #registerCoder}.  Built-in types are registered via
- *       {@link #registerStandardCoders()}.
+ *   <li>Registration:
+ *     <ul>
+ *       <li>A {@link CoderFactory} can be registered to handle a particular class via
+ *           {@link #registerCoder(Class, CoderFactory)}.</li>
+ *       <li>A {@link Coder} class with the static methods to satisfy
+ *           {@link CoderFactories#fromStaticMethods} can be registered via
+ *           {@link #registerCoder(Class, Class)}.</li>
+ *       <li>Built-in types are registered via
+ *           {@link #registerStandardCoders()}.</li>
+ *     </ul>
  *   <li>Annotations: {@link DefaultCoder} can be used to annotate a type with
- *       the default {@code Coder} type.
- *   <li>Inheritance: {@code Serializable} objects are given a default
- *       {@code Coder} of {@link SerializableCoder}.
+ *       the default {@code Coder} type. The {@link Coder} class must satisfy the requirements
+ *       of {@link CoderProviders#fromStaticMethods}.
+ *   <li>Fallback: A fallback {@link CoderProvider} is used to attempt to provide a {@link Coder}
+ *       for any type. By default, this is {@link SerializableCoder#PROVIDER}, which can provide
+ *       a {@link Coder} for any type that is serializable via Java serialization. The fallback
+ *       {@link CoderProvider} can be get and set via {@link #getFallbackCoderProvider()}
+ *       and {@link #setFallbackCoderProvider}. Multiple fallbacks can be chained together using
+ *       {@link CoderProviders#firstOf}.
  * </ol>
  */
 public class CoderRegistry implements CoderProvider {

@@ -33,8 +33,8 @@ import java.util.List;
 import javax.annotation.Nullable;
 
 /**
- * A {@code NullableCoder} encodes nullable values of type {@code T} using a nested
- * {@code Coder<T>} that does not tolerate {@code null} values. {@code NullableCoder} uses
+ * A {@link NullableCoder} encodes nullable values of type {@code T} using a nested
+ * {@code Coder<T>} that does not tolerate {@code null} values. {@link NullableCoder} uses
  * exactly 1 byte per entry to indicate whether the value is {@code null}, then adds the encoding
  * of the inner coder for non-null values.
  *
