@@ -115,7 +115,7 @@ public class CoGbkResult {
       // keep in memory, so we copy the re-iterable of remaining items
       // and append filtered views to each of the sorted lists computed earlier.
       LOG.info("CoGbkResult has more than " + inMemoryElementCount + " elements,"
-               + "reiteration (which may be slow) is required.");
+               + " reiteration (which may be slow) is required.");
       final Reiterator<RawUnionValue> tail = (Reiterator<RawUnionValue>) taggedIter;
       // This is a trinary-state array recording whether a given tag is present in the tail. The
       // initial value is null (unknown) for all tags, and the first iteration through the entire
