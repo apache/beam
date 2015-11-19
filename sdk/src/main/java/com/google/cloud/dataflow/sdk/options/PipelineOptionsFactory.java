@@ -61,6 +61,7 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -880,6 +881,7 @@ public class PipelineOptionsFactory {
     SortedMap<String, Method> propertyNamesToGetters = getPropertyNamesToGetters(methods);
     List<PropertyDescriptor> descriptors = Lists.newArrayList();
 
+    List<TypeMismatch> mismatches = new ArrayList<>();
     /*
      * Add all the getter/setter pairs to the list of descriptors removing the getter once
      * it has been paired up.
@@ -898,15 +900,20 @@ public class PipelineOptionsFactory {
       if (getterMethod != null) {
         Class<?> getterPropertyType = getterMethod.getReturnType();
         Class<?> setterPropertyType = method.getParameterTypes()[0];
-        Preconditions.checkArgument(getterPropertyType == setterPropertyType,
-            "Type mismatch between getter and setter methods for property [%s]. "
-            + "Getter is of type [%s] whereas setter is of type [%s].",
-            propertyName, getterPropertyType.getName(), setterPropertyType.getName());
+        if (getterPropertyType != setterPropertyType) {
+          TypeMismatch mismatch = new TypeMismatch();
+          mismatch.propertyName = propertyName;
+          mismatch.getterPropertyType = getterPropertyType;
+          mismatch.setterPropertyType = setterPropertyType;
+          mismatches.add(mismatch);
+          continue;
+        }
       }
 
       descriptors.add(new PropertyDescriptor(
           propertyName, getterMethod, method));
     }
+    throwForTypeMismatches(mismatches);
 
     // Add the remaining getters with missing setters.
     for (Map.Entry<String, Method> getterToMethod : propertyNamesToGetters.entrySet()) {
@@ -914,6 +921,35 @@ public class PipelineOptionsFactory {
           getterToMethod.getKey(), getterToMethod.getValue(), null));
     }
     return descriptors;
+  }
+
+  private static class TypeMismatch {
+    private String propertyName;
+    private Class<?> getterPropertyType;
+    private Class<?> setterPropertyType;
+  }
+
+  private static void throwForTypeMismatches(List<TypeMismatch> mismatches) {
+    if (mismatches.size() == 1) {
+      TypeMismatch mismatch = mismatches.get(0);
+      throw new IllegalArgumentException(String.format(
+          "Type mismatch between getter and setter methods for property [%s]. "
+          + "Getter is of type [%s] whereas setter is of type [%s].",
+          mismatch.propertyName,
+          mismatch.getterPropertyType.getName(),
+          mismatch.setterPropertyType.getName()));
+    } else if (mismatches.size() > 1) {
+      StringBuilder builder = new StringBuilder(
+          String.format("Type mismatches between getters and setters detected:"));
+      for (TypeMismatch mismatch : mismatches) {
+        builder.append(String.format(
+            "%n  - Property [%s]: Getter is of type [%s] whereas setter is of type [%s].",
+            mismatch.propertyName,
+            mismatch.getterPropertyType.getName(),
+            mismatch.setterPropertyType.getName()));
+      }
+      throw new IllegalArgumentException(builder.toString());
+    }
   }
 
   /**
@@ -1006,18 +1042,21 @@ public class PipelineOptionsFactory {
     for (Method method : interfaceMethods) {
       methodNameToMethodMap.put(method, method);
     }
+    List<MultipleDefinitions> multipleDefinitions = Lists.newArrayList();
     for (Map.Entry<Method, Collection<Method>> entry
         : methodNameToMethodMap.asMap().entrySet()) {
       Set<Class<?>> returnTypes = FluentIterable.from(entry.getValue())
           .transform(ReturnTypeFetchingFunction.INSTANCE).toSet();
       SortedSet<Method> collidingMethods = FluentIterable.from(entry.getValue())
           .toSortedSet(MethodComparator.INSTANCE);
-      Preconditions.checkArgument(returnTypes.size() == 1,
-          "Method [%s] has multiple definitions %s with different return types for [%s].",
-          entry.getKey().getName(),
-          collidingMethods,
-          iface.getName());
+      if (returnTypes.size() > 1) {
+        MultipleDefinitions defs = new MultipleDefinitions();
+        defs.method = entry.getKey();
+        defs.collidingMethods = collidingMethods;
+        multipleDefinitions.add(defs);
+      }
     }
+    throwForMultipleDefinitions(iface, multipleDefinitions);
 
     // Verify that there is no getter with a mixed @JsonIgnore annotation and verify
     // that no setter has @JsonIgnore.
@@ -1032,6 +1071,9 @@ public class PipelineOptionsFactory {
     }
 
     List<PropertyDescriptor> descriptors = getPropertyDescriptors(klass);
+
+    List<InconsistentlyIgnoredGetters> incompletelyIgnoredGetters = new ArrayList<>();
+    List<IgnoredSetter> ignoredSetters = new ArrayList<>();
 
     for (PropertyDescriptor descriptor : descriptors) {
       if (descriptor.getReadMethod() == null
@@ -1050,44 +1092,58 @@ public class PipelineOptionsFactory {
           .transform(MethodToDeclaringClassFunction.INSTANCE)
           .transform(ReflectHelpers.CLASS_NAME);
 
-      Preconditions.checkArgument(gettersWithJsonIgnore.isEmpty()
-          || getters.size() == gettersWithJsonIgnore.size(),
-          "Expected getter for property [%s] to be marked with @JsonIgnore on all %s, "
-          + "found only on %s",
-          descriptor.getName(), getterClassNames, gettersWithJsonIgnoreClassNames);
+      if (!(gettersWithJsonIgnore.isEmpty() || getters.size() == gettersWithJsonIgnore.size())) {
+        InconsistentlyIgnoredGetters err = new InconsistentlyIgnoredGetters();
+        err.descriptor = descriptor;
+        err.getterClassNames = getterClassNames;
+        err.gettersWithJsonIgnoreClassNames = gettersWithJsonIgnoreClassNames;
+        incompletelyIgnoredGetters.add(err);
+      }
+      if (!incompletelyIgnoredGetters.isEmpty()) {
+        continue;
+      }
 
       SortedSet<Method> settersWithJsonIgnore =
           Sets.filter(methodNameToAllMethodMap.get(descriptor.getWriteMethod()),
               JsonIgnorePredicate.INSTANCE);
 
       Iterable<String> settersWithJsonIgnoreClassNames = FluentIterable.from(settersWithJsonIgnore)
-          .transform(MethodToDeclaringClassFunction.INSTANCE)
-          .transform(ReflectHelpers.CLASS_NAME);
+              .transform(MethodToDeclaringClassFunction.INSTANCE)
+              .transform(ReflectHelpers.CLASS_NAME);
 
-      Preconditions.checkArgument(settersWithJsonIgnore.isEmpty(),
-          "Expected setter for property [%s] to not be marked with @JsonIgnore on %s",
-          descriptor.getName(), settersWithJsonIgnoreClassNames);
+      if (!settersWithJsonIgnore.isEmpty()) {
+        IgnoredSetter ignored = new IgnoredSetter();
+        ignored.descriptor = descriptor;
+        ignored.settersWithJsonIgnoreClassNames = settersWithJsonIgnoreClassNames;
+        ignoredSetters.add(ignored);
+      }
     }
+    throwForGettersWithInconsistentJsonIgnore(incompletelyIgnoredGetters);
+    throwForSettersWithJsonIgnore(ignoredSetters);
 
+    List<MissingBeanMethod> missingBeanMethods = new ArrayList<>();
     // Verify that each property has a matching read and write method.
     for (PropertyDescriptor propertyDescriptor : descriptors) {
-      Preconditions.checkArgument(
-          IGNORED_METHODS.contains(propertyDescriptor.getWriteMethod())
-          || propertyDescriptor.getReadMethod() != null,
-          "Expected getter for property [%s] of type [%s] on [%s].",
-          propertyDescriptor.getName(),
-          propertyDescriptor.getPropertyType().getName(),
-          iface.getName());
-      Preconditions.checkArgument(
-          IGNORED_METHODS.contains(propertyDescriptor.getReadMethod())
-          || propertyDescriptor.getWriteMethod() != null,
-          "Expected setter for property [%s] of type [%s] on [%s].",
-          propertyDescriptor.getName(),
-          propertyDescriptor.getPropertyType().getName(),
-          iface.getName());
+      if (!(IGNORED_METHODS.contains(propertyDescriptor.getWriteMethod())
+        || propertyDescriptor.getReadMethod() != null)) {
+        MissingBeanMethod method = new MissingBeanMethod();
+        method.property = propertyDescriptor;
+        method.methodType = "getter";
+        missingBeanMethods.add(method);
+        continue;
+      }
+      if (!(IGNORED_METHODS.contains(propertyDescriptor.getReadMethod())
+              || propertyDescriptor.getWriteMethod() != null)) {
+        MissingBeanMethod method = new MissingBeanMethod();
+        method.property = propertyDescriptor;
+        method.methodType = "setter";
+        missingBeanMethods.add(method);
+        continue;
+      }
       methods.add(propertyDescriptor.getReadMethod());
       methods.add(propertyDescriptor.getWriteMethod());
     }
+    throwForMissingBeanMethod(iface, missingBeanMethods);
 
     // Verify that no additional methods are on an interface that aren't a bean property.
     SortedSet<Method> unknownMethods = new TreeSet<>(MethodComparator.INSTANCE);
@@ -1098,6 +1154,109 @@ public class PipelineOptionsFactory {
         iface.getName());
 
     return descriptors;
+  }
+
+  private static class MultipleDefinitions {
+    private Method method;
+    private SortedSet<Method> collidingMethods;
+  }
+
+  private static void throwForMultipleDefinitions(
+      Class<? extends PipelineOptions> iface, List<MultipleDefinitions> definitions) {
+    if (definitions.size() == 1) {
+      MultipleDefinitions errDef = definitions.get(0);
+      throw new IllegalArgumentException(String.format(
+          "Method [%s] has multiple definitions %s with different return types for [%s].",
+          errDef.method.getName(), errDef.collidingMethods, iface.getName()));
+    } else if (definitions.size() > 1) {
+      StringBuilder errorBuilder = new StringBuilder(String.format(
+          "Interface [%s] has Methods with multiple definitions with different return types:",
+          iface.getName()));
+      for (MultipleDefinitions errDef : definitions) {
+        errorBuilder.append(String.format(
+            "%n  - Method [%s] has multiple definitions %s",
+            errDef.method.getName(),
+            errDef.collidingMethods));
+      }
+      throw new IllegalArgumentException(errorBuilder.toString());
+    }
+  }
+
+  private static class InconsistentlyIgnoredGetters {
+    PropertyDescriptor descriptor;
+    Iterable<String> getterClassNames;
+    Iterable<String> gettersWithJsonIgnoreClassNames;
+  }
+
+  private static void throwForGettersWithInconsistentJsonIgnore(
+      List<InconsistentlyIgnoredGetters> getters) {
+    if (getters.size() == 1) {
+      InconsistentlyIgnoredGetters getter = getters.get(0);
+      throw new IllegalArgumentException(String.format(
+          "Expected getter for property [%s] to be marked with @JsonIgnore on all %s, "
+          + "found only on %s",
+          getter.descriptor.getName(), getter.getterClassNames,
+          getter.gettersWithJsonIgnoreClassNames));
+    } else if (getters.size() > 1) {
+      StringBuilder errorBuilder =
+          new StringBuilder("Property getters are inconsistently marked with @JsonIgnore:");
+      for (InconsistentlyIgnoredGetters getter : getters) {
+        errorBuilder.append(
+            String.format("%n  - Expected for property [%s] to be marked on all %s, "
+                + "found only on %s",
+                getter.descriptor.getName(), getter.getterClassNames,
+                getter.gettersWithJsonIgnoreClassNames));
+      }
+      throw new IllegalArgumentException(errorBuilder.toString());
+    }
+  }
+
+  private static class IgnoredSetter {
+    PropertyDescriptor descriptor;
+    Iterable<String> settersWithJsonIgnoreClassNames;
+  }
+
+  private static void throwForSettersWithJsonIgnore(List<IgnoredSetter> setters) {
+    if (setters.size() == 1) {
+      IgnoredSetter setter = setters.get(0);
+      throw new IllegalArgumentException(
+          String.format("Expected setter for property [%s] to not be marked with @JsonIgnore on %s",
+              setter.descriptor.getName(), setter.settersWithJsonIgnoreClassNames));
+    } else if (setters.size() > 1) {
+      StringBuilder builder = new StringBuilder("Found setters marked with @JsonIgnore:");
+      for (IgnoredSetter setter : setters) {
+        builder.append(
+            String.format("%n  - Setter for property [%s] should not be marked with @JsonIgnore "
+                + "on %s",
+                setter.descriptor.getName(), setter.settersWithJsonIgnoreClassNames));
+      }
+      throw new IllegalArgumentException(builder.toString());
+    }
+  }
+
+  private static class MissingBeanMethod {
+    String methodType;
+    PropertyDescriptor property;
+  }
+
+  private static void throwForMissingBeanMethod(
+      Class<? extends PipelineOptions> iface, List<MissingBeanMethod> missingBeanMethods) {
+    if (missingBeanMethods.size() == 1) {
+      MissingBeanMethod missingBeanMethod = missingBeanMethods.get(0);
+      throw new IllegalArgumentException(
+          String.format("Expected %s for property [%s] of type [%s] on [%s].",
+              missingBeanMethod.methodType, missingBeanMethod.property.getName(),
+              missingBeanMethod.property.getPropertyType().getName(), iface.getName()));
+    } else if (missingBeanMethods.size() > 1) {
+      StringBuilder builder = new StringBuilder(String.format(
+          "Found missing property methods on [%s]:", iface.getName()));
+      for (MissingBeanMethod method : missingBeanMethods) {
+        builder.append(
+            String.format("%n  - Expected %s for property [%s] of type [%s]", method.methodType,
+                method.property.getName(), method.property.getPropertyType().getName()));
+      }
+      throw new IllegalArgumentException(builder.toString());
+    }
   }
 
   /** A {@link Comparator} that uses the classes name to compare them. */

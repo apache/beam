@@ -37,6 +37,7 @@ import com.google.common.collect.ListMultimap;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -130,6 +131,23 @@ public class PipelineOptionsFactoryTest {
     PipelineOptionsFactory.as(MissingGetter.class);
   }
 
+  /** A test interface missing multiple getters. */
+  public static interface MissingMultipleGetters extends MissingGetter {
+    void setOtherObject(Object value);
+  }
+
+  @Test
+  public void testMultipleMissingGettersThrows() {
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(
+        "missing property methods on [com.google.cloud.dataflow.sdk.options."
+        + "PipelineOptionsFactoryTest$MissingMultipleGetters]");
+    expectedException.expectMessage("getter for property [object] of type [java.lang.Object]");
+    expectedException.expectMessage("getter for property [otherObject] of type [java.lang.Object]");
+
+    PipelineOptionsFactory.as(MissingMultipleGetters.class);
+  }
+
   /** A test interface missing a setter. */
   public static interface MissingSetter extends PipelineOptions {
     Object getObject();
@@ -143,6 +161,40 @@ public class PipelineOptionsFactoryTest {
         + "[com.google.cloud.dataflow.sdk.options.PipelineOptionsFactoryTest$MissingSetter].");
 
     PipelineOptionsFactory.as(MissingSetter.class);
+  }
+
+  /** A test interface missing multiple setters. */
+  public static interface MissingMultipleSetters extends MissingSetter {
+    Object getOtherObject();
+  }
+
+  @Test
+  public void testMissingMultipleSettersThrows() {
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(
+        "missing property methods on [com.google.cloud.dataflow.sdk.options."
+        + "PipelineOptionsFactoryTest$MissingMultipleSetters]");
+    expectedException.expectMessage("setter for property [object] of type [java.lang.Object]");
+    expectedException.expectMessage("setter for property [otherObject] of type [java.lang.Object]");
+
+    PipelineOptionsFactory.as(MissingMultipleSetters.class);
+  }
+
+  /** A test interface missing a setter and a getter. */
+  public static interface MissingGettersAndSetters extends MissingGetter {
+    Object getOtherObject();
+  }
+
+  @Test
+  public void testMissingGettersAndSettersThrows() {
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(
+        "missing property methods on [com.google.cloud.dataflow.sdk.options."
+        + "PipelineOptionsFactoryTest$MissingGettersAndSetters]");
+    expectedException.expectMessage("getter for property [object] of type [java.lang.Object]");
+    expectedException.expectMessage("setter for property [otherObject] of type [java.lang.Object]");
+
+    PipelineOptionsFactory.as(MissingGettersAndSetters.class);
   }
 
   /** A test interface with a type mismatch between the getter and setter. */
@@ -159,6 +211,24 @@ public class PipelineOptionsFactoryTest {
         + "[boolean] whereas setter is of type [int].");
 
     PipelineOptionsFactory.as(GetterSetterTypeMismatch.class);
+  }
+
+  /** A test interface with multiple type mismatches between getters and setters. */
+  public static interface MultiGetterSetterTypeMismatch extends GetterSetterTypeMismatch {
+    long getOther();
+    void setOther(String other);
+  }
+
+  @Test
+  public void testMultiGetterSetterTypeMismatchThrows() {
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("Type mismatches between getters and setters detected:");
+    expectedException.expectMessage("Property [value]: Getter is of type "
+        + "[boolean] whereas setter is of type [int].");
+    expectedException.expectMessage("Property [other]: Getter is of type [long] "
+        + "whereas setter is of type [java.lang.String].");
+
+    PipelineOptionsFactory.as(MultiGetterSetterTypeMismatch.class);
   }
 
   /** A test interface representing a composite interface. */
@@ -206,6 +276,48 @@ public class PipelineOptionsFactoryTest {
     PipelineOptionsFactory.as(ReturnTypeConflict.class);
   }
 
+  /** An interface to provide multiple methods with return type conflicts. */
+  public static interface MultiReturnTypeConflictBase extends CombinedObject {
+    Object getOther();
+    void setOther(Object object);
+  }
+
+  /** A test interface that has multiple conflicting return types with its parent. */
+  public static interface MultiReturnTypeConflict extends MultiReturnTypeConflictBase {
+    @Override
+    String getObject();
+    void setObject(String value);
+
+    @Override
+    Long getOther();
+    void setOther(Long other);
+  }
+
+  @Test
+  public void testMultipleReturnTypeConflictsThrows() throws Exception {
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("[com.google.cloud.dataflow.sdk.options."
+        + "PipelineOptionsFactoryTest$MultiReturnTypeConflict]");
+    expectedException.expectMessage(
+        "Methods with multiple definitions with different return types");
+    expectedException.expectMessage("Method [getObject] has multiple definitions");
+    expectedException.expectMessage("public abstract java.lang.Object "
+        + "com.google.cloud.dataflow.sdk.options.PipelineOptionsFactoryTest$"
+        + "MissingSetter.getObject()");
+    expectedException.expectMessage(
+        "public abstract java.lang.String com.google.cloud.dataflow.sdk.options."
+        + "PipelineOptionsFactoryTest$MultiReturnTypeConflict.getObject()");
+    expectedException.expectMessage("Method [getOther] has multiple definitions");
+    expectedException.expectMessage("public abstract java.lang.Object "
+        + "com.google.cloud.dataflow.sdk.options.PipelineOptionsFactoryTest$"
+        + "MultiReturnTypeConflictBase.getOther()");
+    expectedException.expectMessage(
+        "public abstract java.lang.Long com.google.cloud.dataflow.sdk.options."
+        + "PipelineOptionsFactoryTest$MultiReturnTypeConflict.getOther()");
+
+    PipelineOptionsFactory.as(MultiReturnTypeConflict.class);
+  }
+
   /** Test interface that has {@link JsonIgnore @JsonIgnore} on a setter for a property. */
   public static interface SetterWithJsonIgnore extends PipelineOptions {
     String getValue();
@@ -220,6 +332,27 @@ public class PipelineOptionsFactoryTest {
         "Expected setter for property [value] to not be marked with @JsonIgnore on [com."
         + "google.cloud.dataflow.sdk.options.PipelineOptionsFactoryTest$SetterWithJsonIgnore]");
     PipelineOptionsFactory.as(SetterWithJsonIgnore.class);
+  }
+
+  /** Test interface that has {@link JsonIgnore @JsonIgnore} on multiple setters. */
+  public static interface MultiSetterWithJsonIgnore extends SetterWithJsonIgnore {
+    Integer getOther();
+    @JsonIgnore
+    void setOther(Integer other);
+  }
+
+  @Test
+  public void testMultipleSettersAnnotatedWithJsonIgnore() throws Exception {
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("Found setters marked with @JsonIgnore:");
+    expectedException.expectMessage(
+        "property [other] should not be marked with @JsonIgnore on [com"
+        + ".google.cloud.dataflow.sdk.options."
+        + "PipelineOptionsFactoryTest$MultiSetterWithJsonIgnore]");
+    expectedException.expectMessage(
+        "property [value] should not be marked with @JsonIgnore on [com."
+        + "google.cloud.dataflow.sdk.options.PipelineOptionsFactoryTest$SetterWithJsonIgnore]");
+    PipelineOptionsFactory.as(MultiSetterWithJsonIgnore.class);
   }
 
   /**
@@ -247,6 +380,61 @@ public class PipelineOptionsFactoryTest {
 
     // When we attempt to convert, we should error at this moment.
     options.as(CombinedObject.class);
+  }
+
+  private static interface MultiGetters extends PipelineOptions {
+    Object getObject();
+    void setObject(Object value);
+
+    @JsonIgnore
+    Integer getOther();
+    void setOther(Integer value);
+
+    Void getConsistent();
+    void setConsistent(Void consistent);
+  }
+
+  private static interface MultipleGettersWithInconsistentJsonIgnore extends PipelineOptions {
+    @JsonIgnore
+    Object getObject();
+    void setObject(Object value);
+
+    Integer getOther();
+    void setOther(Integer value);
+
+    Void getConsistent();
+    void setConsistent(Void consistent);
+  }
+
+  @Test
+  public void testMultipleGettersWithInconsistentJsonIgnore() {
+    // Initial construction is valid.
+    MultiGetters options = PipelineOptionsFactory.as(MultiGetters.class);
+
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("Property getters are inconsistently marked with @JsonIgnore:");
+    expectedException.expectMessage(
+        "property [object] to be marked on all");
+    expectedException.expectMessage("found only on [com.google.cloud.dataflow.sdk.options."
+        + "PipelineOptionsFactoryTest$MultiGetters]");
+    expectedException.expectMessage(
+        "property [other] to be marked on all");
+    expectedException.expectMessage("found only on [com.google.cloud.dataflow.sdk.options."
+        + "PipelineOptionsFactoryTest$MultipleGettersWithInconsistentJsonIgnore]");
+
+    expectedException.expectMessage(Matchers.anyOf(
+        containsString(java.util.Arrays.toString(new String[]
+            {"com.google.cloud.dataflow.sdk.options."
+                + "PipelineOptionsFactoryTest$MultipleGettersWithInconsistentJsonIgnore",
+                "com.google.cloud.dataflow.sdk.options.PipelineOptionsFactoryTest$MultiGetters"})),
+        containsString(java.util.Arrays.toString(new String[]
+            {"com.google.cloud.dataflow.sdk.options.PipelineOptionsFactoryTest$MultiGetters",
+                "com.google.cloud.dataflow.sdk.options."
+                + "PipelineOptionsFactoryTest$MultipleGettersWithInconsistentJsonIgnore"}))));
+    expectedException.expectMessage(not(containsString("property [consistent]")));
+
+    // When we attempt to convert, we should error immediately
+    options.as(MultipleGettersWithInconsistentJsonIgnore.class);
   }
 
   @Test
