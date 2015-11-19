@@ -783,7 +783,11 @@ public class StreamingDataflowWorkerTest {
         ByteString.copyFromUtf8(window + "+shold");
     String stateFamily = "MergeWindows";
     ByteString bufferData = ByteString.copyFromUtf8("\000data0");
-    ByteString outputData = ByteString.copyFromUtf8("\000\000\000\001\005data0");
+    // Encoded form for Iterable<String>: -1, true, 'data0', false
+    ByteString outputData = ByteString.copyFrom(
+        new byte[] { (byte) 0xff, (byte) 0xff, (byte) 0xff, (byte) 0xff,
+                     0x01, 0x05, 0x64, 0x61, 0x74, 0x61, 0x30, 0x00 });
+
     // These values are not essential to the change detector test
     long timerTimestamp = 999000L;
 
@@ -881,8 +885,8 @@ public class StreamingDataflowWorkerTest {
         actualOutput.getOutputMessages(0).getBundles(0).getKey().toStringUtf8());
     assertEquals(0,
         actualOutput.getOutputMessages(0).getBundles(0).getMessages(0).getTimestamp());
-    assertEquals(
-        outputData, actualOutput.getOutputMessages(0).getBundles(0).getMessages(0).getData());
+    assertEquals(outputData,
+        actualOutput.getOutputMessages(0).getBundles(0).getMessages(0).getData());
 
     ByteString metadata =
         actualOutput.getOutputMessages(0).getBundles(0).getMessages(0).getMetadata();

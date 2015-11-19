@@ -31,7 +31,6 @@ import java.util.Objects;
  * and for running tests that need state.
  */
 public class InMemoryStateInternals extends MergingStateInternals {
-
   private interface InMemoryState {
     boolean isEmptyForTesting();
   }
@@ -40,7 +39,6 @@ public class InMemoryStateInternals extends MergingStateInternals {
     @Override
     protected StateBinder binderForNamespace(final StateNamespace namespace) {
       return new StateBinder() {
-
         @Override
         public <T> ValueState<T> bindValue(StateTag<ValueState<T>> address, Coder<T> coder) {
           return new InMemoryValue<T>();
@@ -52,11 +50,10 @@ public class InMemoryStateInternals extends MergingStateInternals {
         }
 
         @Override
-        public <InputT, AccumT, OutputT>
-        CombiningValueStateInternal<InputT, AccumT, OutputT> bindCombiningValue(
-            StateTag<CombiningValueStateInternal<InputT, AccumT, OutputT>> address,
-            Coder<AccumT> accumCoder,
-            final CombineFn<InputT, AccumT, OutputT> combineFn) {
+        public <InputT, AccumT, OutputT> CombiningValueStateInternal<InputT, AccumT, OutputT>
+            bindCombiningValue(
+                StateTag<CombiningValueStateInternal<InputT, AccumT, OutputT>> address,
+                Coder<AccumT> accumCoder, final CombineFn<InputT, AccumT, OutputT> combineFn) {
           return new InMemoryCombiningValue<InputT, AccumT, OutputT>(combineFn);
         }
 
@@ -115,13 +112,12 @@ public class InMemoryStateInternals extends MergingStateInternals {
 
     @Override
     public boolean isEmptyForTesting() {
-       return isCleared;
+      return isCleared;
     }
   }
 
   private final class WatermarkStateInternalImplementation
       implements WatermarkStateInternal, InMemoryState {
-
     private Instant minimumHold = null;
 
     @Override
@@ -150,7 +146,7 @@ public class InMemoryStateInternals extends MergingStateInternals {
 
     @Override
     public boolean isEmptyForTesting() {
-       return minimumHold == null;
+      return minimumHold == null;
     }
 
     @Override
@@ -171,7 +167,6 @@ public class InMemoryStateInternals extends MergingStateInternals {
 
   private final class InMemoryCombiningValue<InputT, AccumT, OutputT>
       implements CombiningValueStateInternal<InputT, AccumT, OutputT>, InMemoryState {
-
     private boolean isCleared = true;
     private final CombineFn<InputT, AccumT, OutputT> combineFn;
     private AccumT accum;
@@ -233,18 +228,23 @@ public class InMemoryStateInternals extends MergingStateInternals {
 
     @Override
     public boolean isEmptyForTesting() {
-       return isCleared;
+      return isCleared;
     }
   }
 
   private static final class InMemoryBag<T> implements BagState<T>, InMemoryState {
-    private final List<T> contents = new ArrayList<>();
+    private List<T> contents = new ArrayList<>();
 
     @Override
     public void clear() {
       // Even though we're clearing we can't remove this from the in-memory state map, since
       // other users may already have a handle on this Bag.
-      contents.clear();
+      // The result of get/read below must be stable for the lifetime of the bundle within which it
+      // was generated. In batch and direct runners the bundle lifetime can be
+      // greater than the window lifetime, in which case this method can be called while
+      // the result is still in use. We protect against this by hot-swapping instead of
+      // clearing the contents.
+      contents = new ArrayList<>();
     }
 
     @Override
@@ -264,7 +264,7 @@ public class InMemoryStateInternals extends MergingStateInternals {
 
     @Override
     public boolean isEmptyForTesting() {
-       return contents.isEmpty();
+      return contents.isEmpty();
     }
 
     @Override

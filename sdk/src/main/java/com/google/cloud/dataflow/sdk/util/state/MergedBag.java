@@ -27,7 +27,6 @@ import java.util.List;
  * @param <T> the type of elements in the bag
  */
 class MergedBag<T> implements BagState<T> {
-
   private final Collection<BagState<T>> sources;
   private final BagState<T> result;
 
@@ -61,12 +60,11 @@ class MergedBag<T> implements BagState<T> {
     return new StateContents<Iterable<T>>() {
       @Override
       public Iterable<T> read() {
-        // Can't use FluentIterables#toList because some values may be legitimately null.
-        List<T> result = new ArrayList<>();
+        List<Iterable<T>> allIterables = new ArrayList<>();
         for (StateContents<Iterable<T>> future : futures) {
-          Iterables.addAll(result, future.read());
+          allIterables.add(future.read());
         }
-        return result;
+        return Iterables.concat(allIterables);
       }
     };
   }
