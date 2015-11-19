@@ -28,10 +28,14 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
+import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
+import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
+import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
+import com.google.cloud.dataflow.sdk.transforms.windowing.AfterWatermark;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.Transport;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
@@ -43,7 +47,6 @@ import com.google.common.base.Throwables;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,24 +57,24 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
 
 /**
- * Read and Write {@link PTransform}s for Pub/Sub streams. These transforms create
- * and consume unbounded {@link com.google.cloud.dataflow.sdk.values.PCollection}s.
+ * Read and Write {@link PTransform}s for Cloud Pub/Sub streams. These transforms create
+ * and consume unbounded {@link PCollection PCollections}.
  *
- * <p><h3>Permissions</h3>
- * Permission requirements depend on the
- * {@link com.google.cloud.dataflow.sdk.runners.PipelineRunner PipelineRunner} that is
- * used to execute the Dataflow job. Please refer to the documentation of corresponding
- * {@code PipelineRunner}s for more details.
+ * <h3>Permissions</h3>
+ * <p>Permission requirements depend on the {@link PipelineRunner} that is used to execute the
+ * Dataflow job. Please refer to the documentation of corresponding
+ * {@link PipelineRunner PipelineRunners} for more details.
  */
 public class PubsubIO {
   private static final Logger LOG = LoggerFactory.getLogger(PubsubIO.class);
+
+  /** The default {@link Coder} used to translate to/from Cloud Pub/Sub messages. */
   public static final Coder<String> DEFAULT_PUBSUB_CODER = StringUtf8Coder.of();
 
   /**
@@ -86,17 +89,14 @@ public class PubsubIO {
   private static final Pattern SUBSCRIPTION_REGEXP =
       Pattern.compile("projects/([^/]+)/subscriptions/(.+)");
 
-  private static final Pattern TOPIC_REGEXP =
-      Pattern.compile("projects/([^/]+)/topics/(.+)");
+  private static final Pattern TOPIC_REGEXP = Pattern.compile("projects/([^/]+)/topics/(.+)");
 
   private static final Pattern V1BETA1_SUBSCRIPTION_REGEXP =
       Pattern.compile("/subscriptions/([^/]+)/(.+)");
 
-  private static final Pattern V1BETA1_TOPIC_REGEXP =
-      Pattern.compile("/topics/([^/]+)/(.+)");
+  private static final Pattern V1BETA1_TOPIC_REGEXP = Pattern.compile("/topics/([^/]+)/(.+)");
 
-  private static final Pattern PUBSUB_NAME_REGEXP =
-      Pattern.compile("[a-zA-Z][-._~%+a-zA-Z0-9]+");
+  private static final Pattern PUBSUB_NAME_REGEXP = Pattern.compile("[a-zA-Z][-._~%+a-zA-Z0-9]+");
 
   private static final int PUBSUB_NAME_MAX_LENGTH = 255;
 
@@ -119,20 +119,18 @@ public class PubsubIO {
     }
 
     if (name.startsWith("goog")) {
-      throw new IllegalArgumentException(
-          "Pubsub object name cannot start with goog: " + name);
+      throw new IllegalArgumentException("Pubsub object name cannot start with goog: " + name);
     }
 
     Matcher match = PUBSUB_NAME_REGEXP.matcher(name);
     if (!match.matches()) {
-      throw new IllegalArgumentException(
-          "Illegal Pubsub object name specified: " + name
+      throw new IllegalArgumentException("Illegal Pubsub object name specified: " + name
           + " Please see Javadoc for naming rules.");
     }
   }
 
   /**
-   * Class representing a Pubsub Subscription.
+   * Class representing a Cloud Pub/Sub Subscription.
    */
   public static class PubsubSubscription implements Serializable {
     private enum Type { NORMAL, FAKE }
@@ -147,6 +145,23 @@ public class PubsubIO {
       this.subscription = subscription;
     }
 
+    /**
+     * Creates a class representing a Pub/Sub subscription from the specified subscription path.
+     *
+     * <p>Cloud Pub/Sub subscription names should be of the form
+     * {@code projects/<project>/subscriptions/<subscription>}, where {@code <project>} is the name
+     * of the project the subscription belongs to. The {@code <subscription>} component must comply
+     * with the following requirements:
+     *
+     * <ul>
+     * <li>Can only contain lowercase letters, numbers, dashes ('-'), underscores ('_') and periods
+     * ('.').</li>
+     * <li>Must be between 3 and 255 characters.</li>
+     * <li>Must begin with a letter.</li>
+     * <li>Must end with a letter or a number.</li>
+     * <li>Cannot begin with {@code 'goog'} prefix.</li>
+     * </ul>
+     */
     public static PubsubSubscription fromPath(String path) {
       if (path.startsWith(SUBSCRIPTION_RANDOM_TEST_PREFIX)
           || path.startsWith(SUBSCRIPTION_STARTING_SIGNAL)) {
@@ -164,8 +179,7 @@ public class PubsubIO {
       } else {
         Matcher match = SUBSCRIPTION_REGEXP.matcher(path);
         if (!match.matches()) {
-          throw new IllegalArgumentException(
-              "Pubsub subscription is not in "
+          throw new IllegalArgumentException("Pubsub subscription is not in "
               + "projects/<project_id>/subscriptions/<subscription_name> format: " + path);
         }
         projectName = match.group(1);
@@ -177,6 +191,13 @@ public class PubsubIO {
       return new PubsubSubscription(Type.NORMAL, projectName, subscriptionName);
     }
 
+    /**
+     * Returns the string representation of this subscription as a path used in the Cloud Pub/Sub
+     * v1beta1 API.
+     *
+     * @deprecated the v1beta1 API for Cloud Pub/Sub is deprecated.
+     */
+    @Deprecated
     public String asV1Beta1Path() {
       if (type == Type.NORMAL) {
         return "/subscriptions/" + project + "/" + subscription;
@@ -185,7 +206,26 @@ public class PubsubIO {
       }
     }
 
+    /**
+     * Returns the string representation of this subscription as a path used in the Cloud Pub/Sub
+     * v1beta2 API.
+     *
+     * @deprecated the v1beta2 API for Cloud Pub/Sub is deprecated.
+     */
+    @Deprecated
     public String asV1Beta2Path() {
+      if (type == Type.NORMAL) {
+        return "projects/" + project + "/subscriptions/" + subscription;
+      } else {
+        return subscription;
+      }
+    }
+
+    /**
+     * Returns the string representation of this subscription as a path used in the Cloud Pub/Sub
+     * API.
+     */
+    public String asPath() {
       if (type == Type.NORMAL) {
         return "projects/" + project + "/subscriptions/" + subscription;
       } else {
@@ -195,7 +235,7 @@ public class PubsubIO {
   }
 
   /**
-   * Class representing a Pubsub Topic.
+   * Class representing a Cloud Pub/Sub Topic.
    */
   public static class PubsubTopic implements Serializable {
     private enum Type { NORMAL, FAKE }
@@ -204,12 +244,29 @@ public class PubsubIO {
     private final String project;
     private final String topic;
 
-    public PubsubTopic(Type type, String project, String topic) {
+    private PubsubTopic(Type type, String project, String topic) {
       this.type = type;
       this.project = project;
       this.topic = topic;
     }
 
+    /**
+     * Creates a class representing a Cloud Pub/Sub topic from the specified topic path.
+     *
+     * <p>Cloud Pub/Sub topic names should be of the form
+     * {@code /topics/<project>/<topic>}, where {@code <project>} is the name of
+     * the publishing project. The {@code <topic>} component must comply with
+     * the following requirements:
+     *
+     * <ul>
+     * <li>Can only contain lowercase letters, numbers, dashes ('-'), underscores ('_') and periods
+     * ('.').</li>
+     * <li>Must be between 3 and 255 characters.</li>
+     * <li>Must begin with a letter.</li>
+     * <li>Must end with a letter or a number.</li>
+     * <li>Cannot begin with 'goog' prefix.</li>
+     * </ul>
+     */
     public static PubsubTopic fromPath(String path) {
       if (path.equals(TOPIC_DEV_NULL_TEST_NAME)) {
         return new PubsubTopic(Type.FAKE, "", path);
@@ -227,8 +284,7 @@ public class PubsubIO {
         Matcher match = TOPIC_REGEXP.matcher(path);
         if (!match.matches()) {
           throw new IllegalArgumentException(
-              "Pubsub topic is not in projects/<project_id>/topics/<topic_name> format: "
-              + path);
+              "Pubsub topic is not in projects/<project_id>/topics/<topic_name> format: " + path);
         }
         projectName = match.group(1);
         topicName = match.group(2);
@@ -239,6 +295,13 @@ public class PubsubIO {
       return new PubsubTopic(Type.NORMAL, projectName, topicName);
     }
 
+    /**
+     * Returns the string representation of this topic as a path used in the Cloud Pub/Sub
+     * v1beta1 API.
+     *
+     * @deprecated the v1beta1 API for Cloud Pub/Sub is deprecated.
+     */
+    @Deprecated
     public String asV1Beta1Path() {
       if (type == Type.NORMAL) {
         return "/topics/" + project + "/" + topic;
@@ -247,7 +310,26 @@ public class PubsubIO {
       }
     }
 
+    /**
+     * Returns the string representation of this topic as a path used in the Cloud Pub/Sub
+     * v1beta2 API.
+     *
+     * @deprecated the v1beta2 API for Cloud Pub/Sub is deprecated.
+     */
+    @Deprecated
     public String asV1Beta2Path() {
+      if (type == Type.NORMAL) {
+        return "projects/" + project + "/topics/" + topic;
+      } else {
+        return topic;
+      }
+    }
+
+    /**
+     * Returns the string representation of this topic as a path used in the Cloud Pub/Sub
+     * API.
+     */
+    public String asPath() {
       if (type == Type.NORMAL) {
         return "projects/" + project + "/topics/" + topic;
       } else {
@@ -257,36 +339,31 @@ public class PubsubIO {
   }
 
   /**
-   * A {@link PTransform} that continuously reads from a Pubsub stream and
-   * returns a {@code PCollection<String>} containing the items from
+   * A {@link PTransform} that continuously reads from a Cloud Pub/Sub stream and
+   * returns a {@link PCollection} of {@link String Strings} containing the items from
    * the stream.
    *
-   * <p>When running with a runner that only supports bounded {@code PCollection}s
-   * (such as DirectPipelineRunner or DataflowPipelineRunner without --streaming), only a
-   * bounded portion of the input Pubsub stream can be processed.  As such, either
-   * {@link Bound#maxNumRecords} or {@link Bound#maxReadTime} must be set.
+   * <p>When running with a {@link PipelineRunner} that only supports bounded
+   * {@link PCollection PCollections} (such as {@link DirectPipelineRunner} or
+   * {@link DataflowPipelineRunner} without {@code --streaming}), only a bounded portion of the
+   * input Pub/Sub stream can be processed. As such, either {@link Bound#maxNumRecords(int)} or
+   * {@link Bound#maxReadTime(Duration)} must be set.
    */
   public static class Read {
+    /**
+     * Creates and returns a transform for reading from Cloud Pub/Sub with the specified transform
+     * name.
+     */
     public static Bound<String> named(String name) {
       return new Bound<>(DEFAULT_PUBSUB_CODER).named(name);
     }
 
     /**
-     * Creates and returns a PubsubIO.Read PTransform for reading from
-     * a Pubsub topic with the specified publisher topic. Format for
-     * Cloud Pubsub topic names should be of the form
-     * {@code /topics/<project>/<topic>}, where {@code <project>} is the name of
-     * the publishing project. The {@code <topic>} component must comply with
-     * the below requirements.
+     * Creates and returns a transform for reading from a Cloud Pub/Sub topic. Mutually exclusive
+     * with {@link #subscription(String)}.
      *
-     * <ul>
-     * <li>Can only contain lowercase letters, numbers, dashes ('-'), underscores ('_') and periods
-     * ('.').</li>
-     * <li>Must be between 3 and 255 characters.</li>
-     * <li>Must begin with a letter.</li>
-     * <li>Must end with a letter or a number.</li>
-     * <li>Cannot begin with 'goog' prefix.</li>
-     * </ul>
+     * <p>See {@link PubsubIO.PubsubTopic#fromPath(String)} for more details on the format
+     * of the {@code topic} string.
      *
      * <p>Dataflow will start reading data published on this topic from the time the pipeline is
      * started. Any data published on the topic before the pipeline is started will not be read by
@@ -297,42 +374,31 @@ public class PubsubIO {
     }
 
     /**
-     * Creates and returns a PubsubIO.Read PTransform for reading from
-     * a specific Pubsub subscription. Mutually exclusive with
-     * PubsubIO.Read.topic().
-     * Cloud Pubsub subscription names should be of the form
-     * {@code projects/<project>/subscriptions/<subscription>},
-     * where {@code <project>} is the name of the project the subscription belongs to.
-     * The {@code <subscription>} component must comply with the below requirements.
+     * Creates and returns a transform for reading from a specific Cloud Pub/Sub subscription.
+     * Mutually exclusive with {@link #topic(String)}.
      *
-     * <ul>
-     * <li>Can only contain lowercase letters, numbers, dashes ('-'), underscores ('_') and periods
-     * ('.').</li>
-     * <li>Must be between 3 and 255 characters.</li>
-     * <li>Must begin with a letter.</li>
-     * <li>Must end with a letter or a number.</li>
-     * <li>Cannot begin with 'goog' prefix.</li>
-     * </ul>
+     * <p>See {@link PubsubIO.PubsubSubscription#fromPath(String)} for more details on the format
+     * of the {@code subscription} string.
      */
     public static Bound<String> subscription(String subscription) {
       return new Bound<>(DEFAULT_PUBSUB_CODER).subscription(subscription);
     }
 
     /**
-     * Creates and returns a PubsubIO.Read PTransform where record timestamps are expected
-     * to be provided using the PubSub labeling API. The {@code <timestampLabel>} parameter
-     * specifies the label name. The label value sent to PubsSub is a numerical value representing
-     * the number of milliseconds since the Unix epoch. For example, if using the joda time classes,
-     * org.joda.time.Instant.getMillis() returns the correct value for this label.
+     * Creates and returns a transform reading from Cloud Pub/Sub where record timestamps are
+     * expected to be provided as Pub/Sub message attributes. The {@code timestampLabel}
+     * parameter specifies the name of the attribute that contains the timestamp. The value of the
+     * attribute should be a numerical value representing the number of milliseconds since the Unix
+     * epoch. For example, if using the Joda time classes,
+     * {@link Instant#getMillis()} returns the correct value for this label.
      *
-     * <p>If {@code <timestampLabel>} is not provided, the system will generate record timestamps
+     * <p>If {@code timestampLabel} is not provided, the system will generate record timestamps
      * the first time it sees each record. All windowing will be done relative to these timestamps.
      *
-     * <p>By default windows are emitted based on an estimate of when this source is likely
+     * <p>By default, windows are emitted based on an estimate of when this source is likely
      * done producing data for a given timestamp (referred to as the Watermark; see
-     * {@link com.google.cloud.dataflow.sdk.transforms.windowing.AfterWatermark} for more details).
-     * Any late data will be handled by the trigger specified with the windowing strategy -- by
-     * default it will be output immediately.
+     * {@link AfterWatermark} for more details). Any late data will be handled by the trigger
+     * specified with the windowing strategy &ndash; by default it will be output immediately.
      *
      * <p>Note that the system can guarantee that no late data will ever be seen when it assigns
      * timestamps by arrival time (i.e. {@code timestampLabel} is not provided).
@@ -342,22 +408,22 @@ public class PubsubIO {
     }
 
     /**
-     * Creates and returns a PubSubIO.Read PTransform where unique record identifiers are
-     * expected to be provided using the PubSub labeling API. The {@code <idLabel>} parameter
-     * specifies the label name. The label value sent to PubSub can be any string value that
-     * uniquely identifies this record.
+     * Creates and returns a transform for reading from Cloud Pub/Sub where unique record
+     * identifiers are expected to be provided as Pub/Sub message attributes. The {@code idLabel}
+     * parameter specifies the attribute name. The value of the attribute can be any string
+     * that uniquely identifies this record.
      *
-     * <p>If idLabel is not provided, Dataflow cannot guarantee that no duplicate data will be
-     * delivered on the PubSub stream. In this case,  deduplication of the stream will be
-     * stricly best effort.
+     * <p>If {@code idLabel} is not provided, Dataflow cannot guarantee that no duplicate data will
+     * be delivered on the Pub/Sub stream. In this case, deduplication of the stream will be
+     * strictly best effort.
      */
     public static Bound<String> idLabel(String idLabel) {
       return new Bound<>(DEFAULT_PUBSUB_CODER).idLabel(idLabel);
     }
 
-   /**
-     * Creates and returns a PubsubIO.Read PTransform that uses the given
-     * {@code Coder<T>} to decode PubSub record into a value of type {@code T}.
+    /**
+     * Creates and returns a transform for reading from Cloud Pub/Sub that uses the given
+     * {@link Coder} to decode Pub/Sub messages into a value of type {@code T}.
      *
      * <p>By default, uses {@link StringUtf8Coder}, which just
      * returns the text lines as Java strings.
@@ -370,60 +436,64 @@ public class PubsubIO {
     }
 
     /**
-     * Sets the maximum number of records that will be read from Pubsub.
+     * Creates and returns a transform for reading from Cloud Pub/Sub with a maximum number of
+     * records that will be read. The transform produces a <i>bounded</i> {@link PCollection}.
      *
-     * <p>Either this or {@link #maxReadTime} must be set for use as a bounded
-     * {@code PCollection}.
+     * <p>Either this option or {@link #maxReadTime(Duration)} must be set in order to create a
+     * bounded source.
      */
     public static Bound<String> maxNumRecords(int maxNumRecords) {
       return new Bound<>(DEFAULT_PUBSUB_CODER).maxNumRecords(maxNumRecords);
     }
 
     /**
-     * Sets the maximum duration during which records will be read from Pubsub.
+     * Creates and returns a transform for reading from Cloud Pub/Sub with a maximum number of
+     * duration during which records will be read.  The transform produces a <i>bounded</i>
+     * {@link PCollection}.
      *
-     * <p>Either this or {@link #maxNumRecords} must be set for use as a bounded
-     * {@code PCollection}.
+     * <p>Either this option or {@link #maxNumRecords(int)} must be set in order to create a bounded
+     * source.
      */
     public static Bound<String> maxReadTime(Duration maxReadTime) {
       return new Bound<>(DEFAULT_PUBSUB_CODER).maxReadTime(maxReadTime);
     }
 
     /**
-     * A {@link PTransform} that reads from a PubSub source and returns
-     * a unbounded PCollection containing the items from the stream.
+     * A {@link PTransform} that reads from a Cloud Pub/Sub source and returns
+     * a unbounded {@link PCollection} containing the items from the stream.
      */
     public static class Bound<T> extends PTransform<PInput, PCollection<T>> {
-      /** The Pubsub topic to read from. */
-      PubsubTopic topic;
-      /** The Pubsub subscription to read from. */
-      PubsubSubscription subscription;
-      /** The Pubsub label to read timestamps from. */
-      String timestampLabel;
-      /** The Pubsub label to read ids from. */
-      String idLabel;
-      /** The coder used to decode each record. */
-      @Nullable
-      final Coder<T> coder;
-      /** Stop after reading this many records. */
-      int maxNumRecords;
-      /** Stop after reading for this much time. */
-      Duration maxReadTime;
+      /** The Cloud Pub/Sub topic to read from. */
+      @Nullable private final PubsubTopic topic;
 
-      Bound(Coder<T> coder) {
-        this.coder = coder;
+      /** The Cloud Pub/Sub subscription to read from. */
+      @Nullable private final PubsubSubscription subscription;
+
+      /** The name of the message attribute to read timestamps from. */
+      @Nullable private final String timestampLabel;
+
+      /** The name of the message attribute to read unique message IDs from. */
+      @Nullable private final String idLabel;
+
+      /** The coder used to decode each record. */
+      @Nullable private final Coder<T> coder;
+
+      /** Stop after reading this many records. */
+      private final int maxNumRecords;
+
+      /** Stop after reading for this much time. */
+      @Nullable private final Duration maxReadTime;
+
+      private Bound(Coder<T> coder) {
+        this(null, null, null, null, coder, null, 0, null);
       }
 
-      Bound(String name, PubsubSubscription subscription, PubsubTopic topic, String timestampLabel,
-          Coder<T> coder, String idLabel,
-          int maxNumRecords, Duration maxReadTime) {
+      private Bound(String name, PubsubSubscription subscription, PubsubTopic topic,
+          String timestampLabel, Coder<T> coder, String idLabel, int maxNumRecords,
+          Duration maxReadTime) {
         super(name);
-        if (subscription != null) {
-          this.subscription = subscription;
-        }
-        if (topic != null) {
-          this.topic = topic;
-        }
+        this.subscription = subscription;
+        this.topic = topic;
         this.timestampLabel = timestampLabel;
         this.coder = coder;
         this.idLabel = idLabel;
@@ -432,21 +502,27 @@ public class PubsubIO {
       }
 
       /**
-       * Returns a new PubsubIO.Read PTransform that's like this one but with the given
-       * step name. Does not modify the object.
+       * Returns a transform that's like this one but with the given step name.
+       *
+       * <p>Does not modify this object.
        */
       public Bound<T> named(String name) {
-        return new Bound<>(name, subscription, topic, timestampLabel,
-            coder, idLabel, maxNumRecords, maxReadTime);
+        return new Bound<>(
+            name, subscription, topic, timestampLabel, coder, idLabel, maxNumRecords, maxReadTime);
       }
 
       /**
-       * Returns a new PubsubIO.Read PTransform that's like this one but reading from the
-       * given subscription. Does not modify the object.
+       * Returns a transform that's like this one but reading from the
+       * given subscription.
+       *
+       * <p>See {@link PubsubIO.PubsubSubscription#fromPath(String)} for more details on the format
+       * of the {@code subscription} string.
        *
        * <p>Multiple readers reading from the same subscription will each receive
-       * some arbirary portion of the data.  Most likely, separate readers should
+       * some arbitrary portion of the data.  Most likely, separate readers should
        * use their own subscriptions.
+       *
+       * <p>Does not modify this object.
        */
       public Bound<T> subscription(String subscription) {
         return new Bound<>(name, PubsubSubscription.fromPath(subscription), topic, timestampLabel,
@@ -454,77 +530,84 @@ public class PubsubIO {
       }
 
       /**
-       * Returns a new PubsubIO.Read PTransform that's like this one but reading from the
-       * give topic. Does not modify the object.
+       * Returns a transform that's like this one but that reads from the specified topic.
+       *
+       * <p>See {@link PubsubIO.PubsubTopic#fromPath(String)} for more details on the
+       * format of the {@code topic} string.
+       *
+       * <p>Does not modify this object.
        */
       public Bound<T> topic(String topic) {
-        return new Bound<>(name, subscription, PubsubTopic.fromPath(topic), timestampLabel,
-            coder, idLabel, maxNumRecords, maxReadTime);
+        return new Bound<>(name, subscription, PubsubTopic.fromPath(topic), timestampLabel, coder,
+            idLabel, maxNumRecords, maxReadTime);
       }
 
       /**
-       * Returns a new PubsubIO.Read PTransform that's like this one but reading timestamps
-       * from the given PubSub label. Does not modify the object.
+       * Returns a transform that's like this one but that reads message timestamps
+       * from the given message attribute. See {@link PubsubIO.Read#timestampLabel(String)} for
+       * more details on the format of the timestamp attribute.
+       *
+       * <p>Does not modify this object.
        */
       public Bound<T> timestampLabel(String timestampLabel) {
-        return new Bound<>(name, subscription, topic, timestampLabel, coder, idLabel,
-            maxNumRecords, maxReadTime);
+        return new Bound<>(
+            name, subscription, topic, timestampLabel, coder, idLabel, maxNumRecords, maxReadTime);
       }
 
       /**
-       * Returns a new PubsubIO.Read PTransform that's like this one but reading unique ids
-       * from the given PubSub label. Does not modify the object.
+       * Returns a transform that's like this one but that reads unique message IDs
+       * from the given message attribute. See {@link PubsubIO.Read#idLabel(String)} for more
+       * details on the format of the ID attribute.
+       *
+       * <p>Does not modify this object.
        */
       public Bound<T> idLabel(String idLabel) {
-        return new Bound<>(name, subscription, topic, timestampLabel, coder, idLabel,
-            maxNumRecords, maxReadTime);
+        return new Bound<>(
+            name, subscription, topic, timestampLabel, coder, idLabel, maxNumRecords, maxReadTime);
       }
 
       /**
-       * Returns a new PubsubIO.Read PTransform that's like this one but that uses the given
-       * {@code Coder<X>} to decode each record into a value of type {@code X}.  Does not modify
-       * this object.
+       * Returns a transform that's like this one but that uses the given
+       * {@link Coder} to decode each record into a value of type {@code X}.
+       *
+       * <p>Does not modify this object.
        *
        * @param <X> the type of the decoded elements, and the
        * elements of the resulting PCollection.
        */
       public <X> Bound<X> withCoder(Coder<X> coder) {
-        return new Bound<>(name, subscription, topic, timestampLabel, coder, idLabel,
-            maxNumRecords, maxReadTime);
+        return new Bound<>(
+            name, subscription, topic, timestampLabel, coder, idLabel, maxNumRecords, maxReadTime);
       }
 
       /**
-       * Sets the maximum number of records that will be read from Pubsub.
-       *
-       * <p>Setting either this or {@link #maxReadTime} will cause the output {@code PCollection}
-       * to be bounded.
+       * Returns a transform that's like this one but will only read up to the specified
+       * maximum number of records from Cloud Pub/Sub. The transform produces a <i>bounded</i>
+       * {@link PCollection}. See {@link PubsubIO.Read#maxNumRecords(int)} for more details.
        */
       public Bound<T> maxNumRecords(int maxNumRecords) {
-        return new Bound<>(name, subscription, topic, timestampLabel,
-            coder, idLabel, maxNumRecords, maxReadTime);
+        return new Bound<>(
+            name, subscription, topic, timestampLabel, coder, idLabel, maxNumRecords, maxReadTime);
       }
 
       /**
-       * Sets the maximum duration during which records will be read from Pubsub.
-       *
-       * <p>Setting either this or {@link #maxNumRecords} will cause the output {@code PCollection}
-       * to be bounded.
+       * Returns a transform that's like this one but will only read during the specified
+       * duration from Cloud Pub/Sub. The transform produces a <i>bounded</i> {@link PCollection}.
+       * See {@link PubsubIO.Read#maxReadTime(Duration)} for more details.
        */
       public Bound<T> maxReadTime(Duration maxReadTime) {
-        return new Bound<>(name, subscription, topic, timestampLabel,
-            coder, idLabel, maxNumRecords, maxReadTime);
+        return new Bound<>(
+            name, subscription, topic, timestampLabel, coder, idLabel, maxNumRecords, maxReadTime);
       }
 
       @Override
       public PCollection<T> apply(PInput input) {
         if (topic == null && subscription == null) {
-          throw new IllegalStateException(
-              "need to set either the topic or the subscription for "
+          throw new IllegalStateException("need to set either the topic or the subscription for "
               + "a PubsubIO.Read transform");
         }
         if (topic != null && subscription != null) {
-          throw new IllegalStateException(
-              "Can't set both the topic and the subscription for a "
+          throw new IllegalStateException("Can't set both the topic and the subscription for a "
               + "PubsubIO.Read transform");
         }
 
@@ -533,8 +616,7 @@ public class PubsubIO {
         if (boundedOutput) {
           return input.getPipeline().begin()
               .apply(Create.of((Void) null)).setCoder(VoidCoder.of())
-              .apply(ParDo.of(new PubsubReader()))
-              .setCoder(coder);
+              .apply(ParDo.of(new PubsubReader())).setCoder(coder);
         } else {
           return PCollection.<T>createPrimitiveOutputInternal(
                   input.getPipeline(), WindowingStrategy.globalDefault(), IsBounded.UNBOUNDED)
@@ -586,23 +668,22 @@ public class PubsubIO {
 
           String subscription;
           if (getSubscription() == null) {
-            String topic = getTopic().asV1Beta2Path();
+            String topic = getTopic().asPath();
             String[] split = topic.split("/");
-            subscription = "projects/" + split[1] + "/subscriptions/" + split[3]
-                + "_dataflow_" + new Random().nextLong();
-            Subscription subInfo = new Subscription()
-                .setAckDeadlineSeconds(60)
-                .setTopic(topic);
+            subscription =
+                "projects/" + split[1] + "/subscriptions/" + split[3] + "_dataflow_"
+                + new Random().nextLong();
+            Subscription subInfo = new Subscription().setAckDeadlineSeconds(60).setTopic(topic);
             try {
               pubsubClient.projects().subscriptions().create(subscription, subInfo).execute();
             } catch (Exception e) {
               throw new RuntimeException("Failed to create subscription: ", e);
             }
           } else {
-             subscription = getSubscription().asV1Beta2Path();
+            subscription = getSubscription().asPath();
           }
 
-          Instant endTime = getMaxReadTime() == null
+          Instant endTime = (getMaxReadTime() == null)
               ? new Instant(Long.MAX_VALUE) : Instant.now().plus(getMaxReadTime());
 
           List<PubsubMessage> messages = new ArrayList<>();
@@ -662,70 +743,82 @@ public class PubsubIO {
                 throw new RuntimeException(
                     "Message from pubsub missing timestamp label: " + getTimestampLabel());
               }
-              timestamp = new Instant(Long.parseLong(
-                      message.getAttributes().get(getTimestampLabel())));
+              timestamp =
+                  new Instant(Long.parseLong(message.getAttributes().get(getTimestampLabel())));
             }
             c.outputWithTimestamp(
-                CoderUtils.decodeFromByteArray(getCoder(), message.decodeData()),
-                timestamp);
+                CoderUtils.decodeFromByteArray(getCoder(), message.decodeData()), timestamp);
           }
         }
       }
     }
+
+    /** Disallow construction of utility class. */
+    private Read() {}
   }
 
 
   /////////////////////////////////////////////////////////////////////////////
 
+  /** Disallow construction of utility class. */
+  private PubsubIO() {}
+
   /**
    * A {@link PTransform} that continuously writes a
-   * {@code PCollection<String>} to a Pubsub stream.
+   * {@link PCollection} of {@link String Strings} to a Cloud Pub/Sub stream.
    */
   // TODO: Support non-String encodings.
   public static class Write {
+    /**
+     * Creates a transform that writes to Pub/Sub with the given step name.
+     */
     public static Bound<String> named(String name) {
       return new Bound<>(DEFAULT_PUBSUB_CODER).named(name);
     }
 
-    /** The topic to publish to.
-     * Cloud Pubsub topic names should be {@code /topics/<project>/<topic>},
-     * where {@code <project>} is the name of the publishing project.
+    /**
+     * Creates a transform that publishes to the specified topic.
+     *
+     * <p>See {@link PubsubIO.PubsubTopic#fromPath(String)} for more details on the format of the
+     * {@code topic} string.
      */
     public static Bound<String> topic(String topic) {
       return new Bound<>(DEFAULT_PUBSUB_CODER).topic(topic);
     }
 
     /**
-     * If specified, Dataflow will add a Pubsub label to each output record specifying the logical
-     * timestamp of the record. {@code <timestampLabel>} determines the label name. The label value
-     * is a numerical value representing the number of milliseconds since the Unix epoch. For
-     * example, if using the joda time classes, the org.joda.time.Instant(long) constructor can be
-     * used to parse this value. If the output from this sink is being read by another Dataflow
-     * source, then PubsubIO.Read.timestampLabel can be used to ensure that the other source reads
-     * these timestamps from the appropriate label.
+     * Creates a transform that writes to Pub/Sub, adds each record's timestamp to the published
+     * messages in an attribute with the specified name. The value of the attribute will be a number
+     * representing the number of milliseconds since the Unix epoch. For example, if using the Joda
+     * time classes, {@link Instant#Instant(long)} can be used to parse this value.
+     *
+     * <p>If the output from this sink is being read by another Dataflow source, then
+     * {@link PubsubIO.Read#timestampLabel(String)} can be used to ensure the other source reads
+     * these timestamps from the appropriate attribute.
      */
     public static Bound<String> timestampLabel(String timestampLabel) {
       return new Bound<>(DEFAULT_PUBSUB_CODER).timestampLabel(timestampLabel);
     }
 
     /**
-     * If specified, Dataflow will add a Pubsub label to each output record containing a unique
-     * identifier for that record. {@code <idLabel>} determines the label name. The label value
-     * is an opaque string value. This is useful if the the output from this sink is being read
-     * by another Dataflow source, in which case PubsubIO.Read.idLabel can be used to ensure that
-     * the other source reads these ids from the appropriate label.
+     * Creates a transform that writes to Pub/Sub, adding each record's unique identifier to the
+     * published messages in an attribute with the specified name. The value of the attribute is an
+     * opaque string.
+     *
+     * <p>If the the output from this sink is being read by another Dataflow source, then
+     * {@link PubsubIO.Read#idLabel(String)} can be used to ensure that* the other source reads
+     * these unique identifiers from the appropriate attribute.
      */
     public static Bound<String> idLabel(String idLabel) {
       return new Bound<>(DEFAULT_PUBSUB_CODER).idLabel(idLabel);
     }
 
-   /**
-     * Returns a TextIO.Write PTransform that uses the given
-     * {@code Coder<T>} to encode each of the elements of the input
-     * {@code PCollection<T>} into an output PubSub record.
+    /**
+     * Creates a transform that  uses the given {@link Coder} to encode each of the
+     * elements of the input collection into an output message.
      *
-     * <p>By default, uses {@link StringUtf8Coder}, which writes input
-     * Java strings directly as records.
+     * <p>By default, uses {@link StringUtf8Coder}, which writes input Java strings directly as
+     * records.
      *
      * @param <T> the type of the elements of the input PCollection
      */
@@ -734,69 +827,85 @@ public class PubsubIO {
     }
 
     /**
-     * A {@link PTransform} that writes an unbounded {@code PCollection<String>}
-     * to a PubSub stream.
+     * A {@link PTransform} that writes an unbounded {@link PCollection} of {@link String Strings}
+     * to a Cloud Pub/Sub stream.
      */
     public static class Bound<T> extends PTransform<PCollection<T>, PDone> {
-      /** The Pubsub topic to publish to. */
-      PubsubTopic topic;
-      String timestampLabel;
-      String idLabel;
-      final Coder<T> coder;
+      /** The Cloud Pub/Sub topic to publish to. */
+      @Nullable private final PubsubTopic topic;
+      /** The name of the message attribute to publish message timestamps in. */
+      @Nullable private final String timestampLabel;
+      /** The name of the message attribute to publish unique message IDs in. */
+      @Nullable private final String idLabel;
+      private final Coder<T> coder;
 
-      Bound(Coder<T> coder) {
-        this.coder = coder;
+      private Bound(Coder<T> coder) {
+        this(null, null, null, null, coder);
       }
 
-      Bound(String name, PubsubTopic topic, String timestampLabel, String idLabel, Coder<T> coder) {
+      private Bound(
+          String name, PubsubTopic topic, String timestampLabel, String idLabel, Coder<T> coder) {
         super(name);
-        if (topic != null) {
-          this.topic = topic;
-        }
+        this.topic = topic;
         this.timestampLabel = timestampLabel;
         this.idLabel = idLabel;
         this.coder = coder;
       }
 
       /**
-       * Returns a new PubsubIO.Write PTransform that's like this one but with the given step
-       * name. Does not modify the object.
+       * Returns a new transform that's like this one but with the specified step
+       * name.
+       *
+       * <p>Does not modify this object.
        */
       public Bound<T> named(String name) {
         return new Bound<>(name, topic, timestampLabel, idLabel, coder);
       }
 
       /**
-       * Returns a new PubsubIO.Write PTransform that's like this one but writing to the given
-       * topic. Does not modify the object.
+       * Returns a new transform that's like this one but that writes to the specified
+       * topic.
+       *
+       * <p>See {@link PubsubIO.PubsubTopic#fromPath(String)} for more details on the format of the
+       * {@code topic} string.
+       *
+       * <p>Does not modify this object.
        */
       public Bound<T> topic(String topic) {
         return new Bound<>(name, PubsubTopic.fromPath(topic), timestampLabel, idLabel, coder);
       }
 
       /**
-       * Returns a new PubsubIO.Write PTransform that's like this one but publishing timestamps
-       * to the given PubSub label. Does not modify the object.
+       * Returns a new transform that's like this one but that publishes record timestamps
+       * to a message attribute with the specified name. See
+       * {@link PubsubIO.Write#timestampLabel(String)} for more details.
+       *
+       * <p>Does not modify this object.
        */
       public Bound<T> timestampLabel(String timestampLabel) {
         return new Bound<>(name, topic, timestampLabel, idLabel, coder);
       }
 
       /**
-       * Returns a new PubsubIO.Write PTransform that's like this one but publishing record ids
-       * to the given PubSub label. Does not modify the object.
+       * Returns a new transform that's like this one but that publishes unique record IDs
+       * to a message attribute with the specified name. See {@link PubsubIO.Write#idLabel(String)}
+       * for more details.
+       *
+       * <p>Does not modify this object.
        */
-     public Bound<T> idLabel(String idLabel) {
-       return new Bound<>(name, topic, timestampLabel, idLabel, coder);
+      public Bound<T> idLabel(String idLabel) {
+        return new Bound<>(name, topic, timestampLabel, idLabel, coder);
       }
 
-     /**
-       * Returns a new PubsubIO.Write PTransform that's like this one
-       * but that uses the given {@code Coder<X>} to encode each of
-       * the elements of the input {@code PCollection<X>} into an
-       * output record.  Does not modify this object.
+      /**
+       * Returns a new transform that's like this one
+       * but that uses the given {@link Coder} to encode each of
+       * the elements of the input {@link PCollection} into an
+       * output record.
        *
-       * @param <X> the type of the elements of the input PCollection
+       * <p>Does not modify this object.
+       *
+       * @param <X> the type of the elements of the input {@link PCollection}
        */
       public <X> Bound<X> withCoder(Coder<X> coder) {
         return new Bound<>(name, topic, timestampLabel, idLabel, coder);
@@ -805,8 +914,7 @@ public class PubsubIO {
       @Override
       public PDone apply(PCollection<T> input) {
         if (topic == null) {
-          throw new IllegalStateException(
-              "need to set the topic of a PubsubIO.Write transform");
+          throw new IllegalStateException("need to set the topic of a PubsubIO.Write transform");
         }
         input.apply(ParDo.of(new PubsubWriter()));
         return PDone.in(input.getPipeline());
@@ -838,7 +946,6 @@ public class PubsubIO {
         private transient List<PubsubMessage> output;
         private transient Pubsub pubsubClient;
 
-
         @Override
         public void startBundle(Context c) {
           this.output = new ArrayList<>();
@@ -849,16 +956,15 @@ public class PubsubIO {
 
         @Override
         public void processElement(ProcessContext c) throws IOException {
-          PubsubMessage message = new PubsubMessage().encodeData(
-              CoderUtils.encodeToByteArray(getCoder(), c.element()));
+          PubsubMessage message =
+              new PubsubMessage().encodeData(CoderUtils.encodeToByteArray(getCoder(), c.element()));
           if (getTimestampLabel() != null) {
             Map<String, String> attributes = message.getAttributes();
             if (attributes == null) {
               attributes = new HashMap<>();
               message.setAttributes(attributes);
             }
-            attributes.put(
-                getTimestampLabel(), String.valueOf(c.timestamp().getMillis()));
+            attributes.put(getTimestampLabel(), String.valueOf(c.timestamp().getMillis()));
           }
           output.add(message);
 
@@ -877,10 +983,14 @@ public class PubsubIO {
         private void publish() throws IOException {
           PublishRequest publishRequest = new PublishRequest().setMessages(output);
           pubsubClient.projects().topics()
-              .publish(getTopic().asV1Beta2Path(), publishRequest).execute();
+              .publish(getTopic().asPath(), publishRequest)
+              .execute();
           output.clear();
         }
       }
     }
+
+    /** Disallow construction of utility class. */
+    private Write() {}
   }
 }
