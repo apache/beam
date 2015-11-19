@@ -59,7 +59,7 @@ public class WithTimestamps<T> extends PTransform<PCollection<T>, PCollection<T>
    * <p>Example of use in Java 8:
    * <pre>{@code
    * PCollection<Record> timestampedRecords = records.apply(
-   *     TimestampElements.via((Record rec) -> rec.getInstant());
+   *     WithTimestamps.of((Record rec) -> rec.getInstant());
    * }</pre>
    */
   public static <T> WithTimestamps<T> of(SerializableFunction<T, Instant> fn) {
