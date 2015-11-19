@@ -24,7 +24,10 @@ import static com.google.cloud.dataflow.sdk.TestUtils.NO_LINES_ARRAY;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.coders.CollectionCoder;
 import com.google.cloud.dataflow.sdk.coders.IterableCoder;
+import com.google.cloud.dataflow.sdk.coders.ListCoder;
+import com.google.cloud.dataflow.sdk.coders.SetCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
@@ -36,6 +39,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionList;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
+import com.google.common.collect.ImmutableSet;
 
 import org.joda.time.Duration;
 import org.junit.Assert;
@@ -49,7 +53,9 @@ import org.junit.runners.JUnit4;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Tests for Flatten.
@@ -185,6 +191,57 @@ public class FlattenTest implements Serializable {
 
   @Test
   @Category(RunnableOnService.class)
+  public void testFlattenIterablesLists() {
+    Pipeline p = TestPipeline.create();
+
+    PCollection<List<String>> input =
+        p.apply(Create.<List<String>>of(LINES).withCoder(ListCoder.of(StringUtf8Coder.of())));
+
+    PCollection<String> output = input.apply(Flatten.<String>iterables());
+
+    DataflowAssert.that(output).containsInAnyOrder(LINES_ARRAY);
+
+    p.run();
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testFlattenIterablesSets() {
+    Pipeline p = TestPipeline.create();
+
+    Set<String> linesSet = ImmutableSet.copyOf(LINES);
+
+    PCollection<Set<String>> input =
+        p.apply(Create.<Set<String>>of(linesSet).withCoder(SetCoder.of(StringUtf8Coder.of())));
+
+    PCollection<String> output = input.apply(Flatten.<String>iterables());
+
+    DataflowAssert.that(output).containsInAnyOrder(LINES_ARRAY);
+
+    p.run();
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testFlattenIterablesCollections() {
+
+    Pipeline p = TestPipeline.create();
+
+    Set<String> linesSet = ImmutableSet.copyOf(LINES);
+
+    PCollection<Collection<String>> input =
+        p.apply(Create.<Collection<String>>of(linesSet)
+                      .withCoder(CollectionCoder.of(StringUtf8Coder.of())));
+
+    PCollection<String> output = input.apply(Flatten.<String>iterables());
+
+    DataflowAssert.that(output).containsInAnyOrder(LINES_ARRAY);
+
+    p.run();
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
   public void testFlattenIterablesEmpty() {
     Pipeline p = TestPipeline.create();
 
@@ -200,7 +257,6 @@ public class FlattenTest implements Serializable {
 
     p.run();
   }
-
 
   /////////////////////////////////////////////////////////////////////////////
 

@@ -18,7 +18,7 @@ package com.google.cloud.dataflow.sdk.transforms;
 
 import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.coders.IterableCoder;
+import com.google.cloud.dataflow.sdk.coders.IterableLikeCoder;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
@@ -164,17 +164,17 @@ public class Flatten {
    * the output {@code PCollection}
    */
   public static class FlattenIterables<T>
-      extends PTransform<PCollection<Iterable<T>>, PCollection<T>> {
+      extends PTransform<PCollection<? extends Iterable<T>>, PCollection<T>> {
 
     @Override
-    public PCollection<T> apply(PCollection<Iterable<T>> in) {
-      Coder<Iterable<T>> inCoder = in.getCoder();
-      if (!(inCoder instanceof IterableCoder)) {
+    public PCollection<T> apply(PCollection<? extends Iterable<T>> in) {
+      Coder<? extends Iterable<T>> inCoder = in.getCoder();
+      if (!(inCoder instanceof IterableLikeCoder)) {
         throw new IllegalArgumentException(
-            "expecting the input Coder<Iterable> to be an IterableCoder");
+            "expecting the input Coder<Iterable> to be an IterableLikeCoder");
       }
-      IterableCoder<T> iterableCoder = (IterableCoder<T>) inCoder;
-      Coder<T> elemCoder = iterableCoder.getElemCoder();
+      @SuppressWarnings("unchecked")
+      Coder<T> elemCoder = ((IterableLikeCoder<T, ?>) inCoder).getElemCoder();
 
       return in.apply(ParDo.named("FlattenIterables").of(
           new DoFn<Iterable<T>, T>() {
