@@ -466,7 +466,7 @@ public class DatastoreIO {
     private Datastore getDatastore(PipelineOptions pipelineOptions) {
       DatastoreOptions.Builder builder =
           new DatastoreOptions.Builder().host(host).dataset(datasetId).initializer(
-              new RetryHttpRequestInitializer(null));
+              new RetryHttpRequestInitializer());
 
       Credential credential = pipelineOptions.as(GcpOptions.class).getGcpCredential();
       if (credential != null) {
@@ -606,7 +606,7 @@ public class DatastoreIO {
           new DatastoreOptions.Builder()
               .host(sink.host)
               .dataset(sink.datasetId)
-              .initializer(new RetryHttpRequestInitializer(null));
+              .initializer(new RetryHttpRequestInitializer());
       Credential credential = options.as(GcpOptions.class).getGcpCredential();
       if (credential != null) {
         builder.credential(credential);

@@ -16,7 +16,9 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
+import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
@@ -28,6 +30,7 @@ import com.google.cloud.dataflow.sdk.options.BigQueryOptions;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineDebugOptions;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.GcsOptions;
+import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
 import com.google.common.collect.ImmutableList;
 
 import java.io.IOException;
@@ -95,8 +98,10 @@ public class Transport {
   public static Bigquery.Builder
       newBigQueryClient(BigQueryOptions options) {
     return new Bigquery.Builder(getTransport(), getJsonFactory(),
-        // Do not log 404. It clutters the output and is possibly even required by the caller.
-        new RetryHttpRequestInitializer(options.getGcpCredential(), ImmutableList.of(404)))
+        chainHttpRequestInitializer(
+            options.getGcpCredential(),
+            // Do not log 404. It clutters the output and is possibly even required by the caller.
+            new RetryHttpRequestInitializer(ImmutableList.of(404))))
         .setApplicationName(options.getAppName())
         .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
   }
@@ -110,8 +115,10 @@ public class Transport {
   public static Pubsub.Builder
       newPubsubClient(DataflowPipelineOptions options) {
     return new Pubsub.Builder(getTransport(), getJsonFactory(),
-        // Do not log 404. It clutters the output and is possibly even required by the caller.
-        new RetryHttpRequestInitializer(options.getGcpCredential(), ImmutableList.of(404)))
+        chainHttpRequestInitializer(
+            options.getGcpCredential(),
+            // Do not log 404. It clutters the output and is possibly even required by the caller.
+            new RetryHttpRequestInitializer(ImmutableList.of(404))))
         .setRootUrl(options.getPubsubRootUrl())
         .setApplicationName(options.getAppName())
         .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
@@ -131,8 +138,10 @@ public class Transport {
 
     return new Dataflow.Builder(getTransport(),
         getJsonFactory(),
-        // Do not log 404. It clutters the output and is possibly even required by the caller.
-        new RetryHttpRequestInitializer(options.getGcpCredential(), ImmutableList.of(404)))
+        chainHttpRequestInitializer(
+            options.getGcpCredential(),
+            // Do not log 404. It clutters the output and is possibly even required by the caller.
+            new RetryHttpRequestInitializer(ImmutableList.of(404))))
         .setApplicationName(options.getAppName())
         .setRootUrl(components.rootUrl)
         .setServicePath(components.servicePath)
@@ -160,10 +169,12 @@ public class Transport {
       newStorageClient(GcsOptions options) {
     String servicePath = options.getGcsEndpoint();
     Storage.Builder storageBuilder = new Storage.Builder(getTransport(), getJsonFactory(),
-        new RetryHttpRequestInitializer(
+        chainHttpRequestInitializer(
+            options.getGcpCredential(),
             // Do not log the code 404. Code up the stack will deal with 404's if needed, and
             // logging it by default clutters the output during file staging.
-            options.getGcpCredential(), ImmutableList.of(404), new UploadIdResponseInterceptor()))
+            new RetryHttpRequestInitializer(
+                ImmutableList.of(404), new UploadIdResponseInterceptor())))
         .setApplicationName(options.getAppName())
         .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
     if (servicePath != null) {
@@ -172,5 +183,14 @@ public class Transport {
       storageBuilder.setServicePath(components.servicePath);
     }
     return storageBuilder;
+  }
+
+  private static HttpRequestInitializer chainHttpRequestInitializer(
+      Credential credential, HttpRequestInitializer httpRequestInitializer) {
+    if (credential == null) {
+      return httpRequestInitializer;
+    } else {
+      return new ChainingHttpRequestInitializer(credential, httpRequestInitializer);
+    }
   }
 }

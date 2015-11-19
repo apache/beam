@@ -123,6 +123,7 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
     }
   }
 
+  @Deprecated
   private final HttpRequestInitializer chained;
 
   private final HttpResponseInterceptor responseInterceptor;  // response Interceptor to use
@@ -133,22 +134,51 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
 
   private Set<Integer> ignoredResponseCodes = new HashSet<>(DEFAULT_IGNORED_RESPONSE_CODES);
 
-  /**
-   * @param chained a downstream HttpRequestInitializer, which will also be
-   *                applied to HttpRequest initialization.  May be null.
-   */
-  public RetryHttpRequestInitializer(@Nullable HttpRequestInitializer chained) {
-    this(chained, Collections.<Integer>emptyList());
+  public RetryHttpRequestInitializer() {
+    this(Collections.<Integer>emptyList());
   }
 
   /**
    * @param chained a downstream HttpRequestInitializer, which will also be
    *                applied to HttpRequest initialization.  May be null.
+   *
+   * @deprecated use {@link #RetryHttpRequestInitializer}.
+   */
+  @Deprecated
+  public RetryHttpRequestInitializer(@Nullable HttpRequestInitializer chained) {
+    this(chained, Collections.<Integer>emptyList());
+  }
+
+  /**
    * @param additionalIgnoredResponseCodes a list of HTTP status codes that should not be logged.
    */
+  public RetryHttpRequestInitializer(Collection<Integer> additionalIgnoredResponseCodes) {
+    this(additionalIgnoredResponseCodes, null);
+  }
+
+
+  /**
+   * @param chained a downstream HttpRequestInitializer, which will also be
+   *                applied to HttpRequest initialization.  May be null.
+   * @param additionalIgnoredResponseCodes a list of HTTP status codes that should not be logged.
+   *
+   * @deprecated use {@link #RetryHttpRequestInitializer(Collection)}.
+   */
+  @Deprecated
   public RetryHttpRequestInitializer(@Nullable HttpRequestInitializer chained,
       Collection<Integer> additionalIgnoredResponseCodes) {
-    this(chained, NanoClock.SYSTEM, Sleeper.DEFAULT, additionalIgnoredResponseCodes, null);
+    this(chained, additionalIgnoredResponseCodes, null);
+  }
+
+  /**
+   * @param additionalIgnoredResponseCodes a list of HTTP status codes that should not be logged.
+   * @param responseInterceptor HttpResponseInterceptor to be applied on all requests. May be null.
+   */
+  public RetryHttpRequestInitializer(
+      Collection<Integer> additionalIgnoredResponseCodes,
+      @Nullable HttpResponseInterceptor responseInterceptor) {
+    this(null, NanoClock.SYSTEM, Sleeper.DEFAULT, additionalIgnoredResponseCodes,
+        responseInterceptor);
   }
 
   /**
@@ -156,7 +186,10 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
    * initialization.  May be null.
    * @param additionalIgnoredResponseCodes a list of HTTP status codes that should not be logged.
    * @param responseInterceptor HttpResponseInterceptor to be applied on all requests. May be null.
+   *
+   * @deprecated use {@link #RetryHttpRequestInitializer(Collection, HttpResponseInterceptor)}.
    */
+  @Deprecated
   public RetryHttpRequestInitializer(
       @Nullable HttpRequestInitializer chained,
       Collection<Integer> additionalIgnoredResponseCodes,
