@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.io;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
+import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.worker.TextReader;
 import com.google.cloud.dataflow.sdk.runners.worker.TextSink;
@@ -48,22 +49,27 @@ import javax.annotation.Nullable;
 /**
  * {@link PTransform}s for reading and writing text files.
  *
- * <p>To read a {@link PCollection} from one or more text files, use
- * {@link TextIO.Read}, specifying {@link TextIO.Read#from} to specify
+ * <p>To read a {@link PCollection} from one or more text files, use {@link TextIO.Read}.
+ * You can instantiate a transform using {@link TextIO.Read#from(String)} to specify
  * the path of the file(s) to read from (e.g., a local filename or
  * filename pattern if running locally, or a Google Cloud Storage
  * filename or filename pattern of the form
- * {@code "gs://<bucket>/<filepath>"}), and optionally
- * {@link TextIO.Read#named} to specify the name of the pipeline step
- * and/or {@link TextIO.Read#withCoder} to specify the Coder to use to
- * decode the text lines into Java values.  For example:
+ * {@code "gs://<bucket>/<filepath>"}). You may optionally call
+ * {@link TextIO.Read#named(String)} to specify the name of the pipeline step.
+ *
+ * <p>By default, {@link TextIO.Read} returns a {@link PCollection} of {@link String Strings},
+ * each corresponding to one line of an input UTF-8 text file. To convert directly from the raw
+ * bytes (split into lines delimited by '\n', '\r', or '\r\n') to another object of type {@code T},
+ * supply a {@code Coder<T>} using {@link TextIO.Read#withCoder(Coder)}.
+ *
+ * <p>See the following examples:
  *
  * <pre> {@code
  * Pipeline p = ...;
  *
  * // A simple Read of a local file (only runs locally):
  * PCollection<String> lines =
- *     p.apply(TextIO.Read.from("/path/to/file.txt"));
+ *     p.apply(TextIO.Read.from("/local/path/to/file.txt"));
  *
  * // A fully-specified Read from a GCS file (runs locally and via the
  * // Google Cloud Dataflow service):
@@ -74,14 +80,13 @@ import javax.annotation.Nullable;
  * } </pre>
  *
  * <p>To write a {@link PCollection} to one or more text files, use
- * {@link TextIO.Write}, specifying {@link TextIO.Write#to} to specify
+ * {@link TextIO.Write}, specifying {@link TextIO.Write#to(String)} to specify
  * the path of the file to write to (e.g., a local filename or sharded
  * filename pattern if running locally, or a Google Cloud Storage
  * filename or sharded filename pattern of the form
- * {@code "gs://<bucket>/<filepath>"}), and optionally
- * {@link TextIO.Write#named} to specify the name of the pipeline step
- * and/or {@link TextIO.Write#withCoder} to specify the Coder to use
- * to encode the Java values into text lines.
+ * {@code "gs://<bucket>/<filepath>"}). You can optionally name the resulting transform using
+ * {@link TextIO.Write#named(String)}, and you can use {@link TextIO.Write#withCoder(Coder)}
+ * to specify the Coder to use to encode the Java values into text lines.
  *
  * <p>Any existing files with the same names as generated output files
  * will be overwritten.
@@ -101,37 +106,40 @@ import javax.annotation.Nullable;
  *                           .withCoder(TextualIntegerCoder.of()));
  * } </pre>
  *
- * <p><h3>Permissions</h3>
- * Permission requirements depend on the
- * {@link com.google.cloud.dataflow.sdk.runners.PipelineRunner PipelineRunner} that is
- * used to execute the Dataflow job. Please refer to the documentation of corresponding
- * {@code PipelineRunner}s for more details.
+ * <h3>Permissions</h3>
+ * <p>When run using the {@link DirectPipelineRunner}, your pipeline can read and write text files
+ * on your local drive and remote text files on Google Cloud Storage that you have access to using
+ * your {@code gcloud} credentials. When running in the Dataflow service using
+ * {@link DataflowPipelineRunner}, the pipeline can only read and write files from GCS. For more
+ * information about permissions, see the Cloud Dataflow documentation on
+ * <a href="https://cloud.google.com/dataflow/security-and-permissions">Security and
+ * Permissions</a>.
  */
 public class TextIO {
+  /** The default coder, which returns each line of the input file as a string. */
   public static final Coder<String> DEFAULT_TEXT_CODER = StringUtf8Coder.of();
 
   /**
    * A {@link PTransform} that reads from a text file (or multiple text
    * files matching a pattern) and returns a {@link PCollection} containing
-   * the decoding of each of the lines of the text file(s).  The
-   * default decoding just returns the lines.
+   * the decoding of each of the lines of the text file(s). The
+   * default decoding just returns each line as a {@link String}, but you may call
+   * {@link #withCoder(Coder)} to change the return type.
    */
   public static class Read {
     /**
-     * Returns a {@link TextIO.Read} {@link PTransform} with the given step name.
+     * Returns a transform for reading text files that uses the given step name.
      */
     public static Bound<String> named(String name) {
       return new Bound<>(DEFAULT_TEXT_CODER).named(name);
     }
 
     /**
-     * Returns a {@link TextIO.Read} {@link PTransform} that reads from the file(s)
-     * with the given name or pattern.  This can be a local filename
-     * or filename pattern (if running locally), or a Google Cloud
-     * Storage filename or filename pattern of the form
-     * {@code "gs://<bucket>/<filepath>"}) (if running locally or via
-     * the Google Cloud Dataflow service).  Standard
-     * <a href="http://docs.oracle.com/javase/tutorial/essential/io/find.html"
+     * Returns a transform for reading text files that reads from the file(s)
+     * with the given filename or filename pattern. This can be a local path (if running locally),
+     * or a Google Cloud Storage filename or filename pattern of the form
+     * {@code "gs://<bucket>/<filepath>"} (if running locally or via the Google Cloud Dataflow
+     * service). Standard <a href="http://docs.oracle.com/javase/tutorial/essential/io/find.html"
      * >Java Filesystem glob patterns</a> ("*", "?", "[..]") are supported.
      */
     public static Bound<String> from(String filepattern) {
@@ -139,7 +147,7 @@ public class TextIO {
     }
 
     /**
-     * Returns a TextIO.Read PTransform that uses the given
+     * Returns a transform for reading text files that uses the given
      * {@code Coder<T>} to decode each of the lines of the file into a
      * value of type {@code T}.
      *
@@ -154,7 +162,7 @@ public class TextIO {
     }
 
     /**
-     * Returns a TextIO.Read PTransform that has GCS path validation on
+     * Returns a transform for reading text files that has GCS path validation on
      * pipeline creation disabled.
      *
      * <p>This can be useful in the case where the GCS input does not
@@ -166,12 +174,12 @@ public class TextIO {
     }
 
     /**
-     * Returns a TextIO.Read PTransform that reads from a file with the
-     * specified compression type.
+     * Returns a transform for reading text files that decompresses all input files
+     * using the specified compression type.
      *
-     * <p>If no compression type is specified, the default is AUTO. In this
-     * mode, the compression type of the file is determined by its extension
-     * (e.g., *.gz is gzipped, *.bz2 is bzipped, all other extensions are
+     * <p>If no compression type is specified, the default is {@link TextIO.CompressionType#AUTO}.
+     * In this mode, the compression type of the file is determined by its extension
+     * (e.g., {@code *.gz} is gzipped, {@code *.bz2} is bzipped, and all other extensions are
      * uncompressed).
      */
     public static Bound<String> withCompressionType(TextIO.CompressionType compressionType) {
@@ -181,34 +189,32 @@ public class TextIO {
     // TODO: strippingNewlines, etc.
 
     /**
-     * A {@link PTransform} that reads from a text file (or multiple text files
-     * matching a pattern) and returns a bounded PCollection containing the
-     * decoding of each of the lines of the text file(s).  The default
-     * decoding just returns the lines.
+     * A {@link PTransform} that reads from one or more text files and returns a bounded
+     * {@link PCollection} containing one element for each line of the input files.
      *
      * @param <T> the type of each of the elements of the resulting
-     * PCollection, decoded from the lines of the text file
+     * {@link PCollection}. By default, each line is returned as a {@link String}, however you
+     * may use {@link #withCoder(Coder)} to supply a {@code Coder<T>} to produce a
+     * {@code PCollection<T>} instead.
      */
     public static class Bound<T> extends PTransform<PInput, PCollection<T>> {
       /** The filepattern to read from. */
-      @Nullable
-      final String filepattern;
+      @Nullable private final String filepattern;
 
       /** The Coder to use to decode each line. */
-      @Nullable
-      final Coder<T> coder;
+      @Nullable private final Coder<T> coder;
 
       /** An option to indicate if input validation is desired. Default is true. */
-      final boolean validate;
+      private final boolean validate;
 
       /** Option to indicate the input source's compression type. Default is AUTO. */
-      final TextIO.CompressionType compressionType;
+      private final TextIO.CompressionType compressionType;
 
       Bound(Coder<T> coder) {
         this(null, null, coder, true, TextIO.CompressionType.AUTO);
       }
 
-      Bound(String name, String filepattern, Coder<T> coder, boolean validate,
+      private Bound(String name, String filepattern, Coder<T> coder, boolean validate,
           TextIO.CompressionType compressionType) {
         super(name);
         this.coder = coder;
@@ -218,28 +224,33 @@ public class TextIO {
       }
 
       /**
-       * Returns a new TextIO.Read PTransform that's like this one but
-       * with the given step name.  Does not modify this object.
+       * Returns a new transform for reading from text files that's like this one but
+       * with the given step name.
+       *
+       * <p>Does not modify this object.
        */
       public Bound<T> named(String name) {
         return new Bound<>(name, filepattern, coder, validate, compressionType);
       }
 
       /**
-       * Returns a new TextIO.Read PTransform that's like this one but
-       * that reads from the file(s) with the given name or pattern.
-       * (See {@link TextIO.Read#from} for a description of
-       * filepatterns.)  Does not modify this object.
+       * Returns a new transform for reading from text files that's like this one but
+       * that reads from the file(s) with the given name or pattern. See {@link TextIO.Read#from}
+       * for a description of filepatterns.
+       *
+       * <p>Does not modify this object.
+
        */
       public Bound<T> from(String filepattern) {
         return new Bound<>(name, filepattern, coder, validate, compressionType);
       }
 
       /**
-       * Returns a new TextIO.Read PTransform that's like this one but
-       * that uses the given {@code Coder<X>} to decode each of the
-       * lines of the file into a value of type {@code X}.  Does not
-       * modify this object.
+       * Returns a new transform for reading from text files that's like this one but
+       * that uses the given {@link Coder Coder<X>} to decode each of the
+       * lines of the file into a value of type {@code X}.
+       *
+       * <p>Does not modify this object.
        *
        * @param <X> the type of the decoded elements, and the
        * elements of the resulting PCollection
@@ -249,30 +260,27 @@ public class TextIO {
       }
 
       /**
-       * Returns a new TextIO.Read PTransform that's like this one but
+       * Returns a new transform for reading from text files that's like this one but
        * that has GCS path validation on pipeline creation disabled.
-       * Does not modify this object.
        *
        * <p>This can be useful in the case where the GCS input does not
        * exist at the pipeline creation time, but is expected to be
        * available at execution time.
+       *
+       * <p>Does not modify this object.
        */
       public Bound<T> withoutValidation() {
         return new Bound<>(name, filepattern, coder, false, compressionType);
       }
 
       /**
-       * Returns a new TextIO.Read PTransform that's like this one but
+       * Returns a new transform for reading from text files that's like this one but
        * reads from input sources using the specified compression type.
-       * Does not modify this object.
        *
-       * <p>If AUTO compression type is specified, a compression type is
-       * selected on a per-file basis, based on the file's extension (e.g.,
-       * .gz will be processed as a gzipped file, .bz will be processed
-       * as a bzipped file, other extensions with be treated as uncompressed
-       * input).
+       * <p>If no compression type is specified, the default is {@link TextIO.CompressionType#AUTO}.
+       * See {@link TextIO.Read#withCompressionType(CompressionType)} for more details.
        *
-       * <p>If no compression type is specified, the default is AUTO.
+       * <p>Does not modify this object.
        */
       public Bound<T> withCompressionType(TextIO.CompressionType compressionType) {
         return new Bound<>(name, filepattern, coder, validate, compressionType);
@@ -321,52 +329,55 @@ public class TextIO {
             });
       }
     }
+
+    /** Disallow construction of utility classes. */
+    private Read() {}
   }
 
 
   /////////////////////////////////////////////////////////////////////////////
 
   /**
-   * A {@link PTransform} that writes a {@link PCollection} to a text file (or
+   * A {@link PTransform} that writes a {@link PCollection} to text file (or
    * multiple text files matching a sharding pattern), with each
-   * PCollection element being encoded into its own line.
+   * element of the input collection encoded into its own line.
    */
   public static class Write {
     /**
-     * Returns a TextIO.Write PTransform with the given step name.
+     * Returns a transform for writing to text files with the given step name.
      */
     public static Bound<String> named(String name) {
       return new Bound<>(DEFAULT_TEXT_CODER).named(name);
     }
 
     /**
-     * Returns a TextIO.Write PTransform that writes to the file(s)
-     * with the given prefix.  This can be a local filename
+     * Returns a transform for writing to text files that writes to the file(s)
+     * with the given prefix. This can be a local filename
      * (if running locally), or a Google Cloud Storage filename of
-     * the form {@code "gs://<bucket>/<filepath>"})
+     * the form {@code "gs://<bucket>/<filepath>"}
      * (if running locally or via the Google Cloud Dataflow service).
      *
      * <p>The files written will begin with this prefix, followed by
-     * a shard identifier (see {@link Bound#withNumShards}, and end
-     * in a common extension, if given by {@link Bound#withSuffix}.
+     * a shard identifier (see {@link Bound#withNumShards(int)}, and end
+     * in a common extension, if given by {@link Bound#withSuffix(String)}.
      */
     public static Bound<String> to(String prefix) {
       return new Bound<>(DEFAULT_TEXT_CODER).to(prefix);
     }
 
     /**
-     * Returns a TextIO.Write PTransform that writes to the file(s) with the
-     * given filename suffix.
+     * Returns a transform for writing to text files that appends the specified suffix
+     * to the created files.
      */
     public static Bound<String> withSuffix(String nameExtension) {
       return new Bound<>(DEFAULT_TEXT_CODER).withSuffix(nameExtension);
     }
 
     /**
-     * Returns a TextIO.Write PTransform that uses the provided shard count.
+     * Returns a transform for writing to text files that uses the provided shard count.
      *
      * <p>Constraining the number of shards is likely to reduce
-     * the performance of a pipeline.  Setting this value is not recommended
+     * the performance of a pipeline. Setting this value is not recommended
      * unless you require a specific number of output files.
      *
      * @param numShards the number of shards to use, or 0 to let the system
@@ -377,7 +388,7 @@ public class TextIO {
     }
 
     /**
-     * Returns a TextIO.Write PTransform that uses the given shard name
+     * Returns a transform for writing to text files that uses the given shard name
      * template.
      *
      * <p>See {@link ShardNameTemplate} for a description of shard templates.
@@ -387,7 +398,7 @@ public class TextIO {
     }
 
     /**
-     * Returns a TextIO.Write PTransform that forces a single file as
+     * Returns a transform for writing to text files that forces a single file as
      * output.
      */
     public static Bound<String> withoutSharding() {
@@ -395,21 +406,21 @@ public class TextIO {
     }
 
     /**
-     * Returns a TextIO.Write PTransform that uses the given
-     * {@code Coder<T>} to encode each of the elements of the input
-     * {@code PCollection<T>} into an output text line.
+     * Returns a transform for writing to text files that uses the given
+     * {@link Coder} to encode each of the elements of the input
+     * {@link PCollection} into an output text line.
      *
      * <p>By default, uses {@link StringUtf8Coder}, which writes input
      * Java strings directly as output lines.
      *
-     * @param <T> the type of the elements of the input PCollection
+     * @param <T> the type of the elements of the input {@link PCollection}
      */
     public static <T> Bound<T> withCoder(Coder<T> coder) {
       return new Bound<>(coder);
     }
 
     /**
-     * Returns a TextIO.Write PTransform that has GCS path validation on
+     * Returns a transform for writing to text files that has GCS path validation on
      * pipeline creation disabled.
      *
      * <p>This can be useful in the case where the GCS output location does
@@ -430,32 +441,31 @@ public class TextIO {
      * @param <T> the type of the elements of the input PCollection
      */
     public static class Bound<T> extends PTransform<PCollection<T>, PDone> {
-      /** The filename to write to. */
-      @Nullable
-      final String filenamePrefix;
-      /** Suffix to use for each filename. */
-      final String filenameSuffix;
+      /** The prefix of each file written, combined with suffix and shardTemplate. */
+      @Nullable private final String filenamePrefix;
+      /** The suffix of each file written, combined with prefix and shardTemplate. */
+      private final String filenameSuffix;
 
       /** The Coder to use to decode each line. */
-      final Coder<T> coder;
+      private final Coder<T> coder;
 
-      /** Requested number of shards.  0 for automatic. */
-      final int numShards;
+      /** Requested number of shards. 0 for automatic. */
+      private final int numShards;
 
       /** Insert a shuffle before writing to decouple parallelism when numShards != 0. */
-      final boolean forceReshard;
+      private final boolean forceReshard;
 
-      /** Shard template string. */
-      final String shardTemplate;
+      /** The shard template of each file written, combined with prefix and suffix. */
+      private final String shardTemplate;
 
       /** An option to indicate if output validation is desired. Default is true. */
-      final boolean validate;
+      private final boolean validate;
 
       Bound(Coder<T> coder) {
         this(null, null, "", coder, 0, true, ShardNameTemplate.INDEX_OF_MAX, true);
       }
 
-      Bound(String name, String filenamePrefix, String filenameSuffix, Coder<T> coder,
+      private Bound(String name, String filenamePrefix, String filenameSuffix, Coder<T> coder,
           int numShards, boolean forceReshard, String shardTemplate, boolean validate) {
         super(name);
         this.coder = coder;
@@ -468,8 +478,10 @@ public class TextIO {
       }
 
       /**
-       * Returns a new TextIO.Write PTransform that's like this one but
-       * with the given step name.  Does not modify this object.
+       * Returns a transform for writing to text files that's like this one but
+       * with the given step name.
+       *
+       * <p>Does not modify this object.
        */
       public Bound<T> named(String name) {
         return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards,
@@ -477,7 +489,7 @@ public class TextIO {
       }
 
       /**
-       * Returns a new TextIO.Write PTransform that's like this one but
+       * Returns a transform for writing to text files that's like this one but
        * that writes to the file(s) with the given filename prefix.
        *
        * <p>See {@link TextIO.Write#to(String) Write.to(String)} for more information.
@@ -491,7 +503,7 @@ public class TextIO {
       }
 
       /**
-       * Returns a new TextIO.Write PTransform that's like this one but
+       * Returns a transform for writing to text files that that's like this one but
        * that writes to the file(s) with the given filename suffix.
        *
        * <p>Does not modify this object.
@@ -505,11 +517,11 @@ public class TextIO {
       }
 
       /**
-       * Returns a new TextIO.Write PTransform that's like this one but
+       * Returns a transform for writing to text files that's like this one but
        * that uses the provided shard count.
        *
        * <p>Constraining the number of shards is likely to reduce
-       * the performance of a pipeline.  Setting this value is not recommended
+       * the performance of a pipeline. Setting this value is not recommended
        * unless you require a specific number of output files.
        *
        * <p>Does not modify this object.
@@ -523,14 +535,14 @@ public class TextIO {
       }
 
       /**
-       * Returns a new TextIO.Write PTransform that's like this one but
+       * Returns a transform for writing to text files that's like this one but
        * that uses the provided shard count.
        *
        * <p>Constraining the number of shards is likely to reduce
-       * the performance of a pipeline.  If forceReshard is true, the output
-       * will be shuffled to obtain the desired sharding.  If it is false,
+       * the performance of a pipeline. If forceReshard is true, the output
+       * will be shuffled to obtain the desired sharding. If it is false,
        * data will not be reshuffled, but parallelism of preceeding stages
-       * may be constrained.  Setting this value is not recommended
+       * may be constrained. Setting this value is not recommended
        * unless you require a specific number of output files.
        *
        * <p>Does not modify this object.
@@ -547,7 +559,7 @@ public class TextIO {
       }
 
       /**
-       * Returns a new TextIO.Write PTransform that's like this one but
+       * Returns a transform for writing to text files that's like this one but
        * that uses the given shard name template.
        *
        * <p>Does not modify this object.
@@ -560,8 +572,12 @@ public class TextIO {
       }
 
       /**
-       * Returns a new TextIO.Write PTransform that's like this one but
+       * Returns a transform for writing to text files that's like this one but
        * that forces a single file as output.
+       *
+       * <p>Constraining the number of shards is likely to reduce
+       * the performance of a pipeline. Using this setting is not recommended
+       * unless you truly require a single output file.
        *
        * <p>This is a shortcut for
        * {@code .withNumShards(1).withShardNameTemplate("")}
@@ -573,8 +589,12 @@ public class TextIO {
       }
 
       /**
-       * Returns a new TextIO.Write PTransform that's like this one but
+       * Returns a transform for writing to text files that's like this one but
        * that forces a single file as output.
+       *
+       * <p>Constraining the number of shards is likely to reduce
+       * the performance of a pipeline. Using this setting is not recommended
+       * unless you truly require a single output file.
        *
        * <p>This is a shortcut for
        * {@code .withNumShards(1, forceReshard).withShardNameTemplate("")}
@@ -587,12 +607,12 @@ public class TextIO {
       }
 
       /**
-       * Returns a new TextIO.Write PTransform that's like this one
-       * but that uses the given {@code Coder<X>} to encode each of
-       * the elements of the input {@code PCollection<X>} into an
-       * output text line.  Does not modify this object.
+       * Returns a transform for writing to text files that's like this one
+       * but that uses the given {@link Coder Coder<X>} to encode each of
+       * the elements of the input {@link PCollection PCollection<X>} into an
+       * output text line. Does not modify this object.
        *
-       * @param <X> the type of the elements of the input PCollection
+       * @param <X> the type of the elements of the input {@link PCollection}
        */
       public <X> Bound<X> withCoder(Coder<X> coder) {
         return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards, forceReshard,
@@ -600,13 +620,14 @@ public class TextIO {
       }
 
       /**
-       * Returns a new TextIO.Write PTransform that's like this one but
+       * Returns a transform for writing to text files that's like this one but
        * that has GCS output path validation on pipeline creation disabled.
-       * Does not modify this object.
        *
        * <p>This can be useful in the case where the GCS output location does
        * not exist at the pipeline creation time, but is expected to be
        * available at execution time.
+       *
+       * <p>Does not modify this object.
        */
       public Bound<T> withoutValidation() {
         return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards, forceReshard,
@@ -696,7 +717,7 @@ public class TextIO {
     GZIP(".gz") {
       @Override
       public InputStream createInputStream(InputStream inputStream) throws IOException {
-        // Determine if the input stream is gzipped.  The input stream returned from the
+        // Determine if the input stream is gzipped. The input stream returned from the
         // GCS connector may already be decompressed, and no action is required.
         PushbackInputStream stream = new PushbackInputStream(inputStream, 2);
         byte[] headerBytes = new byte[2];
@@ -753,6 +774,9 @@ public class TextIO {
 
   //////////////////////////////////////////////////////////////////////////////
 
+  /** Disable construction of utility class. */
+  private TextIO() {}
+
   private static <T> void evaluateReadHelper(
       Read.Bound<T> transform, DirectPipelineRunner.EvaluationContext context) {
     TextReader<T> reader =
@@ -767,7 +791,7 @@ public class TextIO {
     List<T> elems = context.getPCollection(context.getInput(transform));
     int numShards = transform.numShards;
     if (numShards < 1) {
-      // System gets to choose.  For direct mode, choose 1.
+      // System gets to choose. For direct mode, choose 1.
       numShards = 1;
     }
     TextSink<WindowedValue<T>> writer = TextSink.createForDirectPipelineRunner(
