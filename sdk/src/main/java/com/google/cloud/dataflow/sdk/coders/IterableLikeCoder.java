@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.coders;
 
+import com.google.cloud.dataflow.sdk.util.BufferedElementCountingOutputStream;
+import com.google.cloud.dataflow.sdk.util.VarInt;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObservableIterable;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
 import com.google.common.base.Preconditions;
@@ -111,15 +113,17 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
         elementCoder.encode(elem, dataOutStream, nestedContext);
       }
     } else {
-      // We don't know the size without traversing it.  So use a
-      // "hasNext" sentinel before each element.
-      // TODO: Don't use the sentinel if context.isWholeStream.
+      // We don't know the size without traversing it so use a fixed size buffer
+      // and encode as many elements as possible into it before outputting the size followed
+      // by the elements.
       dataOutStream.writeInt(-1);
+      BufferedElementCountingOutputStream countingOutputStream =
+          new BufferedElementCountingOutputStream(dataOutStream);
       for (T elem : iterable) {
-        dataOutStream.writeBoolean(true);
-        elementCoder.encode(elem, dataOutStream, nestedContext);
+        countingOutputStream.markElementStart();
+        elementCoder.encode(elem, countingOutputStream, nestedContext);
       }
-      dataOutStream.writeBoolean(false);
+      countingOutputStream.finish();
     }
     // Make sure all our output gets pushed to the underlying outStream.
     dataOutStream.flush();
@@ -138,11 +142,15 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
       }
       return decodeToIterable(elements);
     } else {
-      // We don't know the size a priori.  Check if we're done with
-      // each element.
       List<T> elements = new ArrayList<>();
-      while (dataInStream.readBoolean()) {
-        elements.add(elementCoder.decode(dataInStream, nestedContext));
+      long count;
+      // We don't know the size a priori.  Check if we're done with
+      // each block of elements.
+      while ((count = VarInt.decodeLong(dataInStream)) > 0) {
+        while (count > 0) {
+          elements.add(elementCoder.decode(dataInStream, nestedContext));
+          count -= 1;
+        }
       }
       return decodeToIterable(elements);
     }
@@ -205,14 +213,24 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
           elementCoder.registerByteSizeObserver(elem, observer, nestedContext);
         }
       } else {
-        // We don't know the size without traversing it.  So use a
-        // "hasNext" sentinel before each element.
-        // TODO: Don't use the sentinel if context.isWholeStream.
+        // TODO: Update to use an accurate count depending on size and count, currently we
+        // are under estimating the size by up to 10 bytes per block of data since we are
+        // not encoding the count prefix which occurs at most once per 64k of data and is upto
+        // 10 bytes long. Since we include the total count we can upper bound the underestimate
+        // to be 10 / 65536 ~= 0.0153% of the actual size.
         observer.update(4L);
+        long count = 0;
         for (T elem : iterable) {
-          observer.update(1L);
+          count += 1;
           elementCoder.registerByteSizeObserver(elem, observer, nestedContext);
         }
+        if (count > 0) {
+          // Update the length based upon the number of counted elements, this helps
+          // eliminate the case where all the elements are encoded in the first block and
+          // it is quite short (e.g. Long.MAX_VALUE nulls encoded with VoidCoder).
+          observer.update(VarInt.getLength(count));
+        }
+        // Update with the terminator byte.
         observer.update(1L);
       }
     }
