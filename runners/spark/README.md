@@ -94,7 +94,7 @@ Then run the word count example using Spark submit with the `yarn-client` master
       --class com.google.cloud.dataflow.examples.WordCount \
       --master yarn-client \
       target/spark-dataflow-*-spark-app.jar \
-        --input=kinglear.txt --output=out --runner=SparkPipelineRunner --sparkMaster=yarn-client
+        --inputFile=kinglear.txt --output=out --runner=SparkPipelineRunner --sparkMaster=yarn-client
 
 Check the output by running:
 
