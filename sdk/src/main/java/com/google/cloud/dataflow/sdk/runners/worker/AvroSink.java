@@ -16,14 +16,13 @@
 
 package com.google.cloud.dataflow.sdk.runners.worker;
 
-import static com.google.cloud.dataflow.sdk.util.WindowedValue.ValueOnlyWindowedValueCoder;
-
 import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
 import com.google.cloud.dataflow.sdk.util.MimeTypes;
 import com.google.cloud.dataflow.sdk.util.ShardingWritableByteChannel;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
+import com.google.cloud.dataflow.sdk.util.WindowedValue.ValueOnlyWindowedValueCoder;
 import com.google.cloud.dataflow.sdk.util.common.worker.Sink;
 
 import org.apache.avro.Schema;
@@ -57,7 +56,8 @@ public class AvroSink<T> extends Sink<WindowedValue<T>> {
   public AvroSink(String filenamePrefix, String shardFormat, String filenameSuffix, int shardCount,
                   ValueOnlyWindowedValueCoder<T> coder) {
     if (!(coder.getValueCoder() instanceof AvroCoder)) {
-      throw new IllegalArgumentException("AvroSink requires an AvroCoder");
+      throw new IllegalArgumentException(String.format(
+          "AvroSink requires an AvroCoder, not a %s", coder.getValueCoder().getClass()));
     }
 
     this.filenamePrefix = filenamePrefix;

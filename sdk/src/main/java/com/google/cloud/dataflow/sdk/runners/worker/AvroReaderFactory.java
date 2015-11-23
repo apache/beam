@@ -55,15 +55,10 @@ public class AvroReaderFactory implements ReaderFactory {
     Long startOffset = getLong(spec, PropertyNames.START_OFFSET, null);
     Long endOffset = getLong(spec, PropertyNames.END_OFFSET, null);
 
-    // If the coder is a ValueOnlyWindowedValueCoder, the source is a user source. Otherwise,
-    // the coder is a FullWindowedValueCoder and the source is a materialized PCollection.
-    if (coder instanceof ValueOnlyWindowedValueCoder) {
+    // See AvroSinkFactory#create for an explanation of this logic.
+    if (coder instanceof ValueOnlyWindowedValueCoder
+        && ((ValueOnlyWindowedValueCoder) coder).getValueCoder() instanceof AvroCoder) {
       ValueOnlyWindowedValueCoder<?> valueCoder = (ValueOnlyWindowedValueCoder<?>) coder;
-      if (!(valueCoder.getValueCoder() instanceof AvroCoder)) {
-        throw new IllegalArgumentException(
-            "AvroReader requires an AvroCoder, but the instance given was "
-            + valueCoder.getValueCoder());
-      }
       return new AvroReader<>(
           filename, startOffset, endOffset, (AvroCoder<?>) valueCoder.getValueCoder(), options);
     } else {
