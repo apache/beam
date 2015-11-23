@@ -371,7 +371,7 @@
       <version>${google-clients.version}</version>
       <exclusions>
         <!-- Exclude an old version of guava that is being pulled
-             in by a transitive dependency google-api-client 1.20.0 -->
+             in by a transitive dependency of google-api-client -->
         <exclusion>
           <groupId>com.google.guava</groupId>
           <artifactId>guava-jdk5</artifactId>
@@ -385,7 +385,7 @@
       <version>${dataflow.version}</version>
       <exclusions>
         <!-- Exclude an old version of guava that is being pulled
-             in by a transitive dependency google-api-client 1.20.0 -->
+             in by a transitive dependency of google-api-client -->
         <exclusion>
           <groupId>com.google.guava</groupId>
           <artifactId>guava-jdk5</artifactId>
@@ -399,7 +399,7 @@
       <version>${bigquery.version}</version>
       <exclusions>
         <!-- Exclude an old version of guava that is being pulled
-             in by a transitive dependency google-api-client 1.20.0 -->
+             in by a transitive dependency of google-api-client -->
         <exclusion>
           <groupId>com.google.guava</groupId>
           <artifactId>guava-jdk5</artifactId>
@@ -413,7 +413,7 @@
       <version>${google-clients.version}</version>
       <exclusions>
         <!-- Exclude an old version of guava that is being pulled
-             in by a transitive dependency google-api-client 1.20.0 -->
+             in by a transitive dependency of google-api-client -->
         <exclusion>
           <groupId>com.google.guava</groupId>
           <artifactId>guava-jdk5</artifactId>
@@ -433,7 +433,7 @@
       <version>${datastore.version}</version>
       <exclusions>
         <!-- Exclude an old version of guava that is being pulled
-             in by a transitive dependency google-api-client 1.20.0 -->
+             in by a transitive dependency of google-api-client -->
         <exclusion>
           <groupId>com.google.guava</groupId>
           <artifactId>guava-jdk5</artifactId>
@@ -447,7 +447,7 @@
       <version>${pubsub.version}</version>
       <exclusions>
         <!-- Exclude an old version of guava that is being pulled
-             in by a transitive dependency google-api-client 1.20.0 -->
+             in by a transitive dependency of google-api-client -->
         <exclusion>
           <groupId>com.google.guava</groupId>
           <artifactId>guava-jdk5</artifactId>
