@@ -72,23 +72,21 @@ public class AfterAll<W extends BoundedWindow> extends OnceTrigger<W> {
   @Override
   public MergeResult onMerge(OnMergeContext c) throws Exception {
     // CONTINUE if merging returns CONTINUE for at least one sub-trigger
-    // FIRE_AND_FINISH if merging returns FIRE or FIRE_AND_FINISH for at least one sub-trigger
-    //   *and* FIRE, FIRE_AND_FINISH, or FINISH for all other sub-triggers.
-    // FINISH if merging returns FINISH for all sub-triggers.
-    boolean fired = false;
+    // ALREADY_FINISHED if merging returns ALREADY_FINISHED for all sub-triggers and this
+    // trigger itself was already finished in some window.
+    // FIRE_AND_FINISH otherwise: It means this trigger is ready to fire (because all subtriggers
+    // are satisfied) but has never fired as a whole.
+    boolean anyContinue = true;
+    boolean alreadyFinished = true;
     for (ExecutableTrigger<W> subTrigger : c.trigger().subTriggers()) {
       MergeResult result = subTrigger.invokeMerge(c);
-      if (MergeResult.CONTINUE.equals(result)) {
-        return MergeResult.CONTINUE;
-      }
-      fired |= result.isFire();
+      anyContinue |= !(result.isFire() && result.isFinish());
+      alreadyFinished &= !result.isFire() && result.isFinish();
     }
 
-    // When we reach this point, we know all subtriggers are finished, possibly already,
-    // possibly because of firing right now. So this trigger is finished and the decision
-    // is whether to fire. If no subtrigger wants to fire and the root trigger was already
-    // finished in some window, then there is no need to fire.
-    if (!fired && c.trigger().finishedInAnyMergingWindow()) {
+    if (anyContinue) {
+      return MergeResult.CONTINUE;
+    } else if (alreadyFinished && c.trigger().finishedInAnyMergingWindow()) {
       return MergeResult.ALREADY_FINISHED;
     } else {
       return MergeResult.FIRE_AND_FINISH;
