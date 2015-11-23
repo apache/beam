@@ -179,6 +179,32 @@ public class AfterAllTest {
   }
 
   @Test
+  public void testOnMergeFiresNotAlreadyFinished() throws Exception {
+    setUp(Sessions.withGapDuration(Duration.millis(10)));
+
+    when(mockTrigger1.onElement(Mockito.<Trigger<IntervalWindow>.OnElementContext>any()))
+        .thenReturn(TriggerResult.CONTINUE);
+    when(mockTrigger2.onElement(Mockito.<Trigger<IntervalWindow>.OnElementContext>any()))
+        .thenReturn(TriggerResult.CONTINUE);
+    tester.injectElements(
+        TimestampedValue.of(1, new Instant(1)),
+        TimestampedValue.of(5, new Instant(12)));
+
+    when(mockTrigger1.onMerge(Mockito.<Trigger<IntervalWindow>.OnMergeContext>any()))
+        .thenReturn(MergeResult.ALREADY_FINISHED);
+    when(mockTrigger2.onMerge(Mockito.<Trigger<IntervalWindow>.OnMergeContext>any()))
+        .thenReturn(MergeResult.ALREADY_FINISHED);
+    tester.injectElements(
+        TimestampedValue.of(12, new Instant(5)));
+
+    assertThat(tester.extractOutput(), Matchers.contains(
+        isSingleWindowedValue(Matchers.containsInAnyOrder(1, 5, 12), 1, 1, 22)));
+    assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(1), new Instant(22))));
+    tester.assertHasOnlyGlobalAndFinishedSetsFor(
+        new IntervalWindow(new Instant(1), new Instant(22)));
+  }
+
+  @Test
   public void testFireDeadline() throws Exception {
     BoundedWindow window = new IntervalWindow(new Instant(0), new Instant(10));
 

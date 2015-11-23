@@ -84,7 +84,15 @@ public class AfterAll<W extends BoundedWindow> extends OnceTrigger<W> {
       fired |= result.isFire();
     }
 
-    return fired ? MergeResult.FIRE_AND_FINISH : MergeResult.ALREADY_FINISHED;
+    // When we reach this point, we know all subtriggers are finished, possibly already,
+    // possibly because of firing right now. So this trigger is finished and the decision
+    // is whether to fire. If no subtrigger wants to fire and the root trigger was already
+    // finished in some window, then there is no need to fire.
+    if (!fired && c.trigger().finishedInAnyMergingWindow()) {
+      return MergeResult.ALREADY_FINISHED;
+    } else {
+      return MergeResult.FIRE_AND_FINISH;
+    }
   }
 
   @Override
