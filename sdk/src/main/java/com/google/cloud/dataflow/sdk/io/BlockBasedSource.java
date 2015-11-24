@@ -30,14 +30,15 @@ import javax.annotation.Nullable;
  *
  * <p>{@code BlockBasedSource} should be derived from when a file format does not support efficient
  * seeking to a record in the file, but can support efficient seeking to a block. Alternatively,
- * records in the file cannot be offset-addressed, but blocks can (i.e., it is not possible to say
- * that record i starts at offset m, but it is possible to say that block j starts at offset n).
+ * records in the file cannot be offset-addressed, but blocks can (it is not possible to say
+ * that record {code i} starts at offset {@code m}, but it is possible to say that block {@code j}
+ *  starts at offset {@code n}).
  *
  * <p>The records that will be read from a {@code BlockBasedSource} that corresponds to a subrange
- * of a file [startOffset, endOffset) are those records such that the record is contained in a
- * block that starts at offset {@code i}, where {@code i >= startOffset} and {@code i < endOffset}.
- * In other words, a record will be read from the source if it is contained in a block that begins
- * within the range described by the source.
+ * of a file {@code [startOffset, endOffset)} are those records such that the record is contained in
+ * a block that starts at offset {@code i}, where {@code i >= startOffset} and
+ * {@code i < endOffset}. In other words, a record will be read from the source if its first byte is
+ * contained in a block that begins within the range described by the source.
  *
  * <p>This entails that it is possible to determine the start offsets of all blocks in a file.
  *
@@ -105,12 +106,12 @@ public abstract class BlockBasedSource<T> extends FileBasedSource<T> {
     public abstract boolean readNextRecord() throws IOException;
 
     /**
-     * Returns the fraction of the block already consumed (i.e., not including the current record),
-     * if possible, as a value in [0, 1]. Successive calls to this method must be monotonically
-     * non-decreasing.
+     * Returns the fraction of the block already consumed, if possible, as a value in
+     * {@code [0, 1]}. It should not include the current record. Successive results from this method
+     * must be monotonically increasing.
      *
-     * <p>If it is not possible to compute the fraction of the block consumed (e.g., the total
-     * number of records is unknown and record offsets are unknown), this method may return zero.
+     * <p>If it is not possible to compute the fraction of the block consumed this method may
+     * return zero. For example, when the total number of records in the block is unknown.
      */
     public abstract double getFractionOfBlockConsumed();
   }
@@ -118,7 +119,7 @@ public abstract class BlockBasedSource<T> extends FileBasedSource<T> {
   /**
    * A {@code Reader} that reads records from a {@link BlockBasedSource}. If the source is a
    * subrange of a file, the blocks that will be read by this reader are those such that the first
-   * byte of the block is within the range [start, end).
+   * byte of the block is within the range {@code [start, end)}.
    */
   @Experimental(Experimental.Kind.SOURCE_SINK)
   protected abstract static class BlockBasedReader<T> extends FileBasedReader<T> {
@@ -143,7 +144,7 @@ public abstract class BlockBasedSource<T> extends FileBasedSource<T> {
 
     /**
      * Returns the size of the current block in bytes as it is represented in the underlying file,
-     * if possible. This method may return 0 if the size of the current block is unknown.
+     * if possible. This method may return {@code 0} if the size of the current block is unknown.
      *
      * <p>The size returned by this method must be such that for two successive blocks A and B,
      * {@code offset(A) + size(A) <= offset(B)}. If this is not satisfied, the progress reported
@@ -152,8 +153,8 @@ public abstract class BlockBasedSource<T> extends FileBasedSource<T> {
      *
      * <p>This method and {@link Block#getFractionOfBlockConsumed} are used to provide an estimate
      * of progress within a block ({@code getCurrentBlock().getFractionOfBlockConsumed() *
-     * getCurrentBlockSize()}). It is acceptable for the result of this computation to be 0, but
-     * progress estimation will be inaccurate.
+     * getCurrentBlockSize()}). It is acceptable for the result of this computation to be {@code 0},
+     * but progress estimation will be inaccurate.
      */
     public abstract long getCurrentBlockSize();
 
@@ -183,6 +184,12 @@ public abstract class BlockBasedSource<T> extends FileBasedSource<T> {
       return atSplitPoint;
     }
 
+    /**
+     * Reads the next record from the {@link getCurrentBlock() current block} if
+     * possible. Will call {@link readNextBlock()} to advance to the next block if not.
+     *
+     * <p>The first record read from a block is treated as a split point.
+     */
     @Override
     protected final boolean readNextRecord() throws IOException {
       atSplitPoint = false;
