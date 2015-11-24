@@ -16,6 +16,11 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
+import static com.google.common.base.Preconditions.checkArgument;
+
+import com.google.api.client.util.Clock;
+import com.google.api.client.util.DateTime;
 import com.google.api.services.pubsub.Pubsub;
 import com.google.api.services.pubsub.model.AcknowledgeRequest;
 import com.google.api.services.pubsub.model.PublishRequest;
@@ -43,7 +48,9 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollection.IsBounded;
 import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.cloud.dataflow.sdk.values.PInput;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableMap;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -127,6 +134,48 @@ public class PubsubIO {
       throw new IllegalArgumentException("Illegal Pubsub object name specified: " + name
           + " Please see Javadoc for naming rules.");
     }
+  }
+
+  /**
+   * Returns the {@link Instant} that corresponds to the timestamp in the supplied
+   * {@link PubsubMessage} under the specified {@code ink label}. See
+   * {@link PubsubIO.Read#timestampLabel(String)} for details about how these messages are
+   * parsed.
+   *
+   * <p>The {@link Clock} parameter is used to virtualize time for testing.
+   *
+   * @throws IllegalArgumentException if the timestamp label is provided, but there is no
+   *     corresponding attribute in the message or the value provided is not a valid timestamp
+   *     string.
+   * @see PubsubIO.Read#timestampLabel(String)
+   */
+  @VisibleForTesting
+  protected static Instant assignMessageTimestamp(
+      PubsubMessage message, @Nullable String label, Clock clock) {
+    if (label == null) {
+      return new Instant(clock.currentTimeMillis());
+    }
+
+    // Extract message attributes, defaulting to empty map if null.
+    Map<String, String> attributes = firstNonNull(
+        message.getAttributes(), ImmutableMap.<String, String>of());
+
+    String timestampStr = attributes.get(label);
+    checkArgument(timestampStr != null && !timestampStr.isEmpty(),
+        "PubSub message is missing a timestamp in label: %s", label);
+
+    long millisSinceEpoch;
+    try {
+      // Try parsing as milliseconds since epoch. Note there is no way to parse a string in
+      // RFC 3339 format here.
+      // Expected IllegalArgumentException if parsing fails; we use that to fall back to RFC 3339.
+      millisSinceEpoch = Long.parseLong(timestampStr);
+    } catch (IllegalArgumentException e) {
+      // Try parsing as RFC3339 string. DateTime.parseRfc3339 will throw an IllegalArgumentException
+      // if parsing fails, and the caller should handle.
+      millisSinceEpoch = DateTime.parseRfc3339(timestampStr).getValue();
+    }
+    return new Instant(millisSinceEpoch);
   }
 
   /**
@@ -387,10 +436,18 @@ public class PubsubIO {
     /**
      * Creates and returns a transform reading from Cloud Pub/Sub where record timestamps are
      * expected to be provided as Pub/Sub message attributes. The {@code timestampLabel}
-     * parameter specifies the name of the attribute that contains the timestamp. The value of the
-     * attribute should be a numerical value representing the number of milliseconds since the Unix
-     * epoch. For example, if using the Joda time classes,
-     * {@link Instant#getMillis()} returns the correct value for this label.
+     * parameter specifies the name of the attribute that contains the timestamp.
+     *
+     * <p>The timestamp value is expected to be represented in the attribute as either:
+     *
+     * <ul>
+     * <li>a numerical value representing the number of milliseconds since the Unix epoch. For
+     * example, if using the Joda time classes, {@link Instant#getMillis()} returns the correct
+     * value for this attribute.
+     * <li>a String in RFC 3339 format. For example, {@code 2015-10-29T23:41:41.123Z}. The
+     * sub-second component of the timestamp is optional, and digits beyond the first three
+     * (i.e., time units smaller than milliseconds) will be ignored.
+     * </ul>
      *
      * <p>If {@code timestampLabel} is not provided, the system will generate record timestamps
      * the first time it sees each record. All windowing will be done relative to these timestamps.
@@ -402,6 +459,8 @@ public class PubsubIO {
      *
      * <p>Note that the system can guarantee that no late data will ever be seen when it assigns
      * timestamps by arrival time (i.e. {@code timestampLabel} is not provided).
+     *
+     * @see <a href="https://www.ietf.org/rfc/rfc3339.txt">RFC 3339</a>
      */
     public static Bound<String> timestampLabel(String timestampLabel) {
       return new Bound<>(DEFAULT_PUBSUB_CODER).timestampLabel(timestampLabel);
@@ -734,20 +793,9 @@ public class PubsubIO {
           }
 
           for (PubsubMessage message : messages) {
-            Instant timestamp;
-            if (getTimestampLabel() == null) {
-              timestamp = Instant.now();
-            } else {
-              if (message.getAttributes() == null
-                  || !message.getAttributes().containsKey(getTimestampLabel())) {
-                throw new RuntimeException(
-                    "Message from pubsub missing timestamp label: " + getTimestampLabel());
-              }
-              timestamp =
-                  new Instant(Long.parseLong(message.getAttributes().get(getTimestampLabel())));
-            }
             c.outputWithTimestamp(
-                CoderUtils.decodeFromByteArray(getCoder(), message.decodeData()), timestamp);
+                CoderUtils.decodeFromByteArray(getCoder(), message.decodeData()),
+                assignMessageTimestamp(message, getTimestampLabel(), Clock.SYSTEM));
           }
         }
       }
