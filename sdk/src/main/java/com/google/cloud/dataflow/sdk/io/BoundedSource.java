@@ -48,7 +48,7 @@ import java.util.NoSuchElementException;
  */
 public abstract class BoundedSource<T> extends Source<T> {
   /**
-   * Splits the source into bundles of approximately given size (in bytes).
+   * Splits the source into bundles of approximately {@code desiredBundleSizeBytes}.
    */
   public abstract List<? extends BoundedSource<T>> splitIntoBundles(
       long desiredBundleSizeBytes, PipelineOptions options) throws Exception;
@@ -61,8 +61,8 @@ public abstract class BoundedSource<T> extends Source<T> {
   public abstract long getEstimatedSizeBytes(PipelineOptions options) throws Exception;
 
   /**
-   * Whether this source is known to produce key/value pairs with the (encoded) keys in
-   * lexicographically sorted order.
+   * Whether this source is known to produce key/value pairs sorted by lexicographic order on
+   * the bytes of the encoded key.
    */
   public abstract boolean producesSortedKeys(PipelineOptions options) throws Exception;
 
@@ -102,8 +102,9 @@ public abstract class BoundedSource<T> extends Source<T> {
   @Experimental(Experimental.Kind.SOURCE_SINK)
   public abstract static class BoundedReader<T> extends Source.Reader<T> {
     /**
-     * Returns a value in [0, 1] representing approximately what fraction of the source
-     * ({@link #getCurrentSource}) this reader has read so far.
+     * Returns a value in [0, 1] representing approximately what fraction of the
+     * {@link #getCurrentSource current source} this reader has read so far, or {@code null} if such
+     * an estimate is not available.
      *
      * <p>It is recommended that this method should satisfy the following properties:
      * <ul>
@@ -114,13 +115,10 @@ public abstract class BoundedSource<T> extends Source<T> {
      *
      * <p>By default, returns null to indicate that this cannot be estimated.
      *
-     * <h3>Thread safety</h3>
+     * <h5>Thread safety</h5>
      * If {@link #splitAtFraction} is implemented, this method can be called concurrently to other
      * methods (including itself), and it is therefore critical for it to be implemented
      * in a thread-safe way.
-     *
-     * @return A value in [0, 1] representing the fraction of this reader's current input
-     *   read so far, or {@code null} if such an estimate is not available.
      */
     public Double getFractionConsumed() {
       return null;
@@ -133,9 +131,10 @@ public abstract class BoundedSource<T> extends Source<T> {
      * Tells the reader to narrow the range of the input it's going to read and give up
      * the remainder, so that the new range would contain approximately the given
      * fraction of the amount of data in the current range.
+     *
      * <p>Returns a {@code BoundedSource} representing the remainder.
      *
-     * <h3>Detailed description</h3>
+     * <h5>Detailed description</h5>
      * Assuming the following sequence of calls:
      * <pre>{@code
      *   BoundedSource<T> initial = reader.getCurrentSource();
@@ -161,20 +160,20 @@ public abstract class BoundedSource<T> extends Source<T> {
      * corresponding to the given fraction. In this case, the method MUST have no effect
      * (the reader must behave as if the method hadn't been called at all).
      *
-     * <h3>Statefulness</h3>
+     * <h5>Statefulness</h5>
      * Since this method (if successful) affects the reader's source, in subsequent invocations
      * "fraction" should be interpreted relative to the new current source.
      *
-     * <h3>Thread safety and blocking</h3>
+     * <h5>Thread safety and blocking</h5>
      * This method will be called concurrently to other methods (however there will not be multiple
      * concurrent invocations of this method itself), and it is critical for it to be implemented
      * in a thread-safe way (otherwise data loss is possible).
      *
-     * <p>It is also very important that this method always completes quickly, in particular,
+     * <p>It is also very important that this method always completes quickly. In particular,
      * it should not perform or wait on any blocking operations such as I/O, RPCs etc. Violating
      * this requirement may stall completion of the work item or even cause it to fail.
      *
-     * <p>E.g. it is incorrect to make both this method and {@link #start}/{@link #advance}
+     * <p>It is incorrect to make both this method and {@link #start}/{@link #advance}
      * {@code synchronized}, because those methods can perform blocking operations, and then
      * this method would have to wait for those calls to complete.
      *
