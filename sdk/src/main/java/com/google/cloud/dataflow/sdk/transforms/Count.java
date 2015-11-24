@@ -24,10 +24,14 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
  * {@code PTransorm}s to count the elements in a {@link PCollection}.
  *
  * <p>{@link Count#perElement()} can be used to count the number of occurrences of each
- * distinct element in the PCollection. {@link Count#globally()} can
- * be used to count the total number of elements in a PCollection.
+ * distinct element in the PCollection, {@link Count#perKey()} can be used to count the
+ * number of values per key, and {@link Count#globally()} can be used to count the total
+ * number of elements in a PCollection.
  */
 public class Count {
+  private Count() {
+    // do not instantiate
+  }
 
   /**
    * Returns a {@link Combine.Globally} {@link PTransform} that counts the number of elements in

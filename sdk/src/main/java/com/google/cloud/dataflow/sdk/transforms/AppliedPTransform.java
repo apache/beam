@@ -25,6 +25,8 @@ import com.google.common.base.Objects;
  * Represents the application of a {@link PTransform} to a specific input to produce
  * a specific output.
  *
+ * <p>For internal use.
+ *
  * @param <InputT> transform input type
  * @param <OutputT> transform output type
  * @param <TransformT> transform type

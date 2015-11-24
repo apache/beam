@@ -66,8 +66,14 @@ import java.util.concurrent.ThreadLocalRandom;
 /**
  * {@code PTransform}s for combining {@code PCollection} elements
  * globally and per-key.
+ *
+ * <p>See the <a href="https://cloud.google.com/dataflow/model/combine">documentation</a>
+ * for how to use the operations in this class.
  */
 public class Combine {
+  private Combine() {
+    // do not instantiate
+  }
 
   /**
    * Returns a {@link Globally Combine.Globally} {@code PTransform}
@@ -396,8 +402,9 @@ public class Combine {
      * Applies this {@code CombineFn} to a collection of input values
      * to produce a combined output value.
      *
-     * <p>Useful when testing the behavior of a {@code CombineFn}
-     * separately from a {@code Combine} transform.
+     * <p>Useful when using a {@code CombineFn}  separately from a
+     * {@code Combine} transform.  Does not invoke the
+     * {@link mergeAccumulators} operation.
      */
     public OutputT apply(Iterable<? extends InputT> inputs) {
       AccumT accum = createAccumulator();
@@ -621,8 +628,7 @@ public class Combine {
   /**
    * Holds a single value value of type {@code V} which may or may not be present.
    *
-   * <p>Used only as a private accumulator class. The type appears in public interfaces, but from
-   * a public perspective, it has no accessible members.
+   * <p>Used only as a private accumulator class.
    */
   public static class Holder<V> {
     private V value;
@@ -683,7 +689,7 @@ public class Combine {
 
   /**
    * An abstract subclass of {@link CombineFn} for implementing combiners that are more
-   * easily expressed as binary operations on ints.
+   * easily and efficiently expressed as binary operations on <code>int</code>s.
    */
   public abstract static class BinaryCombineIntegerFn extends CombineFn<Integer, int[], Integer> {
 
@@ -763,7 +769,7 @@ public class Combine {
 
   /**
    * An abstract subclass of {@link CombineFn} for implementing combiners that are more
-   * easily expressed as binary operations on longs.
+   * easily and efficiently expressed as binary operations on <code>long</code>s.
    */
   public abstract static class BinaryCombineLongFn extends CombineFn<Long, long[], Long> {
     /**
@@ -841,7 +847,7 @@ public class Combine {
 
   /**
    * An abstract subclass of {@link CombineFn} for implementing combiners that are more
-   * easily expressed as binary operations on doubles.
+   * easily and efficiently expressed as binary operations on <code>double</code>s.
    */
   public abstract static class BinaryCombineDoubleFn extends CombineFn<Double, double[], Double> {
 
@@ -1373,8 +1379,8 @@ public class Combine {
      * Returns a {@link PTransform} that produces a {@code PCollectionView}
      * whose elements are the result of combining elements per-window in
      * the input {@code PCollection}.  If a value is requested from the view
-     * for a window that is not present, the result of calling the {@code CombineFn}
-     * on empty input will returned.
+     * for a window that is not present, the result of applying the {@code CombineFn}
+     * to an empty input set will be returned.
      */
     public GloballyAsSingletonView<InputT, OutputT> asSingletonView() {
       return new GloballyAsSingletonView<>(fn, insertDefault, fanout);
@@ -1382,7 +1388,8 @@ public class Combine {
 
     /**
      * Returns a {@link PTransform} identical to this, but that does not attempt to
-     * provide a default value in the case of empty input.
+     * provide a default value in the case of empty input.  Required when the input
+     * is not globally windowed and the output is not being used as a side input.
      */
     public Globally<InputT, OutputT> withoutDefaults() {
       return new Globally<>(name, fn, false, fanout);
@@ -2125,6 +2132,11 @@ public class Combine {
       return output;
     }
 
+    /**
+     * Returns the {@link CombineFn} bound to its coders.
+     *
+     * <p>For internal use.
+     */
     public AppliedCombineFn<? super K, ? super InputT, ?, OutputT> getAppliedFn(
         CoderRegistry registry, Coder<? extends KV<K, ? extends Iterable<InputT>>> inputCoder) {
       KvCoder<K, InputT> kvCoder = getKvCoder(inputCoder);

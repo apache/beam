@@ -44,6 +44,10 @@ import java.util.Comparator;
  */
 public class Min {
 
+  private Min() {
+    // do not instantiate
+  }
+
   /**
    * Returns a {@code PTransform} that takes an input {@code PCollection<Integer>} and returns a
    * {@code PCollection<Integer>} whose contents is a single value that is the minimum of the input

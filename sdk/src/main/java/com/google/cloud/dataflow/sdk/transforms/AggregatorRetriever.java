@@ -19,7 +19,7 @@ package com.google.cloud.dataflow.sdk.transforms;
 import java.util.Collection;
 
 /**
- * A class for extracting {@link Aggregator Aggregators} from {@link DoFn DoFns}.
+ * An internal class for extracting {@link Aggregator Aggregators} from {@link DoFn DoFns}.
  */
 public final class AggregatorRetriever {
   private AggregatorRetriever() {

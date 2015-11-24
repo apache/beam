@@ -44,6 +44,10 @@ import java.util.Comparator;
  */
 public class Max {
 
+  private Max() {
+    // do not instantiate
+  }
+
   /**
    * Returns a {@code PTransform} that takes an input {@code PCollection<Integer>} and returns a
    * {@code PCollection<Integer>} whose contents is the maximum of the input {@code PCollection}'s

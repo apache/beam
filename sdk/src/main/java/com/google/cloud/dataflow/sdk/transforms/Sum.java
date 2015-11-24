@@ -41,6 +41,10 @@ import com.google.cloud.dataflow.sdk.util.common.CounterProvider;
  */
 public class Sum {
 
+  private Sum() {
+    // do not instantiate
+  }
+
   /**
    * Returns a {@code PTransform} that takes an input
    * {@code PCollection<Integer>} and returns a

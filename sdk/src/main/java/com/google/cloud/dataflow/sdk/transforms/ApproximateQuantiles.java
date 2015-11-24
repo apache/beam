@@ -51,10 +51,13 @@ import javax.annotation.Nullable;
 
 /**
  * {@code PTransform}s for getting an idea of a {@code PCollection}'s
- * data distribution using approximate {@code N}-tiles, either
- * globally or per-key.
+ * data distribution using approximate {@code N}-tiles (e.g. quartiles,
+ * percentiles, etc.), either globally or per-key.
  */
 public class ApproximateQuantiles {
+  private ApproximateQuantiles() {
+    // do not instantiate
+  }
 
   /**
    * Returns a {@code PTransform} that takes a {@code PCollection<T>}

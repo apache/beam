@@ -41,7 +41,7 @@ import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
  *     myAggregator = createAggregator("myAggregator", new Sum.SumIntegerFn());
  *   }
  *
- *   {@literal @}Override
+ *   @Override
  *   public void processElement(ProcessContext c) {
  *     myAggregator.addValue(1);
  *   }

@@ -49,6 +49,10 @@ import java.util.PriorityQueue;
  */
 public class Top {
 
+  private Top() {
+    // do not instantiate
+  }
+
   /**
    * Returns a {@code PTransform} that takes an input
    * {@code PCollection<T>} and returns a {@code PCollection<List<T>>} with a
