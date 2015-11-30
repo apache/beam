@@ -37,15 +37,12 @@ import java.util.NoSuchElementException;
  *
  * <p>For example, use the following to read from a gzip-compressed XML file:
  *
- * {@code
+ * <pre> {@code
  * XmlSource mySource = XmlSource.from(...);
- * PCollection<T> collection = p.apply(CompressedSource.readFromSource(mySource,
- * CompressedSource.CompressionMode.GZIP);}
- *
- * Or, alternatively:
- * XmlSource mySource = XmlSource.from(...);
- * {@code PCollection<T> collection = p.apply(Read.from(CompressedSource.from(mySource,
- * CompressedSource.CompressionMode.GZIP)));}
+ * PCollection<T> collection = p.apply(Read.from(CompressedSource
+ *     .from(mySource)
+ *     .withDecompression(CompressedSource.CompressionMode.GZIP)));
+ * } </pre>
  *
  * <p>Default compression modes are {@link CompressionMode#GZIP} and {@link CompressionMode#BZIP2}.
  * User-defined compression types are supported by implementing {@link DecompressingChannelFactory}.
@@ -56,9 +53,8 @@ import java.util.NoSuchElementException;
 public class CompressedSource<T> extends FileBasedSource<T> {
   /**
    * Factory interface for creating channels that decompress the content of an underlying channel.
-   *
-   * <p>TODO: Refactor decompressing channel/stream creation and default instances to util classes.
    */
+  // TODO: Refactor decompressing channel/stream creation and default instances to util classes.
   public static interface DecompressingChannelFactory extends Serializable {
     /**
      * Given a channel, create a channel that decompresses the content read from the channel.
@@ -97,8 +93,8 @@ public class CompressedSource<T> extends FileBasedSource<T> {
   private final DecompressingChannelFactory channelFactory;
 
   /**
-   * Creates a {@link Read} transform that reads from a {@code CompressedSource} that reads from an
-   * underlying {@link FileBasedSource} after decompressing it with a {@link
+   * Creates a {@link Read} transform that reads from that reads from the underlying
+   * {@link FileBasedSource} {@code sourceDelegate} after decompressing it with a {@link
    * DecompressingChannelFactory}.
    */
   public static <T> Read.Bounded<T> readFromSource(
