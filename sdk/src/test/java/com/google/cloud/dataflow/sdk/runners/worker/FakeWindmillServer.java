@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.runners.worker;
 
+import static com.google.cloud.dataflow.sdk.testing.SystemNanoTimeSleeper.sleepMillis;
 import static org.junit.Assert.assertFalse;
 
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
@@ -76,7 +77,7 @@ class FakeWindmillServer extends WindmillServerStub {
     } else {
       try {
         // Sleep for a little bit to ensure that *-windmill-read state-sampled counters show up.
-        Thread.sleep(500);
+        sleepMillis(500);
       } catch (InterruptedException e) {}
     }
     return response;

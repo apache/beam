@@ -23,6 +23,7 @@ import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtil
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.readerProgressToCloudProgress;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.splitRequestToApproximateProgress;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.toCloudPosition;
+import static com.google.cloud.dataflow.sdk.testing.SystemNanoTimeSleeper.sleepMillis;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.MEAN;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.SUM;
@@ -124,7 +125,7 @@ public class ReadOperationTest {
 
     Thread thread = runReadLoopInThread(readOperation);
     for (int i = 0; i < 5; ++i) {
-      Thread.sleep(500); // Wait for the operation to start and block.
+      sleepMillis(500); // Wait for the operation to start and block.
       // Ensure that getProgress() doesn't block while the next() method is blocked.
       ApproximateProgress progress = readerProgressToCloudProgress(readOperation.getProgress());
       long observedIndex = progress.getPosition().getRecordIndex().longValue();

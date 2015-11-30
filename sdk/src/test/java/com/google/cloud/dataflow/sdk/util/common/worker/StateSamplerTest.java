@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.util.common.worker;
 
+import static com.google.cloud.dataflow.sdk.testing.SystemNanoTimeSleeper.sleepMillis;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -59,13 +60,13 @@ public class StateSamplerTest {
       try (StateSampler.ScopedState s1 =
           stateSampler.scopedState(state1)) {
         assert s1 != null;
-        Thread.sleep(2 * periodMs);
+        sleepMillis(2 * periodMs);
       }
 
       try (StateSampler.ScopedState s2 =
           stateSampler.scopedState(state2)) {
         assert s2 != null;
-        Thread.sleep(3 * periodMs);
+        sleepMillis(3 * periodMs);
       }
 
       long s1 = getCounterLongValue(counters, "test-1-msecs");
@@ -91,21 +92,21 @@ public class StateSamplerTest {
       try (StateSampler.ScopedState s1 =
           stateSampler.scopedState(state1)) {
         assert s1 != null;
-        Thread.sleep(2 * periodMs);
+        sleepMillis(2 * periodMs);
 
         try (StateSampler.ScopedState s2 =
             stateSampler.scopedState(state2)) {
           assert s2 != null;
-          Thread.sleep(2 * periodMs);
+          sleepMillis(2 * periodMs);
 
           try (StateSampler.ScopedState s3 =
               stateSampler.scopedState(state3)) {
             assert s3 != null;
-            Thread.sleep(2 * periodMs);
+            sleepMillis(2 * periodMs);
           }
-          Thread.sleep(periodMs);
+          sleepMillis(periodMs);
         }
-        Thread.sleep(periodMs);
+        sleepMillis(periodMs);
       }
 
       long s1 = getCounterLongValue(counters, "test-1-msecs");
@@ -127,7 +128,7 @@ public class StateSamplerTest {
 
       int state1 = stateSampler.stateForName("1", StateSampler.StateKind.USER);
       int previousState = stateSampler.setState(state1);
-      Thread.sleep(2 * periodMs);
+      sleepMillis(2 * periodMs);
       stateSampler.setState(previousState);
       long tolerance = periodMs;
       long s = getCounterLongValue(counters, "test-1-msecs");
@@ -149,14 +150,13 @@ public class StateSamplerTest {
       stateSampler.addSamplingCallback(new SamplingCallback(){
         @Override
         public void run(int state, StateKind kind, long elapsedMs) {
-          lastSampledTimeStamp.set(System.currentTimeMillis());
+          lastSampledTimeStamp.set(System.nanoTime());
           sampleHappened.release();
         }
       });
       sampleHappened.acquire();
     }
-    long samplerStoppedTimeStamp = System.currentTimeMillis();
-    Thread.sleep(2 * periodMs);
+    long samplerStoppedTimeStamp = System.nanoTime();
     assertThat(lastSampledTimeStamp.get(), Matchers.lessThanOrEqualTo(samplerStoppedTimeStamp));
   }
 

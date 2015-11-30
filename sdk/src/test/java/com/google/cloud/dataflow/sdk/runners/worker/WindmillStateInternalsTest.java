@@ -15,6 +15,7 @@
  */
 package com.google.cloud.dataflow.sdk.runners.worker;
 
+import static com.google.cloud.dataflow.sdk.testing.SystemNanoTimeSleeper.sleepMillis;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -99,7 +100,7 @@ public class WindmillStateInternalsTest {
       @Override
       public void run() {
         try {
-          Thread.sleep(millis);
+          sleepMillis(millis);
         } catch (InterruptedException e) {
           throw new RuntimeException("Interrupted before setting", e);
         }

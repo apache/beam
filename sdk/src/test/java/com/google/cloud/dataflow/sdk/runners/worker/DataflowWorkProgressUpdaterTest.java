@@ -22,6 +22,7 @@ import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.posit
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudPositionToReaderPosition;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.splitRequestToApproximateProgress;
+import static com.google.cloud.dataflow.sdk.testing.SystemNanoTimeSleeper.sleepMillis;
 import static com.google.cloud.dataflow.sdk.util.CloudCounterUtils.extractCounter;
 import static com.google.cloud.dataflow.sdk.util.CloudMetricUtils.extractCloudMetric;
 import static com.google.cloud.dataflow.sdk.util.TimeUtil.toCloudDuration;
@@ -266,7 +267,7 @@ public class DataflowWorkProgressUpdaterTest {
     progressUpdater.startReportingProgress();
 
     // The initial update should be sent after 300 msec.
-    Thread.sleep(50);
+    sleepMillis(50);
     verifyZeroInteractions(workUnitClient);
 
     verify(workUnitClient, timeout(350))
@@ -279,7 +280,7 @@ public class DataflowWorkProgressUpdaterTest {
     verifyNoMoreInteractions(workUnitClient);
 
     // still not yet after 50ms
-    Thread.sleep(50);
+    sleepMillis(50);
     verifyNoMoreInteractions(workUnitClient);
 
     // Stop the progressUpdater now, and expect the last update immediately

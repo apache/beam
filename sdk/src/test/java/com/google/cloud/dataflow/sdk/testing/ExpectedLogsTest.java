@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.testing;
 
+import static com.google.cloud.dataflow.sdk.testing.SystemNanoTimeSleeper.sleepMillis;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -31,6 +33,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CompletionService;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 /** Tests for {@link FastNanoClockAndSleeper}. */
 @RunWith(JUnit4.class)
@@ -114,7 +117,8 @@ public class ExpectedLogsTest {
   public void testThreadSafetyOfLogSaver() throws Throwable {
     CompletionService<Void> completionService =
         new ExecutorCompletionService<>(Executors.newCachedThreadPool());
-    final long scheduledLogTime = System.currentTimeMillis() + 500L;
+    final long scheduledLogTime =
+        TimeUnit.MILLISECONDS.convert(System.nanoTime(), TimeUnit.NANOSECONDS) + 500L;
 
     List<String> expectedStrings = new ArrayList<>();
     for (int i = 0; i < 100; i++) {
@@ -124,7 +128,8 @@ public class ExpectedLogsTest {
         @Override
         public Void call() throws Exception {
           // Have all threads started and waiting to log at about the same moment.
-          Thread.sleep(Math.max(1, scheduledLogTime - System.currentTimeMillis()));
+          sleepMillis(Math.max(1, scheduledLogTime
+              - TimeUnit.MILLISECONDS.convert(System.nanoTime(), TimeUnit.NANOSECONDS)));
           LOG.trace(expected);
           return null;
         }

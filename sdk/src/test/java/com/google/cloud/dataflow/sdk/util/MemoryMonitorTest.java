@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import static com.google.cloud.dataflow.sdk.testing.SystemNanoTimeSleeper.sleepMillis;
+
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -64,10 +66,10 @@ public class MemoryMonitorTest {
 
   @Test(timeout = 1000)
   public void detectGCThrashing() throws InterruptedException {
-    Thread.sleep(100);
+    sleepMillis(100);
     monitor.waitForResources("Test1");
     provider.inGCThrashingState.set(true);
-    Thread.sleep(100);
+    sleepMillis(100);
     final Semaphore s = new Semaphore(0);
     new Thread(new Runnable() {
       @Override
