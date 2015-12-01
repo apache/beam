@@ -28,6 +28,9 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.testing.PCollectionViewTesting;
+import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
@@ -36,7 +39,9 @@ import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 
+import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -62,7 +67,8 @@ public class DataflowSideInputReaderTest {
       ImmutableList.of(1L, -43255L, 0L, 13L, 1975858L);
 
   private static final long DEFAULT_SOURCE_LENGTH = DEFAULT_SOURCE_CONTENTS.size();
-
+  private static final IntervalWindow OTHER_WINDOW =
+      new IntervalWindow(new Instant(50000L), new Instant(60000L));
   private PipelineOptions options = PipelineOptionsFactory.create();
   private static ExecutionContext executionContext;
   private SideInputInfo defaultSideInputInfo;
@@ -70,15 +76,19 @@ public class DataflowSideInputReaderTest {
 
   /**
    * Creates a {@link Source} descriptor for reading the provided contents as a side input.
-   * The contents will all be placed in the {@link PCollectionViewTesting#DEFAULT_NONEMPTY_WINDOW}.
    *
    * <p>If the {@code PCollectionView} has an incompatible {@code Coder} or
    * {@code WindowingStrategy}, then results are unpredictable.
    */
-  private final <T> Source sourceInDefaultWindow(PCollectionView<T> view, Iterable<T> values)
+  private final <T> Source sourceInMultipleWindows(PCollectionView<T> view, Iterable<T> values)
       throws Exception {
-    List<WindowedValue<T>> windowedValues =
-        ImmutableList.copyOf(PCollectionViewTesting.contentsInDefaultWindow(values));
+    List<WindowedValue<T>> windowedValues = ImmutableList.<WindowedValue<T>>builder()
+        .addAll(PCollectionViewTesting.contentsInDefaultWindow(values))
+        // We add the values twice within the other window so there are a different number
+        // then in the default window.
+        .addAll(contentsInWindow(values, OTHER_WINDOW))
+        .addAll(contentsInWindow(values, OTHER_WINDOW))
+        .build();
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     List<Coder<?>> componentCoders = (List) view.getCoderInternal().getCoderArguments();
@@ -109,13 +119,26 @@ public class DataflowSideInputReaderTest {
         PCollectionViewTesting.valueInDefaultWindow(arbitraryLong)).length;
   }
 
+  /**
+   * Prepares {@code values} for reading as the contents of a {@link PCollectionView} side input.
+   */
+  private static <T> Iterable<WindowedValue<T>> contentsInWindow(Iterable<T> values,
+      BoundedWindow window) throws Exception {
+    List<WindowedValue<T>> windowedValues = Lists.newArrayList();
+    for (T value : values) {
+      windowedValues.add(
+          WindowedValue.of(value, window.maxTimestamp().minus(1), window, PaneInfo.NO_FIRING));
+    }
+    return windowedValues;
+  }
+
   @Before
   public void setUp() throws Exception {
     options = PipelineOptionsFactory.create();
     executionContext = BatchModeExecutionContext.fromOptions(options);
 
     defaultSideInputInfo = SideInputUtils.createCollectionSideInputInfo(
-        sourceInDefaultWindow(DEFAULT_LENGTH_VIEW, DEFAULT_SOURCE_CONTENTS));
+        sourceInMultipleWindows(DEFAULT_LENGTH_VIEW, DEFAULT_SOURCE_CONTENTS));
     defaultSideInputInfo.setTag(DEFAULT_LENGTH_VIEW.getTagInternal().getId());
 
     defaultSideInputReader = DataflowSideInputReader.of(
@@ -136,7 +159,7 @@ public class DataflowSideInputReaderTest {
    * {@link DataflowSideInputReader}, the read succeeds and has the right size.
    */
   @Test
-  public void testDataflowSideInputReaderGoodRead() throws Exception {
+  public void testDataflowSideInputReaderFilteredRead() throws Exception {
     assertTrue(defaultSideInputReader.contains(DEFAULT_LENGTH_VIEW));
     Sized<Long> sizedValue = defaultSideInputReader.getSized(
         DEFAULT_LENGTH_VIEW, PCollectionViewTesting.DEFAULT_NONEMPTY_WINDOW);
@@ -156,7 +179,7 @@ public class DataflowSideInputReaderTest {
     Sized<Long> firstRead = sideInputReader.getSized(
         DEFAULT_LENGTH_VIEW, PCollectionViewTesting.DEFAULT_NONEMPTY_WINDOW);
 
-    // A repeated read should yield the same size
+    // A repeated read should yield the same size.
     Sized<Long> repeatedRead = sideInputReader.getSized(
         DEFAULT_LENGTH_VIEW, PCollectionViewTesting.DEFAULT_NONEMPTY_WINDOW);
 
@@ -170,11 +193,11 @@ public class DataflowSideInputReaderTest {
     DataflowSideInputReader sideInputReader = DataflowSideInputReader.of(
         Collections.singletonList(defaultSideInputInfo), options, executionContext);
 
-    // Reading an empty window still yields the same size, for now
+    // Reading an empty window yields the size of 0 elements.
     Sized<Long> emptyWindowValue = sideInputReader.getSized(
         DEFAULT_LENGTH_VIEW, PCollectionViewTesting.DEFAULT_EMPTY_WINDOW);
     assertThat(emptyWindowValue.getValue(), equalTo(0L));
-    assertThat(emptyWindowValue.getSize(), equalTo(DEFAULT_SOURCE_LENGTH * windowedLongBytes()));
+    assertThat(emptyWindowValue.getSize(), equalTo(0L));
   }
 
   /**
@@ -184,7 +207,7 @@ public class DataflowSideInputReaderTest {
   @Test
   public void testDataflowSideInputReaderBadRead() throws Exception {
     SideInputInfo sideInputInfo = SideInputUtils.createCollectionSideInputInfo(
-        sourceInDefaultWindow(DEFAULT_LENGTH_VIEW, DEFAULT_SOURCE_CONTENTS));
+        sourceInMultipleWindows(DEFAULT_LENGTH_VIEW, DEFAULT_SOURCE_CONTENTS));
     sideInputInfo.setTag("not the same tag at all");
 
     DataflowSideInputReader sideInputReader = DataflowSideInputReader.of(

@@ -19,15 +19,18 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 import com.google.api.services.dataflow.model.SideInputInfo;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.util.DirectSideInputReader;
+import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PTuple;
 import com.google.cloud.dataflow.sdk.util.SideInputReader;
 import com.google.cloud.dataflow.sdk.util.Sized;
 import com.google.cloud.dataflow.sdk.util.SizedSideInputReader;
+import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
+import com.google.common.collect.Iterables;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -51,8 +54,8 @@ public class DataflowSideInputReader
   /** A byte count saved as overhead per side input, not cleared when the observer is reset. */
   private final Map<TupleTag<Object>, Long> overheads;
 
-  /** The underlying reader, which does not keep track of sizes. */
-  private final SideInputReader subReader;
+  /** A list of TupleTags representing the side input values. */
+  private final PTuple sideInputValues;
 
   private DataflowSideInputReader(
       Iterable<? extends SideInputInfo> sideInputInfos,
@@ -64,7 +67,7 @@ public class DataflowSideInputReader
     this.observers = new HashMap<>();
     this.overheads = new HashMap<>();
 
-    PTuple sideInputValues = PTuple.empty();
+    PTuple sideInputValuesBeingBuilt = PTuple.empty();
     for (SideInputInfo sideInputInfo : sideInputInfos) {
       TupleTag<Object> tag = new TupleTag<>(sideInputInfo.getTag());
       ByteSizeObserver observer = new ByteSizeObserver();
@@ -73,9 +76,9 @@ public class DataflowSideInputReader
       overheads.put(tag, observer.getBytes());
       observer.reset();
       observers.put(tag, observer);
-      sideInputValues = sideInputValues.and(tag, sideInputValue);
+      sideInputValuesBeingBuilt = sideInputValuesBeingBuilt.and(tag, sideInputValue);
     }
-    this.subReader = DirectSideInputReader.of(sideInputValues);
+    sideInputValues = sideInputValuesBeingBuilt;
   }
 
   /**
@@ -92,12 +95,12 @@ public class DataflowSideInputReader
 
   @Override
   public <T> boolean contains(PCollectionView<T> view) {
-    return subReader.contains(view);
+    return sideInputValues.has(view.getTagInternal());
   }
 
   @Override
   public boolean isEmpty() {
-    return subReader.isEmpty();
+    return sideInputValues.isEmpty();
   }
 
   /**
@@ -108,16 +111,39 @@ public class DataflowSideInputReader
    */
   @Override
   public <T> Sized<T> getSized(PCollectionView<T> view, final BoundedWindow window) {
+    final TupleTag<Iterable<WindowedValue<?>>> tag = view.getTagInternal();
+    if (!sideInputValues.has(tag)) {
+      throw new IllegalArgumentException("calling getSideInput() with unknown view");
+    }
+
     // It is hard to estimate the size with any accuracy here, and there will be improvements
     // possible, but it is only required to estimate in a way so that a cache will not OOM.
-    T value = subReader.get(view, window);
-    @SuppressWarnings({"rawtypes", "unchecked"}) // irrelevant phantom type
-    TupleTag<Object> tag = (TupleTag) view.getTagInternal();
-    ByteSizeObserver observer = observers.get(tag);
+    T value;
     long overhead = overheads.get(tag);
-    long bytesRead = observer.getBytes();
-    observer.reset();
-    return Sized.of(value, overhead + bytesRead);
+    final ByteSizeObserver observer = observers.get(tag);
+    if (view.getWindowingStrategyInternal().getWindowFn() instanceof GlobalWindows) {
+      value = view.fromIterableInternal(sideInputValues.get(tag));
+      long bytesRead = observer.getBytes();
+      observer.reset();
+      return Sized.of(value, overhead + bytesRead);
+    } else {
+      final long[] sum = new long[]{ 0L };
+      value = view.fromIterableInternal(
+          Iterables.filter(sideInputValues.get(tag),
+              new Predicate<WindowedValue<?>>() {
+                  @Override
+                  public boolean apply(WindowedValue<?> element) {
+                    boolean containsWindow = element.getWindows().contains(window);
+                    // Only sum up the size of the elements within the window.
+                    if (containsWindow) {
+                      sum[0] += observer.getBytes();
+                    }
+                    observer.reset();
+                    return containsWindow;
+                  }
+                }));
+      return Sized.of(value, overhead + sum[0]);
+    }
   }
 
   /**
