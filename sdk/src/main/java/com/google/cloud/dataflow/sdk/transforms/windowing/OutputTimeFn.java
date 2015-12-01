@@ -38,20 +38,22 @@ import java.util.Objects;
  *   <li>The output timestamp when windows merge is provided by {@link #merge merge()}.</li>
  * </ol>
  *
- * <p>To implement this interface, extend {@link OutputTimeFn.Defaults} or
- * {@link OutputTimeFn.DependsOnlyOnWindow} or your implementation may be impacted when the
- * interface is enlarged. This interface will only be enlarged in ways that are
- * backwards-compatible for consumers. The base classes will only be changed in ways that
- * are backwards-compatible for implementors as well.
- *
- * <p>Note that as long as the interface remains experimental, we may choose to change it in
- * arbitrary backwards incompatible ways if it is indicated by the experiment.
+ * <p>This abstract class cannot be subclassed directly, by design: it may grow
+ * in consumer-compatible ways that require mutually-exclusive default implementations. To
+ * create a concrete subclass, extend {@link OutputTimeFn.Defaults} or
+ * {@link OutputTimeFn.DependsOnlyOnWindow}. Note that as long as this class remains
+ * experimental, we may also choose to change it in arbitrary backwards-incompatible ways.
  *
  * @param <W> the type of window. Contravariant: methods accepting any subtype of
  * {@code OutputTimeFn<W>} should use the parameter type {@code OutputTimeFn<? super W>}.
  */
 @Experimental(Experimental.Kind.OUTPUT_TIME)
-public interface OutputTimeFn<W extends BoundedWindow> extends Serializable {
+public abstract class OutputTimeFn<W extends BoundedWindow> implements Serializable {
+
+  /**
+   * Private constructor to prevent subclassing other than provided base classes.
+   */
+  private OutputTimeFn() { }
 
   /**
    * Returns the output timestamp to use for data depending on the given
@@ -73,7 +75,7 @@ public interface OutputTimeFn<W extends BoundedWindow> extends Serializable {
    * <p>See the overview of {@link OutputTimeFn} for the consistency properties required
    * between {@link #assignOutputTime}, {@link #combine}, and {@link #merge}.
    */
-  Instant assignOutputTime(Instant inputTimestamp, W window);
+  public abstract Instant assignOutputTime(Instant inputTimestamp, W window);
 
   /**
    * Combines the given output times, which must be from the same window, into an output time
@@ -85,7 +87,7 @@ public interface OutputTimeFn<W extends BoundedWindow> extends Serializable {
    *       {@code combine(a, combine(b, c)).equals(combine(combine(a, b), c))}.</li>
    * </ul>
    */
-  Instant combine(Instant outputTime, Instant otherOutputTime);
+  public abstract Instant combine(Instant outputTime, Instant otherOutputTime);
 
   /**
    * Merges the given output times, presumed to be combined output times for windows that
@@ -111,7 +113,7 @@ public interface OutputTimeFn<W extends BoundedWindow> extends Serializable {
    * timestamp, this will be the same as {@link #combine combine()}. Defaults for this
    * case are provided by {@link Default}.
    */
-  Instant merge(W intoWindow, Iterable<? extends Instant> mergingTimestamps);
+  public abstract Instant merge(W intoWindow, Iterable<? extends Instant> mergingTimestamps);
 
   /**
    * Returns {@code true} if the result of combination of many output timestamps actually depends
@@ -120,7 +122,7 @@ public interface OutputTimeFn<W extends BoundedWindow> extends Serializable {
    * <p>This may allow optimizations when it is very efficient to retrieve the earliest timestamp
    * to be combined.
    */
-  boolean dependsOnlyOnEarliestInputTimestamp();
+  public abstract boolean dependsOnlyOnEarliestInputTimestamp();
 
   /**
    * Returns {@code true} if the result does not depend on what outputs were combined but only
@@ -135,13 +137,7 @@ public interface OutputTimeFn<W extends BoundedWindow> extends Serializable {
    * a framework for easily implementing a correct {@link #merge}, {@link #combine} and
    * {@link #assignOutputTime}.
    */
-  boolean dependsOnlyOnWindow();
-
-  /**
-   * Please extend {@link Defaults} or {@link DependsOnlyOnWindow} if you want guaranteed
-   * compilation compatibility; this interface may be enlarged in consumer-compatible ways.
-   */
-  void pleaseExtendBaseClassesForCompilationCompatibility();
+  public abstract boolean dependsOnlyOnWindow();
 
   /**
    * <b><i>(Experimental)</i></b> Default method implementations for {@link OutputTimeFn} where the
@@ -152,7 +148,11 @@ public interface OutputTimeFn<W extends BoundedWindow> extends Serializable {
    * <p>By default, {@link #combine} and {@link #merge} return the earliest timestamp of their
    * inputs.
    */
-  public abstract static class Defaults<W extends BoundedWindow> implements OutputTimeFn<W> {
+  public abstract static class Defaults<W extends BoundedWindow> extends OutputTimeFn<W> {
+
+    protected Defaults() {
+      super();
+    }
 
     /**
      * {@inheritDoc}
@@ -186,11 +186,11 @@ public interface OutputTimeFn<W extends BoundedWindow> extends Serializable {
       return false;
     }
 
-      /**
-       * {@inheritDoc}
-       *
-       * @return {@code true} by default.
-       */
+    /**
+     * {@inheritDoc}
+     *
+     * @return {@code true} by default.
+     */
     @Override
     public boolean dependsOnlyOnEarliestInputTimestamp() {
       return false;
@@ -215,12 +215,6 @@ public interface OutputTimeFn<W extends BoundedWindow> extends Serializable {
     public int hashCode() {
       return Objects.hash(getClass());
     }
-
-    /**
-     * This base class provides compilation compatibility when {@link OutputTimeFn} is enlarged.
-     */
-    @Override
-    public void pleaseExtendBaseClassesForCompilationCompatibility() { }
   }
 
   /**
@@ -230,7 +224,11 @@ public interface OutputTimeFn<W extends BoundedWindow> extends Serializable {
    * <p>To complete an implementation, override {@link #assignOutputTime(BoundedWindow)}.
    */
   public abstract static class DependsOnlyOnWindow<W extends BoundedWindow>
-      implements OutputTimeFn<W> {
+      extends OutputTimeFn<W> {
+
+    protected DependsOnlyOnWindow() {
+      super();
+    }
 
     /**
      * Returns the output timestamp to use for data in the specified {@code window}.
@@ -317,11 +315,5 @@ public interface OutputTimeFn<W extends BoundedWindow> extends Serializable {
     public int hashCode() {
       return Objects.hash(getClass());
     }
-
-    /**
-     * This base class provides compilation compatibility when {@link OutputTimeFn} is enlarged.
-     */
-    @Override
-    public void pleaseExtendBaseClassesForCompilationCompatibility() { }
   }
 }
