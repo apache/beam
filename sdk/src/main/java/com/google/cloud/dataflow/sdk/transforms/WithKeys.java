@@ -58,6 +58,9 @@ public class WithKeys<K, V> extends PTransform<PCollection<V>,
    * values in the input {@code PCollection} has been paired with a
    * key computed from the value by invoking the given
    * {@code SerializableFunction}.
+   *
+   * <p>If using a lambda in Java 8, {@link #withKeyType(TypeDescriptor)} must
+   * be called on the result {@link PTransform}.
    */
   public static <K, V> WithKeys<K, V> of(SerializableFunction<V, K> fn) {
     return new WithKeys<>(fn, null);
@@ -90,6 +93,20 @@ public class WithKeys<K, V> extends PTransform<PCollection<V>,
   private WithKeys(SerializableFunction<V, K> fn, Class<K> keyClass) {
     this.fn = fn;
     this.keyClass = keyClass;
+  }
+
+  /**
+   * Return a {@link WithKeys} that is like this one with the specified key type descriptor.
+   *
+   * For use with lambdas in Java 8, either this method must be called with an appropriate type
+   * descriptor or {@link PCollection#setCoder(Coder)} must be called on the output
+   * {@link PCollection}.
+   */
+  public WithKeys<K, V> withKeyType(TypeDescriptor<K> keyType) {
+    // Safe cast
+    @SuppressWarnings("unchecked")
+    Class<K> rawType = (Class<K>) keyType.getRawType();
+    return new WithKeys<>(fn, rawType);
   }
 
   @Override

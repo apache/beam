@@ -24,6 +24,7 @@ import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -96,6 +97,21 @@ public class WithKeysTest {
   @Test
   public void testWithKeysGetName() {
     assertEquals("WithKeys", WithKeys.<Integer, String>of(100).getName());
+  }
+
+  @Test
+  public void testWithKeysWithUnneededWithKeyTypeSucceeds() {
+    TestPipeline p = TestPipeline.create();
+
+    PCollection<String> input =
+        p.apply(Create.of(Arrays.asList(COLLECTION)).withCoder(
+            StringUtf8Coder.of()));
+
+    PCollection<KV<Integer, String>> output =
+        input.apply(WithKeys.of(new LengthAsKey()).withKeyType(TypeDescriptor.of(Integer.class)));
+    DataflowAssert.that(output).containsInAnyOrder(WITH_KEYS);
+
+    p.run();
   }
 
   /**

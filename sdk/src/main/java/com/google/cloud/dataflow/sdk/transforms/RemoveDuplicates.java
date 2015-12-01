@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.transforms;
 
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 
 /**
  * {@code RemoveDuplicates<T>} takes a {@code PCollection<T>} and
@@ -77,7 +78,7 @@ public class RemoveDuplicates<T> extends PTransform<PCollection<T>,
    */
   public static <T, IdT> WithRepresentativeValues<T, IdT> withRepresentativeValueFn(
       SerializableFunction<T, IdT> fn) {
-    return new WithRepresentativeValues<T, IdT>(fn);
+    return new WithRepresentativeValues<T, IdT>(fn, null);
   }
 
   @Override
@@ -100,18 +101,34 @@ public class RemoveDuplicates<T> extends PTransform<PCollection<T>,
         .apply(Keys.<T>create());
   }
 
-  private static class WithRepresentativeValues<T, IdT>
+  /**
+   * A {@link RemoveDuplicates} {@link PTransform} that uses a {@link SerializableFunction} to
+   * obtain a representative value for each input element.
+   *
+   * Construct via {@link RemoveDuplicates#withRepresentativeValueFn(SerializableFunction)}.
+   *
+   * @param <T> the type of input and output element
+   * @param <IdT> the type of representative values used to dedup
+   */
+  public static class WithRepresentativeValues<T, IdT>
       extends PTransform<PCollection<T>, PCollection<T>> {
-    private SerializableFunction<T, IdT> fn;
+    private final SerializableFunction<T, IdT> fn;
+    private final TypeDescriptor<IdT> representativeType;
 
-    private WithRepresentativeValues(SerializableFunction<T, IdT> fn) {
+    private WithRepresentativeValues(
+        SerializableFunction<T, IdT> fn, TypeDescriptor<IdT> representativeType) {
       this.fn = fn;
+      this.representativeType = representativeType;
     }
 
     @Override
     public PCollection<T> apply(PCollection<T> in) {
+      WithKeys<IdT, T> withKeys = WithKeys.of(fn);
+      if (representativeType != null) {
+        withKeys = withKeys.withKeyType(representativeType);
+      }
       return in
-          .apply(WithKeys.of(fn))
+          .apply(withKeys)
           .apply(Combine.<IdT, T, T>perKey(
               new Combine.BinaryCombineFn<T>() {
                 @Override
@@ -120,6 +137,22 @@ public class RemoveDuplicates<T> extends PTransform<PCollection<T>,
                 }
               }))
           .apply(Values.<T>create());
+    }
+
+    /**
+     * Return a {@code WithRepresentativeValues} {@link PTransform} that is like this one, but with
+     * the specified output type descriptor.
+     *
+     * Required for use of {@link RemoveDuplicates#withRepresentativeValueFn(SerializableFunction)}
+     * in Java 8 with a lambda as the fn.
+     *
+     * @param type a {@link TypeDescriptor} describing the representative type of this
+     *             {@code WithRepresentativeValues}
+     * @return A {@code WithRepresentativeValues} {@link PTransform} that is like this one, but with
+     *         the specified output type descriptor.
+     */
+    public WithRepresentativeValues<T, IdT> withRepresentativeType(TypeDescriptor<IdT> type) {
+      return new WithRepresentativeValues<>(fn, type);
     }
   }
 }
