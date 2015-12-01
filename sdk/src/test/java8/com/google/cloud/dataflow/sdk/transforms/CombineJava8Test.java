@@ -16,10 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
-import static org.junit.Assert.assertEquals;
-
 import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.values.KV;
