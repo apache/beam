@@ -137,8 +137,8 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
   /** Translator for this DataflowPipelineRunner, based on options. */
   private final DataflowPipelineTranslator translator;
 
-  /** Custom transforms implementations for running in streaming mode. */
-  private final Map<Class<?>, Class<?>> streamingOverrides;
+  /** Custom transforms implementations. */
+  private final Map<Class<?>, Class<?>> overrides;
 
   /** A set of user defined functions to invoke at different points in execution. */
   private DataflowPipelineRunnerHooks hooks;
@@ -244,24 +244,29 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     this.dataflowClient = options.getDataflowClient();
     this.translator = DataflowPipelineTranslator.fromOptions(options);
 
-    this.streamingOverrides = ImmutableMap.<Class<?>, Class<?>>builder()
-        .put(Combine.GloballyAsSingletonView.class, StreamingCombineGloballyAsSingletonView.class)
-        .put(Create.Values.class, StreamingCreate.class)
-        .put(View.AsMap.class, StreamingViewAsMap.class)
-        .put(View.AsMultimap.class, StreamingViewAsMultimap.class)
-        .put(View.AsSingleton.class, StreamingViewAsSingleton.class)
-        .put(View.AsList.class, StreamingViewAsList.class)
-        .put(View.AsIterable.class, StreamingViewAsIterable.class)
-        .put(Write.Bound.class, StreamingWrite.class)
-        .put(PubsubIO.Write.Bound.class, StreamingPubsubIOWrite.class)
-        .put(Read.Unbounded.class, StreamingUnboundedRead.class)
-        .put(Read.Bounded.class, StreamingUnsupportedIO.class)
-        .put(AvroIO.Read.Bound.class, StreamingUnsupportedIO.class)
-        .put(AvroIO.Write.Bound.class, StreamingUnsupportedIO.class)
-        .put(BigQueryIO.Read.Bound.class, StreamingUnsupportedIO.class)
-        .put(TextIO.Read.Bound.class, StreamingUnsupportedIO.class)
-        .put(TextIO.Write.Bound.class, StreamingUnsupportedIO.class)
-        .build();
+    if (options.isStreaming()) {
+      overrides = ImmutableMap.<Class<?>, Class<?>>builder()
+          .put(Combine.GloballyAsSingletonView.class, StreamingCombineGloballyAsSingletonView.class)
+          .put(Create.Values.class, StreamingCreate.class)
+          .put(View.AsMap.class, StreamingViewAsMap.class)
+          .put(View.AsMultimap.class, StreamingViewAsMultimap.class)
+          .put(View.AsSingleton.class, StreamingViewAsSingleton.class)
+          .put(View.AsList.class, StreamingViewAsList.class)
+          .put(View.AsIterable.class, StreamingViewAsIterable.class)
+          .put(Write.Bound.class, StreamingWrite.class)
+          .put(PubsubIO.Write.Bound.class, StreamingPubsubIOWrite.class)
+          .put(Read.Unbounded.class, StreamingUnboundedRead.class)
+          .put(Read.Bounded.class, StreamingUnsupportedIO.class)
+          .put(AvroIO.Read.Bound.class, StreamingUnsupportedIO.class)
+          .put(AvroIO.Write.Bound.class, StreamingUnsupportedIO.class)
+          .put(BigQueryIO.Read.Bound.class, StreamingUnsupportedIO.class)
+          .put(TextIO.Read.Bound.class, StreamingUnsupportedIO.class)
+          .put(TextIO.Write.Bound.class, StreamingUnsupportedIO.class)
+          .build();
+    } else {
+      overrides = ImmutableMap.<Class<?>, Class<?>>builder()
+          .build();
+    }
   }
 
   /**
@@ -289,16 +294,15 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
           pc.isBounded());
       return outputT;
 
-    } else if (options.isStreaming() && streamingOverrides.containsKey(transform.getClass())) {
-      // It is the responsibility of whoever constructs streamingOverrides
-      // to ensure this is type safe.
+    } else if (overrides.containsKey(transform.getClass())) {
+      // It is the responsibility of whoever constructs overrides to ensure this is type safe.
       @SuppressWarnings("unchecked")
       Class<PTransform<InputT, OutputT>> transformClass =
           (Class<PTransform<InputT, OutputT>>) transform.getClass();
 
       @SuppressWarnings("unchecked")
       Class<PTransform<InputT, OutputT>> customTransformClass =
-          (Class<PTransform<InputT, OutputT>>) streamingOverrides.get(transform.getClass());
+          (Class<PTransform<InputT, OutputT>>) overrides.get(transform.getClass());
 
       PTransform<InputT, OutputT> customTransform =
           InstanceBuilder.ofType(customTransformClass)
