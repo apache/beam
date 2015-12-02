@@ -232,12 +232,13 @@ public class AutoComplete {
             .of(larger.get(1).apply(ParDo.of(new FlattenTops())))
             // ...together with those (previously excluded) candidates of length
             // exactly minPrefix...
-            .and(input.apply(Filter.by(new SerializableFunction<CompletionCandidate, Boolean>() {
-                    @Override
-                    public Boolean apply(CompletionCandidate c) {
-                      return c.getValue().length() == minPrefix;
-                    }
-                  })))
+            .and(input.apply(Filter.byPredicate(
+                new SerializableFunction<CompletionCandidate, Boolean>() {
+                  @Override
+                  public Boolean apply(CompletionCandidate c) {
+                    return c.getValue().length() == minPrefix;
+                  }
+                })))
             .apply("FlattenSmall", Flatten.<CompletionCandidate>pCollections())
             // ...set the key to be the minPrefix-length prefix...
             .apply(ParDo.of(new AllPrefixes(minPrefix, minPrefix)))
@@ -297,7 +298,6 @@ public class AutoComplete {
     }
 
     // Empty constructor required for Avro decoding.
-    @SuppressWarnings("unused")
     public CompletionCandidate() {}
 
     @Override

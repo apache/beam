@@ -84,7 +84,7 @@ public class AutoCompleteTest implements Serializable {
 
     PCollection<KV<String, List<CompletionCandidate>>> output =
       input.apply(new ComputeTopCompletions(2, recursive))
-           .apply(Filter.by(
+           .apply(Filter.byPredicate(
                         new SerializableFunction<KV<String, List<CompletionCandidate>>, Boolean>() {
                           @Override
                           public Boolean apply(KV<String, List<CompletionCandidate>> element) {

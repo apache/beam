@@ -53,7 +53,7 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
   }
 
   /**
-   * @deprecated use {@link byPredicate}, which returns a {@link Filter} transform instead of
+   * @deprecated use {@link #byPredicate}, which returns a {@link Filter} transform instead of
    * a {@link ParDo.Bound}.
    */
   @Deprecated
