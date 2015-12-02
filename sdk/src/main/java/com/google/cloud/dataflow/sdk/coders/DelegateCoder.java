@@ -27,7 +27,7 @@ import java.util.List;
 
 /**
  * A {@code DelegateCoder<T, IntermediateT>} wraps a {@link Coder} for {@code IntermediateT} and
- * encodes/decodes values of type {@code T}s by converting
+ * encodes/decodes values of type {@code T} by converting
  * to/from {@code IntermediateT} and then encoding/decoding using the underlying
  * {@code Coder<IntermediateT>}.
  *
@@ -43,9 +43,8 @@ import java.util.List;
  */
 public class DelegateCoder<T, IntermediateT> extends CustomCoder<T> {
   /**
-   * A {@link CodingFunction CodingFunction&ltInputT, OutputT&gt;} is a serializable function
-   * from {@code InputT} to {@code OutputT} that
-   * may throw any {@code Exception}.
+   * A {@link DelegateCoder.CodingFunction CodingFunction&lt;InputT, OutputT&gt;} is a serializable
+   * function from {@code InputT} to {@code OutputT} that may throw any {@link Exception}.
    */
   public static interface CodingFunction<InputT, OutputT> extends Serializable {
      public abstract OutputT apply(InputT input) throws Exception;
@@ -80,8 +79,8 @@ public class DelegateCoder<T, IntermediateT> extends CustomCoder<T> {
    * {@inheritDoc}
    *
    * @throws NonDeterministicException when the underlying coder's {@code verifyDeterministic()}
-   *         throws a {@link NonDeterministicException}. For this to be safe, the intermediate
-   *         {@code CodingFunction<T, IntermediateT>} must also be deterministic.
+   *         throws a {@link Coder.NonDeterministicException}. For this to be safe, the
+   *         intermediate {@code CodingFunction<T, IntermediateT>} must also be deterministic.
    */
   @Override
   public void verifyDeterministic() throws NonDeterministicException {

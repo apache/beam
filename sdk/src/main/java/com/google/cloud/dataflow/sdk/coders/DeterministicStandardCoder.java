@@ -19,7 +19,7 @@ package com.google.cloud.dataflow.sdk.coders;
 /**
  * A {@link DeterministicStandardCoder} is a {@link StandardCoder} that is
  * deterministic, in the sense that for objects considered equal
- * according to {@link Object#equals()}, the encoded bytes are
+ * according to {@link Object#equals(Object)}, the encoded bytes are
  * also equal.
  *
  * @param <T> the type of the values being transcoded
@@ -30,8 +30,8 @@ public abstract class DeterministicStandardCoder<T> extends StandardCoder<T> {
   /**
    * {@inheritDoc}
    *
-   * @throws nothing unless overridden.
-   *         A {@link DeterministicStandardCoder} is presumed deterministic.
+   * @throws NonDeterministicException never, unless overridden. A
+   * {@link DeterministicStandardCoder} is presumed deterministic.
    */
   @Override
   public void verifyDeterministic() throws NonDeterministicException { }

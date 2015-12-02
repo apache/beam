@@ -78,7 +78,7 @@ public class VarLongCoder extends AtomicCoder<Long> {
   /**
    * {@inheritDoc}
    *
-   * @return {@code true}. {@link VarLongCoder#getEncodedElementByteSize()} runs in constant time.
+   * @return {@code true}. {@link #getEncodedElementByteSize(Long, Context)} is cheap.
    */
   @Override
   public boolean isRegisterByteSizeObserverCheap(Long value, Context context) {

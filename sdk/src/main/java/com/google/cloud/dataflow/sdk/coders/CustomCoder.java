@@ -100,7 +100,7 @@ public abstract class CustomCoder<T> extends AtomicCoder<T>
   /**
    * {@inheritDoc}
    *
-   * @throws {@link NonDeterministicException}. A {@link CustomCoder} is presumed
+   * @throws NonDeterministicException a {@link CustomCoder} is presumed
    * nondeterministic.
    */
   @Override

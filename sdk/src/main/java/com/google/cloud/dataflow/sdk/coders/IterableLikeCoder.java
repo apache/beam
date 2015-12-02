@@ -164,8 +164,7 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
   /**
    * {@inheritDoc}
    *
-   * @throws
-   * {@link NonDeterministicException} always.
+   * @throws NonDeterministicException always.
    * Encoding is not deterministic for the general {@link Iterable} case, as it depends
    * upon the type of iterable. This may allow two objects to compare as equal
    * while the encoding differs.
