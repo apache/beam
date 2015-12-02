@@ -33,6 +33,7 @@ import com.google.cloud.dataflow.sdk.util.state.StateTag;
 import com.google.cloud.dataflow.sdk.util.state.StateTag.StateBinder;
 import com.google.cloud.dataflow.sdk.util.state.ValueState;
 import com.google.cloud.dataflow.sdk.util.state.WatermarkStateInternal;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.Futures;
@@ -45,6 +46,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -101,6 +103,35 @@ class WindmillStateInternals extends MergingStateInternals {
   private final WindmillStateReader reader;
   private final boolean useStateFamilies;
   private final Supplier<StateSampler.ScopedState> scopedReadStateSupplier;
+
+  @VisibleForTesting
+  static final ThreadLocal<Supplier<Boolean>> COMPACT_NOW =
+      new ThreadLocal() {
+        public Supplier<Boolean> initialValue() {
+          return new Supplier<Boolean>() {
+            /* The rate at which, on average, this will return true. */
+            static final double RATE = 0.002;
+            Random random = new Random();
+            long counter = nextSample();
+
+            private long nextSample() {
+              // Use geometric distribution to find next true value.
+              // This lets us avoid invoking random.nextDouble() on every call.
+              return (long) Math.floor(Math.log(random.nextDouble()) / Math.log(1 - RATE));
+            }
+
+            public Boolean get() {
+              counter--;
+              if (counter < 0) {
+                counter = nextSample();
+                return true;
+              } else {
+                return false;
+              }
+            }
+          };
+        }
+      };
 
   public WindmillStateInternals(String prefix, boolean useStateFamilies,
       WindmillStateReader reader, Supplier<StateSampler.ScopedState> scopedReadStateSupplier) {
@@ -569,6 +600,11 @@ class WindmillStateInternals extends MergingStateInternals {
     @Override
     public void persist(Windmill.WorkItemCommitRequest.Builder commitBuilder) throws IOException {
       if (hasLocalAdditions) {
+        // TODO: Take into account whether it's in the cache.
+        if (COMPACT_NOW.get().get()) {
+          // Implicitly clears the bag and combines local and persisted accumulators.
+          localAdditionsAccum = getAccum().read();
+        }
         bag.add(combineFn.compact(localAdditionsAccum));
         localAdditionsAccum = combineFn.createAccumulator();
         hasLocalAdditions = false;

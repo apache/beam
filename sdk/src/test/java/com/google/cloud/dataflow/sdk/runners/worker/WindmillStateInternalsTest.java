@@ -42,6 +42,7 @@ import com.google.cloud.dataflow.sdk.util.state.StateTags;
 import com.google.cloud.dataflow.sdk.util.state.ValueState;
 import com.google.cloud.dataflow.sdk.util.state.WatermarkStateInternal;
 import com.google.common.base.Supplier;
+import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.protobuf.ByteString;
@@ -70,6 +71,7 @@ public class WindmillStateInternalsTest {
   private static final StateTag<CombiningValueState<Integer, Integer>> COMBINING_ADDR =
       StateTags.combiningValueFromInputInternal(
           "combining", VarIntCoder.of(), new Sum.SumIntegerFn());
+  private static final ByteString COMBINING_KEY = key(NAMESPACE, "combining");
   private final Coder<int[]> accumCoder =
       new Sum.SumIntegerFn().getAccumulatorCoder(null, VarIntCoder.of());
 
@@ -81,11 +83,11 @@ public class WindmillStateInternalsTest {
   @Mock
   private Supplier<StateSampler.ScopedState> readStateSupplier;
 
-  private ByteString key(StateNamespace namespace, String addrId) {
+  private static ByteString key(StateNamespace namespace, String addrId) {
     return key("", namespace, addrId);
   }
 
-  private ByteString key(String prefix, StateNamespace namespace, String addrId) {
+  private static ByteString key(String prefix, StateNamespace namespace, String addrId) {
     return ByteString.copyFromUtf8(prefix + namespace.stringKey() + "+u" + addrId);
   }
 
@@ -286,7 +288,7 @@ public class WindmillStateInternalsTest {
     CombiningValueState<Integer, Integer> value = underTest.state(NAMESPACE, COMBINING_ADDR);
 
     SettableFuture<Iterable<int[]>> future = SettableFuture.create();
-    when(mockReader.listFuture(key(NAMESPACE, "combining"), STATE_FAMILY, accumCoder))
+    when(mockReader.listFuture(COMBINING_KEY, STATE_FAMILY, accumCoder))
         .thenReturn(future);
 
     StateContents<Integer> result = value.get();
@@ -326,10 +328,10 @@ public class WindmillStateInternalsTest {
     CombiningValueState<Integer, Integer> value = underTest.state(NAMESPACE, COMBINING_ADDR);
 
     SettableFuture<Iterable<int[]>> future = SettableFuture.create();
-    when(mockReader.listFuture(key(NAMESPACE, "combining"), STATE_FAMILY, accumCoder))
+    when(mockReader.listFuture(COMBINING_KEY, STATE_FAMILY, accumCoder))
         .thenReturn(future);
     StateContents<Boolean> result = value.isEmpty();
-    Mockito.verify(mockReader).listFuture(key(NAMESPACE, "combining"), STATE_FAMILY, accumCoder);
+    Mockito.verify(mockReader).listFuture(COMBINING_KEY, STATE_FAMILY, accumCoder);
 
     waitAndSet(future, Arrays.asList(new int[] {29}), 200);
     assertThat(result.read(), Matchers.is(false));
@@ -342,7 +344,7 @@ public class WindmillStateInternalsTest {
     value.clear();
     StateContents<Boolean> result = value.isEmpty();
     Mockito.verify(mockReader, never())
-        .listFuture(key(NAMESPACE, "combining"), STATE_FAMILY, accumCoder);
+        .listFuture(COMBINING_KEY, STATE_FAMILY, accumCoder);
     assertThat(result.read(), Matchers.is(true));
 
     value.add(87);
@@ -351,6 +353,8 @@ public class WindmillStateInternalsTest {
 
   @Test
   public void testCombiningAddPersist() throws Exception {
+    disableCompactOnWrite();
+
     CombiningValueState<Integer, Integer> value = underTest.state(NAMESPACE, COMBINING_ADDR);
 
     value.add(5);
@@ -363,7 +367,7 @@ public class WindmillStateInternalsTest {
     assertEquals(1, commitBuilder.getListUpdatesCount());
 
     TagList listUpdates = commitBuilder.getListUpdates(0);
-    assertEquals(key(NAMESPACE, "combining"), listUpdates.getTag());
+    assertEquals(COMBINING_KEY, listUpdates.getTag());
     assertEquals(1, listUpdates.getValuesCount());
     assertEquals(
         11,
@@ -376,7 +380,44 @@ public class WindmillStateInternalsTest {
   }
 
   @Test
+  public void testCombiningAddPersistWithCompact() throws Exception {
+    forceCompactOnWrite();
+
+    Mockito.stub(
+            mockReader.listFuture(
+                org.mockito.Matchers.<ByteString>any(),
+                org.mockito.Matchers.<String>any(),
+                org.mockito.Matchers.<Coder<int[]>>any()))
+        .toReturn(
+            Futures.<Iterable<int[]>>immediateFuture(
+                ImmutableList.of(new int[] {40}, new int[] {60})));
+
+    CombiningValueState<Integer, Integer> value = underTest.state(NAMESPACE, COMBINING_ADDR);
+
+    value.add(5);
+    value.add(6);
+
+    Windmill.WorkItemCommitRequest.Builder commitBuilder =
+        Windmill.WorkItemCommitRequest.newBuilder();
+    underTest.persist(commitBuilder);
+
+    assertEquals(2, commitBuilder.getListUpdatesCount());
+    assertEquals(0, commitBuilder.getListUpdates(0).getValuesCount());
+
+    TagList listUpdates = commitBuilder.getListUpdates(1);
+    assertEquals(COMBINING_KEY, listUpdates.getTag());
+    assertEquals(1, listUpdates.getValuesCount());
+    assertEquals(
+        111,
+        CoderUtils.decodeFromByteArray(
+                accumCoder, listUpdates.getValues(0).getData().substring(1).toByteArray())[
+            0]);
+  }
+
+  @Test
   public void testCombiningClearPersist() throws Exception {
+    disableCompactOnWrite();
+
     CombiningValueState<Integer, Integer> value = underTest.state(NAMESPACE, COMBINING_ADDR);
 
     value.clear();
@@ -390,12 +431,12 @@ public class WindmillStateInternalsTest {
     assertEquals(2, commitBuilder.getListUpdatesCount());
 
     TagList listClear = commitBuilder.getListUpdates(0);
-    assertEquals(key(NAMESPACE, "combining"), listClear.getTag());
+    assertEquals(COMBINING_KEY, listClear.getTag());
     assertEquals(Long.MAX_VALUE, listClear.getEndTimestamp());
     assertEquals(0, listClear.getValuesCount());
 
     TagList listUpdates = commitBuilder.getListUpdates(1);
-    assertEquals(key(NAMESPACE, "combining"), listUpdates.getTag());
+    assertEquals(COMBINING_KEY, listUpdates.getTag());
     assertEquals(1, listUpdates.getValuesCount());
     assertEquals(
         11,
@@ -403,7 +444,7 @@ public class WindmillStateInternalsTest {
             accumCoder, listUpdates.getValues(0).getData().substring(1).toByteArray())[0]);
 
     // Blind adds should not need to read the future.
-    Mockito.verify(mockReader).listFuture(key(NAMESPACE, "combining"), STATE_FAMILY, accumCoder);
+    Mockito.verify(mockReader).listFuture(COMBINING_KEY, STATE_FAMILY, accumCoder);
     Mockito.verify(mockReader).startBatchAndBlock();
     Mockito.verifyNoMoreInteractions(mockReader);
   }
@@ -865,5 +906,23 @@ public class WindmillStateInternalsTest {
     waitAndSet(future, "World", 200);
 
     assertEquals("World", value.get().read());
+  }
+
+  private void disableCompactOnWrite() {
+    WindmillStateInternals.COMPACT_NOW.set(
+        new Supplier<Boolean>() {
+          public Boolean get() {
+            return false;
+          }
+        });
+  }
+
+  private void forceCompactOnWrite() {
+    WindmillStateInternals.COMPACT_NOW.set(
+        new Supplier<Boolean>() {
+          public Boolean get() {
+            return true;
+          }
+        });
   }
 }
