@@ -16,7 +16,6 @@
 
 package com.google.cloud.dataflow.sdk.coders;
 
-import com.google.cloud.dataflow.sdk.coders.Coder.Context;
 import com.google.cloud.dataflow.sdk.util.ExposedByteArrayOutputStream;
 import com.google.cloud.dataflow.sdk.util.StreamUtils;
 import com.google.cloud.dataflow.sdk.util.VarInt;
@@ -117,8 +116,8 @@ public class ByteArrayCoder extends AtomicCoder<byte[]> {
   /**
    * {@inheritDoc}
    *
-   * @return {@code true} since {@link #getEncodedElementByteSize()} runs in constant time using
-   * the {@code length} of the provided array.
+   * @return {@code true} since {@link #getEncodedElementByteSize(byte[], Context)} runs in
+   * constant time using the {@code length} of the provided array.
    */
   @Override
   public boolean isRegisterByteSizeObserverCheap(byte[] value, Context context) {
