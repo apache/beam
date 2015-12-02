@@ -185,8 +185,8 @@ public abstract class BlockBasedSource<T> extends FileBasedSource<T> {
     }
 
     /**
-     * Reads the next record from the {@link getCurrentBlock() current block} if
-     * possible. Will call {@link readNextBlock()} to advance to the next block if not.
+     * Reads the next record from the {@link #getCurrentBlock() current block} if
+     * possible. Will call {@link #readNextBlock()} to advance to the next block if not.
      *
      * <p>The first record read from a block is treated as a split point.
      */
