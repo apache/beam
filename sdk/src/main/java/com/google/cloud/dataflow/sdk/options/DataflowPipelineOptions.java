@@ -40,6 +40,7 @@ public interface DataflowPipelineOptions extends
       + "See https://cloud.google.com/storage/docs/projects for further details.")
   @Override
   @Validation.Required
+  @Default.InstanceFactory(DefaultProjectFactory.class)
   String getProject();
   @Override
   void setProject(String value);
