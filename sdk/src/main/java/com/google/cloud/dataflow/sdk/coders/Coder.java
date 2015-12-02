@@ -35,7 +35,8 @@ import java.util.Objects;
 import javax.annotation.Nullable;
 
 /**
- * A {@link Coder<T>} defines how to encode and decode values of type {@code T} into byte streams.
+ * A {@link Coder Coder&lt;T&gt;} defines how to encode and decode values of type {@code T} into
+ * byte streams.
  *
  * <p>{@link Coder} instances are serialized during job creation and deserialized
  * before use, via JSON serialization. See {@link SerializableCoder} for an example of a
