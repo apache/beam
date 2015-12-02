@@ -25,11 +25,13 @@ import static org.mockito.Mockito.mock;
 import com.google.cloud.dataflow.sdk.coders.AtomicCoder;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.coders.Coder.Context;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
+import com.google.cloud.dataflow.sdk.testing.CoderPropertiesTest.ClosingCoder;
 
 import org.hamcrest.CoreMatchers;
 import org.junit.Assert;
@@ -181,5 +183,47 @@ public class CoderUtilsTest {
                         CoreMatchers.containsString(
                             "Unable to convert coder ID UnknownCoder to class"));
     }
+  }
+
+  @Test
+  public void testClosingCoderFailsWhenDecodingBase64() throws Exception {
+    expectedException.expect(UnsupportedOperationException.class);
+    expectedException.expectMessage("Caller does not own the underlying");
+    CoderUtils.decodeFromBase64(new ClosingCoder(), "test-value");
+  }
+
+  @Test
+  public void testClosingCoderFailsWhenDecodingByteArray() throws Exception {
+    expectedException.expect(UnsupportedOperationException.class);
+    expectedException.expectMessage("Caller does not own the underlying");
+    CoderUtils.decodeFromByteArray(new ClosingCoder(), new byte[0]);
+  }
+
+  @Test
+  public void testClosingCoderFailsWhenDecodingByteArrayInContext() throws Exception {
+    expectedException.expect(UnsupportedOperationException.class);
+    expectedException.expectMessage("Caller does not own the underlying");
+    CoderUtils.decodeFromByteArray(new ClosingCoder(), new byte[0], Context.NESTED);
+  }
+
+  @Test
+  public void testClosingCoderFailsWhenEncodingToBase64() throws Exception {
+    expectedException.expect(UnsupportedOperationException.class);
+    expectedException.expectMessage("Caller does not own the underlying");
+    CoderUtils.encodeToBase64(new ClosingCoder(), "test-value");
+  }
+
+  @Test
+  public void testClosingCoderFailsWhenEncodingToByteArray() throws Exception {
+    expectedException.expect(UnsupportedOperationException.class);
+    expectedException.expectMessage("Caller does not own the underlying");
+    CoderUtils.encodeToByteArray(new ClosingCoder(), "test-value");
+  }
+
+  @Test
+  public void testClosingCoderFailsWhenEncodingToByteArrayInContext() throws Exception {
+    expectedException.expect(UnsupportedOperationException.class);
+    expectedException.expectMessage("Caller does not own the underlying");
+    CoderUtils.encodeToByteArray(new ClosingCoder(), "test-value", Context.NESTED);
   }
 }

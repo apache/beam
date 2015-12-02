@@ -116,7 +116,7 @@ public final class CoderUtils {
   private static <T> void encodeToSafeStream(
       Coder<T> coder, T value, OutputStream stream, Coder.Context context) throws CoderException {
     try {
-      coder.encode(value, stream, context);
+      coder.encode(value, new UnownedOutputStream(stream), context);
     } catch (IOException exn) {
       Throwables.propagateIfPossible(exn, CoderException.class);
       throw new IllegalArgumentException(
@@ -153,7 +153,7 @@ public final class CoderUtils {
   private static <T> T decodeFromSafeStream(
       Coder<T> coder, InputStream stream, Coder.Context context) throws CoderException {
     try {
-      return coder.decode(stream, context);
+      return coder.decode(new UnownedInputStream(stream), context);
     } catch (IOException exn) {
       Throwables.propagateIfPossible(exn, CoderException.class);
       throw new IllegalArgumentException(

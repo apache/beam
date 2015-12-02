@@ -117,8 +117,10 @@ public class SerializableCoder<T extends Serializable> extends AtomicCoder<T> {
   @Override
   public void encode(T value, OutputStream outStream, Context context)
       throws IOException, CoderException {
-    try (ObjectOutputStream oos = new ObjectOutputStream(outStream)) {
+    try {
+      ObjectOutputStream oos = new ObjectOutputStream(outStream);
       oos.writeObject(value);
+      oos.flush();
     } catch (IOException exn) {
       throw new CoderException("unable to serialize record " + value, exn);
     }
@@ -127,7 +129,8 @@ public class SerializableCoder<T extends Serializable> extends AtomicCoder<T> {
   @Override
   public T decode(InputStream inStream, Context context)
       throws IOException, CoderException {
-    try (ObjectInputStream ois = new ObjectInputStream(inStream)) {
+    try {
+      ObjectInputStream ois = new ObjectInputStream(inStream);
       return type.cast(ois.readObject());
     } catch (ClassNotFoundException e) {
       throw new CoderException("unable to deserialize record", e);

@@ -33,6 +33,9 @@ import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.SerializableUtils;
 import com.google.cloud.dataflow.sdk.util.Serializer;
 import com.google.cloud.dataflow.sdk.util.Structs;
+import com.google.cloud.dataflow.sdk.util.UnownedInputStream;
+import com.google.cloud.dataflow.sdk.util.UnownedOutputStream;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
 
 import java.io.ByteArrayInputStream;
@@ -318,23 +321,25 @@ public class CoderProperties {
 
   //////////////////////////////////////////////////////////////////////////
 
-  private static <T> byte[] encode(
+  @VisibleForTesting
+  static <T> byte[] encode(
       Coder<T> coder, Coder.Context context, T value) throws CoderException, IOException {
     @SuppressWarnings("unchecked")
     Coder<T> deserializedCoder = Serializer.deserialize(coder.asCloudObject(), Coder.class);
 
     ByteArrayOutputStream os = new ByteArrayOutputStream();
-    deserializedCoder.encode(value, os, context);
+    deserializedCoder.encode(value, new UnownedOutputStream(os), context);
     return os.toByteArray();
   }
 
-  private static <T> T decode(
+  @VisibleForTesting
+  static <T> T decode(
       Coder<T> coder, Coder.Context context, byte[] bytes) throws CoderException, IOException {
     @SuppressWarnings("unchecked")
     Coder<T> deserializedCoder = Serializer.deserialize(coder.asCloudObject(), Coder.class);
 
     ByteArrayInputStream is = new ByteArrayInputStream(bytes);
-    return deserializedCoder.decode(is, context);
+    return deserializedCoder.decode(new UnownedInputStream(is), context);
   }
 
   private static <T> T decodeEncode(Coder<T> coder, Coder.Context context, T value)

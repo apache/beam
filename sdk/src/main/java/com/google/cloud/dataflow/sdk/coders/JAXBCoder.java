@@ -20,6 +20,8 @@ import com.google.cloud.dataflow.sdk.util.Structs;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.io.FilterInputStream;
+import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -67,7 +69,12 @@ public class JAXBCoder<T> extends AtomicCoder<T> {
         jaxbMarshaller = jaxbContext.createMarshaller();
       }
 
-      jaxbMarshaller.marshal(value, outStream);
+      jaxbMarshaller.marshal(value, new FilterOutputStream(outStream) {
+        // JAXB closes the underyling stream so we must filter out those calls.
+        @Override
+        public void close() throws IOException {
+        }
+      });
     } catch (JAXBException e) {
       throw new CoderException(e);
     }
@@ -82,7 +89,12 @@ public class JAXBCoder<T> extends AtomicCoder<T> {
       }
 
       @SuppressWarnings("unchecked")
-      T obj = (T) jaxbUnmarshaller.unmarshal(inStream);
+      T obj = (T) jaxbUnmarshaller.unmarshal(new FilterInputStream(inStream) {
+        // JAXB closes the underyling stream so we must filter out those calls.
+        @Override
+        public void close() throws IOException {
+        }
+      });
       return obj;
     } catch (JAXBException e) {
       throw new CoderException(e);
