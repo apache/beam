@@ -132,7 +132,6 @@ public class DataflowWorkProgressUpdaterTest {
   private WorkItem workItem;
   private DataflowWorkerHarnessOptions options;
   private DataflowWorkProgressUpdater progressUpdater;
-  private long nowMillis;
 
   @Before
   public void initMocksAndWorkflowServiceAndWorkerAndWork() {
@@ -151,13 +150,12 @@ public class DataflowWorkProgressUpdaterTest {
         return metrics;
       }
     };
-    nowMillis = System.currentTimeMillis();
 
     workItem = new WorkItem();
     workItem.setProjectId(PROJECT_ID);
     workItem.setJobId(JOB_ID);
     workItem.setId(WORK_ID);
-    workItem.setLeaseExpireTime(toCloudTime(new Instant(nowMillis + 1000)));
+    workItem.setLeaseExpireTime(toCloudTime(new Instant(System.currentTimeMillis() + 1000)));
     workItem.setReportStatusInterval(toCloudDuration(Duration.millis(300)));
     workItem.setInitialReportIndex(1L);
 
@@ -181,7 +179,7 @@ public class DataflowWorkProgressUpdaterTest {
   @Test(timeout = 1000)
   public void workProgressUpdaterUpdates() throws Exception {
     when(workUnitClient.reportWorkItemStatus(any(WorkItemStatus.class)))
-        .thenReturn(generateServiceState(nowMillis + 2000, 1000, null, 2L));
+        .thenReturn(generateServiceState(System.currentTimeMillis() + 2000, 1000, null, 2L));
     setUpCounters(2);
     setUpMetrics(3);
     setUpProgress(approximateProgressAtIndex(1L));
@@ -196,59 +194,59 @@ public class DataflowWorkProgressUpdaterTest {
 
   // Verifies that ReportWorkItemStatusRequest contains correct progress report
   // and actual dynamic split result.
-  @Test(timeout = 5000)
+  @Test(timeout = 10000)
   public void workProgressUpdaterAdaptsProgressInterval() throws Exception {
-    // Mock that the next reportProgress call will return a response that asks
-    // us to truncate the task at index 3, and the next two will not ask us to
-    // truncate at all.
-    when(workUnitClient.reportWorkItemStatus(any(WorkItemStatus.class)))
-        .thenReturn(generateServiceState(nowMillis + 2000, 1000, positionAtIndex(3L), 2L))
-        .thenReturn(generateServiceState(nowMillis + 3000, 2000, null, 3L))
-        .thenReturn(generateServiceState(nowMillis + 1000, 3000, null, 4L))
-        .thenReturn(generateServiceState(nowMillis + 4000, 3000, null, 5L));
-
     setUpCounters(3);
     setUpMetrics(2);
     setUpProgress(approximateProgressAtIndex(1L));
     progressUpdater.startReportingProgress();
-    // The initial update should be sent after 300.
-    verify(workUnitClient, timeout(400))
-        .reportWorkItemStatus(argThat(
-            new ExpectedDataflowWorkItemStatus().withCounters(3).withMetrics(2).withProgress(
-                approximateProgressAtIndex(1L)).withReportIndex(1L)));
+
+    // In tests below, we allow 500ms leeway.
+
+    when(workUnitClient.reportWorkItemStatus(any(WorkItemStatus.class)))
+        // leaseExpirationTimestamp, progressReportInterval, suggestedStopPosition, nextReportIndex
+        .thenReturn(generateServiceState(
+            System.currentTimeMillis() + 2000, 1000, positionAtIndex(3L), 2L));
+    // The initial update should be sent at nowMillis+300 (+500ms leeway).
+    verify(workUnitClient, timeout(800)).reportWorkItemStatus(argThat(
+        new ExpectedDataflowWorkItemStatus().withCounters(3).withMetrics(2).withProgress(
+            approximateProgressAtIndex(1L)).withReportIndex(1L)));
 
     setUpCounters(5);
     setUpMetrics(6);
     setUpProgress(approximateProgressAtIndex(2L));
-    // The second update should be sent after one second as requested.
-    verify(workUnitClient, timeout(1100))
-        .reportWorkItemStatus(argThat(
-            new ExpectedDataflowWorkItemStatus()
-                .withCounters(5)
-                .withMetrics(6)
-                .withProgress(approximateProgressAtIndex(2L))
-                .withDynamicSplitAtPosition(positionAtIndex(3L))
-                .withReportIndex(2L)));
+    when(workUnitClient.reportWorkItemStatus(any(WorkItemStatus.class)))
+        .thenReturn(generateServiceState(System.currentTimeMillis() + 3000, 2000, null, 3L));
+    // The second update should be sent after ~1000ms (previous requested report interval).
+    verify(workUnitClient, timeout(1500)).reportWorkItemStatus(argThat(
+        new ExpectedDataflowWorkItemStatus()
+            .withCounters(5)
+            .withMetrics(6)
+            .withProgress(approximateProgressAtIndex(2L))
+            .withDynamicSplitAtPosition(positionAtIndex(3L))
+            .withReportIndex(2L)));
 
     // After the request is sent, reset cached dynamic split result to null.
     assertNull(progressUpdater.getDynamicSplitResultToReport());
 
     setUpProgress(approximateProgressAtIndex(3L));
 
-    // The third update should be sent after 2 seconds.
-    verify(workUnitClient, timeout(2100))
-        .reportWorkItemStatus(argThat(
-            new ExpectedDataflowWorkItemStatus().withProgress(approximateProgressAtIndex(3L))
-                .withReportIndex(3L)));
+    when(workUnitClient.reportWorkItemStatus(any(WorkItemStatus.class)))
+        .thenReturn(generateServiceState(System.currentTimeMillis() + 1000, 3000, null, 4L));
+    // The third update should be sent after ~2000ms (previous requested report interval).
+    verify(workUnitClient, timeout(2500)).reportWorkItemStatus(argThat(
+        new ExpectedDataflowWorkItemStatus().withProgress(approximateProgressAtIndex(3L))
+            .withReportIndex(3L)));
 
     setUpProgress(approximateProgressAtIndex(4L));
 
-    // The fourth update should not respect the suggested report interval.
-    // It should be sent before the lease expires
-    verify(workUnitClient, timeout(900))
-        .reportWorkItemStatus(argThat(
-            new ExpectedDataflowWorkItemStatus().withProgress(approximateProgressAtIndex(4L))
-                .withReportIndex(4L)));
+    when(workUnitClient.reportWorkItemStatus(any(WorkItemStatus.class)))
+        .thenReturn(generateServiceState(System.currentTimeMillis() + 4000, 3000, null, 5L));
+    // The fourth update should not respect the suggested report interval (3000ms)
+    // because the lease expires in 1000ms. The update should be sent before the lease expires.
+    verify(workUnitClient, timeout(900)).reportWorkItemStatus(argThat(
+        new ExpectedDataflowWorkItemStatus().withProgress(approximateProgressAtIndex(4L))
+            .withReportIndex(4L)));
 
     progressUpdater.stopReportingProgress();
 
@@ -261,7 +259,8 @@ public class DataflowWorkProgressUpdaterTest {
     // The setup process sends one update after 300ms. Enqueue another that should be scheduled
     // 1000ms after that.
     when(workUnitClient.reportWorkItemStatus(any(WorkItemStatus.class)))
-        .thenReturn(generateServiceState(nowMillis + 2000, 1000, positionAtIndex(2L), 2L));
+        .thenReturn(generateServiceState(
+            System.currentTimeMillis() + 2000, 1000, positionAtIndex(2L), 2L));
 
     setUpProgress(approximateProgressAtIndex(1L));
     progressUpdater.startReportingProgress();
