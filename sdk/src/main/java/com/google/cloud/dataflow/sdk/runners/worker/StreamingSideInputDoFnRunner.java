@@ -65,7 +65,6 @@ import java.util.concurrent.TimeUnit;
 public class StreamingSideInputDoFnRunner<InputT, OutputT, W extends BoundedWindow>
     extends DoFnRunner<InputT, OutputT> {
   private StreamingModeExecutionContext.StepContext stepContext;
-  private StreamingModeExecutionContext execContext;
   private Map<String, PCollectionView<?>> sideInputViews;
 
   private final StateTag<BagState<WindowedValue<InputT>>> elementsAddr;
@@ -100,8 +99,6 @@ public class StreamingSideInputDoFnRunner<InputT, OutputT, W extends BoundedWind
     for (PCollectionView<?> view : doFnInfo.getSideInputViews()) {
       sideInputViews.put(view.getTagInternal().getId(), view);
     }
-    this.execContext =
-        (StreamingModeExecutionContext) stepContext.getExecutionContext();
 
     this.blockedMapAddr = blockedMapAddr(windowFn);
     this.elementsAddr = StateTags.makeSystemTagInternal(StateTags.bag("elem",
@@ -129,7 +126,7 @@ public class StreamingSideInputDoFnRunner<InputT, OutputT, W extends BoundedWind
   private Set<W> getReadyWindows() {
     Set<W> readyWindows = new HashSet<>();
 
-    for (Windmill.GlobalDataId id : execContext.getSideInputNotifications()) {
+    for (Windmill.GlobalDataId id : stepContext.getSideInputNotifications()) {
       if (sideInputViews.get(id.getTag()) == null) {
         // Side input is for a different DoFn; ignore it.
         continue;

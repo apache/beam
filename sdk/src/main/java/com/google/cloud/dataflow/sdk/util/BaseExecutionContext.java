@@ -112,11 +112,6 @@ public abstract class BaseExecutionContext implements ExecutionContext {
     }
 
     @Override
-    public ExecutionContext getExecutionContext() {
-      return executionContext;
-    }
-
-    @Override
     public void noteOutput(WindowedValue<?> output) {
       executionContext.noteOutput(output);
     }

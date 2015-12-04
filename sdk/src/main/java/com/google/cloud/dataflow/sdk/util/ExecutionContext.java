@@ -71,11 +71,6 @@ public interface ExecutionContext {
     String getTransformName();
 
     /**
-     * The context in which this step is executing.
-     */
-    ExecutionContext getExecutionContext();
-
-    /**
      * Hook for subclasses to implement that will be called whenever
      * {@link com.google.cloud.dataflow.sdk.transforms.DoFn.Context#output}
      * is called.

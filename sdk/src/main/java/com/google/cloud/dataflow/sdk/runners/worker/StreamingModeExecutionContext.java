@@ -396,6 +396,10 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
       timerInternals.persistTo(outputBuilder);
     }
 
+    public Iterable<Windmill.GlobalDataId> getSideInputNotifications() {
+      return StreamingModeExecutionContext.this.getSideInputNotifications();
+    }
+
     @Override
     public <T, W extends BoundedWindow> void writePCollectionViewData(
         TupleTag<?> tag,
