@@ -119,6 +119,7 @@ public class StateSampler implements AutoCloseable {
     // The current implementation uses a fixed-rate timer with a period samplingPeriodMs as a
     // trampoline to a one-shot random timer which fires with a random delay within
     // samplingPeriodMs.
+    stateTimestampNs = System.nanoTime();
     invocationTriggerFuture =
         executorService.scheduleAtFixedRate(
             new Runnable() {
@@ -145,7 +146,6 @@ public class StateSampler implements AutoCloseable {
             0,
             samplingPeriodMs,
             TimeUnit.MILLISECONDS);
-    stateTimestampNs = System.nanoTime();
   }
 
   /**
