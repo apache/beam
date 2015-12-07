@@ -16,11 +16,13 @@
 
 package com.google.cloud.dataflow.sdk.runners.worker;
 
+import com.google.api.client.json.JsonFactory;
 import com.google.api.services.dataflow.model.SourceOperationRequest;
 import com.google.api.services.dataflow.model.SourceOperationResponse;
 import com.google.api.services.dataflow.model.SourceSplitResponse;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.dataflow.CustomSources;
+import com.google.cloud.dataflow.sdk.util.Transport;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.WorkExecutor;
 
@@ -67,17 +69,25 @@ public class SourceOperationExecutor extends WorkExecutor {
     return response;
   }
 
-  static boolean isSplitResponseTooLarge(SourceOperationResponse operationResponse) {
+  static int determineSplitResponseSize(SourceOperationResponse operationResponse) {
     try {
       SourceSplitResponse splitResponse = operationResponse.getSplit();
-      int size = splitResponse.getFactory().toByteArray(operationResponse).length;
-      return size >= SOURCE_OPERATION_RESPONSE_SIZE_LIMIT_MB * 1024 * 1024;
+      JsonFactory factory = splitResponse.getFactory();
+      if (factory == null) {
+        factory = Transport.getJsonFactory();
+      }
+      return factory.toByteArray(operationResponse).length;
     } catch (OutOfMemoryError e) {
       LOG.error("Got exception when trying to serialize split response: " + e.getMessage());
       // We will go out of memory if split response is extremely large.
-      return true;
+      return Integer.MAX_VALUE;
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  static boolean isSplitResponseTooLarge(SourceOperationResponse operationResponse) {
+    return determineSplitResponseSize(operationResponse)
+        >= SOURCE_OPERATION_RESPONSE_SIZE_LIMIT_MB * 1024 * 1024;
   }
 }

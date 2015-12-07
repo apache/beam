@@ -18,18 +18,23 @@ import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.argThat;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.api.services.dataflow.model.SourceOperationResponse;
+import com.google.api.services.dataflow.model.SourceSplitResponse;
+import com.google.api.services.dataflow.model.SourceSplitShard;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemStatus;
 import com.google.cloud.dataflow.sdk.options.DataflowWorkerHarnessOptions;
 import com.google.cloud.dataflow.sdk.testing.FastNanoClockAndSleeper;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
 import com.google.cloud.dataflow.sdk.util.common.worker.WorkExecutor;
+import com.google.common.collect.ImmutableList;
 
 import org.eclipse.jetty.server.LocalConnector;
 import org.eclipse.jetty.server.Server;
@@ -136,6 +141,16 @@ public class DataflowWorkerTest {
     String response = testStatusServer(
         "GET /missinghandlerz HTTP/1.1\nhost: localhost\n\n");
     assertThat(response, containsString("HTTP/1.1 404 Not Found"));
+  }
+
+  @Test
+  public void testIsSplitResponseTooLarge() {
+    SourceSplitResponse splitResponse = new SourceSplitResponse();
+    splitResponse.setShards(
+        ImmutableList.<SourceSplitShard>of(new SourceSplitShard(), new SourceSplitShard()));
+    assertTrue(
+        SourceOperationExecutor.determineSplitResponseSize(
+            new SourceOperationResponse().setSplit(splitResponse)) > 0);
   }
 
   @Test
