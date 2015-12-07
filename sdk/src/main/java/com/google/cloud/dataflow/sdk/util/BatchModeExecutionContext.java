@@ -31,7 +31,8 @@ import java.util.Objects;
 /**
  * {@link ExecutionContext} for use in batch mode.
  */
-public class BatchModeExecutionContext extends DataflowExecutionContext {
+public class BatchModeExecutionContext
+    extends DataflowExecutionContext<BatchModeExecutionContext.StepContext> {
   private Object key;
 
   private PipelineOptions options;
@@ -59,7 +60,7 @@ public class BatchModeExecutionContext extends DataflowExecutionContext {
    * Create a new {@link ExecutionContext.StepContext}.
    */
   @Override
-  protected ExecutionContext.StepContext createStepContext(
+  protected StepContext createStepContext(
       String stepName, String transformName, StateSampler stateSampler) {
     return new StepContext(stepName, transformName);
   }
@@ -117,7 +118,7 @@ public class BatchModeExecutionContext extends DataflowExecutionContext {
   /**
    * {@link ExecutionContext.StepContext} used in batch mode.
    */
-  class StepContext extends BaseExecutionContext.StepContext {
+  public class StepContext extends BaseExecutionContext.StepContext {
 
     private final InMemoryStateInternals stateInternals = new InMemoryStateInternals();
 

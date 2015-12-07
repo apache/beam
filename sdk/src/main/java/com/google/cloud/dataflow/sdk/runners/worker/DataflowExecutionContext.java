@@ -18,13 +18,15 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 
 import com.google.api.services.dataflow.model.SideInputInfo;
 import com.google.cloud.dataflow.sdk.util.BaseExecutionContext;
+import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.SideInputReader;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 
 /**
  * Extensions to {@link BaseExecutionContext} specific to the Dataflow worker.
  */
-public abstract class DataflowExecutionContext extends BaseExecutionContext {
+public abstract class DataflowExecutionContext<T extends ExecutionContext.StepContext>
+    extends BaseExecutionContext<T> {
   /**
    * Returns a {@link SideInputReader} for all the side inputs described in the given
    * {@link SideInputInfo} descriptors.

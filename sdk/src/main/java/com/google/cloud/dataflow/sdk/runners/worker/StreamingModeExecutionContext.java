@@ -56,7 +56,8 @@ import java.util.concurrent.TimeUnit;
 /**
  * {@link ExecutionContext} for use in streaming mode.
  */
-public class StreamingModeExecutionContext extends DataflowExecutionContext {
+public class StreamingModeExecutionContext
+    extends DataflowExecutionContext<StreamingModeExecutionContext.StepContext> {
   private final String stageName;
   private final Map<TupleTag<?>, Map<BoundedWindow, Object>> sideInputCache;
   // Per-key cache of active Reader objects in use by this process.
@@ -99,7 +100,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext {
   }
 
   @Override
-  public ExecutionContext.StepContext createStepContext(
+  public StepContext createStepContext(
       String stepName, String transformName, StateSampler stateSampler) {
     StepContext context = new StepContext(stepName, transformName, stateSampler);
     context.start(stateReader, inputDataWatermark);

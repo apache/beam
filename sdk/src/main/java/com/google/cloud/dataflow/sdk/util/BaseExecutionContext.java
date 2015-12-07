@@ -24,6 +24,7 @@ import com.google.cloud.dataflow.sdk.values.TupleTag;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -31,18 +32,34 @@ import java.util.Map;
  * Base class for implementations of {@link ExecutionContext}.
  *
  * <p>A concrete subclass should implement {@link #createStepContext} to create the appropriate
- * {@link ExecutionContext.StepContext} implementation. Any {@code StepContext} created will
+ * {@link StepContext} implementation. Any {@code StepContext} created will
  * be cached for the lifetime of this {@link ExecutionContext}.
+ *
+ * <p>BaseExecutionContext is generic to allow implementing subclasses to return a concrete subclass
+ * of {@link StepContext} from {@link #getOrCreateStepContext(String, String, StateSampler)} and
+ * {@link #getAllStepContexts()} without forcing each subclass to override the method, e.g.
+ * <pre>
+ * @Override
+ * StreamingModeExecutionContext.StepContext getOrCreateStepContext(...) {
+ *   return (StreamingModeExecutionContext.StepContext) super.getOrCreateStepContext(...);
+ * }
+ * </pre>
+ *
+ * <p>When a subclass of {@code BaseExecutionContext} has been downcast, the return types of
+ * {@link #createStepContext(String, String, StateSampler)},
+ * {@link #getOrCreateStepContext(String, String, StateSampler}, and {@link #getAllStepContexts()}
+ * will be appropriately specialized.
  */
-public abstract class BaseExecutionContext implements ExecutionContext {
+public abstract class BaseExecutionContext<T extends ExecutionContext.StepContext>
+    implements ExecutionContext {
 
-  private Map<String, ExecutionContext.StepContext> cachedStepContexts = new HashMap<>();
+  private Map<String, T> cachedStepContexts = new HashMap<>();
 
   /**
    * Implementations should override this to create the specific type
    * of {@link StepContext} they need.
    */
-  protected abstract ExecutionContext.StepContext createStepContext(
+  protected abstract T createStepContext(
       String stepName, String transformName, StateSampler stateSampler);
 
 
@@ -50,9 +67,9 @@ public abstract class BaseExecutionContext implements ExecutionContext {
    * Returns the {@link StepContext} associated with the given step.
    */
   @Override
-  public ExecutionContext.StepContext getOrCreateStepContext(
+  public T getOrCreateStepContext(
       String stepName, String transformName, StateSampler stateSampler) {
-    ExecutionContext.StepContext context = cachedStepContexts.get(stepName);
+    T context = cachedStepContexts.get(stepName);
     if (context == null) {
       context = createStepContext(stepName, transformName, stateSampler);
       cachedStepContexts.put(stepName, context);
@@ -64,8 +81,8 @@ public abstract class BaseExecutionContext implements ExecutionContext {
    * Returns a collection view of all of the {@link StepContext}s.
    */
   @Override
-  public Collection<ExecutionContext.StepContext> getAllStepContexts() {
-    return cachedStepContexts.values();
+  public Collection<? extends T> getAllStepContexts() {
+    return Collections.unmodifiableCollection(cachedStepContexts.values());
   }
 
   /**

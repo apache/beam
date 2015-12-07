@@ -80,7 +80,7 @@ public class MapTaskExecutorFactory {
   public static MapTaskExecutor create(
       PipelineOptions options,
       MapTask mapTask,
-      DataflowExecutionContext context,
+      DataflowExecutionContext<?> context,
       CounterSet counters,
       StateSampler stateSampler) throws Exception {
     return create(
@@ -100,7 +100,7 @@ public class MapTaskExecutorFactory {
       PipelineOptions options,
       MapTask mapTask,
       ReaderFactory.Registry registry,
-      DataflowExecutionContext context,
+      DataflowExecutionContext<?> context,
       CounterSet counters,
       StateSampler stateSampler)
           throws Exception {
@@ -133,7 +133,7 @@ public class MapTaskExecutorFactory {
   static Operation createOperation(
       PipelineOptions options,
       ParallelInstruction instruction,
-      DataflowExecutionContext executionContext,
+      DataflowExecutionContext<?> executionContext,
       List<Operation> priorOperations,
       String counterPrefix,
       String systemStageName,
@@ -160,7 +160,7 @@ public class MapTaskExecutorFactory {
       PipelineOptions options,
       ParallelInstruction instruction,
       ReaderFactory.Registry registry,
-      DataflowExecutionContext executionContext,
+      DataflowExecutionContext<?> executionContext,
       List<Operation> priorOperations,
       String counterPrefix,
       String systemStageName,
@@ -199,7 +199,7 @@ public class MapTaskExecutorFactory {
       PipelineOptions options,
       ParallelInstruction instruction,
       ReaderFactory.Registry registry,
-      DataflowExecutionContext executionContext,
+      DataflowExecutionContext<?> executionContext,
       @SuppressWarnings("unused") List<Operation> priorOperations,
       String counterPrefix,
       String systemStageName,
@@ -244,7 +244,7 @@ public class MapTaskExecutorFactory {
   static ParDoOperation createParDoOperation(
       PipelineOptions options,
       ParallelInstruction instruction,
-      DataflowExecutionContext executionContext,
+      DataflowExecutionContext<?> executionContext,
       List<Operation> priorOperations,
       String counterPrefix,
       CounterSet.AddCounterMutator addCounterMutator,

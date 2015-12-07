@@ -102,9 +102,9 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
       // StreamingGroupAlsoByWindows expects it to. So, hook that up.
 
       @Override
-      public ExecutionContext.StepContext createStepContext(
+      public StepContext createStepContext(
           String stepName, String transformName, StateSampler stateSampler) {
-        ExecutionContext.StepContext context =
+        StepContext context =
             Mockito.spy(super.createStepContext(stepName, transformName, stateSampler));
         Mockito.doReturn(mockTimerInternals).when(context).timerInternals();
         return context;

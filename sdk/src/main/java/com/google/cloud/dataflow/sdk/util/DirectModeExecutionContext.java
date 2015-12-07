@@ -31,7 +31,8 @@ import java.util.Map;
 /**
  * {@link ExecutionContext} for use in direct mode.
  */
-public class DirectModeExecutionContext extends BaseExecutionContext {
+public class DirectModeExecutionContext
+    extends BaseExecutionContext<DirectModeExecutionContext.StepContext> {
 
   private Object key;
   private List<ValueWithMetadata<?>> output = Lists.newArrayList();
@@ -44,7 +45,7 @@ public class DirectModeExecutionContext extends BaseExecutionContext {
   }
 
   @Override
-  protected ExecutionContext.StepContext createStepContext(
+  protected StepContext createStepContext(
       String stepName, String transformName, StateSampler stateSampler) {
     return new StepContext(this, stepName, transformName);
   }
@@ -96,7 +97,7 @@ public class DirectModeExecutionContext extends BaseExecutionContext {
   /**
    * {@link ExecutionContext.StepContext} used in direct mode.
    */
-  static class StepContext extends BaseExecutionContext.StepContext {
+  public static class StepContext extends BaseExecutionContext.StepContext {
 
     private final Map<Object, InMemoryStateInternals> stateInternals = Maps.newHashMap();
     private InMemoryStateInternals currentStateInternals = null;

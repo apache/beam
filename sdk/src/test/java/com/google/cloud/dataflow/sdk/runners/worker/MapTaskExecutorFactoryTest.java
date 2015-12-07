@@ -202,7 +202,7 @@ public class MapTaskExecutorFactoryTest {
     mapTask.setStageName("test");
     mapTask.setInstructions(instructions);
 
-    DataflowExecutionContext context = BatchModeExecutionContext.fromOptions(options);
+    BatchModeExecutionContext context = BatchModeExecutionContext.fromOptions(options);
 
     CounterSet counters = new CounterSet();
     try (MapTaskExecutor executor =
@@ -413,7 +413,8 @@ public class MapTaskExecutorFactoryTest {
     ParallelInstruction instruction =
         createParDoInstruction(producerIndex, producerOutputNum, "DoFn");
 
-    DataflowExecutionContext context = BatchModeExecutionContext.fromOptions(options);
+    BatchModeExecutionContext context =
+        BatchModeExecutionContext.fromOptions(options);
     CounterSet counterSet = new CounterSet();
     String counterPrefix = "test-";
     String systemStageName = "stageName";

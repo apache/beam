@@ -39,7 +39,7 @@ public interface ExecutionContext {
   /**
    * Returns a collection view of all of the {@link StepContext}s.
    */
-  Collection<StepContext> getAllStepContexts();
+  Collection<? extends StepContext> getAllStepContexts();
 
   /**
    * Hook for subclasses to implement that will be called whenever
