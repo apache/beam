@@ -199,7 +199,6 @@ public class DataflowWorkProgressUpdaterTest {
     setUpCounters(3);
     setUpMetrics(2);
     setUpProgress(approximateProgressAtIndex(1L));
-    progressUpdater.startReportingProgress();
 
     // In tests below, we allow 500ms leeway.
 
@@ -207,6 +206,10 @@ public class DataflowWorkProgressUpdaterTest {
         // leaseExpirationTimestamp, progressReportInterval, suggestedStopPosition, nextReportIndex
         .thenReturn(generateServiceState(
             System.currentTimeMillis() + 2000, 1000, positionAtIndex(3L), 2L));
+
+    // Start progress updates.
+    progressUpdater.startReportingProgress();
+
     // The initial update should be sent at nowMillis+300 (+500ms leeway).
     verify(workUnitClient, timeout(800)).reportWorkItemStatus(argThat(
         new ExpectedDataflowWorkItemStatus().withCounters(3).withMetrics(2).withProgress(
