@@ -30,7 +30,7 @@ import java.io.ObjectInputStream;
  * Flink {@link org.apache.flink.api.common.typeutils.TypeComparator} for
  * {@link com.google.cloud.dataflow.sdk.coders.Coder}.
  */
-public class CoderComperator<T> extends TypeComparator<T> {
+public class CoderComparator<T> extends TypeComparator<T> {
 
 	private Coder<T> coder;
 
@@ -42,7 +42,7 @@ public class CoderComperator<T> extends TypeComparator<T> {
 	// For storing the Reference in encoded form
 	private transient InspectableByteArrayOutputStream referenceBuffer;
 
-	public CoderComperator(Coder<T> coder) {
+	public CoderComparator(Coder<T> coder) {
 		this.coder = coder;
 		buffer1 = new InspectableByteArrayOutputStream();
 		buffer2 = new InspectableByteArrayOutputStream();
@@ -51,11 +51,9 @@ public class CoderComperator<T> extends TypeComparator<T> {
 
 	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
 		in.defaultReadObject();
-
 		buffer1 = new InspectableByteArrayOutputStream();
 		buffer2 = new InspectableByteArrayOutputStream();
 		referenceBuffer = new InspectableByteArrayOutputStream();
-
 	}
 
 	@Override
@@ -97,7 +95,7 @@ public class CoderComperator<T> extends TypeComparator<T> {
 
 	@Override
 	public int compareToReference(TypeComparator<T> other) {
-		InspectableByteArrayOutputStream otherReferenceBuffer = ((CoderComperator<T>) other).referenceBuffer;
+		InspectableByteArrayOutputStream otherReferenceBuffer = ((CoderComparator<T>) other).referenceBuffer;
 
 		byte[] arr = referenceBuffer.getBuffer();
 		byte[] arrOther = otherReferenceBuffer.getBuffer();
@@ -202,7 +200,7 @@ public class CoderComperator<T> extends TypeComparator<T> {
 
 	@Override
 	public TypeComparator<T> duplicate() {
-		return new CoderComperator<>(coder);
+		return new CoderComparator<>(coder);
 	}
 
 	@Override

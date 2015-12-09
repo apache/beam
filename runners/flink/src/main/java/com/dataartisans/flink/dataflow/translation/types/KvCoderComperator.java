@@ -259,6 +259,6 @@ public class KvCoderComperator <K, V> extends TypeComparator<KV<K, V>> {
 
 	@Override
 	public TypeComparator[] getFlatComparators() {
-		return new TypeComparator[] {new CoderComperator<>(keyCoder)};
+		return new TypeComparator[] {new CoderComparator<>(keyCoder)};
 	}
 }

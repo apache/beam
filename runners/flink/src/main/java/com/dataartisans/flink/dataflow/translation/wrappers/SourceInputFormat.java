@@ -18,7 +18,6 @@
 package com.dataartisans.flink.dataflow.translation.wrappers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.api.client.util.Lists;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.io.BoundedSource;
 import com.google.cloud.dataflow.sdk.io.Source;
@@ -34,6 +33,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -116,7 +116,7 @@ public class SourceInputFormat<T> implements InputFormat<T, SourceInputSplit<T>>
 			desiredSizeBytes = initialSource.getEstimatedSizeBytes(options) / numSplits;
 			List<? extends Source<T>> shards = initialSource.splitIntoBundles(desiredSizeBytes,
 					options);
-			List<SourceInputSplit<T>> splits = Lists.newArrayList();
+			List<SourceInputSplit<T>> splits = new ArrayList<SourceInputSplit<T>>();
 			int splitCount = 0;
 			for (Source<T> shard: shards) {
 				splits.add(new SourceInputSplit<>(shard, splitCount++));

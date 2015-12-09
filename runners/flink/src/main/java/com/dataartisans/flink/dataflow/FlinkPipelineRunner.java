@@ -15,7 +15,6 @@
  */
 package com.dataartisans.flink.dataflow;
 
-import com.dataartisans.flink.dataflow.translation.FlinkPipelineTranslator;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
@@ -28,8 +27,6 @@ import com.google.cloud.dataflow.sdk.values.POutput;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.java.CollectionEnvironment;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,27 +42,19 @@ import java.util.Map;
  * A {@link PipelineRunner} that executes the operations in the
  * pipeline by first translating them to a Flink Plan and then executing them either locally
  * or on a Flink cluster, depending on the configuration.
- *
+ * <p>
  * This is based on {@link com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner}.
  */
 public class FlinkPipelineRunner extends PipelineRunner<FlinkRunnerResult> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkPipelineRunner.class);
 
-	/** Provided options. */
+	/**
+	 * Provided options.
+	 */
 	private final FlinkPipelineOptions options;
 
-	/**
-	 * The Flink execution environment. This is instantiated to either a
-	 * {@link org.apache.flink.api.java.CollectionEnvironment},
-	 * a {@link org.apache.flink.api.java.LocalEnvironment} or
-	 * a {@link org.apache.flink.api.java.RemoteEnvironment}, depending on the configuration
-	 * options.
-	 */
-	private final ExecutionEnvironment flinkEnv;
-
-	/** Translator for this FlinkPipelineRunner, based on options. */
-	private final FlinkPipelineTranslator translator;
+	private final FlinkJobExecutionEnvironment flinkJobEnv;
 
 	/**
 	 * Construct a runner from the provided options.
@@ -109,90 +98,38 @@ public class FlinkPipelineRunner extends PipelineRunner<FlinkRunnerResult> {
 			flinkOptions.setFlinkMaster("[auto]");
 		}
 
-		if (flinkOptions.isStreaming()) {
-			throw new RuntimeException("Streaming is currently not supported.");
-		}
-
 		return new FlinkPipelineRunner(flinkOptions);
 	}
 
 	private FlinkPipelineRunner(FlinkPipelineOptions options) {
 		this.options = options;
-		this.flinkEnv = createExecutionEnvironment(options);
-
-		// set parallelism in the options (required by some execution code)
-		options.setParallelism(flinkEnv.getParallelism());
-
-		this.translator = new FlinkPipelineTranslator(flinkEnv, options);
-	}
-
-	/**
-	 * Create Flink {@link org.apache.flink.api.java.ExecutionEnvironment} depending
-	 * on the options.
-	 */
-	private ExecutionEnvironment createExecutionEnvironment(FlinkPipelineOptions options) {
-		String masterUrl = options.getFlinkMaster();
-
-
-		if (masterUrl.equals("[local]")) {
-			ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-			if (options.getParallelism() != -1) {
-				env.setParallelism(options.getParallelism());
-			}
-			return env;
-		} else if (masterUrl.equals("[collection]")) {
-			return new CollectionEnvironment();
-		} else if (masterUrl.equals("[auto]")) {
-			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			if (options.getParallelism() != -1) {
-				env.setParallelism(options.getParallelism());
-			}
-			return env;
-		} else if (masterUrl.matches(".*:\\d*")) {
-			String[] parts = masterUrl.split(":");
-			List<String> stagingFiles = options.getFilesToStage();
-			ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(parts[0],
-					Integer.parseInt(parts[1]),
-					stagingFiles.toArray(new String[stagingFiles.size()]));
-			if (options.getParallelism() != -1) {
-				env.setParallelism(options.getParallelism());
-			}
-			return env;
-		} else {
-			LOG.warn("Unrecognized Flink Master URL {}. Defaulting to [auto].", masterUrl);
-			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			if (options.getParallelism() != -1) {
-				env.setParallelism(options.getParallelism());
-			}
-			return env;
-		}
+		this.flinkJobEnv = new FlinkJobExecutionEnvironment(options);
 	}
 
 	@Override
 	public FlinkRunnerResult run(Pipeline pipeline) {
 		LOG.info("Executing pipeline using FlinkPipelineRunner.");
-		
+
 		LOG.info("Translating pipeline to Flink program.");
-		
-		translator.translate(pipeline);
-		
+
+		this.flinkJobEnv.translate(pipeline);
+
 		LOG.info("Starting execution of Flink program.");
 		
 		JobExecutionResult result;
 		try {
-			result = flinkEnv.execute();
-		}
-		catch (Exception e) {
+			result = this.flinkJobEnv.executeJob();
+		} catch (Exception e) {
 			LOG.error("Pipeline execution failed", e);
 			throw new RuntimeException("Pipeline execution failed", e);
 		}
-		
+
 		LOG.info("Execution finished in {} msecs", result.getNetRuntime());
-		
+
 		Map<String, Object> accumulators = result.getAllAccumulatorResults();
 		if (accumulators != null && !accumulators.isEmpty()) {
 			LOG.info("Final aggregator values:");
-			
+
 			for (Map.Entry<String, Object> entry : result.getAllAccumulatorResults().entrySet()) {
 				LOG.info("{} : {}", entry.getKey(), entry.getValue());
 			}
@@ -230,16 +167,18 @@ public class FlinkPipelineRunner extends PipelineRunner<FlinkRunnerResult> {
 	/////////////////////////////////////////////////////////////////////////////
 
 	@Override
-	public String toString() { return "DataflowPipelineRunner#" + hashCode(); }
+	public String toString() {
+		return "DataflowPipelineRunner#" + hashCode();
+	}
 
 	/**
 	 * Attempts to detect all the resources the class loader has access to. This does not recurse
 	 * to class loader parents stopping it from pulling in resources from the system class loader.
 	 *
 	 * @param classLoader The URLClassLoader to use to detect resources to stage.
-	 * @throws IllegalArgumentException  If either the class loader is not a URLClassLoader or one
-	 * of the resources the class loader exposes is not a file resource.
 	 * @return A list of absolute paths to the resources the class loader uses.
+	 * @throws IllegalArgumentException If either the class loader is not a URLClassLoader or one
+	 *                                  of the resources the class loader exposes is not a file resource.
 	 */
 	protected static List<String> detectClassPathResourcesToStage(ClassLoader classLoader) {
 		if (!(classLoader instanceof URLClassLoader)) {

@@ -91,59 +91,59 @@ import java.util.Map;
  * Dataflow {@link com.google.cloud.dataflow.sdk.transforms.PTransform}s to
  * Flink {@link org.apache.flink.api.java.DataSet}s
  */
-public class FlinkTransformTranslators {
+public class FlinkBatchTransformTranslators {
 
 	// --------------------------------------------------------------------------------------------
 	//  Transform Translator Registry
 	// --------------------------------------------------------------------------------------------
 	
 	@SuppressWarnings("rawtypes")
-	private static final Map<Class<? extends PTransform>, FlinkPipelineTranslator.TransformTranslator> TRANSLATORS = new HashMap<>();
+	private static final Map<Class<? extends PTransform>, FlinkBatchPipelineTranslator.BatchTransformTranslator> TRANSLATORS = new HashMap<>();
 
 	// register the known translators
 	static {
-		TRANSLATORS.put(View.CreatePCollectionView.class, new CreatePCollectionViewTranslator());
+		TRANSLATORS.put(View.CreatePCollectionView.class, new CreatePCollectionViewTranslatorBatch());
 
-		TRANSLATORS.put(Combine.PerKey.class, new CombinePerKeyTranslator());
+		TRANSLATORS.put(Combine.PerKey.class, new CombinePerKeyTranslatorBatch());
 		// we don't need this because we translate the Combine.PerKey directly
 		//TRANSLATORS.put(Combine.GroupedValues.class, new CombineGroupedValuesTranslator());
 
-		TRANSLATORS.put(Create.Values.class, new CreateTranslator());
+		TRANSLATORS.put(Create.Values.class, new CreateTranslatorBatch());
 
-		TRANSLATORS.put(Flatten.FlattenPCollectionList.class, new FlattenPCollectionTranslator());
+		TRANSLATORS.put(Flatten.FlattenPCollectionList.class, new FlattenPCollectionTranslatorBatch());
 
-		TRANSLATORS.put(GroupByKey.GroupByKeyOnly.class, new GroupByKeyOnlyTranslator());
+		TRANSLATORS.put(GroupByKey.GroupByKeyOnly.class, new GroupByKeyOnlyTranslatorBatch());
 		// TODO we're currently ignoring windows here but that has to change in the future
-		TRANSLATORS.put(GroupByKey.class, new GroupByKeyTranslator());
+		TRANSLATORS.put(GroupByKey.class, new GroupByKeyTranslatorBatch());
 
-		TRANSLATORS.put(ParDo.BoundMulti.class, new ParDoBoundMultiTranslator());
-		TRANSLATORS.put(ParDo.Bound.class, new ParDoBoundTranslator());
+		TRANSLATORS.put(ParDo.BoundMulti.class, new ParDoBoundMultiTranslatorBatch());
+		TRANSLATORS.put(ParDo.Bound.class, new ParDoBoundTranslatorBatch());
 
-		TRANSLATORS.put(CoGroupByKey.class, new CoGroupByKeyTranslator());
+		TRANSLATORS.put(CoGroupByKey.class, new CoGroupByKeyTranslatorBatch());
 
-		TRANSLATORS.put(AvroIO.Read.Bound.class, new AvroIOReadTranslator());
-		TRANSLATORS.put(AvroIO.Write.Bound.class, new AvroIOWriteTranslator());
+		TRANSLATORS.put(AvroIO.Read.Bound.class, new AvroIOReadTranslatorBatch());
+		TRANSLATORS.put(AvroIO.Write.Bound.class, new AvroIOWriteTranslatorBatch());
 
-		TRANSLATORS.put(Read.Bounded.class, new ReadSourceTranslator());
-		TRANSLATORS.put(Write.Bound.class, new WriteSinkTranslator());
+		TRANSLATORS.put(Read.Bounded.class, new ReadSourceTranslatorBatch());
+		TRANSLATORS.put(Write.Bound.class, new WriteSinkTranslatorBatch());
 
-		TRANSLATORS.put(TextIO.Read.Bound.class, new TextIOReadTranslator());
-		TRANSLATORS.put(TextIO.Write.Bound.class, new TextIOWriteTranslator());
+		TRANSLATORS.put(TextIO.Read.Bound.class, new TextIOReadTranslatorBatch());
+		TRANSLATORS.put(TextIO.Write.Bound.class, new TextIOWriteTranslatorBatch());
 
 		// Flink-specific
-		TRANSLATORS.put(ConsoleIO.Write.Bound.class, new ConsoleIOWriteTranslator());
+		TRANSLATORS.put(ConsoleIO.Write.Bound.class, new ConsoleIOWriteTranslatorBatch());
 
 	}
 
 
-	public static FlinkPipelineTranslator.TransformTranslator<?> getTranslator(PTransform<?, ?> transform) {
+	public static FlinkBatchPipelineTranslator.BatchTransformTranslator<?> getTranslator(PTransform<?, ?> transform) {
 		return TRANSLATORS.get(transform.getClass());
 	}
 
-	private static class ReadSourceTranslator<T> implements FlinkPipelineTranslator.TransformTranslator<Read.Bounded<T>> {
+	private static class ReadSourceTranslatorBatch<T> implements FlinkBatchPipelineTranslator.BatchTransformTranslator<Read.Bounded<T>> {
 
 		@Override
-		public void translateNode(Read.Bounded<T> transform, TranslationContext context) {
+		public void translateNode(Read.Bounded<T> transform, FlinkBatchTranslationContext context) {
 			String name = transform.getName();
 			BoundedSource<T> source = transform.getSource();
 			PCollection<T> output = context.getOutput(transform);
@@ -157,11 +157,11 @@ public class FlinkTransformTranslators {
 		}
 	}
 
-	private static class AvroIOReadTranslator<T> implements FlinkPipelineTranslator.TransformTranslator<AvroIO.Read.Bound<T>> {
-		private static final Logger LOG = LoggerFactory.getLogger(AvroIOReadTranslator.class);
+	private static class AvroIOReadTranslatorBatch<T> implements FlinkBatchPipelineTranslator.BatchTransformTranslator<AvroIO.Read.Bound<T>> {
+		private static final Logger LOG = LoggerFactory.getLogger(AvroIOReadTranslatorBatch.class);
 
 		@Override
-		public void translateNode(AvroIO.Read.Bound<T> transform, TranslationContext context) {
+		public void translateNode(AvroIO.Read.Bound<T> transform, FlinkBatchTranslationContext context) {
 			String path = transform.getFilepattern();
 			String name = transform.getName();
 //			Schema schema = transform.getSchema();
@@ -190,11 +190,11 @@ public class FlinkTransformTranslators {
 		}
 	}
 
-	private static class AvroIOWriteTranslator<T> implements FlinkPipelineTranslator.TransformTranslator<AvroIO.Write.Bound<T>> {
-		private static final Logger LOG = LoggerFactory.getLogger(AvroIOWriteTranslator.class);
+	private static class AvroIOWriteTranslatorBatch<T> implements FlinkBatchPipelineTranslator.BatchTransformTranslator<AvroIO.Write.Bound<T>> {
+		private static final Logger LOG = LoggerFactory.getLogger(AvroIOWriteTranslatorBatch.class);
 
 		@Override
-		public void translateNode(AvroIO.Write.Bound<T> transform, TranslationContext context) {
+		public void translateNode(AvroIO.Write.Bound<T> transform, FlinkBatchTranslationContext context) {
 			DataSet<T> inputDataSet = context.getInputDataSet(context.getInput(transform));
 			String filenamePrefix = transform.getFilenamePrefix();
 			String filenameSuffix = transform.getFilenameSuffix();
@@ -228,11 +228,11 @@ public class FlinkTransformTranslators {
 		}
 	}
 
-	private static class TextIOReadTranslator implements FlinkPipelineTranslator.TransformTranslator<TextIO.Read.Bound<String>> {
-		private static final Logger LOG = LoggerFactory.getLogger(TextIOReadTranslator.class);
+	private static class TextIOReadTranslatorBatch implements FlinkBatchPipelineTranslator.BatchTransformTranslator<TextIO.Read.Bound<String>> {
+		private static final Logger LOG = LoggerFactory.getLogger(TextIOReadTranslatorBatch.class);
 
 		@Override
-		public void translateNode(TextIO.Read.Bound<String> transform, TranslationContext context) {
+		public void translateNode(TextIO.Read.Bound<String> transform, FlinkBatchTranslationContext context) {
 			String path = transform.getFilepattern();
 			String name = transform.getName();
 
@@ -246,18 +246,17 @@ public class FlinkTransformTranslators {
 			PValue output = context.getOutput(transform);
 
 			TypeInformation<String> typeInformation = context.getTypeInfo(output);
-
 			DataSource<String> source = new DataSource<>(context.getExecutionEnvironment(), new TextInputFormat(new Path(path)), typeInformation, name);
 
 			context.setOutputDataSet(output, source);
 		}
 	}
 
-	private static class TextIOWriteTranslator<T> implements FlinkPipelineTranslator.TransformTranslator<TextIO.Write.Bound<T>> {
-		private static final Logger LOG = LoggerFactory.getLogger(TextIOWriteTranslator.class);
+	private static class TextIOWriteTranslatorBatch<T> implements FlinkBatchPipelineTranslator.BatchTransformTranslator<TextIO.Write.Bound<T>> {
+		private static final Logger LOG = LoggerFactory.getLogger(TextIOWriteTranslatorBatch.class);
 
 		@Override
-		public void translateNode(TextIO.Write.Bound<T> transform, TranslationContext context) {
+		public void translateNode(TextIO.Write.Bound<T> transform, FlinkBatchTranslationContext context) {
 			PValue input = context.getInput(transform);
 			DataSet<T> inputDataSet = context.getInputDataSet(input);
 
@@ -281,19 +280,19 @@ public class FlinkTransformTranslators {
 		}
 	}
 
-	private static class ConsoleIOWriteTranslator implements FlinkPipelineTranslator.TransformTranslator<ConsoleIO.Write.Bound> {
+	private static class ConsoleIOWriteTranslatorBatch implements FlinkBatchPipelineTranslator.BatchTransformTranslator<ConsoleIO.Write.Bound> {
 		@Override
-		public void translateNode(ConsoleIO.Write.Bound transform, TranslationContext context) {
-			PValue input = context.getInput(transform);
+		public void translateNode(ConsoleIO.Write.Bound transform, FlinkBatchTranslationContext context) {
+			PValue input = (PValue) context.getInput(transform);
 			DataSet<?> inputDataSet = context.getInputDataSet(input);
 			inputDataSet.printOnTaskManager(transform.getName());
 		}
 	}
 
-	private static class WriteSinkTranslator<T> implements FlinkPipelineTranslator.TransformTranslator<Write.Bound<T>> {
+	private static class WriteSinkTranslatorBatch<T> implements FlinkBatchPipelineTranslator.BatchTransformTranslator<Write.Bound<T>> {
 
 		@Override
-		public void translateNode(Write.Bound<T> transform, TranslationContext context) {
+		public void translateNode(Write.Bound<T> transform, FlinkBatchTranslationContext context) {
 			String name = transform.getName();
 			PValue input = context.getInput(transform);
 			DataSet<T> inputDataSet = context.getInputDataSet(input);
@@ -302,10 +301,10 @@ public class FlinkTransformTranslators {
 		}
 	}
 
-	private static class GroupByKeyOnlyTranslator<K, V> implements FlinkPipelineTranslator.TransformTranslator<GroupByKey.GroupByKeyOnly<K, V>> {
+	private static class GroupByKeyOnlyTranslatorBatch<K, V> implements FlinkBatchPipelineTranslator.BatchTransformTranslator<GroupByKey.GroupByKeyOnly<K, V>> {
 
 		@Override
-		public void translateNode(GroupByKey.GroupByKeyOnly<K, V> transform, TranslationContext context) {
+		public void translateNode(GroupByKey.GroupByKeyOnly<K, V> transform, FlinkBatchTranslationContext context) {
 			DataSet<KV<K, V>> inputDataSet = context.getInputDataSet(context.getInput(transform));
 			GroupReduceFunction<KV<K, V>, KV<K, Iterable<V>>> groupReduceFunction = new FlinkKeyedListAggregationFunction<>();
 
@@ -320,12 +319,12 @@ public class FlinkTransformTranslators {
 	}
 
 	/**
-	 * Translates a GroupByKey while ignoring window assignments. This is identical to the {@link GroupByKeyOnlyTranslator}
+	 * Translates a GroupByKey while ignoring window assignments. This is identical to the {@link GroupByKeyOnlyTranslatorBatch}
 	 */
-	private static class GroupByKeyTranslator<K, V> implements FlinkPipelineTranslator.TransformTranslator<GroupByKey<K, V>> {
+	private static class GroupByKeyTranslatorBatch<K, V> implements FlinkBatchPipelineTranslator.BatchTransformTranslator<GroupByKey<K, V>> {
 
 		@Override
-		public void translateNode(GroupByKey<K, V> transform, TranslationContext context) {
+		public void translateNode(GroupByKey<K, V> transform, FlinkBatchTranslationContext context) {
 			DataSet<KV<K, V>> inputDataSet = context.getInputDataSet(context.getInput(transform));
 			GroupReduceFunction<KV<K, V>, KV<K, Iterable<V>>> groupReduceFunction = new FlinkKeyedListAggregationFunction<>();
 
@@ -340,10 +339,10 @@ public class FlinkTransformTranslators {
 		}
 	}
 
-	private static class CombinePerKeyTranslator<K, VI, VA, VO> implements FlinkPipelineTranslator.TransformTranslator<Combine.PerKey<K, VI, VO>> {
+	private static class CombinePerKeyTranslatorBatch<K, VI, VA, VO> implements FlinkBatchPipelineTranslator.BatchTransformTranslator<Combine.PerKey<K, VI, VO>> {
 
 		@Override
-		public void translateNode(Combine.PerKey<K, VI, VO> transform, TranslationContext context) {
+		public void translateNode(Combine.PerKey<K, VI, VO> transform, FlinkBatchTranslationContext context) {
 			DataSet<KV<K, VI>> inputDataSet = context.getInputDataSet(context.getInput(transform));
 
 			@SuppressWarnings("unchecked")
@@ -407,11 +406,11 @@ public class FlinkTransformTranslators {
 //		}
 //	}
 	
-	private static class ParDoBoundTranslator<IN, OUT> implements FlinkPipelineTranslator.TransformTranslator<ParDo.Bound<IN, OUT>> {
-		private static final Logger LOG = LoggerFactory.getLogger(ParDoBoundTranslator.class);
+	private static class ParDoBoundTranslatorBatch<IN, OUT> implements FlinkBatchPipelineTranslator.BatchTransformTranslator<ParDo.Bound<IN, OUT>> {
+		private static final Logger LOG = LoggerFactory.getLogger(ParDoBoundTranslatorBatch.class);
 
 		@Override
-		public void translateNode(ParDo.Bound<IN, OUT> transform, TranslationContext context) {
+		public void translateNode(ParDo.Bound<IN, OUT> transform, FlinkBatchTranslationContext context) {
 			DataSet<IN> inputDataSet = context.getInputDataSet(context.getInput(transform));
 
 			final DoFn<IN, OUT> doFn = transform.getFn();
@@ -427,11 +426,11 @@ public class FlinkTransformTranslators {
 		}
 	}
 
-	private static class ParDoBoundMultiTranslator<IN, OUT> implements FlinkPipelineTranslator.TransformTranslator<ParDo.BoundMulti<IN, OUT>> {
-		private static final Logger LOG = LoggerFactory.getLogger(ParDoBoundMultiTranslator.class);
+	private static class ParDoBoundMultiTranslatorBatch<IN, OUT> implements FlinkBatchPipelineTranslator.BatchTransformTranslator<ParDo.BoundMulti<IN, OUT>> {
+		private static final Logger LOG = LoggerFactory.getLogger(ParDoBoundMultiTranslatorBatch.class);
 
 		@Override
-		public void translateNode(ParDo.BoundMulti<IN, OUT> transform, TranslationContext context) {
+		public void translateNode(ParDo.BoundMulti<IN, OUT> transform, FlinkBatchTranslationContext context) {
 			DataSet<IN> inputDataSet = context.getInputDataSet(context.getInput(transform));
 
 			final DoFn<IN, OUT> doFn = transform.getFn();
@@ -478,10 +477,10 @@ public class FlinkTransformTranslators {
 		}
 	}
 
-	private static class FlattenPCollectionTranslator<T> implements FlinkPipelineTranslator.TransformTranslator<Flatten.FlattenPCollectionList<T>> {
+	private static class FlattenPCollectionTranslatorBatch<T> implements FlinkBatchPipelineTranslator.BatchTransformTranslator<Flatten.FlattenPCollectionList<T>> {
 
 		@Override
-		public void translateNode(Flatten.FlattenPCollectionList<T> transform, TranslationContext context) {
+		public void translateNode(Flatten.FlattenPCollectionList<T> transform, FlinkBatchTranslationContext context) {
 			List<PCollection<T>> allInputs = context.getInput(transform).getAll();
 			DataSet<T> result = null;
 			for(PCollection<T> collection : allInputs) {
@@ -496,19 +495,19 @@ public class FlinkTransformTranslators {
 		}
 	}
 
-	private static class CreatePCollectionViewTranslator<R, T> implements FlinkPipelineTranslator.TransformTranslator<View.CreatePCollectionView<R, T>> {
+	private static class CreatePCollectionViewTranslatorBatch<R, T> implements FlinkBatchPipelineTranslator.BatchTransformTranslator<View.CreatePCollectionView<R, T>> {
 		@Override
-		public void translateNode(View.CreatePCollectionView<R, T> transform, TranslationContext context) {
+		public void translateNode(View.CreatePCollectionView<R, T> transform, FlinkBatchTranslationContext context) {
 			DataSet<T> inputDataSet = context.getInputDataSet(context.getInput(transform));
 			PCollectionView<T> input = transform.apply(null);
 			context.setSideInputDataSet(input, inputDataSet);
 		}
 	}
 
-	private static class CreateTranslator<OUT> implements FlinkPipelineTranslator.TransformTranslator<Create.Values<OUT>> {
+	private static class CreateTranslatorBatch<OUT> implements FlinkBatchPipelineTranslator.BatchTransformTranslator<Create.Values<OUT>> {
 
 		@Override
-		public void translateNode(Create.Values<OUT> transform, TranslationContext context) {
+		public void translateNode(Create.Values<OUT> transform, FlinkBatchTranslationContext context) {
 			TypeInformation<OUT> typeInformation = context.getOutputTypeInfo();
 			Iterable<OUT> elements = transform.getElements();
 
@@ -538,7 +537,7 @@ public class FlinkTransformTranslators {
 
 	private static void transformSideInputs(List<PCollectionView<?>> sideInputs,
 	                                        MapPartitionOperator<?, ?> outputDataSet,
-	                                        TranslationContext context) {
+	                                        FlinkBatchTranslationContext context) {
 		// get corresponding Flink broadcast DataSets
 		for(PCollectionView<?> input : sideInputs) {
 			DataSet<?> broadcastSet = context.getSideInputDataSet(input);
@@ -551,10 +550,10 @@ public class FlinkTransformTranslators {
 	 * Special composite transform translator. Only called if the CoGroup is two dimensional.
 	 * @param <K>
 	 */
-	private static class CoGroupByKeyTranslator<K, V1, V2> implements FlinkPipelineTranslator.TransformTranslator<CoGroupByKey<K>> {
+	private static class CoGroupByKeyTranslatorBatch<K, V1, V2> implements FlinkBatchPipelineTranslator.BatchTransformTranslator<CoGroupByKey<K>> {
 
 		@Override
-		public void translateNode(CoGroupByKey<K> transform, TranslationContext context) {
+		public void translateNode(CoGroupByKey<K> transform, FlinkBatchTranslationContext context) {
 			KeyedPCollectionTuple<K> input = context.getInput(transform);
 
 			CoGbkResultSchema schema = input.getCoGbkResultSchema();
@@ -590,5 +589,5 @@ public class FlinkTransformTranslators {
 	//  Miscellaneous
 	// --------------------------------------------------------------------------------------------
 	
-	private FlinkTransformTranslators() {}
+	private FlinkBatchTransformTranslators() {}
 }
