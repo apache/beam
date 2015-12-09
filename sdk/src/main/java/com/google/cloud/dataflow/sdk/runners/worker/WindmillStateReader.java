@@ -30,8 +30,6 @@ import com.google.common.util.concurrent.SettableFuture;
 import com.google.protobuf.ByteString;
 
 import org.joda.time.Instant;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -60,7 +58,7 @@ class WindmillStateReader {
    * Ideal maximum bytes in a TagList response. However, Windmill will always return
    * at least one value if possible irrespective of this limit.
    */
-  public static final long MAX_LIST_BYTES = 1L << 20; // 1MB
+  public static final long MAX_LIST_BYTES = 8L << 20; // 8MB
 
   /**
    * When combined with a key and computationId, represents the unique address for
@@ -143,8 +141,6 @@ class WindmillStateReader {
       this.continuationToken = continuationToken;
     }
   }
-
-  private static final Logger LOG = LoggerFactory.getLogger(WindmillStateReader.class);
 
   private final String computation;
   private final ByteString key;
@@ -594,7 +590,6 @@ class WindmillStateReader {
     @Override
     public Iterator<T> iterator() {
       return new AbstractIterator<T>() {
-        private int numPagesRead = 1;
         private Iterator<T> currentPage = firstPage.iterator();
         private StateTag nextPageCont = secondPageCont;
         private Future<ValuesAndContToken<T>> pendingNextPage =
@@ -613,7 +608,6 @@ class WindmillStateReader {
             ValuesAndContToken<T> valuesAndContToken;
             try {
               valuesAndContToken = pendingNextPage.get();
-              numPagesRead++;
             } catch (InterruptedException | ExecutionException e) {
               throw new RuntimeException("Unable to read value from state", e);
             }
