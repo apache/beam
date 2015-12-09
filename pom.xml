@@ -69,7 +69,7 @@
     <!-- If updating dependencies, please update any relevant javadoc offlineLinks -->
     <avro.version>1.7.7</avro.version>
     <bigquery.version>v2-rev248-1.21.0</bigquery.version>
-    <dataflow.version>v1b3-rev12-1.21.0</dataflow.version>
+    <dataflow.version>v1b3-rev13-1.21.0</dataflow.version>
     <datastore.version>v1beta2-rev1-3.0.2</datastore.version>
     <google-clients.version>1.21.0</google-clients.version>
     <guava.version>18.0</guava.version>
