@@ -32,12 +32,12 @@ import org.apache.flink.shaded.com.google.common.base.Preconditions;
  */
 public class CoderTypeInformation<T> extends TypeInformation<T> implements AtomicType<T> {
 
-	private Coder<T> coder;
+	private final Coder<T> coder;
 
 	@SuppressWarnings("unchecked")
 	public CoderTypeInformation(Coder<T> coder) {
-		this.coder = coder;
 		Preconditions.checkNotNull(coder);
+		this.coder = coder;
 	}
 
 	@Override
@@ -112,6 +112,6 @@ public class CoderTypeInformation<T> extends TypeInformation<T> implements Atomi
 	@Override
 	public TypeComparator<T> createComparator(boolean sortOrderAscending, ExecutionConfig
 			executionConfig) {
-		return new CoderComperator<>(coder);
+		return new CoderComparator<>(coder);
 	}
 }

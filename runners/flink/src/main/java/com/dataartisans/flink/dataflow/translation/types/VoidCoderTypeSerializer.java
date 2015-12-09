@@ -109,5 +109,4 @@ public class VoidCoderTypeSerializer extends TypeSerializer<VoidCoderTypeSeriali
 		public static VoidValue INSTANCE = new VoidValue();
 	}
 
-
 }

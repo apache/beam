@@ -37,7 +37,7 @@ import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import java.util.HashMap;
 import java.util.Map;
 
-public class TranslationContext {
+public class FlinkBatchTranslationContext {
 	
 	private final Map<PValue, DataSet<?>> dataSets;
 	private final Map<PCollectionView<?>, DataSet<?>> broadcastDataSets;
@@ -49,7 +49,7 @@ public class TranslationContext {
 	
 	// ------------------------------------------------------------------------
 	
-	public TranslationContext(ExecutionEnvironment env, PipelineOptions options) {
+	public FlinkBatchTranslationContext(ExecutionEnvironment env, PipelineOptions options) {
 		this.env = env;
 		this.options = options;
 		this.dataSets = new HashMap<>();

@@ -43,7 +43,7 @@ public class WordCount {
 		String getOutput();
 		void setOutput(String value);
 	}
-	
+
 	public static void main(String[] args) {
 
 		Options options = PipelineOptionsFactory.fromArgs(args).withValidation()
