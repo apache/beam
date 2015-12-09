@@ -41,7 +41,6 @@ import java.io.InputStream;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 class WindmillSink<T> extends Sink<WindowedValue<T>> {
   private WindmillStreamWriter writer;
@@ -143,9 +142,8 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
         productionMap.put(key, keyedOutput);
       }
 
-      long timestampMicros = TimeUnit.MILLISECONDS.toMicros(data.getTimestamp().getMillis());
       Windmill.Message.Builder builder = Windmill.Message.newBuilder()
-          .setTimestamp(timestampMicros)
+          .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(data.getTimestamp()))
           .setData(value)
           .setMetadata(metadata);
       keyedOutput.addMessages(builder.build());

@@ -58,18 +58,18 @@ public class DefaultTriggerTest {
 
     // Advance the watermark almost to the end of the first window.
     tester.advanceProcessingTime(new Instant(500));
-    tester.advanceWatermark(new Instant(8));
+    tester.advanceInputWatermark(new Instant(8));
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
 
-    // Advance watermark to 9 (the exact end of the window), which causes the first fixed window to
+    // Advance watermark to 10 (past end of the window), which causes the first fixed window to
     // be emitted
-    tester.advanceWatermark(new Instant(9));
+    tester.advanceInputWatermark(new Instant(10));
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
 
     // Advance watermark to 100, which causes the remaining two windows to be emitted.
     // Since their timers were at different timestamps, they should fire in order.
-    tester.advanceWatermark(new Instant(100));
+    tester.advanceInputWatermark(new Instant(100));
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(3, 4), 15, 10, 20),
         isSingleWindowedValue(Matchers.contains(5), 30, 30, 40)));
@@ -93,14 +93,14 @@ public class DefaultTriggerTest {
         TimestampedValue.of(2, new Instant(9)));
 
     // no output, because we merged into the [9-19) session
-    tester.advanceWatermark(new Instant(10));
+    tester.advanceInputWatermark(new Instant(10));
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
 
     tester.injectElements(
         TimestampedValue.of(3, new Instant(15)),
         TimestampedValue.of(4, new Instant(30)));
 
-    tester.advanceWatermark(new Instant(100));
+    tester.advanceInputWatermark(new Instant(100));
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2, 3), 1, 1, 25),
         isSingleWindowedValue(Matchers.contains(4), 30, 30, 40)));
@@ -124,19 +124,18 @@ public class DefaultTriggerTest {
         TimestampedValue.of(2, new Instant(4)),
         TimestampedValue.of(3, new Instant(9)));
 
-    tester.advanceWatermark(new Instant(100));
+    tester.advanceInputWatermark(new Instant(100));
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, -5, 5),
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2, 3), 5, 0, 10),
         isSingleWindowedValue(Matchers.containsInAnyOrder(3), 10, 5, 15)));
 
-    // This data is late, so it will hold the watermark to 109
+    // This data is too late to hold the output watermark, either to the element
+    // or the end of window.
     tester.injectElements(
         TimestampedValue.of(4, new Instant(8)));
 
-    tester.advanceWatermark(new Instant(101));
-    assertThat(tester.getWatermarkHold(), Matchers.equalTo(new Instant(109)));
-    tester.advanceWatermark(new Instant(120));
+    tester.advanceInputWatermark(new Instant(120));
     List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
     assertThat(output, Matchers.contains(
         isSingleWindowedValue(Matchers.contains(4), 9, 0, 10),
@@ -160,7 +159,7 @@ public class DefaultTriggerTest {
         TimestampedValue.of(2, new Instant(9)),
         TimestampedValue.of(3, new Instant(7)));
 
-    tester.advanceWatermark(new Instant(20));
+    tester.advanceInputWatermark(new Instant(20));
     Iterable<WindowedValue<Iterable<Integer>>> extractOutput = tester.extractOutput();
     assertThat(extractOutput, Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2, 3), 1, 1, 19)));

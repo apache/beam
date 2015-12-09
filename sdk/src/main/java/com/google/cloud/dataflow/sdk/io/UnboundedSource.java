@@ -96,7 +96,8 @@ public abstract class UnboundedSource<
   }
 
   /**
-   * A marker representing the progress and state of an {@link UnboundedReader}.
+   * A marker representing the progress and state of an
+   * {@link com.google.cloud.dataflow.sdk.io.UnboundedSource.UnboundedReader}.
    *
    * <p>For example, this could be offsets in a set of files being read.
    */
@@ -176,24 +177,25 @@ public abstract class UnboundedSource<
     }
 
     /**
-     * Returns a lower bound on timestamps of future elements read by this reader.
+     * Returns a timestamp before or at the timestamps of all future elements read by this reader.
      *
      * <p>This can be approximate.  If records are read that violate this guarantee, they will be
      * considered late, which will affect how they will be processed.  See
      * {@link com.google.cloud.dataflow.sdk.transforms.windowing.Window} for more information on
      * late data and how to handle it.
      *
-     * <p>This bound should be as tight as possible.  Downstream windows will not be able to close
-     * until this watermark passes the end of the window.
+     * <p>However, this value should be as late as possible. Downstream windows may not be able
+     * to close until this watermark passes their end.
      *
      * <p>For example, a source may know that the records it reads will be in timestamp order.  In
-     * this case, the watermark can be the timestamp of the last record read minus one.  For a
+     * this case, the watermark can be the timestamp of the last record read.  For a
      * source that does not have natural timestamps, timestamps can be set to the time of
      * reading, in which case the watermark is the current clock time.
      *
      * <p>See {@link com.google.cloud.dataflow.sdk.transforms.windowing.Window} and
      * {@link com.google.cloud.dataflow.sdk.transforms.windowing.Trigger} for more
      * information on timestamps and watermarks.
+     *
      * <p>May be called after {@link #advance} or {@link #start} has returned false, but not before
      * {@link #start} has been called.
      */

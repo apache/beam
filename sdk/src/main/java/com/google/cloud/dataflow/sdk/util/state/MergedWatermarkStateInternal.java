@@ -124,11 +124,17 @@ class MergedWatermarkStateInternal<W extends BoundedWindow> implements Watermark
   @Override
   public void releaseExtraneousHolds() {
     if (outputTimeFn.dependsOnlyOnEarliestInputTimestamp()) {
-      // No need to do anything; the merged watermark state will hold to the earliest
-      // due to semantics of watermark holds.
+      // The backend is implicitly already holding the output watermark to
+      // the minimum of all holds in all merged windows. Therefore, we don't need to
+      // explicitly change it.
+      // When the final (post merged) session window fires, we will collect all holds
+      // over all intermediate (pre merged) windows, take their min, and clear them.
+      // Therefore we also don't need to garbage collect any state here.
     } else {
-      // In all other cases, get() implements the necessary combining logic, and actually
-      // performs compaction that releases the watermark.
+      // The output time function may be able to move the hold forward. get() implements
+      // the necessary combining logic, and as a side effect will compact the hold
+      // in Windmill state. This ensures Windmill's output watermark can progress, and
+      // there is no stale hold left behind.
       get().read();
     }
   }

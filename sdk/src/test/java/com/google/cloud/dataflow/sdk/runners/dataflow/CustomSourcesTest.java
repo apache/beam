@@ -636,7 +636,8 @@ public class CustomSourcesTest {
               .setSourceState(
                   Windmill.SourceState.newBuilder().setState(state).build()) // Source state.
               .build(),
-          new Instant(0),
+          new Instant(0), // input watermark
+          null, // output watermark
           null, // StateReader
           null, // StateFetcher
           Windmill.WorkItemCommitRequest.newBuilder());

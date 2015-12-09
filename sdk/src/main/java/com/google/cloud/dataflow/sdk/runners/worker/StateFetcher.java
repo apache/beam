@@ -117,11 +117,10 @@ class StateFetcher {
                     .setVersion(windowStream.toByteString())
                     .build())
                 .setStateFamily(stateFamily)
-                .setExistenceWatermarkDeadline(
-                     TimeUnit.MILLISECONDS.toMicros(sideWindowStrategy
+                .setExistenceWatermarkDeadline(WindmillTimeUtils.harnessToWindmillTimestamp(
+                     sideWindowStrategy
                          .getTrigger().getSpec()
-                         .getWatermarkThatGuaranteesFiring(sideWindow)
-                         .getMillis()))
+                         .getWatermarkThatGuaranteesFiring(sideWindow)))
                 .build();
 
         Windmill.GetDataResponse response;

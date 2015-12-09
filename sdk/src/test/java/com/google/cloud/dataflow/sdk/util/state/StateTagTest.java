@@ -72,9 +72,12 @@ public class StateTagTest {
     StateTag<?> bar2 = StateTags.watermarkStateInternal(
         "bar", OutputTimeFns.outputAtLatestInputTimestamp());
 
+    // Same id, same fn.
     assertEquals(foo1, foo2);
+    // Different id, same fn.
     assertNotEquals(foo1, bar);
-    assertNotEquals(bar, bar2);
+    // Same id, different fn.
+    assertEquals(bar, bar2);
   }
 
   @Test

@@ -81,7 +81,10 @@ public class StreamingModeExecutionContextTest {
 
     Windmill.WorkItemCommitRequest.Builder outputBuilder =
         Windmill.WorkItemCommitRequest.newBuilder();
-    executionContext.start(null, new Instant(1000), stateReader, stateFetcher, outputBuilder);
+    executionContext.start(null,
+        new Instant(1000), // input watermark
+        null, // output watermark
+        stateReader, stateFetcher, outputBuilder);
     ExecutionContext.StepContext step =
         executionContext.getOrCreateStepContext("step", "transform", null);
 
@@ -141,7 +144,8 @@ public class StreamingModeExecutionContextTest {
                                 .setState(ByteString.EMPTY)
                                 .build()) // Source state.
             .build(),
-        new Instant(0),
+        new Instant(0), // input watermark
+        null, // output watermark
         null, // StateReader
         null, // StateFetcher
         Windmill.WorkItemCommitRequest.newBuilder());

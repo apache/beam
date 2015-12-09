@@ -779,8 +779,10 @@ public class StreamingDataflowWorkerTest {
     ByteString timerTag = ByteString.copyFromUtf8(window + "+0:999"); // GC timer just has window
     ByteString bufferTag = ByteString.copyFromUtf8(window + "+sbuf");
     ByteString paneInfoTag = ByteString.copyFromUtf8(window + "+spane");
-    ByteString watermarkHoldTag =
+    ByteString watermarkDataHoldTag =
         ByteString.copyFromUtf8(window + "+shold");
+    ByteString watermarkExtraHoldTag =
+        ByteString.copyFromUtf8(window + "+sextra");
     String stateFamily = "MergeWindows";
     ByteString bufferData = ByteString.copyFromUtf8("\000data0");
     // Encoded form for Iterable<String>: -1, true, 'data0', false
@@ -811,12 +813,14 @@ public class StreamingDataflowWorkerTest {
                 .build())
             .build())));
 
-    assertThat(actualOutput.getWatermarkHoldsList(), Matchers.contains(
-        Matchers.equalTo(Windmill.WatermarkHold.newBuilder()
-            .setTag(watermarkHoldTag)
-            .setStateFamily(stateFamily)
-            .addTimestamps(0)
-            .build())));
+    assertThat(
+        actualOutput.getWatermarkHoldsList(),
+        Matchers.containsInAnyOrder(
+            Windmill.WatermarkHold.newBuilder()
+                .setTag(watermarkDataHoldTag)
+                .setStateFamily(stateFamily)
+                .addTimestamps(0)
+                .build()));
 
     List<Windmill.Counter> counters = actualOutput.getCounterUpdatesList();
     // No state reads
@@ -861,7 +865,11 @@ public class StreamingDataflowWorkerTest {
         .setTimestamp(0) // is ignored
         .setData(bufferData);
     dataBuilder.addWatermarkHoldsBuilder()
-        .setTag(watermarkHoldTag)
+        .setTag(watermarkDataHoldTag)
+        .setStateFamily(stateFamily)
+        .addTimestamps(0);
+    dataBuilder.addWatermarkHoldsBuilder()
+        .setTag(watermarkExtraHoldTag)
         .setStateFamily(stateFamily)
         .addTimestamps(0);
     dataBuilder.addValuesBuilder()
@@ -914,13 +922,17 @@ public class StreamingDataflowWorkerTest {
 
     assertThat(
         actualOutput.getWatermarkHoldsList(),
-        Matchers.contains(
-            Matchers.equalTo(
-                Windmill.WatermarkHold.newBuilder()
-                    .setTag(watermarkHoldTag)
-                    .setStateFamily(stateFamily)
-                    .setReset(true)
-                    .build())));
+        Matchers.containsInAnyOrder(
+            Windmill.WatermarkHold.newBuilder()
+                .setTag(watermarkDataHoldTag)
+                .setStateFamily(stateFamily)
+                .setReset(true)
+                .build(),
+            Windmill.WatermarkHold.newBuilder()
+                .setTag(watermarkExtraHoldTag)
+                .setStateFamily(stateFamily)
+                .setReset(true)
+                .build()));
 
     counters = actualOutput.getCounterUpdatesList();
 

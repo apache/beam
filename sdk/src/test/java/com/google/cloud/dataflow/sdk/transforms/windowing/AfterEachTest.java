@@ -140,7 +140,7 @@ public class AfterEachTest {
     when(mockTrigger1.onTimer(Mockito.isA(OnTimerContext.class)))
         .thenReturn(TriggerResult.FIRE_AND_FINISH);
 
-    tester.advanceWatermark(new Instant(12));
+    tester.advanceInputWatermark(new Instant(12));
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1), 1, 0, 10)));
 
@@ -261,7 +261,7 @@ public class AfterEachTest {
     tester.advanceProcessingTime(new Instant(10));
     tester.injectElements(
         TimestampedValue.of(1, new Instant(1))); // in [1, 11), timer for 15
-    tester.advanceProcessingTime(new Instant(15));
+    tester.advanceProcessingTime(new Instant(16));
     assertThat(tester.extractOutput(), Matchers.contains(
         WindowMatchers.isSingleWindowedValue(Matchers.contains(1), 1, 1, 11)));
 

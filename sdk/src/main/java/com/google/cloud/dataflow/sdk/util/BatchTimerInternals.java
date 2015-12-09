@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.common.base.MoreObjects;
+import com.google.common.base.Preconditions;
 
 import org.joda.time.Instant;
 
@@ -25,11 +26,12 @@ import java.util.HashSet;
 import java.util.PriorityQueue;
 import java.util.Set;
 
+import javax.annotation.Nullable;
+
 /**
  * TimerInternals that uses priority queues to manage the timers that are ready to fire.
  */
 public class BatchTimerInternals implements TimerInternals {
-
   /** Set of timers that are scheduled used for deduplicating timers. */
   private Set<TimerData> existingTimers = new HashSet<>();
 
@@ -37,7 +39,7 @@ public class BatchTimerInternals implements TimerInternals {
   private PriorityQueue<TimerData> watermarkTimers = new PriorityQueue<>(11);
   private PriorityQueue<TimerData> processingTimers = new PriorityQueue<>(11);
 
-  private Instant watermarkTime;
+  private Instant inputWatermarkTime;
   private Instant processingTime;
 
   private PriorityQueue<TimerData> queue(TimeDomain domain) {
@@ -46,7 +48,7 @@ public class BatchTimerInternals implements TimerInternals {
 
   public BatchTimerInternals(Instant processingTime) {
     this.processingTime = processingTime;
-    this.watermarkTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
+    this.inputWatermarkTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
   }
 
   @Override
@@ -68,8 +70,15 @@ public class BatchTimerInternals implements TimerInternals {
   }
 
   @Override
-  public Instant currentWatermarkTime() {
-    return watermarkTime;
+  public Instant currentInputWatermarkTime() {
+    return inputWatermarkTime;
+  }
+
+  @Override
+  @Nullable
+  public Instant currentOutputWatermarkTime() {
+    // The output watermark is always undefined in batch mode.
+    return null;
   }
 
   @Override
@@ -80,13 +89,18 @@ public class BatchTimerInternals implements TimerInternals {
         .toString();
   }
 
-  public void advanceWatermark(ReduceFnRunner<?, ?, ?, ?> runner, Instant newWatermark) {
-    this.watermarkTime = newWatermark;
-    advance(runner, newWatermark, TimeDomain.EVENT_TIME);
+  public void advanceInputWatermark(ReduceFnRunner<?, ?, ?, ?> runner, Instant newInputWatermark) {
+    Preconditions.checkState(!newInputWatermark.isBefore(inputWatermarkTime),
+        "Cannot move input watermark time backwards from %s to %s", inputWatermarkTime,
+        newInputWatermark);
+    inputWatermarkTime = newInputWatermark;
+    advance(runner, newInputWatermark, TimeDomain.EVENT_TIME);
   }
 
   public void advanceProcessingTime(ReduceFnRunner<?, ?, ?, ?> runner, Instant newProcessingTime) {
-    this.processingTime = newProcessingTime;
+    Preconditions.checkState(!newProcessingTime.isBefore(processingTime),
+        "Cannot move processing time backwards from %s to %s", processingTime, newProcessingTime);
+    processingTime = newProcessingTime;
     advance(runner, newProcessingTime, TimeDomain.PROCESSING_TIME);
   }
 
@@ -96,8 +110,8 @@ public class BatchTimerInternals implements TimerInternals {
 
     do {
       TimerData timer = timers.peek();
-      // Timers fire if the new time is >= the timer
-      shouldFire = timer != null && !newTime.isBefore(timer.getTimestamp());
+      // Timers fire if the new time is ahead of the timer
+      shouldFire = timer != null && newTime.isAfter(timer.getTimestamp());
       if (shouldFire) {
         // Remove before firing, so that if the trigger adds another identical
         // timer we don't remove it.

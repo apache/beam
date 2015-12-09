@@ -252,7 +252,7 @@ public class OrFinallyTriggerTest {
         TimestampedValue.of(1, new Instant(0)),
         TimestampedValue.of(2, new Instant(1)),
         TimestampedValue.of(3, new Instant(1)));
-    tester.advanceProcessingTime(new Instant(5));
+    tester.advanceProcessingTime(new Instant(6));
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
 
     tester.injectElements(

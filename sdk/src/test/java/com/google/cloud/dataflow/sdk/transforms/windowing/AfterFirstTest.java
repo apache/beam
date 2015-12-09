@@ -236,7 +236,7 @@ public class AfterFirstTest {
         TimestampedValue.of(8, new Instant(5)));
     tester.advanceProcessingTime(new Instant(5));
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
-    tester.advanceProcessingTime(new Instant(6));
+    tester.advanceProcessingTime(new Instant(7));
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(5, 6, 7, 8), 2, 0, 50)));
 

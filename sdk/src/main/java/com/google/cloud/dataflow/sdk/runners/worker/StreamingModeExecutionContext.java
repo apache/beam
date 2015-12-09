@@ -51,7 +51,8 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
+
+import javax.annotation.Nullable;
 
 /**
  * {@link ExecutionContext} for use in streaming mode.
@@ -60,12 +61,14 @@ public class StreamingModeExecutionContext
     extends DataflowExecutionContext<StreamingModeExecutionContext.StepContext> {
   private final String stageName;
   private final Map<TupleTag<?>, Map<BoundedWindow, Object>> sideInputCache;
+
   // Per-key cache of active Reader objects in use by this process.
   private final ConcurrentMap<ByteString, ReaderCacheEntry> readerCache;
   private final ConcurrentMap<String, String> stateNameMap;
 
   private Windmill.WorkItem work;
-  private Instant inputDataWatermark;
+  @Nullable private Instant inputDataWatermark;
+  @Nullable private Instant outputDataWatermark;
   private WindmillStateReader stateReader;
   private StateFetcher stateFetcher;
   private Windmill.WorkItemCommitRequest.Builder outputBuilder;
@@ -83,19 +86,21 @@ public class StreamingModeExecutionContext
 
   public void start(
       Windmill.WorkItem work,
-      Instant inputDataWatermark,
+      @Nullable Instant inputDataWatermark,
+      @Nullable Instant outputDataWatermark,
       WindmillStateReader stateReader,
       StateFetcher stateFetcher,
       Windmill.WorkItemCommitRequest.Builder outputBuilder) {
     this.work = work;
     this.inputDataWatermark = inputDataWatermark;
+    this.outputDataWatermark = outputDataWatermark;
     this.stateReader = stateReader;
     this.stateFetcher = stateFetcher;
     this.outputBuilder = outputBuilder;
     this.sideInputCache.clear();
 
     for (ExecutionContext.StepContext stepContext : getAllStepContexts()) {
-      ((StepContext) stepContext).start(stateReader, inputDataWatermark);
+      ((StepContext) stepContext).start(stateReader, inputDataWatermark, outputDataWatermark);
     }
   }
 
@@ -103,7 +108,7 @@ public class StreamingModeExecutionContext
   public StepContext createStepContext(
       String stepName, String transformName, StateSampler stateSampler) {
     StepContext context = new StepContext(stepName, transformName, stateSampler);
-    context.start(stateReader, inputDataWatermark);
+    context.start(stateReader, inputDataWatermark, outputDataWatermark);
     return context;
   }
 
@@ -232,6 +237,7 @@ public class StreamingModeExecutionContext
             }
           });
 
+      @SuppressWarnings("unchecked")
       Coder<UnboundedSource.CheckpointMark> checkpointCoder =
           ((UnboundedSource<?, UnboundedSource.CheckpointMark>) activeReader.getCurrentSource())
               .getCheckpointMarkCoder();
@@ -244,7 +250,8 @@ public class StreamingModeExecutionContext
         }
         sourceStateBuilder.setState(stream.toByteString());
       }
-      outputBuilder.setSourceWatermark(TimeUnit.MILLISECONDS.toMicros(watermark.getMillis()));
+      outputBuilder.setSourceWatermark(
+          WindmillTimeUtils.harnessToWindmillTimestamp(watermark));
 
       long backlogBytes = activeReader.getSplitBacklogBytes();
       if (backlogBytes == UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN
@@ -285,13 +292,16 @@ public class StreamingModeExecutionContext
   }
 
   private static class WindmillTimerInternals implements TimerInternals {
-
     private Map<TimerData, Boolean> timers = new HashMap<>();
-    private Instant inputDataWatermark;
+    @Nullable private Instant inputDataWatermark;
+    @Nullable private Instant outputDataWatermark;
     private String stateFamily;
 
-    public WindmillTimerInternals(String stateFamily, Instant inputDataWatermark) {
+    public WindmillTimerInternals(
+        String stateFamily, @Nullable Instant inputDataWatermark,
+        @Nullable Instant outputDataWatermark) {
       this.inputDataWatermark = inputDataWatermark;
+      this.outputDataWatermark = outputDataWatermark;
       this.stateFamily = stateFamily;
     }
 
@@ -310,9 +320,34 @@ public class StreamingModeExecutionContext
       return Instant.now();
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Note that this value may be arbitrarily behind the global input watermark. Windmill
+     * simply reports the last known input watermark value at the time the GetWork response was
+     * constructed. However, if an element in a GetWork request has a timestamp at or ahead
+     * of the local input watermark then Windmill will not allow the local input watermark
+     * to advance until that element has been committed.
+     */
     @Override
-    public Instant currentWatermarkTime() {
+    @Nullable
+    public Instant currentInputWatermarkTime() {
       return inputDataWatermark;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Note that Windmill will provisionally hold the output watermark to the timestamp of the
+     * earliest element in a computation's GetWork response. (Elements with timestamps already
+     * behind the output watermark at the point the GetWork response is constructed will have
+     * no influence on the output watermark). The provisional hold will last until this work item is
+     * committed. It is the responsibility of the harness to impose any persistent holds it needs.
+     */
+    @Override
+    @Nullable
+    public Instant currentOutputWatermarkTime() {
+      return outputDataWatermark;
     }
 
     public void persistTo(Windmill.WorkItemCommitRequest.Builder outputBuilder) {
@@ -326,9 +361,8 @@ public class StreamingModeExecutionContext
 
         // If the timer was being set (not deleted) then set a timestamp for it.
         if (entry.getValue()) {
-          long timestampMicros =
-              TimeUnit.MILLISECONDS.toMicros(entry.getKey().getTimestamp().getMillis());
-          timer.setTimestamp(timestampMicros);
+          timer.setTimestamp(
+              WindmillTimeUtils.harnessToWindmillTimestamp(entry.getKey().getTimestamp()));
         }
       }
       timers.clear();
@@ -383,13 +417,14 @@ public class StreamingModeExecutionContext
     /**
      * Update the {@code stateReader} used by this {@code StepContext}.
      */
-    public void start(WindmillStateReader stateReader, Instant inputDataWatermark) {
+    public void start(
+        WindmillStateReader stateReader, @Nullable Instant inputDataWatermark,
+        @Nullable Instant outputDataWatermark) {
       boolean useStateFamilies = !stateNameMap.isEmpty();
-      this.stateInternals =
-          new WindmillStateInternals(
-              prefix, useStateFamilies, stateReader, scopedReadStateSupplier);
-      this.timerInternals = new WindmillTimerInternals(
-          stateFamily, Preconditions.checkNotNull(inputDataWatermark));
+      this.stateInternals = new WindmillStateInternals(
+          prefix, useStateFamilies, stateReader, scopedReadStateSupplier);
+      this.timerInternals =
+          new WindmillTimerInternals(stateFamily, inputDataWatermark, outputDataWatermark);
     }
 
     public void flushState() {

@@ -44,7 +44,6 @@ import org.mockito.MockitoAnnotations;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.concurrent.TimeUnit;
 
 /** Tests for {@link KeyedWorkItem}. */
 @RunWith(JUnit4.class)
@@ -104,7 +103,7 @@ public class KeyedWorkItemTest {
     ByteString encodedMetadata =
         WindmillSink.encodeMetadata(WINDOWS_CODER, Collections.singletonList(window), pane);
     chunk.addMessagesBuilder()
-        .setTimestamp(TimeUnit.MILLISECONDS.toMicros(timestamp))
+        .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(new Instant(timestamp)))
         .setData(ByteString.copyFromUtf8(value))
         .setMetadata(encodedMetadata);
   }
@@ -142,7 +141,7 @@ public class KeyedWorkItemTest {
     return Windmill.Timer.newBuilder()
         .setTag(ByteString.copyFromUtf8(
             ns.stringKey() + "+" + type + "-" + timestamp))
-        .setTimestamp(TimeUnit.MILLISECONDS.toMicros(timestamp))
+        .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(new Instant(timestamp)))
         .setType(type)
         .setStateFamily(STATE_FAMILY)
         .build();

@@ -71,19 +71,22 @@ class GroupAlsoByWindowsViaOutputBufferDoFn<K, InputT, OutputT, W extends Bounde
       // Process the chunk of elements.
       runner.processElements(chunk);
 
-      // Then, since elements are sorted by their timestamp, advance the watermark to the first
-      // element, and fire any timers that may have been scheduled.
-      timerInternals.advanceWatermark(runner, chunk.iterator().next().getTimestamp());
+      // Then, since elements are sorted by their timestamp, advance the input watermark
+      // to the first element, and fire any timers that may have been scheduled.
+      timerInternals.advanceInputWatermark(runner, chunk.iterator().next().getTimestamp());
 
       // Fire any processing timers that need to fire
       timerInternals.advanceProcessingTime(runner, Instant.now());
+
+      // Leave the output watermark undefined. Since there's no late data in batch mode
+      // there's really no need to track it as we do for streaming.
     }
 
-    // Finish any pending windows by advancing the watermark to infinity.
-    timerInternals.advanceWatermark(runner, new Instant(Long.MAX_VALUE));
+    // Finish any pending windows by advancing the input watermark to infinity.
+    timerInternals.advanceInputWatermark(runner, BoundedWindow.TIMESTAMP_MAX_VALUE);
 
     // Finally, advance the processing time to infinity to fire any timers.
-    timerInternals.advanceProcessingTime(runner, new Instant(Long.MAX_VALUE));
+    timerInternals.advanceProcessingTime(runner, BoundedWindow.TIMESTAMP_MAX_VALUE);
 
     runner.persist();
   }

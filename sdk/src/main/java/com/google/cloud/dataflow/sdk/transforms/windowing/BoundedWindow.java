@@ -40,7 +40,7 @@ public abstract class BoundedWindow {
       new Instant(TimeUnit.MICROSECONDS.toMillis(Long.MAX_VALUE));
 
   /**
-   * Returns the upper bound of timestamps for values in this window.
+   * Returns the inclusive upper bound of timestamps for values in this window.
    */
   public abstract Instant maxTimestamp();
 }

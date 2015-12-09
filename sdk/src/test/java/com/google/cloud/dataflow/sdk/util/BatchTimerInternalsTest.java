@@ -86,7 +86,7 @@ public class BatchTimerInternalsTest {
     underTest.setTimer(processingTime2);
     underTest.setTimer(watermarkTime2);
 
-    underTest.advanceWatermark(mockRunner, new Instant(30));
+    underTest.advanceInputWatermark(mockRunner, new Instant(30));
     Mockito.verify(mockRunner).onTimer(watermarkTime1);
     Mockito.verify(mockRunner).onTimer(watermarkTime2);
     Mockito.verifyNoMoreInteractions(mockRunner);
@@ -107,7 +107,7 @@ public class BatchTimerInternalsTest {
     underTest.setTimer(processingTime);
     underTest.setTimer(processingTime);
     underTest.advanceProcessingTime(mockRunner, new Instant(20));
-    underTest.advanceWatermark(mockRunner, new Instant(20));
+    underTest.advanceInputWatermark(mockRunner, new Instant(20));
 
     Mockito.verify(mockRunner).onTimer(processingTime);
     Mockito.verify(mockRunner).onTimer(watermarkTime);

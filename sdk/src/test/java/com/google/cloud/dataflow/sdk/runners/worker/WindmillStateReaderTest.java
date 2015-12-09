@@ -42,7 +42,6 @@ import org.mockito.MockitoAnnotations;
 
 import java.io.IOException;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Tests for {@link WindmillStateReader}.
@@ -83,7 +82,8 @@ public class WindmillStateReaderTest {
 
     return Windmill.Value.newBuilder()
         .setData(output.toByteString())
-        .setTimestamp(TimeUnit.MILLISECONDS.toMicros(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()))
+        .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(
+            BoundedWindow.TIMESTAMP_MAX_VALUE))
         .build();
   }
 

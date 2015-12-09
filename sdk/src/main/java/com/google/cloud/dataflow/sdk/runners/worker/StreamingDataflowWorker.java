@@ -74,6 +74,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+import javax.annotation.Nullable;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -418,16 +419,27 @@ public class StreamingDataflowWorker {
           continue;
         }
 
-        long watermarkMicros = computationWork.getInputDataWatermark();
-        final Instant inputDataWatermark = new Instant(watermarkMicros / 1000);
+        // May be null if input watermark not yet known.
+        // TODO: Can assert this is non-null once Windmill waits for known input watermark.
+        @Nullable
+        final Instant inputDataWatermark =
+            WindmillTimeUtils.windmillToHarnessInputWatermark(
+                computationWork.getInputDataWatermark());
         ActiveWorkForComputation activeWork = activeWorkMap.get(computation);
         for (final Windmill.WorkItem workItem : computationWork.getWorkList()) {
+          // May be null if output watermark not yet known.
+          @Nullable
+          final Instant outputDataWatermark =
+              WindmillTimeUtils.windmillToHarnessOutputWatermark(
+                  workItem.getOutputDataWatermark());
+          Preconditions.checkState(inputDataWatermark == null || outputDataWatermark == null
+              || !outputDataWatermark.isAfter(inputDataWatermark));
           Work work = new Work(workItem.getWorkToken()) {
-              @Override
-              public void run() {
-                process(computation, mapTask, inputDataWatermark, workItem);
-              }
-            };
+            @Override
+            public void run() {
+              process(computation, mapTask, inputDataWatermark, outputDataWatermark, workItem);
+            }
+          };
           if (activeWork.activateWork(workItem.getKey(), work)) {
             workUnitExecutor.execute(work);
           }
@@ -447,10 +459,8 @@ public class StreamingDataflowWorker {
     }
   }
 
-  private void process(
-      final String computation,
-      final MapTask mapTask,
-      final Instant inputDataWatermark,
+  private void process(final String computation, final MapTask mapTask,
+      @Nullable final Instant inputDataWatermark, @Nullable final Instant outputDataWatermark,
       final Windmill.WorkItem work) {
     LOG.debug("Starting processing for {}:\n{}", computation, work);
 
@@ -494,10 +504,10 @@ public class StreamingDataflowWorker {
         ParallelInstruction read = mapTask.getInstructions().get(0);
         if (CustomSources.class.getName().equals(
                 read.getRead().getSource().getSpec().get("@type"))) {
+          Coder<?> coder = Serializer.deserialize(read.getOutputs().get(0).getCodec(), Coder.class);
           readOperation.receivers[0].addOutputCounter(
               new OutputObjectAndByteCounter(
-                  new MapTaskExecutorFactory.ElementByteSizeObservableCoder<>(
-                      Serializer.deserialize(read.getOutputs().get(0).getCodec(), Coder.class)),
+                  new MapTaskExecutorFactory.ElementByteSizeObservableCoder<>(coder),
                   worker.getOutputCounters().getAddCounterMutator())
                   .setSamplingPeriod(100)
                   .countBytes("dataflow_input_size-" + mapTask.getSystemName()));
@@ -510,7 +520,8 @@ public class StreamingDataflowWorker {
       WindmillStateReader stateReader = new WindmillStateReader(
           metricTrackingWindmillServer, computation, work.getKey(), work.getWorkToken());
       StateFetcher localStateFetcher = stateFetcher.byteTrackingView();
-      context.start(work, inputDataWatermark, stateReader, localStateFetcher, outputBuilder);
+      context.start(work, inputDataWatermark, outputDataWatermark, stateReader, localStateFetcher,
+          outputBuilder);
 
       for (Long callbackId : context.getReadyCommitCallbackIds()) {
         final Runnable callback = commitCallbacks.remove(callbackId);
@@ -521,6 +532,7 @@ public class StreamingDataflowWorker {
                 try {
                   callback.run();
                 } catch (Throwable t) {
+                  // TODO: Count interesting failures.
                   LOG.error("Source checkpoint finalization failed:", t);
                 }
               }
@@ -607,13 +619,12 @@ public class StreamingDataflowWorker {
         if (reportFailure(computation, work, t)) {
           // Try again, after some delay and at the end of the queue to avoid a tight loop.
           sleep(10000);
-          workUnitExecutor.forceExecute(
-              new Runnable() {
-                @Override
-                public void run() {
-                  process(computation, mapTask, inputDataWatermark, work);
-                }
-              });
+          workUnitExecutor.forceExecute(new Runnable() {
+            @Override
+            public void run() {
+              process(computation, mapTask, inputDataWatermark, outputDataWatermark, work);
+            }
+          });
         } else {
           // If we failed to report the error, the item is invalid and should
           // not be retried internally.  It will be retried at the higher level.

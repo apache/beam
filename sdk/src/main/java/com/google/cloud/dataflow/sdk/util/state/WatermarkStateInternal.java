@@ -17,7 +17,7 @@ package com.google.cloud.dataflow.sdk.util.state;
 
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.annotations.Experimental.Kind;
-import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFns;
+import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFn;
 
 import org.joda.time.Instant;
 
@@ -31,15 +31,8 @@ import org.joda.time.Instant;
 public interface WatermarkStateInternal extends MergeableState<Instant, Instant> {
 
   /**
-   * Release any holds that have become extraneous so they do not prevent progress of the
-   * output watermark.
-   *
-   * <p>For example, when using {@link OutputTimeFns#outputAtEndOfWindow()}, there will be holds
-   * in place at the end of every initial window that merges into the result window. These holds
-   * need to be released. It is implementation-dependent how (or whether) this happens.
-   *
-   * <p>This method is permitted to be "best effort" but should always try to release holds
-   * as far as possible to allow the output watermark to make progress.
+   * Release all holds for windows which have been merged away and incorporate their
+   * combined values (according to {@link OutputTimeFn#merge}) into the result window hold.
    */
   void releaseExtraneousHolds();
 }

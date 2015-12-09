@@ -57,7 +57,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 /** Unit tests for {@link StreamingGroupAlsoByWindowsReshuffleDoFn}. */
 @RunWith(JUnit4.class)
@@ -116,7 +115,7 @@ public class StreamingGroupAlsoByWindowsReshuffleDoFnTest {
     messageBundle.addMessagesBuilder()
         .setMetadata(WindmillSink.encodeMetadata(windowsCoder, windows, PaneInfo.NO_FIRING))
         .setData(dataOutput.toByteString())
-        .setTimestamp(TimeUnit.MILLISECONDS.toMicros(timestamp.getMillis()));
+        .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(timestamp));
   }
 
   private <T> WindowedValue<KeyedWorkItem<T>> createValue(

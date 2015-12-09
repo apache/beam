@@ -19,7 +19,6 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.when;
 
 import com.google.cloud.dataflow.sdk.coders.BigEndianLongCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
@@ -77,7 +76,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 /** Unit tests for {@link StreamingGroupAlsoByWindowsDoFn}. */
 @RunWith(JUnit4.class)
@@ -145,7 +143,7 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
             namespace, timestamp,
             type == Windmill.Timer.Type.WATERMARK
                 ? TimeDomain.EVENT_TIME : TimeDomain.PROCESSING_TIME)))
-        .setTimestamp(TimeUnit.MILLISECONDS.toMicros(timestamp.getMillis()))
+        .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(timestamp))
         .setType(type)
         .setStateFamily(STATE_FAMILY);
   }
@@ -162,7 +160,7 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
     messageBundle.addMessagesBuilder()
         .setMetadata(WindmillSink.encodeMetadata(windowsCoder, windows, PaneInfo.NO_FIRING))
         .setData(dataOutput.toByteString())
-        .setTimestamp(TimeUnit.MILLISECONDS.toMicros(timestamp.getMillis()));
+        .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(timestamp));
   }
 
   private <T> WindowedValue<KeyedWorkItem<T>> createValue(
@@ -181,7 +179,6 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
             outputTag, outputManager, WindowingStrategy.of(FixedWindows.of(Duration.millis(10))));
 
     runner.startBundle();
-    when(mockTimerInternals.currentWatermarkTime()).thenReturn(new Instant(0));
 
     WorkItem.Builder workItem1 = WorkItem.newBuilder();
     workItem1.setKey(ByteString.copyFromUtf8(KEY));
@@ -238,7 +235,6 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
             SlidingWindows.of(Duration.millis(20)).every(Duration.millis(10))));
 
     runner.startBundle();
-    when(mockTimerInternals.currentWatermarkTime()).thenReturn(new Instant(0));
 
     WorkItem.Builder workItem1 = WorkItem.newBuilder();
     workItem1.setKey(ByteString.copyFromUtf8(KEY));
@@ -304,7 +300,6 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
         WindowingStrategy.of(Sessions.withGapDuration(Duration.millis(10))));
 
     runner.startBundle();
-    when(mockTimerInternals.currentWatermarkTime()).thenReturn(new Instant(0));
 
     WorkItem.Builder workItem1 = WorkItem.newBuilder();
     workItem1.setKey(ByteString.copyFromUtf8(KEY));
@@ -326,7 +321,8 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
     WorkItem.Builder workItem2 = WorkItem.newBuilder();
     workItem2.setKey(ByteString.copyFromUtf8(KEY));
     workItem2.setWorkToken(WORK_TOKEN);
-    addTimer(workItem2, window(0, 10), new Instant(9), Timer.Type.WATERMARK);
+    // Note that the WATERMARK timer for Instant(9) will have been deleted by
+    // ReduceFnRunner when window(0, 10) was merged away.
     addTimer(workItem2, window(0, 15), new Instant(14), Timer.Type.WATERMARK);
     addTimer(workItem2, window(15, 25), new Instant(24), Timer.Type.WATERMARK);
 
@@ -398,7 +394,6 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
         appliedCombineFn);
 
     runner.startBundle();
-    when(mockTimerInternals.currentWatermarkTime()).thenReturn(new Instant(0));
 
     WorkItem.Builder workItem1 = WorkItem.newBuilder();
     workItem1.setKey(ByteString.copyFromUtf8(KEY));
@@ -420,7 +415,8 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
     WorkItem.Builder workItem2 = WorkItem.newBuilder();
     workItem2.setKey(ByteString.copyFromUtf8(KEY));
     workItem2.setWorkToken(WORK_TOKEN);
-    addTimer(workItem2, window(0, 10), new Instant(9), Timer.Type.WATERMARK);
+    // Note that the WATERMARK timer for Instant(9) will have been deleted by
+    // ReduceFnRunner when window(0, 10) was merged away.
     addTimer(workItem2, window(0, 15), new Instant(14), Timer.Type.WATERMARK);
     addTimer(workItem2, window(15, 25), new Instant(24), Timer.Type.WATERMARK);
 

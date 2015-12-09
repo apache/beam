@@ -53,7 +53,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Runs a DoFn by constructing the appropriate contexts and passing them in.
@@ -286,12 +285,11 @@ public class StreamingSideInputDoFnRunner<InputT, OutputT, W extends BoundedWind
             .setTag(view.getTagInternal().getId())
             .setVersion(windowStream.toByteString())
             .build())
-        .setExistenceWatermarkDeadline(
-            TimeUnit.MILLISECONDS.toMicros(sideWindowStrategy
+        .setExistenceWatermarkDeadline(WindmillTimeUtils.harnessToWindmillTimestamp(
+            sideWindowStrategy
                 .getTrigger()
                 .getSpec()
-                .getWatermarkThatGuaranteesFiring(sideInputWindow)
-                .getMillis()))
+                .getWatermarkThatGuaranteesFiring(sideInputWindow)))
         .build();
   }
 }

@@ -423,61 +423,45 @@ public class GroupAlsoByWindowsProperties {
    */
   public static void groupsElementsIntoFixedWindowsWithCustomTimestamp(
       GroupAlsoByWindowsDoFnFactory<String, String, Iterable<String>> gabwFactory)
-          throws Exception {
-
+      throws Exception {
     WindowingStrategy<?, IntervalWindow> windowingStrategy =
         WindowingStrategy.of(FixedWindows.of(Duration.millis(10)))
-        .withOutputTimeFn(new OutputTimeFn.Defaults<IntervalWindow>() {
+            .withOutputTimeFn(new OutputTimeFn.Defaults<IntervalWindow>() {
+              @Override
+              public Instant assignOutputTime(Instant inputTimestamp, IntervalWindow window) {
+                return inputTimestamp.isBefore(window.maxTimestamp())
+                    ? inputTimestamp.plus(1) : window.maxTimestamp();
+              }
 
-          @Override
-          public Instant assignOutputTime(Instant inputTimestamp, IntervalWindow window) {
-            return window.start();
-          }
+              @Override
+              public Instant combine(Instant outputTime, Instant otherOutputTime) {
+                return outputTime.isBefore(otherOutputTime) ? outputTime : otherOutputTime;
+              }
 
-          @Override
-          public Instant combine(Instant outputTime, Instant otherOutputTime) {
-            return outputTime;
-          }
+              @Override
+              public boolean dependsOnlyOnEarliestInputTimestamp() {
+                return true;
+              }
+            });
 
-          @Override
-          public boolean dependsOnlyOnEarliestInputTimestamp() {
-            return true;
-          }
-        });
-
-    List<WindowedValue<KV<String, Iterable<String>>>> result =
-        runGABW(gabwFactory, windowingStrategy, "key",
-            WindowedValue.of(
-                "v1",
-                new Instant(1),
-                Arrays.asList(window(0, 10)),
-                PaneInfo.NO_FIRING),
-            WindowedValue.of(
-                "v2",
-                new Instant(2),
-                Arrays.asList(window(0, 10)),
-                PaneInfo.NO_FIRING),
-            WindowedValue.of(
-                "v3",
-                new Instant(13),
-                Arrays.asList(window(10, 20)),
-                PaneInfo.NO_FIRING));
+    List<WindowedValue<KV<String, Iterable<String>>>> result = runGABW(gabwFactory,
+        windowingStrategy, "key",
+        WindowedValue.of("v1", new Instant(1), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
+        WindowedValue.of("v2", new Instant(2), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
+        WindowedValue.of("v3", new Instant(13), Arrays.asList(window(10, 20)), PaneInfo.NO_FIRING));
 
     assertThat(result.size(), equalTo(2));
 
     WindowedValue<KV<String, Iterable<String>>> item0 = result.get(0);
     assertThat(item0.getValue().getValue(), containsInAnyOrder("v1", "v2"));
     assertThat(item0.getWindows(), contains(window(0, 10)));
-    assertThat(item0.getTimestamp(),
-        equalTo(((IntervalWindow) Iterables.getOnlyElement(item0.getWindows())).start()));
+    assertThat(item0.getTimestamp(), equalTo(new Instant(2)));
 
     WindowedValue<KV<String, Iterable<String>>> item1 = result.get(1);
     assertThat(item1.getValue().getValue(), contains("v3"));
     assertThat(item1.getWindows(), contains(window(10, 20)));
-    assertThat(item1.getTimestamp(),
-        equalTo(((IntervalWindow) Iterables.getOnlyElement(item1.getWindows())).start()));
+    assertThat(item1.getTimestamp(), equalTo(new Instant(14)));
   }
-
 
   /**
    * Tests that for a simple sequence of elements on the same key, the given GABW implementation

@@ -53,7 +53,7 @@ public abstract class NonEmptyPanes<W extends BoundedWindow> {
   public abstract void clearPane(ReduceFn<?, ?, ?, W>.Context context);
 
   /**
-   * Return true if the current pane for the window in {@code context} is non-empty.
+   * Return true if the current pane for the window in {@code context} is empty.
    */
   public abstract StateContents<Boolean> isEmpty(ReduceFn<?, ?, ?, W>.Context context);
 

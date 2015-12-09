@@ -29,7 +29,6 @@ import com.google.cloud.dataflow.sdk.util.common.worker.Sink;
 import com.google.protobuf.ByteString;
 
 import java.io.IOException;
-import java.util.concurrent.TimeUnit;
 
 /**
  * A sink that writes to Pubsub, via a Windmill server.
@@ -97,11 +96,10 @@ class PubsubSink<T> extends Sink<WindowedValue<T>> {
     public long add(WindowedValue<T> data) throws IOException {
       ByteString byteString = encode(coder, data);
 
-      long timestampMicros = TimeUnit.MILLISECONDS.toMicros(data.getTimestamp().getMillis());
       outputBuilder.addMessages(
           Windmill.Message.newBuilder()
           .setData(byteString)
-          .setTimestamp(timestampMicros)
+          .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(data.getTimestamp()))
           .build());
 
       return byteString.size();

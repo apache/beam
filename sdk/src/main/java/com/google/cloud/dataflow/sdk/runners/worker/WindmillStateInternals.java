@@ -49,7 +49,6 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Implementation of {@link StateInternals} using Windmill to manage the underlying data.
@@ -496,7 +495,7 @@ class WindmillStateInternals extends MergingStateInternals {
             .setTag(stateKey)
             .setStateFamily(stateFamily)
             .setReset(true)
-            .addTimestamps(TimeUnit.MILLISECONDS.toMicros(localAdditions.getMillis()));
+            .addTimestamps(WindmillTimeUtils.harnessToWindmillTimestamp(localAdditions));
       } else if (!cleared && localAdditions != null){
         // Otherwise, we need to combine the local additions with the already persisted data
         combineWithPersisted(commitBuilder);
@@ -529,7 +528,8 @@ class WindmillStateInternals extends MergingStateInternals {
         commitBuilder.addWatermarkHoldsBuilder()
             .setTag(stateKey)
             .setStateFamily(stateFamily)
-            .addTimestamps(TimeUnit.MILLISECONDS.toMicros(localAdditions.getMillis()));
+            .addTimestamps(
+                WindmillTimeUtils.harnessToWindmillTimestamp(localAdditions));
       } else {
         // The non-fast path does a read-modify-write
         Instant priorHold;
@@ -546,7 +546,8 @@ class WindmillStateInternals extends MergingStateInternals {
             .setTag(stateKey)
             .setStateFamily(stateFamily)
             .setReset(true)
-            .addTimestamps(TimeUnit.MILLISECONDS.toMicros(combinedHold.getMillis()));
+            .addTimestamps(
+                WindmillTimeUtils.harnessToWindmillTimestamp(combinedHold));
       }
     }
   }

@@ -115,9 +115,9 @@ public class StateTags {
   /**
    * Create a state tag for holding the watermark.
    */
-  public static <T> StateTag<WatermarkStateInternal> watermarkStateInternal(
-      String id, OutputTimeFn<?> outputTimeFn) {
-    return new WatermarkStateTagInternal(new StructuredId(id), outputTimeFn);
+  public static <T, W extends BoundedWindow> StateTag<WatermarkStateInternal>
+      watermarkStateInternal(String id, OutputTimeFn<W> outputTimeFn) {
+    return new WatermarkStateTagInternal<W>(new StructuredId(id), outputTimeFn);
   }
 
   /**
@@ -357,7 +357,8 @@ public class StateTags {
 
     /**
      * When multiple output times are added to hold the watermark, this determines how they are
-     * combined, and also the behavior when merging windows.
+     * combined, and also the behavior when merging windows. Does not contribute to equality/hash
+     * since we have at most one watermark hold tag per computation.
      */
     private final OutputTimeFn<? super W> outputTimeFn;
 
@@ -381,9 +382,8 @@ public class StateTags {
         return false;
       }
 
-      WatermarkStateTagInternal that = (WatermarkStateTagInternal) obj;
-      return Objects.equals(this.id, that.id)
-          && Objects.equals(this.outputTimeFn, that.outputTimeFn);
+      WatermarkStateTagInternal<?> that = (WatermarkStateTagInternal<?>) obj;
+      return Objects.equals(this.id, that.id);
     }
 
     @Override
@@ -393,7 +393,7 @@ public class StateTags {
 
     @Override
     protected StateTag<WatermarkStateInternal> asKind(StateKind kind) {
-      return new WatermarkStateTagInternal(id.asKind(kind), outputTimeFn);
+      return new WatermarkStateTagInternal<W>(id.asKind(kind), outputTimeFn);
     }
   }
 }

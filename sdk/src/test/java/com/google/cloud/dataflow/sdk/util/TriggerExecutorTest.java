@@ -194,81 +194,109 @@ public class TriggerExecutorTest {
   @Test
   public void testWatermarkHoldAndLateData() throws Exception {
     // Test handling of late data. Specifically, ensure the watermark hold is correct.
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
-        FixedWindows.of(Duration.millis(10)),
-        mockTrigger,
-        AccumulationMode.ACCUMULATING_FIRED_PANES,
-        Duration.millis(10));
+    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester =
+        TriggerTester.nonCombining(FixedWindows.of(Duration.millis(10)), mockTrigger,
+            AccumulationMode.ACCUMULATING_FIRED_PANES, Duration.millis(10));
+
+    // Input watermark -> null
+    assertEquals(null, tester.getWatermarkHold());
+    assertEquals(null, tester.getOutputWatermark());
 
     // All on time data, verify watermark hold.
     injectElement(tester, 1, TriggerResult.CONTINUE);
     injectElement(tester, 3, TriggerResult.CONTINUE);
     assertEquals(new Instant(1), tester.getWatermarkHold());
     injectElement(tester, 2, TriggerResult.FIRE);
+    assertEquals(1, tester.getOutputSize());
 
     // Holding for the end-of-window transition.
     assertEquals(new Instant(9), tester.getWatermarkHold());
-
+    // Nothing dropped.
     assertEquals(0, tester.getElementsDroppedDueToLateness());
     assertEquals(0, tester.getElementsDroppedDueToClosedWindow());
 
+    // Input watermark -> 4
+    tester.advanceInputWatermark(new Instant(4));
+    assertEquals(new Instant(4), tester.getOutputWatermark());
+
     // Some late, some on time. Verify that we only hold to the minimum of on-time.
-    tester.advanceWatermark(new Instant(4));
     injectElement(tester, 2, TriggerResult.CONTINUE);
     injectElement(tester, 3, TriggerResult.CONTINUE);
     assertEquals(new Instant(9), tester.getWatermarkHold());
     injectElement(tester, 5, TriggerResult.CONTINUE);
     assertEquals(new Instant(5), tester.getWatermarkHold());
     injectElement(tester, 4, TriggerResult.FIRE);
+    assertEquals(2, tester.getOutputSize());
 
     // All late -- output at end of window timestamp.
     when(mockTrigger.onTimer(Mockito.<Trigger<IntervalWindow>.OnTimerContext>any()))
-         .thenReturn(TriggerResult.CONTINUE);
-    tester.advanceWatermark(new Instant(8));
+        .thenReturn(TriggerResult.CONTINUE);
+    // Input watermark -> 8
+    tester.advanceInputWatermark(new Instant(8));
+    assertEquals(new Instant(8), tester.getOutputWatermark());
     injectElement(tester, 6, TriggerResult.CONTINUE);
     injectElement(tester, 5, TriggerResult.CONTINUE);
     assertEquals(new Instant(9), tester.getWatermarkHold());
-    injectElement(tester, 4, TriggerResult.FIRE);
+    injectElement(tester, 4, TriggerResult.CONTINUE);
 
-    // This is "pending" at the time the watermark makes it way-late.
-    // Because we're about to expire the window, we output it.
+    // This is behind both the input and output watermarks, but will still make it
+    // into an ON_TIME pane.
+    when(mockTrigger.onTimer(Mockito.<Trigger<IntervalWindow>.OnTimerContext>any()))
+        .thenReturn(TriggerResult.FIRE);
+    // Input watermark -> 10
+    tester.advanceInputWatermark(new Instant(10));
+    assertEquals(3, tester.getOutputSize());
+    assertEquals(new Instant(10), tester.getOutputWatermark());
     injectElement(tester, 8, TriggerResult.CONTINUE);
 
     assertEquals(0, tester.getElementsDroppedDueToLateness());
     assertEquals(0, tester.getElementsDroppedDueToClosedWindow());
 
     // All very late -- gets dropped.
-    tester.advanceWatermark(new Instant(50));
+    // Input watermark -> 50
+    tester.advanceInputWatermark(new Instant(50));
+    assertEquals(new Instant(50), tester.getOutputWatermark());
     assertEquals(null, tester.getWatermarkHold());
-    injectElement(tester, 2, TriggerResult.FIRE);
+    injectElement(tester, 22, TriggerResult.FIRE);
+    assertEquals(4, tester.getOutputSize());
     assertEquals(null, tester.getWatermarkHold());
-
-    // Late timers are ignored
-    tester.fireTimer(new IntervalWindow(new Instant(0), new Instant(10)),
-        new Instant(12), TimeDomain.EVENT_TIME);
 
     assertEquals(1, tester.getElementsDroppedDueToLateness());
     assertEquals(0, tester.getElementsDroppedDueToClosedWindow());
 
+    // Late timers are ignored
+    tester.fireTimer(new IntervalWindow(new Instant(0), new Instant(10)), new Instant(12),
+        TimeDomain.EVENT_TIME);
+
     List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
-    assertThat(output, Matchers.contains(
-        isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2, 3), 1, 0, 10),
-        isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2, 3, 2, 3, 4, 5), 4, 0, 10),
-        // Output time is end of the window, because all the new data was late
-        isSingleWindowedValue(Matchers.containsInAnyOrder(
-            1, 2, 3, 2, 3, 4, 5, 4, 5, 6), 9, 0, 10),
-        // Output time is not end of the window, because the new data (8) wasn't late
-        isSingleWindowedValue(Matchers.containsInAnyOrder(
-            1, 2, 3, 2, 3, 4, 5, 4, 5, 6, 8), 8, 0, 10)));
+    assertThat(
+        output, Matchers.contains(
+                    isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2, 3), 1, 0, 10),
+                    isSingleWindowedValue(
+                        Matchers.containsInAnyOrder(1, 2, 3, 2, 3, 4, 5), 4, 0, 10),
+                    // Output time is end of the window, because all the new data was late
+                    isSingleWindowedValue(
+                        Matchers.containsInAnyOrder(1, 2, 3, 2, 3, 4, 5, 4, 5, 6), 9, 0, 10),
+                    // Output time is still end of the window, because the new data (8) was behind
+                    // the output watermark.
+                    isSingleWindowedValue(
+                        Matchers.containsInAnyOrder(1, 2, 3, 2, 3, 4, 5, 4, 5, 6, 8), 9, 0, 10)));
 
     assertThat(
-               output.get(0).getPane(),
-        Matchers.equalTo(PaneInfo.createPane(true, false, Timing.EARLY)));
+        output.get(0).getPane(),
+        Matchers.equalTo(PaneInfo.createPane(true, false, Timing.EARLY, 0, -1)));
 
-    // By the time this firing is produced, the input WM already passed the end of the window.
+    assertThat(
+        output.get(1).getPane(),
+        Matchers.equalTo(PaneInfo.createPane(false, false, Timing.EARLY, 1, -1)));
+
+    assertThat(
+        output.get(2).getPane(),
+        Matchers.equalTo(PaneInfo.createPane(false, false, Timing.ON_TIME, 2, 0)));
+
     assertThat(
         output.get(3).getPane(),
-        Matchers.equalTo(PaneInfo.createPane(false, true, Timing.LATE, 3, 0)));
+        Matchers.equalTo(PaneInfo.createPane(false, true, Timing.LATE, 3, 1)));
 
     // And because we're past the end of window + allowed lateness, everything should be cleaned up.
     assertFalse(tester.isMarkedFinished(firstWindow));
@@ -286,7 +314,7 @@ public class TriggerExecutorTest {
     when(mockTrigger.onTimer(Mockito.<Trigger<IntervalWindow>.OnTimerContext>any()))
         .thenReturn(TriggerResult.CONTINUE);
 
-    tester.advanceWatermark(new Instant(0));
+    tester.advanceInputWatermark(new Instant(0));
     injectElement(tester, 1, TriggerResult.FIRE);
     assertThat(tester.extractOutput(), Matchers.contains(
         WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(true, false, Timing.EARLY))));
@@ -295,19 +323,24 @@ public class TriggerExecutorTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, false, Timing.EARLY, 1, -1))));
 
-    tester.advanceWatermark(new Instant(15));
+    tester.advanceInputWatermark(new Instant(15));
     injectElement(tester, 3, TriggerResult.FIRE);
-    assertThat(tester.extractOutput(), Matchers.contains(
-        // This is late, because the trigger wasn't waiting for AfterWatermark
-        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, false, Timing.LATE, 2, 0))));
+    assertThat(
+        tester.extractOutput(),
+        Matchers.contains(WindowMatchers.valueWithPaneInfo(
+            PaneInfo.createPane(false, false, Timing.EARLY, 2, -1))));
 
     injectElement(tester, 4, TriggerResult.FIRE);
-    assertThat(tester.extractOutput(), Matchers.contains(
-        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, false, Timing.LATE, 3, 1))));
+    assertThat(
+        tester.extractOutput(),
+        Matchers.contains(WindowMatchers.valueWithPaneInfo(
+            PaneInfo.createPane(false, false, Timing.EARLY, 3, -1))));
 
     injectElement(tester, 5, TriggerResult.FIRE_AND_FINISH);
-    assertThat(tester.extractOutput(), Matchers.contains(
-        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, true, Timing.LATE, 4, 2))));
+    assertThat(
+        tester.extractOutput(),
+        Matchers.contains(WindowMatchers.valueWithPaneInfo(
+            PaneInfo.createPane(false, true, Timing.EARLY, 4, -1))));
   }
 
   @Test
@@ -322,7 +355,7 @@ public class TriggerExecutorTest {
             .withAllowedLateness(Duration.millis(100))
             .withClosingBehavior(ClosingBehavior.FIRE_ALWAYS));
 
-    tester.advanceWatermark(new Instant(0));
+    tester.advanceInputWatermark(new Instant(0));
     tester.injectElements(
         TimestampedValue.of(1, new Instant(1)),
         TimestampedValue.of(2, new Instant(2)));
@@ -333,7 +366,7 @@ public class TriggerExecutorTest {
     assertThat(output, Matchers.contains(
         WindowMatchers.isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
 
-    tester.advanceWatermark(new Instant(50));
+    tester.advanceInputWatermark(new Instant(50));
 
     // We should get the ON_TIME pane even though it is empty,
     // because we have an AfterWatermark.pastEndOfWindow() trigger.
@@ -344,7 +377,7 @@ public class TriggerExecutorTest {
         WindowMatchers.isSingleWindowedValue(Matchers.emptyIterable(), 9, 0, 10)));
 
     // We should get the final pane even though it is empty.
-    tester.advanceWatermark(new Instant(150));
+    tester.advanceInputWatermark(new Instant(150));
     output = tester.extractOutput();
     assertThat(output, Matchers.contains(
         WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, true, Timing.LATE, 2, 1))));
@@ -364,7 +397,7 @@ public class TriggerExecutorTest {
             .withAllowedLateness(Duration.millis(100))
             .withClosingBehavior(ClosingBehavior.FIRE_ALWAYS));
 
-    tester.advanceWatermark(new Instant(0));
+    tester.advanceInputWatermark(new Instant(0));
     tester.injectElements(
         TimestampedValue.of(1, new Instant(1)),
         TimestampedValue.of(2, new Instant(2)));
@@ -375,7 +408,7 @@ public class TriggerExecutorTest {
     assertThat(output, Matchers.contains(
         WindowMatchers.isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
 
-    tester.advanceWatermark(new Instant(50));
+    tester.advanceInputWatermark(new Instant(50));
 
     // We should get the ON_TIME pane even though it is empty,
     // because we have an AfterWatermark.pastEndOfWindow() trigger.
@@ -386,7 +419,7 @@ public class TriggerExecutorTest {
         WindowMatchers.isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 9, 0, 10)));
 
     // We should get the final pane even though it is empty.
-    tester.advanceWatermark(new Instant(150));
+    tester.advanceInputWatermark(new Instant(150));
     output = tester.extractOutput();
     assertThat(output, Matchers.contains(
         WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, true, Timing.LATE, 2, 1))));
@@ -405,7 +438,7 @@ public class TriggerExecutorTest {
             .withAllowedLateness(Duration.millis(100))
             .withClosingBehavior(ClosingBehavior.FIRE_ALWAYS));
 
-    tester.advanceWatermark(new Instant(0));
+    tester.advanceInputWatermark(new Instant(0));
     tester.injectElements(
         TimestampedValue.of(1, new Instant(1)),
         TimestampedValue.of(2, new Instant(2)));
@@ -413,7 +446,7 @@ public class TriggerExecutorTest {
     assertThat(tester.extractOutput(), Matchers.contains(
         WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(true, false, Timing.EARLY, 0, -1))));
 
-    tester.advanceWatermark(new Instant(150));
+    tester.advanceInputWatermark(new Instant(150));
     assertThat(tester.extractOutput(), Matchers.contains(
         WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, true, Timing.ON_TIME, 1, 0))));
   }
@@ -426,7 +459,7 @@ public class TriggerExecutorTest {
         AccumulationMode.DISCARDING_FIRED_PANES,
         Duration.millis(100));
 
-    tester.advanceWatermark(new Instant(0));
+    tester.advanceInputWatermark(new Instant(0));
     injectElement(tester, 1, TriggerResult.FIRE_AND_FINISH);
     assertThat(tester.extractOutput(), Matchers.contains(
         WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(true, true, Timing.EARLY))));
@@ -440,7 +473,7 @@ public class TriggerExecutorTest {
         AccumulationMode.DISCARDING_FIRED_PANES,
         Duration.millis(100));
 
-    tester.advanceWatermark(new Instant(15));
+    tester.advanceInputWatermark(new Instant(15));
     injectElement(tester, 1, TriggerResult.FIRE_AND_FINISH);
     assertThat(tester.extractOutput(), Matchers.contains(
         WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(true, true, Timing.LATE))));
@@ -468,13 +501,14 @@ public class TriggerExecutorTest {
     when(mockTrigger.onTimer(Mockito.<Trigger<IntervalWindow>.OnTimerContext>any()))
         .thenReturn(TriggerResult.CONTINUE);
 
-    tester.advanceWatermark(new Instant(100));
+    tester.advanceInputWatermark(new Instant(100));
 
     List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
     assertThat(output.size(), Matchers.equalTo(1));
     assertThat(output.get(0), isSingleWindowedValue(Matchers.containsInAnyOrder(1, 10), 1, 1, 20));
-    assertThat(output.get(0).getPane(),
-        Matchers.equalTo(PaneInfo.createPane(true, true, Timing.LATE, 0, 0)));
+    assertThat(
+        output.get(0).getPane(),
+        Matchers.equalTo(PaneInfo.createPane(true, true, Timing.EARLY, 0, 0)));
   }
 
   @Test
@@ -494,7 +528,7 @@ public class TriggerExecutorTest {
     assertEquals(0, tester.getElementsDroppedDueToLateness());
     assertEquals(0, tester.getElementsDroppedDueToClosedWindow());
 
-    tester.advanceWatermark(new Instant(70));
+    tester.advanceInputWatermark(new Instant(70));
     tester.injectElements(
         TimestampedValue.of(14, new Instant(60))); // [-30, 70) = closed, [0, 100), [30, 130)
 
@@ -523,16 +557,16 @@ public class TriggerExecutorTest {
     injectElement(tester, 2, TriggerResult.CONTINUE);
     when(mockTrigger.onTimer(Mockito.<Trigger<IntervalWindow>.OnTimerContext>any()))
         .thenReturn(TriggerResult.CONTINUE);
-    tester.advanceWatermark(new Instant(12));
+    tester.advanceInputWatermark(new Instant(12));
 
     when(mockTrigger.onTimer(Mockito.<Trigger<IntervalWindow>.OnTimerContext>any()))
         .thenReturn(TriggerResult.FIRE);
-    tester.fireTimer(firstWindow, new Instant(10), TimeDomain.EVENT_TIME);
+    tester.fireTimer(firstWindow, new Instant(9), TimeDomain.EVENT_TIME);
 
     // Fire another timer (with no data, so it's an uninteresting pane).
     when(mockTrigger.onTimer(Mockito.<Trigger<IntervalWindow>.OnTimerContext>any()))
-                    .thenReturn(TriggerResult.FIRE);
-    tester.fireTimer(firstWindow, new Instant(10), TimeDomain.EVENT_TIME);
+        .thenReturn(TriggerResult.FIRE);
+    tester.fireTimer(firstWindow, new Instant(9), TimeDomain.EVENT_TIME);
 
     // Finish it off with another datum.
     injectElement(tester, 3, TriggerResult.FIRE_AND_FINISH);
@@ -571,16 +605,16 @@ public class TriggerExecutorTest {
     injectElement(tester, 2, TriggerResult.CONTINUE);
     when(mockTrigger.onTimer(Mockito.<Trigger<IntervalWindow>.OnTimerContext>any()))
         .thenReturn(TriggerResult.CONTINUE);
-    tester.advanceWatermark(new Instant(12));
+    tester.advanceInputWatermark(new Instant(12));
 
     when(mockTrigger.onTimer(Mockito.<Trigger<IntervalWindow>.OnTimerContext>any()))
         .thenReturn(TriggerResult.FIRE);
-    tester.fireTimer(firstWindow, new Instant(10), TimeDomain.EVENT_TIME);
+    tester.fireTimer(firstWindow, new Instant(9), TimeDomain.EVENT_TIME);
 
     // Fire another timer (with no data, so it's an uninteresting pane).
     when(mockTrigger.onTimer(Mockito.<Trigger<IntervalWindow>.OnTimerContext>any()))
-                    .thenReturn(TriggerResult.FIRE);
-    tester.fireTimer(firstWindow, new Instant(10), TimeDomain.EVENT_TIME);
+        .thenReturn(TriggerResult.FIRE);
+    tester.fireTimer(firstWindow, new Instant(9), TimeDomain.EVENT_TIME);
 
     // Finish it off with another datum.
     injectElement(tester, 3, TriggerResult.FIRE_AND_FINISH);
@@ -591,6 +625,8 @@ public class TriggerExecutorTest {
 
     // The on-time pane is as expected.
     assertThat(output.get(0), isSingleWindowedValue(containsInAnyOrder(1, 2), 1, 0, 10));
+    assertThat(
+        output.get(0).getPane(), equalTo(PaneInfo.createPane(true, false, Timing.ON_TIME, 0, 0)));
 
     // The late pane has the correct indices.
     assertThat(output.get(1).getValue(), containsInAnyOrder(1, 2, 3));
@@ -639,7 +675,7 @@ public class TriggerExecutorTest {
         new Sum.SumIntegerFn().<String>asKeyedFn(), VarIntCoder.of(),
         Duration.millis(100));
 
-    tester.advanceWatermark(new Instant(0));
+    tester.advanceInputWatermark(new Instant(0));
     tester.advanceProcessingTime(new Instant(0));
 
     tester.injectElements(
@@ -648,9 +684,9 @@ public class TriggerExecutorTest {
         TimestampedValue.of(1, new Instant(7)),
         TimestampedValue.of(1, new Instant(5)));
 
-    tester.advanceProcessingTime(new Instant(5));
+    tester.advanceProcessingTime(new Instant(6));
 
-    tester.advanceWatermark(new Instant(11));
+    tester.advanceInputWatermark(new Instant(11));
     List<WindowedValue<Integer>> output = tester.extractOutput();
     assertEquals(2, output.size());
 
@@ -684,7 +720,7 @@ public class TriggerExecutorTest {
         new Sum.SumIntegerFn().<String>asKeyedFn(), VarIntCoder.of(),
         Duration.millis(100));
 
-    tester.advanceWatermark(new Instant(0));
+    tester.advanceInputWatermark(new Instant(0));
     tester.advanceProcessingTime(new Instant(0));
 
     tester.injectElements(
@@ -692,30 +728,37 @@ public class TriggerExecutorTest {
         TimestampedValue.of(1, new Instant(3)),
         TimestampedValue.of(1, new Instant(7)),
         TimestampedValue.of(1, new Instant(5)));
+    // 4 elements all at processing time 0
 
-    tester.advanceProcessingTime(new Instant(5));
+    tester.advanceProcessingTime(new Instant(6)); // fire [1,3,7,5] since 6 > 0 + 5
     tester.injectElements(
         TimestampedValue.of(1, new Instant(8)),
         TimestampedValue.of(1, new Instant(4)));
+    // 6 elements
 
-    tester.advanceWatermark(new Instant(11));
+    tester.advanceInputWatermark(new Instant(11)); // fire [1,3,7,5,8,4] since 11 > 9
     tester.injectElements(
         TimestampedValue.of(1, new Instant(8)),
         TimestampedValue.of(1, new Instant(4)),
         TimestampedValue.of(1, new Instant(5)));
+    // 9 elements
 
-    tester.advanceWatermark(new Instant(12));
+    tester.advanceInputWatermark(new Instant(12));
     tester.injectElements(
         TimestampedValue.of(1, new Instant(3)));
+    // 10 elements
 
     tester.advanceProcessingTime(new Instant(15));
     tester.injectElements(
         TimestampedValue.of(1, new Instant(5)));
-    tester.advanceProcessingTime(new Instant(30));
+    // 11 elements
+    tester.advanceProcessingTime(new Instant(32)); // fire since 32 > 6 + 25
 
     tester.injectElements(
         TimestampedValue.of(1, new Instant(3)));
-    tester.advanceWatermark(new Instant(125));
+    // 12 elements
+    // fire [1,3,7,5,8,4,8,4,5,3,5,3] since 125 > 6 + 25
+    tester.advanceInputWatermark(new Instant(125));
 
     List<WindowedValue<Integer>> output = tester.extractOutput();
     assertEquals(4, output.size());
@@ -755,7 +798,7 @@ public class TriggerExecutorTest {
     doAnswer(result)
         .when(trigger)
         .onTimer(Mockito.<Trigger<IntervalWindow>.OnTimerContext>any());
-    tester.advanceWatermark(new Instant(1000));
+    tester.advanceInputWatermark(new Instant(1000));
     assertEquals(TriggerResult.FIRE, result.get());
 
     tester.advanceProcessingTime(Instant.now().plus(Duration.millis(10)));

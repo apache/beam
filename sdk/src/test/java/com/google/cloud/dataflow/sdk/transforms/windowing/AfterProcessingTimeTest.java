@@ -122,7 +122,7 @@ public class AfterProcessingTimeTest {
     tester.injectElements(
         TimestampedValue.of(2, new Instant(2))); // in [2, 12), timer for 16
 
-    tester.advanceProcessingTime(new Instant(15));
+    tester.advanceProcessingTime(new Instant(16));
     // This fires, because the earliest element in [1, 12) arrived at time 10
     assertThat(tester.extractOutput(), Matchers.contains(
         WindowMatchers.isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 1, 12)));

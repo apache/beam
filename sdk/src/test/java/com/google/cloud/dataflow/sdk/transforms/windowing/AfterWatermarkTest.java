@@ -73,12 +73,12 @@ public class AfterWatermarkTest {
 
     tester.injectElements(
         TimestampedValue.of(1, new Instant(1))); // first in window [0, 10), timer set for 6
-    tester.advanceWatermark(new Instant(5));
+    tester.advanceInputWatermark(new Instant(5));
     tester.injectElements(
         TimestampedValue.of(2, new Instant(9)),
         TimestampedValue.of(3, new Instant(8)));
 
-    tester.advanceWatermark(new Instant(6));
+    tester.advanceInputWatermark(new Instant(7));
     assertThat(tester.extractOutput(), Matchers.contains(
         WindowMatchers.isSingleWindowedValue(containsInAnyOrder(1, 2, 3), 1, 0, 10)));
 
@@ -114,12 +114,12 @@ public class AfterWatermarkTest {
         TimestampedValue.of(2, zero.plus(Duration.standardSeconds(5))),
         TimestampedValue.of(3, zero.plus(Duration.standardSeconds(55))));
 
-    // Advance almost to 6m, but not quite. No output should be produced.
-    tester.advanceWatermark(zero.plus(Duration.standardMinutes(6)).minus(1));
+    // Advance to 6m. No output should be produced.
+    tester.advanceInputWatermark(zero.plus(Duration.standardMinutes(6)));
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
 
-    // Advance to 6m and see our output
-    tester.advanceWatermark(zero.plus(Duration.standardMinutes(6)));
+    // Advance to 6m+1ms and see our output
+    tester.advanceInputWatermark(zero.plus(Duration.standardMinutes(6).plus(1)));
     assertThat(tester.extractOutput(), Matchers.contains(
         WindowMatchers.isSingleWindowedValue(
             containsInAnyOrder(1, 2, 3),
@@ -136,12 +136,12 @@ public class AfterWatermarkTest {
         AccumulationMode.DISCARDING_FIRED_PANES,
         Duration.millis(100));
 
-    tester.advanceWatermark(new Instant(1));
+    tester.advanceInputWatermark(new Instant(1));
 
     tester.injectElements(
         TimestampedValue.of(1, new Instant(1)),  // in [1, 11), timer for 6
         TimestampedValue.of(2, new Instant(2))); // in [2, 12), timer for 7
-    tester.advanceWatermark(new Instant(6));
+    tester.advanceInputWatermark(new Instant(7));
 
     // We merged, and updated the watermark timer to the earliest timer, which was still 6.
     assertThat(tester.extractOutput(), Matchers.contains(
@@ -164,13 +164,13 @@ public class AfterWatermarkTest {
 
     tester.injectElements(
         TimestampedValue.of(1, new Instant(1))); // first in window [0, 10), timer set for 9
-    tester.advanceWatermark(new Instant(8));
+    tester.advanceInputWatermark(new Instant(8));
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
     tester.injectElements(
         TimestampedValue.of(2, new Instant(9)),
         TimestampedValue.of(3, new Instant(8)));
 
-    tester.advanceWatermark(new Instant(9));
+    tester.advanceInputWatermark(new Instant(10));
     assertThat(tester.extractOutput(), Matchers.contains(
         WindowMatchers.isSingleWindowedValue(containsInAnyOrder(1, 2, 3), 1, 0, 10)));
 
@@ -196,19 +196,19 @@ public class AfterWatermarkTest {
         AccumulationMode.DISCARDING_FIRED_PANES,
         Duration.millis(100));
 
-    tester.advanceWatermark(new Instant(1));
+    tester.advanceInputWatermark(new Instant(1));
 
     tester.injectElements(
-        TimestampedValue.of(1, new Instant(1)),  // in [1, 11), timer for 10
-        TimestampedValue.of(2, new Instant(2))); // in [2, 12), timer for 11
-    tester.advanceWatermark(new Instant(10));
+        TimestampedValue.of(1, new Instant(1)),  // in [1, 11], timer for 11
+        TimestampedValue.of(2, new Instant(2))); // in [2, 12], timer for 12
+    tester.advanceInputWatermark(new Instant(10));
 
     // We merged, and updated the watermark timer to the end of the new window.
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
 
     tester.injectElements(
-        TimestampedValue.of(3, new Instant(1))); // in [1, 11), timer for 10
-    tester.advanceWatermark(new Instant(11));
+        TimestampedValue.of(3, new Instant(1))); // in [1, 11], timer for 11
+    tester.advanceInputWatermark(new Instant(12));
 
     assertThat(tester.extractOutput(), Matchers.contains(
         WindowMatchers.isSingleWindowedValue(containsInAnyOrder(1, 2, 3), 1, 1, 12)));
@@ -286,7 +286,7 @@ public class AfterWatermarkTest {
         TimestampedValue.of(2, new Instant(10L))); // Fires due to early trigger
     tester.injectElements(TimestampedValue.of(3, new Instant(15L)));
 
-    tester.advanceWatermark(new Instant(100L)); // Fires due to AtWatermark
+    tester.advanceInputWatermark(new Instant(100L)); // Fires due to AtWatermark
     List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
     assertThat(output, Matchers.contains(
         isSingleWindowedValue(containsInAnyOrder(1, 2), 5, 0, 100),
@@ -308,7 +308,7 @@ public class AfterWatermarkTest {
         TimestampedValue.of(2, new Instant(10L)),
         TimestampedValue.of(3, new Instant(15L)));
 
-    tester.advanceWatermark(new Instant(100L)); // Fires due to AtWatermark
+    tester.advanceInputWatermark(new Instant(100L)); // Fires due to AtWatermark
 
     when(mockLate.onElement(Mockito.<Trigger<IntervalWindow>.OnElementContext>any()))
         .thenReturn(TriggerResult.CONTINUE)
@@ -354,7 +354,7 @@ public class AfterWatermarkTest {
     tester.injectElements(
         TimestampedValue.of(3, new Instant(15L)));
 
-    tester.advanceWatermark(new Instant(100L)); // Fires due to AtWatermark
+    tester.advanceInputWatermark(new Instant(100L)); // Fires due to AtWatermark
 
     when(mockLate.onElement(Mockito.<Trigger<IntervalWindow>.OnElementContext>any()))
         .thenReturn(TriggerResult.CONTINUE)
@@ -396,7 +396,7 @@ public class AfterWatermarkTest {
     assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(5), new Instant(40))));
     tester.injectElements(TimestampedValue.of(3, new Instant(6L)));
 
-    tester.advanceWatermark(new Instant(100L)); // Fires due to AtWatermark
+    tester.advanceInputWatermark(new Instant(100L)); // Fires due to AtWatermark
     List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
     assertThat(output, Matchers.contains(
         isSingleWindowedValue(containsInAnyOrder(1, 2), 5, 5, 40),
@@ -419,7 +419,7 @@ public class AfterWatermarkTest {
         TimestampedValue.of(1, new Instant(5L)),
         TimestampedValue.of(2, new Instant(20L)));
 
-    tester.advanceWatermark(new Instant(70L)); // Fires due to AtWatermark
+    tester.advanceInputWatermark(new Instant(70L)); // Fires due to AtWatermark
 
     tester.injectElements(TimestampedValue.of(3, new Instant(6L)));
 
@@ -449,7 +449,7 @@ public class AfterWatermarkTest {
         TimestampedValue.of(1, new Instant(5L)),
         TimestampedValue.of(2, new Instant(20L)));
 
-    tester.advanceWatermark(new Instant(70L)); // Fires due to AtWatermark
+    tester.advanceInputWatermark(new Instant(70L)); // Fires due to AtWatermark
 
     IntervalWindow window = new IntervalWindow(new Instant(5), new Instant(40));
     assertFalse(tester.isMarkedFinished(window));
@@ -482,9 +482,9 @@ public class AfterWatermarkTest {
         TimestampedValue.of(1, new Instant(5L)),
         TimestampedValue.of(2, new Instant(20L)));
 
-    tester.advanceProcessingTime(new Instant(55)); // Fires due to early trigger
+    tester.advanceProcessingTime(new Instant(56)); // Fires due to early trigger
 
-    tester.advanceWatermark(new Instant(70L)); // Fires due to AtWatermark
+    tester.advanceInputWatermark(new Instant(70L)); // Fires due to AtWatermark
 
     assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(5), new Instant(40))));
 

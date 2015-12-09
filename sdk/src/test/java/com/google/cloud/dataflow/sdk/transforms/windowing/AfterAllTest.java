@@ -117,7 +117,7 @@ public class AfterAllTest {
     when(mockTrigger1.onTimer(Mockito.<Trigger<IntervalWindow>.OnTimerContext>any()))
         .thenReturn(TriggerResult.FIRE_AND_FINISH);
     tester.fireTimer(firstWindow, new Instant(11), TimeDomain.EVENT_TIME);
-    tester.advanceWatermark(new Instant(12));
+    tester.advanceInputWatermark(new Instant(12));
 
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(1), 1, 0, 10)));
@@ -139,7 +139,7 @@ public class AfterAllTest {
         .thenReturn(TriggerResult.FIRE_AND_FINISH);
     tester.fireTimer(firstWindow, new Instant(11), TimeDomain.EVENT_TIME);
 
-    tester.advanceWatermark(new Instant(12));
+    tester.advanceInputWatermark(new Instant(12));
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
     assertFalse(tester.isMarkedFinished(firstWindow));
 
@@ -239,7 +239,7 @@ public class AfterAllTest {
         TimestampedValue.of(5, new Instant(2)));
 
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
-    tester.advanceProcessingTime(new Instant(5));
+    tester.advanceProcessingTime(new Instant(6));
 
     assertThat(tester.extractOutput(), Matchers.contains(
         isSingleWindowedValue(Matchers.containsInAnyOrder(0, 1, 2, 3, 4, 5), 0, 0, 50)));
@@ -251,7 +251,7 @@ public class AfterAllTest {
         TimestampedValue.of(7, new Instant(3)),
         TimestampedValue.of(8, new Instant(4)),
         TimestampedValue.of(9, new Instant(5)));
-    tester.advanceProcessingTime(new Instant(20));
+    tester.advanceProcessingTime(new Instant(21));
     assertThat(tester.extractOutput(), Matchers.emptyIterable());
     tester.injectElements(
         TimestampedValue.of(10, new Instant(6)));
@@ -279,7 +279,7 @@ public class AfterAllTest {
     tester.advanceProcessingTime(new Instant(10));
     tester.injectElements(
         TimestampedValue.of(1, new Instant(1))); // in [1, 11), timer for 15
-    tester.advanceProcessingTime(new Instant(15));
+    tester.advanceProcessingTime(new Instant(16));
     tester.injectElements(
         TimestampedValue.of(2, new Instant(1)),  // in [1, 11) count = 1
         TimestampedValue.of(3, new Instant(2))); // in [2, 12), timer for 16
