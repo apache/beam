@@ -17,6 +17,7 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
+import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill.WorkItemCommitRequest;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFn;
@@ -34,6 +35,7 @@ import com.google.cloud.dataflow.sdk.util.state.StateTag.StateBinder;
 import com.google.cloud.dataflow.sdk.util.state.ValueState;
 import com.google.cloud.dataflow.sdk.util.state.WatermarkStateInternal;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Function;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.Futures;
@@ -146,6 +148,8 @@ class WindmillStateInternals extends MergingStateInternals {
   }
 
   public void persist(final Windmill.WorkItemCommitRequest.Builder commitBuilder) {
+    List<Future<WorkItemCommitRequest>> commitsToMerge = new ArrayList<>();
+
     // Call persist on each first, which may schedule some futures for reading.
     for (State location : inMemoryState.values()) {
       if (!(location instanceof WindmillState)) {
@@ -156,7 +160,7 @@ class WindmillStateInternals extends MergingStateInternals {
       }
 
       try {
-        ((WindmillState) location).persist(commitBuilder);
+        commitsToMerge.add(((WindmillState) location).persist());
       } catch (IOException e) {
         throw new RuntimeException("Unable to persist state", e);
       }
@@ -168,6 +172,14 @@ class WindmillStateInternals extends MergingStateInternals {
 
     // Clear out the map of already retrieved state instances.
     inMemoryState.clear();
+
+    try {
+      for (Future<WorkItemCommitRequest> commitFuture : commitsToMerge) {
+        commitBuilder.mergeFrom(commitFuture.get());
+      }
+    } catch (ExecutionException | InterruptedException exc) {
+      throw new RuntimeException("Failed to retrieve Windmill state during persist()", exc);
+    }
   }
 
   private ByteString encodeKey(StateNamespace namespace, StateTag<?> address) {
@@ -185,8 +197,34 @@ class WindmillStateInternals extends MergingStateInternals {
     }
   }
 
+  /**
+   * Anything that can provide a {@link WorkItemCommitRequest} to persist its state; it may need
+   * to read some state in order to build the commit request.
+   */
   private interface WindmillState {
-    void persist(Windmill.WorkItemCommitRequest.Builder commitBuilder) throws IOException;
+    /**
+     * Return an asynchronously computed {@link WorkItemCommitRequest}. The request should
+     * be of a form that can be merged with others (only add to repeated fields).
+     */
+    Future<WorkItemCommitRequest> persist()
+        throws IOException;
+  }
+
+  /**
+   * Base class for implementations of {@link WindmillState} where the {@link #persist} call does
+   * not require any asynchronous reading.
+   */
+  private abstract static class SimpleWindmillState implements WindmillState {
+    @Override
+    public final Future<WorkItemCommitRequest> persist() throws IOException{
+      return Futures.immediateFuture(persistDirectly());
+    }
+
+    /**
+     * Returns a {@link WorkItemCommitRequest} that can be used to persist this state to
+     * Windmill.
+     */
+    protected abstract WorkItemCommitRequest persistDirectly() throws IOException;
   }
 
   @Override
@@ -194,7 +232,8 @@ class WindmillStateInternals extends MergingStateInternals {
     return inMemoryState.get(namespace, address);
   }
 
-  private static class WindmillValue<T> implements ValueState<T>, WindmillState {
+  private static class WindmillValue<T> extends SimpleWindmillState
+      implements ValueState<T>, WindmillState {
 
     private final ByteString stateKey;
     private final String stateFamily;
@@ -244,11 +283,10 @@ class WindmillStateInternals extends MergingStateInternals {
     }
 
     @Override
-    public void persist(
-        Windmill.WorkItemCommitRequest.Builder commitBuilder) throws IOException {
+    protected WorkItemCommitRequest persistDirectly() throws IOException {
       if (!modified) {
         // No in-memory changes.
-        return;
+        return WorkItemCommitRequest.newBuilder().buildPartial();
       }
 
       // We can't write without doing a read, so we need to kick off a read if we get here.
@@ -261,6 +299,7 @@ class WindmillStateInternals extends MergingStateInternals {
         coder.encode(modifiedValue, stream, Coder.Context.OUTER);
       }
 
+      WorkItemCommitRequest.Builder commitBuilder = WorkItemCommitRequest.newBuilder();
       commitBuilder
           .addValueUpdatesBuilder()
           .setTag(stateKey)
@@ -268,10 +307,12 @@ class WindmillStateInternals extends MergingStateInternals {
           .getValueBuilder()
           .setData(stream.toByteString())
           .setTimestamp(Long.MAX_VALUE);
+      return commitBuilder.buildPartial();
     }
   }
 
-  private static class WindmillBag<T> implements BagState<T>, WindmillState {
+  private static class WindmillBag<T> extends SimpleWindmillState
+      implements BagState<T>, WindmillState {
 
     private final ByteString stateKey;
     private final String stateFamily;
@@ -351,7 +392,9 @@ class WindmillStateInternals extends MergingStateInternals {
     }
 
     @Override
-    public void persist(Windmill.WorkItemCommitRequest.Builder commitBuilder) throws IOException {
+    public WorkItemCommitRequest persistDirectly() throws IOException {
+      WorkItemCommitRequest.Builder commitBuilder = WorkItemCommitRequest.newBuilder();
+
       if (cleared) {
         // If we do a delete, we need to have done a read to prevent Windmill complaining about
         // blind deletes. We use the underlying reader, because we normally skip the actual read
@@ -362,7 +405,6 @@ class WindmillStateInternals extends MergingStateInternals {
             .setStateFamily(stateFamily)
             .setEndTimestamp(Long.MAX_VALUE);
       }
-
 
       if (!localAdditions.isEmpty()) {
         byte[] zero = {0x0};
@@ -382,6 +424,7 @@ class WindmillStateInternals extends MergingStateInternals {
               .setTimestamp(Long.MAX_VALUE);
         }
       }
+      return commitBuilder.buildPartial();
     }
   }
 
@@ -478,27 +521,30 @@ class WindmillStateInternals extends MergingStateInternals {
     }
 
     @Override
-    public void persist(Windmill.WorkItemCommitRequest.Builder commitBuilder) {
+    public Future<WorkItemCommitRequest> persist() {
       if (!cleared && localAdditions == null) {
         // Nothing to do
-        return;
+        return Futures.immediateFuture(WorkItemCommitRequest.newBuilder().buildPartial());
       } else if (cleared && localAdditions == null) {
         // Just clearing the persisted state; blind delete
+        WorkItemCommitRequest.Builder commitBuilder = WorkItemCommitRequest.newBuilder();
         commitBuilder.addWatermarkHoldsBuilder()
             .setTag(stateKey)
             .setStateFamily(stateFamily)
             .setReset(true);
-
+        return Futures.immediateFuture(commitBuilder.buildPartial());
       } else if (cleared && localAdditions != null) {
         // Since we cleared before adding, we can do a blind overwrite of persisted state
+        WorkItemCommitRequest.Builder commitBuilder = WorkItemCommitRequest.newBuilder();
         commitBuilder.addWatermarkHoldsBuilder()
             .setTag(stateKey)
             .setStateFamily(stateFamily)
             .setReset(true)
             .addTimestamps(WindmillTimeUtils.harnessToWindmillTimestamp(localAdditions));
+        return Futures.immediateFuture(commitBuilder.buildPartial());
       } else if (!cleared && localAdditions != null){
         // Otherwise, we need to combine the local additions with the already persisted data
-        combineWithPersisted(commitBuilder);
+        return combineWithPersisted();
       } else {
         throw new IllegalStateException("Unreachable condition");
       }
@@ -508,7 +554,7 @@ class WindmillStateInternals extends MergingStateInternals {
      * Combines local additions with persisted data and mutates the {@code commitBuilder}
      * to write the result.
      */
-    private void combineWithPersisted(Windmill.WorkItemCommitRequest.Builder commitBuilder) {
+    private Future<WorkItemCommitRequest> combineWithPersisted() {
       boolean windmillCanCombine = false;
 
       // If the combined output time depends only on the window, then we are just blindly adding
@@ -525,29 +571,34 @@ class WindmillStateInternals extends MergingStateInternals {
 
       if (windmillCanCombine) {
         // We do a blind write and let Windmill take the MIN
+        WorkItemCommitRequest.Builder commitBuilder = WorkItemCommitRequest.newBuilder();
         commitBuilder.addWatermarkHoldsBuilder()
             .setTag(stateKey)
             .setStateFamily(stateFamily)
             .addTimestamps(
                 WindmillTimeUtils.harnessToWindmillTimestamp(localAdditions));
+        return Futures.immediateFuture(commitBuilder.buildPartial());
       } else {
         // The non-fast path does a read-modify-write
-        Instant priorHold;
-        try {
-          priorHold = reader.watermarkFuture(stateKey, stateFamily).get();
-        } catch (InterruptedException | ExecutionException e) {
-          throw new RuntimeException("Unable to read state", e);
-        }
+        return Futures.lazyTransform(reader.watermarkFuture(stateKey, stateFamily),
+            new Function<Instant, WorkItemCommitRequest>() {
 
-        Instant combinedHold = (priorHold == null) ? localAdditions
-            : outputTimeFn.combine(priorHold, localAdditions);
+          @Override
+          public WorkItemCommitRequest apply(Instant priorHold) {
 
-        commitBuilder.addWatermarkHoldsBuilder()
-            .setTag(stateKey)
-            .setStateFamily(stateFamily)
-            .setReset(true)
-            .addTimestamps(
-                WindmillTimeUtils.harnessToWindmillTimestamp(combinedHold));
+            Instant combinedHold = (priorHold == null) ? localAdditions
+                : outputTimeFn.combine(priorHold, localAdditions);
+
+            WorkItemCommitRequest.Builder commitBuilder = WorkItemCommitRequest.newBuilder();
+            commitBuilder.addWatermarkHoldsBuilder()
+                .setTag(stateKey)
+                .setStateFamily(stateFamily)
+                .setReset(true)
+                .addTimestamps(WindmillTimeUtils.harnessToWindmillTimestamp(combinedHold));
+
+            return commitBuilder.buildPartial();
+          }
+        });
       }
     }
   }
@@ -599,7 +650,7 @@ class WindmillStateInternals extends MergingStateInternals {
     }
 
     @Override
-    public void persist(Windmill.WorkItemCommitRequest.Builder commitBuilder) throws IOException {
+    public Future<WorkItemCommitRequest> persist() throws IOException {
       if (hasLocalAdditions) {
         // TODO: Take into account whether it's in the cache.
         if (COMPACT_NOW.get().get()) {
@@ -610,7 +661,7 @@ class WindmillStateInternals extends MergingStateInternals {
         localAdditionsAccum = combineFn.createAccumulator();
         hasLocalAdditions = false;
       }
-      bag.persist(commitBuilder);
+      return bag.persist();
     }
 
     @Override
