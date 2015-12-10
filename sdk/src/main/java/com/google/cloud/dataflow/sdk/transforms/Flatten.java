@@ -58,8 +58,7 @@ public class Flatten {
    * into a {@link PCollection} containing all the elements of all
    * the {@link PCollection}s in its input.
    *
-   * <p>If any of the inputs to {@code Flatten<T>} require window merging,
-   * all inputs must have equal {@link WindowFn}s.
+   * <p>All inputs must have equal {@link WindowFn}s.
    * The output elements of {@code Flatten<T>} are in the same windows and
    * have the same timestamps as their corresponding input elements.  The output
    * {@code PCollection} will have the same
@@ -98,6 +97,7 @@ public class Flatten {
    * A {@link PTransform} that flattens a {@link PCollectionList}
    * into a {@link PCollection} containing all the elements of all
    * the {@link PCollection}s in its input.
+   * Implements {@link #pCollections}.
    *
    * @param <T> the type of the elements in the input and output
    * {@code PCollection}s.

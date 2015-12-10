@@ -28,6 +28,7 @@ import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner.ValueWithMetad
 import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.InvalidWindows;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.GroupAlsoByWindowsDoFn;
 import com.google.cloud.dataflow.sdk.util.ReifyTimestampAndWindowsDoFn;
@@ -53,8 +54,9 @@ import java.util.Map;
  * {@code PCollection<KV<K, Iterable<V>>>} representing a map from
  * each distinct key and window of the input {@code PCollection} to an
  * {@code Iterable} over all the values associated with that key in
- * the input.  Each key in the output {@code PCollection} is unique within
- * each window.
+ * the input per window.  Absent repeatedly-firing
+ * {@link Window#triggering triggering}, each key in the output
+ * {@code PCollection} is unique within each window.
  *
  * <p>{@code GroupByKey} is analogous to converting a multi-map into
  * a uni-map, and related to {@code GROUP BY} in SQL.  It corresponds
@@ -68,7 +70,7 @@ import java.util.Map;
  * encoded bytes.  This admits efficient parallel evaluation.  Note that
  * this requires that the {@code Coder} of the keys be deterministic (see
  * {@link Coder#verifyDeterministic()}).  If the key {@code Coder} is not
- * deterministic, an exception is thrown at runtime.
+ * deterministic, an exception is thrown at pipeline construction time.
  *
  * <p>By default, the {@code Coder} of the keys of the output
  * {@code PCollection} is the same as that of the keys of the input,
@@ -109,18 +111,21 @@ import java.util.Map;
  * {@link com.google.cloud.dataflow.sdk.transforms.windowing.AfterWatermark}
  * for details on the estimation.
  *
- * <p>The timestamp for each emitted pane is the earliest event time among all elements in
- * the pane. The output {@code PCollection} will have the same {@link WindowFn}
+ * <p>The timestamp for each emitted pane is determined by the
+ * {@link Window.Bound#withOutputTimeFn windowing operation}.
+ * The output {@code PCollection} will have the same {@link WindowFn}
  * as the input.
  *
  * <p>If the input {@code PCollection} contains late data (see
  * {@link com.google.cloud.dataflow.sdk.io.PubsubIO.Read.Bound#timestampLabel}
- * for an example of how this can occur), then there may be multiple elements
+ * for an example of how this can occur) or the
+ * {@link Window#triggering requested TriggerFn} can fire before
+ * the watermark, then there may be multiple elements
  * output by a {@code GroupByKey} that correspond to the same key and window.
  *
  * <p>If the {@link WindowFn} of the input requires merging, it is not
  * valid to apply another {@code GroupByKey} without first applying a new
- * {@link WindowFn}.
+ * {@link WindowFn} or applying {@link Window#remerge()}.
  *
  * @param <K> the type of the keys of the input and output
  * {@code PCollection}s

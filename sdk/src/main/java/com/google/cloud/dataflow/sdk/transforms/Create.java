@@ -94,8 +94,9 @@ public class Create<T> {
    * elements.
    *
    * <p>By default, {@code Create.Values} can automatically determine the {@code Coder} to use
-   * if all elements have the same run-time class, and a default coder is registered for that
-   * class. See {@link CoderRegistry} for details on how defaults are determined.
+   * if all elements have the same non-parameterized run-time class, and a default coder is
+   * registered for that class. See {@link CoderRegistry} for details on how defaults are
+   * determined.
    * Otherwise, use {@link Create.Values#withCoder} to set the coder explicitly.
    */
   public static <T> Values<T> of(Iterable<T> elems) {
@@ -110,11 +111,12 @@ public class Create<T> {
    * {@link Create#timestamped} for a way of creating a {@code PCollection}
    * with timestamped elements.
    *
-   * <p>The argument should not be modified after this is called.
+   * <p>The arguments should not be modified after this is called.
    *
    * <p>By default, {@code Create.Values} can automatically determine the {@code Coder} to use
-   * if all elements have the same run-time class, and a default coder is registered for that
-   * class. See {@link CoderRegistry} for details on how defaults are determined.
+   * if all elements have the same non-parameterized run-time class, and a default coder is
+   * registered for that class. See {@link CoderRegistry} for details on how defaults are
+   * determined.
    * Otherwise, use {@link Create.Values#withCoder} to set the coder explicitly.
    */
   @SafeVarargs
@@ -132,8 +134,9 @@ public class Create<T> {
    * with timestamped elements.
    *
    * <p>By default, {@code Create.Values} can automatically determine the {@code Coder} to use
-   * if all elements have the same run-time class, and a default coder is registered for that
-   * class. See {@link CoderRegistry} for details on how defaults are determined.
+   * if all elements have the same non-parameterized run-time class, and a default coder is
+   * registered for that class. See {@link CoderRegistry} for details on how defaults are
+   * determined.
    * Otherwise, use {@link Create.Values#withCoder} to set the coder explicitly.
    */
   public static <K, V> Values<KV<K, V>> of(Map<K, V> elems) {
@@ -152,8 +155,9 @@ public class Create<T> {
    * <p>The argument should not be modified after this is called.
    *
    * <p>By default, {@code Create.TimestampedValues} can automatically determine the {@code Coder}
-   * to use if all elements have the same run-time class, and a default coder is registered for
-   * that class. See {@link CoderRegistry} for details on how defaults are determined.
+   * to use if all elements have the same non-parameterized run-time class, and a default coder is
+   * registered for that class. See {@link CoderRegistry} for details on how defaults are
+   * determined.
    * Otherwise, use {@link Create.TimestampedValues#withCoder} to set the coder explicitly.
    */
   public static <T> TimestampedValues<T> timestamped(Iterable<TimestampedValue<T>> elems) {
@@ -164,7 +168,7 @@ public class Create<T> {
    * Returns a new {@link Create.TimestampedValues} transform that produces a {@link PCollection}
    * containing the specified elements with the specified timestamps.
    *
-   * <p>The argument should not be modified after this is called.
+   * <p>The arguments should not be modified after this is called.
    */
   @SafeVarargs
   public static <T> TimestampedValues<T> timestamped(
@@ -179,8 +183,9 @@ public class Create<T> {
    * <p>The arguments should not be modified after this is called.
    *
    * <p>By default, {@code Create.TimestampedValues} can automatically determine the {@code Coder}
-   * to use if all elements have the same run-time class, and a default coder is registered for
-   * that class. See {@link CoderRegistry} for details on how defaults are determined.
+   * to use if all elements have the same non-parameterized run-time class, and a default coder
+   * is registered for that class. See {@link CoderRegistry} for details on how defaults are
+   * determined.
    * Otherwise, use {@link Create.TimestampedValues#withCoder} to set the coder explicitly.
 
    * @throws IllegalArgumentException if there are a different number of values
@@ -212,8 +217,9 @@ public class Create<T> {
      * value of type {@code T}.
      *
      * <p>By default, {@code Create.Values} can automatically determine the {@code Coder} to use
-     * if all elements have the same run-time class, and a default coder is registered for that
-     * class. See {@link CoderRegistry} for details on how defaults are determined.
+     * if all elements have the same non-parameterized run-time class, and a default coder is
+     * registered for that class. See {@link CoderRegistry} for details on how defaults are
+     * determined.
      *
      * <p>Note that for {@link Create.Values} with no elements, the {@link VoidCoder} is used.
      */
@@ -327,9 +333,9 @@ public class Create<T> {
      * value of type {@code T}.
      *
      * <p>By default, {@code Create.TimestampedValues} can automatically determine the
-     * {@code Coder} to use if all elements have the same run-time class, and a default coder is
-     * registered for that class. See {@link CoderRegistry} for details on how defaults are
-     * determined.
+     * {@code Coder} to use if all elements have the same non-parameterized run-time class,
+     * and a default coder is registered for that class. See {@link CoderRegistry} for details
+     * on how defaults are determined.
      *
      * <p>Note that for {@link Create.TimestampedValues with no elements}, the {@link VoidCoder}
      * is used.
