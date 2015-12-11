@@ -80,13 +80,21 @@ public abstract class BoundedSource<T> extends Source<T> {
    * again on this object.
    *
    * <h3>Thread safety</h3>
-   * All methods will be run from the same thread except {@link #splitAtFraction} and
-   * {@link #getFractionConsumed}, which can be called concurrently from a different thread. There
-   * will not be multiple concurrent calls to {@link #splitAtFraction} but there can be for
-   * {@link #getFractionConsumed} if {@link #splitAtFraction} is implemented.
+   * All methods will be run from the same thread except {@link #splitAtFraction},
+   * {@link #getFractionConsumed} and {@link #getCurrentSource}, which can be called concurrently
+   * from a different thread. There will not be multiple concurrent calls to
+   * {@link #splitAtFraction} but there can be for {@link #getFractionConsumed} if
+   * {@link #splitAtFraction} is implemented.
+   *
    * <p>If the source does not implement {@link #splitAtFraction}, you do not need to worry about
    * thread safety. If implemented, it must be safe to call {@link #splitAtFraction} and
    * {@link #getFractionConsumed} concurrently with other methods.
+   *
+   * <p>Additionally, a successful {@link #splitAtFraction} call must, by definition, cause
+   * {@link #getCurrentSource} to start returning a different value.
+   * Callers of {@link #getCurrentSource} need to be aware of the possibility that the returned
+   * value can change at any time, and must only access the properties of the source returned by
+   * {@link #getCurrentSource} which do not change between {@link #splitAtFraction} calls.
    *
    * <h3>Implementing {@link #splitAtFraction}</h3>
    * In the course of dynamic work rebalancing, the method {@link #splitAtFraction}
@@ -124,6 +132,78 @@ public abstract class BoundedSource<T> extends Source<T> {
       return null;
     }
 
+    /**
+     * Returns a {@code Source} describing the same input that this {@code Reader} currently reads
+     * (including items already read).
+     *
+     * <h3>Usage</h3>
+     * <p>Reader subclasses can use this method for convenience to access unchanging properties of
+     * the source being read. Alternatively, they can cache these properties in the constructor.
+     * <p>The framework will call this method in the course of dynamic work rebalancing, e.g. after
+     * a successful {@link BoundedSource.BoundedReader#splitAtFraction} call.
+     *
+     * <h3>Mutability and thread safety</h3>
+     * Remember that {@link Source} objects must always be immutable. However, the return value of
+     * this function may be affected by dynamic work rebalancing, happening asynchronously via
+     * {@link BoundedSource.BoundedReader#splitAtFraction}, meaning it can return a different
+     * {@link Source} object. However, the returned object itself will still itself be immutable.
+     * Callers must take care not to rely on properties of the returned source that may be
+     * asynchronously changed as a result of this process (e.g. do not cache an end offset when
+     * reading a file).
+     *
+     * <h3>Implementation</h3>
+     * For convenience, subclasses should usually return the most concrete subclass of
+     * {@link Source} possible.
+     * In practice, the implementation of this method should nearly always be one of the following:
+     * <ul>
+     *   <li>Source that inherits from a base class that already implements
+     *   {@link #getCurrentSource}: delegate to base class. In this case, it is almost always
+     *   an error for the subclass to maintain its own copy of the source.
+     * <pre>{@code
+     *   public FooReader(FooSource<T> source) {
+     *     super(source);
+     *   }
+     *
+     *   public FooSource<T> getCurrentSource() {
+     *     return (FooSource<T>)super.getCurrentSource();
+     *   }
+     * }</pre>
+     *   <li>Source that does not support dynamic work rebalancing: return a private final variable.
+     * <pre>{@code
+     *   private final FooSource<T> source;
+     *
+     *   public FooReader(FooSource<T> source) {
+     *     this.source = source;
+     *   }
+     *
+     *   public FooSource<T> getCurrentSource() {
+     *     return source;
+     *   }
+     * }</pre>
+     *   <li>{@link BoundedSource.BoundedReader} that explicitly supports dynamic work rebalancing:
+     *   maintain a variable pointing to an immutable source object, and protect it with
+     *   synchronization.
+     * <pre>{@code
+     *   private FooSource<T> source;
+     *
+     *   public FooReader(FooSource<T> source) {
+     *     this.source = source;
+     *   }
+     *
+     *   public synchronized FooSource<T> getCurrentSource() {
+     *     return source;
+     *   }
+     *
+     *   public synchronized FooSource<T> splitAtFraction(double fraction) {
+     *     ...
+     *     FooSource<T> primary = ...;
+     *     FooSource<T> residual = ...;
+     *     this.source = primary;
+     *     return residual;
+     *   }
+     * }</pre>
+     * </ul>
+     */
     @Override
     public abstract BoundedSource<T> getCurrentSource();
 

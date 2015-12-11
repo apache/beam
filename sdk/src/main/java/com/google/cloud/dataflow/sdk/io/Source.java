@@ -72,10 +72,12 @@ public abstract class Source<T> implements Serializable {
    * the current model tends to be easier to program and more efficient in practice
    * for iterating over sources such as files, databases etc. (rather than pure collections).
    *
-   * <p>{@code Reader} implementations do not need to be thread-safe; they may only be accessed
-   * by a single thread at once.
+   * <p>All {@code Reader} functions except {@link #getCurrentSource} do not need to be thread-safe;
+   * they may only be accessed by a single thread at once. However, {@link #getCurrentSource} needs
+   * to be thread-safe, and other functions should assume that its returned value can change
+   * asynchronously.
    *
-   * <p>Callers of {@code Readers} must obey the following access pattern:
+   * <p>Reading data from the {@link Reader} must obey the following access pattern:
    * <ul>
    * <li> One call to {@link Reader#start}
    * <ul><li>If {@link Reader#start} returned true, any number of calls to {@code getCurrent}*
@@ -88,27 +90,35 @@ public abstract class Source<T> implements Serializable {
    *
    * <p>For example, if the reader is reading a fixed set of data:
    * <pre>
-   * for (boolean available = reader.start(); available; available = reader.advance()) {
-   *   T item = reader.getCurrent();
-   *   Instant timestamp = reader.getCurrentTimestamp();
-   *   ...
-   * }
+   *   try {
+   *     for (boolean available = reader.start(); available; available = reader.advance()) {
+   *       T item = reader.getCurrent();
+   *       Instant timestamp = reader.getCurrentTimestamp();
+   *       ...
+   *     }
+   *   } finally {
+   *     reader.close();
+   *   }
    * </pre>
    *
    * <p>If the set of data being read is continually growing:
    * <pre>
-   * boolean available = reader.start();
-   * while (true) {
-   *   if (available) {
-   *     T item = reader.getCurrent();
-   *     Instant timestamp = reader.getCurrentTimestamp();
-   *     ...
-   *     resetExponentialBackoff();
-   *   } else {
-   *     exponentialBackoff();
+   *   try {
+   *     boolean available = reader.start();
+   *     while (true) {
+   *       if (available) {
+   *         T item = reader.getCurrent();
+   *         Instant timestamp = reader.getCurrentTimestamp();
+   *         ...
+   *         resetExponentialBackoff();
+   *       } else {
+   *         exponentialBackoff();
+   *       }
+   *       available = reader.advance();
+   *     }
+   *   } finally {
+   *     reader.close();
    *   }
-   *   available = reader.advance();
-   * }
    * </pre>
    *
    * <p>Note: this interface is a work-in-progress and may change.
@@ -168,11 +178,14 @@ public abstract class Source<T> implements Serializable {
     public abstract void close() throws IOException;
 
     /**
-     * Returns a {@code Source} describing the same input that this {@code Reader} reads
+     * Returns a {@code Source} describing the same input that this {@code Reader} currently reads
      * (including items already read).
      *
-     * <p>A reader created from the result of {@code getCurrentSource}, if consumed, MUST
-     * return the same data items as the current reader.
+     * <p>Usually, an implementation will simply return the immutable {@link Source} object from
+     * which the current {@link Reader} was constructed, or delegate to the base class.
+     * However, when using or implementing this method on a {@link BoundedSource.BoundedReader},
+     * special considerations apply, see documentation for
+     * {@link BoundedSource.BoundedReader#getCurrentSource}.
      */
     public abstract Source<T> getCurrentSource();
   }

@@ -189,6 +189,7 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
     private static final Logger LOG = LoggerFactory.getLogger(OffsetBasedReader.class);
 
     private OffsetBasedSource<T> source;
+
     /**
      * The {@link OffsetRangeTracker} managing the range and current position of the source.
      * Subclasses MUST use it before returning records from {@link #start} or {@link #advance}:
@@ -247,7 +248,7 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
     protected abstract boolean advanceImpl() throws IOException;
 
     @Override
-    public OffsetBasedSource<T> getCurrentSource() {
+    public synchronized OffsetBasedSource<T> getCurrentSource() {
       return source;
     }
 
@@ -257,7 +258,7 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
     }
 
     @Override
-    public final OffsetBasedSource<T> splitAtFraction(double fraction) {
+    public final synchronized OffsetBasedSource<T> splitAtFraction(double fraction) {
       if (rangeTracker.getStopPosition() == Long.MAX_VALUE) {
         LOG.debug(
             "Refusing to split unbounded OffsetBasedReader {} at fraction {}",
