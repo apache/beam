@@ -46,7 +46,6 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.Sessions;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window.ClosingBehavior;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
-import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -562,6 +561,7 @@ public class CombineTest implements Serializable {
       return of((Coder<?>) components.get(0));
     }
 
+    @SuppressWarnings("unused") // required for coder instantiation
     public static <T> List<Object> getInstanceComponents(Set<T> exampleValue) {
       return IterableCoder.getInstanceComponents(exampleValue);
     }
