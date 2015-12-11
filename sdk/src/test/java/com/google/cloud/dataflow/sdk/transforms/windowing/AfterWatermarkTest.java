@@ -27,8 +27,8 @@ import static org.mockito.Mockito.when;
 import com.google.cloud.dataflow.sdk.WindowMatchers;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerResult;
+import com.google.cloud.dataflow.sdk.util.ReduceFnTester;
 import com.google.cloud.dataflow.sdk.util.TimeDomain;
-import com.google.cloud.dataflow.sdk.util.TriggerTester;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
 import com.google.cloud.dataflow.sdk.values.TimestampedValue;
@@ -65,7 +65,7 @@ public class AfterWatermarkTest {
   @Test
   public void testFirstInPaneWithFixedWindow() throws Exception {
     Duration windowDuration = Duration.millis(10);
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
         FixedWindows.of(windowDuration),
         AfterWatermark.<IntervalWindow>pastFirstElementInPane().plusDelayOf(Duration.millis(5)),
         AccumulationMode.DISCARDING_FIRED_PANES,
@@ -96,7 +96,7 @@ public class AfterWatermarkTest {
 
   @Test
   public void testAlignAndDelay() throws Exception {
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
         FixedWindows.of(Duration.standardMinutes(1)),
         AfterWatermark.<IntervalWindow>pastFirstElementInPane()
             .alignedTo(Duration.standardMinutes(1))
@@ -130,7 +130,7 @@ public class AfterWatermarkTest {
   @Test
   public void testFirstInPaneWithMerging() throws Exception {
     Duration windowDuration = Duration.millis(10);
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
         Sessions.withGapDuration(windowDuration),
         AfterWatermark.<IntervalWindow>pastFirstElementInPane().plusDelayOf(Duration.millis(5)),
         AccumulationMode.DISCARDING_FIRED_PANES,
@@ -156,7 +156,7 @@ public class AfterWatermarkTest {
   @Test
   public void testEndOfWindowFixedWindow() throws Exception {
     Duration windowDuration = Duration.millis(10);
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
         FixedWindows.of(windowDuration),
         AfterWatermark.<IntervalWindow>pastEndOfWindow(),
         AccumulationMode.DISCARDING_FIRED_PANES,
@@ -190,7 +190,7 @@ public class AfterWatermarkTest {
   @Test
   public void testEndOfWindowWithMerging() throws Exception {
     Duration windowDuration = Duration.millis(10);
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
         Sessions.withGapDuration(windowDuration),
         AfterWatermark.<IntervalWindow>pastEndOfWindow(),
         AccumulationMode.DISCARDING_FIRED_PANES,
@@ -222,7 +222,7 @@ public class AfterWatermarkTest {
   @Test
   public void testEndOfWindowIgnoresTimer() throws Exception {
     Duration windowDuration = Duration.millis(10);
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
         FixedWindows.of(windowDuration),
         AfterWatermark.<IntervalWindow>pastEndOfWindow(),
         AccumulationMode.DISCARDING_FIRED_PANES,
@@ -270,7 +270,7 @@ public class AfterWatermarkTest {
 
   @Test
   public void testEarlyAndAtWatermarkProcessElement() throws Exception {
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
         FixedWindows.of(Duration.millis(100)),
         AfterWatermark.<IntervalWindow>pastEndOfWindow()
             .withEarlyFirings(mockEarly),
@@ -296,7 +296,7 @@ public class AfterWatermarkTest {
 
   @Test
   public void testLateAndAtWatermarkProcessElement() throws Exception {
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
         FixedWindows.of(Duration.millis(100)),
         AfterWatermark.<IntervalWindow>pastEndOfWindow()
             .withLateFirings(mockLate),
@@ -336,7 +336,7 @@ public class AfterWatermarkTest {
 
   @Test
   public void testEarlyLateAndAtWatermarkProcessElement() throws Exception {
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
         FixedWindows.of(Duration.millis(100)),
         AfterWatermark.<IntervalWindow>pastEndOfWindow()
             .withEarlyFirings(mockEarly)
@@ -382,7 +382,7 @@ public class AfterWatermarkTest {
 
   @Test
   public void testEarlyAndAtWatermarkSessions() throws Exception {
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
         Sessions.withGapDuration(Duration.millis(20)),
         AfterWatermark.<IntervalWindow>pastEndOfWindow()
             .withEarlyFirings(AfterPane.<IntervalWindow>elementCountAtLeast(2)),
@@ -406,7 +406,7 @@ public class AfterWatermarkTest {
 
   @Test
   public void testLateAndAtWatermarkSessionsProcessingTime() throws Exception {
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
         Sessions.withGapDuration(Duration.millis(20)),
         AfterWatermark.<IntervalWindow>pastEndOfWindow()
             .withLateFirings(AfterProcessingTime
@@ -438,7 +438,7 @@ public class AfterWatermarkTest {
 
   @Test
   public void testLateAndAtWatermarkSessions() throws Exception {
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
         Sessions.withGapDuration(Duration.millis(20)),
         AfterWatermark.<IntervalWindow>pastEndOfWindow()
             .withLateFirings(AfterPane.<IntervalWindow>elementCountAtLeast(2)),
@@ -468,7 +468,7 @@ public class AfterWatermarkTest {
 
   @Test
   public void testEarlyLateAndAtWatermarkSessions() throws Exception {
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
         Sessions.withGapDuration(Duration.millis(20)),
         AfterWatermark.<IntervalWindow>pastEndOfWindow()
             .withEarlyFirings(AfterProcessingTime.<IntervalWindow>pastFirstElementInPane()

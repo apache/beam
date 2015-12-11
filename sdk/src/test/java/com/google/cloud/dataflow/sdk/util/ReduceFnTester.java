@@ -60,8 +60,6 @@ import com.google.common.collect.Sets;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -77,20 +75,19 @@ import java.util.Set;
 import javax.annotation.Nullable;
 
 /**
- * Test utility that runs a {@link WindowFn}, {@link Trigger} using in-memory stub implementations
- * to provide the {@link TimerInternals} and {@link WindowingInternals} needed to run
- * {@code Trigger}s and {@code ReduceFn}s.
+ * Test utility that runs a {@link ReduceFn}, {@link WindowFn}, {@link Trigger} using in-memory stub
+ * implementations to provide the {@link TimerInternals} and {@link WindowingInternals} needed to
+ * run {@code Trigger}s and {@code ReduceFn}s.
  *
  * @param <InputT> The element types.
  * @param <OutputT> The final type for elements in the window (for instance,
  *     {@code Iterable<InputT>})
  * @param <W> The type of windows being used.
  */
-public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
-  private static final Logger LOG = LoggerFactory.getLogger(TriggerTester.class);
-
+public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   private final TestInMemoryStateInternals stateInternals = new TestInMemoryStateInternals();
   private final TestTimerInternals timerInternals = new TestTimerInternals();
+
   private final WindowFn<Object, W> windowFn;
   private final TestWindowingInternals windowingInternals;
   private final Coder<OutputT> outputCoder;
@@ -105,17 +102,17 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
   private final InMemoryLongSumAggregator droppedDueToLateness =
       new InMemoryLongSumAggregator(ReduceFnRunner.DROPPED_DUE_TO_LATENESS_COUNTER);
 
-  public static <W extends BoundedWindow> TriggerTester<Integer, Iterable<Integer>, W> nonCombining(
-      WindowingStrategy<?, W> windowingStrategy) throws Exception {
-    return new TriggerTester<Integer, Iterable<Integer>, W>(
+  public static <W extends BoundedWindow> ReduceFnTester<Integer, Iterable<Integer>, W>
+      nonCombining(WindowingStrategy<?, W> windowingStrategy) throws Exception {
+    return new ReduceFnTester<Integer, Iterable<Integer>, W>(
         windowingStrategy,
         SystemReduceFn.<String, Integer, W>buffering(VarIntCoder.of()).create(KEY),
         IterableCoder.of(VarIntCoder.of()));
   }
 
-  public static <W extends BoundedWindow> TriggerTester<Integer, Iterable<Integer>, W> nonCombining(
-      WindowFn<?, W> windowFn, TriggerBuilder<W> trigger, AccumulationMode mode,
-      Duration allowedDataLateness) throws Exception {
+  public static <W extends BoundedWindow> ReduceFnTester<Integer, Iterable<Integer>, W>
+      nonCombining(WindowFn<?, W> windowFn, TriggerBuilder<W> trigger, AccumulationMode mode,
+          Duration allowedDataLateness) throws Exception {
     WindowingStrategy<?, W> strategy =
         WindowingStrategy.of(windowFn)
             .withTrigger(trigger.buildTrigger())
@@ -124,7 +121,7 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
     return nonCombining(strategy);
   }
 
-  public static <W extends BoundedWindow, AccumT, OutputT> TriggerTester<Integer, OutputT, W>
+  public static <W extends BoundedWindow, AccumT, OutputT> ReduceFnTester<Integer, OutputT, W>
       combining(WindowFn<?, W> windowFn, Trigger<W> trigger, AccumulationMode mode,
           KeyedCombineFn<String, Integer, AccumT, OutputT> combineFn, Coder<OutputT> outputCoder,
           Duration allowedDataLateness) throws Exception {
@@ -138,14 +135,14 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
         AppliedCombineFn.<String, Integer, AccumT, OutputT>withInputCoder(
             combineFn, registry, KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
 
-    return new TriggerTester<Integer, OutputT, W>(
+    return new ReduceFnTester<Integer, OutputT, W>(
         strategy,
         SystemReduceFn.<String, Integer, AccumT, OutputT, W>combining(StringUtf8Coder.of(), fn)
             .create(KEY),
         outputCoder);
   }
 
-  private TriggerTester(WindowingStrategy<?, W> wildcardStrategy,
+  private ReduceFnTester(WindowingStrategy<?, W> wildcardStrategy,
       ReduceFn<String, InputT, OutputT, W> reduceFn, Coder<OutputT> outputCoder) throws Exception {
     @SuppressWarnings("unchecked")
     WindowingStrategy<Object, W> objectStrategy = (WindowingStrategy<Object, W>) wildcardStrategy;
@@ -318,7 +315,7 @@ public class TriggerTester<InputT, OutputT, W extends BoundedWindow> {
             try {
               InputT value = input.getValue();
               Instant timestamp = input.getTimestamp();
-              Collection<W> windows = windowFn.assignWindows(new TriggerTester.TestAssignContext<W>(
+              Collection<W> windows = windowFn.assignWindows(new TestAssignContext<W>(
                   windowFn, value, timestamp, Arrays.asList(GlobalWindow.INSTANCE)));
               return WindowedValue.of(value, timestamp, windows, PaneInfo.NO_FIRING);
             } catch (Exception e) {

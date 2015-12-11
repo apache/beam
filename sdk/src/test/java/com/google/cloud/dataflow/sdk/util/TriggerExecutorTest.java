@@ -71,8 +71,8 @@ import java.util.List;
  */
 @RunWith(JUnit4.class)
 public class TriggerExecutorTest {
-
-  @Mock private Trigger<IntervalWindow> mockTrigger;
+  @Mock
+  private Trigger<IntervalWindow> mockTrigger;
   private IntervalWindow firstWindow;
 
   @Before
@@ -82,11 +82,9 @@ public class TriggerExecutorTest {
     firstWindow = new IntervalWindow(new Instant(0), new Instant(10));
   }
 
-  private void injectElement(TriggerTester<Integer, ?, IntervalWindow> tester,
-      int element, TriggerResult result)
-      throws Exception {
-    when(mockTrigger.onElement(
-        Mockito.<Trigger<IntervalWindow>.OnElementContext>any()))
+  private void injectElement(ReduceFnTester<Integer, ?, IntervalWindow> tester, int element,
+      TriggerResult result) throws Exception {
+    when(mockTrigger.onElement(Mockito.<Trigger<IntervalWindow>.OnElementContext>any()))
         .thenReturn(result);
     tester.injectElements(TimestampedValue.of(element, new Instant(element)));
   }
@@ -94,11 +92,9 @@ public class TriggerExecutorTest {
   @Test
   public void testOnElementBufferingDiscarding() throws Exception {
     // Test basic execution of a trigger using a non-combining window set and discarding mode.
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
-        FixedWindows.of(Duration.millis(10)),
-        mockTrigger,
-        AccumulationMode.DISCARDING_FIRED_PANES,
-        Duration.millis(100));
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
+        ReduceFnTester.nonCombining(FixedWindows.of(Duration.millis(10)), mockTrigger,
+            AccumulationMode.DISCARDING_FIRED_PANES, Duration.millis(100));
 
     injectElement(tester, 1, TriggerResult.CONTINUE);
     injectElement(tester, 2, TriggerResult.FIRE);
@@ -108,9 +104,11 @@ public class TriggerExecutorTest {
     // This element shouldn't be seen, because the trigger has finished
     injectElement(tester, 4, null);
 
-    assertThat(tester.extractOutput(), Matchers.contains(
-        isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10),
-        isSingleWindowedValue(Matchers.containsInAnyOrder(3), 3, 0, 10)));
+    assertThat(
+        tester.extractOutput(),
+        Matchers.contains(
+            isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10),
+            isSingleWindowedValue(Matchers.containsInAnyOrder(3), 3, 0, 10)));
     assertTrue(tester.isMarkedFinished(firstWindow));
     tester.assertHasOnlyGlobalAndFinishedSetsFor(firstWindow);
 
@@ -121,11 +119,9 @@ public class TriggerExecutorTest {
   @Test
   public void testOnElementBufferingAccumulating() throws Exception {
     // Test basic execution of a trigger using a non-combining window set and accumulating mode.
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
-        FixedWindows.of(Duration.millis(10)),
-        mockTrigger,
-        AccumulationMode.ACCUMULATING_FIRED_PANES,
-        Duration.millis(100));
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
+        ReduceFnTester.nonCombining(FixedWindows.of(Duration.millis(10)), mockTrigger,
+            AccumulationMode.ACCUMULATING_FIRED_PANES, Duration.millis(100));
 
     injectElement(tester, 1, TriggerResult.CONTINUE);
     injectElement(tester, 2, TriggerResult.FIRE);
@@ -134,9 +130,11 @@ public class TriggerExecutorTest {
     // This element shouldn't be seen, because the trigger has finished
     injectElement(tester, 4, null);
 
-    assertThat(tester.extractOutput(), Matchers.contains(
-        isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10),
-        isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2, 3), 3, 0, 10)));
+    assertThat(
+        tester.extractOutput(),
+        Matchers.contains(
+            isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10),
+            isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2, 3), 3, 0, 10)));
     assertTrue(tester.isMarkedFinished(firstWindow));
     tester.assertHasOnlyGlobalAndFinishedSetsFor(firstWindow);
   }
@@ -144,13 +142,9 @@ public class TriggerExecutorTest {
   @Test
   public void testOnElementCombiningDiscarding() throws Exception {
     // Test basic execution of a trigger using a non-combining window set and discarding mode.
-    TriggerTester<Integer, Integer, IntervalWindow> tester = TriggerTester.combining(
-        FixedWindows.of(Duration.millis(10)),
-        mockTrigger,
-        AccumulationMode.DISCARDING_FIRED_PANES,
-        new Sum.SumIntegerFn().<String>asKeyedFn(),
-        VarIntCoder.of(),
-        Duration.millis(100));
+    ReduceFnTester<Integer, Integer, IntervalWindow> tester = ReduceFnTester.combining(
+        FixedWindows.of(Duration.millis(10)), mockTrigger, AccumulationMode.DISCARDING_FIRED_PANES,
+        new Sum.SumIntegerFn().<String>asKeyedFn(), VarIntCoder.of(), Duration.millis(100));
 
     injectElement(tester, 2, TriggerResult.CONTINUE);
     injectElement(tester, 3, TriggerResult.FIRE);
@@ -159,9 +153,11 @@ public class TriggerExecutorTest {
     // This element shouldn't be seen, because the trigger has finished
     injectElement(tester, 6, null);
 
-    assertThat(tester.extractOutput(), Matchers.contains(
-        isSingleWindowedValue(Matchers.equalTo(5), 2, 0, 10),
-        isSingleWindowedValue(Matchers.equalTo(4), 4, 0, 10)));
+    assertThat(
+        tester.extractOutput(),
+        Matchers.contains(
+            isSingleWindowedValue(Matchers.equalTo(5), 2, 0, 10),
+            isSingleWindowedValue(Matchers.equalTo(4), 4, 0, 10)));
     assertTrue(tester.isMarkedFinished(firstWindow));
     tester.assertHasOnlyGlobalAndFinishedSetsFor(firstWindow);
   }
@@ -169,13 +165,10 @@ public class TriggerExecutorTest {
   @Test
   public void testOnElementCombiningAccumulating() throws Exception {
     // Test basic execution of a trigger using a non-combining window set and accumulating mode.
-    TriggerTester<Integer, Integer, IntervalWindow> tester = TriggerTester.combining(
-        FixedWindows.of(Duration.millis(10)),
-        mockTrigger,
-        AccumulationMode.ACCUMULATING_FIRED_PANES,
-        new Sum.SumIntegerFn().<String>asKeyedFn(),
-        VarIntCoder.of(),
-        Duration.millis(100));
+    ReduceFnTester<Integer, Integer, IntervalWindow> tester =
+        ReduceFnTester.combining(FixedWindows.of(Duration.millis(10)), mockTrigger,
+            AccumulationMode.ACCUMULATING_FIRED_PANES, new Sum.SumIntegerFn().<String>asKeyedFn(),
+            VarIntCoder.of(), Duration.millis(100));
 
     injectElement(tester, 1, TriggerResult.CONTINUE);
     injectElement(tester, 2, TriggerResult.FIRE);
@@ -184,9 +177,11 @@ public class TriggerExecutorTest {
     // This element shouldn't be seen, because the trigger has finished
     injectElement(tester, 4, null);
 
-    assertThat(tester.extractOutput(), Matchers.contains(
-        isSingleWindowedValue(Matchers.equalTo(3), 1, 0, 10),
-        isSingleWindowedValue(Matchers.equalTo(6), 3, 0, 10)));
+    assertThat(
+        tester.extractOutput(),
+        Matchers.contains(
+            isSingleWindowedValue(Matchers.equalTo(3), 1, 0, 10),
+            isSingleWindowedValue(Matchers.equalTo(6), 3, 0, 10)));
     assertTrue(tester.isMarkedFinished(firstWindow));
     tester.assertHasOnlyGlobalAndFinishedSetsFor(firstWindow);
   }
@@ -194,8 +189,8 @@ public class TriggerExecutorTest {
   @Test
   public void testWatermarkHoldAndLateData() throws Exception {
     // Test handling of late data. Specifically, ensure the watermark hold is correct.
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester =
-        TriggerTester.nonCombining(FixedWindows.of(Duration.millis(10)), mockTrigger,
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
+        ReduceFnTester.nonCombining(FixedWindows.of(Duration.millis(10)), mockTrigger,
             AccumulationMode.ACCUMULATING_FIRED_PANES, Duration.millis(10));
 
     // Input watermark -> null
@@ -305,23 +300,25 @@ public class TriggerExecutorTest {
 
   @Test
   public void testPaneInfoAllStates() throws Exception {
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
-        FixedWindows.of(Duration.millis(10)),
-        mockTrigger,
-        AccumulationMode.DISCARDING_FIRED_PANES,
-        Duration.millis(100));
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
+        ReduceFnTester.nonCombining(FixedWindows.of(Duration.millis(10)), mockTrigger,
+            AccumulationMode.DISCARDING_FIRED_PANES, Duration.millis(100));
 
     when(mockTrigger.onTimer(Mockito.<Trigger<IntervalWindow>.OnTimerContext>any()))
         .thenReturn(TriggerResult.CONTINUE);
 
     tester.advanceInputWatermark(new Instant(0));
     injectElement(tester, 1, TriggerResult.FIRE);
-    assertThat(tester.extractOutput(), Matchers.contains(
-        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(true, false, Timing.EARLY))));
+    assertThat(
+        tester.extractOutput(),
+        Matchers.contains(
+            WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(true, false, Timing.EARLY))));
 
     injectElement(tester, 2, TriggerResult.FIRE);
-    assertThat(tester.extractOutput(), Matchers.contains(
-        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, false, Timing.EARLY, 1, -1))));
+    assertThat(
+        tester.extractOutput(),
+        Matchers.contains(WindowMatchers.valueWithPaneInfo(
+            PaneInfo.createPane(false, false, Timing.EARLY, 1, -1))));
 
     tester.advanceInputWatermark(new Instant(15));
     injectElement(tester, 3, TriggerResult.FIRE);
@@ -345,106 +342,127 @@ public class TriggerExecutorTest {
 
   @Test
   public void testPaneInfoAllStatesAfterWatermark() throws Exception {
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
         WindowingStrategy.of(FixedWindows.of(Duration.millis(10)))
-            .withTrigger(Repeatedly.<IntervalWindow>forever(
-                AfterFirst.<IntervalWindow>of(
-                    AfterPane.<IntervalWindow>elementCountAtLeast(2),
-                    AfterWatermark.<IntervalWindow>pastEndOfWindow())))
+            .withTrigger(Repeatedly.<IntervalWindow>forever(AfterFirst.<IntervalWindow>of(
+                AfterPane.<IntervalWindow>elementCountAtLeast(2),
+                AfterWatermark.<IntervalWindow>pastEndOfWindow())))
             .withMode(AccumulationMode.DISCARDING_FIRED_PANES)
             .withAllowedLateness(Duration.millis(100))
             .withClosingBehavior(ClosingBehavior.FIRE_ALWAYS));
 
     tester.advanceInputWatermark(new Instant(0));
     tester.injectElements(
-        TimestampedValue.of(1, new Instant(1)),
-        TimestampedValue.of(2, new Instant(2)));
+        TimestampedValue.of(1, new Instant(1)), TimestampedValue.of(2, new Instant(2)));
 
     List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
-    assertThat(output, Matchers.contains(
-        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(true, false, Timing.EARLY, 0, -1))));
-    assertThat(output, Matchers.contains(
-        WindowMatchers.isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
+    assertThat(
+        output,
+        Matchers.contains(WindowMatchers.valueWithPaneInfo(
+            PaneInfo.createPane(true, false, Timing.EARLY, 0, -1))));
+    assertThat(
+        output,
+        Matchers.contains(
+            WindowMatchers.isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
 
     tester.advanceInputWatermark(new Instant(50));
 
     // We should get the ON_TIME pane even though it is empty,
     // because we have an AfterWatermark.pastEndOfWindow() trigger.
     output = tester.extractOutput();
-    assertThat(output, Matchers.contains(
-        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, false, Timing.ON_TIME, 1, 0))));
-    assertThat(output, Matchers.contains(
-        WindowMatchers.isSingleWindowedValue(Matchers.emptyIterable(), 9, 0, 10)));
+    assertThat(
+        output,
+        Matchers.contains(WindowMatchers.valueWithPaneInfo(
+            PaneInfo.createPane(false, false, Timing.ON_TIME, 1, 0))));
+    assertThat(
+        output,
+        Matchers.contains(
+            WindowMatchers.isSingleWindowedValue(Matchers.emptyIterable(), 9, 0, 10)));
 
     // We should get the final pane even though it is empty.
     tester.advanceInputWatermark(new Instant(150));
     output = tester.extractOutput();
-    assertThat(output, Matchers.contains(
-        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, true, Timing.LATE, 2, 1))));
-    assertThat(output, Matchers.contains(
-        WindowMatchers.isSingleWindowedValue(Matchers.emptyIterable(), 9, 0, 10)));
+    assertThat(
+        output,
+        Matchers.contains(
+            WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, true, Timing.LATE, 2, 1))));
+    assertThat(
+        output,
+        Matchers.contains(
+            WindowMatchers.isSingleWindowedValue(Matchers.emptyIterable(), 9, 0, 10)));
   }
 
   @Test
   public void testPaneInfoAllStatesAfterWatermarkAccumulating() throws Exception {
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
         WindowingStrategy.of(FixedWindows.of(Duration.millis(10)))
-            .withTrigger(Repeatedly.<IntervalWindow>forever(
-                AfterFirst.<IntervalWindow>of(
-                    AfterPane.<IntervalWindow>elementCountAtLeast(2),
-                    AfterWatermark.<IntervalWindow>pastEndOfWindow())))
+            .withTrigger(Repeatedly.<IntervalWindow>forever(AfterFirst.<IntervalWindow>of(
+                AfterPane.<IntervalWindow>elementCountAtLeast(2),
+                AfterWatermark.<IntervalWindow>pastEndOfWindow())))
             .withMode(AccumulationMode.ACCUMULATING_FIRED_PANES)
             .withAllowedLateness(Duration.millis(100))
             .withClosingBehavior(ClosingBehavior.FIRE_ALWAYS));
 
     tester.advanceInputWatermark(new Instant(0));
     tester.injectElements(
-        TimestampedValue.of(1, new Instant(1)),
-        TimestampedValue.of(2, new Instant(2)));
+        TimestampedValue.of(1, new Instant(1)), TimestampedValue.of(2, new Instant(2)));
 
     List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
-    assertThat(output, Matchers.contains(
-        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(true, false, Timing.EARLY, 0, -1))));
-    assertThat(output, Matchers.contains(
-        WindowMatchers.isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
+    assertThat(
+        output,
+        Matchers.contains(WindowMatchers.valueWithPaneInfo(
+            PaneInfo.createPane(true, false, Timing.EARLY, 0, -1))));
+    assertThat(
+        output,
+        Matchers.contains(
+            WindowMatchers.isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10)));
 
     tester.advanceInputWatermark(new Instant(50));
 
     // We should get the ON_TIME pane even though it is empty,
     // because we have an AfterWatermark.pastEndOfWindow() trigger.
     output = tester.extractOutput();
-    assertThat(output, Matchers.contains(
-        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, false, Timing.ON_TIME, 1, 0))));
-    assertThat(output, Matchers.contains(
-        WindowMatchers.isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 9, 0, 10)));
+    assertThat(
+        output,
+        Matchers.contains(WindowMatchers.valueWithPaneInfo(
+            PaneInfo.createPane(false, false, Timing.ON_TIME, 1, 0))));
+    assertThat(
+        output,
+        Matchers.contains(
+            WindowMatchers.isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 9, 0, 10)));
 
     // We should get the final pane even though it is empty.
     tester.advanceInputWatermark(new Instant(150));
     output = tester.extractOutput();
-    assertThat(output, Matchers.contains(
-        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, true, Timing.LATE, 2, 1))));
-    assertThat(output, Matchers.contains(
-        WindowMatchers.isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 9, 0, 10)));
+    assertThat(
+        output,
+        Matchers.contains(
+            WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, true, Timing.LATE, 2, 1))));
+    assertThat(
+        output,
+        Matchers.contains(
+            WindowMatchers.isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 9, 0, 10)));
   }
 
   @Test
   public void testPaneInfoFinalAndOnTime() throws Exception {
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
         WindowingStrategy.of(FixedWindows.of(Duration.millis(10)))
             .withTrigger(
                 Repeatedly.<IntervalWindow>forever(AfterPane.<IntervalWindow>elementCountAtLeast(2))
-                .orFinally(AfterWatermark.<IntervalWindow>pastEndOfWindow()))
+                    .orFinally(AfterWatermark.<IntervalWindow>pastEndOfWindow()))
             .withMode(AccumulationMode.DISCARDING_FIRED_PANES)
             .withAllowedLateness(Duration.millis(100))
             .withClosingBehavior(ClosingBehavior.FIRE_ALWAYS));
 
     tester.advanceInputWatermark(new Instant(0));
     tester.injectElements(
-        TimestampedValue.of(1, new Instant(1)),
-        TimestampedValue.of(2, new Instant(2)));
+        TimestampedValue.of(1, new Instant(1)), TimestampedValue.of(2, new Instant(2)));
 
-    assertThat(tester.extractOutput(), Matchers.contains(
-        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(true, false, Timing.EARLY, 0, -1))));
+    assertThat(
+        tester.extractOutput(),
+        Matchers.contains(WindowMatchers.valueWithPaneInfo(
+            PaneInfo.createPane(true, false, Timing.EARLY, 0, -1))));
 
     tester.advanceInputWatermark(new Instant(150));
     assertThat(tester.extractOutput(), Matchers.contains(
@@ -453,41 +471,39 @@ public class TriggerExecutorTest {
 
   @Test
   public void testPaneInfoSkipToFinish() throws Exception {
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
-        FixedWindows.of(Duration.millis(10)),
-        mockTrigger,
-        AccumulationMode.DISCARDING_FIRED_PANES,
-        Duration.millis(100));
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
+        ReduceFnTester.nonCombining(FixedWindows.of(Duration.millis(10)), mockTrigger,
+            AccumulationMode.DISCARDING_FIRED_PANES, Duration.millis(100));
 
     tester.advanceInputWatermark(new Instant(0));
     injectElement(tester, 1, TriggerResult.FIRE_AND_FINISH);
-    assertThat(tester.extractOutput(), Matchers.contains(
-        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(true, true, Timing.EARLY))));
+    assertThat(
+        tester.extractOutput(),
+        Matchers.contains(
+            WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(true, true, Timing.EARLY))));
   }
 
   @Test
   public void testPaneInfoSkipToNonSpeculativeAndFinish() throws Exception {
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
-        FixedWindows.of(Duration.millis(10)),
-        mockTrigger,
-        AccumulationMode.DISCARDING_FIRED_PANES,
-        Duration.millis(100));
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
+        ReduceFnTester.nonCombining(FixedWindows.of(Duration.millis(10)), mockTrigger,
+            AccumulationMode.DISCARDING_FIRED_PANES, Duration.millis(100));
 
     tester.advanceInputWatermark(new Instant(15));
     injectElement(tester, 1, TriggerResult.FIRE_AND_FINISH);
-    assertThat(tester.extractOutput(), Matchers.contains(
-        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(true, true, Timing.LATE))));
+    assertThat(
+        tester.extractOutput(),
+        Matchers.contains(
+            WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(true, true, Timing.LATE))));
   }
 
   @Test
   public void testMergeBeforeFinalizing() throws Exception {
     // Verify that we merge windows before producing output so users don't see undesired
     // unmerged windows.
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
-        Sessions.withGapDuration(Duration.millis(10)),
-        mockTrigger,
-        AccumulationMode.DISCARDING_FIRED_PANES,
-        Duration.millis(0));
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
+        ReduceFnTester.nonCombining(Sessions.withGapDuration(Duration.millis(10)), mockTrigger,
+            AccumulationMode.DISCARDING_FIRED_PANES, Duration.millis(0));
 
     // All on time data, verify watermark hold.
     when(mockTrigger.onMerge(Mockito.<Trigger<IntervalWindow>.OnMergeContext>any()))
@@ -495,8 +511,7 @@ public class TriggerExecutorTest {
     when(mockTrigger.onElement(Mockito.<Trigger<IntervalWindow>.OnElementContext>any()))
         .thenReturn(TriggerResult.CONTINUE, TriggerResult.CONTINUE);
     tester.injectElements(
-        TimestampedValue.of(1, new Instant(1)),
-        TimestampedValue.of(10, new Instant(10)));
+        TimestampedValue.of(1, new Instant(1)), TimestampedValue.of(10, new Instant(10)));
 
     when(mockTrigger.onTimer(Mockito.<Trigger<IntervalWindow>.OnTimerContext>any()))
         .thenReturn(TriggerResult.CONTINUE);
@@ -513,17 +528,15 @@ public class TriggerExecutorTest {
 
   @Test
   public void testDropDataMultipleWindows() throws Exception {
-    TriggerTester<Integer, Integer, IntervalWindow> tester = TriggerTester.combining(
+    ReduceFnTester<Integer, Integer, IntervalWindow> tester = ReduceFnTester.combining(
         SlidingWindows.of(Duration.millis(100)).every(Duration.millis(30)),
-        AfterWatermark.<IntervalWindow>pastEndOfWindow(),
-        AccumulationMode.ACCUMULATING_FIRED_PANES,
-        new Sum.SumIntegerFn().<String>asKeyedFn(),
-        VarIntCoder.of(),
-        Duration.millis(20));
+        AfterWatermark.<IntervalWindow>pastEndOfWindow(), AccumulationMode.ACCUMULATING_FIRED_PANES,
+        new Sum.SumIntegerFn().<String>asKeyedFn(), VarIntCoder.of(), Duration.millis(20));
 
     tester.injectElements(
-        TimestampedValue.of(10, new Instant(23)),  // [-60, 40), [-30, 70), [0, 100)
-        TimestampedValue.of(12, new Instant(40))); // [-30, 70), [0, 100), [30, 130)
+        TimestampedValue.of(10, new Instant(23)), // [-60, 40), [-30, 70), [0, 100)
+        TimestampedValue.of(12, new Instant(40)));
+        // [-30, 70), [0, 100), [30, 130)
 
     assertEquals(0, tester.getElementsDroppedDueToLateness());
     assertEquals(0, tester.getElementsDroppedDueToClosedWindow());
@@ -535,8 +548,8 @@ public class TriggerExecutorTest {
     assertEquals(0, tester.getElementsDroppedDueToLateness());
     assertEquals(1, tester.getElementsDroppedDueToClosedWindow());
 
-    tester.injectElements(
-        TimestampedValue.of(16, new Instant(40))); // dropped b/c lateness, assigned to 3 windows
+    tester.injectElements(TimestampedValue.of(16, new Instant(40)));
+        // dropped b/c lateness, assigned to 3 windows
 
     assertEquals(3, tester.getElementsDroppedDueToLateness());
     assertEquals(1, tester.getElementsDroppedDueToClosedWindow());
@@ -546,11 +559,9 @@ public class TriggerExecutorTest {
   public void testIdempotentEmptyPanes() throws Exception {
     // Test uninteresting (empty) panes don't increment the index or otherwise
     // modify PaneInfo.
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
-        FixedWindows.of(Duration.millis(10)),
-        mockTrigger,
-        AccumulationMode.DISCARDING_FIRED_PANES,
-        Duration.millis(100));
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
+        ReduceFnTester.nonCombining(FixedWindows.of(Duration.millis(10)), mockTrigger,
+            AccumulationMode.DISCARDING_FIRED_PANES, Duration.millis(100));
 
     // Inject a couple of on-time elements and fire at the window end.
     injectElement(tester, 1, TriggerResult.CONTINUE);
@@ -580,8 +591,8 @@ public class TriggerExecutorTest {
 
     // The late pane has the correct indices.
     assertThat(output.get(1).getValue(), contains(3));
-    assertThat(output.get(1).getPane(),
-        equalTo(PaneInfo.createPane(false, true, Timing.LATE, 1, 1)));
+    assertThat(
+        output.get(1).getPane(), equalTo(PaneInfo.createPane(false, true, Timing.LATE, 1, 1)));
 
     assertTrue(tester.isMarkedFinished(firstWindow));
     tester.assertHasOnlyGlobalAndFinishedSetsFor(firstWindow);
@@ -594,11 +605,9 @@ public class TriggerExecutorTest {
   public void testIdempotentEmptyPanesAccumulating() throws Exception {
     // Test uninteresting (empty) panes don't increment the index or otherwise
     // modify PaneInfo.
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
-        FixedWindows.of(Duration.millis(10)),
-        mockTrigger,
-        AccumulationMode.ACCUMULATING_FIRED_PANES,
-        Duration.millis(100));
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
+        ReduceFnTester.nonCombining(FixedWindows.of(Duration.millis(10)), mockTrigger,
+            AccumulationMode.ACCUMULATING_FIRED_PANES, Duration.millis(100));
 
     // Inject a couple of on-time elements and fire at the window end.
     injectElement(tester, 1, TriggerResult.CONTINUE);
@@ -630,8 +639,8 @@ public class TriggerExecutorTest {
 
     // The late pane has the correct indices.
     assertThat(output.get(1).getValue(), containsInAnyOrder(1, 2, 3));
-    assertThat(output.get(1).getPane(),
-        equalTo(PaneInfo.createPane(false, true, Timing.LATE, 1, 1)));
+    assertThat(
+        output.get(1).getPane(), equalTo(PaneInfo.createPane(false, true, Timing.LATE, 1, 1)));
 
     assertTrue(tester.isMarkedFinished(firstWindow));
     tester.assertHasOnlyGlobalAndFinishedSetsFor(firstWindow);
@@ -642,6 +651,7 @@ public class TriggerExecutorTest {
 
   private class ResultCaptor<T> implements Answer<T> {
     private T result = null;
+
     public T get() {
       return result;
     }
@@ -661,27 +671,25 @@ public class TriggerExecutorTest {
    */
   @Test
   public void testEmptyOnTimeFromOrFinally() throws Exception {
-    TriggerTester<Integer, Integer, IntervalWindow> tester = TriggerTester.combining(
-        FixedWindows.of(Duration.millis(10)),
-        AfterEach.<IntervalWindow>inOrder(
-            Repeatedly.<IntervalWindow>forever(
-                AfterProcessingTime.<IntervalWindow>pastFirstElementInPane()
-                    .plusDelayOf(new Duration(5)))
-            .orFinally(AfterWatermark.<IntervalWindow>pastEndOfWindow()),
-            Repeatedly.<IntervalWindow>forever(
-                AfterProcessingTime.<IntervalWindow>pastFirstElementInPane()
-                    .plusDelayOf(new Duration(25)))),
-        AccumulationMode.ACCUMULATING_FIRED_PANES,
-        new Sum.SumIntegerFn().<String>asKeyedFn(), VarIntCoder.of(),
-        Duration.millis(100));
+    ReduceFnTester<Integer, Integer, IntervalWindow> tester =
+        ReduceFnTester.combining(FixedWindows.of(Duration.millis(10)),
+            AfterEach.<IntervalWindow>inOrder(
+                Repeatedly
+                    .<IntervalWindow>forever(
+                        AfterProcessingTime.<IntervalWindow>pastFirstElementInPane().plusDelayOf(
+                            new Duration(5)))
+                    .orFinally(AfterWatermark.<IntervalWindow>pastEndOfWindow()),
+                Repeatedly.<IntervalWindow>forever(
+                    AfterProcessingTime.<IntervalWindow>pastFirstElementInPane().plusDelayOf(
+                        new Duration(25)))),
+            AccumulationMode.ACCUMULATING_FIRED_PANES, new Sum.SumIntegerFn().<String>asKeyedFn(),
+            VarIntCoder.of(), Duration.millis(100));
 
     tester.advanceInputWatermark(new Instant(0));
     tester.advanceProcessingTime(new Instant(0));
 
-    tester.injectElements(
-        TimestampedValue.of(1, new Instant(1)),
-        TimestampedValue.of(1, new Instant(3)),
-        TimestampedValue.of(1, new Instant(7)),
+    tester.injectElements(TimestampedValue.of(1, new Instant(1)),
+        TimestampedValue.of(1, new Instant(3)), TimestampedValue.of(1, new Instant(7)),
         TimestampedValue.of(1, new Instant(5)));
 
     tester.advanceProcessingTime(new Instant(6));
@@ -693,10 +701,12 @@ public class TriggerExecutorTest {
     assertThat(output.get(0), WindowMatchers.isSingleWindowedValue(4, 1, 0, 10));
     assertThat(output.get(1), WindowMatchers.isSingleWindowedValue(4, 9, 0, 10));
 
-    assertThat(output.get(0), WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(
-        true, false, Timing.EARLY, 0, -1)));
-    assertThat(output.get(1), WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(
-        false, false, Timing.ON_TIME, 1, 0)));
+    assertThat(
+        output.get(0),
+        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(true, false, Timing.EARLY, 0, -1)));
+    assertThat(
+        output.get(1),
+        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, false, Timing.ON_TIME, 1, 0)));
   }
 
   /**
@@ -706,27 +716,25 @@ public class TriggerExecutorTest {
    */
   @Test
   public void testProcessingTime() throws Exception {
-    TriggerTester<Integer, Integer, IntervalWindow> tester = TriggerTester.combining(
-        FixedWindows.of(Duration.millis(10)),
-        AfterEach.<IntervalWindow>inOrder(
-            Repeatedly.<IntervalWindow>forever(
-                AfterProcessingTime.<IntervalWindow>pastFirstElementInPane()
-                    .plusDelayOf(new Duration(5)))
-            .orFinally(AfterWatermark.<IntervalWindow>pastEndOfWindow()),
-            Repeatedly.<IntervalWindow>forever(
-                AfterProcessingTime.<IntervalWindow>pastFirstElementInPane()
-                    .plusDelayOf(new Duration(25)))),
-        AccumulationMode.ACCUMULATING_FIRED_PANES,
-        new Sum.SumIntegerFn().<String>asKeyedFn(), VarIntCoder.of(),
-        Duration.millis(100));
+    ReduceFnTester<Integer, Integer, IntervalWindow> tester =
+        ReduceFnTester.combining(FixedWindows.of(Duration.millis(10)),
+            AfterEach.<IntervalWindow>inOrder(
+                Repeatedly
+                    .<IntervalWindow>forever(
+                        AfterProcessingTime.<IntervalWindow>pastFirstElementInPane().plusDelayOf(
+                            new Duration(5)))
+                    .orFinally(AfterWatermark.<IntervalWindow>pastEndOfWindow()),
+                Repeatedly.<IntervalWindow>forever(
+                    AfterProcessingTime.<IntervalWindow>pastFirstElementInPane().plusDelayOf(
+                        new Duration(25)))),
+            AccumulationMode.ACCUMULATING_FIRED_PANES, new Sum.SumIntegerFn().<String>asKeyedFn(),
+            VarIntCoder.of(), Duration.millis(100));
 
     tester.advanceInputWatermark(new Instant(0));
     tester.advanceProcessingTime(new Instant(0));
 
-    tester.injectElements(
-        TimestampedValue.of(1, new Instant(1)),
-        TimestampedValue.of(1, new Instant(3)),
-        TimestampedValue.of(1, new Instant(7)),
+    tester.injectElements(TimestampedValue.of(1, new Instant(1)),
+        TimestampedValue.of(1, new Instant(3)), TimestampedValue.of(1, new Instant(7)),
         TimestampedValue.of(1, new Instant(5)));
     // 4 elements all at processing time 0
 
@@ -768,29 +776,30 @@ public class TriggerExecutorTest {
     assertThat(output.get(2), WindowMatchers.isSingleWindowedValue(11, 9, 0, 10));
     assertThat(output.get(3), WindowMatchers.isSingleWindowedValue(12, 9, 0, 10));
 
-    assertThat(output.get(0), WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(
-        true, false, Timing.EARLY, 0, -1)));
-    assertThat(output.get(1), WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(
-        false, false, Timing.ON_TIME, 1, 0)));
-    assertThat(output.get(2), WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(
-        false, false, Timing.LATE, 2, 1)));
-    assertThat(output.get(3), WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(
-        false, true, Timing.LATE, 3, 2)));
+    assertThat(
+        output.get(0),
+        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(true, false, Timing.EARLY, 0, -1)));
+    assertThat(
+        output.get(1),
+        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, false, Timing.ON_TIME, 1, 0)));
+    assertThat(
+        output.get(2),
+        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, false, Timing.LATE, 2, 1)));
+    assertThat(
+        output.get(3),
+        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, true, Timing.LATE, 3, 2)));
   }
 
   @Test
   public void testMultipleTimerTypes() throws Exception {
-    Trigger<IntervalWindow> trigger = spy(Repeatedly.forever(
-        AfterFirst.of(AfterProcessingTime.<IntervalWindow>pastFirstElementInPane().plusDelayOf(
-                          Duration.millis(10)),
-            AfterWatermark.<IntervalWindow>pastEndOfWindow())));
+    Trigger<IntervalWindow> trigger = spy(Repeatedly.forever(AfterFirst.of(
+        AfterProcessingTime.<IntervalWindow>pastFirstElementInPane().plusDelayOf(
+            Duration.millis(10)),
+        AfterWatermark.<IntervalWindow>pastEndOfWindow())));
 
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester =
-        TriggerTester.nonCombining(
-            FixedWindows.of(Duration.millis(10)),
-            trigger,
-            AccumulationMode.DISCARDING_FIRED_PANES,
-            Duration.standardDays(1));
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
+        ReduceFnTester.nonCombining(FixedWindows.of(Duration.millis(10)), trigger,
+            AccumulationMode.DISCARDING_FIRED_PANES, Duration.standardDays(1));
 
     tester.injectElements(TimestampedValue.of(1, new Instant(1)));
 

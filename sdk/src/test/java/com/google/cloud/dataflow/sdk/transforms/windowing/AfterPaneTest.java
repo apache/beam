@@ -24,7 +24,7 @@ import static org.junit.Assert.assertTrue;
 import com.google.cloud.dataflow.sdk.WindowMatchers;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.transforms.Sum.SumIntegerFn;
-import com.google.cloud.dataflow.sdk.util.TriggerTester;
+import com.google.cloud.dataflow.sdk.util.ReduceFnTester;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
 import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 
@@ -43,7 +43,7 @@ public class AfterPaneTest {
   @Test
   public void testAfterPaneWithGlobalWindowsAndCombining() throws Exception {
     Duration windowDuration = Duration.millis(10);
-    TriggerTester<Integer, Integer, IntervalWindow> tester = TriggerTester.combining(
+    ReduceFnTester<Integer, Integer, IntervalWindow> tester = ReduceFnTester.combining(
         FixedWindows.of(windowDuration),
         AfterPane.<IntervalWindow>elementCountAtLeast(2),
         AccumulationMode.DISCARDING_FIRED_PANES,
@@ -74,7 +74,7 @@ public class AfterPaneTest {
   @Test
   public void testAfterPaneWithFixedWindow() throws Exception {
     Duration windowDuration = Duration.millis(10);
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
         FixedWindows.of(windowDuration),
         AfterPane.<IntervalWindow>elementCountAtLeast(2),
         AccumulationMode.DISCARDING_FIRED_PANES,
@@ -103,7 +103,7 @@ public class AfterPaneTest {
   @Test
   public void testAfterPaneWithMerging() throws Exception {
     Duration windowDuration = Duration.millis(10);
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
         Sessions.withGapDuration(windowDuration),
         AfterPane.<IntervalWindow>elementCountAtLeast(2),
         AccumulationMode.DISCARDING_FIRED_PANES,

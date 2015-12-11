@@ -27,8 +27,8 @@ import com.google.cloud.dataflow.sdk.WindowMatchers;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.MergeResult;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerResult;
+import com.google.cloud.dataflow.sdk.util.ReduceFnTester;
 import com.google.cloud.dataflow.sdk.util.TimeDomain;
-import com.google.cloud.dataflow.sdk.util.TriggerTester;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
 import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 
@@ -51,12 +51,12 @@ public class AfterFirstTest {
   @Mock private OnceTrigger<IntervalWindow> mockTrigger1;
   @Mock private OnceTrigger<IntervalWindow> mockTrigger2;
 
-  private TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester;
+  private ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester;
   private IntervalWindow firstWindow;
 
   public void setUp(WindowFn<?, IntervalWindow> windowFn) throws Exception {
     MockitoAnnotations.initMocks(this);
-    tester = TriggerTester.nonCombining(
+    tester = ReduceFnTester.nonCombining(
         windowFn, AfterFirst.of(mockTrigger1, mockTrigger2),
         AccumulationMode.DISCARDING_FIRED_PANES,
         Duration.millis(100));
@@ -206,7 +206,7 @@ public class AfterFirstTest {
 
   @Test
   public void testAfterFirstRealTriggersFixedWindow() throws Exception {
-    tester = TriggerTester.nonCombining(FixedWindows.of(Duration.millis(50)),
+    tester = ReduceFnTester.nonCombining(FixedWindows.of(Duration.millis(50)),
         Repeatedly.<IntervalWindow>forever(
             AfterFirst.<IntervalWindow>of(
                 AfterPane.<IntervalWindow>elementCountAtLeast(5),
@@ -261,7 +261,7 @@ public class AfterFirstTest {
   @Test
   public void testAfterFirstMergingWindowSomeFinished() throws Exception {
     Duration windowDuration = Duration.millis(10);
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
         Sessions.withGapDuration(windowDuration),
         AfterFirst.<IntervalWindow>of(
             AfterProcessingTime.<IntervalWindow>pastFirstElementInPane()

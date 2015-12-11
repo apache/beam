@@ -20,8 +20,8 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.WindowMatchers;
+import com.google.cloud.dataflow.sdk.util.ReduceFnTester;
 import com.google.cloud.dataflow.sdk.util.TimeDomain;
-import com.google.cloud.dataflow.sdk.util.TriggerTester;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
 import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 
@@ -44,7 +44,7 @@ public class AfterSynchronizedProcessingTimeTest {
   @Test
   public void testAfterProcessingTimeWithFixedWindow() throws Exception {
     Duration windowDuration = Duration.millis(10);
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
         FixedWindows.of(windowDuration), underTest,
         AccumulationMode.DISCARDING_FIRED_PANES,
         Duration.millis(100));
@@ -73,7 +73,7 @@ public class AfterSynchronizedProcessingTimeTest {
   @Test
   public void testAfterProcessingTimeWithMergingWindow() throws Exception {
     Duration windowDuration = Duration.millis(10);
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
         Sessions.withGapDuration(windowDuration),
         underTest,
         AccumulationMode.DISCARDING_FIRED_PANES,
@@ -96,7 +96,7 @@ public class AfterSynchronizedProcessingTimeTest {
   @Test
   public void testAfterProcessingTimeWithMergingWindowAlreadyFired() throws Exception {
     Duration windowDuration = Duration.millis(10);
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
         Sessions.withGapDuration(windowDuration),
         underTest,
         AccumulationMode.DISCARDING_FIRED_PANES,
@@ -129,7 +129,7 @@ public class AfterSynchronizedProcessingTimeTest {
   @Test
   public void testAfterSynchronizedProcessingTimeIgnoresTimer() throws Exception {
     Duration windowDuration = Duration.millis(10);
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
         FixedWindows.of(windowDuration),
         new AfterSynchronizedProcessingTime<IntervalWindow>(),
         AccumulationMode.DISCARDING_FIRED_PANES,

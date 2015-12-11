@@ -21,7 +21,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 
-import com.google.cloud.dataflow.sdk.util.TriggerTester;
+import com.google.cloud.dataflow.sdk.util.ReduceFnTester;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
 import com.google.cloud.dataflow.sdk.values.TimestampedValue;
@@ -43,7 +43,7 @@ public class DefaultTriggerTest {
 
   @Test
   public void testDefaultTriggerWithFixedWindow() throws Exception {
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
         FixedWindows.of(Duration.millis(10)),
         DefaultTrigger.<IntervalWindow>of(),
         AccumulationMode.DISCARDING_FIRED_PANES,
@@ -82,7 +82,7 @@ public class DefaultTriggerTest {
 
   @Test
   public void testDefaultTriggerWithSessionWindow() throws Exception {
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
         Sessions.withGapDuration(Duration.millis(10)),
         DefaultTrigger.<IntervalWindow>of(),
         AccumulationMode.DISCARDING_FIRED_PANES,
@@ -113,7 +113,7 @@ public class DefaultTriggerTest {
 
   @Test
   public void testDefaultTriggerWithSlidingWindow() throws Exception {
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
         SlidingWindows.of(Duration.millis(10)).every(Duration.millis(5)),
         DefaultTrigger.<IntervalWindow>of(),
         AccumulationMode.DISCARDING_FIRED_PANES,
@@ -148,7 +148,7 @@ public class DefaultTriggerTest {
 
   @Test
   public void testDefaultTriggerWithContainedSessionWindow() throws Exception {
-    TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester = TriggerTester.nonCombining(
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
         Sessions.withGapDuration(Duration.millis(10)),
         DefaultTrigger.<IntervalWindow>of(),
         AccumulationMode.DISCARDING_FIRED_PANES,

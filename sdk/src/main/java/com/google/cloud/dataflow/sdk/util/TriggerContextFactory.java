@@ -40,16 +40,17 @@ import java.util.Collection;
 import java.util.Map;
 
 /**
- * Factory for creating instances of the various {@link Trigger} contexts.
+ * Factory for creating instances of the various {@link Trigger} contexts from the corresponding
+ * {@link ReduceFn} contexts.
  */
-class TriggerContextFactory<W extends BoundedWindow> {
+public class TriggerContextFactory<W extends BoundedWindow> {
 
   private final WindowingStrategy<?, W> windowingStrategy;
   private StateInternals stateInternals;
   private ActiveWindowSet<W> activeWindows;
 
-  TriggerContextFactory(WindowingStrategy<?, W> windowingStrategy, StateInternals stateInternals,
-      ActiveWindowSet<W> activeWindows) {
+  public TriggerContextFactory(WindowingStrategy<?, W> windowingStrategy,
+      StateInternals stateInternals, ActiveWindowSet<W> activeWindows) {
     this.windowingStrategy = windowingStrategy;
     this.stateInternals = stateInternals;
     this.activeWindows = activeWindows;

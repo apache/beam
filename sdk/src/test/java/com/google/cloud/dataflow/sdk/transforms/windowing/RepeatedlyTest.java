@@ -24,8 +24,8 @@ import static org.mockito.Mockito.when;
 
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.MergeResult;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerResult;
+import com.google.cloud.dataflow.sdk.util.ReduceFnTester;
 import com.google.cloud.dataflow.sdk.util.TimeDomain;
-import com.google.cloud.dataflow.sdk.util.TriggerTester;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
 import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 
@@ -46,13 +46,13 @@ import org.mockito.MockitoAnnotations;
 public class RepeatedlyTest {
   @Mock private Trigger<IntervalWindow> mockRepeated;
 
-  private TriggerTester<Integer, Iterable<Integer>, IntervalWindow> tester;
+  private ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester;
   private IntervalWindow firstWindow;
 
   public void setUp(WindowFn<?, IntervalWindow> windowFn) throws Exception {
     MockitoAnnotations.initMocks(this);
     Trigger<IntervalWindow> underTest = Repeatedly.forever(mockRepeated);
-    tester = TriggerTester.nonCombining(
+    tester = ReduceFnTester.nonCombining(
         windowFn, underTest,
         AccumulationMode.DISCARDING_FIRED_PANES,
         Duration.millis(100));
