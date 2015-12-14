@@ -369,7 +369,7 @@ public class DataflowWorker {
     }
 
     if (progress != null) {
-      status.setProgress(readerProgressToCloudProgress(progress));
+      status.setReportedProgress(readerProgressToCloudProgress(progress));
     }
     if (dynamicSplitResult instanceof Reader.DynamicSplitResultWithPosition) {
       Reader.DynamicSplitResultWithPosition asPosition =

@@ -19,7 +19,8 @@ import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtil
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.toCloudPosition;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.toDynamicSplitRequest;
 
-import com.google.api.services.dataflow.model.ApproximateProgress;
+import com.google.api.services.dataflow.model.ApproximateReportedProgress;
+import com.google.api.services.dataflow.model.ApproximateSplitRequest;
 import com.google.api.services.dataflow.model.ConcatPosition;
 import com.google.api.services.dataflow.model.Position;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
@@ -51,42 +52,72 @@ public class ReaderTestUtils {
         new ConcatPosition().setIndex(index).setPosition(innerPosition));
   }
 
-  public static ApproximateProgress approximateProgressAtPosition(@Nullable Position position) {
-    return new ApproximateProgress().setPosition(position);
+  public static ApproximateReportedProgress approximateProgressAtPosition(
+      @Nullable Position position) {
+    return new ApproximateReportedProgress().setPosition(position);
   }
 
-  public static ApproximateProgress approximateProgressAtIndex(@Nullable Long index) {
+  public static ApproximateSplitRequest approximateSplitRequestAtPosition(
+      @Nullable Position position) {
+    return new ApproximateSplitRequest().setPosition(position);
+  }
+
+  public static ApproximateReportedProgress approximateProgressAtIndex(
+      @Nullable Long index) {
     return approximateProgressAtPosition(positionAtIndex(index));
   }
 
-  public static ApproximateProgress approximateProgressAtByteOffset(@Nullable Long byteOffset) {
+  public static ApproximateSplitRequest approximateSplitRequestAtIndex(
+      @Nullable Long index) {
+    return approximateSplitRequestAtPosition(positionAtIndex(index));
+  }
+
+  public static ApproximateReportedProgress approximateProgressAtByteOffset(
+      @Nullable Long byteOffset) {
     return approximateProgressAtPosition(positionAtByteOffset(byteOffset));
   }
 
-  public static ApproximateProgress approximateProgressAtConcatPosition(
+  public static ApproximateSplitRequest approximateSplitRequestAtByteOffset(
+      @Nullable Long byteOffset) {
+    return approximateSplitRequestAtPosition(positionAtByteOffset(byteOffset));
+  }
+
+  public static ApproximateReportedProgress approximateProgressAtConcatPosition(
       @Nullable Integer index, @Nullable Position innerPosition) {
     return approximateProgressAtPosition(positionAtConcatPosition(index, innerPosition));
   }
 
-  public static ApproximateProgress approximateProgressAtFraction(@Nullable Float fraction) {
-    return new ApproximateProgress().setPercentComplete(fraction);
+  public static ApproximateSplitRequest approximateSplitRequestAtConcatPosition(
+      @Nullable Integer index, @Nullable Position innerPosition) {
+    return approximateSplitRequestAtPosition(positionAtConcatPosition(index, innerPosition));
   }
 
-  public static Reader.DynamicSplitRequest splitRequestAtPosition(@Nullable Position position) {
-    return toDynamicSplitRequest(approximateProgressAtPosition(position));
+  public static ApproximateReportedProgress approximateProgressAtFraction(
+      @Nullable Double fraction) {
+    return new ApproximateReportedProgress().setFractionConsumed(fraction);
+  }
+
+  public static ApproximateSplitRequest approximateSplitRequestAtFraction(
+      @Nullable Double fraction) {
+    return new ApproximateSplitRequest().setFractionConsumed(fraction);
+  }
+
+  public static Reader.DynamicSplitRequest splitRequestAtPosition(
+      @Nullable Position position) {
+    return toDynamicSplitRequest(approximateSplitRequestAtPosition(position));
   }
 
   public static Reader.DynamicSplitRequest splitRequestAtIndex(@Nullable Long index) {
-    return toDynamicSplitRequest(approximateProgressAtIndex(index));
+    return toDynamicSplitRequest(approximateSplitRequestAtIndex(index));
   }
 
   public static Reader.DynamicSplitRequest splitRequestAtByteOffset(@Nullable Long byteOffset) {
-    return toDynamicSplitRequest(approximateProgressAtByteOffset(byteOffset));
+    return toDynamicSplitRequest(approximateSplitRequestAtByteOffset(byteOffset));
   }
 
   public static Reader.DynamicSplitRequest splitRequestAtConcatPosition(
       @Nullable Integer index, @Nullable Position innerPosition) {
-    return toDynamicSplitRequest(approximateProgressAtConcatPosition(index, innerPosition));
+    return toDynamicSplitRequest(approximateSplitRequestAtConcatPosition(index, innerPosition));
   }
 
   public static Position positionFromSplitResult(Reader.DynamicSplitResult dynamicSplitResult) {
@@ -98,8 +129,8 @@ public class ReaderTestUtils {
     return readerProgressToCloudProgress(progress).getPosition();
   }
 
-  public static Reader.DynamicSplitRequest splitRequestAtFraction(float fraction) {
-    return toDynamicSplitRequest(approximateProgressAtFraction(fraction));
+  public static Reader.DynamicSplitRequest splitRequestAtFraction(double fraction) {
+    return toDynamicSplitRequest(approximateSplitRequestAtFraction(fraction));
   }
 
   /**

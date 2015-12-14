@@ -19,9 +19,10 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 import static com.google.api.client.util.Preconditions.checkNotNull;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudPositionToReaderPosition;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.splitRequestToApproximateProgress;
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.splitRequestToApproximateSplitRequest;
 
-import com.google.api.services.dataflow.model.ApproximateProgress;
+import com.google.api.services.dataflow.model.ApproximateReportedProgress;
+import com.google.api.services.dataflow.model.ApproximateSplitRequest;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.io.range.OffsetRangeTracker;
@@ -369,12 +370,12 @@ public class TextReader<T> extends Reader<T> {
           new com.google.api.services.dataflow.model.Position();
       currentPosition.setByteOffset(offset);
 
-      ApproximateProgress progress = new ApproximateProgress();
+      ApproximateReportedProgress progress = new ApproximateReportedProgress();
       progress.setPosition(currentPosition);
 
       // If endOffset is unspecified, we don't know the fraction consumed.
       if (rangeTracker.getStopPosition() != Long.MAX_VALUE) {
-        progress.setPercentComplete((float) rangeTracker.getFractionConsumed());
+        progress.setFractionConsumed(rangeTracker.getFractionConsumed());
       }
 
       return cloudProgressToReaderProgress(progress);
@@ -385,14 +386,14 @@ public class TextReader<T> extends Reader<T> {
       checkNotNull(splitRequest);
 
       // Currently, file-based Reader only supports split at a byte offset.
-      ApproximateProgress splitProgress = splitRequestToApproximateProgress(splitRequest);
+      ApproximateSplitRequest splitProgress = splitRequestToApproximateSplitRequest(splitRequest);
       com.google.api.services.dataflow.model.Position splitPosition = splitProgress.getPosition();
       if (splitPosition == null) {
-        if (splitProgress.getPercentComplete() != null) {
-          float percentageComplete = splitProgress.getPercentComplete().floatValue();
-          if (percentageComplete <= 0 || percentageComplete >= 1) {
+        if (splitProgress.getFractionConsumed() != null) {
+          float fractionConsumed = splitProgress.getFractionConsumed().floatValue();
+          if (fractionConsumed <= 0 || fractionConsumed >= 1) {
             LOG.warn(
-                "TextReader cannot be split since the provided percentage of "
+                "TextReader cannot be split since the provided fraction of "
                 + "work to be completed is out of the valid range (0, 1). Requested: {}",
                 splitRequest);
           }
@@ -407,7 +408,7 @@ public class TextReader<T> extends Reader<T> {
           }
 
           splitPosition.setByteOffset(
-              rangeTracker.getPositionForFractionConsumed(percentageComplete));
+              rangeTracker.getPositionForFractionConsumed(fractionConsumed));
         } else {
           LOG.warn(
               "TextReader requires either a position or percentage of work to be complete to"

@@ -21,7 +21,7 @@ import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.split
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudPositionToReaderPosition;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.readerProgressToCloudProgress;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.splitRequestToApproximateProgress;
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.splitRequestToApproximateSplitRequest;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.toCloudPosition;
 import static com.google.cloud.dataflow.sdk.testing.SystemNanoTimeSleeper.sleepMillis;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind;
@@ -37,7 +37,8 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import com.google.api.services.dataflow.model.ApproximateProgress;
+import com.google.api.services.dataflow.model.ApproximateReportedProgress;
+import com.google.api.services.dataflow.model.ApproximateSplitRequest;
 import com.google.api.services.dataflow.model.Position;
 import com.google.cloud.dataflow.sdk.io.range.OffsetRangeTracker;
 import com.google.cloud.dataflow.sdk.util.common.Counter;
@@ -127,7 +128,8 @@ public class ReadOperationTest {
     for (int i = 0; i < 5; ++i) {
       sleepMillis(500); // Wait for the operation to start and block.
       // Ensure that getProgress() doesn't block while the next() method is blocked.
-      ApproximateProgress progress = readerProgressToCloudProgress(readOperation.getProgress());
+      ApproximateReportedProgress progress = readerProgressToCloudProgress(
+          readOperation.getProgress());
       long observedIndex = progress.getPosition().getRecordIndex().longValue();
       assertTrue("Actual: " + observedIndex, i == observedIndex || i == observedIndex + 1);
       iterator.offerNext(i);
@@ -161,9 +163,10 @@ public class ReadOperationTest {
     assertEquals(positionAtIndex(8L), toCloudPosition(split.getAcceptedPosition()));
 
     // Check that the progress has been recomputed.
-    ApproximateProgress progress = readerProgressToCloudProgress(readOperation.getProgress());
+    ApproximateReportedProgress progress = readerProgressToCloudProgress(
+        readOperation.getProgress());
     assertEquals(2, progress.getPosition().getRecordIndex().longValue());
-    assertEquals(2.0f / 8.0f, progress.getPercentComplete(), 0.001f);
+    assertEquals(2.0f / 8.0, progress.getFractionConsumed(), 0.001);
 
     receiver.unblockProcess();
     iterator.offerNext(2);
@@ -314,21 +317,23 @@ public class ReadOperationTest {
     public Reader.Progress getProgress() {
       Preconditions.checkState(!isClosed);
       return cloudProgressToReaderProgress(
-          new ApproximateProgress().setPosition(new Position().setRecordIndex((long) current))
-                                   .setPercentComplete((float) tracker.getFractionConsumed()));
+          new ApproximateReportedProgress()
+              .setPosition(new Position().setRecordIndex((long) current))
+              .setFractionConsumed(tracker.getFractionConsumed()));
     }
 
     @Override
     public Reader.DynamicSplitResult requestDynamicSplit(
         Reader.DynamicSplitRequest splitRequest) {
       Preconditions.checkState(!isClosed);
-      ApproximateProgress progress = splitRequestToApproximateProgress(splitRequest);
-      int index = progress.getPosition().getRecordIndex().intValue();
+      ApproximateSplitRequest approximateSplitRequest = splitRequestToApproximateSplitRequest(
+          splitRequest);
+      int index = approximateSplitRequest.getPosition().getRecordIndex().intValue();
       if (!tracker.trySplitAtPosition(index)) {
         return null;
       }
       return new Reader.DynamicSplitResultWithPosition(
-          cloudPositionToReaderPosition(progress.getPosition()));
+          cloudPositionToReaderPosition(approximateSplitRequest.getPosition()));
     }
 
     public int offerNext(int next) {

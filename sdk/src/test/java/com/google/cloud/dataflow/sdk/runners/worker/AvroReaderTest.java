@@ -163,15 +163,15 @@ public class AvroReaderTest {
     AvroReader<T> avroReader = new AvroReader<>(filename, startOffset, endOffset, coder, null);
     new ExecutorTestUtils.TestReaderObserver(avroReader, actualSizes);
 
-    float progressReported = 0;
+    double progressReported = 0;
     List<T> actualElems = new ArrayList<>();
     try (Reader.ReaderIterator<WindowedValue<T>> iterator = avroReader.iterator()) {
       while (iterator.hasNext()) {
         actualElems.add(iterator.next().getValue());
-        float progress = 0.0f;
+        double progress = 0.0;
         Progress readerProgress = iterator.getProgress();
         if (readerProgress != null) {
-          progress = readerProgressToCloudProgress(iterator.getProgress()).getPercentComplete();
+          progress = readerProgressToCloudProgress(iterator.getProgress()).getFractionConsumed();
         }
         // Make sure that the reported progress is monotonous.
         Assert.assertThat(progress, greaterThanOrEqualTo(progressReported));

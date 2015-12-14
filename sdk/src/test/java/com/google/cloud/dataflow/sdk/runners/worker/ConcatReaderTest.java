@@ -28,7 +28,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-import com.google.api.services.dataflow.model.ApproximateProgress;
+import com.google.api.services.dataflow.model.ApproximateReportedProgress;
 import com.google.api.services.dataflow.model.Source;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
@@ -371,7 +371,8 @@ public class ConcatReaderTest {
       for (int readerIndex = 0; readerIndex < sizes.length; readerIndex++) {
         for (int recordIndex = 0; recordIndex < sizes[readerIndex]; recordIndex++) {
           iterator.next();
-          ApproximateProgress progress = readerProgressToCloudProgress(iterator.getProgress());
+          ApproximateReportedProgress progress =
+              readerProgressToCloudProgress(iterator.getProgress());
           assertEquals(
               readerIndex, progress.getPosition().getConcatPosition().getIndex().intValue());
         }

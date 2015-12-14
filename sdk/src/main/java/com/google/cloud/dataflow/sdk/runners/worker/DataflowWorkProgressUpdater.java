@@ -23,7 +23,7 @@ import static com.google.cloud.dataflow.sdk.util.TimeUtil.fromCloudDuration;
 import static com.google.cloud.dataflow.sdk.util.TimeUtil.fromCloudTime;
 import static com.google.cloud.dataflow.sdk.util.TimeUtil.toCloudDuration;
 
-import com.google.api.services.dataflow.model.ApproximateProgress;
+import com.google.api.services.dataflow.model.ApproximateSplitRequest;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemServiceState;
 import com.google.api.services.dataflow.model.WorkItemStatus;
@@ -99,7 +99,7 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
           fromCloudDuration(result.getReportStatusInterval()).getMillis(),
           leaseRemainingTime(getLeaseExpirationTimestamp(result)));
 
-      ApproximateProgress suggestedStopPoint = result.getSuggestedStopPoint();
+      ApproximateSplitRequest suggestedStopPoint = result.getSplitRequest();
       if (suggestedStopPoint != null) {
         LOG.info("Proposing dynamic split of work unit {} at {}", workString(), suggestedStopPoint);
         dynamicSplitResultToReport = worker.requestDynamicSplit(

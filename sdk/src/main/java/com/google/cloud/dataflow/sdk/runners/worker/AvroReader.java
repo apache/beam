@@ -18,7 +18,8 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
 
-import com.google.api.services.dataflow.model.ApproximateProgress;
+import com.google.api.services.dataflow.model.ApproximateReportedProgress;
+import com.google.api.services.dataflow.model.ApproximateSplitRequest;
 import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.io.AvroSource;
 import com.google.cloud.dataflow.sdk.io.BoundedSource;
@@ -135,8 +136,8 @@ public class AvroReader<T> extends Reader<WindowedValue<T>> {
       if (readerProgress == null) {
         return null;
       }
-      ApproximateProgress progress = new ApproximateProgress();
-      progress.setPercentComplete(readerProgress.floatValue());
+      ApproximateReportedProgress progress = new ApproximateReportedProgress();
+      progress.setFractionConsumed(readerProgress);
       return cloudProgressToReaderProgress(progress);
     }
 
@@ -147,9 +148,9 @@ public class AvroReader<T> extends Reader<WindowedValue<T>> {
 
     @Override
     public DynamicSplitResult requestDynamicSplit(DynamicSplitRequest splitRequest) {
-      ApproximateProgress splitProgress =
-          SourceTranslationUtils.splitRequestToApproximateProgress(splitRequest);
-      double splitAtFraction = splitProgress.getPercentComplete();
+      ApproximateSplitRequest splitProgress =
+          SourceTranslationUtils.splitRequestToApproximateSplitRequest(splitRequest);
+      double splitAtFraction = splitProgress.getFractionConsumed();
       LOG.info("Received request for dynamic split at {}", splitAtFraction);
       OffsetBasedSource<T> residual = reader.splitAtFraction(splitAtFraction);
       if (residual == null) {

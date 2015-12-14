@@ -19,10 +19,11 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 import static com.google.api.client.util.Preconditions.checkNotNull;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudPositionToReaderPosition;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.splitRequestToApproximateProgress;
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.splitRequestToApproximateSplitRequest;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.SUM;
 
-import com.google.api.services.dataflow.model.ApproximateProgress;
+import com.google.api.services.dataflow.model.ApproximateReportedProgress;
+import com.google.api.services.dataflow.model.ApproximateSplitRequest;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
@@ -274,7 +275,7 @@ public class GroupingShuffleReader<K, V> extends Reader<WindowedValue<KV<K, Reit
     public Progress getProgress() {
       com.google.api.services.dataflow.model.Position position =
           new com.google.api.services.dataflow.model.Position();
-      ApproximateProgress progress = new ApproximateProgress();
+      ApproximateReportedProgress progress = new ApproximateReportedProgress();
       ByteArrayShufflePosition groupStart = rangeTracker.getLastGroupStart();
       if (groupStart != null) {
         position.setShufflePosition(groupStart.encodeBase64());
@@ -291,7 +292,7 @@ public class GroupingShuffleReader<K, V> extends Reader<WindowedValue<KV<K, Reit
     @Override
     public DynamicSplitResult requestDynamicSplit(DynamicSplitRequest splitRequest) {
       checkNotNull(splitRequest);
-      ApproximateProgress splitProgress = splitRequestToApproximateProgress(
+      ApproximateSplitRequest splitProgress = splitRequestToApproximateSplitRequest(
           splitRequest);
       com.google.api.services.dataflow.model.Position splitPosition = splitProgress.getPosition();
       if (splitPosition == null) {

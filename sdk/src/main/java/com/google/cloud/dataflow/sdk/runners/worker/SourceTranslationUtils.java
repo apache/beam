@@ -21,7 +21,8 @@ import static com.google.cloud.dataflow.sdk.util.Structs.addDictionary;
 import static com.google.cloud.dataflow.sdk.util.Structs.addLong;
 import static com.google.cloud.dataflow.sdk.util.Structs.getDictionary;
 
-import com.google.api.services.dataflow.model.ApproximateProgress;
+import com.google.api.services.dataflow.model.ApproximateReportedProgress;
+import com.google.api.services.dataflow.model.ApproximateSplitRequest;
 import com.google.api.services.dataflow.model.Position;
 import com.google.api.services.dataflow.model.Source;
 import com.google.api.services.dataflow.model.SourceMetadata;
@@ -39,7 +40,7 @@ import javax.annotation.Nullable;
  */
 public class SourceTranslationUtils {
   public static Reader.Progress cloudProgressToReaderProgress(
-      @Nullable ApproximateProgress cloudProgress) {
+      @Nullable ApproximateReportedProgress cloudProgress) {
     return cloudProgress == null ? null : new DataflowReaderProgress(cloudProgress);
   }
 
@@ -47,7 +48,7 @@ public class SourceTranslationUtils {
     return cloudPosition == null ? null : new DataflowReaderPosition(cloudPosition);
   }
 
-  public static ApproximateProgress readerProgressToCloudProgress(
+  public static ApproximateReportedProgress readerProgressToCloudProgress(
       @Nullable Reader.Progress readerProgress) {
     return readerProgress == null ? null : ((DataflowReaderProgress) readerProgress).cloudProgress;
   }
@@ -56,22 +57,21 @@ public class SourceTranslationUtils {
     return readerPosition == null ? null : ((DataflowReaderPosition) readerPosition).cloudPosition;
   }
 
-  public static ApproximateProgress splitRequestToApproximateProgress(
+  public static ApproximateSplitRequest splitRequestToApproximateSplitRequest(
       @Nullable Reader.DynamicSplitRequest splitRequest) {
     return (splitRequest == null)
-        ? null : ((DataflowDynamicSplitRequest) splitRequest).approximateProgress;
+        ? null : ((DataflowDynamicSplitRequest) splitRequest).splitRequest;
   }
 
   public static Reader.DynamicSplitRequest toDynamicSplitRequest(
-      @Nullable ApproximateProgress approximateProgress) {
-    return (approximateProgress == null)
-        ? null : new DataflowDynamicSplitRequest(approximateProgress);
+      @Nullable ApproximateSplitRequest splitRequest) {
+    return (splitRequest == null) ? null : new DataflowDynamicSplitRequest(splitRequest);
   }
 
   static class DataflowReaderProgress implements Reader.Progress {
-    public final ApproximateProgress cloudProgress;
+    public final ApproximateReportedProgress cloudProgress;
 
-    public DataflowReaderProgress(ApproximateProgress cloudProgress) {
+    public DataflowReaderProgress(ApproximateReportedProgress cloudProgress) {
       this.cloudProgress = cloudProgress;
     }
 
@@ -135,15 +135,15 @@ public class SourceTranslationUtils {
   }
 
   private static class DataflowDynamicSplitRequest implements Reader.DynamicSplitRequest {
-    public final ApproximateProgress approximateProgress;
+    public final ApproximateSplitRequest splitRequest;
 
-    private DataflowDynamicSplitRequest(ApproximateProgress approximateProgress) {
-      this.approximateProgress = approximateProgress;
+    private DataflowDynamicSplitRequest(ApproximateSplitRequest splitRequest) {
+      this.splitRequest = splitRequest;
     }
 
     @Override
     public String toString() {
-      return String.valueOf(approximateProgress);
+      return String.valueOf(splitRequest);
     }
   }
 }

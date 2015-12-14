@@ -18,10 +18,11 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudPositionToReaderPosition;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.splitRequestToApproximateProgress;
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.splitRequestToApproximateSplitRequest;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.api.services.dataflow.model.ApproximateProgress;
+import com.google.api.services.dataflow.model.ApproximateReportedProgress;
+import com.google.api.services.dataflow.model.ApproximateSplitRequest;
 import com.google.api.services.dataflow.model.ConcatPosition;
 import com.google.api.services.dataflow.model.Source;
 import com.google.cloud.dataflow.sdk.io.range.OffsetRangeTracker;
@@ -200,7 +201,7 @@ public class ConcatReader<T> extends Reader<T> {
         concatPosition.setPosition(positionOfCurrentIterator);
       }
 
-      ApproximateProgress progress = new ApproximateProgress();
+      ApproximateReportedProgress progress = new ApproximateReportedProgress();
       com.google.api.services.dataflow.model.Position currentPosition =
           new com.google.api.services.dataflow.model.Position();
       currentPosition.setConcatPosition(concatPosition);
@@ -213,7 +214,7 @@ public class ConcatReader<T> extends Reader<T> {
     public DynamicSplitResult requestDynamicSplit(DynamicSplitRequest splitRequest) {
       checkNotNull(splitRequest);
 
-      ApproximateProgress splitProgress = splitRequestToApproximateProgress(splitRequest);
+      ApproximateSplitRequest splitProgress = splitRequestToApproximateSplitRequest(splitRequest);
       com.google.api.services.dataflow.model.Position cloudPosition = splitProgress.getPosition();
       if (cloudPosition == null) {
         LOG.warn("Concat only supports split at a Position. Requested: {}", splitRequest);

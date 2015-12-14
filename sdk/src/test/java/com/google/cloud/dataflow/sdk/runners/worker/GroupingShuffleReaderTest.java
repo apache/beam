@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.runners.worker;
 
 import static com.google.api.client.util.Base64.encodeBase64URLSafeString;
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.approximateSplitRequestAtPosition;
 import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.positionFromSplitResult;
 import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.splitRequestAtPosition;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.readerProgressToCloudProgress;
@@ -29,7 +30,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import com.google.api.services.dataflow.model.ApproximateProgress;
+import com.google.api.services.dataflow.model.ApproximateReportedProgress;
 import com.google.api.services.dataflow.model.Position;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
@@ -642,7 +643,8 @@ public class GroupingShuffleReaderTest {
       Integer i = 0;
       while (readerIterator.hasNext()) {
         assertTrue(readerIterator.hasNext());
-        ApproximateProgress progress = readerProgressToCloudProgress(readerIterator.getProgress());
+        ApproximateReportedProgress progress = readerProgressToCloudProgress(
+            readerIterator.getProgress());
         assertNotNull(progress.getPosition().getShufflePosition());
 
         // Compare returned position with the expected position.
@@ -662,11 +664,7 @@ public class GroupingShuffleReaderTest {
       proposedSplitPosition.setShufflePosition(stop);
       assertNull(
           readerIterator.requestDynamicSplit(
-              toDynamicSplitRequest(createApproximateProgress(proposedSplitPosition))));
+              toDynamicSplitRequest(approximateSplitRequestAtPosition(proposedSplitPosition))));
     }
-  }
-
-  private ApproximateProgress createApproximateProgress(Position position) {
-    return new ApproximateProgress().setPosition(position);
   }
 }

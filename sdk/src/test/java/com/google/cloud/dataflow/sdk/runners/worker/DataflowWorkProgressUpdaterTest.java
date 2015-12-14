@@ -17,11 +17,11 @@
 package com.google.cloud.dataflow.sdk.runners.worker;
 
 import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.approximateProgressAtIndex;
-import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.approximateProgressAtPosition;
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.approximateSplitRequestAtPosition;
 import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.positionAtIndex;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudPositionToReaderPosition;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.splitRequestToApproximateProgress;
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.splitRequestToApproximateSplitRequest;
 import static com.google.cloud.dataflow.sdk.testing.SystemNanoTimeSleeper.sleepMillis;
 import static com.google.cloud.dataflow.sdk.util.CloudCounterUtils.extractCounter;
 import static com.google.cloud.dataflow.sdk.util.CloudMetricUtils.extractCloudMetric;
@@ -40,7 +40,8 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
-import com.google.api.services.dataflow.model.ApproximateProgress;
+import com.google.api.services.dataflow.model.ApproximateReportedProgress;
+import com.google.api.services.dataflow.model.ApproximateSplitRequest;
 import com.google.api.services.dataflow.model.MetricUpdate;
 import com.google.api.services.dataflow.model.Position;
 import com.google.api.services.dataflow.model.WorkItem;
@@ -83,7 +84,7 @@ import javax.annotation.Nullable;
 @RunWith(JUnit4.class)
 public class DataflowWorkProgressUpdaterTest {
   static class TestMapTaskExecutor extends MapTaskExecutor {
-    ApproximateProgress progress = null;
+    ApproximateReportedProgress progress = null;
 
     public TestMapTaskExecutor(CounterSet counters) {
       super(new ArrayList<Operation>(), counters,
@@ -98,15 +99,15 @@ public class DataflowWorkProgressUpdaterTest {
     @Override
     public Reader.DynamicSplitResult requestDynamicSplit(Reader.DynamicSplitRequest splitRequest) {
       @Nullable
-      ApproximateProgress progress = splitRequestToApproximateProgress(splitRequest);
-      if (progress == null) {
+      ApproximateSplitRequest split = splitRequestToApproximateSplitRequest(splitRequest);
+      if (split == null) {
         return null;
       }
       return new Reader.DynamicSplitResultWithPosition(
-          cloudPositionToReaderPosition(progress.getPosition()));
+          cloudPositionToReaderPosition(split.getPosition()));
     }
 
-    public void setWorkerProgress(ApproximateProgress progress) {
+    public void setWorkerProgress(ApproximateReportedProgress progress) {
       this.progress = progress;
     }
   }
@@ -331,7 +332,7 @@ public class DataflowWorkProgressUpdaterTest {
     }
   }
 
-  private void setUpProgress(ApproximateProgress progress) {
+  private void setUpProgress(ApproximateReportedProgress progress) {
     worker.setWorkerProgress(progress);
   }
 
@@ -346,7 +347,7 @@ public class DataflowWorkProgressUpdaterTest {
     responseState.setNextReportIndex(nextReportIndex);
 
     if (suggestedStopPosition != null) {
-      responseState.setSuggestedStopPoint(approximateProgressAtPosition(suggestedStopPosition));
+      responseState.setSplitRequest(approximateSplitRequestAtPosition(suggestedStopPosition));
     }
 
     return responseState;
@@ -361,7 +362,7 @@ public class DataflowWorkProgressUpdaterTest {
     Integer metricCount;
 
     @Nullable
-    ApproximateProgress expectedProgress;
+    ApproximateReportedProgress expectedProgress;
 
     @Nullable
     Position expectedSplitPosition;
@@ -379,7 +380,8 @@ public class DataflowWorkProgressUpdaterTest {
       return this;
     }
 
-    public ExpectedDataflowWorkItemStatus withProgress(ApproximateProgress expectedProgress) {
+    public ExpectedDataflowWorkItemStatus withProgress(
+        ApproximateReportedProgress expectedProgress) {
       this.expectedProgress = expectedProgress;
       return this;
     }
@@ -459,7 +461,7 @@ public class DataflowWorkProgressUpdaterTest {
       if (expectedProgress == null) {
         return true;
       }
-      ApproximateProgress progress = status.getProgress();
+      ApproximateReportedProgress progress = status.getReportedProgress();
       return expectedProgress.equals(progress);
     }
 

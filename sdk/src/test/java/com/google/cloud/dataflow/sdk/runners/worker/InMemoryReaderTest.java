@@ -29,7 +29,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import com.google.api.services.dataflow.model.ApproximateProgress;
+import com.google.api.services.dataflow.model.ApproximateSplitRequest;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.util.common.worker.ExecutorTestUtils;
@@ -145,7 +145,8 @@ public class InMemoryReaderTest {
     try (Reader.ReaderIterator<Integer> iterator = inMemoryReader.iterator()) {
       // Poke the iterator so that we can test dynamic splitting.
       assertTrue(iterator.hasNext());
-      assertNull(iterator.requestDynamicSplit(toDynamicSplitRequest(new ApproximateProgress())));
+      assertNull(iterator.requestDynamicSplit(toDynamicSplitRequest(
+          new ApproximateSplitRequest())));
       assertNull(iterator.requestDynamicSplit(splitRequestAtIndex(null)));
     }
 

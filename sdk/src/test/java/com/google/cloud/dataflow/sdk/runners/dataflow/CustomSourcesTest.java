@@ -361,16 +361,18 @@ public class CustomSourcesTest {
     try (Reader.ReaderIterator<WindowedValue<Integer>> iterator = reader.iterator()) {
       assertTrue(iterator.hasNext());
       assertEquals(
-          0, readerProgressToCloudProgress(iterator.getProgress()).getPercentComplete().intValue());
+          0.1,
+          readerProgressToCloudProgress(iterator.getProgress()).getFractionConsumed().doubleValue(),
+          1e-6);
       assertEquals(valueInGlobalWindow(10), iterator.next());
       assertEquals(
           0.1,
-          readerProgressToCloudProgress(iterator.getProgress()).getPercentComplete().doubleValue(),
+          readerProgressToCloudProgress(iterator.getProgress()).getFractionConsumed().doubleValue(),
           1e-6);
       assertEquals(valueInGlobalWindow(11), iterator.next());
       assertEquals(
           0.2,
-          readerProgressToCloudProgress(iterator.getProgress()).getPercentComplete().doubleValue(),
+          readerProgressToCloudProgress(iterator.getProgress()).getFractionConsumed().doubleValue(),
           1e-6);
       assertEquals(valueInGlobalWindow(12), iterator.next());
 

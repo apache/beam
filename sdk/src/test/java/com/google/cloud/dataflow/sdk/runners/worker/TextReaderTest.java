@@ -31,7 +31,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import com.google.api.services.dataflow.model.ApproximateProgress;
+import com.google.api.services.dataflow.model.ApproximateReportedProgress;
 import com.google.api.services.dataflow.model.Position;
 import com.google.cloud.dataflow.sdk.TestUtils;
 import com.google.cloud.dataflow.sdk.coders.AtomicCoder;
@@ -382,7 +382,7 @@ public class TextReaderTest {
         new WholeLineVerifyingCoder(), TextIO.CompressionType.UNCOMPRESSED);
 
     try (Reader.ReaderIterator<String> iterator = textReader.iterator()) {
-      ApproximateProgress progress = readerProgressToCloudProgress(iterator.getProgress());
+      ApproximateReportedProgress progress = readerProgressToCloudProgress(iterator.getProgress());
       assertEquals(0L, progress.getPosition().getByteOffset().longValue());
       iterator.next();
       progress = readerProgressToCloudProgress(iterator.getProgress());
@@ -391,7 +391,7 @@ public class TextReaderTest {
       progress = readerProgressToCloudProgress(iterator.getProgress());
       assertEquals(28L, progress.getPosition().getByteOffset().longValue());
       // Since end position is not specified, percentComplete should be null.
-      assertNull(progress.getPercentComplete());
+      assertNull(progress.getFractionConsumed());
 
       iterator.next();
       progress = readerProgressToCloudProgress(iterator.getProgress());
@@ -408,14 +408,14 @@ public class TextReaderTest {
 
     try (Reader.ReaderIterator<String> iterator = textReader.iterator()) {
       iterator.next();
-      ApproximateProgress progress = readerProgressToCloudProgress(iterator.getProgress());
+      ApproximateReportedProgress progress = readerProgressToCloudProgress(iterator.getProgress());
       // Returned a record that starts at position 0 of 40 - 1/40 fraction consumed.
-      assertEquals(1.0f / 40, progress.getPercentComplete(), 1e-6);
+      assertEquals(1.0 / 40, progress.getFractionConsumed(), 1e-6);
       iterator.next();
       iterator.next();
       progress = readerProgressToCloudProgress(iterator.getProgress());
       // Returned a record that starts at position 28 - 29/40 consumed.
-      assertEquals(1.0f * 29 / 40, progress.getPercentComplete(), 1e-6);
+      assertEquals(1.0 * 29 / 40, progress.getFractionConsumed(), 1e-6);
       assertFalse(iterator.hasNext());
     }
   }

@@ -28,7 +28,8 @@ import static com.google.cloud.dataflow.sdk.util.Structs.getStrings;
 
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.Base64;
-import com.google.api.services.dataflow.model.ApproximateProgress;
+import com.google.api.services.dataflow.model.ApproximateReportedProgress;
+import com.google.api.services.dataflow.model.ApproximateSplitRequest;
 import com.google.api.services.dataflow.model.DerivedSource;
 import com.google.api.services.dataflow.model.DynamicSourceSplit;
 import com.google.api.services.dataflow.model.SourceMetadata;
@@ -531,10 +532,10 @@ public class CustomSources {
     @Override
     public Reader.Progress getProgress() {
       if (reader instanceof BoundedSource.BoundedReader) {
-        ApproximateProgress progress = new ApproximateProgress();
+        ApproximateReportedProgress progress = new ApproximateReportedProgress();
         Double fractionConsumed = reader.getFractionConsumed();
         if (fractionConsumed != null) {
-          progress.setPercentComplete(fractionConsumed.floatValue());
+          progress.setFractionConsumed(fractionConsumed);
         }
         return SourceTranslationUtils.cloudProgressToReaderProgress(progress);
       } else {
@@ -545,15 +546,15 @@ public class CustomSources {
 
     @Override
     public Reader.DynamicSplitResult requestDynamicSplit(Reader.DynamicSplitRequest request) {
-      ApproximateProgress stopPosition =
-          SourceTranslationUtils.splitRequestToApproximateProgress(request);
-      Float fractionConsumed = stopPosition.getPercentComplete();
+      ApproximateSplitRequest stopPosition =
+          SourceTranslationUtils.splitRequestToApproximateSplitRequest(request);
+      Double fractionConsumed = stopPosition.getFractionConsumed();
       if (fractionConsumed == null) {
         // Only truncating at a fraction is currently supported.
         return null;
       }
       BoundedSource<T> original = reader.getCurrentSource();
-      BoundedSource<T> residual = reader.splitAtFraction(fractionConsumed.doubleValue());
+      BoundedSource<T> residual = reader.splitAtFraction(fractionConsumed);
       if (residual == null) {
         return null;
       }

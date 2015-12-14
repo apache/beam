@@ -19,10 +19,10 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 import static com.google.api.client.util.Preconditions.checkNotNull;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudPositionToReaderPosition;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.splitRequestToApproximateProgress;
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.splitRequestToApproximateSplitRequest;
 import static java.lang.Math.min;
 
-import com.google.api.services.dataflow.model.ApproximateProgress;
+import com.google.api.services.dataflow.model.ApproximateReportedProgress;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.io.range.OffsetRangeTracker;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
@@ -122,7 +122,7 @@ public class InMemoryReader<T> extends Reader<T> {
           new com.google.api.services.dataflow.model.Position();
       currentPosition.setRecordIndex((long) nextIndex);
 
-      ApproximateProgress progress = new ApproximateProgress();
+      ApproximateReportedProgress progress = new ApproximateReportedProgress();
       progress.setPosition(currentPosition);
 
       return cloudProgressToReaderProgress(progress);
@@ -138,7 +138,7 @@ public class InMemoryReader<T> extends Reader<T> {
       checkNotNull(splitRequest);
 
       com.google.api.services.dataflow.model.Position splitPosition =
-          splitRequestToApproximateProgress(splitRequest).getPosition();
+          splitRequestToApproximateSplitRequest(splitRequest).getPosition();
       if (splitPosition == null) {
         LOG.warn("InMemoryReader only supports split at a Position. Requested: {}",
             splitRequest);

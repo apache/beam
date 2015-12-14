@@ -23,10 +23,10 @@ import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.posit
 import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.splitRequestAtIndex;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudPositionToReaderPosition;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.splitRequestToApproximateProgress;
+import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.splitRequestToApproximateSplitRequest;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.SUM;
 
-import com.google.api.services.dataflow.model.ApproximateProgress;
+import com.google.api.services.dataflow.model.ApproximateReportedProgress;
 import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet.AddCounterMutator;
@@ -92,7 +92,7 @@ public class MapTaskExecutorTest {
 
   // A mock ReadOperation fed to a MapTaskExecutor in test.
   static class TestReadOperation extends ReadOperation {
-    private ApproximateProgress progress = null;
+    private ApproximateReportedProgress progress = null;
 
     TestReadOperation(OutputReceiver outputReceiver, String counterPrefix,
         AddCounterMutator addCounterMutator, StateSampler stateSampler) {
@@ -109,10 +109,10 @@ public class MapTaskExecutorTest {
     public Reader.DynamicSplitResult requestDynamicSplit(Reader.DynamicSplitRequest splitRequest) {
       // Fakes the return with the same position as proposed.
       return new Reader.DynamicSplitResultWithPosition(cloudPositionToReaderPosition(
-          splitRequestToApproximateProgress(splitRequest).getPosition()));
+          splitRequestToApproximateSplitRequest(splitRequest).getPosition()));
     }
 
-    public void setProgress(ApproximateProgress progress) {
+    public void setProgress(ApproximateReportedProgress progress) {
       this.progress = progress;
     }
   }
