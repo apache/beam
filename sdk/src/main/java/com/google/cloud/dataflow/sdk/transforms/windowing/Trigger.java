@@ -266,9 +266,6 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
    * Details about an invocation of {@link Trigger#onElement}.
    */
   public abstract class OnElementContext extends TriggerContext {
-    /** The element being handled by this call to {@link Trigger#onElement}. */
-    public abstract Object element();
-
     /** The event timestamp of the element currently being processed. */
     public abstract Instant eventTimestamp();
 

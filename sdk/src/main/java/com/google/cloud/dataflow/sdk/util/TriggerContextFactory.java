@@ -66,7 +66,7 @@ public class TriggerContextFactory<W extends BoundedWindow> {
       ExecutableTrigger<W> rootTrigger, BitSet finishedSet) {
     return new OnElementContextImpl(
         context.window(), context.timers(), rootTrigger, finishedSet,
-        context.value(), context.timestamp());
+        context.timestamp());
   }
 
   public Trigger<W>.OnTimerContext create(
@@ -310,7 +310,6 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     private final StateContextImpl<W> state;
     private final Timers timers;
     private final TriggerInfoImpl triggerInfo;
-    private final Object element;
     private final Instant eventTimestamp;
 
     private OnElementContextImpl(
@@ -318,20 +317,14 @@ public class TriggerContextFactory<W extends BoundedWindow> {
         Timers timers,
         ExecutableTrigger<W> trigger,
         BitSet finishedSet,
-        Object element,
         Instant eventTimestamp) {
       trigger.getSpec().super();
       this.state = triggerState(window, trigger);
       this.timers = new TriggerTimers(window, timers);
       this.triggerInfo = new TriggerInfoImpl(trigger, finishedSet, this);
-      this.element = element;
       this.eventTimestamp = eventTimestamp;
     }
 
-    @Override
-    public Object element() {
-      return element;
-    }
 
     @Override
     public Instant eventTimestamp() {
@@ -341,7 +334,7 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     @Override
     public Trigger<W>.OnElementContext forTrigger(ExecutableTrigger<W> trigger) {
       return new OnElementContextImpl(
-          state.window(), timers, trigger, triggerInfo.finishedSet, element, eventTimestamp);
+          state.window(), timers, trigger, triggerInfo.finishedSet, eventTimestamp);
     }
 
     @Override
