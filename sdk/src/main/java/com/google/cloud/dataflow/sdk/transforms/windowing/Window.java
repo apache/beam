@@ -559,9 +559,12 @@ public class Window {
       // Make sure that the windowing strategy is complete & valid.
       if (outputStrategy.isTriggerSpecified()
           && !(outputStrategy.getTrigger().getSpec() instanceof DefaultTrigger)) {
-        if (!outputStrategy.isAllowedLatenessSpecified()) {
+
+        if (!(outputStrategy.getWindowFn() instanceof GlobalWindows)
+            && !outputStrategy.isAllowedLatenessSpecified()) {
           throw new IllegalArgumentException(
-              "Calling .triggering() to specify a trigger requires that the allowed lateness be"
+              "Except when using GlobalWindows,"
+              + " calling .triggering() to specify a trigger requires that the allowed lateness be"
               + " specified using .withAllowedLateness() to set the upper bound on how late data"
               + " can arrive before being dropped. See Javadoc for more details.");
         }
