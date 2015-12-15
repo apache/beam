@@ -41,12 +41,14 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.io.AvroIO;
 import com.google.cloud.dataflow.sdk.io.AvroSource;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO;
+import com.google.cloud.dataflow.sdk.io.Read;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineDebugOptions;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions.CheckEnabled;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.runners.dataflow.CountingSource;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.util.DataflowReleaseInfo;
@@ -811,10 +813,10 @@ public class DataflowPipelineRunnerTest {
         DataflowPipelineRunner.fromOptions(options).toString());
   }
 
-  private static PipelineOptions makeStreamingOptions() {
+  private static PipelineOptions makeOptions(boolean streaming) {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setRunner(DataflowPipelineRunner.class);
-    options.setStreaming(true);
+    options.setStreaming(streaming);
     options.setJobName("TestJobName");
     options.setProject("test-project");
     options.setTempLocation("gs://test/temp/location");
@@ -823,55 +825,70 @@ public class DataflowPipelineRunnerTest {
     return options;
   }
 
-  private void testUnsupportedSource(PTransform<PInput, ?> source, String name) throws Exception {
+  private void testUnsupportedSource(PTransform<PInput, ?> source, String name, boolean streaming)
+      throws Exception {
+    String mode = streaming ? "streaming" : "batch";
     thrown.expect(UnsupportedOperationException.class);
     thrown.expectMessage(
-        "The DataflowPipelineRunner in streaming mode does not support " + name);
+        "The DataflowPipelineRunner in " + mode + " mode does not support " + name);
 
-    Pipeline p = Pipeline.create(makeStreamingOptions());
+    Pipeline p = Pipeline.create(makeOptions(streaming));
     p.apply(source);
     p.run();
   }
 
   @Test
   public void testBoundedSourceUnsupportedInStreaming() throws Exception {
-    testUnsupportedSource(AvroSource.readFromFileWithClass("foo", String.class), "Read.Bounded");
+    testUnsupportedSource(
+        AvroSource.readFromFileWithClass("foo", String.class), "Read.Bounded", true);
   }
 
   @Test
   public void testBigQueryIOSourceUnsupportedInStreaming() throws Exception {
     testUnsupportedSource(
-        BigQueryIO.Read.from("project:bar.baz").withoutValidation(), "BigQueryIO.Read");
+        BigQueryIO.Read.from("project:bar.baz").withoutValidation(), "BigQueryIO.Read", true);
   }
 
   @Test
   public void testAvroIOSourceUnsupportedInStreaming() throws Exception {
-    testUnsupportedSource(AvroIO.Read.from("foo"), "AvroIO.Read");
+    testUnsupportedSource(
+        AvroIO.Read.from("foo"), "AvroIO.Read", true);
   }
 
   @Test
   public void testTextIOSourceUnsupportedInStreaming() throws Exception {
-    testUnsupportedSource(TextIO.Read.from("foo"), "TextIO.Read");
+    testUnsupportedSource(TextIO.Read.from("foo"), "TextIO.Read", true);
   }
 
-  private void testUnsupportedSink(PTransform<PCollection<String>, PDone> sink, String name)
-      throws Exception {
+  @Test
+  public void testReadBoundedSourceUnsupportedInStreaming() throws Exception {
+    testUnsupportedSource(Read.from(AvroSource.from("/tmp/test")), "Read.Bounded", true);
+  }
+
+  @Test
+  public void testReadUnboundedUnsupportedInBatch() throws Exception {
+    testUnsupportedSource(Read.from(new CountingSource(1)), "Read.Unbounded", false);
+  }
+
+  private void testUnsupportedSink(
+      PTransform<PCollection<String>, PDone> sink, String name, boolean streaming)
+          throws Exception {
     thrown.expect(UnsupportedOperationException.class);
     thrown.expectMessage(
         "The DataflowPipelineRunner in streaming mode does not support " + name);
 
-    Pipeline p = Pipeline.create(makeStreamingOptions());
+    Pipeline p = Pipeline.create(makeOptions(streaming));
     p.apply(Create.of("foo")).apply(sink);
     p.run();
   }
 
   @Test
   public void testAvroIOSinkUnsupportedInStreaming() throws Exception {
-    testUnsupportedSink(AvroIO.Write.to("foo").withSchema(String.class), "AvroIO.Write");
+    testUnsupportedSink(AvroIO.Write.to("foo").withSchema(String.class), "AvroIO.Write", true);
   }
 
   @Test
   public void testTextIOSinkUnsupportedInStreaming() throws Exception {
-    testUnsupportedSink(TextIO.Write.to("foo"), "TextIO.Write");
+    testUnsupportedSink(TextIO.Write.to("foo"), "TextIO.Write", true);
   }
 }
