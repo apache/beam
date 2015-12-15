@@ -34,6 +34,8 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import com.google.common.base.Throwables;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Maps;
@@ -247,12 +249,15 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     return sourceWindowsToResultWindows;
   }
 
-  /** Is {@code value} late w.r.t. the garbage collection watermark? */
-  private <T> boolean canDropDueToLateness(WindowedValue<T> value) {
-    Instant inputWM = timerInternals.currentInputWatermarkTime();
-    return inputWM != null
-        && value.getTimestamp().isBefore(inputWM.minus(windowingStrategy.getAllowedLateness()));
-  }
+  /** Is the {@code window} expired w.r.t. the garbage collection watermark? */
+  private Predicate<W> canDropDueToExpiredWindow = new Predicate<W>() {
+    @Override
+    public boolean apply(W window) {
+      Instant inputWM = timerInternals.currentInputWatermarkTime();
+      return inputWM != null
+          && window.maxTimestamp().plus(windowingStrategy.getAllowedLateness()).isBefore(inputWM);
+    }
+  };
 
   /**
    * Add the initial windows from each of the values to the active window set. Returns the set of
@@ -261,15 +266,17 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
   private Set<W> addToActiveWindows(Iterable<WindowedValue<InputT>> values) {
     Set<W> newWindows = new HashSet<>();
     for (WindowedValue<?> value : values) {
-      if (canDropDueToLateness(value)) {
-        // This value will be dropped (and reported in a counter) by processElement.
-        // Hence it won't contribute to any new window.
-        continue;
-      }
 
       for (BoundedWindow untypedWindow : value.getWindows()) {
         @SuppressWarnings("unchecked")
         W window = (W) untypedWindow;
+
+        if (canDropDueToExpiredWindow.apply(window)) {
+          // This value will be dropped (and reported in a counter) by processElement.
+          // Hence it won't contribute to any new window.
+          continue;
+        }
+
         ReduceFn<K, InputT, OutputT, W>.Context context = contextFactory.base(window);
         if (!triggerRunner.isClosed(context.state())) {
           if (activeWindows.add(window)) {
@@ -291,22 +298,27 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
    */
   private void processElement(
       Function<W, W> windowMapping, Map<W, TriggerResult> results, WindowedValue<InputT> value) {
-    if (canDropDueToLateness(value)) {
-      // Drop the element in all assigned windows if it is past the allowed lateness limit.
-      droppedDueToLateness.addValue((long) value.getWindows().size());
-      WindowTracing.debug(
-          "processElement: Dropping element at {} for key:{} since too far "
-          + "behind inputWatermark:{}; outputWatermark:{}",
-          value.getTimestamp(), key, timerInternals.currentInputWatermarkTime(),
-          timerInternals.currentOutputWatermarkTime());
-      return;
-    }
 
     // Only consider representative windows from among all windows in equivalence classes
     // induced by window merging.
     @SuppressWarnings("unchecked")
-    Iterable<W> windows =
-        FluentIterable.from((Collection<W>) value.getWindows()).transform(windowMapping);
+    FluentIterable<W> mappedWindows =
+        FluentIterable.from((Collection<W>) value.getWindows())
+        .transform(windowMapping);
+
+    // Some windows may be expired
+    Iterable<W> windows = mappedWindows.filter(Predicates.not(canDropDueToExpiredWindow));
+
+    // Count the number of elements that are dropped
+    for (W expiredWindow : mappedWindows.filter(canDropDueToExpiredWindow)) {
+        droppedDueToLateness.addValue(1L);
+        WindowTracing.debug(
+            "processElement: Dropping element at {} for key:{} and window:{} since window is "
+                + "too far behind inputWatermark:{}; outputWatermark:{}",
+                value.getTimestamp(), key, expiredWindow,
+                timerInternals.currentInputWatermarkTime(),
+                timerInternals.currentOutputWatermarkTime());
+    }
 
     // Prefetch in each of the windows if we're going to need to process triggers
     for (W window : windows) {

@@ -116,18 +116,6 @@ public class WatermarkHold<W extends BoundedWindow> implements Serializable {
    * The element is very locally late. The window has been garbage collected, thus there
    * is no target pane E could be assigned to. We discard E.
    *
-   * <li>(Discard - beyond allowed lateness)
-   * <pre>
-   *               |                            |
-   *      [     E  |     ]                      |
-   *               |                            |
-   *             GCWM  <-getAllowedLateness->  IWM
-   * </pre>
-   * The element is very locally late, and the window is very close to being garbage collected, at
-   * which point a final {@code LATE} pane could be emitted. We *could* attempt to capture E within
-   * that pane, however that requires checking against all possible windows which may contain E.
-   * We instead discard E.
-   *
    * <li>(Unobservably late)
    * <pre>
    *          |    |
@@ -225,12 +213,6 @@ public class WatermarkHold<W extends BoundedWindow> implements Serializable {
 
     Instant outputWM = timerInternals.currentOutputWatermarkTime();
     Instant inputWM = timerInternals.currentInputWatermarkTime();
-
-    Instant garbageWM =
-        inputWM == null ? null : inputWM.minus(windowingStrategy.getAllowedLateness());
-    Preconditions.checkState(garbageWM == null || !elementHold.isBefore(garbageWM),
-        "Shifted timestamp %s cannot be beyond garbage collection watermark %s", elementHold,
-        garbageWM);
 
     // Only add the hold if we can be sure the backend will be able to respect it.
     boolean tooLate;

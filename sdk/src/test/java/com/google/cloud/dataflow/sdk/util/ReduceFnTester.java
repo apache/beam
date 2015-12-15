@@ -122,12 +122,9 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   }
 
   public static <W extends BoundedWindow, AccumT, OutputT> ReduceFnTester<Integer, OutputT, W>
-      combining(WindowFn<?, W> windowFn, Trigger<W> trigger, AccumulationMode mode,
-          KeyedCombineFn<String, Integer, AccumT, OutputT> combineFn, Coder<OutputT> outputCoder,
-          Duration allowedDataLateness) throws Exception {
-    WindowingStrategy<?, W> strategy =
-        WindowingStrategy.of(windowFn).withTrigger(trigger).withMode(mode).withAllowedLateness(
-            allowedDataLateness);
+      combining(WindowingStrategy<?, W> strategy,
+          KeyedCombineFn<String, Integer, AccumT, OutputT> combineFn,
+          Coder<OutputT> outputCoder) throws Exception {
 
     CoderRegistry registry = new CoderRegistry();
     registry.registerStandardCoders();
@@ -140,6 +137,18 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
         SystemReduceFn.<String, Integer, AccumT, OutputT, W>combining(StringUtf8Coder.of(), fn)
             .create(KEY),
         outputCoder);
+  }
+
+  public static <W extends BoundedWindow, AccumT, OutputT> ReduceFnTester<Integer, OutputT, W>
+      combining(WindowFn<?, W> windowFn, Trigger<W> trigger, AccumulationMode mode,
+          KeyedCombineFn<String, Integer, AccumT, OutputT> combineFn, Coder<OutputT> outputCoder,
+          Duration allowedDataLateness) throws Exception {
+
+    WindowingStrategy<?, W> strategy =
+        WindowingStrategy.of(windowFn).withTrigger(trigger).withMode(mode).withAllowedLateness(
+            allowedDataLateness);
+
+    return combining(strategy, combineFn, outputCoder);
   }
 
   private ReduceFnTester(WindowingStrategy<?, W> wildcardStrategy,

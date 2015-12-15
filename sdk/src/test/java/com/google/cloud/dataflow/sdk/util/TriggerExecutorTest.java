@@ -526,33 +526,79 @@ public class TriggerExecutorTest {
         Matchers.equalTo(PaneInfo.createPane(true, true, Timing.EARLY, 0, 0)));
   }
 
+  /**
+   * Tests that when data is assigned to multiple windows but some of those windows have expired,
+   * then the data is dropped and counted accurately.
+   */
   @Test
-  public void testDropDataMultipleWindows() throws Exception {
-    ReduceFnTester<Integer, Integer, IntervalWindow> tester = ReduceFnTester.combining(
-        SlidingWindows.of(Duration.millis(100)).every(Duration.millis(30)),
-        AfterWatermark.<IntervalWindow>pastEndOfWindow(), AccumulationMode.ACCUMULATING_FIRED_PANES,
-        new Sum.SumIntegerFn().<String>asKeyedFn(), VarIntCoder.of(), Duration.millis(20));
+  public void testDropDataMultipleWindowsExpiredWindow() throws Exception {
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
+        WindowingStrategy.of(
+            SlidingWindows.of(Duration.millis(100)).every(Duration.millis(30)))
+        .withAllowedLateness(Duration.millis(10)));
 
     tester.injectElements(
-        TimestampedValue.of(10, new Instant(23)), // [-60, 40), [-30, 70), [0, 100)
+        // assigned to [-60, 40), [-30, 70), [0, 100)
+        TimestampedValue.of(10, new Instant(23)),
+        // assigned to [-30, 70), [0, 100), [30, 130)
         TimestampedValue.of(12, new Instant(40)));
-        // [-30, 70), [0, 100), [30, 130)
 
     assertEquals(0, tester.getElementsDroppedDueToLateness());
+
+    tester.advanceInputWatermark(new Instant(70));
+
+
+    tester.injectElements(
+        // assigned to [-30, 70), [0, 100), [30, 130)
+        // but [-30, 70) has past but is not is expired
+        TimestampedValue.of(14, new Instant(50)));
+
+    assertEquals(0, tester.getElementsDroppedDueToLateness());
+
+    tester.advanceInputWatermark(new Instant(110));
+
+    // assigned to [-30, 70), [0, 100), [30, 130)
+    // but the first two are expired
+    tester.injectElements(TimestampedValue.of(16, new Instant(40)));
+
+    assertEquals(2, tester.getElementsDroppedDueToLateness());
+  }
+
+  /**
+   * Tests that when data is assigned to multiple windows but some of those windows have
+   * had their triggers finish, then the data is dropped and counted accurately.
+   */
+  @Test
+  public void testDropDataMultipleWindowsFinishedTrigger() throws Exception {
+    ReduceFnTester<Integer, Integer, IntervalWindow> tester = ReduceFnTester.combining(
+        WindowingStrategy.of(
+            SlidingWindows.of(Duration.millis(100)).every(Duration.millis(30)))
+        .withTrigger(AfterWatermark.<IntervalWindow>pastEndOfWindow())
+        .withAllowedLateness(Duration.millis(1000)),
+        new Sum.SumIntegerFn().<String>asKeyedFn(), VarIntCoder.of());
+
+    tester.injectElements(
+        // assigned to [-60, 40), [-30, 70), [0, 100)
+        TimestampedValue.of(10, new Instant(23)),
+        // assigned to [-30, 70), [0, 100), [30, 130)
+        TimestampedValue.of(12, new Instant(40)));
+
     assertEquals(0, tester.getElementsDroppedDueToClosedWindow());
 
     tester.advanceInputWatermark(new Instant(70));
     tester.injectElements(
-        TimestampedValue.of(14, new Instant(60))); // [-30, 70) = closed, [0, 100), [30, 130)
+        // assigned to [-30, 70), [0, 100), [30, 130)
+        // but [-30, 70) is closed by the trigger
+        TimestampedValue.of(14, new Instant(60)));
 
-    assertEquals(0, tester.getElementsDroppedDueToLateness());
     assertEquals(1, tester.getElementsDroppedDueToClosedWindow());
 
+    tester.advanceInputWatermark(new Instant(130));
+    // assigned to [-30, 70), [0, 100), [30, 130)
+    // but they are all closed
     tester.injectElements(TimestampedValue.of(16, new Instant(40)));
-        // dropped b/c lateness, assigned to 3 windows
 
-    assertEquals(3, tester.getElementsDroppedDueToLateness());
-    assertEquals(1, tester.getElementsDroppedDueToClosedWindow());
+    assertEquals(4, tester.getElementsDroppedDueToClosedWindow());
   }
 
   @Test
