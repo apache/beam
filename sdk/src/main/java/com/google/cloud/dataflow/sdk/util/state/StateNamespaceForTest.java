@@ -15,6 +15,7 @@
  */
 package com.google.cloud.dataflow.sdk.util.state;
 
+import java.io.IOException;
 import java.util.Objects;
 
 /**
@@ -48,5 +49,10 @@ public class StateNamespaceForTest implements StateNamespace {
   @Override
   public int hashCode() {
     return key.hashCode();
+  }
+
+  @Override
+  public void appendTo(Appendable sb) throws IOException {
+    sb.append(key);
   }
 }

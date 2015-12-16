@@ -107,7 +107,8 @@ class WindmillStateInternals extends MergingStateInternals {
 
   @VisibleForTesting
   static final ThreadLocal<Supplier<Boolean>> COMPACT_NOW =
-      new ThreadLocal() {
+      new ThreadLocal<Supplier<Boolean>>() {
+        @Override
         public Supplier<Boolean> initialValue() {
           return new Supplier<Boolean>() {
             /* The rate at which, on average, this will return true. */
@@ -121,6 +122,7 @@ class WindmillStateInternals extends MergingStateInternals {
               return (long) Math.floor(Math.log(random.nextDouble()) / Math.log(1 - RATE));
             }
 
+            @Override
             public Boolean get() {
               counter--;
               if (counter < 0) {
@@ -182,18 +184,28 @@ class WindmillStateInternals extends MergingStateInternals {
     }
   }
 
-  private ByteString encodeKey(StateNamespace namespace, StateTag<?> address) {
-    if (useStateFamilies) {
-      // We don't use prefix here, since it's being set as the stateFamily.
-      return ByteString.copyFromUtf8(
-          String.format("%s+%s", namespace.stringKey(), address.getId()));
-    } else {
+  @VisibleForTesting ByteString encodeKey(StateNamespace namespace, StateTag<?> address) {
+    try {
+      // Use a StringBuilder rather than concatenation and String.format. We build these keys
+      // a lot, and this leads to better performance results. See associated benchmarks.
+      StringBuilder output = new StringBuilder();
+
+      // We only need the prefix if we aren't using state families
+      if (!useStateFamilies) {
+        output.append(prefix);
+      }
+
       // stringKey starts and ends with a slash. We don't need to seperate it from prefix, because
       // the prefix is guaranteed to be unique and non-overlapping. We separate it from the
       // StateTag ID by a '+' (which is guaranteed not to be in the stringKey) because the
       // ID comes from the user.
-      return ByteString.copyFromUtf8(String.format(
-          "%s%s+%s", prefix, namespace.stringKey(), address.getId()));
+      namespace.appendTo(output);
+      output.append('+');
+      address.appendTo(output);
+      return ByteString.copyFromUtf8(output.toString());
+    } catch (IOException e) {
+      throw new RuntimeException(
+          "Unable to encode state key for " + namespace + ", " + address, e);
     }
   }
 

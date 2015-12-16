@@ -23,6 +23,7 @@ import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFn;
 
+import java.io.IOException;
 import java.io.Serializable;
 
 /**
@@ -62,6 +63,9 @@ public interface StateTag<StateT extends State> extends Serializable {
         StateTag<WatermarkStateInternal> address,
         OutputTimeFn<? super W> outputTimeFn);
   }
+
+  /** Append the UTF-8 encoding of this tag to the given {@link Appendable}. */
+  void appendTo(Appendable sb) throws IOException;
 
   /**
    * Returns the identifier for this state cell.

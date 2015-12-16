@@ -25,6 +25,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFn;
 import com.google.common.base.MoreObjects;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.Objects;
 
@@ -153,6 +154,10 @@ public class StateTags {
       return kind.prefix + rawId;
     }
 
+    public void appendTo(Appendable sb) throws IOException {
+      sb.append(kind.prefix).append(rawId);
+    }
+
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(getClass())
@@ -206,6 +211,10 @@ public class StateTags {
     }
 
     protected abstract StateTag<StateT> asKind(StateKind kind);
+
+    public void appendTo(Appendable sb) throws IOException {
+      id.appendTo(sb);
+    }
   }
 
   /**

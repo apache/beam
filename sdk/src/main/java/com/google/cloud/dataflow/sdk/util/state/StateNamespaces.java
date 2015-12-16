@@ -21,6 +21,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.common.base.Splitter;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
 
@@ -76,6 +77,11 @@ public class StateNamespaces {
     public String toString() {
       return "Global";
     }
+
+    @Override
+    public void appendTo(Appendable sb) throws IOException {
+      sb.append(GLOBAL_STRING);
+    }
   }
 
   /**
@@ -104,6 +110,11 @@ public class StateNamespaces {
       } catch (CoderException e) {
         throw new RuntimeException("Unable to generate string key from window " + window, e);
       }
+    }
+
+    @Override
+    public void appendTo(Appendable sb) throws IOException {
+      sb.append('/').append(CoderUtils.encodeToBase64(windowCoder, window)).append('/');
     }
 
     @Override
@@ -169,6 +180,13 @@ public class StateNamespaces {
       } catch (CoderException e) {
         throw new RuntimeException("Unable to generate string key from window " + window, e);
       }
+    }
+
+    @Override
+    public void appendTo(Appendable sb) throws IOException {
+      sb.append('/').append(CoderUtils.encodeToBase64(windowCoder, window));
+      sb.append('/').append(Integer.toString(triggerIndex, TRIGGER_RADIX).toUpperCase());
+      sb.append('/');
     }
 
     @Override

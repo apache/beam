@@ -15,6 +15,8 @@
  */
 package com.google.cloud.dataflow.sdk.util.state;
 
+import java.io.IOException;
+
 /**
  * A namespace used for scoping state stored with {@link StateInternals}.
  *
@@ -35,4 +37,9 @@ public interface StateNamespace {
    * the two.
    */
   String stringKey();
+
+  /**
+   * Append the string representation of this key to the {@link Appendable}.
+   */
+  void appendTo(Appendable sb) throws IOException;
 }
