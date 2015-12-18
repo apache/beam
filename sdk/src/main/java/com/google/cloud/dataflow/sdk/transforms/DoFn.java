@@ -62,15 +62,18 @@ import java.util.UUID;
  * mechanism for accessing {@link ProcessContext#window()} without the need
  * to implement {@link RequiresWindowAccess}.
  *
+ * <p>See also {@link #processElement} for details on implementing the transformation
+ * from {@code InputT} to {@code OutputT}.
+ *
  * @param <InputT> the type of the (main) input elements
  * @param <OutputT> the type of the (main) output elements
- *
- * @see #processElement for details on implementing the transformation
- * from {@code InputT} to {@code OutputT}.
  */
 public abstract class DoFn<InputT, OutputT> implements Serializable {
 
-  /** Information accessible to all methods in this {@code DoFn}. */
+  /**
+   * Information accessible to all methods in this {@code DoFn}.
+   * Used primarily to output elements.
+   */
   public abstract class Context {
 
     /**
@@ -89,11 +92,11 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
      * by the Dataflow runtime or later steps in the pipeline, or used in
      * other unspecified ways.
      *
-     * <p>If invoked from {@link DoFn#processElement}, the output
+     * <p>If invoked from {@link DoFn#processElement processElement}, the output
      * element will have the same timestamp and be in the same windows
-     * as the input element passed to {@link DoFn#processElement}).
+     * as the input element passed to {@link DoFn#processElement processElement}.
      *
-     * <p>If invoked from {@link #startBundle} or {@link #finishBundle},
+     * <p>If invoked from {@link #startBundle startBundle} or {@link #finishBundle finishBundle},
      * this will attempt to use the
      * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
      * of the input {@code PCollection} to determine what windows the element
@@ -110,12 +113,12 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
      * <p>Once passed to {@code outputWithTimestamp} the element should not be
      * modified in any way.
      *
-     * <p>If invoked from {@link DoFn#processElement}), the timestamp
+     * <p>If invoked from {@link DoFn#processElement processElement}, the timestamp
      * must not be older than the input element's timestamp minus
-     * {@link DoFn#getAllowedTimestampSkew}.  The output element will
+     * {@link DoFn#getAllowedTimestampSkew getAllowedTimestampSkew}.  The output element will
      * be in the same windows as the input element.
      *
-     * <p>If invoked from {@link #startBundle} or {@link #finishBundle},
+     * <p>If invoked from {@link #startBundle startBundle} or {@link #finishBundle finishBundle},
      * this will attempt to use the
      * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
      * of the input {@code PCollection} to determine what windows the element
@@ -132,15 +135,15 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
      * <p>Once passed to {@code sideOutput} the element should not be modified
      * in any way.
      *
-     * <p>The caller of {@code ParDo} uses {@link ParDo#withOutputTags} to
+     * <p>The caller of {@code ParDo} uses {@link ParDo#withOutputTags withOutputTags} to
      * specify the tags of side outputs that it consumes. Non-consumed side
      * outputs, e.g., outputs for monitoring purposes only, don't necessarily
      * need to be specified.
      *
      * <p>The output element will have the same timestamp and be in the same
-     * windows as the input element passed to {@link DoFn#processElement}).
+     * windows as the input element passed to {@link DoFn#processElement processElement}.
      *
-     * <p>If invoked from {@link #startBundle} or {@link #finishBundle},
+     * <p>If invoked from {@link #startBundle startBundle} or {@link #finishBundle finishBundle},
      * this will attempt to use the
      * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
      * of the input {@code PCollection} to determine what windows the element
@@ -148,8 +151,6 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
      * to access any information about the input element. The output element
      * will have a timestamp of negative infinity.
      *
-     * @throws IllegalArgumentException if the number of outputs exceeds
-     * the limit of 1,000 outputs per DoFn
      * @see ParDo#withOutputTags
      */
     public abstract <T> void sideOutput(TupleTag<T> tag, T output);
@@ -161,12 +162,12 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
      * <p>Once passed to {@code sideOutputWithTimestamp} the element should not be
      * modified in any way.
      *
-     * <p>If invoked from {@link DoFn#processElement}), the timestamp
+     * <p>If invoked from {@link DoFn#processElement processElement}, the timestamp
      * must not be older than the input element's timestamp minus
-     * {@link DoFn#getAllowedTimestampSkew}.  The output element will
+     * {@link DoFn#getAllowedTimestampSkew getAllowedTimestampSkew}.  The output element will
      * be in the same windows as the input element.
      *
-     * <p>If invoked from {@link #startBundle} or {@link #finishBundle},
+     * <p>If invoked from {@link #startBundle startBundle} or {@link #finishBundle finishBundle},
      * this will attempt to use the
      * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
      * of the input {@code PCollection} to determine what windows the element
@@ -174,8 +175,6 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
      * to access any information about the input element except for the
      * timestamp.
      *
-     * @throws IllegalArgumentException if the number of outputs exceeds
-     * the limit of 1,000 outputs per DoFn
      * @see ParDo#withOutputTags
      */
     public abstract <T> void sideOutputWithTimestamp(
@@ -344,8 +343,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
   public abstract void processElement(ProcessContext c) throws Exception;
 
   /**
-   * Finishes processing this batch of elements.  This {@code DoFn}
-   * instance will be thrown away after this operation returns.
+   * Finishes processing this batch of elements.
    *
    * <p>By default, does nothing.
    */

@@ -70,7 +70,7 @@ import java.util.Map;
  * PCollection<String> lines = ... ;
  * PCollection<String> words =
  *     lines.apply(ParDo.of(new DoFnWithContext<String, String>() {
- *         {@literal @}ProcessElement
+ *         @ProcessElement
  *         public void processElement(ProcessContext c, BoundedWindow window) {
  *
  *         }}));
@@ -159,8 +159,6 @@ public abstract class DoFnWithContext<InputT, OutputT> implements Serializable {
      * to access any information about the input element. The output element
      * will have a timestamp of negative infinity.
      *
-     * @throws IllegalArgumentException if the number of outputs exceeds
-     * the limit of 1,000 outputs per DoFn
      * @see ParDo#withOutputTags
      */
     public abstract <T> void sideOutput(TupleTag<T> tag, T output);
@@ -185,8 +183,6 @@ public abstract class DoFnWithContext<InputT, OutputT> implements Serializable {
      * to access any information about the input element except for the
      * timestamp.
      *
-     * @throws IllegalArgumentException if the number of outputs exceeds
-     * the limit of 1,000 outputs per DoFn
      * @see ParDo#withOutputTags
      */
     public abstract <T> void sideOutputWithTimestamp(
