@@ -82,6 +82,14 @@ public class CoderRegistryTest {
   }
 
   @Test
+  public void testProto2CoderFallbackCoderProvider() throws Exception {
+    CoderRegistry registry = getStandardRegistry();
+    Coder<Proto2CoderTestMessages.MessageA> coder =
+        registry.getDefaultCoder(Proto2CoderTestMessages.MessageA.class);
+    assertEquals(coder, Proto2Coder.of(new TypeDescriptor<Proto2CoderTestMessages.MessageA>() {}));
+  }
+
+  @Test
   public void testAvroFallbackCoderProvider() throws Exception {
     CoderRegistry registry = getStandardRegistry();
     registry.setFallbackCoderProvider(AvroCoder.PROVIDER);

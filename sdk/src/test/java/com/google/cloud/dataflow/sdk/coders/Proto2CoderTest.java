@@ -16,11 +16,14 @@
 
 package com.google.cloud.dataflow.sdk.coders;
 
+import static org.junit.Assert.assertEquals;
+
 import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageA;
 import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageB;
 import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageC;
 import com.google.cloud.dataflow.sdk.testing.CoderProperties;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
+import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 import com.google.common.collect.ImmutableList;
 
 import org.junit.Rule;
@@ -34,6 +37,26 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class Proto2CoderTest {
+
+  @Rule
+  public ExpectedException thrown = ExpectedException.none();
+
+  @Test
+  public void testFactoryMethodAgreement() throws Exception {
+    assertEquals(
+        Proto2Coder.of(new TypeDescriptor<MessageA>() {}),
+        Proto2Coder.of(MessageA.class));
+
+    assertEquals(
+        Proto2Coder.of(new TypeDescriptor<MessageA>() {}),
+        Proto2Coder.coderProvider().getCoder(new TypeDescriptor<MessageA>() {}));
+  }
+
+  @Test
+  public void testProviderCannotProvideCoder() throws Exception {
+    thrown.expect(CannotProvideCoderException.class);
+    Proto2Coder.coderProvider().getCoder(new TypeDescriptor<Integer>() {});
+  }
 
   @Test
   public void testCoderEncodeDecodeEqual() throws Exception {
@@ -110,9 +133,6 @@ public class Proto2CoderTest {
         .withExtensionsFrom(Proto2CoderTestMessages.class);
     CoderProperties.coderHasEncodingId(coder, MessageC.class.getName());
   }
-
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void encodeNullThrowsCoderException() throws Exception {

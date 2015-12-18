@@ -17,6 +17,7 @@ package com.google.cloud.dataflow.sdk.coders;
 
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.Structs;
+import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -87,11 +88,42 @@ public class Proto2Coder<T extends Message> extends AtomicCoder<T> {
     this.extensionHostClasses = extensionHostClasses;
   }
 
+  private static final CoderProvider PROVIDER = new CoderProvider() {
+    @Override
+    public <T> Coder<T> getCoder(TypeDescriptor<T> type) throws CannotProvideCoderException {
+      if (type.isSubtypeOf(new TypeDescriptor<Message>() {})) {
+        @SuppressWarnings("unchecked")
+        TypeDescriptor<? extends Message> messageType = (TypeDescriptor<? extends Message>) type;
+        @SuppressWarnings("unchecked")
+        Coder<T> coder = (Coder<T>) Proto2Coder.of(messageType);
+        return coder;
+      } else {
+        throw new CannotProvideCoderException(
+            String.format("Cannot provide Proto2Coder because %s "
+                + "is not a subclass of protocol buffer Messsage",
+                type));
+      }
+    }
+  };
+
+  public static CoderProvider coderProvider() {
+    return PROVIDER;
+  }
+
   /**
    * Returns a {@code Proto2Coder} for the given Protobuf message class.
    */
   public static <T extends Message> Proto2Coder<T> of(Class<T> protoMessageClass) {
-    return new Proto2Coder<>(protoMessageClass, Collections.<Class<?>>emptyList());
+    return new Proto2Coder<T>(protoMessageClass, Collections.<Class<?>>emptyList());
+  }
+
+  /**
+   * Returns a {@code Proto2Coder} for the given Protobuf message class.
+   */
+  public static <T extends Message> Proto2Coder<T> of(TypeDescriptor<T> protoMessageType) {
+    @SuppressWarnings("unchecked")
+    Class<T> protoMessageClass = (Class<T>) protoMessageType.getRawType();
+    return of(protoMessageClass);
   }
 
   /**
