@@ -17,15 +17,18 @@
 package com.google.cloud.dataflow.sdk;
 
 import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
+import com.google.cloud.dataflow.sdk.io.Read;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.TransformHierarchy;
 import com.google.cloud.dataflow.sdk.runners.TransformTreeNode;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
+import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.util.UserCodeException;
 import com.google.cloud.dataflow.sdk.values.PBegin;
+import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.cloud.dataflow.sdk.values.POutput;
 import com.google.cloud.dataflow.sdk.values.PValue;
@@ -44,27 +47,26 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * A {@code Pipeline} manages a DAG of {@link PTransform}s, and the
- * {@link com.google.cloud.dataflow.sdk.values.PCollection}s
- * that the {@link PTransform}s consume and produce.
+ * A {@link Pipeline} manages a directed acyclic graph of {@link PTransform PTransforms}, and the
+ * {@link PCollection PCollections} that the {@link PTransform}s consume and produce.
  *
- * <p>After a {@code Pipeline} has been constructed, it can be executed,
- * using a default or an explicit {@link PipelineRunner}.
+ * <p>A {@link Pipeline} is initialized with a {@link PipelineRunner} that will later
+ * execute the {@link Pipeline}.
  *
- * <p>Multiple {@code Pipeline}s can be constructed and executed independently
- * and concurrently.
+ * <p>{@link Pipeline Pipelines} are independent, so they can be constructed and executed
+ * concurrently.
  *
- * <p>Each {@code Pipeline} is self-contained and isolated from any other
- * {@code Pipeline}.  The {@link PValue PValues} that are inputs and outputs of each of a
- * {@code Pipeline}'s {@link PTransform PTransforms} are also owned by that {@code Pipeline}.
- * A {@code PValue} owned by one {@code Pipeline} can be read only by {@code PTransform}s
- * also owned by that {@code Pipeline}.
+ * <p>Each {@link Pipeline} is self-contained and isolated from any other
+ * {@link Pipeline}. The {@link PValue PValues} that are inputs and outputs of each of a
+ * {@link Pipeline Pipeline's} {@link PTransform PTransforms} are also owned by that
+ * {@link Pipeline}. A {@link PValue} owned by one {@link Pipeline} can be read only by
+ * {@link PTransform PTransforms} also owned by that {@link Pipeline}.
  *
- * <p>Here's a typical example of use:
+ * <p>Here is a typical example of use:
  * <pre> {@code
  * // Start by defining the options for the pipeline.
  * PipelineOptions options = PipelineOptionsFactory.create();
- * // Then create the pipeline.
+ * // Then create the pipeline. The runner is determined by the options.
  * Pipeline p = Pipeline.create(options);
  *
  * // A root PTransform, like TextIO.Read or Create, gets added
@@ -106,13 +108,14 @@ public class Pipeline {
   private static final Logger LOG = LoggerFactory.getLogger(Pipeline.class);
 
   /**
-   * Thrown during pipeline execution, whenever user code within a pipeline throws an exception.
+   * Thrown during execution of a {@link Pipeline}, whenever user code within that
+   * {@link Pipeline} throws an exception.
    *
-   * <p>The exception thrown during pipeline execution may be retrieved via {@link #getCause}.
+   * <p>The original exception thrown by user code may be retrieved via {@link #getCause}.
    */
   public static class PipelineExecutionException extends RuntimeException {
     /**
-     * Wraps {@code cause} into a {@code PipelineExecutionException}.
+     * Wraps {@code cause} into a {@link PipelineExecutionException}.
      */
     public PipelineExecutionException(Throwable cause) {
       super(cause);
@@ -135,16 +138,18 @@ public class Pipeline {
 
   /**
    * Returns a {@link PBegin} owned by this Pipeline.  This is useful
-   * as the input of a root PTransform such as {@code TextIO.Read} or
-   * {@link com.google.cloud.dataflow.sdk.transforms.Create}.
+   * as the input of a root PTransform such as {@link Read} or
+   * {@link Create}.
    */
   public PBegin begin() {
     return PBegin.in(this);
   }
 
   /**
-   * Like {@link #apply(String, PTransform)} but defaulting to the name
-   * of the {@code PTransform}.
+   * Like {@link #apply(String, PTransform)} but the transform node in the {@link Pipeline}
+   * graph will be named according to {@link PTransform#getName}.
+   *
+   * @see #apply(String, PTransform)
    */
   public <OutputT extends POutput> OutputT apply(
       PTransform<? super PBegin, OutputT> root) {
@@ -152,11 +157,12 @@ public class Pipeline {
   }
 
   /**
-   * Starts using this pipeline with a root {@code PTransform} such as
-   * {@code TextIO.READ} or {@link com.google.cloud.dataflow.sdk.transforms.Create}.
-   * This specific call to {@code apply} is identified by the provided {@code name}.
+   * Adds a root {@link PTransform}, such as {@link Read} or {@link Create},
+   * to this {@link Pipeline}.
+   *
+   * <p>The node in the {@link Pipeline} graph will use the provided {@code name}.
    * This name is used in various places, including the monitoring UI, logging,
-   * and to stably identify this application node in the job graph.
+   * and to stably identify this node in the {@link Pipeline} graph upon update.
    *
    * <p>Alias for {@code begin().apply(name, root)}.
    */
@@ -166,7 +172,7 @@ public class Pipeline {
   }
 
   /**
-   * Runs the Pipeline.
+   * Runs the {@link Pipeline} using its {@link PipelineRunner}.
    */
   public PipelineResult run() {
     LOG.debug("Running {} via {}", this, runner);
@@ -186,7 +192,7 @@ public class Pipeline {
   // Below here are operations that aren't normally called by users.
 
   /**
-   * Returns the {@link CoderRegistry} that this Pipeline uses.
+   * Returns the {@link CoderRegistry} that this {@link Pipeline} uses.
    */
   public CoderRegistry getCoderRegistry() {
     if (coderRegistry == null) {
@@ -197,7 +203,7 @@ public class Pipeline {
   }
 
   /**
-   * Sets the {@link CoderRegistry} that this Pipeline uses.
+   * Sets the {@link CoderRegistry} that this {@link Pipeline} uses.
    */
   public void setCoderRegistry(CoderRegistry coderRegistry) {
     this.coderRegistry = coderRegistry;
@@ -206,17 +212,17 @@ public class Pipeline {
   /**
    * A {@link PipelineVisitor} can be passed into
    * {@link Pipeline#traverseTopologically} to be called for each of the
-   * transforms and values in the Pipeline.
+   * transforms and values in the {@link Pipeline}.
    */
   public interface PipelineVisitor {
     /**
      * Called for each composite transform after all topological predecessors have been visited
-     * but before any of the component transforms.
+     * but before any of its component transforms.
      */
     public void enterCompositeTransform(TransformTreeNode node);
 
     /**
-     * Called for each composite transform after all of its component transforms and their ouputs
+     * Called for each composite transform after all of its component transforms and their outputs
      * have been visited.
      */
     public void leaveCompositeTransform(TransformTreeNode node);
@@ -235,14 +241,15 @@ public class Pipeline {
   }
 
   /**
-   * Invokes the PipelineVisitor's
+   * Invokes the {@link PipelineVisitor PipelineVisitor's}
    * {@link PipelineVisitor#visitTransform} and
    * {@link PipelineVisitor#visitValue} operations on each of this
-   * Pipeline's PTransforms and PValues, in forward
+   * {@link Pipeline Pipeline's} transform and value nodes, in forward
    * topological order.
    *
-   * <p>Traversal of the pipeline causes PTransform and PValue instances to
-   * be marked as finished, at which point they may no longer be modified.
+   * <p>Traversal of the {@link Pipeline} causes {@link PTransform PTransforms} and
+   * {@link PValue PValues} owned by the {@link Pipeline} to be marked as finished,
+   * at which point they may no longer be modified.
    *
    * <p>Typically invoked by {@link PipelineRunner} subclasses.
    */
@@ -271,9 +278,11 @@ public class Pipeline {
    * Applies the given {@code PTransform} to this input {@code InputT} and returns
    * its {@code OutputT}. This uses {@code name} to identify this specific application
    * of the transform. This name is used in various places, including the monitoring UI,
-   * logging, and to stably identify this application node in the job graph.
+   * logging, and to stably identify this application node in the {@link Pipeline} graph during
+   * update.
    *
-   * <p>Called by {@link PInput} subclasses in their {@code apply} methods.
+   * <p>Each {@link PInput} subclass that provides an {@code apply} method should delegate to
+   * this method to ensure proper registration with the {@link PipelineRunner}.
    */
   public static <InputT extends PInput, OutputT extends POutput>
   OutputT applyTransform(String name, InputT input,
@@ -312,7 +321,7 @@ public class Pipeline {
   }
 
   /**
-   * Applies a transformation to the given input.
+   * Applies a {@link PTransform} to the given {@link PInput}.
    *
    * @see Pipeline#apply
    */
@@ -386,16 +395,17 @@ public class Pipeline {
   }
 
   /**
-   * Verifies that the output of a PTransform is correctly defined.
+   * Verifies that the output of a {@link PTransform} is correctly configured in its
+   * {@link TransformTreeNode} in the {@link Pipeline} graph.
    *
-   * <p>A non-composite transform must have all
-   * of its outputs registered as produced by the transform.
+   * <p>A non-composite {@link PTransform} must have all
+   * of its outputs registered as produced by that {@link PTransform}.
    *
-   * <p>A composite transform must have all of its outputs
-   * registered as produced by the contained primitive transforms.
+   * <p>A composite {@link PTransform} must have all of its outputs
+   * registered as produced by the contained primitive {@link PTransform PTransforms}.
    * They have each had the above check performed already, when
    * they were applied, so the only possible failure state is
-   * that the composite transform has returned a primitive output.
+   * that the composite {@link PTransform} has returned a primitive output.
    */
   private void verifyOutputState(POutput output, TransformTreeNode node) {
     if (!node.isCompositeNode()) {
@@ -427,24 +437,23 @@ public class Pipeline {
   }
 
   /**
-   * Returns the configured pipeline runner.
+   * Returns the configured {@link PipelineRunner}.
    */
   public PipelineRunner<?> getRunner() {
     return runner;
   }
 
   /**
-   * Returns the configured pipeline options.
+   * Returns the configured {@link PipelineOptions}.
    */
   public PipelineOptions getOptions() {
     return options;
   }
 
   /**
-   * Returns the fully qualified name of a transform for testing.
-   *
-   * @throws IllegalStateException if the transform has not been applied to the pipeline
-   * or was applied multiple times.
+   * @deprecated this method is no longer compatible with the design of {@link Pipeline},
+   * as {@link PTransform PTransforms} can be applied multiple times, with different names
+   * each time.
    */
   @Deprecated
   public String getFullNameForTesting(PTransform<?, ?> transform) {
@@ -475,14 +484,14 @@ public class Pipeline {
   }
 
   /**
-   * Builds a name from a /-delimited prefix and a name.
+   * Builds a name from a "/"-delimited prefix and a name.
    */
   private String buildName(String namePrefix, String name) {
     return namePrefix.isEmpty() ? name : namePrefix + "/" + name;
   }
 
   /**
-   * Adds the given PValue to this Pipeline.
+   * Adds the given {@link PValue} to this {@link Pipeline}.
    *
    * <p>For internal use only.
    */
