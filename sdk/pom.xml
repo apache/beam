@@ -245,7 +245,7 @@
               <location>${basedir}/../javadoc/datastore-docs</location>
             </offlineLink>
             <offlineLink>
-              <url>http://docs.guava-libraries.googlecode.com/git-history/release18/javadoc/</url>
+              <url>http://docs.guava-libraries.googlecode.com/git-history/release19/javadoc/</url>
               <location>${basedir}/../javadoc/guava-docs</location>
             </offlineLink>
             <offlineLink>
