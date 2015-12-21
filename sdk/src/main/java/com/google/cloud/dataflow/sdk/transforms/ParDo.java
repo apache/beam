@@ -52,40 +52,52 @@ import java.util.concurrent.ConcurrentMap;
 import javax.annotation.Nullable;
 
 /**
- * {@code ParDo} is the core element-wise transform in Google Cloud
- * Dataflow, invoking a user-specified function (from {@code I} to
- * {@code Output}) on each of the elements of the input
- * {@code PCollection<InputT>} to produce zero or more output elements, all
- * of which are collected into the output {@code PCollection<OutputT>}.
+ * {@link ParDo} is the core element-wise transform in Google Cloud
+ * Dataflow, invoking a user-specified function on each of the elements of the input
+ * {@link PCollection} to produce zero or more output elements, all
+ * of which are collected into the output {@link PCollection}.
  *
  * <p>Elements are processed independently, and possibly in parallel across
  * distributed cloud resources.
  *
- * <p>The {@code ParDo} processing style is similar to what happens inside
+ * <p>The {@link ParDo} processing style is similar to what happens inside
  * the "Mapper" or "Reducer" class of a MapReduce-style algorithm.
  *
- * <h2>{@code DoFn}s</h2>
+ * <h2>{@link DoFn DoFns}</h2>
  *
  * <p>The function to use to process each element is specified by a
- * {@link DoFn}.
+ * {@link DoFn DoFn&lt;InputT, OutputT&gt;}, primarily via its
+ * {@link DoFn#processElement processElement} method. The {@link DoFn} may also
+ * override the default implementations of {@link DoFn#startBundle startBundle}
+ * and {@link DoFn#finishBundle finishBundle}.
  *
- * <p>Conceptually, when a {@code ParDo} transform is executed, the
- * elements of the input {@code PCollection<InputT>} are first divided up
- * into some number of "batches".  These are farmed off to distributed
- * worker machines (or run locally, if using the
- * {@link com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner}).
- * For each batch of input elements, a fresh instance of the argument
- * {@code DoFn<InputT, OutputT>} is created on a worker, then the {@code DoFn}'s
- * optional {@link DoFn#startBundle} method is called to initialize it,
- * then the {@code DoFn}'s required {@link DoFn#processElement} method
- * is called on each of the input elements in the batch, then the
- * {@code DoFn}'s optional {@link DoFn#finishBundle} method is called
- * to complete its work, and finally the {@code DoFn} instance is
- * thrown away.  Each of the calls to any of the {@code DoFn}'s
- * methods can produce zero or more output elements, which are
- * collected together into a batch of output elements.  All of the
- * batches of output elements from all of the {@code DoFn} instances
- * are "flattened" together into the output {@code PCollection<OutputT>}.
+ * <p>Conceptually, when a {@link ParDo} transform is executed, the
+ * elements of the input {@link PCollection} are first divided up
+ * into some number of "bundles". These are farmed off to distributed
+ * worker machines (or run locally, if using the {@link DirectPipelineRunner}).
+ * For each bundle of input elements processing proceeds as follows:
+ *
+ * <ol>
+ *   <li>A fresh instance of the argument {@link DoFn} is created on a worker. This may
+ *     be through deserialization or other means. If the {@link DoFn} subclass
+ *     does not override {@link DoFn#startBundle startBundle} or
+ *     {@link DoFn#finishBundle finishBundle} then this may be optimized since
+ *     it cannot observe the start and end of a bundle.</li>
+ *   <li>The {@link DoFn DoFn's} {@link DoFn#startBundle} method is called to
+ *     initialize it. If this method is not overridden, the call may be optimized
+ *     away.</li>
+ *   <li>The {@link DoFn DoFn's} {@link DoFn#processElement} method
+ *     is called on each of the input elements in the bundle.</li>
+ *   <li>The {@link DoFn DoFn's} {@link DoFn#finishBundle} method is called
+ *     to complete its work. After {@link DoFn#finishBundle} is called, the
+ *     framework will never again invoke any of these three processing methods.
+ *     If this method is not overridden, this call may be optimized away.</li>
+ * </ol>
+ *
+ * Each of the calls to any of the {@link DoFn DoFn's} processing
+ * methods can produce zero or more output elements. All of the
+ * of output elements from all of the {@link DoFn} instances
+ * are included in the output {@link PCollection}.
  *
  * <p>For example:
  *
@@ -109,18 +121,20 @@ import javax.annotation.Nullable;
  * } </pre>
  *
  * <p>Each output element has the same timestamp and is in the same windows
- * as its corresponding input element, and the output {@code PCollection<OutputT>}
- * has the same
- * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
- * associated with it as the input.
+ * as its corresponding input element, and the output {@code PCollection}
+ * has the same {@link WindowFn} associated with it as the input.
  *
- * <h2>Naming {@code ParDo}s</h2>
+ * <h2>Naming {@link ParDo ParDo} transforms</h2>
  *
- * <p>A {@code ParDo} transform can be given a name using
- * {@link #named}.  While the system will automatically provide a name
- * if none is specified explicitly, it is still a good practice to
- * provide an explicit name, since that will probably make monitoring
- * output more readable.  For example:
+ * <p>The name of a transform is used to provide a name for any node in the
+ * {@link Pipeline} graph resulting from application of the transform.
+ * It is best practice to provide a name at the time of application,
+ * via {@link PCollection#apply(String, PTransform)}. Otherwise,
+ * a unique name - which may not be stable across pipeline revision -
+ * will be generated, based on the transform name.
+ *
+ * <p>If a {@link ParDo} is applied exactly once inlined, then
+ * it can be given a name via {@link #named}. For example:
  *
  * <pre> {@code
  * PCollection<String> words =
@@ -133,14 +147,14 @@ import javax.annotation.Nullable;
  *
  * <h2>Side Inputs</h2>
  *
- * <p>While a {@code ParDo} iterates over a single "main input"
- * {@code PCollection}, it can take additional "side input"
- * {@code PCollectionView}s. These side input
- * {@code PCollectionView}s express styles of accessing
- * {@code PCollection}s computed by earlier pipeline operations,
- * passed in to the {@code ParDo} transform using
+ * <p>While a {@link ParDo} processes elements from a single "main input"
+ * {@link PCollection}, it can take additional "side input"
+ * {@link PCollectionView PCollectionViews}. These side input
+ * {@link PCollectionView PCollectionViews} express styles of accessing
+ * {@link PCollection PCollections} computed by earlier pipeline operations,
+ * passed in to the {@link ParDo} transform using
  * {@link #withSideInputs}, and their contents accessible to each of
- * the {@code DoFn} operations via {@link DoFn.ProcessContext#sideInput sideInput}.
+ * the {@link DoFn} operations via {@link DoFn.ProcessContext#sideInput sideInput}.
  * For example:
  *
  * <pre> {@code
@@ -162,18 +176,18 @@ import javax.annotation.Nullable;
  *
  * <h2>Side Outputs</h2>
  *
- * <p>Optionally, a {@code ParDo} transform can produce multiple
- * output {@code PCollection}s, both a "main output"
+ * <p>Optionally, a {@link ParDo} transform can produce multiple
+ * output {@link PCollection PCollections}, both a "main output"
  * {@code PCollection<OutputT>} plus any number of "side output"
- * {@code PCollection}s, each keyed by a distinct {@link TupleTag},
- * and bundled in a {@link PCollectionTuple}.  The {@code TupleTag}s
- * to be used for the output {@code PCollectionTuple} is specified by
- * invoking {@link #withOutputTags}.  Unconsumed side outputs does not
- * necessarily need to be explicity specified, even if the {@code DoFn}
- * generates them. Within the {@code DoFn}, an element is added to the
- * main output {@code PCollection} as normal, using
+ * {@link PCollection PCollections}, each keyed by a distinct {@link TupleTag},
+ * and bundled in a {@link PCollectionTuple}. The {@link TupleTag TupleTags}
+ * to be used for the output {@link PCollectionTuple} are specified by
+ * invoking {@link #withOutputTags}. Unconsumed side outputs do not
+ * necessarily need to be explicitly specified, even if the {@link DoFn}
+ * generates them. Within the {@link DoFn}, an element is added to the
+ * main output {@link PCollection} as normal, using
  * {@link DoFn.Context#output}, while an element is added to a side output
- * {@code PCollection} using {@link DoFn.Context#sideOutput}.  For example:
+ * {@link PCollection} using {@link DoFn.Context#sideOutput}. For example:
  *
  * <pre> {@code
  * PCollection<String> words = ...;
@@ -229,46 +243,46 @@ import javax.annotation.Nullable;
  *
  * <h2>Properties May Be Specified In Any Order</h2>
  *
- * <p>Several properties can be specified for a {@code ParDo}
- * {@code PTransform}, including name, side inputs, side output tags,
- * and {@code DoFn} to invoke.  Only the {@code DoFn} is required; the
+ * <p>Several properties can be specified for a {@link ParDo}
+ * {@link PTransform}, including name, side inputs, side output tags,
+ * and {@link DoFn} to invoke. Only the {@link DoFn} is required; the
  * name is encouraged but not required, and side inputs and side
- * output tags are only specified when they're needed.  These
+ * output tags are only specified when they're needed. These
  * properties can be specified in any order, as long as they're
- * specified before the {@code ParDo} {@code PTransform} is applied.
+ * specified before the {@link ParDo} {@link PTransform} is applied.
  *
  * <p>The approach used to allow these properties to be specified in
  * any order, with some properties omitted, is to have each of the
  * property "setter" methods defined as static factory methods on
- * {@code ParDo} itself, which return an instance of either
- * {@link ParDo.Unbound ParDo.Unbound} or
- * {@link ParDo.Bound ParDo.Bound} nested classes, each of which offer
+ * {@link ParDo} itself, which return an instance of either
+ * {@link ParDo.Unbound} or
+ * {@link ParDo.Bound} nested classes, each of which offer
  * property setter instance methods to enable setting additional
- * properties.  {@code ParDo.Bound} is used for {@code ParDo}
- * transforms whose {@code DoFn} is specified and whose input and
- * output static types have been bound.  {@code ParDo.Unbound} is used
- * for {@code ParDo} transforms that have not yet had their
- * {@code DoFn} specified.  Only {@code ParDo.Bound} instances can be
+ * properties. {@link ParDo.Bound} is used for {@link ParDo}
+ * transforms whose {@link DoFn} is specified and whose input and
+ * output static types have been bound. {@link ParDo.Unbound ParDo.Unbound} is used
+ * for {@link ParDo} transforms that have not yet had their
+ * {@link DoFn} specified. Only {@link ParDo.Bound} instances can be
  * applied.
  *
  * <p>Another benefit of this approach is that it reduces the number
- * of type parameters that need to be specified manually.  In
- * particular, the input and output types of the {@code ParDo}
- * {@code PTransform} are inferred automatically from the type
- * parameters of the {@code DoFn} argument passed to {@link ParDo#of}.
+ * of type parameters that need to be specified manually. In
+ * particular, the input and output types of the {@link ParDo}
+ * {@link PTransform} are inferred automatically from the type
+ * parameters of the {@link DoFn} argument passed to {@link ParDo#of}.
  *
  * <h2>Output Coders</h2>
  *
- * <p>By default, the {@code Coder<OutputT>} of the
- * elements of the main output {@code PCollection<OutputT>} is inferred from the
- * concrete type of the {@code DoFn<InputT, OutputT>}'s output type {@code Output}.
+ * <p>By default, the {@link Coder Coder&lt;OutputT&gt;} for the
+ * elements of the main output {@link PCollection PCollection&lt;OutputT&gt;} is
+ * inferred from the concrete type of the {@link DoFn DoFn&lt;InputT, OutputT&gt;}.
  *
- * <p>By default, the {@code Coder<X>} of the elements of a side output
- * {@code PCollection<X>} is inferred from the concrete type of the
- * corresponding {@code TupleTag<X>}'s type {@code X}.  To be
- * successful, the {@code TupleTag} should be created as an instance
+ * <p>By default, the {@link Coder Coder&lt;SideOutputT&gt;} for the elements of
+ * a side output {@link PCollection PCollection&lt;SideOutputT&gt;} is inferred
+ * from the concrete type of the corresponding {@link TupleTag TupleTag&lt;SideOutputT&gt;}.
+ * To be successful, the {@link TupleTag} should be created as an instance
  * of a trivial anonymous subclass, with {@code {}} suffixed to the
- * constructor call.  Such uses block Java's generic type parameter
+ * constructor call. Such uses block Java's generic type parameter
  * inference, so the {@code <X>} argument must be provided explicitly.
  * For example:
  * <pre> {@code
@@ -281,96 +295,96 @@ import javax.annotation.Nullable;
  * This style of {@code TupleTag} instantiation is used in the example of
  * multiple side outputs, above.
  *
- * <h2>Serializability of {@code DoFn}s</h2>
+ * <h2>Serializability of {@link DoFn DoFns}</h2>
  *
- * <p>A {@code DoFn} passed to a {@code ParDo} transform must be
- * {@code Serializable}.  This allows the {@code DoFn} instance
+ * <p>A {@link DoFn} passed to a {@link ParDo} transform must be
+ * {@link Serializable}. This allows the {@link DoFn} instance
  * created in this "main program" to be sent (in serialized form) to
- * remote worker machines and reconstituted for each batch of elements
- * of the input {@code PCollection} being processed.  A {@code DoFn}
+ * remote worker machines and reconstituted for each bundles of elements
+ * of the input {@link PCollection} being processed. A {@link DoFn}
  * can have instance variable state, and non-transient instance
  * variable state will be serialized in the main program and then
- * deserialized on remote worker machines for each batch of elements
+ * deserialized on remote worker machines for each bundle of elements
  * to process.
  *
- * <p>To aid in ensuring that {@code DoFn}s are properly
- * {@code Serializable}, even local execution using the
+ * <p>To aid in ensuring that {@link DoFn DoFns} are properly
+ * {@link Serializable}, even local execution using the
  * {@link DirectPipelineRunner} will serialize and then deserialize
- * {@code DoFn}s before executing them on a batch.
+ * {@link DoFn DoFns} before executing them on a bundle.
  *
- * <p>{@code DoFn}s expressed as anonymous inner classes can be
+ * <p>{@link DoFn DoFns} expressed as anonymous inner classes can be
  * convenient, but due to a quirk in Java's rules for serializability,
  * non-static inner or nested classes (including anonymous inner
  * classes) automatically capture their enclosing class's instance in
- * their serialized state.  This can lead to including much more than
- * intended in the serialized state of a {@code DoFn}, or even things
- * that aren't {@code Serializable}.
+ * their serialized state. This can lead to including much more than
+ * intended in the serialized state of a {@link DoFn}, or even things
+ * that aren't {@link Serializable}.
  *
  * <p>There are two ways to avoid unintended serialized state in a
- * {@code DoFn}:
+ * {@link DoFn}:
  *
  * <ul>
  *
- * <li> Define the {@code DoFn} as a named, static class.
+ * <li>Define the {@link DoFn} as a named, static class.
  *
- * <li> Define the {@code DoFn} as an anonymous inner class inside of
+ * <li>Define the {@link DoFn} as an anonymous inner class inside of
  * a static method.
  *
  * </ul>
  *
- * <p>Both these approaches ensure that there is no implicit enclosing
- * class instance serialized along with the {@code DoFn} instance.
+ * <p>Both of these approaches ensure that there is no implicit enclosing
+ * instance serialized along with the {@link DoFn} instance.
  *
  * <p>Prior to Java 8, any local variables of the enclosing
  * method referenced from within an anonymous inner class need to be
- * marked as {@code final}.  If defining the {@code DoFn} as a named
+ * marked as {@code final}. If defining the {@link DoFn} as a named
  * static class, such variables would be passed as explicit
  * constructor arguments and stored in explicit instance variables.
  *
  * <p>There are three main ways to initialize the state of a
- * {@code DoFn} instance processing a batch:
+ * {@link DoFn} instance processing a bundle:
  *
  * <ul>
  *
- * <li> Define instance variable state (including implicit instance
+ * <li>Define instance variable state (including implicit instance
  * variables holding final variables captured by an anonymous inner
- * class), initialized by the {@code DoFn}'s constructor (which is
- * implicit for an anonymous inner class).  This state will be
+ * class), initialized by the {@link DoFn}'s constructor (which is
+ * implicit for an anonymous inner class). This state will be
  * automatically serialized and then deserialized in the {@code DoFn}
- * instance created for each batch.  This method is good for state
+ * instance created for each bundle. This method is good for state
  * known when the original {@code DoFn} is created in the main
  * program, if it's not overly large.
  *
- * <li> Compute the state as a singleton {@code PCollection} and pass it
- * in as a side input to the {@code DoFn}.  This is good if the state
+ * <li>Compute the state as a singleton {@link PCollection} and pass it
+ * in as a side input to the {@link DoFn}. This is good if the state
  * needs to be computed by the pipeline, or if the state is very large
  * and so is best read from file(s) rather than sent as part of the
  * {@code DoFn}'s serialized state.
  *
- * <li> Initialize the state in each {@code DoFn} instance, in
- * {@link DoFn#startBundle}.  This is good if the initialization
+ * <li>Initialize the state in each {@link DoFn} instance, in
+ * {@link DoFn#startBundle}. This is good if the initialization
  * doesn't depend on any information known only by the main program or
  * computed by earlier pipeline operations, but is the same for all
- * instances of this {@code DoFn} for all program executions, say
+ * instances of this {@link DoFn} for all program executions, say
  * setting up empty caches or initializing constant data.
  *
  * </ul>
  *
  * <h2>No Global Shared State</h2>
  *
- * <p>{@code ParDo} operations are intended to be able to run in
- * parallel across multiple worker machines.  This precludes easy
- * sharing and updating mutable state across those machines.  There is
+ * <p>{@link ParDo} operations are intended to be able to run in
+ * parallel across multiple worker machines. This precludes easy
+ * sharing and updating mutable state across those machines. There is
  * no support in the Google Cloud Dataflow system for communicating
  * and synchronizing updates to shared state across worker machines,
  * so programs should not access any mutable static variable state in
- * their {@code DoFn}, without understanding that the Java processes
+ * their {@link DoFn}, without understanding that the Java processes
  * for the main program and workers will each have its own independent
  * copy of such state, and there won't be any automatic copying of
- * that state across Java processes.  All information should be
- * communicated to {@code DoFn} instances via main and side inputs and
+ * that state across Java processes. All information should be
+ * communicated to {@link DoFn} instances via main and side inputs and
  * serialized state, and all output should be communicated from a
- * {@code DoFn} instance via main and side outputs, in the absence of
+ * {@link DoFn} instance via main and side outputs, in the absence of
  * external communication mechanisms written by user code.
  *
  * <h2>Fault Tolerance</h2>
@@ -378,53 +392,53 @@ import javax.annotation.Nullable;
  * <p>In a distributed system, things can fail: machines can crash,
  * machines can be unable to communicate across the network, etc.
  * While individual failures are rare, the larger the job, the greater
- * the chance that something, somewhere, will fail.  The Google Cloud
+ * the chance that something, somewhere, will fail. The Google Cloud
  * Dataflow service strives to mask such failures automatically,
- * principally by retrying failed {@code DoFn} batches.  This means
- * that a {@code DoFn} instance might process a batch partially, then
+ * principally by retrying failed {@link DoFn} bundle. This means
+ * that a {@code DoFn} instance might process a bundle partially, then
  * crash for some reason, then be rerun (often on a different worker
- * machine) on that same batch and on the same elements as before.
- * Sometimes two or more {@code DoFn} instances will be running on the
- * same batch simultaneously, with the system taking the results of
- * the first instance to complete successfully.  Consequently, the
- * code in a {@code DoFn} needs to be written such that these
+ * machine) on that same bundle and on the same elements as before.
+ * Sometimes two or more {@link DoFn} instances will be running on the
+ * same bundle simultaneously, with the system taking the results of
+ * the first instance to complete successfully. Consequently, the
+ * code in a {@link DoFn} needs to be written such that these
  * duplicate (sequential or concurrent) executions do not cause
- * problems.  If the outputs of a {@code DoFn} are a pure function of
- * its inputs, then this requirement is satisfied.  However, if a
- * {@code DoFn}'s execution has external side-effects, say performing
- * updates to external HTTP services, then the {@code DoFn}'s code
+ * problems. If the outputs of a {@link DoFn} are a pure function of
+ * its inputs, then this requirement is satisfied. However, if a
+ * {@link DoFn DoFn's} execution has external side-effects, such as performing
+ * updates to external HTTP services, then the {@link DoFn DoFn's} code
  * needs to take care to ensure that those updates are idempotent and
- * that concurrent updates are acceptable.  This property can be
+ * that concurrent updates are acceptable. This property can be
  * difficult to achieve, so it is advisable to strive to keep
- * {@code DoFn}s as pure functions as much as possible.
+ * {@link DoFn DoFns} as pure functions as much as possible.
  *
  * <h2>Optimization</h2>
  *
  * <p>The Google Cloud Dataflow service automatically optimizes a
- * pipeline before it is executed.  A key optimization, <i>fusion</i>,
- * relates to ParDo operations.  If one ParDo operation produces a
- * PCollection that is then consumed as the main input of another
- * ParDo operation, the two ParDo operations will be <i>fused</i>
+ * pipeline before it is executed. A key optimization, <i>fusion</i>,
+ * relates to {@link ParDo} operations. If one {@link ParDo} operation produces a
+ * {@link PCollection} that is then consumed as the main input of another
+ * {@link ParDo} operation, the two {@link ParDo} operations will be <i>fused</i>
  * together into a single ParDo operation and run in a single pass;
- * this is "producer-consumer fusion".  Similarly, if
- * two or more ParDo operations have the same PCollection main input,
- * they will be fused into a single ParDo that makes just one pass
- * over the input PCollection; this is "sibling fusion".
+ * this is "producer-consumer fusion". Similarly, if
+ * two or more ParDo operations have the same {@link PCollection} main input,
+ * they will be fused into a single {@link ParDo} that makes just one pass
+ * over the input {@link PCollection}; this is "sibling fusion".
  *
  * <p>If after fusion there are no more unfused references to a
- * PCollection (e.g., one between a producer ParDo and a consumer
- * ParDo), the PCollection itself is "fused away" and won't ever be
+ * {@link PCollection} (e.g., one between a producer ParDo and a consumer
+ * {@link ParDo}), the {@link PCollection} itself is "fused away" and won't ever be
  * written to disk, saving all the I/O and space expense of
  * constructing it.
  *
  * <p>The Google Cloud Dataflow service applies fusion as much as
- * possible, greatly reducing the cost of executing pipelines.  As a
- * result, it is essentially "free" to write ParDo operations in a
- * very modular, composable style, each ParDo operation doing one
- * clear task, and stringing together sequences of ParDo operations to
- * get the desired overall effect.  Such programs can be easier to
+ * possible, greatly reducing the cost of executing pipelines. As a
+ * result, it is essentially "free" to write {@link ParDo} operations in a
+ * very modular, composable style, each {@link ParDo} operation doing one
+ * clear task, and stringing together sequences of {@link ParDo} operations to
+ * get the desired overall effect. Such programs can be easier to
  * understand, easier to unit-test, easier to extend and evolve, and
- * easier to reuse in new programs.  The predefined library of
+ * easier to reuse in new programs. The predefined library of
  * PTransforms that come with Google Cloud Dataflow makes heavy use of
  * this modular, composable style, trusting to the Google Cloud
  * Dataflow service's optimizer to "flatten out" all the compositions
@@ -436,44 +450,44 @@ import javax.annotation.Nullable;
 public class ParDo {
 
   /**
-   * Creates a {@code ParDo} {@code PTransform} with the given name.
+   * Creates a {@link ParDo} {@link PTransform} with the given name.
    *
-   * <p>See the discussion of Naming above for more explanation.
+   * <p>See the discussion of naming above for more explanation.
    *
-   * <p>The resulting {@code PTransform} is incomplete, and its
-   * input/output types are not yet bound.  Use
+   * <p>The resulting {@link PTransform} is incomplete, and its
+   * input/output types are not yet bound. Use
    * {@link ParDo.Unbound#of} to specify the {@link DoFn} to
    * invoke, which will also bind the input/output types of this
-   * {@code PTransform}.
+   * {@link PTransform}.
    */
   public static Unbound named(String name) {
     return new Unbound().named(name);
   }
 
   /**
-   * Creates a {@code ParDo} {@code PTransform} with the given
+   * Creates a {@link ParDo} {@link PTransform} with the given
    * side inputs.
    *
-   * <p>Side inputs are {@link PCollectionView}s, whose contents are
+   * <p>Side inputs are {@link PCollectionView PCollectionViews}, whose contents are
    * computed during pipeline execution and then made accessible to
-   * {@code DoFn} code via {@link DoFn.ProcessContext#sideInput sideInput}. Each
-   * invocation of the {@code DoFn} receives the same values for these
+   * {@link DoFn} code via {@link DoFn.ProcessContext#sideInput sideInput}. Each
+   * invocation of the {@link DoFn} receives the same values for these
    * side inputs.
    *
    * <p>See the discussion of Side Inputs above for more explanation.
    *
-   * <p>The resulting {@code PTransform} is incomplete, and its
-   * input/output types are not yet bound.  Use
+   * <p>The resulting {@link PTransform} is incomplete, and its
+   * input/output types are not yet bound. Use
    * {@link ParDo.Unbound#of} to specify the {@link DoFn} to
    * invoke, which will also bind the input/output types of this
-   * {@code PTransform}.
+   * {@link PTransform}.
    */
   public static Unbound withSideInputs(PCollectionView<?>... sideInputs) {
     return new Unbound().withSideInputs(sideInputs);
   }
 
   /**
-    * Creates a {@code ParDo} with the given side inputs.
+    * Creates a {@link ParDo} with the given side inputs.
     *
    * <p>Side inputs are {@link PCollectionView}s, whose contents are
    * computed during pipeline execution and then made accessible to
@@ -481,11 +495,11 @@ public class ParDo {
    *
    * <p>See the discussion of Side Inputs above for more explanation.
    *
-   * <p>The resulting {@code PTransform} is incomplete, and its
-   * input/output types are not yet bound.  Use
+   * <p>The resulting {@link PTransform} is incomplete, and its
+   * input/output types are not yet bound. Use
    * {@link ParDo.Unbound#of} to specify the {@link DoFn} to
    * invoke, which will also bind the input/output types of this
-   * {@code PTransform}.
+   * {@link PTransform}.
    */
   public static Unbound withSideInputs(
       Iterable<? extends PCollectionView<?>> sideInputs) {
@@ -493,18 +507,18 @@ public class ParDo {
   }
 
   /**
-   * Creates a multi-output {@code ParDo} {@code PTransform} whose
+   * Creates a multi-output {@link ParDo} {@link PTransform} whose
    * output {@link PCollection}s will be referenced using the given main
    * output and side output tags.
    *
-   * <p>{@link TupleTag}s are used to name (with its static element
+   * <p>{@link TupleTag TupleTags} are used to name (with its static element
    * type {@code T}) each main and side output {@code PCollection<T>}.
-   * This {@code PTransform}'s {@link DoFn} emits elements to the main
-   * output {@code PCollection} as normal, using
-   * {@link DoFn.Context#output}.  The {@code DoFn} emits elements to
+   * This {@link PTransform PTransform's} {@link DoFn} emits elements to the main
+   * output {@link PCollection} as normal, using
+   * {@link DoFn.Context#output}. The {@link DoFn} emits elements to
    * a side output {@code PCollection} using
    * {@link DoFn.Context#sideOutput}, passing that side output's tag
-   * as an argument.  The result of invoking this {@code PTransform}
+   * as an argument. The result of invoking this {@link PTransform}
    * will be a {@link PCollectionTuple}, and any of the the main and
    * side output {@code PCollection}s can be retrieved from it via
    * {@link PCollectionTuple#get}, passing the output's tag as an
@@ -512,10 +526,10 @@ public class ParDo {
    *
    * <p>See the discussion of Side Outputs above for more explanation.
    *
-   * <p>The resulting {@code PTransform} is incomplete, and its input
-   * type is not yet bound.  Use {@link ParDo.UnboundMulti#of}
+   * <p>The resulting {@link PTransform} is incomplete, and its input
+   * type is not yet bound. Use {@link ParDo.UnboundMulti#of}
    * to specify the {@link DoFn} to invoke, which will also bind the
-   * input type of this {@code PTransform}.
+   * input type of this {@link PTransform}.
    */
   public static <OutputT> UnboundMulti<OutputT> withOutputTags(
       TupleTag<OutputT> mainOutputTag,
@@ -524,13 +538,13 @@ public class ParDo {
   }
 
   /**
-   * Creates a {@code ParDo} {@code PTransform} that will invoke the
+   * Creates a {@link ParDo} {@link PTransform} that will invoke the
    * given {@link DoFn} function.
    *
-   * <p>The resulting {@code PTransform}'s types have been bound, with the
+   * <p>The resulting {@link PTransform PTransform's} types have been bound, with the
    * input being a {@code PCollection<InputT>} and the output a
    * {@code PCollection<OutputT>}, inferred from the types of the argument
-   * {@code DoFn<InputT, OutputT>}.  It is ready to be applied, or further
+   * {@code DoFn<InputT, OutputT>}. It is ready to be applied, or further
    * properties can be set on it first.
    */
   public static <InputT, OutputT> Bound<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
@@ -543,13 +557,13 @@ public class ParDo {
   }
 
   /**
-   * Creates a {@code ParDo} {@code PTransform} that will invoke the
+   * Creates a {@link ParDo} {@link PTransform} that will invoke the
    * given {@link DoFnWithContext} function.
    *
-   * <p>The resulting {@code PTransform}'s types have been bound, with the
+   * <p>The resulting {@link PTransform PTransform's} types have been bound, with the
    * input being a {@code PCollection<InputT>} and the output a
    * {@code PCollection<OutputT>}, inferred from the types of the argument
-   * {@code DoFn<InputT, OutputT>}.  It is ready to be applied, or further
+   * {@code DoFn<InputT, OutputT>}. It is ready to be applied, or further
    * properties can be set on it first.
    *
    * <p>{@link DoFnWithContext} is an experimental alternative to
@@ -561,11 +575,11 @@ public class ParDo {
   }
 
   /**
-   * An incomplete {@code ParDo} transform, with unbound input/output types.
+   * An incomplete {@link ParDo} transform, with unbound input/output types.
    *
    * <p>Before being applied, {@link ParDo.Unbound#of} must be
    * invoked to specify the {@link DoFn} to invoke, which will also
-   * bind the input/output types of this {@code PTransform}.
+   * bind the input/output types of this {@link PTransform}.
    */
   public static class Unbound {
     private final String name;
@@ -581,18 +595,18 @@ public class ParDo {
     }
 
     /**
-     * Returns a new {@code ParDo} transform that's like this
-     * transform but with the specified name.  Does not modify this
-     * transform.  The resulting transform is still incomplete.
+     * Returns a new {@link ParDo} transform that's like this
+     * transform but with the specified name. Does not modify this
+     * transform. The resulting transform is still incomplete.
      *
-     * <p>See the discussion of Naming above for more explanation.
+     * <p>See the discussion of naming above for more explanation.
      */
     public Unbound named(String name) {
       return new Unbound(name, sideInputs);
     }
 
     /**
-     * Returns a new {@code ParDo} transform that's like this
+     * Returns a new {@link ParDo} transform that's like this
      * transform but with the specified side inputs.
      * Does not modify this transform. The resulting transform is
      * still incomplete.
@@ -605,9 +619,9 @@ public class ParDo {
     }
 
     /**
-     * Returns a new {@code ParDo} transform that's like this
-     * transform but with the specified side inputs.  Does not modify
-     * this transform.  The resulting transform is still incomplete.
+     * Returns a new {@link ParDo} transform that is like this
+     * transform but with the specified side inputs. Does not modify
+     * this transform. The resulting transform is still incomplete.
      *
      * <p>See the discussion of Side Inputs above and on
      * {@link ParDo#withSideInputs} for more explanation.
@@ -618,9 +632,9 @@ public class ParDo {
     }
 
     /**
-     * Returns a new multi-output {@code ParDo} transform that's like
+     * Returns a new multi-output {@link ParDo} transform that's like
      * this transform but with the specified main and side output
-     * tags.  Does not modify this transform.  The resulting transform
+     * tags. Does not modify this transform. The resulting transform
      * is still incomplete.
      *
      * <p>See the discussion of Side Outputs above and on
@@ -633,10 +647,10 @@ public class ParDo {
     }
 
     /**
-     * Returns a new {@code ParDo} {@code PTransform} that's like this
+     * Returns a new {@link ParDo} {@link PTransform} that's like this
      * transform but that will invoke the given {@link DoFn}
-     * function, and that has its input and output types bound.  Does
-     * not modify this transform.  The resulting {@code PTransform} is
+     * function, and that has its input and output types bound. Does
+     * not modify this transform. The resulting {@link PTransform} is
      * sufficiently specified to be applied, but more properties can
      * still be specified.
      */
@@ -645,10 +659,10 @@ public class ParDo {
     }
 
     /**
-     * Returns a new {@code ParDo} {@code PTransform} that's like this
+     * Returns a new {@link ParDo} {@link PTransform} that's like this
      * transform but which will invoke the given {@link DoFnWithContext}
-     * function, and which has its input and output types bound.  Does
-     * not modify this transform.  The resulting {@code PTransform} is
+     * function, and which has its input and output types bound. Does
+     * not modify this transform. The resulting {@link PTransform} is
      * sufficiently specified to be applied, but more properties can
      * still be specified.
      */
@@ -658,7 +672,7 @@ public class ParDo {
   }
 
   /**
-   * A {@code PTransform} that, when applied to a {@code PCollection<InputT>},
+   * A {@link PTransform} that, when applied to a {@code PCollection<InputT>},
    * invokes a user-specified {@code DoFn<InputT, OutputT>} on all its elements,
    * with all its outputs collected into an output
    * {@code PCollection<OutputT>}.
@@ -666,8 +680,8 @@ public class ParDo {
    * <p>A multi-output form of this transform can be created with
    * {@link ParDo.Bound#withOutputTags}.
    *
-   * @param <InputT> the type of the (main) input {@code PCollection} elements
-   * @param <OutputT> the type of the (main) output {@code PCollection} elements
+   * @param <InputT> the type of the (main) input {@link PCollection} elements
+   * @param <OutputT> the type of the (main) output {@link PCollection} elements
    */
   public static class Bound<InputT, OutputT>
       extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
@@ -684,9 +698,9 @@ public class ParDo {
     }
 
     /**
-     * Returns a new {@code ParDo} {@code PTransform} that's like this
-     * {@code PTransform} but with the specified name.  Does not
-     * modify this {@code PTransform}.
+     * Returns a new {@link ParDo} {@link PTransform} that's like this
+     * {@link PTransform} but with the specified name. Does not
+     * modify this {@link PTransform}.
      *
      * <p>See the discussion of Naming above for more explanation.
      */
@@ -695,9 +709,9 @@ public class ParDo {
     }
 
     /**
-     * Returns a new {@code ParDo} {@code PTransform} that's like this
-     * {@code PTransform} but with the specified side inputs.  Does not
-     * modify this {@code PTransform}.
+     * Returns a new {@link ParDo} {@link PTransform} that's like this
+     * {@link PTransform} but with the specified side inputs. Does not
+     * modify this {@link PTransform}.
      *
      * <p>See the discussion of Side Inputs above and on
      * {@link ParDo#withSideInputs} for more explanation.
@@ -707,9 +721,9 @@ public class ParDo {
     }
 
     /**
-     * Returns a new {@code ParDo} {@code PTransform} that's like this
-     * {@code PTransform} but with the specified side inputs.  Does not
-     * modify this {@code PTransform}.
+     * Returns a new {@link ParDo} {@link PTransform} that's like this
+     * {@link PTransform} but with the specified side inputs. Does not
+     * modify this {@link PTransform}.
      *
      * <p>See the discussion of Side Inputs above and on
      * {@link ParDo#withSideInputs} for more explanation.
@@ -720,9 +734,9 @@ public class ParDo {
     }
 
     /**
-     * Returns a new multi-output {@code ParDo} {@code PTransform}
-     * that's like this {@code PTransform} but with the specified main
-     * and side output tags.  Does not modify this {@code PTransform}.
+     * Returns a new multi-output {@link ParDo} {@link PTransform}
+     * that's like this {@link PTransform} but with the specified main
+     * and side output tags. Does not modify this {@link PTransform}.
      *
      * <p>See the discussion of Side Outputs above and on
      * {@link ParDo#withOutputTags} for more explanation.
@@ -772,12 +786,12 @@ public class ParDo {
   }
 
   /**
-   * An incomplete multi-output {@code ParDo} transform, with unbound
+   * An incomplete multi-output {@link ParDo} transform, with unbound
    * input type.
    *
    * <p>Before being applied, {@link ParDo.UnboundMulti#of} must be
    * invoked to specify the {@link DoFn} to invoke, which will also
-   * bind the input type of this {@code PTransform}.
+   * bind the input type of this {@link PTransform}.
    *
    * @param <OutputT> the type of the main output {@code PCollection} elements
    */
@@ -798,9 +812,9 @@ public class ParDo {
     }
 
     /**
-     * Returns a new multi-output {@code ParDo} transform that's like
-     * this transform but with the specified name.  Does not modify
-     * this transform.  The resulting transform is still incomplete.
+     * Returns a new multi-output {@link ParDo} transform that's like
+     * this transform but with the specified name. Does not modify
+     * this transform. The resulting transform is still incomplete.
      *
      * <p>See the discussion of Naming above for more explanation.
      */
@@ -810,9 +824,9 @@ public class ParDo {
     }
 
     /**
-     * Returns a new multi-output {@code ParDo} transform that's like
-     * this transform but with the specified side inputs.  Does not
-     * modify this transform.  The resulting transform is still
+     * Returns a new multi-output {@link ParDo} transform that's like
+     * this transform but with the specified side inputs. Does not
+     * modify this transform. The resulting transform is still
      * incomplete.
      *
      * <p>See the discussion of Side Inputs above and on
@@ -824,9 +838,9 @@ public class ParDo {
     }
 
     /**
-     * Returns a new multi-output {@code ParDo} transform that's like
-     * this transform but with the specified side inputs.  Does not
-     * modify this transform.  The resulting transform is still
+     * Returns a new multi-output {@link ParDo} transform that's like
+     * this transform but with the specified side inputs. Does not
+     * modify this transform. The resulting transform is still
      * incomplete.
      *
      * <p>See the discussion of Side Inputs above and on
@@ -840,11 +854,11 @@ public class ParDo {
     }
 
     /**
-     * Returns a new multi-output {@code ParDo} {@code PTransform}
+     * Returns a new multi-output {@link ParDo} {@link PTransform}
      * that's like this transform but that will invoke the given
      * {@link DoFn} function, and that has its input type bound.
-     * Does not modify this transform.  The resulting
-     * {@code PTransform} is sufficiently specified to be applied, but
+     * Does not modify this transform. The resulting
+     * {@link PTransform} is sufficiently specified to be applied, but
      * more properties can still be specified.
      */
     public <InputT> BoundMulti<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
@@ -853,11 +867,11 @@ public class ParDo {
     }
 
     /**
-     * Returns a new multi-output {@code ParDo} {@code PTransform}
+     * Returns a new multi-output {@link ParDo} {@link PTransform}
      * that's like this transform but which will invoke the given
      * {@link DoFnWithContext} function, and which has its input type bound.
-     * Does not modify this transform.  The resulting
-     * {@code PTransform} is sufficiently specified to be applied, but
+     * Does not modify this transform. The resulting
+     * {@link PTransform} is sufficiently specified to be applied, but
      * more properties can still be specified.
      */
     public <InputT> BoundMulti<InputT, OutputT> of(DoFnWithContext<InputT, OutputT> fn) {
@@ -866,10 +880,10 @@ public class ParDo {
   }
 
   /**
-   * A {@code PTransform} that, when applied to a
+   * A {@link PTransform} that, when applied to a
    * {@code PCollection<InputT>}, invokes a user-specified
    * {@code DoFn<InputT, OutputT>} on all its elements, which can emit elements
-   * to any of the {@code PTransform}'s main and side output
+   * to any of the {@link PTransform}'s main and side output
    * {@code PCollection}s, which are bundled into a result
    * {@code PCollectionTuple}.
    *
@@ -897,9 +911,9 @@ public class ParDo {
     }
 
     /**
-     * Returns a new multi-output {@code ParDo} {@code PTransform}
-     * that's like this {@code PTransform} but with the specified
-     * name.  Does not modify this {@code PTransform}.
+     * Returns a new multi-output {@link ParDo} {@link PTransform}
+     * that's like this {@link PTransform} but with the specified
+     * name. Does not modify this {@link PTransform}.
      *
      * <p>See the discussion of Naming above for more explanation.
      */
@@ -909,9 +923,9 @@ public class ParDo {
     }
 
     /**
-     * Returns a new multi-output {@code ParDo} {@code PTransform}
-     * that's like this {@code PTransform} but with the specified side
-     * inputs.  Does not modify this {@code PTransform}.
+     * Returns a new multi-output {@link ParDo} {@link PTransform}
+     * that's like this {@link PTransform} but with the specified side
+     * inputs. Does not modify this {@link PTransform}.
      *
      * <p>See the discussion of Side Inputs above and on
      * {@link ParDo#withSideInputs} for more explanation.
@@ -922,9 +936,9 @@ public class ParDo {
     }
 
     /**
-     * Returns a new multi-output {@code ParDo} {@code PTransform}
-     * that's like this {@code PTransform} but with the specified side
-     * inputs.  Does not modify this {@code PTransform}.
+     * Returns a new multi-output {@link ParDo} {@link PTransform}
+     * that's like this {@link PTransform} but with the specified side
+     * inputs. Does not modify this {@link PTransform}.
      *
      * <p>See the discussion of Side Inputs above and on
      * {@link ParDo#withSideInputs} for more explanation.
