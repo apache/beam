@@ -17,30 +17,29 @@
 package com.google.cloud.dataflow.sdk.util;
 
 /**
- * A {@code T} with an accompanying size estimate. Units are unspecified.
+ * A {@code T} with an accompanying weight. Units are unspecified.
  *
  * @param <T> the underlying type of object
  */
-public final class Sized<T> {
+public final class WeightedValue<T> implements Weighted {
 
   private final T value;
-  private final long size;
+  private final long weight;
 
-  private Sized(T value, long size) {
+  private WeightedValue(T value, long weight) {
     this.value = value;
-    this.size = size;
+    this.weight = weight;
   }
 
-  public static <T> Sized<T> of(T value, long size) {
-    return new Sized<>(value, size);
+  public static <T> WeightedValue<T> of(T value, long weight) {
+    return new WeightedValue<>(value, weight);
   }
 
-  public long getSize() {
-    return size;
+  public long getWeight() {
+    return weight;
   }
 
   public T getValue() {
     return value;
   }
 }
-

@@ -80,7 +80,7 @@ public abstract class MergingStateInternals implements StateInternals {
       }
 
       @Override
-      public <T, W extends BoundedWindow> WatermarkStateInternal bindWatermark(
+      public <W extends BoundedWindow> WatermarkStateInternal bindWatermark(
           StateTag<WatermarkStateInternal> address,
           OutputTimeFn<? super W> outputTimeFn) {
         List<WatermarkStateInternal> sources = new ArrayList<>();

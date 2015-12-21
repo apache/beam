@@ -15,10 +15,12 @@
  */
 package com.google.cloud.dataflow.sdk.runners.worker;
 
+import static com.google.cloud.dataflow.sdk.DataflowMatchers.ByteStringMatcher.byteStringEq;
 import static com.google.cloud.dataflow.sdk.testing.SystemNanoTimeSleeper.sleepMillis;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
@@ -53,10 +55,12 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
@@ -79,6 +83,7 @@ public class WindmillStateInternalsTest {
   private WindmillStateReader mockReader;
 
   private WindmillStateInternals underTest;
+  private WindmillStateCache cache;
 
   @Mock
   private Supplier<StateSampler.ScopedState> readStateSupplier;
@@ -94,7 +99,10 @@ public class WindmillStateInternalsTest {
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
-    underTest = new WindmillStateInternals(STATE_FAMILY, true, mockReader, readStateSupplier);
+    cache = new WindmillStateCache();
+    underTest = new WindmillStateInternals(STATE_FAMILY, mockReader,
+        cache.forComputation("comp").forKey(ByteString.EMPTY, STATE_FAMILY, 17L),
+        readStateSupplier);
   }
 
   private <T> void waitAndSet(final SettableFuture<T> future, final T value, final long millis) {
@@ -109,6 +117,15 @@ public class WindmillStateInternalsTest {
         future.set(value);
       }
     }).run();
+  }
+
+  private WindmillStateReader.WeightedList<String> weightedList(String... elems) {
+    WindmillStateReader.WeightedList<String> result =
+        new WindmillStateReader.WeightedList<String>(new ArrayList<String>(elems.length));
+    for (String elem : elems) {
+      result.addWeighted(elem, elem.length());
+    }
+    return result;
   }
 
   @Test
@@ -208,8 +225,6 @@ public class WindmillStateInternalsTest {
     assertEquals(1, listUpdates.getValuesCount());
     assertEquals("hello", listUpdates.getValues(0).getData().substring(1).toStringUtf8());
 
-    // Blind adds should not need to read the future.
-    Mockito.verify(mockReader).startBatchAndBlock();
     Mockito.verifyNoMoreInteractions(mockReader);
   }
 
@@ -238,10 +253,6 @@ public class WindmillStateInternalsTest {
     assertEquals(1, listUpdates.getValuesCount());
     assertEquals("world", listUpdates.getValues(0).getData().substring(1).toStringUtf8());
 
-    // Clear should need to read the future.
-    Mockito.verify(mockReader)
-        .listFuture(key(NAMESPACE, "bag"), STATE_FAMILY, StringUtf8Coder.of());
-    Mockito.verify(mockReader).startBatchAndBlock();
     Mockito.verifyNoMoreInteractions(mockReader);
   }
 
@@ -259,29 +270,6 @@ public class WindmillStateInternalsTest {
     // 1 list update = the clear
     assertEquals(1, commitBuilder.getListUpdatesCount());
   }
-
-  @Test
-  public void testBagNoStateFamilies() throws Exception {
-    underTest = new WindmillStateInternals(STATE_FAMILY, false, mockReader, readStateSupplier);
-
-    StateTag<BagState<String>> addr = StateTags.bag("bag", StringUtf8Coder.of());
-    BagState<String> bag = underTest.state(NAMESPACE, addr);
-
-    bag.add("hello");
-    bag.clear();
-    bag.add("world");
-
-    Windmill.WorkItemCommitRequest.Builder commitBuilder =
-        Windmill.WorkItemCommitRequest.newBuilder();
-    underTest.persist(commitBuilder);
-
-    // Clear should need to read the future.
-    Mockito.verify(mockReader)
-        .listFuture(key(STATE_FAMILY, NAMESPACE, "bag"), "", StringUtf8Coder.of());
-    Mockito.verify(mockReader).startBatchAndBlock();
-    Mockito.verifyNoMoreInteractions(mockReader);
-  }
-
 
   @Test
   public void testCombiningAddBeforeRead() throws Exception {
@@ -331,7 +319,9 @@ public class WindmillStateInternalsTest {
     when(mockReader.listFuture(COMBINING_KEY, STATE_FAMILY, accumCoder))
         .thenReturn(future);
     StateContents<Boolean> result = value.isEmpty();
-    Mockito.verify(mockReader).listFuture(COMBINING_KEY, STATE_FAMILY, accumCoder);
+    ArgumentCaptor<ByteString> byteString = ArgumentCaptor.forClass(ByteString.class);
+    Mockito.verify(mockReader).listFuture(byteString.capture(), eq(STATE_FAMILY), eq(accumCoder));
+    assertThat(byteString.getValue(), byteStringEq(COMBINING_KEY));
 
     waitAndSet(future, Arrays.asList(new int[] {29}), 200);
     assertThat(result.read(), Matchers.is(false));
@@ -374,8 +364,6 @@ public class WindmillStateInternalsTest {
         CoderUtils.decodeFromByteArray(
             accumCoder, listUpdates.getValues(0).getData().substring(1).toByteArray())[0]);
 
-    // Blind adds should not need to read the future.
-    Mockito.verify(mockReader).startBatchAndBlock();
     Mockito.verifyNoMoreInteractions(mockReader);
   }
 
@@ -443,9 +431,6 @@ public class WindmillStateInternalsTest {
         CoderUtils.decodeFromByteArray(
             accumCoder, listUpdates.getValues(0).getData().substring(1).toByteArray())[0]);
 
-    // Blind adds should not need to read the future.
-    Mockito.verify(mockReader).listFuture(COMBINING_KEY, STATE_FAMILY, accumCoder);
-    Mockito.verify(mockReader).startBatchAndBlock();
     Mockito.verifyNoMoreInteractions(mockReader);
   }
 
@@ -538,6 +523,8 @@ public class WindmillStateInternalsTest {
     Mockito.verifyNoMoreInteractions(mockReader);
   }
 
+
+  /*
   @Test
   public void testWatermarkIsEmptyWindmillHasData() throws Exception {
     StateTag<WatermarkStateInternal> addr = StateTags.watermarkStateInternal(
@@ -582,6 +569,7 @@ public class WindmillStateInternalsTest {
     bag.add(new Instant(1000));
     assertThat(result.read(), Matchers.is(false));
   }
+  */
 
   @Test
   public void testWatermarkPersistEarliest() throws Exception {
@@ -602,8 +590,6 @@ public class WindmillStateInternalsTest {
     assertEquals(key(NAMESPACE, "watermark"), watermarkHold.getTag());
     assertEquals(TimeUnit.MILLISECONDS.toMicros(1000), watermarkHold.getTimestamps(0));
 
-    // Blind adds should not need to read the future.
-    Mockito.verify(mockReader).startBatchAndBlock();
     Mockito.verifyNoMoreInteractions(mockReader);
   }
 
@@ -629,9 +615,7 @@ public class WindmillStateInternalsTest {
     assertEquals(key(NAMESPACE, "watermark"), watermarkHold.getTag());
     assertEquals(TimeUnit.MILLISECONDS.toMicros(2000), watermarkHold.getTimestamps(0));
 
-    // Blind adds should not need to read the future.
     Mockito.verify(mockReader).watermarkFuture(key(NAMESPACE, "watermark"), STATE_FAMILY);
-    Mockito.verify(mockReader).startBatchAndBlock();
     Mockito.verifyNoMoreInteractions(mockReader);
   }
 
@@ -657,9 +641,7 @@ public class WindmillStateInternalsTest {
     assertEquals(key(NAMESPACE, "watermark"), watermarkHold.getTag());
     assertEquals(TimeUnit.MILLISECONDS.toMicros(4000), watermarkHold.getTimestamps(0));
 
-    // Blind adds should not need to read the future.
     Mockito.verify(mockReader).watermarkFuture(key(NAMESPACE, "watermark"), STATE_FAMILY);
-    Mockito.verify(mockReader).startBatchAndBlock();
     Mockito.verifyNoMoreInteractions(mockReader);
   }
 
@@ -685,9 +667,7 @@ public class WindmillStateInternalsTest {
     assertEquals(key(NAMESPACE, "watermark"), watermarkHold.getTag());
     assertEquals(TimeUnit.MILLISECONDS.toMicros(2000), watermarkHold.getTimestamps(0));
 
-    // Blind adds should not need to read the future.
     Mockito.verify(mockReader).watermarkFuture(key(NAMESPACE, "watermark"), STATE_FAMILY);
-    Mockito.verify(mockReader).startBatchAndBlock();
     Mockito.verifyNoMoreInteractions(mockReader);
   }
 
@@ -711,7 +691,6 @@ public class WindmillStateInternalsTest {
     assertEquals(TimeUnit.MILLISECONDS.toMicros(2000), watermarkHold.getTimestamps(0));
 
     // Blind adds should not need to read the future.
-    Mockito.verify(mockReader).startBatchAndBlock();
     Mockito.verifyNoMoreInteractions(mockReader);
   }
 
@@ -735,12 +714,8 @@ public class WindmillStateInternalsTest {
     Windmill.WatermarkHold clearAndUpdate = commitBuilder.getWatermarkHolds(0);
     assertEquals(key(NAMESPACE, "watermark"), clearAndUpdate.getTag());
     assertEquals(1, clearAndUpdate.getTimestampsCount());
-    assertEquals(key(NAMESPACE, "watermark"), clearAndUpdate.getTag());
-    assertEquals(1, clearAndUpdate.getTimestampsCount());
     assertEquals(TimeUnit.MILLISECONDS.toMicros(1000), clearAndUpdate.getTimestamps(0));
 
-    // Clearing requires reading the future.
-    Mockito.verify(mockReader).startBatchAndBlock();
     Mockito.verifyNoMoreInteractions(mockReader);
   }
 
@@ -759,39 +734,6 @@ public class WindmillStateInternalsTest {
 
     // 1 list update corresponds to deletion. There shouldn't be a list update adding items.
     assertEquals(1, commitBuilder.getWatermarkHoldsCount());
-  }
-
-  @Test
-  public void testWatermarkNoStateFamiliesEarliest() throws Exception {
-    underTest = new WindmillStateInternals(STATE_FAMILY, false, mockReader, readStateSupplier);
-
-    StateTag<WatermarkStateInternal> addr = StateTags.watermarkStateInternal(
-        "watermark", OutputTimeFns.outputAtEarliestInputTimestamp());
-    WatermarkStateInternal bag = underTest.state(NAMESPACE, addr);
-    bag.get();
-    Mockito.verify(mockReader).watermarkFuture(key(STATE_FAMILY, NAMESPACE, "watermark"), "");
-  }
-
-  @Test
-  public void testWatermarkNoStateFamiliesLatest() throws Exception {
-    underTest = new WindmillStateInternals(STATE_FAMILY, false, mockReader, readStateSupplier);
-
-    StateTag<WatermarkStateInternal> addr = StateTags.watermarkStateInternal(
-        "watermark", OutputTimeFns.outputAtLatestInputTimestamp());
-    WatermarkStateInternal bag = underTest.state(NAMESPACE, addr);
-    bag.get();
-    Mockito.verify(mockReader).watermarkFuture(key(STATE_FAMILY, NAMESPACE, "watermark"), "");
-  }
-
-  @Test
-  public void testWatermarkNoStateFamiliesEndOfWindow() throws Exception {
-    underTest = new WindmillStateInternals(STATE_FAMILY, false, mockReader, readStateSupplier);
-
-    StateTag<WatermarkStateInternal> addr = StateTags.watermarkStateInternal(
-        "watermark", OutputTimeFns.outputAtLatestInputTimestamp());
-    WatermarkStateInternal bag = underTest.state(NAMESPACE, addr);
-    bag.get();
-    Mockito.verify(mockReader).watermarkFuture(key(STATE_FAMILY, NAMESPACE, "watermark"), "");
   }
 
   @Test
@@ -846,10 +788,6 @@ public class WindmillStateInternalsTest {
     assertEquals("Hi", valueUpdate.getValue().getData().toStringUtf8());
     assertTrue(valueUpdate.isInitialized());
 
-    // Setting a value requires a read to prevent blind writes.
-    Mockito.verify(mockReader)
-        .valueFuture(key(NAMESPACE, "value"), STATE_FAMILY, StringUtf8Coder.of());
-    Mockito.verify(mockReader).startBatchAndBlock();
     Mockito.verifyNoMoreInteractions(mockReader);
   }
 
@@ -870,10 +808,6 @@ public class WindmillStateInternalsTest {
     assertEquals(key(NAMESPACE, "value"), valueUpdate.getTag());
     assertEquals(0, valueUpdate.getValue().getData().size());
 
-    // Setting a value requires a read to prevent blind writes.
-    Mockito.verify(mockReader)
-        .valueFuture(key(NAMESPACE, "value"), STATE_FAMILY, StringUtf8Coder.of());
-    Mockito.verify(mockReader).startBatchAndBlock();
     Mockito.verifyNoMoreInteractions(mockReader);
   }
 
@@ -888,24 +822,157 @@ public class WindmillStateInternalsTest {
 
     assertEquals(0, commitBuilder.getValueUpdatesCount());
 
-    // No changes shouldn't require getting any futures
-    Mockito.verify(mockReader).startBatchAndBlock();
     Mockito.verifyNoMoreInteractions(mockReader);
   }
 
   @Test
-  public void testValueNoStateFamilies() throws Exception {
-    underTest = new WindmillStateInternals(STATE_FAMILY, false, mockReader, readStateSupplier);
-
+  public void testCachedValue() throws Exception {
     StateTag<ValueState<String>> addr = StateTags.value("value", StringUtf8Coder.of());
     ValueState<String> value = underTest.state(NAMESPACE, addr);
 
-    SettableFuture<String> future = SettableFuture.create();
-    when(mockReader.valueFuture(key(STATE_FAMILY, NAMESPACE, "value"), "", StringUtf8Coder.of()))
-        .thenReturn(future);
-    waitAndSet(future, "World", 200);
+    assertEquals(0, cache.getWeight());
 
-    assertEquals("World", value.get().read());
+    value.set("Hi");
+    underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
+
+    assertEquals(2, cache.getWeight());
+
+    value = underTest.state(NAMESPACE, addr);
+    assertEquals("Hi", value.get().read());
+    value.clear();
+    underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
+
+    assertEquals(0, cache.getWeight());
+
+    value = underTest.state(NAMESPACE, addr);
+    assertEquals(null, value.get().read());
+
+    Mockito.verifyNoMoreInteractions(mockReader);
+  }
+
+  @Test
+  public void testCachedBag() throws Exception {
+    StateTag<BagState<String>> addr = StateTags.bag("bag", StringUtf8Coder.of());
+    BagState<String> bag = underTest.state(NAMESPACE, addr);
+
+    assertEquals(0, cache.getWeight());
+
+    SettableFuture<Iterable<String>> future = SettableFuture.create();
+    when(mockReader.listFuture(key(NAMESPACE, "bag"), STATE_FAMILY, StringUtf8Coder.of()))
+        .thenReturn(future);
+
+    StateContents<Iterable<String>> result = bag.get();
+
+    assertEquals(0, cache.getWeight());
+
+    bag.add("hello");
+    waitAndSet(future, weightedList("world"), 200);
+    assertThat(result.read(), Matchers.containsInAnyOrder("hello", "world"));
+
+    underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
+
+    assertEquals(10, cache.getWeight());
+
+    bag = underTest.state(NAMESPACE, addr);
+    bag.add("goodbye");
+    assertThat(bag.get().read(), Matchers.containsInAnyOrder("hello", "world", "goodbye"));
+    bag.clear();
+    bag.add("new");
+
+    underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
+
+    assertEquals(3, cache.getWeight());
+
+    bag = underTest.state(NAMESPACE, addr);
+    bag.add("new2");
+    assertThat(bag.get().read(), Matchers.containsInAnyOrder("new", "new2"));
+    bag.clear();
+    bag.add("new3");
+
+    underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
+
+    assertEquals(4, cache.getWeight());
+
+    bag = underTest.state(NAMESPACE, addr);
+    assertThat(bag.get().read(), Matchers.containsInAnyOrder("new3"));
+
+    Mockito.verify(mockReader)
+        .listFuture(key(NAMESPACE, "bag"), STATE_FAMILY, StringUtf8Coder.of());
+    Mockito.verifyNoMoreInteractions(mockReader);
+  }
+
+  @Test
+  public void testCachedWatermarkHold() throws Exception {
+    StateTag<WatermarkStateInternal> addr = StateTags.watermarkStateInternal(
+        "watermark", OutputTimeFns.outputAtEarliestInputTimestamp());
+    WatermarkStateInternal bag = underTest.state(NAMESPACE, addr);
+
+    SettableFuture<Instant> future = SettableFuture.create();
+    when(mockReader.watermarkFuture(key(NAMESPACE, "watermark"), STATE_FAMILY)).thenReturn(future);
+
+    assertEquals(0, cache.getWeight());
+
+    StateContents<Instant> result = bag.get();
+
+    bag.add(new Instant(3000));
+    waitAndSet(future, new Instant(2000), 200);
+    assertThat(result.read(), Matchers.equalTo(new Instant(2000)));
+
+    underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
+
+    assertEquals(8, cache.getWeight());
+
+    bag = underTest.state(NAMESPACE, addr);
+    assertThat(bag.get().read(), Matchers.equalTo(new Instant(2000)));
+    bag.clear();
+
+    underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
+
+    assertEquals(8, cache.getWeight());
+
+    bag = underTest.state(NAMESPACE, addr);
+    assertEquals(null, bag.get().read());
+
+    Mockito.verify(mockReader).watermarkFuture(key(NAMESPACE, "watermark"), STATE_FAMILY);
+    Mockito.verifyNoMoreInteractions(mockReader);
+  }
+
+  @Test
+  public void testCachedCombining() throws Exception {
+    CombiningValueState<Integer, Integer> value = underTest.state(NAMESPACE, COMBINING_ADDR);
+
+    SettableFuture<Iterable<int[]>> future = SettableFuture.create();
+    when(mockReader.listFuture(key(NAMESPACE, "combining"), STATE_FAMILY, accumCoder))
+        .thenReturn(future);
+
+    assertEquals(0, cache.getWeight());
+
+    StateContents<Integer> result = value.get();
+
+    value.add(1);
+    waitAndSet(future, Arrays.asList(new int[]{2}), 200);
+    assertThat(result.read(), Matchers.equalTo(3));
+
+    underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
+
+    assertEquals(1, cache.getWeight());
+
+    value = underTest.state(NAMESPACE, COMBINING_ADDR);
+    assertThat(value.get().read(), Matchers.equalTo(3));
+    value.add(3);
+    assertThat(value.get().read(), Matchers.equalTo(6));
+    value.clear();
+
+    underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
+
+    assertEquals(0, cache.getWeight());
+
+    value = underTest.state(NAMESPACE, COMBINING_ADDR);
+    assertThat(value.get().read(), Matchers.equalTo(0));
+
+    Mockito.verify(mockReader)
+        .listFuture(key(NAMESPACE, "combining"), STATE_FAMILY, accumCoder);
+    Mockito.verifyNoMoreInteractions(mockReader);
   }
 
   private void disableCompactOnWrite() {

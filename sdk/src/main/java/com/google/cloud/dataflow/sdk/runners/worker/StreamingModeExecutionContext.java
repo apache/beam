@@ -65,6 +65,7 @@ public class StreamingModeExecutionContext
   // Per-key cache of active Reader objects in use by this process.
   private final ConcurrentMap<ByteString, ReaderCacheEntry> readerCache;
   private final ConcurrentMap<String, String> stateNameMap;
+  private final WindmillStateCache.ForComputation stateCache;
 
   private Windmill.WorkItem work;
   @Nullable private Instant inputDataWatermark;
@@ -74,14 +75,14 @@ public class StreamingModeExecutionContext
   private Windmill.WorkItemCommitRequest.Builder outputBuilder;
   private UnboundedSource.UnboundedReader<?> activeReader;
 
-  public StreamingModeExecutionContext(
-      String stageName,
+  public StreamingModeExecutionContext(String stageName,
       ConcurrentMap<ByteString, ReaderCacheEntry> readerCache,
-      ConcurrentMap<String, String> stateNameMap) {
+      ConcurrentMap<String, String> stateNameMap, WindmillStateCache.ForComputation stateCache) {
     this.stageName = stageName;
     this.sideInputCache = new HashMap<>();
     this.readerCache = readerCache;
     this.stateNameMap = stateNameMap;
+    this.stateCache = stateCache;
   }
 
   public void start(
@@ -380,9 +381,10 @@ public class StreamingModeExecutionContext
   }
 
   class StepContext extends BaseExecutionContext.StepContext {
+    private static final String DEFAULT_STATE_FAMILY = "";
+
     private WindmillStateInternals stateInternals;
     private WindmillTimerInternals timerInternals;
-    private final String prefix;
     private final String stateFamily;
     private final Supplier<StateSampler.ScopedState> scopedReadStateSupplier;
 
@@ -390,14 +392,9 @@ public class StreamingModeExecutionContext
         final String stepName, String transformName, final StateSampler stateSampler) {
       super(StreamingModeExecutionContext.this, stepName, transformName);
 
-      if (stateNameMap.isEmpty()) {
-        this.prefix = transformName;
-        this.stateFamily = "";
-      } else {
-        String mappedName = stateNameMap.get(transformName);
-        this.prefix = mappedName == null ? "" : mappedName;
-        this.stateFamily = prefix;
-      }
+      String mappedName = stateNameMap.get(transformName);
+      this.stateFamily = mappedName == null ? DEFAULT_STATE_FAMILY : mappedName;
+
       this.scopedReadStateSupplier = new Supplier<StateSampler.ScopedState>() {
         private int readState = -1;  // Uninitialized value.
 
@@ -420,9 +417,9 @@ public class StreamingModeExecutionContext
     public void start(
         WindmillStateReader stateReader, @Nullable Instant inputDataWatermark,
         @Nullable Instant outputDataWatermark) {
-      boolean useStateFamilies = !stateNameMap.isEmpty();
-      this.stateInternals = new WindmillStateInternals(
-          prefix, useStateFamilies, stateReader, scopedReadStateSupplier);
+      this.stateInternals = new WindmillStateInternals(stateFamily, stateReader,
+          stateCache.forKey(getSerializedKey(), stateFamily, getWork().getCacheToken()),
+          scopedReadStateSupplier);
       this.timerInternals =
           new WindmillTimerInternals(stateFamily, inputDataWatermark, outputDataWatermark);
     }
