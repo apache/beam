@@ -115,7 +115,7 @@ public class DataflowWorker {
    */
   private static final int OVERHEAD_WEIGHT = 8;
 
-  private static final int MEGABYTES = 1024 * 1024;
+  private static final long MEGABYTES = 1024 * 1024;
 
   public static final int DEFAULT_STATUS_PORT = 18081;
 
