@@ -16,7 +16,10 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.anyString;
@@ -36,9 +39,15 @@ import com.google.api.client.http.LowLevelHttpRequest;
 import com.google.api.client.http.LowLevelHttpResponse;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
+import com.google.api.client.testing.http.MockHttpTransport;
+import com.google.api.client.testing.http.MockLowLevelHttpRequest;
 import com.google.api.client.util.NanoClock;
 import com.google.api.client.util.Sleeper;
+import com.google.api.services.bigquery.Bigquery;
+import com.google.api.services.bigquery.model.TableReference;
+import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.storage.Storage;
+import com.google.common.collect.ImmutableList;
 
 import org.hamcrest.Matchers;
 import org.junit.After;
@@ -53,8 +62,10 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
+import java.net.SocketTimeoutException;
 import java.security.PrivateKey;
 import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Tests for RetryHttpRequestInitializer.
@@ -239,5 +250,47 @@ public class RetryHttpRequestInitializerTest {
     verify(mockLowLevelRequest, times(retries)).setTimeout(anyInt(), anyInt());
     verify(mockLowLevelRequest, times(retries)).execute();
     verify(mockLowLevelResponse, times(retries)).getStatusCode();
+  }
+
+  /**
+   * Tests that when RPCs fail with {@link SocketTimeoutException}, the IO exception handler
+   * is invoked.
+   */
+  @Test
+  public void testIOExceptionHandlerIsInvokedOnTimeout() throws Exception {
+    // Counts the number of calls to execute the HTTP request.
+    final AtomicLong executeCount = new AtomicLong();
+
+    // 10 is a private internal constant in the Google API Client library. See
+    // com.google.api.client.http.HttpRequest#setNumberOfRetries
+    // TODO: update this test once the private internal constant is public.
+    final int defaultNumberOfRetries = 10;
+
+    // A mock HTTP request that always throws SocketTimeoutException.
+    MockHttpTransport transport =
+        new MockHttpTransport.Builder().setLowLevelHttpRequest(new MockLowLevelHttpRequest() {
+          @Override
+          public LowLevelHttpResponse execute() throws IOException {
+            executeCount.incrementAndGet();
+            throw new SocketTimeoutException("Fake forced timeout exception");
+          }
+        }).build();
+
+    // A sample HTTP request to BigQuery that uses both default Transport and default
+    // RetryHttpInitializer.
+    Bigquery b = new Bigquery.Builder(
+        transport, Transport.getJsonFactory(), new RetryHttpRequestInitializer()).build();
+    BigQueryTableInserter inserter = new BigQueryTableInserter(b);
+    TableReference t = new TableReference()
+        .setProjectId("project").setDatasetId("dataset").setTableId("table");
+
+    try {
+      inserter.insertAll(t, ImmutableList.of(new TableRow()));
+      fail();
+    } catch (Throwable e) {
+      assertThat(e, Matchers.<Throwable>instanceOf(RuntimeException.class));
+      assertThat(e.getCause(), Matchers.<Throwable>instanceOf(SocketTimeoutException.class));
+      assertEquals(1 + defaultNumberOfRetries, executeCount.get());
+    }
   }
 }
