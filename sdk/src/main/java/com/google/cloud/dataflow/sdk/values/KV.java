@@ -29,24 +29,24 @@ import java.util.Objects;
 /**
  * An immutable key/value pair.
  *
- * <p>Various {@link PTransform}s like {@link GroupByKey} and {@link Combine#perKey}
- * work on {@link PCollection}s of KVs.
+ * <p>Various {@link PTransform PTransforms} like {@link GroupByKey} and {@link Combine#perKey}
+ * operate on {@link PCollection PCollections} of {@link KV KVs}.
  *
  * @param <K> the type of the key
  * @param <V> the type of the value
  */
 public class KV<K, V> implements Serializable {
-  /** Returns a KV with the given key and value. */
+  /** Returns a {@link KV} with the given key and value. */
   public static <K, V> KV<K, V> of(K key, V value) {
     return new KV<>(key, value);
   }
 
-  /** Returns the key of this KV. */
+  /** Returns the key of this {@link KV}. */
   public K getKey() {
     return key;
   }
 
-  /** Returns the value of this KV. */
+  /** Returns the value of this {@link KV}. */
   public V getValue() {
     return value;
   }
@@ -76,7 +76,11 @@ public class KV<K, V> implements Serializable {
         && Objects.deepEquals(this.value, otherKv.value);
   }
 
-  /** Orders the {@link KV} by the key. A null key is less than any non-null key. */
+  /**
+   * Orders the {@link KV} by the key.
+   *
+   * <p>A {@code null} key is less than any non-{@code null} key.
+   */
   public static class OrderByKey<K extends Comparable<? super K>, V> implements
       SerializableComparator<KV<K, V>> {
     @Override
@@ -91,7 +95,11 @@ public class KV<K, V> implements Serializable {
     }
   }
 
-  /** Orders the {@link KV} by the value. A null value is less than any non-null value. */
+  /**
+   * Orders the {@link KV} by the value.
+   *
+   * <p>A {@code null} value is less than any non-{@code null} value.
+   */
   public static class OrderByValue<K, V extends Comparable<? super V>>
       implements SerializableComparator<KV<K, V>> {
     @Override
