@@ -25,14 +25,14 @@ import java.util.Collection;
 import java.util.Collections;
 
 /**
- * {@code PBegin} is used as the "input" to a root {@link PTransform} that is the first
- * operation in a {@link Pipeline}, such as {@link Read TextIO.Read} or {@link Create}.
+ * {@link PBegin} is the "input" to a root {@link PTransform}, such as {@link Read Read} or
+ * {@link Create}.
  *
  * <p>Typically created by calling {@link Pipeline#begin} on a Pipeline.
  */
 public class PBegin implements PInput {
   /**
-   * Returns a {@code PBegin} in the given {@code Pipeline}.
+   * Returns a {@link PBegin} in the given {@link Pipeline}.
    */
   public static PBegin in(Pipeline pipeline) {
     return new PBegin(pipeline);
@@ -40,7 +40,7 @@ public class PBegin implements PInput {
 
   /**
    * Like {@link #apply(String, PTransform)} but defaulting to the name
-   * of the {@code PTransform}.
+   * of the {@link PTransform}.
    */
   public <OutputT extends POutput> OutputT apply(
       PTransform<? super PBegin, OutputT> t) {
@@ -48,7 +48,7 @@ public class PBegin implements PInput {
   }
 
   /**
-   * Applies the given {@code PTransform} to this input {@code PBegin},
+   * Applies the given {@link PTransform} to this input {@link PBegin},
    * using {@code name} to identify this specific application of the transform.
    * This name is used in various places, including the monitoring UI, logging,
    * and to stably identify this application node in the job graph.
@@ -77,7 +77,7 @@ public class PBegin implements PInput {
   /////////////////////////////////////////////////////////////////////////////
 
   /**
-   * Constructs a {@code PBegin} in the given {@code Pipeline}.
+   * Constructs a {@link PBegin} in the given {@link Pipeline}.
    */
   protected PBegin(Pipeline pipeline) {
     this.pipeline = pipeline;

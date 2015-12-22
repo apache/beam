@@ -77,7 +77,7 @@ public class KV<K, V> implements Serializable {
   }
 
   /**
-   * Orders the {@link KV} by the key.
+   * A {@link Comparator} that orders {@link KV KVs} by the natural ordering of their keys.
    *
    * <p>A {@code null} key is less than any non-{@code null} key.
    */
@@ -96,7 +96,7 @@ public class KV<K, V> implements Serializable {
   }
 
   /**
-   * Orders the {@link KV} by the value.
+   * A {@link Comparator} that orders {@link KV KVs} by the natural ordering of their values.
    *
    * <p>A {@code null} value is less than any non-{@code null} value.
    */

@@ -17,30 +17,29 @@
 package com.google.cloud.dataflow.sdk.values;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.transforms.ParDo;
+import com.google.cloud.dataflow.sdk.transforms.View;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 
 import java.io.Serializable;
 
 /**
- * A {@link PCollectionView PCollectionView&lt;T&gt;} is an immutable view of a
- * {@link PCollection} as a value of type {@code T} that can be accessed e.g. as
- * a side input to a {@link com.google.cloud.dataflow.sdk.transforms.DoFn}.
+ * A {@link PCollectionView PCollectionView&lt;T&gt;} is an immutable view of a {@link PCollection}
+ * as a value of type {@code T} that can be accessed
+ * as a side input to a {@link ParDo} transform.
  *
- * <p>A {@code PCollectionView} should always be the output of a
+ * <p>A {@link PCollectionView} should always be the output of a
  * {@link com.google.cloud.dataflow.sdk.transforms.PTransform}. It is the joint responsibility of
  * this transform and each {@link com.google.cloud.dataflow.sdk.runners.PipelineRunner} to implement
  * the view in a runner-specific manner.
  *
- * <p>The most common case is using the {@link com.google.cloud.dataflow.sdk.transforms.View}
- * transforms to prepare a {@link PCollection} for use as a side input to
- * {@link com.google.cloud.dataflow.sdk.transforms.ParDo}. See
- * {@link com.google.cloud.dataflow.sdk.transforms.View#asSingleton()},
- * {@link com.google.cloud.dataflow.sdk.transforms.View#asIterable()}, and
- * {@link com.google.cloud.dataflow.sdk.transforms.View#asMap()} for more detail on specific views
+ * <p>The most common case is using the {@link View} transforms to prepare a {@link PCollection}
+ * for use as a side input to {@link ParDo}. See {@link View#asSingleton()},
+ * {@link View#asIterable()}, and {@link View#asMap()} for more detail on specific views
  * available in the SDK.
  *
- * @param <T> the type of the value(s) accessible via this {@code PCollectionView}
+ * @param <T> the type of the value(s) accessible via this {@link PCollectionView}
  */
 public interface PCollectionView<T> extends PValue, Serializable {
   /**

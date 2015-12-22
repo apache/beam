@@ -28,19 +28,20 @@ import java.util.Collection;
 public interface POutput {
 
   /**
-   * Returns the owning {@link Pipeline} of this {@code POutput}.
+   * Returns the owning {@link Pipeline} of this {@link POutput}.
    */
   public Pipeline getPipeline();
 
   /**
-   * Expands this {@code POutput} into a list of its component output
-   * {@code PValue}s.
+   * Expands this {@link POutput} into a list of its component output
+   * {@link PValue PValues}.
    *
-   * <p>A {@link PValue} expands to itself.
-   *
-   * <p>A tuple or list of {@code PValue}s (e.g.,
-   * {@link PCollectionTuple}, and
-   * {@link PCollectionList}) expands to its component {@code PValue}s.
+   * <ul>
+   *   <li>A {@link PValue} expands to itself.</li>
+   *   <li>A tuple or list of {@link PValue PValues} (such as
+   *     {@link PCollectionTuple} or {@link PCollectionList})
+   *     expands to its component {@code PValue PValues}.</li>
+   * </ul>
    *
    * <p>Not intended to be invoked directly by user code.
    */
@@ -55,20 +56,20 @@ public interface POutput {
    *
    * <p>This is not intended to be invoked by user code, but
    * is automatically invoked as part of applying the
-   * producing {@code PTransform}.
+   * producing {@link PTransform}.
    */
   public void recordAsOutput(AppliedPTransform<?, ?, ?> transform);
 
   /**
-   * As part of applying the producing {@code PTransform}, finalizes this
+   * As part of applying the producing {@link PTransform}, finalizes this
    * output to make it ready for being used as an input and for running.
    *
-   * <p>This includes ensuring that all {@code PCollection}s
-   * have {@code Coder}s specified or defaulted.
+   * <p>This includes ensuring that all {@link PCollection PCollections}
+   * have {@link Coder Coders} specified or defaulted.
    *
-   * <p>Automatically invoked whenever this {@code POutput} is used
-   * as a {@code PInput} to another {@code PTransform}, or if never
-   * used as a {@code PInput}, when {@link Pipeline#run}
+   * <p>Automatically invoked whenever this {@link POutput} is used
+   * as a {@link PInput} to another {@link PTransform}, or if never
+   * used as a {@link PInput}, when {@link Pipeline#run}
    * is called, so users do not normally call this explicitly.
    */
   public void finishSpecifyingOutput();

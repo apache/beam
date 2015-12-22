@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.values;
 
+import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.common.collect.ImmutableList;
 
 import java.io.Serializable;
@@ -24,12 +25,12 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * A {@code TupleTagList} is an immutable list of heterogeneously
- * typed {@link TupleTag}s.  A TupleTagList is used, for instance, to
+ * A {@link TupleTagList} is an immutable list of heterogeneously
+ * typed {@link TupleTag TupleTags}. A {@link TupleTagList} is used, for instance, to
  * specify the tags of the side outputs of a
- * {@link com.google.cloud.dataflow.sdk.transforms.ParDo}.
+ * {@link ParDo}.
  *
- * <p>TupleTagLists can be created and accessed like follows:
+ * <p>A {@link TupleTagList} can be created and accessed like follows:
  * <pre> {@code
  * TupleTag<String> tag1 = ...;
  * TupleTag<Integer> tag2 = ...;
@@ -53,9 +54,9 @@ import java.util.List;
  */
 public class TupleTagList implements Serializable {
   /**
-   * Returns an empty TupleTagList.
+   * Returns an empty {@link TupleTagList}.
    *
-   * <p>Longer TupleTagLists can be created by calling
+   * <p>Longer {@link TupleTagList TupleTagLists} can be created by calling
    * {@link #and} on the result.
    */
   public static TupleTagList empty() {
@@ -63,9 +64,9 @@ public class TupleTagList implements Serializable {
   }
 
   /**
-   * Returns a singleton TupleTagList containing the given TupleTag.
+   * Returns a singleton {@link TupleTagList} containing the given {@link TupleTag}.
    *
-   * <p>Longer TupleTagLists can be created by calling
+   * <p>Longer {@link TupleTagList TupleTagLists} can be created by calling
    * {@link #and} on the result.
    */
   public static TupleTagList of(TupleTag<?> tag) {
@@ -73,9 +74,9 @@ public class TupleTagList implements Serializable {
   }
 
   /**
-   * Returns a TupleTagList containing the given TupleTags, in order.
+   * Returns a {@link TupleTagList} containing the given {@link TupleTag TupleTags}, in order.
    *
-   * <p>Longer TupleTagLists can be created by calling
+   * <p>Longer {@link TupleTagList TupleTagLists} can be created by calling
    * {@link #and} on the result.
    */
   public static TupleTagList of(List<TupleTag<?>> tags) {
@@ -83,8 +84,8 @@ public class TupleTagList implements Serializable {
   }
 
   /**
-   * Returns a new TupleTagList that has all the TupleTags of
-   * this TupleTagList plus the given TupleTag appended to the end.
+   * Returns a new {@link TupleTagList} that has all the {@link TupleTag TupleTags} of
+   * this {@link TupleTagList} plus the given {@link TupleTag} appended to the end.
    */
   public TupleTagList and(TupleTag<?> tag) {
     return new TupleTagList(
@@ -95,8 +96,8 @@ public class TupleTagList implements Serializable {
   }
 
   /**
-   * Returns a new TupleTagList that has all the TupleTags of
-   * this TupleTagList plus the given TupleTags appended to the end,
+   * Returns a new {@link TupleTagList} that has all the {@link TupleTag TupleTags} of
+   * this {@link TupleTagList} plus the given {@link TupleTag TupleTags} appended to the end,
    * in order.
    */
   public TupleTagList and(List<TupleTag<?>> tags) {
@@ -115,8 +116,9 @@ public class TupleTagList implements Serializable {
   }
 
   /**
-   * Returns the TupleTag at the given index (origin zero).  Throws
-   * IndexOutOfBounds if the index is out of the range
+   * Returns the {@link TupleTag} at the given index (origin zero).
+   *
+   * @throws IndexOutOfBoundsException if the index is out of the range
    * {@code [0..size()-1]}.
    */
   public TupleTag<?> get(int index) {
@@ -124,7 +126,7 @@ public class TupleTagList implements Serializable {
   }
 
   /**
-   * Returns an immutable List of all the TupleTags in this TupleTagList.
+   * Returns an immutable List of all the {@link TupleTag TupleTags} in this {@link TupleTagList}.
    */
   public List<TupleTag<?>> getAll() {
     return tupleTags;

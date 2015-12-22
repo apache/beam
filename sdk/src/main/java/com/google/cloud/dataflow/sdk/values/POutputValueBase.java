@@ -18,13 +18,14 @@ package com.google.cloud.dataflow.sdk.values;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
+import com.google.cloud.dataflow.sdk.transforms.PTransform;
 
 /**
- * A {@code POutputValueBase} is the abstract base class of
+ * A {@link POutputValueBase} is the abstract base class of
  * {@code PTransform} outputs.
  *
- * <p>A {@code PValueBase} that adds tracking of its producing
- * {@code AppliedPTransform}.
+ * <p>A {@link PValueBase} that adds tracking of its producing
+ * {@link AppliedPTransform}.
  *
  * <p>For internal use.
  */
@@ -38,7 +39,7 @@ public abstract class POutputValueBase implements POutput {
 
   /**
    * No-arg constructor for Java serialization only.
-   * The resulting {@code POutputValueBase} is unlikely to be
+   * The resulting {@link POutputValueBase} is unlikely to be
    * valid.
    */
   protected POutputValueBase() {
@@ -51,7 +52,7 @@ public abstract class POutputValueBase implements POutput {
   }
 
   /**
-   * Returns the {@code AppliedPTransform} that this {@code POutputValueBase}
+   * Returns the {@link AppliedPTransform} that this {@link POutputValueBase}
    * is an output of.
    *
    * <p>For internal use only.
@@ -61,8 +62,8 @@ public abstract class POutputValueBase implements POutput {
   }
 
   /**
-   * Records that this {@code POutputValueBase} is an output with the
-   * given name of the given {@code AppliedPTransform}.
+   * Records that this {@link POutputValueBase} is an output with the
+   * given name of the given {@link AppliedPTransform}.
    *
    * <p>To be invoked only by {@link POutput#recordAsOutput}
    * implementations.  Not to be invoked directly by user code.
@@ -87,7 +88,7 @@ public abstract class POutputValueBase implements POutput {
   }
 
   /**
-   * Default behavior for {@code finishSpecifyingOutput()} is
+   * Default behavior for {@link #finishSpecifyingOutput()} is
    * to do nothing. Override if your {@link PValue} requires
    * finalization.
    */
@@ -95,7 +96,7 @@ public abstract class POutputValueBase implements POutput {
   public void finishSpecifyingOutput() { }
 
   /**
-   * The {@code PTransform} that produces this {@code POutputValueBase}.
+   * The {@link PTransform} that produces this {@link POutputValueBase}.
    */
   private AppliedPTransform<?, ?, ?> producingTransform;
 }

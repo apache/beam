@@ -18,25 +18,35 @@
  * Defines {@link com.google.cloud.dataflow.sdk.values.PCollection} and other classes for
  * representing data in a {@link com.google.cloud.dataflow.sdk.Pipeline}.
  *
- * <p>A {@link com.google.cloud.dataflow.sdk.values.PCollection} is an immutable collection of
- * values of type {@code T} and is the main representation for data.
- * A {@link com.google.cloud.dataflow.sdk.values.PCollectionTuple} is a tuple of PCollections
- * used in cases where PTransforms take or return multiple PCollections.
+ * <p>In particular, see these collection abstractions:
  *
- * <p>A {@link com.google.cloud.dataflow.sdk.values.PCollectionTuple} is an immutable tuple of
- * heterogeneously-typed {@link com.google.cloud.dataflow.sdk.values.PCollection}s, "keyed" by
- * {@link com.google.cloud.dataflow.sdk.values.TupleTag}s.
- * A PCollectionTuple can be used as the input or
- * output of a
- * {@link com.google.cloud.dataflow.sdk.transforms.PTransform} taking
- * or producing multiple PCollection inputs or outputs that can be of
- * different types, for instance a
- * {@link com.google.cloud.dataflow.sdk.transforms.ParDo} with side
- * outputs.
+ * <ul>
+ *   <li>{@link com.google.cloud.dataflow.sdk.values.PCollection} - an immutable collection of
+ *     values of type {@code T} and the main representation for data in Dataflow.</li>
+ *   <li>{@link com.google.cloud.dataflow.sdk.values.PCollectionView} - an immutable view of a
+ *     {@link com.google.cloud.dataflow.sdk.values.PCollection} that can be accessed as a
+ *     side input of a {@link com.google.cloud.dataflow.sdk.transforms.ParDo}
+ *     {@link com.google.cloud.dataflow.sdk.transforms.PTransform}.</li>
+ *   <li>{@link com.google.cloud.dataflow.sdk.values.PCollectionTuple} - a heterogeneous tuple of
+ *     {@link com.google.cloud.dataflow.sdk.values.PCollection PCollections}
+ *     used in cases where a {@link com.google.cloud.dataflow.sdk.transforms.PTransform} takes
+ *     or returns multiple
+ *     {@link com.google.cloud.dataflow.sdk.values.PCollection PCollections}.</li>
+ *   <li>{@link com.google.cloud.dataflow.sdk.values.PCollectionList} - a homogeneous list of
+ *     {@link com.google.cloud.dataflow.sdk.values.PCollection PCollections} used, for example,
+ *     as input to {@link com.google.cloud.dataflow.sdk.transforms.Flatten}.</li>
+ * </ul>
  *
- * <p>A {@link com.google.cloud.dataflow.sdk.values.PCollectionView} is an immutable view of a
- * PCollection that can be accessed from a DoFn and other user Fns
- * as a side input.
+ * <p>And these classes for individual values play particular roles in Dataflow:
  *
+ * <ul>
+ *   <li>{@link com.google.cloud.dataflow.sdk.values.KV} - a key/value pair that is used by
+ *     keyed transforms, most notably {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey}.
+ *     </li>
+ *   <li>{@link com.google.cloud.dataflow.sdk.values.TimestampedValue} - a timestamp/value pair
+ *     that is used for windowing and handling out-of-order data in streaming execution.</li>
+ * </ul>
+ *
+ * <p>For further details, see the documentation for each class in this package.
  */
 package com.google.cloud.dataflow.sdk.values;

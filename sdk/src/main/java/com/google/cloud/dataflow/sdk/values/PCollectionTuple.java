@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.values;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.values.PCollection.IsBounded;
 import com.google.common.collect.ImmutableMap;
@@ -29,17 +30,17 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * A {@code PCollectionTuple} is an immutable tuple of
- * heterogeneously-typed {@link PCollection}s, "keyed" by
- * {@link TupleTag}s.  A PCollectionTuple can be used as the input or
+ * A {@link PCollectionTuple} is an immutable tuple of
+ * heterogeneously-typed {@link PCollection PCollections}, "keyed" by
+ * {@link TupleTag TupleTags}. A {@link PCollectionTuple} can be used as the input or
  * output of a
- * {@link com.google.cloud.dataflow.sdk.transforms.PTransform} taking
+ * {@link PTransform} taking
  * or producing multiple PCollection inputs or outputs that can be of
  * different types, for instance a
- * {@link com.google.cloud.dataflow.sdk.transforms.ParDo} with side
+ * {@link ParDo} with side
  * outputs.
  *
- * <p>A {@code PCollectionTuple} can be created and accessed like follows:
+ * <p>A {@link PCollectionTuple} can be created and accessed like follows:
  * <pre> {@code
  * PCollection<String> pc1 = ...;
  * PCollection<Integer> pc2 = ...;
@@ -74,7 +75,7 @@ import java.util.Map;
  */
 public class PCollectionTuple implements PInput, POutput {
   /**
-   * Returns an empty {@code PCollectionTuple} that is part of the given {@link Pipeline}.
+   * Returns an empty {@link PCollectionTuple} that is part of the given {@link Pipeline}.
    *
    * <p>A {@link PCollectionTuple} containing additional elements can be created by calling
    * {@link #and} on the result.
@@ -87,7 +88,7 @@ public class PCollectionTuple implements PInput, POutput {
    * Returns a singleton {@link PCollectionTuple} containing the given
    * {@link PCollection} keyed by the given {@link TupleTag}.
    *
-   * <p>A {@code PCollectionTuple} containing additional elements can be created by calling
+   * <p>A {@link PCollectionTuple} containing additional elements can be created by calling
    * {@link #and} on the result.
    */
   public static <T> PCollectionTuple of(TupleTag<T> tag, PCollection<T> pc) {
@@ -152,6 +153,8 @@ public class PCollectionTuple implements PInput, POutput {
   /**
    * Like {@link #apply(String, PTransform)} but defaulting to the name
    * of the {@link PTransform}.
+   *
+   * @return the output of the applied {@link PTransform}
    */
   public <OutputT extends POutput> OutputT apply(
       PTransform<PCollectionTuple, OutputT> t) {
@@ -159,10 +162,12 @@ public class PCollectionTuple implements PInput, POutput {
   }
 
   /**
-   * Applies the given {@code PTransform} to this input {@code PCollectionTuple},
+   * Applies the given {@link PTransform} to this input {@link PCollectionTuple},
    * using {@code name} to identify this specific application of the transform.
    * This name is used in various places, including the monitoring UI, logging,
    * and to stably identify this application node in the job graph.
+   *
+   * @return the output of the applied {@link PTransform}
    */
   public <OutputT extends POutput> OutputT apply(
       String name, PTransform<PCollectionTuple, OutputT> t) {

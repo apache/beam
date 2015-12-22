@@ -17,21 +17,20 @@
 package com.google.cloud.dataflow.sdk.values;
 
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
+import com.google.cloud.dataflow.sdk.transforms.PTransform;
 
 /**
- * A {@code PValue} is the interface to values that can be
- * input and output from {@link com.google.cloud.dataflow.sdk.transforms.PTransform}s.
+ * The interface for values that can be input to and output from {@link PTransform PTransforms}.
  */
 public interface PValue extends POutput, PInput {
 
   /**
-   * Returns the name of this {@code PValue}.
+   * Returns the name of this {@link PValue}.
    */
   public String getName();
 
   /**
-   * Returns the {@code AppliedPTransform} that this {@code POutputValueBase}
-   * is an output of.
+   * Returns the {@link AppliedPTransform} that this {@link PValue} is an output of.
    *
    * <p>For internal use only.
    */

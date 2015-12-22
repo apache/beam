@@ -26,21 +26,22 @@ import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 
 /**
- * A {@code TypedPValue<T>} is the abstract base class of things that
- * store some number of values of type {@code T}. Because we know
- * the type {@code T}, this is the layer of the inheritance hierarchy where
- * we store a coder for objects of type {@code T}
+ * A {@link TypedPValue TypedPValue&lt;T&gt;} is the abstract base class of things that
+ * store some number of values of type {@code T}.
  *
- * @param <T> the type of the values stored in this {@code TypedPValue}
+ * <p>Because we know the type {@code T}, this is the layer of the inheritance hierarchy where
+ * we store a coder for objects of type {@code T}.
+ *
+ * @param <T> the type of the values stored in this {@link TypedPValue}
  */
 public abstract class TypedPValue<T> extends PValueBase implements PValue {
 
   /**
-   * Returns the Coder used by this TypedPValue to encode and decode
+   * Returns the {@link Coder} used by this {@link TypedPValue} to encode and decode
    * the values stored in it.
    *
-   * @throws IllegalStateException if the Coder hasn't been set, and
-   * couldn't be inferred
+   * @throws IllegalStateException if the {@link Coder} hasn't been set, and
+   * couldn't be inferred.
    */
   public Coder<T> getCoder() {
     if (coder == null) {
@@ -50,10 +51,10 @@ public abstract class TypedPValue<T> extends PValueBase implements PValue {
   }
 
   /**
-   * Sets the Coder used by this TypedPValue to encode and decode the
-   * values stored in it.  Returns {@code this}.
+   * Sets the {@link Coder} used by this {@link TypedPValue} to encode and decode the
+   * values stored in it. Returns {@code this}.
    *
-   * @throws IllegalStateException if this TypedPValue has already
+   * @throws IllegalStateException if this {@link TypedPValue} has already
    * been finalized and is no longer settable, e.g., by having
    * {@code apply()} called on it
    */
@@ -71,10 +72,10 @@ public abstract class TypedPValue<T> extends PValueBase implements PValue {
   }
 
   /**
-   * After building, finalizes this PValue to make it ready for
-   * running.  Automatically invoked whenever the PValue is "used"
+   * After building, finalizes this {@link PValue} to make it ready for
+   * running.  Automatically invoked whenever the {@link PValue} is "used"
    * (e.g., when apply() is called on it) and when the Pipeline is
-   * run (useful if this is a PValue with no consumers).
+   * run (useful if this is a {@link PValue} with no consumers).
    */
   @Override
   public void finishSpecifying() {
@@ -88,7 +89,7 @@ public abstract class TypedPValue<T> extends PValueBase implements PValue {
   // Internal details below here.
 
   /**
-   * The Coder used by this TypedPValue to encode and decode the
+   * The {@link Coder} used by this {@link TypedPValue} to encode and decode the
    * values stored in it, or null if not specified nor inferred yet.
    */
   private Coder<T> coder;
@@ -100,7 +101,7 @@ public abstract class TypedPValue<T> extends PValueBase implements PValue {
   private TypeDescriptor<T> typeDescriptor;
 
   /**
-   * Returns a {@code TypeDescriptor<T>} with some reflective information
+   * Returns a {@link TypeDescriptor TypeDescriptor&lt;T&gt;} with some reflective information
    * about {@code T}, if possible. May return {@code null} if no information
    * is available. Subclasses may override this to enable better
    * {@code Coder} inference.
@@ -110,8 +111,8 @@ public abstract class TypedPValue<T> extends PValueBase implements PValue {
   }
 
   /**
-   * Sets the {@code TypeDescriptor<T>} associated with this class. Better
-   * reflective type information will lead to better {@code Coder}
+   * Sets the {@link TypeDescriptor TypeDescriptor&lt;T&gt;} associated with this class. Better
+   * reflective type information will lead to better {@link Coder}
    * inference.
    */
   public TypedPValue<T> setTypeDescriptorInternal(TypeDescriptor<T> typeDescriptor) {
@@ -121,8 +122,8 @@ public abstract class TypedPValue<T> extends PValueBase implements PValue {
 
   /**
    * If the coder is not explicitly set, this sets the coder for
-   * this {@code TypedPValue<T>} to the best coder that can be inferred
-   * based upon the known {@code TypeDescriptor<T>}. By default, this is null,
+   * this {@link TypedPValue} to the best coder that can be inferred
+   * based upon the known {@link TypeDescriptor}. By default, this is null,
    * but can and should be improved by subclasses.
    */
   @SuppressWarnings({"unchecked", "rawtypes"})

@@ -26,17 +26,20 @@ import java.util.Collection;
  */
 public interface PInput {
   /**
-   * Returns the owning {@link Pipeline} of this {@code PInput}.
+   * Returns the owning {@link Pipeline} of this {@link PInput}.
    */
   public Pipeline getPipeline();
 
   /**
-   * Expands this {@code PInput} into a list of its component input {@link PValue}s.
+   * Expands this {@link PInput} into a list of its component output
+   * {@link PValue PValues}.
    *
-   * <p>A {@link PValue} expands to itself.
-   *
-   * <p>A tuple or list of {@link PValue}s (e.g., {@link PCollectionTuple},
-   * and {@link PCollectionList}) expands to its component {@link PValue}s.
+   * <ul>
+   *   <li>A {@link PValue} expands to itself.</li>
+   *   <li>A tuple or list of {@link PValue PValues} (such as
+   *     {@link PCollectionTuple} or {@link PCollectionList})
+   *     expands to its component {@code PValue PValues}.</li>
+   * </ul>
    *
    * <p>Not intended to be invoked directly by user code.
    */

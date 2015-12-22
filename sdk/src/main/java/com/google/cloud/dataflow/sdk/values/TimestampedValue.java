@@ -37,10 +37,10 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * An immutable (value, timestamp) pair.
+ * An immutable pair of a value and a timestamp.
  *
- * <p>Used for assigning initial timestamps to values inserted into a pipeline
- * with {@link com.google.cloud.dataflow.sdk.transforms.Create#timestamped}.
+ * <p>The timestamp of a value determines many properties, such as its assignment to
+ * windows and whether the value is late (with respect to the watermark of a {@link PCollection}).
  *
  * @param <V> the type of the value
  */
@@ -83,7 +83,7 @@ public class TimestampedValue<V> {
   /////////////////////////////////////////////////////////////////////////////
 
   /**
-   * A {@link Coder} for {@code TimestampedValue}.
+   * A {@link Coder} for {@link TimestampedValue}.
    */
   public static class TimestampedValueCoder<T>
       extends StandardCoder<TimestampedValue<T>> {

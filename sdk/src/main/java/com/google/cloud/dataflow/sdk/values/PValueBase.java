@@ -24,26 +24,24 @@ import java.util.Collection;
 import java.util.Collections;
 
 /**
- * A {@code PValueBase} is an abstract base class that provides
+ * A {@link PValueBase} is an abstract base class that provides
  * sensible default implementations for methods of {@link PValue}.
  * In particular, this includes functionality for getting/setting:
  *
  * <ul>
- * <li> The {@code Pipeline} that the {@code PValue} is
- * part of.
- * <li> Whether the {@code PValue} has bee finalized (as an input
- * or an output), after which its properties can
- * no longer be changed.
+ *   <li> The {@link Pipeline} that the {@link PValue} is part of.</li>
+ *   <li> Whether the {@link PValue} has bee finalized (as an input
+ *     or an output), after which its properties can no longer be changed.</li>
  * </ul>
  *
  * <p>For internal use.
  */
 public abstract class PValueBase extends POutputValueBase implements PValue {
   /**
-   * Returns the name of this {@code PValueBase}.
+   * Returns the name of this {@link PValueBase}.
    *
-   * <p>By default, the name of a {@code PValueBase} is based on the
-   * name of the {@code PTransform} that produces it.  It can be
+   * <p>By default, the name of a {@link PValueBase} is based on the
+   * name of the {@link PTransform} that produces it.  It can be
    * specified explicitly by calling {@link #setName}.
    *
    * @throws IllegalStateException if the name hasn't been set yet
@@ -57,11 +55,10 @@ public abstract class PValueBase extends POutputValueBase implements PValue {
   }
 
   /**
-   * Sets the name of this {@code PValueBase}.  Returns {@code this}.
+   * Sets the name of this {@link PValueBase}.  Returns {@code this}.
    *
-   * @throws IllegalStateException if this {@code PValueBase} has
-   * already been finalized and is no longer settable, e.g., by having
-   * {@code apply()} called on it
+   * @throws IllegalStateException if this {@link PValueBase} has
+   * already been finalized and may no longer be set.
    */
   public PValueBase setName(String name) {
     if (finishedSpecifying) {
@@ -80,7 +77,7 @@ public abstract class PValueBase extends POutputValueBase implements PValue {
 
   /**
    * No-arg constructor for Java serialization only.
-   * The resulting {@code PValueBase} is unlikely to be
+   * The resulting {@link PValueBase} is unlikely to be
    * valid.
    */
   protected PValueBase() {
@@ -88,12 +85,12 @@ public abstract class PValueBase extends POutputValueBase implements PValue {
   }
 
   /**
-   * The name of this {@code PValueBase}, or null if not yet set.
+   * The name of this {@link PValueBase}, or null if not yet set.
    */
   private String name;
 
   /**
-   * Whether this {@code PValueBase} has been finalized, and its core
+   * Whether this {@link PValueBase} has been finalized, and its core
    * properties, e.g., name, can no longer be changed.
    */
   private boolean finishedSpecifying = false;
@@ -104,9 +101,9 @@ public abstract class PValueBase extends POutputValueBase implements PValue {
   }
 
   /**
-   * Records that this {@code POutputValueBase} is an output with the
-   * given name of the given {@code AppliedPTransform} in the given
-   * {@code Pipeline}.
+   * Records that this {@link POutputValueBase} is an output with the
+   * given name of the given {@link AppliedPTransform} in the given
+   * {@link Pipeline}.
    *
    * <p>To be invoked only by {@link POutput#recordAsOutput}
    * implementations.  Not to be invoked directly by user code.
@@ -120,7 +117,7 @@ public abstract class PValueBase extends POutputValueBase implements PValue {
   }
 
   /**
-   * Returns whether this {@code PValueBase} has been finalized, and
+   * Returns whether this {@link PValueBase} has been finalized, and
    * its core properties, e.g., name, can no longer be changed.
    *
    * <p>For internal use only.
@@ -147,11 +144,10 @@ public abstract class PValueBase extends POutputValueBase implements PValue {
   }
 
   /**
-   * Returns a {@code String} capturing the kind of this
-   * {@code PValueBase}.
+   * Returns a {@link String} capturing the kind of this
+   * {@link PValueBase}.
    *
-   * <p>By default, uses the base name of this {@code PValueBase}'s
-   * class as its kind string.
+   * <p>By default, uses the base name of the current class as its kind string.
    */
   protected String getKindString() {
     return StringUtils.approximateSimpleName(getClass());

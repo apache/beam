@@ -31,16 +31,16 @@ import java.io.Serializable;
 import java.util.Random;
 
 /**
- * A {@code TupleTag} is a typed tag to use as the key of a
+ * A {@link TupleTag} is a typed tag to use as the key of a
  * heterogeneously typed tuple, like {@link PCollectionTuple}.
  * Its generic type parameter allows tracking
  * the static type of things stored in tuples.
  *
- * <p>To aid in assigning default {@code Coder}s for results of
- * side outputs of {@code ParDo}, an output
- * {@code TupleTag} should be instantiated with an extra {@code {}} so
+ * <p>To aid in assigning default {@link Coder Coders} for results of
+ * side outputs of {@link ParDo}, an output
+ * {@link TupleTag} should be instantiated with an extra {@code {}} so
  * it is an instance of an anonymous subclass without generic type
- * parameters.  Input {@code TupleTag}s require no such extra
+ * parameters.  Input {@link TupleTag TupleTags} require no such extra
  * instantiation (although it doesn't hurt).  For example:
  *
  * <pre> {@code

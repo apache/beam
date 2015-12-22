@@ -49,7 +49,7 @@ public abstract class TypeDescriptor<T> implements Serializable {
   private final TypeToken<T> token;
 
   /**
-   * Creates a TypeDescriptor wrapping the provided token.
+   * Creates a {@link TypeDescriptor} wrapping the provided token.
    * This constructor is private so Guava types do not leak.
    */
   private TypeDescriptor(TypeToken<T> token) {
@@ -93,14 +93,14 @@ public abstract class TypeDescriptor<T> implements Serializable {
   }
 
   /**
-   * Returns the {@code Type} represented by this {@link TypeDescriptor}.
+   * Returns the {@link Type} represented by this {@link TypeDescriptor}.
    */
   public Type getType() {
     return token.getType();
   }
 
   /**
-   * Returns the {@code Class} underlying the {@code Type} represented by
+   * Returns the {@link Class} underlying the {@link Type} represented by
    * this {@link TypeDescriptor}.
    */
   public Class<? super T> getRawType() {
@@ -130,8 +130,8 @@ public abstract class TypeDescriptor<T> implements Serializable {
   }
 
   /**
-   * Returns a {@code TypeVariable} for the named type parameter. Throws
-   * {@code IllegalArgumentException} if a type variable by the requested type parameter is not
+   * Returns a {@link TypeVariable} for the named type parameter. Throws
+   * {@link IllegalArgumentException} if a type variable by the requested type parameter is not
    * found.
    *
    * <p>For example, {@code new TypeDescriptor<List>(){}.getTypeParameter("T")} returns a
@@ -186,7 +186,7 @@ public abstract class TypeDescriptor<T> implements Serializable {
   }
 
   /**
-   * Returns a {@code TypeDescriptor} representing the given
+   * Returns a {@link TypeDescriptor} representing the given
    * type, with type variables resolved according to the specialization
    * in this type.
    *

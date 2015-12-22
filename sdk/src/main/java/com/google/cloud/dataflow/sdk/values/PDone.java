@@ -17,20 +17,19 @@
 package com.google.cloud.dataflow.sdk.values;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.transforms.PTransform;
 
 import java.util.Collection;
 import java.util.Collections;
 
 /**
- * {@code PDone} is the output of a
- * {@link com.google.cloud.dataflow.sdk.transforms.PTransform} that
- * doesn't have a non-trival result, e.g., a Write.  No more
- * transforms can be applied to it.
+ * {@link PDone} is the output of a {@link PTransform} that has a trivial result,
+ * such as a {@link Write}.
  */
 public class PDone extends POutputValueBase {
 
   /**
-   * Creates a {@code PDone} in the given {@code Pipeline}.
+   * Creates a {@link PDone} in the given {@link Pipeline}.
    */
   public static PDone in(Pipeline pipeline) {
     return new PDone(pipeline);
