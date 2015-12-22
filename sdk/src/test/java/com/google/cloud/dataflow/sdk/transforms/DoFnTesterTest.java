@@ -15,23 +15,127 @@
  */
 package com.google.cloud.dataflow.sdk.transforms;
 
+import static org.hamcrest.CoreMatchers.hasItems;
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+
+import java.util.List;
 
 /**
  * Tests for {@link DoFnTester}.
  */
 @RunWith(JUnit4.class)
 public class DoFnTesterTest {
+
+  @Test
+  public void processElement() {
+    CounterDoFn counterDoFn = new CounterDoFn();
+    DoFnTester<Long, String> tester = DoFnTester.of(counterDoFn);
+
+    tester.processElement(1L);
+
+    List<String> take = tester.takeOutputElements();
+
+    assertThat(take, hasItems("1"));
+
+    // Following takeOutputElements(), neither takeOutputElements()
+    // nor peekOutputElements() return anything.
+    assertTrue(tester.takeOutputElements().isEmpty());
+    assertTrue(tester.peekOutputElements().isEmpty());
+
+    // processElement() caused startBundle() to be called, but finishBundle() was never called.
+    CounterDoFn deserializedDoFn = (CounterDoFn) tester.fn;
+    assertTrue(deserializedDoFn.wasStartBundleCalled());
+    assertFalse(deserializedDoFn.wasFinishBundleCalled());
+  }
+
+  @Test
+  public void processElementsWithPeeks() {
+    CounterDoFn counterDoFn = new CounterDoFn();
+    DoFnTester<Long, String> tester = DoFnTester.of(counterDoFn);
+
+    // Explicitly call startBundle().
+    tester.startBundle();
+
+    // verify startBundle() was called but not finishBundle().
+    CounterDoFn deserializedDoFn = (CounterDoFn) tester.fn;
+    assertTrue(deserializedDoFn.wasStartBundleCalled());
+    assertFalse(deserializedDoFn.wasFinishBundleCalled());
+
+    // process a couple of elements.
+    tester.processElement(1L);
+    tester.processElement(2L);
+
+    // peek the first 2 outputs.
+    List<String> peek = tester.peekOutputElements();
+    assertThat(peek, hasItems("1", "2"));
+
+    // process a couple more.
+    tester.processElement(3L);
+    tester.processElement(4L);
+
+    // peek all the outputs so far.
+    peek = tester.peekOutputElements();
+    assertThat(peek, hasItems("1", "2", "3", "4"));
+    // take the outputs.
+    List<String> take = tester.takeOutputElements();
+    assertThat(take, hasItems("1", "2", "3", "4"));
+
+    // Following takeOutputElements(), neither takeOutputElements()
+    // nor peekOutputElements() return anything.
+    assertTrue(tester.peekOutputElements().isEmpty());
+    assertTrue(tester.takeOutputElements().isEmpty());
+
+    // verify finishBundle() hasn't been called yet.
+    assertTrue(deserializedDoFn.wasStartBundleCalled());
+    assertFalse(deserializedDoFn.wasFinishBundleCalled());
+
+    // process a couple more.
+    tester.processElement(5L);
+    tester.processElement(6L);
+
+    // peek and take now have only the 2 last outputs.
+    peek = tester.peekOutputElements();
+    assertThat(peek, hasItems("5", "6"));
+    take = tester.takeOutputElements();
+    assertThat(take, hasItems("5", "6"));
+
+    tester.finishBundle();
+
+    // verify finishBundle() was called.
+    assertTrue(deserializedDoFn.wasStartBundleCalled());
+    assertTrue(deserializedDoFn.wasFinishBundleCalled());
+  }
+
+  @Test
+  public void processBatch() {
+    CounterDoFn counterDoFn = new CounterDoFn();
+    DoFnTester<Long, String> tester = DoFnTester.of(counterDoFn);
+
+    // processBatch() returns all the output like takeOutputElements().
+    List<String> take = tester.processBatch(1L, 2L, 3L, 4L);
+
+    assertThat(take, hasItems("1", "2", "3", "4"));
+
+    // peek now returns nothing.
+    assertTrue(tester.peekOutputElements().isEmpty());
+
+    // verify startBundle() and finishBundle() were both called.
+    CounterDoFn deserializedDoFn = (CounterDoFn) tester.fn;
+    assertTrue(deserializedDoFn.wasStartBundleCalled());
+    assertTrue(deserializedDoFn.wasFinishBundleCalled());
+  }
+
   @Test
   public void getAggregatorValuesShouldGetValueOfCounter() {
     CounterDoFn counterDoFn = new CounterDoFn();
-
-    DoFnTester<Long, Void> tester = DoFnTester.of(counterDoFn);
+    DoFnTester<Long, String> tester = DoFnTester.of(counterDoFn);
     tester.processBatch(1L, 2L, 4L, 8L);
 
     Long aggregatorVal = tester.getAggregatorValue(counterDoFn.agg);
@@ -42,8 +146,7 @@ public class DoFnTesterTest {
   @Test
   public void getAggregatorValuesWithEmptyCounterShouldSucceed() {
     CounterDoFn counterDoFn = new CounterDoFn();
-
-    DoFnTester<Long, Void> tester = DoFnTester.of(counterDoFn);
+    DoFnTester<Long, String> tester = DoFnTester.of(counterDoFn);
     tester.processBatch();
     Long aggregatorVal = tester.getAggregatorValue(counterDoFn.agg);
     // empty bundle
@@ -53,7 +156,7 @@ public class DoFnTesterTest {
   @Test
   public void getAggregatorValuesInStartFinishBundleShouldGetValues() {
     CounterDoFn fn = new CounterDoFn(1L, 2L);
-    DoFnTester<Long, Void> tester = DoFnTester.of(fn);
+    DoFnTester<Long, String> tester = DoFnTester.of(fn);
     tester.processBatch(0L, 0L);
 
     Long aggValue = tester.getAggregatorValue(fn.agg);
@@ -61,12 +164,14 @@ public class DoFnTesterTest {
   }
 
   /**
-   * A DoFn that adds values to an aggregator in processElement.
+   * A DoFn that adds values to an aggregator and converts input to String in processElement.
    */
-  private static class CounterDoFn extends DoFn<Long, Void> {
+  private static class CounterDoFn extends DoFn<Long, String> {
     Aggregator<Long, Long> agg = createAggregator("ctr", new Sum.SumLongFn());
     private final long startBundleVal;
     private final long finishBundleVal;
+    private boolean startBundleCalled;
+    private boolean finishBundleCalled;
 
     public CounterDoFn() {
       this(0L, 0L);
@@ -78,18 +183,29 @@ public class DoFnTesterTest {
     }
 
     @Override
-    public void startBundle(DoFn<Long, Void>.Context c) {
+    public void startBundle(Context c) {
       agg.addValue(startBundleVal);
+      startBundleCalled = true;
     }
 
     @Override
-    public void processElement(DoFn<Long, Void>.ProcessContext c) throws Exception {
+    public void processElement(ProcessContext c) throws Exception {
       agg.addValue(c.element());
+      c.output(c.element().toString());
     }
 
     @Override
-    public void finishBundle(DoFn<Long, Void>.Context c) {
+    public void finishBundle(Context c) {
       agg.addValue(finishBundleVal);
+      finishBundleCalled = true;
+    }
+
+    boolean wasStartBundleCalled() {
+      return startBundleCalled;
+    }
+
+    boolean wasFinishBundleCalled() {
+      return finishBundleCalled;
     }
   }
 }
