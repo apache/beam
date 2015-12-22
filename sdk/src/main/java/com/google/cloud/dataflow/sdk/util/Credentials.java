@@ -24,6 +24,7 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.client.googleapis.auth.oauth2.GoogleOAuthConstants;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
+import com.google.api.client.http.GenericUrl;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
@@ -175,6 +176,8 @@ public class Credentials {
     GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
         httpTransport, jsonFactory, clientSecrets, scopes)
         .setDataStoreFactory(dataStoreFactory)
+        .setTokenServerUrl(new GenericUrl(options.getTokenServerUrl()))
+        .setAuthorizationServerEncodedUrl(options.getAuthorizationServerEncodedUrl())
         .build();
 
     // The credentialId identifies the credential if we're using a persistent

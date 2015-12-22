@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.options;
 
 import com.google.api.client.auth.oauth2.Credential;
+import com.google.api.client.googleapis.auth.oauth2.GoogleOAuthConstants;
 import com.google.cloud.dataflow.sdk.util.CredentialFactory;
 import com.google.cloud.dataflow.sdk.util.GcpCredentialFactory;
 import com.google.cloud.dataflow.sdk.util.InstanceBuilder;
@@ -259,4 +260,26 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
       }
     }
   }
+
+  /**
+   * The token server URL to use for OAuth 2 authentication. Normally, the default is sufficient,
+   * but some specialized use cases may want to override this value.
+   */
+  @Description("The token server URL to use for OAuth 2 authentication. Normally, the default "
+      + "is sufficient, but some specialized use cases may want to override this value.")
+  @Default.String(GoogleOAuthConstants.TOKEN_SERVER_URL)
+  @Hidden
+  String getTokenServerUrl();
+  void setTokenServerUrl(String value);
+
+  /**
+   * The authorization server URL to use for OAuth 2 authentication. Normally, the default is
+   * sufficient, but some specialized use cases may want to override this value.
+   */
+  @Description("The authorization server URL to use for OAuth 2 authentication. Normally, the "
+      + "default is sufficient, but some specialized use cases may want to override this value.")
+  @Default.String(GoogleOAuthConstants.AUTHORIZATION_SERVER_URL)
+  @Hidden
+  String getAuthorizationServerEncodedUrl();
+  void setAuthorizationServerEncodedUrl(String value);
 }
