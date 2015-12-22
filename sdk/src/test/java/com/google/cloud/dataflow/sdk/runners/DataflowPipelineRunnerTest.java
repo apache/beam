@@ -519,6 +519,9 @@ public class DataflowPipelineRunnerTest {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
 
     options.setRunner(DataflowPipelineRunner.class);
+    // Explicitly set to null to prevent the default instance factory from reading credentials
+    // from a user's environment, causing this test to fail.
+    options.setProject(null);
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Project id");
