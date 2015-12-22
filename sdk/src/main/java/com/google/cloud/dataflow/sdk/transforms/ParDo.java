@@ -149,7 +149,7 @@ import javax.annotation.Nullable;
  * final PCollectionView<Integer> maxWordLengthCutOffView =
  *     maxWordLengthCutOff.apply(View.<Integer>asSingleton());
  * PCollection<String> wordsBelowCutOff =
- *     words.apply(ParDo.withSideInput(maxWordLengthCutOffView)
+ *     words.apply(ParDo.withSideInputs(maxWordLengthCutOffView)
  *                      .of(new DoFn<String, String>() {
  *         public void processElement(ProcessContext c) {
  *           String word = c.element();
