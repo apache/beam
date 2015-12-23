@@ -159,6 +159,7 @@ public class FlinkTransformTranslators {
 		private static final Logger LOG = LoggerFactory.getLogger(AvroIOReadTranslator.class);
 
 		@Override
+		@SuppressWarnings("unchecked")
 		public void translateNode(AvroIO.Read.Bound<T> transform, TranslationContext context) {
 			String path = transform.getFilepattern();
 			String name = transform.getName();
@@ -188,6 +189,7 @@ public class FlinkTransformTranslators {
 		private static final Logger LOG = LoggerFactory.getLogger(AvroIOWriteTranslator.class);
 
 		@Override
+		@SuppressWarnings("unchecked")
 		public void translateNode(AvroIO.Write.Bound<T> transform, TranslationContext context) {
 			DataSet<T> inputDataSet = context.getInputDataSet(context.getInput(transform));
 			String filenamePrefix = transform.getFilenamePrefix();
@@ -211,7 +213,7 @@ public class FlinkTransformTranslators {
 				System.out.println("Could not access type from AvroIO.Bound: " + e);
 			}
 
-			DataSink<T> dataSink = inputDataSet.output(new AvroOutputFormat<T>(new Path
+			DataSink<T> dataSink = inputDataSet.output(new AvroOutputFormat<>(new Path
 					(filenamePrefix), avroType));
 
 			if (numShards > 0) {
@@ -235,7 +237,7 @@ public class FlinkTransformTranslators {
 			LOG.warn("Translation of TextIO.CompressionType not yet supported. Is: {}.", compressionType);
 			LOG.warn("Translation of TextIO.Read.needsValidation not yet supported. Is: {}.", needsValidation);
 
-			PValue output = (PValue) context.getOutput(transform);
+			PValue output = context.getOutput(transform);
 
 			TypeInformation<String> typeInformation = context.getTypeInfo(output);
 
@@ -276,7 +278,7 @@ public class FlinkTransformTranslators {
 	private static class ConsoleIOWriteTranslator implements FlinkPipelineTranslator.TransformTranslator<ConsoleIO.Write.Bound> {
 		@Override
 		public void translateNode(ConsoleIO.Write.Bound transform, TranslationContext context) {
-			PValue input = (PValue) context.getInput(transform);
+			PValue input = context.getInput(transform);
 			DataSet<?> inputDataSet = context.getInputDataSet(input);
 			inputDataSet.printOnTaskManager(transform.getName());
 		}

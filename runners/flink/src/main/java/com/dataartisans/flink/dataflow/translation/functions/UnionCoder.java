@@ -20,7 +20,6 @@ package com.dataartisans.flink.dataflow.translation.functions;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.coders.StandardCoder;
 import com.google.cloud.dataflow.sdk.transforms.join.RawUnionValue;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
@@ -75,7 +74,7 @@ public class UnionCoder extends StandardCoder<RawUnionValue> {
 			RawUnionValue union,
 			OutputStream outStream,
 			Context context)
-			throws IOException, CoderException  {
+			throws IOException  {
 		int index = getIndexForEncoding(union);
 		// Write out the union tag.
 		VarInt.encode(index, outStream);
@@ -90,7 +89,7 @@ public class UnionCoder extends StandardCoder<RawUnionValue> {
 
 	@Override
 	public RawUnionValue decode(InputStream inStream, Context context)
-			throws IOException, CoderException {
+			throws IOException {
 		int index = VarInt.decodeInt(inStream);
 		Object value = elementCoders.get(index).decode(inStream, context);
 		return new RawUnionValue(index, value);

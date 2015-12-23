@@ -94,7 +94,7 @@ public class TFIDF {
 	 * <p>
 	 * Inherits standard configuration options.
 	 */
-	private static interface Options extends PipelineOptions, FlinkPipelineOptions {
+	private interface Options extends PipelineOptions, FlinkPipelineOptions {
 		@Description("Path to the directory or GCS prefix containing files to read from")
 		@Default.String("gs://dataflow-samples/shakespeare/")
 		String getInput();
@@ -293,8 +293,8 @@ public class TFIDF {
 			// a tuple tag. Each input must have the same key type, URI
 			// in this case. The type parameter of the tuple tag matches
 			// the types of the values for each collection.
-			final TupleTag<Long> wordTotalsTag = new TupleTag<Long>();
-			final TupleTag<KV<String, Long>> wordCountsTag = new TupleTag<KV<String, Long>>();
+			final TupleTag<Long> wordTotalsTag = new TupleTag<>();
+			final TupleTag<KV<String, Long>> wordCountsTag = new TupleTag<>();
 			KeyedPCollectionTuple<URI> coGbkInput = KeyedPCollectionTuple
 					.of(wordTotalsTag, uriToWordTotal)
 					.and(wordCountsTag, uriToWordAndCount);
@@ -361,8 +361,8 @@ public class TFIDF {
 
 			// Join the term frequency and document frequency
 			// collections, each keyed on the word.
-			final TupleTag<KV<URI, Double>> tfTag = new TupleTag<KV<URI, Double>>();
-			final TupleTag<Double> dfTag = new TupleTag<Double>();
+			final TupleTag<KV<URI, Double>> tfTag = new TupleTag<>();
+			final TupleTag<Double> dfTag = new TupleTag<>();
 			PCollection<KV<String, CoGbkResult>> wordToUriAndTfAndDf = KeyedPCollectionTuple
 					.of(tfTag, wordToUriAndTf)
 					.and(dfTag, wordToDf)
@@ -373,10 +373,11 @@ public class TFIDF {
 			// ("term frequency - inverse document frequency") score;
 			// here we use a basic version that is the term frequency
 			// divided by the log of the document frequency.
-			PCollection<KV<String, KV<URI, Double>>> wordToUriAndTfIdf = wordToUriAndTfAndDf
+
+			return wordToUriAndTfAndDf
 					.apply(ParDo.named("ComputeTfIdf").of(
 							new DoFn<KV<String, CoGbkResult>, KV<String, KV<URI, Double>>>() {
-								private static final long serialVersionUID = 0;
+								private static final long serialVersionUID1 = 0;
 
 								@Override
 								public void processElement(ProcessContext c) {
@@ -391,8 +392,6 @@ public class TFIDF {
 									}
 								}
 							}));
-
-			return wordToUriAndTfIdf;
 		}
 
 		// Instantiate Logger.

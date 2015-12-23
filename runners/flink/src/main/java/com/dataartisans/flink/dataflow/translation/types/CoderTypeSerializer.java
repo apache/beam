@@ -138,9 +138,8 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
 
 		CoderTypeSerializer that = (CoderTypeSerializer) o;
 
-		if (!coder.equals(that.coder)) return false;
+		return coder.equals(that.coder);
 
-		return true;
 	}
 
 	@Override

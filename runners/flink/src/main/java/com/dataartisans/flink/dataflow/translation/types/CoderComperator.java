@@ -139,7 +139,7 @@ public class CoderComperator<T> extends TypeComparator<T> {
 
 	@Override
 	public int compareSerialized(DataInputView firstSource, DataInputView secondSource) throws IOException {
-		CoderTypeSerializer<T> serializer = new CoderTypeSerializer<T>(coder);
+		CoderTypeSerializer<T> serializer = new CoderTypeSerializer<>(coder);
 		T first = serializer.deserialize(firstSource);
 		T second = serializer.deserialize(secondSource);
 		return compare(first, second);
