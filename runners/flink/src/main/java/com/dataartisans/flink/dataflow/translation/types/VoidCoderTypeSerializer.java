@@ -17,9 +17,7 @@
  */
 package com.dataartisans.flink.dataflow.translation.types;
 
-import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.typeutils.runtime.ValueSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 

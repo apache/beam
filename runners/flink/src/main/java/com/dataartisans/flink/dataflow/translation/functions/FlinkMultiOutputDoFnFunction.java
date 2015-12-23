@@ -166,7 +166,7 @@ public class FlinkMultiOutputDoFnFunction<IN, OUT> extends RichMapPartitionFunct
 
 		@Override
 		protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregatorInternal(String name, Combine.CombineFn<AggInputT, ?, AggOutputT> combiner) {
-			SerializableFnAggregatorWrapper<AggInputT, AggOutputT> wrapper = new SerializableFnAggregatorWrapper<AggInputT, AggOutputT>(combiner);
+			SerializableFnAggregatorWrapper<AggInputT, AggOutputT> wrapper = new SerializableFnAggregatorWrapper<>(combiner);
 			getRuntimeContext().addAccumulator(name, wrapper);
 			return null;
 		}

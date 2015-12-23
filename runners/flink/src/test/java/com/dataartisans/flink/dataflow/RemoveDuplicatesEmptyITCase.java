@@ -24,7 +24,7 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.base.Joiner;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 
@@ -50,7 +50,7 @@ public class RemoveDuplicatesEmptyITCase extends JavaProgramTestBase {
 	@Override
 	protected void testProgram() throws Exception {
 
-		List<String> strings = Arrays.asList();
+		List<String> strings = Collections.emptyList();
 
 		Pipeline p = FlinkTestPipeline.create();
 

@@ -106,7 +106,7 @@ public class TranslationContext {
 				return new CoderTypeInformation(outputCoder);
 			}
 		}
-		return new GenericTypeInfo<T>((Class<T>)Object.class);
+		return new GenericTypeInfo<>((Class<T>)Object.class);
 	}
 
 	public <T> TypeInformation<T> getInputTypeInfo() {
@@ -119,13 +119,11 @@ public class TranslationContext {
 
 	@SuppressWarnings("unchecked")
 	<I extends PInput> I getInput(PTransform<I, ?> transform) {
-		I input = (I) currentTransform.getInput();
-		return input;
+		return (I) currentTransform.getInput();
 	}
 
 	@SuppressWarnings("unchecked")
 	<O extends POutput> O getOutput(PTransform<?, O> transform) {
-		O output = (O) currentTransform.getOutput();
-		return output;
+		return (O) currentTransform.getOutput();
 	}
 }

@@ -33,7 +33,7 @@ public class WordCount {
 	 * <p>
 	 * Inherits standard configuration options.
 	 */
-	public static interface Options extends PipelineOptions, FlinkPipelineOptions {
+	public interface Options extends PipelineOptions, FlinkPipelineOptions {
 		@Description("Path of the file to read from")
 		@Default.String("gs://dataflow-samples/shakespeare/kinglear.txt")
 		String getInput();

@@ -18,19 +18,14 @@
 package com.dataartisans.flink.dataflow.translation.types;
 
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
-import com.google.cloud.dataflow.sdk.options.Default;
 import com.google.cloud.dataflow.sdk.values.KV;
-import com.google.common.primitives.Ints;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.typeutils.runtime.TupleComparator;
 import org.apache.flink.shaded.com.google.common.base.Preconditions;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -123,6 +118,7 @@ public class KvCoderTypeInformation<K, V> extends CompositeType<KV<K, V>> {
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	public <X> TypeInformation<X> getTypeAt(int pos) {
 		if (pos == 0) {
 			return (TypeInformation<X>) new CoderTypeInformation<>(coder.getKeyCoder());
@@ -134,13 +130,15 @@ public class KvCoderTypeInformation<K, V> extends CompositeType<KV<K, V>> {
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	public <X> TypeInformation<X> getTypeAt(String fieldExpression) {
-		if (fieldExpression.equals("key")) {
-			return (TypeInformation<X>) new CoderTypeInformation<>(coder.getKeyCoder());
-		} else if (fieldExpression.equals("value")) {
-			return (TypeInformation<X>) new CoderTypeInformation<>(coder.getValueCoder());
-		} else {
-			throw new UnsupportedOperationException("Only KvCoder has fields.");
+		switch (fieldExpression) {
+			case "key":
+				return (TypeInformation<X>) new CoderTypeInformation<>(coder.getKeyCoder());
+			case "value":
+				return (TypeInformation<X>) new CoderTypeInformation<>(coder.getValueCoder());
+			default:
+				throw new UnsupportedOperationException("Only KvCoder has fields.");
 		}
 	}
 
@@ -151,12 +149,13 @@ public class KvCoderTypeInformation<K, V> extends CompositeType<KV<K, V>> {
 
 	@Override
 	public int getFieldIndex(String fieldName) {
-		if (fieldName.equals("key")) {
-			return 0;
-		} else if (fieldName.equals("value")) {
-			return 1;
-		} else {
-			return -1;
+		switch (fieldName) {
+			case "key":
+				return 0;
+			case "value":
+				return 1;
+			default:
+				return -1;
 		}
 	}
 

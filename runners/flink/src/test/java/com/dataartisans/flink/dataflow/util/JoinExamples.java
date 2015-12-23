@@ -51,8 +51,8 @@ public class JoinExamples {
 	public static PCollection<String> joinEvents(PCollection<TableRow> eventsTable,
 	                                      PCollection<TableRow> countryCodes) throws Exception {
 
-		final TupleTag<String> eventInfoTag = new TupleTag<String>();
-		final TupleTag<String> countryInfoTag = new TupleTag<String>();
+		final TupleTag<String> eventInfoTag = new TupleTag<>();
+		final TupleTag<String> countryInfoTag = new TupleTag<>();
 
 		// transform both input collections to tuple collections, where the keys are country
 		// codes in both cases.
@@ -76,7 +76,7 @@ public class JoinExamples {
 						KV<String, CoGbkResult> e = c.element();
 						CoGbkResult val = e.getValue();
 						String countryCode = e.getKey();
-						String countryName = "none";
+						String countryName;
 						countryName = e.getValue().getOnly(countryInfoTag);
 						for (String eventInfo : c.element().getValue().getAll(eventInfoTag)) {
 							// Generate a string that combines information from both collection values
@@ -87,7 +87,7 @@ public class JoinExamples {
 				}));
 
 		// write to GCS
-		PCollection<String> formattedResults = finalResultCollection
+		return finalResultCollection
 				.apply(ParDo.of(new DoFn<KV<String, String>, String>() {
 					@Override
 					public void processElement(ProcessContext c) {
@@ -96,7 +96,6 @@ public class JoinExamples {
 						c.output(outputstring);
 					}
 				}));
-		return formattedResults;
 	}
 
 	/**
@@ -137,7 +136,7 @@ public class JoinExamples {
 	 * <p>
 	 * Inherits standard configuration options.
 	 */
-	private static interface Options extends PipelineOptions {
+	private interface Options extends PipelineOptions {
 		@Description("Path of the file to write to")
 		@Validation.Required
 		String getOutput();
