@@ -159,7 +159,6 @@ public class FlinkTransformTranslators {
 		private static final Logger LOG = LoggerFactory.getLogger(AvroIOReadTranslator.class);
 
 		@Override
-		@SuppressWarnings("unchecked")
 		public void translateNode(AvroIO.Read.Bound<T> transform, TranslationContext context) {
 			String path = transform.getFilepattern();
 			String name = transform.getName();
@@ -169,17 +168,21 @@ public class FlinkTransformTranslators {
 			TypeInformation<T> typeInformation = context.getTypeInfo(output);
 
 			// This is super hacky, but unfortunately we cannot get the type otherwise
-			Class<T> avroType = null;
+			Class<T> extractedAvroType;
 			try {
 				Field typeField = transform.getClass().getDeclaredField("type");
 				typeField.setAccessible(true);
-				avroType = (Class<T>) typeField.get(transform);
+				@SuppressWarnings("unchecked")
+				Class<T> avroType = (Class<T>) typeField.get(transform);
+				extractedAvroType = avroType;
 			} catch (NoSuchFieldException | IllegalAccessException e) {
 				// we know that the field is there and it is accessible
-				System.out.println("Could not access type from AvroIO.Bound: " + e);
+				throw new RuntimeException("Could not access type from AvroIO.Bound", e);
 			}
 
-			DataSource<T> source = new DataSource<>(context.getExecutionEnvironment(), new AvroInputFormat<>(new Path(path), avroType), typeInformation, name);
+			DataSource<T> source = new DataSource<>(context.getExecutionEnvironment(),
+					new AvroInputFormat<>(new Path(path), extractedAvroType),
+					typeInformation, name);
 
 			context.setOutputDataSet(output, source);
 		}
@@ -189,7 +192,6 @@ public class FlinkTransformTranslators {
 		private static final Logger LOG = LoggerFactory.getLogger(AvroIOWriteTranslator.class);
 
 		@Override
-		@SuppressWarnings("unchecked")
 		public void translateNode(AvroIO.Write.Bound<T> transform, TranslationContext context) {
 			DataSet<T> inputDataSet = context.getInputDataSet(context.getInput(transform));
 			String filenamePrefix = transform.getFilenamePrefix();
@@ -203,18 +205,20 @@ public class FlinkTransformTranslators {
 			LOG.warn("Translation of TextIO.Write.shardNameTemplate not yet supported. Is: {}.", shardNameTemplate);
 
 			// This is super hacky, but unfortunately we cannot get the type otherwise
-			Class<T> avroType = null;
+			Class<T> extractedAvroType;
 			try {
 				Field typeField = transform.getClass().getDeclaredField("type");
 				typeField.setAccessible(true);
-				avroType = (Class<T>) typeField.get(transform);
+				@SuppressWarnings("unchecked")
+				Class<T> avroType = (Class<T>) typeField.get(transform);
+				extractedAvroType = avroType;
 			} catch (NoSuchFieldException | IllegalAccessException e) {
 				// we know that the field is there and it is accessible
-				System.out.println("Could not access type from AvroIO.Bound: " + e);
+				throw new RuntimeException("Could not access type from AvroIO.Bound", e);
 			}
 
 			DataSink<T> dataSink = inputDataSet.output(new AvroOutputFormat<>(new Path
-					(filenamePrefix), avroType));
+					(filenamePrefix), extractedAvroType));
 
 			if (numShards > 0) {
 				dataSink.setParallelism(numShards);
