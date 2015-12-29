@@ -85,14 +85,17 @@ import javax.annotation.Nullable;
 public class DataflowWorkProgressUpdaterTest {
   static class TestMapTaskExecutor extends MapTaskExecutor {
     ApproximateReportedProgress progress = null;
+    List<Metric<?>> metrics = new ArrayList<>();
+    CounterSet counters;
 
     public TestMapTaskExecutor(CounterSet counters) {
       super(new ArrayList<Operation>(), counters,
           new StateSampler("test", counters.getAddCounterMutator()));
+      this.counters = counters;
     }
 
     @Override
-    public Reader.Progress getWorkerProgress() {
+    public synchronized Reader.Progress getWorkerProgress() {
       return cloudProgressToReaderProgress(progress);
     }
 
@@ -107,8 +110,27 @@ public class DataflowWorkProgressUpdaterTest {
           cloudPositionToReaderPosition(split.getPosition()));
     }
 
-    public void setWorkerProgress(ApproximateReportedProgress progress) {
+    public synchronized void setWorkerProgress(ApproximateReportedProgress progress) {
       this.progress = progress;
+    }
+
+    @Override
+    public synchronized Collection<Metric<?>> getOutputMetrics() {
+      return metrics;
+    }
+
+    public synchronized void setUpMetrics(int n) {
+      metrics = new ArrayList<>();
+      for (int i = 0; i < n; i++) {
+        metrics.add(makeMetric(i));
+      }
+    }
+
+    public synchronized void setUpCounters(int n) {
+      counters.clear();
+      for (int i = 0; i < n; i++) {
+        counters.add(makeCounter(i));
+      }
     }
   }
 
@@ -127,8 +149,6 @@ public class DataflowWorkProgressUpdaterTest {
 
   @Mock
   private DataflowWorker.WorkUnitClient workUnitClient;
-  private CounterSet counters;
-  private List<Metric<?>> metrics;
   private TestMapTaskExecutor worker;
   private WorkItem workItem;
   private DataflowWorkerHarnessOptions options;
@@ -143,14 +163,7 @@ public class DataflowWorkProgressUpdaterTest {
     options.setJobId(JOB_ID);
     options.setWorkerId(WORKER_ID);
 
-    metrics = new ArrayList<>();
-    counters = new CounterSet();
-    worker = new TestMapTaskExecutor(counters) {
-      @Override
-      public Collection<Metric<?>> getOutputMetrics() {
-        return metrics;
-      }
-    };
+    worker = new TestMapTaskExecutor(new CounterSet());
 
     workItem = new WorkItem();
     workItem.setProjectId(PROJECT_ID);
@@ -181,9 +194,9 @@ public class DataflowWorkProgressUpdaterTest {
   public void workProgressUpdaterUpdates() throws Exception {
     when(workUnitClient.reportWorkItemStatus(any(WorkItemStatus.class)))
         .thenReturn(generateServiceState(System.currentTimeMillis() + 2000, 1000, null, 2L));
-    setUpCounters(2);
-    setUpMetrics(3);
-    setUpProgress(approximateProgressAtIndex(1L));
+    worker.setUpCounters(2);
+    worker.setUpMetrics(3);
+    worker.setWorkerProgress(approximateProgressAtIndex(1L));
     progressUpdater.startReportingProgress();
     // The initial update should be sent after 300.
     verify(workUnitClient, timeout(400))
@@ -197,9 +210,9 @@ public class DataflowWorkProgressUpdaterTest {
   // and actual dynamic split result.
   @Test(timeout = 10000)
   public void workProgressUpdaterAdaptsProgressInterval() throws Exception {
-    setUpCounters(3);
-    setUpMetrics(2);
-    setUpProgress(approximateProgressAtIndex(1L));
+    worker.setUpCounters(3);
+    worker.setUpMetrics(2);
+    worker.setWorkerProgress(approximateProgressAtIndex(1L));
 
     // In tests below, we allow 500ms leeway.
 
@@ -216,9 +229,9 @@ public class DataflowWorkProgressUpdaterTest {
         new ExpectedDataflowWorkItemStatus().withCounters(3).withMetrics(2).withProgress(
             approximateProgressAtIndex(1L)).withReportIndex(1L)));
 
-    setUpCounters(5);
-    setUpMetrics(6);
-    setUpProgress(approximateProgressAtIndex(2L));
+    worker.setUpCounters(5);
+    worker.setUpMetrics(6);
+    worker.setWorkerProgress(approximateProgressAtIndex(2L));
     when(workUnitClient.reportWorkItemStatus(any(WorkItemStatus.class)))
         .thenReturn(generateServiceState(System.currentTimeMillis() + 3000, 2000, null, 3L));
     // The second update should be sent after ~1000ms (previous requested report interval).
@@ -233,7 +246,7 @@ public class DataflowWorkProgressUpdaterTest {
     // After the request is sent, reset cached dynamic split result to null.
     assertNull(progressUpdater.getDynamicSplitResultToReport());
 
-    setUpProgress(approximateProgressAtIndex(3L));
+    worker.setWorkerProgress(approximateProgressAtIndex(3L));
 
     when(workUnitClient.reportWorkItemStatus(any(WorkItemStatus.class)))
         .thenReturn(generateServiceState(System.currentTimeMillis() + 1000, 3000, null, 4L));
@@ -242,7 +255,7 @@ public class DataflowWorkProgressUpdaterTest {
         new ExpectedDataflowWorkItemStatus().withProgress(approximateProgressAtIndex(3L))
             .withReportIndex(3L)));
 
-    setUpProgress(approximateProgressAtIndex(4L));
+    worker.setWorkerProgress(approximateProgressAtIndex(4L));
 
     when(workUnitClient.reportWorkItemStatus(any(WorkItemStatus.class)))
         .thenReturn(generateServiceState(System.currentTimeMillis() + 4000, 3000, null, 5L));
@@ -266,7 +279,7 @@ public class DataflowWorkProgressUpdaterTest {
         .thenReturn(generateServiceState(
             System.currentTimeMillis() + 2000, 1000, positionAtIndex(2L), 2L));
 
-    setUpProgress(approximateProgressAtIndex(1L));
+    worker.setWorkerProgress(approximateProgressAtIndex(1L));
     progressUpdater.startReportingProgress();
 
     // The initial update should be sent after 300 msec.
@@ -298,13 +311,6 @@ public class DataflowWorkProgressUpdaterTest {
     verifyNoMoreInteractions(workUnitClient);
   }
 
-  private void setUpCounters(int n) {
-    counters.clear();
-    for (int i = 0; i < n; i++) {
-      counters.add(makeCounter(i));
-    }
-  }
-
   private static Counter<?> makeCounter(int i) {
     if (i % 3 == 0) {
       return Counter.longs(COUNTER_NAME + i, COUNTER_KINDS[0])
@@ -323,17 +329,6 @@ public class DataflowWorkProgressUpdaterTest {
 
   private static Metric<?> makeMetric(int i) {
     return new DoubleMetric(String.valueOf(i), i);
-  }
-
-  private void setUpMetrics(int n) {
-    metrics = new ArrayList<>();
-    for (int i = 0; i < n; i++) {
-      metrics.add(makeMetric(i));
-    }
-  }
-
-  private void setUpProgress(ApproximateReportedProgress progress) {
-    worker.setWorkerProgress(progress);
   }
 
   private WorkItemServiceState generateServiceState(long leaseExpirationTimestamp,
