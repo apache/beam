@@ -600,7 +600,7 @@ public class ParDoTest implements Serializable {
     PCollectionView<Integer> sideInputUnread = pipeline
         .apply("CreateSideInputUnread", Create.of(-3333))
         .apply("ViewSideInputUnread", View.<Integer>asSingleton());
-    PCollectionView<Integer> sideInput2 =         pipeline
+    PCollectionView<Integer> sideInput2 = pipeline
         .apply("CreateSideInput2", Create.of(222))
         .apply("ViewSideInput2", View.<Integer>asSingleton());
 
@@ -612,6 +612,116 @@ public class ParDoTest implements Serializable {
                 Arrays.<TupleTag<String>>asList())));
 
     DataflowAssert.that(output)
+        .satisfies(ParDoTest.HasExpectedOutput
+                   .forInput(inputs)
+                   .andSideInputs(11, 222));
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testParDoWithSideInputsIsCumulative() {
+    Pipeline pipeline = TestPipeline.create();
+
+    List<Integer> inputs = Arrays.asList(3, -42, 666);
+
+    PCollectionView<Integer> sideInput1 = pipeline
+        .apply("CreateSideInput1", Create.of(11))
+        .apply("ViewSideInput1", View.<Integer>asSingleton());
+    PCollectionView<Integer> sideInputUnread = pipeline
+        .apply("CreateSideInputUnread", Create.of(-3333))
+        .apply("ViewSideInputUnread", View.<Integer>asSingleton());
+    PCollectionView<Integer> sideInput2 = pipeline
+        .apply("CreateSideInput2", Create.of(222))
+        .apply("ViewSideInput2", View.<Integer>asSingleton());
+
+    PCollection<String> output = pipeline
+        .apply(Create.of(inputs))
+        .apply(ParDo.withSideInputs(sideInput1)
+            .withSideInputs(sideInputUnread)
+            .withSideInputs(sideInput2)
+            .of(new TestDoFn(
+                Arrays.asList(sideInput1, sideInput2),
+                Arrays.<TupleTag<String>>asList())));
+
+    DataflowAssert.that(output)
+        .satisfies(ParDoTest.HasExpectedOutput
+                   .forInput(inputs)
+                   .andSideInputs(11, 222));
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testMultiOutputParDoWithSideInputs() {
+    Pipeline pipeline = TestPipeline.create();
+
+    List<Integer> inputs = Arrays.asList(3, -42, 666);
+
+    final TupleTag<String> mainOutputTag = new TupleTag<String>("main"){};
+    final TupleTag<Void> sideOutputTag = new TupleTag<Void>("sideOutput"){};
+
+    PCollectionView<Integer> sideInput1 = pipeline
+        .apply("CreateSideInput1", Create.of(11))
+        .apply("ViewSideInput1", View.<Integer>asSingleton());
+    PCollectionView<Integer> sideInputUnread = pipeline
+        .apply("CreateSideInputUnread", Create.of(-3333))
+        .apply("ViewSideInputUnread", View.<Integer>asSingleton());
+    PCollectionView<Integer> sideInput2 = pipeline
+        .apply("CreateSideInput2", Create.of(222))
+        .apply("ViewSideInput2", View.<Integer>asSingleton());
+
+    PCollectionTuple outputs = pipeline
+        .apply(Create.of(inputs))
+        .apply(ParDo.withSideInputs(sideInput1)
+            .withSideInputs(sideInputUnread)
+            .withSideInputs(sideInput2)
+            .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag))
+            .of(new TestDoFn(
+                Arrays.asList(sideInput1, sideInput2),
+                Arrays.<TupleTag<String>>asList())));
+
+    DataflowAssert.that(outputs.get(mainOutputTag))
+        .satisfies(ParDoTest.HasExpectedOutput
+                   .forInput(inputs)
+                   .andSideInputs(11, 222));
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testMultiOutputParDoWithSideInputsIsCumulative() {
+    Pipeline pipeline = TestPipeline.create();
+
+    List<Integer> inputs = Arrays.asList(3, -42, 666);
+
+    final TupleTag<String> mainOutputTag = new TupleTag<String>("main"){};
+    final TupleTag<Void> sideOutputTag = new TupleTag<Void>("sideOutput"){};
+
+    PCollectionView<Integer> sideInput1 = pipeline
+        .apply("CreateSideInput1", Create.of(11))
+        .apply("ViewSideInput1", View.<Integer>asSingleton());
+    PCollectionView<Integer> sideInputUnread = pipeline
+        .apply("CreateSideInputUnread", Create.of(-3333))
+        .apply("ViewSideInputUnread", View.<Integer>asSingleton());
+    PCollectionView<Integer> sideInput2 = pipeline
+        .apply("CreateSideInput2", Create.of(222))
+        .apply("ViewSideInput2", View.<Integer>asSingleton());
+
+    PCollectionTuple outputs = pipeline
+        .apply(Create.of(inputs))
+        .apply(ParDo.withSideInputs(sideInput1)
+            .withSideInputs(sideInputUnread)
+            .withSideInputs(sideInput2)
+            .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag))
+            .of(new TestDoFn(
+                Arrays.asList(sideInput1, sideInput2),
+                Arrays.<TupleTag<String>>asList())));
+
+    DataflowAssert.that(outputs.get(mainOutputTag))
         .satisfies(ParDoTest.HasExpectedOutput
                    .forInput(inputs)
                    .andSideInputs(11, 222));

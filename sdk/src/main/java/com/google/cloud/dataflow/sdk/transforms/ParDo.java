@@ -607,7 +607,7 @@ public class ParDo {
 
     /**
      * Returns a new {@link ParDo} transform that's like this
-     * transform but with the specified side inputs.
+     * transform but with the specified additional side inputs.
      * Does not modify this transform. The resulting transform is
      * still incomplete.
      *
@@ -620,7 +620,7 @@ public class ParDo {
 
     /**
      * Returns a new {@link ParDo} transform that is like this
-     * transform but with the specified side inputs. Does not modify
+     * transform but with the specified additional side inputs. Does not modify
      * this transform. The resulting transform is still incomplete.
      *
      * <p>See the discussion of Side Inputs above and on
@@ -628,7 +628,10 @@ public class ParDo {
      */
     public Unbound withSideInputs(
         Iterable<? extends PCollectionView<?>> sideInputs) {
-      return new Unbound(name, ImmutableList.copyOf(sideInputs));
+      ImmutableList.Builder<PCollectionView<?>> builder = ImmutableList.builder();
+      builder.addAll(this.sideInputs);
+      builder.addAll(sideInputs);
+      return new Unbound(name, builder.build());
     }
 
     /**
@@ -710,7 +713,7 @@ public class ParDo {
 
     /**
      * Returns a new {@link ParDo} {@link PTransform} that's like this
-     * {@link PTransform} but with the specified side inputs. Does not
+     * {@link PTransform} but with the specified additional side inputs. Does not
      * modify this {@link PTransform}.
      *
      * <p>See the discussion of Side Inputs above and on
@@ -722,7 +725,7 @@ public class ParDo {
 
     /**
      * Returns a new {@link ParDo} {@link PTransform} that's like this
-     * {@link PTransform} but with the specified side inputs. Does not
+     * {@link PTransform} but with the specified additional side inputs. Does not
      * modify this {@link PTransform}.
      *
      * <p>See the discussion of Side Inputs above and on
@@ -730,7 +733,10 @@ public class ParDo {
      */
     public Bound<InputT, OutputT> withSideInputs(
         Iterable<? extends PCollectionView<?>> sideInputs) {
-      return new Bound<>(name, ImmutableList.copyOf(sideInputs), fn);
+      ImmutableList.Builder<PCollectionView<?>> builder = ImmutableList.builder();
+      builder.addAll(this.sideInputs);
+      builder.addAll(sideInputs);
+      return new Bound<>(name, builder.build(), fn);
     }
 
     /**
@@ -839,7 +845,7 @@ public class ParDo {
 
     /**
      * Returns a new multi-output {@link ParDo} transform that's like
-     * this transform but with the specified side inputs. Does not
+     * this transform but with the specified additional side inputs. Does not
      * modify this transform. The resulting transform is still
      * incomplete.
      *
@@ -848,8 +854,11 @@ public class ParDo {
      */
     public UnboundMulti<OutputT> withSideInputs(
         Iterable<? extends PCollectionView<?>> sideInputs) {
+      ImmutableList.Builder<PCollectionView<?>> builder = ImmutableList.builder();
+      builder.addAll(this.sideInputs);
+      builder.addAll(sideInputs);
       return new UnboundMulti<>(
-          name, ImmutableList.copyOf(sideInputs),
+          name, builder.build(),
           mainOutputTag, sideOutputTags);
     }
 
@@ -924,7 +933,7 @@ public class ParDo {
 
     /**
      * Returns a new multi-output {@link ParDo} {@link PTransform}
-     * that's like this {@link PTransform} but with the specified side
+     * that's like this {@link PTransform} but with the specified additional side
      * inputs. Does not modify this {@link PTransform}.
      *
      * <p>See the discussion of Side Inputs above and on
@@ -937,7 +946,7 @@ public class ParDo {
 
     /**
      * Returns a new multi-output {@link ParDo} {@link PTransform}
-     * that's like this {@link PTransform} but with the specified side
+     * that's like this {@link PTransform} but with the specified additional side
      * inputs. Does not modify this {@link PTransform}.
      *
      * <p>See the discussion of Side Inputs above and on
@@ -945,8 +954,11 @@ public class ParDo {
      */
     public BoundMulti<InputT, OutputT> withSideInputs(
         Iterable<? extends PCollectionView<?>> sideInputs) {
+      ImmutableList.Builder<PCollectionView<?>> builder = ImmutableList.builder();
+      builder.addAll(this.sideInputs);
+      builder.addAll(sideInputs);
       return new BoundMulti<>(
-          name, ImmutableList.copyOf(sideInputs),
+          name, builder.build(),
           mainOutputTag, sideOutputTags, fn);
     }
 
