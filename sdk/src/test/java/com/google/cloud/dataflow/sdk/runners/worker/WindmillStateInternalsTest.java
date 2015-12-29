@@ -978,6 +978,7 @@ public class WindmillStateInternalsTest {
   private void disableCompactOnWrite() {
     WindmillStateInternals.COMPACT_NOW.set(
         new Supplier<Boolean>() {
+          @Override
           public Boolean get() {
             return false;
           }
@@ -987,6 +988,7 @@ public class WindmillStateInternalsTest {
   private void forceCompactOnWrite() {
     WindmillStateInternals.COMPACT_NOW.set(
         new Supplier<Boolean>() {
+          @Override
           public Boolean get() {
             return true;
           }

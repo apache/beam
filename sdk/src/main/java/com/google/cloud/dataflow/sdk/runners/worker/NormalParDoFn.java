@@ -55,7 +55,7 @@ class NormalParDoFn extends ParDoFnBase {
       List<String> outputTags,
       String stepName,
       String transformName,
-      DataflowExecutionContext executionContext,
+      DataflowExecutionContext<?> executionContext,
       CounterSet.AddCounterMutator addCounterMutator,
       StateSampler stateSampler) {
     return new NormalParDoFn(
@@ -84,7 +84,7 @@ class NormalParDoFn extends ParDoFnBase {
         @Nullable List<SideInputInfo> sideInputInfos,
         @Nullable List<MultiOutputInfo> multiOutputInfos,
         int numOutputs,
-        DataflowExecutionContext executionContext,
+        DataflowExecutionContext<?> executionContext,
         CounterSet.AddCounterMutator addCounterMutator,
         StateSampler stateSampler)
             throws Exception {

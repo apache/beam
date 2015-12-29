@@ -68,7 +68,7 @@ class CombineValuesFn extends ParDoFnBase {
       String phase,
       String stepName,
       String transformName,
-      DataflowExecutionContext executionContext,
+      DataflowExecutionContext<?> executionContext,
       CounterSet.AddCounterMutator addCounterMutator,
       StateSampler stateSampler)
       throws Exception {
@@ -90,7 +90,7 @@ class CombineValuesFn extends ParDoFnBase {
         @Nullable List<SideInputInfo> sideInputInfos,
         @Nullable List<MultiOutputInfo> multiOutputInfos,
         int numOutputs,
-        DataflowExecutionContext executionContext,
+        DataflowExecutionContext<?> executionContext,
         CounterSet.AddCounterMutator addCounterMutator,
         StateSampler stateSampler)
             throws Exception {
@@ -126,19 +126,19 @@ class CombineValuesFn extends ParDoFnBase {
 
   @Override
   protected DoFnInfo<?, ?> getDoFnInfo() {
-    DoFn doFn = null;
+    DoFn<?, ?> doFn = null;
     switch (phase) {
       case CombinePhase.ALL:
-        doFn = new CombineValuesDoFn(combineFn);
+        doFn = new CombineValuesDoFn<>(combineFn);
         break;
       case CombinePhase.ADD:
-        doFn = new AddInputsDoFn(combineFn);
+        doFn = new AddInputsDoFn<>(combineFn);
         break;
       case CombinePhase.MERGE:
-        doFn = new MergeAccumulatorsDoFn(combineFn);
+        doFn = new MergeAccumulatorsDoFn<>(combineFn);
         break;
       case CombinePhase.EXTRACT:
-        doFn = new ExtractOutputDoFn(combineFn);
+        doFn = new ExtractOutputDoFn<>(combineFn);
         break;
       default:
         throw new IllegalArgumentException(
@@ -156,7 +156,7 @@ class CombineValuesFn extends ParDoFnBase {
       String phase,
       String stepName,
       String transformName,
-      DataflowExecutionContext executionContext,
+      DataflowExecutionContext<?> executionContext,
       CounterSet.AddCounterMutator addCounterMutator,
       StateSampler stateSampler) {
     super(

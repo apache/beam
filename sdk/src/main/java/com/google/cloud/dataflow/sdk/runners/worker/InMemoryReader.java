@@ -100,7 +100,7 @@ public class InMemoryReader<T> extends Reader<T> {
 
     @Override
     protected boolean hasNextImpl() {
-      return tracker.tryReturnRecordAt(true, (long) nextIndex);
+      return tracker.tryReturnRecordAt(true, nextIndex);
     }
 
     @Override

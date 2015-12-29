@@ -44,7 +44,7 @@ public interface ParDoFnFactory {
       List<SideInputInfo> sideInputInfos,
       List<MultiOutputInfo> multiOutputInfos,
       int numOutputs,
-      DataflowExecutionContext executionContext,
+      DataflowExecutionContext<?> executionContext,
       CounterSet.AddCounterMutator addCounterMutator,
       StateSampler stateSampler)
       throws Exception;

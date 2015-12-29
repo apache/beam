@@ -196,7 +196,7 @@ public class InMemoryReaderTest {
     InMemoryReader<Integer> inMemoryReader =
         new InMemoryReader<>(encodedElements(elements, coder), 1L, 4L, coder);
     int count = 0;
-    for (Reader.ReaderIterator iterator = inMemoryReader.iterator();
+    for (Reader.ReaderIterator<?> iterator = inMemoryReader.iterator();
         iterator.hasNext();
         iterator.next()) {
       assertTrue(iterator.getRemainingParallelism() >= 1);

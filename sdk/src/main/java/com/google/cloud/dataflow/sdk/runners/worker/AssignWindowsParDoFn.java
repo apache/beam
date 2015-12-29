@@ -50,7 +50,7 @@ class AssignWindowsParDoFn extends ParDoFnBase {
       AssignWindowsDoFn<?, ?> fn,
       String stepName,
       String transformName,
-      DataflowExecutionContext executionContext,
+      DataflowExecutionContext<?> executionContext,
       CounterSet.AddCounterMutator addCounterMutator,
       StateSampler stateSampler)
       throws Exception {
@@ -72,7 +72,7 @@ class AssignWindowsParDoFn extends ParDoFnBase {
         @Nullable List<SideInputInfo> sideInputInfos,
         @Nullable List<MultiOutputInfo> multiOutputInfos,
         int numOutputs,
-        DataflowExecutionContext executionContext,
+        DataflowExecutionContext<?> executionContext,
         CounterSet.AddCounterMutator addCounterMutator,
         StateSampler stateSampler)
             throws Exception {
@@ -119,7 +119,7 @@ class AssignWindowsParDoFn extends ParDoFnBase {
       AssignWindowsDoFn<?, ?> fn,
       String stepName,
       String transformName,
-      DataflowExecutionContext executionContext,
+      DataflowExecutionContext<?> executionContext,
       CounterSet.AddCounterMutator addCounterMutator,
       StateSampler stateSampler) {
     super(
