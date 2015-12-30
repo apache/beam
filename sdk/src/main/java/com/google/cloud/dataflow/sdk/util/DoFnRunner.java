@@ -224,7 +224,7 @@ public class DoFnRunner<InputT, OutputT> {
     final TupleTag<OutputT> mainOutputTag;
     final StepContext stepContext;
     final CounterSet.AddCounterMutator addCounterMutator;
-    final WindowFn windowFn;
+    final WindowFn<?, ?> windowFn;
 
     /**
      * The set of known output tags, some of which may be undeclared, so we can throw an
@@ -240,7 +240,7 @@ public class DoFnRunner<InputT, OutputT> {
                        List<TupleTag<?>> sideOutputTags,
                        StepContext stepContext,
                        CounterSet.AddCounterMutator addCounterMutator,
-                       WindowFn windowFn) {
+                       WindowFn<?, ?> windowFn) {
       fn.super();
       this.options = options;
       this.fn = fn;
@@ -267,8 +267,8 @@ public class DoFnRunner<InputT, OutputT> {
       return options;
     }
 
-    <T> WindowedValue<T> makeWindowedValue(
-        T output, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo pane) {
+    <T, W extends BoundedWindow> WindowedValue<T> makeWindowedValue(
+        T output, Instant timestamp, Collection<W> windows, PaneInfo pane) {
       final Instant inputTimestamp = timestamp;
 
       if (timestamp == null) {
@@ -277,7 +277,11 @@ public class DoFnRunner<InputT, OutputT> {
 
       if (windows == null) {
         try {
-          windows = windowFn.assignWindows(windowFn.new AssignContext() {
+          // The windowFn can never succeed at accessing the element, so its type does not
+          // matter here
+          @SuppressWarnings("unchecked")
+          WindowFn<Object, W> objectWindowFn = (WindowFn<Object, W>) windowFn;
+          windows = objectWindowFn.assignWindows(objectWindowFn.new AssignContext() {
             @Override
             public Object element() {
               throw new UnsupportedOperationException(
@@ -562,7 +566,7 @@ public class DoFnRunner<InputT, OutputT> {
             Iterable<WindowedValue<T>> data,
             Coder<T> elemCoder) throws IOException {
           @SuppressWarnings("unchecked")
-          Coder<BoundedWindow> windowCoder = context.windowFn.windowCoder();
+          Coder<BoundedWindow> windowCoder = (Coder<BoundedWindow>) context.windowFn.windowCoder();
 
           context.stepContext.writePCollectionViewData(
               tag, data, IterableCoder.of(WindowedValue.getFullCoder(elemCoder, windowCoder)),
@@ -577,8 +581,9 @@ public class DoFnRunner<InputT, OutputT> {
     }
 
     @Override
-    protected <InputT, OutputT> Aggregator<InputT, OutputT> createAggregatorInternal(String name,
-        CombineFn<InputT, ?, OutputT> combiner) {
+    protected <AggregatorInputT, AggregatorOutputT> Aggregator<AggregatorInputT, AggregatorOutputT>
+        createAggregatorInternal(
+            String name, CombineFn<AggregatorInputT, ?, AggregatorOutputT> combiner) {
       return context.createAggregatorInternal(name, combiner);
     }
   }

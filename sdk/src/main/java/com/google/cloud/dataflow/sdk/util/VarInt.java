@@ -32,7 +32,7 @@ import java.io.OutputStream;
 public class VarInt {
 
   private static long convertIntToLongNoSignExtend(int v) {
-    return ((long) v) & 0xFFFFFFFFL;
+    return v & 0xFFFFFFFFL;
   }
 
   /**
