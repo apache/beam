@@ -218,8 +218,8 @@
         <artifactId>maven-javadoc-plugin</artifactId>
         <configuration>
           <windowtitle>Google Cloud Dataflow SDK ${project.version} API</windowtitle>
-          <doctitle>Google Cloud Dataflow SDK ${project.version} API</doctitle>
-          <overview>../overview.html</overview>
+          <doctitle>Google Cloud Dataflow SDK for Java, version ${project.version}</doctitle>
+          <overview>../javadoc/overview.html</overview>
 
           <subpackages>com.google.cloud.dataflow.sdk</subpackages>
           <additionalparam>-exclude com.google.cloud.dataflow.sdk.runners.worker:com.google.cloud.dataflow.sdk.runners.dataflow:com.google.cloud.dataflow.sdk.util ${dataflow.javadoc_opts}</additionalparam>
