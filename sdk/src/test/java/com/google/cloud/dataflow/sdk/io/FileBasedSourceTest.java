@@ -79,7 +79,7 @@ public class FileBasedSourceTest {
    * <p>E.g., if {@code splitHeader} is "h" and the lines of the file are: h, a, b, h, h, c, then
    * the records in this source are a,b,c, and records a and c are split points.
    */
-  class TestFileBasedSource extends FileBasedSource<String> {
+  static class TestFileBasedSource extends FileBasedSource<String> {
 
     final String splitHeader;
 

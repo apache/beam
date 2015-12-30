@@ -22,6 +22,7 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.dataflow.CustomSources;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import com.google.cloud.dataflow.sdk.util.SerializableUtils;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollection.IsBounded;
@@ -100,7 +101,7 @@ public class Read {
 
     private Bounded(@Nullable String name, BoundedSource<T> source) {
       super(name);
-      this.source = source;
+      this.source = SerializableUtils.ensureSerializable(source);
     }
 
     /**
@@ -165,7 +166,7 @@ public class Read {
 
     private Unbounded(@Nullable String name, UnboundedSource<T, ?> source) {
       super(name);
-      this.source = source;
+      this.source = SerializableUtils.ensureSerializable(source);
     }
 
     /**
