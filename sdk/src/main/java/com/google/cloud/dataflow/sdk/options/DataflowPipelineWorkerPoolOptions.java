@@ -85,12 +85,14 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
   void setAutoscalingAlgorithm(AutoscalingAlgorithmType value);
 
   /**
-   * The maximum number of workers to use when using workerpool autoscaling.
+   * The maximum number of workers to use for the workerpool. This options limits the size of the
+   * workerpool for the lifetime of the job, including
+   * <a href="https://cloud.google.com/dataflow/pipelines/updating-a-pipeline">pipeline updates</a>.
    * If left unspecified, the Dataflow service will compute a ceiling.
    */
-  @Description("[Experimental] The maximum number of workers to use when using workerpool "
-      + "autoscaling. If left unspecified, the Dataflow service will compute a ceiling.")
-  @Experimental(Experimental.Kind.AUTOSCALING)
+  @Description("The maximum number of workers to use for the workerpool. This options limits the "
+      + "size of the workerpool for the lifetime of the job, including pipeline updates. "
+      + "If left unspecified, the Dataflow service will compute a ceiling.")
   int getMaxNumWorkers();
   void setMaxNumWorkers(int value);
 

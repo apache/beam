@@ -225,12 +225,23 @@ public class DataflowPipelineTranslatorTest {
             .getJob();
 
     assertEquals(1, job.getEnvironment().getWorkerPools().size());
+    // Autoscaling settings are always set.
     assertNull(
         job
             .getEnvironment()
             .getWorkerPools()
             .get(0)
-            .getAutoscalingSettings());
+            .getAutoscalingSettings()
+            .getAlgorithm());
+    assertEquals(
+        0,
+        job
+            .getEnvironment()
+            .getWorkerPools()
+            .get(0)
+            .getAutoscalingSettings()
+            .getMaxNumWorkers()
+            .intValue());
   }
 
   @Test
@@ -257,6 +268,48 @@ public class DataflowPipelineTranslatorTest {
             .get(0)
             .getAutoscalingSettings()
             .getAlgorithm());
+    assertEquals(
+        0,
+        job
+            .getEnvironment()
+            .getWorkerPools()
+            .get(0)
+            .getAutoscalingSettings()
+            .getMaxNumWorkers()
+            .intValue());
+  }
+
+  @Test
+  public void testMaxNumWorkersIsPassedWhenNoAlgorithmIsSet() throws IOException {
+    final DataflowPipelineWorkerPoolOptions.AutoscalingAlgorithmType noScaling = null;
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setMaxNumWorkers(42);
+    options.setAutoscalingAlgorithm(noScaling);
+
+    Pipeline p = buildPipeline(options);
+    p.traverseTopologically(new RecordingPipelineVisitor());
+    Job job =
+        DataflowPipelineTranslator.fromOptions(options)
+            .translate(p, Collections.<DataflowPackage>emptyList())
+            .getJob();
+
+    assertEquals(1, job.getEnvironment().getWorkerPools().size());
+    assertNull(
+        job
+            .getEnvironment()
+            .getWorkerPools()
+            .get(0)
+            .getAutoscalingSettings()
+            .getAlgorithm());
+    assertEquals(
+        42,
+        job
+            .getEnvironment()
+            .getWorkerPools()
+            .get(0)
+            .getAutoscalingSettings()
+            .getMaxNumWorkers()
+            .intValue());
   }
 
   @Test
