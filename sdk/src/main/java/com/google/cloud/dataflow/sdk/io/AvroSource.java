@@ -20,7 +20,8 @@ import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
-import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
+import com.google.cloud.dataflow.sdk.util.AvroUtils;
+import com.google.cloud.dataflow.sdk.util.AvroUtils.AvroMetadata;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.base.Preconditions;
 
@@ -45,7 +46,6 @@ import java.io.PushbackInputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.zip.Inflater;
 import java.util.zip.InflaterInputStream;
@@ -241,81 +241,6 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     super.validate();
   }
 
-  /**
-   * Avro file metadata. Visible for testing.
-   */
-  static class Metadata {
-    byte[] syncMarker;
-    String codec;
-    String schema;
-
-    public Metadata(byte[] syncMarker, String codec, String schema) {
-      this.syncMarker = syncMarker;
-      this.codec = codec;
-      this.schema = schema;
-    }
-  }
-
-  /**
-   * Reads the {@link Metadata} from the header of an Avro file. Throws an IOException if the file
-   * is an invalid format.
-   *
-   * <p>This method parses the header of an Avro
-   * <a href="https://avro.apache.org/docs/1.7.7/spec.html#Object+Container+Files">
-   * Object Container File</a>.
-   */
-  static Metadata readMetadataFromFile(String fileName) throws IOException {
-    String codec = null;
-    String schema = null;
-    byte[] syncMarker;
-    try (InputStream stream =
-        Channels.newInputStream(IOChannelUtils.getFactory(fileName).open(fileName))) {
-      BinaryDecoder decoder = DecoderFactory.get().binaryDecoder(stream, null);
-
-      // The header of an object container file begins with a four-byte magic number, followed
-      // by the file metadata (including the schema and codec), encoded as a map. Finally, the
-      // header ends with the file's 16-byte sync marker.
-      // See https://avro.apache.org/docs/1.7.7/spec.html#Object+Container+Files for details on
-      // the encoding of container files.
-
-      // Read the magic number.
-      byte[] magic = new byte[DataFileConstants.MAGIC.length];
-      decoder.readFixed(magic);
-      if (!Arrays.equals(magic, DataFileConstants.MAGIC)) {
-        throw new IOException("Missing Avro file signature: " + fileName);
-      }
-
-      // Read the metadata to find the codec and schema.
-      ByteBuffer valueBuffer = ByteBuffer.allocate(512);
-      long numRecords = decoder.readMapStart();
-      while (numRecords > 0) {
-        for (long recordIndex = 0; recordIndex < numRecords; recordIndex++) {
-          String key = decoder.readString();
-          // readBytes() clears the buffer and returns a buffer where:
-          // - position is the start of the bytes read
-          // - limit is the end of the bytes read
-          valueBuffer = decoder.readBytes(valueBuffer);
-          byte[] bytes = new byte[valueBuffer.remaining()];
-          valueBuffer.get(bytes);
-          if (key.equals(DataFileConstants.CODEC)) {
-            codec = new String(bytes, "UTF-8");
-          } else if (key.equals(DataFileConstants.SCHEMA)) {
-            schema = new String(bytes, "UTF-8");
-          }
-        }
-        numRecords = decoder.mapNext();
-      }
-      if (codec == null) {
-        codec = DataFileConstants.NULL_CODEC;
-      }
-
-      // Finally, read the sync marker.
-      syncMarker = new byte[DataFileConstants.SYNC_SIZE];
-      decoder.readFixed(syncMarker);
-    }
-    return new Metadata(syncMarker, codec, schema);
-  }
-
   @Override
   public AvroSource<T> createForSubrangeOfFile(String fileName, long start, long end) {
     byte[] syncMarker = this.syncMarker;
@@ -327,21 +252,21 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     // for a subrange of a file, we can initialize these values. When the resulting AvroSource
     // is further split, they do not need to be read again.
     if (codec == null || syncMarker == null || fileSchemaString == null) {
-      Metadata metadata;
+      AvroMetadata metadata;
       try {
         Collection<String> files = FileBasedSource.expandFilePattern(fileName);
         Preconditions.checkArgument(files.size() <= 1, "More than 1 file matched %s");
-        metadata = readMetadataFromFile(fileName);
+        metadata = AvroUtils.readMetadataFromFile(fileName);
       } catch (IOException e) {
         throw new RuntimeException("Error reading metadata from file " + fileName, e);
       }
-      codec = metadata.codec;
-      syncMarker = metadata.syncMarker;
-      fileSchemaString = metadata.schema;
+      codec = metadata.getCodec();
+      syncMarker = metadata.getSyncMarker();
+      fileSchemaString = metadata.getSchemaString();
       // If the source was created with a null schema, use the schema that we read from the file's
       // metadata.
       if (readSchemaString == null) {
-        readSchemaString = metadata.schema;
+        readSchemaString = metadata.getSchemaString();
       }
     }
     return new AvroSource<T>(fileName, getMinBundleSize(), start, end, readSchemaString, type,
@@ -551,7 +476,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     }
 
     @Override
-    public AvroSource<T> getCurrentSource() {
+    public synchronized AvroSource<T> getCurrentSource() {
       return (AvroSource<T>) super.getCurrentSource();
     }
 
