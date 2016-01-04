@@ -145,7 +145,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
   private DataflowPipelineRunnerHooks hooks;
 
   // Environment version information
-  private static final String ENVIRONMENT_MAJOR_VERSION = "3";
+  private static final String ENVIRONMENT_MAJOR_VERSION = "4";
 
   // The limit of CreateJob request size.
   private static final int CREATE_JOB_REQUEST_LIMIT_BYTES = 10 * 1024 * 1024;
