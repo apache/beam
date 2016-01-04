@@ -244,7 +244,11 @@ public class WindowedWordCount {
      * The BigQuery output source supports both bounded and unbounded data.
      */
     wordCounts.apply(ParDo.of(new FormatAsTableRowFn()))
-        .apply(BigQueryIO.Write.to(getTableReference(options)).withSchema(getSchema()));
+        .apply(BigQueryIO.Write
+          .to(getTableReference(options))
+          .withSchema(getSchema())
+          .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+          .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
 
     PipelineResult result = pipeline.run();
 
