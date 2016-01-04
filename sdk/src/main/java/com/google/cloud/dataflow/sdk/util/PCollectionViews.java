@@ -96,7 +96,7 @@ public class PCollectionViews {
       WindowingStrategy<?, W> windowingStrategy,
       Coder<KV<K, V>> valueCoder) {
 
-    return new MapPCollectionView(pipeline, windowingStrategy, valueCoder);
+    return new MapPCollectionView<K, V, W>(pipeline, windowingStrategy, valueCoder);
   }
 
   /**
@@ -107,7 +107,7 @@ public class PCollectionViews {
       Pipeline pipeline,
       WindowingStrategy<?, W> windowingStrategy,
       Coder<KV<K, V>> valueCoder) {
-    return new MultimapPCollectionView(pipeline, windowingStrategy, valueCoder);
+    return new MultimapPCollectionView<K, V, W>(pipeline, windowingStrategy, valueCoder);
   }
 
   /**
@@ -229,7 +229,7 @@ public class PCollectionViews {
       extends PCollectionViewBase<KV<K, V>, Map<K, Iterable<V>>, W> {
     public MultimapPCollectionView(
         Pipeline pipeline,
-        WindowingStrategy<KV<K, V>, W> windowingStrategy,
+        WindowingStrategy<?, W> windowingStrategy,
         Coder<KV<K, V>> valueCoder) {
       super(pipeline, windowingStrategy, valueCoder);
     }
@@ -258,7 +258,7 @@ public class PCollectionViews {
       extends PCollectionViewBase<KV<K, V>, Map<K, V>, W> {
     public MapPCollectionView(
         Pipeline pipeline,
-        WindowingStrategy<KV<K, V>, W> windowingStrategy,
+        WindowingStrategy<?, W> windowingStrategy,
         Coder<KV<K, V>> valueCoder) {
       super(pipeline, windowingStrategy, valueCoder);
     }
@@ -362,7 +362,7 @@ public class PCollectionViews {
       // Safe cast: It is required that the rest of the SDK maintain the invariant that
       // this tag is only used to access the contents of an appropriately typed underlying
       // PCollection
-      @SuppressWarnings({"rawtypes, unchecked"})
+      @SuppressWarnings({"rawtypes", "unchecked"})
       TupleTag<Iterable<WindowedValue<?>>> untypedTag = (TupleTag) tag;
       return untypedTag;
     }
