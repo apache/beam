@@ -88,6 +88,7 @@ public class CoderRegistry implements CoderProvider {
    * Registers standard Coders with this CoderRegistry.
    */
   public void registerStandardCoders() {
+    registerCoder(Byte.class, ByteCoder.class);
     registerCoder(Double.class, DoubleCoder.class);
     registerCoder(Instant.class, InstantCoder.class);
     registerCoder(Integer.class, VarIntCoder.class);
