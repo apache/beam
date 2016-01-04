@@ -35,6 +35,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -152,17 +153,33 @@ public class DoFnTester<InputT, OutputT> {
 
   /**
    * A convenience operation that first calls {@link #startBundle},
-   * then calls {@link #processElement} on each of the arguments, then
+   * then calls {@link #processElement} on each of the input elements, then
    * calls {@link #finishBundle}, then returns the result of
    * {@link #takeOutputElements}.
    */
-  public List<OutputT> processBatch(InputT... inputElements) {
+  public List<OutputT> processBatch(Iterable <? extends InputT> inputElements) {
     startBundle();
     for (InputT inputElement : inputElements) {
       processElement(inputElement);
     }
     finishBundle();
     return takeOutputElements();
+  }
+
+  /**
+   * A convenience method for testing {@link DoFn DoFns} with bundles of elements.
+   * Logic proceeds as follows:
+   *
+   * <ol>
+   *   <li>Calls {@link #startBundle}.</li>
+   *   <li>Calls {@link #processElement} on each of the arguments.<li>
+   *   <li>Calls {@link #finishBundle}.</li>
+   *   <li>Returns the result of {@link #takeOutputElements}.</li>
+   * </ol>
+   */
+  @SafeVarargs
+  public final List<OutputT> processBatch(InputT... inputElements) {
+    return processBatch(Arrays.asList(inputElements));
   }
 
   /**
@@ -276,10 +293,10 @@ public class DoFnTester<InputT, OutputT> {
     // TODO: Should we return an unmodifiable list?
     return Lists.transform(
         outputManager.getOutput(tag),
-        new Function<Object, T>() {
+        new Function<WindowedValue<T>, T>() {
           @Override
-          public T apply(Object input) {
-            return ((WindowedValue<T>) input).getValue();
+          public T apply(WindowedValue<T> input) {
+            return input.getValue();
           }});
   }
 
@@ -308,10 +325,11 @@ public class DoFnTester<InputT, OutputT> {
   /**
    * Returns the value of the provided {@link Aggregator}.
    */
-  public <OutputT> OutputT getAggregatorValue(Aggregator<?, OutputT> agg) {
+  public <AggregateT> AggregateT getAggregatorValue(Aggregator<?, AggregateT> agg) {
     @SuppressWarnings("unchecked")
-    Counter<OutputT> counter =
-        (Counter<OutputT>) counterSet.getExistingCounter("user-" + STEP_NAME + "-" + agg.getName());
+    Counter<AggregateT> counter =
+        (Counter<AggregateT>)
+            counterSet.getExistingCounter("user-" + STEP_NAME + "-" + agg.getName());
     return counter.getAggregate();
   }
 
