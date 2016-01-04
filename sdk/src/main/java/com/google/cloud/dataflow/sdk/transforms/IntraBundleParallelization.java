@@ -160,7 +160,8 @@ public class IntraBundleParallelization {
      *
      * <p>Note that the specified {@code doFn} needs to be thread safe.
      */
-    public <InputT, OutputT> Bound<InputT, OutputT> of(DoFn<InputT, OutputT> doFn) {
+    public <NewInputT, NewOutputT> Bound<NewInputT, NewOutputT>
+        of(DoFn<NewInputT, NewOutputT> doFn) {
       return new Bound<>(doFn, maxParallelism);
     }
 
