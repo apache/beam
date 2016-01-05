@@ -98,7 +98,7 @@ public class SystemReduceFn<K, InputT, OutputT, W extends BoundedWindow>
 
   @Override
   public void processValue(ProcessValueContext c) throws Exception {
-    c.state().access(bufferTag).add(c.value());
+    c.state().accessAcrossMergedWindows(bufferTag).add(c.value());
   }
 
   @Override
@@ -125,6 +125,8 @@ public class SystemReduceFn<K, InputT, OutputT, W extends BoundedWindow>
 
   @Override
   public StateContents<Boolean> isEmpty(StateContext state) {
+    // Since we only check for empty element sets when a trigger fires it's unreasonable
+    // to require a prefetch.
     return state.accessAcrossMergedWindows(bufferTag).isEmpty();
   }
 }

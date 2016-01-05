@@ -59,6 +59,12 @@ public class AfterProcessingTime<W extends BoundedWindow> extends TimeTrigger<W>
   }
 
   @Override
+  public void prefetchOnElement(StateContext state) {
+    state.access(DELAYED_UNTIL_TAG).get();
+  }
+
+
+  @Override
   public TriggerResult onElement(OnElementContext c)
       throws Exception {
     CombiningValueState<Instant, Instant> delayUntilState = c.state().access(DELAYED_UNTIL_TAG);
@@ -73,6 +79,11 @@ public class AfterProcessingTime<W extends BoundedWindow> extends TimeTrigger<W>
   }
 
   @Override
+  public void prefetchOnMerge(MergingStateContext state) {
+    state.mergingAccess(DELAYED_UNTIL_TAG).get();
+  }
+
+  @Override
   public MergeResult onMerge(OnMergeContext c) throws Exception {
     // If the processing time timer has fired in any of the windows being merged, it would have
     // fired at the same point if it had been added to the merged window. So, we just report it as
@@ -83,7 +94,7 @@ public class AfterProcessingTime<W extends BoundedWindow> extends TimeTrigger<W>
 
     // Determine the earliest point across all the windows, and delay to that.
     CombiningValueState<Instant, Instant> mergingDelays =
-        c.state().accessAcrossMergingWindows(DELAYED_UNTIL_TAG);
+        c.state().mergingAccess(DELAYED_UNTIL_TAG);
     Instant earliestTimer = mergingDelays.get().read();
     if (earliestTimer != null) {
       mergingDelays.clear();
@@ -92,6 +103,11 @@ public class AfterProcessingTime<W extends BoundedWindow> extends TimeTrigger<W>
     }
 
     return MergeResult.CONTINUE;
+  }
+
+  @Override
+  public void prefetchOnTimer(StateContext state) {
+    state.access(DELAYED_UNTIL_TAG).get();
   }
 
   @Override
@@ -106,21 +122,6 @@ public class AfterProcessingTime<W extends BoundedWindow> extends TimeTrigger<W>
     }
 
     return TriggerResult.FIRE_AND_FINISH;
-  }
-
-  @Override
-  public void prefetchOnElement(StateContext state) {
-    state.access(DELAYED_UNTIL_TAG).get();
-  }
-
-  @Override
-  public void prefetchOnMerge(MergingStateContext state) {
-    state.accessAcrossMergingWindows(DELAYED_UNTIL_TAG).get();
-  }
-
-  @Override
-  public void prefetchOnTimer(StateContext state) {
-    state.access(DELAYED_UNTIL_TAG).get();
   }
 
   @Override

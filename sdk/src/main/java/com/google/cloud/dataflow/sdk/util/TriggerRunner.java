@@ -45,8 +45,8 @@ import java.util.Map;
  * @param <W> The kind of windows being processed.
  */
 public class TriggerRunner<W extends BoundedWindow> {
-
-  @VisibleForTesting static final StateTag<ValueState<BitSet>> FINISHED_BITS_TAG =
+  @VisibleForTesting
+  static final StateTag<ValueState<BitSet>> FINISHED_BITS_TAG =
       StateTags.makeSystemTagInternal(StateTags.value("closed", BitSetCoder.of()));
 
   private final ExecutableTrigger<W> rootTrigger;
@@ -75,6 +75,13 @@ public class TriggerRunner<W extends BoundedWindow> {
     return readFinishedBits(state.access(FINISHED_BITS_TAG)).get(0);
   }
 
+  public void prefetchForValue(ReduceFn.StateContext state) {
+    if (isFinishedSetNeeded()) {
+      state.access(FINISHED_BITS_TAG).get();
+    }
+    rootTrigger.getSpec().prefetchOnElement(state);
+  }
+
   /**
    * Run the trigger logic to deal with a new value.
    */
@@ -87,6 +94,16 @@ public class TriggerRunner<W extends BoundedWindow> {
     return result;
   }
 
+  public void prefetchForMerge(ReduceFn.MergingStateContext state) {
+    if (isFinishedSetNeeded()) {
+      for (ValueState<?> value :
+          state.mergingAccessInEachMergingWindow(FINISHED_BITS_TAG).values()) {
+        value.get();
+      }
+    }
+    rootTrigger.getSpec().prefetchOnMerge(state);
+  }
+
   /**
    * Run the trigger merging logic as part of executing the specified merge.
    */
@@ -97,11 +114,10 @@ public class TriggerRunner<W extends BoundedWindow> {
     // And read the finished bits in each merging window.
     ImmutableMap.Builder<W, BitSet> mergingFinishedSets = ImmutableMap.builder();
     Map<BoundedWindow, ValueState<BitSet>> mergingFinishedSetState =
-        c.state().accessInEachMergingWindow(FINISHED_BITS_TAG);
+        c.state().mergingAccessInEachMergingWindow(FINISHED_BITS_TAG);
     for (W window : c.mergingWindows()) {
       // Don't need to clone these, since the trigger context doesn't allow modification
-      mergingFinishedSets.put(window,
-          readFinishedBits(mergingFinishedSetState.get(window)));
+      mergingFinishedSets.put(window, readFinishedBits(mergingFinishedSetState.get(window)));
     }
 
     Trigger<W>.OnMergeContext mergeContext =
@@ -115,6 +131,13 @@ public class TriggerRunner<W extends BoundedWindow> {
 
     persistFinishedSet(c.state(), finishedSet);
     return result.getTriggerResult();
+  }
+
+  public void prefetchForTimer(ReduceFn.StateContext state) {
+    if (isFinishedSetNeeded()) {
+      state.access(FINISHED_BITS_TAG).get();
+    }
+    rootTrigger.getSpec().prefetchOnElement(state);
   }
 
   /**
@@ -164,29 +187,6 @@ public class TriggerRunner<W extends BoundedWindow> {
     if (isFinishedSetNeeded()) {
       c.state().access(FINISHED_BITS_TAG).clear();
     }
-  }
-
-  public void prefetchForValue(ReduceFn.StateContext state) {
-    if (isFinishedSetNeeded()) {
-      state.access(FINISHED_BITS_TAG).get();
-    }
-    rootTrigger.getSpec().prefetchOnElement(state);
-  }
-
-  public void prefetchForMerge(ReduceFn.MergingStateContext state) {
-    if (isFinishedSetNeeded()) {
-      for (ValueState<?> value : state.accessInEachMergingWindow(FINISHED_BITS_TAG).values()) {
-        value.get();
-      }
-    }
-    rootTrigger.getSpec().prefetchOnMerge(state);
-  }
-
-  public void prefetchForTimer(ReduceFn.StateContext state) {
-    if (isFinishedSetNeeded()) {
-      state.access(FINISHED_BITS_TAG).get();
-    }
-    rootTrigger.getSpec().prefetchOnElement(state);
   }
 
   private boolean isFinishedSetNeeded() {

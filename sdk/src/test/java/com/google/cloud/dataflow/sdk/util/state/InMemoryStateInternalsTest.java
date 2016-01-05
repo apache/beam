@@ -154,7 +154,8 @@ public class InMemoryStateInternalsTest {
     bag1.add("!");
 
     BagState<String> merged = underTest.mergedState(
-        Arrays.asList(NAMESPACE_1, NAMESPACE_2), NAMESPACE_3, STRING_BAG_ADDR, WINDOW_3);
+        Arrays.asList(NAMESPACE_1, NAMESPACE_2, NAMESPACE_3),
+        NAMESPACE_3, STRING_BAG_ADDR, WINDOW_3);
 
     // Reading the merged bag gets both the contents
     assertThat(merged.get().read(), Matchers.containsInAnyOrder("Hello", "World", "!"));
@@ -245,7 +246,8 @@ public class InMemoryStateInternalsTest {
     assertThat(value2.get().read(), Matchers.equalTo(10));
 
     CombiningValueState<Integer, Integer> merged = underTest.mergedState(
-        Arrays.asList(NAMESPACE_1, NAMESPACE_2), NAMESPACE_3, SUM_INTEGER_ADDR, WINDOW_3);
+        Arrays.asList(NAMESPACE_1, NAMESPACE_2, NAMESPACE_3),
+        NAMESPACE_3, SUM_INTEGER_ADDR, WINDOW_3);
 
     assertThat(value1.get().read(), Matchers.equalTo(11));
     assertThat(value2.get().read(), Matchers.equalTo(10));

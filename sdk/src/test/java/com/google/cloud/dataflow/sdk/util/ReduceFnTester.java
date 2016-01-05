@@ -66,6 +66,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -218,7 +219,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     for (W expectedWindow : expectedWindows) {
       expectedWindowsSet.add(windowNamespace(expectedWindow));
     }
-    Set<StateNamespace> actualWindows = new HashSet<>();
+    Map<StateNamespace, Set<StateTag<?>>> actualWindows = new HashMap<>();
 
     for (StateNamespace namespace : stateInternals.getNamespacesInUse()) {
       if (namespace instanceof StateNamespaces.GlobalNamespace) {
@@ -228,7 +229,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
         if (tagsInUse.isEmpty()) {
           continue;
         }
-        actualWindows.add(namespace);
+        actualWindows.put(namespace, tagsInUse);
         Set<StateTag<?>> unexpected = Sets.difference(tagsInUse, allowedTags);
         if (unexpected.isEmpty()) {
           continue;
@@ -243,7 +244,8 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
       }
     }
 
-    assertEquals(expectedWindowsSet, actualWindows);
+    assertEquals("Still in use: " + actualWindows.toString(), expectedWindowsSet,
+        actualWindows.keySet());
   }
 
   private StateNamespace windowNamespace(W window) {

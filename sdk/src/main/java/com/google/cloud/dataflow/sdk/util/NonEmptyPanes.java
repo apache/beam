@@ -97,7 +97,7 @@ public abstract class NonEmptyPanes<W extends BoundedWindow> {
 
     @Override
     public void recordContent(ReduceFn<?, ?, ?, W>.Context context) {
-      context.state().access(PANE_ADDITIONS_TAG).add(1L);
+      context.state().accessAcrossMergedWindows(PANE_ADDITIONS_TAG).add(1L);
     }
 
     @Override
@@ -107,6 +107,8 @@ public abstract class NonEmptyPanes<W extends BoundedWindow> {
 
     @Override
     public StateContents<Boolean> isEmpty(ReduceFn<?, ?, ?, W>.Context context) {
+      // Since we only check for empty element sets when a trigger fires it's unreasonable
+      // to require a prefetch.
       return context.state().accessAcrossMergedWindows(PANE_ADDITIONS_TAG).isEmpty();
     }
   }

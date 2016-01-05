@@ -60,6 +60,11 @@ public class AfterPane<W extends BoundedWindow> extends OnceTrigger<W>{
   }
 
   @Override
+  public void prefetchOnElement(StateContext state) {
+    state.access(ELEMENTS_IN_PANE_TAG).get();
+  }
+
+  @Override
   public TriggerResult onElement(OnElementContext c) throws Exception {
     CombiningValueState<Long, Long> elementsInPane = c.state().access(ELEMENTS_IN_PANE_TAG);
     StateContents<Long> countContents = elementsInPane.get();
@@ -72,6 +77,11 @@ public class AfterPane<W extends BoundedWindow> extends OnceTrigger<W>{
   }
 
   @Override
+  public void prefetchOnMerge(MergingStateContext state) {
+    state.mergingAccess(ELEMENTS_IN_PANE_TAG).get();
+  }
+
+  @Override
   public MergeResult onMerge(OnMergeContext c) throws Exception {
     // If we've already received enough elements and finished in some window, then this trigger
     // is just finished.
@@ -80,8 +90,12 @@ public class AfterPane<W extends BoundedWindow> extends OnceTrigger<W>{
     }
 
     // Otherwise, compute the sum of elements in all the active panes
-    CombiningValueState<Long, Long> elementsInPane =
-        c.state().accessAcrossMergingWindows(ELEMENTS_IN_PANE_TAG);
+    CombiningValueState<Long, Long> elementsInPane = c.state().mergingAccess(ELEMENTS_IN_PANE_TAG);
+    // Both InMemoryStateInternals and WindmillStateInternals implement merging access using
+    // MergeCombiningValue. The implementation of StateContents.read returned by get will
+    // eagerly compact state on read. Thus after the following we are guaranteed all state from
+    // merged windows will have been compacted away.
+    // TODO: Make this more explicit and less fragile with a 'compact' API?
     long count = elementsInPane.get().read();
     return count >= countElems ? MergeResult.FIRE_AND_FINISH : MergeResult.CONTINUE;
   }
@@ -89,16 +103,6 @@ public class AfterPane<W extends BoundedWindow> extends OnceTrigger<W>{
   @Override
   public TriggerResult onTimer(OnTimerContext c) {
     return TriggerResult.CONTINUE;
-  }
-
-  @Override
-  public void prefetchOnElement(StateContext state) {
-    state.access(ELEMENTS_IN_PANE_TAG).get();
-  }
-
-  @Override
-  public void prefetchOnMerge(MergingStateContext state) {
-    state.accessAcrossMergingWindows(ELEMENTS_IN_PANE_TAG).get();
   }
 
   @Override

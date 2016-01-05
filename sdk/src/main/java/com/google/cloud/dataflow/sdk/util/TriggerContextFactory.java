@@ -252,7 +252,7 @@ public class TriggerContextFactory<W extends BoundedWindow> {
 
       // Annoyingly, since we hadn't set the triggerIndex yet (we can't do it before super)
       // This will would otherwise have incorporated 0 as the trigger index.
-      this.namespace = namespaceFor(window);
+      this.windowNamespace = namespaceFor(window);
     }
 
     @Override

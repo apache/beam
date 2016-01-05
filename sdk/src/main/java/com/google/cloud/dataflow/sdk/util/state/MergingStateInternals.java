@@ -50,14 +50,10 @@ public abstract class MergingStateInternals implements StateInternals {
       public <T> BagState<T> bindBag(StateTag<BagState<T>> address, Coder<T> elemCoder) {
         List<BagState<T>> sources = new ArrayList<>();
         for (StateNamespace sourceNamespace : sourceNamespaces) {
-          // Skip adding the result namespace for now.
-          if (!sourceNamespace.equals(resultNamespace)) {
-            sources.add(state(sourceNamespace, address));
-          }
+          sources.add(state(sourceNamespace, address));
         }
 
         BagState<T> results = state(resultNamespace, address);
-        sources.add(results);
         return new MergedBag<>(sources, results);
       }
 
@@ -68,14 +64,10 @@ public abstract class MergingStateInternals implements StateInternals {
           Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
         List<CombiningValueStateInternal<InputT, AccumT, OutputT>> sources = new ArrayList<>();
         for (StateNamespace sourceNamespace : sourceNamespaces) {
-          // Skip adding the result namespace for now.
-          if (!sourceNamespace.equals(resultNamespace)) {
-            sources.add(state(sourceNamespace, address));
-          }
+          sources.add(state(sourceNamespace, address));
         }
         CombiningValueStateInternal<InputT, AccumT, OutputT> result =
             state(resultNamespace, address);
-        sources.add(result);
         return new MergedCombiningValue<>(sources, result, combineFn);
       }
 
@@ -85,13 +77,9 @@ public abstract class MergingStateInternals implements StateInternals {
           OutputTimeFn<? super W> outputTimeFn) {
         List<WatermarkStateInternal> sources = new ArrayList<>();
         for (StateNamespace sourceNamespace : sourceNamespaces) {
-          // Skip adding the result namespace for now.
-          if (!sourceNamespace.equals(resultNamespace)) {
-            sources.add(state(sourceNamespace, address));
-          }
+          sources.add(state(sourceNamespace, address));
         }
         WatermarkStateInternal result = state(resultNamespace, address);
-        sources.add(result);
 
         // It is the responsibility of the SDK to only pass allowed result windows.
         @SuppressWarnings("unchecked")

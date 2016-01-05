@@ -95,6 +95,11 @@ public class AfterWatermark<W extends BoundedWindow> {
     }
 
     @Override
+    public void prefetchOnElement(StateContext state) {
+      state.access(DELAYED_UNTIL_TAG).get();
+    }
+
+    @Override
     public TriggerResult onElement(OnElementContext c) throws Exception {
       CombiningValueState<Instant, Instant> delayUntilState = c.state().access(DELAYED_UNTIL_TAG);
       Instant delayUntil = delayUntilState.get().read();
@@ -105,6 +110,11 @@ public class AfterWatermark<W extends BoundedWindow> {
       }
 
       return TriggerResult.CONTINUE;
+    }
+
+    @Override
+    public void prefetchOnMerge(MergingStateContext state) {
+      state.mergingAccess(DELAYED_UNTIL_TAG).get();
     }
 
     @Override
@@ -121,7 +131,7 @@ public class AfterWatermark<W extends BoundedWindow> {
       // of this first element in each pane).
       // Determine the earliest point across all the windows, and delay to that.
       CombiningValueState<Instant, Instant> mergingDelays =
-          c.state().accessAcrossMergingWindows(DELAYED_UNTIL_TAG);
+          c.state().mergingAccess(DELAYED_UNTIL_TAG);
       Instant earliestTimer = mergingDelays.get().read();
       if (earliestTimer != null) {
         mergingDelays.clear();
@@ -130,6 +140,11 @@ public class AfterWatermark<W extends BoundedWindow> {
       }
 
       return MergeResult.CONTINUE;
+    }
+
+    @Override
+    public void prefetchOnTimer(StateContext state) {
+      state.access(DELAYED_UNTIL_TAG).get();
     }
 
     @Override
@@ -144,21 +159,6 @@ public class AfterWatermark<W extends BoundedWindow> {
       }
 
       return TriggerResult.FIRE_AND_FINISH;
-    }
-
-    @Override
-    public void prefetchOnElement(StateContext state) {
-      state.access(DELAYED_UNTIL_TAG).get();
-    }
-
-    @Override
-    public void prefetchOnMerge(MergingStateContext state) {
-      state.accessAcrossMergingWindows(DELAYED_UNTIL_TAG).get();
-    }
-
-    @Override
-    public void prefetchOnTimer(StateContext state) {
-      state.access(DELAYED_UNTIL_TAG).get();
     }
 
     @Override

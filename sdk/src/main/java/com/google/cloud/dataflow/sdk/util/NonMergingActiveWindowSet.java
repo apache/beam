@@ -17,9 +17,9 @@ package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
+import com.google.common.collect.ImmutableSet;
 
-import java.util.Collection;
-import java.util.Collections;
+import java.util.Set;
 
 /**
  * Implementation of {@link ActiveWindowSet} used with {@link WindowFn WindowFns} that don't support
@@ -27,48 +27,51 @@ import java.util.Collections;
  *
  * @param <W> the types of windows being managed
  */
-public class NonMergingActiveWindowSet<W extends BoundedWindow>
-    implements ActiveWindowSet<W> {
+public class NonMergingActiveWindowSet<W extends BoundedWindow> implements ActiveWindowSet<W> {
+  @Override
+  public void removeEphemeralWindows() {}
 
   @Override
-  public void persist() {
-    // Nothing to persist.
+  public void persist() {}
+
+  @Override
+  public W representative(W window) {
+    // Always represented by itself.
+    return window;
   }
 
   @Override
-  public boolean add(W window) {
-    // We don't track anything, so we cannot determine if the window is new or not.
-    return true;
+  public Set<W> getActiveWindows() {
+    // Only supported when merging.
+    throw new java.lang.UnsupportedOperationException();
   }
 
   @Override
-  public boolean contains(W window) {
+  public boolean isActive(W window) {
     // Windows should never disappear, since we don't support merging.
     return true;
   }
 
   @Override
+  public void addNew(W window) {}
+
+  @Override
+  public void addActive(W window) {}
+
+  @Override
   public void remove(W window) {}
 
   @Override
-  public void merge(MergeCallback<W> reduceFnRunner) throws Exception {
-    // We never merge, so there is nothing to do here.
+  public void merge(MergeCallback<W> mergeCallback) throws Exception {}
+
+
+  @Override
+  public Set<W> readStateAddresses(W window) {
+    return ImmutableSet.of(window);
   }
 
   @Override
-  public Iterable<W> sourceWindows(W window) {
-    // There is no merging, so the only source window is the window itself.
-    return Collections.singleton(window);
-  }
-
-  @Override
-  public int size() {
-    throw new UnsupportedOperationException("Cannot determine size of NonMergingActiveWindowSet");
-  }
-
-  @Override
-  public Collection<W> originalWindows(Collection<W> windows) {
-    throw new UnsupportedOperationException(
-        "Cannot determine original windows of NonMergingActiveWindowSet");
+  public W writeStateAddress(W window) {
+    return window;
   }
 }

@@ -124,7 +124,7 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
 
     private final ActiveWindowSet<W> activeWindows;
     private final W window;
-    protected StateNamespace namespace;
+    protected StateNamespace windowNamespace;
     protected final Coder<W> windowCoder;
     private final StateInternals stateInternals;
 
@@ -137,7 +137,7 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
       this.windowCoder = windowCoder;
       this.stateInternals = stateInternals;
       this.window = window;
-      this.namespace = namespaceFor(window);
+      this.windowNamespace = namespaceFor(window);
     }
 
     protected StateNamespace namespaceFor(W window) {
@@ -149,23 +149,23 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
     }
 
     StateNamespace namespace() {
-      return namespace;
+      return windowNamespace;
     }
 
     @Override
     public <StorageT extends State> StorageT access(StateTag<StorageT> address) {
-      return stateInternals.state(namespace, address);
+      return stateInternals.state(windowNamespace, address);
     }
 
     @Override
     public <StorageT extends MergeableState<?, ?>> StorageT accessAcrossMergedWindows(
         StateTag<StorageT> address) {
-      List<StateNamespace> sourceNamespaces = new ArrayList<>();
-      for (W sourceWindow : activeWindows.sourceWindows(window)) {
-        sourceNamespaces.add(namespaceFor(sourceWindow));
+      List<StateNamespace> readNamespaces = new ArrayList<>();
+      for (W readWindow : activeWindows.readStateAddresses(window)) {
+        readNamespaces.add(namespaceFor(readWindow));
       }
-
-      return stateInternals.mergedState(sourceNamespaces, namespace, address, window);
+      StateNamespace writeNamespace = namespaceFor(activeWindows.writeStateAddress(window));
+      return stateInternals.mergedState(readNamespaces, writeNamespace, address, window);
     }
   }
 
@@ -178,10 +178,6 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
     public MergingStateContextImpl(StateContextImpl<W> delegate, Collection<W> mergingWindows) {
       this.delegate = delegate;
       this.mergingWindows = mergingWindows;
-    }
-
-    StateNamespace namespace() {
-      return delegate.namespace;
     }
 
     W window() {
@@ -204,19 +200,17 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
     }
 
     @Override
-    public <StateT extends MergeableState<?, ?>> StateT accessAcrossMergingWindows(
-        StateTag<StateT> address) {
-      List<StateNamespace> mergingNamespaces = new ArrayList<>();
+    public <StateT extends MergeableState<?, ?>> StateT mergingAccess(StateTag<StateT> address) {
+      List<StateNamespace> readNamespaces = new ArrayList<>();
       for (W mergingWindow : mergingWindows) {
-        mergingNamespaces.add(delegate.namespaceFor(mergingWindow));
+        readNamespaces.add(delegate.namespaceFor(mergingWindow));
       }
-
       return delegate.stateInternals.mergedState(
-          mergingNamespaces, delegate.namespace, address, delegate.window());
+          readNamespaces, delegate.windowNamespace, address, delegate.window);
     }
 
     @Override
-    public <StateT extends State> Map<BoundedWindow, StateT> accessInEachMergingWindow(
+    public <StateT extends State> Map<BoundedWindow, StateT> mergingAccessInEachMergingWindow(
         StateTag<StateT> address) {
       ImmutableMap.Builder<BoundedWindow, StateT> builder = ImmutableMap.builder();
       for (W mergingWindow : mergingWindows) {
@@ -236,7 +230,7 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
     private ContextImpl(StateContextImpl<W> state) {
       reduceFn.super();
       this.state = state;
-      this.timers = new TimersImpl(state.namespace);
+      this.timers = new TimersImpl(state.namespace());
     }
 
     @Override
@@ -278,7 +272,7 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
       this.state = state;
       this.value = value;
       this.timestamp = timestamp;
-      this.timers = new TimersImpl(state.namespace);
+      this.timers = new TimersImpl(state.namespace());
     }
 
     @Override
@@ -331,7 +325,7 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
       this.state = state;
       this.pane = pane;
       this.callbacks = callbacks;
-      this.timers = new TimersImpl(state.namespace);
+      this.timers = new TimersImpl(state.namespace());
     }
 
     @Override
@@ -379,7 +373,7 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
     private OnMergeContextImpl(MergingStateContextImpl<W> state) {
       reduceFn.super();
       this.state = state;
-      this.timers = new TimersImpl(state.delegate.namespace);
+      this.timers = new TimersImpl(state.delegate.namespace());
     }
 
     @Override
