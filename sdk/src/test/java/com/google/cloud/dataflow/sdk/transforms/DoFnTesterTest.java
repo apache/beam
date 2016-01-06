@@ -21,6 +21,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
+import com.google.cloud.dataflow.sdk.transforms.DoFnTester.OutputElementWithTimestamp;
+
+import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -133,6 +136,43 @@ public class DoFnTesterTest {
   }
 
   @Test
+  public void processElementWithTimestamp() {
+    CounterDoFn counterDoFn = new CounterDoFn();
+    DoFnTester<Long, String> tester = DoFnTester.of(counterDoFn);
+
+    tester.processElement(1L);
+    tester.processElement(2L);
+
+    List<OutputElementWithTimestamp<String>> peek = tester.peekOutputElementsWithTimestamp();
+    OutputElementWithTimestamp<String> one =
+        new OutputElementWithTimestamp<>("1", new Instant(1000L));
+    OutputElementWithTimestamp<String> two =
+        new OutputElementWithTimestamp<>("2", new Instant(2000L));
+    assertThat(peek, hasItems(one, two));
+
+    tester.processElement(3L);
+    tester.processElement(4L);
+
+    OutputElementWithTimestamp<String> three =
+        new OutputElementWithTimestamp<>("3", new Instant(3000L));
+    OutputElementWithTimestamp<String> four =
+        new OutputElementWithTimestamp<>("4", new Instant(4000L));
+    peek = tester.peekOutputElementsWithTimestamp();
+    assertThat(peek, hasItems(one, two, three, four));
+    List<OutputElementWithTimestamp<String>> take = tester.takeOutputElementsWithTimestamp();
+    assertThat(take, hasItems(one, two, three, four));
+
+    // Following takeOutputElementsWithTimestamp(), neither takeOutputElementsWithTimestamp()
+    // nor peekOutputElementsWithTimestamp() return anything.
+    assertTrue(tester.takeOutputElementsWithTimestamp().isEmpty());
+    assertTrue(tester.peekOutputElementsWithTimestamp().isEmpty());
+
+    // peekOutputElements() and takeOutputElements() also return nothing.
+    assertTrue(tester.peekOutputElements().isEmpty());
+    assertTrue(tester.takeOutputElements().isEmpty());
+  }
+
+  @Test
   public void getAggregatorValuesShouldGetValueOfCounter() {
     CounterDoFn counterDoFn = new CounterDoFn();
     DoFnTester<Long, String> tester = DoFnTester.of(counterDoFn);
@@ -191,7 +231,8 @@ public class DoFnTesterTest {
     @Override
     public void processElement(ProcessContext c) throws Exception {
       agg.addValue(c.element());
-      c.output(c.element().toString());
+      Instant instant = new Instant(1000L * c.element());
+      c.outputWithTimestamp(c.element().toString(), instant);
     }
 
     @Override

@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
+import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.util.DirectModeExecutionContext;
@@ -31,8 +32,11 @@ import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.cloud.dataflow.sdk.values.TupleTagList;
 import com.google.common.base.Function;
+import com.google.common.base.Objects;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+
+import org.joda.time.Instant;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -243,21 +247,42 @@ public class DoFnTester<InputT, OutputT> {
    * @see #takeOutputElements
    * @see #clearOutputElements
    *
-   * <p>TODO: provide accessors that take and return {@code WindowedValue}s
-   * in order to test timestamp- and window-sensitive DoFns.
    */
   public List<OutputT> peekOutputElements() {
     // TODO: Should we return an unmodifiable list?
     return Lists.transform(
-        outputManager.getOutput(mainOutputTag),
-        new Function<Object, OutputT>() {
+        peekOutputElementsWithTimestamp(),
+        new Function<OutputElementWithTimestamp<OutputT>, OutputT>() {
           @Override
           @SuppressWarnings("unchecked")
-          public OutputT apply(Object input) {
-            return ((WindowedValue<OutputT>) input).getValue();
+          public OutputT apply(OutputElementWithTimestamp<OutputT> input) {
+            return input.getValue();
           }
         });
+  }
 
+  /**
+   * Returns the elements output so far to the main output with associated timestamps.  Does not
+   * clear them, so subsequent calls will continue to include these.
+   * elements.
+   *
+   * @see #takeOutputElementsWithTimestamp
+   * @see #clearOutputElements
+   */
+  @Experimental
+  public List<OutputElementWithTimestamp<OutputT>> peekOutputElementsWithTimestamp() {
+    // TODO: Should we return an unmodifiable list?
+    return Lists.transform(
+        outputManager.getOutput(mainOutputTag),
+        new Function<Object, OutputElementWithTimestamp<OutputT>>() {
+          @Override
+          @SuppressWarnings("unchecked")
+          public OutputElementWithTimestamp<OutputT> apply(Object input) {
+            return new OutputElementWithTimestamp<OutputT>(
+                ((WindowedValue<OutputT>) input).getValue(),
+                ((WindowedValue<OutputT>) input).getTimestamp());
+          }
+        });
   }
 
   /**
@@ -282,6 +307,22 @@ public class DoFnTester<InputT, OutputT> {
   }
 
   /**
+   * Returns the elements output so far to the main output with associated timestamps.
+   * Clears the list so these elements don't appear in future calls.
+   *
+   * @see #peekOutputElementsWithTimestamp
+   * @see #takeOutputElements
+   * @see #clearOutputElements
+   */
+  @Experimental
+  public List<OutputElementWithTimestamp<OutputT>> takeOutputElementsWithTimestamp() {
+    List<OutputElementWithTimestamp<OutputT>> resultElems =
+        new ArrayList<>(peekOutputElementsWithTimestamp());
+    clearOutputElements();
+    return resultElems;
+  }
+
+  /**
    * Returns the elements output so far to the side output with the
    * given tag.  Does not clear them, so subsequent calls will
    * continue to include these elements.
@@ -294,6 +335,7 @@ public class DoFnTester<InputT, OutputT> {
     return Lists.transform(
         outputManager.getOutput(tag),
         new Function<WindowedValue<T>, T>() {
+          @SuppressWarnings("unchecked")
           @Override
           public T apply(WindowedValue<T> input) {
             return input.getValue();
@@ -331,6 +373,42 @@ public class DoFnTester<InputT, OutputT> {
         (Counter<AggregateT>)
             counterSet.getExistingCounter("user-" + STEP_NAME + "-" + agg.getName());
     return counter.getAggregate();
+  }
+
+  /**
+   * Holder for an OutputElement along with its associated timestamp.
+   */
+  @Experimental
+  public static class OutputElementWithTimestamp<OutputT> {
+    private final OutputT value;
+    private final Instant timestamp;
+
+    OutputElementWithTimestamp(OutputT value, Instant timestamp) {
+      this.value = value;
+      this.timestamp = timestamp;
+    }
+
+    OutputT getValue() {
+      return value;
+    }
+
+    Instant getTimestamp() {
+      return timestamp;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (!(obj instanceof OutputElementWithTimestamp)) {
+        return false;
+      }
+      OutputElementWithTimestamp<?> other = (OutputElementWithTimestamp<?>) obj;
+      return Objects.equal(other.value, value) && Objects.equal(other.timestamp, timestamp);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(value, timestamp);
+    }
   }
 
   /////////////////////////////////////////////////////////////////////////////
