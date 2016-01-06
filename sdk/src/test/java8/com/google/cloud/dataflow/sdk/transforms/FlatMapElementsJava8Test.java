@@ -43,7 +43,7 @@ public class FlatMapElementsJava8Test implements Serializable {
 
   /**
    * Basic test of {@link FlatMapElements} with a lambda (which is instantiated as a
-   * {@link SerializableFunctaion}).
+   * {@link SerializableFunction}).
    */
   @Test
   public void testFlatMapBasic() throws Exception {
