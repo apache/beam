@@ -19,13 +19,11 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill.TagList;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill.TagValue;
-import com.google.cloud.dataflow.sdk.util.Weighted;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.AbstractIterator;
-import com.google.common.collect.ForwardingList;
 import com.google.common.util.concurrent.ForwardingFuture;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.SettableFuture;
@@ -476,60 +474,28 @@ class WindmillStateReader {
     }
   }
 
-  @VisibleForTesting
-  static class WeightedList<T> extends ForwardingList<T> implements Weighted {
-    private List<T> delegate;
-    long weight;
-
-    WeightedList(List<T> delegate) {
-      this.delegate = delegate;
-      this.weight = 0;
-    }
-
-    @Override
-    protected List<T> delegate() {
-      return delegate;
-    }
-
-    @Override
-    public boolean add(T elem) {
-      throw new UnsupportedOperationException("Must use AddWeighted()");
-    }
-
-    @Override
-    public long getWeight() {
-      return weight;
-    }
-
-    public void addWeighted(T elem, long weight) {
-      delegate.add(elem);
-      this.weight += weight;
-    }
-  }
-
   /**
    * The deserialized values in {@code tagList} as a read-only array list.
    */
   private <T> List<T> tagListPageValues(TagList tagList, Coder<T> elemCoder) {
     if (tagList.getValuesCount() == 0) {
-      return new WeightedList<T>(Collections.<T>emptyList());
+      return Collections.<T>emptyList();
     }
 
-    WeightedList<T> valueList = new WeightedList<>(new ArrayList<T>(tagList.getValuesCount()));
+    List<T> valueList = new ArrayList<>(tagList.getValuesCount());
     for (Windmill.Value value : tagList.getValuesList()) {
       if (value.hasData() && !value.getData().isEmpty()) {
         // Drop the first byte of the data; it's the zero byte we prepended to avoid writing
         // empty data.
         InputStream inputStream = value.getData().substring(1).newInput();
         try {
-          valueList.addWeighted(
-              elemCoder.decode(inputStream, Coder.Context.OUTER),  value.getData().size() - 1);
+          valueList.add(elemCoder.decode(inputStream, Coder.Context.OUTER));
         } catch (IOException e) {
           throw new IllegalStateException("Unable to decode tag list using " + elemCoder, e);
         }
       }
     }
-    return valueList;
+    return Collections.unmodifiableList(valueList);
   }
 
   private <T> void consumeTagList(TagList tagList, StateTag stateTag) {

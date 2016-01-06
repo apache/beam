@@ -19,8 +19,8 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.PCollectionViewWindow;
 import com.google.cloud.dataflow.sdk.util.SideInputReader;
-import com.google.cloud.dataflow.sdk.util.WeightedSideInputReader;
-import com.google.cloud.dataflow.sdk.util.WeightedValue;
+import com.google.cloud.dataflow.sdk.util.Sized;
+import com.google.cloud.dataflow.sdk.util.SizedSideInputReader;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.common.cache.Cache;
 
@@ -37,19 +37,19 @@ import java.util.concurrent.ExecutionException;
  * with a {@code Cache} created by anything other than the SDK.
  */
 final class CachingSideInputReader
-    extends WeightedSideInputReader.Defaults
-    implements WeightedSideInputReader {
-  private final WeightedSideInputReader subReader;
-  private final Cache<PCollectionViewWindow<?>, WeightedValue<Object>> cache;
+    extends SizedSideInputReader.Defaults
+    implements SizedSideInputReader {
+  private final SizedSideInputReader subReader;
+  private final Cache<PCollectionViewWindow<?>, Sized<Object>> cache;
 
-  private CachingSideInputReader(WeightedSideInputReader subReader,
-      Cache<PCollectionViewWindow<?>, WeightedValue<Object>> cache) {
+  private CachingSideInputReader(
+      SizedSideInputReader subReader, Cache<PCollectionViewWindow<?>, Sized<Object>> cache) {
     this.subReader = subReader;
     this.cache = cache;
   }
 
-  public static CachingSideInputReader of(WeightedSideInputReader subReader,
-      Cache<PCollectionViewWindow<?>, WeightedValue<Object>> cache) {
+  public static CachingSideInputReader of(
+      SizedSideInputReader subReader, Cache<PCollectionViewWindow<?>, Sized<Object>> cache) {
     return new CachingSideInputReader(subReader, cache);
   }
 
@@ -64,25 +64,24 @@ final class CachingSideInputReader
   }
 
   @Override
-  public <T> WeightedValue<T> getWeighted(
+  public <T> Sized<T> getSized(
       final PCollectionView<T> view, final BoundedWindow window) {
     PCollectionViewWindow<T> cacheKey = PCollectionViewWindow.of(view, window);
 
       try {
         @SuppressWarnings("unchecked") // safely uncasting the thing from the callback
-        WeightedValue<T> sideInputContents = (WeightedValue<T>) cache.get(cacheKey,
-            new Callable<WeightedValue<Object>>() {
+        Sized<T> sideInputContents = (Sized<T>) cache.get(cacheKey,
+            new Callable<Sized<Object>>() {
               @Override
-              public WeightedValue<Object> call() {
+              public Sized<Object> call() {
                 @SuppressWarnings("unchecked") // safe covariant cast
-                WeightedValue<Object> value =
-                    (WeightedValue<Object>) subReader.getWeighted(view, window);
+                Sized<Object> value = (Sized<Object>) subReader.getSized(view, window);
                 return value;
               }
             });
         return sideInputContents;
       } catch (ExecutionException checkedException) {
-        // The call to subReader.getWeighted() is not permitted to throw any checked exceptions,
+        // The call to subReader.getSized() is not permitted to throw any checked exceptions,
         // so the Callable created above should not throw any either.
         throw new RuntimeException("Unexpected checked exception.", checkedException.getCause());
       }

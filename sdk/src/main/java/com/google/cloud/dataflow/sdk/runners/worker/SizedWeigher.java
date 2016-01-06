@@ -16,7 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.runners.worker;
 
-import com.google.cloud.dataflow.sdk.util.Weighted;
+import com.google.cloud.dataflow.sdk.util.Sized;
+import com.google.common.base.Preconditions;
 import com.google.common.cache.Weigher;
 
 /**
@@ -27,22 +28,23 @@ import com.google.common.cache.Weigher;
  * <p>Package-private here so that the dependency on Guava does not leak into the public API
  * surface.
  */
-class Weighers {
-  public static Weigher<Object, Weighted> fixedWeightKeys(final int keyWeight) {
-    return new Weigher<Object, Weighted>() {
-      @Override
-      public int weigh(Object key, Weighted value) {
-        return (int) Math.min(keyWeight + value.getWeight(), Integer.MAX_VALUE);
-      }
-    };
+class SizedWeigher<K, V> implements Weigher<K, Sized<V>>{
+
+  public static <K, V> SizedWeigher<K, V> withBaseWeight(int baseWeight) {
+    return new SizedWeigher<>(baseWeight);
   }
 
-  public static Weigher<Weighted, Weighted> weightedKeysAndValues() {
-    return new Weigher<Weighted, Weighted>() {
-      @Override
-      public int weigh(Weighted key, Weighted value) {
-        return (int) Math.min(key.getWeight() + value.getWeight(), Integer.MAX_VALUE);
-      }
-    };
+  private final int baseWeight;
+
+  private SizedWeigher(int baseWeight) {
+    Preconditions.checkArgument(
+        baseWeight > 0,
+        "base weight for SizedWeigher must be positive");
+    this.baseWeight = baseWeight;
+  }
+
+  @Override
+  public int weigh(K key, Sized<V> value) {
+    return baseWeight + (int) Math.min(value.getSize(), Integer.MAX_VALUE);
   }
 }

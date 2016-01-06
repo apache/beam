@@ -25,8 +25,8 @@ import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.testing.PCollectionViewTesting;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.PCollectionViewWindow;
-import com.google.cloud.dataflow.sdk.util.WeightedSideInputReader;
-import com.google.cloud.dataflow.sdk.util.WeightedValue;
+import com.google.cloud.dataflow.sdk.util.Sized;
+import com.google.cloud.dataflow.sdk.util.SizedSideInputReader;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
@@ -46,7 +46,7 @@ import org.junit.runners.JUnit4;
 public class CachingSideInputReaderTest {
 
   private static boolean isCached(
-      Cache<PCollectionViewWindow<?>, WeightedValue<Object>> cache,
+      Cache<PCollectionViewWindow<?>, Sized<Object>> cache,
       PCollectionView<?> view, BoundedWindow window) {
     return null != cache.getIfPresent(PCollectionViewWindow.of(view, window));
   }
@@ -69,13 +69,13 @@ public class CachingSideInputReaderTest {
   private static final int MAXIMUM_CACHE_SIZE = 1000;
 
   /** A {@link Cache} that is set up before each test. */
-  private Cache<PCollectionViewWindow<?>, WeightedValue<Object>> defaultCache;
+  private Cache<PCollectionViewWindow<?>, Sized<Object>> defaultCache;
 
   @Before
   public void setupCache() {
     defaultCache = CacheBuilder.newBuilder()
         .maximumWeight(MAXIMUM_CACHE_SIZE)
-        .weigher(Weighers.fixedWeightKeys(1))
+        .weigher(SizedWeigher.withBaseWeight(1))
         .build();
   }
 
@@ -83,10 +83,10 @@ public class CachingSideInputReaderTest {
   public void testCachingSideInputReaderAgreesWithUnderlyingReaderForSmallItem() throws Exception {
     // A SideInputReader that vends fixed contents for LENGTH_VIEW_FOR_DEFAULT_TAG
     // with a chosen size that fits in the maximum size of the cache.
-    WeightedSideInputReader reader = WeightedDirectSideInputReader.withContents(
+    SizedSideInputReader reader = SizedDirectSideInputReader.withContents(
         ImmutableMap.of(
             UNTYPED_ITERABLE_TAG,
-            WeightedValue.<Object>of(
+            Sized.<Object>of(
                 PCollectionViewTesting.contentsInDefaultWindow("some", "small", "collection"),
                 MAXIMUM_CACHE_SIZE - 100)));
 
@@ -108,10 +108,10 @@ public class CachingSideInputReaderTest {
   public void testCachingSideInputReaderAgreesWithUnderlyingReaderForLargeItem() throws Exception {
     // A SideInputReader that vends fixed contents for LENGTH_VIEW_FOR_DEFAULT_TAG
     // with a chosen size that exceeds the maximum size of the cache.
-    WeightedSideInputReader reader = WeightedDirectSideInputReader.withContents(
+    SizedSideInputReader reader = SizedDirectSideInputReader.withContents(
         ImmutableMap.of(
             UNTYPED_ITERABLE_TAG,
-            WeightedValue.<Object>of(
+            Sized.<Object>of(
                 PCollectionViewTesting.contentsInDefaultWindow("some", "large", "collection"),
                 MAXIMUM_CACHE_SIZE + 100)));
 
@@ -134,10 +134,10 @@ public class CachingSideInputReaderTest {
   public void testCachingSideInputReaderCachesSmallItem() throws Exception {
     // A SideInputReader that vends fixed contents for LENGTH_VIEW_FOR_DEFAULT_TAG
     // with a chosen size that fits in the maximum size of the cache.
-    WeightedSideInputReader reader = WeightedDirectSideInputReader.withContents(
+    SizedSideInputReader reader = SizedDirectSideInputReader.withContents(
         ImmutableMap.of(
             UNTYPED_ITERABLE_TAG,
-            WeightedValue.<Object>of(
+            Sized.<Object>of(
                 PCollectionViewTesting.contentsInDefaultWindow("hello", "goodbye"),
                 MAXIMUM_CACHE_SIZE - 1000)));
 
@@ -160,10 +160,10 @@ public class CachingSideInputReaderTest {
   public void testCachingSideInputReaderDoesNotCacheLargeItem() throws Exception {
     // A SideInputReader that vends fixed contents for LENGTH_VIEW_FOR_DEFAULT_TAG
     // with a chosen size that exceeds in the maximum size of the cache.
-    WeightedSideInputReader reader = WeightedDirectSideInputReader.withContents(
+    SizedSideInputReader reader = SizedDirectSideInputReader.withContents(
         ImmutableMap.of(
             UNTYPED_ITERABLE_TAG,
-            WeightedValue.<Object>of(
+            Sized.<Object>of(
                 PCollectionViewTesting.contentsInDefaultWindow("hello", "goodbye"),
                 MAXIMUM_CACHE_SIZE + 100)));
 
@@ -188,10 +188,9 @@ public class CachingSideInputReaderTest {
     PCollectionView<Long> view = PCollectionViewTesting.testingView(
         tag, new PCollectionViewTesting.LengthViewFn<String>(), StringUtf8Coder.of());
 
-    CachingSideInputReader sideInputReader =
-        CachingSideInputReader.of(WeightedDirectSideInputReader.withContents(
-                                      ImmutableMap.<TupleTag<Object>, WeightedValue<Object>>of()),
-            defaultCache);
+    CachingSideInputReader sideInputReader = CachingSideInputReader.of(
+        SizedDirectSideInputReader.withContents(ImmutableMap.<TupleTag<Object>, Sized<Object>>of()),
+        defaultCache);
 
     assertFalse(sideInputReader.contains(view));
     assertTrue(sideInputReader.isEmpty());

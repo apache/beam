@@ -221,8 +221,6 @@ public class StreamingDataflowWorker {
   private ConcurrentMap<String, String> stateNameMap;
   private ConcurrentMap<String, String> systemNameToComputationIdMap;
 
-  private WindmillStateCache stateCache = new WindmillStateCache();
-
   private ThreadFactory threadFactory;
   private BoundedQueueExecutor workUnitExecutor;
   private ExecutorService commitExecutor;
@@ -481,8 +479,8 @@ public class StreamingDataflowWorker {
       WorkerAndContext workerAndContext = mapTaskExecutors.get(computation).poll();
       if (workerAndContext == null) {
         CounterSet counters = new CounterSet();
-        context = new StreamingModeExecutionContext(mapTask.getSystemName(),
-            readerCache.get(computation), stateNameMap, stateCache.forComputation(computation));
+        context = new StreamingModeExecutionContext(
+            mapTask.getSystemName(), readerCache.get(computation), stateNameMap);
         StateSampler sampler =
             new StateSampler(mapTask.getStageName() + "-", counters.getAddCounterMutator());
         // In streaming mode, state samplers are long lived. So here a unique id is generated as
@@ -945,8 +943,6 @@ public class StreamingDataflowWorker {
         printThreads(responseWriter);
       } else if (target.equals("/heapz")) {
         dumpHeap(responseWriter);
-      } else if (target.equals("/cachez")) {
-        stateCache.printDetailedHtml(responseWriter);
       } else {
         printHeader(responseWriter);
         printResources(responseWriter);
@@ -982,11 +978,6 @@ public class StreamingDataflowWorker {
       response.println("</li>");
     }
     response.println("</ul>");
-
-    stateCache.printSummaryHtml(response);
-
-    metricTrackingWindmillServer.printHtml(response);
-
     response.println("Active Keys: <ul>");
     for (Map.Entry<String, ActiveWorkForComputation> computationEntry
              : activeWorkMap.entrySet()) {
@@ -997,6 +988,7 @@ public class StreamingDataflowWorker {
       response.println("</li>");
     }
     response.println("</ul>");
+    metricTrackingWindmillServer.printHtml(response);
   }
 
   private void printResources(PrintWriter response) {

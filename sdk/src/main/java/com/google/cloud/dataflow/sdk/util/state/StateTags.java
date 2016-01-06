@@ -158,10 +158,6 @@ public class StateTags {
       sb.append(kind.prefix).append(rawId);
     }
 
-    public String getRawId() {
-      return rawId;
-    }
-
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(getClass())
@@ -199,9 +195,12 @@ public class StateTags {
       this.id = id;
     }
 
+    /**
+     * Returns the identifier for this state cell.
+     */
     @Override
     public String getId() {
-      return id.getRawId();
+      return id.getIdString();
     }
 
     @Override

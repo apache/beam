@@ -34,7 +34,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
-import com.google.cloud.dataflow.sdk.util.WeightedValue;
+import com.google.cloud.dataflow.sdk.util.Sized;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
@@ -161,10 +161,10 @@ public class DataflowSideInputReaderTest {
   @Test
   public void testDataflowSideInputReaderFilteredRead() throws Exception {
     assertTrue(defaultSideInputReader.contains(DEFAULT_LENGTH_VIEW));
-    WeightedValue<Long> sizedValue = defaultSideInputReader.getWeighted(
+    Sized<Long> sizedValue = defaultSideInputReader.getSized(
         DEFAULT_LENGTH_VIEW, PCollectionViewTesting.DEFAULT_NONEMPTY_WINDOW);
     assertThat(sizedValue.getValue(), equalTo(DEFAULT_SOURCE_LENGTH));
-    assertThat(sizedValue.getWeight(), equalTo(DEFAULT_SOURCE_LENGTH * windowedLongBytes()));
+    assertThat(sizedValue.getSize(), equalTo(DEFAULT_SOURCE_LENGTH * windowedLongBytes()));
   }
 
   /**
@@ -176,15 +176,15 @@ public class DataflowSideInputReaderTest {
     DataflowSideInputReader sideInputReader = DataflowSideInputReader.of(
         Collections.singletonList(defaultSideInputInfo), options, executionContext);
 
-    WeightedValue<Long> firstRead = sideInputReader.getWeighted(
+    Sized<Long> firstRead = sideInputReader.getSized(
         DEFAULT_LENGTH_VIEW, PCollectionViewTesting.DEFAULT_NONEMPTY_WINDOW);
 
     // A repeated read should yield the same size.
-    WeightedValue<Long> repeatedRead = sideInputReader.getWeighted(
+    Sized<Long> repeatedRead = sideInputReader.getSized(
         DEFAULT_LENGTH_VIEW, PCollectionViewTesting.DEFAULT_NONEMPTY_WINDOW);
 
     assertThat(repeatedRead.getValue(), equalTo(firstRead.getValue()));
-    assertThat(repeatedRead.getWeight(), equalTo(firstRead.getWeight()));
+    assertThat(repeatedRead.getSize(), equalTo(firstRead.getSize()));
 
   }
 
@@ -194,10 +194,10 @@ public class DataflowSideInputReaderTest {
         Collections.singletonList(defaultSideInputInfo), options, executionContext);
 
     // Reading an empty window yields the size of 0 elements.
-    WeightedValue<Long> emptyWindowValue = sideInputReader.getWeighted(
+    Sized<Long> emptyWindowValue = sideInputReader.getSized(
         DEFAULT_LENGTH_VIEW, PCollectionViewTesting.DEFAULT_EMPTY_WINDOW);
     assertThat(emptyWindowValue.getValue(), equalTo(0L));
-    assertThat(emptyWindowValue.getWeight(), equalTo(0L));
+    assertThat(emptyWindowValue.getSize(), equalTo(0L));
   }
 
   /**

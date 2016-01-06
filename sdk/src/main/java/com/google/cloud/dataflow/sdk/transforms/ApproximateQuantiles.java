@@ -24,7 +24,7 @@ import com.google.cloud.dataflow.sdk.coders.CustomCoder;
 import com.google.cloud.dataflow.sdk.coders.ListCoder;
 import com.google.cloud.dataflow.sdk.transforms.Combine.AccumulatingCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.Combine.AccumulatingCombineFn.Accumulator;
-import com.google.cloud.dataflow.sdk.util.WeightedValue;
+import com.google.cloud.dataflow.sdk.util.Sized;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -550,30 +550,30 @@ public class ApproximateQuantiles {
      */
     private List<T> interpolate(Iterable<QuantileBuffer<T>> buffers,
                                 int count, double step, double offset) {
-      List<Iterator<WeightedValue<T>>> iterators = Lists.newArrayList();
+      List<Iterator<Sized<T>>> iterators = Lists.newArrayList();
       for (QuantileBuffer<T> buffer : buffers) {
         iterators.add(buffer.sizedIterator());
       }
       // Each of the buffers is already sorted by element.
-      Iterator<WeightedValue<T>> sorted = Iterators.mergeSorted(
+      Iterator<Sized<T>> sorted = Iterators.mergeSorted(
           iterators,
-          new Comparator<WeightedValue<T>>() {
+          new Comparator<Sized<T>>() {
             @Override
-            public int compare(WeightedValue<T> a, WeightedValue<T> b) {
+            public int compare(Sized<T> a, Sized<T> b) {
               return compareFn.compare(a.getValue(), b.getValue());
             }
           });
 
       List<T> newElements = Lists.newArrayListWithCapacity(count);
-      WeightedValue<T> weightedElement = sorted.next();
-      double current = weightedElement.getWeight();
+      Sized<T> sizedElement = sorted.next();
+      double current = sizedElement.getSize();
       for (int j = 0; j < count; j++) {
         double target = j * step + offset;
         while (current <= target && sorted.hasNext()) {
-          weightedElement = sorted.next();
-          current += weightedElement.getWeight();
+          sizedElement = sorted.next();
+          current += sizedElement.getSize();
         }
-        newElements.add(weightedElement.getValue());
+        newElements.add(sizedElement.getValue());
       }
       return newElements;
     }
@@ -638,15 +638,15 @@ public class ApproximateQuantiles {
           + weight + ", elements=" + elements + "]";
     }
 
-    public Iterator<WeightedValue<T>> sizedIterator() {
-      return new UnmodifiableIterator<WeightedValue<T>>() {
+    public Iterator<Sized<T>> sizedIterator() {
+      return new UnmodifiableIterator<Sized<T>>() {
         Iterator<T> iter = elements.iterator();
         @Override
         public boolean hasNext() {
           return iter.hasNext();
         }
-        @Override public WeightedValue<T> next() {
-          return WeightedValue.of(iter.next(), weight);
+        @Override public Sized<T> next() {
+          return Sized.of(iter.next(), weight);
         }
       };
     }

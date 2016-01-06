@@ -63,7 +63,7 @@ public class InMemoryStateInternals extends MergingStateInternals {
         }
 
         @Override
-        public <W extends BoundedWindow> WatermarkStateInternal bindWatermark(
+        public <T, W extends BoundedWindow> WatermarkStateInternal bindWatermark(
             StateTag<WatermarkStateInternal> address,
             OutputTimeFn<? super W> outputTimeFn) {
           return new WatermarkStateInternalImplementation(outputTimeFn);

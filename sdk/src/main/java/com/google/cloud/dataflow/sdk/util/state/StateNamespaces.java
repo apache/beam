@@ -64,11 +64,6 @@ public class StateNamespaces {
     }
 
     @Override
-    public Object getCacheKey() {
-      return GLOBAL_STRING;
-    }
-
-    @Override
     public boolean equals(Object obj) {
       return obj == this || obj instanceof GlobalNamespace;
     }
@@ -120,14 +115,6 @@ public class StateNamespaces {
     @Override
     public void appendTo(Appendable sb) throws IOException {
       sb.append('/').append(CoderUtils.encodeToBase64(windowCoder, window)).append('/');
-    }
-
-    /**
-     * State in the same window will all be evicted together.
-     */
-    @Override
-    public Object getCacheKey() {
-      return window;
     }
 
     @Override
@@ -200,14 +187,6 @@ public class StateNamespaces {
       sb.append('/').append(CoderUtils.encodeToBase64(windowCoder, window));
       sb.append('/').append(Integer.toString(triggerIndex, TRIGGER_RADIX).toUpperCase());
       sb.append('/');
-    }
-
-    /**
-     * State in the same window will all be evicted together.
-     */
-    @Override
-    public Object getCacheKey() {
-      return window;
     }
 
     @Override

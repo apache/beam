@@ -23,8 +23,8 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PTuple;
 import com.google.cloud.dataflow.sdk.util.SideInputReader;
-import com.google.cloud.dataflow.sdk.util.WeightedSideInputReader;
-import com.google.cloud.dataflow.sdk.util.WeightedValue;
+import com.google.cloud.dataflow.sdk.util.Sized;
+import com.google.cloud.dataflow.sdk.util.SizedSideInputReader;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
@@ -45,8 +45,8 @@ import java.util.Observer;
  * amount of data for each access.
  */
 public class DataflowSideInputReader
-    extends WeightedSideInputReader.Defaults
-    implements WeightedSideInputReader {
+    extends SizedSideInputReader.Defaults
+    implements SizedSideInputReader {
 
   /** An observer for each side input to count its size as it is being read. */
   private final Map<TupleTag<Object>, ByteSizeObserver> observers;
@@ -110,7 +110,7 @@ public class DataflowSideInputReader
    * the value for the appropriate window.
    */
   @Override
-  public <T> WeightedValue<T> getWeighted(PCollectionView<T> view, final BoundedWindow window) {
+  public <T> Sized<T> getSized(PCollectionView<T> view, final BoundedWindow window) {
     final TupleTag<Iterable<WindowedValue<?>>> tag = view.getTagInternal();
     if (!sideInputValues.has(tag)) {
       throw new IllegalArgumentException("calling getSideInput() with unknown view");
@@ -125,7 +125,7 @@ public class DataflowSideInputReader
       value = view.fromIterableInternal(sideInputValues.get(tag));
       long bytesRead = observer.getBytes();
       observer.reset();
-      return WeightedValue.of(value, overhead + bytesRead);
+      return Sized.of(value, overhead + bytesRead);
     } else {
       final long[] sum = new long[]{ 0L };
       value = view.fromIterableInternal(
@@ -142,7 +142,7 @@ public class DataflowSideInputReader
                     return containsWindow;
                   }
                 }));
-      return WeightedValue.of(value, overhead + sum[0]);
+      return Sized.of(value, overhead + sum[0]);
     }
   }
 

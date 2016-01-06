@@ -20,8 +20,8 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.DirectSideInputReader;
 import com.google.cloud.dataflow.sdk.util.PTuple;
 import com.google.cloud.dataflow.sdk.util.SideInputReader;
-import com.google.cloud.dataflow.sdk.util.WeightedSideInputReader;
-import com.google.cloud.dataflow.sdk.util.WeightedValue;
+import com.google.cloud.dataflow.sdk.util.Sized;
+import com.google.cloud.dataflow.sdk.util.SizedSideInputReader;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 
@@ -29,30 +29,29 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * A {@link WeightedSideInputReader} with explicitly provided sizes for all values.
+ * A {@link SizedSideInputReader} with explicitly provided sizes for all values.
  */
-class WeightedDirectSideInputReader extends WeightedSideInputReader.Defaults {
+class SizedDirectSideInputReader extends SizedSideInputReader.Defaults {
 
   private final SideInputReader subReader;
-  private final Map<TupleTag<?>, Long> weights;
+  private final Map<TupleTag<?>, Long> sizes;
 
   /**
-   * Returns a {@link WeightedDirectSideInputReader} containing the contents in the provided
+   * Returns a {@link SizedDirectSideInputReader} containing the contents in the provided
    * {@code Map}. A {@link DirectSideInputReader} will be used for the actual retrieval logic; this
    * class merely does the size bookkeeping.
    */
-  public static WeightedDirectSideInputReader withContents(
-      Map<TupleTag<Object>, WeightedValue<Object>> sizedContents) {
-    return new WeightedDirectSideInputReader(sizedContents);
+  public static SizedDirectSideInputReader withContents(
+      Map<TupleTag<Object>, Sized<Object>> sizedContents) {
+    return new SizedDirectSideInputReader(sizedContents);
   }
 
-  private WeightedDirectSideInputReader(
-      Map<TupleTag<Object>, WeightedValue<Object>> sizedContents) {
-    weights = new HashMap<>();
+  private SizedDirectSideInputReader(Map<TupleTag<Object>, Sized<Object>> sizedContents) {
+    sizes = new HashMap<>();
     PTuple values = PTuple.empty();
-    for (Map.Entry<TupleTag<Object>, WeightedValue<Object>> entry : sizedContents.entrySet()) {
+    for (Map.Entry<TupleTag<Object>, Sized<Object>> entry : sizedContents.entrySet()) {
       values = values.and(entry.getKey(), entry.getValue().getValue());
-      weights.put(entry.getKey(), entry.getValue().getWeight());
+      sizes.put(entry.getKey(), entry.getValue().getSize());
     }
     subReader = DirectSideInputReader.of(values);
   }
@@ -68,9 +67,9 @@ class WeightedDirectSideInputReader extends WeightedSideInputReader.Defaults {
   }
 
   @Override
-  public <T> WeightedValue<T> getWeighted(PCollectionView<T> view, BoundedWindow window) {
-    return WeightedValue.of(
+  public <T> Sized<T> getSized(PCollectionView<T> view, BoundedWindow window) {
+    return Sized.of(
         subReader.get(view, window),
-        weights.get(view.getTagInternal()));
+        sizes.get(view.getTagInternal()));
   }
 }

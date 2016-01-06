@@ -34,11 +34,6 @@ public class StateNamespaceForTest implements StateNamespace {
   }
 
   @Override
-  public Object getCacheKey() {
-    return key;
-  }
-
-  @Override
   public boolean equals(Object obj) {
     if (this == obj) {
       return true;

@@ -39,8 +39,8 @@ import com.google.cloud.dataflow.sdk.util.CloudCounterUtils;
 import com.google.cloud.dataflow.sdk.util.CloudMetricUtils;
 import com.google.cloud.dataflow.sdk.util.PCollectionViewWindow;
 import com.google.cloud.dataflow.sdk.util.SideInputReader;
+import com.google.cloud.dataflow.sdk.util.Sized;
 import com.google.cloud.dataflow.sdk.util.UserCodeException;
-import com.google.cloud.dataflow.sdk.util.WeightedValue;
 import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.Metric;
@@ -97,7 +97,7 @@ public class DataflowWorker {
   /**
    * A side input cache shared between all execution contexts.
    */
-  private final Cache<PCollectionViewWindow<?>, WeightedValue<Object>> sideInputCache;
+  private final Cache<PCollectionViewWindow<?>, Sized<Object>> sideInputCache;
 
   /**
    * Status server returning health of worker.
@@ -124,7 +124,7 @@ public class DataflowWorker {
     this.options = options;
     this.sideInputCache = CacheBuilder.newBuilder()
         .maximumWeight(options.getWorkerCacheMb() * MEGABYTES) // weights are in bytes
-        .weigher(Weighers.fixedWeightKeys(OVERHEAD_WEIGHT))
+        .weigher(SizedWeigher.<PCollectionViewWindow<?>, Object>withBaseWeight(OVERHEAD_WEIGHT))
         .softValues()
         .build();
   }
@@ -421,11 +421,11 @@ public class DataflowWorker {
    */
   private static class DataflowWorkerExecutionContext extends BatchModeExecutionContext {
 
-    private final Cache<PCollectionViewWindow<?>, WeightedValue<Object>> cache;
+    private final Cache<PCollectionViewWindow<?>, Sized<Object>> cache;
     private final PipelineOptions options;
 
     public DataflowWorkerExecutionContext(
-        Cache<PCollectionViewWindow<?>, WeightedValue<Object>> cache, PipelineOptions options) {
+        Cache<PCollectionViewWindow<?>, Sized<Object>> cache, PipelineOptions options) {
       super(options);
       this.cache = cache;
       this.options = options;
