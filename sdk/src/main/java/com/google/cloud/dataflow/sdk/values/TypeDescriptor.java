@@ -161,14 +161,14 @@ public abstract class TypeDescriptor<T> implements Serializable {
    * Returns true if this type is assignable from the given type.
    */
   public final boolean isSupertypeOf(TypeDescriptor<?> source) {
-    return token.isAssignableFrom(source.token);
+    return token.isSupertypeOf(source.token);
   }
 
   /**
    * Return true if this type is a subtype of the given type.
    */
   public final boolean isSubtypeOf(TypeDescriptor<?> parent) {
-    return parent.token.isAssignableFrom(token);
+    return token.isSubtypeOf(parent.token);
   }
 
   /**

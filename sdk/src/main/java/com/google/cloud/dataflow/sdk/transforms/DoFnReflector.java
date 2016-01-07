@@ -299,7 +299,7 @@ public abstract class DoFnReflector {
 
       // If we get here, the class matches, but maybe the generics don't:
       TypeToken<?> expected = info.tokenFor(iActual, oActual);
-      if (!isSupertypeOf(param, expected)) {
+      if (!expected.isSubtypeOf(param)) {
         throw new IllegalStateException(String.format(
             "Incompatible generics in context parameter %s for method %s. Should be %s",
             formatType(param), format(m), formatType(info.tokenFor(iActual, oActual))));
@@ -309,11 +309,6 @@ public abstract class DoFnReflector {
       contextInfos[i - 1] = info;
     }
     return contextInfos;
-  }
-
-  @SuppressWarnings("deprecation")
-  private static boolean isSupertypeOf(TypeToken<?> param, TypeToken<?> expected) {
-    return param.isAssignableFrom(expected);
   }
 
   /**
