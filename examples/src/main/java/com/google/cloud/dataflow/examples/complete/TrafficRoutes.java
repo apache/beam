@@ -23,7 +23,7 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.dataflow.examples.common.DataflowExampleOptions;
 import com.google.cloud.dataflow.examples.common.DataflowExampleUtils;
 import com.google.cloud.dataflow.examples.common.ExampleBigQueryTableOptions;
-import com.google.cloud.dataflow.examples.common.ExamplePubsubTopicAndSubscriptionOptions;
+import com.google.cloud.dataflow.examples.common.ExamplePubsubTopicOptions;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.PipelineResult;
 import com.google.cloud.dataflow.sdk.coders.AvroCoder;
@@ -34,6 +34,7 @@ import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.options.Default;
 import com.google.cloud.dataflow.sdk.options.Description;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
@@ -41,9 +42,7 @@ import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.windowing.SlidingWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.values.KV;
-import com.google.cloud.dataflow.sdk.values.PBegin;
 import com.google.cloud.dataflow.sdk.values.PCollection;
-import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 
 import org.apache.avro.reflect.Nullable;
@@ -94,9 +93,6 @@ import java.util.Map;
  */
 
 public class TrafficRoutes {
-
-  private static final String PUBSUB_TIMESTAMP_LABEL_KEY = "timestamp_ms";
-  private static final Integer VALID_INPUTS = 4999;
 
   // Instantiate some small predefined San Diego routes to analyze
   static Map<String, String> sdStations = buildStationInfo();
@@ -163,31 +159,19 @@ public class TrafficRoutes {
   }
 
   /**
-   * Extract the timestamp field from the input string, and use it as the element timestamp.
-   */
-  static class ExtractTimestamps extends DoFn<String, String> {
-    private static final DateTimeFormatter dateTimeFormat =
-        DateTimeFormat.forPattern("MM/dd/yyyy HH:mm:ss");
-
-    @Override
-    public void processElement(DoFn<String, String>.ProcessContext c) throws Exception {
-      String[] items = c.element().split(",");
-      String timestamp = tryParseTimestamp(items);
-      if (timestamp != null) {
-        try {
-          c.outputWithTimestamp(c.element(), new Instant(dateTimeFormat.parseMillis(timestamp)));
-        } catch (IllegalArgumentException e) {
-          // Skip the invalid input.
-        }
-      }
-    }
-  }
-
-  /**
    * Filter out readings for the stations along predefined 'routes', and output
    * (station, speed info) keyed on route.
    */
   static class ExtractStationSpeedFn extends DoFn<String, KV<String, StationSpeed>> {
+    private static final DateTimeFormatter dateTimeFormat =
+        DateTimeFormat.forPattern("MM/dd/yyyy HH:mm:ss");
+
+    private final boolean outputTimestamp;
+
+    public ExtractStationSpeedFn(boolean outputTimestamp) {
+      this.outputTimestamp = outputTimestamp;
+    }
+
 
     @Override
     public void processElement(ProcessContext c) {
@@ -199,11 +183,20 @@ public class TrafficRoutes {
         String stationId = tryParseStationId(items);
         // For this simple example, filter out everything but some hardwired routes.
         if (avgSpeed != null && stationId != null && sdStations.containsKey(stationId)) {
-          StationSpeed stationSpeed =
-              new StationSpeed(stationId, avgSpeed, c.timestamp().getMillis());
+          Instant timestamp;
+          if (outputTimestamp) {
+            timestamp = new Instant(dateTimeFormat.parseMillis(tryParseTimestamp(items)));
+          } else {
+            timestamp = c.timestamp();
+          }
+          StationSpeed stationSpeed = new StationSpeed(stationId, avgSpeed, timestamp.getMillis());
           // The tuple key is the 'route' name stored in the 'sdStations' hash.
           KV<String, StationSpeed> outputValue = KV.of(sdStations.get(stationId), stationSpeed);
-          c.output(outputValue);
+          if (outputTimestamp) {
+            c.outputWithTimestamp(outputValue, timestamp);
+          } else {
+            c.output(outputValue);
+          }
         }
       }
     }
@@ -310,28 +303,14 @@ public class TrafficRoutes {
     }
   }
 
-  static class ReadFileAndExtractTimestamps extends PTransform<PBegin, PCollection<String>> {
-    private final String inputFile;
-
-    public ReadFileAndExtractTimestamps(String inputFile) {
-      this.inputFile = inputFile;
-    }
-
-    @Override
-    public PCollection<String> apply(PBegin begin) {
-      return begin
-          .apply(TextIO.Read.from(inputFile))
-          .apply(ParDo.of(new ExtractTimestamps()));
-    }
-  }
 
   /**
   * Options supported by {@link TrafficRoutes}.
   *
   * <p>Inherits standard configuration options.
   */
-  private interface TrafficRoutesOptions extends DataflowExampleOptions,
-      ExamplePubsubTopicAndSubscriptionOptions, ExampleBigQueryTableOptions {
+  private interface TrafficRoutesOptions
+      extends DataflowExampleOptions, ExamplePubsubTopicOptions, ExampleBigQueryTableOptions {
     @Description("Input file to inject to Pub/Sub topic")
     @Default.String("gs://dataflow-samples/traffic_sensor/"
         + "Freeways-5Minaa2010-01-01_to_2010-02-15_test2.csv")
@@ -347,11 +326,6 @@ public class TrafficRoutes {
     @Default.Integer(WINDOW_SLIDE_EVERY)
     Integer getWindowSlideEvery();
     void setWindowSlideEvery(Integer value);
-
-    @Description("Whether to run the pipeline with unbounded input")
-    @Default.Boolean(false)
-    boolean isUnbounded();
-    void setUnbounded(boolean value);
   }
 
   /**
@@ -364,9 +338,15 @@ public class TrafficRoutes {
         .withValidation()
         .as(TrafficRoutesOptions.class);
 
+    if (options.isStreaming()) {
+      // In order to cancel the pipelines automatically,
+      // {@literal DataflowPipelineRunner} is forced to be used.
+      options.setRunner(DataflowPipelineRunner.class);
+    }
     options.setBigQuerySchema(FormatStatsFn.getSchema());
     // Using DataflowExampleUtils to set up required resources.
-    DataflowExampleUtils dataflowUtils = new DataflowExampleUtils(options, options.isUnbounded());
+    DataflowExampleUtils dataflowUtils = new DataflowExampleUtils(options);
+    dataflowUtils.setup();
 
     Pipeline pipeline = Pipeline.create(options);
     TableReference tableRef = new TableReference();
@@ -374,47 +354,34 @@ public class TrafficRoutes {
     tableRef.setDatasetId(options.getBigQueryDataset());
     tableRef.setTableId(options.getBigQueryTable());
 
-    PCollection<String> input;
-    if (options.isUnbounded()) {
-      // Read unbounded PubSubIO.
-      input = pipeline.apply(PubsubIO.Read
-          .timestampLabel(PUBSUB_TIMESTAMP_LABEL_KEY)
-          .subscription(options.getPubsubSubscription()));
+    PCollection<KV<String, StationSpeed>> input;
+    if (options.isStreaming()) {
+      input = pipeline
+          .apply(PubsubIO.Read.topic(options.getPubsubTopic()))
+          // row... => <station route, station speed> ...
+          .apply(ParDo.of(new ExtractStationSpeedFn(false /* outputTimestamp */)));
     } else {
-      // Read bounded PubSubIO.
-      input = pipeline.apply(PubsubIO.Read
-          .timestampLabel(PUBSUB_TIMESTAMP_LABEL_KEY)
-          .subscription(options.getPubsubSubscription()).maxNumRecords(VALID_INPUTS));
-
-      // To read bounded TextIO files, use:
-      // input = pipeline.apply(TextIO.Read.from(options.getInputFile()))
-      //    .apply(ParDo.of(new ExtractTimestamps()));
+      input = pipeline
+          .apply(TextIO.Read.from(options.getInputFile()))
+          .apply(ParDo.of(new ExtractStationSpeedFn(true /* outputTimestamp */)));
     }
-    input
-        // row... => <station route, station speed> ...
-        .apply(ParDo.of(new ExtractStationSpeedFn()))
-        // map the incoming data stream into sliding windows.
-        // The default window duration values work well if you're running the accompanying Pub/Sub
-        // generator script without the --replay flag, so that there are no simulated pauses in
-        // the sensor data publication. You may want to adjust the values otherwise.
-        .apply(Window.<KV<String, StationSpeed>>into(SlidingWindows.of(
+
+    // map the incoming data stream into sliding windows.
+    // The default window duration values work well if you're running the accompanying Pub/Sub
+    // generator script without the --replay flag, so that there are no simulated pauses in
+    // the sensor data publication. You may want to adjust the values otherwise.
+    input.apply(Window.<KV<String, StationSpeed>>into(SlidingWindows.of(
             Duration.standardMinutes(options.getWindowDuration())).
             every(Duration.standardMinutes(options.getWindowSlideEvery()))))
         .apply(new TrackSpeed())
         .apply(BigQueryIO.Write.to(tableRef)
             .withSchema(FormatStatsFn.getSchema()));
 
-    // Inject the data into the Pub/Sub topic with a Dataflow batch pipeline.
-    if (!Strings.isNullOrEmpty(options.getInputFile())
-        && !Strings.isNullOrEmpty(options.getPubsubTopic())) {
-      dataflowUtils.runInjectorPipeline(
-          new ReadFileAndExtractTimestamps(options.getInputFile()),
-          options.getPubsubTopic(),
-          PUBSUB_TIMESTAMP_LABEL_KEY);
-    }
-
-    // Run the pipeline.
     PipelineResult result = pipeline.run();
+    if (options.isStreaming() && !options.getInputFile().isEmpty()) {
+      // Inject the data into the Pub/Sub topic with a Dataflow batch pipeline.
+      dataflowUtils.runInjectorPipeline(options.getInputFile(), options.getPubsubTopic());
+    }
 
     // dataflowUtils will try to cancel the pipeline and the injector before the program exists.
     dataflowUtils.waitToFinish(result);

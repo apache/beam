@@ -29,6 +29,11 @@ public interface ExamplePubsubTopicOptions extends DataflowPipelineOptions {
   String getPubsubTopic();
   void setPubsubTopic(String topic);
 
+  @Description("Number of workers to use when executing the injector pipeline")
+  @Default.Integer(1)
+  int getInjectorNumWorkers();
+  void setInjectorNumWorkers(int numWorkers);
+
   /**
    * Returns a default Pub/Sub topic based on the project and the job names.
    */

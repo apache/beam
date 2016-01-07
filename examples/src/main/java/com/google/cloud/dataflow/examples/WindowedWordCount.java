@@ -20,10 +20,7 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.cloud.dataflow.examples.common.DataflowExampleOptions;
 import com.google.cloud.dataflow.examples.common.DataflowExampleUtils;
-import com.google.cloud.dataflow.examples.common.ExampleBigQueryTableOptions;
-import com.google.cloud.dataflow.examples.common.ExamplePubsubTopicOptions;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.PipelineResult;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO;
@@ -181,8 +178,8 @@ public class WindowedWordCount {
    * table and the PubSub topic, as well as the {@link WordCount.WordCountOptions} support for
    * specification of the input file.
    */
-  public static interface Options extends WordCount.WordCountOptions,
-      DataflowExampleOptions, ExamplePubsubTopicOptions, ExampleBigQueryTableOptions {
+  public static interface Options
+        extends WordCount.WordCountOptions, DataflowExampleUtils.DataflowExampleUtilsOptions {
     @Description("Fixed window duration, in minutes")
     @Default.Integer(WINDOW_SIZE)
     Integer getWindowSize();
