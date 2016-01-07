@@ -88,7 +88,8 @@ public class TriggerRunner<W extends BoundedWindow> {
   public TriggerResult processValue(ReduceFn<?, ?, ?, W>.ProcessValueContext c) throws Exception {
     // Clone so that we can detect changes and so that changes here don't pollute merging.
     BitSet finishedSet = (BitSet) readFinishedBits(c.state().access(FINISHED_BITS_TAG)).clone();
-    Trigger<W>.OnElementContext triggerContext = contextFactory.create(c, rootTrigger, finishedSet);
+    Trigger<W>.OnElementContext triggerContext = contextFactory.createOnElementContext(
+        c.window(), c.timers(), c.timestamp(), rootTrigger, finishedSet);
     TriggerResult result = rootTrigger.invokeElement(triggerContext);
     persistFinishedSet(c.state(), finishedSet);
     return result;
@@ -120,8 +121,9 @@ public class TriggerRunner<W extends BoundedWindow> {
       mergingFinishedSets.put(window, readFinishedBits(mergingFinishedSetState.get(window)));
     }
 
-    Trigger<W>.OnMergeContext mergeContext =
-        contextFactory.create(c, rootTrigger, finishedSet, mergingFinishedSets.build());
+    Trigger<W>.OnMergeContext mergeContext = contextFactory.createOnMergeContext(
+            c.window(), c.timers(), c.mergingWindows(), rootTrigger,
+            finishedSet, mergingFinishedSets.build());
 
     // Run the merge from the trigger
     MergeResult result = rootTrigger.invokeMerge(mergeContext);
@@ -146,8 +148,9 @@ public class TriggerRunner<W extends BoundedWindow> {
   public TriggerResult onTimer(ReduceFn<?, ?, ?, W>.Context c, TimerData timer) throws Exception {
     // Clone so that we can detect changes and so that changes here don't pollute merging.
     BitSet finishedSet = (BitSet) readFinishedBits(c.state().access(FINISHED_BITS_TAG)).clone();
-    Trigger<W>.OnTimerContext triggerContext =
-        contextFactory.create(c, rootTrigger, finishedSet, timer.getTimestamp(), timer.getDomain());
+    Trigger<W>.OnTimerContext triggerContext = contextFactory.createOnTimerContext(
+        c.window(), c.timers(), rootTrigger, finishedSet,
+        timer.getTimestamp(), timer.getDomain());
     TriggerResult result = rootTrigger.invokeTimer(triggerContext);
     persistFinishedSet(c.state(), finishedSet);
     return result;
@@ -175,7 +178,8 @@ public class TriggerRunner<W extends BoundedWindow> {
   public void clearState(ReduceFn<?, ?, ?, W>.Context c) throws Exception {
     // Don't need to clone, because we'll be clearing the finished bits anyways.
     BitSet finishedSet = readFinishedBits(c.state().access(FINISHED_BITS_TAG));
-    rootTrigger.invokeClear(contextFactory.base(c, rootTrigger, finishedSet));
+    rootTrigger.invokeClear(contextFactory.base(
+        c.window(), c.timers(), rootTrigger, finishedSet));
   }
 
   /**

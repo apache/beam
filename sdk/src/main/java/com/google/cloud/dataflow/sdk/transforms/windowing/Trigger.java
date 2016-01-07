@@ -19,8 +19,6 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.util.ExecutableTrigger;
 import com.google.cloud.dataflow.sdk.util.ReduceFn;
-import com.google.cloud.dataflow.sdk.util.ReduceFn.MergingStateContext;
-import com.google.cloud.dataflow.sdk.util.ReduceFn.StateContext;
 import com.google.cloud.dataflow.sdk.util.TimeDomain;
 import com.google.common.base.Joiner;
 
@@ -250,7 +248,7 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
     public abstract TriggerInfo<W> trigger();
 
     /** Returns the interface for accessing persistent state. */
-    public abstract StateContext state();
+    public abstract ReduceFn.StateContext state();
 
     /** The window that the current context is executing in. */
     public abstract W window();
@@ -286,7 +284,7 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
     public abstract OnMergeContext forTrigger(ExecutableTrigger<W> trigger);
 
     @Override
-    public abstract MergingStateContext state();
+    public abstract ReduceFn.MergingStateContext state();
 
     @Override
     public abstract MergingTriggerInfo<W> trigger();
@@ -348,9 +346,9 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
    * Called to allow the trigger to prefetch any state it will likely need to read from during
    * an {@link #onElement} call.
    *
-   * @param state StateContext to prefetch from.
+   * @param state {@link ReduceFn.StateContext} to prefetch from.
    */
-  public void prefetchOnElement(StateContext state) {
+  public void prefetchOnElement(ReduceFn.StateContext state) {
     if (subTriggers != null) {
       for (Trigger<W> trigger : subTriggers) {
         trigger.prefetchOnElement(state);
@@ -362,9 +360,9 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
    * Called to allow the trigger to prefetch any state it will likely need to read from during
    * an {@link #onMerge} call.
    *
-   * @param state StateContext to prefetch from.
+   * @param state {@link ReduceFn.MergingStateContext} to prefetch from.
    */
-  public void prefetchOnMerge(MergingStateContext state) {
+  public void prefetchOnMerge(ReduceFn.MergingStateContext state) {
     if (subTriggers != null) {
       for (Trigger<W> trigger : subTriggers) {
         trigger.prefetchOnMerge(state);
@@ -376,9 +374,9 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
    * Called to allow the trigger to prefetch any state it will likely need to read from during
    * an {@link #onTimer} call.
    *
-   * @param state StateContext to prefetch from.
+   * @param state {@lijnk ReduceFn.StateContext} to prefetch from.
    */
-  public void prefetchOnTimer(StateContext state) {
+  public void prefetchOnTimer(ReduceFn.StateContext state) {
     if (subTriggers != null) {
       for (Trigger<W> trigger : subTriggers) {
         trigger.prefetchOnTimer(state);
