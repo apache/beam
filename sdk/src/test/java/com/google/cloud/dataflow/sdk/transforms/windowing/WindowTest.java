@@ -26,6 +26,7 @@ import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.Coder.NonDeterministicException;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
+import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
@@ -41,6 +42,7 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -176,6 +178,7 @@ public class WindowTest implements Serializable {
    * with the windowing function default, the earlier of the two values.
    */
   @Test
+  @Category(RunnableOnService.class)
   public void testOutputTimeFnDefault() {
     Pipeline pipeline = TestPipeline.create();
 
@@ -200,6 +203,7 @@ public class WindowTest implements Serializable {
    * with the windowing function customized to use the end of the window.
    */
   @Test
+  @Category(RunnableOnService.class)
   public void testOutputTimeFnEndOfWindow() {
     Pipeline pipeline = TestPipeline.create();
 

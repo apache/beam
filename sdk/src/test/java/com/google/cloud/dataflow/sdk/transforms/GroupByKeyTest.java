@@ -371,6 +371,7 @@ public class GroupByKeyTest {
    * the two values.
    */
   @Test
+  @Category(RunnableOnService.class)
   public void testOutputTimeFnEarliest() {
     Pipeline pipeline = TestPipeline.create();
 
@@ -392,6 +393,7 @@ public class GroupByKeyTest {
    * with the windowing function customized to use the latest value.
    */
   @Test
+  @Category(RunnableOnService.class)
   public void testOutputTimeFnLatest() {
     Pipeline pipeline = TestPipeline.create();
 
