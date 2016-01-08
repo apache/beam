@@ -45,8 +45,8 @@ class AfterSynchronizedProcessingTime<W extends BoundedWindow> extends OnceTrigg
     CombiningValueState<Instant, Instant> delayUntilState = c.state().access(DELAYED_UNTIL_TAG);
     Instant delayUntil = delayUntilState.get().read();
     if (delayUntil == null) {
-      delayUntil = c.timers().currentProcessingTime();
-      c.timers().setTimer(delayUntil, TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
+      delayUntil = c.currentProcessingTime();
+      c.setTimer(delayUntil, TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
       delayUntilState.add(delayUntil);
     }
 
@@ -74,7 +74,7 @@ class AfterSynchronizedProcessingTime<W extends BoundedWindow> extends OnceTrigg
     if (earliestTimer != null) {
       mergingDelays.clear();
       mergingDelays.add(earliestTimer);
-      c.timers().setTimer(earliestTimer, TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
+      c.setTimer(earliestTimer, TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
     }
 
     return MergeResult.CONTINUE;
@@ -105,7 +105,7 @@ class AfterSynchronizedProcessingTime<W extends BoundedWindow> extends OnceTrigg
     Instant timestamp = delayed.get().read();
     delayed.clear();
     if (timestamp != null) {
-      c.timers().deleteTimer(timestamp, TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
+      c.deleteTimer(timestamp, TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
     }
   }
 

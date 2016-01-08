@@ -298,8 +298,13 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     }
 
     @Override
-    public ReduceFn.Timers timers() {
-      return timers;
+    public void deleteTimer(Instant timestamp, TimeDomain domain) {
+      timers.deleteTimer(timestamp, domain);
+    }
+
+    @Override
+    public Instant currentProcessingTime() {
+      return timers.currentProcessingTime();
     }
   }
 
@@ -352,8 +357,19 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     }
 
     @Override
-    public ReduceFn.Timers timers() {
-      return timers;
+    public void setTimer(Instant timestamp, TimeDomain domain) {
+      timers.setTimer(timestamp, domain);
+    }
+
+
+    @Override
+    public void deleteTimer(Instant timestamp, TimeDomain domain) {
+      timers.deleteTimer(timestamp, domain);
+    }
+
+    @Override
+    public Instant currentProcessingTime() {
+      return timers.currentProcessingTime();
     }
   }
 
@@ -402,11 +418,6 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     }
 
     @Override
-    public ReduceFn.Timers timers() {
-      return timers;
-    }
-
-    @Override
     public Instant timestamp() {
       return timestamp;
     }
@@ -414,6 +425,16 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     @Override
     public TimeDomain timeDomain() {
       return domain;
+    }
+
+    @Override
+    public void deleteTimer(Instant timestamp, TimeDomain domain) {
+      timers.deleteTimer(timestamp, domain);
+    }
+
+    @Override
+    public Instant currentProcessingTime() {
+      return timers.currentProcessingTime();
     }
   }
 
@@ -465,8 +486,19 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     }
 
     @Override
-    public ReduceFn.Timers timers() {
-      return timers;
+    public void setTimer(Instant timestamp, TimeDomain domain) {
+      timers.setTimer(timestamp, domain);
+    }
+
+    @Override
+    public void deleteTimer(Instant timestamp, TimeDomain domain) {
+      timers.setTimer(timestamp, domain);
+
+    }
+
+    @Override
+    public Instant currentProcessingTime() {
+      return timers.currentProcessingTime();
     }
   }
 }

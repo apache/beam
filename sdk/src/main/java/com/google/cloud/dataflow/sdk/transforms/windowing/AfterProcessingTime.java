@@ -70,8 +70,8 @@ public class AfterProcessingTime<W extends BoundedWindow> extends TimeTrigger<W>
     CombiningValueState<Instant, Instant> delayUntilState = c.state().access(DELAYED_UNTIL_TAG);
     Instant delayUntil = delayUntilState.get().read();
     if (delayUntil == null) {
-      delayUntil = computeTargetTimestamp(c.timers().currentProcessingTime());
-      c.timers().setTimer(delayUntil, TimeDomain.PROCESSING_TIME);
+      delayUntil = computeTargetTimestamp(c.currentProcessingTime());
+      c.setTimer(delayUntil, TimeDomain.PROCESSING_TIME);
       delayUntilState.add(delayUntil);
     }
 
@@ -99,7 +99,7 @@ public class AfterProcessingTime<W extends BoundedWindow> extends TimeTrigger<W>
     if (earliestTimer != null) {
       mergingDelays.clear();
       mergingDelays.add(earliestTimer);
-      c.timers().setTimer(earliestTimer, TimeDomain.PROCESSING_TIME);
+      c.setTimer(earliestTimer, TimeDomain.PROCESSING_TIME);
     }
 
     return MergeResult.CONTINUE;
@@ -130,7 +130,7 @@ public class AfterProcessingTime<W extends BoundedWindow> extends TimeTrigger<W>
     Instant timestamp = delayed.get().read();
     delayed.clear();
     if (timestamp != null) {
-      c.timers().deleteTimer(timestamp, TimeDomain.PROCESSING_TIME);
+      c.deleteTimer(timestamp, TimeDomain.PROCESSING_TIME);
     }
   }
 

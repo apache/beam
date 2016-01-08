@@ -105,7 +105,7 @@ public class AfterWatermark<W extends BoundedWindow> {
       Instant delayUntil = delayUntilState.get().read();
       if (delayUntil == null) {
         delayUntil = computeTargetTimestamp(c.eventTimestamp());
-        c.timers().setTimer(delayUntil, TimeDomain.EVENT_TIME);
+        c.setTimer(delayUntil, TimeDomain.EVENT_TIME);
         delayUntilState.add(delayUntil);
       }
 
@@ -136,7 +136,7 @@ public class AfterWatermark<W extends BoundedWindow> {
       if (earliestTimer != null) {
         mergingDelays.clear();
         mergingDelays.add(earliestTimer);
-        c.timers().setTimer(earliestTimer, TimeDomain.EVENT_TIME);
+        c.setTimer(earliestTimer, TimeDomain.EVENT_TIME);
       }
 
       return MergeResult.CONTINUE;
@@ -167,7 +167,7 @@ public class AfterWatermark<W extends BoundedWindow> {
       Instant timestamp = delayed.get().read();
       delayed.clear();
       if (timestamp != null) {
-        c.timers().deleteTimer(timestamp, TimeDomain.EVENT_TIME);
+        c.deleteTimer(timestamp, TimeDomain.EVENT_TIME);
       }
     }
 
@@ -497,7 +497,7 @@ public class AfterWatermark<W extends BoundedWindow> {
 
     @Override
     public TriggerResult onElement(OnElementContext c) throws Exception {
-      c.timers().setTimer(c.window().maxTimestamp(), TimeDomain.EVENT_TIME);
+      c.setTimer(c.window().maxTimestamp(), TimeDomain.EVENT_TIME);
       return TriggerResult.CONTINUE;
     }
 
@@ -513,7 +513,7 @@ public class AfterWatermark<W extends BoundedWindow> {
       }
 
       // Otherwise, set a timer for this window, and return.
-      c.timers().setTimer(c.window().maxTimestamp(), TimeDomain.EVENT_TIME);
+      c.setTimer(c.window().maxTimestamp(), TimeDomain.EVENT_TIME);
       return MergeResult.CONTINUE;
     }
 
@@ -529,7 +529,7 @@ public class AfterWatermark<W extends BoundedWindow> {
 
     @Override
     public void clear(TriggerContext c) throws Exception {
-      c.timers().deleteTimer(c.window().maxTimestamp(), TimeDomain.EVENT_TIME);
+      c.deleteTimer(c.window().maxTimestamp(), TimeDomain.EVENT_TIME);
     }
 
     @Override

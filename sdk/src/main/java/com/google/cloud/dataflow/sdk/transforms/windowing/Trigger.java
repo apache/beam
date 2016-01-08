@@ -253,11 +253,17 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
     /** The window that the current context is executing in. */
     public abstract W window();
 
-    /** Returns the interface for accessing timers. */
-    public abstract ReduceFn.Timers timers();
-
     /** Create a sub-context for the given sub-trigger. */
     public abstract TriggerContext forTrigger(ExecutableTrigger<W> trigger);
+
+    /**
+     * Removes the timer set in this trigger context for the given {@link Instant}
+     * and {@link TimeDomain}.
+     */
+    public abstract void deleteTimer(Instant timestamp, TimeDomain domain);
+
+    /** The current processing time. */
+    public abstract Instant currentProcessingTime();
   }
 
   /**
@@ -266,6 +272,20 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
   public abstract class OnElementContext extends TriggerContext {
     /** The event timestamp of the element currently being processed. */
     public abstract Instant eventTimestamp();
+
+    /**
+     * Sets a timer to fire when the watermark or processing time is beyond the given timestamp.
+     * Timers are not guaranteed to fire immediately, but will be delivered at some time afterwards.
+     *
+     * <p>As with {@link #state}, timers are implicitly scoped to the current window. All
+     * timer firings for a window will be received, but the implementation should choose to ignore
+     * those that are not applicable.
+     *
+     * @param timestamp the time at which the trigger’s {@link Trigger#onTimer} callback should
+     *        execute
+     * @param domain the domain that the {@code timestamp} applies to
+     */
+    public abstract void setTimer(Instant timestamp, TimeDomain domain);
 
     /** Create an {@code OnElementContext} for executing the given trigger. */
     @Override
@@ -278,6 +298,20 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
   public abstract class OnMergeContext extends TriggerContext {
     /** The old windows that were merged. */
     public abstract Iterable<W> oldWindows();
+
+    /**
+     * Sets a timer to fire when the watermark or processing time is beyond the given timestamp.
+     * Timers are not guaranteed to fire immediately, but will be delivered at some time afterwards.
+     *
+     * <p>As with {@link #state}, timers are implicitly scoped to the current window. All
+     * timer firings for a window will be received, but the implementation should choose to ignore
+     * those that are not applicable.
+     *
+     * @param timestamp the time at which the trigger’s {@link Trigger#onTimer} callback should
+     *        execute
+     * @param domain the domain that the {@code timestamp} applies to
+     */
+    public abstract void setTimer(Instant timestamp, TimeDomain domain);
 
     /** Create an {@code OnMergeContext} for executing the given trigger. */
     @Override
