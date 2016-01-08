@@ -74,7 +74,7 @@ public class AvroSourceTest {
     SYNC_DEFAULT; // Sync at default intervals (i.e., no manual syncing).
   }
 
-  private static final int DEFAULT_RECORD_COUNT = 10000;
+  private static final int DEFAULT_RECORD_COUNT = 1000;
 
   /**
    * Generates an input Avro file containing the given records in the temporary directory and
@@ -140,9 +140,12 @@ public class AvroSourceTest {
 
   @Test
   public void testSplitAtFraction() throws Exception {
+    // A reduced dataset is enough here.
     List<FixedRecord> expected = createFixedRecords(DEFAULT_RECORD_COUNT);
-    // Create an AvroSource where each block is 16k
-    String filename = generateTestFile("tmp.avro", expected, SyncBehavior.SYNC_REGULAR, 1000,
+    // Create an AvroSource where each block is 1/10th of the total set of records.
+    String filename = generateTestFile(
+        "tmp.avro", expected, SyncBehavior.SYNC_REGULAR,
+        DEFAULT_RECORD_COUNT / 10 /* max records per block */,
         AvroCoder.of(FixedRecord.class), DataFileConstants.NULL_CODEC);
     File file = new File(filename);
 
@@ -155,9 +158,12 @@ public class AvroSourceTest {
       SourceTestUtils.assertSplitAtFractionFails(subSource, 0, 0.0, null);
       SourceTestUtils.assertSplitAtFractionFails(subSource, 0, 0.7, null);
       SourceTestUtils.assertSplitAtFractionSucceedsAndConsistent(subSource, 1, 0.7, null);
-      SourceTestUtils.assertSplitAtFractionSucceedsAndConsistent(subSource, 100, 0.7, null);
-      SourceTestUtils.assertSplitAtFractionSucceedsAndConsistent(subSource, 1000, 0.1, null);
-      SourceTestUtils.assertSplitAtFractionFails(subSource, 1001, 0.1, null);
+      SourceTestUtils.assertSplitAtFractionSucceedsAndConsistent(
+          subSource, DEFAULT_RECORD_COUNT / 100, 0.7, null);
+      SourceTestUtils.assertSplitAtFractionSucceedsAndConsistent(
+          subSource, DEFAULT_RECORD_COUNT / 10, 0.1, null);
+      SourceTestUtils.assertSplitAtFractionFails(
+          subSource, DEFAULT_RECORD_COUNT / 10 + 1, 0.1, null);
       SourceTestUtils.assertSplitAtFractionFails(subSource, DEFAULT_RECORD_COUNT / 3, 0.3, null);
       SourceTestUtils.assertSplitAtFractionFails(subSource, items, 0.9, null);
       SourceTestUtils.assertSplitAtFractionFails(subSource, items, 1.0, null);
@@ -205,7 +211,8 @@ public class AvroSourceTest {
 
   @Test
   public void testSplitAtFractionExhaustive() throws Exception {
-    List<FixedRecord> expected = createFixedRecords(50);
+    // A small-sized input is sufficient, because the test verifies that splitting is non-vacuous.
+    List<FixedRecord> expected = createFixedRecords(20);
     String filename = generateTestFile("tmp.avro", expected, SyncBehavior.SYNC_REGULAR, 5,
         AvroCoder.of(FixedRecord.class), DataFileConstants.NULL_CODEC);
 
@@ -217,9 +224,11 @@ public class AvroSourceTest {
   public void testSplitsWithSmallBlocks() throws Exception {
     PipelineOptions options = PipelineOptionsFactory.create();
     // Test reading from an object file with many small random-sized blocks.
+    // The file itself doesn't have to be big; we can use a decreased record count.
     List<Bird> expected = createRandomRecords(DEFAULT_RECORD_COUNT);
     String filename = generateTestFile("tmp.avro", expected, SyncBehavior.SYNC_RANDOM,
-        100/* max records/block */, AvroCoder.of(Bird.class), DataFileConstants.NULL_CODEC);
+        DEFAULT_RECORD_COUNT / 20 /* max records/block */,
+        AvroCoder.of(Bird.class), DataFileConstants.NULL_CODEC);
     File file = new File(filename);
 
     // Small minimum bundle size
