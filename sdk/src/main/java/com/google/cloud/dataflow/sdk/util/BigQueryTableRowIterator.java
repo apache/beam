@@ -16,12 +16,14 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.googleapis.services.AbstractGoogleClientRequest;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
+import com.google.api.client.util.ClassInfo;
 import com.google.api.client.util.Data;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.bigquery.Bigquery;
@@ -49,6 +51,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -133,8 +136,44 @@ public class BigQueryTableRowIterator implements Iterator<TableRow>, Closeable {
   }
 
   /**
-   * Adjusts a field returned from the BigQuery API to match the type that will be seen when
-   * run on the backend service. The end result is:
+   * Formats BigQuery seconds-since-epoch into String matching JSON export. Thread-safe and
+   * immutable.
+   */
+  private static final DateTimeFormatter DATE_AND_SECONDS_FORMATER =
+      DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss").withZoneUTC();
+  private static String formatTimestamp(String timestamp) {
+    // timestamp is in "seconds since epoch" format, with scientific notation.
+    // e.g., "1.45206229112345E9" to mean "2016-01-06 06:38:11.123456 UTC".
+    // Separate into seconds and microseconds.
+    double timestampDoubleMicros = Double.parseDouble(timestamp) * 1000000;
+    long timestampMicros = (long) timestampDoubleMicros;
+    long seconds = timestampMicros / 1000000;
+    int micros = (int) (timestampMicros % 1000000);
+    String dayAndTime = DATE_AND_SECONDS_FORMATER.print(seconds * 1000);
+
+    // No sub-second component.
+    if (micros == 0) {
+      return String.format("%s UTC", dayAndTime);
+    }
+
+    // Sub-second component.
+    int digits = 6;
+    int subsecond = micros;
+    while (subsecond % 10 == 0) {
+      digits--;
+      subsecond /= 10;
+    }
+    String formatString = String.format("%%0%dd", digits);
+    String fractionalSeconds = String.format(formatString, subsecond);
+    return String.format("%s.%s UTC", dayAndTime, fractionalSeconds);
+  }
+
+  /**
+   * Adjusts a field returned from the BigQuery API to match what we will receive when running
+   * BigQuery's export-to-GCS and parallel read, which is the efficient parallel implementation
+   * used for batch jobs executed on the Cloud Dataflow service.
+   *
+   * <p>The following is the relationship between BigQuery schema and Java types:
    *
    * <ul>
    *   <li>Nulls are {@code null}.
@@ -143,18 +182,17 @@ public class BigQueryTableRowIterator implements Iterator<TableRow>, Closeable {
    *   <li>{@code BOOLEAN} columns are JSON booleans, hence Java {@code Boolean} objects.
    *   <li>{@code FLOAT} columns are JSON floats, hence Java {@code Double} objects.
    *   <li>{@code TIMESTAMP} columns are {@code String} objects that are of the format
-   *       {@code yyyy-MM-dd HH:mm:ss.SSS UTC}.
+   *       {@code yyyy-MM-dd HH:mm:ss[.SSSSSS] UTC}, where the {@code .SSSSSS} has no trailing
+   *       zeros and can be 1 to 6 digits long.
    *   <li>Every other atomic type is a {@code String}.
    * </ul>
    *
-   * <p>Note that currently integers are encoded as strings to match
-   * the behavior of the backend service.
+   * <p>Note that integers are encoded as strings to match BigQuery's exported JSON format.
+   *
+   * <p>Finally, values are stored in the {@link TableRow} as {"field name": value} pairs
+   * and are not accessible through the {@link TableRow#getF} function.
    */
-  private Object getTypedCellValue(TableFieldSchema fieldSchema, Object v) {
-    // In the input from the BQ API, atomic types all come in as
-    // strings, while on the Dataflow service they have more precise
-    // types.
-
+  @Nullable private Object getTypedCellValue(TableFieldSchema fieldSchema, Object v) {
     if (Data.isNull(v)) {
       return null;
     }
@@ -185,15 +223,21 @@ public class BigQueryTableRowIterator implements Iterator<TableRow>, Closeable {
     }
 
     if (fieldSchema.getType().equals("TIMESTAMP")) {
-      // Seconds to milliseconds
-      long milliSecs = (new Double(Double.parseDouble((String) v) * 1000)).longValue();
-      DateTimeFormatter formatter =
-          DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSS").withZoneUTC();
-      return formatter.print(milliSecs) + " UTC";
+      return formatTimestamp((String) v);
     }
 
     return v;
   }
+
+  /**
+   * A list of the field names that cannot be used in BigQuery tables processed by Dataflow,
+   * because they are reserved keywords in {@link TableRow}.
+   */
+  // TODO: This limitation is unfortunate. We need to give users a way to use BigQueryIO that does
+  // not indirect through our broken use of {@link TableRow}.
+  //     See discussion: https://github.com/GoogleCloudPlatform/DataflowJavaSDK/pull/41
+  private static final Collection<String> RESERVED_FIELD_NAMES =
+      ClassInfo.of(TableRow.class).getNames();
 
   /**
    * Converts a row returned from the BigQuery JSON API as a {@code Map<String, Object>} into a
@@ -206,10 +250,15 @@ public class BigQueryTableRowIterator implements Iterator<TableRow>, Closeable {
   private TableRow getTypedTableRow(List<TableFieldSchema> fields, Map<String, Object> rawRow) {
     // If rawRow is a TableRow, use it. If not, create a new one.
     TableRow row;
+    List<? extends Map<String, Object>> cells;
     if (rawRow instanceof TableRow) {
-      // Since rawRow is a TableRow, we also know that rawRow.getF() returns a List<TableCell>.
-      // We do not need to do any type conversion.
+      // Since rawRow is a TableRow it already has TableCell objects in setF. We do not need to do
+      // any type conversion, but extract the cells for cell-wise processing below.
       row = (TableRow) rawRow;
+      cells = row.getF();
+      // Clear the cells from the row, so that row.getF() will return null. This matches the
+      // behavior of rows produced by the BigQuery export API used on the service.
+      row.setF(null);
     } else {
       row = new TableRow();
 
@@ -217,51 +266,30 @@ public class BigQueryTableRowIterator implements Iterator<TableRow>, Closeable {
       // get its cells. Similarly, when rawCell is a Map<String, Object> instead of a TableCell,
       // we will use Map.get("v") instead of TableCell.getV() get its value.
       @SuppressWarnings("unchecked")
-      List<Map<String, Object>> rawCells = (List<Map<String, Object>>) rawRow.get("f");
-
-      ImmutableList.Builder<TableCell> builder = ImmutableList.builder();
-      for (Map<String, Object> rawCell : rawCells) {
-        // If rawCell is a TableCell, use it. If not, create a new one.
-        if (rawCell instanceof TableCell) {
-          builder.add((TableCell) rawCell);
-        } else {
-          builder.add(new TableCell().setV(rawCell.get("v")));
-        }
-      }
-      row.setF(builder.build());
+      List<? extends Map<String, Object>> rawCells =
+          (List<? extends Map<String, Object>>) rawRow.get("f");
+      cells = rawCells;
     }
 
-    // From here, everything is a TableRow/TableCell, no need to interpret as Map<String,Object>.
-    List<TableCell> cells = row.getF();
     checkState(cells.size() == fields.size(),
         "Expected that the row has the same number of cells %s as fields in the schema %s",
         cells.size(), fields.size());
 
     // Loop through all the fields in the row, normalizing their types with the TableFieldSchema
-    // and also storing the normalized values by field name in the Map<String, Object> that
+    // and storing the normalized values by field name in the Map<String, Object> that
     // underlies the TableRow.
-    Iterator<TableCell> cellIt = cells.iterator();
+    Iterator<? extends Map<String, Object>> cellIt = cells.iterator();
     Iterator<TableFieldSchema> fieldIt = fields.iterator();
     while (cellIt.hasNext()) {
-      TableCell cell = cellIt.next();
+      Map<String, Object> cell = cellIt.next();
       TableFieldSchema fieldSchema = fieldIt.next();
 
       // Convert the object in this cell to the Java type corresponding to its type in the schema.
-      Object convertedValue = getTypedCellValue(fieldSchema, cell.getV());
-      cell.setV(convertedValue);
+      Object convertedValue = getTypedCellValue(fieldSchema, cell.get("v"));
 
       String fieldName = fieldSchema.getName();
-      if (fieldName.equals("f")) {
-        // This is a workaround for a crash when the schema has a field named "f". Specifically,
-        // tableRow.set("f", value) is equivalent to tableRow.setF(value), and value must be a
-        // List<TableCell> or a ClassCastException will be thrown. To avoid the crash, we simply
-        // do not set the Map property named "f".
-        //
-        // The value for a field named "f" can instead be retrieved by calling tableRow.getF() and
-        // to get the list of cells, and accessing the positional entry that corresponds to the
-        // position of the "f" field in the TableSchema.
-        continue;
-      }
+      checkArgument(!RESERVED_FIELD_NAMES.contains(fieldName),
+          "BigQueryIO does not support records with columns named %s", fieldName);
       row.set(fieldName, convertedValue);
     }
     return row;

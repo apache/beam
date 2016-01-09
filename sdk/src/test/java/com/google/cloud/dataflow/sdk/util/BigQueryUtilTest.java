@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Matchers.anyString;
@@ -38,6 +39,7 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO;
 import com.google.common.base.Function;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
 
 import org.hamcrest.Matchers;
@@ -171,43 +173,54 @@ public class BigQueryUtilTest {
         .setSchema(new TableSchema()
             .setFields(Arrays.asList(
                 new TableFieldSchema()
-                    .setName("name")
-                    .setType("STRING"),
-                new TableFieldSchema()
                     .setName("time")
-                    .setType("TIMESTAMP"),
-                new TableFieldSchema()
-                    .setName("answer")
-                    .setType("INTEGER")
+                    .setType("TIMESTAMP")
             )));
   }
 
   @Test
   public void testReadWithTime() throws IOException {
+    // The BigQuery JSON API returns timestamps in the following format: floating-point seconds
+    // since epoch (UTC) with microsecond precision. Test that we faithfully preserve a set of
+    // known values.
+    TableDataList input = rawDataList(
+        rawRow("1.430397296789E9"),
+        rawRow("1.45206228E9"),
+        rawRow("1.452062291E9"),
+        rawRow("1.4520622911E9"),
+        rawRow("1.45206229112E9"),
+        rawRow("1.452062291123E9"),
+        rawRow("1.4520622911234E9"),
+        rawRow("1.45206229112345E9"),
+        rawRow("1.452062291123456E9"));
     onTableGet(basicTableSchemaWithTime());
+    onTableList(input);
 
-    TableDataList dataList = rawDataList(rawRow("Arthur", "1.430397296789E9", 42));
-    onTableList(dataList);
+    // Known results verified from BigQuery's export to JSON on GCS API.
+    List<String> expected = ImmutableList.of(
+        "2015-04-30 12:34:56.789 UTC",
+        "2016-01-06 06:38:00 UTC",
+        "2016-01-06 06:38:11 UTC",
+        "2016-01-06 06:38:11.1 UTC",
+        "2016-01-06 06:38:11.12 UTC",
+        "2016-01-06 06:38:11.123 UTC",
+        "2016-01-06 06:38:11.1234 UTC",
+        "2016-01-06 06:38:11.12345 UTC",
+        "2016-01-06 06:38:11.123456 UTC");
 
-    try (BigQueryTableRowIterator iterator = BigQueryTableRowIterator.fromTable(
-        BigQueryIO.parseTableSpec("project:dataset.table"),
-        mockClient)) {
+    // Download the rows, verify the interactions.
+    List<TableRow> rows = ImmutableList.copyOf(BigQueryTableRowIterator.fromTable(
+        BigQueryIO.parseTableSpec("project:dataset.table"), mockClient));
+    verifyTableGet();
+    verifyTabledataList();
 
-      Assert.assertTrue(iterator.hasNext());
-      TableRow row = iterator.next();
-
-      Assert.assertTrue(row.containsKey("name"));
-      Assert.assertTrue(row.containsKey("time"));
-      Assert.assertTrue(row.containsKey("answer"));
-      Assert.assertEquals("Arthur", row.get("name"));
-      Assert.assertEquals("2015-04-30 12:34:56.789 UTC", row.get("time"));
-      Assert.assertEquals(42, row.get("answer"));
-
-      Assert.assertFalse(iterator.hasNext());
-
-      verifyTableGet();
-      verifyTabledataList();
+    // Verify the timestamp converted as desired.
+    assertEquals("Expected input and output rows to have the same size",
+        expected.size(), rows.size());
+    for (int i = 0; i < expected.size(); ++i) {
+      assertEquals("i=" + i, expected.get(i), rows.get(i).get("time"));
     }
+
   }
 
   private TableRow rawRow(Object...args) {
