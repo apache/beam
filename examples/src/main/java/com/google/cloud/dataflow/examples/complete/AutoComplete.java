@@ -457,7 +457,7 @@ public class AutoComplete {
     if (options.isStreaming()) {
       Preconditions.checkArgument(
           !options.getOutputToDatastore(), "DatastoreIO is not supported in streaming.");
-      dataflowUtils.setupPubsubTopic();
+      dataflowUtils.setupPubsub();
 
       readSource = PubsubIO.Read.topic(options.getPubsubTopic());
       windowFn = SlidingWindows.of(Duration.standardMinutes(30)).every(Duration.standardSeconds(5));

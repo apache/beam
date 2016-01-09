@@ -21,24 +21,24 @@ import com.google.cloud.dataflow.sdk.options.Description;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 
 /**
- * Options that can be used to configure Pub/Sub topic in Dataflow examples.
+ * Options that can be used to configure Pub/Sub topic/subscription in Dataflow examples.
  */
-public interface ExamplePubsubTopicOptions extends DataflowPipelineOptions {
-  @Description("Pub/Sub topic")
-  @Default.InstanceFactory(PubsubTopicFactory.class)
-  String getPubsubTopic();
-  void setPubsubTopic(String topic);
+public interface ExamplePubsubTopicAndSubscriptionOptions extends ExamplePubsubTopicOptions {
+  @Description("Pub/Sub subscription")
+  @Default.InstanceFactory(PubsubSubscriptionFactory.class)
+  String getPubsubSubscription();
+  void setPubsubSubscription(String subscription);
 
   /**
-   * Returns a default Pub/Sub topic based on the project and the job names.
+   * Returns a default Pub/Sub subscription based on the project and the job names.
    */
-  static class PubsubTopicFactory implements DefaultValueFactory<String> {
+  static class PubsubSubscriptionFactory implements DefaultValueFactory<String> {
     @Override
     public String create(PipelineOptions options) {
       DataflowPipelineOptions dataflowPipelineOptions =
           options.as(DataflowPipelineOptions.class);
       return "projects/" + dataflowPipelineOptions.getProject()
-          + "/topics/" + dataflowPipelineOptions.getJobName();
+          + "/subscriptions/" + dataflowPipelineOptions.getJobName();
     }
   }
 }

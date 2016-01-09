@@ -29,6 +29,7 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.pubsub.Pubsub;
+import com.google.api.services.pubsub.model.Subscription;
 import com.google.api.services.pubsub.model.Topic;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.PipelineResult;
@@ -39,9 +40,13 @@ import com.google.cloud.dataflow.sdk.runners.DataflowPipelineJob;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.IntraBundleParallelization;
+import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.util.AttemptBoundedExponentialBackOff;
 import com.google.cloud.dataflow.sdk.util.MonitoringUtil;
 import com.google.cloud.dataflow.sdk.util.Transport;
+import com.google.cloud.dataflow.sdk.values.PBegin;
+import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -69,13 +74,6 @@ public class DataflowExampleUtils {
   private Set<DataflowPipelineJob> jobsToCancel = Sets.newHashSet();
   private List<String> pendingMessages = Lists.newArrayList();
 
-  /**
-   * Define an interface that supports the PubSub and BigQuery example options.
-   */
-  public static interface DataflowExampleUtilsOptions
-        extends DataflowExampleOptions, ExamplePubsubTopicOptions, ExampleBigQueryTableOptions {
-  }
-
   public DataflowExampleUtils(DataflowPipelineOptions options) {
     this.options = options;
   }
@@ -102,7 +100,7 @@ public class DataflowExampleUtils {
     try {
       do {
         try {
-          setupPubsubTopic();
+          setupPubsub();
           setupBigQueryTable();
           return;
         } catch (GoogleJsonResponseException e) {
@@ -133,13 +131,21 @@ public class DataflowExampleUtils {
    *
    * @throws IOException if there is a problem setting up the Pub/Sub topic
    */
-  public void setupPubsubTopic() throws IOException {
-    ExamplePubsubTopicOptions pubsubTopicOptions = options.as(ExamplePubsubTopicOptions.class);
-    if (!pubsubTopicOptions.getPubsubTopic().isEmpty()) {
-      pendingMessages.add("*******************Set Up Pubsub Topic*********************");
-      setupPubsubTopic(pubsubTopicOptions.getPubsubTopic());
+  public void setupPubsub() throws IOException {
+    ExamplePubsubTopicAndSubscriptionOptions pubsubOptions =
+        options.as(ExamplePubsubTopicAndSubscriptionOptions.class);
+    if (!pubsubOptions.getPubsubTopic().isEmpty()) {
+      pendingMessages.add("**********************Set Up Pubsub************************");
+      setupPubsubTopic(pubsubOptions.getPubsubTopic());
       pendingMessages.add("The Pub/Sub topic has been set up for this example: "
-          + pubsubTopicOptions.getPubsubTopic());
+          + pubsubOptions.getPubsubTopic());
+
+      if (!pubsubOptions.getPubsubSubscription().isEmpty()) {
+        setupPubsubSubscription(
+            pubsubOptions.getPubsubTopic(), pubsubOptions.getPubsubSubscription());
+        pendingMessages.add("The Pub/Sub subscription has been set up for this example: "
+            + pubsubOptions.getPubsubSubscription());
+      }
     }
   }
 
@@ -175,15 +181,26 @@ public class DataflowExampleUtils {
    */
   private void tearDown() {
     pendingMessages.add("*************************Tear Down*************************");
-    ExamplePubsubTopicOptions pubsubTopicOptions = options.as(ExamplePubsubTopicOptions.class);
-    if (!pubsubTopicOptions.getPubsubTopic().isEmpty()) {
+    ExamplePubsubTopicAndSubscriptionOptions pubsubOptions =
+        options.as(ExamplePubsubTopicAndSubscriptionOptions.class);
+    if (!pubsubOptions.getPubsubTopic().isEmpty()) {
       try {
-        deletePubsubTopic(pubsubTopicOptions.getPubsubTopic());
+        deletePubsubTopic(pubsubOptions.getPubsubTopic());
         pendingMessages.add("The Pub/Sub topic has been deleted: "
-            + pubsubTopicOptions.getPubsubTopic());
+            + pubsubOptions.getPubsubTopic());
       } catch (IOException e) {
         pendingMessages.add("Failed to delete the Pub/Sub topic : "
-            + pubsubTopicOptions.getPubsubTopic());
+            + pubsubOptions.getPubsubTopic());
+      }
+      if (!pubsubOptions.getPubsubSubscription().isEmpty()) {
+        try {
+          deletePubsubSubscription(pubsubOptions.getPubsubSubscription());
+          pendingMessages.add("The Pub/Sub subscription has been deleted: "
+              + pubsubOptions.getPubsubSubscription());
+        } catch (IOException e) {
+          pendingMessages.add("Failed to delete the Pub/Sub subscription : "
+              + pubsubOptions.getPubsubSubscription());
+        }
       }
     }
 
@@ -237,6 +254,18 @@ public class DataflowExampleUtils {
     }
   }
 
+  private void setupPubsubSubscription(String topic, String subscription) throws IOException {
+    if (pubsubClient == null) {
+      pubsubClient = Transport.newPubsubClient(options).build();
+    }
+    if (executeNullIfNotFound(pubsubClient.projects().subscriptions().get(subscription)) == null) {
+      Subscription subInfo = new Subscription()
+        .setAckDeadlineSeconds(60)
+        .setTopic(topic);
+      pubsubClient.projects().subscriptions().create(subscription, subInfo).execute();
+    }
+  }
+
   /**
    * Deletes the Google Cloud Pub/Sub topic.
    *
@@ -252,6 +281,20 @@ public class DataflowExampleUtils {
   }
 
   /**
+   * Deletes the Google Cloud Pub/Sub subscription.
+   *
+   * @throws IOException if there is a problem deleting the Pub/Sub subscription
+   */
+  private void deletePubsubSubscription(String subscription) throws IOException {
+    if (pubsubClient == null) {
+      pubsubClient = Transport.newPubsubClient(options).build();
+    }
+    if (executeNullIfNotFound(pubsubClient.projects().subscriptions().get(subscription)) != null) {
+      pubsubClient.projects().subscriptions().delete(subscription).execute();
+    }
+  }
+
+  /**
    * If this is an unbounded (streaming) pipeline, and both inputFile and pubsub topic are defined,
    * start an 'injector' pipeline that publishes the contents of the file to the given topic, first
    * creating the topic if necessary.
@@ -259,9 +302,8 @@ public class DataflowExampleUtils {
   public void startInjectorIfNeeded(String inputFile) {
     ExamplePubsubTopicOptions pubsubTopicOptions = options.as(ExamplePubsubTopicOptions.class);
     if (pubsubTopicOptions.isStreaming()
-        && inputFile != null && !inputFile.isEmpty()
-        && pubsubTopicOptions.getPubsubTopic() != null
-        && !pubsubTopicOptions.getPubsubTopic().isEmpty()) {
+        && !Strings.isNullOrEmpty(inputFile)
+        && !Strings.isNullOrEmpty(pubsubTopicOptions.getPubsubTopic())) {
       runInjectorPipeline(inputFile, pubsubTopicOptions.getPubsubTopic());
     }
   }
@@ -272,11 +314,7 @@ public class DataflowExampleUtils {
    * flag value.
    */
   public void setupRunner() {
-    if (options.isStreaming()) {
-      if (options.getRunner() == DirectPipelineRunner.class) {
-        throw new IllegalArgumentException(
-          "Processing of unbounded input sources is not supported with the DirectPipelineRunner.");
-      }
+    if (options.isStreaming() && options.getRunner() != DirectPipelineRunner.class) {
       // In order to cancel the pipelines automatically,
       // {@literal DataflowPipelineRunner} is forced to be used.
       options.setRunner(DataflowPipelineRunner.class);
@@ -284,32 +322,59 @@ public class DataflowExampleUtils {
   }
 
   /**
-   * Runs the batch injector for the streaming pipeline.
+   * Runs a batch pipeline to inject data into the PubSubIO input topic.
    *
    * <p>The injector pipeline will read from the given text file, and inject data
    * into the Google Cloud Pub/Sub topic.
    */
   public void runInjectorPipeline(String inputFile, String topic) {
-    DataflowPipelineOptions copiedOptions = options.cloneAs(DataflowPipelineOptions.class);
-    copiedOptions.setStreaming(false);
-    copiedOptions.setNumWorkers(
-        options.as(ExamplePubsubTopicOptions.class).getInjectorNumWorkers());
-    copiedOptions.setJobName(options.getJobName() + "-injector");
-    Pipeline injectorPipeline = Pipeline.create(copiedOptions);
-    injectorPipeline.apply(TextIO.Read.from(inputFile))
-                    .apply(IntraBundleParallelization
-                        .of(PubsubFileInjector.publish(topic))
-                        .withMaxParallelism(20));
-    DataflowPipelineJob injectorJob = (DataflowPipelineJob) injectorPipeline.run();
-    jobsToCancel.add(injectorJob);
+    runInjectorPipeline(TextIO.Read.from(inputFile), topic, null);
   }
 
   /**
-   * Runs the provided injector pipeline for the streaming pipeline.
+   * Runs a batch pipeline to inject data into the PubSubIO input topic.
+   *
+   * <p>The injector pipeline will read from the given source, and inject data
+   * into the Google Cloud Pub/Sub topic.
+   */
+  public void runInjectorPipeline(PTransform<? super PBegin, PCollection<String>> readSource,
+                                  String topic,
+                                  String pubsubTimestampTabelKey) {
+    PubsubFileInjector.Bound injector;
+    if (Strings.isNullOrEmpty(pubsubTimestampTabelKey)) {
+      injector = PubsubFileInjector.publish(topic);
+    } else {
+      injector = PubsubFileInjector.withTimestampLabelKey(pubsubTimestampTabelKey).publish(topic);
+    }
+    DataflowPipelineOptions copiedOptions = options.cloneAs(DataflowPipelineOptions.class);
+    if (options.getServiceAccountName() != null) {
+      copiedOptions.setServiceAccountName(options.getServiceAccountName());
+    }
+    if (options.getServiceAccountKeyfile() != null) {
+      copiedOptions.setServiceAccountKeyfile(options.getServiceAccountKeyfile());
+    }
+    copiedOptions.setStreaming(false);
+    copiedOptions.setNumWorkers(options.as(DataflowExampleOptions.class).getInjectorNumWorkers());
+    copiedOptions.setJobName(options.getJobName() + "-injector");
+    Pipeline injectorPipeline = Pipeline.create(copiedOptions);
+    injectorPipeline.apply(readSource)
+                    .apply(IntraBundleParallelization
+                        .of(injector)
+                        .withMaxParallelism(20));
+    PipelineResult result = injectorPipeline.run();
+    if (result instanceof DataflowPipelineJob) {
+      jobsToCancel.add(((DataflowPipelineJob) result));
+    }
+  }
+
+  /**
+   * Runs the provided pipeline to inject data into the PubSubIO input topic.
    */
   public void runInjectorPipeline(Pipeline injectorPipeline) {
-    DataflowPipelineJob injectorJob = (DataflowPipelineJob) injectorPipeline.run();
-    jobsToCancel.add(injectorJob);
+    PipelineResult result = injectorPipeline.run();
+    if (result instanceof DataflowPipelineJob) {
+      jobsToCancel.add(((DataflowPipelineJob) result));
+    }
   }
 
   /**
@@ -339,6 +404,8 @@ public class DataflowExampleUtils {
     } else {
       // Do nothing if the given PipelineResult doesn't support waitToFinish(),
       // such as EvaluationResults returned by DirectPipelineRunner.
+      tearDown();
+      printPendingMessages();
     }
   }
 

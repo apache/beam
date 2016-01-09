@@ -20,6 +20,7 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.cloud.dataflow.examples.common.DataflowExampleOptions;
 import com.google.cloud.dataflow.examples.common.DataflowExampleUtils;
 import com.google.cloud.dataflow.examples.common.ExampleBigQueryTableOptions;
 import com.google.cloud.dataflow.examples.common.ExamplePubsubTopicOptions;
@@ -431,8 +432,8 @@ public class TriggerExample {
   /**
    * Inherits standard configuration options.
    */
-  public interface TrafficFlowOptions extends
-  ExamplePubsubTopicOptions, ExampleBigQueryTableOptions {
+  public interface TrafficFlowOptions
+      extends ExamplePubsubTopicOptions, ExampleBigQueryTableOptions, DataflowExampleOptions {
 
     @Description("Input file to inject to Pub/Sub topic")
     @Default.String("gs://dataflow-samples/traffic_sensor/"
@@ -489,8 +490,7 @@ public class TriggerExample {
   private static Pipeline runInjector(TrafficFlowOptions options){
     DataflowPipelineOptions copiedOptions = options.cloneAs(DataflowPipelineOptions.class);
     copiedOptions.setStreaming(false);
-    copiedOptions.setNumWorkers(
-        options.as(ExamplePubsubTopicOptions.class).getInjectorNumWorkers());
+    copiedOptions.setNumWorkers(options.as(DataflowExampleOptions.class).getInjectorNumWorkers());
     copiedOptions.setJobName(options.getJobName() + "-injector");
     Pipeline injectorPipeline = Pipeline.create(copiedOptions);
     injectorPipeline
