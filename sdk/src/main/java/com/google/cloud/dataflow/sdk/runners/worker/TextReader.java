@@ -82,6 +82,7 @@ public class TextReader<T> extends Reader<T> {
     this.compressionType = compressionType;
   }
 
+  @Override
   public double getTotalParallelism() {
     try {
       if (compressionType == TextIO.CompressionType.UNCOMPRESSED) {
@@ -98,7 +99,7 @@ public class TextReader<T> extends Reader<T> {
         // All files were compressed.
         return getTotalParallelismUnsplittable();
       } else {
-        // No compressed formats support liquid sharding yet.
+        // No compressed formats support dynamic work rebalancing yet.
         return getTotalParallelismUnsplittable();
       }
     } catch (IOException exn) {
