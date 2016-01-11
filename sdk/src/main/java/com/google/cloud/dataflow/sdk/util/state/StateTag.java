@@ -59,7 +59,7 @@ public interface StateTag<StateT extends State> extends Serializable {
      * <p>This accepts the {@link OutputTimeFn} that dictates how watermark hold timestamps
      * added to the returned {@link WatermarkStateInternal} are to be combined.
      */
-    <T, W extends BoundedWindow> WatermarkStateInternal bindWatermark(
+    <W extends BoundedWindow> WatermarkStateInternal bindWatermark(
         StateTag<WatermarkStateInternal> address,
         OutputTimeFn<? super W> outputTimeFn);
   }
@@ -68,7 +68,7 @@ public interface StateTag<StateT extends State> extends Serializable {
   void appendTo(Appendable sb) throws IOException;
 
   /**
-   * Returns the identifier for this state cell.
+   * Returns the user-provided name of this state cell.
    */
   String getId();
 

@@ -76,12 +76,14 @@ public class StreamingModeExecutionContextTest {
 
   @Test
   public void testTimerInternalsSetTimer() {
-    StreamingModeExecutionContext executionContext = new StreamingModeExecutionContext(
-        "stageName", null, new ConcurrentHashMap<String, String>());
+    StreamingModeExecutionContext executionContext = new StreamingModeExecutionContext("stageName",
+        null, new ConcurrentHashMap<String, String>(),
+        new WindmillStateCache().forComputation("comp"));
 
     Windmill.WorkItemCommitRequest.Builder outputBuilder =
         Windmill.WorkItemCommitRequest.newBuilder();
-    executionContext.start(null,
+    executionContext.start(
+        Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(17L).build(),
         new Instant(1000), // input watermark
         null, // output watermark
         stateReader, stateFetcher, outputBuilder);
@@ -108,7 +110,7 @@ public class StreamingModeExecutionContextTest {
   @Test
   public void testSideInputReaderReconstituted() {
     StreamingModeExecutionContext executionContext =
-        new StreamingModeExecutionContext("stageName", null, null);
+        new StreamingModeExecutionContext("stageName", null, null, null);
 
     PCollectionView<String> preview1 = PCollectionViewTesting.<String, String>testingView(
         newStringTag(), new ConstantViewFn<String, String>("view1"), StringUtf8Coder.of());
@@ -160,7 +162,8 @@ public class StreamingModeExecutionContextTest {
     ConcurrentHashMap<ByteString, ReaderCacheEntry> readerCache =
         new ConcurrentHashMap<ByteString, ReaderCacheEntry>();
     StreamingModeExecutionContext context =
-        new StreamingModeExecutionContext("stageName", readerCache, null);
+        new StreamingModeExecutionContext("stageName", readerCache, /*stateNameMap=*/null,
+            /*stateCache=*/null);
 
     UnboundedSource.UnboundedReader<?> reader1 =
         new CountingSource(Integer.MAX_VALUE).createReader(options, null);

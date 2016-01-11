@@ -21,6 +21,7 @@ import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill.WorkItemCo
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFn;
+import com.google.cloud.dataflow.sdk.util.Weighted;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
 import com.google.cloud.dataflow.sdk.util.state.BagState;
 import com.google.cloud.dataflow.sdk.util.state.CombiningValueStateInternal;
@@ -32,128 +33,118 @@ import com.google.cloud.dataflow.sdk.util.state.StateNamespace;
 import com.google.cloud.dataflow.sdk.util.state.StateTable;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
 import com.google.cloud.dataflow.sdk.util.state.StateTag.StateBinder;
+import com.google.cloud.dataflow.sdk.util.state.StateTags;
 import com.google.cloud.dataflow.sdk.util.state.ValueState;
 import com.google.cloud.dataflow.sdk.util.state.WatermarkStateInternal;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
+import com.google.common.base.Optional;
 import com.google.common.base.Supplier;
+import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Iterators;
 import com.google.common.util.concurrent.Futures;
 import com.google.protobuf.ByteString;
 
 import org.joda.time.Instant;
 
 import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import javax.annotation.concurrent.NotThreadSafe;
 
 /**
  * Implementation of {@link StateInternals} using Windmill to manage the underlying data.
  */
 class WindmillStateInternals extends MergingStateInternals {
+  private static class CachingStateTable extends StateTable {
+    private final String stateFamily;
+    private final WindmillStateReader reader;
+    private final WindmillStateCache.ForKey cache;
+    private final Supplier<StateSampler.ScopedState> scopedReadStateSupplier;
 
-  private final StateTable inMemoryState =
-      new StateTable() {
-        @Override
-        protected StateBinder binderForNamespace(final StateNamespace namespace) {
-          return new StateBinder() {
-            @Override
-            public <T> BagState<T> bindBag(StateTag<BagState<T>> address, Coder<T> elemCoder) {
-              return new WindmillBag<>(encodeKey(namespace, address), stateFamily, elemCoder,
-                  reader, scopedReadStateSupplier);
-            }
-
-            @Override
-            public <T, W extends BoundedWindow> WatermarkStateInternal bindWatermark(
-                StateTag<WatermarkStateInternal> address,
-                OutputTimeFn<? super W> outputTimeFn) {
-              return new WindmillWatermarkState(
-                  encodeKey(namespace, address),
-                  stateFamily,
-                  reader,
-                  scopedReadStateSupplier,
-                  outputTimeFn);
-            }
-
-            @Override
-            public <InputT, AccumT, OutputT>
-                CombiningValueStateInternal<InputT, AccumT, OutputT> bindCombiningValue(
-                    StateTag<CombiningValueStateInternal<InputT, AccumT, OutputT>> address,
-                    Coder<AccumT> accumCoder,
-                    CombineFn<InputT, AccumT, OutputT> combineFn) {
-              return new WindmillCombiningValue<>(encodeKey(namespace, address), stateFamily,
-                  accumCoder, combineFn, reader, scopedReadStateSupplier);
-            }
-
-            @Override
-            public <T> ValueState<T> bindValue(StateTag<ValueState<T>> address, Coder<T> coder) {
-              return new WindmillValue<>(encodeKey(namespace, address), stateFamily, coder, reader,
-                  scopedReadStateSupplier);
-            }
-          };
-        }
-      };
-
-  private final String prefix;
-  private final String stateFamily;
-  private final WindmillStateReader reader;
-  private final boolean useStateFamilies;
-  private final Supplier<StateSampler.ScopedState> scopedReadStateSupplier;
-
-  @VisibleForTesting
-  static final ThreadLocal<Supplier<Boolean>> COMPACT_NOW =
-      new ThreadLocal<Supplier<Boolean>>() {
-        @Override
-        public Supplier<Boolean> initialValue() {
-          return new Supplier<Boolean>() {
-            /* The rate at which, on average, this will return true. */
-            static final double RATE = 0.002;
-            Random random = new Random();
-            long counter = nextSample();
-
-            private long nextSample() {
-              // Use geometric distribution to find next true value.
-              // This lets us avoid invoking random.nextDouble() on every call.
-              return (long) Math.floor(Math.log(random.nextDouble()) / Math.log(1 - RATE));
-            }
-
-            @Override
-            public Boolean get() {
-              counter--;
-              if (counter < 0) {
-                counter = nextSample();
-                return true;
-              } else {
-                return false;
-              }
-            }
-          };
-        }
-      };
-
-  public WindmillStateInternals(String prefix, boolean useStateFamilies,
-      WindmillStateReader reader, Supplier<StateSampler.ScopedState> scopedReadStateSupplier) {
-    this.prefix = prefix;
-    if (useStateFamilies) {
-      this.stateFamily = prefix;
-    } else {
-      this.stateFamily = "";
+    public CachingStateTable(String stateFamily,
+        WindmillStateReader reader, WindmillStateCache.ForKey cache,
+        Supplier<StateSampler.ScopedState> scopedReadStateSupplier) {
+      this.stateFamily = stateFamily;
+      this.reader = reader;
+      this.cache = cache;
+      this.scopedReadStateSupplier = scopedReadStateSupplier;
     }
-    this.reader = reader;
-    this.useStateFamilies = useStateFamilies;
+
+    @Override
+    protected StateBinder binderForNamespace(final StateNamespace namespace) {
+      // Look up state objects in the cache or create new ones if not found.  The state will
+      // be added to the cache in persist().
+      return new StateBinder() {
+        @Override
+        public <T> BagState<T> bindBag(StateTag<BagState<T>> address, Coder<T> elemCoder) {
+          WindmillBag<T> result = (WindmillBag<T>) cache.get(namespace, address);
+          if (result == null) {
+            result = new WindmillBag<T>(namespace, address, stateFamily, elemCoder);
+          }
+          result.initializeForWorkItem(reader, scopedReadStateSupplier);
+          return result;
+        }
+
+        @Override
+        public <W extends BoundedWindow> WatermarkStateInternal bindWatermark(
+            StateTag<WatermarkStateInternal> address, OutputTimeFn<? super W> outputTimeFn) {
+          WindmillWatermarkState result = (WindmillWatermarkState) cache.get(namespace, address);
+          if (result == null) {
+            result = new WindmillWatermarkState(namespace, address, stateFamily, outputTimeFn);
+          }
+          result.initializeForWorkItem(reader, scopedReadStateSupplier);
+          return result;
+        }
+
+        @Override
+        public <InputT, AccumT, OutputT> CombiningValueStateInternal<InputT, AccumT, OutputT>
+        bindCombiningValue(StateTag<CombiningValueStateInternal<InputT, AccumT, OutputT>> address,
+            Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
+          WindmillCombiningValue<InputT, AccumT, OutputT> result = new WindmillCombiningValue<>(
+              namespace, address, stateFamily, accumCoder, combineFn, cache);
+          result.initializeForWorkItem(reader, scopedReadStateSupplier);
+          return result;
+        }
+
+        @Override
+        public <T> ValueState<T> bindValue(StateTag<ValueState<T>> address, Coder<T> coder) {
+          WindmillValue<T> result = (WindmillValue<T>) cache.get(namespace, address);
+          if (result == null) {
+            result = new WindmillValue<T>(namespace, address, stateFamily, coder);
+          }
+          result.initializeForWorkItem(reader, scopedReadStateSupplier);
+          return result;
+        }
+      };
+    }
+  };
+
+  private WindmillStateCache.ForKey cache;
+  Supplier<StateSampler.ScopedState> scopedReadStateSupplier;
+  private StateTable workItemState;
+
+  public WindmillStateInternals(String stateFamily, WindmillStateReader reader,
+      WindmillStateCache.ForKey cache, Supplier<StateSampler.ScopedState> scopedReadStateSupplier) {
+    this.cache = cache;
     this.scopedReadStateSupplier = scopedReadStateSupplier;
+    this.workItemState = new CachingStateTable(stateFamily, reader, cache, scopedReadStateSupplier);
   }
 
   public void persist(final Windmill.WorkItemCommitRequest.Builder commitBuilder) {
     List<Future<WorkItemCommitRequest>> commitsToMerge = new ArrayList<>();
 
     // Call persist on each first, which may schedule some futures for reading.
-    for (State location : inMemoryState.values()) {
+    for (State location : workItemState.values()) {
       if (!(location instanceof WindmillState)) {
         throw new IllegalStateException(String.format(
             "%s wasn't created by %s -- unable to persist it",
@@ -162,20 +153,16 @@ class WindmillStateInternals extends MergingStateInternals {
       }
 
       try {
-        commitsToMerge.add(((WindmillState) location).persist());
+        commitsToMerge.add(((WindmillState) location).persist(cache));
       } catch (IOException e) {
         throw new RuntimeException("Unable to persist state", e);
       }
     }
 
-    // Kick off the fetches that prevent blind-writes. We do this before returning
-    // to ensure that the reads have happened before the persist actually happens.
-    reader.startBatchAndBlock();
-
     // Clear out the map of already retrieved state instances.
-    inMemoryState.clear();
+    workItemState.clear();
 
-    try {
+    try (StateSampler.ScopedState scope = scopedReadStateSupplier.get()) {
       for (Future<WorkItemCommitRequest> commitFuture : commitsToMerge) {
         commitBuilder.mergeFrom(commitFuture.get());
       }
@@ -184,103 +171,123 @@ class WindmillStateInternals extends MergingStateInternals {
     }
   }
 
-  @VisibleForTesting ByteString encodeKey(StateNamespace namespace, StateTag<?> address) {
+  /**
+   * Encodes the given namespace and address as {@code &lt;namespace&gt;+&lt;address&gt;}.
+   */
+  @VisibleForTesting
+  static ByteString encodeKey(StateNamespace namespace, StateTag<?> address) {
     try {
-      // Use a StringBuilder rather than concatenation and String.format. We build these keys
+      // Use ByteString.Output rather than concatenation and String.format. We build these keys
       // a lot, and this leads to better performance results. See associated benchmarks.
-      StringBuilder output = new StringBuilder();
+      ByteString.Output stream = ByteString.newOutput();
+      OutputStreamWriter writer = new OutputStreamWriter(stream, StandardCharsets.UTF_8);
 
-      // We only need the prefix if we aren't using state families
-      if (!useStateFamilies) {
-        output.append(prefix);
-      }
-
-      // stringKey starts and ends with a slash. We don't need to seperate it from prefix, because
-      // the prefix is guaranteed to be unique and non-overlapping. We separate it from the
+      // stringKey starts and ends with a slash.  We separate it from the
       // StateTag ID by a '+' (which is guaranteed not to be in the stringKey) because the
       // ID comes from the user.
-      namespace.appendTo(output);
-      output.append('+');
-      address.appendTo(output);
-      return ByteString.copyFromUtf8(output.toString());
+      namespace.appendTo(writer);
+      writer.write('+');
+      address.appendTo(writer);
+      writer.flush();
+      return stream.toByteString();
     } catch (IOException e) {
-      throw new RuntimeException(
-          "Unable to encode state key for " + namespace + ", " + address, e);
+      throw Throwables.propagate(e);
     }
   }
 
   /**
-   * Anything that can provide a {@link WorkItemCommitRequest} to persist its state; it may need
-   * to read some state in order to build the commit request.
+   * Abstract base class for all Windmill state.
+   *
+   * <p>Note that these are not thread safe; each state object is associated with a key
+   * and thus only accessed by a single thread at once.
    */
-  private interface WindmillState {
+  @NotThreadSafe
+  private abstract static class WindmillState {
+    protected Supplier<StateSampler.ScopedState> scopedReadStateSupplier;
+    protected WindmillStateReader reader;
+
     /**
      * Return an asynchronously computed {@link WorkItemCommitRequest}. The request should
      * be of a form that can be merged with others (only add to repeated fields).
      */
-    Future<WorkItemCommitRequest> persist()
+    abstract Future<WorkItemCommitRequest> persist(WindmillStateCache.ForKey cache)
         throws IOException;
+
+    void initializeForWorkItem(
+        WindmillStateReader reader, Supplier<StateSampler.ScopedState> scopedReadStateSupplier) {
+      this.reader = reader;
+      this.scopedReadStateSupplier = scopedReadStateSupplier;
+    }
+
+    StateSampler.ScopedState scopedReadState() {
+      return scopedReadStateSupplier.get();
+    }
   }
 
   /**
    * Base class for implementations of {@link WindmillState} where the {@link #persist} call does
    * not require any asynchronous reading.
    */
-  private abstract static class SimpleWindmillState implements WindmillState {
+  private abstract static class SimpleWindmillState extends WindmillState {
     @Override
-    public final Future<WorkItemCommitRequest> persist() throws IOException{
-      return Futures.immediateFuture(persistDirectly());
+    public final Future<WorkItemCommitRequest> persist(WindmillStateCache.ForKey cache)
+        throws IOException {
+      return Futures.immediateFuture(persistDirectly(cache));
     }
 
     /**
      * Returns a {@link WorkItemCommitRequest} that can be used to persist this state to
      * Windmill.
      */
-    protected abstract WorkItemCommitRequest persistDirectly() throws IOException;
+    protected abstract WorkItemCommitRequest persistDirectly(WindmillStateCache.ForKey cache)
+        throws IOException;
   }
 
   @Override
   public <T extends State> T state(StateNamespace namespace, StateTag<T> address) {
-    return inMemoryState.get(namespace, address);
+    return workItemState.get(namespace, address);
   }
 
-  private static class WindmillValue<T> extends SimpleWindmillState
-      implements ValueState<T>, WindmillState {
-
+  private static class WindmillValue<T> extends SimpleWindmillState implements ValueState<T> {
+    private final StateNamespace namespace;
+    private final StateTag<ValueState<T>> address;
     private final ByteString stateKey;
     private final String stateFamily;
     private final Coder<T> coder;
-    private final WindmillStateReader reader;
-    private final Supplier<StateSampler.ScopedState> readStateSupplier;
 
     /** Whether we've modified the value since creation of this state. */
     private boolean modified = false;
-    private T modifiedValue;
+    /** Whether the in memory value is the true value. */
+    private boolean valueIsKnown = false;
+    private T value;
 
-    private WindmillValue(ByteString stateKey, String stateFamily, Coder<T> coder,
-        WindmillStateReader reader, Supplier<StateSampler.ScopedState> readStateSupplier) {
-      this.stateKey = stateKey;
+    private WindmillValue(StateNamespace namespace, StateTag<ValueState<T>> address,
+        String stateFamily, Coder<T> coder) {
+      this.namespace = namespace;
+      this.address = address;
+      this.stateKey = encodeKey(namespace, address);
       this.stateFamily = stateFamily;
       this.coder = coder;
-      this.reader = reader;
-      this.readStateSupplier = readStateSupplier;
     }
 
     @Override
     public void clear() {
       modified = true;
-      modifiedValue = null;
+      valueIsKnown = true;
+      value = null;
     }
 
     @Override
     public StateContents<T> get() {
-      final Future<T> future = modified ? null : reader.valueFuture(stateKey, stateFamily, coder);
+      final Future<T> future = valueIsKnown ? Futures.immediateFuture(value)
+                                            : reader.valueFuture(stateKey, stateFamily, coder);
 
       return new StateContents<T>() {
         @Override
         public T read() {
-          try (StateSampler.ScopedState scope = readStateSupplier.get()) {
-            return modified ? modifiedValue : future.get();
+          try (StateSampler.ScopedState scope = scopedReadState()) {
+            valueIsKnown = true;
+            return future.get();
           } catch (InterruptedException | ExecutionException e) {
             throw new RuntimeException("Unable to read value from state", e);
           }
@@ -291,63 +298,96 @@ class WindmillStateInternals extends MergingStateInternals {
     @Override
     public void set(T value) {
       modified = true;
-      modifiedValue = value;
+      valueIsKnown = true;
+      this.value = value;
     }
 
     @Override
-    protected WorkItemCommitRequest persistDirectly() throws IOException {
+    protected WorkItemCommitRequest persistDirectly(WindmillStateCache.ForKey cache)
+        throws IOException {
       if (!modified) {
         // No in-memory changes.
         return WorkItemCommitRequest.newBuilder().buildPartial();
       }
 
-      // We can't write without doing a read, so we need to kick off a read if we get here.
-      // Call reader.valueFuture directly, since our read() method will avoid actually reading from
-      // Windmill since the value is already inMemory.
-      reader.valueFuture(stateKey, stateFamily, coder);
-
       ByteString.Output stream = ByteString.newOutput();
-      if (modifiedValue != null) {
-        coder.encode(modifiedValue, stream, Coder.Context.OUTER);
+      if (value != null) {
+        coder.encode(value, stream, Coder.Context.OUTER);
       }
+      ByteString encoded = stream.toByteString();
 
       WorkItemCommitRequest.Builder commitBuilder = WorkItemCommitRequest.newBuilder();
+      // Update the entry of the cache with the new value and change in encoded size.
+      cache.put(namespace, address, this, encoded.size());
+
+      modified = false;
+
       commitBuilder
           .addValueUpdatesBuilder()
           .setTag(stateKey)
           .setStateFamily(stateFamily)
           .getValueBuilder()
-          .setData(stream.toByteString())
+          .setData(encoded)
           .setTimestamp(Long.MAX_VALUE);
+
       return commitBuilder.buildPartial();
     }
   }
 
-  private static class WindmillBag<T> extends SimpleWindmillState
-      implements BagState<T>, WindmillState {
+  private static class WindmillBag<T> extends SimpleWindmillState implements BagState<T> {
 
+    private final StateNamespace namespace;
+    private final StateTag<BagState<T>> address;
     private final ByteString stateKey;
     private final String stateFamily;
     private final Coder<T> elemCoder;
-    private final WindmillStateReader reader;
-    private final Supplier<StateSampler.ScopedState> readStateSupplier;
 
-    private boolean cleared = false;
-    private final List<T> localAdditions = new ArrayList<>();
+    private boolean cleared;
+    // Cache of all values in this bag. Null if the persisted state is unknown.
+    private ConcatIterables<T> cachedValues = null;
+    private List<T> localAdditions = new ArrayList<>();
+    private long encodedSize = 0;
 
-    private WindmillBag(ByteString stateKey, String stateFamily, Coder<T> elemCoder,
-        WindmillStateReader reader, Supplier<StateSampler.ScopedState> readStateSupplier) {
-      this.stateKey = stateKey;
+    private WindmillBag(StateNamespace namespace, StateTag<BagState<T>> address, String stateFamily,
+        Coder<T> elemCoder) {
+      this.namespace = namespace;
+      this.address = address;
+      this.stateKey = encodeKey(namespace, address);
       this.stateFamily = stateFamily;
       this.elemCoder = elemCoder;
-      this.reader = reader;
-      this.readStateSupplier = readStateSupplier;
     }
 
     @Override
     public void clear() {
       cleared = true;
+      cachedValues = new ConcatIterables<T>();
       localAdditions.clear();
+      encodedSize = 0;
+    }
+
+    private Iterable<T> fetchData(Future<Iterable<T>> persistedData) {
+      try (StateSampler.ScopedState scope = scopedReadState()) {
+        if (cachedValues != null) {
+          return cachedValues;
+        }
+        Iterable<T> data = persistedData.get();
+        if (data instanceof Weighted) {
+          // We have a known bounded amount of data; cache it.
+          cachedValues = new ConcatIterables<T>();
+          cachedValues.extendWith(data);
+          encodedSize = ((Weighted) data).getWeight();
+          return cachedValues;
+        } else {
+          // This is an iterable that may not fit in memory at once; don't cache it.
+          return data;
+        }
+      } catch (InterruptedException | ExecutionException e) {
+        throw new RuntimeException("Unable to read state", e);
+      }
+    }
+
+    public boolean valuesAreCached() {
+      return cachedValues != null;
     }
 
     @Override
@@ -355,21 +395,14 @@ class WindmillStateInternals extends MergingStateInternals {
       // If we clear after calling get() but before calling read(), technically we didn't need the
       // underlying windmill read. But, we need to register the desire now if we aren't going to
       // clear (in order to get it added to the prefetch).
-      final Future<Iterable<T>> persistedData = cleared
-          ? Futures.<Iterable<T>>immediateFuture(Collections.<T>emptyList())
+      final Future<Iterable<T>> persistedData = (cachedValues != null)
+          ? null
           : reader.listFuture(stateKey, stateFamily, elemCoder);
 
       return new StateContents<Iterable<T>>() {
         @Override
         public Iterable<T> read() {
-          try (StateSampler.ScopedState scope = readStateSupplier.get()) {
-            // We need to check cleared again, because it may have become clear in between creating
-            // the future and calling read.
-            Iterable<T> input = cleared ? Collections.<T>emptyList() : persistedData.get();
-            return Iterables.concat(input, localAdditions);
-          } catch (InterruptedException | ExecutionException e) {
-            throw new RuntimeException("Unable to read state", e);
-          }
+          return Iterables.concat(fetchData(persistedData), localAdditions);
         }
       };
     }
@@ -379,21 +412,14 @@ class WindmillStateInternals extends MergingStateInternals {
       // If we clear after calling isEmpty() but before calling read(), technically we didn't need
       // the underlying windmill read. But, we need to register the desire now if we aren't going to
       // clear (in order to get it added to the prefetch).
-      final Future<Iterable<T>> persistedData = cleared
-          ? Futures.<Iterable<T>>immediateFuture(Collections.<T>emptyList())
+      final Future<Iterable<T>> persistedData = (cachedValues != null)
+          ? null
           : reader.listFuture(stateKey, stateFamily, elemCoder);
 
       return new StateContents<Boolean>() {
         @Override
         public Boolean read() {
-          try (StateSampler.ScopedState scope = readStateSupplier.get()) {
-            // We need to check cleared again, because it may have become clear in between creating
-            // the future and calling read.
-            Iterable<T> input = cleared ? Collections.<T>emptyList() : persistedData.get();
-            return Iterables.isEmpty(input) && Iterables.isEmpty(localAdditions);
-          } catch (InterruptedException | ExecutionException e) {
-            throw new RuntimeException("Unable to read state", e);
-          }
+          return Iterables.isEmpty(fetchData(persistedData)) && localAdditions.isEmpty();
         }
       };
     }
@@ -404,14 +430,11 @@ class WindmillStateInternals extends MergingStateInternals {
     }
 
     @Override
-    public WorkItemCommitRequest persistDirectly() throws IOException {
+    public WorkItemCommitRequest persistDirectly(WindmillStateCache.ForKey cache)
+        throws IOException {
       WorkItemCommitRequest.Builder commitBuilder = WorkItemCommitRequest.newBuilder();
 
       if (cleared) {
-        // If we do a delete, we need to have done a read to prevent Windmill complaining about
-        // blind deletes. We use the underlying reader, because we normally skip the actual read
-        // if we've already cleared the state.
-        reader.listFuture(stateKey, stateFamily, elemCoder);
         commitBuilder.addListUpdatesBuilder()
             .setTag(stateKey)
             .setStateFamily(stateFamily)
@@ -430,43 +453,88 @@ class WindmillStateInternals extends MergingStateInternals {
 
           // Encode the value
           elemCoder.encode(value, stream, Coder.Context.OUTER);
+          ByteString encoded = stream.toByteString();
+          if (cachedValues != null) {
+            encodedSize += encoded.size() - 1;
+          }
 
           listUpdatesBuilder.addValuesBuilder()
-              .setData(stream.toByteString())
+              .setData(encoded)
               .setTimestamp(Long.MAX_VALUE);
         }
       }
+
+      if (cachedValues != null) {
+        cachedValues.extendWith(localAdditions);
+        // Don't reuse the localAdditions object; we don't want future changes to it to modify the
+        // value of cachedValues.
+        localAdditions = new ArrayList<T>();
+        cache.put(namespace, address, this, encodedSize);
+      } else {
+        localAdditions.clear();
+      }
+      cleared = false;
+
       return commitBuilder.buildPartial();
     }
   }
 
-  private static class WindmillWatermarkState implements WatermarkStateInternal, WindmillState {
+  private static class ConcatIterables<T> implements Iterable<T> {
+    List<Iterable<T>> iterables;
+
+    public ConcatIterables() {
+      this.iterables = new ArrayList<>();
+    }
+
+    public void extendWith(Iterable<T> iterable) {
+      iterables.add(iterable);
+    }
+
+    @Override
+    public Iterator<T> iterator() {
+      return Iterators.concat(
+          Iterables.transform(
+                  iterables,
+                  new Function<Iterable<T>, Iterator<T>>() {
+                    @Override
+                    public Iterator<T> apply(Iterable<T> iterable) {
+                      return iterable.iterator();
+                    }
+                  })
+              .iterator());
+    }
+  }
+
+  private static class WindmillWatermarkState
+      extends WindmillState implements WatermarkStateInternal {
+    // The encoded size of an Instant.
+    private static final int ENCODED_SIZE = 8;
 
     private final OutputTimeFn<?> outputTimeFn;
+    private final StateNamespace namespace;
+    private final StateTag<WatermarkStateInternal> address;
     private final ByteString stateKey;
     private final String stateFamily;
-    private final WindmillStateReader reader;
-    private final Supplier<StateSampler.ScopedState> readStateSupplier;
 
     private boolean cleared = false;
+    // The hold value, Optional.absent() if no hold, or null if unknown.
+    private Optional<Instant> cachedValue = null;
     private Instant localAdditions = null;
 
-    private WindmillWatermarkState(
-        ByteString stateKey,
-        String stateFamily,
-        WindmillStateReader reader,
-        Supplier<StateSampler.ScopedState> readStateSupplier,
+    private WindmillWatermarkState(StateNamespace namespace,
+        StateTag<WatermarkStateInternal> address, String stateFamily,
         OutputTimeFn<?> outputTimeFn) {
-      this.stateKey = stateKey;
+      this.namespace = namespace;
+      this.address = address;
+      this.stateKey = encodeKey(namespace, address);
       this.stateFamily = stateFamily;
-      this.reader = reader;
-      this.readStateSupplier = readStateSupplier;
       this.outputTimeFn = outputTimeFn;
     }
 
     @Override
     public void clear() {
       cleared = true;
+      cachedValue = Optional.<Instant>absent();
       localAdditions = null;
     }
 
@@ -484,46 +552,38 @@ class WindmillStateInternals extends MergingStateInternals {
       // If we clear after calling get() but before calling read(), technically we didn't need the
       // underlying windmill read. But, we need to register the desire now if we aren't going to
       // clear (in order to get it added to the prefetch).
-      final Future<Instant> persistedData = cleared
-          ? Futures.<Instant>immediateFuture(null)
+      final Future<Instant> persistedData = (cachedValue != null)
+          ? Futures.immediateFuture(cachedValue.orNull())
           : reader.watermarkFuture(stateKey, stateFamily);
 
       return new StateContents<Instant>() {
         @Override
         public Instant read() {
-          Instant value = localAdditions;
-          if (!cleared) {
-            try (StateSampler.ScopedState scope = readStateSupplier.get()) {
-              Instant persisted = persistedData.get();
-              value = (value == null) ? persisted : outputTimeFn.combine(value, persisted);
-            } catch (InterruptedException | ExecutionException e) {
-              throw new RuntimeException("Unable to read state", e);
+          try (StateSampler.ScopedState scope = scopedReadState()) {
+            Instant persistedHold = persistedData.get();
+            if (persistedHold == null || persistedHold.equals(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+              cachedValue = Optional.absent();
+            } else {
+              cachedValue = Optional.of(persistedHold);
             }
+          } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException("Unable to read state", e);
           }
-          return value;
+
+          if (localAdditions == null) {
+            return cachedValue.orNull();
+          } else if (!cachedValue.isPresent()) {
+            return localAdditions;
+          } else {
+            return outputTimeFn.combine(localAdditions, cachedValue.get());
+          }
         }
       };
     }
 
     @Override
     public StateContents<Boolean> isEmpty() {
-      // If we clear after calling get() but before calling read(), technically we didn't need the
-      // underlying windmill read. But, we need to register the desire now if we aren't going to
-      // clear (in order to get it added to the prefetch).
-      final Future<Instant> persistedData = cleared
-          ? Futures.<Instant>immediateFuture(null)
-          : reader.watermarkFuture(stateKey, stateFamily);
-
-      return new StateContents<Boolean>() {
-        @Override
-        public Boolean read() {
-          try (StateSampler.ScopedState scope = readStateSupplier.get()) {
-            return localAdditions == null && (cleared || persistedData.get() == null);
-          } catch (InterruptedException | ExecutionException e) {
-            throw new RuntimeException("Unable to read state", e);
-          }
-        }
-      };
+      throw new UnsupportedOperationException();
     }
 
     @Override
@@ -533,7 +593,9 @@ class WindmillStateInternals extends MergingStateInternals {
     }
 
     @Override
-    public Future<WorkItemCommitRequest> persist() {
+    public Future<WorkItemCommitRequest> persist(final WindmillStateCache.ForKey cache) {
+      Future<WorkItemCommitRequest> result;
+
       if (!cleared && localAdditions == null) {
         // Nothing to do
         return Futures.immediateFuture(WorkItemCommitRequest.newBuilder().buildPartial());
@@ -544,7 +606,8 @@ class WindmillStateInternals extends MergingStateInternals {
             .setTag(stateKey)
             .setStateFamily(stateFamily)
             .setReset(true);
-        return Futures.immediateFuture(commitBuilder.buildPartial());
+
+        result = Futures.immediateFuture(commitBuilder.buildPartial());
       } else if (cleared && localAdditions != null) {
         // Since we cleared before adding, we can do a blind overwrite of persisted state
         WorkItemCommitRequest.Builder commitBuilder = WorkItemCommitRequest.newBuilder();
@@ -553,13 +616,30 @@ class WindmillStateInternals extends MergingStateInternals {
             .setStateFamily(stateFamily)
             .setReset(true)
             .addTimestamps(WindmillTimeUtils.harnessToWindmillTimestamp(localAdditions));
-        return Futures.immediateFuture(commitBuilder.buildPartial());
-      } else if (!cleared && localAdditions != null){
+
+        cachedValue = Optional.of(localAdditions);
+
+        result = Futures.immediateFuture(commitBuilder.buildPartial());
+      } else if (!cleared && localAdditions != null) {
         // Otherwise, we need to combine the local additions with the already persisted data
-        return combineWithPersisted();
+        result = combineWithPersisted();
       } else {
         throw new IllegalStateException("Unreachable condition");
       }
+
+      return Futures.lazyTransform(
+          result, new Function<WorkItemCommitRequest, WorkItemCommitRequest>() {
+            @Override
+            public WorkItemCommitRequest apply(WorkItemCommitRequest result) {
+              cleared = false;
+              localAdditions = null;
+              if (cachedValue != null) {
+                cache.put(
+                    namespace, address, WindmillWatermarkState.this, ENCODED_SIZE);
+              }
+              return result;
+            }
+          });
     }
 
     /**
@@ -589,35 +669,42 @@ class WindmillStateInternals extends MergingStateInternals {
             .setStateFamily(stateFamily)
             .addTimestamps(
                 WindmillTimeUtils.harnessToWindmillTimestamp(localAdditions));
-        return Futures.immediateFuture(commitBuilder.buildPartial());
+
+        if (cachedValue != null) {
+          cachedValue = Optional.of(cachedValue.isPresent()
+              ? outputTimeFn.combine(cachedValue.get(), localAdditions)
+              : localAdditions);
+        }
+
+         return Futures.immediateFuture(commitBuilder.buildPartial());
       } else {
         // The non-fast path does a read-modify-write
-        return Futures.lazyTransform(reader.watermarkFuture(stateKey, stateFamily),
+        return Futures.lazyTransform((cachedValue != null)
+                ? Futures.immediateFuture(cachedValue.orNull())
+                : reader.watermarkFuture(stateKey, stateFamily),
             new Function<Instant, WorkItemCommitRequest>() {
+              @Override
+              public WorkItemCommitRequest apply(Instant priorHold) {
+                cachedValue = Optional.of((priorHold != null)
+                        ? outputTimeFn.combine(priorHold, localAdditions)
+                        : localAdditions);
 
-          @Override
-          public WorkItemCommitRequest apply(Instant priorHold) {
+                WorkItemCommitRequest.Builder commitBuilder = WorkItemCommitRequest.newBuilder();
+                commitBuilder.addWatermarkHoldsBuilder()
+                    .setTag(stateKey)
+                    .setStateFamily(stateFamily)
+                    .setReset(true)
+                    .addTimestamps(WindmillTimeUtils.harnessToWindmillTimestamp(cachedValue.get()));
 
-            Instant combinedHold = (priorHold == null) ? localAdditions
-                : outputTimeFn.combine(priorHold, localAdditions);
-
-            WorkItemCommitRequest.Builder commitBuilder = WorkItemCommitRequest.newBuilder();
-            commitBuilder.addWatermarkHoldsBuilder()
-                .setTag(stateKey)
-                .setStateFamily(stateFamily)
-                .setReset(true)
-                .addTimestamps(WindmillTimeUtils.harnessToWindmillTimestamp(combinedHold));
-
-            return commitBuilder.buildPartial();
-          }
-        });
+                return commitBuilder.buildPartial();
+              }
+            });
       }
     }
   }
 
   private static class WindmillCombiningValue<InputT, AccumT, OutputT>
-      implements CombiningValueStateInternal<InputT, AccumT, OutputT>, WindmillState {
-
+      extends WindmillState implements CombiningValueStateInternal<InputT, AccumT, OutputT> {
     private final WindmillBag<AccumT> bag;
     private final CombineFn<InputT, AccumT, OutputT> combineFn;
 
@@ -628,13 +715,26 @@ class WindmillStateInternals extends MergingStateInternals {
     private AccumT localAdditionsAccum;
     private boolean hasLocalAdditions = false;
 
-    private WindmillCombiningValue(ByteString stateKey, String stateFamily,
-        Coder<AccumT> accumCoder,
-        CombineFn<InputT, AccumT, OutputT> combineFn,
-        WindmillStateReader reader, Supplier<StateSampler.ScopedState> readStateSupplier) {
-      this.bag = new WindmillBag<>(stateKey, stateFamily, accumCoder, reader, readStateSupplier);
+    private WindmillCombiningValue(StateNamespace namespace,
+        StateTag<CombiningValueStateInternal<InputT, AccumT, OutputT>> address, String stateFamily,
+        Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn,
+        WindmillStateCache.ForKey cache) {
+      StateTag<BagState<AccumT>> internalBagAddress = StateTags.convertToBagTagInternal(address);
+      WindmillBag<AccumT> cachedBag =
+          (WindmillBag<AccumT>) cache.get(namespace, internalBagAddress);
+      this.bag =
+          (cachedBag != null)
+              ? cachedBag
+              : new WindmillBag<>(namespace, internalBagAddress, stateFamily, accumCoder);
       this.combineFn = combineFn;
       this.localAdditionsAccum = combineFn.createAccumulator();
+    }
+
+    @Override
+    void initializeForWorkItem(
+        WindmillStateReader reader, Supplier<StateSampler.ScopedState> scopedReadStateSupplier) {
+      super.initializeForWorkItem(reader, scopedReadStateSupplier);
+      this.bag.initializeForWorkItem(reader, scopedReadStateSupplier);
     }
 
     @Override
@@ -662,10 +762,10 @@ class WindmillStateInternals extends MergingStateInternals {
     }
 
     @Override
-    public Future<WorkItemCommitRequest> persist() throws IOException {
+    public Future<WorkItemCommitRequest> persist(WindmillStateCache.ForKey cache)
+        throws IOException {
       if (hasLocalAdditions) {
-        // TODO: Take into account whether it's in the cache.
-        if (COMPACT_NOW.get().get()) {
+        if (COMPACT_NOW.get().get() || bag.valuesAreCached()) {
           // Implicitly clears the bag and combines local and persisted accumulators.
           localAdditionsAccum = getAccum().read();
         }
@@ -673,7 +773,8 @@ class WindmillStateInternals extends MergingStateInternals {
         localAdditionsAccum = combineFn.createAccumulator();
         hasLocalAdditions = false;
       }
-      return bag.persist();
+
+      return bag.persist(cache);
     }
 
     @Override
@@ -715,4 +816,33 @@ class WindmillStateInternals extends MergingStateInternals {
       localAdditionsAccum = combineFn.mergeAccumulators(Arrays.asList(localAdditionsAccum, accum));
     }
   }
+
+  @VisibleForTesting
+  static final ThreadLocal<Supplier<Boolean>> COMPACT_NOW =
+      new ThreadLocal<Supplier<Boolean>>() {
+        public Supplier<Boolean> initialValue() {
+          return new Supplier<Boolean>() {
+            /* The rate at which, on average, this will return true. */
+            static final double RATE = 0.002;
+            Random random = new Random();
+            long counter = nextSample();
+
+            private long nextSample() {
+              // Use geometric distribution to find next true value.
+              // This lets us avoid invoking random.nextDouble() on every call.
+              return (long) Math.floor(Math.log(random.nextDouble()) / Math.log(1 - RATE));
+            }
+
+            public Boolean get() {
+              counter--;
+              if (counter < 0) {
+                counter = nextSample();
+                return true;
+              } else {
+                return false;
+              }
+            }
+          };
+        }
+      };
 }

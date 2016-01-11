@@ -22,27 +22,27 @@ import com.google.cloud.dataflow.sdk.values.PCollectionView;
 /**
  * Extension to {@link SideInputReader} that can approximate the size of the side input.
  */
-public interface SizedSideInputReader extends SideInputReader {
+public interface WeightedSideInputReader extends SideInputReader {
 
   /**
    * Returns the value of the requested {@link PCollectionView} for the given {@link BoundedWindow}
    * along with a rough estimate of the number of bytes of memory it consumes.
    *
    * <p>It is valid for a side input value to be {@code null}. In this case, the return
-   * value of this method must still be non-{@code null}. It should be a {@link Sized}
-   * object where {@link Sized#getValue()} returns {@code null} and {@link Sized#getSize()} may
-   * still return any non-negative value.
+   * value of this method must still be non-{@code null}. It should be a {@link Weighted}
+   * object where {@link WeightedValue#getValue()} returns {@code null} and
+   * {@link WeightedValue#getWeight()} may still return any non-negative value.
    */
-  <T> Sized<T> getSized(PCollectionView<T> view, BoundedWindow window);
+  <T> WeightedValue<T> getWeighted(PCollectionView<T> view, BoundedWindow window);
 
   /**
-   * Abstract class providing default implementations for methods of {@link SizedSideInputReader}.
+   * Abstract class providing default implementations for methods of
+   * {@link WeightedSideInputReader}.
    */
-  abstract static class Defaults implements SizedSideInputReader {
+  abstract static class Defaults implements WeightedSideInputReader {
     @Override
     public <T> T get(PCollectionView<T> view, BoundedWindow window) {
-      return getSized(view, window).getValue();
+      return getWeighted(view, window).getValue();
     }
   }
 }
-

@@ -619,8 +619,9 @@ public class CustomSourcesTest {
 
   @Test
   public void testReadUnboundedReader() throws Exception {
-    StreamingModeExecutionContext context = new StreamingModeExecutionContext(
-        "stageName", new ConcurrentHashMap<ByteString, ReaderCacheEntry>(), null);
+    StreamingModeExecutionContext context = new StreamingModeExecutionContext("stageName",
+        new ConcurrentHashMap<ByteString, ReaderCacheEntry>(), /*stateNameMap=*/null,
+        /*stateCache=*/null);
 
     DataflowPipelineOptions options =
         PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);

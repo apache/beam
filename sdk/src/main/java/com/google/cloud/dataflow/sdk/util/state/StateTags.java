@@ -128,9 +128,17 @@ public class StateTags {
   public static <StateT extends State> StateTag<StateT> makeSystemTagInternal(
       StateTag<StateT> tag) {
     if (!(tag instanceof StateTagBase)) {
-      throw new IllegalArgumentException("Unexpected StateTag " + tag);
+      throw new IllegalArgumentException("Expected subclass of StateTagBase, got " + tag);
     }
     return ((StateTagBase<StateT>) tag).asKind(StateKind.SYSTEM);
+  }
+
+  public static <InputT, AccumT, OutputT> StateTag<BagState<AccumT>> convertToBagTagInternal(
+      StateTag<CombiningValueStateInternal<InputT, AccumT, OutputT>> combiningTag) {
+    if (!(combiningTag instanceof CombiningValueStateTag)) {
+      throw new IllegalArgumentException("Unexpected StateTag " + combiningTag);
+    }
+    return ((CombiningValueStateTag<InputT, AccumT, OutputT>) combiningTag).asBagTag();
   }
 
   private static class StructuredId implements Serializable {
@@ -156,6 +164,10 @@ public class StateTags {
 
     public void appendTo(Appendable sb) throws IOException {
       sb.append(kind.prefix).append(rawId);
+    }
+
+    public String getRawId() {
+      return rawId;
     }
 
     @Override
@@ -195,12 +207,9 @@ public class StateTags {
       this.id = id;
     }
 
-    /**
-     * Returns the identifier for this state cell.
-     */
     @Override
     public String getId() {
-      return id.getIdString();
+      return id.getRawId();
     }
 
     @Override
@@ -312,6 +321,10 @@ public class StateTags {
     protected StateTag<CombiningValueStateInternal<InputT, AccumT, OutputT>> asKind(
         StateKind kind) {
       return new CombiningValueStateTag<>(id.asKind(kind), accumCoder, combineFn);
+    }
+
+    private StateTag<BagState<AccumT>> asBagTag() {
+      return new BagStateTag<AccumT>(id, accumCoder);
     }
   }
 
