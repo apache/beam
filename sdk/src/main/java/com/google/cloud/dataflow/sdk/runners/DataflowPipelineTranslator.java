@@ -807,12 +807,13 @@ public class DataflowPipelineTranslator {
               final Combine.GroupedValues<K, InputT, OutputT> transform,
               DataflowPipelineTranslator.TranslationContext context) {
             context.addStep(transform, "CombineValues");
-            context.addInput(PropertyNames.PARALLEL_INPUT, context.getInput(transform));
+            translateInputs(context.getInput(transform), transform.getSideInputs(), context);
 
             AppliedCombineFn<? super K, ? super InputT, ?, OutputT> fn =
                 transform.getAppliedFn(
                     context.getInput(transform).getPipeline().getCoderRegistry(),
-                    context.getInput(transform).getCoder());
+                context.getInput(transform).getCoder(),
+                context.getInput(transform).getWindowingStrategy());
 
             context.addEncodingInput(fn.getAccumulatorCoder());
             context.addInput(

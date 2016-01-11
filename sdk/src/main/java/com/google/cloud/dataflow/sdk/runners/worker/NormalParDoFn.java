@@ -25,7 +25,6 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.DoFnInfo;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
-import com.google.cloud.dataflow.sdk.util.NullSideInputReader;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.SerializableUtils;
 import com.google.cloud.dataflow.sdk.util.SideInputReader;
@@ -33,7 +32,6 @@ import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.ParDoFn;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
-import com.google.common.collect.Iterables;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -98,26 +96,9 @@ class NormalParDoFn extends ParDoFnBase {
       }
       DoFnInfo<?, ?> doFnInfo = (DoFnInfo<?, ?>) deserializedFnInfo;
 
-      // If side input source metadata is provided by the service in sideInputInfos, we request
-      // a SideInputReader from the executionContext using that info.
-      //
-      // If no side input source metadata is provided but the DoFn expects side inputs, as a
-      // fallback, we request a SideInputReader based only on the expected views.
-      //
-      // These cases are not disjoint: Whenever a DoFn takes side inputs,
-      // doFnInfo.getSideInputViews() should be non-empty.
-      //
-      // A note on the behavior of the Dataflow service: Today, the first case corresponds to
-      // batch mode, while the fallback corresponds to streaming mode.
-      SideInputReader sideInputReader;
-      final Iterable<PCollectionView<?>> sideInputViews = doFnInfo.getSideInputViews();
-      if (sideInputInfos != null && !sideInputInfos.isEmpty()) {
-        sideInputReader = executionContext.getSideInputReader(sideInputInfos);
-      } else if (sideInputViews != null && Iterables.size(sideInputViews) > 0) {
-        sideInputReader = executionContext.getSideInputReaderForViews(sideInputViews);
-      } else {
-        sideInputReader = NullSideInputReader.empty();
-      }
+      Iterable<PCollectionView<?>> sideInputViews = doFnInfo.getSideInputViews();
+      SideInputReader sideInputReader =
+          executionContext.getSideInputReader(sideInputInfos, sideInputViews);
 
       List<String> outputTags = new ArrayList<>();
       if (multiOutputInfos != null) {

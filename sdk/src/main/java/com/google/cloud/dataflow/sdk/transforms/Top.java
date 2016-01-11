@@ -391,7 +391,7 @@ new TopCombineFn<>(count, new Largest<V>()).<K>asKeyedFn())
     }
 
     @Override
-    String getIncompatibleGlobalWindowErrorMessage() {
+    public String getIncompatibleGlobalWindowErrorMessage() {
       return "Default values are not supported in Top.[of, smallest, largest]() if the output "
           + "PCollection is not windowed by GlobalWindows. Instead, use "
           + "Top.[of, smallest, largest]().withoutDefaults() to output an empty PCollection if the"

@@ -432,7 +432,7 @@ public class DataflowWorker {
     }
 
     @Override
-    public SideInputReader getSideInputReader(Iterable<? extends SideInputInfo> sideInputInfos)
+    protected SideInputReader getSideInputReader(Iterable<? extends SideInputInfo> sideInputInfos)
       throws Exception {
       return CachingSideInputReader.of(
           DataflowSideInputReader.of(sideInputInfos, options, this),
@@ -440,7 +440,7 @@ public class DataflowWorker {
     }
 
     @Override
-    public SideInputReader getSideInputReaderForViews(
+    protected SideInputReader getSideInputReaderForViews(
         Iterable<? extends PCollectionView<?>> sideInputViews) {
       throw new UnsupportedOperationException(
         "Cannot call getSideInputReaderForViews for batch DataflowWorker: "

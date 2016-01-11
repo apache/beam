@@ -21,20 +21,25 @@ import static com.google.cloud.dataflow.sdk.util.Structs.getString;
 
 import com.google.api.services.dataflow.model.MultiOutputInfo;
 import com.google.api.services.dataflow.model.SideInputInfo;
+import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.coders.IterableCoder;
+import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.util.AppliedCombineFn;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.DoFnInfo;
-import com.google.cloud.dataflow.sdk.util.NullSideInputReader;
+import com.google.cloud.dataflow.sdk.util.PerKeyCombineFnRunner;
+import com.google.cloud.dataflow.sdk.util.PerKeyCombineFnRunners;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.SerializableUtils;
+import com.google.cloud.dataflow.sdk.util.SideInputReader;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.ParDoFn;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
 import com.google.cloud.dataflow.sdk.values.KV;
+import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.common.base.Preconditions;
 
 import java.util.Arrays;
@@ -64,16 +69,17 @@ class CombineValuesFn extends ParDoFnBase {
 
   static CombineValuesFn of(
       PipelineOptions options,
-      Combine.KeyedCombineFn<?, ?, ?, ?> combineFn,
+      AppliedCombineFn<?, ?, ?, ?> combineFn,
       String phase,
+      SideInputReader sideInputReader,
       String stepName,
       String transformName,
       DataflowExecutionContext<?> executionContext,
       CounterSet.AddCounterMutator addCounterMutator,
       StateSampler stateSampler)
       throws Exception {
-    return new CombineValuesFn(options, combineFn, phase, stepName, transformName, executionContext,
-        addCounterMutator, stateSampler);
+    return new CombineValuesFn(options, combineFn, phase, sideInputReader, stepName, transformName,
+        executionContext, addCounterMutator, stateSampler);
   }
 
   /**
@@ -96,9 +102,6 @@ class CombineValuesFn extends ParDoFnBase {
             throws Exception {
 
       Preconditions.checkArgument(
-          sideInputInfos == null || sideInputInfos.size() == 0,
-          "unexpected side inputs for CombineValuesFn");
-      Preconditions.checkArgument(
           numOutputs == 1, "expected exactly one output for CombineValuesFn");
 
       Object deserializedFn =
@@ -107,6 +110,9 @@ class CombineValuesFn extends ParDoFnBase {
               "serialized user fn");
       Preconditions.checkArgument(deserializedFn instanceof AppliedCombineFn);
       AppliedCombineFn<?, ?, ?, ?> combineFn = (AppliedCombineFn<?, ?, ?, ?>) deserializedFn;
+      Iterable<PCollectionView<?>> sideInputViews = combineFn.getSideInputViews();
+      final SideInputReader sideInputReader =
+          executionContext.getSideInputReader(sideInputInfos, sideInputViews);
 
       // Get the combine phase, default to ALL. (The implementation
       // doesn't have to split the combiner).
@@ -114,8 +120,9 @@ class CombineValuesFn extends ParDoFnBase {
 
       return CombineValuesFn.of(
           options,
-          combineFn.getFn(),
+          combineFn,
           phase,
+          sideInputReader,
           stepName,
           transformName,
           executionContext,
@@ -126,34 +133,61 @@ class CombineValuesFn extends ParDoFnBase {
 
   @Override
   protected DoFnInfo<?, ?> getDoFnInfo() {
+    PerKeyCombineFnRunner<?, ?, ?, ?> combineFnRunner =
+        PerKeyCombineFnRunners.create(combineFn.getFn());
     DoFn<?, ?> doFn = null;
     switch (phase) {
       case CombinePhase.ALL:
-        doFn = new CombineValuesDoFn<>(combineFn);
+        doFn = new CombineValuesDoFn<>(combineFnRunner);
         break;
       case CombinePhase.ADD:
-        doFn = new AddInputsDoFn<>(combineFn);
+        doFn = new AddInputsDoFn<>(combineFnRunner);
         break;
       case CombinePhase.MERGE:
-        doFn = new MergeAccumulatorsDoFn<>(combineFn);
+        doFn = new MergeAccumulatorsDoFn<>(combineFnRunner);
         break;
       case CombinePhase.EXTRACT:
-        doFn = new ExtractOutputDoFn<>(combineFn);
+        doFn = new ExtractOutputDoFn<>(combineFnRunner);
         break;
       default:
         throw new IllegalArgumentException(
             "phase must be one of 'all', 'add', 'merge', 'extract'");
     }
-    return new DoFnInfo<>(doFn, null);
+
+    Coder inputCoder = null;
+    if (combineFn.getKvCoder() != null) {
+      switch (phase) {
+        case CombinePhase.ALL:
+          inputCoder = KvCoder.of(
+              combineFn.getKvCoder().getKeyCoder(),
+              IterableCoder.of(combineFn.getKvCoder().getValueCoder()));
+          break;
+        case CombinePhase.ADD:
+          inputCoder = combineFn.getKvCoder();
+          break;
+        case CombinePhase.MERGE:
+          inputCoder = KvCoder.of(
+              combineFn.getKvCoder().getKeyCoder(),
+              IterableCoder.of(combineFn.getAccumulatorCoder()));
+          break;
+        case CombinePhase.EXTRACT:
+          inputCoder =
+              KvCoder.of(combineFn.getKvCoder().getKeyCoder(), combineFn.getAccumulatorCoder());
+          break;
+      }
+    }
+    return new DoFnInfo<>(
+        doFn, combineFn.getWindowingStrategy(), combineFn.getSideInputViews(), inputCoder);
   }
 
   private final String phase;
-  private final Combine.KeyedCombineFn<?, ?, ?, ?> combineFn;
+  private final AppliedCombineFn<?, ?, ?, ?> combineFn;
 
   private CombineValuesFn(
       PipelineOptions options,
-      Combine.KeyedCombineFn<?, ?, ?, ?> combineFn,
+      AppliedCombineFn<?, ?, ?, ?> combineFn,
       String phase,
+      SideInputReader sideInputReader,
       String stepName,
       String transformName,
       DataflowExecutionContext<?> executionContext,
@@ -161,7 +195,7 @@ class CombineValuesFn extends ParDoFnBase {
       StateSampler stateSampler) {
     super(
         options,
-        NullSideInputReader.empty(),
+        sideInputReader,
         Arrays.asList("output"),
         stepName,
         transformName,
@@ -178,11 +212,10 @@ class CombineValuesFn extends ParDoFnBase {
    */
   private static class CombineValuesDoFn<K, InputT, OutputT>
       extends DoFn<KV<K, Iterable<InputT>>, KV<K, OutputT>>{
-    private final Combine.KeyedCombineFn<K, InputT, ?, OutputT> combineFn;
+    private final PerKeyCombineFnRunner<K, InputT, ?, OutputT> combinefnRunner;
 
-    private CombineValuesDoFn(
-        Combine.KeyedCombineFn<K, InputT, ?, OutputT> combineFn) {
-      this.combineFn = combineFn;
+    private CombineValuesDoFn(PerKeyCombineFnRunner<K, InputT, ?, OutputT> combinefnRunner) {
+      this.combinefnRunner = combinefnRunner;
     }
 
     @Override
@@ -190,7 +223,7 @@ class CombineValuesFn extends ParDoFnBase {
       KV<K, Iterable<InputT>> kv = c.element();
       K key = kv.getKey();
 
-      c.output(KV.of(key, this.combineFn.apply(key, kv.getValue())));
+      c.output(KV.of(key, this.combinefnRunner.apply(key, kv.getValue(), c)));
     }
   }
 
@@ -199,22 +232,17 @@ class CombineValuesFn extends ParDoFnBase {
    */
   private static class AddInputsDoFn<K, InputT, AccumT>
       extends DoFn<KV<K, Iterable<InputT>>, KV<K, AccumT>>{
-    private final Combine.KeyedCombineFn<K, InputT, AccumT, ?> combineFn;
+    private final PerKeyCombineFnRunner<K, InputT, AccumT, ?> combinefnRunner;
 
-    private AddInputsDoFn(
-        Combine.KeyedCombineFn<K, InputT, AccumT, ?> combineFn) {
-      this.combineFn = combineFn;
+    private AddInputsDoFn(PerKeyCombineFnRunner<K, InputT, AccumT, ?> combinefnRunner) {
+      this.combinefnRunner = combinefnRunner;
     }
 
     @Override
     public void processElement(ProcessContext c) {
       KV<K, Iterable<InputT>> kv = c.element();
       K key = kv.getKey();
-      AccumT accum = this.combineFn.createAccumulator(key);
-      for (InputT input : kv.getValue()) {
-        accum = this.combineFn.addInput(key, accum, input);
-      }
-
+      AccumT accum = combinefnRunner.addInputs(key, kv.getValue(), c);
       c.output(KV.of(key, accum));
     }
   }
@@ -224,19 +252,17 @@ class CombineValuesFn extends ParDoFnBase {
    */
   private static class MergeAccumulatorsDoFn<K, AccumT>
       extends DoFn<KV<K, Iterable<AccumT>>, KV<K, AccumT>>{
-    private final Combine.KeyedCombineFn<K, ?, AccumT, ?> combineFn;
+    private final PerKeyCombineFnRunner<K, ?, AccumT, ?> combinefnRunner;
 
-    private MergeAccumulatorsDoFn(
-        Combine.KeyedCombineFn<K, ?, AccumT, ?> combineFn) {
-      this.combineFn = combineFn;
+    private MergeAccumulatorsDoFn(PerKeyCombineFnRunner<K, ?, AccumT, ?> combinefnRunner) {
+      this.combinefnRunner = combinefnRunner;
     }
 
     @Override
     public void processElement(ProcessContext c) {
       KV<K, Iterable<AccumT>> kv = c.element();
       K key = kv.getKey();
-      AccumT accum = this.combineFn.mergeAccumulators(key, kv.getValue());
-
+      AccumT accum = this.combinefnRunner.mergeAccumulators(key, kv.getValue(), c);
       c.output(KV.of(key, accum));
     }
   }
@@ -246,19 +272,17 @@ class CombineValuesFn extends ParDoFnBase {
    */
   private static class ExtractOutputDoFn<K, AccumT, OutputT>
       extends DoFn<KV<K, AccumT>, KV<K, OutputT>>{
-    private final Combine.KeyedCombineFn<K, ?, AccumT, OutputT> combineFn;
+    private final PerKeyCombineFnRunner<K, ?, AccumT, OutputT> combinefnRunner;
 
-    private ExtractOutputDoFn(
-        Combine.KeyedCombineFn<K, ?, AccumT, OutputT> combineFn) {
-      this.combineFn = combineFn;
+    private ExtractOutputDoFn(PerKeyCombineFnRunner<K, ?, AccumT, OutputT> combinefnRunner) {
+      this.combinefnRunner = combinefnRunner;
     }
 
     @Override
     public void processElement(ProcessContext c) {
       KV<K, AccumT> kv = c.element();
       K key = kv.getKey();
-      OutputT output = this.combineFn.extractOutput(key, kv.getValue());
-
+      OutputT output = this.combinefnRunner.extractOutput(key, kv.getValue(), c);
       c.output(KV.of(key, output));
     }
   }

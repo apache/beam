@@ -31,6 +31,7 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.StreamingOptions;
 import com.google.cloud.dataflow.sdk.runners.worker.CombineValuesFn.CombinePhase;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
+import com.google.cloud.dataflow.sdk.transforms.CombineWithContext.RequiresContextInternal;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.util.AppliedCombineFn;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
@@ -138,6 +139,10 @@ class GroupAlsoByWindowsParDoFn extends ParDoFnBase {
 
       @Nullable AppliedCombineFn<?, ?, ?, ?> maybeMergingCombineFn = null;
       if (combineFn != null) {
+        Preconditions.checkState(
+            !(combineFn.getFn() instanceof RequiresContextInternal),
+            "Combiner lifting is not supported for combine functions with contexts: %s",
+            combineFn.getFn().getClass().getName());
         String phase = getString(cloudUserFn, PropertyNames.PHASE, CombinePhase.ALL);
         Preconditions.checkArgument(
             phase.equals(CombinePhase.ALL) || phase.equals(CombinePhase.MERGE),
@@ -195,7 +200,14 @@ class GroupAlsoByWindowsParDoFn extends ParDoFnBase {
 
   private static <K, AccumT> AppliedCombineFn<K, AccumT, List<AccumT>, AccumT>
   makeAppliedMergingFunction(AppliedCombineFn<K, ?, AccumT, ?> appliedFn) {
-    MergingKeyedCombineFn<K, AccumT> mergingCombineFn = new MergingKeyedCombineFn<>(appliedFn);
+    Preconditions.checkArgument(
+      !(appliedFn.getFn() instanceof RequiresContextInternal),
+      "Combiner lifting is not supported for combine functions with contexts: %s",
+      appliedFn.getFn().getClass().getName());
+    KeyedCombineFn<K, ?, AccumT, ?> keyedCombineFn =
+        ((KeyedCombineFn<K, ?, AccumT, ?>) appliedFn.getFn());
+    MergingKeyedCombineFn<K, AccumT> mergingCombineFn =
+        new MergingKeyedCombineFn<>(keyedCombineFn , appliedFn.getAccumulatorCoder());
     return AppliedCombineFn.<K, AccumT, List<AccumT>, AccumT>withAccumulatorCoder(
         mergingCombineFn, ListCoder.of(appliedFn.getAccumulatorCoder()));
   }
@@ -203,10 +215,13 @@ class GroupAlsoByWindowsParDoFn extends ParDoFnBase {
   static class MergingKeyedCombineFn<K, AccumT>
       extends KeyedCombineFn<K, AccumT, List<AccumT>, AccumT> {
 
-    final AppliedCombineFn<K, ?, AccumT, ?> appliedCombineFn;
+    private final KeyedCombineFn<K, ?, AccumT, ?> keyedCombineFn;
+    private final Coder<AccumT> accumCoder;
 
-    MergingKeyedCombineFn(AppliedCombineFn<K, ?, AccumT, ?> keyedCombineFn) {
-      this.appliedCombineFn = keyedCombineFn;
+    MergingKeyedCombineFn(
+      KeyedCombineFn<K, ?, AccumT, ?> keyedCombineFn, Coder<AccumT> accumCoder) {
+      this.keyedCombineFn = keyedCombineFn;
+      this.accumCoder = accumCoder;
     }
     @Override
     public List<AccumT> createAccumulator(K key) {
@@ -228,21 +243,21 @@ class GroupAlsoByWindowsParDoFn extends ParDoFnBase {
     @Override
     public AccumT extractOutput(K key, List<AccumT> accumulator) {
       if (accumulator.size() == 0) {
-        return appliedCombineFn.getFn().createAccumulator(key);
+        return keyedCombineFn.createAccumulator(key);
       } else {
-        return appliedCombineFn.getFn().mergeAccumulators(key, accumulator);
+        return keyedCombineFn.mergeAccumulators(key, accumulator);
       }
     }
     private List<AccumT> mergeToSingleton(K key, Iterable<AccumT> accumulators) {
       List<AccumT> singleton = new ArrayList<>();
-      singleton.add(appliedCombineFn.getFn().mergeAccumulators(key, accumulators));
+      singleton.add(keyedCombineFn.mergeAccumulators(key, accumulators));
       return singleton;
     }
 
     @Override
     public Coder<List<AccumT>> getAccumulatorCoder(CoderRegistry registry, Coder<K> keyCoder,
         Coder<AccumT> inputCoder) throws CannotProvideCoderException {
-      return ListCoder.of(appliedCombineFn.getAccumulatorCoder());
+      return ListCoder.of(accumCoder);
     }
   }
 

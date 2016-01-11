@@ -105,7 +105,6 @@ import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -974,7 +973,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
           combined.getWindowingStrategy(),
           transform.getInsertDefault(),
           transform.getInsertDefault()
-            ? transform.getCombineFn().apply(Collections.<InputT>emptyList()) : null,
+            ? transform.getCombineFn().defaultValue() : null,
           combined.getCoder());
       return combined
           .apply(ParDo.of(new WrapAsList<OutputT>()))

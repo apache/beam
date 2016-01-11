@@ -113,7 +113,7 @@ public class StreamingModeExecutionContext
   }
 
   @Override
-  public SideInputReader getSideInputReader(Iterable<? extends SideInputInfo> sideInputInfos) {
+  protected SideInputReader getSideInputReader(Iterable<? extends SideInputInfo> sideInputInfos) {
     throw new UnsupportedOperationException(
         "Cannot call getSideInputReader for StreamingDataflowWorker: "
         + "the MapTask specification should not have had any SideInputInfo descriptors "
@@ -121,7 +121,8 @@ public class StreamingModeExecutionContext
   }
 
   @Override
-  public SideInputReader getSideInputReaderForViews(Iterable<? extends PCollectionView<?>> views) {
+  protected SideInputReader getSideInputReaderForViews(
+      Iterable<? extends PCollectionView<?>> views) {
     return StreamingModeSideInputReader.of(views, this);
   }
 

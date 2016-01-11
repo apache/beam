@@ -15,8 +15,11 @@
  */
 package com.google.cloud.dataflow.sdk.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
+import com.google.cloud.dataflow.sdk.transforms.CombineWithContext.RequiresContextInternal;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.state.BagState;
@@ -77,6 +80,10 @@ public class SystemReduceFn<K, InputT, OutputT, W extends BoundedWindow>
   public static
   <K, InputT, AccumT, OutputT, W extends BoundedWindow> Factory<K, InputT, OutputT, W> combining(
       final Coder<K> keyCoder, final AppliedCombineFn<K, InputT, AccumT, OutputT> combineFn) {
+    checkArgument(
+        !(combineFn.getFn() instanceof RequiresContextInternal),
+        "Combiner lifting is not supported for combine functions with contexts: %s",
+        combineFn.getFn().getClass().getName());
     return new Factory<K, InputT, OutputT, W>() {
 
       @Override
@@ -84,7 +91,7 @@ public class SystemReduceFn<K, InputT, OutputT, W extends BoundedWindow>
         StateTag<CombiningValueState<InputT, OutputT>> bufferTag =
             StateTags.makeSystemTagInternal(StateTags.<InputT, AccumT, OutputT>combiningValue(
                 BUFFER_NAME, combineFn.getAccumulatorCoder(),
-                combineFn.getFn().forKey(key, keyCoder)));
+                (CombineFn<InputT, AccumT, OutputT>) combineFn.getFn().forKey(key, keyCoder)));
         return new SystemReduceFn<K, InputT, OutputT, W>(bufferTag);
       }
     };

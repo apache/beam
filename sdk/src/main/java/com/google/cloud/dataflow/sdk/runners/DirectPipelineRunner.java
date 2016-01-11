@@ -40,6 +40,8 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.AppliedCombineFn;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
 import com.google.cloud.dataflow.sdk.util.MapAggregatorValues;
+import com.google.cloud.dataflow.sdk.util.PerKeyCombineFnRunner;
+import com.google.cloud.dataflow.sdk.util.PerKeyCombineFnRunners;
 import com.google.cloud.dataflow.sdk.util.SerializableUtils;
 import com.google.cloud.dataflow.sdk.util.TestCredential;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
@@ -240,7 +242,8 @@ public class DirectPipelineRunner
       PCollection<KV<K, Iterable<InputT>>> input) {
 
     PCollection<KV<K, OutputT>> output = input
-        .apply(ParDo.of(TestCombineDoFn.create(transform, input, testSerializability, rand)));
+        .apply(ParDo.of(TestCombineDoFn.create(transform, input, testSerializability, rand))
+            .withSideInputs(transform.getSideInputs()));
 
     try {
       output.setCoder(transform.getDefaultOutputCoder(input));
@@ -261,7 +264,7 @@ public class DirectPipelineRunner
    */
   public static class TestCombineDoFn<K, InputT, AccumT, OutputT>
       extends DoFn<KV<K, Iterable<InputT>>, KV<K, OutputT>> {
-    private final KeyedCombineFn<? super K, ? super InputT, AccumT, OutputT> fn;
+    private final PerKeyCombineFnRunner<? super K, ? super InputT, AccumT, OutputT> fnRunner;
     private final Coder<AccumT> accumCoder;
     private final boolean testSerializability;
     private final Random rand;
@@ -273,21 +276,21 @@ public class DirectPipelineRunner
         Random rand) {
 
       AppliedCombineFn<? super K, ? super InputT, ?, OutputT> fn = transform.getAppliedFn(
-            input.getPipeline().getCoderRegistry(), input.getCoder());
+          input.getPipeline().getCoderRegistry(), input.getCoder(), input.getWindowingStrategy());
 
       return new TestCombineDoFn(
-          fn.getFn(),
+          PerKeyCombineFnRunners.create(fn.getFn()),
           fn.getAccumulatorCoder(),
           testSerializability,
           rand);
     }
 
     public TestCombineDoFn(
-        KeyedCombineFn<? super K, ? super InputT, AccumT, OutputT> fn,
+        PerKeyCombineFnRunner<? super K, ? super InputT, AccumT, OutputT> fnRunner,
         Coder<AccumT> accumCoder,
         boolean testSerializability,
         Random rand) {
-      this.fn = fn;
+      this.fnRunner = fnRunner;
       this.accumCoder = accumCoder;
       this.testSerializability = testSerializability;
       this.rand = rand;
@@ -302,15 +305,15 @@ public class DirectPipelineRunner
       Iterable<InputT> values = c.element().getValue();
       List<AccumT> groupedPostShuffle =
           ensureSerializableByCoder(ListCoder.of(accumCoder),
-              addInputsRandomly(fn, key, values, rand),
-              "After addInputs of KeyedCombineFn " + fn.toString());
+              addInputsRandomly(fnRunner, key, values, rand, c),
+              "After addInputs of KeyedCombineFn " + fnRunner.fn().toString());
       AccumT merged =
           ensureSerializableByCoder(accumCoder,
-              fn.mergeAccumulators(key, groupedPostShuffle),
-              "After mergeAccumulators of KeyedCombineFn " + fn.toString());
+            fnRunner.mergeAccumulators(key, groupedPostShuffle, c),
+            "After mergeAccumulators of KeyedCombineFn " + fnRunner.fn().toString());
       // Note: The serializability of KV<K, OutputT> is ensured by the
       // runner itself, since it's a transform output.
-      c.output(KV.of(key, fn.extractOutput(key, merged)));
+      c.output(KV.of(key, fnRunner.extractOutput(key, merged, c)));
     }
 
     /**
@@ -319,17 +322,18 @@ public class DirectPipelineRunner
      * <p>Visible for testing purposes only.
      */
     public static <K, AccumT, InputT> List<AccumT> addInputsRandomly(
-        KeyedCombineFn<? super K, ? super InputT, AccumT, ?> fn,
+        PerKeyCombineFnRunner<? super K, ? super InputT, AccumT, ?> fnRunner,
         K key,
         Iterable<InputT> values,
-        Random random) {
+        Random random,
+        DoFn<?, ?>.ProcessContext c) {
       List<AccumT> out = new ArrayList<AccumT>();
       int i = 0;
-      AccumT accumulator = fn.createAccumulator(key);
+      AccumT accumulator = fnRunner.createAccumulator(key, c);
       boolean hasInput = false;
 
       for (InputT value : values) {
-        accumulator = fn.addInput(key, accumulator, value);
+        accumulator = fnRunner.addInput(key, accumulator, value, c);
         hasInput = true;
 
         // For each index i, flip a 1/2^i weighted coin for whether to
@@ -340,10 +344,10 @@ public class DirectPipelineRunner
         // of the accumulators.
         if (i == 0 || random.nextInt(1 << Math.min(i, 30)) == 0) {
           if (i % 2 == 0) {
-            accumulator = fn.compact(key, accumulator);
+            accumulator = fnRunner.compact(key, accumulator, c);
           }
           out.add(accumulator);
-          accumulator = fn.createAccumulator(key);
+          accumulator = fnRunner.createAccumulator(key, c);
           hasInput = false;
         }
         i++;

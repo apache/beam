@@ -102,13 +102,13 @@ public class BatchModeExecutionContext
   }
 
   @Override
-  public SideInputReader getSideInputReader(
+  protected SideInputReader getSideInputReader(
       Iterable<? extends SideInputInfo> sideInputInfos) throws Exception {
     return DataflowSideInputReader.of(sideInputInfos, options, this);
   }
 
   @Override
-  public SideInputReader getSideInputReaderForViews(
+  protected SideInputReader getSideInputReaderForViews(
       Iterable<? extends PCollectionView<?>> views) throws Exception {
     throw new UnsupportedOperationException(
         "BatchModeExecutionContext.withoutSideInputs().getSideInputReaderForViews(...)");

@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.util;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -68,7 +69,7 @@ public abstract class GroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends Bound
     return GroupAlsoByWindowsAndCombineDoFn.isSupported(windowingStrategy)
         ? new GroupAlsoByWindowsAndCombineDoFn<>(
             windowingStrategy,
-            combineFn.getFn())
+            (KeyedCombineFn<K, InputT, AccumT, OutputT>) combineFn.getFn())
         : new GroupAlsoByWindowsViaOutputBufferDoFn<>(
             windowingStrategy,
             SystemReduceFn.<K, InputT, AccumT, OutputT, W>combining(keyCoder, combineFn));

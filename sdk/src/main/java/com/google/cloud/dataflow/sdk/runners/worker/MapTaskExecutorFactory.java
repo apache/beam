@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.runners.worker;
 
 import static com.google.cloud.dataflow.sdk.util.Structs.getBytes;
+import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.services.dataflow.model.FlattenInstruction;
 import com.google.api.services.dataflow.model.InstructionInput;
@@ -31,6 +32,8 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
+import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
+import com.google.cloud.dataflow.sdk.transforms.CombineWithContext.RequiresContextInternal;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.AppliedCombineFn;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
@@ -314,8 +317,8 @@ public class MapTaskExecutorFactory {
     return operation;
   }
 
-  @SuppressWarnings({"rawtypes", "unchecked"})
-  static ValueCombiner createValueCombiner(PartialGroupByKeyInstruction pgbk) throws Exception {
+  static ValueCombiner<?, ?, ?, ?> createValueCombiner(PartialGroupByKeyInstruction pgbk)
+      throws Exception {
     if (pgbk.getValueCombiningFn() == null) {
       return null;
     }
@@ -323,7 +326,12 @@ public class MapTaskExecutorFactory {
     Object deserializedFn = SerializableUtils.deserializeFromByteArray(
         getBytes(CloudObject.fromSpec(pgbk.getValueCombiningFn()), PropertyNames.SERIALIZED_FN),
         "serialized combine fn");
-    return new ValueCombiner(((AppliedCombineFn) deserializedFn).getFn());
+    AppliedCombineFn<?, ?, ?, ?> appliedCombineFn = (AppliedCombineFn<?, ?, ?, ?>) deserializedFn;
+    checkArgument(
+        !(appliedCombineFn.getFn() instanceof RequiresContextInternal),
+        "Combiner lifting is not supported for combine functions with contexts: %s",
+        appliedCombineFn.getFn().getClass().getName());
+    return new ValueCombiner<>(((KeyedCombineFn<?, ?, ?, ?>) appliedCombineFn.getFn()));
   }
 
   /**
