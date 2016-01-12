@@ -67,10 +67,13 @@ import org.mockito.stubbing.Answer;
 import java.util.List;
 
 /**
- * Tests for Trigger execution.
+ * Tests for {@link ReduceFnRunner}. These tests instantiate a full "stack" of
+ * {@link ReduceFnRunner} with enclosed {@link ReduceFn}, down to the installed {@link Trigger}
+ * (sometimes mocked). They proceed by injecting elements and advancing watermark and
+ * processing time, then verifying produced panes and counters.
  */
 @RunWith(JUnit4.class)
-public class TriggerExecutorTest {
+public class ReduceFnRunnerTest {
   @Mock
   private Trigger<IntervalWindow> mockTrigger;
   private IntervalWindow firstWindow;
