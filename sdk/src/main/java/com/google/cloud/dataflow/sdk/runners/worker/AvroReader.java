@@ -27,7 +27,7 @@ import com.google.cloud.dataflow.sdk.io.OffsetBasedSource;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.worker.AbstractBoundedReaderIterator;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 
 import org.apache.avro.generic.GenericRecord;
 import org.slf4j.Logger;
@@ -42,7 +42,7 @@ import javax.annotation.Nullable;
  *
  * @param <T> the type of the elements read from the source
  */
-public class AvroReader<T> extends Reader<WindowedValue<T>> {
+public class AvroReader<T> extends NativeReader<WindowedValue<T>> {
   private static final Logger LOG = LoggerFactory.getLogger(AvroReader.class);
 
   @Nullable
@@ -78,7 +78,7 @@ public class AvroReader<T> extends Reader<WindowedValue<T>> {
   }
 
   @Override
-  public ReaderIterator<WindowedValue<T>> iterator() throws IOException {
+  public LegacyReaderIterator<WindowedValue<T>> iterator() throws IOException {
     Long endPosition = this.endPosition;
     Long startPosition = this.startPosition;
     if (endPosition == null) {

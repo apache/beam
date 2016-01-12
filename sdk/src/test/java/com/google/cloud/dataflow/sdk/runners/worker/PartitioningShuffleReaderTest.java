@@ -27,7 +27,6 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.ExecutorTestUtils;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 import com.google.cloud.dataflow.sdk.util.common.worker.ShuffleEntry;
 import com.google.cloud.dataflow.sdk.util.common.worker.Sink;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -107,8 +106,8 @@ public class PartitioningShuffleReaderTest {
     }
 
     List<WindowedValue<KV<Integer, String>>> actual = new ArrayList<>();
-    try (Reader.ReaderIterator<WindowedValue<KV<Integer, String>>> iter =
-        partitioningShuffleReader.iterator(shuffleReader)) {
+    try (PartitioningShuffleReader<Integer, String>.PartitioningShuffleReaderIterator iter =
+            partitioningShuffleReader.iterator(shuffleReader)) {
       while (iter.hasNext()) {
         Assert.assertTrue(iter.hasNext());
         actual.add(iter.next());

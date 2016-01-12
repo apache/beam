@@ -76,11 +76,11 @@ public abstract class WorkProgressUpdater {
   protected long progressReportIntervalMs;
 
   /**
-   * The {@link Reader.DynamicSplitResult} to report to the service in the next progress update,
-   * or {@code null} if there is nothing to report (if no dynamic split happened since the last
-   * progress update).
+   * The {@link NativeReader.DynamicSplitResult} to report to the service in the next
+   * progress update, or {@code null} if there is nothing to report (if no dynamic split happened
+   * since the last progress update).
    */
-  protected Reader.DynamicSplitResult dynamicSplitResultToReport;
+  protected NativeReader.DynamicSplitResult dynamicSplitResultToReport;
 
   public WorkProgressUpdater(WorkExecutor worker) {
     this.worker = worker;
@@ -206,7 +206,7 @@ public abstract class WorkProgressUpdater {
   }
 
   // Visible for testing.
-  public Reader.DynamicSplitResult getDynamicSplitResultToReport() {
+  public NativeReader.DynamicSplitResult getDynamicSplitResultToReport() {
     return dynamicSplitResultToReport;
   }
 

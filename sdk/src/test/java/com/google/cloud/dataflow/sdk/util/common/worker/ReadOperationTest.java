@@ -156,9 +156,9 @@ public class ReadOperationTest {
     receiver.unblockProcess();
     iterator.offerNext(1);
     // Read loop is now blocked in process() (not next()).
-    Reader.DynamicSplitResultWithPosition split =
-        (Reader.DynamicSplitResultWithPosition) readOperation.requestDynamicSplit(
-          splitRequestAtIndex(8L));
+    NativeReader.DynamicSplitResultWithPosition split =
+        (NativeReader.DynamicSplitResultWithPosition)
+            readOperation.requestDynamicSplit(splitRequestAtIndex(8L));
     assertNotNull(split);
     assertEquals(positionAtIndex(8L), toCloudPosition(split.getAcceptedPosition()));
 
@@ -177,12 +177,14 @@ public class ReadOperationTest {
     // Should reject a split at a later position than previously requested.
     // Note that here we're testing our own MockReaderIterator class, so it's kind of pointless,
     // but we're also testing that ReadOperation correctly relays the request to the iterator.
-    split = (Reader.DynamicSplitResultWithPosition) readOperation.requestDynamicSplit(
-        splitRequestAtIndex(6L));
+    split =
+        (NativeReader.DynamicSplitResultWithPosition)
+            readOperation.requestDynamicSplit(splitRequestAtIndex(6L));
     assertNotNull(split);
     assertEquals(positionAtIndex(6L), toCloudPosition(split.getAcceptedPosition()));
-    split = (Reader.DynamicSplitResultWithPosition) readOperation.requestDynamicSplit(
-        splitRequestAtIndex(6L));
+    split =
+        (NativeReader.DynamicSplitResultWithPosition)
+            readOperation.requestDynamicSplit(splitRequestAtIndex(6L));
     assertNull(split);
     receiver.unblockProcess();
 
@@ -213,8 +215,9 @@ public class ReadOperationTest {
     receiver.unblockProcess();
     // Read loop is blocked in next(). Do not offer another next item,
     // but check that we can still split while the read loop is blocked.
-    Reader.DynamicSplitResultWithPosition split = (Reader.DynamicSplitResultWithPosition)
-        readOperation.requestDynamicSplit(splitRequestAtIndex(5L));
+    NativeReader.DynamicSplitResultWithPosition split =
+        (NativeReader.DynamicSplitResultWithPosition)
+            readOperation.requestDynamicSplit(splitRequestAtIndex(5L));
     assertNotNull(split);
     assertEquals(positionAtIndex(5L), toCloudPosition(split.getAcceptedPosition()));
 
@@ -314,7 +317,7 @@ public class ReadOperationTest {
     }
 
     @Override
-    public Reader.Progress getProgress() {
+    public NativeReader.Progress getProgress() {
       Preconditions.checkState(!isClosed);
       return cloudProgressToReaderProgress(
           new ApproximateReportedProgress()
@@ -323,8 +326,8 @@ public class ReadOperationTest {
     }
 
     @Override
-    public Reader.DynamicSplitResult requestDynamicSplit(
-        Reader.DynamicSplitRequest splitRequest) {
+    public NativeReader.DynamicSplitResult requestDynamicSplit(
+        NativeReader.DynamicSplitRequest splitRequest) {
       Preconditions.checkState(!isClosed);
       ApproximateSplitRequest approximateSplitRequest = splitRequestToApproximateSplitRequest(
           splitRequest);
@@ -332,7 +335,7 @@ public class ReadOperationTest {
       if (!tracker.trySplitAtPosition(index)) {
         return null;
       }
-      return new Reader.DynamicSplitResultWithPosition(
+      return new NativeReader.DynamicSplitResultWithPosition(
           cloudPositionToReaderPosition(approximateSplitRequest.getPosition()));
     }
 
@@ -350,15 +353,15 @@ public class ReadOperationTest {
     }
   }
 
-  private static class MockReader extends Reader<Integer> {
-    private ReaderIterator<Integer> iterator;
+  private static class MockReader extends NativeReader<Integer> {
+    private NativeReaderIterator<Integer> iterator;
 
-    private MockReader(ReaderIterator<Integer> iterator) {
+    private MockReader(NativeReaderIterator<Integer> iterator) {
       this.iterator = iterator;
     }
 
     @Override
-    public ReaderIterator<Integer> iterator() throws IOException {
+    public NativeReaderIterator<Integer> iterator() throws IOException {
       return iterator;
     }
   }

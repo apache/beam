@@ -38,8 +38,6 @@ import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.dataflow.sdk.util.Transport;
-import com.google.cloud.dataflow.sdk.util.WindowedValue;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 import com.google.common.collect.Lists;
 
 import org.junit.Rule;
@@ -565,7 +563,7 @@ public class BigQueryReaderTest {
 
     Bigquery bigQueryClient = new Bigquery(mockTransport, Transport.getJsonFactory(), null);
     BigQueryReader reader = BigQueryReader.fromQuery(QUERY, PROJECT_ID, bigQueryClient);
-    Reader.ReaderIterator<WindowedValue<TableRow>> iterator = reader.iterator();
+    BigQueryReader.BigQueryReaderIterator iterator = reader.iterator();
 
     assertTrue(iterator.hasNext());
     TableRow row = iterator.next().getValue();
@@ -765,7 +763,7 @@ public class BigQueryReaderTest {
         new TableReference().setProjectId(PROJECT_ID).setDatasetId(DATASET).setTableId(TABLE),
         bigQueryClient);
 
-    Reader.ReaderIterator<WindowedValue<TableRow>> iterator = reader.iterator();
+    BigQueryReader.BigQueryReaderIterator iterator = reader.iterator();
     assertTrue(iterator.hasNext());
 
     TableRow row = iterator.next().getValue();
@@ -900,7 +898,7 @@ public class BigQueryReaderTest {
         .setProjectId(PROJECT_ID).setDatasetId(DATASET).setTableId(TABLE_WITH_FIELD_F);
     BigQueryReader reader = BigQueryReader.fromTable(tableRef, bigQueryClient);
 
-    Reader.ReaderIterator<WindowedValue<TableRow>> iterator = reader.iterator();
+    BigQueryReader.BigQueryReaderIterator iterator = reader.iterator();
     assertTrue(iterator.hasNext());
 
     thrown.expect(IllegalArgumentException.class);

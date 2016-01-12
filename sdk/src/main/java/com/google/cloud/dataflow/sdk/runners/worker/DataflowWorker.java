@@ -44,7 +44,7 @@ import com.google.cloud.dataflow.sdk.util.WeightedValue;
 import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.Metric;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
 import com.google.cloud.dataflow.sdk.util.common.worker.WorkExecutor;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
@@ -294,22 +294,32 @@ public class DataflowWorker {
     workUnitClient.reportWorkItemStatus(workItemStatus);
   }
 
-  static WorkItemStatus buildStatus(WorkItem workItem, boolean completed,
-      @Nullable CounterSet counters, @Nullable Collection<Metric<?>> metrics,
-      DataflowWorkerHarnessOptions options, @Nullable Reader.Progress progress,
-      @Nullable Reader.DynamicSplitResult dynamicSplitResult,
-      @Nullable SourceOperationResponse operationResponse, @Nullable List<Status> errors,
+  static WorkItemStatus buildStatus(
+      WorkItem workItem,
+      boolean completed,
+      @Nullable CounterSet counters,
+      @Nullable Collection<Metric<?>> metrics,
+      DataflowWorkerHarnessOptions options,
+      @Nullable NativeReader.Progress progress,
+      @Nullable NativeReader.DynamicSplitResult dynamicSplitResult,
+      @Nullable SourceOperationResponse operationResponse,
+      @Nullable List<Status> errors,
       long reportIndex) {
 
     return buildStatus(workItem, completed, counters, metrics, options, progress,
         dynamicSplitResult, operationResponse, errors, reportIndex, null);
   }
 
-  static WorkItemStatus buildStatus(WorkItem workItem, boolean completed,
-      @Nullable CounterSet counters, @Nullable Collection<Metric<?>> metrics,
-      DataflowWorkerHarnessOptions options, @Nullable Reader.Progress progress,
-      @Nullable Reader.DynamicSplitResult dynamicSplitResult,
-      @Nullable SourceOperationResponse operationResponse, @Nullable List<Status> errors,
+  static WorkItemStatus buildStatus(
+      WorkItem workItem,
+      boolean completed,
+      @Nullable CounterSet counters,
+      @Nullable Collection<Metric<?>> metrics,
+      DataflowWorkerHarnessOptions options,
+      @Nullable NativeReader.Progress progress,
+      @Nullable NativeReader.DynamicSplitResult dynamicSplitResult,
+      @Nullable SourceOperationResponse operationResponse,
+      @Nullable List<Status> errors,
       long reportIndex,
       @Nullable StateSampler.StateSamplerInfo stateSamplerInfo) {
     WorkItemStatus status = new WorkItemStatus();
@@ -371,9 +381,9 @@ public class DataflowWorker {
     if (progress != null) {
       status.setReportedProgress(readerProgressToCloudProgress(progress));
     }
-    if (dynamicSplitResult instanceof Reader.DynamicSplitResultWithPosition) {
-      Reader.DynamicSplitResultWithPosition asPosition =
-          (Reader.DynamicSplitResultWithPosition) dynamicSplitResult;
+    if (dynamicSplitResult instanceof NativeReader.DynamicSplitResultWithPosition) {
+      NativeReader.DynamicSplitResultWithPosition asPosition =
+          (NativeReader.DynamicSplitResultWithPosition) dynamicSplitResult;
       status.setStopPosition(toCloudPosition(asPosition.getAcceptedPosition()));
     } else if (dynamicSplitResult instanceof CustomSources.BoundedSourceSplit) {
       status.setDynamicSourceSplit(

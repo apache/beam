@@ -28,7 +28,7 @@ import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 import com.google.cloud.dataflow.sdk.values.KV;
 
 import java.util.List;
@@ -41,7 +41,7 @@ import javax.annotation.Nullable;
 public class GroupingShuffleReaderFactory implements ReaderFactory {
 
   @Override
-  public Reader<?> create(
+  public NativeReader<?> create(
       CloudObject spec,
       @Nullable Coder<?> coder,
       @Nullable PipelineOptions options,

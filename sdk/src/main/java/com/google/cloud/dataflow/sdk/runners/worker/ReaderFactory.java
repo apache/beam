@@ -25,7 +25,7 @@ import com.google.cloud.dataflow.sdk.util.CloudSourceUtils;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.Serializer;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 import com.google.common.collect.Maps;
 
 import java.util.Map;
@@ -33,18 +33,18 @@ import java.util.Map;
 import javax.annotation.Nullable;
 
 /**
- * Creates a {@link Reader} from a Dataflow API source definition, presented as a
+ * Creates a {@link NativeReader} from a Dataflow API source definition, presented as a
  * {@link CloudObject}.
  */
 public interface ReaderFactory {
 
   /**
-   * Creates a {@link Reader} from a Dataflow API source definition, presented as a
+   * Creates a {@link NativeReader} from a Dataflow API source definition, presented as a
    * {@link CloudObject}.
    *
-   * @throws Exception if a {@link Reader} could not be created
+   * @throws Exception if a {@link NativeReader} could not be created
    */
-  Reader<?> create(
+  NativeReader<?> create(
       CloudObject cloudSourceSpec,
       @Nullable Coder<?> coder,
       @Nullable PipelineOptions options,
@@ -132,11 +132,11 @@ public interface ReaderFactory {
     }
 
     /**
-     * Creates a {@link Reader} according to the provided {@code sourceSpec}, by dispatching on
-     * the type of {@link CloudObject} to instantiate.
+     * Creates a {@link NativeReader} according to the provided {@code sourceSpec},
+     * by dispatching on the type of {@link CloudObject} to instantiate.
      */
     @Override
-    public Reader<?> create(
+    public NativeReader<?> create(
         CloudObject sourceSpec,
         @Nullable Coder<?> coder,
         @Nullable PipelineOptions options,
@@ -157,10 +157,10 @@ public interface ReaderFactory {
     }
 
     /**
-     * Creates a {@link Reader} from a Dataflow API {@link Source} specification, using the
+     * Creates a {@link NativeReader} from a Dataflow API {@link Source} specification, using the
      * {@link Coder} contained in the {@link Source} specification.
      */
-    public Reader<?> create(
+    public NativeReader<?> create(
         Source cloudSource,
         @Nullable PipelineOptions options,
         @Nullable ExecutionContext executionContext,

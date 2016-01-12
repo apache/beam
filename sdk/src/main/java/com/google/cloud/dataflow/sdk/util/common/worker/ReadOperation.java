@@ -57,7 +57,7 @@ public class ReadOperation extends Operation {
   public static final double LARGE_PARALLELISM_BOUND = 1e7;
 
   /** The Reader this operation reads from. */
-  public final Reader<?> reader;
+  public final NativeReader<?> reader;
 
   /** The total byte counter for all data read by this operation. */
   final Counter<Long> byteCount;
@@ -72,7 +72,7 @@ public class ReadOperation extends Operation {
    * The Reader's iterator this operation reads from, created by start().
    * Guarded by sourceIteratorLock.
    */
-  volatile Reader.ReaderIterator<?> readerIterator = null;
+  volatile NativeReader.NativeReaderIterator<?> readerIterator = null;
 
   /**
    * A cache of sourceIterator.getProgress() updated inside the read loop at a bounded rate.
@@ -81,7 +81,7 @@ public class ReadOperation extends Operation {
    * potentially wait for a read to complete (which can take an unbounded time, delay a worker
    * progress update, and cause lease expiration and all sorts of trouble).
    */
-  private AtomicReference<Reader.Progress> progress = new AtomicReference<>();
+  private AtomicReference<NativeReader.Progress> progress = new AtomicReference<>();
 
   /**
    * On every iteration of the read loop, "progress" is fetched from sourceIterator if requested.
@@ -95,8 +95,13 @@ public class ReadOperation extends Operation {
   private AtomicBoolean isProgressUpdateRequested = new AtomicBoolean(true);
 
 
-  public ReadOperation(String operationName, Reader<?> reader, OutputReceiver[] receivers,
-      String counterPrefix, String systemStageName, CounterSet.AddCounterMutator addCounterMutator,
+  public ReadOperation(
+      String operationName,
+      NativeReader<?> reader,
+      OutputReceiver[] receivers,
+      String counterPrefix,
+      String systemStageName,
+      CounterSet.AddCounterMutator addCounterMutator,
       StateSampler stateSampler) {
     super(operationName, receivers, counterPrefix, addCounterMutator,
           stateSampler, reader.getStateSamplerStateKind());
@@ -113,8 +118,11 @@ public class ReadOperation extends Operation {
         Counter.doubles(remainingParallelismCounterName(systemStageName), SUM));
   }
 
-  static ReadOperation forTest(Reader<?> reader, OutputReceiver outputReceiver,
-      String counterPrefix, CounterSet.AddCounterMutator addCounterMutator,
+  static ReadOperation forTest(
+      NativeReader<?> reader,
+      OutputReceiver outputReceiver,
+      String counterPrefix,
+      CounterSet.AddCounterMutator addCounterMutator,
       StateSampler stateSampler) {
     return new ReadOperation("ReadOperation", reader, new OutputReceiver[]{outputReceiver},
         counterPrefix, "systemStageName", addCounterMutator, stateSampler);
@@ -145,7 +153,7 @@ public class ReadOperation extends Operation {
     return "dataflow_remaining_parallelism-" + systemStageName;
   }
 
-  public Reader<?> getReader() {
+  public NativeReader<?> getReader() {
     return reader;
   }
 
@@ -198,18 +206,12 @@ public class ReadOperation extends Operation {
       try {
         // Force a progress update at the beginning and at the end.
         setProgressFromIterator();
-        while (true) {
-          Object value;
-          if (!readerIterator.hasNext()) {
-            break;
-          }
-          value = readerIterator.next();
-
+        for (boolean more = readerIterator.start(); more; more = readerIterator.advance()) {
           if (isProgressUpdateRequested.getAndSet(false) ||
               progressUpdatePeriodMs == UPDATE_ON_EACH_ITERATION) {
             setProgressFromIterator();
           }
-          receiver.process(value);
+          receiver.process(readerIterator.getCurrent());
         }
         setProgressFromIterator();
       } finally {
@@ -250,14 +252,15 @@ public class ReadOperation extends Operation {
    * @return the task progress, or {@code null} if the source iterator has not
    * been initialized
    */
-  public Reader.Progress getProgress() {
+  public NativeReader.Progress getProgress() {
     return progress.get();
   }
 
   /**
    * Relays the split request to {@code ReaderIterator}.
    */
-  public Reader.DynamicSplitResult requestDynamicSplit(Reader.DynamicSplitRequest splitRequest) {
+  public NativeReader.DynamicSplitResult requestDynamicSplit(
+      NativeReader.DynamicSplitRequest splitRequest) {
     synchronized (initializationStateLock) {
       if (isFinished()) {
         LOG.warn("Iterator is in the Finished state, returning null stop position.");
@@ -268,7 +271,7 @@ public class ReadOperation extends Operation {
             splitRequest);
         return null;
       }
-      Reader.DynamicSplitResult result = readerIterator.requestDynamicSplit(splitRequest);
+      NativeReader.DynamicSplitResult result = readerIterator.requestDynamicSplit(splitRequest);
       if (result != null) {
         // After a successful split, the stop position changed and progress has to be recomputed.
         setProgressFromIterator();

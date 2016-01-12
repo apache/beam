@@ -31,7 +31,7 @@ import com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.Dataf
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.AbstractBoundedReaderIterator;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 import com.google.common.base.Preconditions;
 
 import org.slf4j.Logger;
@@ -43,23 +43,24 @@ import java.util.List;
 import java.util.NoSuchElementException;
 
 /**
- * A {@link Reader} that reads elements from a given set of encoded {@link Source}s. Creates
- * {@code Reader}s for sources lazily, i.e. only when elements from the particular {@code Reader}
- * are about to be read.
+ * A {@link NativeReader} that reads elements from a given set of encoded {@link Source}s. Creates
+ * {@link NativeReader}s for sources lazily, i.e. only when elements from the particular
+ * {@code NativeReader} are about to be read.
  *
- * <p>This class does does not cache {@code Reader}s and instead creates new set of {@code Reader}s
- * for every new {@link ConcatIterator}. Because of this, multiple {@code ConcatIterator}s
- * created using the same {@code ConcatReader} will not be able to share any state between each
- * other. This design was chosen since keeping a large number of {@code Reader} objects alive within
- * a single {@code ConcatReader} could be highly memory consuming.
+ * <p>This class does does not cache {@link NativeReader}s and instead creates new set of
+ * {@link NativeReader}s for every new {@link ConcatIterator}. Because of this, multiple
+ * {@link ConcatIterator}s created using the same {@link ConcatReader} will not be able to share
+ * any state between each other. This design was chosen since keeping a large number of
+ * {@link NativeReader} objects alive within a single {@link ConcatReader} could be highly
+ * memory consuming.
  *
- * <p> For progress reporting and dynamic work rebalancing purposes, {@code ConcatIterator} uses a
- * position of type {@link ConcatPosition}. Progress reporting and dynamic work rebalancing
+ * <p> For progress reporting and dynamic work rebalancing purposes, {@link ConcatIterator} uses
+ * a position of type {@link ConcatPosition}. Progress reporting and dynamic work rebalancing
  * currently work only at the granularity of full sources being concatenated.
  *
- * @param <T> Type of the elements read by the {@code Reader}s.
+ * @param <T> Type of the elements read by the {@link NativeReader}s.
  */
-public class ConcatReader<T> extends Reader<T> {
+public class ConcatReader<T> extends NativeReader<T> {
   private static final Logger LOG = LoggerFactory.getLogger(ConcatReader.class);
 
   public static final String SOURCE_NAME = "ConcatSource";
@@ -72,7 +73,7 @@ public class ConcatReader<T> extends Reader<T> {
   private final ReaderFactory.Registry registry;
 
   /**
-   * Create a {@code ConcatReader} using a given list of encoded {@code Source}s.
+   * Create a {@link ConcatReader} using a given list of encoded {@link Source}s.
    */
   public ConcatReader(
       ReaderFactory.Registry registry,
@@ -95,7 +96,7 @@ public class ConcatReader<T> extends Reader<T> {
   }
 
   @Override
-  public ReaderIterator<T> iterator() throws IOException {
+  public LegacyReaderIterator<T> iterator() throws IOException {
     return new ConcatIterator<T>(
         registry,
         options,
@@ -107,7 +108,7 @@ public class ConcatReader<T> extends Reader<T> {
 
   private static class ConcatIterator<T> extends AbstractBoundedReaderIterator<T> {
     private int currentIteratorIndex = -1;
-    private ReaderIterator<T> currentIterator = null;
+    private LegacyReaderIterator<T> currentIterator = null;
     private final List<Source> sources;
     private final PipelineOptions options;
     private final ExecutionContext executionContext;
@@ -153,10 +154,11 @@ public class ConcatReader<T> extends Reader<T> {
         Source currentSource = sources.get(currentIteratorIndex);
         try {
           @SuppressWarnings("unchecked")
-          Reader<T> currentReader =
-              (Reader<T>) registry.create(
-                  currentSource, options, executionContext, addCounterMutator, operationName);
-          currentIterator = currentReader.iterator();
+          NativeReader<T> currentReader =
+              (NativeReader<T>)
+                  registry.create(
+                      currentSource, options, executionContext, addCounterMutator, operationName);
+          currentIterator = (LegacyReaderIterator) currentReader.iterator();
           isAtFirstRecordInCurrentSource = true;
         } catch (Exception e) {
           throw new IOException("Failed to create a reader for source: " + currentSource, e);

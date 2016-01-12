@@ -31,7 +31,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
 import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.WindowedValue.FullWindowedValueCoder;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 
 import org.hamcrest.core.IsInstanceOf;
 import org.junit.Assert;
@@ -48,9 +48,14 @@ import javax.annotation.Nullable;
 @RunWith(JUnit4.class)
 @SuppressWarnings({"rawtypes", "unchecked"})
 public class ShuffleReaderFactoryTest {
-  <T extends Reader> T runTestCreateShuffleReader(byte[] shuffleReaderConfig,
-      @Nullable String start, @Nullable String end, CloudObject encoding,
-      BatchModeExecutionContext context, Class<T> shuffleReaderClass, String shuffleSourceAlias)
+  <T extends NativeReader> T runTestCreateShuffleReader(
+      byte[] shuffleReaderConfig,
+      @Nullable String start,
+      @Nullable String end,
+      CloudObject encoding,
+      BatchModeExecutionContext context,
+      Class<T> shuffleReaderClass,
+      String shuffleSourceAlias)
       throws Exception {
     CloudObject spec = CloudObject.forClassName(shuffleSourceAlias);
     addString(spec, "shuffle_reader_config", encodeBase64String(shuffleReaderConfig));
@@ -65,8 +70,9 @@ public class ShuffleReaderFactoryTest {
     cloudSource.setSpec(spec);
     cloudSource.setCodec(encoding);
 
-    Reader<?> reader = ReaderFactory.Registry.defaultRegistry().create(
-        cloudSource, PipelineOptionsFactory.create(), context, null, null);
+    NativeReader<?> reader =
+        ReaderFactory.Registry.defaultRegistry()
+            .create(cloudSource, PipelineOptionsFactory.create(), context, null, null);
     Assert.assertThat(reader, new IsInstanceOf(shuffleReaderClass));
     T shuffleSource = (T) reader;
     return shuffleSource;

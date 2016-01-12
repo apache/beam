@@ -30,9 +30,9 @@ import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.IOChannelFactory;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
 import com.google.cloud.dataflow.sdk.util.common.worker.AbstractBoundedReaderIterator;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 import com.google.cloud.dataflow.sdk.util.common.worker.ProgressTracker;
 import com.google.cloud.dataflow.sdk.util.common.worker.ProgressTrackerGroup;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 import com.google.common.annotations.VisibleForTesting;
 
 import org.slf4j.Logger;
@@ -57,7 +57,7 @@ import javax.annotation.Nullable;
  *
  * @param <T> the type of the elements read from the source
  */
-public class TextReader<T> extends Reader<T> {
+public class TextReader<T> extends NativeReader<T> {
   private static final Logger LOG = LoggerFactory.getLogger(TextReader.class);
 
   @VisibleForTesting static final int BUF_SIZE = 200;
@@ -118,8 +118,9 @@ public class TextReader<T> extends Reader<T> {
     return expandedFilepattern().size();
   }
 
-  private ReaderIterator<T> newReaderIteratorForRangeInFile(IOChannelFactory factory,
-      String oneFile, long startPosition, @Nullable Long endPosition) throws IOException {
+  private LegacyReaderIterator<T> newReaderIteratorForRangeInFile(
+      IOChannelFactory factory, String oneFile, long startPosition, @Nullable Long endPosition)
+          throws IOException {
     // Position before the first record, so we can find the record beginning.
     final long start = startPosition > 0 ? startPosition - 1 : 0;
 
@@ -134,7 +135,7 @@ public class TextReader<T> extends Reader<T> {
     return iterator;
   }
 
-  private ReaderIterator<T> newReaderIteratorForFiles(
+  private LegacyReaderIterator<T> newReaderIteratorForFiles(
       IOChannelFactory factory, Collection<String> files) throws IOException {
     if (files.size() == 1) {
       return newReaderIteratorForFile(factory, files.iterator().next(), stripTrailingNewlines);
@@ -178,7 +179,7 @@ public class TextReader<T> extends Reader<T> {
   }
 
   @Override
-  public ReaderIterator<T> iterator() throws IOException {
+  public LegacyReaderIterator<T> iterator() throws IOException {
     IOChannelFactory factory = IOChannelUtils.getFactory(filepattern);
     Collection<String> inputs = expandedFilepattern();
     if (inputs.isEmpty()) {
@@ -264,7 +265,7 @@ public class TextReader<T> extends Reader<T> {
     }
 
     @Override
-    protected ReaderIterator<T> open(String input) throws IOException {
+    protected LegacyReaderIterator<T> open(String input) throws IOException {
       return newReaderIteratorForFile(factory, input, stripTrailingNewlines);
     }
   }

@@ -50,6 +50,7 @@ import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
 import com.google.cloud.dataflow.sdk.util.common.worker.ElementCounter;
 import com.google.cloud.dataflow.sdk.util.common.worker.FlattenOperation;
 import com.google.cloud.dataflow.sdk.util.common.worker.MapTaskExecutor;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 import com.google.cloud.dataflow.sdk.util.common.worker.Operation;
 import com.google.cloud.dataflow.sdk.util.common.worker.OutputReceiver;
 import com.google.cloud.dataflow.sdk.util.common.worker.ParDoFn;
@@ -57,7 +58,6 @@ import com.google.cloud.dataflow.sdk.util.common.worker.ParDoOperation;
 import com.google.cloud.dataflow.sdk.util.common.worker.PartialGroupByKeyOperation;
 import com.google.cloud.dataflow.sdk.util.common.worker.PartialGroupByKeyOperation.GroupingKeyCreator;
 import com.google.cloud.dataflow.sdk.util.common.worker.ReadOperation;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 import com.google.cloud.dataflow.sdk.util.common.worker.ReceivingOperation;
 import com.google.cloud.dataflow.sdk.util.common.worker.Sink;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
@@ -212,8 +212,9 @@ public class MapTaskExecutorFactory {
     ReadInstruction read = instruction.getRead();
 
     String operationName = instruction.getSystemName();
-    Reader<?> reader = registry.create(
-        read.getSource(), options, executionContext, addCounterMutator, operationName);
+    NativeReader<?> reader =
+        registry.create(
+            read.getSource(), options, executionContext, addCounterMutator, operationName);
 
     OutputReceiver[] receivers =
         createOutputReceivers(instruction, counterPrefix, addCounterMutator, stateSampler, 1);

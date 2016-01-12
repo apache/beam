@@ -72,7 +72,7 @@ public class ExecutorTestUtils {
 
 
   /** A {@code Reader<String>} that yields a specified set of values. */
-  public static class TestReader extends Reader<String> {
+  public static class TestReader extends NativeReader<String> {
     private final List<String> inputs;
 
     public TestReader(String... inputs) {
@@ -80,11 +80,11 @@ public class ExecutorTestUtils {
     }
 
     @Override
-    public ReaderIterator<String> iterator() {
+    public NativeReaderIterator<String> iterator() {
       return new TestReaderIterator(inputs);
     }
 
-    class TestReaderIterator extends AbstractReaderIterator<String> {
+    class TestReaderIterator extends LegacyReaderIterator<String> {
       Iterator<String> iter;
       boolean closed = false;
 
@@ -119,11 +119,11 @@ public class ExecutorTestUtils {
   public static class TestReaderObserver implements Observer {
     private final List<Integer> sizes;
 
-    public TestReaderObserver(Reader reader) {
+    public TestReaderObserver(NativeReader reader) {
       this(reader, new ArrayList<Integer>());
     }
 
-    public TestReaderObserver(Reader reader, List<Integer> sizes) {
+    public TestReaderObserver(NativeReader reader, List<Integer> sizes) {
       this.sizes = sizes;
       reader.addObserver(this);
     }

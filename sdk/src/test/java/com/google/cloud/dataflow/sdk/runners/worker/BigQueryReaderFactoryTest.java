@@ -28,7 +28,7 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.DirectModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.TestCredential;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 
 import org.hamcrest.core.IsInstanceOf;
 import org.junit.Test;
@@ -54,12 +54,9 @@ public class BigQueryReaderFactoryTest {
     GcpOptions options = PipelineOptionsFactory.create().as(GcpOptions.class);
     options.setGcpCredential(new TestCredential());
 
-    Reader<?> reader = ReaderFactory.Registry.defaultRegistry().create(
-        cloudSource,
-        options,
-        DirectModeExecutionContext.create(),
-        null,
-        null);
+    NativeReader<?> reader =
+        ReaderFactory.Registry.defaultRegistry()
+            .create(cloudSource, options, DirectModeExecutionContext.create(), null, null);
     assertThat(reader, new IsInstanceOf(BigQueryReader.class));
     BigQueryReader bigQueryReader = (BigQueryReader) reader;
     TableReference tableRef = bigQueryReader.getTableRef();
@@ -79,12 +76,9 @@ public class BigQueryReaderFactoryTest {
     GcpOptions options = PipelineOptionsFactory.create().as(GcpOptions.class);
     options.setGcpCredential(new TestCredential());
 
-    Reader<?> reader = ReaderFactory.Registry.defaultRegistry().create(
-        cloudSource,
-        options,
-        DirectModeExecutionContext.create(),
-        null,
-        null);
+    NativeReader<?> reader =
+        ReaderFactory.Registry.defaultRegistry()
+            .create(cloudSource, options, DirectModeExecutionContext.create(), null, null);
 
     assertThat(reader, new IsInstanceOf(BigQueryReader.class));
     BigQueryReader bigQueryReader = (BigQueryReader) reader;

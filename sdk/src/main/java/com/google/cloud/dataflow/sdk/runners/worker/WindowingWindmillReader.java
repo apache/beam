@@ -27,7 +27,7 @@ import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowedValue.FullWindowedValueCoder;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -39,7 +39,7 @@ import javax.annotation.Nullable;
  * A Reader that receives input data from a Windmill server, and returns a singleton iterable
  * containing the work item.
  */
-class WindowingWindmillReader<T> extends Reader<WindowedValue<KeyedWorkItem<T>>> {
+class WindowingWindmillReader<T> extends NativeReader<WindowedValue<KeyedWorkItem<T>>> {
 
   private final KvCoder<?, T> kvCoder;
   private final Coder<? extends BoundedWindow> windowCoder;
@@ -66,7 +66,7 @@ class WindowingWindmillReader<T> extends Reader<WindowedValue<KeyedWorkItem<T>>>
 
   static class Factory implements ReaderFactory {
     @Override
-    public Reader<?> create(
+    public NativeReader<?> create(
         CloudObject spec,
         @Nullable Coder<?> coder,
         @Nullable PipelineOptions options,
@@ -92,23 +92,25 @@ class WindowingWindmillReader<T> extends Reader<WindowedValue<KeyedWorkItem<T>>>
   }
 
   @Override
-  public ReaderIterator<WindowedValue<KeyedWorkItem<T>>> iterator() throws IOException {
+  public NativeReaderIterator<WindowedValue<KeyedWorkItem<T>>> iterator() throws IOException {
     final Object key = kvCoder.getKeyCoder().decode(
         context.getSerializedKey().newInput(), Coder.Context.OUTER);
     final WorkItem workItem = context.getWork();
 
-    return new AbstractReaderIterator<WindowedValue<KeyedWorkItem<T>>>() {
+    return new LegacyReaderIterator<WindowedValue<KeyedWorkItem<T>>>() {
       boolean consumed = false;
 
       @Override
       public boolean hasNext() throws IOException {
         return !consumed;
       }
+
       @Override
       public WindowedValue<KeyedWorkItem<T>> next() throws IOException, NoSuchElementException {
         consumed = true;
-        return WindowedValue.valueInEmptyWindows(KeyedWorkItem.<T>workItem(
-            key, workItem, windowCoder, windowsCoder, kvCoder.getValueCoder()));
+        return WindowedValue.valueInEmptyWindows(
+            KeyedWorkItem.<T>workItem(
+                key, workItem, windowCoder, windowsCoder, kvCoder.getValueCoder()));
       }
     };
   }

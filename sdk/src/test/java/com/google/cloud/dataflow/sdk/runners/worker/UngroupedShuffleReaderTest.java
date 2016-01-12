@@ -25,7 +25,6 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.ExecutorTestUtils;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 import com.google.cloud.dataflow.sdk.util.common.worker.ShuffleEntry;
 import com.google.cloud.dataflow.sdk.util.common.worker.Sink;
 import com.google.common.collect.Lists;
@@ -92,8 +91,8 @@ public class UngroupedShuffleReaderTest {
     }
 
     List<Integer> actual = new ArrayList<>();
-    try (Reader.ReaderIterator<WindowedValue<Integer>> iter =
-        ungroupedShuffleReader.iterator(shuffleReader)) {
+    try (UngroupedShuffleReader<WindowedValue<Integer>>.UngroupedShuffleReaderIterator iter =
+            ungroupedShuffleReader.iterator(shuffleReader)) {
       while (iter.hasNext()) {
         Assert.assertTrue(iter.hasNext());
         Assert.assertTrue(iter.hasNext());

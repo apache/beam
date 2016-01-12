@@ -27,7 +27,7 @@ import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowedValue.FullWindowedValueCoder;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 import com.google.cloud.dataflow.sdk.values.KV;
 
 import org.joda.time.Instant;
@@ -43,7 +43,7 @@ import javax.annotation.Nullable;
  * A Reader that receives input data from a Windmill server, and returns it as
  * individual elements.
  */
-class UngroupedWindmillReader<T> extends Reader<WindowedValue<T>> {
+class UngroupedWindmillReader<T> extends NativeReader<WindowedValue<T>> {
   private final Coder<T> valueCoder;
   private final Coder<Collection<? extends BoundedWindow>> windowsCoder;
   private StreamingModeExecutionContext context;
@@ -57,7 +57,7 @@ class UngroupedWindmillReader<T> extends Reader<WindowedValue<T>> {
 
   static class Factory implements ReaderFactory {
     @Override
-    public Reader<?> create(
+    public NativeReader<?> create(
         CloudObject spec,
         @Nullable Coder<?> coder,
         @Nullable PipelineOptions options,
@@ -73,11 +73,11 @@ class UngroupedWindmillReader<T> extends Reader<WindowedValue<T>> {
   }
 
   @Override
-  public ReaderIterator<WindowedValue<T>> iterator() throws IOException {
+  public NativeReaderIterator<WindowedValue<T>> iterator() throws IOException {
     return new UngroupedWindmillReaderIterator();
   }
 
-  class UngroupedWindmillReaderIterator extends AbstractReaderIterator<WindowedValue<T>> {
+  class UngroupedWindmillReaderIterator extends LegacyReaderIterator<WindowedValue<T>> {
     private int bundleIndex = 0;
     private int messageIndex = 0;
 

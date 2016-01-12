@@ -24,7 +24,7 @@ import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowedValue.WindowedValueCoder;
 import com.google.cloud.dataflow.sdk.util.common.worker.AbstractBoundedReaderIterator;
 import com.google.cloud.dataflow.sdk.util.common.worker.BatchingShuffleEntryReader;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 import com.google.cloud.dataflow.sdk.util.common.worker.ShuffleEntry;
 import com.google.cloud.dataflow.sdk.util.common.worker.ShuffleEntryReader;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -40,7 +40,7 @@ import java.util.Iterator;
  * @param <K> the type of the keys read from the shuffle
  * @param <V> the type of the values read from the shuffle
  */
-public class PartitioningShuffleReader<K, V> extends Reader<WindowedValue<KV<K, V>>> {
+public class PartitioningShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K, V>>> {
   final byte[] shuffleReaderConfig;
   final String startShufflePosition;
   final String stopShufflePosition;
@@ -77,13 +77,13 @@ public class PartitioningShuffleReader<K, V> extends Reader<WindowedValue<KV<K, 
   }
 
   @Override
-  public ReaderIterator<WindowedValue<KV<K, V>>> iterator() throws IOException {
+  public NativeReaderIterator<WindowedValue<KV<K, V>>> iterator() throws IOException {
     Preconditions.checkArgument(shuffleReaderConfig != null);
     return iterator(new BatchingShuffleEntryReader(
         new ChunkingShuffleBatchReader(new ApplianceShuffleReader(shuffleReaderConfig))));
   }
 
-  ReaderIterator<WindowedValue<KV<K, V>>> iterator(ShuffleEntryReader reader) {
+  PartitioningShuffleReaderIterator iterator(ShuffleEntryReader reader) {
     return new PartitioningShuffleReaderIterator(reader);
   }
 

@@ -31,7 +31,7 @@ import com.google.cloud.dataflow.sdk.util.RandomAccessData;
 import com.google.cloud.dataflow.sdk.util.RandomAccessData.RandomAccessDataCoder;
 import com.google.cloud.dataflow.sdk.util.ScalableBloomFilter;
 import com.google.cloud.dataflow.sdk.util.ScalableBloomFilter.ScalableBloomFilterCoder;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -47,13 +47,13 @@ import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 
 /**
- * A {@link Reader} that reads Ism files. The coder provided is used to encode each key value
+ * A {@link NativeReader} that reads Ism files. The coder provided is used to encode each key value
  * record. See {@link IsmFormat} for encoded format details.
  *
  * @param <K> the type of the keys written to the sink
  * @param <V> the type of the values written to the sink
  */
-public class IsmReader<K, V> extends Reader<KV<K, V>> {
+public class IsmReader<K, V> extends NativeReader<KV<K, V>> {
   private final String filename;
   private final Coder<K> keyCoder;
   private final Coder<V> valueCoder;
@@ -73,7 +73,7 @@ public class IsmReader<K, V> extends Reader<KV<K, V>> {
   }
 
   @Override
-  public Reader.ReaderIterator<KV<K, V>> iterator() throws IOException {
+  public LazyIsmReaderIterator iterator() throws IOException {
     return new LazyIsmReaderIterator();
   }
 
@@ -106,10 +106,13 @@ public class IsmReader<K, V> extends Reader<KV<K, V>> {
       inChannel.position(entry.getValue());
 
       // Seek through the data block till we find a key that matches or a greater key.
-      try (ReaderIterator<KV<RandomAccessData, V>> iterator =
-          new IsmReaderIterator<RandomAccessData, V>(
-          inChannel, entry.getKey(), RandomAccessDataCoder.of(),
-          valueCoder, footer.getBloomFilterPosition())) {
+      try (IsmReaderIterator<RandomAccessData, V> iterator =
+              new IsmReaderIterator<>(
+                  inChannel,
+                  entry.getKey(),
+                  RandomAccessDataCoder.of(),
+                  valueCoder,
+                  footer.getBloomFilterPosition())) {
         while (iterator.hasNext()) {
           long startPosition = inChannel.position();
           KV<RandomAccessData, V> next = iterator.next();
@@ -150,10 +153,10 @@ public class IsmReader<K, V> extends Reader<KV<K, V>> {
   }
 
   /**
-   * A {@link com.google.cloud.dataflow.sdk.util.common.worker.Reader.ReaderIterator
+   * A {@link NativeReaderIterator
    * Reader.ReaderIterator} which initializes its input stream lazily.
    */
-  private class LazyIsmReaderIterator extends Reader.AbstractReaderIterator<KV<K, V>> {
+  private class LazyIsmReaderIterator extends LegacyReaderIterator<KV<K, V>> {
     private IsmReaderIterator<K, V> delegate;
     private SeekableByteChannel inChannel;
 
@@ -200,11 +203,11 @@ public class IsmReader<K, V> extends Reader<KV<K, V>> {
   }
 
   /**
-   * A {@link com.google.cloud.dataflow.sdk.util.common.worker.Reader.ReaderIterator
+   * A {@link NativeReaderIterator
    * Reader.ReaderIterator} for Ism formatted files which returns a sequence of
    * {@code KV<K, V>}'s read from a {@link SeekableByteChannel}.
    */
-  private static class IsmReaderIterator<K, V> extends Reader.AbstractReaderIterator<KV<K, V>> {
+  private static class IsmReaderIterator<K, V> extends LegacyReaderIterator<KV<K, V>> {
     private final SeekableByteChannel inChannel;
     private final InputStream inStream;
     private final RandomAccessData currentKeyBytes;
@@ -286,10 +289,13 @@ public class IsmReader<K, V> extends Reader<KV<K, V>> {
     // The index follows the bloom filter directly, so we do not need to do a seek here.
     // This is an optimization.
     @SuppressWarnings("resource")
-    ReaderIterator<KV<RandomAccessData, Long>> iterator =
+    LegacyReaderIterator<KV<RandomAccessData, Long>> iterator =
         new IsmReaderIterator<RandomAccessData, Long>(
-            inChannel, new RandomAccessData(), RandomAccessDataCoder.of(),
-            VarLongCoder.of(), length - Footer.FIXED_LENGTH);
+            inChannel,
+            new RandomAccessData(),
+            RandomAccessDataCoder.of(),
+            VarLongCoder.of(),
+            length - Footer.FIXED_LENGTH);
     ImmutableSortedMap.Builder<RandomAccessData, Long> builder =
         ImmutableSortedMap.orderedBy(RandomAccessData.UNSIGNED_LEXICOGRAPHICAL_COMPARATOR);
 

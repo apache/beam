@@ -27,7 +27,7 @@ import com.google.api.services.dataflow.model.Position;
 import com.google.api.services.dataflow.model.Source;
 import com.google.api.services.dataflow.model.SourceMetadata;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -39,36 +39,37 @@ import javax.annotation.Nullable;
  * using Dataflow model protos.
  */
 public class SourceTranslationUtils {
-  public static Reader.Progress cloudProgressToReaderProgress(
+  public static NativeReader.Progress cloudProgressToReaderProgress(
       @Nullable ApproximateReportedProgress cloudProgress) {
     return cloudProgress == null ? null : new DataflowReaderProgress(cloudProgress);
   }
 
-  public static Reader.Position cloudPositionToReaderPosition(@Nullable Position cloudPosition) {
+  public static NativeReader.Position cloudPositionToReaderPosition(
+      @Nullable Position cloudPosition) {
     return cloudPosition == null ? null : new DataflowReaderPosition(cloudPosition);
   }
 
   public static ApproximateReportedProgress readerProgressToCloudProgress(
-      @Nullable Reader.Progress readerProgress) {
+      @Nullable NativeReader.Progress readerProgress) {
     return readerProgress == null ? null : ((DataflowReaderProgress) readerProgress).cloudProgress;
   }
 
-  public static Position toCloudPosition(@Nullable Reader.Position readerPosition) {
+  public static Position toCloudPosition(@Nullable NativeReader.Position readerPosition) {
     return readerPosition == null ? null : ((DataflowReaderPosition) readerPosition).cloudPosition;
   }
 
   public static ApproximateSplitRequest splitRequestToApproximateSplitRequest(
-      @Nullable Reader.DynamicSplitRequest splitRequest) {
+      @Nullable NativeReader.DynamicSplitRequest splitRequest) {
     return (splitRequest == null)
         ? null : ((DataflowDynamicSplitRequest) splitRequest).splitRequest;
   }
 
-  public static Reader.DynamicSplitRequest toDynamicSplitRequest(
+  public static NativeReader.DynamicSplitRequest toDynamicSplitRequest(
       @Nullable ApproximateSplitRequest splitRequest) {
     return (splitRequest == null) ? null : new DataflowDynamicSplitRequest(splitRequest);
   }
 
-  static class DataflowReaderProgress implements Reader.Progress {
+  static class DataflowReaderProgress implements NativeReader.Progress {
     public final ApproximateReportedProgress cloudProgress;
 
     public DataflowReaderProgress(ApproximateReportedProgress cloudProgress) {
@@ -81,7 +82,7 @@ public class SourceTranslationUtils {
     }
   }
 
-  static class DataflowReaderPosition implements Reader.Position {
+  static class DataflowReaderPosition implements NativeReader.Position {
     public final Position cloudPosition;
 
     public DataflowReaderPosition(Position cloudPosition) {
@@ -134,7 +135,7 @@ public class SourceTranslationUtils {
     return res;
   }
 
-  private static class DataflowDynamicSplitRequest implements Reader.DynamicSplitRequest {
+  private static class DataflowDynamicSplitRequest implements NativeReader.DynamicSplitRequest {
     public final ApproximateSplitRequest splitRequest;
 
     private DataflowDynamicSplitRequest(ApproximateSplitRequest splitRequest) {

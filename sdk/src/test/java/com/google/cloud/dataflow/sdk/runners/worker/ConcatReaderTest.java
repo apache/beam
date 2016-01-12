@@ -17,7 +17,7 @@
 package com.google.cloud.dataflow.sdk.runners.worker;
 
 import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.positionFromSplitResult;
-import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.readRemainingFromReader;
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.readAllFromReader;
 import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.splitRequestAtConcatPosition;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.readerProgressToCloudProgress;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -36,9 +36,8 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader.DynamicSplitResult;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader.ReaderIterator;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader.DynamicSplitResult;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -77,14 +76,14 @@ public class ConcatReaderTest {
   }
 
   /**
-   * A {@code Reader} used for testing purposes. Delegates functionality to an underlying {@link
-   * InMemoryReader}.
+   * A {@link NativeReader} used for testing purposes. Delegates functionality to an underlying
+   * {@link InMemoryReader}.
    */
-  public class TestReader<T> extends Reader<T> {
+  public class TestReader<T> extends NativeReader<T> {
     private final long recordToFailAt;
     private final boolean failWhenClosing;
     private TestIterator<T> lastIterator = null;
-    private final Reader<T> readerDelegator;
+    private final NativeReader<T> readerDelegator;
 
     /**
      * Create a TestReader.
@@ -115,17 +114,17 @@ public class ConcatReaderTest {
     }
 
     @Override
-    public ReaderIterator<T> iterator() throws IOException {
-      lastIterator = new TestIterator<T>(readerDelegator.iterator());
+    public LegacyReaderIterator<T> iterator() throws IOException {
+      lastIterator = new TestIterator<T>((LegacyReaderIterator<T>) readerDelegator.iterator());
       return lastIterator;
     }
 
-    private class TestIterator<T> implements ReaderIterator<T> {
-      private final ReaderIterator<T> iteratorImpl;
+    private class TestIterator<T> extends LegacyReaderIterator<T> {
+      private final LegacyReaderIterator<T> iteratorImpl;
       private long currentRecord;
       private boolean isClosed = false;
 
-      private TestIterator(ReaderIterator<T> iteratorImpl) {
+      private TestIterator(LegacyReaderIterator<T> iteratorImpl) {
         this.iteratorImpl = iteratorImpl;
       }
 
@@ -171,15 +170,15 @@ public class ConcatReaderTest {
 
   private static class TestReaderFactory implements ReaderFactory {
     @Override
-    public Reader<?> create(
+    public NativeReader<?> create(
         CloudObject spec,
         @Nullable Coder<?> coder,
         @Nullable PipelineOptions options,
         @Nullable ExecutionContext executionContext,
         @Nullable CounterSet.AddCounterMutator addCounterMutator,
         @Nullable String operationName)
-            throws Exception {
-      Reader<?> reader = (Reader<?>) spec.get(READER_OBJECT);
+        throws Exception {
+      NativeReader<?> reader = (NativeReader<?>) spec.get(READER_OBJECT);
       return reader;
     }
   }
@@ -237,9 +236,7 @@ public class ConcatReaderTest {
   private void testReadersOfSizes(int... recordsPerReader) throws Exception {
     List<String> expected = new ArrayList<>();
     ConcatReader<String> concatReader = createConcatReadersOfSizes(expected, recordsPerReader);
-    List<String> actual = new ArrayList<>();
-    readRemainingFromReader(concatReader, actual);
-    assertThat(actual, containsInAnyOrder(expected.toArray()));
+    assertThat(readAllFromReader(concatReader), containsInAnyOrder(expected.toArray()));
     assertEquals(recordedReaders.size(), recordsPerReader.length);
     assertAllOpenReadersClosed(recordedReaders);
   }
@@ -266,7 +263,7 @@ public class ConcatReaderTest {
             null /* addCounterMutator */,
             null /* operationName */,
             new ArrayList<Source>());
-    ReaderIterator<String> iterator = concat.iterator();
+    NativeReader.LegacyReaderIterator<String> iterator = concat.iterator();
     assertNotNull(iterator);
     assertFalse(concat.iterator().hasNext());
 
@@ -322,12 +319,10 @@ public class ConcatReaderTest {
         null /* addCounterMutator */,
         null /* operationName */,
         sources);
-    List<String> actual = new ArrayList<>();
     try {
-      readRemainingFromReader(concatReader, actual);
+      readAllFromReader(concatReader);
       fail();
     } catch (IOException e) {
-      assertThat(actual, containsInAnyOrder(expected.toArray()));
       assertEquals(3, recordedReaders.size());
       assertAllOpenReadersClosed(recordedReaders);
     }
@@ -353,13 +348,10 @@ public class ConcatReaderTest {
         null  /* addCounterMutator */,
         null  /* operationName */,
         sources);
-    List<String> actual = new ArrayList<>();
     try {
-      readRemainingFromReader(concatReader, actual);
+      readAllFromReader(concatReader);
       fail();
     } catch (IOException e) {
-      assertThat(actual, containsInAnyOrder(expected.toArray()));
-
       assertEquals(3, recordedReaders.size());
       assertAllOpenReadersClosed(recordedReaders);
     }
@@ -367,7 +359,7 @@ public class ConcatReaderTest {
 
   private void runProgressTest(int... sizes) throws Exception {
     ConcatReader<String> concatReader = createConcatReadersOfSizes(new ArrayList<String>(), sizes);
-    try (Reader.ReaderIterator<String> iterator = concatReader.iterator()) {
+    try (NativeReader.LegacyReaderIterator<String> iterator = concatReader.iterator()) {
       for (int readerIndex = 0; readerIndex < sizes.length; readerIndex++) {
         for (int recordIndex = 0; recordIndex < sizes[readerIndex]; recordIndex++) {
           iterator.next();
@@ -418,7 +410,7 @@ public class ConcatReaderTest {
 
           recordsToRead++;
 
-          ReaderIterator<String> iterator = concatReader.iterator();
+          NativeReader.LegacyReaderIterator<String> iterator = concatReader.iterator();
           for (int i = 0; i < recordsToRead; i++) {
             iterator.next();
           }

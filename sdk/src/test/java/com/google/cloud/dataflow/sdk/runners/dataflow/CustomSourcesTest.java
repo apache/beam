@@ -77,7 +77,7 @@ import com.google.cloud.dataflow.sdk.util.CloudSourceUtils;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.ValueWithRecordId;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.base.Preconditions;
@@ -351,30 +351,34 @@ public class CustomSourcesTest {
     // now check that we are wrapping it correctly.
     DataflowPipelineOptions options = PipelineOptionsFactory.create()
         .as(DataflowPipelineOptions.class);
-    Reader<WindowedValue<Integer>> reader =
-        (Reader<WindowedValue<Integer>>) ReaderFactory.Registry.defaultRegistry().create(
-            translateIOToCloudSource(TestIO.fromRange(10, 20), options),
-            options,
-            null, // executionContext
-            null, // addCounterMutator
-            null); // operationName
-    try (Reader.ReaderIterator<WindowedValue<Integer>> iterator = reader.iterator()) {
-      assertTrue(iterator.hasNext());
+    NativeReader<WindowedValue<Integer>> reader =
+        (NativeReader<WindowedValue<Integer>>)
+            ReaderFactory.Registry.defaultRegistry()
+                .create(
+                    translateIOToCloudSource(TestIO.fromRange(10, 20), options),
+                    options,
+                    null, // executionContext
+                    null, // addCounterMutator
+                    null); // operationName
+    try (NativeReader.NativeReaderIterator<WindowedValue<Integer>> iterator = reader.iterator()) {
+      assertTrue(iterator.start());
       assertEquals(
           0.1,
           readerProgressToCloudProgress(iterator.getProgress()).getFractionConsumed().doubleValue(),
           1e-6);
-      assertEquals(valueInGlobalWindow(10), iterator.next());
+      assertEquals(valueInGlobalWindow(10), iterator.getCurrent());
       assertEquals(
           0.1,
           readerProgressToCloudProgress(iterator.getProgress()).getFractionConsumed().doubleValue(),
           1e-6);
-      assertEquals(valueInGlobalWindow(11), iterator.next());
+      assertTrue(iterator.advance());
+      assertEquals(valueInGlobalWindow(11), iterator.getCurrent());
       assertEquals(
           0.2,
           readerProgressToCloudProgress(iterator.getProgress()).getFractionConsumed().doubleValue(),
           1e-6);
-      assertEquals(valueInGlobalWindow(12), iterator.next());
+      assertTrue(iterator.advance());
+      assertEquals(valueInGlobalWindow(12), iterator.getCurrent());
 
       assertNull(iterator.requestDynamicSplit(splitRequestAtFraction(0)));
       assertNull(iterator.requestDynamicSplit(splitRequestAtFraction(0.1f)));
@@ -392,9 +396,9 @@ public class CustomSourcesTest {
       assertThat(readFromSource(sourceSplit.primary, options), contains(10, 11, 12, 13));
       assertThat(readFromSource(sourceSplit.residual, options), contains(14));
 
-      assertTrue(iterator.hasNext());
-      assertEquals(valueInGlobalWindow(13), iterator.next());
-      assertFalse(iterator.hasNext());
+      assertTrue(iterator.advance());
+      assertEquals(valueInGlobalWindow(13), iterator.getCurrent());
+      assertFalse(iterator.advance());
     }
   }
 
@@ -646,20 +650,22 @@ public class CustomSourcesTest {
           Windmill.WorkItemCommitRequest.newBuilder());
 
       @SuppressWarnings({"unchecked", "rawtypes"})
-      Reader<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>> reader = (Reader)
-          CustomSources.create(
-              (CloudObject) CustomSources.serializeToCloudSource(
-                  new CountingSource(Integer.MAX_VALUE), options)
-                  .getSpec(),
-              options,
-              context);
+      NativeReader<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>> reader =
+          (NativeReader)
+              CustomSources.create(
+                  (CloudObject)
+                      CustomSources.serializeToCloudSource(
+                              new CountingSource(Integer.MAX_VALUE), options)
+                          .getSpec(),
+                  options,
+                  context);
 
-      Reader.ReaderIterator<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>> iterator =
-          reader.iterator();
+      NativeReader.NativeReaderIterator<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>
+          iterator = reader.iterator();
 
       // Verify data.
-      while (iterator.hasNext()) {
-        value = iterator.next();
+      for (boolean more = iterator.start(); more; more = iterator.advance()) {
+        value = iterator.getCurrent();
         assertEquals(KV.of(0, i), value.getValue().getValue());
         assertArrayEquals(
             encodeToByteArray(KvCoder.of(VarIntCoder.of(), VarIntCoder.of()), KV.of(0, i)),

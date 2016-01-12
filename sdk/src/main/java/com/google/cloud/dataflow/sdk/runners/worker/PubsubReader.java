@@ -24,7 +24,7 @@ import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowedValue.ValueOnlyWindowedValueCoder;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 
 import org.joda.time.Instant;
 
@@ -37,7 +37,7 @@ import javax.annotation.Nullable;
 /**
  * A Reader that receives elements from Pubsub, via a Windmill server.
  */
-class PubsubReader<T> extends Reader<WindowedValue<T>> {
+class PubsubReader<T> extends NativeReader<WindowedValue<T>> {
   private final ValueOnlyWindowedValueCoder<?> coder;
   private StreamingModeExecutionContext context;
 
@@ -50,14 +50,14 @@ class PubsubReader<T> extends Reader<WindowedValue<T>> {
 
   static class Factory implements ReaderFactory {
     @Override
-    public Reader<?> create(
+    public NativeReader<?> create(
         CloudObject cloudSourceSpec,
         @Nullable Coder<?> coder,
         @Nullable PipelineOptions options,
         @Nullable ExecutionContext executionContext,
         @Nullable CounterSet.AddCounterMutator addCounterMutator,
         @Nullable String operationName)
-        throws Exception {
+            throws Exception {
       @SuppressWarnings("unchecked")
       Coder<WindowedValue<Object>> typedCoder = (Coder<WindowedValue<Object>>) coder;
       return new PubsubReader<>(typedCoder, (StreamingModeExecutionContext) executionContext);
@@ -65,11 +65,11 @@ class PubsubReader<T> extends Reader<WindowedValue<T>> {
   }
 
   @Override
-  public ReaderIterator<WindowedValue<T>> iterator() throws IOException {
+  public NativeReaderIterator<WindowedValue<T>> iterator() throws IOException {
     return new PubsubReaderIterator();
   }
 
-  class PubsubReaderIterator extends AbstractReaderIterator<WindowedValue<T>> {
+  class PubsubReaderIterator extends LegacyReaderIterator<WindowedValue<T>> {
     private int bundleIndex = 0;
     private int messageIndex = 0;
 

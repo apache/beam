@@ -42,12 +42,13 @@ import com.google.cloud.dataflow.sdk.util.common.worker.AbstractBoundedReaderIte
 import com.google.cloud.dataflow.sdk.util.common.worker.BatchingShuffleEntryReader;
 import com.google.cloud.dataflow.sdk.util.common.worker.GroupingShuffleEntryIterator;
 import com.google.cloud.dataflow.sdk.util.common.worker.KeyGroupedShuffleEntries;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 import com.google.cloud.dataflow.sdk.util.common.worker.ShuffleEntry;
 import com.google.cloud.dataflow.sdk.util.common.worker.ShuffleEntryReader;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler.StateKind;
 import com.google.cloud.dataflow.sdk.values.KV;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
 import org.slf4j.Logger;
@@ -65,7 +66,7 @@ import javax.annotation.Nullable;
  * @param <K> the type of the keys read from the shuffle
  * @param <V> the type of the values read from the shuffle
  */
-public class GroupingShuffleReader<K, V> extends Reader<WindowedValue<KV<K, Reiterable<V>>>> {
+public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K, Reiterable<V>>>> {
   private static final Logger LOG = LoggerFactory.getLogger(GroupingShuffleReader.class);
   public static final String SOURCE_NAME = "GroupingShuffleSource";
 
@@ -120,7 +121,7 @@ public class GroupingShuffleReader<K, V> extends Reader<WindowedValue<KV<K, Reit
   }
 
   @Override
-  public ReaderIterator<WindowedValue<KV<K, Reiterable<V>>>> iterator() throws IOException {
+  public GroupingShuffleReaderIterator<K, V> iterator() throws IOException {
     Preconditions.checkArgument(shuffleReaderConfig != null);
     ApplianceShuffleReader asr = new ApplianceShuffleReader(shuffleReaderConfig);
     String datasetId = asr.getDatasetId();
@@ -153,8 +154,8 @@ public class GroupingShuffleReader<K, V> extends Reader<WindowedValue<KV<K, Reit
     this.valueCoder = iterCoder.getElemCoder();
   }
 
-  final ReaderIterator<WindowedValue<KV<K, Reiterable<V>>>> iterator(ShuffleEntryReader reader) {
-    return new GroupingShuffleReaderIterator(reader);
+  final GroupingShuffleReaderIterator<K, V> iterator(ShuffleEntryReader reader) {
+    return new GroupingShuffleReaderIterator<K, V>(this, reader);
   }
 
   /**
@@ -174,10 +175,11 @@ public class GroupingShuffleReader<K, V> extends Reader<WindowedValue<KV<K, Reit
    * to the current key, which would introduce a performance
    * penalty.
    */
-  final class GroupingShuffleReaderIterator
+  @VisibleForTesting
+  static final class GroupingShuffleReaderIterator<K, V>
       extends AbstractBoundedReaderIterator<WindowedValue<KV<K, Reiterable<V>>>> {
-    // N.B. This class is *not* static; it uses the keyCoder, valueCoder, and
-    // executionContext from its enclosing GroupingShuffleReader.
+    // The enclosing GroupingShuffleReader.
+    private final GroupingShuffleReader<K, V> parentReader;
 
     /** The iterator over shuffle entries, grouped by common key. */
     private final Iterator<KeyGroupedShuffleEntries> groups;
@@ -192,35 +194,37 @@ public class GroupingShuffleReader<K, V> extends Reader<WindowedValue<KV<K, Reit
     protected StateSampler stateSampler = null;
     protected int readState;
 
-    public GroupingShuffleReaderIterator(ShuffleEntryReader reader) {
-      if (GroupingShuffleReader.this.stateSampler == null) {
+    public GroupingShuffleReaderIterator(
+        final GroupingShuffleReader<K, V> parentReader, ShuffleEntryReader entryReader) {
+      this.parentReader = parentReader;
+      if (parentReader.stateSampler == null) {
         // This code path is only used in tests.
         CounterSet counterSet = new CounterSet();
         this.stateSampler = new StateSampler("local", counterSet.getAddCounterMutator());
         this.readState = stateSampler.stateForName("shuffle", StateSampler.StateKind.FRAMEWORK);
       } else {
-        checkNotNull(GroupingShuffleReader.this.stateSamplerOperationName);
-        this.stateSampler = GroupingShuffleReader.this.stateSampler;
+        checkNotNull(parentReader.stateSamplerOperationName);
+        this.stateSampler = parentReader.stateSampler;
         this.readState = stateSampler.stateForName(
-            GroupingShuffleReader.this.stateSamplerOperationName + "-process",
+            parentReader.stateSamplerOperationName + "-process",
             StateSampler.StateKind.FRAMEWORK);
       }
 
       this.rangeTracker =
           new GroupingShuffleRangeTracker(
-              ByteArrayShufflePosition.fromBase64(startShufflePosition),
-              ByteArrayShufflePosition.fromBase64(stopShufflePosition));
+              ByteArrayShufflePosition.fromBase64(parentReader.startShufflePosition),
+              ByteArrayShufflePosition.fromBase64(parentReader.stopShufflePosition));
       try (StateSampler.ScopedState read = stateSampler.scopedState(readState)) {
         this.groups =
             new GroupingShuffleEntryIterator(
-                reader.read(rangeTracker.getStartPosition(), rangeTracker.getStopPosition()),
-                GroupingShuffleReader.this.perOperationPerDatasetBytesCounter) {
+                entryReader.read(rangeTracker.getStartPosition(), rangeTracker.getStopPosition()),
+                parentReader.perOperationPerDatasetBytesCounter) {
               @Override
               protected void notifyElementRead(long byteSize) {
                 // We accumulate the sum of bytes read in a local variable. This sum will be counted
                 // when the values are actually read by the consumer of the shuffle reader.
                 currentGroupSize.addAndGet(byteSize);
-                GroupingShuffleReader.this.notifyElementRead(byteSize);
+                parentReader.notifyElementRead(byteSize);
               }
             };
       }
@@ -242,9 +246,9 @@ public class GroupingShuffleReader<K, V> extends Reader<WindowedValue<KV<K, Reit
 
     @Override
     protected WindowedValue<KV<K, Reiterable<V>>> nextImpl() throws IOException {
-      K key = CoderUtils.decodeFromByteArray(keyCoder, currentGroup.key);
-      if (executionContext != null) {
-        executionContext.setKey(key);
+      K key = CoderUtils.decodeFromByteArray(parentReader.keyCoder, currentGroup.key);
+      if (parentReader.executionContext != null) {
+        parentReader.executionContext.setKey(key);
       }
 
       KeyGroupedShuffleEntries group = currentGroup;
@@ -386,7 +390,7 @@ public class GroupingShuffleReader<K, V> extends Reader<WindowedValue<KV<K, Reit
           // notify the bytes that have been read so far.
           notifyValueReturned(currentGroupSize.getAndSet(0L));
           try {
-            return CoderUtils.decodeFromByteArray(valueCoder, entry.getValue());
+            return CoderUtils.decodeFromByteArray(parentReader.valueCoder, entry.getValue());
           } catch (IOException exn) {
             throw new RuntimeException(exn);
           }

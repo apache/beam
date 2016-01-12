@@ -58,7 +58,7 @@ import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.ValueWithRecordId;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 import com.google.cloud.dataflow.sdk.values.PValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -103,7 +103,7 @@ public class CustomSources {
    * A {@code DynamicSplitResult} specified explicitly by a pair of {@code BoundedSource}
    * objects describing the primary and residual sources.
    */
-  public static final class BoundedSourceSplit<T> implements Reader.DynamicSplitResult {
+  public static final class BoundedSourceSplit<T> implements NativeReader.DynamicSplitResult {
     public final BoundedSource<T> primary;
     public final BoundedSource<T> residual;
 
@@ -163,7 +163,7 @@ public class CustomSources {
    */
   public static class Factory implements ReaderFactory {
     @Override
-    public Reader<?> create(
+    public NativeReader<?> create(
         CloudObject spec,
         @Nullable Coder<?> coder,
         @Nullable PipelineOptions options,
@@ -178,28 +178,31 @@ public class CustomSources {
     }
   }
 
-  public static Reader<WindowedValue<?>> create(
-      final CloudObject spec,
-      final PipelineOptions options,
-      ExecutionContext executionContext) throws Exception {
+  public static NativeReader<WindowedValue<?>> create(
+      final CloudObject spec, final PipelineOptions options, ExecutionContext executionContext)
+          throws Exception {
 
     @SuppressWarnings("unchecked")
     final Source<Object> source = (Source<Object>) deserializeFromCloudSource(spec);
 
     if (source instanceof BoundedSource) {
       @SuppressWarnings({"unchecked", "rawtypes"})
-      Reader<WindowedValue<?>> reader = (Reader) new Reader<WindowedValue<Object>>() {
-        @Override
-        public Reader.ReaderIterator<WindowedValue<Object>> iterator() throws IOException {
-          return new BoundedReaderIterator<>(
-              ((BoundedSource<Object>) source).createReader(options));
-        }
-      };
+      NativeReader<WindowedValue<?>> reader =
+          (NativeReader)
+              new NativeReader<WindowedValue<Object>>() {
+                @Override
+                public NativeReaderIterator<WindowedValue<Object>> iterator() throws IOException {
+                  return new BoundedReaderIterator<>(
+                      ((BoundedSource<Object>) source).createReader(options));
+                }
+              };
       return reader;
     } else if (source instanceof UnboundedSource) {
       @SuppressWarnings({"unchecked", "rawtypes"})
-      Reader<WindowedValue<?>> reader = (Reader) new UnboundedReader<Object>(
-          options, spec, (StreamingModeExecutionContext) executionContext);
+      NativeReader<WindowedValue<?>> reader =
+          (NativeReader)
+              new UnboundedReader<Object>(
+                  options, spec, (StreamingModeExecutionContext) executionContext);
       return reader;
     } else {
       throw new IllegalArgumentException("Unexpected source kind: " + source.getClass());
@@ -213,9 +216,10 @@ public class CustomSources {
   }
 
   /**
-   * {@link Reader} for reading from {@link UnboundedSource UnboundedSources}.
+   * {@link NativeReader} for reading from {@link UnboundedSource UnboundedSources}.
    */
-  private static class UnboundedReader<T> extends Reader<WindowedValue<ValueWithRecordId<T>>> {
+  private static class UnboundedReader<T>
+      extends NativeReader<WindowedValue<ValueWithRecordId<T>>> {
     private final PipelineOptions options;
     private final CloudObject spec;
     private final StreamingModeExecutionContext context;
@@ -229,11 +233,10 @@ public class CustomSources {
 
     @Override
     @SuppressWarnings("unchecked")
-    public Reader.ReaderIterator<WindowedValue<ValueWithRecordId<T>>> iterator() {
+    public NativeReaderIterator<WindowedValue<ValueWithRecordId<T>>> iterator() {
       UnboundedSource.UnboundedReader<T> reader =
           (UnboundedSource.UnboundedReader<T>) context.getCachedReader();
       final boolean started = reader != null;
-
       if (reader == null) {
         String key = context.getSerializedKey().toStringUtf8();
         // Key is expected to be a zero-padded integer representing the split index.
@@ -439,89 +442,38 @@ public class CustomSources {
     }
   }
 
-  /**
-   * Adapter from the {@code Source.Reader} interface to {@code Iterator},
-   * wrapping every value into the global window. Proper windowing will be assigned by the
-   * subsequent Window transform.
-   *
-   * <p>TODO: Consider changing the API of Reader.ReaderIterator so this adapter wouldn't be
-   * needed.
-   */
-  private static class ReaderToIteratorAdapter<T> {
-    private enum NextState {
-      UNKNOWN_BEFORE_START,
-      UNKNOWN_BEFORE_ADVANCE,
-      AVAILABLE,
-      UNAVAILABLE
-    }
-    private Source.Reader<T> reader;
-    private NextState state;
-
-    /**
-     * Creates an iterator adapter for the given reader.  {@code started} represents whether
-     * {@link Source.Reader#start} has previously been called on this reader.
-     */
-    private ReaderToIteratorAdapter(Source.Reader<T> reader, boolean started) {
-      this.reader = reader;
-      this.state = started ? NextState.UNKNOWN_BEFORE_ADVANCE : NextState.UNKNOWN_BEFORE_START;
-    }
-
-    public boolean hasNext() throws IOException {
-      switch(state) {
-        case UNKNOWN_BEFORE_START:
-          try {
-            if (reader.start()) {
-              state = NextState.AVAILABLE;
-              return true;
-            } else {
-              state = NextState.UNAVAILABLE;
-              return false;
-            }
-          } catch (Exception e) {
-            throw new IOException(
-                "Failed to start reading from source: " + reader.getCurrentSource(), e);
-          }
-        case UNKNOWN_BEFORE_ADVANCE:
-          if (reader.advance()) {
-            state = NextState.AVAILABLE;
-            return true;
-          } else {
-            state = NextState.UNAVAILABLE;
-            return false;
-          }
-        case AVAILABLE: return true;
-        case UNAVAILABLE: return false;
-        default: throw new AssertionError();
-      }
-    }
-
-    public WindowedValue<T> next() throws IOException {
-      if (!hasNext()) {
-        throw new NoSuchElementException();
-      }
-      state = NextState.UNKNOWN_BEFORE_ADVANCE;
-      return WindowedValue.timestampedValueInGlobalWindow(
-          reader.getCurrent(), reader.getCurrentTimestamp());
-    }
-  }
-
-  private static class BoundedReaderIterator<T> implements Reader.ReaderIterator<WindowedValue<T>> {
+  private static class BoundedReaderIterator<T>
+      extends NativeReader.NativeReaderIterator<WindowedValue<T>> {
     private BoundedSource.BoundedReader<T> reader;
-    private ReaderToIteratorAdapter<T> iteratorAdapter;
 
     private BoundedReaderIterator(BoundedSource.BoundedReader<T> reader) {
       this.reader = reader;
-      this.iteratorAdapter = new ReaderToIteratorAdapter<>(reader, false);
     }
 
     @Override
-    public boolean hasNext() throws IOException {
-      return iteratorAdapter.hasNext();
+    public boolean start() throws IOException {
+      try {
+        return reader.start();
+      } catch (Exception e) {
+        throw new IOException(
+            "Failed to start reading from source: " + reader.getCurrentSource(), e);
+      }
     }
 
     @Override
-    public WindowedValue<T> next() throws IOException {
-      return iteratorAdapter.next();
+    public boolean advance() throws IOException {
+      try {
+        return reader.advance();
+      } catch (Exception e) {
+        throw new IOException(
+            "Failed to advance reader of source: " + reader.getCurrentSource(), e);
+      }
+    }
+
+    @Override
+    public WindowedValue<T> getCurrent() throws NoSuchElementException {
+      return WindowedValue.timestampedValueInGlobalWindow(
+          reader.getCurrent(), reader.getCurrentTimestamp());
     }
 
     @Override
@@ -530,7 +482,7 @@ public class CustomSources {
     }
 
     @Override
-    public Reader.Progress getProgress() {
+    public NativeReader.Progress getProgress() {
       if (reader instanceof BoundedSource.BoundedReader) {
         ApproximateReportedProgress progress = new ApproximateReportedProgress();
         Double fractionConsumed = reader.getFractionConsumed();
@@ -545,7 +497,8 @@ public class CustomSources {
     }
 
     @Override
-    public Reader.DynamicSplitResult requestDynamicSplit(Reader.DynamicSplitRequest request) {
+    public NativeReader.DynamicSplitResult requestDynamicSplit(
+        NativeReader.DynamicSplitRequest request) {
       ApproximateSplitRequest stopPosition =
           SourceTranslationUtils.splitRequestToApproximateSplitRequest(request);
       Double fractionConsumed = stopPosition.getFractionConsumed();
@@ -594,27 +547,47 @@ public class CustomSources {
   }
 
   private static class UnboundedReaderIterator<T>
-      implements Reader.ReaderIterator<WindowedValue<ValueWithRecordId<T>>> {
+      extends NativeReader.NativeReaderIterator<WindowedValue<ValueWithRecordId<T>>> {
     // Commit at least once every 10 seconds or 10k records.  This keeps the watermark advancing
     // smoothly, and ensures that not too much work will have to be reprocessed in the event of
     // a crash.
     private static final int MAX_BUNDLE_SIZE = 10000;
     private static final Duration MAX_BUNDLE_READ_TIME = Duration.standardSeconds(10);
 
-    private ReaderToIteratorAdapter<T> iteratorAdapter;
-    private UnboundedSource.UnboundedReader<T> reader;
-    private Instant endTime;
+    private final UnboundedSource.UnboundedReader<T> reader;
+    private final boolean started;
+    private final Instant endTime;
     private int elemsRead;
 
     private UnboundedReaderIterator(UnboundedSource.UnboundedReader<T> reader, boolean started) {
-      this.iteratorAdapter = new ReaderToIteratorAdapter<>(reader, started);
       this.reader = reader;
       this.endTime = Instant.now().plus(MAX_BUNDLE_READ_TIME);
       this.elemsRead = 0;
+      this.started = started;
     }
 
     @Override
-    public boolean hasNext() throws IOException {
+    public boolean start() throws IOException {
+      if (started) {
+        // This is a reader that has been restored from the unbounded reader cache.
+        // It has already been started, so this call to start() should delegate
+        // to advance() instead.
+        return advance();
+      }
+      try {
+        if (!reader.start()) {
+          return false;
+        }
+      } catch (Exception e) {
+        throw new IOException(
+            "Failed to start reading from source: " + reader.getCurrentSource(), e);
+      }
+      elemsRead++;
+      return true;
+    }
+
+    @Override
+    public boolean advance() throws IOException {
       if (elemsRead >= MAX_BUNDLE_SIZE
           || Instant.now().isAfter(endTime)) {
         return false;
@@ -622,7 +595,14 @@ public class CustomSources {
 
       // Backoff starting at 100ms, for approximately 1s total. 100+150+225+337.5~=1000.
       BackOff backoff = new AttemptBoundedExponentialBackOff(5, 100);
-      while (!iteratorAdapter.hasNext()) {
+      while (true) {
+        try {
+          if (reader.advance()) {
+            return true;
+          }
+        } catch (Exception e) {
+          throw new IOException("Failed to advance source: " + reader.getCurrentSource(), e);
+        }
         long nextBackoff = backoff.nextBackOffMillis();
         if (nextBackoff == BackOff.STOP) {
           return false;
@@ -633,27 +613,28 @@ public class CustomSources {
           // ignore.
         }
       }
-      return true;
     }
 
     @Override
-    public WindowedValue<ValueWithRecordId<T>> next() throws IOException {
-      WindowedValue<T> result = iteratorAdapter.next();
-      elemsRead++;
+    public WindowedValue<ValueWithRecordId<T>> getCurrent() throws NoSuchElementException {
+      WindowedValue<T> result =
+          WindowedValue.timestampedValueInGlobalWindow(
+              reader.getCurrent(), reader.getCurrentTimestamp());
       return result.withValue(
           new ValueWithRecordId<>(result.getValue(), reader.getCurrentRecordId()));
     }
 
     @Override
-    public void close() { }
+    public void close() {}
 
     @Override
-    public Reader.Progress getProgress() {
+    public NativeReader.Progress getProgress() {
       return null;
     }
 
     @Override
-    public Reader.DynamicSplitResult requestDynamicSplit(Reader.DynamicSplitRequest request) {
+    public NativeReader.DynamicSplitResult requestDynamicSplit(
+        NativeReader.DynamicSplitRequest request) {
       return null;
     }
 

@@ -24,18 +24,19 @@ import com.google.api.services.dataflow.model.ApproximateSplitRequest;
 import com.google.api.services.dataflow.model.ConcatPosition;
 import com.google.api.services.dataflow.model.Position;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader.ReaderIterator;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader.NativeReaderIterator;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
 import javax.annotation.Nullable;
 
 /**
- * Helpers for testing {@code Reader} and related classes, especially
- * {@link Reader.ReaderIterator#getProgress} and {@link Reader.ReaderIterator#requestDynamicSplit}.
+ * Helpers for testing {@link NativeReader} and related classes, especially
+ * {@link NativeReaderIterator#getProgress} and {@link NativeReaderIterator#requestDynamicSplit}.
  */
 public class ReaderTestUtils {
   public static Position positionAtIndex(@Nullable Long index) {
@@ -102,91 +103,90 @@ public class ReaderTestUtils {
     return new ApproximateSplitRequest().setFractionConsumed(fraction);
   }
 
-  public static Reader.DynamicSplitRequest splitRequestAtPosition(
+  public static NativeReader.DynamicSplitRequest splitRequestAtPosition(
       @Nullable Position position) {
     return toDynamicSplitRequest(approximateSplitRequestAtPosition(position));
   }
 
-  public static Reader.DynamicSplitRequest splitRequestAtIndex(@Nullable Long index) {
+  public static NativeReader.DynamicSplitRequest splitRequestAtIndex(@Nullable Long index) {
     return toDynamicSplitRequest(approximateSplitRequestAtIndex(index));
   }
 
-  public static Reader.DynamicSplitRequest splitRequestAtByteOffset(@Nullable Long byteOffset) {
+  public static NativeReader.DynamicSplitRequest splitRequestAtByteOffset(
+      @Nullable Long byteOffset) {
     return toDynamicSplitRequest(approximateSplitRequestAtByteOffset(byteOffset));
   }
 
-  public static Reader.DynamicSplitRequest splitRequestAtConcatPosition(
+  public static NativeReader.DynamicSplitRequest splitRequestAtConcatPosition(
       @Nullable Integer index, @Nullable Position innerPosition) {
     return toDynamicSplitRequest(approximateSplitRequestAtConcatPosition(index, innerPosition));
   }
 
-  public static Position positionFromSplitResult(Reader.DynamicSplitResult dynamicSplitResult) {
+  public static Position positionFromSplitResult(
+      NativeReader.DynamicSplitResult dynamicSplitResult) {
     return toCloudPosition(
-        ((Reader.DynamicSplitResultWithPosition) dynamicSplitResult).getAcceptedPosition());
+        ((NativeReader.DynamicSplitResultWithPosition) dynamicSplitResult).getAcceptedPosition());
   }
 
-  public static Position positionFromProgress(Reader.Progress progress) {
+  public static Position positionFromProgress(NativeReader.Progress progress) {
     return readerProgressToCloudProgress(progress).getPosition();
   }
 
-  public static Reader.DynamicSplitRequest splitRequestAtFraction(double fraction) {
+  public static NativeReader.DynamicSplitRequest splitRequestAtFraction(double fraction) {
     return toDynamicSplitRequest(approximateSplitRequestAtFraction(fraction));
-  }
-
-  /**
-   * Creates a {@link ReaderIterator} from the given {@code Reader} and reads it to the end.
-   *
-   * @param reader {@code Reader} to read from
-   * @param results elements that are read are added to this list. Will contain partially read
-   * results if an exception is thrown
-   * @throws IOException
-   */
-  public static <T> void readRemainingFromReader(Reader<T> reader, List<T> results)
-      throws IOException {
-    try (ReaderIterator<T> iterator = reader.iterator()) {
-      readRemainingFromIterator(iterator, results);
-    }
-  }
-
-  /**
-   * Read elements from a {@code Reader} until either the reader is exhausted, or n elements are
-   * read.
-   */
-  public static <T> void readAtMostNElementsFromReader(
-      Reader<T> reader, long numElementsToRead, List<T> results) throws IOException {
-    try (ReaderIterator<T> iterator = reader.iterator()) {
-      readAtMostNElementsFromIterator(iterator, numElementsToRead, results);
-    }
-  }
-
-  /**
-   * Read elements from a {@link ReaderIterator} until either the iterator is exhausted, or n
-   * elements are read.
-   */
-  public static <T> void readAtMostNElementsFromIterator(
-      ReaderIterator<T> iterator, long numElementsToRead, List<T> results) throws IOException {
-    for (long i = 0L; i < numElementsToRead && iterator.hasNext(); i++) {
-      results.add(iterator.next());
-    }
-  }
-
-  /**
-   * Read all remaining elements from a {@link ReaderIterator}.
-   */
-  public static <T> void readRemainingFromIterator(ReaderIterator<T> iterator, List<T> results)
-      throws IOException {
-    while (iterator.hasNext()) {
-      results.add(iterator.next());
-    }
   }
 
   /**
    * Appends all values from a collection of {@code WindowedValue} values to a collection of values.
    */
-  public static <T> void windowedValuesToValues(
-      Collection<WindowedValue<T>> windowedValues, Collection<T> values) {
+  public static <T> List<T> windowedValuesToValues(Collection<WindowedValue<T>> windowedValues) {
+    List<T> res = new ArrayList<>();
     for (WindowedValue<T> windowedValue : windowedValues) {
-      values.add(windowedValue.getValue());
+      res.add(windowedValue.getValue());
     }
+    return res;
+  }
+
+  /**
+   * Creates a {@link NativeReaderIterator} from the given {@link NativeReader} and reads it
+   * to the end.
+   *
+   * @param reader {@link NativeReader} to read from
+   * @throws IOException
+   */
+  public static <T> List<T> readAllFromReader(NativeReader<T> reader) throws IOException {
+    try (NativeReaderIterator<T> iterator = reader.iterator()) {
+      return readRemainingFromReader(iterator, false);
+    }
+  }
+
+  /**
+   * Read elements from a {@link NativeReader.NativeReaderIterator} until either the reader is
+   * exhausted, or n elements are read.
+   */
+  public static <T> List<T> readNItemsFromReader(
+      NativeReader.NativeReaderIterator<T> reader, int n, boolean started) throws IOException {
+    List<T> res = new ArrayList<>();
+    for (int i = 0; i < n; i++) {
+      if (!((i == 0 && !started) ? reader.start() : reader.advance())) {
+        break;
+      }
+      res.add(reader.getCurrent());
+    }
+    return res;
+  }
+
+  /**
+   * Read elements from a {@link NativeReader.NativeReaderIterator} until either the reader is
+   * exhausted, or n elements are read.
+   */
+  public static <T> List<T> readNItemsFromUnstartedReader(
+      NativeReader.NativeReaderIterator<T> reader, int n) throws IOException {
+    return readNItemsFromReader(reader, n, false);
+  }
+
+  public static <T> List<T> readRemainingFromReader(
+      NativeReader.NativeReaderIterator<T> reader, boolean started) throws IOException {
+    return readNItemsFromReader(reader, Integer.MAX_VALUE, started);
   }
 }

@@ -27,7 +27,7 @@ import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.WindowedValue.ValueOnlyWindowedValueCoder;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 
 import javax.annotation.Nullable;
 
@@ -39,7 +39,7 @@ public class AvroReaderFactory implements ReaderFactory {
   public AvroReaderFactory() {}
 
   @Override
-  public Reader<?> create(
+  public NativeReader<?> create(
       CloudObject spec,
       @Nullable Coder<?> coder,
       @Nullable PipelineOptions options,
@@ -50,7 +50,8 @@ public class AvroReaderFactory implements ReaderFactory {
     return create(spec, coder, options);
   }
 
-  Reader<?> create(CloudObject spec, Coder<?> coder, PipelineOptions options) throws Exception {
+  NativeReader<?> create(CloudObject spec, Coder<?> coder, PipelineOptions options)
+      throws Exception {
     String filename = getString(spec, PropertyNames.FILENAME);
     Long startOffset = getLong(spec, PropertyNames.START_OFFSET, null);
     Long endOffset = getLong(spec, PropertyNames.END_OFFSET, null);

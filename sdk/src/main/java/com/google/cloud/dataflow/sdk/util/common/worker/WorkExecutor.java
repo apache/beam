@@ -79,17 +79,17 @@ public abstract class WorkExecutor implements AutoCloseable {
   /**
    * Returns the worker's current progress.
    */
-  public Reader.Progress getWorkerProgress() throws Exception {
+  public NativeReader.Progress getWorkerProgress() throws Exception {
     // By default, return null indicating worker progress not available.
     return null;
   }
 
   /**
-   * See {@link Reader.ReaderIterator#requestDynamicSplit}.
+   * See {@link NativeReader.NativeReaderIterator#requestDynamicSplit}.
    * Makes sense only for tasks that read input.
    */
-  public Reader.DynamicSplitResult requestDynamicSplit(Reader.DynamicSplitRequest splitRequest)
-      throws Exception {
+  public NativeReader.DynamicSplitResult requestDynamicSplit(
+      NativeReader.DynamicSplitRequest splitRequest) throws Exception {
     // By default, dynamic splitting is unsupported.
     return null;
   }

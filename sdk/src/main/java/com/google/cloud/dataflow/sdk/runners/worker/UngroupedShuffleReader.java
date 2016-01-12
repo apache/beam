@@ -21,7 +21,7 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.common.worker.AbstractBoundedReaderIterator;
 import com.google.cloud.dataflow.sdk.util.common.worker.BatchingShuffleEntryReader;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 import com.google.cloud.dataflow.sdk.util.common.worker.ShuffleEntry;
 import com.google.cloud.dataflow.sdk.util.common.worker.ShuffleEntryReader;
 import com.google.common.base.Preconditions;
@@ -37,7 +37,7 @@ import javax.annotation.Nullable;
  *
  * @param <T> the type of the elements read from the source
  */
-public class UngroupedShuffleReader<T> extends Reader<T> {
+public class UngroupedShuffleReader<T> extends NativeReader<T> {
   final byte[] shuffleReaderConfig;
   final String startShufflePosition;
   final String stopShufflePosition;
@@ -53,13 +53,13 @@ public class UngroupedShuffleReader<T> extends Reader<T> {
   }
 
   @Override
-  public ReaderIterator<T> iterator() throws IOException {
+  public NativeReaderIterator<T> iterator() throws IOException {
     Preconditions.checkArgument(shuffleReaderConfig != null);
     return iterator(new BatchingShuffleEntryReader(
         new ChunkingShuffleBatchReader(new ApplianceShuffleReader(shuffleReaderConfig))));
   }
 
-  ReaderIterator<T> iterator(ShuffleEntryReader reader) {
+  UngroupedShuffleReaderIterator iterator(ShuffleEntryReader reader) {
     return new UngroupedShuffleReaderIterator(reader);
   }
 

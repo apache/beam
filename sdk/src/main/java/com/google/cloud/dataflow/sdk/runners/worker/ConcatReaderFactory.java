@@ -29,7 +29,7 @@ import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -50,7 +50,7 @@ public class ConcatReaderFactory implements ReaderFactory {
 
   /**
    * Returns a new {@link ConcatReaderFactory} that will use the default
-   * {@link ReaderFactory.Registry} to create sub-{@link Reader} instances.
+   * {@link ReaderFactory.Registry} to create sub-{@link NativeReader} instances.
    */
   public static ConcatReaderFactory withDefaultRegistry() {
     return withRegistry(ReaderFactory.Registry.defaultRegistry());
@@ -58,28 +58,28 @@ public class ConcatReaderFactory implements ReaderFactory {
 
   /**
    * Returns a new {@link ConcatReaderFactory} that will use the provided
-   * {@link ReaderFactory.Registry} to create sub-{@link Reader} instances.
+   * {@link ReaderFactory.Registry} to create sub-{@link NativeReader} instances.
    */
   public static ConcatReaderFactory withRegistry(ReaderFactory.Registry registry) {
     return new ConcatReaderFactory(registry);
   }
 
   @Override
-  public Reader<?> create(
+  public NativeReader<?> create(
       CloudObject spec,
       @Nullable Coder<?> coder,
       @Nullable PipelineOptions options,
       @Nullable ExecutionContext executionContext,
       @Nullable CounterSet.AddCounterMutator addCounterMutator,
       @Nullable String operationName)
-          throws Exception {
+      throws Exception {
     @SuppressWarnings("unchecked")
     Coder<Object> typedCoder = (Coder<Object>) coder;
     return createTyped(
         spec, typedCoder, options, executionContext, addCounterMutator, operationName);
   }
 
-  public <T> Reader<T> createTyped(
+  public <T> NativeReader<T> createTyped(
       CloudObject spec,
       @Nullable Coder<T> coder,
       @Nullable PipelineOptions options,

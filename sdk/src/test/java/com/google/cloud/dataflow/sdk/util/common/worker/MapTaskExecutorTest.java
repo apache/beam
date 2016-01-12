@@ -101,15 +101,17 @@ public class MapTaskExecutorTest {
     }
 
     @Override
-    public Reader.Progress getProgress() {
+    public NativeReader.Progress getProgress() {
       return cloudProgressToReaderProgress(progress);
     }
 
     @Override
-    public Reader.DynamicSplitResult requestDynamicSplit(Reader.DynamicSplitRequest splitRequest) {
+    public NativeReader.DynamicSplitResult requestDynamicSplit(
+        NativeReader.DynamicSplitRequest splitRequest) {
       // Fakes the return with the same position as proposed.
-      return new Reader.DynamicSplitResultWithPosition(cloudPositionToReaderPosition(
-          splitRequestToApproximateSplitRequest(splitRequest).getPosition()));
+      return new NativeReader.DynamicSplitResultWithPosition(
+          cloudPositionToReaderPosition(
+              splitRequestToApproximateSplitRequest(splitRequest).getPosition()));
     }
 
     public void setProgress(ApproximateReportedProgress progress) {

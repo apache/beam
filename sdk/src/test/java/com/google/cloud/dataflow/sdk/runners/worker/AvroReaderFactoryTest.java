@@ -28,7 +28,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.DirectModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 
 import org.hamcrest.core.IsInstanceOf;
 import org.junit.Assert;
@@ -46,8 +46,9 @@ import javax.annotation.Nullable;
 public class AvroReaderFactoryTest {
   private final String pathToAvroFile = "/path/to/file.avro";
 
-  Reader<?> runTestCreateAvroReader(String filename, @Nullable Long start, @Nullable Long end,
-      CloudObject encoding) throws Exception {
+  NativeReader<?> runTestCreateAvroReader(
+      String filename, @Nullable Long start, @Nullable Long end, CloudObject encoding)
+          throws Exception {
     CloudObject spec = CloudObject.forClassName("AvroSource");
     addString(spec, "filename", filename);
     if (start != null) {
@@ -61,12 +62,14 @@ public class AvroReaderFactoryTest {
     cloudSource.setSpec(spec);
     cloudSource.setCodec(encoding);
 
-    Reader<?> reader = ReaderFactory.Registry.defaultRegistry().create(
-        cloudSource,
-        PipelineOptionsFactory.create(),
-        DirectModeExecutionContext.create(),
-        null,
-        null);
+    NativeReader<?> reader =
+        ReaderFactory.Registry.defaultRegistry()
+            .create(
+                cloudSource,
+                PipelineOptionsFactory.create(),
+                DirectModeExecutionContext.create(),
+                null,
+                null);
     return reader;
   }
 
@@ -74,7 +77,8 @@ public class AvroReaderFactoryTest {
   public void testCreatePlainAvroByteReader() throws Exception {
     Coder<?> coder = WindowedValue.getFullCoder(
         BigEndianIntegerCoder.of(), GlobalWindow.Coder.INSTANCE);
-    Reader<?> reader = runTestCreateAvroReader(pathToAvroFile, null, null, coder.asCloudObject());
+    NativeReader<?> reader =
+        runTestCreateAvroReader(pathToAvroFile, null, null, coder.asCloudObject());
 
     Assert.assertThat(reader, new IsInstanceOf(AvroByteReader.class));
     AvroByteReader avroReader = (AvroByteReader) reader;
@@ -88,7 +92,8 @@ public class AvroReaderFactoryTest {
   public void testCreateRichAvroByteReader() throws Exception {
     Coder<?> coder = WindowedValue.getFullCoder(
         BigEndianIntegerCoder.of(), GlobalWindow.Coder.INSTANCE);
-    Reader<?> reader = runTestCreateAvroReader(pathToAvroFile, 200L, 500L, coder.asCloudObject());
+    NativeReader<?> reader =
+        runTestCreateAvroReader(pathToAvroFile, 200L, 500L, coder.asCloudObject());
 
     Assert.assertThat(reader, new IsInstanceOf(AvroByteReader.class));
     AvroByteReader avroReader = (AvroByteReader) reader;
@@ -102,7 +107,8 @@ public class AvroReaderFactoryTest {
   public void testCreateRichAvroReader() throws Exception {
     WindowedValue.WindowedValueCoder<?> coder =
         WindowedValue.getValueOnlyCoder(AvroCoder.of(Integer.class));
-    Reader<?> reader = runTestCreateAvroReader(pathToAvroFile, 200L, 500L, coder.asCloudObject());
+    NativeReader<?> reader =
+        runTestCreateAvroReader(pathToAvroFile, 200L, 500L, coder.asCloudObject());
 
     Assert.assertThat(reader, new IsInstanceOf(AvroReader.class));
     AvroReader avroReader = (AvroReader) reader;

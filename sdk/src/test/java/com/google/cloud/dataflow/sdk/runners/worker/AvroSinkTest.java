@@ -16,6 +16,9 @@
 
 package com.google.cloud.dataflow.sdk.runners.worker;
 
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.readAllFromReader;
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.windowedValuesToValues;
+
 import com.google.cloud.dataflow.sdk.TestUtils;
 import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
@@ -58,11 +61,7 @@ public class AvroSinkTest {
     // Read back the file.
     AvroReader<T> reader = new AvroReader<>(filename, null, null, coder, null);
 
-    List<WindowedValue<T>> windowedValues = new ArrayList<>();
-    ReaderTestUtils.readRemainingFromReader(reader, windowedValues);
-
-    List<T> actual = new ArrayList<>();
-    ReaderTestUtils.windowedValuesToValues(windowedValues, actual);
+    List<T> actual = windowedValuesToValues(readAllFromReader(reader));
 
     List<Long> expectedSizes = new ArrayList<>();
     for (T value : actual) {

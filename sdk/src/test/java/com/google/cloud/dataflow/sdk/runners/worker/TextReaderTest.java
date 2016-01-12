@@ -44,7 +44,8 @@ import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
 import com.google.cloud.dataflow.sdk.util.MimeTypes;
 import com.google.cloud.dataflow.sdk.util.common.worker.ExecutorTestUtils;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader.LegacyReaderIterator;
 
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
 import org.junit.Rule;
@@ -129,8 +130,8 @@ public class TextReaderTest {
   public void testReadEmptyFile() throws Exception {
     TextReader<String> textReader = new TextReader<>(tmpFolder.newFile().getPath(), true, null,
         null, new WholeLineVerifyingCoder(), TextIO.CompressionType.UNCOMPRESSED);
-    try (Reader.ReaderIterator<String> iterator = textReader.iterator()) {
-      assertFalse(iterator.hasNext());
+    try (NativeReader.NativeReaderIterator<String> iterator = textReader.iterator()) {
+      assertFalse(iterator.start());
     }
   }
 
@@ -186,7 +187,7 @@ public class TextReaderTest {
       ExecutorTestUtils.TestReaderObserver observer =
           new ExecutorTestUtils.TestReaderObserver(textReader);
 
-      try (Reader.ReaderIterator<String> iterator = textReader.iterator()) {
+      try (LegacyReaderIterator<String> iterator = textReader.iterator()) {
         assertEquals("<Second line>\r\n", iterator.next());
         assertEquals("<Third line>", iterator.next());
         assertFalse(iterator.hasNext());
@@ -202,7 +203,7 @@ public class TextReaderTest {
       ExecutorTestUtils.TestReaderObserver observer =
           new ExecutorTestUtils.TestReaderObserver(textReader);
 
-      try (Reader.ReaderIterator<String> iterator = textReader.iterator()) {
+      try (LegacyReaderIterator<String> iterator = textReader.iterator()) {
         assertEquals("<Third line>", iterator.next());
         assertFalse(iterator.hasNext());
         // The first '5' in the array represents the reading of a portion of the second
@@ -217,7 +218,7 @@ public class TextReaderTest {
       ExecutorTestUtils.TestReaderObserver observer =
           new ExecutorTestUtils.TestReaderObserver(textReader);
 
-      try (Reader.ReaderIterator<String> iterator = textReader.iterator()) {
+      try (LegacyReaderIterator<String> iterator = textReader.iterator()) {
         assertEquals("<First line>", iterator.next());
         assertEquals("<Second line>", iterator.next());
         assertFalse(iterator.hasNext());
@@ -231,7 +232,7 @@ public class TextReaderTest {
       ExecutorTestUtils.TestReaderObserver observer =
           new ExecutorTestUtils.TestReaderObserver(textReader);
 
-      try (Reader.ReaderIterator<String> iterator = textReader.iterator()) {
+      try (LegacyReaderIterator<String> iterator = textReader.iterator()) {
         assertEquals("<Second line>", iterator.next());
         assertFalse(iterator.hasNext());
         // The first '13' in the array represents the reading of the entire first
@@ -260,7 +261,7 @@ public class TextReaderTest {
       ExecutorTestUtils.TestReaderObserver observer =
           new ExecutorTestUtils.TestReaderObserver(textReader);
 
-      try (Reader.ReaderIterator<String> iterator = textReader.iterator()) {
+      try (LegacyReaderIterator<String> iterator = textReader.iterator()) {
         assertArrayEquals("€".getBytes("UTF-8"), iterator.next().getBytes("UTF-8"));
         assertFalse(iterator.hasNext());
         assertEquals(Arrays.asList(4), observer.getActualSizes());
@@ -275,7 +276,7 @@ public class TextReaderTest {
       ExecutorTestUtils.TestReaderObserver observer =
           new ExecutorTestUtils.TestReaderObserver(textReader);
 
-      try (Reader.ReaderIterator<String> iterator = textReader.iterator()) {
+      try (LegacyReaderIterator<String> iterator = textReader.iterator()) {
         assertArrayEquals("¢".getBytes("UTF-8"), iterator.next().getBytes("UTF-8"));
         assertFalse(iterator.hasNext());
         // The first '3' in the array represents the reading of a portion of the first
@@ -303,7 +304,7 @@ public class TextReaderTest {
         new ExecutorTestUtils.TestReaderObserver(textReader);
 
     List<String> actual = new ArrayList<>();
-    try (Reader.ReaderIterator<String> iterator = textReader.iterator()) {
+    try (LegacyReaderIterator<String> iterator = textReader.iterator()) {
       while (iterator.hasNext()) {
         actual.add(iterator.next());
       }
@@ -337,7 +338,7 @@ public class TextReaderTest {
     TextReader<String> textReader = new TextReader<>(tmpFile.getPath(), stripNewlines, null, null,
         StringUtf8Coder.of(), TextIO.CompressionType.UNCOMPRESSED);
     List<String> actual = new ArrayList<>();
-    try (Reader.ReaderIterator<String> iterator = textReader.iterator()) {
+    try (LegacyReaderIterator<String> iterator = textReader.iterator()) {
       while (iterator.hasNext()) {
         actual.add(iterator.next());
       }
@@ -365,7 +366,7 @@ public class TextReaderTest {
         new ExecutorTestUtils.TestReaderObserver(textReader);
 
     List<Integer> actual = new ArrayList<>();
-    try (Reader.ReaderIterator<Integer> iterator = textReader.iterator()) {
+    try (LegacyReaderIterator<Integer> iterator = textReader.iterator()) {
       while (iterator.hasNext()) {
         actual.add(iterator.next());
       }
@@ -381,7 +382,7 @@ public class TextReaderTest {
     TextReader<String> textReader = new TextReader<>(tmpFile.getPath(), false, 0L, null,
         new WholeLineVerifyingCoder(), TextIO.CompressionType.UNCOMPRESSED);
 
-    try (Reader.ReaderIterator<String> iterator = textReader.iterator()) {
+    try (LegacyReaderIterator<String> iterator = textReader.iterator()) {
       ApproximateReportedProgress progress = readerProgressToCloudProgress(iterator.getProgress());
       assertEquals(0L, progress.getPosition().getByteOffset().longValue());
       iterator.next();
@@ -406,7 +407,7 @@ public class TextReaderTest {
     TextReader<String> textReader = new TextReader<>(tmpFile.getPath(), false, 0L, 40L,
         new WholeLineVerifyingCoder(), TextIO.CompressionType.UNCOMPRESSED);
 
-    try (Reader.ReaderIterator<String> iterator = textReader.iterator()) {
+    try (LegacyReaderIterator<String> iterator = textReader.iterator()) {
       iterator.next();
       ApproximateReportedProgress progress = readerProgressToCloudProgress(iterator.getProgress());
       // Returned a record that starts at position 0 of 40 - 1/40 fraction consumed.
@@ -665,7 +666,7 @@ public class TextReaderTest {
         tmpFile.getPath(), true, null, null, new WholeLineVerifyingCoder(), inputCompressionType);
 
     List<String> actual = new ArrayList<>();
-    try (Reader.ReaderIterator<String> iterator = textReader.iterator()) {
+    try (LegacyReaderIterator<String> iterator = textReader.iterator()) {
       while (iterator.hasNext()) {
         actual.add(iterator.next());
       }
@@ -717,7 +718,7 @@ public class TextReaderTest {
                          CompressionType.AUTO);
 
     List<String> actual = new ArrayList<>();
-    try (Reader.ReaderIterator<String> iterator = textReader.iterator()) {
+    try (LegacyReaderIterator<String> iterator = textReader.iterator()) {
       while (iterator.hasNext()) {
         actual.add(iterator.next());
       }

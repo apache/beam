@@ -16,20 +16,19 @@
 
 package com.google.cloud.dataflow.sdk.runners.worker;
 
-import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.readRemainingFromReader;
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.readAllFromReader;
 import static com.google.cloud.dataflow.sdk.util.CoderUtils.makeCloudEncoding;
 import static com.google.cloud.dataflow.sdk.util.Structs.addList;
 import static com.google.cloud.dataflow.sdk.util.Structs.addLong;
 import static com.google.cloud.dataflow.sdk.util.Structs.addStringList;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 
 import com.google.api.services.dataflow.model.Source;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -91,20 +90,16 @@ public class ConcatReaderFactoryTest {
     Source source = createSourcesWithInMemorySources(allData);
 
     @SuppressWarnings("unchecked")
-    Reader<String> reader = (Reader<String>) ReaderFactory.Registry.defaultRegistry().create(
-        source, null, null, null, null);
+    NativeReader<String> reader =
+        (NativeReader<String>)
+            ReaderFactory.Registry.defaultRegistry().create(source, null, null, null, null);
     assertNotNull(reader);
 
     List<String> expected = new ArrayList<>();
     for (List<String> data : allData) {
       expected.addAll(data);
     }
-
-    List<String> actual = new ArrayList<>();
-    readRemainingFromReader(reader, actual);
-
-    assertEquals(actual.size(), 10);
-    assertThat(actual, containsInAnyOrder(expected.toArray()));
+    assertThat(readAllFromReader(reader), containsInAnyOrder(expected.toArray()));
   }
 
   @Test
@@ -114,8 +109,9 @@ public class ConcatReaderFactoryTest {
     Source source = createSourcesWithInMemorySources(allData);
 
     @SuppressWarnings("unchecked")
-    Reader<String> reader = (Reader<String>) ReaderFactory.Registry.defaultRegistry().create(
-        source, null, null, null, null);
+    NativeReader<String> reader =
+        (NativeReader<String>)
+            ReaderFactory.Registry.defaultRegistry().create(source, null, null, null, null);
     assertNotNull(reader);
 
     List<String> expected = new ArrayList<>();
@@ -123,10 +119,6 @@ public class ConcatReaderFactoryTest {
       expected.addAll(data);
     }
 
-    List<String> actual = new ArrayList<>();
-    readRemainingFromReader(reader, actual);
-
-    assertEquals(actual.size(), 150);
-    assertThat(actual, containsInAnyOrder(expected.toArray()));
+    assertThat(readAllFromReader(reader), containsInAnyOrder(expected.toArray()));
   }
 }

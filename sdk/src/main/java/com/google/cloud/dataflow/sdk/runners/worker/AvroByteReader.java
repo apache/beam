@@ -22,7 +22,7 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.worker.AbstractBoundedReaderIterator;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 
 import org.apache.avro.Schema;
 
@@ -38,7 +38,7 @@ import javax.annotation.Nullable;
  *
  * @param <T> the type of the elements read from the source
  */
-public class AvroByteReader<T> extends Reader<T> {
+public class AvroByteReader<T> extends NativeReader<T> {
   final AvroReader<ByteBuffer> avroReader;
   final Coder<T> coder;
   private final Schema schema = Schema.create(Schema.Type.BYTES);
@@ -51,12 +51,12 @@ public class AvroByteReader<T> extends Reader<T> {
   }
 
   @Override
-  public ReaderIterator<T> iterator() throws IOException {
+  public NativeReaderIterator<T> iterator() throws IOException {
     return new AvroByteFileIterator();
   }
 
   class AvroByteFileIterator extends AbstractBoundedReaderIterator<T> {
-    private final ReaderIterator<WindowedValue<ByteBuffer>> avroFileIterator;
+    private final LegacyReaderIterator<WindowedValue<ByteBuffer>> avroFileIterator;
 
     public AvroByteFileIterator() throws IOException {
       avroFileIterator = avroReader.iterator();

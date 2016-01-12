@@ -26,7 +26,8 @@ import com.google.cloud.dataflow.sdk.util.BigQueryTableRowIterator;
 import com.google.cloud.dataflow.sdk.util.Transport;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.worker.AbstractBoundedReaderIterator;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
+import com.google.common.annotations.VisibleForTesting;
 
 import java.io.IOException;
 
@@ -40,7 +41,7 @@ import javax.annotation.Nullable;
  * progress reporting because the source is used only in situations where the entire table must be
  * read by each worker (i.e. the source is used as a side input).
  */
-public class BigQueryReader extends Reader<WindowedValue<TableRow>> {
+public class BigQueryReader extends NativeReader<WindowedValue<TableRow>> {
   @Nullable private final TableReference tableRef;
   @Nullable private final String query;
   @Nullable private final String projectId;
@@ -100,7 +101,7 @@ public class BigQueryReader extends Reader<WindowedValue<TableRow>> {
   }
 
   @Override
-  public ReaderIterator<WindowedValue<TableRow>> iterator() throws IOException {
+  public BigQueryReaderIterator iterator() throws IOException {
     if (tableRef != null) {
       return new BigQueryReaderIterator(tableRef, bigQueryClient);
     } else {
@@ -111,7 +112,8 @@ public class BigQueryReader extends Reader<WindowedValue<TableRow>> {
   /**
    * A ReaderIterator that yields TableRow objects for each row of a BigQuery table.
    */
-  private static class BigQueryReaderIterator
+  @VisibleForTesting
+  static class BigQueryReaderIterator
       extends AbstractBoundedReaderIterator<WindowedValue<TableRow>> {
     private BigQueryTableRowIterator rowIterator;
 

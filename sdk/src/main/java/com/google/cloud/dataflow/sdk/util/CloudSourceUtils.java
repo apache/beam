@@ -19,7 +19,7 @@ package com.google.cloud.dataflow.sdk.util;
 import com.google.api.services.dataflow.model.Source;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.worker.ReaderFactory;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 
 import java.util.HashMap;
 import java.util.List;
@@ -27,7 +27,7 @@ import java.util.Map;
 
 /**
  * Utilities for working with Source Dataflow API definitions and
- * {@link com.google.cloud.dataflow.sdk.util.common.worker.Reader}
+ * {@link NativeReader}
  * objects.
  */
 public class CloudSourceUtils {
@@ -53,15 +53,16 @@ public class CloudSourceUtils {
   }
 
   /**
-   * Creates a {@link com.google.cloud.dataflow.sdk.util.common.worker.Reader}
-   * from the given Dataflow Source API definition and reads all elements from it.
+   * Creates a {@link NativeReader} from the given Dataflow Source API definition and
+   * reads all elements from it.
    */
 
   public static <T> List<T> readElemsFromSource(PipelineOptions options, Source source) {
     try {
       @SuppressWarnings("unchecked")
-      Reader<T> reader = (Reader<T>) ReaderFactory.Registry.defaultRegistry().create(
-          source, options, null, null, null);
+      NativeReader<T> reader =
+          (NativeReader<T>)
+              ReaderFactory.Registry.defaultRegistry().create(source, options, null, null, null);
       return ReaderUtils.readElemsFromReader(reader);
     } catch (Exception e) {
       throw new RuntimeException("Failed to read from source: " + source.toString(), e);

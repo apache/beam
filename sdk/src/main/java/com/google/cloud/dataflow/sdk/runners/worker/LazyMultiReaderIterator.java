@@ -17,7 +17,7 @@
 package com.google.cloud.dataflow.sdk.runners.worker;
 
 import com.google.cloud.dataflow.sdk.util.common.worker.AbstractBoundedReaderIterator;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 
 import java.io.IOException;
 import java.util.Iterator;
@@ -35,7 +35,7 @@ import java.util.Iterator;
  */
 abstract class LazyMultiReaderIterator<T> extends AbstractBoundedReaderIterator<T> {
   private final Iterator<String> inputs;
-  Reader.ReaderIterator<T> current;
+  NativeReader.LegacyReaderIterator<T> current;
 
   public LazyMultiReaderIterator(Iterator<String> inputs) {
     this.inputs = inputs;
@@ -67,7 +67,7 @@ abstract class LazyMultiReaderIterator<T> extends AbstractBoundedReaderIterator<
     }
   }
 
-  protected abstract Reader.ReaderIterator<T> open(String input) throws IOException;
+  protected abstract NativeReader.LegacyReaderIterator<T> open(String input) throws IOException;
 
   boolean selectReader() throws IOException {
     if (current != null) {

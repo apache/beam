@@ -84,7 +84,7 @@ public class MapTaskExecutor extends WorkExecutor {
   }
 
   @Override
-  public Reader.Progress getWorkerProgress() throws Exception {
+  public NativeReader.Progress getWorkerProgress() throws Exception {
     return getReadOperation().getProgress();
   }
 
@@ -94,8 +94,8 @@ public class MapTaskExecutor extends WorkExecutor {
   }
 
   @Override
-  public Reader.DynamicSplitResult requestDynamicSplit(
-      Reader.DynamicSplitRequest splitRequest) throws Exception {
+  public NativeReader.DynamicSplitResult requestDynamicSplit(
+      NativeReader.DynamicSplitRequest splitRequest) throws Exception {
     return getReadOperation().requestDynamicSplit(splitRequest);
   }
 

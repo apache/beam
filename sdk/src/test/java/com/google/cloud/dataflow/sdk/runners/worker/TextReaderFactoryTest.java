@@ -30,7 +30,7 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 
 import org.hamcrest.core.IsInstanceOf;
 import org.junit.Assert;
@@ -67,12 +67,10 @@ public class TextReaderFactoryTest {
     cloudSource.setCodec(encoding);
 
     PipelineOptions options = PipelineOptionsFactory.create();
-    Reader<?> reader = ReaderFactory.Registry.defaultRegistry().create(
-        cloudSource,
-        options,
-        BatchModeExecutionContext.fromOptions(options),
-        null,
-        null);
+    NativeReader<?> reader =
+        ReaderFactory.Registry.defaultRegistry()
+            .create(
+                cloudSource, options, BatchModeExecutionContext.fromOptions(options), null, null);
     Assert.assertThat(reader, new IsInstanceOf(TextReader.class));
     TextReader<?> textReader = (TextReader<?>) reader;
     Assert.assertEquals(filename, textReader.filepattern);

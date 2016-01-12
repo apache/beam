@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.runners.worker;
 
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.readAllFromReader;
+
 import com.google.cloud.dataflow.sdk.TestUtils;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
@@ -59,8 +61,7 @@ public class AvroByteSinkTest {
     AvroByteReader<T> reader = new AvroByteReader<>(filename, null, null, coder, null);
 
 
-    List<T> actual = new ArrayList<>();
-    ReaderTestUtils.readRemainingFromReader(reader, actual);
+    List<T> actual = readAllFromReader(reader);
     List<Long> expectedSizes = new ArrayList<>();
 
     for (T value : actual) {

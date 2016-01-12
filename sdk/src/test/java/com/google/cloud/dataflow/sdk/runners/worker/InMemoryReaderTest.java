@@ -33,7 +33,7 @@ import com.google.api.services.dataflow.model.ApproximateSplitRequest;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.util.common.worker.ExecutorTestUtils;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -65,7 +65,7 @@ public class InMemoryReaderTest {
     ExecutorTestUtils.TestReaderObserver observer =
         new ExecutorTestUtils.TestReaderObserver(inMemoryReader);
     List<T> actualElements = new ArrayList<>();
-    try (Reader.ReaderIterator<T> iterator = inMemoryReader.iterator()) {
+    try (InMemoryReader<T>.InMemoryReaderIterator iterator = inMemoryReader.iterator()) {
       for (long i = inMemoryReader.startIndex; iterator.hasNext(); i++) {
         assertEquals(
             approximateProgressAtIndex(i), readerProgressToCloudProgress(iterator.getProgress()));
@@ -142,7 +142,7 @@ public class InMemoryReaderTest {
         new InMemoryReader<>(encodedElements(elements, coder), 1L, 4L, coder);
 
     // Illegal proposed split position.
-    try (Reader.ReaderIterator<Integer> iterator = inMemoryReader.iterator()) {
+    try (InMemoryReader<Integer>.InMemoryReaderIterator iterator = inMemoryReader.iterator()) {
       // Poke the iterator so that we can test dynamic splitting.
       assertTrue(iterator.hasNext());
       assertNull(iterator.requestDynamicSplit(toDynamicSplitRequest(
@@ -155,7 +155,7 @@ public class InMemoryReaderTest {
         (InMemoryReader<Integer>.InMemoryReaderIterator) inMemoryReader.iterator()) {
       // Poke the iterator so that we can test dynamic splitting.
       assertTrue(iterator.hasNext());
-      Reader.DynamicSplitResult dynamicSplitResult =
+      NativeReader.DynamicSplitResult dynamicSplitResult =
           iterator.requestDynamicSplit(splitRequestAtIndex(3L));
       assertEquals(positionAtIndex(3L), positionFromSplitResult(dynamicSplitResult));
       assertEquals(3, iterator.tracker.getStopPosition().longValue());
@@ -196,7 +196,7 @@ public class InMemoryReaderTest {
     InMemoryReader<Integer> inMemoryReader =
         new InMemoryReader<>(encodedElements(elements, coder), 1L, 4L, coder);
     int count = 0;
-    for (Reader.ReaderIterator<?> iterator = inMemoryReader.iterator();
+    for (InMemoryReader<Integer>.InMemoryReaderIterator iterator = inMemoryReader.iterator();
         iterator.hasNext();
         iterator.next()) {
       assertTrue(iterator.getRemainingParallelism() >= 1);

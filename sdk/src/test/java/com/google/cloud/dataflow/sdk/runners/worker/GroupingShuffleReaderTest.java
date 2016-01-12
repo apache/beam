@@ -40,6 +40,7 @@ import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.runners.worker.GroupingShuffleReader.GroupingShuffleReaderIterator;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
@@ -51,7 +52,7 @@ import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
 import com.google.cloud.dataflow.sdk.util.common.Reiterable;
 import com.google.cloud.dataflow.sdk.util.common.worker.ExecutorTestUtils;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 import com.google.cloud.dataflow.sdk.util.common.worker.ShuffleEntry;
 import com.google.cloud.dataflow.sdk.util.common.worker.Sink;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -146,8 +147,8 @@ public class GroupingShuffleReaderTest {
     Counter<Long> elementByteSizeCounter = Counter.longs("element-byte-size-counter", SUM);
     ElementByteSizeObserver elementObserver = new ElementByteSizeObserver(elementByteSizeCounter);
     List<KV<Integer, List<String>>> actual = new ArrayList<>();
-    try (Reader.ReaderIterator<WindowedValue<KV<Integer, Reiterable<String>>>> iter =
-        groupingShuffleReader.iterator(shuffleReader)) {
+    try (GroupingShuffleReaderIterator<Integer, String> iter =
+            groupingShuffleReader.iterator(shuffleReader)) {
       Iterable<String> prevValuesIterable = null;
       Iterator<String> prevValuesIterator = null;
       while (iter.hasNext()) {
@@ -418,8 +419,8 @@ public class GroupingShuffleReaderTest {
             IntervalWindow.getCoder()),
         context, null, null);
 
-    try (Reader.ReaderIterator<WindowedValue<KV<Integer, Reiterable<Integer>>>> iter =
-        groupingShuffleReader.iterator(shuffleReader)) {
+    try (GroupingShuffleReaderIterator<Integer, Integer> iter =
+            groupingShuffleReader.iterator(shuffleReader)) {
       // Poke the iterator so we can test dynamic splitting.
       assertTrue(iter.hasNext());
 
@@ -481,7 +482,7 @@ public class GroupingShuffleReaderTest {
             null,
             null);
 
-    try (Reader.ReaderIterator<WindowedValue<KV<Integer, Reiterable<Integer>>>> iter =
+    try (GroupingShuffleReaderIterator<Integer, Integer> iter =
             groupingShuffleReader.iterator(shuffleReader)) {
 
       assertEquals(Double.POSITIVE_INFINITY, iter.getRemainingParallelism(), 0);
@@ -562,15 +563,15 @@ public class GroupingShuffleReaderTest {
     }
 
     int i = 0;
-    try (Reader.ReaderIterator<WindowedValue<KV<Integer, Reiterable<Integer>>>> iter =
-        groupingShuffleReader.iterator(shuffleReader)) {
+    try (GroupingShuffleReaderIterator<Integer, Integer> iter =
+            groupingShuffleReader.iterator(shuffleReader)) {
       // Poke the iterator so we can test dynamic splitting.
       assertTrue(iter.hasNext());
 
       assertNull(iter.requestDynamicSplit(splitRequestAtPosition(new Position())));
 
       // Split at the shard boundary
-      Reader.DynamicSplitResult dynamicSplitResult =
+      NativeReader.DynamicSplitResult dynamicSplitResult =
           iter.requestDynamicSplit(splitRequestAtPosition(makeShufflePosition(kSecondShard, null)));
       assertNotNull(dynamicSplitResult);
       assertEquals(
@@ -638,8 +639,8 @@ public class GroupingShuffleReaderTest {
       shuffleReader.addEntry(entry);
     }
 
-    try (Reader.ReaderIterator<WindowedValue<KV<Integer, Reiterable<Integer>>>> readerIterator =
-        groupingShuffleReader.iterator(shuffleReader)) {
+    try (GroupingShuffleReaderIterator<Integer, Integer> readerIterator =
+            groupingShuffleReader.iterator(shuffleReader)) {
       Integer i = 0;
       while (readerIterator.hasNext()) {
         assertTrue(readerIterator.hasNext());

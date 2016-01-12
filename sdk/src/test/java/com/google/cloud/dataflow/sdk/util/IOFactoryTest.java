@@ -19,7 +19,7 @@ package com.google.cloud.dataflow.sdk.util;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.runners.worker.TextReader;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 
 import org.junit.Assert;
 import org.junit.Rule;
@@ -82,7 +82,7 @@ public class IOFactoryTest {
         TextIO.CompressionType.UNCOMPRESSED);
 
     Set<String> records = new TreeSet<>();
-    try (Reader.ReaderIterator<String> iterator = reader.iterator()) {
+    try (NativeReader.LegacyReaderIterator<String> iterator = reader.iterator()) {
       while (iterator.hasNext()) {
         records.add(iterator.next());
       }

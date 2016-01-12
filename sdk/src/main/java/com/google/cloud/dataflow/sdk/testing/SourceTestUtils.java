@@ -131,34 +131,66 @@ public class SourceTestUtils {
   }
 
   /**
-   * Reads all elements from the given unstarted {@link BoundedSource.BoundedReader}.
+   * Reads all elements from the given unstarted {@link Source.Reader}.
    */
-  public static <T> List<T> readFromUnstartedReader(BoundedSource.BoundedReader<T> reader)
-      throws IOException {
-    List<T> res = new ArrayList<>();
-    for (boolean more = reader.start(); more; more = reader.advance()) {
-      res.add(reader.getCurrent());
-    }
-    return res;
+  public static <T> List<T> readFromUnstartedReader(Source.Reader<T> reader) throws IOException {
+    return readRemainingFromReader(reader, false);
   }
 
-  public static <T> List<T> readFromStartedReader(BoundedSource.BoundedReader<T> reader)
-      throws IOException {
-    List<T> res = new ArrayList<>();
-    while (reader.advance()) {
-      res.add(reader.getCurrent());
-    }
-    return res;
+  /**
+   * Reads all elements from the given started {@link Source.Reader}.
+   */
+  public static <T> List<T> readFromStartedReader(Source.Reader<T> reader) throws IOException {
+    return readRemainingFromReader(reader, true);
   }
 
+  /**
+   * Read elements from a {@link Source.Reader} until n elements are read.
+   */
   public static <T> List<T> readNItemsFromUnstartedReader(Source.Reader<T> reader, int n)
       throws IOException {
+    return readNItemsFromReader(reader, n, false);
+  }
+
+  /**
+   * Read elements from a {@link Source.Reader} that has already had {@link Source.Reader#start}
+   * called on it, until n elements are read.
+   */
+  public static <T> List<T> readNItemsFromStartedReader(Source.Reader<T> reader, int n)
+      throws IOException {
+    return readNItemsFromReader(reader, n, true);
+  }
+
+  /**
+   * Read elements from a {@link Source.Reader} until n elements are read.
+   *
+   * <p>There must be at least n elements remaining in the reader, except for
+   * the case when n is {@code Integer.MAX_VALUE}, which means "read all
+   * remaining elements".
+   */
+  private static <T> List<T> readNItemsFromReader(Source.Reader<T> reader, int n, boolean started)
+      throws IOException {
     List<T> res = new ArrayList<>();
-    for (int i = 0; i < n; ++i) {
-      assertTrue((i == 0) ? reader.start() : reader.advance());
+    for (int i = 0; i < n; i++) {
+      boolean shouldStart = (i == 0 && !started);
+      boolean more = shouldStart ? reader.start() : reader.advance();
+      if (n != Integer.MAX_VALUE) {
+        assertTrue(more);
+      }
+      if (!more) {
+        break;
+      }
       res.add(reader.getCurrent());
     }
     return res;
+  }
+
+  /**
+   * Read all remaining elements from a {@link Source.Reader}.
+   */
+  public static <T> List<T> readRemainingFromReader(Source.Reader<T> reader, boolean started)
+      throws IOException {
+    return readNItemsFromReader(reader, Integer.MAX_VALUE, started);
   }
 
   /**
@@ -296,8 +328,7 @@ public class SourceTestUtils {
       throws Exception {
     try (BoundedSource.BoundedReader<T> reader = source.createReader(options)) {
       BoundedSource<T> originalSource = reader.getCurrentSource();
-      List<T> currentItems = new ArrayList<>();
-      currentItems.addAll(readNItemsFromUnstartedReader(reader, numItemsToReadBeforeSplit));
+      List<T> currentItems = readNItemsFromUnstartedReader(reader, numItemsToReadBeforeSplit);
       BoundedSource<T> residual = reader.splitAtFraction(splitFraction);
       if (residual != null) {
         assertFalse(
@@ -337,10 +368,7 @@ public class SourceTestUtils {
           // Nothing.
           break;
       }
-      currentItems.addAll(
-          numItemsToReadBeforeSplit > 0
-              ? readFromStartedReader(reader)
-              : readFromUnstartedReader(reader));
+      currentItems.addAll(readRemainingFromReader(reader, numItemsToReadBeforeSplit > 0));
       BoundedSource<T> primary = reader.getCurrentSource();
       return verifySingleSplitAtFractionResult(
           source, expectedItems, currentItems, primary, residual,
@@ -573,19 +601,22 @@ public class SourceTestUtils {
     @SuppressWarnings("resource")  // Closed in readerThread
     final BoundedSource.BoundedReader<T> reader = source.createReader(options);
     final CountDownLatch unblockSplitter = new CountDownLatch(1);
-    Future<List<T>> readerThread = executor.submit(new Callable<List<T>>() {
-      @Override
-      public List<T> call() throws Exception {
-        try {
-          List<T> items = readNItemsFromUnstartedReader(reader, numItemsToReadBeforeSplitting);
-          unblockSplitter.countDown();
-          items.addAll(readFromStartedReader(reader));
-          return items;
-        } finally {
-          reader.close();
-        }
-      }
-    });
+    Future<List<T>> readerThread =
+        executor.submit(
+            new Callable<List<T>>() {
+              @Override
+              public List<T> call() throws Exception {
+                try {
+                  List<T> items =
+                      readNItemsFromUnstartedReader(reader, numItemsToReadBeforeSplitting);
+                  unblockSplitter.countDown();
+                  items.addAll(readRemainingFromReader(reader, numItemsToReadBeforeSplitting > 0));
+                  return items;
+                } finally {
+                  reader.close();
+                }
+              }
+            });
     Future<KV<BoundedSource<T>, BoundedSource<T>>> splitterThread = executor.submit(
         new Callable<KV<BoundedSource<T>, BoundedSource<T>>>() {
           @Override

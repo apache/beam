@@ -57,8 +57,8 @@ import com.google.cloud.dataflow.sdk.util.common.CounterTestUtils;
 import com.google.cloud.dataflow.sdk.util.common.Metric;
 import com.google.cloud.dataflow.sdk.util.common.Metric.DoubleMetric;
 import com.google.cloud.dataflow.sdk.util.common.worker.MapTaskExecutor;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 import com.google.cloud.dataflow.sdk.util.common.worker.Operation;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
 
 import org.hamcrest.Description;
@@ -95,18 +95,19 @@ public class DataflowWorkProgressUpdaterTest {
     }
 
     @Override
-    public synchronized Reader.Progress getWorkerProgress() {
+    public synchronized NativeReader.Progress getWorkerProgress() {
       return cloudProgressToReaderProgress(progress);
     }
 
     @Override
-    public Reader.DynamicSplitResult requestDynamicSplit(Reader.DynamicSplitRequest splitRequest) {
+    public NativeReader.DynamicSplitResult requestDynamicSplit(
+        NativeReader.DynamicSplitRequest splitRequest) {
       @Nullable
       ApproximateSplitRequest split = splitRequestToApproximateSplitRequest(splitRequest);
       if (split == null) {
         return null;
       }
-      return new Reader.DynamicSplitResultWithPosition(
+      return new NativeReader.DynamicSplitResultWithPosition(
           cloudPositionToReaderPosition(split.getPosition()));
     }
 

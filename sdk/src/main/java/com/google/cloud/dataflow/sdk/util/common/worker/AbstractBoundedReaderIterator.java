@@ -30,7 +30,8 @@ import java.util.NoSuchElementException;
  *
  * @param <T> Type of records returned by the reader.
  */
-public abstract class AbstractBoundedReaderIterator<T> extends Reader.AbstractReaderIterator<T> {
+public abstract class AbstractBoundedReaderIterator<T>
+    extends NativeReader.LegacyReaderIterator<T> {
   private Boolean cachedHasNext;
 
   @Override

@@ -21,7 +21,6 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
-import com.google.cloud.dataflow.sdk.util.common.Reiterable;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.common.annotations.VisibleForTesting;
 
@@ -55,9 +54,9 @@ class GroupingShuffleReaderWithFaultyBytesReadCounter<K, V> extends GroupingShuf
   }
 
   @Override
-  public ReaderIterator<WindowedValue<KV<K, Reiterable<V>>>> iterator() throws IOException {
+  public GroupingShuffleReaderIterator<K, V> iterator() throws IOException {
     // This causes perOperationPerDatasetBytesCounter to be initialized.
-    ReaderIterator<WindowedValue<KV<K, Reiterable<V>>>> it = super.iterator();
+    GroupingShuffleReaderIterator<K, V> it = super.iterator();
 
     // Inject an error in the counter tracking how many bytes are read
     // from this reader's data source.

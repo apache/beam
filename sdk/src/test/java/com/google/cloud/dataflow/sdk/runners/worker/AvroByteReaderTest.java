@@ -16,6 +16,10 @@
 
 package com.google.cloud.dataflow.sdk.runners.worker;
 
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.readAllFromReader;
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.readNItemsFromUnstartedReader;
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.readRemainingFromReader;
+
 import com.google.cloud.dataflow.sdk.TestUtils;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
@@ -24,8 +28,8 @@ import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
 import com.google.cloud.dataflow.sdk.util.MimeTypes;
 import com.google.cloud.dataflow.sdk.util.common.worker.ExecutorTestUtils;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader.DynamicSplitResult;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader.DynamicSplitResult;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileWriter;
@@ -160,10 +164,7 @@ public class AvroByteReaderTest {
     AvroByteReader<T> avroReader =
         new AvroByteReader<>(filename, startOffset, endOffset, coder, null);
     new ExecutorTestUtils.TestReaderObserver(avroReader, actualSizes);
-
-    List<T> actualElems = new ArrayList<>();
-    ReaderTestUtils.readRemainingFromReader(avroReader, actualElems);
-    return actualElems;
+    return readAllFromReader(avroReader);
   }
 
   @Test
@@ -216,19 +217,21 @@ public class AvroByteReaderTest {
     DO_NOT_VERIFY; // Perform no verification.
   }
 
-  private <T> void testRequestDynamicSplitInternal(AvroByteReader<T> reader, float splitAtFraction,
-      long readBeforeSplit, SplitVerificationBehavior splitVerificationBehavior) throws Exception {
+  private <T> void testRequestDynamicSplitInternal(
+      AvroByteReader<T> reader,
+      float splitAtFraction,
+      int readBeforeSplit,
+      SplitVerificationBehavior splitVerificationBehavior)
+          throws Exception {
     // Read all elements from the reader
-    List<T> expectedElements = new ArrayList<>();
     Long endOffset = reader.avroReader.endPosition;
-    ReaderTestUtils.readRemainingFromReader(reader, expectedElements);
+    List<T> expectedElements = readAllFromReader(reader);
 
-
-    List<T> primaryElements = new ArrayList<>();
+    List<T> primaryElements;
     List<T> residualElements = new ArrayList<>();
-    try (Reader.ReaderIterator<T> iterator = reader.iterator()) {
+    try (NativeReader.NativeReaderIterator<T> iterator = reader.iterator()) {
       // Read n elements from the reader
-      ReaderTestUtils.readAtMostNElementsFromIterator(iterator, readBeforeSplit, primaryElements);
+      primaryElements = readNItemsFromUnstartedReader(iterator, readBeforeSplit);
 
       // Request a split at the specified position
       DynamicSplitResult splitResult =
@@ -245,7 +248,7 @@ public class AvroByteReaderTest {
       }
 
       // Finish reading from the original reader.
-      ReaderTestUtils.readRemainingFromIterator(iterator, primaryElements);
+      primaryElements.addAll(readRemainingFromReader(iterator, readBeforeSplit > 0));
 
       if (splitResult != null) {
         Long splitPosition = ReaderTestUtils.positionFromSplitResult(splitResult).getByteOffset();
@@ -253,7 +256,7 @@ public class AvroByteReaderTest {
             new AvroByteReader<T>(reader.avroReader.avroSource.getFileOrPatternSpec(),
                 splitPosition, endOffset, reader.coder, reader.avroReader.options);
         // Read from the residual until it is complete.
-        ReaderTestUtils.readRemainingFromReader(residualReader, residualElements);
+        residualElements = readAllFromReader(residualReader);
       }
     }
 
@@ -273,15 +276,15 @@ public class AvroByteReaderTest {
     AvroByteReader<String> reader =
         new AvroByteReader<String>(fileInfo.filename, null, null, coder, null);
     // Read most of the records before the proposed split point.
-    testRequestDynamicSplitInternal(reader, 0.5F, 490L, SplitVerificationBehavior.VERIFY_SUCCESS);
+    testRequestDynamicSplitInternal(reader, 0.5F, 490, SplitVerificationBehavior.VERIFY_SUCCESS);
     // Read a single record.
-    testRequestDynamicSplitInternal(reader, 0.5F, 1L, SplitVerificationBehavior.VERIFY_SUCCESS);
+    testRequestDynamicSplitInternal(reader, 0.5F, 1, SplitVerificationBehavior.VERIFY_SUCCESS);
     // Read zero records.
-    testRequestDynamicSplitInternal(reader, 0.5F, 0L, SplitVerificationBehavior.VERIFY_FAILURE);
+    testRequestDynamicSplitInternal(reader, 0.5F, 0, SplitVerificationBehavior.VERIFY_FAILURE);
     // Read almost the entire input.
-    testRequestDynamicSplitInternal(reader, 0.5F, 900L, SplitVerificationBehavior.VERIFY_FAILURE);
+    testRequestDynamicSplitInternal(reader, 0.5F, 900, SplitVerificationBehavior.VERIFY_FAILURE);
     // Read the entire input.
-    testRequestDynamicSplitInternal(reader, 0.5F, 2000L, SplitVerificationBehavior.VERIFY_FAILURE);
+    testRequestDynamicSplitInternal(reader, 0.5F, 2000, SplitVerificationBehavior.VERIFY_FAILURE);
   }
 
   @Test
@@ -292,7 +295,7 @@ public class AvroByteReaderTest {
     AvroByteReader<String> reader =
         new AvroByteReader<String>(fileInfo.filename, null, null, coder, null);
     for (float splitFraction = 0.0F; splitFraction < 1.0F; splitFraction += 0.02F) {
-      for (long recordsToRead = 0L; recordsToRead <= 500; recordsToRead += 5) {
+      for (int recordsToRead = 0; recordsToRead <= 500; recordsToRead += 5) {
         testRequestDynamicSplitInternal(
             reader, splitFraction, recordsToRead, SplitVerificationBehavior.DO_NOT_VERIFY);
       }

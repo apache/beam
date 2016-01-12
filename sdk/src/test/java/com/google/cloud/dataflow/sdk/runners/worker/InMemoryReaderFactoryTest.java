@@ -28,7 +28,7 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 
 import org.hamcrest.core.IsInstanceOf;
 import org.junit.Assert;
@@ -69,12 +69,14 @@ public class InMemoryReaderFactoryTest {
       int expectedEnd, Coder<T> coder) throws Exception {
     Source cloudSource = createInMemoryCloudSource(elements, start, end, coder);
 
-    Reader<?> reader = ReaderFactory.Registry.defaultRegistry().create(
-        cloudSource,
-        PipelineOptionsFactory.create(),
-        BatchModeExecutionContext.fromOptions(PipelineOptionsFactory.create()),
-        null,
-        null);
+    NativeReader<?> reader =
+        ReaderFactory.Registry.defaultRegistry()
+            .create(
+                cloudSource,
+                PipelineOptionsFactory.create(),
+                BatchModeExecutionContext.fromOptions(PipelineOptionsFactory.create()),
+                null,
+                null);
     Assert.assertThat(reader, new IsInstanceOf(InMemoryReader.class));
     InMemoryReader<?> inMemoryReader = (InMemoryReader<?>) reader;
     Assert.assertEquals(encodedElements(elements, coder), inMemoryReader.encodedElements);

@@ -24,14 +24,16 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 import com.google.common.collect.Iterables;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Observer;
 
 /**
@@ -45,7 +47,7 @@ public class SideInputUtils {
    * Reads the given side input, producing the contents associated
    * with a {@code PCollectionView}.
    *
-   * @throws Exception anything thrown by the delegate {@link Reader}
+   * @throws Exception anything thrown by the delegate {@link NativeReader}
    * @see com.google.cloud.dataflow.sdk.values.PCollectionView
    */
   public static Object readSideInput(
@@ -97,8 +99,10 @@ public class SideInputUtils {
       throws Exception {
     // We don't do shuffle sanity check on side inputs, as they don't have to be read completely.
     @SuppressWarnings("unchecked")
-    Reader<Object> reader = (Reader<Object>) ReaderFactory.Registry.defaultRegistry().create(
-        sideInputSource, options, executionContext, null, null);
+    NativeReader<Object> reader =
+        (NativeReader<Object>)
+            ReaderFactory.Registry.defaultRegistry()
+                .create(sideInputSource, options, executionContext, null, null);
     if (observer != null) {
       reader.addObserver(observer);
     }
@@ -131,45 +135,78 @@ public class SideInputUtils {
 
 
   static class ReaderIterable<T> implements Iterable<T> {
-    final Reader<T> reader;
+    final NativeReader<T> reader;
 
-    public ReaderIterable(Reader<T> reader) {
+    public ReaderIterable(NativeReader<T> reader) {
       this.reader = reader;
     }
 
     @Override
     public Iterator<T> iterator() {
       try {
-        return new ReaderIterator<>(reader.iterator());
+        return new NativeReaderToIteratorAdapter<>(reader.iterator());
       } catch (Exception exn) {
         throw new RuntimeException(exn);
       }
     }
   }
 
-  static class ReaderIterator<T> implements Iterator<T> {
-    final Reader.ReaderIterator<T> iterator;
-
-    public ReaderIterator(Reader.ReaderIterator<T> iterator) {
-      this.iterator = iterator;
+  private static class NativeReaderToIteratorAdapter<T> implements Iterator<T> {
+    private enum NextState {
+      UNKNOWN_BEFORE_START,
+      UNKNOWN_BEFORE_ADVANCE,
+      AVAILABLE,
+      UNAVAILABLE
     }
 
-    @Override
+    private NativeReader.NativeReaderIterator<T> reader;
+    private NextState state;
+
+    /**
+     * Creates an iterator adapter for the given reader.
+     */
+    private NativeReaderToIteratorAdapter(NativeReader.NativeReaderIterator<T> reader) {
+      this.reader = reader;
+      this.state = NextState.UNKNOWN_BEFORE_START;
+    }
+
     public boolean hasNext() {
       try {
-        return iterator.hasNext();
-      } catch (Exception exn) {
-        throw new RuntimeException(exn);
+        switch (state) {
+          case UNKNOWN_BEFORE_START:
+            if (reader.start()) {
+              state = NextState.AVAILABLE;
+              return true;
+            } else {
+              state = NextState.UNAVAILABLE;
+              return false;
+            }
+          case UNKNOWN_BEFORE_ADVANCE:
+            if (reader.advance()) {
+              state = NextState.AVAILABLE;
+              return true;
+            } else {
+              state = NextState.UNAVAILABLE;
+              return false;
+            }
+          case AVAILABLE:
+            return true;
+          case UNAVAILABLE:
+            return false;
+          default:
+            throw new AssertionError();
+        }
+      } catch (IOException e) {
+        throw new RuntimeException(e);
       }
     }
 
-    @Override
     public T next() {
-      try {
-        return iterator.next();
-      } catch (Exception exn) {
-        throw new RuntimeException(exn);
+      if (!hasNext()) {
+        throw new NoSuchElementException();
       }
+      state = NextState.UNKNOWN_BEFORE_ADVANCE;
+      return reader.getCurrent();
     }
 
     @Override
@@ -177,7 +214,6 @@ public class SideInputUtils {
       throw new UnsupportedOperationException();
     }
   }
-
 
   /////////////////////////////////////////////////////////////////////////////
 

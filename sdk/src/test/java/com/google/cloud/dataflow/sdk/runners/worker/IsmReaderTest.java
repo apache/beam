@@ -24,7 +24,7 @@ import com.google.cloud.dataflow.sdk.coders.ByteArrayCoder;
 import com.google.cloud.dataflow.sdk.util.RandomAccessData;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.worker.ExecutorTestUtils.TestReaderObserver;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader.ReaderIterator;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 import com.google.cloud.dataflow.sdk.util.common.worker.Sink;
 import com.google.cloud.dataflow.sdk.util.common.worker.Sink.SinkWriter;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -133,7 +133,7 @@ public class IsmReaderTest {
     reader.addObserver(observer);
 
     Iterator<KV<byte[], byte[]>> expectedIterator = expectedData.iterator();
-    try (ReaderIterator<KV<byte[], byte[]>> iterator = reader.iterator()) {
+    try (NativeReader.LegacyReaderIterator<KV<byte[], byte[]>> iterator = reader.iterator()) {
       while (iterator.hasNext() && expectedIterator.hasNext()) {
         KV<byte[], byte[]> actual = iterator.next();
         KV<byte[], byte[]> expectedNext = expectedIterator.next();

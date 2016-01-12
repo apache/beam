@@ -15,26 +15,24 @@
  ******************************************************************************/
 package com.google.cloud.dataflow.sdk.util;
 
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Utilities for working with {@link com.google.cloud.dataflow.sdk.util.common.worker.Reader}
- * objects.
+ * Utilities for working with {@link NativeReader} objects.
  */
 public class ReaderUtils {
   /**
-   * Reads all elements from the given
-   * {@link com.google.cloud.dataflow.sdk.util.common.worker.Reader}.
+   * Reads all elements from the given {@link NativeReader}.
    */
-  public static <T> List<T> readElemsFromReader(Reader<T> reader) {
+  public static <T> List<T> readElemsFromReader(NativeReader<T> reader) {
     List<T> elems = new ArrayList<>();
-    try (Reader.ReaderIterator<T> it = reader.iterator()) {
-      while (it.hasNext()) {
-        elems.add(it.next());
+    try (NativeReader.NativeReaderIterator<T> it = reader.iterator()) {
+      for (boolean more = it.start(); more; more = it.advance()) {
+        elems.add(it.getCurrent());
       }
     } catch (IOException e) {
       throw new RuntimeException("Failed to read from reader: " + reader, e);

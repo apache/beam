@@ -28,7 +28,7 @@ import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 
 import org.hamcrest.CoreMatchers;
 import org.hamcrest.core.IsInstanceOf;
@@ -49,7 +49,7 @@ public class ReaderFactoryTest {
 
   static class TestReaderFactory implements ReaderFactory {
     @Override
-    public Reader<?> create(
+    public NativeReader<?> create(
         CloudObject spec,
         @Nullable Coder<?> coder,
         @Nullable PipelineOptions options,
@@ -60,14 +60,14 @@ public class ReaderFactoryTest {
     }
   }
 
-  static class TestReader extends Reader<Integer> {
+  static class TestReader extends NativeReader<Integer> {
     @Override
-    public ReaderIterator<Integer> iterator() {
+    public NativeReaderIterator<Integer> iterator() {
       return new TestReaderIterator();
     }
 
     /** A source iterator that produces no values, for testing. */
-    class TestReaderIterator extends AbstractReaderIterator<Integer> {
+    class TestReaderIterator extends LegacyReaderIterator<Integer> {
       @Override
       public boolean hasNext() {
         return false;
@@ -85,7 +85,7 @@ public class ReaderFactoryTest {
 
   static class SingletonTestReaderFactory implements ReaderFactory {
     @Override
-    public Reader<?> create(
+    public NativeReader<?> create(
         CloudObject spec,
         @Nullable Coder<?> coder,
         @Nullable PipelineOptions options,
@@ -96,14 +96,14 @@ public class ReaderFactoryTest {
     }
   }
 
-  static class SingletonTestReader extends Reader<WindowedValue<String>> {
+  static class SingletonTestReader extends NativeReader<WindowedValue<String>> {
     @Override
     public SingletonTestReaderIterator iterator() {
       return new SingletonTestReaderIterator();
     }
 
     /** A source iterator that produces no values, for testing. */
-    class SingletonTestReaderIterator extends AbstractReaderIterator<WindowedValue<String>> {
+    class SingletonTestReaderIterator extends LegacyReaderIterator<WindowedValue<String>> {
       private boolean seen = false;
       @Override
       public boolean hasNext() {
@@ -135,12 +135,10 @@ public class ReaderFactoryTest {
     cloudSource.setCodec(makeCloudEncoding("StringUtf8Coder"));
 
     PipelineOptions options = PipelineOptionsFactory.create();
-    Reader<?> reader = ReaderFactory.Registry.defaultRegistry().create(
-        cloudSource,
-        options,
-        BatchModeExecutionContext.fromOptions(options),
-        null,
-        null);
+    NativeReader<?> reader =
+        ReaderFactory.Registry.defaultRegistry()
+            .create(
+                cloudSource, options, BatchModeExecutionContext.fromOptions(options), null, null);
     Assert.assertThat(reader, new IsInstanceOf(TextReader.class));
   }
 
@@ -155,12 +153,13 @@ public class ReaderFactoryTest {
     PipelineOptions options = PipelineOptionsFactory.create();
     ReaderFactory.Registry registry = ReaderFactory.Registry.defaultRegistry()
         .register(TestReaderFactory.class.getName(), new TestReaderFactory());
-    Reader<?> reader = registry.create(
-        cloudSource,
-        PipelineOptionsFactory.create(),
-        BatchModeExecutionContext.fromOptions(options),
-        null,
-        null);
+    NativeReader<?> reader =
+        registry.create(
+            cloudSource,
+            PipelineOptionsFactory.create(),
+            BatchModeExecutionContext.fromOptions(options),
+            null,
+            null);
     Assert.assertThat(reader, new IsInstanceOf(TestReader.class));
   }
 

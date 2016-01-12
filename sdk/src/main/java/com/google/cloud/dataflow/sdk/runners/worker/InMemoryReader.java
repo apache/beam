@@ -28,7 +28,7 @@ import com.google.cloud.dataflow.sdk.io.range.OffsetRangeTracker;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.StringUtils;
 import com.google.cloud.dataflow.sdk.util.common.worker.AbstractBoundedReaderIterator;
-import com.google.cloud.dataflow.sdk.util.common.worker.Reader;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 import com.google.common.annotations.VisibleForTesting;
 
 import org.slf4j.Logger;
@@ -44,7 +44,7 @@ import javax.annotation.Nullable;
  *
  * @param <T> the type of the elements read from the source
  */
-public class InMemoryReader<T> extends Reader<T> {
+public class InMemoryReader<T> extends NativeReader<T> {
   private static final Logger LOG = LoggerFactory.getLogger(InMemoryReader.class);
 
   final List<String> encodedElements;
@@ -76,7 +76,7 @@ public class InMemoryReader<T> extends Reader<T> {
   }
 
   @Override
-  public ReaderIterator<T> iterator() throws IOException {
+  public InMemoryReaderIterator iterator() throws IOException {
     return new InMemoryReaderIterator();
   }
 
