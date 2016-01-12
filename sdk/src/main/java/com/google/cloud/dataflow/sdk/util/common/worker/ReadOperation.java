@@ -28,7 +28,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Observable;
 import java.util.Observer;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -40,7 +39,10 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class ReadOperation extends Operation {
   private static final Logger LOG = LoggerFactory.getLogger(ReadOperation.class);
-  private static final long DEFAULT_PROGRESS_UPDATE_PERIOD_MS = TimeUnit.SECONDS.toMillis(1);
+
+  // This is the rate at which the local, threadsafe progress variable is updated from the iterator,
+  // not the rate of reporting.
+  public static final long DEFAULT_PROGRESS_UPDATE_PERIOD_MS = 100;
 
   /**
    * For the reader parallelism counters, large enough values should be sufficient, and there

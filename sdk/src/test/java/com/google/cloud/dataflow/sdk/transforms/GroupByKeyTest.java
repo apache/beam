@@ -30,11 +30,13 @@ import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.DirectPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.options.StreamingOptions;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
+import com.google.cloud.dataflow.sdk.testing.VerifyDynamicWorkRebalancing;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.InvalidWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFns;
@@ -57,6 +59,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -425,5 +428,32 @@ public class GroupByKeyTest {
   @Test
   public void testGroupByKeyGetName() {
     Assert.assertEquals("GroupByKey", GroupByKey.<String, Integer>create().getName());
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testDynamicWorkRebalancing() {
+    if (TestPipeline.isIntegrationTest()
+        && !TestPipeline.getPipelineOptions().as(StreamingOptions.class).isStreaming()) {
+      VerifyDynamicWorkRebalancing.run(
+          new PTransform<PBegin, PCollection<Integer>>() {
+            public PCollection<Integer> apply(PBegin begin) {
+              List<KV<Integer, Void>> ungroupedPairs = new ArrayList<>();
+              for (int k = 0; k < 100; k++) {
+                ungroupedPairs.add(KV.of(k, (Void) null));
+              }
+              return begin
+                  .apply(Create.of(ungroupedPairs))
+                  .apply(GroupByKey.<Integer, Void>create())
+                  .apply(Keys.<Integer>create());
+            }
+          },
+          // Verified manually to trigger dynamic work rebalancing.
+          // Also, the current implementation starts with an initial splitting into 3 bundles by
+          // default, so by the pigeonhole principle at least one bundle has more than one sentinel.
+          Arrays.asList(5, 7, 17, 18, 19),
+          120);
+      return;
+    }
   }
 }

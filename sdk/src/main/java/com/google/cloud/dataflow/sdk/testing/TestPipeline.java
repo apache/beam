@@ -77,7 +77,7 @@ public class TestPipeline extends Pipeline {
    * {@link Pipeline#run} to execute the pipeline and check the tests.
    */
   public static TestPipeline create() {
-    if (Boolean.parseBoolean(System.getProperty("runIntegrationTestOnService"))) {
+    if (isIntegrationTest()) {
       TestDataflowPipelineOptions options = getPipelineOptions();
       LOG.info("Using passed in options: " + options);
       options.setStableUniqueNames(CheckEnabled.ERROR);
@@ -90,7 +90,15 @@ public class TestPipeline extends Pipeline {
     }
   }
 
-  private TestPipeline(PipelineRunner<? extends PipelineResult> runner, PipelineOptions options) {
+  /**
+   * Returns whether this test is running on the Cloud Dataflow service as described
+   * in {@link TestPipeline}.
+   */
+  public static boolean isIntegrationTest() {
+    return Boolean.parseBoolean(System.getProperty("runIntegrationTestOnService"));
+  }
+
+  TestPipeline(PipelineRunner<? extends PipelineResult> runner, PipelineOptions options) {
     super(runner, options);
   }
 
@@ -120,7 +128,7 @@ public class TestPipeline extends Pipeline {
   /**
    * Creates PipelineOptions for testing with a DataflowPipelineRunner.
    */
-  static TestDataflowPipelineOptions getPipelineOptions() {
+  public static TestDataflowPipelineOptions getPipelineOptions() {
     try {
       TestDataflowPipelineOptions options = PipelineOptionsFactory.fromArgs(
               MAPPER.readValue(System.getProperty(PROPERTY_DATAFLOW_OPTIONS), String[].class))
