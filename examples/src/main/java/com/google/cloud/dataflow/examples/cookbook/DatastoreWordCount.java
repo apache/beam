@@ -16,12 +16,18 @@
 
 package com.google.cloud.dataflow.examples.cookbook;
 
+import static com.google.api.services.datastore.client.DatastoreHelper.getPropertyMap;
+import static com.google.api.services.datastore.client.DatastoreHelper.getString;
+import static com.google.api.services.datastore.client.DatastoreHelper.makeFilter;
+import static com.google.api.services.datastore.client.DatastoreHelper.makeKey;
+import static com.google.api.services.datastore.client.DatastoreHelper.makeValue;
+
 import com.google.api.services.datastore.DatastoreV1.Entity;
 import com.google.api.services.datastore.DatastoreV1.Key;
 import com.google.api.services.datastore.DatastoreV1.Property;
+import com.google.api.services.datastore.DatastoreV1.PropertyFilter;
 import com.google.api.services.datastore.DatastoreV1.Query;
 import com.google.api.services.datastore.DatastoreV1.Value;
-import com.google.api.services.datastore.client.DatastoreHelper;
 import com.google.cloud.dataflow.examples.WordCount;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.io.DatastoreIO;
@@ -64,6 +70,13 @@ import javax.annotation.Nullable;
  * provide either {@literal --stagingLocation} or {@literal --tempLocation}, and
  * select one of the Dataflow pipeline runners, eg
  * {@literal --runner=BlockingDataflowPipelineRunner}.
+ *
+ * <p><b>Note:</b> this example creates entities with <i>Ancestor keys</i> to ensure that all
+ * entities created are in the same entity group. Similarly, the query used to read from the Cloud
+ * Datastore uses an <i>Ancestor filter</i>. Ancestors are used to ensure strongly consistent
+ * results in Cloud Datastore. For more information, see the Cloud Datastore documentation on
+ * <a href="https://cloud.google.com/datastore/docs/concepts/structuring_for_strong_consistency">
+ * Structing Data for Strong Consistency</a>.
  */
 public class DatastoreWordCount {
 
@@ -74,12 +87,26 @@ public class DatastoreWordCount {
   static class GetContentFn extends DoFn<Entity, String> {
     @Override
     public void processElement(ProcessContext c) {
-      Map<String, Value> props = DatastoreHelper.getPropertyMap(c.element());
+      Map<String, Value> props = getPropertyMap(c.element());
       Value value = props.get("content");
       if (value != null) {
-        c.output(DatastoreHelper.getString(value));
+        c.output(getString(value));
       }
     }
+  }
+
+  /**
+   * A helper function to create the ancestor key for all created and queried entities.
+   *
+   * <p>We use ancestor keys and ancestor queries for strong consistency. See
+   * {@link DatastoreWordCount} javadoc for more information.
+   */
+  static Key makeAncestorKey(@Nullable String namespace, String kind) {
+    Key.Builder keyBuilder = makeKey(kind, "root");
+    if (namespace != null) {
+      keyBuilder.getPartitionIdBuilder().setNamespace(namespace);
+    }
+    return keyBuilder.build();
   }
 
   /**
@@ -95,19 +122,14 @@ public class DatastoreWordCount {
       this.kind = kind;
 
       // Build the ancestor key for all created entities once, including the namespace.
-      Key.Builder keyBuilder = DatastoreHelper.makeKey(kind, "root");
-      if (namespace != null) {
-        keyBuilder.getPartitionIdBuilder().setNamespace(namespace);
-      }
-      ancestorKey = keyBuilder.build();
+      ancestorKey = makeAncestorKey(namespace, kind);
     }
 
     public Entity makeEntity(String content) {
       Entity.Builder entityBuilder = Entity.newBuilder();
 
       // All created entities have the same ancestor Key.
-      Key.Builder keyBuilder =
-          DatastoreHelper.makeKey(ancestorKey, kind, UUID.randomUUID().toString());
+      Key.Builder keyBuilder = makeKey(ancestorKey, kind, UUID.randomUUID().toString());
       // NOTE: Namespace is not inherited between keys created with DatastoreHelper.makeKey, so
       // we must set the namespace on keyBuilder. TODO: Once partitionId inheritance is added,
       // we can simplify this code.
@@ -181,13 +203,29 @@ public class DatastoreWordCount {
   }
 
   /**
+   * Build a Cloud Datastore ancestor query for the specified {@link Options#getNamespace} and
+   * {@link Options#getKind}.
+   *
+   * <p>We use ancestor keys and ancestor queries for strong consistency. See
+   * {@link DatastoreWordCount} javadoc for more information.
+   *
+   * @see <a href="https://cloud.google.com/datastore/docs/concepts/queries#Datastore_Ancestor_filters">Ancestor filters</a>
+   */
+  static Query makeAncestorKindQuery(Options options) {
+    Query.Builder q = Query.newBuilder();
+    q.addKindBuilder().setName(options.getKind());
+    q.setFilter(makeFilter(
+        "__key__",
+        PropertyFilter.Operator.HAS_ANCESTOR,
+        makeValue(makeAncestorKey(options.getNamespace(), options.getKind()))));
+    return q.build();
+  }
+
+  /**
    * An example that creates a pipeline to do DatastoreIO.Read from Datastore.
    */
   public static void readDataFromDatastore(Options options) {
-    // Build a query: read all entities of the specified kind.
-    Query.Builder q = Query.newBuilder();
-    q.addKindBuilder().setName(options.getKind());
-    Query query = q.build();
+    Query query = makeAncestorKindQuery(options);
 
     // For Datastore sources, the read namespace can be set on the entire query.
     DatastoreIO.Source source = DatastoreIO.source()
