@@ -40,6 +40,7 @@ import com.google.cloud.dataflow.sdk.util.common.worker.MapTaskExecutor;
 import com.google.cloud.dataflow.sdk.util.common.worker.OutputObjectAndByteCounter;
 import com.google.cloud.dataflow.sdk.util.common.worker.ReadOperation;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.protobuf.ByteString;
 
@@ -60,6 +61,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Random;
+import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
@@ -67,6 +69,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -95,6 +98,7 @@ public class StreamingDataflowWorker {
   static final int DEFAULT_STATUS_PORT = 8081;
   static final String DEFAULT_WINDMILL_SERVER_CLASS_NAME =
       "com.google.cloud.dataflow.sdk.runners.worker.windmill.WindmillServer";
+  static final int MAX_COMMIT_QUEUE_BYTES = 500 << 20;  // 500MB
 
   // Maximum size of the result of a GetWork request.
   private static final long MAX_GET_WORK_FETCH_BYTES = 64L << 20; // 64m
@@ -205,14 +209,87 @@ public class StreamingDataflowWorker {
     }
   }
 
+  /**
+   * Bounded set of queues, with a maximum total weight.
+   */
+  private static class KeyedWeightBoundedQueue<K, V> {
+    private final ConcurrentMap<K, ConcurrentLinkedQueue<V>> queueMap = new ConcurrentHashMap<>();
+    private final int maxWeight;
+    private final Semaphore limit;
+    private final Function<V, Integer> weigher;
+
+    public KeyedWeightBoundedQueue(int maxWeight, Function<V, Integer> weigher) {
+      this.maxWeight = maxWeight;
+      this.limit = new Semaphore(maxWeight, true);
+      this.weigher = weigher;
+    }
+
+    /**
+     * Adds a new sub-queue for the given key.
+     */
+    public void addQueue(K key) {
+      queueMap.put(key, new ConcurrentLinkedQueue<V>());
+    }
+
+    /**
+     * Adds the value to the queue for the key, blocking if this would cause the overall weight to
+     * exceed the limit.
+     */
+    public void put(K key, V value) {
+      limit.acquireUninterruptibly(Math.max(maxWeight, weigher.apply(value)));
+      Preconditions.checkNotNull(queueMap.get(key),
+          "Must create a queue by calling addQueue() before put. Missing key %s", key).add(value);
+    }
+
+    /**
+     * Return the set of keys for which there are sub-queues.
+     */
+    public Set<K> keySet() {
+      return queueMap.keySet();
+    }
+
+    /**
+     * Returns and removes the next value from the given sub-queue, or null if there is no such
+     * value.
+     */
+    @Nullable
+    public V poll(K key) {
+      V result = queueMap.get(key).poll();
+      if (result != null) {
+        limit.release(Math.max(maxWeight, weigher.apply(result)));
+      }
+      return result;
+    }
+
+    /**
+     * Returns the size of the given sub-queue.
+     */
+    public int queueSize(K key) {
+      return queueMap.get(key).size();
+    }
+
+    /**
+     * Returns the current weight of all queues.
+     */
+    public int weight() {
+      return maxWeight - limit.availablePermits();
+    }
+  }
+
   // Maps from computation ids to per-computation state.
   private final ConcurrentMap<String, MapTask> instructionMap;
-  private final ConcurrentMap<String, ConcurrentLinkedQueue<Windmill.WorkItemCommitRequest>>
-      outputMap;
   private final ConcurrentMap<String, ConcurrentLinkedQueue<WorkerAndContext>> mapTaskExecutors;
   private final ConcurrentMap<String, ActiveWorkForComputation> activeWorkMap;
   // Per computation cache of active readers, keyed by split ID.
   private final ConcurrentMap<String, ConcurrentMap<ByteString, ReaderCacheEntry>> readerCache;
+  private final KeyedWeightBoundedQueue<String, Windmill.WorkItemCommitRequest> commitQueue =
+      new KeyedWeightBoundedQueue<>(
+          MAX_COMMIT_QUEUE_BYTES, new Function<Windmill.WorkItemCommitRequest, Integer>() {
+            @Override
+            public Integer apply(Windmill.WorkItemCommitRequest input) {
+              return input.getSerializedSize();
+            }
+          });
 
   // Map of tokens to commit callbacks.
   private ConcurrentMap<Long, Runnable> commitCallbacks;
@@ -244,7 +321,6 @@ public class StreamingDataflowWorker {
       List<MapTask> mapTasks, WindmillServerStub server, DataflowWorkerHarnessOptions options) {
     this.options = options;
     this.instructionMap = new ConcurrentHashMap<>();
-    this.outputMap = new ConcurrentHashMap<>();
     this.mapTaskExecutors = new ConcurrentHashMap<>();
     this.activeWorkMap = new ConcurrentHashMap<>();
     this.readerCache = new ConcurrentHashMap<>();
@@ -376,7 +452,7 @@ public class StreamingDataflowWorker {
             : mapTask.getSystemName();
     if (!instructionMap.containsKey(computationId)) {
       LOG.info("Adding config for {}: {}", computationId, mapTask);
-      outputMap.put(computationId, new ConcurrentLinkedQueue<Windmill.WorkItemCommitRequest>());
+      commitQueue.addQueue(computationId);
       instructionMap.put(computationId, mapTask);
       mapTaskExecutors.put(computationId, new ConcurrentLinkedQueue<WorkerAndContext>());
       activeWorkMap.put(computationId, new ActiveWorkForComputation(workUnitExecutor));
@@ -580,8 +656,7 @@ public class StreamingDataflowWorker {
       worker = null;
       context = null;
 
-      Windmill.WorkItemCommitRequest output = outputBuilder.build();
-      outputMap.get(computation).add(output);
+      commitQueue.put(computation, outputBuilder.build());
       scheduleCommit();
 
       LOG.debug("Processing done for work token: {}", work.getWorkToken());
@@ -651,13 +726,11 @@ public class StreamingDataflowWorker {
         Windmill.CommitWorkRequest.Builder commitRequestBuilder =
             Windmill.CommitWorkRequest.newBuilder();
         long remainingCommitBytes = MAX_COMMIT_BYTES;
-        for (Map.Entry<String, ConcurrentLinkedQueue<Windmill.WorkItemCommitRequest>> entry :
-                 outputMap.entrySet()) {
+        for (String computation : commitQueue.keySet()) {
           Windmill.ComputationCommitWorkRequest.Builder computationRequestBuilder =
               Windmill.ComputationCommitWorkRequest.newBuilder();
-          ConcurrentLinkedQueue<Windmill.WorkItemCommitRequest> queue = entry.getValue();
           while (remainingCommitBytes > 0) {
-            Windmill.WorkItemCommitRequest request = queue.poll();
+            Windmill.WorkItemCommitRequest request = commitQueue.poll(computation);
             if (request == null) {
               break;
             }
@@ -665,7 +738,7 @@ public class StreamingDataflowWorker {
             computationRequestBuilder.addRequests(request);
           }
           if (computationRequestBuilder.getRequestsCount() > 0) {
-            computationRequestBuilder.setComputationId(entry.getKey());
+            computationRequestBuilder.setComputationId(computation);
             commitRequestBuilder.addRequests(computationRequestBuilder);
           }
         }
@@ -972,13 +1045,14 @@ public class StreamingDataflowWorker {
     response.println("Active Threads: " + workUnitExecutor.getActiveCount() + "<br>");
     response.println("Work Queue Size: " + workUnitExecutor.getQueue().size()
         + "/" + MAX_WORK_UNITS_QUEUED + "<br>");
-    response.println("Commit Queues: <ul>");
-    for (Map.Entry<String, ConcurrentLinkedQueue<Windmill.WorkItemCommitRequest>> entry
-             : outputMap.entrySet()) {
+    response.print("Commit Queues: (");
+    response.print(commitQueue.weight() >> 20);
+    response.println("MB)<ul>");
+    for (String computation : commitQueue.keySet()) {
       response.print("<li>");
-      response.print(entry.getKey());
+      response.print(computation);
       response.print(": ");
-      response.print(entry.getValue().size());
+      response.print(commitQueue.queueSize(computation));
       response.println("</li>");
     }
     response.println("</ul>");
