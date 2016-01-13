@@ -22,6 +22,8 @@ import static org.mockito.Matchers.anyLong;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -53,6 +55,8 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -73,7 +77,6 @@ public class BigQueryUtilTest {
   @Mock private Bigquery.Tables mockTables;
   @Mock private Bigquery.Tables.Get mockTablesGet;
   @Mock private Bigquery.Tabledata mockTabledata;
-  @Mock private Bigquery.Tabledata.InsertAll mockInsertAll;
   @Mock private Bigquery.Tabledata.List mockTabledataList;
 
   @Before
@@ -94,7 +97,7 @@ public class BigQueryUtilTest {
     when(mockClient.tabledata())
         .thenReturn(mockTabledata);
 
-    List<TableDataInsertAllResponse> responses = new ArrayList<>();
+    final List<TableDataInsertAllResponse> responses = new ArrayList<>();
     for (List<Long> errorIndices : errorIndicesSequence) {
       List<TableDataInsertAllResponse.InsertErrors> errors = new ArrayList<>();
       for (long i : errorIndices) {
@@ -107,14 +110,20 @@ public class BigQueryUtilTest {
       responses.add(response);
     }
 
-
-    when(mockTabledata.insertAll(
-        anyString(), anyString(), anyString(), any(TableDataInsertAllRequest.class)))
-        .thenReturn(mockInsertAll);
-    when(mockInsertAll.execute())
-        .thenReturn(responses.get(0),
-            responses.subList(1, responses.size()).toArray(
-                new TableDataInsertAllResponse[responses.size() - 1]));
+    doAnswer(
+        new Answer<Bigquery.Tabledata.InsertAll>() {
+          @Override
+          public Bigquery.Tabledata.InsertAll answer(InvocationOnMock invocation) throws Throwable {
+            Bigquery.Tabledata.InsertAll mockInsertAll = mock(Bigquery.Tabledata.InsertAll.class);
+            when(mockInsertAll.execute())
+                .thenReturn(responses.get(0),
+                    responses.subList(1, responses.size()).toArray(
+                        new TableDataInsertAllResponse[responses.size() - 1]));
+            return mockInsertAll;
+          }
+        })
+        .when(mockTabledata)
+        .insertAll(anyString(), anyString(), anyString(), any(TableDataInsertAllRequest.class));
   }
 
   private void verifyInsertAll(int expectedRetries) throws IOException {
