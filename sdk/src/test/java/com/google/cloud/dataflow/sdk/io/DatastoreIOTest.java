@@ -16,7 +16,10 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
+import static com.google.api.services.datastore.client.DatastoreHelper.makeKey;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -31,15 +34,20 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import com.google.api.services.datastore.DatastoreV1.Entity;
+import com.google.api.services.datastore.DatastoreV1.EntityResult;
 import com.google.api.services.datastore.DatastoreV1.Key;
 import com.google.api.services.datastore.DatastoreV1.KindExpression;
 import com.google.api.services.datastore.DatastoreV1.PartitionId;
 import com.google.api.services.datastore.DatastoreV1.PropertyFilter;
 import com.google.api.services.datastore.DatastoreV1.Query;
+import com.google.api.services.datastore.DatastoreV1.QueryResultBatch;
+import com.google.api.services.datastore.DatastoreV1.RunQueryRequest;
+import com.google.api.services.datastore.DatastoreV1.RunQueryResponse;
 import com.google.api.services.datastore.DatastoreV1.Value;
 import com.google.api.services.datastore.client.Datastore;
 import com.google.api.services.datastore.client.DatastoreHelper;
 import com.google.api.services.datastore.client.QuerySplitter;
+import com.google.cloud.dataflow.sdk.io.DatastoreIO.DatastoreReader;
 import com.google.cloud.dataflow.sdk.io.DatastoreIO.DatastoreWriter;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
@@ -55,6 +63,8 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -65,7 +75,7 @@ import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
 
 /**
- * Tests for DatastoreIO Read and Write transforms.
+ * Tests for {@link DatastoreIO}.
  */
 @RunWith(JUnit4.class)
 public class DatastoreIOTest {
@@ -152,6 +162,24 @@ public class DatastoreIOTest {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("query");
     source.validate();
+  }
+
+  @Test
+  public void testSourceValidationFailsQueryLimitZero() throws Exception {
+    Query invalidLimit = Query.newBuilder().setLimit(0).build();
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Invalid query limit 0");
+
+    DatastoreIO.source().withQuery(invalidLimit);
+  }
+
+  @Test
+  public void testSourceValidationFailsQueryLimitNegative() throws Exception {
+    Query invalidLimit = Query.newBuilder().setLimit(-5).build();
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Invalid query limit -5");
+
+    DatastoreIO.source().withQuery(invalidLimit);
   }
 
   @Test
@@ -275,6 +303,31 @@ public class DatastoreIOTest {
     Query bundleQuery = bundle.getQuery();
     assertEquals("mykind", bundleQuery.getKind(0).getName());
     assertFalse(bundleQuery.hasFilter());
+  }
+
+  /**
+   * Tests that a query with a user-provided limit field does not split, and does not even
+   * interact with a query splitter.
+   */
+  @Test
+  public void testQueryDoesNotSplitWithLimitSet() throws Exception {
+    // Minimal query with a limit
+    Query query = Query.newBuilder().setLimit(5).build();
+
+    // Mock query splitter, should not be invoked.
+    QuerySplitter splitter = mock(QuerySplitter.class);
+    when(splitter.getSplits(any(Query.class), any(PartitionId.class), eq(2), any(Datastore.class)))
+        .thenThrow(new AssertionError("Splitter should not be invoked"));
+
+    List<DatastoreIO.Source> bundles =
+        initialSource
+            .withQuery(query)
+            .withMockSplitter(splitter)
+            .splitIntoBundles(1024, testPipelineOptions(null));
+
+    assertEquals(1, bundles.size());
+    assertEquals(query, bundles.get(0).getQuery());
+    verifyNoMoreInteractions(splitter);
   }
 
   @Test
@@ -450,5 +503,94 @@ public class DatastoreIOTest {
 
     assertEquals(expected.size(), writer.entities.size());
     assertThat(writer.entities, containsInAnyOrder(expected.toArray()));
+  }
+
+  /** Datastore batch API limit in number of records per query. */
+  private static final int DATASTORE_QUERY_BATCH_LIMIT = 500;
+
+  /**
+   * A helper function that creates mock {@link Entity} results in response to a query. Always
+   * indicates that more results are available, unless the batch is limited to fewer than
+   * {@link #DATASTORE_QUERY_BATCH_LIMIT} results.
+   */
+  private static RunQueryResponse mockResponseForQuery(Query q) {
+    // Every query DatastoreIO sends should have a limit.
+    assertTrue(q.hasLimit());
+
+    // The limit should be in the range [1, DATASTORE_QUERY_BATCH_LIMIT]
+    int limit = q.getLimit();
+    assertThat(limit, greaterThanOrEqualTo(1));
+    assertThat(limit, lessThanOrEqualTo(DATASTORE_QUERY_BATCH_LIMIT));
+
+    // Create the requested number of entities.
+    List<EntityResult> entities = new ArrayList<>(limit);
+    for (int i = 0; i < limit; ++i) {
+      entities.add(
+          EntityResult.newBuilder()
+              .setEntity(Entity.newBuilder().setKey(makeKey("key" + i, i + 1)))
+              .build());
+    }
+
+    // Fill out the other parameters on the returned result batch.
+    RunQueryResponse.Builder ret = RunQueryResponse.newBuilder();
+    ret.getBatchBuilder()
+        .addAllEntityResult(entities)
+        .setEntityResultType(EntityResult.ResultType.FULL)
+        .setMoreResults(
+            limit == DATASTORE_QUERY_BATCH_LIMIT
+                ? QueryResultBatch.MoreResultsType.NOT_FINISHED
+                : QueryResultBatch.MoreResultsType.NO_MORE_RESULTS);
+
+    return ret.build();
+  }
+
+  /** Helper function to run a test reading from a limited-result query. */
+  private void runQueryLimitReadTest(int numEntities) throws Exception {
+    // An empty query to read entities.
+    Query query = Query.newBuilder().setLimit(numEntities).build();
+    DatastoreIO.Source source = DatastoreIO.source().withQuery(query).withDataset("mockDataset");
+
+    // Use mockResponseForQuery to generate results.
+    when(mockDatastore.runQuery(any(RunQueryRequest.class)))
+        .thenAnswer(
+            new Answer<RunQueryResponse>() {
+              @Override
+              public RunQueryResponse answer(InvocationOnMock invocation) throws Throwable {
+                Query q = ((RunQueryRequest) invocation.getArguments()[0]).getQuery();
+                return mockResponseForQuery(q);
+              }
+            });
+
+    // Actually instantiate the reader.
+    DatastoreReader reader = new DatastoreReader(source, mockDatastore);
+
+    // Simply count the number of results returned by the reader.
+    assertTrue(reader.start());
+    int resultCount = 1;
+    while (reader.advance()) {
+      resultCount++;
+    }
+    reader.close();
+
+    // Validate the number of results.
+    assertEquals(numEntities, resultCount);
+  }
+
+  /** Tests reading with a query limit less than one batch. */
+  @Test
+  public void testReadingWithLimitOneBatch() throws Exception {
+    runQueryLimitReadTest(5);
+  }
+
+  /** Tests reading with a query limit more than one batch, and not a multiple. */
+  @Test
+  public void testReadingWithLimitMultipleBatches() throws Exception {
+    runQueryLimitReadTest(DATASTORE_QUERY_BATCH_LIMIT + 5);
+  }
+
+  /** Tests reading several batches, using an exact multiple of batch size results. */
+  @Test
+  public void testReadingWithLimitMultipleBatchesExactMultiple() throws Exception {
+    runQueryLimitReadTest(5 * DATASTORE_QUERY_BATCH_LIMIT);
   }
 }
