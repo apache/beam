@@ -16,17 +16,18 @@
 
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
+import static org.hamcrest.Matchers.emptyIterable;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.everyItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import com.google.cloud.dataflow.sdk.WindowMatchers;
-import com.google.cloud.dataflow.sdk.util.ReduceFnTester;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerResult;
 import com.google.cloud.dataflow.sdk.util.TimeDomain;
-import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
-import com.google.cloud.dataflow.sdk.values.TimestampedValue;
+import com.google.cloud.dataflow.sdk.util.TriggerTester;
+import com.google.cloud.dataflow.sdk.util.TriggerTester.SimpleTriggerTester;
 
-import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -41,17 +42,15 @@ public class AfterProcessingTimeTest {
   @Test
   public void testAfterProcessingTimeIgnoresTimer() throws Exception {
     Duration windowDuration = Duration.millis(10);
-    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
-        FixedWindows.of(windowDuration),
+    SimpleTriggerTester<IntervalWindow> tester = TriggerTester.forTrigger(
         AfterProcessingTime
             .<IntervalWindow>pastFirstElementInPane()
             .plusDelayOf(Duration.millis(5)),
-        AccumulationMode.DISCARDING_FIRED_PANES,
-        Duration.millis(100));
+        FixedWindows.of(windowDuration));
 
     tester.fireTimer(new IntervalWindow(new Instant(0), new Instant(10)),
         new Instant(15), TimeDomain.PROCESSING_TIME);
-    tester.injectElements(TimestampedValue.of(1, new Instant(1)));
+    tester.injectElements(1);
     tester.fireTimer(new IntervalWindow(new Instant(0), new Instant(10)),
         new Instant(5), TimeDomain.PROCESSING_TIME);
   }
@@ -59,77 +58,84 @@ public class AfterProcessingTimeTest {
   @Test
   public void testAfterProcessingTimeWithFixedWindow() throws Exception {
     Duration windowDuration = Duration.millis(10);
-    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
-        FixedWindows.of(windowDuration),
+    SimpleTriggerTester<IntervalWindow> tester = TriggerTester.forTrigger(
         AfterProcessingTime
             .<IntervalWindow>pastFirstElementInPane()
             .plusDelayOf(Duration.millis(5)),
-        AccumulationMode.DISCARDING_FIRED_PANES,
-        Duration.millis(100));
+        FixedWindows.of(windowDuration));
 
     tester.advanceProcessingTime(new Instant(10));
 
-    tester.injectElements(
-        // first in window [0, 10), timer set for 15
-        TimestampedValue.of(1, new Instant(1)));
-    tester.advanceProcessingTime(new Instant(11));
-    tester.injectElements(
-        TimestampedValue.of(2, new Instant(9)));
-
+    // Timer at 15
+    tester.injectElements(1);
     tester.advanceProcessingTime(new Instant(12));
-    assertThat(tester.extractOutput(), Matchers.emptyIterable());
 
-    tester.injectElements(
-        TimestampedValue.of(3, new Instant(8)),
-        TimestampedValue.of(4, new Instant(19)),
-        TimestampedValue.of(5, new Instant(30)));
+    // Load up elements in the next window, timer at 17 for them
+    tester.injectElements(11, 12, 13);
 
+    tester.advanceProcessingTime(new Instant(14));
+
+    // Timer at 19 for these; it should be ignored since the 15 will fire first
+    tester.injectElements(2, 3);
+
+    // We should not have fired yet
+    assertThat(tester.getResultSequence(), everyItem(equalTo(TriggerResult.CONTINUE)));
+
+    // Advance past the first timer and fire, finishing the first window
     tester.advanceProcessingTime(new Instant(16));
-    assertThat(tester.extractOutput(), Matchers.contains(
-        WindowMatchers.isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2, 3), 1, 0, 10)));
-
-    // This element belongs in the window that has already fired. It should not be re-output because
-    // that trigger (which was one-time) has already gone off.
-    tester.injectElements(TimestampedValue.of(6, new Instant(2)));
-
-    tester.advanceProcessingTime(new Instant(19));
-    assertThat(tester.extractOutput(), Matchers.containsInAnyOrder(
-        WindowMatchers.isSingleWindowedValue(Matchers.contains(4), 19, 10, 20),
-        WindowMatchers.isSingleWindowedValue(Matchers.contains(5), 30, 30, 40)));
+    assertThat(tester.getLatestResult(), equalTo(TriggerResult.FIRE_AND_FINISH));
     assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(0), new Instant(10))));
 
-    tester.assertHasOnlyGlobalAndFinishedSetsFor(
-        new IntervalWindow(new Instant(0), new Instant(10)),
-        new IntervalWindow(new Instant(10), new Instant(20)),
-        new IntervalWindow(new Instant(30), new Instant(40)));
+    // This element belongs in the window that has already fired; it should not
+    // be passed to onElement, so there should be no resultSequence to observe
+    // (thus necessarily no timer)
+    tester.clearResultSequence();
+    tester.injectElements(2);
+    assertThat(tester.getResultSequence(), emptyIterable());
+
+    // The next window fires and finishes
+    tester.advanceProcessingTime(new Instant(18));
+    assertThat(tester.getLatestResult(), equalTo(TriggerResult.FIRE_AND_FINISH));
+    assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(10), new Instant(20))));
+
+    // The timer for the finished window, from later elements, should also not do anything
+    tester.clearResultSequence();
+    tester.advanceProcessingTime(new Instant(20));
+    assertThat(tester.getResultSequence(), emptyIterable());
+  }
+
+  @Test
+  public void testClear() throws Exception {
+    SimpleTriggerTester<IntervalWindow> tester = TriggerTester.forTrigger(
+        AfterProcessingTime
+            .<IntervalWindow>pastFirstElementInPane()
+            .plusDelayOf(Duration.millis(5)),
+        FixedWindows.of(Duration.millis(10)));
+
+    tester.injectElements(1, 2, 3);
+    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(10));
+    tester.clearState(window);
+    tester.assertCleared(window);
   }
 
   @Test
   public void testAfterProcessingTimeWithMergingWindow() throws Exception {
     Duration windowDuration = Duration.millis(10);
-    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
-        Sessions.withGapDuration(windowDuration),
+    SimpleTriggerTester<IntervalWindow> tester = TriggerTester.forTrigger(
         AfterProcessingTime
             .<IntervalWindow>pastFirstElementInPane()
             .plusDelayOf(Duration.millis(5)),
-        AccumulationMode.DISCARDING_FIRED_PANES,
-        Duration.millis(100));
+        Sessions.withGapDuration(windowDuration));
 
     tester.advanceProcessingTime(new Instant(10));
-    tester.injectElements(
-        TimestampedValue.of(1, new Instant(1))); // in [1, 11), timer for 15
+    tester.injectElements(1); // in [1, 11), timer for 15
     tester.advanceProcessingTime(new Instant(11));
-    tester.injectElements(
-        TimestampedValue.of(2, new Instant(2))); // in [2, 12), timer for 16
+    tester.injectElements(2); // in [2, 12), timer for 16
 
     tester.advanceProcessingTime(new Instant(16));
-    // This fires, because the earliest element in [1, 11) arrived at time 10
-    assertThat(tester.extractOutput(), Matchers.contains(
-        WindowMatchers.isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 1, 12)));
-
-    assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(1), new Instant(12))));
-    tester.assertHasOnlyGlobalAndFinishedSetsFor(
-        new IntervalWindow(new Instant(1), new Instant(12)));
+    // This fires, because the earliest element in [1, 12) arrived at time 10
+    assertThat(tester.getLatestResult(), equalTo(TriggerResult.FIRE_AND_FINISH));
+    assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(1), new Instant(11))));
   }
 
   @Test

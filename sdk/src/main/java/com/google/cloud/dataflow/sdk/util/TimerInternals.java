@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.cloud.dataflow.sdk.util.state.StateNamespace;
 import com.google.common.base.MoreObjects;
 
@@ -125,9 +127,9 @@ public interface TimerInternals {
     private final TimeDomain domain;
 
     private TimerData(StateNamespace namespace, Instant timestamp, TimeDomain domain) {
-      this.namespace = namespace;
-      this.timestamp = timestamp;
-      this.domain = domain;
+      this.namespace = checkNotNull(namespace);
+      this.timestamp = checkNotNull(timestamp);
+      this.domain = checkNotNull(domain);
     }
 
     public StateNamespace getNamespace() {

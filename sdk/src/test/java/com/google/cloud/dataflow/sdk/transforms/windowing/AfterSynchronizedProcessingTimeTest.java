@@ -15,17 +15,18 @@
  */
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
+import static org.hamcrest.Matchers.emptyIterable;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.everyItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import com.google.cloud.dataflow.sdk.WindowMatchers;
-import com.google.cloud.dataflow.sdk.util.ReduceFnTester;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerResult;
 import com.google.cloud.dataflow.sdk.util.TimeDomain;
-import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
-import com.google.cloud.dataflow.sdk.values.TimestampedValue;
+import com.google.cloud.dataflow.sdk.util.TriggerTester;
+import com.google.cloud.dataflow.sdk.util.TriggerTester.SimpleTriggerTester;
 
-import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -44,102 +45,57 @@ public class AfterSynchronizedProcessingTimeTest {
   @Test
   public void testAfterProcessingTimeWithFixedWindow() throws Exception {
     Duration windowDuration = Duration.millis(10);
-    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
-        FixedWindows.of(windowDuration), underTest,
-        AccumulationMode.DISCARDING_FIRED_PANES,
-        Duration.millis(100));
+    SimpleTriggerTester<IntervalWindow> tester = TriggerTester.forTrigger(
+        underTest, FixedWindows.of(windowDuration));
 
     tester.advanceProcessingTime(new Instant(10));
 
-    tester.injectElements(
-        TimestampedValue.of(1, new Instant(1)), // first in window [0, 10), timer set for 15
-        TimestampedValue.of(2, new Instant(9)),
-        TimestampedValue.of(3, new Instant(8)));
+    // synchronized timers for 10
+    tester.injectElements(1, 9, 8);
+    assertThat(tester.getResultSequence(), everyItem(equalTo(TriggerResult.CONTINUE)));
 
-    tester.advanceProcessingTime(new Instant(16));
-    assertThat(tester.extractOutput(), Matchers.contains(
-        WindowMatchers.isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2, 3), 1, 0, 10)));
-
-    // This element belongs in the window that has already fired. It should not be re-output because
-    // that trigger (which was one-time) has already gone off.
-    tester.injectElements(
-        TimestampedValue.of(6, new Instant(2)));
-
+    tester.advanceProcessingTime(new Instant(11));
+    assertThat(tester.getLatestResult(), equalTo(TriggerResult.FIRE_AND_FINISH));
     assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(0), new Instant(10))));
-    tester.assertHasOnlyGlobalAndFinishedSetsFor(
-        new IntervalWindow(new Instant(0), new Instant(10)));
+
+    // This element belongs in the window that has already fired. It should not be
+    // processed.
+    tester.clearResultSequence();
+    tester.injectElements(2);
+    assertThat(tester.getResultSequence(), emptyIterable());
   }
 
   @Test
   public void testAfterProcessingTimeWithMergingWindow() throws Exception {
     Duration windowDuration = Duration.millis(10);
-    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
-        Sessions.withGapDuration(windowDuration),
+    SimpleTriggerTester<IntervalWindow> tester = TriggerTester.forTrigger(
         underTest,
-        AccumulationMode.DISCARDING_FIRED_PANES,
-        Duration.millis(100));
+        Sessions.withGapDuration(windowDuration));
 
     tester.advanceProcessingTime(new Instant(10));
     tester.injectElements(
-        TimestampedValue.of(1, new Instant(1)),   // in [1, 11), synchronized timer for 10
-        TimestampedValue.of(2, new Instant(2)));  // in [2, 12), synchronized timer for 10
+        1,   // in [1, 11), synchronized timer for 10
+        2);  // in [2, 12), synchronized timer for 10
+    tester.mergeWindows();
+    tester.clearResultSequence();
+
+    // The timers for the pre-merged windows should be ignored.
     tester.advanceProcessingTime(new Instant(11));
-
-    assertThat(tester.extractOutput(), Matchers.contains(
-        WindowMatchers.isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 1, 12)));
-
+    assertThat(tester.getLatestResult(), equalTo(TriggerResult.FIRE_AND_FINISH));
     assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(1), new Instant(12))));
-    tester.assertHasOnlyGlobalAndFinishedSetsFor(
-        new IntervalWindow(new Instant(1), new Instant(12)));
-  }
-
-  @Test
-  public void testAfterProcessingTimeWithMergingWindowAlreadyFired() throws Exception {
-    Duration windowDuration = Duration.millis(10);
-    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
-        Sessions.withGapDuration(windowDuration),
-        underTest,
-        AccumulationMode.DISCARDING_FIRED_PANES,
-        Duration.millis(100));
-
-    tester.advanceProcessingTime(new Instant(10));
-    assertThat(tester.extractOutput(), Matchers.emptyIterable());
-
-    tester.injectElements(
-        TimestampedValue.of(1, new Instant(1))); // in [1, 11), synchronized timer for 15
-
-    tester.advanceProcessingTime(new Instant(16));
-    assertThat(tester.extractOutput(), Matchers.contains(
-        WindowMatchers.isSingleWindowedValue(Matchers.contains(1), 1, 1, 11)));
-
-    // Because we discarded the previous window, we don't have it around to merge with.
-    tester.injectElements(
-        TimestampedValue.of(2, new Instant(2))); // in [2, 12), synchronized timer for 21
-
-    tester.advanceProcessingTime(new Instant(100));
-    assertThat(tester.extractOutput(), Matchers.contains(
-        WindowMatchers.isSingleWindowedValue(Matchers.contains(2), 2, 2, 12)));
-
-    assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(2), new Instant(12))));
-    tester.assertHasOnlyGlobalAndFinishedSetsFor(
-        new IntervalWindow(new Instant(1), new Instant(11)),
-        new IntervalWindow(new Instant(2), new Instant(12)));
   }
 
   @Test
   public void testAfterSynchronizedProcessingTimeIgnoresTimer() throws Exception {
     Duration windowDuration = Duration.millis(10);
-    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
-        FixedWindows.of(windowDuration),
+    SimpleTriggerTester<IntervalWindow> tester = TriggerTester.forTrigger(
         new AfterSynchronizedProcessingTime<IntervalWindow>(),
-        AccumulationMode.DISCARDING_FIRED_PANES,
-        Duration.millis(100));
+        FixedWindows.of(windowDuration));
 
     tester.fireTimer(new IntervalWindow(new Instant(0), new Instant(10)),
         new Instant(15), TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
     tester.advanceProcessingTime(new Instant(5));
-    tester.injectElements(
-        TimestampedValue.of(1, new Instant(1)));
+    tester.injectElements(1);
     tester.fireTimer(new IntervalWindow(new Instant(0), new Instant(10)),
         new Instant(0), TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
   }

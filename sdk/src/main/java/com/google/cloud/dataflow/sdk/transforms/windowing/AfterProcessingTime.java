@@ -63,7 +63,6 @@ public class AfterProcessingTime<W extends BoundedWindow> extends TimeTrigger<W>
     state.access(DELAYED_UNTIL_TAG).get();
   }
 
-
   @Override
   public TriggerResult onElement(OnElementContext c)
       throws Exception {

@@ -16,7 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
-import static com.google.cloud.dataflow.sdk.WindowMatchers.isSingleWindowedValue;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -24,12 +24,10 @@ import static org.mockito.Mockito.when;
 
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.MergeResult;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerResult;
-import com.google.cloud.dataflow.sdk.util.ReduceFnTester;
 import com.google.cloud.dataflow.sdk.util.TimeDomain;
-import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
-import com.google.cloud.dataflow.sdk.values.TimestampedValue;
+import com.google.cloud.dataflow.sdk.util.TriggerTester;
+import com.google.cloud.dataflow.sdk.util.TriggerTester.SimpleTriggerTester;
 
-import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -46,16 +44,14 @@ import org.mockito.MockitoAnnotations;
 public class RepeatedlyTest {
   @Mock private Trigger<IntervalWindow> mockRepeated;
 
-  private ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester;
+  private SimpleTriggerTester<IntervalWindow> tester;
   private IntervalWindow firstWindow;
 
   public void setUp(WindowFn<?, IntervalWindow> windowFn) throws Exception {
     MockitoAnnotations.initMocks(this);
     Trigger<IntervalWindow> underTest = Repeatedly.forever(mockRepeated);
-    tester = ReduceFnTester.nonCombining(
-        windowFn, underTest,
-        AccumulationMode.DISCARDING_FIRED_PANES,
-        Duration.millis(100));
+    tester = TriggerTester.forTrigger(
+        underTest, windowFn);
     firstWindow = new IntervalWindow(new Instant(0), new Instant(10));
   }
 
@@ -67,7 +63,7 @@ public class RepeatedlyTest {
           .thenReturn(result1);
     }
 
-    tester.injectElements(TimestampedValue.of(element, new Instant(element)));
+    tester.injectElements(element);
   }
 
   @Test
@@ -75,13 +71,17 @@ public class RepeatedlyTest {
     setUp(FixedWindows.of(Duration.millis(10)));
 
     injectElement(1, TriggerResult.CONTINUE);
-    injectElement(2, TriggerResult.FIRE);
-    injectElement(3, TriggerResult.FIRE_AND_FINISH);
-    injectElement(4, TriggerResult.CONTINUE);
+    assertThat(tester.getLatestResult(), equalTo(TriggerResult.CONTINUE));
 
-    assertThat(tester.extractOutput(), Matchers.contains(
-        isSingleWindowedValue(Matchers.containsInAnyOrder(1, 2), 1, 0, 10),
-        isSingleWindowedValue(Matchers.containsInAnyOrder(3), 3, 0, 10)));
+    injectElement(2, TriggerResult.FIRE);
+    assertThat(tester.getLatestResult(), equalTo(TriggerResult.FIRE));
+
+    injectElement(3, TriggerResult.FIRE_AND_FINISH);
+    assertThat(tester.getLatestResult(), equalTo(TriggerResult.FIRE));
+
+    injectElement(4, TriggerResult.CONTINUE);
+    assertThat(tester.getLatestResult(), equalTo(TriggerResult.CONTINUE));
+
     assertFalse(tester.isMarkedFinished(firstWindow));
   }
 
@@ -94,33 +94,33 @@ public class RepeatedlyTest {
     when(mockRepeated.onTimer(Mockito.<Trigger<IntervalWindow>.OnTimerContext>any()))
         .thenReturn(TriggerResult.FIRE);
     tester.fireTimer(firstWindow, new Instant(11), TimeDomain.EVENT_TIME);
+    assertThat(tester.getLatestResult(), equalTo(TriggerResult.FIRE));
 
     injectElement(2, TriggerResult.CONTINUE);
+    assertThat(tester.getLatestResult(), equalTo(TriggerResult.CONTINUE));
 
     when(mockRepeated.onTimer(Mockito.<Trigger<IntervalWindow>.OnTimerContext>any()))
         .thenReturn(TriggerResult.FIRE_AND_FINISH);
     tester.fireTimer(firstWindow, new Instant(12), TimeDomain.EVENT_TIME);
+    assertThat(tester.getLatestResult(), equalTo(TriggerResult.FIRE));
 
     injectElement(3, TriggerResult.CONTINUE);
+    assertThat(tester.getLatestResult(), equalTo(TriggerResult.CONTINUE));
 
     when(mockRepeated.onTimer(Mockito.<Trigger<IntervalWindow>.OnTimerContext>any()))
         .thenReturn(TriggerResult.CONTINUE);
     tester.fireTimer(firstWindow, new Instant(13), TimeDomain.EVENT_TIME);
+    assertThat(tester.getLatestResult(), equalTo(TriggerResult.CONTINUE));
 
     injectElement(4, TriggerResult.CONTINUE);
+    assertThat(tester.getLatestResult(), equalTo(TriggerResult.CONTINUE));
 
     when(mockRepeated.onTimer(Mockito.<Trigger<IntervalWindow>.OnTimerContext>any()))
         .thenReturn(TriggerResult.FIRE);
     tester.fireTimer(firstWindow, new Instant(14), TimeDomain.EVENT_TIME);
 
-    assertThat(tester.extractOutput(), Matchers.contains(
-        isSingleWindowedValue(Matchers.containsInAnyOrder(1), 1, 0, 10),
-        isSingleWindowedValue(Matchers.containsInAnyOrder(2), 2, 0, 10),
-        isSingleWindowedValue(Matchers.containsInAnyOrder(3, 4), 3, 0, 10)));
+    assertThat(tester.getLatestResult(), equalTo(TriggerResult.FIRE));
     assertFalse(tester.isMarkedFinished(firstWindow));
-
-    tester.assertHasOnlyGlobalAndPaneInfoFor(
-        new IntervalWindow(new Instant(0), new Instant(10)));
   }
 
   @Test
@@ -129,20 +129,15 @@ public class RepeatedlyTest {
 
     when(mockRepeated.onElement(Mockito.<Trigger<IntervalWindow>.OnElementContext>any()))
         .thenReturn(TriggerResult.CONTINUE);
-    tester.injectElements(
-        TimestampedValue.of(1, new Instant(1)),
-        TimestampedValue.of(5, new Instant(12)));
+    tester.injectElements(1, 5);
 
     when(mockRepeated.onMerge(Mockito.<Trigger<IntervalWindow>.OnMergeContext>any()))
         .thenReturn(MergeResult.FIRE_AND_FINISH);
-    tester.injectElements(
-        TimestampedValue.of(12, new Instant(5)));
 
-    assertThat(tester.extractOutput(), Matchers.contains(
-        isSingleWindowedValue(Matchers.containsInAnyOrder(1, 5, 12), 1, 1, 22)));
-    assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(1), new Instant(22))));
-    tester.assertHasOnlyGlobalAndPaneInfoFor(
-        new IntervalWindow(new Instant(1), new Instant(22)));
+    tester.mergeWindows();
+
+    assertThat(tester.getLatestMergeResult(), equalTo(MergeResult.FIRE));
+    assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(1), new Instant(16))));
   }
 
   @Test

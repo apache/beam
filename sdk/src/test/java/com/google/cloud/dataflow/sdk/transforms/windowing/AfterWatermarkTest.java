@@ -16,24 +16,20 @@
 
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
-import static com.google.cloud.dataflow.sdk.WindowMatchers.isSingleWindowedValue;
-import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.everyItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
-import com.google.cloud.dataflow.sdk.WindowMatchers;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.MergeResult;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerResult;
-import com.google.cloud.dataflow.sdk.util.ReduceFnTester;
-import com.google.cloud.dataflow.sdk.util.TimeDomain;
-import com.google.cloud.dataflow.sdk.util.WindowedValue;
-import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
-import com.google.cloud.dataflow.sdk.values.TimestampedValue;
+import com.google.cloud.dataflow.sdk.util.TriggerTester;
+import com.google.cloud.dataflow.sdk.util.TriggerTester.SimpleTriggerTester;
 
-import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -43,8 +39,6 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
-
-import java.util.List;
 
 /**
  * Tests the {@link AfterWatermark} triggers.
@@ -65,175 +59,120 @@ public class AfterWatermarkTest {
   @Test
   public void testFirstInPaneWithFixedWindow() throws Exception {
     Duration windowDuration = Duration.millis(10);
-    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
-        FixedWindows.of(windowDuration),
+    SimpleTriggerTester<IntervalWindow> tester = TriggerTester.forTrigger(
         AfterWatermark.<IntervalWindow>pastFirstElementInPane().plusDelayOf(Duration.millis(5)),
-        AccumulationMode.DISCARDING_FIRED_PANES,
-        Duration.millis(100));
+        FixedWindows.of(windowDuration));
 
-    tester.injectElements(
-        TimestampedValue.of(1, new Instant(1))); // first in window [0, 10), timer set for 6
+    tester.injectElements(1); // first in window [0, 10), timer set for 6
     tester.advanceInputWatermark(new Instant(5));
-    tester.injectElements(
-        TimestampedValue.of(2, new Instant(9)),
-        TimestampedValue.of(3, new Instant(8)));
+    tester.injectElements(9, 8);
+    assertThat(tester.getResultSequence(), everyItem(equalTo(TriggerResult.CONTINUE)));
 
     tester.advanceInputWatermark(new Instant(7));
-    assertThat(tester.extractOutput(), Matchers.contains(
-        WindowMatchers.isSingleWindowedValue(containsInAnyOrder(1, 2, 3), 1, 0, 10)));
 
-    // This element belongs in the window that has already fired. It should not be re-output because
-    // that trigger (which was one-time) has already gone off.
-    tester.injectElements(
-        TimestampedValue.of(6, new Instant(2)));
-    assertThat(tester.extractOutput(), Matchers.emptyIterable());
-
+    assertThat(tester.getLatestResult(), equalTo(TriggerResult.FIRE_AND_FINISH));
     assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(0), new Instant(10))));
     assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(10), new Instant(20))));
-    tester.assertHasOnlyGlobalAndFinishedSetsFor(
-        new IntervalWindow(new Instant(0), new Instant(10)));
   }
 
   @Test
   public void testAlignAndDelay() throws Exception {
-    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
-        FixedWindows.of(Duration.standardMinutes(1)),
+    SimpleTriggerTester<IntervalWindow> tester = TriggerTester.forTrigger(
         AfterWatermark.<IntervalWindow>pastFirstElementInPane()
             .alignedTo(Duration.standardMinutes(1))
             .plusDelayOf(Duration.standardMinutes(5)),
-        AccumulationMode.DISCARDING_FIRED_PANES,
-
-        // Don't drop right away at the end of the window, since we have a delay.
-        Duration.standardMinutes(10));
+        FixedWindows.of(Duration.standardMinutes(1)));
 
     Instant zero = new Instant(0);
 
     // first in window [0, 1m), timer set for 6m
-    tester.injectElements(
-        TimestampedValue.of(1, zero.plus(Duration.standardSeconds(1))),
-        TimestampedValue.of(2, zero.plus(Duration.standardSeconds(5))),
-        TimestampedValue.of(3, zero.plus(Duration.standardSeconds(55))));
+    tester.injectElements(1000, 5000, 55000);
 
     // Advance to 6m. No output should be produced.
     tester.advanceInputWatermark(zero.plus(Duration.standardMinutes(6)));
-    assertThat(tester.extractOutput(), Matchers.emptyIterable());
+    assertThat(tester.getResultSequence(), everyItem(equalTo(TriggerResult.CONTINUE)));
 
     // Advance to 6m+1ms and see our output
     tester.advanceInputWatermark(zero.plus(Duration.standardMinutes(6).plus(1)));
-    assertThat(tester.extractOutput(), Matchers.contains(
-        WindowMatchers.isSingleWindowedValue(
-            containsInAnyOrder(1, 2, 3),
-            zero.plus(Duration.standardSeconds(1)).getMillis(),
-            zero.getMillis(), zero.plus(Duration.standardMinutes(1)).getMillis())));
+    assertThat(tester.getLatestResult(), equalTo(TriggerResult.FIRE_AND_FINISH));
+  }
+
+  @Test
+  public void testAfterFirstInPaneClear() throws Exception {
+    SimpleTriggerTester<IntervalWindow> tester = TriggerTester.forTrigger(
+        AfterWatermark.<IntervalWindow>pastFirstElementInPane().plusDelayOf(Duration.millis(5)),
+        FixedWindows.of(Duration.millis(10)));
+
+    tester.injectElements(1, 2, 3);
+    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(10));
+    tester.clearState(window);
+    tester.assertCleared(window);
   }
 
   @Test
   public void testFirstInPaneWithMerging() throws Exception {
     Duration windowDuration = Duration.millis(10);
-    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
-        Sessions.withGapDuration(windowDuration),
+    SimpleTriggerTester<IntervalWindow> tester = TriggerTester.forTrigger(
         AfterWatermark.<IntervalWindow>pastFirstElementInPane().plusDelayOf(Duration.millis(5)),
-        AccumulationMode.DISCARDING_FIRED_PANES,
-        Duration.millis(100));
+        Sessions.withGapDuration(windowDuration));
 
     tester.advanceInputWatermark(new Instant(1));
 
     tester.injectElements(
-        TimestampedValue.of(1, new Instant(1)),  // in [1, 11), timer for 6
-        TimestampedValue.of(2, new Instant(2))); // in [2, 12), timer for 7
+        1,  // in [1, 11), timer for 6
+        2); // in [2, 12), timer for 7
+    tester.mergeWindows();
     tester.advanceInputWatermark(new Instant(7));
 
-    // We merged, and updated the watermark timer to the earliest timer, which was still 6.
-    assertThat(tester.extractOutput(), Matchers.contains(
-        WindowMatchers.isSingleWindowedValue(containsInAnyOrder(1, 2), 1, 1, 12)));
-
+    // We merged, and updated the timer to the earliest timer, which was still 6.
+    assertThat(tester.getLatestResult(), equalTo(TriggerResult.FIRE_AND_FINISH));
     assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(1), new Instant(12))));
-
-    tester.assertHasOnlyGlobalAndFinishedSetsFor(
-        new IntervalWindow(new Instant(1), new Instant(12)));
   }
 
   @Test
   public void testEndOfWindowFixedWindow() throws Exception {
     Duration windowDuration = Duration.millis(10);
-    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
-        FixedWindows.of(windowDuration),
+    SimpleTriggerTester<IntervalWindow> tester = TriggerTester.forTrigger(
         AfterWatermark.<IntervalWindow>pastEndOfWindow(),
-        AccumulationMode.DISCARDING_FIRED_PANES,
-        Duration.millis(100));
+        FixedWindows.of(windowDuration));
 
-    tester.injectElements(
-        TimestampedValue.of(1, new Instant(1))); // first in window [0, 10), timer set for 9
+    tester.injectElements(1); // first in window [0, 10), timer set for 9
     tester.advanceInputWatermark(new Instant(8));
-    assertThat(tester.extractOutput(), Matchers.emptyIterable());
-    tester.injectElements(
-        TimestampedValue.of(2, new Instant(9)),
-        TimestampedValue.of(3, new Instant(8)));
+    assertThat(tester.getLatestResult(), equalTo(TriggerResult.CONTINUE));
 
+    tester.injectElements(9, 8);
     tester.advanceInputWatermark(new Instant(10));
-    assertThat(tester.extractOutput(), Matchers.contains(
-        WindowMatchers.isSingleWindowedValue(containsInAnyOrder(1, 2, 3), 1, 0, 10)));
-
-    // This element belongs in the window that has already fired. It should not be re-output because
-    // that trigger (which was one-time) has already gone off.
-    tester.injectElements(
-        TimestampedValue.of(6, new Instant(2)));
-    assertThat(tester.extractOutput(), Matchers.emptyIterable());
+    assertThat(tester.getLatestResult(), equalTo(TriggerResult.FIRE_AND_FINISH));
 
     assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(0), new Instant(10))));
     assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(10), new Instant(20))));
-
-    tester.assertHasOnlyGlobalAndFinishedSetsFor(
-        new IntervalWindow(new Instant(0), new Instant(10)));
   }
 
   @Test
   public void testEndOfWindowWithMerging() throws Exception {
     Duration windowDuration = Duration.millis(10);
-    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
-        Sessions.withGapDuration(windowDuration),
+    SimpleTriggerTester<IntervalWindow> tester = TriggerTester.forTrigger(
         AfterWatermark.<IntervalWindow>pastEndOfWindow(),
-        AccumulationMode.DISCARDING_FIRED_PANES,
-        Duration.millis(100));
+        Sessions.withGapDuration(windowDuration));
 
     tester.advanceInputWatermark(new Instant(1));
 
     tester.injectElements(
-        TimestampedValue.of(1, new Instant(1)),  // in [1, 11], timer for 11
-        TimestampedValue.of(2, new Instant(2))); // in [2, 12], timer for 12
+        1, // in [1, 11], timer for 11
+        2); // in [2, 12], timer for 12
+    tester.mergeWindows();
     tester.advanceInputWatermark(new Instant(10));
 
     // We merged, and updated the watermark timer to the end of the new window.
-    assertThat(tester.extractOutput(), Matchers.emptyIterable());
+    assertThat(tester.getLatestResult(), equalTo(TriggerResult.CONTINUE));
 
-    tester.injectElements(
-        TimestampedValue.of(3, new Instant(1))); // in [1, 11], timer for 11
+    tester.injectElements(1); // in [1, 11], timer for 11
+    tester.mergeWindows();
     tester.advanceInputWatermark(new Instant(12));
 
-    assertThat(tester.extractOutput(), Matchers.contains(
-        WindowMatchers.isSingleWindowedValue(containsInAnyOrder(1, 2, 3), 1, 1, 12)));
+    assertThat(tester.getLatestResult(), equalTo(TriggerResult.FIRE_AND_FINISH));
 
     assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(1), new Instant(12))));
-
-    tester.assertHasOnlyGlobalAndFinishedSetsFor(
-        new IntervalWindow(new Instant(1), new Instant(12)));
-  }
-
-  @Test
-  public void testEndOfWindowIgnoresTimer() throws Exception {
-    Duration windowDuration = Duration.millis(10);
-    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
-        FixedWindows.of(windowDuration),
-        AfterWatermark.<IntervalWindow>pastEndOfWindow(),
-        AccumulationMode.DISCARDING_FIRED_PANES,
-        Duration.millis(100));
-
-    tester.fireTimer(new IntervalWindow(new Instant(0), new Instant(10)),
-        new Instant(15), TimeDomain.EVENT_TIME);
-    tester.injectElements(
-        TimestampedValue.of(1, new Instant(1)));
-    tester.fireTimer(new IntervalWindow(new Instant(0), new Instant(10)),
-        new Instant(9), TimeDomain.EVENT_TIME);
   }
 
   @Test
@@ -270,45 +209,38 @@ public class AfterWatermarkTest {
 
   @Test
   public void testEarlyAndAtWatermarkProcessElement() throws Exception {
-    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
-        FixedWindows.of(Duration.millis(100)),
+    SimpleTriggerTester<IntervalWindow> tester = TriggerTester.forTrigger(
         AfterWatermark.<IntervalWindow>pastEndOfWindow()
             .withEarlyFirings(mockEarly),
-        AccumulationMode.DISCARDING_FIRED_PANES,
-        Duration.millis(100));
+        FixedWindows.of(Duration.millis(100)));
 
+    // Fire the early trigger
     when(mockEarly.onElement(Mockito.<Trigger<IntervalWindow>.OnElementContext>any()))
         .thenReturn(TriggerResult.CONTINUE)
         .thenReturn(TriggerResult.FIRE_AND_FINISH)
         .thenReturn(TriggerResult.CONTINUE);
-    tester.injectElements(
-        TimestampedValue.of(1, new Instant(5L)),
-        TimestampedValue.of(2, new Instant(10L))); // Fires due to early trigger
-    tester.injectElements(TimestampedValue.of(3, new Instant(15L)));
+    tester.injectElements(5, 10); // Fires due to early trigger
+    assertThat(tester.getLatestResult(), equalTo(TriggerResult.FIRE));
 
+    // Fire the watermark trigger
+    tester.injectElements(15);
     tester.advanceInputWatermark(new Instant(100L)); // Fires due to AtWatermark
-    List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
-    assertThat(output, Matchers.contains(
-        isSingleWindowedValue(containsInAnyOrder(1, 2), 5, 0, 100),
-        isSingleWindowedValue(containsInAnyOrder(3), 15, 0, 100)));
+    assertThat(tester.getLatestResult(), equalTo(TriggerResult.FIRE_AND_FINISH));
     assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(0), new Instant(100))));
   }
 
   @Test
   public void testLateAndAtWatermarkProcessElement() throws Exception {
-    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
-        FixedWindows.of(Duration.millis(100)),
+    SimpleTriggerTester<IntervalWindow> tester = TriggerTester.forTrigger(
         AfterWatermark.<IntervalWindow>pastEndOfWindow()
             .withLateFirings(mockLate),
-        AccumulationMode.DISCARDING_FIRED_PANES,
-        Duration.millis(100));
+        FixedWindows.of(Duration.millis(100)));
 
-    tester.injectElements(
-        TimestampedValue.of(1, new Instant(5L)),
-        TimestampedValue.of(2, new Instant(10L)),
-        TimestampedValue.of(3, new Instant(15L)));
+    tester.injectElements(5, 10, 15);
+    assertThat(tester.getResultSequence(), everyItem(equalTo(TriggerResult.CONTINUE)));
 
     tester.advanceInputWatermark(new Instant(100L)); // Fires due to AtWatermark
+    assertThat(tester.getLatestResult(), equalTo(TriggerResult.FIRE));
 
     when(mockLate.onElement(Mockito.<Trigger<IntervalWindow>.OnElementContext>any()))
         .thenReturn(TriggerResult.CONTINUE)
@@ -317,44 +249,40 @@ public class AfterWatermarkTest {
         .thenReturn(TriggerResult.CONTINUE)
         .thenReturn(TriggerResult.FIRE_AND_FINISH);
 
-    tester.injectElements(
-        TimestampedValue.of(4, new Instant(20L)),
-        TimestampedValue.of(5, new Instant(25L)),
-        TimestampedValue.of(6, new Instant(30L)));  // Fires due to late trigger
-    tester.injectElements(
-        TimestampedValue.of(7, new Instant(35L)),
-        TimestampedValue.of(8, new Instant(40L))); // Fires due to late trigger
+    tester.injectElements(20, 25, 30); // Fires due to late trigger
+    assertThat(tester.getLatestResult(), equalTo(TriggerResult.FIRE));
 
-    List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
-    assertThat(output, Matchers.contains(
-        isSingleWindowedValue(containsInAnyOrder(1, 2, 3), 5, 0, 100),
-        isSingleWindowedValue(containsInAnyOrder(4, 5, 6), 99, 0, 100),
-        isSingleWindowedValue(containsInAnyOrder(7, 8), 99, 0, 100)));
+    tester.injectElements(35, 40); // Fires due to late trigger
+    assertThat(tester.getLatestResult(), equalTo(TriggerResult.FIRE));
 
     assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(0), new Instant(100))));
   }
 
   @Test
   public void testEarlyLateAndAtWatermarkProcessElement() throws Exception {
-    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
-        FixedWindows.of(Duration.millis(100)),
+    SimpleTriggerTester<IntervalWindow> tester = TriggerTester.forTrigger(
         AfterWatermark.<IntervalWindow>pastEndOfWindow()
             .withEarlyFirings(mockEarly)
             .withLateFirings(mockLate),
-        AccumulationMode.DISCARDING_FIRED_PANES,
-        Duration.millis(100));
+        FixedWindows.of(Duration.millis(100)));
 
     when(mockEarly.onElement(Mockito.<Trigger<IntervalWindow>.OnElementContext>any()))
         .thenReturn(TriggerResult.CONTINUE)
         .thenReturn(TriggerResult.FIRE_AND_FINISH)
         .thenReturn(TriggerResult.CONTINUE);
-    tester.injectElements(
-        TimestampedValue.of(1, new Instant(5L)),
-        TimestampedValue.of(2, new Instant(10L))); // Fires due to early trigger
-    tester.injectElements(
-        TimestampedValue.of(3, new Instant(15L)));
+
+    // These should set a timer for 100
+    tester.injectElements(5, 10); // Fires due to early trigger
+    assertThat(tester.getLatestResult(), equalTo(TriggerResult.FIRE));
+
+    tester.injectElements(15);
+    assertThat(tester.getLatestResult(), equalTo(TriggerResult.CONTINUE));
+
+    tester.advanceInputWatermark(new Instant(99L)); // Checking for off-by-one
+    assertThat(tester.getLatestResult(), equalTo(TriggerResult.CONTINUE));
 
     tester.advanceInputWatermark(new Instant(100L)); // Fires due to AtWatermark
+    assertThat(tester.getLatestResult(), equalTo(TriggerResult.FIRE));
 
     when(mockLate.onElement(Mockito.<Trigger<IntervalWindow>.OnElementContext>any()))
         .thenReturn(TriggerResult.CONTINUE)
@@ -362,143 +290,120 @@ public class AfterWatermarkTest {
         .thenReturn(TriggerResult.FIRE_AND_FINISH)
         .thenReturn(TriggerResult.CONTINUE)
         .thenReturn(TriggerResult.FIRE_AND_FINISH);
-    tester.injectElements(
-        TimestampedValue.of(4, new Instant(20L)),
-        TimestampedValue.of(5, new Instant(25L)),
-        TimestampedValue.of(6, new Instant(30L)));  // Fires due to late trigger
-    tester.injectElements(
-        TimestampedValue.of(7, new Instant(35L)),
-        TimestampedValue.of(8, new Instant(40L))); // Fires due to late
 
-    List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
-    assertThat(output, Matchers.contains(
-        isSingleWindowedValue(containsInAnyOrder(1, 2), 5, 0, 100),
-        isSingleWindowedValue(containsInAnyOrder(3), 15, 0, 100),
-        isSingleWindowedValue(containsInAnyOrder(4, 5, 6), 99, 0, 100),
-        isSingleWindowedValue(containsInAnyOrder(7, 8), 99, 0, 100)));
+    // Get the late trigger to fire once
+    tester.clearResultSequence();
+    tester.injectElements(20, 25);
+    assertThat(tester.getResultSequence(), everyItem(equalTo(TriggerResult.CONTINUE)));
+    tester.injectElements(30); // Fires due to late trigger
+    assertThat(tester.getLatestResult(), equalTo(TriggerResult.FIRE));
+
+    // Get the late trigger to fire again
+    tester.clearResultSequence();
+    tester.injectElements(35);
+    assertThat(tester.getResultSequence(), everyItem(equalTo(TriggerResult.CONTINUE)));
+    tester.injectElements(40); // Fires due to late again
+    assertThat(tester.getLatestResult(), equalTo(TriggerResult.FIRE));
 
     assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(0), new Instant(100))));
   }
 
   @Test
   public void testEarlyAndAtWatermarkSessions() throws Exception {
-    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
-        Sessions.withGapDuration(Duration.millis(20)),
+    SimpleTriggerTester<IntervalWindow> tester = TriggerTester.forTrigger(
         AfterWatermark.<IntervalWindow>pastEndOfWindow()
             .withEarlyFirings(AfterPane.<IntervalWindow>elementCountAtLeast(2)),
-        AccumulationMode.ACCUMULATING_FIRED_PANES,
-        Duration.millis(100));
+        Sessions.withGapDuration(Duration.millis(20)));
 
-    tester.injectElements(
-        TimestampedValue.of(1, new Instant(5L)),
-        TimestampedValue.of(2, new Instant(20L)));
-
+    tester.injectElements(5, 20);
+    tester.mergeWindows();
+    assertThat(tester.getLatestMergeResult(), equalTo(MergeResult.FIRE));
     assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(5), new Instant(40))));
-    tester.injectElements(TimestampedValue.of(3, new Instant(6L)));
+
+    tester.injectElements(6);
+    tester.mergeWindows();
+    assertThat(tester.getLatestMergeResult(), equalTo(MergeResult.CONTINUE));
 
     tester.advanceInputWatermark(new Instant(100L)); // Fires due to AtWatermark
-    List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
-    assertThat(output, Matchers.contains(
-        isSingleWindowedValue(containsInAnyOrder(1, 2), 5, 5, 40),
-        isSingleWindowedValue(containsInAnyOrder(1, 2, 3), 6, 5, 40)));
+    assertThat(tester.getLatestResult(), equalTo(TriggerResult.FIRE_AND_FINISH));
     assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(5), new Instant(40))));
   }
 
   @Test
   public void testLateAndAtWatermarkSessionsProcessingTime() throws Exception {
-    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
-        Sessions.withGapDuration(Duration.millis(20)),
+    SimpleTriggerTester<IntervalWindow> tester = TriggerTester.forTrigger(
         AfterWatermark.<IntervalWindow>pastEndOfWindow()
             .withLateFirings(AfterProcessingTime
                 .<IntervalWindow>pastFirstElementInPane().plusDelayOf(Duration.millis(10))),
-        AccumulationMode.ACCUMULATING_FIRED_PANES,
-        Duration.millis(100));
+        Sessions.withGapDuration(Duration.millis(20)));
 
     tester.advanceProcessingTime(new Instant(0L));
-    tester.injectElements(
-        TimestampedValue.of(1, new Instant(5L)),
-        TimestampedValue.of(2, new Instant(20L)));
+    tester.injectElements(5, 20);
+    tester.advanceProcessingTime(new Instant(50L)); // Check that  we don't trigger wrongly
+    assertThat(tester.getResultSequence(), everyItem(equalTo(TriggerResult.CONTINUE)));
 
     tester.advanceInputWatermark(new Instant(70L)); // Fires due to AtWatermark
+    assertThat(tester.getLatestResult(), equalTo(TriggerResult.FIRE));
 
-    tester.injectElements(TimestampedValue.of(3, new Instant(6L)));
-
+    tester.injectElements(6);
+    tester.mergeWindows(); // merge must be manually triggered to learn we are on late trigger
     tester.advanceProcessingTime(new Instant(100L)); // Fires the late trigger
+    assertThat(tester.getLatestResult(), equalTo(TriggerResult.FIRE));
 
-    tester.injectElements(TimestampedValue.of(4, new Instant(9L)));
+    tester.injectElements(9);
+    tester.mergeWindows(); // merge must be manually triggered to learn we are on late trigger
+    tester.advanceProcessingTime(new Instant(150L)); // Fires the late trigger again
 
-    tester.advanceProcessingTime(new Instant(100L)); // Fires the late trigger again
-
-    List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
-    assertThat(output, Matchers.contains(
-        isSingleWindowedValue(containsInAnyOrder(1, 2), 5, 5, 40),
-        isSingleWindowedValue(containsInAnyOrder(1, 2, 3), 39, 5, 40)));
+    assertThat(tester.getLatestResult(), equalTo(TriggerResult.FIRE));
     assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(5), new Instant(40))));
   }
 
   @Test
   public void testLateAndAtWatermarkSessions() throws Exception {
-    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
-        Sessions.withGapDuration(Duration.millis(20)),
+    SimpleTriggerTester<IntervalWindow> tester = TriggerTester.forTrigger(
         AfterWatermark.<IntervalWindow>pastEndOfWindow()
             .withLateFirings(AfterPane.<IntervalWindow>elementCountAtLeast(2)),
-        AccumulationMode.ACCUMULATING_FIRED_PANES,
-        Duration.millis(100));
+        Sessions.withGapDuration(Duration.millis(20)));
 
-    tester.injectElements(
-        TimestampedValue.of(1, new Instant(5L)),
-        TimestampedValue.of(2, new Instant(20L)));
+    tester.injectElements(5, 20);
 
     tester.advanceInputWatermark(new Instant(70L)); // Fires due to AtWatermark
+    assertThat(tester.getLatestResult(), equalTo(TriggerResult.FIRE));
 
     IntervalWindow window = new IntervalWindow(new Instant(5), new Instant(40));
     assertFalse(tester.isMarkedFinished(window));
 
-    tester.injectElements(
-        TimestampedValue.of(3, new Instant(7L)),
-        TimestampedValue.of(4, new Instant(8L)),
-        TimestampedValue.of(5, new Instant(9L)));  // Fires because we have at least 5 items
+    tester.injectElements(7, 8, 9); // Fires because we have at least 5 items
+    tester.mergeWindows();
 
-    List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
-    assertThat(output, Matchers.contains(
-        isSingleWindowedValue(containsInAnyOrder(1, 2), 5, 5, 40),
-        isSingleWindowedValue(containsInAnyOrder(1, 2, 3, 4, 5), 39, 5, 40)));
+    assertThat(tester.getLatestMergeResult(), equalTo(MergeResult.FIRE));
     assertFalse(tester.isMarkedFinished(window));
   }
 
   @Test
   public void testEarlyLateAndAtWatermarkSessions() throws Exception {
-    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
-        Sessions.withGapDuration(Duration.millis(20)),
+    SimpleTriggerTester<IntervalWindow> tester = TriggerTester.forTrigger(
         AfterWatermark.<IntervalWindow>pastEndOfWindow()
             .withEarlyFirings(AfterProcessingTime.<IntervalWindow>pastFirstElementInPane()
                 .plusDelayOf(Duration.millis(50)))
             .withLateFirings(AfterPane.<IntervalWindow>elementCountAtLeast(2)),
-        AccumulationMode.ACCUMULATING_FIRED_PANES,
-        Duration.millis(100));
+        Sessions.withGapDuration(Duration.millis(20)));
 
     tester.advanceProcessingTime(new Instant(0));
-    tester.injectElements(
-        TimestampedValue.of(1, new Instant(5L)),
-        TimestampedValue.of(2, new Instant(20L)));
+    tester.injectElements(5, 20);
 
     tester.advanceProcessingTime(new Instant(56)); // Fires due to early trigger
-
     tester.advanceInputWatermark(new Instant(70L)); // Fires due to AtWatermark
 
     assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(5), new Instant(40))));
 
     tester.injectElements(
-        TimestampedValue.of(3, new Instant(6L)),
-        TimestampedValue.of(4, new Instant(7L)), // Should fire due to late trigger
-        TimestampedValue.of(5, new Instant(8L)));
+        6,
+        7, // Should fire due to late trigger
+        8);
+    tester.mergeWindows();
 
-    List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
-    assertThat(output, Matchers.contains(
-        isSingleWindowedValue(containsInAnyOrder(1, 2), 5, 5, 40),
-        // We get an empty on time pane
-        isSingleWindowedValue(containsInAnyOrder(1, 2), 39, 5, 40),
-        isSingleWindowedValue(containsInAnyOrder(1, 2, 3, 4, 5), 39, 5, 40)));
+    assertThat(tester.getLatestMergeResult(), equalTo(MergeResult.FIRE));
     assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(5), new Instant(40))));
   }
 }
