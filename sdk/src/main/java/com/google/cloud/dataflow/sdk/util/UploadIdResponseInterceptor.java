@@ -51,7 +51,11 @@ public class UploadIdResponseInterceptor implements HttpResponseInterceptor {
     // The check for no upload id limits the output to one log line per upload.
     // The check for upload type makes sure this is an upload and not a read.
     if (url.get(UPLOAD_ID_PARAM) == null && url.get(UPLOAD_TYPE_PARAM) != null) {
-      LOG.debug("Upload ID for url {} is {}", url, uploadId);
+      LOG.debug(
+          "Upload ID for url {} on worker {} is {}",
+          url,
+          System.getProperty("worker_id"),
+          uploadId);
     }
   }
 }

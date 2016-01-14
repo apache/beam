@@ -93,6 +93,7 @@ public class UploadIdResponseInterceptorTest {
     new UploadIdResponseInterceptor().interceptResponse(buildHttpResponse("abc", null, "type"));
     GenericUrl url = new GenericUrl(HttpTesting.SIMPLE_URL);
     url.put("uploadType", "type");
-    expectedLogs.verifyDebug("Upload ID for url " + url + " is abc");
+    String worker = System.getProperty("worker_id");
+    expectedLogs.verifyDebug("Upload ID for url " + url + " on worker " + worker + " is abc");
   }
 }
