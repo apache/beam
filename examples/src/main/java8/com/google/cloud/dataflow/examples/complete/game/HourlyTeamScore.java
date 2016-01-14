@@ -182,6 +182,7 @@ public class HourlyTeamScore extends UserScore {
   /**
    * Run a batch pipeline to do windowed analysis of the data.
    */
+  // [START DocInclude_HTSMain]
   public static void main(String[] args) throws Exception {
     // Begin constructing a pipeline configured by commandline flags.
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
@@ -201,19 +202,23 @@ public class HourlyTeamScore extends UserScore {
       // day. If so, we want to weed it out. Similarly, if we include data from the following day
       // (to scoop up late-arriving events from the day we're analyzing), we need to weed out events
       // that fall after the time period we want to analyze.
+      // [START DocInclude_HTSFilters]
       .apply("FilterStartTime", Filter.byPredicate(
           (GameActionInfo gInfo)
               -> gInfo.getTimestamp() > startMinTimestamp.getMillis()))
       .apply("FilterEndTime", Filter.byPredicate(
           (GameActionInfo gInfo)
               -> gInfo.getTimestamp() < stopMinTimestamp.getMillis()))
+      // [END DocInclude_HTSFilters]
 
+      // [START DocInclude_HTSAddTsAndWindow]
       // Add an element timestamp based on the event log, and apply fixed windowing.
       .apply("AddEventTimestamps",
              WithTimestamps.of((GameActionInfo i) -> new Instant(i.getTimestamp())))
       .apply(Window.named("FixedWindowsTeam")
           .<GameActionInfo>into(FixedWindows.of(
                 Duration.standardMinutes(options.getWindowDuration()))))
+      // [END DocInclude_HTSAddTsAndWindow]
 
       // Extract and sum teamname/score pairs from the event data.
       .apply("ExtractTeamScore", new ExtractAndSumScore("team"))
@@ -221,5 +226,6 @@ public class HourlyTeamScore extends UserScore {
 
     pipeline.run();
   }
+  // [END DocInclude_HTSMain]
 
 }

@@ -123,6 +123,7 @@ public class GameStats extends LeaderBoard {
    * We do this by finding the mean total score per user, then using that information as a side
    * input to filter out all but those user scores that are > (mean * SCORE_WEIGHT)
    */
+  // [START DocInclude_AbuseDetect]
   public static class CalculateSpammyUsers
       extends PTransform<PCollection<KV<String, Integer>>, PCollection<KV<String, Integer>>> {
     private static final Logger LOG = LoggerFactory.getLogger(CalculateSpammyUsers.class);
@@ -163,6 +164,7 @@ public class GameStats extends LeaderBoard {
       return filtered;
     }
   }
+  // [END DocInclude_AbuseDetect]
 
   /**
    * Calculate and output an element's session duration.
@@ -299,6 +301,7 @@ public class GameStats extends LeaderBoard {
       // in calculating the team score sums, below.
       .apply("CreateSpammersView", View.<String, Integer>asMap());
 
+    // [START DocInclude_FilterAndCalc]
     // Calculate the total score per team over fixed windows,
     // and emit cumulative updates for late data. Uses the side input derived above-- the set of
     // suspected robots-- to filter out scores from those users from the sum.
@@ -320,10 +323,12 @@ public class GameStats extends LeaderBoard {
                   }}}))
       // Extract and sum teamname/score pairs from the event data.
       .apply("ExtractTeamScore", new ExtractAndSumScore("team"))
+      // [END DocInclude_FilterAndCalc]
       // Write the result to BigQuery
       .apply("WriteTeamSums",
              new WriteScoresToBigQuery(options.getTableName(), "team", true, false));
 
+    // [START DocInclude_SessionCalc]
     // Calculate the total score for the users per session-- that is, a burst of activity
     // separated by a gap from further activity. Find and record the mean session lengths.
     // This information could help the game designers track the changing user engagement
@@ -338,7 +343,8 @@ public class GameStats extends LeaderBoard {
       .apply("UserSessionSum", Sum.<String>integersPerKey())
       // Get the duration per session.
       .apply("UserSessionActivity", ParDo.of(new UserSessionInfoFn()))
-
+      // [END DocInclude_SessionCalc]
+      // [START DocInclude_Rewindow]
       // Re-window to process groups of session sums according to when the sessions complete.
       .apply(Window.named("WindowToExtractSessionMean")
             .<Integer>into(
@@ -350,6 +356,7 @@ public class GameStats extends LeaderBoard {
       // Write this info to a BigQuery table.
       .apply("WriteAvgSessionLength",
              new WriteAverageSessionLengthToBigQuery(options.getTableName()));
+    // [END DocInclude_Rewindow]
 
 
     // Run the pipeline and wait for the pipeline to finish; capture cancellation requests from the

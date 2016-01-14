@@ -229,6 +229,7 @@ public class LeaderBoard extends HourlyTeamScore {
         .apply(PubsubIO.Read.timestampLabel(TIMESTAMP_ATTRIBUTE).topic(options.getTopic()))
         .apply(ParDo.named("ParseGameEvent").of(new ParseEventFn()));
 
+    // [START DocInclude_WindowAndTrigger]
     // Extract team/score pairs from the event stream, using hour-long windows by default.
     gameEvents
         .apply(Window.named("LeaderboardTeamFixedWindows")
@@ -249,7 +250,9 @@ public class LeaderBoard extends HourlyTeamScore {
         // Write the results to BigQuery.
         .apply("WriteTeamScoreSums",
                new WriteScoresToBigQuery(options.getTableName(), "team", true, true));
+    // [END DocInclude_WindowAndTrigger]
 
+    // [START DocInclude_ProcTimeTrigger]
     // Extract user/score pairs from the event stream using processing time, via global windowing.
     // Get periodic updates on all users' running scores.
     gameEvents
@@ -265,6 +268,7 @@ public class LeaderBoard extends HourlyTeamScore {
         // Write the results to BigQuery.
         .apply("WriteUserScoreSums",
                new WriteScoresToBigQuery(options.getTableName(), "user", false, false));
+    // [END DocInclude_ProcTimeTrigger]
 
     // Run the pipeline and wait for the pipeline to finish; capture cancellation requests from the
     // command line.

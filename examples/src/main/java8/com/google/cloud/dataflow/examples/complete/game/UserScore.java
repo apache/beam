@@ -162,6 +162,7 @@ public class UserScore {
    * A transform to extract key/score information from GameActionInfo, and sum the scores. The
    * constructor arg determines whether 'team' or 'user' info is extracted.
    */
+  // [START DocInclude_USExtractXform]
   public static class ExtractAndSumScore
       extends PTransform<PCollection<GameActionInfo>, PCollection<KV<String, Integer>>> {
 
@@ -182,6 +183,7 @@ public class UserScore {
         .apply(Sum.<String>integersPerKey());
     }
   }
+  // [END DocInclude_USExtractXform]
 
 
   /**
@@ -267,6 +269,7 @@ public class UserScore {
   /**
    * Run a batch pipeline.
    */
+ // [START DocInclude_USMain]
   public static void main(String[] args) throws Exception {
     // Begin constructing a pipeline configured by commandline flags.
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
@@ -282,5 +285,6 @@ public class UserScore {
     // Run the batch pipeline.
     pipeline.run();
   }
+  // [END DocInclude_USMain]
 
 }
