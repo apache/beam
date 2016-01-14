@@ -79,7 +79,7 @@ public class VarIntCoder extends AtomicCoder<Integer> {
   /**
    * {@inheritDoc}
    *
-   * @return {@code true}. {@link #getEncodedElementByteSize(Integer, Context)} is cheap.
+   * @return {@code true}. {@link #getEncodedElementByteSize} is cheap.
    */
   @Override
   public boolean isRegisterByteSizeObserverCheap(Integer value, Context context) {

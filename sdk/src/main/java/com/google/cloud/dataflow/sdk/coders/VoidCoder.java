@@ -61,7 +61,7 @@ public class VoidCoder extends AtomicCoder<Void> {
   /**
    * {@inheritDoc}
    *
-   * @return {@code true}. {@link VoidCoder#getEncodedElementByteSize()} runs in constant time.
+   * @return {@code true}. {@link VoidCoder#getEncodedElementByteSize} runs in constant time.
    */
   @Override
   public boolean isRegisterByteSizeObserverCheap(Void value, Context context) {

@@ -235,7 +235,7 @@ public class Combine {
    *
    * <p>See {@link GroupedValues Combine.GroupedValues} for more information.
    *
-   * <p>Note that {@link #perKey(GlobalCombineFn)} is typically
+   * <p>Note that {@link #perKey(CombineFnBase.GlobalCombineFn)} is typically
    * more convenient to use than {@link GroupByKey} followed by
    * {@code groupedValues(...)}.
    */
@@ -261,7 +261,7 @@ public class Combine {
    *
    * <p>See {@link GroupedValues Combine.GroupedValues} for more information.
    *
-   * <p>Note that {@link #perKey(PerKeyCombineFn)} is typically
+   * <p>Note that {@link #perKey(CombineFnBase.PerKeyCombineFn)} is typically
    * more convenient to use than {@link GroupByKey} followed by
    * {@code groupedValues(...)}.
    */

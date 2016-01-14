@@ -116,7 +116,7 @@ public class ByteArrayCoder extends AtomicCoder<byte[]> {
   /**
    * {@inheritDoc}
    *
-   * @return {@code true} since {@link #getEncodedElementByteSize(byte[], Context)} runs in
+   * @return {@code true} since {@link #getEncodedElementByteSize} runs in
    * constant time using the {@code length} of the provided array.
    */
   @Override

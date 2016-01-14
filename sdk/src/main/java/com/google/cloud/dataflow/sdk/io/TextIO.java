@@ -278,7 +278,7 @@ public class TextIO {
        * reads from input sources using the specified compression type.
        *
        * <p>If no compression type is specified, the default is {@link TextIO.CompressionType#AUTO}.
-       * See {@link TextIO.Read#withCompressionType(CompressionType)} for more details.
+       * See {@link TextIO.Read#withCompressionType} for more details.
        *
        * <p>Does not modify this object.
        */
