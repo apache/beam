@@ -1,18 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-Copyright 2015 Stephan Ewen, Aljoscha Krettek, Max Michels, dataArtisans
 
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
+	Copyright 2015 Data Artisans GmbH
 
-       http://www.apache.org/licenses/LICENSE-2.0
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at
 
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
+		http://www.apache.org/licenses/LICENSE-2.0
+
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
+
 -->
 <project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
 	xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
@@ -25,7 +27,7 @@ Copyright 2015 Stephan Ewen, Aljoscha Krettek, Max Michels, dataArtisans
 
 	<name>Flink Dataflow Runner</name>
 	<packaging>jar</packaging>
-	
+
 	<inceptionYear>2015</inceptionYear>
 
 	<licenses>
@@ -39,13 +41,12 @@ Copyright 2015 Stephan Ewen, Aljoscha Krettek, Max Michels, dataArtisans
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-                <flink.version>0.10.1</flink.version>
-
-                <!-- Default parameters for mvn exec:exec -->
-                <clazz>com.dataartisans.flink.dataflow.examples.WordCount</clazz>
-                <input>kinglear.txt</input>
-                <output>wordcounts.txt</output>
-                <parallelism>1</parallelism>
+			<flink.version>0.10.1</flink.version>
+			<!-- Default parameters for mvn exec:exec -->
+			<clazz>com.dataartisans.flink.dataflow.examples.WordCount</clazz>
+			<input>kinglear.txt</input>
+			<output>wordcounts.txt</output>
+			<parallelism>1</parallelism>
 	</properties>
 
 	<repositories>
@@ -114,7 +115,7 @@ Copyright 2015 Stephan Ewen, Aljoscha Krettek, Max Michels, dataArtisans
 			</exclusions>
 		</dependency>
 	</dependencies>
-		
+
 	<build>
 		<plugins>
 			<!-- JAR Packaging -->
@@ -134,7 +135,7 @@ Copyright 2015 Stephan Ewen, Aljoscha Krettek, Max Michels, dataArtisans
 
 			<!-- Java compiler -->
 			<plugin>
-				
+
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>3.1</version><!--$NO-MVN-MAN-VER$-->
@@ -164,7 +165,7 @@ Copyright 2015 Stephan Ewen, Aljoscha Krettek, Max Michels, dataArtisans
 				<artifactId>maven-surefire-plugin</artifactId>
 				<version>2.17</version><!--$NO-MVN-MAN-VER$-->
 			</plugin>
-			
+
 			<!-- Eclipse Integration -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -205,22 +206,22 @@ Copyright 2015 Stephan Ewen, Aljoscha Krettek, Max Michels, dataArtisans
 				</executions>
 			</plugin>
 
-                        <plugin>
-                          <groupId>org.codehaus.mojo</groupId>
-                          <artifactId>exec-maven-plugin</artifactId>
-                          <version>1.2.1</version>
-                          <configuration>
-                            <executable>java</executable>
-                            <arguments>
-                              <argument>-classpath</argument>
-                              <classpath />
-                              <argument>${clazz}</argument>
-                              <argument>--input=${input}</argument>
-                              <argument>--output=${output}</argument>
-                              <argument>--parallelism=${parallelism}</argument>
-                            </arguments>
-                          </configuration>
-                        </plugin>
+			<plugin>
+			  <groupId>org.codehaus.mojo</groupId>
+			  <artifactId>exec-maven-plugin</artifactId>
+			  <version>1.2.1</version>
+			  <configuration>
+				<executable>java</executable>
+				<arguments>
+				  <argument>-classpath</argument>
+				  <classpath />
+				  <argument>${clazz}</argument>
+				  <argument>--input=${input}</argument>
+				  <argument>--output=${output}</argument>
+				  <argument>--parallelism=${parallelism}</argument>
+				</arguments>
+			  </configuration>
+			</plugin>
 
 		</plugins>
 
