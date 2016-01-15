@@ -33,6 +33,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
@@ -61,12 +62,34 @@ public class GcpOptionsTest {
   }
 
   @Test
-  public void testGetProjectFromUserHomeEnv() throws Exception {
+  public void testGetProjectFromUserHomeEnvOld() throws Exception {
     Map<String, String> environment = ImmutableMap.of();
     System.setProperty("user.home", tmpFolder.getRoot().getAbsolutePath());
     assertEquals("test-project",
         runGetProjectTest(
             new File(tmpFolder.newFolder(".config", "gcloud"), "properties"),
+            environment));
+  }
+
+  @Test
+  public void testGetProjectFromUserHomeEnv() throws Exception {
+    Map<String, String> environment = ImmutableMap.of();
+    System.setProperty("user.home", tmpFolder.getRoot().getAbsolutePath());
+    assertEquals("test-project",
+        runGetProjectTest(
+            new File(tmpFolder.newFolder(".config", "gcloud", "configurations"), "config_default"),
+            environment));
+  }
+
+  @Test
+  public void testGetProjectFromUserHomeOldAndNewPrefersNew() throws Exception {
+    Map<String, String> environment = ImmutableMap.of();
+    System.setProperty("user.home", tmpFolder.getRoot().getAbsolutePath());
+    makePropertiesFileWithProject(new File(tmpFolder.newFolder(".config", "gcloud"), "properties"),
+        "old-project");
+    assertEquals("test-project",
+        runGetProjectTest(
+            new File(tmpFolder.newFolder(".config", "gcloud", "configurations"), "config_default"),
             environment));
   }
 
@@ -78,15 +101,20 @@ public class GcpOptionsTest {
     assertNull(projectFactory.create(PipelineOptionsFactory.create()));
   }
 
-  private static String runGetProjectTest(File path, Map<String, String> environment)
-      throws Exception {
+  private static void makePropertiesFileWithProject(File path, String projectId)
+      throws IOException {
     String properties = String.format("[core]%n"
         + "account = test-account@google.com%n"
-        + "project = test-project%n"
+        + "project = %s%n"
         + "%n"
         + "[dataflow]%n"
-        + "magic = true%n");
+        + "magic = true%n", projectId);
     Files.write(properties, path, StandardCharsets.UTF_8);
+  }
+
+  private static String runGetProjectTest(File path, Map<String, String> environment)
+      throws Exception {
+    makePropertiesFileWithProject(path, "test-project");
     DefaultProjectFactory projectFactory = spy(new DefaultProjectFactory());
     when(projectFactory.getEnvironment()).thenReturn(environment);
     return projectFactory.create(PipelineOptionsFactory.create());

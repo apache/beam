@@ -186,19 +186,25 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
     @Override
     public String create(PipelineOptions options) {
       try {
-        File configDir;
+        File configFile;
         if (getEnvironment().containsKey("CLOUDSDK_CONFIG")) {
-          configDir = new File(getEnvironment().get("CLOUDSDK_CONFIG"));
+          configFile = new File(getEnvironment().get("CLOUDSDK_CONFIG"), "properties");
         } else if (isWindows() && getEnvironment().containsKey("APPDATA")) {
-          configDir = new File(getEnvironment().get("APPDATA"), "gcloud");
+          configFile = new File(getEnvironment().get("APPDATA"), "gcloud/properties");
         } else {
-          configDir = new File(System.getProperty("user.home"), ".config/gcloud");
+          // New versions of gcloud use this file
+          configFile = new File(
+              System.getProperty("user.home"),
+              ".config/gcloud/configurations/config_default");
+          if (!configFile.exists()) {
+            // Old versions of gcloud use this file
+            configFile = new File(System.getProperty("user.home"), ".config/gcloud/properties");
+          }
         }
         String section = null;
         Pattern projectPattern = Pattern.compile("^project\\s*=\\s*(.*)$");
         Pattern sectionPattern = Pattern.compile("^\\[(.*)\\]$");
-        for (String line : Files.readLines(
-            new File(configDir, "properties"), StandardCharsets.UTF_8)) {
+        for (String line : Files.readLines(configFile, StandardCharsets.UTF_8)) {
           line = line.trim();
           if (line.isEmpty() || line.startsWith(";")) {
             continue;
