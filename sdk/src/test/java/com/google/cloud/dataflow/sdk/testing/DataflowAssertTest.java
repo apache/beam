@@ -178,6 +178,66 @@ public class DataflowAssertTest implements Serializable {
   }
 
   /**
+   * Test that we throw an error at pipeline construction time when the user mistakenly uses
+   * {@code DataflowAssert.thatSingleton().equals()} instead of the test method {@code .isEqualTo}.
+   */
+  @SuppressWarnings("deprecation") // test of deprecated function
+  @Test
+  public void testDataflowAssertEqualsSingletonUnsupported() throws Exception {
+    thrown.expect(UnsupportedOperationException.class);
+    thrown.expectMessage("isEqualTo");
+
+    Pipeline pipeline = TestPipeline.create();
+    PCollection<Integer> pcollection = pipeline.apply(Create.of(42));
+    DataflowAssert.thatSingleton(pcollection).equals(42);
+  }
+
+  /**
+   * Test that we throw an error at pipeline construction time when the user mistakenly uses
+   * {@code DataflowAssert.that().equals()} instead of the test method {@code .containsInAnyOrder}.
+   */
+  @SuppressWarnings("deprecation") // test of deprecated function
+  @Test
+  public void testDataflowAssertEqualsIterableUnsupported() throws Exception {
+    thrown.expect(UnsupportedOperationException.class);
+    thrown.expectMessage("containsInAnyOrder");
+
+    Pipeline pipeline = TestPipeline.create();
+    PCollection<Integer> pcollection = pipeline.apply(Create.of(42));
+    DataflowAssert.that(pcollection).equals(42);
+  }
+
+  /**
+   * Test that {@code DataflowAssert.thatSingleton().hashCode()} is unsupported.
+   * See {@link #testDataflowAssertEqualsSingletonUnsupported}.
+   */
+  @SuppressWarnings("deprecation") // test of deprecated function
+  @Test
+  public void testDataflowAssertHashCodeSingletonUnsupported() throws Exception {
+    thrown.expect(UnsupportedOperationException.class);
+    thrown.expectMessage(".hashCode() is not supported.");
+
+    Pipeline pipeline = TestPipeline.create();
+    PCollection<Integer> pcollection = pipeline.apply(Create.of(42));
+    DataflowAssert.thatSingleton(pcollection).hashCode();
+  }
+
+  /**
+   * Test that {@code DataflowAssert.thatIterable().hashCode()} is unsupported.
+   * See {@link #testDataflowAssertEqualsIterableUnsupported}.
+   */
+  @SuppressWarnings("deprecation") // test of deprecated function
+  @Test
+  public void testDataflowAssertHashCodeIterableUnsupported() throws Exception {
+    thrown.expect(UnsupportedOperationException.class);
+    thrown.expectMessage(".hashCode() is not supported.");
+
+    Pipeline pipeline = TestPipeline.create();
+    PCollection<Integer> pcollection = pipeline.apply(Create.of(42));
+    DataflowAssert.that(pcollection).hashCode();
+  }
+
+  /**
    * Basic test for {@code isEqualTo}.
    */
   @Test

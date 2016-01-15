@@ -144,7 +144,7 @@ public class CountingSourceTest {
         .apply("TimestampDiff", ParDo.of(new ElementValueDiff()))
         .apply("RemoveDuplicateTimestamps", RemoveDuplicates.<Long>create());
     // This assert also confirms that diffs only has one unique value.
-    DataflowAssert.thatSingleton(diffs).equals(0L);
+    DataflowAssert.thatSingleton(diffs).isEqualTo(0L);
 
     p.run();
   }

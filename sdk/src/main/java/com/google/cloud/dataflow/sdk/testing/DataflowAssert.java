@@ -28,6 +28,7 @@ import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.MapCoder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.options.StreamingOptions;
+import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
@@ -234,7 +235,6 @@ public class DataflowAssert {
       }
     }
 
-
     /**
      * Applies a {@link SerializableFunction} to check the elements of the {@code Iterable}.
      *
@@ -297,14 +297,37 @@ public class DataflowAssert {
       }
     }
 
-
     /**
      * Checks that the {@code Iterable} is empty.
      *
-     * <p> Returns this {@code IterableAssert}.
+     * <p>Returns this {@code IterableAssert}.
      */
     public IterableAssert<T> empty() {
       return satisfies(new AssertContainsInAnyOrderRelation<T>(), Collections.<T>emptyList());
+    }
+
+    /**
+     * @throws UnsupportedOperationException always
+     * @deprecated {@link Object#equals(Object)} is not supported on DataflowAssert objects.
+     *    If you meant to test object equality, use a variant of {@link #containsInAnyOrder}
+     *    instead.
+     */
+    @Deprecated
+    @Override
+    public boolean equals(Object o) {
+      throw new UnsupportedOperationException(
+          "If you meant to test object equality, use .containsInAnyOrder instead.");
+    }
+
+    /**
+     * @throws UnsupportedOperationException always.
+     * @deprecated {@link Object#hashCode()} is not supported on DataflowAssert objects.
+     */
+    @Deprecated
+    @Override
+    public int hashCode() {
+      throw new UnsupportedOperationException(
+          String.format("%s.hashCode() is not supported.", IterableAssert.class.getSimpleName()));
     }
 
     /**
@@ -334,7 +357,7 @@ public class DataflowAssert {
      * Checks that the {@code Iterable} contains elements that match the provided matchers,
      * in any order.
      *
-     * <p> Returns this {@code IterableAssert}.
+     * <p>Returns this {@code IterableAssert}.
      */
     @SafeVarargs
     final IterableAssert<T> containsInAnyOrder(
@@ -360,6 +383,31 @@ public class DataflowAssert {
     }
 
     /**
+     * Always throws an {@link UnsupportedOperationException}: users are probably looking for
+     * {@link #isEqualTo}.
+     */
+    @Deprecated
+    @Override
+    public boolean equals(Object o) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "tests for Java equality of the %s object, not the PCollection in question. "
+                  + "Call a test method, such as isEqualTo.",
+              getClass().getSimpleName()));
+    }
+
+    /**
+     * @throws UnsupportedOperationException always.
+     * @deprecated {@link Object#hashCode()} is not supported on DataflowAssert objects.
+     */
+    @Deprecated
+    @Override
+    public int hashCode() {
+      throw new UnsupportedOperationException(
+          String.format("%s.hashCode() is not supported.", SingletonAssert.class.getSimpleName()));
+    }
+
+    /**
      * Sets the coder to use for elements of type {@code T}, as needed
      * for internal purposes.
      *
@@ -378,8 +426,7 @@ public class DataflowAssert {
         return coder.get();
       } else {
         throw new IllegalStateException(
-            "Attempting to access the coder of an IterableAssert"
-                + " that has not been set yet.");
+            "Attempting to access the coder of an IterableAssert that has not been set yet.");
       }
     }
 
@@ -690,9 +737,8 @@ public class DataflowAssert {
       this((T[]) expected.toArray());
     }
 
-    @SuppressWarnings("unchecked")
     public AssertContainsInAnyOrder(Iterable<T> expected) {
-      this(Lists.newArrayList(expected));
+      this(Lists.<T>newArrayList(expected));
     }
 
     @Override
