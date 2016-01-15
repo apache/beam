@@ -78,9 +78,9 @@ page at http://checkstyle.sourceforge.net/config.html -->
 
   <!-- Allow use of comment to suppress javadocstyle -->
   <module name="SuppressionCommentFilter">
-    <property name="offCommentFormat" value="JAVADOCSTYLE OFF"/>
-    <property name="onCommentFormat" value="JAVADOCSTYLE ON"/>
-    <property name="checkFormat" value="JavadocStyle"/>
+    <property name="offCommentFormat" value="CHECKSTYLE.OFF\: ([\w\|]+)"/>
+    <property name="onCommentFormat" value="CHECKSTYLE.ON\: ([\w\|]+)"/>
+    <property name="checkFormat" value="$1"/>
   </module>
 
   <!-- All Java AST specific tests live under TreeWalker module. -->

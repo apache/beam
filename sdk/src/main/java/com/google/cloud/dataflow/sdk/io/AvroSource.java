@@ -50,7 +50,7 @@ import java.util.Collection;
 import java.util.zip.Inflater;
 import java.util.zip.InflaterInputStream;
 
-// JAVADOCSTYLE OFF
+// CHECKSTYLE.OFF: JavadocStyle
 /**
  * A {@link FileBasedSource} for reading Avro files.
  *
@@ -114,7 +114,7 @@ import java.util.zip.InflaterInputStream;
  *
  * @param <T> The type of records to be read from the source.
  */
-//JAVADOCSTYLE ON
+// CHECKSTYLE.ON: JavadocStyle
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class AvroSource<T> extends BlockBasedSource<T> {
   // Default minimum bundle size (chosen as two default-size Avro blocks to attempt to
