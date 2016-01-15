@@ -175,7 +175,7 @@ public class PackageUtilTest {
     File tmpDirectory = tmpFolder.newFolder("folder");
     DataflowPackage target = makePackageAttributes(tmpDirectory, null).getDataflowPackage();
 
-    assertThat(target.getName(), RegexMatcher.matches("folder-" + HASH_PATTERN + ".zip"));
+    assertThat(target.getName(), RegexMatcher.matches("folder-" + HASH_PATTERN + ".jar"));
     assertThat(target.getLocation(), equalTo(STAGING_PATH + '/' + target.getName()));
   }
 
@@ -310,7 +310,7 @@ public class PackageUtilTest {
     verify(mockGcsUtil).create(any(GcsPath.class), anyString());
     verifyNoMoreInteractions(mockGcsUtil);
 
-    assertThat(target.getName(), RegexMatcher.matches("folder-" + HASH_PATTERN + ".zip"));
+    assertThat(target.getName(), RegexMatcher.matches("folder-" + HASH_PATTERN + ".jar"));
     assertThat(target.getLocation(), equalTo(STAGING_PATH + '/' + target.getName()));
     assertNull(new ZipInputStream(Channels.newInputStream(pipe.source())).getNextEntry());
   }

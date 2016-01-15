@@ -246,7 +246,7 @@ public class PackageUtil {
    *
    * <p>Directory paths are removed. Example:
    * <pre>
-   * dir="a/b/c/d", contentHash="f000" => d-f000.zip
+   * dir="a/b/c/d", contentHash="f000" => d-f000.jar
    * file="a/b/c/d.txt", contentHash="f000" => d-f000.txt
    * file="a/b/c/d", contentHash="f000" => d-f000
    * </pre>
@@ -255,7 +255,7 @@ public class PackageUtil {
     String fileName = Files.getNameWithoutExtension(classpathElement.getAbsolutePath());
     String fileExtension = Files.getFileExtension(classpathElement.getAbsolutePath());
     if (classpathElement.isDirectory()) {
-      return fileName + "-" + contentHash + ".zip";
+      return fileName + "-" + contentHash + ".jar";
     } else if (fileExtension.isEmpty()) {
       return fileName + "-" + contentHash;
     }
