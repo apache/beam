@@ -16,19 +16,13 @@
 
 package com.google.cloud.dataflow.examples.complete.game;
 
-import com.google.api.services.bigquery.model.TableFieldSchema;
-import com.google.api.services.bigquery.model.TableReference;
-import com.google.api.services.bigquery.model.TableRow;
-import com.google.api.services.bigquery.model.TableSchema;
+import com.google.cloud.dataflow.examples.complete.game.utils.WriteToBigQuery;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.coders.DefaultCoder;
-import com.google.cloud.dataflow.sdk.io.BigQueryIO;
-import com.google.cloud.dataflow.sdk.io.BigQueryIO.Write.CreateDisposition;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.options.Default;
 import com.google.cloud.dataflow.sdk.options.Description;
-import com.google.cloud.dataflow.sdk.options.GcpOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.options.Validation;
@@ -37,23 +31,17 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.MapElements;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
-import com.google.cloud.dataflow.sdk.transforms.SimpleFunction;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
-import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 
 import org.apache.avro.reflect.Nullable;
-import org.joda.time.DateTimeZone;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.TimeZone;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * This class is the first in a series of four pipelines that tell a story in a 'gaming' domain.
@@ -187,64 +175,9 @@ public class UserScore {
 
 
   /**
-   * Format information for key/total_score pairs, and write that info to BigQuery.
-   */
-  public static class WriteToBigQuery
-      extends PTransform<PCollection<KV<String, Integer>>, PDone> {
-
-    private final String tableName;
-
-    public WriteToBigQuery(String tableName) {
-      this.tableName = tableName;
-    }
-
-    /** Convert each key/score pair into a BigQuery TableRow. */
-    private class BuildRowFn extends DoFn<KV<String, Integer>, TableRow> {
-
-      @Override
-      public void processElement(ProcessContext c) {
-
-        TableRow row = new TableRow()
-         .set("user", c.element().getKey())
-         .set("total_score", c.element().getValue().longValue());
-        c.output(row);
-      }
-    }
-
-    /** Build the output table schema. */
-    private TableSchema getSchema() {
-      List<TableFieldSchema> fields = new ArrayList<>();
-      fields.add(new TableFieldSchema().setName("user").setType("STRING"));
-      fields.add(new TableFieldSchema().setName("total_score").setType("INTEGER"));
-      return new TableSchema().setFields(fields);
-    }
-
-    @Override
-    public PDone apply(PCollection<KV<String, Integer>> teamAndScore) {
-      return teamAndScore
-        .apply(ParDo.named("ConvertToRow").of(new BuildRowFn()))
-        .apply(BigQueryIO.Write
-                  .to(getTable(teamAndScore.getPipeline(),
-                      tableName))
-                  .withSchema(getSchema())
-                  .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED));
-    }
-  }
-
-  /** Utility to construct an output table reference. */
-  static TableReference getTable(Pipeline pipeline, String tableName) {
-    PipelineOptions options = pipeline.getOptions();
-    TableReference table = new TableReference();
-    table.setDatasetId(options.as(Options.class).getDataset());
-    table.setProjectId(options.as(GcpOptions.class).getProject());
-    table.setTableId(tableName);
-    return table;
-  }
-
-  /**
    * Options supported by {@link UserScore}.
    */
-  static interface Options extends PipelineOptions {
+  public static interface Options extends PipelineOptions {
 
     @Description("Path to the data file(s) containing game data.")
     // The default maps to two large Google Cloud Storage files (each ~12GB) holding two subsequent
@@ -264,6 +197,20 @@ public class UserScore {
     void setTableName(String value);
   }
 
+  /**
+   * Create a map of information that describes how to write pipeline output to BigQuery. This map
+   * is passed to the {@link WriteToBigQuery} constructor to write user score sums.
+   */
+  protected static Map<String, WriteToBigQuery.FieldInfo<KV<String, Integer>>>
+    configureBigQueryWrite() {
+    Map<String, WriteToBigQuery.FieldInfo<KV<String, Integer>>> tableConfigure =
+        new HashMap<String, WriteToBigQuery.FieldInfo<KV<String, Integer>>>();
+    tableConfigure.put("user",
+        new WriteToBigQuery.FieldInfo<KV<String, Integer>>("STRING", c -> c.element().getKey()));
+    tableConfigure.put("total_score",
+        new WriteToBigQuery.FieldInfo<KV<String, Integer>>("INTEGER", c -> c.element().getValue()));
+    return tableConfigure;
+  }
 
 
   /**
@@ -280,7 +227,9 @@ public class UserScore {
       .apply(ParDo.named("ParseGameEvent").of(new ParseEventFn()))
       // Extract and sum username/score pairs from the event data.
       .apply("ExtractUserScore", new ExtractAndSumScore("user"))
-      .apply("WriteUserScoreSums", new WriteToBigQuery(options.getTableName()));
+      .apply("WriteUserScoreSums",
+          new WriteToBigQuery<KV<String, Integer>>(options.getTableName(),
+                                                   configureBigQueryWrite()));
 
     // Run the batch pipeline.
     pipeline.run();

@@ -106,7 +106,7 @@
                     <!-- This pattern is brittle; we would prefer to filter on the directory
                          but that seems to be unavailable to us. -->
                     <exclude>**/*Java8Test.java</exclude>
-                    <exclude>**/game/*.java</exclude>
+                    <exclude>**/game/**/*.java</exclude>
                   </testExcludes>
                 </configuration>
               </execution>
@@ -125,7 +125,7 @@
                     <!-- This pattern is brittle; we would prefer to filter on the directory
                          but that seems to be unavailable to us. -->
                     <include>**/*Java8Test.java</include>
-                    <include>**/game/*.java</include>
+                    <include>**/game/**/*.java</include>
                   </includes>
                 </configuration>
               </execution>
@@ -144,7 +144,7 @@
                     <!-- This pattern is brittle; we would prefer to filter on the directory
                          but that seems to be unavailable to us. -->
                     <exclude>**/*Java8*.java</exclude>
-                    <exclude>**/game/*.java</exclude>
+                    <exclude>**/game/**/*.java</exclude>
                   </excludes>
                 </configuration>
               </execution>
@@ -163,7 +163,7 @@
                     <!-- This pattern is brittle; we would prefer to filter on the directory
                          but that seems to be unavailable to us. -->
                     <include>**/*Java8*.java</include>
-                    <include>**/game/*.java</include>
+                    <include>**/game/**/*.java</include>
                   </includes>
                 </configuration>
               </execution>

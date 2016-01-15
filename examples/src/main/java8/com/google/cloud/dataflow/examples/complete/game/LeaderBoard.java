@@ -16,30 +16,19 @@
 
 package com.google.cloud.dataflow.examples.complete.game;
 
-import com.google.api.services.bigquery.model.TableFieldSchema;
-import com.google.api.services.bigquery.model.TableRow;
-import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.dataflow.examples.common.DataflowExampleOptions;
 import com.google.cloud.dataflow.examples.common.DataflowExampleUtils;
+import com.google.cloud.dataflow.examples.complete.game.utils.WriteToBigQuery;
+import com.google.cloud.dataflow.examples.complete.game.utils.WriteWindowedToBigQuery;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.PipelineResult;
-import com.google.cloud.dataflow.sdk.io.BigQueryIO;
-import com.google.cloud.dataflow.sdk.io.BigQueryIO.Write.CreateDisposition;
 import com.google.cloud.dataflow.sdk.io.PubsubIO;
 import com.google.cloud.dataflow.sdk.options.Default;
 import com.google.cloud.dataflow.sdk.options.Description;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.options.StreamingOptions;
 import com.google.cloud.dataflow.sdk.options.Validation;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
-import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.DoFn.RequiresWindowAccess;
-import com.google.cloud.dataflow.sdk.transforms.MapElements;
-import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
-import com.google.cloud.dataflow.sdk.transforms.SimpleFunction;
-import com.google.cloud.dataflow.sdk.transforms.Sum;
-import com.google.cloud.dataflow.sdk.transforms.windowing.AfterEach;
 import com.google.cloud.dataflow.sdk.transforms.windowing.AfterProcessingTime;
 import com.google.cloud.dataflow.sdk.transforms.windowing.AfterWatermark;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
@@ -49,9 +38,6 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.Repeatedly;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
-import com.google.cloud.dataflow.sdk.values.PDone;
-import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
-
 
 import org.joda.time.DateTimeZone;
 import org.joda.time.Duration;
@@ -59,8 +45,8 @@ import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.TimeZone;
 
 /**
@@ -114,78 +100,6 @@ public class LeaderBoard extends HourlyTeamScore {
 
 
   /**
-   * Format information for scores, and write that info to BigQuery.
-   * Optionally include fixed windowing information and timing in the result.
-   */
-  public static class WriteScoresToBigQuery
-      extends PTransform<PCollection<KV<String, Integer>>, PDone> {
-
-    private final String fieldName;
-    private final String tablePrefix;
-    private final boolean writeTiming; // Whether to write timing info to the resultant table.
-    private final boolean writeWindowStart; // whether to include window start info.
-
-    public WriteScoresToBigQuery(String tablePrefix, String fieldName,
-        boolean writeWindowStart, boolean writeTiming) {
-      this.fieldName = fieldName;
-      this.tablePrefix = tablePrefix;
-      this.writeWindowStart = writeWindowStart;
-      this.writeTiming = writeTiming;
-    }
-
-    /** Convert each key/score pair into a BigQuery TableRow. */
-    private class BuildFixedRowFn extends DoFn<KV<String, Integer>, TableRow>
-        implements RequiresWindowAccess {
-
-      @Override
-      public void processElement(ProcessContext c) {
-
-        // IntervalWindow w = (IntervalWindow) c.window();
-
-        TableRow row = new TableRow()
-          .set(fieldName, c.element().getKey())
-          .set("total_score", c.element().getValue().longValue())
-          .set("processing_time", fmt.print(Instant.now()));
-         if (writeWindowStart) {
-          IntervalWindow w = (IntervalWindow) c.window();
-          row.set("window_start", fmt.print(w.start()));
-         }
-         if (writeTiming) {
-          row.set("timing", c.pane().getTiming().toString());
-         }
-        c.output(row);
-      }
-    }
-
-    /** Build the output table schema. */
-    private TableSchema getFixedSchema() {
-      List<TableFieldSchema> fields = new ArrayList<>();
-      fields.add(new TableFieldSchema().setName(fieldName).setType("STRING"));
-      fields.add(new TableFieldSchema().setName("total_score").setType("INTEGER"));
-      fields.add(new TableFieldSchema().setName("processing_time").setType("STRING"));
-      if (writeWindowStart) {
-        fields.add(new TableFieldSchema().setName("window_start").setType("STRING"));
-      }
-      if (writeTiming) {
-        fields.add(new TableFieldSchema().setName("timing").setType("STRING"));
-      }
-      return new TableSchema().setFields(fields);
-    }
-
-    @Override
-    public PDone apply(PCollection<KV<String, Integer>> teamAndScore) {
-      return teamAndScore
-        .apply(ParDo.named("ConvertToFixedTriggersRow").of(new BuildFixedRowFn()))
-        .apply(BigQueryIO.Write
-                  .to(getTable(teamAndScore.getPipeline(),
-                      tablePrefix + "_" + fieldName))
-                  .withSchema(getFixedSchema())
-                  .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED));
-    }
-  }
-
-
-  /**
    * Options supported by {@link LeaderBoard}.
    */
   static interface Options extends HourlyTeamScore.Options, DataflowExampleOptions {
@@ -209,6 +123,49 @@ public class LeaderBoard extends HourlyTeamScore {
     @Default.String("leaderboard")
     String getTableName();
     void setTableName(String value);
+  }
+
+  /**
+   * Create a map of information that describes how to write pipeline output to BigQuery. This map
+   * is used to write team score sums and includes event timing information.
+   */
+  protected static Map<String, WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>>
+      configureWindowedTableWrite() {
+
+    Map<String, WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>> tableConfigure =
+        new HashMap<String, WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>>();
+    tableConfigure.put("team",
+        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>("STRING",
+            c -> c.element().getKey()));
+    tableConfigure.put("total_score",
+        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>("INTEGER",
+            c -> c.element().getValue()));
+    tableConfigure.put("window_start",
+        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>("STRING",
+          c -> { IntervalWindow w = (IntervalWindow) c.window();
+                 return fmt.print(w.start()); }));
+    tableConfigure.put("processing_time",
+        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>(
+            "STRING", c -> fmt.print(Instant.now())));
+    tableConfigure.put("timing",
+        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>(
+            "STRING", c -> c.pane().getTiming().toString()));
+    return tableConfigure;
+  }
+
+  /**
+   * Create a map of information that describes how to write pipeline output to BigQuery. This map
+   * is used to write user score sums.
+   */
+  protected static Map<String, WriteToBigQuery.FieldInfo<KV<String, Integer>>>
+      configureGlobalWindowBigQueryWrite() {
+
+    Map<String, WriteToBigQuery.FieldInfo<KV<String, Integer>>> tableConfigure =
+        configureBigQueryWrite();
+    tableConfigure.put("processing_time",
+        new WriteToBigQuery.FieldInfo<KV<String, Integer>>(
+            "STRING", c -> fmt.print(Instant.now())));
+    return tableConfigure;
   }
 
 
@@ -249,7 +206,8 @@ public class LeaderBoard extends HourlyTeamScore {
         .apply("ExtractTeamScore", new ExtractAndSumScore("team"))
         // Write the results to BigQuery.
         .apply("WriteTeamScoreSums",
-               new WriteScoresToBigQuery(options.getTableName(), "team", true, true));
+               new WriteWindowedToBigQuery<KV<String, Integer>>(
+                  options.getTableName() + "_team", configureWindowedTableWrite()));
     // [END DocInclude_WindowAndTrigger]
 
     // [START DocInclude_ProcTimeTrigger]
@@ -267,7 +225,8 @@ public class LeaderBoard extends HourlyTeamScore {
         .apply("ExtractUserScore", new ExtractAndSumScore("user"))
         // Write the results to BigQuery.
         .apply("WriteUserScoreSums",
-               new WriteScoresToBigQuery(options.getTableName(), "user", false, false));
+               new WriteToBigQuery<KV<String, Integer>>(
+                  options.getTableName() + "_user", configureGlobalWindowBigQueryWrite()));
     // [END DocInclude_ProcTimeTrigger]
 
     // Run the pipeline and wait for the pipeline to finish; capture cancellation requests from the

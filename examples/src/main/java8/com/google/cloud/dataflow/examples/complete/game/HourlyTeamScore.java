@@ -16,33 +16,20 @@
 
 package com.google.cloud.dataflow.examples.complete.game;
 
-import com.google.api.services.bigquery.model.TableFieldSchema;
-import com.google.api.services.bigquery.model.TableRow;
-import com.google.api.services.bigquery.model.TableSchema;
+import com.google.cloud.dataflow.examples.complete.game.utils.WriteWindowedToBigQuery;
+
 import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.io.BigQueryIO;
-import com.google.cloud.dataflow.sdk.io.BigQueryIO.Write.CreateDisposition;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.options.Default;
 import com.google.cloud.dataflow.sdk.options.Description;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.transforms.Aggregator;
-import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.DoFn.RequiresWindowAccess;
 import com.google.cloud.dataflow.sdk.transforms.Filter;
-import com.google.cloud.dataflow.sdk.transforms.MapElements;
-import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
-import com.google.cloud.dataflow.sdk.transforms.SimpleFunction;
-import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.WithTimestamps;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.values.KV;
-import com.google.cloud.dataflow.sdk.values.PCollection;
-import com.google.cloud.dataflow.sdk.values.PDone;
-import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 
 import org.joda.time.DateTimeZone;
 import org.joda.time.Duration;
@@ -50,8 +37,8 @@ import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.TimeZone;
 
 /**
@@ -98,56 +85,6 @@ public class HourlyTeamScore extends UserScore {
           .withZone(DateTimeZone.forTimeZone(TimeZone.getTimeZone("PST")));
 
 
-  /** Format fixed window information for scores, and write that info to BigQuery. */
-  public static class WriteWindowedToBigQuery
-      extends PTransform<PCollection<KV<String, Integer>>, PDone> {
-
-    private final String tableName;
-
-    public WriteWindowedToBigQuery(String tableName) {
-      this.tableName = tableName;
-    }
-
-    /** Convert each key/score pair into a BigQuery TableRow. */
-    private class BuildFixedRowFn extends DoFn<KV<String, Integer>, TableRow>
-        implements RequiresWindowAccess {
-
-      @Override
-      public void processElement(ProcessContext c) {
-
-        IntervalWindow w = (IntervalWindow) c.window();
-
-        TableRow row = new TableRow()
-         .set("team", c.element().getKey())
-         .set("total_score", c.element().getValue().longValue())
-         // Add windowing info to the output.
-         .set("window_start", fmt.print(w.start()));
-        c.output(row);
-      }
-    }
-
-    /** Build the output table schema. */
-    private TableSchema getFixedSchema() {
-      List<TableFieldSchema> fields = new ArrayList<>();
-      fields.add(new TableFieldSchema().setName("team").setType("STRING"));
-      fields.add(new TableFieldSchema().setName("total_score").setType("INTEGER"));
-      fields.add(new TableFieldSchema().setName("window_start").setType("STRING"));
-      return new TableSchema().setFields(fields);
-    }
-
-    @Override
-    public PDone apply(PCollection<KV<String, Integer>> teamAndScore) {
-      return teamAndScore
-        .apply(ParDo.named("ConvertToFixedRow").of(new BuildFixedRowFn()))
-        .apply(BigQueryIO.Write
-                  .to(getTable(teamAndScore.getPipeline(),
-                      tableName))
-                  .withSchema(getFixedSchema())
-                  .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED));
-    }
-  }
-
-
   /**
    * Options supported by {@link HourlyTeamScore}.
    */
@@ -176,6 +113,28 @@ public class HourlyTeamScore extends UserScore {
     @Default.String("hourly_team_score")
     String getTableName();
     void setTableName(String value);
+  }
+
+  /**
+   * Create a map of information that describes how to write pipeline output to BigQuery. This map
+   * is passed to the {@link WriteWindowedToBigQuery} constructor to write team score sums and
+   * includes information about window start time.
+   */
+  protected static Map<String, WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>>
+      configureWindowedTableWrite() {
+    Map<String, WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>> tableConfig =
+        new HashMap<String, WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>>();
+    tableConfig.put("user",
+        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>("STRING",
+            c -> c.element().getKey()));
+    tableConfig.put("total_score",
+        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>("INTEGER",
+            c -> c.element().getValue()));
+    tableConfig.put("window_start",
+        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>("STRING",
+          c -> { IntervalWindow w = (IntervalWindow) c.window();
+                 return fmt.print(w.start()); }));
+    return tableConfig;
   }
 
 
@@ -222,7 +181,10 @@ public class HourlyTeamScore extends UserScore {
 
       // Extract and sum teamname/score pairs from the event data.
       .apply("ExtractTeamScore", new ExtractAndSumScore("team"))
-      .apply("WriteTeamScoreSums", new WriteWindowedToBigQuery(options.getTableName()));
+      .apply("WriteTeamScoreSums",
+        new WriteWindowedToBigQuery<KV<String, Integer>>(options.getTableName(),
+            configureWindowedTableWrite()));
+
 
     pipeline.run();
   }
