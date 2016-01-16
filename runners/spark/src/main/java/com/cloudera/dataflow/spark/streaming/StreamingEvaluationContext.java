@@ -116,7 +116,10 @@ public class StreamingEvaluationContext extends EvaluationContext {
   }
 
   public JavaDStreamLike<?, ?, ?> getStream(PTransform<?, ?> transform) {
-    PValue pvalue = (PValue) getInput(transform);
+    return getStream((PValue) getInput(transform));
+  }
+
+  public JavaDStreamLike<?, ?, ?> getStream(PValue pvalue) {
     DStreamHolder<?> dStreamHolder = pstreams.get(pvalue);
     JavaDStreamLike<?, ?, ?> dStream = dStreamHolder.getDStream();
     leafStreams.remove(dStreamHolder);
@@ -175,6 +178,9 @@ public class StreamingEvaluationContext extends EvaluationContext {
   }
 
   //---------------- override in order to expose in package
+  protected <I extends PInput> I getInput(PTransform<I, ?> transform) {
+    return super.getInput(transform);
+  }
   @Override
   protected <O extends POutput> O getOutput(PTransform<?, O> transform) {
     return super.getOutput(transform);

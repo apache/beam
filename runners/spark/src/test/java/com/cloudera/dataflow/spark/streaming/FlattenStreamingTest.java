@@ -17,16 +17,18 @@ package com.cloudera.dataflow.spark.streaming;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.transforms.Flatten;
 import com.google.cloud.dataflow.sdk.transforms.View;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.values.PCollection;
-import com.google.common.collect.ImmutableSet;
+import com.google.cloud.dataflow.sdk.values.PCollectionList;
 
 import com.cloudera.dataflow.io.CreateStream;
 import com.cloudera.dataflow.spark.EvaluationResult;
-import com.cloudera.dataflow.spark.SimpleWordCountTest;
 import com.cloudera.dataflow.spark.SparkPipelineRunner;
+import com.cloudera.dataflow.spark.streaming.SparkStreamingPipelineOptions;
+import com.cloudera.dataflow.spark.streaming.SparkStreamingPipelineOptionsFactory;
 import com.cloudera.dataflow.spark.streaming.utils.DataflowAssertStreaming;
 
 import org.joda.time.Duration;
@@ -35,16 +37,22 @@ import org.junit.Test;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 
-public class SimpleStreamingWordCountTest {
+/**
+ * Test Flatten (union) implementation for streaming.
+ */
+public class FlattenStreamingTest {
 
-  private static final String[] WORDS_ARRAY = {
-      "hi there", "hi", "hi sue bob", "hi sue", "", "bob hi"};
-  private static final List<Iterable<String>> WORDS_QUEUE =
-      Collections.<Iterable<String>>singletonList(Arrays.asList(WORDS_ARRAY));
-  private static final Set<String> EXPECTED_COUNT_SET =
-      ImmutableSet.of("hi: 5", "there: 1", "sue: 2", "bob: 2");
+  private static final String[] WORDS_ARRAY_1 = {
+      "one", "two", "three", "four"};
+  private static final List<Iterable<String>> WORDS_QUEUE_1 =
+      Collections.<Iterable<String>>singletonList(Arrays.asList(WORDS_ARRAY_1));
+  private static final String[] WORDS_ARRAY_2 = {
+          "five", "six", "seven", "eight"};
+  private static final List<Iterable<String>> WORDS_QUEUE_2 =
+          Collections.<Iterable<String>>singletonList(Arrays.asList(WORDS_ARRAY_2));
+  private static final String[] EXPECTED_UNION = {
+          "one", "two", "three", "four", "five", "six", "seven", "eight"};
   final static long TEST_TIMEOUT_MSEC = 1000L;
 
   @Test
@@ -55,19 +63,24 @@ public class SimpleStreamingWordCountTest {
     options.setTimeout(TEST_TIMEOUT_MSEC);// run for one interval
     Pipeline p = Pipeline.create(options);
 
-    PCollection<String> inputWords =
-        p.apply(CreateStream.fromQueue(WORDS_QUEUE)).setCoder(StringUtf8Coder.of());
-    PCollection<String> windowedWords = inputWords
-        .apply(Window.<String>into(FixedWindows.of(Duration.standardSeconds(1))));
+    PCollection<String> w1 =
+            p.apply(CreateStream.fromQueue(WORDS_QUEUE_1)).setCoder(StringUtf8Coder.of());
+    PCollection<String> windowedW1 =
+            w1.apply(Window.<String>into(FixedWindows.of(Duration.standardSeconds(1))));
+    PCollection<String> w2 =
+            p.apply(CreateStream.fromQueue(WORDS_QUEUE_2)).setCoder(StringUtf8Coder.of());
+    PCollection<String> windowedW2 =
+            w2.apply(Window.<String>into(FixedWindows.of(Duration.standardSeconds(1))));
+    PCollectionList<String> list = PCollectionList.of(windowedW1).and(windowedW2);
+    PCollection<String> union = list.apply(Flatten.<String>pCollections());
 
-    PCollection<String> output = windowedWords.apply(new SimpleWordCountTest.CountWords());
-
-    DataflowAssert.thatIterable(output.apply(View.<String>asIterable()))
-        .containsInAnyOrder(EXPECTED_COUNT_SET);
+    DataflowAssert.thatIterable(union.apply(View.<String>asIterable()))
+            .containsInAnyOrder(EXPECTED_UNION);
 
     EvaluationResult res = SparkPipelineRunner.create(options).run(p);
     res.close();
 
     DataflowAssertStreaming.assertNoFailures(res);
   }
+
 }
