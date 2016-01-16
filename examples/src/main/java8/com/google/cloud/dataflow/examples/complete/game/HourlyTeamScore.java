@@ -43,8 +43,8 @@ import java.util.TimeZone;
 
 /**
  * This class is the second in a series of four pipelines that tell a story in a 'gaming'
- * domain, following {@link UserScore}. In addition to the concepts introduced in {@ UserScore}, new
- * concepts include: windowing and element timestamps; use of {@code Filter.byPredicate()}.
+ * domain, following {@link UserScore}. In addition to the concepts introduced in {@link UserScore},
+ * new concepts include: windowing and element timestamps; use of {@code Filter.byPredicate()}.
  *
  * <p> This pipeline processes data collected from gaming events in batch, building on {@link
  * UserScore} but using fixed windows. It calculates the sum of scores per team, for each window,
