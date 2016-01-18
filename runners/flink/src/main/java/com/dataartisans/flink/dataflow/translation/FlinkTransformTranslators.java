@@ -29,6 +29,7 @@ import com.dataartisans.flink.dataflow.translation.functions.FlinkReduceFunction
 import com.dataartisans.flink.dataflow.translation.functions.UnionCoder;
 import com.dataartisans.flink.dataflow.translation.types.CoderTypeInformation;
 import com.dataartisans.flink.dataflow.translation.types.KvCoderTypeInformation;
+import com.dataartisans.flink.dataflow.translation.wrappers.SinkOutputFormat;
 import com.dataartisans.flink.dataflow.translation.wrappers.SourceInputFormat;
 import com.google.api.client.util.Maps;
 import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
@@ -46,6 +47,7 @@ import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.View;
+import com.google.cloud.dataflow.sdk.transforms.Write;
 import com.google.cloud.dataflow.sdk.transforms.join.CoGbkResult;
 import com.google.cloud.dataflow.sdk.transforms.join.CoGbkResultSchema;
 import com.google.cloud.dataflow.sdk.transforms.join.CoGroupByKey;
@@ -123,7 +125,7 @@ public class FlinkTransformTranslators {
 		TRANSLATORS.put(AvroIO.Write.Bound.class, new AvroIOWriteTranslator());
 
 		TRANSLATORS.put(Read.Bounded.class, new ReadSourceTranslator());
-//		TRANSLATORS.put(Write.Bound.class, new ReadSourceTranslator());
+		TRANSLATORS.put(Write.Bound.class, new WriteSinkTranslator());
 
 		TRANSLATORS.put(TextIO.Read.Bound.class, new TextIOReadTranslator());
 		TRANSLATORS.put(TextIO.Write.Bound.class, new TextIOWriteTranslator());
@@ -285,6 +287,18 @@ public class FlinkTransformTranslators {
 			PValue input = context.getInput(transform);
 			DataSet<?> inputDataSet = context.getInputDataSet(input);
 			inputDataSet.printOnTaskManager(transform.getName());
+		}
+	}
+
+	private static class WriteSinkTranslator<T> implements FlinkPipelineTranslator.TransformTranslator<Write.Bound<T>> {
+
+		@Override
+		public void translateNode(Write.Bound<T> transform, TranslationContext context) {
+			String name = transform.getName();
+			PValue input = context.getInput(transform);
+			DataSet<T> inputDataSet = context.getInputDataSet(input);
+
+			inputDataSet.output(new SinkOutputFormat<>(transform, context.getPipelineOptions())).name(name);
 		}
 	}
 
