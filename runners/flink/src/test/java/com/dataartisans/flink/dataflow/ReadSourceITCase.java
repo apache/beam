@@ -75,87 +75,89 @@ public class ReadSourceITCase extends JavaProgramTestBase {
 		result.apply(TextIO.Write.to(resultPath));
 		p.run();
 	}
-}
 
-class ReadSource extends BoundedSource<Integer> {
-	final int from;
-	final int to;
 
-	ReadSource(int from, int to) {
-		this.from = from;
-		this.to = to;
-	}
+	private static class ReadSource extends BoundedSource<Integer> {
+		final int from;
+		final int to;
 
-	@Override
-	public List<ReadSource> splitIntoBundles(long desiredShardSizeBytes, PipelineOptions options)
-			throws Exception {
-		List<ReadSource> res = new ArrayList<>();
-		FlinkPipelineOptions flinkOptions = options.as(FlinkPipelineOptions.class);
-		int numWorkers = flinkOptions.getParallelism();
-		Preconditions.checkArgument(numWorkers > 0, "Number of workers should be larger than 0.");
-
-		float step = 1.0f * (to - from) / numWorkers;
-		for (int i = 0; i < numWorkers; ++i) {
-			res.add(new ReadSource(Math.round(from + i * step), Math.round(from + (i + 1) * step)));
-		}
-		return res;
-	}
-
-	@Override
-	public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
-		return 8 * (to - from);
-	}
-
-	@Override
-	public boolean producesSortedKeys(PipelineOptions options) throws Exception {
-		return true;
-	}
-
-	@Override
-	public BoundedReader<Integer> createReader(PipelineOptions options) throws IOException {
-		return new RangeReader(this);
-	}
-
-	@Override
-	public void validate() {}
-
-	@Override
-	public Coder<Integer> getDefaultOutputCoder() {
-		return BigEndianIntegerCoder.of();
-	}
-
-	private class RangeReader extends BoundedReader<Integer> {
-		private int current;
-
-		public RangeReader(ReadSource source) {
-			this.current = source.from - 1;
+		ReadSource(int from, int to) {
+			this.from = from;
+			this.to = to;
 		}
 
 		@Override
-		public boolean start() throws IOException {
+		public List<ReadSource> splitIntoBundles(long desiredShardSizeBytes, PipelineOptions options)
+				throws Exception {
+			List<ReadSource> res = new ArrayList<>();
+			FlinkPipelineOptions flinkOptions = options.as(FlinkPipelineOptions.class);
+			int numWorkers = flinkOptions.getParallelism();
+			Preconditions.checkArgument(numWorkers > 0, "Number of workers should be larger than 0.");
+
+			float step = 1.0f * (to - from) / numWorkers;
+			for (int i = 0; i < numWorkers; ++i) {
+				res.add(new ReadSource(Math.round(from + i * step), Math.round(from + (i + 1) * step)));
+			}
+			return res;
+		}
+
+		@Override
+		public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
+			return 8 * (to - from);
+		}
+
+		@Override
+		public boolean producesSortedKeys(PipelineOptions options) throws Exception {
 			return true;
 		}
 
 		@Override
-		public boolean advance() throws IOException {
-			current++;
-			return (current < to);
+		public BoundedReader<Integer> createReader(PipelineOptions options) throws IOException {
+			return new RangeReader(this);
 		}
 
 		@Override
-		public Integer getCurrent() {
-			return current;
-		}
+		public void validate() {}
 
 		@Override
-		public void close() throws IOException {
-			// Nothing
+		public Coder<Integer> getDefaultOutputCoder() {
+			return BigEndianIntegerCoder.of();
 		}
 
-		@Override
-		public BoundedSource<Integer> getCurrentSource() {
-			return ReadSource.this;
+		private class RangeReader extends BoundedReader<Integer> {
+			private int current;
+
+			public RangeReader(ReadSource source) {
+				this.current = source.from - 1;
+			}
+
+			@Override
+			public boolean start() throws IOException {
+				return true;
+			}
+
+			@Override
+			public boolean advance() throws IOException {
+				current++;
+				return (current < to);
+			}
+
+			@Override
+			public Integer getCurrent() {
+				return current;
+			}
+
+			@Override
+			public void close() throws IOException {
+				// Nothing
+			}
+
+			@Override
+			public BoundedSource<Integer> getCurrentSource() {
+				return ReadSource.this;
+			}
 		}
 	}
 }
+
 
