@@ -70,12 +70,14 @@ public class ReadOperation extends Operation {
 
   /**
    * The Reader's iterator this operation reads from, created by start().
-   * Guarded by sourceIteratorLock.
+   *
+   * Guarded by {@link Operation#initializationStateLock}.
    */
   volatile NativeReader.NativeReaderIterator<?> readerIterator = null;
 
   /**
-   * A cache of sourceIterator.getProgress() updated inside the read loop at a bounded rate.
+   * A cache of {@link #readerIterator}'s progress updated inside the read loop
+   * at a bounded rate.
    *
    * <p>Necessary so that ReadOperation.getProgress() can return immediately, rather than
    * potentially wait for a read to complete (which can take an unbounded time, delay a worker
@@ -84,13 +86,15 @@ public class ReadOperation extends Operation {
   private AtomicReference<NativeReader.Progress> progress = new AtomicReference<>();
 
   /**
-   * On every iteration of the read loop, "progress" is fetched from sourceIterator if requested.
+   * On every iteration of the read loop, "progress" is fetched from
+   * {@link #readerIterator} if requested.
    */
   private long progressUpdatePeriodMs = DEFAULT_PROGRESS_UPDATE_PERIOD_MS;
 
   /**
    * Signals whether the next iteration of the read loop should update the progress.
-   * Set to true every progressUpdatePeriodMs.
+   *
+   * <p>Set to true every progressUpdatePeriodMs.
    */
   private AtomicBoolean isProgressUpdateRequested = new AtomicBoolean(true);
 
@@ -180,8 +184,13 @@ public class ReadOperation extends Operation {
 
     try (StateSampler.ScopedState process = stateSampler.scopedState(processState)) {
       assert process != null;
-      synchronized (initializationStateLock) {
-        readerIterator = reader.iterator();
+      {
+        // Call reader.iterator() outside the lock, because it can take an
+        // unbounded amount of time.
+        NativeReader.NativeReaderIterator<?> iterator = reader.iterator();
+        synchronized (initializationStateLock) {
+          readerIterator = iterator;
+        }
       }
 
       // TODO: Consider using the ExecutorService from PipelineOptions instead.

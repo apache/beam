@@ -60,12 +60,20 @@ public abstract class Operation {
     FINISHED
   }
 
-  /** The initialization state of this Operation. */
+  /**
+   * The initialization state of this Operation.
+   *
+   * <p>Written from one thread, but can be read by concurrent threads.
+   */
   public InitializationState initializationState =
       InitializationState.UNSTARTED;
 
-  /** The lock protecting the initialization state. InitializationState is only
-   * written from one thread, but can be read by concurrent threads.
+  /**
+   * The lock protecting the initialization state.
+   *
+   * <p>Subclasses can use this lock to protect their own state.
+   * However, this lock should be held only for short, bounded
+   * amounts of time.
    */
   protected final Object initializationStateLock = new Object();
 
