@@ -290,14 +290,6 @@ public class BigQueryTableRowIterator implements Iterator<TableRow>, Closeable {
       String fieldName = fieldSchema.getName();
       checkArgument(!RESERVED_FIELD_NAMES.contains(fieldName),
           "BigQueryIO does not support records with columns named %s", fieldName);
-
-      if (convertedValue == null) {
-        // BigQuery does not include null values when the export operation (to JSON) is used.
-        // To match that behavior, BigQueryTableRowiterator, and the DirectPipelineRunner,
-        // intentionally omits columns with null values.
-        continue;
-      }
-
       row.set(fieldName, convertedValue);
     }
     return row;
