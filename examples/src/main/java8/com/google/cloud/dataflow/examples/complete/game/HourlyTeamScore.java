@@ -124,7 +124,7 @@ public class HourlyTeamScore extends UserScore {
       configureWindowedTableWrite() {
     Map<String, WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>> tableConfig =
         new HashMap<String, WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>>();
-    tableConfig.put("user",
+    tableConfig.put("team",
         new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>("STRING",
             c -> c.element().getKey()));
     tableConfig.put("total_score",
