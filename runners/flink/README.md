@@ -132,6 +132,11 @@ A fat jar is necessary if you want to submit your Dataflow code to a Flink clust
 includes your program code but also Dataflow code which is necessary during runtime. Note that this
 step is necessary because the Dataflow Runner is not part of Flink.
 
+You can then build the jar using `mvn clean package`. Please submit the fat jar in the `target`
+folder to the Flink cluster using the command-line utility like so:
+
+    ./bin/flink run /path/to/fat.jar
+
 For more information, please visit the [Apache Flink Website](http://flink.apache.org) or contact
 the [Mailinglists](http://flink.apache.org/community.html#mailing-lists).
 
