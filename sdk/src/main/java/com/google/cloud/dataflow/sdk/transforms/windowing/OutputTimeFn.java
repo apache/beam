@@ -111,7 +111,7 @@ public abstract class OutputTimeFn<W extends BoundedWindow> implements Serializa
    *
    * <p>For many other {@link OutputTimeFn} implementations, such as taking the earliest or latest
    * timestamp, this will be the same as {@link #combine combine()}. Defaults for this
-   * case are provided by {@link Default}.
+   * case are provided by {@link Defaults}.
    */
   public abstract Instant merge(W intoWindow, Iterable<? extends Instant> mergingTimestamps);
 
