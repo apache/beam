@@ -60,11 +60,82 @@ Congratulations, you have run your first Google Dataflow program on top of Apach
 
 # Running Dataflow on Flink on a cluster
 
-You can run your Dataflow program on a Apache Flink cluster as well. For more
-information, please visit the [Apache Flink Website](http://flink.apache.org) or
-contact the
-[Mailinglists](http://flink.apache.org/community.html#mailing-lists).
+You can run your Dataflow program on an Apache Flink cluster. Please start off by creating a new
+Maven project.
+
+    mvn archetype:generate -DgroupId=com.mycompany.dataflow -DartifactId=dataflow-test \
+        -DarchetypeArtifactId=maven-archetype-quickstart -DinteractiveMode=false
+
+The contents of the root `pom.xml` should be slightly changed aftewards (explanation below):
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.mycompany.dataflow</groupId>
+    <artifactId>dataflow-test</artifactId>
+    <version>1.0</version>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.dataartisans</groupId>
+            <artifactId>flink-dataflow</artifactId>
+            <version>0.2</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>2.4.1</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>WordCount</mainClass>
+                                </transformer>
+                            </transformers>
+                            <artifactSet>
+                                <excludes>
+                                    <exclude>org.apache.flink:*</exclude>
+                                </excludes>
+                            </artifactSet>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+        </plugins>
+
+    </build>
+
+</project>
+```
+
+The following changes have been made:
+
+1. The Flink Dataflow Runner was added as a dependency.
+
+2. The Maven Shade plugin was added to build a fat jar.
+
+A fat jar is necessary if you want to submit your Dataflow code to a Flink cluster. The fat jar
+includes your program code but also Dataflow code which is necessary during runtime. Note that this
+step is necessary because the Dataflow Runner is not part of Flink.
+
+For more information, please visit the [Apache Flink Website](http://flink.apache.org) or contact
+the [Mailinglists](http://flink.apache.org/community.html#mailing-lists).
 
 # Streaming
 
-Streaming support is currently under development. See the `streaming` branch for the current version.
+Streaming support is currently under development. See the `streaming_new` branch for the current
+work in progress version.
