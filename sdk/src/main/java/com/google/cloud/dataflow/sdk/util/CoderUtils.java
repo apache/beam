@@ -32,6 +32,7 @@ import com.google.common.base.Throwables;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.As;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
+import com.fasterxml.jackson.databind.DatabindContext;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonTypeIdResolver;
@@ -248,6 +249,11 @@ public final class CoderUtils {
       @Deprecated
       @Override
       public JavaType typeFromId(String id) {
+        return typeFromId(null, id);
+      }
+
+      @Override
+      public JavaType typeFromId(DatabindContext context, String id) {
         Class<?> clazz = getClassForId(id);
         if (clazz == KvCoder.class) {
           clazz = KvCoderBase.class;
