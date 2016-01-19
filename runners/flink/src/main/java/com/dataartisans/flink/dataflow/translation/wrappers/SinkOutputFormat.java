@@ -23,13 +23,16 @@ import com.google.cloud.dataflow.sdk.io.Sink;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.repackaged.com.google.common.base.Preconditions;
 import com.google.cloud.dataflow.sdk.transforms.Write;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.AbstractID;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.lang.reflect.Field;
+import java.util.UUID;
 
 /**
  * Wrapper class to use generic Write.Bound transforms as sinks.
@@ -43,6 +46,8 @@ public class SinkOutputFormat<T> implements OutputFormat<T> {
 
 	private Sink.WriteOperation<T, ?> writeOperation;
 	private Sink.Writer<T, ?> writer;
+
+	private AbstractID uid = new AbstractID();
 
 	public SinkOutputFormat(Write.Bound<T> transform, PipelineOptions pipelineOptions) {
 		this.sink = extractSink(transform);
@@ -80,7 +85,7 @@ public class SinkOutputFormat<T> implements OutputFormat<T> {
 			throw new IOException("Couldn't create writer.", e);
 		}
 		try {
-			writer.open(String.valueOf(taskNumber));
+			writer.open(uid + "-" + String.valueOf(taskNumber));
 		} catch (Exception e) {
 			throw new IOException("Couldn't open writer.", e);
 		}
