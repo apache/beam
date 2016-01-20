@@ -483,17 +483,12 @@ public class CustomSources {
 
     @Override
     public NativeReader.Progress getProgress() {
-      if (reader instanceof BoundedSource.BoundedReader) {
-        ApproximateReportedProgress progress = new ApproximateReportedProgress();
-        Double fractionConsumed = reader.getFractionConsumed();
-        if (fractionConsumed != null) {
-          progress.setFractionConsumed(fractionConsumed);
-        }
-        return SourceTranslationUtils.cloudProgressToReaderProgress(progress);
-      } else {
-        // Progress estimation for unbounded sources not yet supported.
-        return null;
+      ApproximateReportedProgress progress = new ApproximateReportedProgress();
+      Double fractionConsumed = reader.getFractionConsumed();
+      if (fractionConsumed != null) {
+        progress.setFractionConsumed(fractionConsumed);
       }
+      return SourceTranslationUtils.cloudProgressToReaderProgress(progress);
     }
 
     @Override
