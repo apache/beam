@@ -46,12 +46,12 @@ import com.google.common.base.MoreObjects;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
 import org.joda.time.Instant;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.BitSet;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -111,7 +111,7 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
   /**
    * A map from a window and trigger to whether that trigger is finished for the window.
    */
-  private final Map<W, BitSet> finishedSets;
+  private final Map<W, FinishedTriggers> finishedSets;
 
   public static <W extends BoundedWindow> SimpleTriggerTester<W> forTrigger(
       TriggerBuilder<W> trigger, WindowFn<?, W> windowFn) throws Exception {
@@ -234,12 +234,12 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
    * Returns {@code true} if the {@link Trigger} under test is finished for the given window.
    */
   public boolean isMarkedFinished(W window) {
-    BitSet finishedSet = finishedSets.get(window);
+    FinishedTriggers finishedSet = finishedSets.get(window);
     if (finishedSet == null) {
       return false;
     }
 
-    return finishedSet.get(executableTrigger.getTriggerIndex());
+    return finishedSet.isFinished(executableTrigger);
   }
 
   private StateNamespace windowNamespace(W window) {
@@ -339,16 +339,21 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
     for (Map.Entry<W, Collection<W>> merged : windowToComponents.entrySet()) {
       W window = merged.getKey();
       Collection<W> oldWindows = merged.getValue();
+      Map<W, FinishedTriggers> mergingFinishedSets =
+          Maps.newHashMapWithExpectedSize(oldWindows.size());
+      for (W oldWindow : oldWindows) {
+        mergingFinishedSets.put(oldWindow, getFinishedSet(oldWindow));
+      }
       latestMergeResult = executableTrigger.invokeMerge(
           contextFactory.createOnMergeContext(window, new TestTimers(windowNamespace(window)),
               oldWindows, executableTrigger, getFinishedSet(window), finishedSets));
     }
   }
 
-  private BitSet getFinishedSet(W window) {
-    BitSet finishedSet = finishedSets.get(window);
+  private FinishedTriggers getFinishedSet(W window) {
+    FinishedTriggers finishedSet = finishedSets.get(window);
     if (finishedSet == null) {
-      finishedSet = new BitSet();
+      finishedSet = FinishedTriggersSet.fromSet(new HashSet<ExecutableTrigger<?>>());
       finishedSets.put(window, finishedSet);
     }
     return finishedSet;

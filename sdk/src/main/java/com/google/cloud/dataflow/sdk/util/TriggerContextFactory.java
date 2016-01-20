@@ -30,7 +30,6 @@ import com.google.common.collect.Maps;
 
 import org.joda.time.Instant;
 
-import java.util.BitSet;
 import java.util.Collection;
 import java.util.Map;
 
@@ -53,14 +52,14 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     this.activeWindows = activeWindows;
   }
 
-  public Trigger<W>.TriggerContext base(
-      W window, ReduceFn.Timers timers, ExecutableTrigger<W> rootTrigger, BitSet finishedSet) {
+  public Trigger<W>.TriggerContext base(W window, ReduceFn.Timers timers,
+      ExecutableTrigger<W> rootTrigger, FinishedTriggers finishedSet) {
     return new TriggerContextImpl(window, timers, rootTrigger, finishedSet);
   }
 
   public Trigger<W>.OnElementContext createOnElementContext(
       W window, ReduceFn.Timers timers, Instant elementTimestamp,
-      ExecutableTrigger<W> rootTrigger, BitSet finishedSet) {
+      ExecutableTrigger<W> rootTrigger, FinishedTriggers finishedSet) {
     return new OnElementContextImpl(
         window, timers, rootTrigger, finishedSet,
         elementTimestamp);
@@ -68,7 +67,7 @@ public class TriggerContextFactory<W extends BoundedWindow> {
 
   public Trigger<W>.OnTimerContext createOnTimerContext(
       W window, ReduceFn.Timers timers,
-      ExecutableTrigger<W> rootTrigger, BitSet finishedSet,
+      ExecutableTrigger<W> rootTrigger, FinishedTriggers finishedSet,
       Instant timestamp, TimeDomain domain) {
     return new OnTimerContextImpl(
         window, timers, rootTrigger, finishedSet, timestamp, domain);
@@ -76,8 +75,8 @@ public class TriggerContextFactory<W extends BoundedWindow> {
 
   public Trigger<W>.OnMergeContext createOnMergeContext(
       W window, ReduceFn.Timers timers, Collection<W> mergingWindows,
-      ExecutableTrigger<W> rootTrigger, BitSet finishedSet,
-      Map<W, BitSet> finishedSets) {
+      ExecutableTrigger<W> rootTrigger, FinishedTriggers finishedSet,
+      Map<W, FinishedTriggers> finishedSets) {
     return new OnMergeContextImpl(window, timers, rootTrigger, finishedSet,
         mergingWindows, finishedSets);
   }
@@ -85,11 +84,11 @@ public class TriggerContextFactory<W extends BoundedWindow> {
   private class TriggerInfoImpl implements Trigger.TriggerInfo<W> {
 
     protected final ExecutableTrigger<W> trigger;
-    protected final BitSet finishedSet;
+    protected final FinishedTriggers finishedSet;
     private final Trigger<W>.TriggerContext context;
 
-    public TriggerInfoImpl(
-        ExecutableTrigger<W> trigger, BitSet finishedSet, Trigger<W>.TriggerContext context) {
+    public TriggerInfoImpl(ExecutableTrigger<W> trigger, FinishedTriggers finishedSet,
+        Trigger<W>.TriggerContext context) {
       this.trigger = trigger;
       this.finishedSet = finishedSet;
       this.context = context;
@@ -112,12 +111,12 @@ public class TriggerContextFactory<W extends BoundedWindow> {
 
     @Override
     public boolean isFinished() {
-      return finishedSet.get(trigger.getTriggerIndex());
+      return finishedSet.isFinished(trigger);
     }
 
     @Override
     public boolean isFinished(int subtriggerIndex) {
-      return finishedSet.get(subTrigger(subtriggerIndex).getTriggerIndex());
+      return finishedSet.isFinished(subTrigger(subtriggerIndex));
     }
 
     @Override
@@ -131,8 +130,8 @@ public class TriggerContextFactory<W extends BoundedWindow> {
           .from(trigger.subTriggers())
           .filter(new Predicate<ExecutableTrigger<W>>() {
             @Override
-            public boolean apply(ExecutableTrigger<W> input) {
-              return !finishedSet.get(input.getTriggerIndex());
+            public boolean apply(ExecutableTrigger<W> trigger) {
+              return !finishedSet.isFinished(trigger);
             }
           });
     }
@@ -140,7 +139,7 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     @Override
     public ExecutableTrigger<W> firstUnfinishedSubTrigger() {
       for (ExecutableTrigger<W> subTrigger : trigger.subTriggers()) {
-        if (!finishedSet.get(subTrigger.getTriggerIndex())) {
+        if (!finishedSet.isFinished(subTrigger)) {
           return subTrigger;
         }
       }
@@ -149,18 +148,18 @@ public class TriggerContextFactory<W extends BoundedWindow> {
 
     @Override
     public void resetTree() throws Exception {
-      finishedSet.clear(trigger.getTriggerIndex(), trigger.getFirstIndexAfterSubtree());
+      finishedSet.clearRecursively(trigger);
       trigger.invokeClear(context);
     }
 
     @Override
     public void setFinished(boolean finished) {
-      finishedSet.set(trigger.getTriggerIndex(), finished);
+      finishedSet.setFinished(trigger, finished);
     }
 
     @Override
     public void setFinished(boolean finished, int subTriggerIndex) {
-      finishedSet.set(subTrigger(subTriggerIndex).getTriggerIndex(), finished);
+      finishedSet.setFinished(subTrigger(subTriggerIndex), finished);
     }
   }
 
@@ -199,21 +198,21 @@ public class TriggerContextFactory<W extends BoundedWindow> {
   private class MergingTriggerInfoImpl
       extends TriggerInfoImpl implements Trigger.MergingTriggerInfo<W> {
 
-    private final Map<W, BitSet> finishedSets;
+    private final Map<W, FinishedTriggers> finishedSets;
 
     public MergingTriggerInfoImpl(
         ExecutableTrigger<W> trigger,
-        BitSet finishedSet,
+        FinishedTriggers finishedSet,
         Trigger<W>.TriggerContext context,
-        Map<W, BitSet> finishedSets) {
+        Map<W, FinishedTriggers> finishedSets) {
       super(trigger, finishedSet, context);
       this.finishedSets = finishedSets;
     }
 
     @Override
     public boolean finishedInAnyMergingWindow() {
-      for (BitSet bitSet : finishedSets.values()) {
-        if (bitSet.get(trigger.getTriggerIndex())) {
+      for (FinishedTriggers finishedSet : finishedSets.values()) {
+        if (finishedSet.isFinished(trigger)) {
           return true;
         }
       }
@@ -222,10 +221,10 @@ public class TriggerContextFactory<W extends BoundedWindow> {
 
     @Override
     public Iterable<W> getFinishedMergingWindows() {
-      return Maps.filterValues(finishedSets, new Predicate<BitSet>() {
+      return Maps.filterValues(finishedSets, new Predicate<FinishedTriggers>() {
         @Override
-        public boolean apply(BitSet input) {
-          return input.get(trigger.getTriggerIndex());
+        public boolean apply(FinishedTriggers finishedSet) {
+          return finishedSet.isFinished(trigger);
         }
       }).keySet();
     }
@@ -270,7 +269,7 @@ public class TriggerContextFactory<W extends BoundedWindow> {
         W window,
         ReduceFn.Timers timers,
         ExecutableTrigger<W> trigger,
-        BitSet finishedSet) {
+        FinishedTriggers finishedSet) {
       trigger.getSpec().super();
       this.state = triggerState(window, trigger);
       this.timers = new TriggerTimers(window, timers);
@@ -320,7 +319,7 @@ public class TriggerContextFactory<W extends BoundedWindow> {
         W window,
         ReduceFn.Timers timers,
         ExecutableTrigger<W> trigger,
-        BitSet finishedSet,
+        FinishedTriggers finishedSet,
         Instant eventTimestamp) {
       trigger.getSpec().super();
       this.state = triggerState(window, trigger);
@@ -385,7 +384,7 @@ public class TriggerContextFactory<W extends BoundedWindow> {
         W window,
         ReduceFn.Timers timers,
         ExecutableTrigger<W> trigger,
-        BitSet finishedSet,
+        FinishedTriggers finishedSet,
         Instant timestamp,
         TimeDomain domain) {
       trigger.getSpec().super();
@@ -448,9 +447,9 @@ public class TriggerContextFactory<W extends BoundedWindow> {
         W window,
         ReduceFn.Timers timers,
         ExecutableTrigger<W> trigger,
-        BitSet finishedSet,
+        FinishedTriggers finishedSet,
         Collection<W> mergingWindows,
-        Map<W, BitSet> finishedSets) {
+        Map<W, FinishedTriggers> finishedSets) {
       trigger.getSpec().super();
       this.state = new ReduceFnContextFactory.MergingStateContextImpl<>(
           triggerState(window, trigger), mergingWindows);
