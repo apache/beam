@@ -161,8 +161,11 @@ message ComputationWorkItems {
 
 message GetWorkRequest {
   required fixed64 client_id = 1;
+  optional string worker_id = 4;
+  optional string job_id = 5;
   optional int64 max_items = 2 [default = 0xffffffff];
   optional int64 max_bytes = 3 [default = 0x7fffffffffffffff];
+  // reserved field number = 6
 }
 
 message GetWorkResponse {
@@ -185,6 +188,7 @@ message ComputationGetDataRequest {
 }
 
 message GetDataRequest {
+  optional string job_id = 4;
   repeated ComputationGetDataRequest requests = 1;
   repeated GlobalDataRequest global_data_fetch_requests = 3;
 
@@ -270,6 +274,7 @@ message ComputationCommitWorkRequest {
 }
 
 message CommitWorkRequest {
+  optional string job_id = 2;
   repeated ComputationCommitWorkRequest requests = 1;
 }
 
@@ -278,6 +283,7 @@ message CommitWorkResponse {}
 // Configuration
 
 message GetConfigRequest {
+  optional string job_id = 2;
   repeated string computations = 1;
 }
 
@@ -308,6 +314,7 @@ message Exception {
 }
 
 message ReportStatsRequest {
+  optional string job_id = 6;
   optional string computation_id = 1;
   optional bytes key = 2;
   optional fixed64 work_token = 3;
