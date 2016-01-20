@@ -15,6 +15,7 @@
  */
 package com.google.cloud.dataflow.sdk.runners.worker;
 
+import com.google.cloud.dataflow.sdk.runners.worker.status.BaseStatusServlet;
 import com.google.cloud.dataflow.sdk.util.Weighted;
 import com.google.cloud.dataflow.sdk.util.state.State;
 import com.google.cloud.dataflow.sdk.util.state.StateNamespace;
@@ -27,10 +28,15 @@ import com.google.common.cache.RemovalNotification;
 import com.google.common.cache.Weigher;
 import com.google.protobuf.ByteString;
 
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 /**
  * Process-wide cache of per-key state.
@@ -39,13 +45,6 @@ public class WindmillStateCache {
 
   private Cache<StateId, StateCacheEntry> stateCache;
   private int weight = 0;
-
-  private static class CacheWeigher implements Weigher<Weighted, Weighted> {
-    @Override
-    public int weigh(Weighted key, Weighted value) {
-      return (int) Math.max(key.getWeight() + value.getWeight(), Integer.MAX_VALUE);
-    }
-  }
 
   public WindmillStateCache() {
     final Weigher<Weighted, Weighted> weigher = Weighers.weightedKeysAndValues();
@@ -282,11 +281,17 @@ public class WindmillStateCache {
     response.println("</tr></table><br>");
   }
 
-  /**
-   * Print detailed information about the cache to the given {@link PrintWriter}.
-   */
-  public void printDetailedHtml(PrintWriter response) {
-    response.println("<h1>Cache Information</h1>");
-    printSummaryHtml(response);
+
+  public BaseStatusServlet statusServlet() {
+    return new BaseStatusServlet("/cachez") {
+      @Override
+      protected void doGet(HttpServletRequest request, HttpServletResponse response)
+          throws IOException, ServletException {
+
+        PrintWriter writer = response.getWriter();
+        writer.println("<h1>Cache Information</h1>");
+        printSummaryHtml(writer);
+      }
+    };
   }
 }

@@ -286,7 +286,7 @@ public class MemoryMonitor implements Runnable {
    *
    * @return The name of the file the heap was dumped to.
    */
-  private String tryToDumpHeap() {
+  private File tryToDumpHeap() {
     // clearing this list should "release" some memory
     // that will be needed to dump the heap
     reservedForDumpingHeap = null;
@@ -340,7 +340,7 @@ public class MemoryMonitor implements Runnable {
 
           if (shutDownAfterNumGCThrashing > 0
               && (currentThrashingCount >= shutDownAfterNumGCThrashing)) {
-            String heapDumpFile = tryToDumpHeap();
+            File heapDumpFile = tryToDumpHeap();
             LOG.error(
                 "Shutting down JVM after {} consecutive periods of measured GC thrashing. "
                 + "Memory is {}. Heap dump written to {}",
@@ -401,16 +401,12 @@ public class MemoryMonitor implements Runnable {
 
   /**
    * Dump the current heap profile to a file and return its name.
-   *
-   * @throws MalformedObjectNameException
-   * @throws MBeanException
-   * @throws ReflectionException
-   * @throws InstanceNotFoundException
    */
-  public static String dumpHeap() throws MalformedObjectNameException, InstanceNotFoundException,
-                                         ReflectionException, MBeanException {
+  public static File dumpHeap() throws
+      MalformedObjectNameException, InstanceNotFoundException, ReflectionException, MBeanException {
     boolean liveObjectsOnly = true;
-    String fileName = String.format("%s/heap_dump_%d", getLoggingDir(), System.currentTimeMillis());
+    String fileName = String.format(
+        "%s/heap_dump_%d.hprof", getLoggingDir(), System.currentTimeMillis());
 
     MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
     ObjectName oname = new ObjectName("com.sun.management:type=HotSpotDiagnostic");
@@ -418,6 +414,6 @@ public class MemoryMonitor implements Runnable {
     String[] signatures = {"java.lang.String", boolean.class.getName()};
     mbs.invoke(oname, "dumpHeap", parameters, signatures);
 
-    return fileName;
+    return new File(fileName);
   }
 }
