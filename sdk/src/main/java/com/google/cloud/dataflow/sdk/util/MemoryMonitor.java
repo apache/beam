@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.util;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.cloud.dataflow.sdk.runners.worker.status.StatusDataProvider;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.AtomicDouble;
 
@@ -25,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.PrintWriter;
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
 import java.util.ArrayDeque;
@@ -60,7 +62,7 @@ import javax.management.ReflectionException;
  *      thrashing count is met. A heap dump is made before shutdown.
  * </ul>
  */
-public class MemoryMonitor implements Runnable {
+public class MemoryMonitor implements Runnable, StatusDataProvider {
   private static final Logger LOG = LoggerFactory.getLogger(MemoryMonitor.class);
 
   /** Directory to hold heap dumps if not overridden. */
@@ -299,20 +301,6 @@ public class MemoryMonitor implements Runnable {
   }
 
   /**
-   * Return a string describing the current memory state of the server.
-   */
-  public String describeMemory() {
-    Runtime runtime = Runtime.getRuntime();
-    long maxMemory = runtime.maxMemory();
-    long totalMemory = runtime.totalMemory();
-    long usedMemory = totalMemory - runtime.freeMemory();
-    return String.format(
-        "used/total/max = %d/%d/%d MB, GC last/max = %.2f/%.2f %%, #pushbacks=%d, gc thrashing=%s",
-        usedMemory >> 20, totalMemory >> 20, maxMemory >> 20, lastMeasuredGCPercentage.get(),
-        maxGCPercentage.get(), numPushbacks.get(), isThrashing.get());
-  }
-
-  /**
    * Runs this thread.
    */
   @Override
@@ -415,5 +403,26 @@ public class MemoryMonitor implements Runnable {
     mbs.invoke(oname, "dumpHeap", parameters, signatures);
 
     return new File(fileName);
+  }
+
+  /**
+   * Return a string describing the current memory state of the server.
+   */
+  private String describeMemory() {
+    Runtime runtime = Runtime.getRuntime();
+    long maxMemory = runtime.maxMemory();
+    long totalMemory = runtime.totalMemory();
+    long usedMemory = totalMemory - runtime.freeMemory();
+    return String.format(
+        "used/total/max = %d/%d/%d MB, GC last/max = %.2f/%.2f %%, #pushbacks=%d, gc thrashing=%s",
+        usedMemory >> 20, totalMemory >> 20, maxMemory >> 20, lastMeasuredGCPercentage.get(),
+        maxGCPercentage.get(), numPushbacks.get(), isThrashing.get());
+  }
+
+  @Override
+  public void appendSummaryHtml(PrintWriter writer) {
+    writer.print("Memory: ");
+    writer.print(describeMemory());
+    writer.println("<br>");
   }
 }

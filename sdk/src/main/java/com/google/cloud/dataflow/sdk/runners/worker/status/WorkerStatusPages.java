@@ -23,7 +23,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.PrintWriter;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
@@ -39,16 +38,18 @@ public class WorkerStatusPages {
   private static final int DEFAULT_STATUS_PORT = 8081;
 
   private final Server statusServer;
+  private final StatuszServlet statuszServlet = new StatuszServlet();
   private final ServletHandler servletHandler = new ServletHandler();
 
   private WorkerStatusPages(int statusPort) {
     this.statusServer = new Server(statusPort);
     this.statusServer.setHandler(servletHandler);
 
-    // Install the default servlets (threadz, healthz, heapz)
-    addPage(new ThreadzServlet());
-    addPage(new HealthzServlet());
-    addPage(new HeapzServlet());
+    // Install the default servlets (threadz, healthz, heapz, statusz)
+    addServlet(new ThreadzServlet());
+    addServlet(new HealthzServlet());
+    addServlet(new HeapzServlet());
+    addServlet(statuszServlet);
   }
 
   public static WorkerStatusPages create() {
@@ -67,7 +68,7 @@ public class WorkerStatusPages {
     }
 
     try {
-      addPage(new RedirectToStatusz404Handler());
+      addServlet(new RedirectToStatusz404Handler());
       statusServer.start();
 
       LOG.info("Status server started on port {}", statusServer.getURI().getPort());
@@ -89,31 +90,34 @@ public class WorkerStatusPages {
   /**
    * Add a status servlet.
    */
-  public void addPage(BaseStatusServlet servlet) {
+  public void addServlet(BaseStatusServlet servlet) {
     ServletHolder holder = new ServletHolder();
     holder.setServlet(servlet);
     servletHandler.addServletWithMapping(holder, servlet.getPath());
   }
 
   /**
-   * Redirect missing pages to /statusz.
+   * Add data to the main statusz servlet.
+   */
+  public void addStatusDataProvider(
+      String shortName, String longName, StatusDataProvider dataProvider) {
+    statuszServlet.addDataProvider(shortName, longName, dataProvider);
+  }
+
+  /**
+   * Redirect all invalid pages to /statusz.
    */
   private static class RedirectToStatusz404Handler extends BaseStatusServlet {
 
-    protected RedirectToStatusz404Handler() {
-      super("/*");
+    public RedirectToStatusz404Handler() {
+      super("*");
     }
 
     @Override
-    protected void doGet(HttpServletRequest req, HttpServletResponse resp)
-        throws ServletException, IOException {
-      resp.setContentType("text/html;charset=utf-8");
-      resp.setStatus(HttpServletResponse.SC_NOT_FOUND);
-
-      PrintWriter writer = resp.getWriter();
-      writer.println("<html>");
-      writer.println("404 Not Found. Try <a href=\"/statusz\">/statusz</a>");
-      writer.println("</html>");
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+        throws IOException, ServletException {
+      response.sendRedirect("/statusz");
     }
+
   }
 }

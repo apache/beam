@@ -25,7 +25,8 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.dataflow.CustomSources;
 import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingInitializer;
 import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingMDC;
-import com.google.cloud.dataflow.sdk.runners.worker.status.BaseStatusServlet;
+import com.google.cloud.dataflow.sdk.runners.worker.status.LastExceptionDataProvider;
+import com.google.cloud.dataflow.sdk.runners.worker.status.StatusDataProvider;
 import com.google.cloud.dataflow.sdk.runners.worker.status.WorkerStatusPages;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.WindmillServerStub;
@@ -52,7 +53,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -74,11 +74,8 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 
 import javax.annotation.Nullable;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 
 /**
  * Implements a Streaming Dataflow worker.
@@ -302,7 +299,6 @@ public class StreamingDataflowWorker {
   private Timer globalCountersUpdatesTimer;
 
   private static final MemoryMonitor memoryMonitor = new MemoryMonitor();
-  private final AtomicReference<Throwable> lastException = new AtomicReference<>();
 
   private final UserCodeTimeTracker userCodeTimeTracker = new UserCodeTimeTracker();
   private final AtomicInteger nextStateSamplerId = new AtomicInteger();
@@ -396,8 +392,16 @@ public class StreamingDataflowWorker {
   }
 
   public void startStatusPages() {
-    statusPages.addPage(new StreamingStatuszServlet());
-    statusPages.addPage(stateCache.statusServlet());
+    statusPages.addServlet(stateCache.statusServlet());
+
+    statusPages.addStatusDataProvider("harness", "Harness", new HarnessDataProvider());
+    statusPages.addStatusDataProvider("resources", "Resources", memoryMonitor);
+    statusPages.addStatusDataProvider("metrics", "Metrics", new MetricsDataProvider());
+    statusPages.addStatusDataProvider(
+        "exception", "Last Exception", new LastExceptionDataProvider());
+    statusPages.addStatusDataProvider("specs", "Specs", new SpecsDataProvider());
+    statusPages.addStatusDataProvider("cache", "State Cache", stateCache);
+
     statusPages.start();
   }
 
@@ -674,7 +678,7 @@ public class StreamingDataflowWorker {
             computation,
             work.getKey().toStringUtf8());
         LOG.error("\nError: ", t);
-        lastException.set(t);
+        LastExceptionDataProvider.reportException(t);
         LOG.debug("Failed work: {}", work);
         if (reportFailure(computation, work, t)) {
           // Try again, after some delay and at the end of the queue to avoid a tight loop.
@@ -980,96 +984,58 @@ public class StreamingDataflowWorker {
     }
   }
 
-  private class StreamingStatuszServlet extends BaseStatusServlet {
-
-    private StreamingStatuszServlet() {
-      super("statusz");
-    }
-
+  private class HarnessDataProvider implements StatusDataProvider {
     @Override
-    public void doGet(HttpServletRequest request, HttpServletResponse response)
-      throws IOException {
-
-      response.setContentType("text/html;charset=utf-8");
-      response.setStatus(HttpServletResponse.SC_OK);
-
-      PrintWriter writer = response.getWriter();
-      writer.println("<html><body>");
-      printHeader(writer);
-      printResources(writer);
-      printMetrics(writer);
-      printLastException(writer);
-      printSpecs(writer);
-
-      stateCache.printSummaryHtml(writer);
-      writer.println("</body></html>");
+    public void appendSummaryHtml(PrintWriter writer) {
+      writer.println("Running: " + running.get() + "<br>");
+      writer.println("ID: " + clientId + "<br>");
     }
+  }
 
-    private void printHeader(PrintWriter response) {
-      response.println("<h1>Streaming Worker Harness</h1>");
-      response.println("Running: " + running.get() + "<br>");
-      response.println("ID: " + clientId + "<br>");
-    }
-
-    private void printMetrics(PrintWriter response) {
-      response.println("<h2>Metrics</h2>");
-      response.println("Worker Threads: " + workUnitExecutor.getPoolSize()
-          + "/" + workUnitExecutor.getMaximumPoolSize() + "<br>");
-      response.println("Active Threads: " + workUnitExecutor.getActiveCount() + "<br>");
-      response.println("Work Queue Size: " + workUnitExecutor.getQueue().size()
-          + "/" + MAX_WORK_UNITS_QUEUED + "<br>");
-      response.print("Commit Queues: (");
-      response.print(commitQueue.weight() >> 20);
-      response.println("MB)<ul>");
-      for (String computation : commitQueue.keySet()) {
-        response.print("<li>");
-        response.print(computation);
-        response.print(": ");
-        response.print(commitQueue.queueSize(computation));
-        response.println("</li>");
-      }
-      response.println("</ul>");
-
-      stateCache.printSummaryHtml(response);
-
-      metricTrackingWindmillServer.printHtml(response);
-
-      response.println("Active Keys: <ul>");
-      for (Map.Entry<String, ActiveWorkForComputation> computationEntry
-               : activeWorkMap.entrySet()) {
-        response.print("<li>");
-        response.print(computationEntry.getKey());
-        response.print(":");
-        computationEntry.getValue().printActiveWork(response);
-        response.println("</li>");
-      }
-      response.println("</ul>");
-    }
-
-
-    private void printResources(PrintWriter response) {
-      response.append("<h2>Resources</h2>\n");
-      response.append("Memory is " + memoryMonitor.describeMemory() + "<br>\n");
-    }
-
-    private void printSpecs(PrintWriter response) {
-      response.append("<h2>Specs</h2>\n");
+  private class SpecsDataProvider implements StatusDataProvider {
+    @Override
+    public void appendSummaryHtml(PrintWriter writer) {
       for (Map.Entry<String, MapTask> entry : instructionMap.entrySet()) {
-        response.println("<h3>" + entry.getKey() + "</h3>");
-        response.print("<script>document.write(JSON.stringify(");
-        response.print(entry.getValue().toString());
-        response.println(", null, \"&nbsp&nbsp\").replace(/\\n/g, \"<br>\"))</script>");
+        writer.println("<h3>" + entry.getKey() + "</h3>");
+        writer.print("<script>document.write(JSON.stringify(");
+        writer.print(entry.getValue().toString());
+        writer.println(", null, \"&nbsp&nbsp\").replace(/\\n/g, \"<br>\"))</script>");
       }
     }
+  }
 
-    private void printLastException(PrintWriter response) {
-      Throwable t = lastException.get();
-      if (t != null) {
-        response.println("<h2>Last Exception</h2>");
-        StringWriter writer = new StringWriter();
-        t.printStackTrace(new PrintWriter(writer));
-        response.println(writer.toString().replace("\t", "&nbsp&nbsp").replace("\n", "<br>"));
+  private class MetricsDataProvider implements StatusDataProvider {
+    @Override
+    public void appendSummaryHtml(PrintWriter writer) {
+      writer.println("Worker Threads: " + workUnitExecutor.getPoolSize()
+      + "/" + workUnitExecutor.getMaximumPoolSize() + "<br>");
+      writer.println("Active Threads: " + workUnitExecutor.getActiveCount() + "<br>");
+      writer.println("Work Queue Size: " + workUnitExecutor.getQueue().size()
+          + "/" + MAX_WORK_UNITS_QUEUED + "<br>");
+      writer.print("Commit Queues: (");
+      writer.print(commitQueue.weight() >> 20);
+      writer.println("MB)<ul>");
+      for (String computation : commitQueue.keySet()) {
+        writer.print("<li>");
+        writer.print(computation);
+        writer.print(": ");
+        writer.print(commitQueue.queueSize(computation));
+        writer.println("</li>");
       }
+      writer.println("</ul>");
+
+      writer.println("Active Keys: <ul>");
+      for (Map.Entry<String, ActiveWorkForComputation> computationEntry
+          : activeWorkMap.entrySet()) {
+        writer.print("<li>");
+        writer.print(computationEntry.getKey());
+        writer.print(":");
+        computationEntry.getValue().printActiveWork(writer);
+        writer.println("</li>");
+      }
+      writer.println("</ul>");
+
+      metricTrackingWindmillServer.printHtml(writer);
     }
   }
 }

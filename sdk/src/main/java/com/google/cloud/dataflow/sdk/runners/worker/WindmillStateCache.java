@@ -16,6 +16,7 @@
 package com.google.cloud.dataflow.sdk.runners.worker;
 
 import com.google.cloud.dataflow.sdk.runners.worker.status.BaseStatusServlet;
+import com.google.cloud.dataflow.sdk.runners.worker.status.StatusDataProvider;
 import com.google.cloud.dataflow.sdk.util.Weighted;
 import com.google.cloud.dataflow.sdk.util.state.State;
 import com.google.cloud.dataflow.sdk.util.state.StateNamespace;
@@ -41,7 +42,7 @@ import javax.servlet.http.HttpServletResponse;
 /**
  * Process-wide cache of per-key state.
  */
-public class WindmillStateCache {
+public class WindmillStateCache implements StatusDataProvider {
 
   private Cache<StateId, StateCacheEntry> stateCache;
   private int weight = 0;
@@ -270,7 +271,8 @@ public class WindmillStateCache {
   /**
    * Print summary statistics of the cache to the given {@link PrintWriter}.
    */
-  public void printSummaryHtml(PrintWriter response) {
+  @Override
+  public void appendSummaryHtml(PrintWriter response) {
     response.println("Cache Stats: <br><table border=0>");
     response.println(
         "<tr><th>Hit Ratio</th><th>Evictions</th><th>Size</th><th>Weight</th></tr><tr>");
@@ -290,8 +292,10 @@ public class WindmillStateCache {
 
         PrintWriter writer = response.getWriter();
         writer.println("<h1>Cache Information</h1>");
-        printSummaryHtml(writer);
+        appendSummaryHtml(writer);
       }
     };
   }
+
+
 }
