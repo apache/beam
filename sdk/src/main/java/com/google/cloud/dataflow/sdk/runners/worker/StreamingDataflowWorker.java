@@ -94,6 +94,8 @@ public class StreamingDataflowWorker {
       "com.google.cloud.dataflow.sdk.runners.worker.windmill.WindmillServer";
   static final int MAX_COMMIT_QUEUE_BYTES = 500 << 20;  // 500MB
 
+  private static final int DEFAULT_STATUS_PORT = 8081;
+
   // Maximum size of the result of a GetWork request.
   private static final long MAX_GET_WORK_FETCH_BYTES = 64L << 20; // 64m
 
@@ -303,7 +305,7 @@ public class StreamingDataflowWorker {
   private final UserCodeTimeTracker userCodeTimeTracker = new UserCodeTimeTracker();
   private final AtomicInteger nextStateSamplerId = new AtomicInteger();
 
-  private final WorkerStatusPages statusPages = WorkerStatusPages.create();
+  private final WorkerStatusPages statusPages = WorkerStatusPages.create(DEFAULT_STATUS_PORT);
 
   public StreamingDataflowWorker(
       List<MapTask> mapTasks, WindmillServerStub server, DataflowWorkerHarnessOptions options) {

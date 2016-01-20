@@ -14,7 +14,6 @@
 
 package com.google.cloud.dataflow.sdk.runners.worker;
 
-import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -36,8 +35,6 @@ import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
 import com.google.cloud.dataflow.sdk.util.common.worker.WorkExecutor;
 import com.google.common.collect.ImmutableList;
 
-import org.eclipse.jetty.server.LocalConnector;
-import org.eclipse.jetty.server.Server;
 import org.hamcrest.CoreMatchers;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
@@ -119,31 +116,6 @@ public class DataflowWorkerTest {
   }
 
   @Test
-  public void testHealthzHandler() throws Exception {
-    String response = testStatusServer(
-        "GET /healthz HTTP/1.1\nhost: localhost\n\n");
-    assertThat(response, containsString("HTTP/1.1 200 OK"));
-    assertThat(response, containsString("ok"));
-  }
-
-  @Test
-  public void testThreadzHandler() throws Exception {
-    String response = testStatusServer(
-        "GET /threadz HTTP/1.1\nhost: localhost\n\n");
-    assertThat(response, containsString("HTTP/1.1 200 OK"));
-    assertThat(response, containsString("--- Thread: "));
-    // testThreadzHandler should be somewhere in the stack trace of one of the threads.
-    assertThat(response, containsString("testThreadzHandler"));
-  }
-
-  @Test
-  public void testUnknownHandler() throws Exception {
-    String response = testStatusServer(
-        "GET /missinghandlerz HTTP/1.1\nhost: localhost\n\n");
-    assertThat(response, containsString("HTTP/1.1 404 Not Found"));
-  }
-
-  @Test
   public void testIsSplitResponseTooLarge() {
     SourceSplitResponse splitResponse = new SourceSplitResponse();
     splitResponse.setShards(
@@ -168,22 +140,6 @@ public class DataflowWorkerTest {
         (Map<String, Object>) status.getMetricUpdates().get(0).getInternal();
     assertEquals("state", metric.get("last-state-name"));
     assertEquals(101L, metric.get("num-transitions"));
-  }
-
-  private String testStatusServer(String request) throws Exception {
-    Server server = new Server();
-    LocalConnector connector = new LocalConnector(server);
-    try {
-      DataflowWorker worker = new DataflowWorker(mockWorkUnitClient, options);
-      worker.runStatusServer(server);
-      connector.start();
-      return connector.getResponses(request);
-    } finally {
-      connector.stop();
-      connector.join();
-      server.stop();
-      server.join();
-    }
   }
 
   private Matcher<WorkItemStatus> cloudWorkHasErrors(final long expectedReportIndex) {

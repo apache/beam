@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.runners.worker.status;
 
+import com.google.common.annotations.VisibleForTesting;
+
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
@@ -35,14 +37,12 @@ public class WorkerStatusPages {
 
   private static final Logger LOG = LoggerFactory.getLogger(WorkerStatusPages.class);
 
-  private static final int DEFAULT_STATUS_PORT = 8081;
-
   private final Server statusServer;
   private final StatuszServlet statuszServlet = new StatuszServlet();
   private final ServletHandler servletHandler = new ServletHandler();
 
-  private WorkerStatusPages(int statusPort) {
-    this.statusServer = new Server(statusPort);
+  @VisibleForTesting WorkerStatusPages(Server server) {
+    this.statusServer = server;
     this.statusServer.setHandler(servletHandler);
 
     // Install the default servlets (threadz, healthz, heapz, statusz)
@@ -50,20 +50,21 @@ public class WorkerStatusPages {
     addServlet(new HealthzServlet());
     addServlet(new HeapzServlet());
     addServlet(statuszServlet);
+
   }
 
-  public static WorkerStatusPages create() {
-    int statusPort = DEFAULT_STATUS_PORT;
+  public static WorkerStatusPages create(int defaultStatusPort) {
+    int statusPort = defaultStatusPort;
     if (System.getProperties().containsKey("status_port")) {
       statusPort = Integer.parseInt(System.getProperty("status_port"));
     }
-    return new WorkerStatusPages(statusPort);
+    return new WorkerStatusPages(new Server(statusPort));
   }
 
   /** Start the server. */
   public void start() {
     if (statusServer.isStarted()) {
-      LOG.warn("Status server already started on port {}", statusServer.getURI().getPort());
+      LOG.warn("Status server already started on {}", statusServer.getURI());
       return;
     }
 
@@ -71,8 +72,7 @@ public class WorkerStatusPages {
       addServlet(new RedirectToStatusz404Handler());
       statusServer.start();
 
-      LOG.info("Status server started on port {}", statusServer.getURI().getPort());
-      statusServer.join();
+      LOG.info("Status server started on {}", statusServer.getURI());
     } catch (Exception e) {
       LOG.warn("Status server failed to start: ", e);
     }

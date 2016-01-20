@@ -133,11 +133,7 @@ public class DataflowWorkerHarness {
     final Sleeper sleeper = Sleeper.DEFAULT;
     final DataflowWorker worker = create(pipelineOptions);
 
-    int statusPort = DataflowWorker.DEFAULT_STATUS_PORT;
-    if (System.getProperties().containsKey("status_port")) {
-      statusPort = Integer.parseInt(System.getProperty("status_port"));
-    }
-    worker.runStatusServer(statusPort);
+    worker.runStatusServer();
 
     processWork(pipelineOptions, worker, sleeper);
   }
