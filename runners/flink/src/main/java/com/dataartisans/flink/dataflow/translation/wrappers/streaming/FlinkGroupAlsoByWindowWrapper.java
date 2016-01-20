@@ -48,7 +48,7 @@ import java.util.*;
 /**
  * This class is the key class implementing all the windowing/triggering logic of Google Dataflow.
  * To provide full compatibility and support all the windowing/triggering combinations offered by
- * Datadlow, we opted for a strategy that uses the SDK's code for doing these operations
+ * Dataflow, we opted for a strategy that uses the SDK's code for doing these operations
  * ({@link com.google.cloud.dataflow.sdk.util.StreamingGroupAlsoByWindowsDoFn}.
  * <p>
  * In a nutshell, when the execution arrives to this operator, we expect to have a stream <b>already
