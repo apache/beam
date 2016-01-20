@@ -142,5 +142,9 @@ the [Mailinglists](http://flink.apache.org/community.html#mailing-lists).
 
 # Streaming
 
-Streaming support is currently under development. See the `streaming_new` branch for the current
-work in progress version.
+Streaming support has been added. It is currently in alpha stage. Please give it a try. To use
+streaming, just enable streaming mode in the `PipelineOptions`:
+
+    options.setStreaming(true);
+
+That's all.
