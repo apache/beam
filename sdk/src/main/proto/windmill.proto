@@ -150,6 +150,8 @@ message ComputationWorkItems {
   required string computation_id = 1;
   repeated WorkItem work = 2;
   optional int64 input_data_watermark = 3 [default=-0x8000000000000000];
+  optional int64 dependent_realtime_input_watermark = 4
+      [default = -0x8000000000000000];
 }
 
 ////////////////////////////////////////////////////////////////////////////////
