@@ -27,6 +27,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
+import com.google.protobuf.ByteString;
 
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -89,6 +90,7 @@ public class CoderRegistry implements CoderProvider {
    */
   public void registerStandardCoders() {
     registerCoder(Byte.class, ByteCoder.class);
+    registerCoder(ByteString.class, ByteStringCoder.class);
     registerCoder(Double.class, DoubleCoder.class);
     registerCoder(Instant.class, InstantCoder.class);
     registerCoder(Integer.class, VarIntCoder.class);
