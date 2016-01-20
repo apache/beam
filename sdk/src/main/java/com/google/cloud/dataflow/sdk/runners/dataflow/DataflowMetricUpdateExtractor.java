@@ -34,6 +34,7 @@ import java.util.Map;
  */
 public final class DataflowMetricUpdateExtractor {
   private static final String STEP_NAME_CONTEXT_KEY = "step";
+  private static final String IS_TENTATIVE_KEY = "tentative";
 
   private DataflowMetricUpdateExtractor() {
     // Do not instantiate.
@@ -63,7 +64,10 @@ public final class DataflowMetricUpdateExtractor {
             aggregatorTransforms.getAppliedTransformForStepName(
                 context.get(STEP_NAME_CONTEXT_KEY));
         String fullName = transform.getFullName();
-        results.put(fullName, toValue(aggregator, metricUpdate));
+        // Prefer the tentative (fresher) value if it exists.
+        if (Boolean.parseBoolean(context.get(IS_TENTATIVE_KEY)) || !results.containsKey(fullName)) {
+          results.put(fullName, toValue(aggregator, metricUpdate));
+        }
       }
     }
 
