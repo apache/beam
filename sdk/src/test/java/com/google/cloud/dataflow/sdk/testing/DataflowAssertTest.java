@@ -250,6 +250,18 @@ public class DataflowAssertTest implements Serializable {
   }
 
   /**
+   * Basic test for {@code notEqualTo}.
+   */
+  @Test
+  @Category(RunnableOnService.class)
+  public void testNotEqualTo() throws Exception {
+    Pipeline pipeline = TestPipeline.create();
+    PCollection<Integer> pcollection = pipeline.apply(Create.of(43));
+    DataflowAssert.thatSingleton(pcollection).notEqualTo(42);
+    pipeline.run();
+  }
+
+  /**
    * Tests that {@code containsInAnyOrder} is actually order-independent.
    */
   @Test

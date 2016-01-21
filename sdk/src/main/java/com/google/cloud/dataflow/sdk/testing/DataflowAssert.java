@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.testing;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
@@ -472,6 +473,16 @@ public class DataflowAssert {
     }
 
     /**
+     * Checks that the value of this {@code SingletonAssert}'s view is not equal
+     * to the expected value.
+     *
+     * <p>Returns this {@code SingletonAssert}.
+     */
+    public SingletonAssert<T> notEqualTo(T expectedValue) {
+      return satisfies(new AssertNotEqualToRelation<T>(), expectedValue);
+    }
+
+    /**
      * Checks that the value of this {@code SingletonAssert}'s view is equal to
      * the expected value.
      *
@@ -720,6 +731,24 @@ public class DataflowAssert {
   }
 
   /**
+   * A {@link SerializableFunction} that verifies that an actual value is not equal to an
+   * expected value.
+   */
+  private static class AssertNotEqualTo<T> implements SerializableFunction<T, Void> {
+    private T expected;
+
+    public AssertNotEqualTo(T expected) {
+      this.expected = expected;
+    }
+
+    @Override
+    public Void apply(T actual) {
+      assertThat(actual, not(equalTo(expected)));
+      return null;
+    }
+  }
+
+  /**
    * A {@link SerializableFunction} that verifies that an {@code Iterable} contains
    * expected items in any order.
    */
@@ -768,6 +797,17 @@ public class DataflowAssert {
     @Override
     public SerializableFunction<T, Void> assertFor(T expected) {
       return new AssertIsEqualTo<T>(expected);
+    }
+  }
+
+  /**
+   * An {@link AssertRelation} implementing the binary predicate that two objects are not equal.
+   */
+  private static class AssertNotEqualToRelation<T>
+      implements AssertRelation<T, T> {
+    @Override
+    public SerializableFunction<T, Void> assertFor(T expected) {
+      return new AssertNotEqualTo<T>(expected);
     }
   }
 
