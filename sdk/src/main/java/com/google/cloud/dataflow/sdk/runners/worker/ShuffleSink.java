@@ -20,6 +20,7 @@ import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.
 
 import com.google.cloud.dataflow.sdk.coders.BigEndianLongCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.coders.Coder.Context;
 import com.google.cloud.dataflow.sdk.coders.InstantCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.options.DataflowWorkerHarnessOptions;
@@ -36,6 +37,7 @@ import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler.StateKind;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.common.base.Preconditions;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
 /**
@@ -220,14 +222,18 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
           Object sortKey = kvValue.getKey();
           Object sortValue = kvValue.getValue();
 
-          // TODO: Need to coordinate with the
-          // GroupingShuffleReader, to make sure it knows how to
-          // reconstruct the value from the sortKeyBytes and
-          // sortValueBytes.  Right now, it doesn't know between
-          // sorting and non-sorting GBKs.
-          secondaryKeyBytes = CoderUtils.encodeToByteArray(sortKeyCoder, sortKey);
+          // Sort values by key and then timestamp so that any GroupAlsoByWindows
+          // can run more efficiently.
+          ByteArrayOutputStream baos = new ByteArrayOutputStream();
+          sortKeyCoder.encode(sortKey, baos, Context.NESTED);
+          if (!windowedElem.getTimestamp().equals(BoundedWindow.TIMESTAMP_MIN_VALUE)) {
+            // Empty timestamp suffixes sort before all other sort value keys with
+            // the same prefix. So We can omit this suffix for this common value here
+            // for efficiency and only encode when its not the minimum timestamp.
+            InstantCoder.of().encode(windowedElem.getTimestamp(), baos, Context.OUTER);
+          }
+          secondaryKeyBytes = baos.toByteArray();
           valueBytes = CoderUtils.encodeToByteArray(sortValueCoder, sortValue);
-
         } else if (groupValues) {
           // Sort values by timestamp so that GroupAlsoByWindows can run efficiently.
           if (windowedElem.getTimestamp().equals(BoundedWindow.TIMESTAMP_MIN_VALUE)) {

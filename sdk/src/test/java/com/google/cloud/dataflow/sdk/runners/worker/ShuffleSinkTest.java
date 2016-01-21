@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 import com.google.cloud.dataflow.sdk.TestUtils;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.coders.Coder.Context;
 import com.google.cloud.dataflow.sdk.coders.InstantCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
@@ -42,6 +43,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -206,9 +208,8 @@ public class ShuffleSinkTest {
       Integer key =
           CoderUtils.decodeFromByteArray(BigEndianIntegerCoder.of(),
                                          keyBytes);
-      String sortKey =
-          CoderUtils.decodeFromByteArray(StringUtf8Coder.of(),
-                                         sortKeyBytes);
+      ByteArrayInputStream bais = new ByteArrayInputStream(sortKeyBytes);
+      String sortKey = StringUtf8Coder.of().decode(bais, Context.NESTED);
       Integer sortValue = CoderUtils.decodeFromByteArray(BigEndianIntegerCoder.of(), valueBytes);
 
       actual.add(KV.of(key, KV.of(sortKey, sortValue)));

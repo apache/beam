@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.runners.worker;
 
 import static com.google.api.client.util.Base64.decodeBase64;
+import static com.google.cloud.dataflow.sdk.util.Structs.getBoolean;
 import static com.google.cloud.dataflow.sdk.util.Structs.getString;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
@@ -39,7 +40,6 @@ import javax.annotation.Nullable;
  * Creates a GroupingShuffleReader from a CloudObject spec.
  */
 public class GroupingShuffleReaderFactory implements ReaderFactory {
-
   @Override
   public NativeReader<?> create(
       CloudObject spec,
@@ -69,7 +69,8 @@ public class GroupingShuffleReaderFactory implements ReaderFactory {
           decodeBase64(getString(spec, PropertyNames.SHUFFLE_READER_CONFIG)),
           getString(spec, PropertyNames.START_SHUFFLE_POSITION, null),
           getString(spec, PropertyNames.END_SHUFFLE_POSITION, null), coder,
-          (BatchModeExecutionContext) executionContext, addCounterMutator, operationName);
+          (BatchModeExecutionContext) executionContext, addCounterMutator, operationName,
+          getBoolean(spec, PropertyNames.SORT_VALUES, false));
     }
 
     return new GroupingShuffleReader<K, V>(options,
@@ -78,7 +79,8 @@ public class GroupingShuffleReaderFactory implements ReaderFactory {
         getString(spec, PropertyNames.END_SHUFFLE_POSITION, null),
         coder,
         (BatchModeExecutionContext) executionContext,
-        addCounterMutator, operationName);
+        addCounterMutator, operationName,
+        getBoolean(spec, PropertyNames.SORT_VALUES, false));
   }
 
   /**

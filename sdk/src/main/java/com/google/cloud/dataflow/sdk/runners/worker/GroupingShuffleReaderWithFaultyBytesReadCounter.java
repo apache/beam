@@ -47,10 +47,11 @@ class GroupingShuffleReaderWithFaultyBytesReadCounter<K, V> extends GroupingShuf
       Coder<WindowedValue<KV<K, Iterable<V>>>> coder,
       BatchModeExecutionContext executionContext,
       CounterSet.AddCounterMutator addCounterMutator,
-      String operationName)
+      String operationName,
+      boolean sortValues)
       throws Exception {
     super(options, shuffleReaderConfig, startShufflePosition, stopShufflePosition, coder,
-        executionContext, addCounterMutator, operationName);
+        executionContext, addCounterMutator, operationName, sortValues);
   }
 
   @Override

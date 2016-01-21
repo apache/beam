@@ -21,10 +21,12 @@ import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtil
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.splitRequestToApproximateSplitRequest;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.SUM;
+import static com.google.common.base.Preconditions.checkState;
 
 import com.google.api.services.dataflow.model.ApproximateReportedProgress;
 import com.google.api.services.dataflow.model.ApproximateSplitRequest;
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.coders.Coder.Context;
 import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
@@ -54,6 +56,7 @@ import com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicLong;
@@ -80,7 +83,8 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
   // Counts how many bytes were from by a given operation from a given shuffle session.
   @Nullable Counter<Long> perOperationPerDatasetBytesCounter;
   Coder<K> keyCoder;
-  Coder<V> valueCoder;
+  Coder<?> valueCoder;
+  @Nullable Coder<?> secondaryKeyCoder;
 
   public GroupingShuffleReader(
       PipelineOptions options,
@@ -90,7 +94,8 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
       Coder<WindowedValue<KV<K, Iterable<V>>>> coder,
       BatchModeExecutionContext executionContext,
       CounterSet.AddCounterMutator addCounterMutator,
-      String operationName)
+      String operationName,
+      boolean valuesAreSorted)
       throws Exception {
     this.shuffleReaderConfig = shuffleReaderConfig;
     this.startShufflePosition = startShufflePosition;
@@ -98,7 +103,7 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
     this.executionContext = executionContext;
     this.addCounterMutator = addCounterMutator;
     this.operationName = operationName;
-    initCoder(coder);
+    initCoder(coder, valuesAreSorted);
     // We cannot initialize perOperationPerDatasetBytesCounter here, as it
     // depends on shuffleReaderConfig, which isn't populated yet.
   }
@@ -131,7 +136,8 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
         new ChunkingShuffleBatchReader(asr)));
   }
 
-  private void initCoder(Coder<WindowedValue<KV<K, Iterable<V>>>> coder) throws Exception {
+  private void initCoder(Coder<WindowedValue<KV<K, Iterable<V>>>> coder,
+      boolean valuesAreSorted) throws Exception {
     if (!(coder instanceof WindowedValueCoder)) {
       throw new Exception("unexpected kind of coder for WindowedValue: " + coder);
     }
@@ -151,7 +157,17 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
           + "a key-grouping shuffle");
     }
     IterableCoder<V> iterCoder = (IterableCoder<V>) kvValueCoder;
-    this.valueCoder = iterCoder.getElemCoder();
+    if (valuesAreSorted) {
+      checkState(iterCoder.getElemCoder() instanceof KvCoder,
+          "unexpected kind of coder for elements read from a "
+          + "key-grouping value sorting shuffle: %s", iterCoder.getElemCoder());
+      @SuppressWarnings("rawtypes")
+      KvCoder<?, ?> valueKvCoder = (KvCoder) iterCoder.getElemCoder();
+      this.secondaryKeyCoder = valueKvCoder.getKeyCoder();
+      this.valueCoder = valueKvCoder.getValueCoder();
+    } else {
+      this.valueCoder = iterCoder.getElemCoder();
+    }
   }
 
   final GroupingShuffleReaderIterator<K, V> iterator(ShuffleEntryReader reader) {
@@ -390,7 +406,20 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
           // notify the bytes that have been read so far.
           notifyValueReturned(currentGroupSize.getAndSet(0L));
           try {
-            return CoderUtils.decodeFromByteArray(parentReader.valueCoder, entry.getValue());
+            if (parentReader.secondaryKeyCoder != null) {
+              ByteArrayInputStream bais = new ByteArrayInputStream(entry.getSecondaryKey());
+              @SuppressWarnings("unchecked")
+              V value = (V) KV.of(
+                  // We ignore decoding the timestamp.
+                  parentReader.secondaryKeyCoder.decode(bais, Context.NESTED),
+                  CoderUtils.decodeFromByteArray(parentReader.valueCoder, entry.getValue()));
+              return value;
+            } else {
+              @SuppressWarnings("unchecked")
+              V value = (V) CoderUtils.decodeFromByteArray(parentReader.valueCoder,
+                                                           entry.getValue());
+              return value;
+            }
           } catch (IOException exn) {
             throw new RuntimeException(exn);
           }

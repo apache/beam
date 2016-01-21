@@ -20,7 +20,6 @@ import com.google.cloud.dataflow.sdk.util.common.Reiterator;
 import com.google.cloud.dataflow.sdk.util.common.worker.ShuffleEntry;
 import com.google.cloud.dataflow.sdk.util.common.worker.ShuffleEntryReader;
 import com.google.cloud.dataflow.sdk.util.common.worker.ShufflePosition;
-// TODO: Decide how we want to handle this Guava dependency.
 import com.google.common.primitives.UnsignedBytes;
 
 import org.junit.Assert;
@@ -40,31 +39,44 @@ import java.util.TreeMap;
  * A fake implementation of a ShuffleEntryReader, for testing.
  */
 public class TestShuffleReader implements ShuffleEntryReader {
-  static final Comparator<byte[]> SHUFFLE_KEY_COMPARATOR =
-      UnsignedBytes.lexicographicalComparator();
-  final NavigableMap<byte[], List<ShuffleEntry>> records;
+  // Sorts by secondary key where an empty secondary key sorts before all other secondary keys.
+  static final Comparator<byte[]> SHUFFLE_KEY_COMPARATOR = new Comparator<byte[]>() {
 
-  public TestShuffleReader(NavigableMap<byte[], List<ShuffleEntry>> records) {
-    this.records = records;
-  }
+    @Override
+    public int compare(byte[] o1, byte[] o2) {
+      if (o1 == o2) {
+        return 0;
+      }
+      if (o1 == null) {
+        return -1;
+      }
+      if (o2 == null) {
+        return 1;
+      }
+      return UnsignedBytes.lexicographicalComparator().compare(o1, o2);
+    }
+  };
+
+  final NavigableMap<byte[], NavigableMap<byte[], List<ShuffleEntry>>> records;
 
   public TestShuffleReader() {
-    this(new TreeMap<byte[], List<ShuffleEntry>>(SHUFFLE_KEY_COMPARATOR));
+    this.records = new TreeMap<>(SHUFFLE_KEY_COMPARATOR);
   }
 
-  public void addEntry(String key, String value) {
-    addEntry(key.getBytes(), value.getBytes());
-  }
-
-  public void addEntry(byte[] key, byte[] value) {
-    addEntry(new ShuffleEntry(key, null, value));
+  public void addEntry(String key, String secondaryKey, String value) {
+    addEntry(new ShuffleEntry(key.getBytes(), secondaryKey.getBytes(), value.getBytes()));
   }
 
   public void addEntry(ShuffleEntry entry) {
-    List<ShuffleEntry> values = records.get(entry.getKey());
+    NavigableMap<byte[], List<ShuffleEntry>> valuesBySecondaryKey = records.get(entry.getKey());
+    if (valuesBySecondaryKey == null) {
+      valuesBySecondaryKey = new TreeMap<>(SHUFFLE_KEY_COMPARATOR);
+      records.put(entry.getKey(), valuesBySecondaryKey);
+    }
+    List<ShuffleEntry> values = valuesBySecondaryKey.get(entry.getSecondaryKey());
     if (values == null) {
       values = new ArrayList<>();
-      records.put(entry.getKey(), values);
+      valuesBySecondaryKey.put(entry.getSecondaryKey(), values);
     }
     values.add(entry);
   }
@@ -90,11 +102,12 @@ public class TestShuffleReader implements ShuffleEntryReader {
   }
 
   class ShuffleReaderIterator implements Reiterator<ShuffleEntry> {
-    final Iterator<Map.Entry<byte[], List<ShuffleEntry>>> recordsIter;
+    final Iterator<Map.Entry<byte[], NavigableMap<byte[], List<ShuffleEntry>>>> recordsIter;
     final byte[] startKey;
     final byte[] endKey;
     byte[] currentKey;
-    Map.Entry<byte[], List<ShuffleEntry>> currentRecord;
+    byte[] currentSecondaryKey;
+    Map.Entry<byte[], NavigableMap<byte[], List<ShuffleEntry>>> currentRecord;
     ListIterator<ShuffleEntry> currentValuesIter;
 
     public ShuffleReaderIterator(byte[] startKey, byte[] endKey) {
@@ -116,8 +129,9 @@ public class TestShuffleReader implements ShuffleEntryReader {
       this.currentKey = it.currentKey;
       this.currentRecord = it.currentRecord;
       if (it.currentValuesIter != null) {
+        this.currentSecondaryKey = it.currentSecondaryKey;
         this.currentValuesIter =
-            it.currentRecord.getValue().listIterator(
+            it.currentRecord.getValue().get(currentSecondaryKey).listIterator(
                 it.currentValuesIter.nextIndex());
       } else {
         this.currentValuesIter = null;
@@ -137,7 +151,7 @@ public class TestShuffleReader implements ShuffleEntryReader {
       ShuffleEntry resultValue = currentValuesIter.next();
       Assert.assertTrue(Arrays.equals(currentKey, resultValue.getKey()));
       if (!currentValuesIter.hasNext()) {
-        advanceKey();
+        advanceSecondaryKey();
       }
       return resultValue;
     }
@@ -150,6 +164,17 @@ public class TestShuffleReader implements ShuffleEntryReader {
     @Override
     public Reiterator<ShuffleEntry> copy() {
       return new ShuffleReaderIterator(this);
+    }
+
+    private void advanceSecondaryKey() {
+      NavigableMap<byte[], List<ShuffleEntry>> tailMap =
+          currentRecord.getValue().tailMap(currentSecondaryKey, false /* do not include key */);
+      if (tailMap.isEmpty()) {
+        advanceKey();
+      } else {
+        currentSecondaryKey = tailMap.firstKey();
+        currentValuesIter = tailMap.get(currentSecondaryKey).listIterator();
+      }
     }
 
     private void advanceKey() {
@@ -167,10 +192,12 @@ public class TestShuffleReader implements ShuffleEntryReader {
           break;
         }
         // In range.
-        currentValuesIter = currentRecord.getValue().listIterator();
+        currentSecondaryKey = currentRecord.getValue().firstKey();
+        currentValuesIter = currentRecord.getValue().get(currentSecondaryKey).listIterator();
         return;
       }
       currentKey = null;
+      currentSecondaryKey = null;
       currentValuesIter = null;
     }
   }

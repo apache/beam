@@ -84,6 +84,7 @@ public class PropertyNames {
   public static final String SHUFFLE_KIND = "shuffle_kind";
   public static final String SHUFFLE_READER_CONFIG = "shuffle_reader_config";
   public static final String SHUFFLE_WRITER_CONFIG = "shuffle_writer_config";
+  public static final String SORT_VALUES = "sort_values";
   public static final String START_INDEX = "start_index";
   public static final String START_OFFSET = "start_offset";
   public static final String START_SHUFFLE_POSITION = "start_shuffle_position";
