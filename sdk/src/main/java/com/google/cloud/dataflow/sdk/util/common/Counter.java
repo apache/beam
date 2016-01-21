@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.util.common;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.AND;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.MEAN;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.OR;
+import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 import com.google.common.util.concurrent.AtomicDouble;
@@ -328,6 +329,13 @@ public abstract class Counter<T> {
         && this.getClass().equals(that.getClass());
   }
 
+  /**
+   * Merges this counter with the provided counter, returning this counter with the combined value
+   * of both counters. This may reset the delta of this counter.
+   *
+   * @throws IllegalArgumentException if the provided Counter is not compatible with this Counter
+   */
+  public abstract Counter<T> merge(Counter<T> that);
 
   //////////////////////////////////////////////////////////////////////////////
 
@@ -492,6 +500,25 @@ public abstract class Counter<T> {
         throw illegalArgumentException();
       }
       return mean.get();
+    }
+
+    @Override
+    public Counter<Long> merge(Counter<Long> that) {
+      checkArgument(this.isCompatibleWith(that), "Counters %s and %s are incompatible", this, that);
+      switch (kind) {
+        case SUM:
+        case MIN:
+        case MAX:
+          return addValue(that.getAggregate());
+        case MEAN:
+          CounterMean<Long> thisCounterMean = this.getMean();
+          CounterMean<Long> thatCounterMean = that.getMean();
+          return resetMeanToValue(
+              thisCounterMean.getCount() + thatCounterMean.getCount(),
+              thisCounterMean.getAggregate() + thatCounterMean.getAggregate());
+        default:
+          throw illegalArgumentException();
+      }
     }
 
     private static class LongCounterMean implements CounterMean<Long> {
@@ -670,6 +697,25 @@ public abstract class Counter<T> {
       return mean.get();
     }
 
+    @Override
+    public Counter<Double> merge(Counter<Double> that) {
+      checkArgument(this.isCompatibleWith(that), "Counters %s and %s are incompatible", this, that);
+      switch (kind) {
+        case SUM:
+        case MIN:
+        case MAX:
+          return addValue(that.getAggregate());
+        case MEAN:
+          CounterMean<Double> thisCounterMean = this.getMean();
+          CounterMean<Double> thatCounterMean = that.getMean();
+          return resetMeanToValue(
+              thisCounterMean.getCount() + thatCounterMean.getCount(),
+              thisCounterMean.getAggregate() + thatCounterMean.getAggregate());
+        default:
+          throw illegalArgumentException();
+      }
+    }
+
     private static class DoubleCounterMean implements CounterMean<Double> {
       private final double aggregate;
       private final long count;
@@ -763,13 +809,18 @@ public abstract class Counter<T> {
     public CounterMean<Boolean> getMean() {
       throw illegalArgumentException();
     }
+
+    @Override
+    public Counter<Boolean> merge(Counter<Boolean> that) {
+      checkArgument(this.isCompatibleWith(that), "Counters %s and %s are incompatible", this, that);
+      return addValue(that.getAggregate());
+    }
   }
 
   /**
    * Implements a {@link Counter} for {@link String} values.
    */
   private static class StringCounter extends Counter<String> {
-
     /** Initializes a new {@link Counter} for {@link String} values. */
     private StringCounter(String name, AggregationKind kind) {
       super(name, kind);
@@ -828,6 +879,15 @@ public abstract class Counter<T> {
     @Override
     @Nullable
     public CounterMean<String> getMean() {
+      switch (kind) {
+        default:
+          throw illegalArgumentException();
+      }
+    }
+
+    @Override
+    public Counter<String> merge(Counter<String> that) {
+      checkArgument(this.isCompatibleWith(that), "Counters %s and %s are incompatible", this, that);
       switch (kind) {
         default:
           throw illegalArgumentException();
@@ -983,6 +1043,25 @@ public abstract class Counter<T> {
         throw illegalArgumentException();
       }
       return mean.get();
+    }
+
+    @Override
+    public Counter<Integer> merge(Counter<Integer> that) {
+      checkArgument(this.isCompatibleWith(that), "Counters %s and %s are incompatible", this, that);
+      switch (kind) {
+        case SUM:
+        case MIN:
+        case MAX:
+          return addValue(that.getAggregate());
+        case MEAN:
+          CounterMean<Integer> thisCounterMean = this.getMean();
+          CounterMean<Integer> thatCounterMean = that.getMean();
+          return resetMeanToValue(
+              thisCounterMean.getCount() + thatCounterMean.getCount(),
+              thisCounterMean.getAggregate() + thatCounterMean.getAggregate());
+        default:
+          throw illegalArgumentException();
+      }
     }
 
     private static class IntegerCounterMean implements CounterMean<Integer> {

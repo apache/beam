@@ -33,12 +33,15 @@ import com.google.api.services.dataflow.model.MetricUpdate;
 import com.google.cloud.dataflow.sdk.util.CloudCounterUtils;
 import com.google.cloud.dataflow.sdk.util.common.Counter.CounterMean;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -46,6 +49,9 @@ import java.util.Set;
  */
 @RunWith(JUnit4.class)
 public class CounterTest {
+
+  @Rule
+  public ExpectedException thrown = ExpectedException.none();
 
   private static MetricUpdate flush(Counter<?> c) {
     // TODO: Move this out into a separate Counter test.
@@ -211,6 +217,13 @@ public class CounterTest {
     c.resetToValue(100L).addValue(17L).addValue(49L);
     expectedTotal = expectedDelta = 166;
     assertOK(expectedTotal, expectedDelta, c);
+
+    Counter<Long> other = Counter.longs("sum-long", SUM);
+    other.addValue(12L);
+    expectedDelta = 12L;
+    expectedTotal += 12L;
+    c.merge(other);
+    assertOK(expectedTotal, expectedDelta, c);
   }
 
   @Test
@@ -240,6 +253,13 @@ public class CounterTest {
 
     c.resetToValue(Math.sqrt(17)).addValue(17.0).addValue(49.0);
     expectedTotal = expectedDelta = Math.sqrt(17.0) + 17.0 + 49.0;
+    assertOK(expectedTotal, expectedDelta, c);
+
+    Counter<Double> other = Counter.doubles("sum-double", SUM);
+    other.addValue(12 * Math.PI);
+    expectedDelta = 12 * Math.PI;
+    expectedTotal += 12 * Math.PI;
+    c.merge(other);
     assertOK(expectedTotal, expectedDelta, c);
   }
 
@@ -272,6 +292,12 @@ public class CounterTest {
     c.resetToValue(100L).addValue(171L).addValue(49L);
     expectedTotal = expectedDelta = 171;
     assertOK(expectedTotal, expectedDelta, c);
+
+    Counter<Long> other = Counter.longs("max-long", MAX);
+    other.addValue(12L);
+    expectedDelta = 12L;
+    c.merge(other);
+    assertOK(expectedTotal, expectedDelta, c);
   }
 
   @Test
@@ -299,6 +325,12 @@ public class CounterTest {
 
     c.resetToValue(Math.sqrt(17)).addValue(171.0).addValue(49.0);
     expectedTotal = expectedDelta = 171.0;
+    assertOK(expectedTotal, expectedDelta, c);
+
+    Counter<Double> other = Counter.doubles("max-double", MAX);
+    other.addValue(12 * Math.PI);
+    expectedDelta = 12 * Math.PI;
+    c.merge(other);
     assertOK(expectedTotal, expectedDelta, c);
   }
 
@@ -331,6 +363,12 @@ public class CounterTest {
     c.resetToValue(100L).addValue(171L).addValue(49L);
     expectedTotal = expectedDelta = 49;
     assertOK(expectedTotal, expectedDelta, c);
+
+    Counter<Long> other = Counter.longs("min-long", MIN);
+    other.addValue(42L);
+    expectedTotal = expectedDelta = 42L;
+    c.merge(other);
+    assertOK(expectedTotal, expectedDelta, c);
   }
 
   @Test
@@ -358,6 +396,12 @@ public class CounterTest {
 
     c.resetToValue(Math.sqrt(17)).addValue(171.0).addValue(0.0);
     expectedTotal = expectedDelta = 0.0;
+    assertOK(expectedTotal, expectedDelta, c);
+
+    Counter<Double> other = Counter.doubles("min-double", MIN);
+    other.addValue(42 * Math.E);
+    expectedDelta = 42 * Math.E;
+    c.merge(other);
     assertOK(expectedTotal, expectedDelta, c);
   }
 
@@ -419,6 +463,15 @@ public class CounterTest {
     expTotal = expDelta = 166;
     expCountTotal = expCountDelta = 5;
     assertMean(expTotal, expDelta, expCountTotal, expCountDelta, c);
+
+    Counter<Long> other = Counter.longs("mean-long", MEAN);
+    other.addValue(12L).addValue(44L).addValue(-5L);
+    expTotal += 12L + 44L - 5L;
+    expDelta += 12L + 44L - 5L;
+    expCountTotal += 3;
+    expCountDelta += 3;
+    c.merge(other);
+    assertMean(expTotal, expDelta, expCountTotal, expCountDelta, c);
   }
 
   @Test
@@ -457,6 +510,15 @@ public class CounterTest {
     c.resetMeanToValue(3L, Math.sqrt(17)).addValue(17.0).addValue(49.0);
     expTotal = expDelta = Math.sqrt(17.0) + 17.0 + 49.0;
     expCountTotal = expCountDelta = 5;
+    assertMean(expTotal, expDelta, expCountTotal, expCountDelta, c);
+
+    Counter<Double> other = Counter.doubles("mean-double", MEAN);
+    other.addValue(3 * Math.PI).addValue(12 * Math.E);
+    expTotal += 3 * Math.PI + 12 * Math.E;
+    expDelta += 3 * Math.PI + 12 * Math.E;
+    expCountTotal += 2;
+    expCountDelta += 2;
+    c.merge(other);
     assertMean(expTotal, expDelta, expCountTotal, expCountDelta, c);
   }
 
@@ -589,5 +651,41 @@ public class CounterTest {
 
     assertEquals(cloudCountersFromSet, cloudCountersFromArray);
     assertEquals(2, cloudCountersFromSet.size());
+  }
+
+  @Test
+  public void testMergeIncompatibleCounters() {
+    Counter<Long> longSums = Counter.longs("longsums", SUM);
+    Counter<Long> longMean = Counter.longs("longmean", MEAN);
+    Counter<Long> longMin = Counter.longs("longmin", MIN);
+
+    Counter<Long> otherLongSums = Counter.longs("othersums", SUM);
+    Counter<Long> otherLongMean = Counter.longs("otherlongmean", MEAN);
+
+    Counter<Double> doubleSums = Counter.doubles("doublesums", SUM);
+    Counter<Double> doubleMean = Counter.doubles("doublemean", MEAN);
+
+    Counter<Boolean> boolAnd = Counter.booleans("and", AND);
+    Counter<Boolean> boolOr = Counter.booleans("or", OR);
+
+    List<Counter<Long>> longCounters =
+        Arrays.asList(longSums, longMean, longMin, otherLongSums, otherLongMean);
+    for (Counter<Long> left : longCounters) {
+      for (Counter<Long> right : longCounters) {
+        if (left != right) {
+          assertIncompatibleMerge(left, right);
+        }
+      }
+    }
+
+    assertIncompatibleMerge(doubleSums, doubleMean);
+    assertIncompatibleMerge(boolAnd, boolOr);
+  }
+
+  private <T> void assertIncompatibleMerge(Counter<T> left, Counter<T> right) {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Counters");
+    thrown.expectMessage("are incompatible");
+    left.merge(right);
   }
 }
