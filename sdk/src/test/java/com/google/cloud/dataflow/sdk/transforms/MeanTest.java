@@ -16,12 +16,14 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
+import static com.google.cloud.dataflow.sdk.TestUtils.checkCombineFn;
 import static org.junit.Assert.assertEquals;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.testing.CoderProperties;
 import com.google.cloud.dataflow.sdk.transforms.Mean.CountSum;
 import com.google.cloud.dataflow.sdk.transforms.Mean.CountSumCoder;
+import com.google.common.collect.Lists;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -58,5 +60,13 @@ public class MeanTest {
   @Test
   public void testCountSumCoderSerializable() throws Exception {
     CoderProperties.coderSerializable(TEST_CODER);
+  }
+
+  @Test
+  public void testMeanFn() throws Exception {
+    checkCombineFn(
+        new Mean.MeanFn<Integer>(),
+        Lists.newArrayList(1, 2, 3, 4),
+        2.5);
   }
 }

@@ -16,7 +16,10 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
+import static com.google.cloud.dataflow.sdk.TestUtils.checkCombineFn;
 import static org.junit.Assert.assertEquals;
+
+import com.google.common.collect.Lists;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -35,5 +38,29 @@ public class MaxTest {
     assertEquals("Max.PerKey", Max.integersPerKey().getName());
     assertEquals("Max.PerKey", Max.doublesPerKey().getName());
     assertEquals("Max.PerKey", Max.longsPerKey().getName());
+  }
+
+  @Test
+  public void testMaxIntegerFn() {
+    checkCombineFn(
+        new Max.MaxIntegerFn(),
+        Lists.newArrayList(1, 2, 3, 4),
+        4);
+  }
+
+  @Test
+  public void testMaxLongFn() {
+    checkCombineFn(
+        new Max.MaxLongFn(),
+        Lists.newArrayList(1L, 2L, 3L, 4L),
+        4L);
+  }
+
+  @Test
+  public void testMaxDoubleFn() {
+    checkCombineFn(
+        new Max.MaxDoubleFn(),
+        Lists.newArrayList(1.0, 2.0, 3.0, 4.0),
+        4.0);
   }
 }

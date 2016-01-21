@@ -534,17 +534,23 @@ public class Combine {
 
     @Override
     public Holder<V> mergeAccumulators(Iterable<Holder<V>> accumulators) {
-      Holder<V> running = new Holder<>();
-      for (Holder<V> accumulator : accumulators) {
-        if (accumulator.present) {
-          if (running.present) {
-            running.set(apply(running.value, accumulator.value));
-          } else {
-            running.set(accumulator.value);
+      Iterator<Holder<V>> iter = accumulators.iterator();
+      if (!iter.hasNext()) {
+        return createAccumulator();
+      } else {
+        Holder<V> running = iter.next();
+        while (iter.hasNext()) {
+          Holder<V> accum = iter.next();
+          if (accum.present) {
+            if (running.present) {
+              running.set(apply(running.value, accum.value));
+            } else {
+              running.set(accum.value);
+            }
           }
         }
+        return running;
       }
-      return running;
     }
 
     @Override
@@ -632,7 +638,9 @@ public class Combine {
 
   /**
    * An abstract subclass of {@link CombineFn} for implementing combiners that are more
-   * easily and efficiently expressed as binary operations on <code>int</code>s.
+   * easily and efficiently expressed as binary operations on <code>int</code>s
+   *
+   * <p> It uses {@code int[0]} as the mutable accumulator.
    */
   public abstract static class BinaryCombineIntegerFn extends CombineFn<Integer, int[], Integer> {
 
@@ -664,11 +672,11 @@ public class Combine {
       if (!iter.hasNext()) {
         return createAccumulator();
       } else {
-        int running = iter.next()[0];
+        int[] running = iter.next();
         while (iter.hasNext()) {
-          running = apply(running, iter.next()[0]);
+          running[0] = apply(running[0], iter.next()[0]);
         }
-        return wrap(running);
+        return running;
       }
     }
 
@@ -713,6 +721,8 @@ public class Combine {
   /**
    * An abstract subclass of {@link CombineFn} for implementing combiners that are more
    * easily and efficiently expressed as binary operations on <code>long</code>s.
+   *
+   * <p> It uses {@code long[0]} as the mutable accumulator.
    */
   public abstract static class BinaryCombineLongFn extends CombineFn<Long, long[], Long> {
     /**
@@ -743,11 +753,11 @@ public class Combine {
       if (!iter.hasNext()) {
         return createAccumulator();
       } else {
-        long running = iter.next()[0];
+        long[] running = iter.next();
         while (iter.hasNext()) {
-          running = apply(running, iter.next()[0]);
+          running[0] = apply(running[0], iter.next()[0]);
         }
-        return wrap(running);
+        return running;
       }
     }
 
@@ -791,6 +801,8 @@ public class Combine {
   /**
    * An abstract subclass of {@link CombineFn} for implementing combiners that are more
    * easily and efficiently expressed as binary operations on <code>double</code>s.
+   *
+   * <p> It uses {@code double[0]} as the mutable accumulator.
    */
   public abstract static class BinaryCombineDoubleFn extends CombineFn<Double, double[], Double> {
 
@@ -822,11 +834,11 @@ public class Combine {
       if (!iter.hasNext()) {
         return createAccumulator();
       } else {
-        double running = iter.next()[0];
+        double[] running = iter.next();
         while (iter.hasNext()) {
-          running = apply(running, iter.next()[0]);
+          running[0] = apply(running[0], iter.next()[0]);
         }
-        return wrap(running);
+        return running;
       }
     }
 
