@@ -272,12 +272,11 @@ public class ReadOperation extends Operation {
       NativeReader.DynamicSplitRequest splitRequest) {
     synchronized (initializationStateLock) {
       if (isFinished()) {
-        LOG.warn("Iterator is in the Finished state, returning null stop position.");
+        LOG.info("Iterator is in the Finished state, returning null stop position.");
         return null;
       }
       if (readerIterator == null) {
-        LOG.warn("Iterator has not been initialized, refusing to split at {}",
-            splitRequest);
+        LOG.info("Iterator has not been initialized, refusing to split at {}", splitRequest);
         return null;
       }
       NativeReader.DynamicSplitResult result = readerIterator.requestDynamicSplit(splitRequest);

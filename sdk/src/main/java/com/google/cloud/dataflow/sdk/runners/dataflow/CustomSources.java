@@ -499,11 +499,15 @@ public class CustomSources {
       Double fractionConsumed = stopPosition.getFractionConsumed();
       if (fractionConsumed == null) {
         // Only truncating at a fraction is currently supported.
+        LOG.info(
+            "Rejecting split request because custom sources only support splits at fraction: {}",
+            stopPosition);
         return null;
       }
       BoundedSource<T> original = reader.getCurrentSource();
       BoundedSource<T> residual = reader.splitAtFraction(fractionConsumed);
       if (residual == null) {
+        LOG.info("Rejecting split request because custom reader returned null residual source.");
         return null;
       }
       // Try to catch some potential subclass implementation errors early.
