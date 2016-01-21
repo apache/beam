@@ -70,17 +70,17 @@ public class StreamingEvaluationContext extends EvaluationContext {
     private Coder<T> coder;
     private JavaDStream<WindowedValue<T>> dStream;
 
-    public DStreamHolder(Iterable<Iterable<T>> values, Coder<T> coder) {
+    DStreamHolder(Iterable<Iterable<T>> values, Coder<T> coder) {
       this.values = values;
       this.coder = coder;
     }
 
-    public DStreamHolder(JavaDStream<WindowedValue<T>> dStream) {
+    DStreamHolder(JavaDStream<WindowedValue<T>> dStream) {
       this.dStream = dStream;
     }
 
     @SuppressWarnings("unchecked")
-    public JavaDStream<WindowedValue<T>> getDStream() {
+    JavaDStream<WindowedValue<T>> getDStream() {
       if (dStream == null) {
         // create the DStream from values
         Queue<JavaRDD<WindowedValue<T>>> rddQueue = new LinkedBlockingQueue<>();
@@ -96,16 +96,14 @@ public class StreamingEvaluationContext extends EvaluationContext {
     }
   }
 
-  public <T> void setDStreamFromQueue(PTransform<?, ?> transform, Iterable<Iterable<T>> values,
-      Coder<T> coder) {
+  <T> void setDStreamFromQueue(
+      PTransform<?, ?> transform, Iterable<Iterable<T>> values, Coder<T> coder) {
     pstreams.put((PValue) getOutput(transform), new DStreamHolder<>(values, coder));
   }
 
-  public <T, R extends JavaRDDLike<WindowedValue<T>, R>>
-      void setStream(PTransform<?, ?> transform, JavaDStreamLike<WindowedValue<T>, ?, R> dStream) {
+  <T> void setStream(PTransform<?, ?> transform, JavaDStream<WindowedValue<T>> dStream) {
     PValue pvalue = (PValue) getOutput(transform);
-    @SuppressWarnings("unchecked")
-    DStreamHolder<T> dStreamHolder = new DStreamHolder((JavaDStream) dStream);
+    DStreamHolder<T> dStreamHolder = new DStreamHolder<>(dStream);
     pstreams.put(pvalue, dStreamHolder);
     leafStreams.add(dStreamHolder);
   }
@@ -115,11 +113,11 @@ public class StreamingEvaluationContext extends EvaluationContext {
     return pstreams.containsKey(pvalue);
   }
 
-  public JavaDStreamLike<?, ?, ?> getStream(PTransform<?, ?> transform) {
+  JavaDStreamLike<?, ?, ?> getStream(PTransform<?, ?> transform) {
     return getStream((PValue) getInput(transform));
   }
 
-  public JavaDStreamLike<?, ?, ?> getStream(PValue pvalue) {
+  JavaDStreamLike<?, ?, ?> getStream(PValue pvalue) {
     DStreamHolder<?> dStreamHolder = pstreams.get(pvalue);
     JavaDStreamLike<?, ?, ?> dStream = dStreamHolder.getDStream();
     leafStreams.remove(dStreamHolder);
@@ -127,13 +125,13 @@ public class StreamingEvaluationContext extends EvaluationContext {
   }
 
   // used to set the RDD from the DStream in the RDDHolder for transformation
-  public <T> void setInputRDD(PTransform<? extends PInput, ?> transform,
-      JavaRDDLike<WindowedValue<T>, ?> rdd) {
+  <T> void setInputRDD(
+      PTransform<? extends PInput, ?> transform, JavaRDDLike<WindowedValue<T>, ?> rdd) {
     setRDD((PValue) getInput(transform), rdd);
   }
 
   // used to get the RDD transformation output and use it as the DStream transformation output
-  public JavaRDDLike<?, ?> getOutputRDD(PTransform<?, ?> transform) {
+  JavaRDDLike<?, ?> getOutputRDD(PTransform<?, ?> transform) {
     return getRDD((PValue) getOutput(transform));
   }
 
@@ -144,17 +142,19 @@ public class StreamingEvaluationContext extends EvaluationContext {
   @Override
   protected void computeOutputs() {
     for (DStreamHolder<?> streamHolder : leafStreams) {
-      @SuppressWarnings("unchecked")
-      JavaDStream<WindowedValue<?>> stream = (JavaDStream) streamHolder.getDStream();
-      stream.foreachRDD(new Function<JavaRDD<WindowedValue<?>>, Void>() {
-        @Override
-        public Void call(JavaRDD<WindowedValue<?>> rdd) throws Exception {
-          rdd.rdd().cache();
-          rdd.count();
-          return null;
-        }
-      }); // force a DStream action
+      computeOutput(streamHolder);
     }
+  }
+
+  private static <T> void computeOutput(DStreamHolder<T> streamHolder) {
+    streamHolder.getDStream().foreachRDD(new Function<JavaRDD<WindowedValue<T>>, Void>() {
+      @Override
+      public Void call(JavaRDD<WindowedValue<T>> rdd) throws Exception {
+        rdd.rdd().cache();
+        rdd.count();
+        return null;
+      }
+    }); // force a DStream action
   }
 
   @Override
@@ -178,6 +178,7 @@ public class StreamingEvaluationContext extends EvaluationContext {
   }
 
   //---------------- override in order to expose in package
+  @Override
   protected <I extends PInput> I getInput(PTransform<I, ?> transform) {
     return super.getInput(transform);
   }

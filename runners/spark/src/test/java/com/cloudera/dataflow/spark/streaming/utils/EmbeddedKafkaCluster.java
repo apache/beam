@@ -32,11 +32,16 @@ import java.util.Random;
 import kafka.server.KafkaConfig;
 import kafka.server.KafkaServer;
 import kafka.utils.Time;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * https://gist.github.com/fjavieralba/7930018
  */
 public class EmbeddedKafkaCluster {
+
+  private static final Logger LOG = LoggerFactory.getLogger(EmbeddedKafkaCluster.class);
+
   private final List<Integer> ports;
   private final String zkConnection;
   private final Properties baseProperties;
@@ -59,28 +64,28 @@ public class EmbeddedKafkaCluster {
     this.ports = resolvePorts(ports);
     this.baseProperties = baseProperties;
 
-    this.brokers = new ArrayList<KafkaServer>();
-    this.logDirs = new ArrayList<File>();
+    this.brokers = new ArrayList<>();
+    this.logDirs = new ArrayList<>();
 
     this.brokerList = constructBrokerList(this.ports);
   }
 
-  private List<Integer> resolvePorts(List<Integer> ports) {
-    List<Integer> resolvedPorts = new ArrayList<Integer>();
+  private static List<Integer> resolvePorts(List<Integer> ports) {
+    List<Integer> resolvedPorts = new ArrayList<>();
     for (Integer port : ports) {
       resolvedPorts.add(resolvePort(port));
     }
     return resolvedPorts;
   }
 
-  private int resolvePort(int port) {
+  private static int resolvePort(int port) {
     if (port == -1) {
       return TestUtils.getAvailablePort();
     }
     return port;
   }
 
-  private String constructBrokerList(List<Integer> ports) {
+  private static String constructBrokerList(List<Integer> ports) {
     StringBuilder sb = new StringBuilder();
     for (Integer port : ports) {
       if (sb.length() > 0) {
@@ -113,7 +118,7 @@ public class EmbeddedKafkaCluster {
   }
 
 
-  private KafkaServer startBroker(Properties props) {
+  private static KafkaServer startBroker(Properties props) {
     KafkaServer server = new KafkaServer(new KafkaConfig(props), new SystemTime());
     server.startup();
     return server;
@@ -144,24 +149,21 @@ public class EmbeddedKafkaCluster {
       try {
         broker.shutdown();
       } catch (Exception e) {
-        e.printStackTrace();
+        LOG.warn("{}", e.getMessage(), e);
       }
     }
     for (File logDir : logDirs) {
       try {
         TestUtils.deleteFile(logDir);
       } catch (FileNotFoundException e) {
-        e.printStackTrace();
+        LOG.warn("{}", e.getMessage(), e);
       }
     }
   }
 
   @Override
   public String toString() {
-    final StringBuilder sb = new StringBuilder("EmbeddedKafkaCluster{");
-    sb.append("brokerList='").append(brokerList).append('\'');
-    sb.append('}');
-    return sb.toString();
+    return "EmbeddedKafkaCluster{" + "brokerList='" + brokerList + "'}";
   }
 
   public static class EmbeddedZookeeper {
@@ -185,7 +187,7 @@ public class EmbeddedKafkaCluster {
       this.tickTime = tickTime;
     }
 
-    private int resolvePort(int port) {
+    private static int resolvePort(int port) {
       if (port == -1) {
         return TestUtils.getAvailablePort();
       }
@@ -198,8 +200,8 @@ public class EmbeddedKafkaCluster {
       }
       this.factory = NIOServerCnxnFactory.createFactory(new InetSocketAddress("localhost", port),
               1024);
-      this.snapshotDir = TestUtils.constructTempDir("embeeded-zk/snapshot");
-      this.logDir = TestUtils.constructTempDir("embeeded-zk/log");
+      this.snapshotDir = TestUtils.constructTempDir("embedded-zk/snapshot");
+      this.logDir = TestUtils.constructTempDir("embedded-zk/log");
 
       try {
         factory.startup(new ZooKeeperServer(snapshotDir, logDir, tickTime));
@@ -245,22 +247,22 @@ public class EmbeddedKafkaCluster {
 
     @Override
     public String toString() {
-      final StringBuilder sb = new StringBuilder("EmbeddedZookeeper{");
-      sb.append("connection=").append(getConnection());
-      sb.append('}');
-      return sb.toString();
+      return "EmbeddedZookeeper{" + "connection=" + getConnection() + "}";
     }
   }
 
   static class SystemTime implements Time {
+    @Override
     public long milliseconds() {
       return System.currentTimeMillis();
     }
 
+    @Override
     public long nanoseconds() {
       return System.nanoTime();
     }
 
+    @Override
     public void sleep(long ms) {
       try {
         Thread.sleep(ms);
@@ -270,13 +272,13 @@ public class EmbeddedKafkaCluster {
     }
   }
 
-  static class TestUtils {
+  static final class TestUtils {
     private static final Random RANDOM = new Random();
 
     private TestUtils() {
     }
 
-    public static File constructTempDir(String dirPrefix) {
+    static File constructTempDir(String dirPrefix) {
       File file = new File(System.getProperty("java.io.tmpdir"), dirPrefix + RANDOM.nextInt
               (10000000));
       if (!file.mkdirs()) {
@@ -286,20 +288,17 @@ public class EmbeddedKafkaCluster {
       return file;
     }
 
-    public static int getAvailablePort() {
+    static int getAvailablePort() {
       try {
-        ServerSocket socket = new ServerSocket(0);
-        try {
+        try (ServerSocket socket = new ServerSocket(0)) {
           return socket.getLocalPort();
-        } finally {
-          socket.close();
         }
       } catch (IOException e) {
         throw new IllegalStateException("Cannot find available port: " + e.getMessage(), e);
       }
     }
 
-    public static boolean deleteFile(File path) throws FileNotFoundException {
+    static boolean deleteFile(File path) throws FileNotFoundException {
       if (!path.exists()) {
         throw new FileNotFoundException(path.getAbsolutePath());
       }

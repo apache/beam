@@ -159,7 +159,7 @@ public final class CoderHelpers {
 
   /**
    * A function wrapper for converting a byte array pair to a key-value pair, where
-   * values are <code>Iterable</code>.
+   * values are {@link Iterable}.
    *
    * @param keyCoder Coder to deserialize keys.
    * @param valueCoder Coder to deserialize values.

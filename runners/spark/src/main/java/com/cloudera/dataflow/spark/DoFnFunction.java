@@ -84,6 +84,7 @@ public class DoFnFunction<I, O> implements FlatMapFunction<Iterator<WindowedValu
       outputs.clear();
     }
 
+    @Override
     protected Iterator<WindowedValue<O>> getOutputIterator() {
       return outputs.iterator();
     }

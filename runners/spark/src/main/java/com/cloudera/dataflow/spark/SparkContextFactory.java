@@ -22,11 +22,11 @@ import org.apache.spark.serializer.KryoSerializer;
 final class SparkContextFactory {
 
   /**
-   * If the property <code>dataflow.spark.test.reuseSparkContext</code> is set to
-   * <code>true</code> then the Spark context will be reused for dataflow pipelines.
+   * If the property {@code dataflow.spark.test.reuseSparkContext} is set to
+   * {@code true} then the Spark context will be reused for dataflow pipelines.
    * This property should only be enabled for tests.
    */
-  public static final String TEST_REUSE_SPARK_CONTEXT =
+  static final String TEST_REUSE_SPARK_CONTEXT =
       "dataflow.spark.test.reuseSparkContext";
   private static JavaSparkContext sparkContext;
   private static String sparkMaster;
@@ -34,7 +34,7 @@ final class SparkContextFactory {
   private SparkContextFactory() {
   }
 
-  public static synchronized JavaSparkContext getSparkContext(String master, String appName) {
+  static synchronized JavaSparkContext getSparkContext(String master, String appName) {
     if (Boolean.getBoolean(TEST_REUSE_SPARK_CONTEXT)) {
       if (sparkContext == null) {
         sparkContext = createSparkContext(master, appName);
@@ -50,7 +50,7 @@ final class SparkContextFactory {
     }
   }
 
-  public static synchronized void stopSparkContext(JavaSparkContext context) {
+  static synchronized void stopSparkContext(JavaSparkContext context) {
     if (!Boolean.getBoolean(TEST_REUSE_SPARK_CONTEXT)) {
       context.stop();
     }

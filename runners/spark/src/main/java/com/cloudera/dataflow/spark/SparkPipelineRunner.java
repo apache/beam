@@ -120,7 +120,7 @@ public final class SparkPipelineRunner extends PipelineRunner<EvaluationResult> 
             mOptions.getClass().getSimpleName());
       }
       LOG.info("Executing pipeline using the SparkPipelineRunner.");
-      final JavaSparkContext jsc = SparkContextFactory.getSparkContext(mOptions
+      JavaSparkContext jsc = SparkContextFactory.getSparkContext(mOptions
               .getSparkMaster(), mOptions.getAppName());
 
       if (mOptions.isStreaming()) {
@@ -135,8 +135,7 @@ public final class SparkPipelineRunner extends PipelineRunner<EvaluationResult> 
         }
 
         Duration batchInterval = streamingWindowPipelineDetector.getBatchDuration();
-        LOG.info("Setting Spark streaming batchInterval to " +
-            batchInterval.milliseconds() + "msec");
+        LOG.info("Setting Spark streaming batchInterval to {} msec", batchInterval.milliseconds());
         EvaluationContext ctxt = createStreamingEvaluationContext(jsc, pipeline, batchInterval);
 
         pipeline.traverseTopologically(new SparkPipelineEvaluator(ctxt, translator));
@@ -179,7 +178,7 @@ public final class SparkPipelineRunner extends PipelineRunner<EvaluationResult> 
       createStreamingEvaluationContext(JavaSparkContext jsc, Pipeline pipeline,
       Duration batchDuration) {
     SparkStreamingPipelineOptions streamingOptions = (SparkStreamingPipelineOptions) mOptions;
-    final JavaStreamingContext jssc = new JavaStreamingContext(jsc, batchDuration);
+    JavaStreamingContext jssc = new JavaStreamingContext(jsc, batchDuration);
     return new StreamingEvaluationContext(jsc, pipeline, jssc, streamingOptions.getTimeout());
   }
 
@@ -208,18 +207,15 @@ public final class SparkPipelineRunner extends PipelineRunner<EvaluationResult> 
 
     @Override
     public void enterCompositeTransform(TransformTreeNode node) {
-      if (inTranslatedCompositeNode()) {
-        return;
-      }
-
-      //noinspection unchecked
-      if (node.getTransform() != null
-              && translator.hasTranslation(
-              (Class<? extends PTransform<?, ?>>) node.getTransform().getClass())) {
-        LOG.info("Entering directly-translatable composite transform: '{}'",
-                node.getFullName());
-        LOG.debug("Composite transform class: '{}'", node.getTransform().getClass());
-        currentTranslatedCompositeNode = node;
+      if (!inTranslatedCompositeNode() && node.getTransform() != null) {
+        @SuppressWarnings("unchecked")
+        Class<PTransform<?, ?>> transformClass =
+            (Class<PTransform<?, ?>>) node.getTransform().getClass();
+        if (translator.hasTranslation(transformClass)) {
+          LOG.info("Entering directly-translatable composite transform: '{}'", node.getFullName());
+          LOG.debug("Composite transform class: '{}'", node.getTransform().getClass());
+          currentTranslatedCompositeNode = node;
+        }
       }
     }
 

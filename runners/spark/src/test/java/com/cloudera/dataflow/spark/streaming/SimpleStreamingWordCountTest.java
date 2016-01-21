@@ -45,7 +45,7 @@ public class SimpleStreamingWordCountTest {
       Collections.<Iterable<String>>singletonList(Arrays.asList(WORDS_ARRAY));
   private static final Set<String> EXPECTED_COUNT_SET =
       ImmutableSet.of("hi: 5", "there: 1", "sue: 2", "bob: 2");
-  final static long TEST_TIMEOUT_MSEC = 1000L;
+  private static final long TEST_TIMEOUT_MSEC = 1000L;
 
   @Test
   public void testRun() throws Exception {

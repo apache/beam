@@ -28,10 +28,10 @@ import org.slf4j.LoggerFactory;
 abstract class BroadcastHelper<T> implements Serializable {
 
   /**
-   * If the property <code>dataflow.spark.directBroadcast</code> is set to
-   * <code>true</code> then Spark serialization (Kryo) will be used to broadcast values
+   * If the property {@code dataflow.spark.directBroadcast} is set to
+   * {@code true} then Spark serialization (Kryo) will be used to broadcast values
    * in View objects. By default this property is not set, and values are coded using
-   * the appropriate {@link com.google.cloud.dataflow.sdk.coders.Coder}.
+   * the appropriate {@link Coder}.
    */
   public static final String DIRECT_BROADCAST = "dataflow.spark.directBroadcast";
 
@@ -78,7 +78,7 @@ abstract class BroadcastHelper<T> implements Serializable {
 
   /**
    * A {@link com.cloudera.dataflow.spark.BroadcastHelper} that uses a
-   * {@link com.google.cloud.dataflow.sdk.coders.Coder} to encode values as byte arrays
+   * {@link Coder} to encode values as byte arrays
    * before broadcasting.
    * @param <T>
    */

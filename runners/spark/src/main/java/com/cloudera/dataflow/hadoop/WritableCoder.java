@@ -33,8 +33,7 @@ import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Writable;
 
 /**
- * A {@code WritableCoder} is a {@link com.google.cloud.dataflow.sdk.coders.Coder} for a
- * Java class that implements {@link org.apache.hadoop.io.Writable}.
+ * A {@code WritableCoder} is a {@link Coder} for a Java class that implements {@link Writable}.
  *
  * <p> To use, specify the coder type on a PCollection:
  * <pre>

@@ -25,7 +25,6 @@ import java.util.Set;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
 import com.google.cloud.dataflow.sdk.runners.AggregatorRetrievalException;
 import com.google.cloud.dataflow.sdk.runners.AggregatorValues;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
@@ -50,7 +49,7 @@ public class EvaluationContext implements EvaluationResult {
   private final JavaSparkContext jsc;
   private final Pipeline pipeline;
   private final SparkRuntimeContext runtime;
-  private final CoderRegistry registry;
+  //private final CoderRegistry registry;
   private final Map<PValue, RDDHolder<?>> pcollections = new LinkedHashMap<>();
   private final Set<RDDHolder<?>> leafRdds = new LinkedHashSet<>();
   private final Set<PValue> multireads = new LinkedHashSet<>();
@@ -61,7 +60,7 @@ public class EvaluationContext implements EvaluationResult {
   public EvaluationContext(JavaSparkContext jsc, Pipeline pipeline) {
     this.jsc = jsc;
     this.pipeline = pipeline;
-    this.registry = pipeline.getCoderRegistry();
+    //this.registry = pipeline.getCoderRegistry();
     this.runtime = new SparkRuntimeContext(jsc, pipeline);
   }
 
@@ -87,7 +86,7 @@ public class EvaluationContext implements EvaluationResult {
       this.rdd = rdd;
     }
 
-    public JavaRDDLike<WindowedValue<T>, ?> getRDD() {
+    JavaRDDLike<WindowedValue<T>, ?> getRDD() {
       if (rdd == null) {
         Iterable<WindowedValue<T>> windowedValues = Iterables.transform(values,
             new Function<T, WindowedValue<T>>() {
@@ -105,7 +104,7 @@ public class EvaluationContext implements EvaluationResult {
       return rdd;
     }
 
-    public Iterable<T> getValues(PCollection<T> pcollection) {
+    Iterable<T> getValues(PCollection<T> pcollection) {
       if (values == null) {
         coder = pcollection.getCoder();
         JavaRDDLike<byte[], ?> bytesRDD = rdd.map(WindowingHelpers.<T>unwindowFunction())
@@ -121,7 +120,7 @@ public class EvaluationContext implements EvaluationResult {
       return values;
     }
 
-    public Iterable<WindowedValue<T>> getWindowedValues(PCollection<T> pcollection) {
+    Iterable<WindowedValue<T>> getWindowedValues(PCollection<T> pcollection) {
       return Iterables.transform(get(pcollection), new Function<T, WindowedValue<T>>() {
         @Override
         public WindowedValue<T> apply(T t) {

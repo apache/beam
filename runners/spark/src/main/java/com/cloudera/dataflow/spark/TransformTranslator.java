@@ -247,8 +247,8 @@ public final class TransformTranslator {
         } catch (CannotProvideCoderException e) {
           throw new IllegalStateException("Could not determine coder for accumulator", e);
         }
-        final Coder<KV<K, VI>> kviCoder = KvCoder.of(keyCoder, viCoder);
-        final Coder<KV<K, VA>> kvaCoder = KvCoder.of(keyCoder, vaCoder);
+        Coder<KV<K, VI>> kviCoder = KvCoder.of(keyCoder, viCoder);
+        Coder<KV<K, VA>> kvaCoder = KvCoder.of(keyCoder, vaCoder);
 
         // We need to duplicate K as both the key of the JavaPairRDD as well as inside the value,
         // since the functions passed to combineByKey don't receive the associated key of each
@@ -437,7 +437,8 @@ public final class TransformTranslator {
               all.filter(new TupleTagFilter(e.getKey()));
           @SuppressWarnings("unchecked")
           // Object is the best we can do since different outputs can have different tags
-          JavaRDD<WindowedValue<Object>> values = (JavaRDD) filtered.values();
+          JavaRDD<WindowedValue<Object>> values =
+              (JavaRDD<WindowedValue<Object>>) (JavaRDD<?>) filtered.values();
           context.setRDD(e.getValue(), values);
         }
       }
@@ -602,19 +603,19 @@ public final class TransformTranslator {
       this.filenameSuffix = filenameSuffix;
     }
 
-    public int getNumShards() {
+    int getNumShards() {
       return numShards;
     }
 
-    public String getShardTemplate() {
+    String getShardTemplate() {
       return shardTemplate;
     }
 
-    public String getFilenamePrefix() {
+    String getFilenamePrefix() {
       return filenamePrefix;
     }
 
-    public String getFilenameSuffix() {
+    String getFilenameSuffix() {
       return filenameSuffix;
     }
   }
@@ -642,7 +643,7 @@ public final class TransformTranslator {
     rdd.saveAsNewAPIHadoopFile(outputDir, keyClass, valueClass, formatClass, conf);
   }
 
-  static final FieldGetter WINDOW_FG = new FieldGetter(Window.Bound.class);
+  private static final FieldGetter WINDOW_FG = new FieldGetter(Window.Bound.class);
 
   private static <T, W extends BoundedWindow> TransformEvaluator<Window.Bound<T>> window() {
     return new TransformEvaluator<Window.Bound<T>>() {
@@ -796,8 +797,7 @@ public final class TransformTranslator {
     }
 
     @Override
-    public TransformEvaluator<? extends PTransform<?, ?>> translate(
-        Class<? extends PTransform<?, ?>> clazz) {
+    public <PT extends PTransform<?, ?>> TransformEvaluator<PT> translate(Class<PT> clazz) {
       return getTransformEvaluator(clazz);
     }
   }

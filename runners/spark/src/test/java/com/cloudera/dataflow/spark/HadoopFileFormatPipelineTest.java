@@ -24,7 +24,6 @@ import java.io.File;
 import java.io.IOException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.SequenceFile.Reader;
@@ -78,35 +77,28 @@ public class HadoopFileFormatPipelineTest {
 
     IntWritable key = new IntWritable();
     Text value = new Text();
-    Reader reader = null;
-    try {
-      reader = new Reader(new Configuration(), Reader.file(new Path(outputFile.toURI())));
+    try (Reader reader = new Reader(new Configuration(), Reader.file(new Path(outputFile.toURI())))) {
       int i = 0;
-      while(reader.next(key, value)) {
+      while (reader.next(key, value)) {
         assertEquals(i, key.get());
         assertEquals("value-" + i, value.toString());
         i++;
       }
-    } finally {
-      IOUtils.closeStream(reader);
     }
   }
 
   private void populateFile() throws IOException {
     IntWritable key = new IntWritable();
     Text value = new Text();
-    Writer writer = null;
-    try {
-      writer = SequenceFile.createWriter(new Configuration(),
-          Writer.keyClass(IntWritable.class), Writer.valueClass(Text.class),
-          Writer.file(new Path(this.inputFile.toURI())));
+    try (Writer writer = SequenceFile.createWriter(
+        new Configuration(),
+        Writer.keyClass(IntWritable.class), Writer.valueClass(Text.class),
+        Writer.file(new Path(this.inputFile.toURI())))) {
       for (int i = 0; i < 5; i++) {
         key.set(i);
         value.set("value-" + i);
         writer.append(key, value);
       }
-    } finally {
-      IOUtils.closeStream(writer);
     }
   }
 

@@ -27,8 +27,6 @@ import com.google.cloud.dataflow.sdk.values.PCollectionList;
 import com.cloudera.dataflow.io.CreateStream;
 import com.cloudera.dataflow.spark.EvaluationResult;
 import com.cloudera.dataflow.spark.SparkPipelineRunner;
-import com.cloudera.dataflow.spark.streaming.SparkStreamingPipelineOptions;
-import com.cloudera.dataflow.spark.streaming.SparkStreamingPipelineOptionsFactory;
 import com.cloudera.dataflow.spark.streaming.utils.DataflowAssertStreaming;
 
 import org.joda.time.Duration;
@@ -53,7 +51,7 @@ public class FlattenStreamingTest {
           Collections.<Iterable<String>>singletonList(Arrays.asList(WORDS_ARRAY_2));
   private static final String[] EXPECTED_UNION = {
           "one", "two", "three", "four", "five", "six", "seven", "eight"};
-  final static long TEST_TIMEOUT_MSEC = 1000L;
+  private static final long TEST_TIMEOUT_MSEC = 1000L;
 
   @Test
   public void testRun() throws Exception {

@@ -47,10 +47,11 @@ public final class StreamingWindowPipelineDetector extends SparkPipelineRunner.E
     super(translator);
   }
 
-  static final TransformTranslator.FieldGetter WINDOW_FG =
+  private static final TransformTranslator.FieldGetter WINDOW_FG =
       new TransformTranslator.FieldGetter(Window.Bound.class);
 
   // Use the smallest window (fixed or sliding) as Spark streaming's batch duration
+  @Override
   protected <PT extends PTransform<? super PInput, POutput>> void
       doVisitTransform(TransformTreeNode node) {
     @SuppressWarnings("unchecked")

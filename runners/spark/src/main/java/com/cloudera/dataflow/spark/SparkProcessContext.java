@@ -195,7 +195,7 @@ abstract class SparkProcessContext<I, O, V> extends DoFn<I, O>.ProcessContext {
     private final Iterator<WindowedValue<I>> inputIterator;
     private final DoFn<I, O> doFn;
     private Iterator<V> outputIterator;
-    private boolean calledFinish = false;
+    private boolean calledFinish;
 
     ProcCtxtIterator(Iterator<WindowedValue<I>> iterator, DoFn<I, O> doFn) {
       this.inputIterator = iterator;
@@ -242,7 +242,7 @@ abstract class SparkProcessContext<I, O, V> extends DoFn<I, O>.ProcessContext {
   }
 
   static class SparkProcessException extends RuntimeException {
-    public SparkProcessException(Throwable t) {
+    SparkProcessException(Throwable t) {
       super(t);
     }
   }

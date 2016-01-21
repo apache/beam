@@ -21,7 +21,6 @@ import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.collect.Iterables;
-import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 import org.junit.Test;
@@ -47,8 +46,7 @@ public class CombineGloballyTest {
     res.close();
   }
 
-  public static class WordMerger extends Combine.CombineFn<String, StringBuilder, String> implements
-      Serializable {
+  public static class WordMerger extends Combine.CombineFn<String, StringBuilder, String> {
 
     @Override
     public StringBuilder createAccumulator() {
@@ -78,7 +76,7 @@ public class CombineGloballyTest {
     }
 
     private static StringBuilder combine(StringBuilder accum, String datum) {
-      if (null == accum) {
+      if (accum == null) {
         return new StringBuilder(datum);
       } else {
         accum.append(",").append(datum);

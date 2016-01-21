@@ -31,6 +31,8 @@ import com.google.common.collect.ImmutableSet;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Pattern;
+
 import org.junit.Test;
 
 public class SimpleWordCountTest {
@@ -60,13 +62,14 @@ public class SimpleWordCountTest {
    * A DoFn that tokenizes lines of text into individual words.
    */
   static class ExtractWordsFn extends DoFn<String, String> {
+    private static final Pattern WORD_BOUNDARY = Pattern.compile("[^a-zA-Z']+");
     private final Aggregator<Long, Long> emptyLines =
         createAggregator("emptyLines", new Sum.SumLongFn());
 
     @Override
     public void processElement(ProcessContext c) {
       // Split the line into words.
-      String[] words = c.element().split("[^a-zA-Z']+");
+      String[] words = WORD_BOUNDARY.split(c.element());
 
       // Keep track of the number of lines without any words encountered while tokenizing.
       // This aggregator is visible in the monitoring UI when run using DataflowPipelineRunner.

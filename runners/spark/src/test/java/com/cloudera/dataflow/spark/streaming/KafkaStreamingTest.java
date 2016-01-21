@@ -65,10 +65,10 @@ public class KafkaStreamingTest {
   private static final Set<String> EXPECTED = ImmutableSet.of(
           "k1,v1", "k2,v2", "k3,v3", "k4,v4"
   );
-  private final static long TEST_TIMEOUT_MSEC = 1000L;
+  private static final long TEST_TIMEOUT_MSEC = 1000L;
 
   @BeforeClass
-  public static void init() throws IOException, InterruptedException {
+  public static void init() throws IOException {
     EMBEDDED_ZOOKEEPER.startup();
     EMBEDDED_KAFKA_CLUSTER.startup();
 
@@ -78,12 +78,12 @@ public class KafkaStreamingTest {
     producerProps.put("request.required.acks", 1);
     producerProps.put("bootstrap.servers", EMBEDDED_KAFKA_CLUSTER.getBrokerList());
     Serializer<String> stringSerializer = new StringSerializer();
-    @SuppressWarnings("unchecked") KafkaProducer<String, String> kafkaProducer =
-            new KafkaProducer(producerProps, stringSerializer, stringSerializer);
-    for (Map.Entry<String, String> en : KAFKA_MESSAGES.entrySet()) {
-      kafkaProducer.send(new ProducerRecord<>(TOPIC, en.getKey(), en.getValue()));
+    try (@SuppressWarnings("unchecked") KafkaProducer<String, String> kafkaProducer =
+            new KafkaProducer(producerProps, stringSerializer, stringSerializer)) {
+      for (Map.Entry<String, String> en : KAFKA_MESSAGES.entrySet()) {
+        kafkaProducer.send(new ProducerRecord<>(TOPIC, en.getKey(), en.getValue()));
+      }
     }
-    kafkaProducer.close();
   }
 
   @Test

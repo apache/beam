@@ -84,7 +84,7 @@ public class TransformTranslatorTest {
     Assert.assertArrayEquals(directOutput.toArray(), sparkOutput.toArray());
   }
 
-  private String runPipeline(String name, PipelineRunner runner) {
+  private String runPipeline(String name, PipelineRunner<?> runner) {
     Pipeline p = Pipeline.create(PipelineOptionsFactory.create());
     String outFile = Joiner.on(File.separator).join(testDataDirName, "test_text_out_" + name);
     PCollection<String> lines =  p.apply(TextIO.Read.from("src/test/resources/test_text.txt"));

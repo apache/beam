@@ -36,7 +36,7 @@ public interface EvaluationResult extends PipelineResult {
   /**
    * Retrieve an object of Type T associated with the PValue passed in.
    *
-   * @param pval PValue to retireve associated data for.
+   * @param pval PValue to retrieve associated data for.
    * @param <T>  Type of object to return.
    * @return Native object.
    */
@@ -55,7 +55,7 @@ public interface EvaluationResult extends PipelineResult {
   /**
    * Releases any runtime resources, including distributed-execution contexts currently held by
    * this EvaluationResult; once close() has been called,
-   * {@link com.cloudera.dataflow.spark.EvaluationResult#get(PCollection)} might
+   * {@link EvaluationResult#get(PCollection)} might
    * not work for subsequent calls.
    */
   void close();

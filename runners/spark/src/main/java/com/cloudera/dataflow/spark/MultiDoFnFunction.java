@@ -98,6 +98,7 @@ class MultiDoFnFunction<I, O>
       outputs.clear();
     }
 
+    @Override
     protected Iterator<Tuple2<TupleTag<?>, WindowedValue<?>>> getOutputIterator() {
       return Iterators.transform(outputs.entries().iterator(),
           new Function<Map.Entry<TupleTag<?>, WindowedValue<?>>,

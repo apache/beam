@@ -99,7 +99,7 @@ public final class HadoopIO {
     private Write() {
     }
 
-    public static <K, V> Bound to(String filenamePrefix,
+    public static <K, V> Bound<K, V> to(String filenamePrefix,
         Class<? extends FileOutputFormat<K, V>> format, Class<K> key, Class<V> value) {
       return new Bound<>(filenamePrefix, format, key, value);
     }
