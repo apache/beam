@@ -32,6 +32,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -632,7 +633,8 @@ public class CustomSourcesTest {
     options.setNumWorkers(5);
 
     ByteString state = ByteString.EMPTY;
-    for (int i = 0; i < 100; /* Incremented in inner loop */) {
+    for (int i = 0; i < 10 * CustomSources.MAX_UNBOUNDED_BUNDLE_SIZE;
+         /* Incremented in inner loop */) {
       WindowedValue<ValueWithRecordId<KV<Integer, Integer>>> value;
 
       // Initialize streaming context with state from previous iteration.
@@ -664,6 +666,8 @@ public class CustomSourcesTest {
           iterator = reader.iterator();
 
       // Verify data.
+      Instant beforeReading = Instant.now();
+      int numReadOnThisIteration = 0;
       for (boolean more = iterator.start(); more; more = iterator.advance()) {
         value = iterator.getCurrent();
         assertEquals(KV.of(0, i), value.getValue().getValue());
@@ -673,7 +677,14 @@ public class CustomSourcesTest {
         assertThat(value.getWindows(), contains((BoundedWindow) GlobalWindow.INSTANCE));
         assertEquals(i, value.getTimestamp().getMillis());
         i++;
+        numReadOnThisIteration++;
       }
+      Instant afterReading = Instant.now();
+      assertThat(
+          new Duration(beforeReading, afterReading).getStandardSeconds(),
+          lessThanOrEqualTo(CustomSources.MAX_UNBOUNDED_BUNDLE_READ_TIME.getStandardSeconds() + 1));
+      assertThat(
+          numReadOnThisIteration, lessThanOrEqualTo(CustomSources.MAX_UNBOUNDED_BUNDLE_SIZE));
 
       // Extract and verify state modifications.
       context.flushState();

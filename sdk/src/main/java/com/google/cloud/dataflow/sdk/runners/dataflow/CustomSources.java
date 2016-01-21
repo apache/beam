@@ -546,14 +546,16 @@ public class CustomSources {
     }
   }
 
+  // Commit at least once every 10 seconds or 10k records.  This keeps the watermark advancing
+  // smoothly, and ensures that not too much work will have to be reprocessed in the event of
+  // a crash.
+  @VisibleForTesting
+  static final int MAX_UNBOUNDED_BUNDLE_SIZE = 10000;
+  @VisibleForTesting
+  static final Duration MAX_UNBOUNDED_BUNDLE_READ_TIME = Duration.standardSeconds(10);
+
   private static class UnboundedReaderIterator<T>
       extends NativeReader.NativeReaderIterator<WindowedValue<ValueWithRecordId<T>>> {
-    // Commit at least once every 10 seconds or 10k records.  This keeps the watermark advancing
-    // smoothly, and ensures that not too much work will have to be reprocessed in the event of
-    // a crash.
-    private static final int MAX_BUNDLE_SIZE = 10000;
-    private static final Duration MAX_BUNDLE_READ_TIME = Duration.standardSeconds(10);
-
     private final UnboundedSource.UnboundedReader<T> reader;
     private final boolean started;
     private final Instant endTime;
@@ -561,7 +563,7 @@ public class CustomSources {
 
     private UnboundedReaderIterator(UnboundedSource.UnboundedReader<T> reader, boolean started) {
       this.reader = reader;
-      this.endTime = Instant.now().plus(MAX_BUNDLE_READ_TIME);
+      this.endTime = Instant.now().plus(MAX_UNBOUNDED_BUNDLE_READ_TIME);
       this.elemsRead = 0;
       this.started = started;
     }
@@ -588,7 +590,7 @@ public class CustomSources {
 
     @Override
     public boolean advance() throws IOException {
-      if (elemsRead >= MAX_BUNDLE_SIZE
+      if (elemsRead >= MAX_UNBOUNDED_BUNDLE_SIZE
           || Instant.now().isAfter(endTime)) {
         return false;
       }
@@ -598,6 +600,7 @@ public class CustomSources {
       while (true) {
         try {
           if (reader.advance()) {
+            elemsRead++;
             return true;
           }
         } catch (Exception e) {
