@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.util.NoSuchElementException;
 import java.util.Observable;
 
+import javax.annotation.Nullable;
+
 /**
  * Abstract base class for native readers in the Dataflow runner.
  *
@@ -84,11 +86,15 @@ public abstract class NativeReader<T> extends Observable {
 
     /**
      * Returns a representation of how far this iterator is through the source.
-     * @return the progress, or {@code null} if no progress measure
-     * can be provided (implementors are discouraged from throwing
-     * {@code UnsupportedOperationException} in this case).
+     *
+     * @return the progress, or {@code null} if no progress measure can be provided
+     * (implementors are discouraged from throwing {@code UnsupportedOperationException}
+     * in this case). By default, returns {@code null}.
      */
-    public abstract Progress getProgress();
+    @Nullable
+    public Progress getProgress() {
+      return null;
+    }
 
     /**
      * Attempts to split the input in two parts: the "primary" part and the "residual" part.
@@ -119,9 +125,12 @@ public abstract class NativeReader<T> extends Observable {
      * @return {@code null} if the {@link NativeReader.DynamicSplitRequest} cannot be honored
      *   (in that case the input represented by this {@link NativeReaderIterator} stays the same),
      *   or a {@link NativeReader.DynamicSplitResult} describing how the input was split into
-     *   a primary and residual part.
+     *   a primary and residual part. By default, returns {@code null}.
      */
-    public abstract DynamicSplitResult requestDynamicSplit(DynamicSplitRequest request);
+    @Nullable
+    public DynamicSplitResult requestDynamicSplit(DynamicSplitRequest request) {
+      return null;
+    }
 
     /**
      * Returns an estimate of the degree of parallelism that could be achieved by
@@ -141,8 +150,12 @@ public abstract class NativeReader<T> extends Observable {
      * {@link NativeReader#getTotalParallelism} using the current progress fraction.
      * Infinity may also be returned (indicating no known bound on parallelism),
      * as may fractional estimates (in which case the sum over all shards is taken).
+     *
+     * <p>By default, returns {@link #REMAINING_PARALLELISM_FROM_PROGRESS_FRACTION}.
      */
-    public abstract double getRemainingParallelism();
+    public double getRemainingParallelism() {
+      return REMAINING_PARALLELISM_FROM_PROGRESS_FRACTION;
+    }
 
     /**
      * Initializes the reader and advances the reader to the first record.
@@ -181,30 +194,8 @@ public abstract class NativeReader<T> extends Observable {
      * @inheritDoc
      */
     @Override
-    public abstract void close() throws IOException;
-  }
-
-  /** An abstract base class for ReaderIterator implementations. */
-  public abstract static class AbstractReaderIterator<T> extends NativeReaderIterator<T> {
-
-    @Override
     public void close() throws IOException {
-      // By default, nothing is needed for close.
-    }
-
-    @Override
-    public Progress getProgress() {
-      return null;
-    }
-
-    @Override
-    public DynamicSplitResult requestDynamicSplit(DynamicSplitRequest splitRequest) {
-      return null;
-    }
-
-    @Override
-    public double getRemainingParallelism() {
-      return REMAINING_PARALLELISM_FROM_PROGRESS_FRACTION;
+      // By default, do nothing.
     }
   }
 
@@ -215,25 +206,36 @@ public abstract class NativeReader<T> extends Observable {
    *
    * This class is temporary and the intention is to get rid of its subclasses one by one,
    * converting them to use the new-style interface directly, and then remove this class.
+   *
+   * <p>Provides basic treatment of hasNext()/next() to simplify implementations (e.g. ensuring
+   * hasNext() is called only once and verifying hasNext() in next()) and default no-op
+   * implementations of other operations.
+   *
+   * <p><i>This class is intended for internal usage. Users of Dataflow must not subclass it.</i>
    */
-  public abstract static class LegacyReaderIterator<T> extends AbstractReaderIterator<T> {
+  public abstract static class LegacyReaderIterator<T> extends NativeReaderIterator<T> {
+    private Boolean cachedHasNext;
     private T current;
     private boolean hasCurrent;
 
-    /**
-     * Returns whether the source has any more elements. Some sources,
-     * such as GroupingShuffleReader, invalidate the return value of
-     * the previous next() call during the call to hasNext().
-     */
-    public abstract boolean hasNext() throws IOException;
+    public final boolean hasNext() throws IOException {
+      if (cachedHasNext == null) {
+        cachedHasNext = hasNextImpl();
+      }
+      return cachedHasNext;
+    }
 
-    /**
-     * Returns the next element.
-     *
-     * @throws IOException if attempting to access an element involves IO that fails
-     * @throws NoSuchElementException if there are no more elements
-     */
-    public abstract T next() throws IOException, NoSuchElementException;
+    protected abstract boolean hasNextImpl() throws IOException;
+
+    public final T next() throws IOException, NoSuchElementException {
+      if (!hasNext()) {
+        throw new NoSuchElementException();
+      }
+      cachedHasNext = null;
+      return nextImpl();
+    }
+
+    protected abstract T nextImpl() throws IOException;
 
     @Override
     public boolean start() throws IOException {

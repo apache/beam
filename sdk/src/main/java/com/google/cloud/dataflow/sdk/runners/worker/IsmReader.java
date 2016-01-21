@@ -161,12 +161,12 @@ public class IsmReader<K, V> extends NativeReader<KV<K, V>> {
     private SeekableByteChannel inChannel;
 
     @Override
-    public boolean hasNext() throws IOException {
+    public boolean hasNextImpl() throws IOException {
       return getDelegate().hasNext();
     }
 
     @Override
-    public KV<K, V> next() throws IOException, NoSuchElementException {
+    public KV<K, V> nextImpl() throws IOException, NoSuchElementException {
       long startPosition = getChannel().position();
       KV<K, V> rval = getDelegate().next();
       notifyElementRead(getChannel().position() - startPosition);
@@ -240,7 +240,7 @@ public class IsmReader<K, V> extends NativeReader<KV<K, V>> {
     }
 
     @Override
-    public boolean hasNext() throws IOException {
+    public boolean hasNextImpl() throws IOException {
       if (inChannel.position() > readLimit) {
         throw new IllegalStateException("Read past end of stream");
       }
@@ -248,10 +248,7 @@ public class IsmReader<K, V> extends NativeReader<KV<K, V>> {
     }
 
     @Override
-    public KV<K, V> next() throws IOException, NoSuchElementException {
-      if (!hasNext()) {
-        throw new NoSuchElementException();
-      }
+    public KV<K, V> nextImpl() throws IOException, NoSuchElementException {
       KeyPrefix keyPrefix = KeyPrefixCoder.of().decode(inStream, Context.NESTED);
       int totalKeyLength = keyPrefix.getSharedKeySize() + keyPrefix.getUnsharedKeySize();
       // currentKey = prevKey[0 : sharedKeySize] + read(unsharedKeySize)

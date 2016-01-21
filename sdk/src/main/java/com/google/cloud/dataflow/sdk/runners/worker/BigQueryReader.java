@@ -25,7 +25,6 @@ import com.google.cloud.dataflow.sdk.options.BigQueryOptions;
 import com.google.cloud.dataflow.sdk.util.BigQueryTableRowIterator;
 import com.google.cloud.dataflow.sdk.util.Transport;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
-import com.google.cloud.dataflow.sdk.util.common.worker.AbstractBoundedReaderIterator;
 import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 import com.google.common.annotations.VisibleForTesting;
 
@@ -113,8 +112,7 @@ public class BigQueryReader extends NativeReader<WindowedValue<TableRow>> {
    * A ReaderIterator that yields TableRow objects for each row of a BigQuery table.
    */
   @VisibleForTesting
-  static class BigQueryReaderIterator
-      extends AbstractBoundedReaderIterator<WindowedValue<TableRow>> {
+  static class BigQueryReaderIterator extends LegacyReaderIterator<WindowedValue<TableRow>> {
     private BigQueryTableRowIterator rowIterator;
 
     public BigQueryReaderIterator(TableReference tableRef, Bigquery bigQueryClient) {

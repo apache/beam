@@ -204,7 +204,7 @@ public class AvroReaderTest {
     Long endOffset = reader.endPosition;
     List<T> primaryElements;
     List<T> residualElements = new ArrayList<>();
-    try (NativeReader.NativeReaderIterator<WindowedValue<T>> iterator = reader.iterator()) {
+    try (AvroReader<T>.AvroFileIterator iterator = reader.iterator()) {
       // Read n elements from the reader
       primaryElements =
           windowedValuesToValues(readNItemsFromUnstartedReader(iterator, readBeforeSplit));

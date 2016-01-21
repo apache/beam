@@ -96,21 +96,32 @@ class WindowingWindmillReader<T> extends NativeReader<WindowedValue<KeyedWorkIte
     final Object key = kvCoder.getKeyCoder().decode(
         context.getSerializedKey().newInput(), Coder.Context.OUTER);
     final WorkItem workItem = context.getWork();
+    final WindowedValue<KeyedWorkItem<T>> value =
+        WindowedValue.valueInEmptyWindows(
+            KeyedWorkItem.workItem(
+                key, workItem, windowCoder, windowsCoder, kvCoder.getValueCoder()));
 
-    return new LegacyReaderIterator<WindowedValue<KeyedWorkItem<T>>>() {
-      boolean consumed = false;
+    return new NativeReaderIterator<WindowedValue<KeyedWorkItem<T>>>() {
+      private WindowedValue<KeyedWorkItem<T>> current;
 
       @Override
-      public boolean hasNext() throws IOException {
-        return !consumed;
+      public boolean start() throws IOException {
+        current = value;
+        return true;
       }
 
       @Override
-      public WindowedValue<KeyedWorkItem<T>> next() throws IOException, NoSuchElementException {
-        consumed = true;
-        return WindowedValue.valueInEmptyWindows(
-            KeyedWorkItem.<T>workItem(
-                key, workItem, windowCoder, windowsCoder, kvCoder.getValueCoder()));
+      public boolean advance() throws IOException {
+        current = null;
+        return false;
+      }
+
+      @Override
+      public WindowedValue<KeyedWorkItem<T>> getCurrent() {
+        if (current == null) {
+          throw new NoSuchElementException();
+        }
+        return value;
       }
     };
   }

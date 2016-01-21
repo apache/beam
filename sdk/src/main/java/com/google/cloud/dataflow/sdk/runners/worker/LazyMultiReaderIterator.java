@@ -16,7 +16,6 @@
 
 package com.google.cloud.dataflow.sdk.runners.worker;
 
-import com.google.cloud.dataflow.sdk.util.common.worker.AbstractBoundedReaderIterator;
 import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 
 import java.io.IOException;
@@ -33,7 +32,7 @@ import java.util.Iterator;
  * to be produced lazily, as an open source iterator may consume process
  * resources such as file descriptors.
  */
-abstract class LazyMultiReaderIterator<T> extends AbstractBoundedReaderIterator<T> {
+abstract class LazyMultiReaderIterator<T> extends NativeReader.LegacyReaderIterator<T> {
   private final Iterator<String> inputs;
   NativeReader.LegacyReaderIterator<T> current;
 

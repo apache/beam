@@ -19,13 +19,15 @@ package com.google.cloud.dataflow.sdk.util.common.worker;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.runners.worker.MapTaskExecutorFactory.ElementByteSizeObservableCoder;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
+import com.google.common.collect.ImmutableList;
 
 import org.junit.Assert;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Observable;
 import java.util.Observer;
 
@@ -84,24 +86,37 @@ public class ExecutorTestUtils {
       return new TestReaderIterator(inputs);
     }
 
-    class TestReaderIterator extends LegacyReaderIterator<String> {
-      Iterator<String> iter;
-      boolean closed = false;
+    class TestReaderIterator extends NativeReaderIterator<String> {
+      private final List<String> inputs;
+      private int currentIndex;
+      private boolean closed = false;
 
       public TestReaderIterator(List<String> inputs) {
-        iter = inputs.iterator();
+        this.inputs = ImmutableList.copyOf(inputs);
       }
 
       @Override
-      public boolean hasNext() {
-        return iter.hasNext();
+      public boolean start() {
+        if (inputs.isEmpty()) {
+          return false;
+        }
+        notifyElementRead(getCurrent().length());
+        return true;
       }
 
       @Override
-      public String next() {
-        String next = iter.next();
-        notifyElementRead(next.length());
-        return next;
+      public boolean advance() throws IOException {
+        if (currentIndex >= inputs.size() - 1) {
+          return false;
+        }
+        ++currentIndex;
+        notifyElementRead(getCurrent().length());
+        return true;
+      }
+
+      @Override
+      public String getCurrent() throws NoSuchElementException {
+        return inputs.get(currentIndex);
       }
 
       @Override

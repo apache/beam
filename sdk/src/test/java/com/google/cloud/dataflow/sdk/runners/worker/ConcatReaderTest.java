@@ -99,8 +99,7 @@ public class ConcatReaderTest {
         boolean failWhenClosing) {
       this.recordToFailAt = recordToFailAt;
       this.failWhenClosing = failWhenClosing;
-      readerDelegator =
-          new InMemoryReader<>(encodedElements, 0L, (long) encodedElements.size(), coder);
+      readerDelegator = new InMemoryReader<>(encodedElements, 0, encodedElements.size(), coder);
       recordedReaders.add(this);
     }
 
@@ -114,32 +113,41 @@ public class ConcatReaderTest {
     }
 
     @Override
-    public LegacyReaderIterator<T> iterator() throws IOException {
-      lastIterator = new TestIterator<T>((LegacyReaderIterator<T>) readerDelegator.iterator());
+    public NativeReaderIterator<T> iterator() throws IOException {
+      lastIterator = new TestIterator<T>(readerDelegator.iterator());
       return lastIterator;
     }
 
-    private class TestIterator<T> extends LegacyReaderIterator<T> {
-      private final LegacyReaderIterator<T> iteratorImpl;
-      private long currentRecord;
+    private class TestIterator<T> extends NativeReaderIterator<T> {
+      private final NativeReaderIterator<T> iteratorImpl;
+      private long currentIndex = -1;
       private boolean isClosed = false;
 
-      private TestIterator(LegacyReaderIterator<T> iteratorImpl) {
+      private TestIterator(NativeReaderIterator<T> iteratorImpl) {
         this.iteratorImpl = iteratorImpl;
       }
 
       @Override
-      public boolean hasNext() throws IOException {
-        return iteratorImpl.hasNext();
+      public boolean start() throws IOException {
+        currentIndex++;
+        if (currentIndex == recordToFailAt) {
+          throw new IOException("Failing at record " + currentIndex);
+        }
+        return iteratorImpl.start();
       }
 
       @Override
-      public T next() throws IOException, NoSuchElementException {
-        if (currentRecord == recordToFailAt) {
-          throw new IOException("Failing at record " + currentRecord);
+      public boolean advance() throws IOException {
+        currentIndex++;
+        if (currentIndex == recordToFailAt) {
+          throw new IOException("Failing at record " + currentIndex);
         }
-        currentRecord++;
-        return iteratorImpl.next();
+        return iteratorImpl.advance();
+      }
+
+      @Override
+      public T getCurrent() throws NoSuchElementException {
+        return iteratorImpl.getCurrent();
       }
 
       @Override
@@ -263,12 +271,12 @@ public class ConcatReaderTest {
             null /* addCounterMutator */,
             null /* operationName */,
             new ArrayList<Source>());
-    NativeReader.LegacyReaderIterator<String> iterator = concat.iterator();
+    ConcatReader.ConcatIterator<String> iterator = concat.iterator();
     assertNotNull(iterator);
-    assertFalse(concat.iterator().hasNext());
+    assertFalse(concat.iterator().start());
 
     expectedException.expect(NoSuchElementException.class);
-    iterator.next();
+    iterator.getCurrent();
   }
 
   @Test
@@ -359,10 +367,14 @@ public class ConcatReaderTest {
 
   private void runProgressTest(int... sizes) throws Exception {
     ConcatReader<String> concatReader = createConcatReadersOfSizes(new ArrayList<String>(), sizes);
-    try (NativeReader.LegacyReaderIterator<String> iterator = concatReader.iterator()) {
+    try (ConcatReader.ConcatIterator<String> iterator = concatReader.iterator()) {
       for (int readerIndex = 0; readerIndex < sizes.length; readerIndex++) {
         for (int recordIndex = 0; recordIndex < sizes[readerIndex]; recordIndex++) {
-          iterator.next();
+          if (readerIndex == 0 && recordIndex == 0) {
+            iterator.start();
+          } else {
+            iterator.advance();
+          }
           ApproximateReportedProgress progress =
               readerProgressToCloudProgress(iterator.getProgress());
           assertEquals(
@@ -410,9 +422,13 @@ public class ConcatReaderTest {
 
           recordsToRead++;
 
-          NativeReader.LegacyReaderIterator<String> iterator = concatReader.iterator();
+          NativeReader.NativeReaderIterator<String> iterator = concatReader.iterator();
           for (int i = 0; i < recordsToRead; i++) {
-            iterator.next();
+            if (i == 0) {
+              iterator.start();
+            } else {
+              iterator.advance();
+            }
           }
 
           DynamicSplitResult splitResult =

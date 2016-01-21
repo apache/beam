@@ -26,7 +26,6 @@ import com.google.cloud.dataflow.sdk.io.BoundedSource;
 import com.google.cloud.dataflow.sdk.io.OffsetBasedSource;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
-import com.google.cloud.dataflow.sdk.util.common.worker.AbstractBoundedReaderIterator;
 import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 
 import org.apache.avro.generic.GenericRecord;
@@ -78,7 +77,7 @@ public class AvroReader<T> extends NativeReader<WindowedValue<T>> {
   }
 
   @Override
-  public LegacyReaderIterator<WindowedValue<T>> iterator() throws IOException {
+  public AvroFileIterator iterator() throws IOException {
     Long endPosition = this.endPosition;
     Long startPosition = this.startPosition;
     if (endPosition == null) {
@@ -99,7 +98,7 @@ public class AvroReader<T> extends NativeReader<WindowedValue<T>> {
     return new AvroFileIterator((AvroSource.AvroReader<T>) reader);
   }
 
-  class AvroFileIterator extends AbstractBoundedReaderIterator<WindowedValue<T>> {
+  class AvroFileIterator extends LegacyReaderIterator<WindowedValue<T>> {
     final AvroSource.AvroReader<T> reader;
     boolean hasStarted = false;
     long blockOffset = -1;

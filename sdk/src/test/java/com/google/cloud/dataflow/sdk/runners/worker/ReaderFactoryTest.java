@@ -37,6 +37,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.io.IOException;
 import java.util.NoSuchElementException;
 
 import javax.annotation.Nullable;
@@ -67,19 +68,21 @@ public class ReaderFactoryTest {
     }
 
     /** A source iterator that produces no values, for testing. */
-    class TestReaderIterator extends LegacyReaderIterator<Integer> {
+    class TestReaderIterator extends NativeReaderIterator<Integer> {
       @Override
-      public boolean hasNext() {
+      public boolean start() {
         return false;
       }
 
       @Override
-      public Integer next() {
-        throw new NoSuchElementException();
+      public boolean advance() {
+        return false;
       }
 
       @Override
-      public void close() {}
+      public Integer getCurrent() {
+        throw new NoSuchElementException();
+      }
     }
   }
 
@@ -103,25 +106,21 @@ public class ReaderFactoryTest {
     }
 
     /** A source iterator that produces no values, for testing. */
-    class SingletonTestReaderIterator extends LegacyReaderIterator<WindowedValue<String>> {
-      private boolean seen = false;
+    class SingletonTestReaderIterator extends NativeReaderIterator<WindowedValue<String>> {
       @Override
-      public boolean hasNext() {
-        return !seen;
+      public boolean start() {
+        return true;
       }
 
       @Override
-      public WindowedValue<String> next() {
-        if (seen) {
-          throw new NoSuchElementException();
-        } else {
-          seen = true;
-          return WindowedValue.valueInGlobalWindow("something");
-        }
+      public boolean advance() throws IOException {
+        return false;
       }
 
       @Override
-      public void close() {}
+      public WindowedValue<String> getCurrent() {
+        return WindowedValue.valueInGlobalWindow("something");
+      }
     }
   }
 

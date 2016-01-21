@@ -30,8 +30,8 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.DataflowReaderProgress;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
-import com.google.cloud.dataflow.sdk.util.common.worker.AbstractBoundedReaderIterator;
 import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
 import org.slf4j.Logger;
@@ -41,6 +41,8 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+
+import javax.annotation.Nullable;
 
 /**
  * A {@link NativeReader} that reads elements from a given set of encoded {@link Source}s. Creates
@@ -96,7 +98,7 @@ public class ConcatReader<T> extends NativeReader<T> {
   }
 
   @Override
-  public LegacyReaderIterator<T> iterator() throws IOException {
+  public ConcatIterator<T> iterator() throws IOException {
     return new ConcatIterator<T>(
         registry,
         options,
@@ -106,16 +108,16 @@ public class ConcatReader<T> extends NativeReader<T> {
         sources);
   }
 
-  private static class ConcatIterator<T> extends AbstractBoundedReaderIterator<T> {
+  @VisibleForTesting
+  static class ConcatIterator<T> extends NativeReaderIterator<T> {
     private int currentIteratorIndex = -1;
-    private LegacyReaderIterator<T> currentIterator = null;
+    @Nullable private NativeReaderIterator<T> currentIterator = null;
     private final List<Source> sources;
     private final PipelineOptions options;
     private final ExecutionContext executionContext;
     private final CounterSet.AddCounterMutator addCounterMutator;
     private final String operationName;
     private final OffsetRangeTracker rangeTracker;
-    private boolean isAtFirstRecordInCurrentSource = true;
     private final ReaderFactory.Registry registry;
 
     public ConcatIterator(
@@ -135,16 +137,29 @@ public class ConcatReader<T> extends NativeReader<T> {
     }
 
     @Override
-    protected boolean hasNextImpl() throws IOException {
-      for (;;) {
-        if (currentIterator != null && currentIterator.hasNext()) {
-          break;
-        }
+    public boolean start() throws IOException {
+      return advance();
+    }
 
+    @Override
+    public boolean advance() throws IOException {
+      while (true) {
+        // Invariant: we call currentIterator.start() immediately when opening an iterator
+        // (below). So if currentIterator != null, then start() has already been called on it.
+        if (currentIterator != null && currentIterator.advance()) {
+          // Happy case: current iterator has a next record.
+          return true;
+        }
+        // Now current iterator is either non-existent or exhausted.
+        // Close it, and try opening a new one.
         if (currentIterator != null) {
           currentIterator.close();
+          currentIterator = null;
         }
 
+        if (!rangeTracker.tryReturnRecordAt(true, currentIteratorIndex + 1)) {
+          return false;
+        }
         currentIteratorIndex++;
         if (currentIteratorIndex == sources.size()) {
           // All sources were read.
@@ -158,20 +173,26 @@ public class ConcatReader<T> extends NativeReader<T> {
               (NativeReader<T>)
                   registry.create(
                       currentSource, options, executionContext, addCounterMutator, operationName);
-          currentIterator = (LegacyReaderIterator) currentReader.iterator();
-          isAtFirstRecordInCurrentSource = true;
+          currentIterator = currentReader.iterator();
         } catch (Exception e) {
           throw new IOException("Failed to create a reader for source: " + currentSource, e);
         }
+        if (!currentIterator.start()) {
+          currentIterator.close();
+          currentIterator = null;
+          continue;
+        }
+        // Happy case: newly opened iterator has a first record.
+        return true;
       }
-
-      return rangeTracker.tryReturnRecordAt(isAtFirstRecordInCurrentSource, currentIteratorIndex);
     }
 
     @Override
-    protected T nextImpl() throws IOException, NoSuchElementException {
-      isAtFirstRecordInCurrentSource = false;
-      return currentIterator.next();
+    public T getCurrent() throws NoSuchElementException {
+      if (currentIterator == null) {
+        throw new NoSuchElementException();
+      }
+      return currentIterator.getCurrent();
     }
 
     @Override

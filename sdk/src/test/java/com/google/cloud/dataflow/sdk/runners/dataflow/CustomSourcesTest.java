@@ -76,6 +76,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.CloudSourceUtils;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
+import com.google.cloud.dataflow.sdk.util.ReaderUtils;
 import com.google.cloud.dataflow.sdk.util.ValueWithRecordId;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
@@ -635,8 +636,6 @@ public class CustomSourcesTest {
     ByteString state = ByteString.EMPTY;
     for (int i = 0; i < 10 * CustomSources.MAX_UNBOUNDED_BUNDLE_SIZE;
          /* Incremented in inner loop */) {
-      WindowedValue<ValueWithRecordId<KV<Integer, Integer>>> value;
-
       // Initialize streaming context with state from previous iteration.
       context.start(
           Windmill.WorkItem.newBuilder()
@@ -662,14 +661,11 @@ public class CustomSourcesTest {
                   options,
                   context);
 
-      NativeReader.NativeReaderIterator<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>
-          iterator = reader.iterator();
-
       // Verify data.
       Instant beforeReading = Instant.now();
       int numReadOnThisIteration = 0;
-      for (boolean more = iterator.start(); more; more = iterator.advance()) {
-        value = iterator.getCurrent();
+      for (WindowedValue<ValueWithRecordId<KV<Integer, Integer>>> value :
+          ReaderUtils.readElemsFromReader(reader)) {
         assertEquals(KV.of(0, i), value.getValue().getValue());
         assertArrayEquals(
             encodeToByteArray(KvCoder.of(VarIntCoder.of(), VarIntCoder.of()), KV.of(0, i)),

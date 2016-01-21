@@ -40,7 +40,6 @@ import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObservableIterab
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObservableIterator;
 import com.google.cloud.dataflow.sdk.util.common.Reiterable;
 import com.google.cloud.dataflow.sdk.util.common.Reiterator;
-import com.google.cloud.dataflow.sdk.util.common.worker.AbstractBoundedReaderIterator;
 import com.google.cloud.dataflow.sdk.util.common.worker.BatchingShuffleEntryReader;
 import com.google.cloud.dataflow.sdk.util.common.worker.GroupingShuffleEntryIterator;
 import com.google.cloud.dataflow.sdk.util.common.worker.KeyGroupedShuffleEntries;
@@ -193,7 +192,7 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
    */
   @VisibleForTesting
   static final class GroupingShuffleReaderIterator<K, V>
-      extends AbstractBoundedReaderIterator<WindowedValue<KV<K, Reiterable<V>>>> {
+      extends LegacyReaderIterator<WindowedValue<KV<K, Reiterable<V>>>> {
     // The enclosing GroupingShuffleReader.
     private final GroupingShuffleReader<K, V> parentReader;
 

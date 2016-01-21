@@ -19,7 +19,6 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
-import com.google.cloud.dataflow.sdk.util.common.worker.AbstractBoundedReaderIterator;
 import com.google.cloud.dataflow.sdk.util.common.worker.BatchingShuffleEntryReader;
 import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 import com.google.cloud.dataflow.sdk.util.common.worker.ShuffleEntry;
@@ -67,7 +66,7 @@ public class UngroupedShuffleReader<T> extends NativeReader<T> {
    * A ReaderIterator that reads from a ShuffleEntryReader and extracts
    * just the values.
    */
-  class UngroupedShuffleReaderIterator extends AbstractBoundedReaderIterator<T> {
+  class UngroupedShuffleReaderIterator extends LegacyReaderIterator<T> {
     Iterator<ShuffleEntry> iterator;
 
     UngroupedShuffleReaderIterator(ShuffleEntryReader reader) {

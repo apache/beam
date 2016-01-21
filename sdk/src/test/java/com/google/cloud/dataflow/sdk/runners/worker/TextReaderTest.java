@@ -44,8 +44,8 @@ import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
 import com.google.cloud.dataflow.sdk.util.MimeTypes;
 import com.google.cloud.dataflow.sdk.util.common.worker.ExecutorTestUtils;
-import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader.LegacyReaderIterator;
+import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader.NativeReaderIterator;
 
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
 import org.junit.Rule;
@@ -130,7 +130,7 @@ public class TextReaderTest {
   public void testReadEmptyFile() throws Exception {
     TextReader<String> textReader = new TextReader<>(tmpFolder.newFile().getPath(), true, null,
         null, new WholeLineVerifyingCoder(), TextIO.CompressionType.UNCOMPRESSED);
-    try (NativeReader.NativeReaderIterator<String> iterator = textReader.iterator()) {
+    try (NativeReaderIterator<String> iterator = textReader.iterator()) {
       assertFalse(iterator.start());
     }
   }

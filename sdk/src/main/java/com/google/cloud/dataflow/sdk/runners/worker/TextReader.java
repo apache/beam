@@ -29,7 +29,6 @@ import com.google.cloud.dataflow.sdk.io.range.OffsetRangeTracker;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.IOChannelFactory;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
-import com.google.cloud.dataflow.sdk.util.common.worker.AbstractBoundedReaderIterator;
 import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 import com.google.cloud.dataflow.sdk.util.common.worker.ProgressTracker;
 import com.google.cloud.dataflow.sdk.util.common.worker.ProgressTrackerGroup;
@@ -270,7 +269,7 @@ public class TextReader<T> extends NativeReader<T> {
     }
   }
 
-  class TextFileIterator extends AbstractBoundedReaderIterator<T> {
+  class TextFileIterator extends LegacyReaderIterator<T> {
     private final CopyableSeekableByteChannel seeker;
     private final PushbackInputStream stream;
     private final OffsetRangeTracker rangeTracker;

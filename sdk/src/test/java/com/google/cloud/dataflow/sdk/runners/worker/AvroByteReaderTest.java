@@ -28,7 +28,6 @@ import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
 import com.google.cloud.dataflow.sdk.util.MimeTypes;
 import com.google.cloud.dataflow.sdk.util.common.worker.ExecutorTestUtils;
-import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader.DynamicSplitResult;
 
 import org.apache.avro.Schema;
@@ -229,7 +228,7 @@ public class AvroByteReaderTest {
 
     List<T> primaryElements;
     List<T> residualElements = new ArrayList<>();
-    try (NativeReader.NativeReaderIterator<T> iterator = reader.iterator()) {
+    try (AvroByteReader<T>.AvroByteFileIterator iterator = reader.iterator()) {
       // Read n elements from the reader
       primaryElements = readNItemsFromUnstartedReader(iterator, readBeforeSplit);
 

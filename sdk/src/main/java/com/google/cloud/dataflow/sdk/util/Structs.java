@@ -76,13 +76,23 @@ public final class Structs {
   }
 
   public static Long getLong(Map<String, Object> map, String name) throws Exception {
-    return getValue(map, name, Long.class, "an int");
+    return getValue(map, name, Long.class, "a long");
   }
 
   @Nullable
   public static Long getLong(Map<String, Object> map, String name, @Nullable Long defaultValue)
       throws Exception {
-    return getValue(map, name, Long.class, "an int", defaultValue);
+    return getValue(map, name, Long.class, "a long", defaultValue);
+  }
+
+  public static Integer getInt(Map<String, Object> map, String name) throws Exception {
+    return getValue(map, name, Integer.class, "an int");
+  }
+
+  @Nullable
+  public static Integer getInt(Map<String, Object> map, String name, @Nullable Integer defaultValue)
+      throws Exception {
+    return getValue(map, name, Integer.class, "an int", defaultValue);
   }
 
   @Nullable

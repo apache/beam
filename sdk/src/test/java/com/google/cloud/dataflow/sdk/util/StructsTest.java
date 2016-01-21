@@ -26,6 +26,7 @@ import static com.google.cloud.dataflow.sdk.util.Structs.addString;
 import static com.google.cloud.dataflow.sdk.util.Structs.addStringList;
 import static com.google.cloud.dataflow.sdk.util.Structs.getBoolean;
 import static com.google.cloud.dataflow.sdk.util.Structs.getDictionary;
+import static com.google.cloud.dataflow.sdk.util.Structs.getInt;
 import static com.google.cloud.dataflow.sdk.util.Structs.getListOfMaps;
 import static com.google.cloud.dataflow.sdk.util.Structs.getLong;
 import static com.google.cloud.dataflow.sdk.util.Structs.getObject;
@@ -162,11 +163,21 @@ public class StructsTest {
         (Long) 42L,
         getLong(o, "singletonLongKey", 666L));
     Assert.assertEquals(
+        (Integer) 42,
+        getInt(o, "singletonLongKey", 666));
+    Assert.assertEquals(
         (Long) 666L,
         getLong(o, "missingKey", 666L));
 
     try {
       getLong(o, "emptyKey", 666L);
+      Assert.fail("should have thrown an exception");
+    } catch (Exception exn) {
+      Assert.assertThat(exn.toString(),
+                        Matchers.containsString("not a long"));
+    }
+    try {
+      getInt(o, "emptyKey", 666);
       Assert.fail("should have thrown an exception");
     } catch (Exception exn) {
       Assert.assertThat(exn.toString(),

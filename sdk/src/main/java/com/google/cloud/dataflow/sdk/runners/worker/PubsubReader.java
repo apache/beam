@@ -66,31 +66,16 @@ class PubsubReader<T> extends NativeReader<WindowedValue<T>> {
 
   @Override
   public NativeReaderIterator<WindowedValue<T>> iterator() throws IOException {
-    return new PubsubReaderIterator();
+    return new PubsubReaderIterator(context.getWork());
   }
 
-  class PubsubReaderIterator extends LegacyReaderIterator<WindowedValue<T>> {
-    private int bundleIndex = 0;
-    private int messageIndex = 0;
-
-    @Override
-    public boolean hasNext() throws IOException {
-      Windmill.WorkItem work = context.getWork();
-      return bundleIndex < work.getMessageBundlesCount() &&
-          messageIndex < work.getMessageBundles(bundleIndex).getMessagesCount();
+  class PubsubReaderIterator extends WindmillReaderIteratorBase<T> {
+    protected PubsubReaderIterator(Windmill.WorkItem work) {
+      super(work);
     }
 
     @Override
-    public WindowedValue<T> next() throws IOException {
-      Windmill.Message message =
-          context.getWork().getMessageBundles(bundleIndex).getMessages(messageIndex);
-      if (messageIndex >=
-          context.getWork().getMessageBundles(bundleIndex).getMessagesCount() - 1) {
-        messageIndex = 0;
-        bundleIndex++;
-      } else {
-        messageIndex++;
-      }
+    protected WindowedValue<T> decodeMessage(Windmill.Message message) throws IOException {
       long timestampMillis = TimeUnit.MICROSECONDS.toMillis(message.getTimestamp());
       InputStream data = message.getData().newInput();
       notifyElementRead(data.available());

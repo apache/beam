@@ -20,22 +20,25 @@ import static com.google.api.client.util.Preconditions.checkNotNull;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudPositionToReaderPosition;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.splitRequestToApproximateSplitRequest;
-import static java.lang.Math.min;
+import static com.google.common.base.MoreObjects.firstNonNull;
+import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.services.dataflow.model.ApproximateReportedProgress;
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.io.range.OffsetRangeTracker;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.StringUtils;
-import com.google.cloud.dataflow.sdk.util.common.worker.AbstractBoundedReaderIterator;
 import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.NoSuchElementException;
 
 import javax.annotation.Nullable;
 
@@ -52,26 +55,20 @@ public class InMemoryReader<T> extends NativeReader<T> {
   final int endIndex;
   final Coder<T> coder;
 
-  public InMemoryReader(List<String> encodedElements, @Nullable Long startIndex,
-      @Nullable Long endIndex, Coder<T> coder) {
+  public InMemoryReader(
+      List<String> encodedElements,
+      @Nullable Integer startIndex,
+      @Nullable Integer endIndex,
+      Coder<T> coder) {
+    checkNotNull(encodedElements);
     this.encodedElements = encodedElements;
     int maxIndex = encodedElements.size();
-    if (startIndex == null) {
-      this.startIndex = 0;
-    } else {
-      if (startIndex < 0) {
-        throw new IllegalArgumentException("start index should be >= 0");
-      }
-      this.startIndex = (int) min(startIndex, maxIndex);
-    }
-    if (endIndex == null) {
-      this.endIndex = maxIndex;
-    } else {
-      if (endIndex < this.startIndex) {
-        throw new IllegalArgumentException("end index should be >= start index");
-      }
-      this.endIndex = (int) min(endIndex, maxIndex);
-    }
+    this.startIndex = Math.min(maxIndex, firstNonNull(startIndex, 0));
+    this.endIndex = Math.min(maxIndex, firstNonNull(endIndex, maxIndex));
+    checkArgument(this.startIndex >= 0, "negative start index: " + startIndex);
+    checkArgument(
+        this.endIndex >= this.startIndex,
+        "end index before start: [" + this.startIndex + ", " + this.endIndex + ")");
     this.coder = coder;
   }
 
@@ -88,24 +85,45 @@ public class InMemoryReader<T> extends NativeReader<T> {
   /**
    * A ReaderIterator that yields an in-memory list of elements.
    */
-  class InMemoryReaderIterator extends AbstractBoundedReaderIterator<T> {
+  class InMemoryReaderIterator extends NativeReaderIterator<T> {
     @VisibleForTesting
     OffsetRangeTracker tracker;
-    private int nextIndex;
+    @Nullable private Integer lastReturnedIndex;
+    private T current;
 
     public InMemoryReaderIterator() {
       this.tracker = new OffsetRangeTracker(startIndex, endIndex);
-      this.nextIndex = startIndex;
+      this.lastReturnedIndex = null;
     }
 
     @Override
-    protected boolean hasNextImpl() {
-      return tracker.tryReturnRecordAt(true, nextIndex);
+    public boolean start() throws IOException {
+      Preconditions.checkState(lastReturnedIndex == null, "Already started");
+      if (!tracker.tryReturnRecordAt(true, startIndex)) {
+        return false;
+      }
+      current = decode(encodedElements.get(startIndex));
+      lastReturnedIndex = startIndex;
+      return true;
     }
 
     @Override
-    protected T nextImpl() throws IOException {
-      String encodedElementString = encodedElements.get(nextIndex++);
+    public boolean advance() throws IOException {
+      Preconditions.checkNotNull(lastReturnedIndex, "Not started");
+      if (!tracker.tryReturnRecordAt(true, (long) lastReturnedIndex + 1)) {
+        return false;
+      }
+      ++lastReturnedIndex;
+      current = decode(encodedElements.get(lastReturnedIndex));
+      return true;
+    }
+
+    @Override
+    public T getCurrent() throws NoSuchElementException {
+      return current;
+    }
+
+    private T decode(String encodedElementString) throws CoderException {
       // TODO: Replace with the real encoding used by the
       // front end, when we know what it is.
       byte[] encodedElement = StringUtils.jsonStringToByteArray(encodedElementString);
@@ -115,12 +133,15 @@ public class InMemoryReader<T> extends NativeReader<T> {
 
     @Override
     public Progress getProgress() {
+      if (lastReturnedIndex == null) {
+        return null;
+      }
       // Currently we assume that only a record index position is reported as
       // current progress. An implementer can override this method to update
       // other metrics, e.g. completion percentage or remaining time.
       com.google.api.services.dataflow.model.Position currentPosition =
           new com.google.api.services.dataflow.model.Position();
-      currentPosition.setRecordIndex((long) nextIndex);
+      currentPosition.setRecordIndex((long) lastReturnedIndex);
 
       ApproximateReportedProgress progress = new ApproximateReportedProgress();
       progress.setPosition(currentPosition);
@@ -130,7 +151,8 @@ public class InMemoryReader<T> extends NativeReader<T> {
 
     @Override
     public double getRemainingParallelism() {
-      return tracker.getStopPosition() - nextIndex;
+      // Use the starting index if no elements have yet been returned.
+      return tracker.getStopPosition() - firstNonNull(lastReturnedIndex, startIndex);
     }
 
     @Override

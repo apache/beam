@@ -16,7 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.runners.worker;
 
-import static com.google.cloud.dataflow.sdk.util.Structs.getLong;
+import static com.google.cloud.dataflow.sdk.util.Structs.getInt;
 import static com.google.cloud.dataflow.sdk.util.Structs.getStrings;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
@@ -51,7 +51,8 @@ public class InMemoryReaderFactory implements ReaderFactory {
   <T> InMemoryReader<T> create(CloudObject spec, Coder<T> coder) throws Exception {
     return new InMemoryReader<>(
         getStrings(spec, PropertyNames.ELEMENTS, Collections.<String>emptyList()),
-        getLong(spec, PropertyNames.START_INDEX, null),
-        getLong(spec, PropertyNames.END_INDEX, null), coder);
+        getInt(spec, PropertyNames.START_INDEX, null),
+        getInt(spec, PropertyNames.END_INDEX, null),
+        coder);
   }
 }

@@ -22,7 +22,6 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowedValue.WindowedValueCoder;
-import com.google.cloud.dataflow.sdk.util.common.worker.AbstractBoundedReaderIterator;
 import com.google.cloud.dataflow.sdk.util.common.worker.BatchingShuffleEntryReader;
 import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 import com.google.cloud.dataflow.sdk.util.common.worker.ShuffleEntry;
@@ -92,8 +91,7 @@ public class PartitioningShuffleReader<K, V> extends NativeReader<WindowedValue<
    * extracts K and {@code WindowedValue<V>}, and returns a constructed
    * {@code WindowedValue<KV>}.
    */
-  class PartitioningShuffleReaderIterator
-      extends AbstractBoundedReaderIterator<WindowedValue<KV<K, V>>> {
+  class PartitioningShuffleReaderIterator extends LegacyReaderIterator<WindowedValue<KV<K, V>>> {
     Iterator<ShuffleEntry> iterator;
 
     PartitioningShuffleReaderIterator(ShuffleEntryReader reader) {

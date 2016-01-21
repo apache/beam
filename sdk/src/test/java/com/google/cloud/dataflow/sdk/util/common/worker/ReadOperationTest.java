@@ -52,6 +52,7 @@ import org.junit.runners.JUnit4;
 
 import java.io.IOException;
 import java.util.NoSuchElementException;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Exchanger;
 
 /**
@@ -152,10 +153,10 @@ public class ReadOperationTest {
         readOperation.requestDynamicSplit(splitRequestAtIndex(8L)));
 
     Thread thread = runReadLoopInThread(readOperation);
-    iterator.offerNext(0); // Await first next() and return 0 from it.
+    iterator.offerNext(0); // Await start() and return 0 from getCurrent().
     receiver.unblockProcess();
+    // Await advance() and return 1 from getCurrent().
     iterator.offerNext(1);
-    // Read loop is now blocked in process() (not next()).
     NativeReader.DynamicSplitResultWithPosition split =
         (NativeReader.DynamicSplitResultWithPosition)
             readOperation.requestDynamicSplit(splitRequestAtIndex(8L));
@@ -165,7 +166,7 @@ public class ReadOperationTest {
     // Check that the progress has been recomputed.
     ApproximateReportedProgress progress = readerProgressToCloudProgress(
         readOperation.getProgress());
-    assertEquals(2, progress.getPosition().getRecordIndex().longValue());
+    assertEquals(1, progress.getPosition().getRecordIndex().longValue());
     assertEquals(2.0f / 8.0, progress.getFractionConsumed(), 0.001);
 
     receiver.unblockProcess();
@@ -239,35 +240,47 @@ public class ReadOperationTest {
         counterSet.getAddCounterMutator(),
         new StateSampler("test-", counterSet.getAddCounterMutator()));
 
-    final Exchanger<Void> startCompleted = new Exchanger<>();
-    final Exchanger<Void> requestDynamicSplitCompleted = new Exchanger<>();
-    Thread thread = new Thread() {
-      @Override
-      public void run() {
-        try {
-          readOperation.start();
-          startCompleted.exchange(null);
-          requestDynamicSplitCompleted.exchange(null);
-          readOperation.finish();
-        } catch (Exception e) {
-          e.printStackTrace();
-        }
-      }
-    };
+    // We simulate the following sequence:
+    // "Reader thread" calls ReadOperation.start() and returns from it
+    // "Main thread" calls requestDynamicSplit()
+    // "Reader thread" calls ReadOperation.finish()
+    // We use CountDownLatch as synchronization barriers to establish this sequence.
+    final CountDownLatch startCompleted = new CountDownLatch(1);
+    final CountDownLatch requestDynamicSplitCompleted = new CountDownLatch(1);
+    Thread thread =
+        new Thread() {
+          @Override
+          public void run() {
+            try {
+              readOperation.start();
+              // Synchronize with main test thread to notify it that .start() has finished,
+              // meaning the ReadOperation has finished reading.
+              startCompleted.countDown();
+              // Synchronize with main test thread to wait until requestDynamicSplit()
+              // has completed.
+              requestDynamicSplitCompleted.await();
+              // Now finish the ReadOperation.
+              readOperation.finish();
+            } catch (Exception e) {
+              e.printStackTrace();
+            }
+          }
+        };
     thread.start();
 
     for (int i = 0; i < 10; ++i) {
       iterator.offerNext(i);
       receiver.unblockProcess();
     }
-    // Wait for ReadOperation.start() to finish
-    startCompleted.exchange(null);
+    // Synchronize with reader thread to wait until ReadOperation.start() finishes.
+    startCompleted.await();
     // Check that requestDynamicSplit is safe (no-op) if the operation is done with start()
     // but not yet done with finish()
     readOperation.requestDynamicSplit(splitRequestAtIndex(5L));
-    // Allow thread to finish() and join.
-    requestDynamicSplitCompleted.exchange(null);
+    // Synchronize with reader thread to notify it that we're done calling requestDynamicSplit().
+    requestDynamicSplitCompleted.countDown();
 
+    // Let the reader thread complete (it just calls finish()).
     thread.join();
 
     // Check once more that requestDynamicSplit on a finished operation is also safe (no-op).
@@ -290,7 +303,7 @@ public class ReadOperationTest {
     return thread;
   }
 
-  private static class MockReaderIterator extends AbstractBoundedReaderIterator<Integer> {
+  private static class MockReaderIterator extends NativeReader.NativeReaderIterator<Integer> {
     private final OffsetRangeTracker tracker;
     private Exchanger<Integer> exchanger = new Exchanger<>();
     private int current;
@@ -298,22 +311,35 @@ public class ReadOperationTest {
 
     public MockReaderIterator(int from, int to) {
       this.tracker = new OffsetRangeTracker(from, to);
-      this.current = from;
+      this.current = from - 1;
     }
 
     @Override
-    protected boolean hasNextImpl() throws IOException {
-      return tracker.tryReturnRecordAt(true, current);
+    public boolean start() throws IOException {
+      return advance();
     }
 
     @Override
-    protected Integer nextImpl() throws IOException {
+    public boolean advance() throws IOException {
+      if (!tracker.tryReturnRecordAt(true, current + 1)) {
+        return false;
+      }
       ++current;
+      exchangeCurrent();
+      return true;
+    }
+
+    private void exchangeCurrent() {
       try {
-        return exchanger.exchange(current);
+        current = exchanger.exchange(current);
       } catch (InterruptedException e) {
         throw new NoSuchElementException("interrupted");
       }
+    }
+
+    @Override
+    public Integer getCurrent() {
+      return current;
     }
 
     @Override

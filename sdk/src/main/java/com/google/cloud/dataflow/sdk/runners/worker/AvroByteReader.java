@@ -21,7 +21,6 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
-import com.google.cloud.dataflow.sdk.util.common.worker.AbstractBoundedReaderIterator;
 import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 
 import org.apache.avro.Schema;
@@ -51,11 +50,11 @@ public class AvroByteReader<T> extends NativeReader<T> {
   }
 
   @Override
-  public NativeReaderIterator<T> iterator() throws IOException {
+  public AvroByteFileIterator iterator() throws IOException {
     return new AvroByteFileIterator();
   }
 
-  class AvroByteFileIterator extends AbstractBoundedReaderIterator<T> {
+  class AvroByteFileIterator extends LegacyReaderIterator<T> {
     private final LegacyReaderIterator<WindowedValue<ByteBuffer>> avroFileIterator;
 
     public AvroByteFileIterator() throws IOException {
