@@ -18,9 +18,6 @@ package com.google.cloud.dataflow.sdk.util;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.MergeResult;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerResult;
-import com.google.cloud.dataflow.sdk.util.TimerInternals.TimerData;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
 import com.google.cloud.dataflow.sdk.util.state.StateTags;
 import com.google.cloud.dataflow.sdk.util.state.ValueState;
@@ -84,18 +81,31 @@ public class TriggerRunner<W extends BoundedWindow> {
     rootTrigger.getSpec().prefetchOnElement(state);
   }
 
+  public void prefetchOnFire(ReduceFn.StateContext state) {
+    if (isFinishedSetNeeded()) {
+      state.access(FINISHED_BITS_TAG).get();
+    }
+    rootTrigger.getSpec().prefetchOnFire(state);
+  }
+
+  public void prefetchShouldFire(ReduceFn.StateContext state) {
+    if (isFinishedSetNeeded()) {
+      state.access(FINISHED_BITS_TAG).get();
+    }
+    rootTrigger.getSpec().prefetchShouldFire(state);
+  }
+
   /**
    * Run the trigger logic to deal with a new value.
    */
-  public TriggerResult processValue(ReduceFn<?, ?, ?, W>.ProcessValueContext c) throws Exception {
+  public void processValue(ReduceFn<?, ?, ?, W>.ProcessValueContext c) throws Exception {
     // Clone so that we can detect changes and so that changes here don't pollute merging.
     FinishedTriggersBitSet finishedSet =
         readFinishedBits(c.state().access(FINISHED_BITS_TAG)).copy();
     Trigger<W>.OnElementContext triggerContext = contextFactory.createOnElementContext(
         c.window(), c.timers(), c.timestamp(), rootTrigger, finishedSet);
-    TriggerResult result = rootTrigger.invokeElement(triggerContext);
+    rootTrigger.invokeOnElement(triggerContext);
     persistFinishedSet(c.state(), finishedSet);
-    return result;
   }
 
   public void prefetchForMerge(ReduceFn.MergingStateContext state) {
@@ -111,7 +121,7 @@ public class TriggerRunner<W extends BoundedWindow> {
   /**
    * Run the trigger merging logic as part of executing the specified merge.
    */
-  public TriggerResult onMerge(ReduceFn<?, ?, ?, W>.OnMergeContext c) throws Exception {
+  public void onMerge(ReduceFn<?, ?, ?, W>.OnMergeContext c) throws Exception {
     // Clone so that we can detect changes and so that changes here don't pollute merging.
     FinishedTriggersBitSet finishedSet =
         readFinishedBits(c.state().access(FINISHED_BITS_TAG)).copy();
@@ -130,35 +140,25 @@ public class TriggerRunner<W extends BoundedWindow> {
             finishedSet, mergingFinishedSets.build());
 
     // Run the merge from the trigger
-    MergeResult result = rootTrigger.invokeMerge(mergeContext);
-    if (MergeResult.ALREADY_FINISHED.equals(result)) {
-      throw new IllegalStateException("Root trigger returned MergeResult.ALREADY_FINISHED.");
-    }
+    rootTrigger.invokeOnMerge(mergeContext);
 
     persistFinishedSet(c.state(), finishedSet);
-    return result.getTriggerResult();
   }
 
-  public void prefetchForTimer(ReduceFn.StateContext state) {
-    if (isFinishedSetNeeded()) {
-      state.access(FINISHED_BITS_TAG).get();
-    }
-    rootTrigger.getSpec().prefetchOnElement(state);
+  public boolean shouldFire(ReduceFn<?, ?, ?, W>.Context c) throws Exception {
+    FinishedTriggers finishedSet = readFinishedBits(c.state().access(FINISHED_BITS_TAG)).copy();
+    Trigger<W>.TriggerContext context = contextFactory.base(c.window(), c.timers(),
+        rootTrigger, finishedSet);
+    return rootTrigger.invokeShouldFire(context);
   }
 
-  /**
-   * Run the trigger logic appropriate for receiving a timer with the specified destination ID.
-   */
-  public TriggerResult onTimer(ReduceFn<?, ?, ?, W>.Context c, TimerData timer) throws Exception {
-    // Clone so that we can detect changes and so that changes here don't pollute merging.
+  public void onFire(ReduceFn<?, ?, ?, W>.Context c) throws Exception {
     FinishedTriggersBitSet finishedSet =
         readFinishedBits(c.state().access(FINISHED_BITS_TAG)).copy();
-    Trigger<W>.OnTimerContext triggerContext = contextFactory.createOnTimerContext(
-        c.window(), c.timers(), rootTrigger, finishedSet,
-        timer.getTimestamp(), timer.getDomain());
-    TriggerResult result = rootTrigger.invokeTimer(triggerContext);
+    Trigger<W>.TriggerContext context = contextFactory.base(c.window(), c.timers(),
+        rootTrigger, finishedSet);
+    rootTrigger.invokeOnFire(context);
     persistFinishedSet(c.state(), finishedSet);
-    return result;
   }
 
   private void persistFinishedSet(

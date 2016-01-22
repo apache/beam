@@ -45,7 +45,7 @@ public class BatchTimerInternalsTest {
   }
 
   @Test
-  public void testFiringTimers() {
+  public void testFiringTimers() throws Exception {
     BatchTimerInternals underTest = new BatchTimerInternals(new Instant(0));
     TimerData processingTime1 = TimerData.of(NS1, new Instant(19), TimeDomain.PROCESSING_TIME);
     TimerData processingTime2 = TimerData.of(NS1, new Instant(29), TimeDomain.PROCESSING_TIME);
@@ -74,7 +74,7 @@ public class BatchTimerInternalsTest {
   }
 
   @Test
-  public void testTimerOrdering() {
+  public void testTimerOrdering() throws Exception {
     BatchTimerInternals underTest = new BatchTimerInternals(new Instant(0));
     TimerData watermarkTime1 = TimerData.of(NS1, new Instant(19), TimeDomain.EVENT_TIME);
     TimerData processingTime1 = TimerData.of(NS1, new Instant(19), TimeDomain.PROCESSING_TIME);
@@ -98,7 +98,7 @@ public class BatchTimerInternalsTest {
   }
 
   @Test
-  public void testDeduplicate() {
+  public void testDeduplicate() throws Exception {
     BatchTimerInternals underTest = new BatchTimerInternals(new Instant(0));
     TimerData watermarkTime = TimerData.of(NS1, new Instant(19), TimeDomain.EVENT_TIME);
     TimerData processingTime = TimerData.of(NS1, new Instant(19), TimeDomain.PROCESSING_TIME);

@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
+import com.google.cloud.dataflow.sdk.util.ExecutableTrigger;
+
 import org.joda.time.Instant;
 
 import java.util.Arrays;
@@ -57,31 +59,13 @@ public class Repeatedly<W extends BoundedWindow> extends Trigger<W> {
 
 
   @Override
-  public TriggerResult onElement(OnElementContext c)
-      throws Exception {
-    TriggerResult result = c.trigger().subTrigger(REPEATED).invokeElement(c);
-    if (result.isFinish()) {
-      c.forTrigger(c.trigger().subTrigger(REPEATED)).trigger().resetTree();
-    }
-    return result.isFire() ? TriggerResult.FIRE : TriggerResult.CONTINUE;
+  public void onElement(OnElementContext c) throws Exception {
+    getRepeated(c).invokeOnElement(c);
   }
 
   @Override
-  public MergeResult onMerge(OnMergeContext c) throws Exception {
-    MergeResult mergeResult = c.trigger().subTrigger(REPEATED).invokeMerge(c);
-    if (mergeResult.isFinish()) {
-      c.forTrigger(c.trigger().subTrigger(REPEATED)).trigger().resetTree();
-    }
-    return mergeResult.isFire() ? MergeResult.FIRE : MergeResult.CONTINUE;
-  }
-
-  @Override
-  public TriggerResult onTimer(OnTimerContext c) throws Exception {
-    TriggerResult result = c.trigger().subTrigger(REPEATED).invokeTimer(c);
-    if (result.isFinish()) {
-      c.forTrigger(c.trigger().subTrigger(REPEATED)).trigger().resetTree();
-    }
-    return result.isFire() ? TriggerResult.FIRE : TriggerResult.CONTINUE;
+  public void onMerge(OnMergeContext c) throws Exception {
+    getRepeated(c).invokeOnMerge(c);
   }
 
   @Override
@@ -93,5 +77,24 @@ public class Repeatedly<W extends BoundedWindow> extends Trigger<W> {
   @Override
   public Trigger<W> getContinuationTrigger(List<Trigger<W>> continuationTriggers) {
     return new Repeatedly<W>(continuationTriggers.get(REPEATED));
+  }
+
+  @Override
+  public boolean shouldFire(Trigger<W>.TriggerContext context) throws Exception {
+    return getRepeated(context).invokeShouldFire(context);
+  }
+
+  @Override
+  public void onFire(TriggerContext context) throws Exception {
+    getRepeated(context).invokeOnFire(context);
+
+    if (context.trigger().isFinished(REPEATED)) {
+      context.trigger().setFinished(false, REPEATED);
+      getRepeated(context).invokeClear(context);
+    }
+  }
+
+  private ExecutableTrigger<W> getRepeated(TriggerContext context) {
+    return context.trigger().subTrigger(REPEATED);
   }
 }

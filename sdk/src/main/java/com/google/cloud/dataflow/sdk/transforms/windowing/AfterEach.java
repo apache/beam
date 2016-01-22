@@ -16,14 +16,14 @@
 
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.util.ExecutableTrigger;
-import com.google.common.base.Preconditions;
 
 import org.joda.time.Instant;
 
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -50,7 +50,7 @@ public class AfterEach<W extends BoundedWindow> extends Trigger<W> {
 
   private AfterEach(List<Trigger<W>> subTriggers) {
     super(subTriggers);
-    Preconditions.checkArgument(subTriggers.size() > 1);
+    checkArgument(subTriggers.size() > 1);
   }
 
   /**
@@ -61,83 +61,39 @@ public class AfterEach<W extends BoundedWindow> extends Trigger<W> {
     return new AfterEach<W>(Arrays.<Trigger<W>>asList(triggers));
   }
 
-  private TriggerResult result(TriggerContext c, TriggerResult subResult)
-      throws Exception {
-    if (subResult.isFire()) {
-      return c.trigger().areAllSubtriggersFinished()
-          ? TriggerResult.FIRE_AND_FINISH : TriggerResult.FIRE;
+  @Override
+  public void onElement(OnElementContext c) throws Exception {
+    if (!c.trigger().isMerging()) {
+      // If merges are not possible, we need only run the first unfinished subtrigger
+      c.trigger().firstUnfinishedSubTrigger().invokeOnElement(c);
     } else {
-      return TriggerResult.CONTINUE;
+      // If merges are possible, we need to run all subtriggers in parallel
+      for (ExecutableTrigger<W> subTrigger :  c.trigger().subTriggers()) {
+        // Even if the subTrigger is done, it may be revived via merging and must have
+        // adequate state.
+        subTrigger.invokeOnElement(c);
+      }
     }
   }
 
   @Override
-  public TriggerResult onElement(OnElementContext c) throws Exception {
-    Iterator<ExecutableTrigger<W>> iterator = c.trigger().unfinishedSubTriggers().iterator();
+  public void onMerge(OnMergeContext context) throws Exception {
+    // If merging makes a subtrigger no-longer-finished, it will automatically
+    // begin participating in shouldFire and onFire appropriately.
 
-    // If all the sub-triggers have finished, we should have already finished, so we know there is
-    // at least one unfinished trigger.
-    TriggerResult firstResult = iterator.next().invokeElement(c);
-
-    // If onMerge might be called, we need to make sure we have proper state for future triggers.
-    if (c.trigger().isMerging()) {
-      if (firstResult.isFire()) {
-        // If we're firing, clear out all of the later subtriggers, since we don't want to pollute
-        // their state.
-        resetRemaining(c, iterator);
+    // All the following triggers are retroactively "not started" but that is
+    // also automatic because they are cleared whenever this trigger
+    // fires.
+    boolean priorTriggersAllFinished = true;
+    for (ExecutableTrigger<W> subTrigger : context.trigger().subTriggers()) {
+      if (priorTriggersAllFinished) {
+        subTrigger.invokeOnMerge(context);
+        priorTriggersAllFinished &= context.forTrigger(subTrigger).trigger().isFinished();
       } else {
-        // Otherwise, iterate over all of them to build up some state.
-        while (iterator.hasNext()) {
-          iterator.next().invokeElement(c);
-        }
+        subTrigger.invokeClear(context);
       }
     }
-
-    return result(c, firstResult);
-  }
-
-  @Override
-  public MergeResult onMerge(OnMergeContext c) throws Exception {
-    // Iterate over the sub-triggers to identify the "current" sub-trigger.
-    Iterator<ExecutableTrigger<W>> iterator = c.trigger().subTriggers().iterator();
-    while (iterator.hasNext()) {
-      ExecutableTrigger<W> subTrigger = iterator.next();
-
-      MergeResult mergeResult = subTrigger.invokeMerge(c);
-
-      if (MergeResult.CONTINUE.equals(mergeResult)) {
-        resetRemaining(c, iterator);
-        return MergeResult.CONTINUE;
-      } else if (MergeResult.FIRE.equals(mergeResult)) {
-        resetRemaining(c, iterator);
-        return MergeResult.FIRE;
-      } else if (MergeResult.FIRE_AND_FINISH.equals(mergeResult)) {
-        resetRemaining(c, iterator);
-        return c.trigger().areAllSubtriggersFinished()
-            ? MergeResult.FIRE_AND_FINISH : MergeResult.FIRE;
-      }
-    }
-
-    // If we get here, all the merges indicated they were finished, which means there was at least
-    // one merged window in which the triggers had all already finished. Given that, this AfterEach
-    // would have already finished in that window as well. Since the window was still in the window
-    // set for merging, we can return FINISHED (because we were finished in that window) and we also
-    // know that there must be another trigger (parent or sibling) which hasn't finished yet, which
-    // will FIRE, CONTINUE, or FIRE_AND_FINISH.
-    return MergeResult.ALREADY_FINISHED;
-  }
-
-  private void resetRemaining(
-      TriggerContext c, Iterator<ExecutableTrigger<W>> triggers) throws Exception {
-    while (triggers.hasNext()) {
-      c.forTrigger(triggers.next()).trigger().resetTree();
-    }
-  }
-
-  @Override
-  public TriggerResult onTimer(OnTimerContext c) throws Exception {
-    // Only deliver to the currently active subtrigger
-    return result(c, c.trigger().firstUnfinishedSubTrigger().invokeTimer(c));
+    updateFinishedState(context);
   }
 
   @Override
@@ -150,5 +106,30 @@ public class AfterEach<W extends BoundedWindow> extends Trigger<W> {
   @Override
   public Trigger<W> getContinuationTrigger(List<Trigger<W>> continuationTriggers) {
     return Repeatedly.forever(new AfterFirst<W>(continuationTriggers));
+  }
+
+  @Override
+  public boolean shouldFire(Trigger<W>.TriggerContext context) throws Exception {
+    ExecutableTrigger<W> firstUnfinished = context.trigger().firstUnfinishedSubTrigger();
+    return firstUnfinished.invokeShouldFire(context);
+  }
+
+  @Override
+  public void onFire(Trigger<W>.TriggerContext context) throws Exception {
+    context.trigger().firstUnfinishedSubTrigger().invokeOnFire(context);
+
+    // Reset all subtriggers if in a merging context; any may be revived by merging so they are
+    // all run in parallel for each pending pane.
+    if (context.trigger().isMerging()) {
+      for (ExecutableTrigger<W> subTrigger : context.trigger().subTriggers()) {
+        subTrigger.invokeClear(context);
+      }
+    }
+
+    updateFinishedState(context);
+  }
+
+  private void updateFinishedState(TriggerContext context) {
+    context.trigger().setFinished(context.trigger().firstUnfinishedSubTrigger() == null);
   }
 }

@@ -16,14 +16,10 @@
 
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
-import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.MergeResult;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerResult;
 import com.google.cloud.dataflow.sdk.util.TriggerTester;
 import com.google.cloud.dataflow.sdk.util.TriggerTester.SimpleTriggerTester;
 
@@ -38,29 +34,30 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class AfterPaneTest {
+
+  SimpleTriggerTester<IntervalWindow> tester;
+  /**
+   * Tests that the trigger does fire when enough elements are in a window, and that it only
+   * fires that window (no leakage).
+   */
   @Test
-  public void testAfterPaneWithGlobalWindowsAndCombining() throws Exception {
-    Duration windowDuration = Duration.millis(10);
-    SimpleTriggerTester<IntervalWindow> tester = TriggerTester.forTrigger(
+  public void testAfterPaneElementCountFixedWindows() throws Exception {
+    tester = TriggerTester.forTrigger(
         AfterPane.<IntervalWindow>elementCountAtLeast(2),
-        FixedWindows.of(windowDuration));
+        FixedWindows.of(Duration.millis(10)));
 
-    tester.injectElements(1, 9);
-    assertThat(tester.getLatestResult(), equalTo(TriggerResult.FIRE_AND_FINISH));
-    assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(0), new Instant(10))));
-    assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(10), new Instant(20))));
-  }
+    tester.injectElements(1); // [0, 10)
+    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(10));
+    assertFalse(tester.shouldFire(window));
 
-  @Test
-  public void testAfterPaneWithFixedWindow() throws Exception {
-    Duration windowDuration = Duration.millis(10);
-    SimpleTriggerTester<IntervalWindow> tester = TriggerTester.forTrigger(
-        AfterPane.<IntervalWindow>elementCountAtLeast(2),
-        FixedWindows.of(windowDuration));
+    tester.injectElements(2); // [0, 10)
+    tester.injectElements(11); // [10, 20)
 
-    tester.injectElements(1, 9);
-    assertThat(tester.getLatestResult(), equalTo(TriggerResult.FIRE_AND_FINISH));
-    assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(0), new Instant(10))));
+    assertTrue(tester.shouldFire(window)); // ready to fire
+    tester.fireIfShouldFire(window); // and finished
+    assertTrue(tester.isMarkedFinished(window));
+
+    // But don't finish the other window
     assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(10), new Instant(20))));
   }
 
@@ -77,29 +74,37 @@ public class AfterPaneTest {
   }
 
   @Test
-  public void testAfterPaneWithMerging() throws Exception {
-    Duration windowDuration = Duration.millis(10);
-    SimpleTriggerTester<IntervalWindow> tester = TriggerTester.forTrigger(
+  public void testAfterPaneElementCountSessions() throws Exception {
+    tester = TriggerTester.forTrigger(
         AfterPane.<IntervalWindow>elementCountAtLeast(2),
-        Sessions.withGapDuration(windowDuration));
+        Sessions.withGapDuration(Duration.millis(10)));
 
     tester.injectElements(
         1, // in [1, 11)
         2); // in [2, 12)
+
+    assertFalse(tester.shouldFire(new IntervalWindow(new Instant(1), new Instant(11))));
+    assertFalse(tester.shouldFire(new IntervalWindow(new Instant(2), new Instant(12))));
+
     tester.mergeWindows();
 
-    assertThat(tester.getLatestMergeResult(), equalTo(MergeResult.FIRE_AND_FINISH));
-    tester.clearLatestMergeResult();
+    IntervalWindow mergedWindow = new IntervalWindow(new Instant(1), new Instant(12));
+    assertTrue(tester.shouldFire(mergedWindow));
+    tester.fireIfShouldFire(mergedWindow);
+    assertTrue(tester.isMarkedFinished(mergedWindow));
 
     // Because we closed the previous window, we don't have it around to merge with. So there
     // will be a new FIRE_AND_FINISH result.
     tester.injectElements(
         7,  // in [7, 17)
-        9); // in [8, 18)
+        9); // in [9, 19)
 
-    assertThat(tester.getLatestMergeResult(), equalTo(MergeResult.FIRE_AND_FINISH));
+    tester.mergeWindows();
 
-    assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(1), new Instant(12))));
+    IntervalWindow newMergedWindow = new IntervalWindow(new Instant(7), new Instant(19));
+    assertTrue(tester.shouldFire(newMergedWindow));
+    tester.fireIfShouldFire(newMergedWindow);
+    assertTrue(tester.isMarkedFinished(newMergedWindow));
   }
 
   @Test

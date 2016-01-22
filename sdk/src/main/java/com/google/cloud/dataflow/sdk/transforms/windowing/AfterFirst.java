@@ -51,41 +51,18 @@ public class AfterFirst<W extends BoundedWindow> extends OnceTrigger<W> {
   }
 
   @Override
-  public TriggerResult onElement(OnElementContext c) throws Exception {
+  public void onElement(OnElementContext c) throws Exception {
     for (ExecutableTrigger<W> subTrigger : c.trigger().subTriggers()) {
-      if (subTrigger.invokeElement(c).isFire()) {
-        return TriggerResult.FIRE_AND_FINISH;
-      }
+      subTrigger.invokeOnElement(c);
     }
-
-    return TriggerResult.CONTINUE;
   }
 
   @Override
-  public MergeResult onMerge(OnMergeContext c) throws Exception {
-    // FINISH if merging returns FINISH for any sub-trigger.
-    // FIRE_AND_FINISH if merging returns FIRE or FIRE_AND_FINISH for at least one sub-trigger.
-    // CONTINUE otherwise
-    boolean fired = false;
+  public void onMerge(OnMergeContext c) throws Exception {
     for (ExecutableTrigger<W> subTrigger : c.trigger().subTriggers()) {
-      MergeResult mergeResult = subTrigger.invokeMerge(c);
-      if (MergeResult.ALREADY_FINISHED.equals(mergeResult)) {
-        return MergeResult.ALREADY_FINISHED;
-      } else if (mergeResult.isFire()) {
-        fired = true;
-      }
+      subTrigger.invokeOnMerge(c);
     }
-    return fired ? MergeResult.FIRE_AND_FINISH : MergeResult.CONTINUE;
-  }
-
-  @Override
-  public TriggerResult onTimer(OnTimerContext c) throws Exception {
-    for (ExecutableTrigger<W> subTrigger : c.trigger().subTriggers()) {
-      if (subTrigger.invokeTimer(c).isFire()) {
-        return TriggerResult.FIRE_AND_FINISH;
-      }
-    }
-    return TriggerResult.CONTINUE;
+    updateFinishedStatus(c);
   }
 
   @Override
@@ -104,5 +81,39 @@ public class AfterFirst<W extends BoundedWindow> extends OnceTrigger<W> {
   @Override
   public OnceTrigger<W> getContinuationTrigger(List<Trigger<W>> continuationTriggers) {
     return new AfterFirst<W>(continuationTriggers);
+  }
+
+  @Override
+  public boolean shouldFire(Trigger<W>.TriggerContext context) throws Exception {
+    for (ExecutableTrigger<W> subtrigger : context.trigger().subTriggers()) {
+      if (context.forTrigger(subtrigger).trigger().isFinished()
+          || subtrigger.invokeShouldFire(context)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  @Override
+  protected void onOnlyFiring(TriggerContext context) throws Exception {
+    for (ExecutableTrigger<W> subtrigger : context.trigger().subTriggers()) {
+      TriggerContext subContext = context.forTrigger(subtrigger);
+      if (subtrigger.invokeShouldFire(subContext)) {
+        // If the trigger is ready to fire, then do whatever it needs to do.
+        subtrigger.invokeOnFire(subContext);
+      } else {
+        // If the trigger is not ready to fire, it is nonetheless true that whatever
+        // pending pane it was tracking is now gone.
+        subtrigger.invokeClear(subContext);
+      }
+    }
+  }
+
+  private void updateFinishedStatus(TriggerContext c) {
+    boolean anyFinished = false;
+    for (ExecutableTrigger<W> subTrigger : c.trigger().subTriggers()) {
+      anyFinished |= c.forTrigger(subTrigger).trigger().isFinished();
+    }
+    c.trigger().setFinished(anyFinished);
   }
 }

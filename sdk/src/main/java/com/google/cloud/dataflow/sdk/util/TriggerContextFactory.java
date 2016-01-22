@@ -67,14 +67,6 @@ public class TriggerContextFactory<W extends BoundedWindow> {
         elementTimestamp);
   }
 
-  public Trigger<W>.OnTimerContext createOnTimerContext(
-      W window, ReduceFn.Timers timers,
-      ExecutableTrigger<W> rootTrigger, FinishedTriggers finishedSet,
-      Instant timestamp, TimeDomain domain) {
-    return new OnTimerContextImpl(
-        window, timers, rootTrigger, finishedSet, timestamp, domain);
-  }
-
   public Trigger<W>.OnMergeContext createOnMergeContext(
       W window, ReduceFn.Timers timers, Collection<W> mergingWindows,
       ExecutableTrigger<W> rootTrigger, FinishedTriggers finishedSet,
@@ -234,6 +226,16 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     }
 
     @Override
+    public boolean finishedInAllMergingWindows() {
+      for (FinishedTriggers finishedSet : finishedSets.values()) {
+        if (!finishedSet.isFinished(trigger)) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    @Override
     public Iterable<W> getFinishedMergingWindows() {
       return Maps.filterValues(finishedSets, new Predicate<FinishedTriggers>() {
         @Override
@@ -385,83 +387,6 @@ public class TriggerContextFactory<W extends BoundedWindow> {
       timers.setTimer(timestamp, domain);
     }
 
-
-    @Override
-    public void deleteTimer(Instant timestamp, TimeDomain domain) {
-      timers.deleteTimer(timestamp, domain);
-    }
-
-    @Override
-    public Instant currentProcessingTime() {
-      return timers.currentProcessingTime();
-    }
-
-    @Override
-    @Nullable
-    public Instant currentSynchronizedProcessingTime() {
-      return timers.currentSynchronizedProcessingTime();
-    }
-
-    @Override
-    @Nullable
-    public Instant currentEventTime() {
-      return timers.currentEventTime();
-    }
-  }
-
-  private class OnTimerContextImpl extends Trigger<W>.OnTimerContext {
-
-    private final ReduceFnContextFactory.StateContextImpl<W> state;
-    private final ReduceFn.Timers timers;
-    private final TriggerInfoImpl triggerInfo;
-    private final Instant timestamp;
-    private final TimeDomain domain;
-
-    private OnTimerContextImpl(
-        W window,
-        ReduceFn.Timers timers,
-        ExecutableTrigger<W> trigger,
-        FinishedTriggers finishedSet,
-        Instant timestamp,
-        TimeDomain domain) {
-      trigger.getSpec().super();
-      this.state = triggerState(window, trigger);
-      this.timers = new TriggerTimers(window, timers);
-      this.triggerInfo = new TriggerInfoImpl(trigger, finishedSet, this);
-      this.timestamp = timestamp;
-      this.domain = domain;
-    }
-
-    @Override
-    public Trigger<W>.OnTimerContext forTrigger(ExecutableTrigger<W> trigger) {
-      return new OnTimerContextImpl(
-          state.window(), timers, trigger, triggerInfo.finishedSet, timestamp, domain);
-    }
-
-    @Override
-    public TriggerInfo<W> trigger() {
-      return triggerInfo;
-    }
-
-    @Override
-    public ReduceFn.StateContext state() {
-      return state;
-    }
-
-    @Override
-    public W window() {
-      return state.window();
-    }
-
-    @Override
-    public Instant timestamp() {
-      return timestamp;
-    }
-
-    @Override
-    public TimeDomain timeDomain() {
-      return domain;
-    }
 
     @Override
     public void deleteTimer(Instant timestamp, TimeDomain domain) {

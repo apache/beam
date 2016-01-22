@@ -20,11 +20,10 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.MergeResult;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerResult;
-import com.google.cloud.dataflow.sdk.util.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.TriggerTester;
 import com.google.cloud.dataflow.sdk.util.TriggerTester.SimpleTriggerTester;
 
@@ -42,121 +41,58 @@ import org.mockito.MockitoAnnotations;
  */
 @RunWith(JUnit4.class)
 public class RepeatedlyTest {
-  @Mock private Trigger<IntervalWindow> mockRepeated;
 
+  @Mock private Trigger<IntervalWindow> mockTrigger;
   private SimpleTriggerTester<IntervalWindow> tester;
-  private IntervalWindow firstWindow;
+  private static Trigger<IntervalWindow>.TriggerContext anyTriggerContext() {
+    return Mockito.<Trigger<IntervalWindow>.TriggerContext>any();
+  }
 
-  public void setUp(WindowFn<?, IntervalWindow> windowFn) throws Exception {
+  public void setUp(WindowFn<Object, IntervalWindow> windowFn) throws Exception {
     MockitoAnnotations.initMocks(this);
-    Trigger<IntervalWindow> underTest = Repeatedly.forever(mockRepeated);
-    tester = TriggerTester.forTrigger(
-        underTest, windowFn);
-    firstWindow = new IntervalWindow(new Instant(0), new Instant(10));
+    tester = TriggerTester.forTrigger(Repeatedly.forever(mockTrigger), windowFn);
   }
 
-  private void injectElement(int element, TriggerResult result1)
-      throws Exception {
-    if (result1 != null) {
-      when(mockRepeated.onElement(
-          Mockito.<Trigger<IntervalWindow>.OnElementContext>any()))
-          .thenReturn(result1);
-    }
-
-    tester.injectElements(element);
-  }
-
+  /**
+   * Tests that onElement correctly passes the data on to the subtrigger.
+   */
   @Test
   public void testOnElement() throws Exception {
     setUp(FixedWindows.of(Duration.millis(10)));
-
-    injectElement(1, TriggerResult.CONTINUE);
-    assertThat(tester.getLatestResult(), equalTo(TriggerResult.CONTINUE));
-
-    injectElement(2, TriggerResult.FIRE);
-    assertThat(tester.getLatestResult(), equalTo(TriggerResult.FIRE));
-
-    injectElement(3, TriggerResult.FIRE_AND_FINISH);
-    assertThat(tester.getLatestResult(), equalTo(TriggerResult.FIRE));
-
-    injectElement(4, TriggerResult.CONTINUE);
-    assertThat(tester.getLatestResult(), equalTo(TriggerResult.CONTINUE));
-
-    assertFalse(tester.isMarkedFinished(firstWindow));
+    tester.injectElements(37);
+    verify(mockTrigger).onElement(Mockito.<Trigger<IntervalWindow>.OnElementContext>any());
   }
 
+  /**
+   * Tests that the repeatedly is ready to fire whenever the subtrigger is ready.
+   */
   @Test
-  public void testOnElementTimerFires() throws Exception {
+  public void testShouldFire() throws Exception {
     setUp(FixedWindows.of(Duration.millis(10)));
 
-    injectElement(1, TriggerResult.CONTINUE);
+    when(mockTrigger.shouldFire(anyTriggerContext())).thenReturn(true);
+    assertTrue(tester.shouldFire(new IntervalWindow(new Instant(0), new Instant(10))));
 
-    when(mockRepeated.onTimer(Mockito.<Trigger<IntervalWindow>.OnTimerContext>any()))
-        .thenReturn(TriggerResult.FIRE);
-    tester.fireTimer(firstWindow, new Instant(11), TimeDomain.EVENT_TIME);
-    assertThat(tester.getLatestResult(), equalTo(TriggerResult.FIRE));
-
-    injectElement(2, TriggerResult.CONTINUE);
-    assertThat(tester.getLatestResult(), equalTo(TriggerResult.CONTINUE));
-
-    when(mockRepeated.onTimer(Mockito.<Trigger<IntervalWindow>.OnTimerContext>any()))
-        .thenReturn(TriggerResult.FIRE_AND_FINISH);
-    tester.fireTimer(firstWindow, new Instant(12), TimeDomain.EVENT_TIME);
-    assertThat(tester.getLatestResult(), equalTo(TriggerResult.FIRE));
-
-    injectElement(3, TriggerResult.CONTINUE);
-    assertThat(tester.getLatestResult(), equalTo(TriggerResult.CONTINUE));
-
-    when(mockRepeated.onTimer(Mockito.<Trigger<IntervalWindow>.OnTimerContext>any()))
-        .thenReturn(TriggerResult.CONTINUE);
-    tester.fireTimer(firstWindow, new Instant(13), TimeDomain.EVENT_TIME);
-    assertThat(tester.getLatestResult(), equalTo(TriggerResult.CONTINUE));
-
-    injectElement(4, TriggerResult.CONTINUE);
-    assertThat(tester.getLatestResult(), equalTo(TriggerResult.CONTINUE));
-
-    when(mockRepeated.onTimer(Mockito.<Trigger<IntervalWindow>.OnTimerContext>any()))
-        .thenReturn(TriggerResult.FIRE);
-    tester.fireTimer(firstWindow, new Instant(14), TimeDomain.EVENT_TIME);
-
-    assertThat(tester.getLatestResult(), equalTo(TriggerResult.FIRE));
-    assertFalse(tester.isMarkedFinished(firstWindow));
+    when(mockTrigger.shouldFire(Mockito.<Trigger<IntervalWindow>.TriggerContext>any()))
+        .thenReturn(false);
+    assertFalse(tester.shouldFire(new IntervalWindow(new Instant(0), new Instant(10))));
   }
 
-  @Test
-  public void testMerge() throws Exception {
-    setUp(Sessions.withGapDuration(Duration.millis(10)));
-
-    when(mockRepeated.onElement(Mockito.<Trigger<IntervalWindow>.OnElementContext>any()))
-        .thenReturn(TriggerResult.CONTINUE);
-    tester.injectElements(1, 5);
-
-    when(mockRepeated.onMerge(Mockito.<Trigger<IntervalWindow>.OnMergeContext>any()))
-        .thenReturn(MergeResult.FIRE_AND_FINISH);
-
-    tester.mergeWindows();
-
-    assertThat(tester.getLatestMergeResult(), equalTo(MergeResult.FIRE));
-    assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(1), new Instant(16))));
-  }
-
+  /**
+   * Tests that the watermark that guarantees firing is that of the subtrigger.
+   */
   @Test
   public void testFireDeadline() throws Exception {
-    BoundedWindow window = new IntervalWindow(new Instant(0), new Instant(10));
+    setUp(FixedWindows.of(Duration.millis(10)));
+    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(10));
+    Instant arbitraryInstant = new Instant(34957849);
 
-    assertEquals(new Instant(9),
-        Repeatedly.forever(AfterWatermark.pastEndOfWindow())
-        .getWatermarkThatGuaranteesFiring(window));
-    assertEquals(new Instant(9), Repeatedly.forever(AfterWatermark.pastEndOfWindow())
-        .orFinally(AfterPane.elementCountAtLeast(1))
-        .getWatermarkThatGuaranteesFiring(window));
-    assertEquals(new Instant(9), Repeatedly.forever(AfterPane.elementCountAtLeast(1))
-        .orFinally(AfterWatermark.pastEndOfWindow())
-        .getWatermarkThatGuaranteesFiring(window));
-    assertEquals(BoundedWindow.TIMESTAMP_MAX_VALUE,
-        Repeatedly.forever(AfterPane.elementCountAtLeast(1))
-        .orFinally(AfterPane.elementCountAtLeast(10))
-        .getWatermarkThatGuaranteesFiring(window));
+    when(mockTrigger.getWatermarkThatGuaranteesFiring(Mockito.<IntervalWindow>any()))
+        .thenReturn(arbitraryInstant);
+
+    assertThat(
+        Repeatedly.forever(mockTrigger).getWatermarkThatGuaranteesFiring(window),
+        equalTo(arbitraryInstant));
   }
 
   @Test
@@ -164,10 +100,29 @@ public class RepeatedlyTest {
     Trigger<IntervalWindow> trigger = AfterProcessingTime.pastFirstElementInPane();
     Trigger<IntervalWindow> repeatedly = Repeatedly.forever(trigger);
     assertEquals(
-        Repeatedly.forever(trigger.getContinuationTrigger()),
-        repeatedly.getContinuationTrigger());
+        Repeatedly.forever(trigger.getContinuationTrigger()), repeatedly.getContinuationTrigger());
     assertEquals(
         Repeatedly.forever(trigger.getContinuationTrigger().getContinuationTrigger()),
         repeatedly.getContinuationTrigger().getContinuationTrigger());
+  }
+
+  @Test
+  public void testShouldFireAfterMerge() throws Exception {
+    tester = TriggerTester.forTrigger(
+        Repeatedly.forever(AfterPane.<IntervalWindow>elementCountAtLeast(2)),
+        Sessions.withGapDuration(Duration.millis(10)));
+
+    tester.injectElements(1);
+    IntervalWindow firstWindow = new IntervalWindow(new Instant(1), new Instant(11));
+    assertFalse(tester.shouldFire(firstWindow));
+
+    tester.injectElements(5);
+    IntervalWindow secondWindow = new IntervalWindow(new Instant(5), new Instant(15));
+    assertFalse(tester.shouldFire(secondWindow));
+
+    // Merge them, if the merged window were on the second trigger, it would be ready
+    tester.mergeWindows();
+    IntervalWindow mergedWindow = new IntervalWindow(new Instant(1), new Instant(15));
+    assertTrue(tester.shouldFire(mergedWindow));
   }
 }

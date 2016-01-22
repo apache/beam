@@ -18,15 +18,14 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
-import com.google.cloud.dataflow.sdk.util.ReduceFn.MergingStateContext;
-import com.google.cloud.dataflow.sdk.util.ReduceFn.StateContext;
 import com.google.cloud.dataflow.sdk.util.TimeDomain;
-import com.google.cloud.dataflow.sdk.util.state.CombiningValueState;
 
 import org.joda.time.Instant;
 
 import java.util.List;
 import java.util.Objects;
+
+import javax.annotation.Nullable;
 
 /**
  * {@code AfterProcessingTime} triggers fire based on the current processing time. They operate in
@@ -38,10 +37,16 @@ import java.util.Objects;
  * @param <W> {@link BoundedWindow} subclass used to represent the windows used
  */
 @Experimental(Experimental.Kind.TRIGGER)
-public class AfterProcessingTime<W extends BoundedWindow> extends TimeTrigger<W> {
+public class AfterProcessingTime<W extends BoundedWindow> extends AfterDelayFromFirstElement<W> {
+
+  @Override
+  @Nullable
+  public Instant getCurrentTime(Trigger<W>.TriggerContext context) {
+    return context.currentProcessingTime();
+  }
 
   private AfterProcessingTime(List<SerializableFunction<Instant, Instant>> transforms) {
-    super(transforms);
+    super(TimeDomain.PROCESSING_TIME, transforms);
   }
 
   /**
@@ -56,81 +61,6 @@ public class AfterProcessingTime<W extends BoundedWindow> extends TimeTrigger<W>
   protected AfterProcessingTime<W> newWith(
       List<SerializableFunction<Instant, Instant>> transforms) {
     return new AfterProcessingTime<W>(transforms);
-  }
-
-  @Override
-  public void prefetchOnElement(StateContext state) {
-    state.access(DELAYED_UNTIL_TAG).get();
-  }
-
-  @Override
-  public TriggerResult onElement(OnElementContext c)
-      throws Exception {
-    CombiningValueState<Instant, Instant> delayUntilState = c.state().access(DELAYED_UNTIL_TAG);
-    Instant delayUntil = delayUntilState.get().read();
-    if (delayUntil == null) {
-      delayUntil = computeTargetTimestamp(c.currentProcessingTime());
-      c.setTimer(delayUntil, TimeDomain.PROCESSING_TIME);
-      delayUntilState.add(delayUntil);
-    }
-
-    return TriggerResult.CONTINUE;
-  }
-
-  @Override
-  public void prefetchOnMerge(MergingStateContext state) {
-    state.mergingAccess(DELAYED_UNTIL_TAG).get();
-  }
-
-  @Override
-  public MergeResult onMerge(OnMergeContext c) throws Exception {
-    // If the processing time timer has fired in any of the windows being merged, it would have
-    // fired at the same point if it had been added to the merged window. So, we just report it as
-    // finished.
-    if (c.trigger().finishedInAnyMergingWindow()) {
-      return MergeResult.ALREADY_FINISHED;
-    }
-
-    // Determine the earliest point across all the windows, and delay to that.
-    CombiningValueState<Instant, Instant> mergingDelays =
-        c.state().mergingAccess(DELAYED_UNTIL_TAG);
-    Instant earliestTimer = mergingDelays.get().read();
-    if (earliestTimer != null) {
-      mergingDelays.clear();
-      mergingDelays.add(earliestTimer);
-      c.setTimer(earliestTimer, TimeDomain.PROCESSING_TIME);
-    }
-
-    return MergeResult.CONTINUE;
-  }
-
-  @Override
-  public void prefetchOnTimer(StateContext state) {
-    state.access(DELAYED_UNTIL_TAG).get();
-  }
-
-  @Override
-  public TriggerResult onTimer(OnTimerContext c) throws Exception {
-    if (c.timeDomain() != TimeDomain.PROCESSING_TIME) {
-      return TriggerResult.CONTINUE;
-    }
-
-    Instant delayedUntil = c.state().access(DELAYED_UNTIL_TAG).get().read();
-    if (delayedUntil == null || delayedUntil.isAfter(c.timestamp())) {
-      return TriggerResult.CONTINUE;
-    }
-
-    return TriggerResult.FIRE_AND_FINISH;
-  }
-
-  @Override
-  public void clear(TriggerContext c) throws Exception {
-    CombiningValueState<Instant, Instant> delayed = c.state().access(DELAYED_UNTIL_TAG);
-    Instant timestamp = delayed.get().read();
-    delayed.clear();
-    if (timestamp != null) {
-      c.deleteTimer(timestamp, TimeDomain.PROCESSING_TIME);
-    }
   }
 
   @Override

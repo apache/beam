@@ -15,12 +15,15 @@
  */
 package com.google.cloud.dataflow.sdk.util;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.MergeResult;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerResult;
+import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
+import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
 
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -37,17 +40,19 @@ public class ReshuffleTriggerTest {
   }
 
   @Test
-  public void testOnElement() {
-    assertEquals(TriggerResult.FIRE, forTest().onElement(null));
+  public void testShouldFire() throws Exception {
+    TriggerTester<Integer, IntervalWindow> tester = TriggerTester.forTrigger(
+        new ReshuffleTrigger<IntervalWindow>(), FixedWindows.of(Duration.millis(100)));
+    IntervalWindow arbitraryWindow = new IntervalWindow(new Instant(300), new Instant(400));
+    assertTrue(tester.shouldFire(arbitraryWindow));
   }
 
   @Test
-  public void testOnMerge() {
-    assertEquals(MergeResult.CONTINUE, forTest().onMerge(null));
-  }
-
-  @Test
-  public void testOnTimer() {
-    assertEquals(TriggerResult.CONTINUE, forTest().onTimer(null));
+  public void testOnTimer() throws Exception {
+    TriggerTester<Integer, IntervalWindow> tester = TriggerTester.forTrigger(
+        new ReshuffleTrigger<IntervalWindow>(), FixedWindows.of(Duration.millis(100)));
+    IntervalWindow arbitraryWindow = new IntervalWindow(new Instant(100), new Instant(200));
+    tester.fireIfShouldFire(arbitraryWindow);
+    assertFalse(tester.isMarkedFinished(arbitraryWindow));
   }
 }

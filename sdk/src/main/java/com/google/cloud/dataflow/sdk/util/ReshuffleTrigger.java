@@ -35,20 +35,10 @@ public class ReshuffleTrigger<W extends BoundedWindow> extends Trigger<W> {
   }
 
   @Override
-  public TriggerResult onElement(Trigger<W>.OnElementContext c) {
-    return TriggerResult.FIRE;
-  }
+  public void onElement(Trigger<W>.OnElementContext c) { }
 
   @Override
-  public MergeResult onMerge(Trigger<W>.OnMergeContext c) {
-    // We fire on every element, so merging will never produce a pane containing new elements.
-    return MergeResult.CONTINUE;
-  }
-
-  @Override
-  public TriggerResult onTimer(Trigger<W>.OnTimerContext c) {
-    return TriggerResult.CONTINUE;
-  }
+  public void onMerge(Trigger<W>.OnMergeContext c) { }
 
   @Override
   protected Trigger<W> getContinuationTrigger(List<Trigger<W>> continuationTriggers) {
@@ -60,4 +50,12 @@ public class ReshuffleTrigger<W extends BoundedWindow> extends Trigger<W> {
     throw new UnsupportedOperationException(
         "ReshuffleTrigger should not be used outside of Reshuffle");
   }
+
+  @Override
+  public boolean shouldFire(Trigger<W>.TriggerContext context) throws Exception {
+    return true;
+  }
+
+  @Override
+  public void onFire(Trigger<W>.TriggerContext context) throws Exception { }
 }

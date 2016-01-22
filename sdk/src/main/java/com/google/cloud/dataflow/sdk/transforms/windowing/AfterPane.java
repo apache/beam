@@ -23,7 +23,6 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
 import com.google.cloud.dataflow.sdk.util.ReduceFn.MergingStateContext;
 import com.google.cloud.dataflow.sdk.util.ReduceFn.StateContext;
 import com.google.cloud.dataflow.sdk.util.state.CombiningValueState;
-import com.google.cloud.dataflow.sdk.util.state.StateContents;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
 import com.google.cloud.dataflow.sdk.util.state.StateTags;
 
@@ -60,20 +59,8 @@ public class AfterPane<W extends BoundedWindow> extends OnceTrigger<W>{
   }
 
   @Override
-  public void prefetchOnElement(StateContext state) {
-    state.access(ELEMENTS_IN_PANE_TAG).get();
-  }
-
-  @Override
-  public TriggerResult onElement(OnElementContext c) throws Exception {
-    CombiningValueState<Long, Long> elementsInPane = c.state().access(ELEMENTS_IN_PANE_TAG);
-    StateContents<Long> countContents = elementsInPane.get();
-    elementsInPane.add(1L);
-
-    // TODO: Consider waiting to read the value until the end of a bundle, since we don't need to
-    // fire immediately when the count exceeds countElems.
-    long count = countContents.read();
-    return count >= countElems ? TriggerResult.FIRE_AND_FINISH : TriggerResult.CONTINUE;
+  public void onElement(OnElementContext c) throws Exception {
+    c.state().access(ELEMENTS_IN_PANE_TAG).add(1L);
   }
 
   @Override
@@ -82,31 +69,27 @@ public class AfterPane<W extends BoundedWindow> extends OnceTrigger<W>{
   }
 
   @Override
-  public MergeResult onMerge(OnMergeContext c) throws Exception {
-    // If we've already received enough elements and finished in some window, then this trigger
-    // is just finished.
-    if (c.trigger().finishedInAnyMergingWindow()) {
-      return MergeResult.ALREADY_FINISHED;
+  public void onMerge(OnMergeContext context) throws Exception {
+    if (context.trigger().finishedInAnyMergingWindow()) {
+      context.trigger().setFinished(true);
+      return;
     }
 
-    // Otherwise, compute the sum of elements in all the active panes
-    CombiningValueState<Long, Long> elementsInPane = c.state().mergingAccess(ELEMENTS_IN_PANE_TAG);
-    // Both InMemoryStateInternals and WindmillStateInternals implement merging access using
-    // MergeCombiningValue. The implementation of StateContents.read returned by get will
-    // eagerly compact state on read. Thus after the following we are guaranteed all state from
-    // merged windows will have been compacted away.
-    // TODO: Make this more explicit and less fragile with a 'compact' API?
-    long count = elementsInPane.get().read();
-    return count >= countElems ? MergeResult.FIRE_AND_FINISH : MergeResult.CONTINUE;
+    // Eagerly merge
+    long count = context.state().mergingAccess(ELEMENTS_IN_PANE_TAG).get().read();
+    context.state().mergingAccess(ELEMENTS_IN_PANE_TAG).clear();
+    context.state().access(ELEMENTS_IN_PANE_TAG).add(count);
   }
 
   @Override
-  public TriggerResult onTimer(OnTimerContext c) {
-    return TriggerResult.CONTINUE;
+  public void prefetchShouldFire(StateContext state) {
+    state.access(ELEMENTS_IN_PANE_TAG).get();
   }
 
   @Override
-  public void prefetchOnTimer(StateContext state) {
+  public boolean shouldFire(Trigger<W>.TriggerContext context) throws Exception {
+    long count = context.state().access(ELEMENTS_IN_PANE_TAG).get().read();
+    return count >= countElems;
   }
 
   @Override
@@ -149,5 +132,10 @@ public class AfterPane<W extends BoundedWindow> extends OnceTrigger<W>{
   @Override
   public int hashCode() {
     return Objects.hash(countElems);
+  }
+
+  @Override
+  protected void onOnlyFiring(Trigger<W>.TriggerContext context) throws Exception {
+    clear(context);
   }
 }

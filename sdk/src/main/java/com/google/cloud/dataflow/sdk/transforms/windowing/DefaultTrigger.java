@@ -44,26 +44,25 @@ public class DefaultTrigger<W extends BoundedWindow> extends Trigger<W>{
   }
 
   @Override
-  public TriggerResult onElement(OnElementContext c) throws Exception {
-    c.setTimer(c.window().maxTimestamp(), TimeDomain.EVENT_TIME);
-    return TriggerResult.CONTINUE;
+  public void onElement(OnElementContext c) throws Exception {
+    // If the end of the window has already been reached, then we are already ready to fire
+    // and do not need to set a wake-up timer.
+    if (!endOfWindowReached(c)) {
+      c.setTimer(c.window().maxTimestamp(), TimeDomain.EVENT_TIME);
+    }
   }
 
   @Override
-  public MergeResult onMerge(OnMergeContext c) throws Exception {
-    c.setTimer(c.window().maxTimestamp(), TimeDomain.EVENT_TIME);
-    return MergeResult.CONTINUE;
+  public void onMerge(OnMergeContext c) throws Exception {
+    // If the end of the window has already been reached, then we are already ready to fire
+    // and do not need to set a wake-up timer.
+    if (!endOfWindowReached(c)) {
+      c.setTimer(c.window().maxTimestamp(), TimeDomain.EVENT_TIME);
+    }
   }
 
   @Override
-  public TriggerResult onTimer(OnTimerContext c) throws Exception {
-    return TriggerResult.FIRE;
-  }
-
-  @Override
-  public void clear(TriggerContext c) throws Exception {
-    c.deleteTimer(c.window().maxTimestamp(), TimeDomain.EVENT_TIME);
-  }
+  public void clear(TriggerContext c) throws Exception { }
 
   @Override
   public Instant getWatermarkThatGuaranteesFiring(W window) {
@@ -80,4 +79,17 @@ public class DefaultTrigger<W extends BoundedWindow> extends Trigger<W>{
   public Trigger<W> getContinuationTrigger(List<Trigger<W>> continuationTriggers) {
     return this;
   }
+
+  @Override
+  public boolean shouldFire(Trigger<W>.TriggerContext context) throws Exception {
+    return endOfWindowReached(context);
+  }
+
+  private boolean endOfWindowReached(Trigger<W>.TriggerContext context) {
+    return context.currentEventTime() != null
+        && context.currentEventTime().isAfter(context.window().maxTimestamp());
+  }
+
+  @Override
+  public void onFire(Trigger<W>.TriggerContext context) throws Exception { }
 }

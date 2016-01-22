@@ -25,8 +25,6 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.MergeResult;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerResult;
 import com.google.cloud.dataflow.sdk.transforms.windowing.TriggerBuilder;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.ActiveWindowSet.MergeCallback;
@@ -44,13 +42,12 @@ import com.google.cloud.dataflow.sdk.util.state.WatermarkStateInternal;
 import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -78,8 +75,8 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
   public static class SimpleTriggerTester<W extends BoundedWindow>
       extends TriggerTester<Integer, W> {
 
-    private SimpleTriggerTester(WindowingStrategy<?, W> wildcardStrategy) throws Exception {
-      super(wildcardStrategy);
+    private SimpleTriggerTester(WindowingStrategy<Object, W> windowingStrategy) throws Exception {
+      super(windowingStrategy);
     }
 
     public void injectElements(int... values) throws Exception {
@@ -90,17 +87,20 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
       }
       injectElements(timestampedValues);
     }
+
+    public SimpleTriggerTester<W> withAllowedLateness(Duration allowedLateness) throws Exception {
+      return new SimpleTriggerTester<>(
+          windowingStrategy.withAllowedLateness(allowedLateness));
+    }
   }
+
+  protected final WindowingStrategy<Object, W> windowingStrategy;
 
   private final TestInMemoryStateInternals stateInternals = new TestInMemoryStateInternals();
   private final TestTimerInternals timerInternals = new TestTimerInternals();
   private final TriggerContextFactory<W> contextFactory;
-
   private final WindowFn<Object, W> windowFn;
   private final ActiveWindowSet<W> activeWindows;
-  private final List<Trigger.TriggerResult> resultSequence;
-  private Trigger.TriggerResult latestResult;
-  private Trigger.MergeResult latestMergeResult;
 
   /**
    * An {@link ExecutableTrigger} built from the {@link Trigger} or {@link TriggerBuilder}
@@ -114,8 +114,9 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
   private final Map<W, FinishedTriggers> finishedSets;
 
   public static <W extends BoundedWindow> SimpleTriggerTester<W> forTrigger(
-      TriggerBuilder<W> trigger, WindowFn<?, W> windowFn) throws Exception {
-    WindowingStrategy<?, W> strategy =
+      TriggerBuilder<W> trigger, WindowFn<Object, W> windowFn)
+          throws Exception {
+    WindowingStrategy<Object, W> windowingStrategy =
         WindowingStrategy.of(windowFn).withTrigger(trigger.buildTrigger())
         // Merging requires accumulation mode or early firings can break up a session.
         // Not currently an issue with the tester (because we never GC) but we don't want
@@ -124,12 +125,12 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
             ? AccumulationMode.DISCARDING_FIRED_PANES
             : AccumulationMode.ACCUMULATING_FIRED_PANES);
 
-    return new SimpleTriggerTester<>(strategy);
+    return new SimpleTriggerTester<>(windowingStrategy);
   }
 
-  public static <InputT, W extends BoundedWindow> TriggerTester<Integer, W> forAdvancedTrigger(
-      TriggerBuilder<W> trigger, WindowFn<InputT, W> windowFn) throws Exception {
-    WindowingStrategy<?, W> strategy =
+  public static <InputT, W extends BoundedWindow> TriggerTester<InputT, W> forAdvancedTrigger(
+      TriggerBuilder<W> trigger, WindowFn<Object, W> windowFn) throws Exception {
+    WindowingStrategy<Object, W> strategy =
         WindowingStrategy.of(windowFn).withTrigger(trigger.buildTrigger())
         // Merging requires accumulation mode or early firings can break up a session.
         // Not currently an issue with the tester (because we never GC) but we don't want
@@ -141,13 +142,10 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
     return new TriggerTester<>(strategy);
   }
 
-  protected TriggerTester(WindowingStrategy<?, W> wildcardStrategy) throws Exception {
-    @SuppressWarnings("unchecked")
-    WindowingStrategy<Object, W> objectStrategy = (WindowingStrategy<Object, W>) wildcardStrategy;
-
-    this.windowFn = objectStrategy.getWindowFn();
-    this.executableTrigger = wildcardStrategy.getTrigger();
-    this.resultSequence = new ArrayList<>();
+  protected TriggerTester(WindowingStrategy<Object, W> windowingStrategy) throws Exception {
+    this.windowingStrategy = windowingStrategy;
+    this.windowFn = windowingStrategy.getWindowFn();
+    this.executableTrigger = windowingStrategy.getTrigger();
     this.finishedSets = new HashMap<>();
 
     this.activeWindows =
@@ -156,52 +154,7 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
             : new MergingActiveWindowSet<W>(windowFn, stateInternals);
 
     this.contextFactory =
-        new TriggerContextFactory<>(objectStrategy, stateInternals, activeWindows);
-  }
-
-  /**
-   * Returns the most recent {@link TriggerResult} from any invocation of the
-   * {@link Trigger#onElement} or {@link Trigger#onTimer} methods
-   * of the trigger under test.
-   *
-   * <p>Note that this is not window-aware, but will return the most recent
-   * for any window. Tests should mostly be able to check
-   * the latest result at an opportune moment.
-   */
-  public TriggerResult getLatestResult() {
-    return latestResult;
-  }
-
-  /**
-   * Returns the most recent {@link MergeResult} from any invocation of the
-   * {@link Trigger#onMerge} of the trigger under test.
-   *
-   * <p>Note that this is not window-aware, but will return the most recent
-   * of any merge result, not for any particular result window. Tests should generally
-   * be able to check the latest merge result at an opportune moment.
-   */
-  public MergeResult getLatestMergeResult() {
-    return latestMergeResult;
-  }
-
-  public void clearLatestMergeResult() {
-    latestResult = null;
-  }
-
-  /**
-   * Returns the full sequence of returned {@link TriggerResult TriggerResults} from
-   * invocations of {@link Trigger#onElement} or {@link Trigger#onTimer} methods
-   * of the trigger under test.
-   */
-  public List<Trigger.TriggerResult> getResultSequence() {
-    return ImmutableList.copyOf(resultSequence);
-  }
-
-  /**
-   * Clears the result sequence returned by {@link #getResultSequence}.
-   */
-  public void clearResultSequence() {
-    resultSequence.clear();
+        new TriggerContextFactory<>(windowingStrategy, stateInternals, activeWindows);
   }
 
   /**
@@ -314,14 +267,40 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
             executableTrigger, getFinishedSet(window));
 
         if (!context.trigger().isFinished()) {
-          latestResult = executableTrigger.invokeElement(context);
-          resultSequence.add(latestResult);
-          if (latestResult.isFinish()) {
-            context.trigger().setFinished(true);
-          }
+          executableTrigger.invokeOnElement(context);
         }
       }
     }
+  }
+
+  public boolean shouldFire(W window) throws Exception {
+    Trigger<W>.TriggerContext context = contextFactory.base(
+        window,
+        new TestTimers(windowNamespace(window)),
+        executableTrigger, getFinishedSet(window));
+    executableTrigger.getSpec().prefetchShouldFire(context.state());
+    return executableTrigger.invokeShouldFire(context);
+  }
+
+  public void fireIfShouldFire(W window) throws Exception {
+    Trigger<W>.TriggerContext context = contextFactory.base(
+        window,
+        new TestTimers(windowNamespace(window)),
+        executableTrigger, getFinishedSet(window));
+
+    executableTrigger.getSpec().prefetchShouldFire(context.state());
+    if (executableTrigger.invokeShouldFire(context)) {
+      executableTrigger.getSpec().prefetchOnFire(context.state());
+      executableTrigger.invokeOnFire(context);
+      if (context.trigger().isFinished()) {
+        activeWindows.remove(context.window());
+        executableTrigger.invokeClear(context);
+      }
+    }
+  }
+
+  public void setSubTriggerFinishedForWindow(int subTriggerIndex, W window, boolean value) {
+    getFinishedSet(window).setFinished(executableTrigger.subTriggers().get(subTriggerIndex), value);
   }
 
   /**
@@ -350,9 +329,9 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
       for (W oldWindow : oldWindows) {
         mergingFinishedSets.put(oldWindow, getFinishedSet(oldWindow));
       }
-      latestMergeResult = executableTrigger.invokeMerge(
+      executableTrigger.invokeOnMerge(
           contextFactory.createOnMergeContext(window, new TestTimers(windowNamespace(window)),
-              oldWindows, executableTrigger, getFinishedSet(window), finishedSets));
+              oldWindows, executableTrigger, getFinishedSet(window), mergingFinishedSets));
     }
   }
 
@@ -363,17 +342,6 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
       finishedSets.put(window, finishedSet);
     }
     return finishedSet;
-  }
-
-  public void fireTimer(W window, Instant timestamp, TimeDomain domain) throws Exception {
-    Trigger<W>.OnTimerContext context =
-        contextFactory.createOnTimerContext(window, new TestTimers(windowNamespace(window)),
-            executableTrigger, getFinishedSet(window), timestamp, domain);
-    latestResult = executableTrigger.invokeTimer(context);
-    resultSequence.add(latestResult);
-    if (latestResult.isFinish()) {
-      context.trigger().setFinished(true);
-    }
   }
 
   /**
@@ -530,7 +498,6 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
       WindowTracing.trace("TestTimerInternals.advanceInputWatermark: from {} to {}",
           inputWatermarkTime, newInputWatermark);
       inputWatermarkTime = newInputWatermark;
-      advanceAndFire(newInputWatermark, TimeDomain.EVENT_TIME);
 
       Instant hold = stateInternals.earliestWatermarkHold();
       if (hold == null) {
@@ -564,7 +531,6 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
       WindowTracing.trace("TestTimerInternals.advanceProcessingTime: from {} to {}", processingTime,
           newProcessingTime);
       processingTime = newProcessingTime;
-      advanceAndFire(newProcessingTime, TimeDomain.PROCESSING_TIME);
     }
 
     public void advanceSynchronizedProcessingTime(Instant newSynchronizedProcessingTime)
@@ -575,31 +541,6 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
       WindowTracing.trace("TestTimerInternals.advanceProcessingTime: from {} to {}",
           synchronizedProcessingTime, newSynchronizedProcessingTime);
       synchronizedProcessingTime = newSynchronizedProcessingTime;
-      advanceAndFire(newSynchronizedProcessingTime, TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
-    }
-
-    private void advanceAndFire(Instant currentTime, TimeDomain domain) throws Exception {
-      PriorityQueue<TimerData> queue = queue(domain);
-
-      TimerData nextTimer = queue.peek();
-      while (nextTimer != null && currentTime.isAfter(nextTimer.getTimestamp())) {
-        // Timers fire when the current time progresses past the timer time.
-        WindowTracing.trace(
-            "TestTimerInternals.advanceAndFire: firing {} at {}", nextTimer, currentTime);
-        // Remove before firing, so that if the trigger adds another identical
-        // timer we don't remove it.
-        queue.remove();
-
-        @SuppressWarnings("unchecked")
-        WindowNamespace<W> windowNamespace = (WindowNamespace<W>) nextTimer.getNamespace();
-        W window = windowNamespace.getWindow();
-
-        if (activeWindows.isActive(window)) {
-          fireTimer(window, nextTimer.getTimestamp(), nextTimer.getDomain());
-        }
-
-        nextTimer = queue.peek();
-      }
     }
   }
 

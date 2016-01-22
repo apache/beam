@@ -58,19 +58,10 @@ public class TriggerTest {
     }
 
     @Override
-    public Trigger.TriggerResult onElement(Trigger<IntervalWindow>.OnElementContext c) {
-      return null;
-    }
+    public void onElement(Trigger<IntervalWindow>.OnElementContext c) { }
 
     @Override
-    public Trigger.MergeResult onMerge(Trigger<IntervalWindow>.OnMergeContext c) {
-      return null;
-    }
-
-    @Override
-    public Trigger.TriggerResult onTimer(Trigger<IntervalWindow>.OnTimerContext c) {
-      return null;
-    }
+    public void onMerge(Trigger<IntervalWindow>.OnMergeContext c) { }
 
     @Override
     protected Trigger<IntervalWindow> getContinuationTrigger(
@@ -82,6 +73,14 @@ public class TriggerTest {
     public Instant getWatermarkThatGuaranteesFiring(IntervalWindow window) {
       return null;
     }
+
+    @Override
+    public boolean shouldFire(Trigger<IntervalWindow>.TriggerContext context) throws Exception {
+      return false;
+    }
+
+    @Override
+    public void onFire(Trigger<IntervalWindow>.TriggerContext context) throws Exception { }
   }
 
   private static class Trigger2 extends Trigger<IntervalWindow> {
@@ -91,19 +90,10 @@ public class TriggerTest {
     }
 
     @Override
-    public Trigger.TriggerResult onElement(Trigger<IntervalWindow>.OnElementContext c) {
-      return null;
-    }
+    public void onElement(Trigger<IntervalWindow>.OnElementContext c) { }
 
     @Override
-    public Trigger.MergeResult onMerge(Trigger<IntervalWindow>.OnMergeContext c) {
-      return null;
-    }
-
-    @Override
-    public Trigger.TriggerResult onTimer(Trigger<IntervalWindow>.OnTimerContext c) {
-      return null;
-    }
+    public void onMerge(Trigger<IntervalWindow>.OnMergeContext c) { }
 
     @Override
     protected Trigger<IntervalWindow> getContinuationTrigger(
@@ -115,5 +105,13 @@ public class TriggerTest {
     public Instant getWatermarkThatGuaranteesFiring(IntervalWindow window) {
       return null;
     }
+
+    @Override
+    public boolean shouldFire(Trigger<IntervalWindow>.TriggerContext context) throws Exception {
+      return false;
+    }
+
+    @Override
+    public void onFire(Trigger<IntervalWindow>.TriggerContext context) throws Exception { }
   }
 }

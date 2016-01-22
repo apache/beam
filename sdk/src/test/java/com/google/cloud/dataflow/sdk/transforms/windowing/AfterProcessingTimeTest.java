@@ -16,15 +16,10 @@
 
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
-import static org.hamcrest.Matchers.emptyIterable;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.everyItem;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerResult;
-import com.google.cloud.dataflow.sdk.util.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.TriggerTester;
 import com.google.cloud.dataflow.sdk.util.TriggerTester.SimpleTriggerTester;
 
@@ -39,24 +34,13 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class AfterProcessingTimeTest {
-  @Test
-  public void testAfterProcessingTimeIgnoresTimer() throws Exception {
-    Duration windowDuration = Duration.millis(10);
-    SimpleTriggerTester<IntervalWindow> tester = TriggerTester.forTrigger(
-        AfterProcessingTime
-            .<IntervalWindow>pastFirstElementInPane()
-            .plusDelayOf(Duration.millis(5)),
-        FixedWindows.of(windowDuration));
 
-    tester.fireTimer(new IntervalWindow(new Instant(0), new Instant(10)),
-        new Instant(15), TimeDomain.PROCESSING_TIME);
-    tester.injectElements(1);
-    tester.fireTimer(new IntervalWindow(new Instant(0), new Instant(10)),
-        new Instant(5), TimeDomain.PROCESSING_TIME);
-  }
-
+  /**
+   * Tests the basic property that the trigger does wait for processing time to be
+   * far enough advanced.
+   */
   @Test
-  public void testAfterProcessingTimeWithFixedWindow() throws Exception {
+  public void testAfterProcessingTimeFixedWindows() throws Exception {
     Duration windowDuration = Duration.millis(10);
     SimpleTriggerTester<IntervalWindow> tester = TriggerTester.forTrigger(
         AfterProcessingTime
@@ -68,42 +52,41 @@ public class AfterProcessingTimeTest {
 
     // Timer at 15
     tester.injectElements(1);
+    IntervalWindow firstWindow = new IntervalWindow(new Instant(0), new Instant(10));
     tester.advanceProcessingTime(new Instant(12));
+    assertFalse(tester.shouldFire(firstWindow));
 
     // Load up elements in the next window, timer at 17 for them
     tester.injectElements(11, 12, 13);
+    IntervalWindow secondWindow = new IntervalWindow(new Instant(10), new Instant(20));
+    assertFalse(tester.shouldFire(secondWindow));
 
+    // Not quite time to fire
     tester.advanceProcessingTime(new Instant(14));
+    assertFalse(tester.shouldFire(firstWindow));
+    assertFalse(tester.shouldFire(secondWindow));
 
-    // Timer at 19 for these; it should be ignored since the 15 will fire first
+    // Timer at 19 for these in the first window; it should be ignored since the 15 will fire first
     tester.injectElements(2, 3);
-
-    // We should not have fired yet
-    assertThat(tester.getResultSequence(), everyItem(equalTo(TriggerResult.CONTINUE)));
 
     // Advance past the first timer and fire, finishing the first window
     tester.advanceProcessingTime(new Instant(16));
-    assertThat(tester.getLatestResult(), equalTo(TriggerResult.FIRE_AND_FINISH));
-    assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(0), new Instant(10))));
+    assertTrue(tester.shouldFire(firstWindow));
+    assertFalse(tester.shouldFire(secondWindow));
+    tester.fireIfShouldFire(firstWindow);
+    assertTrue(tester.isMarkedFinished(firstWindow));
 
-    // This element belongs in the window that has already fired; it should not
-    // be passed to onElement, so there should be no resultSequence to observe
-    // (thus necessarily no timer)
-    tester.clearResultSequence();
-    tester.injectElements(2);
-    assertThat(tester.getResultSequence(), emptyIterable());
-
-    // The next window fires and finishes
+    // The next window fires and finishes now
     tester.advanceProcessingTime(new Instant(18));
-    assertThat(tester.getLatestResult(), equalTo(TriggerResult.FIRE_AND_FINISH));
-    assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(10), new Instant(20))));
-
-    // The timer for the finished window, from later elements, should also not do anything
-    tester.clearResultSequence();
-    tester.advanceProcessingTime(new Instant(20));
-    assertThat(tester.getResultSequence(), emptyIterable());
+    assertTrue(tester.shouldFire(secondWindow));
+    tester.fireIfShouldFire(secondWindow);
+    assertTrue(tester.isMarkedFinished(secondWindow));
   }
 
+  /**
+   * Tests that when windows merge, if the trigger is waiting for "N millis after the first
+   * element" that it is relative to the earlier of the two merged windows.
+   */
   @Test
   public void testClear() throws Exception {
     SimpleTriggerTester<IntervalWindow> tester = TriggerTester.forTrigger(
@@ -120,22 +103,27 @@ public class AfterProcessingTimeTest {
 
   @Test
   public void testAfterProcessingTimeWithMergingWindow() throws Exception {
-    Duration windowDuration = Duration.millis(10);
     SimpleTriggerTester<IntervalWindow> tester = TriggerTester.forTrigger(
         AfterProcessingTime
             .<IntervalWindow>pastFirstElementInPane()
             .plusDelayOf(Duration.millis(5)),
-        Sessions.withGapDuration(windowDuration));
+        Sessions.withGapDuration(Duration.millis(10)));
 
     tester.advanceProcessingTime(new Instant(10));
     tester.injectElements(1); // in [1, 11), timer for 15
-    tester.advanceProcessingTime(new Instant(11));
-    tester.injectElements(2); // in [2, 12), timer for 16
+    IntervalWindow firstWindow = new IntervalWindow(new Instant(1), new Instant(11));
+    assertFalse(tester.shouldFire(firstWindow));
+
+    tester.advanceProcessingTime(new Instant(12));
+    tester.injectElements(3); // in [3, 13), timer for 17
+    IntervalWindow secondWindow = new IntervalWindow(new Instant(3), new Instant(13));
+    assertFalse(tester.shouldFire(secondWindow));
+
+    tester.mergeWindows();
+    IntervalWindow mergedWindow = new IntervalWindow(new Instant(1), new Instant(13));
 
     tester.advanceProcessingTime(new Instant(16));
-    // This fires, because the earliest element in [1, 12) arrived at time 10
-    assertThat(tester.getLatestResult(), equalTo(TriggerResult.FIRE_AND_FINISH));
-    assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(1), new Instant(11))));
+    assertTrue(tester.shouldFire(mergedWindow));
   }
 
   @Test

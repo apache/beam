@@ -96,71 +96,6 @@ import javax.annotation.Nullable;
 public abstract class Trigger<W extends BoundedWindow> implements Serializable, TriggerBuilder<W> {
 
   /**
-   * {@code TriggerResult} enumerates the possible result a trigger can have when it is executed.
-   */
-  public enum TriggerResult {
-    FIRE(true, false),
-    CONTINUE(false, false),
-    FIRE_AND_FINISH(true, true);
-
-    private boolean finish;
-    private boolean fire;
-
-    private TriggerResult(boolean fire, boolean finish) {
-      this.fire = fire;
-      this.finish = finish;
-    }
-
-    public boolean isFire() {
-      return fire;
-    }
-
-    public boolean isFinish() {
-      return finish;
-    }
-  }
-
-  /**
-   * {@code TriggerResult} enumerates the possible result a trigger can have when it is merged.
-   */
-  public enum MergeResult {
-    FIRE(true, false, TriggerResult.FIRE),
-    CONTINUE(false, false, TriggerResult.CONTINUE),
-    FIRE_AND_FINISH(true, true, TriggerResult.FIRE_AND_FINISH),
-
-    /**
-     * A trigger can only return {@code ALREADY_FINISHED} from {@code onMerge}, and it should only
-     * be returned if the trigger was previously finished in at least one window.
-     *
-     * <p>Returning this indicates that the sub-trigger should be treated as finished in the output
-     * window.
-     */
-    ALREADY_FINISHED(false, true, null);
-
-    private boolean finish;
-    private boolean fire;
-    private TriggerResult triggerResult;
-
-    private MergeResult(boolean fire, boolean finish, TriggerResult triggerResult) {
-      this.fire = fire;
-      this.finish = finish;
-      this.triggerResult = triggerResult;
-    }
-
-    public boolean isFire() {
-      return fire;
-    }
-
-    public boolean isFinish() {
-      return finish;
-    }
-
-    public TriggerResult getTriggerResult() {
-      return triggerResult;
-    }
-  }
-
-  /**
    * Interface for accessing information about the trigger being executed and other triggers in the
    * same tree.
    */
@@ -235,12 +170,18 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
     /** Return true if the trigger is finished in any window being merged. */
     public abstract boolean finishedInAnyMergingWindow();
 
+    /** Return true if the trigger is finished in all windows being merged. */
+    public abstract boolean finishedInAllMergingWindows();
+
     /** Return the merging windows in which the trigger is finished. */
     public abstract Iterable<W> getFinishedMergingWindows();
   }
 
   /**
-   * Information accessible to all of the callbacks that are executed on a {@link Trigger}.
+   * Information accessible to all operational hooks in this {@code Trigger}.
+   *
+   * <p>Used directly in {@link Trigger#shouldFire} and {@link Trigger#clear}, and
+   * extended with additional information in other methods.
    */
   public abstract class TriggerContext {
 
@@ -275,7 +216,8 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
   }
 
   /**
-   * Details about an invocation of {@link Trigger#onElement}.
+   * Extended {@link Context} containing information accessible to the {@link #onElement}
+   * operational hook.
    */
   public abstract class OnElementContext extends TriggerContext {
     /** The event timestamp of the element currently being processed. */
@@ -301,7 +243,8 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
   }
 
   /**
-   * Details about an invocation of {@link Trigger#onMerge}.
+   * Extended {@link Context} containing information accessible to the {@link #onMerge}
+   * operational hook.
    */
   public abstract class OnMergeContext extends TriggerContext {
     /** The old windows that were merged. */
@@ -332,24 +275,6 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
     public abstract MergingTriggerInfo<W> trigger();
   }
 
-  /**
-   * Details about an invocation of {@link Trigger#onTimer}.
-   */
-  public abstract class OnTimerContext extends TriggerContext {
-
-    /** Returns the time that the timer was set for. */
-    public abstract Instant timestamp();
-
-    /** Returns the time domain that thet timer was set for. */
-    public abstract TimeDomain timeDomain();
-
-    /**
-     * Create an {@code OnTimerContext} for executing the given trigger.
-     */
-    @Override
-    public abstract OnTimerContext forTrigger(ExecutableTrigger<W> trigger);
-  }
-
   @Nullable
   protected final List<Trigger<W>> subTriggers;
 
@@ -361,28 +286,38 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
   /**
    * Called immediately after an element is first incorporated into a window.
    */
-  public abstract TriggerResult onElement(OnElementContext c) throws Exception;
+  public abstract void onElement(OnElementContext c) throws Exception;
 
   /**
    * Called immediately after windows have been merged.
    *
-   * <p>Leaf triggers should determine their result by inspecting their status and any state
-   * in the merging windows. Composite triggers should determine their result by calling
+   * <p>Leaf triggers should update their state by inspecting their status and any state
+   * in the merging windows. Composite triggers should update their state by calling
    * {@link ExecutableTrigger#invokeMerge} on their sub-triggers, and applying appropriate logic.
    *
-   * <p>A trigger can only return {@link MergeResult#ALREADY_FINISHED} if it is marked as finished
-   * in at least one of the windows being merged.
+   * <p>A trigger such as {@link AfterWatermark#pastEndOfWindow} may no longer be finished;
+   * it is the responsibility of the trigger itself to record this fact. It is forbidden for
+   * a trigger to become finished due to {@link onMerge}, as it has not yet fired the pending
+   * elements that led to it being ready to fire.
    *
    * <p>The implementation does not need to clear out any state associated with the old windows.
    */
-  public abstract MergeResult onMerge(OnMergeContext c) throws Exception;
+  public abstract void onMerge(OnMergeContext c) throws Exception;
 
   /**
-   * Called when a timer has fired for the current window. Composite triggers should pass the event
-   * to all sub-triggers. Triggers that set timers should verify the timer matches what they set
-   * before processing the firing.
+   * Returns {@code true} if the current state of the trigger indicates that its condition
+   * is satisfied and it is ready to fire.
    */
-  public abstract TriggerResult onTimer(OnTimerContext c) throws Exception;
+  public abstract boolean shouldFire(TriggerContext context) throws Exception;
+
+  /**
+   * Adjusts the state of the trigger to be ready for the next pane. For example, a
+   * {@link Repeatedly} trigger will reset its inner trigger, since it has fired.
+   *
+   * <p>If the trigger is finished, it is the responsibility of the trigger itself to
+   * record that fact via the {@code context}.
+   */
+  public abstract void onFire(TriggerContext context) throws Exception;
 
   /**
    * Called to allow the trigger to prefetch any state it will likely need to read from during
@@ -414,14 +349,28 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
 
   /**
    * Called to allow the trigger to prefetch any state it will likely need to read from during
-   * an {@link #onTimer} call.
+   * an {@link #shouldFire} call.
    *
-   * @param state {@lijnk ReduceFn.StateContext} to prefetch from.
+   * @param state {@link ReduceFn.StateContext} to prefetch from.
    */
-  public void prefetchOnTimer(ReduceFn.StateContext state) {
+  public void prefetchShouldFire(ReduceFn.StateContext state) {
     if (subTriggers != null) {
       for (Trigger<W> trigger : subTriggers) {
-        trigger.prefetchOnTimer(state);
+        trigger.prefetchShouldFire(state);
+      }
+    }
+  }
+
+  /**
+   * Called to allow the trigger to prefetch any state it will likely need to read from during
+   * an {@link #onFire} call.
+   *
+   * @param state {@link ReduceFn.StateContext} to prefetch from.
+   */
+  public void prefetchOnFire(ReduceFn.StateContext state) {
+    if (subTriggers != null) {
+      for (Trigger<W> trigger : subTriggers) {
+        trigger.prefetchOnFire(state);
       }
     }
   }
@@ -588,5 +537,20 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
       }
       return (OnceTrigger<W>) continuation;
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public final void onFire(TriggerContext context) throws Exception {
+      onOnlyFiring(context);
+      context.trigger().setFinished(true);
+    }
+
+    /**
+     * Called exactly once by {@link #onFire} when the trigger is fired. By default,
+     * invokes {@link #onFire} on all subtriggers for which {@link #shouldFire} is {@code true}.
+     */
+    protected abstract void onOnlyFiring(TriggerContext context) throws Exception;
   }
 }

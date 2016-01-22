@@ -67,19 +67,10 @@ public class TimeTriggerTest {
     }
 
     @Override
-    public TriggerResult onElement(OnElementContext c) throws Exception {
-      return null;
-    }
+    public void onElement(OnElementContext c) throws Exception { }
 
     @Override
-    public MergeResult onMerge(OnMergeContext c) throws Exception {
-      return null;
-    }
-
-    @Override
-    public TriggerResult onTimer(OnTimerContext c) throws Exception {
-      return null;
-    }
+    public void onMerge(OnMergeContext c) throws Exception { }
 
     @Override
     protected Trigger<IntervalWindow> getContinuationTrigger(
@@ -92,5 +83,12 @@ public class TimeTriggerTest {
       return null;
     }
 
+    @Override
+    public boolean shouldFire(TriggerContext context) throws Exception {
+      return false;
+    }
+
+    @Override
+    public void onOnlyFiring(TriggerContext context) throws Exception { }
   }
 }

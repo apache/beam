@@ -15,6 +15,7 @@
  */
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
+import com.google.cloud.dataflow.sdk.util.ExecutableTrigger;
 import com.google.common.annotations.VisibleForTesting;
 
 import org.joda.time.Instant;
@@ -35,36 +36,17 @@ class OrFinallyTrigger<W extends BoundedWindow> extends Trigger<W> {
   }
 
   @Override
-  public Trigger.TriggerResult onElement(OnElementContext c) throws Exception {
-    Trigger.TriggerResult untilResult = c.trigger().subTrigger(UNTIL).invokeElement(c);
-    if (untilResult != TriggerResult.CONTINUE) {
-      return TriggerResult.FIRE_AND_FINISH;
-    }
-
-    return c.trigger().subTrigger(ACTUAL).invokeElement(c);
+  public void onElement(OnElementContext c) throws Exception {
+    c.trigger().subTrigger(ACTUAL).invokeOnElement(c);
+    c.trigger().subTrigger(UNTIL).invokeOnElement(c);
   }
 
   @Override
-  public Trigger.MergeResult onMerge(OnMergeContext c) throws Exception {
-    Trigger.MergeResult untilResult = c.trigger().subTrigger(UNTIL).invokeMerge(c);
-    if (untilResult == MergeResult.ALREADY_FINISHED) {
-      return MergeResult.ALREADY_FINISHED;
-    } else if (untilResult.isFire()) {
-      return MergeResult.FIRE_AND_FINISH;
-    } else {
-      // was CONTINUE -- so merge the underlying trigger
-      return c.trigger().subTrigger(ACTUAL).invokeMerge(c);
+  public void onMerge(OnMergeContext c) throws Exception {
+    for (ExecutableTrigger<W> subTrigger : c.trigger().subTriggers()) {
+      subTrigger.invokeOnMerge(c);
     }
-  }
-
-  @Override
-  public Trigger.TriggerResult onTimer(OnTimerContext c) throws Exception {
-    Trigger.TriggerResult untilResult = c.trigger().subTrigger(UNTIL).invokeTimer(c);
-    if (untilResult != TriggerResult.CONTINUE) {
-      return TriggerResult.FIRE_AND_FINISH;
-    }
-
-    return c.trigger().subTrigger(ACTUAL).invokeTimer(c);
+    updateFinishedState(c);
   }
 
   @Override
@@ -83,5 +65,36 @@ class OrFinallyTrigger<W extends BoundedWindow> extends Trigger<W> {
         new OrFinallyTrigger<W>(
             continuationTriggers.get(ACTUAL),
             (Trigger.OnceTrigger<W>) continuationTriggers.get(UNTIL)));
+  }
+
+  @Override
+  public boolean shouldFire(Trigger<W>.TriggerContext context) throws Exception {
+    return context.trigger().subTrigger(ACTUAL).invokeShouldFire(context)
+        || context.trigger().subTrigger(UNTIL).invokeShouldFire(context);
+  }
+
+  @Override
+  public void onFire(Trigger<W>.TriggerContext context) throws Exception {
+    ExecutableTrigger<W> actualSubtrigger = context.trigger().subTrigger(ACTUAL);
+    ExecutableTrigger<W> untilSubtrigger = context.trigger().subTrigger(UNTIL);
+
+    if (untilSubtrigger.invokeShouldFire(context)) {
+      untilSubtrigger.invokeOnFire(context);
+      actualSubtrigger.invokeClear(context);
+    } else {
+      // If until didn't fire, then the actual must have (or it is forbidden to call
+      // onFire) so we are done only if actual is done.
+      actualSubtrigger.invokeOnFire(context);
+      // Do not clear the until trigger, because it tracks data cross firings.
+    }
+    updateFinishedState(context);
+  }
+
+  private void updateFinishedState(TriggerContext c) throws Exception {
+    boolean anyStillFinished = false;
+    for (ExecutableTrigger<W> subTrigger : c.trigger().subTriggers()) {
+      anyStillFinished |= c.forTrigger(subTrigger).trigger().isFinished();
+    }
+    c.trigger().setFinished(anyStillFinished);
   }
 }

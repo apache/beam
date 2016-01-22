@@ -15,6 +15,8 @@
  */
 package com.google.cloud.dataflow.sdk.util;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
@@ -150,7 +152,7 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
       this.activeWindows = activeWindows;
       this.windowCoder = windowCoder;
       this.stateInternals = stateInternals;
-      this.window = window;
+      this.window = checkNotNull(window);
       this.windowNamespace = namespaceFor(window);
     }
 

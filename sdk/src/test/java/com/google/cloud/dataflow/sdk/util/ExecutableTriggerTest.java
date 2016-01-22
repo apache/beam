@@ -94,23 +94,10 @@ public class ExecutableTriggerTest {
     }
 
     @Override
-    public TriggerResult onElement(
-        OnElementContext c) throws Exception {
-      return TriggerResult.CONTINUE;
-    }
+    public void onElement(OnElementContext c) throws Exception { }
 
     @Override
-    public MergeResult onMerge(OnMergeContext c)
-        throws Exception {
-      return MergeResult.CONTINUE;
-    }
-
-    @Override
-    public TriggerResult onTimer(
-        OnTimerContext c)
-        throws Exception {
-      return TriggerResult.CONTINUE;
-    }
+    public void onMerge(OnMergeContext c) throws Exception { }
 
     @Override
     public void clear(TriggerContext c) throws Exception {
@@ -131,5 +118,13 @@ public class ExecutableTriggerTest {
         List<Trigger<IntervalWindow>> continuationTriggers) {
       return this;
     }
+
+    @Override
+    public boolean shouldFire(TriggerContext c) {
+      return false;
+    }
+
+    @Override
+    public void onFire(TriggerContext c) { }
   }
 }

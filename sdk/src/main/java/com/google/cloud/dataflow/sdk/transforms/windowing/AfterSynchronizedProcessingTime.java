@@ -15,98 +15,30 @@
  */
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
-import static com.google.cloud.dataflow.sdk.transforms.windowing.TimeTrigger.DELAYED_UNTIL_TAG;
-
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
-import com.google.cloud.dataflow.sdk.util.ReduceFn.MergingStateContext;
-import com.google.cloud.dataflow.sdk.util.ReduceFn.StateContext;
+import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.util.TimeDomain;
-import com.google.cloud.dataflow.sdk.util.state.CombiningValueState;
 import com.google.common.base.Objects;
 
 import org.joda.time.Instant;
 
+import java.util.Collections;
 import java.util.List;
 
-class AfterSynchronizedProcessingTime<W extends BoundedWindow> extends OnceTrigger<W> {
+import javax.annotation.Nullable;
+
+class AfterSynchronizedProcessingTime<W extends BoundedWindow>
+    extends AfterDelayFromFirstElement<W> {
+
+  @Override
+  @Nullable
+  public Instant getCurrentTime(Trigger<W>.TriggerContext context) {
+    // TODO: plumb synchronized processing time
+    return context.currentProcessingTime();
+  }
 
   public AfterSynchronizedProcessingTime() {
-    super(null);
-  }
-
-  @Override
-  public void prefetchOnElement(StateContext state) {
-    state.access(DELAYED_UNTIL_TAG).get();
-  }
-
-  @Override
-  public TriggerResult onElement(OnElementContext c)
-      throws Exception {
-    CombiningValueState<Instant, Instant> delayUntilState = c.state().access(DELAYED_UNTIL_TAG);
-    Instant delayUntil = delayUntilState.get().read();
-    if (delayUntil == null) {
-      delayUntil = c.currentProcessingTime();
-      c.setTimer(delayUntil, TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
-      delayUntilState.add(delayUntil);
-    }
-
-    return TriggerResult.CONTINUE;
-  }
-
-  @Override
-  public void prefetchOnMerge(MergingStateContext state) {
-    state.mergingAccess(DELAYED_UNTIL_TAG).get();
-  }
-
-  @Override
-  public MergeResult onMerge(OnMergeContext c) throws Exception {
-    // If the processing time timer has fired in any of the windows being merged, it would have
-    // fired at the same point if it had been added to the merged window. So, we just report it as
-    // finished.
-    if (c.trigger().finishedInAnyMergingWindow()) {
-      return MergeResult.ALREADY_FINISHED;
-    }
-
-    // Otherwise, determine the earliest delay for all of the windows, and delay to that point.
-    CombiningValueState<Instant, Instant> mergingDelays =
-        c.state().mergingAccess(DELAYED_UNTIL_TAG);
-    Instant earliestTimer = mergingDelays.get().read();
-    if (earliestTimer != null) {
-      mergingDelays.clear();
-      mergingDelays.add(earliestTimer);
-      c.setTimer(earliestTimer, TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
-    }
-
-    return MergeResult.CONTINUE;
-  }
-
-  @Override
-  public void prefetchOnTimer(StateContext state) {
-    state.access(DELAYED_UNTIL_TAG).get();
-  }
-
-  @Override
-  public TriggerResult onTimer(OnTimerContext c) throws Exception {
-    if (c.timeDomain() != TimeDomain.SYNCHRONIZED_PROCESSING_TIME) {
-      return TriggerResult.CONTINUE;
-    }
-
-    Instant delayedUntil = c.state().access(DELAYED_UNTIL_TAG).get().read();
-    if (delayedUntil == null || delayedUntil.isAfter(c.timestamp())) {
-      return TriggerResult.CONTINUE;
-    }
-
-    return TriggerResult.FIRE_AND_FINISH;
-  }
-
-  @Override
-  public void clear(TriggerContext c) throws Exception {
-    CombiningValueState<Instant, Instant> delayed = c.state().access(DELAYED_UNTIL_TAG);
-    Instant timestamp = delayed.get().read();
-    delayed.clear();
-    if (timestamp != null) {
-      c.deleteTimer(timestamp, TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
-    }
+    super(TimeDomain.SYNCHRONIZED_PROCESSING_TIME,
+        Collections.<SerializableFunction<Instant, Instant>>emptyList());
   }
 
   @Override
@@ -133,4 +65,12 @@ class AfterSynchronizedProcessingTime<W extends BoundedWindow> extends OnceTrigg
   public int hashCode() {
     return Objects.hashCode(AfterSynchronizedProcessingTime.class);
   }
+
+  @Override
+  protected AfterSynchronizedProcessingTime<W>
+      newWith(List<SerializableFunction<Instant, Instant>> transforms) {
+    // ignore transforms
+    return this;
+  }
+
 }

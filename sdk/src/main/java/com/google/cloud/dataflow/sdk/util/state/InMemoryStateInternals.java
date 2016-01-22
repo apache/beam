@@ -30,6 +30,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
+import javax.annotation.Nullable;
+
 /**
  * In-memory implementation of {@link StateInternals}. Used in {@code BatchModeExecutionContext}
  * and for running tests that need state.
@@ -127,6 +129,8 @@ public class InMemoryStateInternals extends MergingStateInternals {
       implements WatermarkStateInternal, InMemoryState {
 
     private final OutputTimeFn<?> outputTimeFn;
+
+    @Nullable
     private Instant combinedHold = null;
 
     public WatermarkStateInternalImplementation(OutputTimeFn<?> outputTimeFn) {
