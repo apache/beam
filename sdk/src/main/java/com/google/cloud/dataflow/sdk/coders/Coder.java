@@ -21,6 +21,8 @@ import com.google.cloud.dataflow.sdk.annotations.Experimental.Kind;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
 import com.google.common.base.Joiner;
+import com.google.common.base.MoreObjects;
+import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 
 import java.io.IOException;
@@ -30,7 +32,6 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-import java.util.Objects;
 
 import javax.annotation.Nullable;
 
@@ -91,6 +92,25 @@ public interface Coder<T> extends Serializable {
 
     public Context nested() {
       return NESTED;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (!(obj instanceof Context)) {
+        return false;
+      }
+      return Objects.equal(isWholeStream, ((Context) obj).isWholeStream);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(isWholeStream);
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(Context.class)
+          .addValue(isWholeStream ? "OUTER" : "NESTED").toString();
     }
   }
 
