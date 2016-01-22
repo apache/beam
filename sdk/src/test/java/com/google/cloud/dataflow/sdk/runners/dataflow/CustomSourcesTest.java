@@ -646,6 +646,7 @@ public class CustomSourcesTest {
               .build(),
           new Instant(0), // input watermark
           null, // output watermark
+          null, // synchronized processing time
           null, // StateReader
           null, // StateFetcher
           Windmill.WorkItemCommitRequest.newBuilder());

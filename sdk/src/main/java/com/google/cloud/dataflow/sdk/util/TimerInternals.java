@@ -55,6 +55,13 @@ public interface TimerInternals {
   Instant currentProcessingTime();
 
   /**
+   * Returns the current timestamp in the {@link TimeDomain#SYNCHRONIZED_PROCESSING_TIME} time
+   * domain or {@code null} if unknown.
+   */
+  @Nullable
+  Instant currentSynchronizedProcessingTime();
+
+  /**
    * Return the current, local input watermark timestamp for this computation
    * in the {@link TimeDomain#EVENT_TIME} time domain. Return {@code null} if unknown.
    *

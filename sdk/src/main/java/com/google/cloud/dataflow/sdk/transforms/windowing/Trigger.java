@@ -264,6 +264,14 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
 
     /** The current processing time. */
     public abstract Instant currentProcessingTime();
+
+    /** The current synchronized upstream processing time or {@code null} if unknown. */
+    @Nullable
+    public abstract Instant currentSynchronizedProcessingTime();
+
+    /** The current event time for the input or {@code null} if unknown. */
+    @Nullable
+    public abstract Instant currentEventTime();
   }
 
   /**

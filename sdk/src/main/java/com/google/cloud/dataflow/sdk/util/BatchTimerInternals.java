@@ -69,6 +69,18 @@ public class BatchTimerInternals implements TimerInternals {
     return processingTime;
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * @return {@link BoundedWindow#TIMESTAMP_MAX_VALUE}: in batch mode, upstream processing
+   * is already complete.
+   */
+  @Override
+  @Nullable
+  public Instant currentSynchronizedProcessingTime() {
+    return BoundedWindow.TIMESTAMP_MAX_VALUE;
+  }
+
   @Override
   public Instant currentInputWatermarkTime() {
     return inputWatermarkTime;

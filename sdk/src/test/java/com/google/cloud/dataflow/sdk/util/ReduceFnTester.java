@@ -310,6 +310,16 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   }
 
   /**
+   * Advance the synchronized processing time to the specified time,
+   * firing any timers that should fire.
+   */
+  public void advanceSynchronizedProcessingTime(Instant newProcessingTime) throws Exception {
+    ReduceFnRunner<String, InputT, OutputT, W> runner = createRunner();
+    timerInternals.advanceSynchronizedProcessingTime(runner, newProcessingTime);
+    runner.persist();
+  }
+
+  /**
    * Inject all the timestamped values (after passing through the window function) as if they
    * arrived in a single chunk of a bundle (or work-unit).
    */
@@ -511,6 +521,10 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     /** Current processing time. */
     private Instant processingTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
+    /** Current synchronized processing time. */
+    @Nullable
+    private Instant synchronizedProcessingTime = null;
+
     private PriorityQueue<TimerData> queue(TimeDomain domain) {
       return TimeDomain.EVENT_TIME.equals(domain) ? watermarkTimers : processingTimers;
     }
@@ -533,6 +547,12 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     @Override
     public Instant currentProcessingTime() {
       return processingTime;
+    }
+
+    @Override
+    @Nullable
+    public Instant currentSynchronizedProcessingTime() {
+      return synchronizedProcessingTime;
     }
 
     @Override
@@ -605,6 +625,18 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
           newProcessingTime);
       processingTime = newProcessingTime;
       advanceAndFire(runner, newProcessingTime, TimeDomain.PROCESSING_TIME);
+    }
+
+    public void advanceSynchronizedProcessingTime(
+        ReduceFnRunner<?, ?, ?, ?> runner, Instant newSynchronizedProcessingTime) {
+      Preconditions.checkState(!newSynchronizedProcessingTime.isBefore(synchronizedProcessingTime),
+          "Cannot move processing time backwards from %s to %s", processingTime,
+          newSynchronizedProcessingTime);
+      WindowTracing.trace("TestTimerInternals.advanceProcessingTime: from {} to {}",
+          synchronizedProcessingTime, newSynchronizedProcessingTime);
+      synchronizedProcessingTime = newSynchronizedProcessingTime;
+      advanceAndFire(
+          runner, newSynchronizedProcessingTime, TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
     }
 
     private void advanceAndFire(

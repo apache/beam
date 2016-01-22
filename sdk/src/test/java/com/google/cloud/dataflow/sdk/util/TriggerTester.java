@@ -259,6 +259,12 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
     timerInternals.advanceProcessingTime(newProcessingTime);
   }
 
+  /** Advance the processing time to the specified time, firing any timers that should fire. */
+  public void advanceSynchronizedProcessingTime(Instant newSynchronizedProcessingTime)
+      throws Exception {
+    timerInternals.advanceSynchronizedProcessingTime(newSynchronizedProcessingTime);
+  }
+
   /**
    * Inject all the timestamped values (after passing through the window function) as if they
    * arrived in a single chunk of a bundle (or work-unit).
@@ -460,6 +466,9 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
     /** Current processing time. */
     private Instant processingTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
+    /** Current processing time. */
+    private Instant synchronizedProcessingTime = null;
+
     private PriorityQueue<TimerData> queue(TimeDomain domain) {
       return TimeDomain.EVENT_TIME.equals(domain) ? watermarkTimers : processingTimers;
     }
@@ -482,6 +491,12 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
     @Override
     public Instant currentProcessingTime() {
       return processingTime;
+    }
+
+    @Override
+    @Nullable
+    public Instant currentSynchronizedProcessingTime() {
+      return synchronizedProcessingTime;
     }
 
     @Override
@@ -552,6 +567,17 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
       advanceAndFire(newProcessingTime, TimeDomain.PROCESSING_TIME);
     }
 
+    public void advanceSynchronizedProcessingTime(Instant newSynchronizedProcessingTime)
+        throws Exception {
+      checkState(!newSynchronizedProcessingTime.isBefore(synchronizedProcessingTime),
+          "Cannot move processing time backwards from %s to %s", synchronizedProcessingTime,
+          newSynchronizedProcessingTime);
+      WindowTracing.trace("TestTimerInternals.advanceProcessingTime: from {} to {}",
+          synchronizedProcessingTime, newSynchronizedProcessingTime);
+      synchronizedProcessingTime = newSynchronizedProcessingTime;
+      advanceAndFire(newSynchronizedProcessingTime, TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
+    }
+
     private void advanceAndFire(Instant currentTime, TimeDomain domain) throws Exception {
       PriorityQueue<TimerData> queue = queue(domain);
 
@@ -598,6 +624,18 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
     @Override
     public Instant currentProcessingTime() {
       return timerInternals.currentProcessingTime();
+    }
+
+    @Override
+    @Nullable
+    public Instant currentSynchronizedProcessingTime() {
+      return timerInternals.currentSynchronizedProcessingTime();
+    }
+
+    @Override
+    @Nullable
+    public Instant currentEventTime() {
+      return timerInternals.currentInputWatermarkTime();
     }
   }
 }

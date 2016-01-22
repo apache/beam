@@ -29,6 +29,8 @@ import java.io.Serializable;
 import java.util.Collection;
 import java.util.Map;
 
+import javax.annotation.Nullable;
+
 /**
  * Specification for processing to happen after elements have been grouped by key.
  *
@@ -103,6 +105,14 @@ public abstract class ReduceFn<K, InputT, OutputT, W extends BoundedWindow>
 
     /** Returns the current processing time. */
     public abstract Instant currentProcessingTime();
+
+    /** Returns the current synchronized processing time or {@code null} if unknown. */
+    @Nullable
+    public abstract Instant currentSynchronizedProcessingTime();
+
+    /** Returns the current event time or {@code null} if unknown. */
+    @Nullable
+    public abstract Instant currentEventTime();
   }
 
   /** Information accessible to all the processing methods in this {@code ReduceFn}. */

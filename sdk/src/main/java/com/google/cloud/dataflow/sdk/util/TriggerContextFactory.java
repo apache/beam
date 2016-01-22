@@ -33,6 +33,8 @@ import org.joda.time.Instant;
 import java.util.Collection;
 import java.util.Map;
 
+import javax.annotation.Nullable;
+
 /**
  * Factory for creating instances of the various {@link Trigger} contexts.
  *
@@ -193,6 +195,18 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     public Instant currentProcessingTime() {
       return timers.currentProcessingTime();
     }
+
+    @Override
+    @Nullable
+    public Instant currentSynchronizedProcessingTime() {
+      return timers.currentSynchronizedProcessingTime();
+    }
+
+    @Override
+    @Nullable
+    public Instant currentEventTime() {
+      return timers.currentEventTime();
+    }
   }
 
   private class MergingTriggerInfoImpl
@@ -305,8 +319,19 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     public Instant currentProcessingTime() {
       return timers.currentProcessingTime();
     }
-  }
 
+    @Override
+    @Nullable
+    public Instant currentSynchronizedProcessingTime() {
+      return timers.currentSynchronizedProcessingTime();
+    }
+
+    @Override
+    @Nullable
+    public Instant currentEventTime() {
+      return timers.currentEventTime();
+    }
+  }
 
   private class OnElementContextImpl extends Trigger<W>.OnElementContext {
 
@@ -369,6 +394,18 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     @Override
     public Instant currentProcessingTime() {
       return timers.currentProcessingTime();
+    }
+
+    @Override
+    @Nullable
+    public Instant currentSynchronizedProcessingTime() {
+      return timers.currentSynchronizedProcessingTime();
+    }
+
+    @Override
+    @Nullable
+    public Instant currentEventTime() {
+      return timers.currentEventTime();
     }
   }
 
@@ -435,6 +472,18 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     public Instant currentProcessingTime() {
       return timers.currentProcessingTime();
     }
+
+    @Override
+    @Nullable
+    public Instant currentSynchronizedProcessingTime() {
+      return timers.currentSynchronizedProcessingTime();
+    }
+
+    @Override
+    @Nullable
+    public Instant currentEventTime() {
+      return timers.currentEventTime();
+    }
   }
 
   private class OnMergeContextImpl extends Trigger<W>.OnMergeContext {
@@ -498,6 +547,18 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     @Override
     public Instant currentProcessingTime() {
       return timers.currentProcessingTime();
+    }
+
+    @Override
+    @Nullable
+    public Instant currentSynchronizedProcessingTime() {
+      return timers.currentSynchronizedProcessingTime();
+    }
+
+    @Override
+    @Nullable
+    public Instant currentEventTime() {
+      return timers.currentEventTime();
     }
   }
 }

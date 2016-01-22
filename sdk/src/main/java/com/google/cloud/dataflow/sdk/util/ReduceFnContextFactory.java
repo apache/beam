@@ -40,6 +40,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
+import javax.annotation.Nullable;
+
 /**
  * Factory for creating instances of the various {@link ReduceFn} contexts.
  */
@@ -116,6 +118,18 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
     @Override
     public Instant currentProcessingTime() {
       return timerInternals.currentProcessingTime();
+    }
+
+    @Override
+    @Nullable
+    public Instant currentSynchronizedProcessingTime() {
+      return timerInternals.currentSynchronizedProcessingTime();
+    }
+
+    @Override
+    @Nullable
+    public Instant currentEventTime() {
+      return timerInternals.currentInputWatermarkTime();
     }
   }
 

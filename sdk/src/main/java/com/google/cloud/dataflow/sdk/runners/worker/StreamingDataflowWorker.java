@@ -492,6 +492,10 @@ public class StreamingDataflowWorker {
         final Instant inputDataWatermark =
             WindmillTimeUtils.windmillToHarnessInputWatermark(
                 computationWork.getInputDataWatermark());
+        @Nullable
+        final Instant synchronizedProcessingTime =
+            WindmillTimeUtils.windmillToHarnessInputWatermark(
+                computationWork.getDependentRealtimeInputWatermark());
         ActiveWorkForComputation activeWork = activeWorkMap.get(computation);
         for (final Windmill.WorkItem workItem : computationWork.getWorkList()) {
           // May be null if output watermark not yet known.
@@ -504,7 +508,8 @@ public class StreamingDataflowWorker {
           Work work = new Work(workItem.getWorkToken()) {
             @Override
             public void run() {
-              process(computation, mapTask, inputDataWatermark, outputDataWatermark, workItem);
+              process(computation, mapTask, inputDataWatermark, outputDataWatermark,
+                  synchronizedProcessingTime, workItem);
             }
           };
           if (activeWork.activateWork(workItem.getKey(), work)) {
@@ -528,6 +533,7 @@ public class StreamingDataflowWorker {
 
   private void process(final String computation, final MapTask mapTask,
       @Nullable final Instant inputDataWatermark, @Nullable final Instant outputDataWatermark,
+      @Nullable final Instant synchronizedProcessingTime,
       final Windmill.WorkItem work) {
     LOG.debug("Starting processing for {}:\n{}", computation, work);
 
@@ -587,8 +593,8 @@ public class StreamingDataflowWorker {
       WindmillStateReader stateReader = new WindmillStateReader(
           metricTrackingWindmillServer, computation, work.getKey(), work.getWorkToken());
       StateFetcher localStateFetcher = stateFetcher.byteTrackingView();
-      context.start(work, inputDataWatermark, outputDataWatermark, stateReader, localStateFetcher,
-          outputBuilder);
+      context.start(work, inputDataWatermark, outputDataWatermark, synchronizedProcessingTime,
+          stateReader, localStateFetcher, outputBuilder);
 
       for (Long callbackId : context.getReadyCommitCallbackIds()) {
         final Runnable callback = commitCallbacks.remove(callbackId);
@@ -688,7 +694,8 @@ public class StreamingDataflowWorker {
           workUnitExecutor.forceExecute(new Runnable() {
             @Override
             public void run() {
-              process(computation, mapTask, inputDataWatermark, outputDataWatermark, work);
+              process(computation, mapTask, inputDataWatermark, outputDataWatermark,
+                  synchronizedProcessingTime, work);
             }
           });
         } else {

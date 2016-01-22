@@ -70,6 +70,7 @@ public class StreamingModeExecutionContext
   private Windmill.WorkItem work;
   @Nullable private Instant inputDataWatermark;
   @Nullable private Instant outputDataWatermark;
+  @Nullable private Instant synchronizedProcessingTime;
   private WindmillStateReader stateReader;
   private StateFetcher stateFetcher;
   private Windmill.WorkItemCommitRequest.Builder outputBuilder;
@@ -89,19 +90,22 @@ public class StreamingModeExecutionContext
       Windmill.WorkItem work,
       @Nullable Instant inputDataWatermark,
       @Nullable Instant outputDataWatermark,
+      @Nullable Instant synchronizedProcessingTime,
       WindmillStateReader stateReader,
       StateFetcher stateFetcher,
       Windmill.WorkItemCommitRequest.Builder outputBuilder) {
     this.work = work;
     this.inputDataWatermark = inputDataWatermark;
     this.outputDataWatermark = outputDataWatermark;
+    this.synchronizedProcessingTime = synchronizedProcessingTime;
     this.stateReader = stateReader;
     this.stateFetcher = stateFetcher;
     this.outputBuilder = outputBuilder;
     this.sideInputCache.clear();
 
     for (ExecutionContext.StepContext stepContext : getAllStepContexts()) {
-      ((StepContext) stepContext).start(stateReader, inputDataWatermark, outputDataWatermark);
+      ((StepContext) stepContext)
+          .start(stateReader, inputDataWatermark, outputDataWatermark, synchronizedProcessingTime);
     }
   }
 
@@ -109,7 +113,7 @@ public class StreamingModeExecutionContext
   public StepContext createStepContext(
       String stepName, String transformName, StateSampler stateSampler) {
     StepContext context = new StepContext(stepName, transformName, stateSampler);
-    context.start(stateReader, inputDataWatermark, outputDataWatermark);
+    context.start(stateReader, inputDataWatermark, outputDataWatermark, synchronizedProcessingTime);
     return context;
   }
 
@@ -297,11 +301,11 @@ public class StreamingModeExecutionContext
     private Map<TimerData, Boolean> timers = new HashMap<>();
     @Nullable private Instant inputDataWatermark;
     @Nullable private Instant outputDataWatermark;
+    @Nullable private Instant synchronizedProcessingTime;
     private String stateFamily;
 
-    public WindmillTimerInternals(
-        String stateFamily, @Nullable Instant inputDataWatermark,
-        @Nullable Instant outputDataWatermark) {
+    public WindmillTimerInternals(String stateFamily, @Nullable Instant inputDataWatermark,
+        @Nullable Instant outputDataWatermark, @Nullable Instant synchronizedProcessingTime) {
       this.inputDataWatermark = inputDataWatermark;
       this.outputDataWatermark = outputDataWatermark;
       this.stateFamily = stateFamily;
@@ -320,6 +324,12 @@ public class StreamingModeExecutionContext
     @Override
     public Instant currentProcessingTime() {
       return Instant.now();
+    }
+
+    @Override
+    @Nullable
+    public Instant currentSynchronizedProcessingTime() {
+      return synchronizedProcessingTime;
     }
 
     /**
@@ -417,12 +427,14 @@ public class StreamingModeExecutionContext
      */
     public void start(
         WindmillStateReader stateReader, @Nullable Instant inputDataWatermark,
-        @Nullable Instant outputDataWatermark) {
+        @Nullable Instant outputDataWatermark,
+        @Nullable Instant synchronizedProcessingTime) {
       this.stateInternals = new WindmillStateInternals(stateFamily, stateReader,
           stateCache.forKey(getSerializedKey(), stateFamily, getWork().getCacheToken()),
           scopedReadStateSupplier);
       this.timerInternals =
-          new WindmillTimerInternals(stateFamily, inputDataWatermark, outputDataWatermark);
+new WindmillTimerInternals(
+          stateFamily, inputDataWatermark, outputDataWatermark, synchronizedProcessingTime);
     }
 
     public void flushState() {
