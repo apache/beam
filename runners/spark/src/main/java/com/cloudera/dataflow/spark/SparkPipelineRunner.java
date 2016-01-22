@@ -213,7 +213,7 @@ public final class SparkPipelineRunner extends PipelineRunner<EvaluationResult> 
             (Class<PTransform<?, ?>>) node.getTransform().getClass();
         if (translator.hasTranslation(transformClass)) {
           LOG.info("Entering directly-translatable composite transform: '{}'", node.getFullName());
-          LOG.debug("Composite transform class: '{}'", node.getTransform().getClass());
+          LOG.debug("Composite transform class: '{}'", transformClass);
           currentTranslatedCompositeNode = node;
         }
       }

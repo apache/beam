@@ -49,7 +49,6 @@ public class EvaluationContext implements EvaluationResult {
   private final JavaSparkContext jsc;
   private final Pipeline pipeline;
   private final SparkRuntimeContext runtime;
-  //private final CoderRegistry registry;
   private final Map<PValue, RDDHolder<?>> pcollections = new LinkedHashMap<>();
   private final Set<RDDHolder<?>> leafRdds = new LinkedHashSet<>();
   private final Set<PValue> multireads = new LinkedHashSet<>();
@@ -60,7 +59,6 @@ public class EvaluationContext implements EvaluationResult {
   public EvaluationContext(JavaSparkContext jsc, Pipeline pipeline) {
     this.jsc = jsc;
     this.pipeline = pipeline;
-    //this.registry = pipeline.getCoderRegistry();
     this.runtime = new SparkRuntimeContext(jsc, pipeline);
   }
 

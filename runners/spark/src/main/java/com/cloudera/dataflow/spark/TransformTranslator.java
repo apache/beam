@@ -772,10 +772,6 @@ public final class TransformTranslator {
     EVALUATORS.put(Window.Bound.class, window());
   }
 
-  public static <PT extends PTransform<?, ?>> boolean hasTransformEvaluator(Class<PT> clazz) {
-    return EVALUATORS.containsKey(clazz);
-  }
-
   public static <PT extends PTransform<?, ?>> TransformEvaluator<PT>
   getTransformEvaluator(Class<PT> clazz) {
     @SuppressWarnings("unchecked")
@@ -793,7 +789,7 @@ public final class TransformTranslator {
 
     @Override
     public boolean hasTranslation(Class<? extends PTransform<?, ?>> clazz) {
-      return hasTransformEvaluator(clazz);
+      return EVALUATORS.containsKey(clazz);
     }
 
     @Override
