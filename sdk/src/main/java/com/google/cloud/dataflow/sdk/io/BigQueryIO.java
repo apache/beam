@@ -31,6 +31,8 @@ import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.TableRowJsonCoder;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
+import com.google.cloud.dataflow.sdk.io.BigQueryIO.Write.CreateDisposition;
+import com.google.cloud.dataflow.sdk.io.BigQueryIO.Write.WriteDisposition;
 import com.google.cloud.dataflow.sdk.options.BigQueryOptions;
 import com.google.cloud.dataflow.sdk.options.GcpOptions;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
@@ -1086,7 +1088,8 @@ public class BigQueryIO {
             TableSchema tableSchema = JSON_FACTORY.fromString(jsonTableSchema, TableSchema.class);
             Bigquery client = Transport.newBigQueryClient(options).build();
             BigQueryTableInserter inserter = new BigQueryTableInserter(client);
-            inserter.tryCreateTable(tableReference, tableSchema);
+            inserter.getOrCreateTable(tableReference, WriteDisposition.WRITE_APPEND,
+                CreateDisposition.CREATE_IF_NEEDED, tableSchema);
             createdTables.add(tableSpec);
           }
         }
