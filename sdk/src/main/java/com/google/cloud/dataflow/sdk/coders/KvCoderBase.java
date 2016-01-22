@@ -31,6 +31,7 @@ import java.util.List;
  *
  * @param <T> the type of values being transcoded
  */
+@Deprecated
 public abstract class KvCoderBase<T> extends StandardCoder<T> {
   /**
    * A constructor used only for decoding from JSON.
@@ -38,6 +39,7 @@ public abstract class KvCoderBase<T> extends StandardCoder<T> {
    * @param typeId present in the JSON encoding, but unused
    * @param isPairLike present in the JSON encoding, but unused
    */
+  @Deprecated
   @JsonCreator
   public static KvCoderBase<?> of(
       // N.B. typeId is a required parameter here, since a field named "@type"

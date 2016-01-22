@@ -30,7 +30,9 @@ import java.util.List;
  * parameters).  This should be removed in favor of a better workaround.
  * @param <T> the type of values being transcoded
  */
+@Deprecated
 public abstract class MapCoderBase<T> extends StandardCoder<T> {
+  @Deprecated
   @JsonCreator
   public static MapCoderBase<?> of(
       // N.B. typeId is a required parameter here, since a field named "@type"

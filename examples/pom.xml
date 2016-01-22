@@ -276,11 +276,11 @@
               <location>${basedir}/../javadoc/guava-docs</location>
             </offlineLink>
             <offlineLink>
-              <url>http://fasterxml.github.io/jackson-annotations/javadoc/2.4/</url>
+              <url>http://fasterxml.github.io/jackson-annotations/javadoc/2.7/</url>
               <location>${basedir}/../javadoc/jackson-annotations-docs</location>
             </offlineLink>
             <offlineLink>
-              <url>http://fasterxml.github.io/jackson-databind/javadoc/2.4/</url>
+              <url>http://fasterxml.github.io/jackson-databind/javadoc/2.7/</url>
               <location>${basedir}/../javadoc/jackson-databind-docs</location>
             </offlineLink>
             <offlineLink>
