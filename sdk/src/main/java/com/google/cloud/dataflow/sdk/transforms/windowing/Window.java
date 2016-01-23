@@ -20,23 +20,16 @@ import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.annotations.Experimental.Kind;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.Coder.NonDeterministicException;
-import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.util.AssignWindowsDoFn;
-import com.google.cloud.dataflow.sdk.util.DirectModeExecutionContext;
-import com.google.cloud.dataflow.sdk.util.DoFnRunner;
-import com.google.cloud.dataflow.sdk.util.NullSideInputReader;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
 import com.google.cloud.dataflow.sdk.values.PCollection;
-import com.google.cloud.dataflow.sdk.values.TupleTag;
 
 import org.joda.time.Duration;
-
-import java.util.ArrayList;
 
 import javax.annotation.Nullable;
 
@@ -527,9 +520,14 @@ public class Window {
       return new Bound<T>(name, windowFn, trigger, mode, allowedLateness, behavior, outputTimeFn);
     }
 
+    /**
+     * Get the output strategy of this {@link Window.Bound Window PTransform}. For internal use
+     * only.
+     */
     // Rawtype cast of OutputTimeFn cannot be eliminated with intermediate variable, as it is
     // casting between wildcards
-    private WindowingStrategy<?, ?> getOutputStrategy(WindowingStrategy<?, ?> inputStrategy) {
+    public WindowingStrategy<?, ?> getOutputStrategyInternal(
+        WindowingStrategy<?, ?> inputStrategy) {
       WindowingStrategy<?, ?> result = inputStrategy;
       if (windowFn != null) {
         result = result.withWindowFn(windowFn);
@@ -552,18 +550,24 @@ public class Window {
       return result;
     }
 
+    /**
+     * Get the {@link WindowFn} of this {@link Window.Bound Window PTransform}.
+     */
+    public WindowFn<? super T, ?> getWindowFn() {
+      return windowFn;
+    }
+
     @Override
     public void validate(PCollection<T> input) {
-      WindowingStrategy<?, ?> outputStrategy = getOutputStrategy(input.getWindowingStrategy());
+      WindowingStrategy<?, ?> outputStrategy =
+          getOutputStrategyInternal(input.getWindowingStrategy());
 
       // Make sure that the windowing strategy is complete & valid.
       if (outputStrategy.isTriggerSpecified()
           && !(outputStrategy.getTrigger().getSpec() instanceof DefaultTrigger)) {
-
         if (!(outputStrategy.getWindowFn() instanceof GlobalWindows)
             && !outputStrategy.isAllowedLatenessSpecified()) {
-          throw new IllegalArgumentException(
-              "Except when using GlobalWindows,"
+          throw new IllegalArgumentException("Except when using GlobalWindows,"
               + " calling .triggering() to specify a trigger requires that the allowed lateness be"
               + " specified using .withAllowedLateness() to set the upper bound on how late data"
               + " can arrive before being dropped. See Javadoc for more details.");
@@ -580,17 +584,23 @@ public class Window {
 
     @Override
     public PCollection<T> apply(PCollection<T> input) {
-      WindowingStrategy<?, ?> outputStrategy = getOutputStrategy(input.getWindowingStrategy());
+      WindowingStrategy<?, ?> outputStrategy =
+          getOutputStrategyInternal(input.getWindowingStrategy());
+      PCollection<T> output;
       if (windowFn != null) {
         // If the windowFn changed, we create a primitive, and run the AssignWindows operation here.
-        return PCollection.<T>createPrimitiveOutputInternal(
-            input.getPipeline(), outputStrategy, input.isBounded());
+        output = assignWindows(input, windowFn);
       } else {
         // If the windowFn didn't change, we just run a pass-through transform and then set the
         // new windowing strategy.
-        return input.apply(Window.<T>identity()).setWindowingStrategyInternal(outputStrategy);
+        output = input.apply(Window.<T>identity());
       }
+      return output.setWindowingStrategyInternal(outputStrategy);
+    }
 
+    private <T, W extends BoundedWindow> PCollection<T> assignWindows(
+        PCollection<T> input, WindowFn<? super T, W> windowFn) {
+      return input.apply("AssignWindows", ParDo.of(new AssignWindowsDoFn<T, W>(windowFn)));
     }
 
     @Override
@@ -608,7 +618,6 @@ public class Window {
 
   private static <T> PTransform<PCollection<? extends T>, PCollection<T>> identity() {
     return ParDo.named("Identity").of(new DoFn<T, T>() {
-
       @Override public void processElement(ProcessContext c) {
         c.output(c.element());
       }
@@ -649,66 +658,5 @@ public class Window {
         return inputStrategy;
       }
     }
-  }
-
-  /////////////////////////////////////////////////////////////////////////////
-
-  static {
-    DirectPipelineRunner.registerDefaultTransformEvaluator(
-        Bound.class,
-        new DirectPipelineRunner.TransformEvaluator<Bound>() {
-          @Override
-          public void evaluate(
-              Bound transform,
-              DirectPipelineRunner.EvaluationContext context) {
-            evaluateHelper(transform, context);
-          }
-        });
-  }
-
-  private static <T, W extends BoundedWindow> void evaluateHelper(
-      Bound<T> transform,
-      DirectPipelineRunner.EvaluationContext context) {
-
-    // If this use of Window didn't change the WindowFn, there is nothing to do.
-    if (transform.windowFn == null) {
-      throw new IllegalStateException("Shouldn't reach evaluateHelper with no windowFn");
-    }
-
-    PCollection<T> input = context.getInput(transform);
-
-    DirectModeExecutionContext executionContext = DirectModeExecutionContext.create();
-
-    TupleTag<T> outputTag = new TupleTag<>();
-    WindowFn<? super T, W> windowFn = (WindowFn<? super T, W>) transform.windowFn;
-    String name = context.getStepName(transform);
-    @SuppressWarnings("unchecked")
-    DoFn<T, T> addWindowsDoFn = new AssignWindowsDoFn<T, W>(windowFn);
-    DoFnRunner<T, T> addWindowsRunner =
-        DoFnRunner.create(
-            context.getPipelineOptions(),
-            addWindowsDoFn,
-            NullSideInputReader.empty(),
-            new DoFnRunner.ListOutputManager(),
-            outputTag,
-            new ArrayList<TupleTag<?>>(),
-            executionContext.getOrCreateStepContext(name, name, null),
-            context.getAddCounterMutator(),
-            context.getOutput(transform).getWindowingStrategy());
-
-    addWindowsRunner.startBundle();
-
-    // Process input elements.
-    for (DirectPipelineRunner.ValueWithMetadata<T> inputElem
-             : context.getPCollectionValuesWithMetadata(input)) {
-      executionContext.setKey(inputElem.getKey());
-      addWindowsRunner.processElement(inputElem.getWindowedValue());
-    }
-
-    addWindowsRunner.finishBundle();
-
-    context.setPCollectionValuesWithMetadata(
-        context.getOutput(transform),
-        executionContext.getOutput(outputTag));
   }
 }

@@ -45,6 +45,7 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsValidator;
 import com.google.cloud.dataflow.sdk.options.StreamingOptions;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator.JobSpecification;
+import com.google.cloud.dataflow.sdk.runners.dataflow.AssignWindows;
 import com.google.cloud.dataflow.sdk.runners.dataflow.CustomSources;
 import com.google.cloud.dataflow.sdk.runners.dataflow.DataflowAggregatorTransforms;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
@@ -262,10 +263,12 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
           .put(BigQueryIO.Read.Bound.class, UnsupportedIO.class)
           .put(TextIO.Read.Bound.class, UnsupportedIO.class)
           .put(TextIO.Write.Bound.class, UnsupportedIO.class)
+          .put(Window.Bound.class, AssignWindows.class)
           .build();
     } else {
       overrides = ImmutableMap.<Class<?>, Class<?>>builder()
           .put(Read.Unbounded.class, UnsupportedIO.class)
+          .put(Window.Bound.class, AssignWindows.class)
           .build();
     }
   }
@@ -294,7 +297,16 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
               : pc.getWindowingStrategy(),
           pc.isBounded());
       return outputT;
-
+    } else if (Window.Bound.class.equals(transform.getClass())) {
+      /*
+       * TODO: make this the generic way overrides are applied (using super.apply() rather than
+       * Pipeline.applyTransform(); this allows the apply method to be replaced without inserting
+       * additional nodes into the graph.
+       */
+      // casting to wildcard
+      @SuppressWarnings("unchecked")
+      OutputT windowed = (OutputT) applyWindow((Window.Bound<?>) transform, (PCollection<?>) input);
+      return windowed;
     } else if (overrides.containsKey(transform.getClass())) {
       // It is the responsibility of whoever constructs overrides to ensure this is type safe.
       @SuppressWarnings("unchecked")
@@ -314,6 +326,16 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     } else {
       return super.apply(transform, input);
     }
+  }
+
+  private <T> PCollection<T> applyWindow(
+      Window.Bound<?> intitialTransform, PCollection<?> initialInput) {
+    // types are matched at compile time
+    @SuppressWarnings("unchecked")
+    Window.Bound<T> transform = (Window.Bound<T>) intitialTransform;
+    @SuppressWarnings("unchecked")
+    PCollection<T> input = (PCollection<T>) initialInput;
+    return super.apply(new AssignWindows<>(transform), input);
   }
 
   @Override
