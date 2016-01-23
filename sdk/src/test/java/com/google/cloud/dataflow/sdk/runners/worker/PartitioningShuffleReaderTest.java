@@ -94,7 +94,8 @@ public class PartitioningShuffleReaderTest {
     // Read from shuffle with PartitioningShuffleReader.
     PartitioningShuffleReader<Integer, String> partitioningShuffleReader =
         new PartitioningShuffleReader<>(
-            PipelineOptionsFactory.create(), null, null, null, elemCoder);
+            PipelineOptionsFactory.create(), null, null, null, elemCoder,
+            addCounterMutator);
     ExecutorTestUtils.TestReaderObserver observer =
         new ExecutorTestUtils.TestReaderObserver(partitioningShuffleReader);
 

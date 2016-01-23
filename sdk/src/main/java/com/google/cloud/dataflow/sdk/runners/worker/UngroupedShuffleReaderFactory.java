@@ -43,19 +43,27 @@ public class UngroupedShuffleReaderFactory implements ReaderFactory {
       @Nullable CounterSet.AddCounterMutator addCounterMutator,
       @Nullable String operationName)
       throws Exception {
-    return create(spec, coder, options);
+    return create(spec, coder, options, addCounterMutator);
   }
 
   public <T> UngroupedShuffleReader<T> create(
-      CloudObject spec, Coder<T> coder, PipelineOptions options) throws Exception {
-    return create(options, spec, coder);
+      CloudObject spec,
+      Coder<T> coder,
+      PipelineOptions options,
+      CounterSet.AddCounterMutator addCounterMutator) throws Exception {
+    return create(options, spec, coder, addCounterMutator);
   }
 
   <T> UngroupedShuffleReader<T> create(
-      PipelineOptions options, CloudObject spec, Coder<T> coder) throws Exception {
+      PipelineOptions options,
+      CloudObject spec,
+      Coder<T> coder,
+      CounterSet.AddCounterMutator addCounterMutator) throws Exception {
     return new UngroupedShuffleReader<>(options,
         decodeBase64(getString(spec, PropertyNames.SHUFFLE_READER_CONFIG)),
         getString(spec, PropertyNames.START_SHUFFLE_POSITION, null),
-        getString(spec, PropertyNames.END_SHUFFLE_POSITION, null), coder);
+        getString(spec, PropertyNames.END_SHUFFLE_POSITION, null),
+        coder,
+        addCounterMutator);
   }
 }

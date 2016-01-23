@@ -79,7 +79,7 @@ public class UngroupedShuffleReaderTest {
         new UngroupedShuffleReader<>(
             PipelineOptionsFactory.create(),
             null, null, null,
-            elemCoder);
+            elemCoder, addCounterMutator);
     ExecutorTestUtils.TestReaderObserver observer =
         new ExecutorTestUtils.TestReaderObserver(ungroupedShuffleReader);
 

@@ -22,6 +22,7 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowedValue.WindowedValueCoder;
+import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.BatchingShuffleEntryReader;
 import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 import com.google.cloud.dataflow.sdk.util.common.worker.ShuffleEntry;
@@ -43,15 +44,18 @@ public class PartitioningShuffleReader<K, V> extends NativeReader<WindowedValue<
   final byte[] shuffleReaderConfig;
   final String startShufflePosition;
   final String stopShufflePosition;
+  final CounterSet.AddCounterMutator addCounterMutator;
   Coder<K> keyCoder;
   WindowedValueCoder<V> windowedValueCoder;
 
   public PartitioningShuffleReader(PipelineOptions options, byte[] shuffleReaderConfig,
-      String startShufflePosition, String stopShufflePosition, Coder<WindowedValue<KV<K, V>>> coder)
+      String startShufflePosition, String stopShufflePosition, Coder<WindowedValue<KV<K, V>>> coder,
+      CounterSet.AddCounterMutator addCounterMutator)
       throws Exception {
     this.shuffleReaderConfig = shuffleReaderConfig;
     this.startShufflePosition = startShufflePosition;
     this.stopShufflePosition = stopShufflePosition;
+    this.addCounterMutator = addCounterMutator;
     initCoder(coder);
   }
 
@@ -79,7 +83,10 @@ public class PartitioningShuffleReader<K, V> extends NativeReader<WindowedValue<
   public NativeReaderIterator<WindowedValue<KV<K, V>>> iterator() throws IOException {
     Preconditions.checkArgument(shuffleReaderConfig != null);
     return iterator(new BatchingShuffleEntryReader(
-        new ChunkingShuffleBatchReader(new ApplianceShuffleReader(shuffleReaderConfig))));
+        new ChunkingShuffleBatchReader(
+            new ApplianceShuffleReader(
+                shuffleReaderConfig,
+                addCounterMutator))));
   }
 
   PartitioningShuffleReaderIterator iterator(ShuffleEntryReader reader) {

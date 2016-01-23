@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
+import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.BatchingShuffleEntryReader;
 import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 import com.google.cloud.dataflow.sdk.util.common.worker.ShuffleEntry;
@@ -41,21 +42,27 @@ public class UngroupedShuffleReader<T> extends NativeReader<T> {
   final String startShufflePosition;
   final String stopShufflePosition;
   final Coder<T> coder;
+  final CounterSet.AddCounterMutator addCounterMutator;
 
   public UngroupedShuffleReader(
       @SuppressWarnings("unused") PipelineOptions options, byte[] shuffleReaderConfig,
-      @Nullable String startShufflePosition, @Nullable String stopShufflePosition, Coder<T> coder) {
+      @Nullable String startShufflePosition, @Nullable String stopShufflePosition, Coder<T> coder,
+      @Nullable CounterSet.AddCounterMutator addCounterMutator) {
     this.shuffleReaderConfig = shuffleReaderConfig;
     this.startShufflePosition = startShufflePosition;
     this.stopShufflePosition = stopShufflePosition;
     this.coder = coder;
+    this.addCounterMutator = addCounterMutator;
   }
 
   @Override
   public NativeReaderIterator<T> iterator() throws IOException {
     Preconditions.checkArgument(shuffleReaderConfig != null);
     return iterator(new BatchingShuffleEntryReader(
-        new ChunkingShuffleBatchReader(new ApplianceShuffleReader(shuffleReaderConfig))));
+        new ChunkingShuffleBatchReader(
+            new ApplianceShuffleReader(
+                shuffleReaderConfig,
+                addCounterMutator))));
   }
 
   UngroupedShuffleReaderIterator iterator(ShuffleEntryReader reader) {

@@ -127,7 +127,8 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
   @Override
   public GroupingShuffleReaderIterator<K, V> iterator() throws IOException {
     Preconditions.checkArgument(shuffleReaderConfig != null);
-    ApplianceShuffleReader asr = new ApplianceShuffleReader(shuffleReaderConfig);
+    ApplianceShuffleReader asr =
+        new ApplianceShuffleReader(shuffleReaderConfig, addCounterMutator);
     String datasetId = asr.getDatasetId();
     initCounter(datasetId);
 

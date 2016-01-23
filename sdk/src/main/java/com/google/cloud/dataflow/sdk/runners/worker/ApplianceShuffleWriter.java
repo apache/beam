@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.runners.worker;
 
+import com.google.cloud.dataflow.sdk.util.common.CounterSet;
+
 import java.io.IOException;
 import javax.annotation.concurrent.ThreadSafe;
 
@@ -36,13 +38,22 @@ public final class ApplianceShuffleWriter implements ShuffleWriter {
   private long nativePointer;
 
   /**
+   * Mutator that can be used to update counters.
+   */
+  private final CounterSet.AddCounterMutator addCounterMutator;
+
+  /**
    * @param shuffleWriterConfig opaque configuration for creating a
    * shuffle writer
    * @param bufferSize the writer buffer size
+   * @param addCounterMutator mutator that can be used to update counters
    */
-  public ApplianceShuffleWriter(byte[] shuffleWriterConfig,
-                                long bufferSize) {
+  public ApplianceShuffleWriter(
+      byte[] shuffleWriterConfig,
+      long bufferSize,
+      CounterSet.AddCounterMutator addCounterMutator) {
     this.nativePointer = createFromConfig(shuffleWriterConfig, bufferSize);
+    this.addCounterMutator = addCounterMutator;
   }
 
   @Override

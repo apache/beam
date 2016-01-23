@@ -50,19 +50,21 @@ public class PartitioningShuffleReaderFactory implements ReaderFactory {
     @SuppressWarnings({"unchecked", "rawtypes"})
     Coder<WindowedValue<KV<Object, Object>>> typedCoder =
         (Coder<WindowedValue<KV<Object, Object>>>) coder;
-    return createTyped(spec, options, typedCoder);
+    return createTyped(spec, options, typedCoder, addCounterMutator);
   }
 
   public <K, V> PartitioningShuffleReader<K, V> createTyped(
       CloudObject spec,
       PipelineOptions options,
-      Coder<WindowedValue<KV<K, V>>> coder)
+      Coder<WindowedValue<KV<K, V>>> coder,
+      CounterSet.AddCounterMutator addCounterMutator)
       throws Exception {
     return new PartitioningShuffleReader<K, V>(
         options,
         decodeBase64(getString(spec, PropertyNames.SHUFFLE_READER_CONFIG)),
         getString(spec, PropertyNames.START_SHUFFLE_POSITION, null),
         getString(spec, PropertyNames.END_SHUFFLE_POSITION, null),
-        coder);
+        coder,
+        addCounterMutator);
   }
 }

@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.runners.worker;
 
+import com.google.cloud.dataflow.sdk.util.common.CounterSet;
+
 import java.io.IOException;
 
 import javax.annotation.concurrent.ThreadSafe;
@@ -38,11 +40,20 @@ public final class ApplianceShuffleReader implements ShuffleReader {
   private long nativePointer;
 
   /**
+   * Mutator that can be used to update counters.
+   */
+  private CounterSet.AddCounterMutator addCounterMutator;
+
+  /**
    * @param shuffleReaderConfig opaque configuration for creating a
    * shuffle reader
+   * @param addCounterMutator mutator that can be used to update counters
    */
-  public ApplianceShuffleReader(byte[] shuffleReaderConfig) {
+  public ApplianceShuffleReader(
+      byte[] shuffleReaderConfig,
+      CounterSet.AddCounterMutator addCounterMutator) {
     this.nativePointer = createFromConfig(shuffleReaderConfig);
+    this.addCounterMutator = addCounterMutator;
   }
 
   @Override

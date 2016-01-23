@@ -283,7 +283,7 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
   public SinkWriter<WindowedValue<T>> writer() throws IOException {
     Preconditions.checkArgument(shuffleWriterConfig != null);
     ApplianceShuffleWriter applianceWriter = new ApplianceShuffleWriter(
-        shuffleWriterConfig, SHUFFLE_WRITER_BUFFER_SIZE);
+        shuffleWriterConfig, SHUFFLE_WRITER_BUFFER_SIZE, addCounterMutator);
     String datasetId = applianceWriter.getDatasetId();
     return writer(new ChunkingShuffleEntryWriter(applianceWriter), datasetId);
   }
