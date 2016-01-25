@@ -24,6 +24,7 @@ import com.google.cloud.dataflow.examples.complete.game.UserScore;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO.Write.CreateDisposition;
+import com.google.cloud.dataflow.sdk.io.BigQueryIO.Write.WriteDisposition;
 import com.google.cloud.dataflow.sdk.options.GcpOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
@@ -117,7 +118,8 @@ public class WriteToBigQuery<T>
                 .to(getTable(teamAndScore.getPipeline(),
                     tableName))
                 .withSchema(getSchema())
-                .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED));
+                .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+                .withWriteDisposition(WriteDisposition.WRITE_APPEND));
   }
 
   /** Utility to construct an output table reference. */

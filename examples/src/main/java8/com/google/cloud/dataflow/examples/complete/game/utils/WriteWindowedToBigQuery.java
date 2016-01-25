@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.examples.complete.game.utils;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO.Write.CreateDisposition;
+import com.google.cloud.dataflow.sdk.io.BigQueryIO.Write.WriteDisposition;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn.RequiresWindowAccess;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
@@ -68,7 +69,8 @@ public class WriteWindowedToBigQuery<T>
                 .to(getTable(teamAndScore.getPipeline(),
                     tableName))
                 .withSchema(getSchema())
-                .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED));
+                .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+                .withWriteDisposition(WriteDisposition.WRITE_APPEND));
   }
 
 }
