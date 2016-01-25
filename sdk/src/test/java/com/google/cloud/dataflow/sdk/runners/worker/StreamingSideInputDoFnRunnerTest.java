@@ -40,7 +40,8 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.DoFnInfo;
-import com.google.cloud.dataflow.sdk.util.DoFnRunner;
+import com.google.cloud.dataflow.sdk.util.DoFnRunnerBase;
+import com.google.cloud.dataflow.sdk.util.DoFnRunners;
 import com.google.cloud.dataflow.sdk.util.SideInputReader;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
@@ -103,7 +104,7 @@ public class StreamingSideInputDoFnRunnerTest {
     when(mockSideInputReader.contains(eq(view))).thenReturn(true);
     when(mockSideInputReader.get(eq(view), any(BoundedWindow.class))).thenReturn("data");
 
-    DoFnRunner.ListOutputManager outputManager = new DoFnRunner.ListOutputManager();
+    DoFnRunnerBase.ListOutputManager outputManager = new DoFnRunnerBase.ListOutputManager();
     StreamingSideInputDoFnRunner<String, String, IntervalWindow> runner =
         createRunner(outputManager, Arrays.asList(view));
 
@@ -124,7 +125,7 @@ public class StreamingSideInputDoFnRunnerTest {
              eq(view), any(BoundedWindow.class), eq(SideInputState.UNKNOWN)))
         .thenReturn(false);
 
-    DoFnRunner.ListOutputManager outputManager = new DoFnRunner.ListOutputManager();
+    DoFnRunnerBase.ListOutputManager outputManager = new DoFnRunnerBase.ListOutputManager();
     StreamingSideInputDoFnRunner<String, String, IntervalWindow> runner =
         createRunner(outputManager, Arrays.asList(view));
 
@@ -178,7 +179,7 @@ public class StreamingSideInputDoFnRunnerTest {
             StreamingSideInputDoFnRunner.blockedMapAddr(WINDOW_FN));
     blockedMapState.set(blockedMap);
 
-    DoFnRunner.ListOutputManager outputManager = new DoFnRunner.ListOutputManager();
+    DoFnRunnerBase.ListOutputManager outputManager = new DoFnRunnerBase.ListOutputManager();
     StreamingSideInputDoFnRunner<String, String, IntervalWindow> runner =
         createRunner(outputManager, Arrays.asList(view));
     runner.watermarkHold(createWindow(0)).add(new Instant(0));
@@ -239,7 +240,7 @@ public class StreamingSideInputDoFnRunnerTest {
     when(mockSideInputReader.get(eq(view1), any(BoundedWindow.class))).thenReturn("data1");
     when(mockSideInputReader.get(eq(view2), any(BoundedWindow.class))).thenReturn("data2");
 
-    DoFnRunner.ListOutputManager outputManager = new DoFnRunner.ListOutputManager();
+    DoFnRunnerBase.ListOutputManager outputManager = new DoFnRunnerBase.ListOutputManager();
     StreamingSideInputDoFnRunner<String, String, IntervalWindow> runner =
         createRunner(outputManager, Arrays.asList(view1, view2));
     runner.watermarkHold(createWindow(0)).add(new Instant(0));
@@ -257,8 +258,9 @@ public class StreamingSideInputDoFnRunnerTest {
     assertThat(runner.elementBag(createWindow(0)).get().read(), Matchers.emptyIterable());
   }
 
+  @SuppressWarnings("unchecked")
   private <ReceiverT> StreamingSideInputDoFnRunner<String, String, IntervalWindow>
-      createRunner(DoFnRunner.OutputManager outputManager, List<PCollectionView<String>> views)
+      createRunner(DoFnRunners.OutputManager outputManager, List<PCollectionView<String>> views)
           throws Exception {
     @SuppressWarnings({"unchecked", "rawtypes"})
     Iterable<PCollectionView<?>> typedViews = (Iterable) views;
@@ -267,15 +269,16 @@ public class StreamingSideInputDoFnRunnerTest {
         new SideInputFn(views), WindowingStrategy.of(WINDOW_FN),
         typedViews, StringUtf8Coder.of());
 
-    return new StreamingSideInputDoFnRunner<String, String, IntervalWindow>(
-        PipelineOptionsFactory.create(),
-        doFnInfo,
-        mockSideInputReader,
-        outputManager,
-        mainOutputTag,
-        Arrays.<TupleTag<?>>asList(),
-        stepContext,
-        null);
+    return (StreamingSideInputDoFnRunner<String, String, IntervalWindow>)
+        DoFnRunners.streamingSideInputRunner(
+            PipelineOptionsFactory.create(),
+            doFnInfo,
+            mockSideInputReader,
+            outputManager,
+            mainOutputTag,
+            Arrays.<TupleTag<?>>asList(),
+            stepContext,
+            null);
   }
 
   private static class SideInputFn extends DoFn<String, String> {

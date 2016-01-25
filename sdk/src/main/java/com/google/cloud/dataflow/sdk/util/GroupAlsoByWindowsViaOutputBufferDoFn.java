@@ -16,9 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
-import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.common.collect.Iterables;
@@ -34,11 +32,6 @@ import java.util.List;
 @SystemDoFnInternal
 class GroupAlsoByWindowsViaOutputBufferDoFn<K, InputT, OutputT, W extends BoundedWindow>
    extends GroupAlsoByWindowsDoFn<K, InputT, OutputT, W> {
-
-  private final Aggregator<Long, Long> droppedDueToClosedWindow =
-      createAggregator(ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER, new Sum.SumLongFn());
-  private final Aggregator<Long, Long> droppedDueToLateness =
-      createAggregator(ReduceFnRunner.DROPPED_DUE_TO_LATENESS_COUNTER, new Sum.SumLongFn());
 
   private final WindowingStrategy<?, W> strategy;
   private SystemReduceFn.Factory<K, InputT, OutputT, W> reduceFnFactory;
@@ -63,7 +56,7 @@ class GroupAlsoByWindowsViaOutputBufferDoFn<K, InputT, OutputT, W extends Bounde
 
     ReduceFnRunner<K, InputT, OutputT, W> runner = new ReduceFnRunner<>(
         key, strategy, timerInternals, c.windowingInternals(),
-        droppedDueToClosedWindow, droppedDueToLateness, reduceFnFactory.create(key));
+        droppedDueToClosedWindow, reduceFnFactory.create(key));
 
     Iterable<List<WindowedValue<InputT>>> chunks =
         Iterables.partition(c.element().getValue(), 1000);

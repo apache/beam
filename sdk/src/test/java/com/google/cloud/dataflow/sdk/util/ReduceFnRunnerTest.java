@@ -136,7 +136,6 @@ public class ReduceFnRunnerTest {
     injectElement(tester, 4);
 
     assertEquals(1, tester.getElementsDroppedDueToClosedWindow());
-    assertEquals(0, tester.getElementsDroppedDueToLateness());
   }
 
   @Test
@@ -255,7 +254,6 @@ public class ReduceFnRunnerTest {
     // Holding for the end-of-window transition.
     assertEquals(new Instant(9), tester.getWatermarkHold());
     // Nothing dropped.
-    assertEquals(0, tester.getElementsDroppedDueToLateness());
     assertEquals(0, tester.getElementsDroppedDueToClosedWindow());
 
     // Input watermark -> 4, output watermark should advance that far as well
@@ -314,7 +312,6 @@ public class ReduceFnRunnerTest {
     // Because we're about to expire the window, we output it.
     when(mockTrigger.shouldFire(anyTriggerContext())).thenReturn(false);
     injectElement(tester, 8);
-    assertEquals(0, tester.getElementsDroppedDueToLateness());
     assertEquals(0, tester.getElementsDroppedDueToClosedWindow());
 
     // Exceed the GC limit, triggering the last pane to be fired
@@ -334,17 +331,8 @@ public class ReduceFnRunnerTest {
     assertThat(
         output.get(0).getPane(),
         equalTo(PaneInfo.createPane(false, true, Timing.LATE, 3, 1)));
-
-    // All very late -- gets dropped, because the window is expired
-    when(mockTrigger.shouldFire(anyTriggerContext())).thenReturn(true);
     assertEquals(new Instant(50), tester.getOutputWatermark());
     assertEquals(null, tester.getWatermarkHold());
-    injectElement(tester, 2);
-    assertEquals(null, tester.getWatermarkHold());
-    assertThat(tester.extractOutput(), emptyIterable());
-
-    assertEquals(1, tester.getElementsDroppedDueToLateness());
-    assertEquals(0, tester.getElementsDroppedDueToClosedWindow());
 
     // Late timers are ignored
     tester.fireTimer(new IntervalWindow(new Instant(0), new Instant(10)), new Instant(12),
@@ -581,44 +569,6 @@ public class ReduceFnRunnerTest {
   }
 
   /**
-   * Tests that when data is assigned to multiple windows but some of those windows have expired,
-   * then the data is dropped and counted accurately.
-   */
-  @Test
-  public void testDropDataMultipleWindowsExpiredWindow() throws Exception {
-    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
-        WindowingStrategy.of(
-            SlidingWindows.of(Duration.millis(100)).every(Duration.millis(30)))
-        .withAllowedLateness(Duration.millis(10)));
-
-    tester.injectElements(
-        // assigned to [-60, 40), [-30, 70), [0, 100)
-        TimestampedValue.of(10, new Instant(23)),
-        // assigned to [-30, 70), [0, 100), [30, 130)
-        TimestampedValue.of(12, new Instant(40)));
-
-    assertEquals(0, tester.getElementsDroppedDueToLateness());
-
-    tester.advanceInputWatermark(new Instant(70));
-
-
-    tester.injectElements(
-        // assigned to [-30, 70), [0, 100), [30, 130)
-        // but [-30, 70) has past but is not is expired
-        TimestampedValue.of(14, new Instant(50)));
-
-    assertEquals(0, tester.getElementsDroppedDueToLateness());
-
-    tester.advanceInputWatermark(new Instant(110));
-
-    // assigned to [-30, 70), [0, 100), [30, 130)
-    // but the first two are expired
-    tester.injectElements(TimestampedValue.of(16, new Instant(40)));
-
-    assertEquals(2, tester.getElementsDroppedDueToLateness());
-  }
-
-  /**
    * Tests that when data is assigned to multiple windows but some of those windows have
    * had their triggers finish, then the data is dropped and counted accurately.
    */
@@ -697,7 +647,6 @@ public class ReduceFnRunnerTest {
     tester.assertHasOnlyGlobalAndFinishedSetsFor(firstWindow);
 
     assertEquals(0, tester.getElementsDroppedDueToClosedWindow());
-    assertEquals(0, tester.getElementsDroppedDueToLateness());
   }
 
   @Test
@@ -744,7 +693,6 @@ public class ReduceFnRunnerTest {
     tester.assertHasOnlyGlobalAndFinishedSetsFor(firstWindow);
 
     assertEquals(0, tester.getElementsDroppedDueToClosedWindow());
-    assertEquals(0, tester.getElementsDroppedDueToLateness());
   }
 
   /**

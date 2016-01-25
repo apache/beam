@@ -22,6 +22,8 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.util.DirectModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.DirectSideInputReader;
 import com.google.cloud.dataflow.sdk.util.DoFnRunner;
+import com.google.cloud.dataflow.sdk.util.DoFnRunnerBase;
+import com.google.cloud.dataflow.sdk.util.DoFnRunners;
 import com.google.cloud.dataflow.sdk.util.PTuple;
 import com.google.cloud.dataflow.sdk.util.SerializableUtils;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
@@ -442,7 +444,7 @@ public class DoFnTester<InputT, OutputT> {
   DoFn<InputT, OutputT> fn;
 
   /** The ListOutputManager to examine the outputs. */
-  DoFnRunner.ListOutputManager outputManager;
+  DoFnRunnerBase.ListOutputManager outputManager;
 
   /** The DoFnRunner if processing is in progress. */
   DoFnRunner<InputT, OutputT> fnRunner;
@@ -478,8 +480,8 @@ public class DoFnTester<InputT, OutputT> {
         : sideInputs.entrySet()) {
       runnerSideInputs = runnerSideInputs.and(entry.getKey().getTagInternal(), entry.getValue());
     }
-    outputManager = new DoFnRunner.ListOutputManager();
-    fnRunner = DoFnRunner.create(
+    outputManager = new DoFnRunnerBase.ListOutputManager();
+    fnRunner = DoFnRunners.simpleRunner(
         options,
         fn,
         DirectSideInputReader.of(runnerSideInputs),

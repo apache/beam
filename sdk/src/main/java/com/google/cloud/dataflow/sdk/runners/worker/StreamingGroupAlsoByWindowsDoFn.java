@@ -22,6 +22,8 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.AppliedCombineFn;
+import com.google.cloud.dataflow.sdk.util.DoFnRunner.RequiresLateDataDropping;
+import com.google.cloud.dataflow.sdk.util.GroupAlsoByWindowsDoFn;
 import com.google.cloud.dataflow.sdk.util.ReduceFnRunner;
 import com.google.cloud.dataflow.sdk.util.SystemDoFnInternal;
 import com.google.cloud.dataflow.sdk.util.SystemReduceFn;
@@ -41,7 +43,11 @@ import com.google.common.base.Preconditions;
  */
 @SystemDoFnInternal
 public abstract class StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends BoundedWindow>
-    extends DoFn<KeyedWorkItem<InputT>, KV<K, OutputT>> {
+    extends DoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> {
+  protected final Aggregator<Long, Long> droppedDueToClosedWindow = createAggregator(
+      GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER, new Sum.SumLongFn());
+  protected final Aggregator<Long, Long> droppedDueToLateness = createAggregator(
+      GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_LATENESS_COUNTER, new Sum.SumLongFn());
 
   public static <K, InputT, AccumT, OutputT, W extends BoundedWindow>
       StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W> create(
@@ -54,7 +60,7 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W exte
   }
 
   public static <K, V, W extends BoundedWindow>
-  DoFn<KeyedWorkItem<V>, KV<K, Iterable<V>>> createForIterable(
+  DoFn<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> createForIterable(
       final WindowingStrategy<?, W> windowingStrategy,
       final Coder<V> inputCoder) {
     // If the windowing strategy indicates we're doing a reshuffle, use the special-path.
@@ -67,13 +73,8 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W exte
   }
 
   private static class StreamingGABWViaWindowSetDoFn<K, InputT, OutputT, W extends BoundedWindow>
-  extends StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W> {
-
-    private final Aggregator<Long, Long> droppedDueToClosedWindow =
-        createAggregator(ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER, new Sum.SumLongFn());
-    private final Aggregator<Long, Long> droppedDueToLateness =
-        createAggregator(ReduceFnRunner.DROPPED_DUE_TO_LATENESS_COUNTER, new Sum.SumLongFn());
-
+  extends StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W>
+  implements RequiresLateDataDropping {
     private final WindowingStrategy<Object, W> windowingStrategy;
     private SystemReduceFn.Factory<K, InputT, OutputT, W> reduceFnFactory;
 
@@ -87,14 +88,14 @@ public abstract class StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W exte
 
     @Override
     public void processElement(ProcessContext c) throws Exception {
-      KeyedWorkItem<InputT> element = c.element();
+      KeyedWorkItem<K, InputT> element = c.element();
 
       @SuppressWarnings("unchecked")
-      K key = (K) c.element().key();
+      K key = c.element().key();
       TimerInternals timerInternals = c.windowingInternals().timerInternals();
       ReduceFnRunner<K, InputT, OutputT, W> runner = new ReduceFnRunner<>(
             key, windowingStrategy, timerInternals, c.windowingInternals(),
-            droppedDueToClosedWindow, droppedDueToLateness, reduceFnFactory.create(key));
+            droppedDueToClosedWindow, reduceFnFactory.create(key));
 
       for (TimerData timer : element.timersIterable()) {
         runner.onTimer(timer);

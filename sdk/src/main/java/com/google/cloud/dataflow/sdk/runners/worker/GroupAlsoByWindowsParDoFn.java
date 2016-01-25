@@ -65,14 +65,15 @@ class GroupAlsoByWindowsParDoFn extends ParDoFnBase {
   static GroupAlsoByWindowsParDoFn of(
       PipelineOptions options,
       DoFn<?, ?> groupAlsoByWindowsDoFn,
+      WindowingStrategy<?, ?> windowingStrategy,
       String stepName,
       String transformName,
-      DataflowExecutionContext executionContext,
+      DataflowExecutionContext<?> executionContext,
       CounterSet.AddCounterMutator addCounterMutator,
       StateSampler stateSampler)
       throws Exception {
-    return new GroupAlsoByWindowsParDoFn(options, groupAlsoByWindowsDoFn, stepName, transformName,
-        executionContext, addCounterMutator, stateSampler);
+    return new GroupAlsoByWindowsParDoFn(options, groupAlsoByWindowsDoFn, windowingStrategy,
+        stepName, transformName, executionContext, addCounterMutator, stateSampler);
   }
 
   /**
@@ -160,6 +161,7 @@ class GroupAlsoByWindowsParDoFn extends ParDoFnBase {
       return GroupAlsoByWindowsParDoFn.of(
           options,
           groupAlsoByWindowsDoFn,
+          windowingStrategy,
           stepName,
           transformName,
           executionContext,
@@ -170,7 +172,7 @@ class GroupAlsoByWindowsParDoFn extends ParDoFnBase {
 
   @Override
   protected DoFnInfo<?, ?> getDoFnInfo() {
-    return new DoFnInfo<>(groupAlsoByWindowsDoFn, null);
+    return new DoFnInfo<>(groupAlsoByWindowsDoFn, windowingStrategy);
   }
 
   @SuppressWarnings({"unchecked", "rawtypes"})
@@ -262,13 +264,15 @@ class GroupAlsoByWindowsParDoFn extends ParDoFnBase {
   }
 
   private final DoFn<?, ?> groupAlsoByWindowsDoFn;
+  private final WindowingStrategy<?, ?> windowingStrategy;
 
   private GroupAlsoByWindowsParDoFn(
       PipelineOptions options,
       DoFn<?, ?> groupAlsoByWindowsDoFn,
+      WindowingStrategy<?, ?> windowingStrategy,
       String stepName,
       String transformName,
-      DataflowExecutionContext executionContext,
+      DataflowExecutionContext<?> executionContext,
       CounterSet.AddCounterMutator addCounterMutator,
       StateSampler stateSampler) {
     super(
@@ -281,5 +285,6 @@ class GroupAlsoByWindowsParDoFn extends ParDoFnBase {
         addCounterMutator,
         stateSampler);
     this.groupAlsoByWindowsDoFn = groupAlsoByWindowsDoFn;
+    this.windowingStrategy = windowingStrategy;
   }
 }

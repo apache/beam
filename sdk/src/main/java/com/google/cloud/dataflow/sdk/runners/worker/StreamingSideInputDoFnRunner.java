@@ -27,7 +27,8 @@ import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill.GlobalData
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.DoFnInfo;
-import com.google.cloud.dataflow.sdk.util.DoFnRunner;
+import com.google.cloud.dataflow.sdk.util.DoFnRunnerBase;
+import com.google.cloud.dataflow.sdk.util.DoFnRunners.OutputManager;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext.StepContext;
 import com.google.cloud.dataflow.sdk.util.SideInputReader;
 import com.google.cloud.dataflow.sdk.util.UserCodeException;
@@ -62,7 +63,7 @@ import java.util.Set;
  * @param <W> the type of the windows of the main input
  */
 public class StreamingSideInputDoFnRunner<InputT, OutputT, W extends BoundedWindow>
-    extends DoFnRunner<InputT, OutputT> {
+    extends DoFnRunnerBase<InputT, OutputT> {
   private StreamingModeExecutionContext.StepContext stepContext;
   private Map<String, PCollectionView<?>> sideInputViews;
 
@@ -82,17 +83,14 @@ public class StreamingSideInputDoFnRunner<InputT, OutputT, W extends BoundedWind
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> sideOutputTags,
       StepContext stepContext,
-      CounterSet.AddCounterMutator addCounterMutator) throws Exception {
+      CounterSet.AddCounterMutator addCounterMutator,
+      WindowingStrategy<?, W> windowingStrategy) {
     super(options, doFnInfo.getDoFn(), sideInputReader, outputManager,
         mainOutputTag, sideOutputTags, stepContext,
         addCounterMutator, doFnInfo.getWindowingStrategy());
     this.stepContext = (StreamingModeExecutionContext.StepContext) stepContext;
 
-    WindowFn<?, ? extends BoundedWindow> wildcardWindowFn =
-        doFnInfo.getWindowingStrategy().getWindowFn();
-    @SuppressWarnings("unchecked")
-    WindowFn<?, W> typedWindowFn = (WindowFn<?, W>) wildcardWindowFn;
-    this.windowFn = typedWindowFn;
+    this.windowFn = windowingStrategy.getWindowFn();
 
     this.sideInputViews = new HashMap<>();
     for (PCollectionView<?> view : doFnInfo.getSideInputViews()) {

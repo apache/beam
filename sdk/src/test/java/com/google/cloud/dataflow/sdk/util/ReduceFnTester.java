@@ -99,9 +99,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   private ExecutableTrigger<W> executableTrigger;
 
   private final InMemoryLongSumAggregator droppedDueToClosedWindow =
-      new InMemoryLongSumAggregator(ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER);
-  private final InMemoryLongSumAggregator droppedDueToLateness =
-      new InMemoryLongSumAggregator(ReduceFnRunner.DROPPED_DUE_TO_LATENESS_COUNTER);
+      new InMemoryLongSumAggregator(GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER);
 
   public static <W extends BoundedWindow> ReduceFnTester<Integer, Iterable<Integer>, W>
       nonCombining(WindowingStrategy<?, W> windowingStrategy) throws Exception {
@@ -167,7 +165,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
 
   ReduceFnRunner<String, InputT, OutputT, W> createRunner() {
     return new ReduceFnRunner<>(KEY, objectStrategy, timerInternals, windowingInternals,
-        droppedDueToClosedWindow, droppedDueToLateness, reduceFn);
+        droppedDueToClosedWindow, reduceFn);
   }
 
   public ExecutableTrigger<W> getTrigger() {
@@ -262,10 +260,6 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
 
   public long getElementsDroppedDueToClosedWindow() {
     return droppedDueToClosedWindow.getSum();
-  }
-
-  public long getElementsDroppedDueToLateness() {
-    return droppedDueToLateness.getSum();
   }
 
   /**

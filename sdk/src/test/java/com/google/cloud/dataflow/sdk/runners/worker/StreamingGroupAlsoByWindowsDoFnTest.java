@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.when;
 
 import com.google.cloud.dataflow.sdk.coders.BigEndianLongCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
@@ -43,7 +44,10 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.Sessions;
 import com.google.cloud.dataflow.sdk.transforms.windowing.SlidingWindows;
 import com.google.cloud.dataflow.sdk.util.AppliedCombineFn;
 import com.google.cloud.dataflow.sdk.util.DirectModeExecutionContext;
+import com.google.cloud.dataflow.sdk.util.DoFnInfo;
 import com.google.cloud.dataflow.sdk.util.DoFnRunner;
+import com.google.cloud.dataflow.sdk.util.DoFnRunnerBase;
+import com.google.cloud.dataflow.sdk.util.DoFnRunners;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.NullSideInputReader;
 import com.google.cloud.dataflow.sdk.util.ReshuffleTriggerTest;
@@ -121,8 +125,8 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
 
   @Test public void testEmpty() throws Exception {
     TupleTag<KV<String, Iterable<String>>> outputTag = new TupleTag<>();
-    DoFnRunner.ListOutputManager outputManager = new DoFnRunner.ListOutputManager();
-    DoFnRunner<KeyedWorkItem<String>, KV<String, Iterable<String>>> runner =
+    DoFnRunnerBase.ListOutputManager outputManager = new DoFnRunnerBase.ListOutputManager();
+    DoFnRunner<KeyedWorkItem<String, String>, KV<String, Iterable<String>>> runner =
         makeRunner(
             outputTag, outputManager, WindowingStrategy.of(FixedWindows.of(Duration.millis(10))));
 
@@ -163,18 +167,18 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
         .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(timestamp));
   }
 
-  private <T> WindowedValue<KeyedWorkItem<T>> createValue(
+  private <T> WindowedValue<KeyedWorkItem<String, T>> createValue(
       WorkItem.Builder workItem, Coder<T> valueCoder) {
     @SuppressWarnings({"unchecked", "rawtypes"})
     Coder<Collection<? extends BoundedWindow>> wildcardWindowsCoder = (Coder) windowsCoder;
-    return WindowedValue.valueInEmptyWindows(KeyedWorkItem.workItem(
+    return WindowedValue.valueInEmptyWindows(KeyedWorkItems.windmillWorkItem(
         KEY, workItem.build(), windowCoder, wildcardWindowsCoder, valueCoder));
   }
 
   @Test public void testFixedWindows() throws Exception {
     TupleTag<KV<String, Iterable<String>>> outputTag = new TupleTag<>();
-    DoFnRunner.ListOutputManager outputManager = new DoFnRunner.ListOutputManager();
-    DoFnRunner<KeyedWorkItem<String>, KV<String, Iterable<String>>> runner =
+    DoFnRunnerBase.ListOutputManager outputManager = new DoFnRunnerBase.ListOutputManager();
+    DoFnRunner<KeyedWorkItem<String, String>, KV<String, Iterable<String>>> runner =
         makeRunner(
             outputTag, outputManager, WindowingStrategy.of(FixedWindows.of(Duration.millis(10))));
 
@@ -226,13 +230,15 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
 
   @Test public void testSlidingWindows() throws Exception {
     TupleTag<KV<String, Iterable<String>>> outputTag = new TupleTag<>();
-    DoFnRunner.ListOutputManager outputManager = new DoFnRunner.ListOutputManager();
-    DoFnRunner<KeyedWorkItem<String>, KV<String, Iterable<String>>> runner =
+    DoFnRunnerBase.ListOutputManager outputManager = new DoFnRunnerBase.ListOutputManager();
+    DoFnRunner<KeyedWorkItem<String, String>, KV<String, Iterable<String>>> runner =
         makeRunner(
             outputTag,
             outputManager,
             WindowingStrategy.of(
             SlidingWindows.of(Duration.millis(20)).every(Duration.millis(10))));
+
+    when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(new Instant(5));
 
     runner.startBundle();
 
@@ -291,10 +297,87 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
     assertThat(item2.getWindows(), Matchers.<BoundedWindow>contains(window(10, 30)));
   }
 
+  @Test public void testSlidingWindowsAndLateData() throws Exception {
+    TupleTag<KV<String, Iterable<String>>> outputTag = new TupleTag<>();
+    DoFnRunnerBase.ListOutputManager outputManager = new DoFnRunnerBase.ListOutputManager();
+    WindowingStrategy<? super String, IntervalWindow> windowingStrategy = WindowingStrategy.of(
+        SlidingWindows.of(Duration.millis(20)).every(Duration.millis(10)));
+    DoFn<KeyedWorkItem<String, String>, KV<String, Iterable<String>>> fn =
+        StreamingGroupAlsoByWindowsDoFn.createForIterable(windowingStrategy, StringUtf8Coder.of());
+    DoFnRunner<KeyedWorkItem<String, String>, KV<String, Iterable<String>>> runner =
+        makeRunner(
+            outputTag,
+            outputManager,
+            windowingStrategy,
+            fn);
+
+    when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(new Instant(15));
+
+    runner.startBundle();
+
+    WorkItem.Builder workItem1 = WorkItem.newBuilder();
+    workItem1.setKey(ByteString.copyFromUtf8(KEY));
+    workItem1.setWorkToken(WORK_TOKEN);
+    InputMessageBundle.Builder messageBundle = workItem1.addMessageBundlesBuilder();
+    messageBundle.setSourceComputationId(SOURCE_COMPUTATION_ID);
+
+    Coder<String> valueCoder = StringUtf8Coder.of();
+    addElement(messageBundle,
+        Arrays.asList(window(-10, 10), window(0, 20)), new Instant(5), valueCoder, "v1");
+    addElement(messageBundle,
+        Arrays.asList(window(-10, 10), window(0, 20)), new Instant(2), valueCoder, "v0");
+    addElement(messageBundle,
+        Arrays.asList(window(0, 20), window(10, 30)), new Instant(15), valueCoder, "v2");
+
+    runner.processElement(createValue(workItem1, valueCoder));
+
+    runner.finishBundle();
+    runner.startBundle();
+
+    WorkItem.Builder workItem2 = WorkItem.newBuilder();
+    workItem2.setKey(ByteString.copyFromUtf8(KEY));
+    workItem2.setWorkToken(WORK_TOKEN);
+    addTimer(workItem2, window(-10, 10), new Instant(9), Timer.Type.WATERMARK);
+    addTimer(workItem2, window(0, 20), new Instant(19), Timer.Type.WATERMARK);
+    addTimer(workItem2, window(10, 30), new Instant(29), Timer.Type.WATERMARK);
+
+    runner.processElement(createValue(workItem2, valueCoder));
+
+    runner.finishBundle();
+
+    List<WindowedValue<KV<String, Iterable<String>>>> result = outputManager.getOutput(outputTag);
+
+    assertEquals(3, result.size());
+
+    WindowedValue<KV<String, Iterable<String>>> item0 = result.get(0);
+    assertEquals(KEY, item0.getValue().getKey());
+    assertThat(item0.getValue().getValue(), Matchers.containsInAnyOrder());
+    assertEquals(new Instant(9), item0.getTimestamp());
+    assertThat(item0.getWindows(), Matchers.<BoundedWindow>contains(window(-10, 10)));
+
+    WindowedValue<KV<String, Iterable<String>>> item1 = result.get(1);
+    assertEquals(KEY, item1.getValue().getKey());
+    assertThat(item1.getValue().getValue(), Matchers.containsInAnyOrder("v0", "v1", "v2"));
+    // For this sliding window, the minimum output timestmap was 10, since we didn't want to overlap
+    // with the previous window that was [-10, 10).
+    assertEquals(new Instant(10), item1.getTimestamp());
+    assertThat(item1.getWindows(), Matchers.<BoundedWindow>contains(window(0, 20)));
+
+    WindowedValue<KV<String, Iterable<String>>> item2 = result.get(2);
+    assertEquals(KEY, item2.getValue().getKey());
+    assertThat(item2.getValue().getValue(), Matchers.containsInAnyOrder("v2"));
+    assertEquals(new Instant(20), item2.getTimestamp());
+    assertThat(item2.getWindows(), Matchers.<BoundedWindow>contains(window(10, 30)));
+
+    assertEquals(
+        counters.getExistingCounter("user-merge-DroppedDueToLateness").getAggregate(),
+        new Long(2));
+  }
+
   @Test public void testSessions() throws Exception {
     TupleTag<KV<String, Iterable<String>>> outputTag = new TupleTag<>();
-    DoFnRunner.ListOutputManager outputManager = new DoFnRunner.ListOutputManager();
-    DoFnRunner<KeyedWorkItem<String>, KV<String, Iterable<String>>> runner = makeRunner(
+    DoFnRunnerBase.ListOutputManager outputManager = new DoFnRunnerBase.ListOutputManager();
+    DoFnRunner<KeyedWorkItem<String, String>, KV<String, Iterable<String>>> runner = makeRunner(
         outputTag,
         outputManager,
         WindowingStrategy.of(Sessions.withGapDuration(Duration.millis(10))));
@@ -386,8 +469,8 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
     AppliedCombineFn<String, Long, ?, Long> appliedCombineFn = AppliedCombineFn.withInputCoder(
         combineFn.asKeyedFn(), registry, KvCoder.of(StringUtf8Coder.of(), BigEndianLongCoder.of()));
 
-    DoFnRunner.ListOutputManager outputManager = new DoFnRunner.ListOutputManager();
-    DoFnRunner<KeyedWorkItem<Long>, KV<String, Long>> runner = makeRunner(
+    DoFnRunnerBase.ListOutputManager outputManager = new DoFnRunnerBase.ListOutputManager();
+    DoFnRunner<KeyedWorkItem<String, Long>, KV<String, Long>> runner = makeRunner(
         outputTag,
         outputManager,
         WindowingStrategy.of(Sessions.withGapDuration(Duration.millis(10))),
@@ -441,46 +524,47 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
     assertThat(item1.getWindows(), Matchers.<BoundedWindow>contains(window(15, 25)));
   }
 
-  private DoFnRunner<KeyedWorkItem<String>, KV<String, Iterable<String>>> makeRunner(
+  private DoFnRunner<KeyedWorkItem<String, String>, KV<String, Iterable<String>>> makeRunner(
           TupleTag<KV<String, Iterable<String>>> outputTag,
-          DoFnRunner.OutputManager outputManager,
-          WindowingStrategy<? super String, IntervalWindow> windowingStrategy) {
+          DoFnRunners.OutputManager outputManager,
+          WindowingStrategy<? super String, IntervalWindow> windowingStrategy) throws Exception {
 
-    DoFn<KeyedWorkItem<String>, KV<String, Iterable<String>>> fn =
+    DoFn<KeyedWorkItem<String, String>, KV<String, Iterable<String>>> fn =
         StreamingGroupAlsoByWindowsDoFn.createForIterable(windowingStrategy, StringUtf8Coder.of());
 
     return makeRunner(outputTag, outputManager, windowingStrategy, fn);
   }
 
-  private DoFnRunner<KeyedWorkItem<Long>, KV<String, Long>> makeRunner(
+  private DoFnRunner<KeyedWorkItem<String, Long>, KV<String, Long>> makeRunner(
           TupleTag<KV<String, Long>> outputTag,
-          DoFnRunner.OutputManager outputManager,
+          DoFnRunners.OutputManager outputManager,
           WindowingStrategy<? super String, IntervalWindow> windowingStrategy,
-          AppliedCombineFn<String, Long, ?, Long> combineFn) {
+          AppliedCombineFn<String, Long, ?, Long> combineFn) throws Exception {
 
-    DoFn<KeyedWorkItem<Long>, KV<String, Long>> fn =
+    DoFn<KeyedWorkItem<String, Long>, KV<String, Long>> fn =
         StreamingGroupAlsoByWindowsDoFn.create(windowingStrategy, combineFn, StringUtf8Coder.of());
 
     return makeRunner(outputTag, outputManager, windowingStrategy, fn);
   }
 
   private <InputT, OutputT>
-      DoFnRunner<KeyedWorkItem<InputT>, KV<String, OutputT>> makeRunner(
+      DoFnRunner<KeyedWorkItem<String, InputT>, KV<String, OutputT>> makeRunner(
           TupleTag<KV<String, OutputT>> outputTag,
-          DoFnRunner.OutputManager outputManager,
+          DoFnRunners.OutputManager outputManager,
           WindowingStrategy<? super String, IntervalWindow> windowingStrategy,
-          DoFn<KeyedWorkItem<InputT>, KV<String, OutputT>> fn) {
-    return
-        DoFnRunner.create(
-            PipelineOptionsFactory.create(),
-            fn,
-            NullSideInputReader.empty(),
-            outputManager,
-            outputTag,
-            new ArrayList<TupleTag<?>>(),
-            execContext.getOrCreateStepContext("merge", "merge", null),
-            counters.getAddCounterMutator(),
-            windowingStrategy);
+          DoFn<KeyedWorkItem<String, InputT>, KV<String, OutputT>> fn) throws Exception {
+    DoFnInfo<KeyedWorkItem<String, InputT>, KV<String, OutputT>> doFnInfo =
+        new DoFnInfo<>(fn, windowingStrategy);
+
+    return DoFnRunners.lateDataDroppingRunner(
+        PipelineOptionsFactory.create(),
+        doFnInfo,
+        NullSideInputReader.empty(),
+        outputManager,
+        outputTag,
+        new ArrayList<TupleTag<?>>(),
+        execContext.getOrCreateStepContext("merge", "merge", null),
+        counters.getAddCounterMutator());
   }
 
   private IntervalWindow window(long start, long end) {

@@ -50,7 +50,7 @@ import com.google.cloud.dataflow.sdk.options.DataflowWorkerHarnessOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.dataflow.CountingSource;
 import com.google.cloud.dataflow.sdk.runners.dataflow.CustomSources;
-import com.google.cloud.dataflow.sdk.runners.worker.KeyedWorkItem.KeyedWorkItemCoder;
+import com.google.cloud.dataflow.sdk.runners.worker.KeyedWorkItems.FakeKeyedWorkItemCoder;
 import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingMDC;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill.WorkItemCommitRequest;
@@ -161,7 +161,7 @@ public class StreamingDataflowWorkerTest {
 
   private ParallelInstruction makeWindowingSourceInstruction(Coder<?> coder) {
     CloudObject encodedCoder = FullWindowedValueCoder.of(
-        KeyedWorkItemCoder.of(coder), IntervalWindow.getCoder()).asCloudObject();
+        FakeKeyedWorkItemCoder.of(coder), IntervalWindow.getCoder()).asCloudObject();
     return new ParallelInstruction()
         .setSystemName(DEFAULT_SOURCE_SYSTEM_NAME)
         .setRead(new ReadInstruction().setSource(

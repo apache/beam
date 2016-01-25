@@ -660,7 +660,7 @@ public class GroupAlsoByWindowsProperties {
       Collection<WindowedValue<InputT>> values) {
 
     TupleTag<KV<K, OutputT>> outputTag = new TupleTag<>();
-    DoFnRunner.ListOutputManager outputManager = new DoFnRunner.ListOutputManager();
+    DoFnRunnerBase.ListOutputManager outputManager = new DoFnRunnerBase.ListOutputManager();
 
     DoFnRunner<KV<K, Iterable<WindowedValue<InputT>>>, KV<K, OutputT>> runner =
         makeRunner(
@@ -694,12 +694,12 @@ public class GroupAlsoByWindowsProperties {
           GroupAlsoByWindowsDoFn<K, InputT, OutputT, W> fn,
           WindowingStrategy<?, W> windowingStrategy,
           TupleTag<KV<K, OutputT>> outputTag,
-          DoFnRunner.OutputManager outputManager) {
+          DoFnRunners.OutputManager outputManager) {
 
     ExecutionContext executionContext = DirectModeExecutionContext.create();
     CounterSet counters = new CounterSet();
 
-    return DoFnRunner.create(
+    return DoFnRunners.simpleRunner(
         PipelineOptionsFactory.create(),
         fn,
         NullSideInputReader.empty(),

@@ -19,7 +19,7 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.runners.worker.KeyedWorkItem.KeyedWorkItemCoder;
+import com.google.cloud.dataflow.sdk.runners.worker.KeyedWorkItems.FakeKeyedWorkItemCoder;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill.WorkItem;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
@@ -39,26 +39,27 @@ import javax.annotation.Nullable;
  * A Reader that receives input data from a Windmill server, and returns a singleton iterable
  * containing the work item.
  */
-class WindowingWindmillReader<T> extends NativeReader<WindowedValue<KeyedWorkItem<T>>> {
+class WindowingWindmillReader<K, T> extends NativeReader<WindowedValue<KeyedWorkItem<K, T>>> {
 
-  private final KvCoder<?, T> kvCoder;
+  private final KvCoder<K, T> kvCoder;
   private final Coder<? extends BoundedWindow> windowCoder;
   private final Coder<Collection<? extends BoundedWindow>> windowsCoder;
   private StreamingModeExecutionContext context;
 
-  WindowingWindmillReader(Coder<WindowedValue<KeyedWorkItem<T>>> coder,
+  WindowingWindmillReader(Coder<WindowedValue<KeyedWorkItem<K, T>>> coder,
                           StreamingModeExecutionContext context) {
-    FullWindowedValueCoder<KeyedWorkItem<T>> inputCoder =
-        (FullWindowedValueCoder<KeyedWorkItem<T>>) coder;
+    FullWindowedValueCoder<KeyedWorkItem<K, T>> inputCoder =
+        (FullWindowedValueCoder<KeyedWorkItem<K, T>>) coder;
     this.windowsCoder = inputCoder.getWindowsCoder();
     this.windowCoder = inputCoder.getWindowCoder();
-    Coder<T> elementCoder = ((KeyedWorkItemCoder<T>) inputCoder.getValueCoder()).getElementCoder();
+    Coder<T> elementCoder =
+        ((FakeKeyedWorkItemCoder<K, T>) inputCoder.getValueCoder()).getElementCoder();
     if (!(elementCoder instanceof KvCoder)) {
       throw new IllegalArgumentException(
           "WindowingWindmillReader only works with KvCoders.");
     }
     @SuppressWarnings("unchecked")
-    KvCoder<?, T> kvCoder = (KvCoder<?, T>)
+    KvCoder<K, T> kvCoder = (KvCoder<K, T>)
         elementCoder;
     this.kvCoder = kvCoder;
     this.context = context;
@@ -75,8 +76,8 @@ class WindowingWindmillReader<T> extends NativeReader<WindowedValue<KeyedWorkIte
         @Nullable String operationName)
             throws Exception {
       @SuppressWarnings({"rawtypes", "unchecked"})
-      Coder<WindowedValue<KeyedWorkItem<Object>>> typedCoder =
-          (Coder<WindowedValue<KeyedWorkItem<Object>>>) coder;
+      Coder<WindowedValue<KeyedWorkItem<Object, Object>>> typedCoder =
+          (Coder<WindowedValue<KeyedWorkItem<Object, Object>>>) coder;
       return WindowingWindmillReader.create(typedCoder, (StreamingModeExecutionContext) context);
     }
   }
@@ -85,24 +86,24 @@ class WindowingWindmillReader<T> extends NativeReader<WindowedValue<KeyedWorkIte
    * Creates a {@link WindowingWindmillReader} from the provided {@link Coder}
    * and {@link StreamingModeExecutionContext}.
    */
-  public static <T> WindowingWindmillReader<T> create(
-      Coder<WindowedValue<KeyedWorkItem<T>>> coder,
+  public static <K, T> WindowingWindmillReader<K, T> create(
+      Coder<WindowedValue<KeyedWorkItem<K, T>>> coder,
       StreamingModeExecutionContext context) {
-    return new WindowingWindmillReader<T>(coder, context);
+    return new WindowingWindmillReader<K, T>(coder, context);
   }
 
   @Override
-  public NativeReaderIterator<WindowedValue<KeyedWorkItem<T>>> iterator() throws IOException {
-    final Object key = kvCoder.getKeyCoder().decode(
+  public NativeReaderIterator<WindowedValue<KeyedWorkItem<K, T>>> iterator() throws IOException {
+    final K key = kvCoder.getKeyCoder().decode(
         context.getSerializedKey().newInput(), Coder.Context.OUTER);
     final WorkItem workItem = context.getWork();
-    final WindowedValue<KeyedWorkItem<T>> value =
+    final WindowedValue<KeyedWorkItem<K, T>> value =
         WindowedValue.valueInEmptyWindows(
-            KeyedWorkItem.workItem(
+            KeyedWorkItems.windmillWorkItem(
                 key, workItem, windowCoder, windowsCoder, kvCoder.getValueCoder()));
 
-    return new NativeReaderIterator<WindowedValue<KeyedWorkItem<T>>>() {
-      private WindowedValue<KeyedWorkItem<T>> current;
+    return new NativeReaderIterator<WindowedValue<KeyedWorkItem<K, T>>>() {
+      private WindowedValue<KeyedWorkItem<K, T>> current;
 
       @Override
       public boolean start() throws IOException {
@@ -117,7 +118,7 @@ class WindowingWindmillReader<T> extends NativeReader<WindowedValue<KeyedWorkIte
       }
 
       @Override
-      public WindowedValue<KeyedWorkItem<T>> getCurrent() {
+      public WindowedValue<KeyedWorkItem<K, T>> getCurrent() {
         if (current == null) {
           throw new NoSuchElementException();
         }

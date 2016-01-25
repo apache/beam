@@ -33,7 +33,7 @@ import java.util.Collections;
  */
 @SystemDoFnInternal
 public class StreamingGroupAlsoByWindowsReshuffleDoFn<K, T>
-    extends DoFn<KeyedWorkItem<T>, KV<K, Iterable<T>>> {
+    extends DoFn<KeyedWorkItem<K, T>, KV<K, Iterable<T>>> {
 
   public static boolean isReshuffle(WindowingStrategy<?, ?> strategy) {
     return strategy.getTrigger().getSpec() instanceof ReshuffleTrigger;
@@ -42,7 +42,7 @@ public class StreamingGroupAlsoByWindowsReshuffleDoFn<K, T>
   @Override
   public void processElement(ProcessContext c) throws Exception {
     @SuppressWarnings("unchecked")
-    K key = (K) c.element().key();
+    K key = c.element().key();
     for (WindowedValue<T> item : c.element().elementsIterable()) {
       c.windowingInternals().outputWindowedValue(
           KV.of(key, (Iterable<T>) Collections.singletonList(item.getValue())),

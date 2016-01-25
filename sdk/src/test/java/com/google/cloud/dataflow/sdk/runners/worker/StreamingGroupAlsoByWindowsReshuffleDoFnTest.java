@@ -33,6 +33,8 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.util.DirectModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.DoFnRunner;
+import com.google.cloud.dataflow.sdk.util.DoFnRunnerBase;
+import com.google.cloud.dataflow.sdk.util.DoFnRunners;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.NullSideInputReader;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
@@ -89,8 +91,8 @@ public class StreamingGroupAlsoByWindowsReshuffleDoFnTest {
 
   @Test public void testEmpty() throws Exception {
     TupleTag<KV<String, Iterable<String>>> outputTag = new TupleTag<>();
-    DoFnRunner.ListOutputManager outputManager = new DoFnRunner.ListOutputManager();
-    DoFnRunner<KeyedWorkItem<String>, KV<String, Iterable<String>>> runner =
+    DoFnRunnerBase.ListOutputManager outputManager = new DoFnRunnerBase.ListOutputManager();
+    DoFnRunner<KeyedWorkItem<String, String>, KV<String, Iterable<String>>> runner =
         makeRunner(
             outputTag, outputManager, WindowingStrategy.of(FixedWindows.of(Duration.millis(10))));
 
@@ -118,18 +120,18 @@ public class StreamingGroupAlsoByWindowsReshuffleDoFnTest {
         .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(timestamp));
   }
 
-  private <T> WindowedValue<KeyedWorkItem<T>> createValue(
+  private <T> WindowedValue<KeyedWorkItem<String, T>> createValue(
       WorkItem.Builder workItem, Coder<T> valueCoder) {
     @SuppressWarnings({"unchecked", "rawtypes"})
     Coder<Collection<? extends BoundedWindow>> wildcardWindowsCoder = (Coder) windowsCoder;
-    return WindowedValue.valueInEmptyWindows(KeyedWorkItem.workItem(
+    return WindowedValue.valueInEmptyWindows(KeyedWorkItems.windmillWorkItem(
         KEY, workItem.build(), windowCoder, wildcardWindowsCoder, valueCoder));
   }
 
   @Test public void testFixedWindows() throws Exception {
     TupleTag<KV<String, Iterable<String>>> outputTag = new TupleTag<>();
-    DoFnRunner.ListOutputManager outputManager = new DoFnRunner.ListOutputManager();
-    DoFnRunner<KeyedWorkItem<String>, KV<String, Iterable<String>>> runner =
+    DoFnRunnerBase.ListOutputManager outputManager = new DoFnRunnerBase.ListOutputManager();
+    DoFnRunner<KeyedWorkItem<String, String>, KV<String, Iterable<String>>> runner =
         makeRunner(
             outputTag, outputManager, WindowingStrategy.of(FixedWindows.of(Duration.millis(10))));
 
@@ -180,25 +182,25 @@ public class StreamingGroupAlsoByWindowsReshuffleDoFnTest {
     assertThat(item3.getWindows(), Matchers.<BoundedWindow>contains(window(10, 20)));
   }
 
-  private DoFnRunner<KeyedWorkItem<String>, KV<String, Iterable<String>>> makeRunner(
+  private DoFnRunner<KeyedWorkItem<String, String>, KV<String, Iterable<String>>> makeRunner(
           TupleTag<KV<String, Iterable<String>>> outputTag,
-          DoFnRunner.OutputManager outputManager,
+          DoFnRunners.OutputManager outputManager,
           WindowingStrategy<? super String, IntervalWindow> windowingStrategy) {
 
-    DoFn<KeyedWorkItem<String>, KV<String, Iterable<String>>> fn =
+    DoFn<KeyedWorkItem<String, String>, KV<String, Iterable<String>>> fn =
         new StreamingGroupAlsoByWindowsReshuffleDoFn<>();
 
     return makeRunner(outputTag, outputManager, windowingStrategy, fn);
   }
 
   private <InputT, OutputT>
-      DoFnRunner<KeyedWorkItem<InputT>, KV<String, OutputT>> makeRunner(
+      DoFnRunner<KeyedWorkItem<String, InputT>, KV<String, OutputT>> makeRunner(
           TupleTag<KV<String, OutputT>> outputTag,
-          DoFnRunner.OutputManager outputManager,
+          DoFnRunners.OutputManager outputManager,
           WindowingStrategy<? super String, IntervalWindow> windowingStrategy,
-          DoFn<KeyedWorkItem<InputT>, KV<String, OutputT>> fn) {
+          DoFn<KeyedWorkItem<String, InputT>, KV<String, OutputT>> fn) {
     return
-        DoFnRunner.create(
+        DoFnRunners.simpleRunner(
             PipelineOptionsFactory.create(),
             fn,
             NullSideInputReader.empty(),

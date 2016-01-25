@@ -71,15 +71,11 @@ import java.util.Set;
  * @param <W> The type of windows this operates on.
  */
 public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
-  public static final String DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER = "DroppedDueToClosedWindow";
-  public static final String DROPPED_DUE_TO_LATENESS_COUNTER = "DroppedDueToLateness";
-
   private final WindowingStrategy<Object, W> windowingStrategy;
 
   private final WindowingInternals<?, KV<K, OutputT>> windowingInternals;
 
   private final Aggregator<Long, Long> droppedDueToClosedWindow;
-  private final Aggregator<Long, Long> droppedDueToLateness;
 
   private final K key;
 
@@ -174,14 +170,13 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
 
   public ReduceFnRunner(K key, WindowingStrategy<?, W> windowingStrategy,
       TimerInternals timerInternals, WindowingInternals<?, KV<K, OutputT>> windowingInternals,
-      Aggregator<Long, Long> droppedDueToClosedWindow, Aggregator<Long, Long> droppedDueToLateness,
+      Aggregator<Long, Long> droppedDueToClosedWindow,
       ReduceFn<K, InputT, OutputT, W> reduceFn) {
     this.key = key;
     this.timerInternals = timerInternals;
     this.paneInfoTracker = new PaneInfoTracker(timerInternals);
     this.windowingInternals = windowingInternals;
     this.droppedDueToClosedWindow = droppedDueToClosedWindow;
-    this.droppedDueToLateness = droppedDueToLateness;
     this.reduceFn = reduceFn;
 
     @SuppressWarnings("unchecked")
@@ -264,13 +259,6 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     activeWindows.persist();
   }
 
-  /** Is {@code window} expired w.r.t. the garbage collection watermark? */
-  private boolean canDropDueToExpiredWindow(W window) {
-    Instant inputWM = timerInternals.currentInputWatermarkTime();
-    return inputWM != null
-        && window.maxTimestamp().plus(windowingStrategy.getAllowedLateness()).isBefore(inputWM);
-  }
-
   /**
    * Extract the windows associated with the values, and invoke merge.
    */
@@ -288,12 +276,6 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       for (BoundedWindow untypedWindow : value.getWindows()) {
         @SuppressWarnings("unchecked")
         W window = (W) untypedWindow;
-
-        if (canDropDueToExpiredWindow(window)) {
-          // This element is too late to contribute to this window.
-          // We will update the counter for this in the corresponding processElement call.
-          continue;
-        }
 
         ReduceFn<K, InputT, OutputT, W>.Context context = contextFactory.base(window);
         if (triggerRunner.isClosed(context.state())) {
@@ -389,19 +371,9 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     for (BoundedWindow untypedWindow : value.getWindows()) {
       @SuppressWarnings("unchecked")
       W window = (W) untypedWindow;
-      if (canDropDueToExpiredWindow(window)) {
-        // The element is too late for this window.
-        droppedDueToLateness.addValue(1L);
-        WindowTracing.debug(
-            "ReduceFnRunner.processElement: Dropping element at {} for key:{}; window:{} "
-            + "since too far behind inputWatermark:{}; outputWatermark:{}",
-            value.getTimestamp(), key, window, timerInternals.currentInputWatermarkTime(),
-            timerInternals.currentOutputWatermarkTime());
-      } else {
-        W active = activeWindows.representative(window);
-        Preconditions.checkState(active != null, "Window %s should have been added", window);
-        windows.add(active);
-      }
+      W active = activeWindows.representative(window);
+      Preconditions.checkState(active != null, "Window %s should have been added", window);
+      windows.add(active);
     }
 
     // Prefetch in each of the windows if we're going to need to process triggers

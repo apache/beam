@@ -88,8 +88,8 @@ public class KeyedWorkItemTest {
     chunk2.setSourceComputationId("computation");
     addElement(chunk2, 6, "earth", WINDOW_1, paneInfo(1));
 
-    KeyedWorkItem<String> keyedWorkItem =
-        KeyedWorkItem.workItem(KEY, workItem.build(), WINDOW_CODER, WINDOWS_CODER, VALUE_CODER);
+    KeyedWorkItem<String, String> keyedWorkItem = KeyedWorkItems.windmillWorkItem(
+        KEY, workItem.build(), WINDOW_CODER, WINDOWS_CODER, VALUE_CODER);
 
     assertThat(keyedWorkItem.elementsIterable(), Matchers.contains(
         WindowedValue.of("hello", new Instant(5), WINDOW_1, paneInfo(0)),
@@ -126,8 +126,8 @@ public class KeyedWorkItemTest {
             .build())
         .build();
 
-    KeyedWorkItem<String> keyedWorkItem =
-        KeyedWorkItem.<String>workItem(KEY, workItem, WINDOW_CODER, WINDOWS_CODER, VALUE_CODER);
+    KeyedWorkItem<String, String> keyedWorkItem =
+        KeyedWorkItems.windmillWorkItem(KEY, workItem, WINDOW_CODER, WINDOWS_CODER, VALUE_CODER);
 
     assertThat(keyedWorkItem.timersIterable(), Matchers.contains(
         makeTimer(STATE_NAMESPACE_1, 1, TimeDomain.EVENT_TIME),

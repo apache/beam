@@ -16,7 +16,7 @@
 package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.runners.worker.KeyedWorkItem.KeyedWorkItemCoder;
+import com.google.cloud.dataflow.sdk.runners.worker.KeyedWorkItems.FakeKeyedWorkItemCoder;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -38,7 +38,7 @@ public class TimerOrElement {
    * {@code com.google.cloud.dataflow.sdk.util.TimerOrElement$TimerOrElementCoder} and we'd like to
    * be able to rename/move that without breaking things.
    */
-  public static class TimerOrElementCoder<ElemT> extends KeyedWorkItemCoder<ElemT> {
+  public static class TimerOrElementCoder<ElemT> extends FakeKeyedWorkItemCoder<Object, ElemT> {
 
     private TimerOrElementCoder(Coder<ElemT> elemCoder) {
       super(elemCoder);
