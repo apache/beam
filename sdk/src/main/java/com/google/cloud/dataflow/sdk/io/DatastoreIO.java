@@ -326,8 +326,16 @@ public class DatastoreIO {
         return ImmutableList.of(this);
       }
 
+      List<Query> datastoreSplits;
+      try {
+        datastoreSplits = getSplitQueries(Ints.checkedCast(numSplits), options);
+      } catch (IllegalArgumentException | DatastoreException e) {
+        LOG.warn("Unable to parallelize the given query: {}", query, e);
+        return ImmutableList.of(this);
+      }
+
       ImmutableList.Builder<Source> splits = ImmutableList.builder();
-      for (Query splitQuery : getSplitQueries(Ints.checkedCast(numSplits), options)) {
+      for (Query splitQuery : datastoreSplits) {
         splits.add(new Source(host, datasetId, splitQuery, namespace));
       }
       return splits.build();

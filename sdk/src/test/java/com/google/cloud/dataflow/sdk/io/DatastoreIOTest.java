@@ -29,6 +29,7 @@ import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -52,6 +53,7 @@ import com.google.cloud.dataflow.sdk.io.DatastoreIO.DatastoreWriter;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.testing.ExpectedLogs;
 import com.google.cloud.dataflow.sdk.util.TestCredential;
 import com.google.common.collect.Lists;
 
@@ -96,6 +98,8 @@ public class DatastoreIOTest {
 
   @Rule
   public final ExpectedException thrown = ExpectedException.none();
+
+  @Rule public final ExpectedLogs logged = ExpectedLogs.none(DatastoreIO.Source.class);
 
   @Before
   public void setUp() {
@@ -328,6 +332,37 @@ public class DatastoreIOTest {
     assertEquals(1, bundles.size());
     assertEquals(query, bundles.get(0).getQuery());
     verifyNoMoreInteractions(splitter);
+  }
+
+  /**
+   * Tests that when {@link QuerySplitter} cannot split a query, {@link DatastoreIO} falls back to
+   * a single split.
+   */
+  @Test
+  public void testQuerySplitterThrows() throws Exception {
+    // Mock query splitter that throws IllegalArgumentException
+    IllegalArgumentException exception =
+        new IllegalArgumentException("query not supported by splitter");
+    QuerySplitter splitter = mock(QuerySplitter.class);
+    when(
+            splitter.getSplits(
+                any(Query.class), any(PartitionId.class), any(Integer.class), any(Datastore.class)))
+        .thenThrow(exception);
+
+    Query query = Query.newBuilder().addKind(KindExpression.newBuilder().setName("myKind")).build();
+    List<DatastoreIO.Source> bundles =
+        initialSource
+            .withQuery(query)
+            .withMockSplitter(splitter)
+            .withMockEstimateSizeBytes(10240L)
+            .splitIntoBundles(1024, testPipelineOptions(null));
+
+    assertEquals(1, bundles.size());
+    assertEquals(query, bundles.get(0).getQuery());
+    verify(splitter, times(1))
+        .getSplits(
+            any(Query.class), any(PartitionId.class), any(Integer.class), any(Datastore.class));
+    logged.verifyWarn("Unable to parallelize the given query", exception);
   }
 
   @Test
