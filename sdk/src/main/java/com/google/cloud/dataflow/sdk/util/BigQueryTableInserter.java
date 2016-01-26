@@ -16,6 +16,10 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import com.google.api.client.util.BackOff;
+import com.google.api.client.util.BackOffUtils;
+import com.google.api.client.util.ExponentialBackOff;
+import com.google.api.client.util.Sleeper;
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableDataInsertAllRequest;
@@ -28,6 +32,7 @@ import com.google.cloud.dataflow.sdk.io.BigQueryIO;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO.Write.CreateDisposition;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO.Write.WriteDisposition;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -351,6 +356,13 @@ public class BigQueryTableInserter {
   }
 
   /**
+   * Retry table creation up to 5 minutes (with exponential backoff) when this user is near the
+   * quota for table creation. This relatively innocuous behavior can happen when BigQueryIO is
+   * configured with a table spec function to use different tables for each window.
+   */
+  private static final int RETRY_CREATE_TABLE_DURATION_MILLIS = (int) TimeUnit.MINUTES.toMillis(5);
+
+  /**
    * Tries to create the BigQuery table.
    * If a table with the same name already exists in the dataset, the table
    * creation fails, and the function returns null.  In such a case,
@@ -365,21 +377,52 @@ public class BigQueryTableInserter {
   @Nullable
   public Table tryCreateTable(TableReference ref, TableSchema schema) throws IOException {
     LOG.info("Trying to create BigQuery table: {}", BigQueryIO.toTableSpec(ref));
+    BackOff backoff =
+        new ExponentialBackOff.Builder()
+            .setMaxElapsedTimeMillis(RETRY_CREATE_TABLE_DURATION_MILLIS)
+            .build();
 
-    Table content = new Table();
-    content.setTableReference(ref);
-    content.setSchema(schema);
+    Table table = new Table().setTableReference(ref).setSchema(schema);
+    return tryCreateTable(table, ref.getProjectId(), ref.getDatasetId(), backoff, Sleeper.DEFAULT);
+  }
 
-    try {
-      return client.tables()
-          .insert(ref.getProjectId(), ref.getDatasetId(), content)
-          .execute();
-    } catch (IOException e) {
-      if (new ApiErrorExtractor().itemAlreadyExists(e)) {
-        LOG.info("The BigQuery table already exists.");
-        return null;
+  @VisibleForTesting
+  @Nullable
+  Table tryCreateTable(
+      Table table, String projectId, String datasetId, BackOff backoff, Sleeper sleeper)
+          throws IOException {
+    boolean retry = false;
+    while (true) {
+      try {
+        return client.tables().insert(projectId, datasetId, table).execute();
+      } catch (IOException e) {
+        ApiErrorExtractor extractor = new ApiErrorExtractor();
+        if (extractor.itemAlreadyExists(e)) {
+          // The table already exists, nothing to return.
+          return null;
+        } else if (extractor.rateLimited(e)) {
+          // The request failed because we hit a temporary quota. Back off and try again.
+          try {
+            if (BackOffUtils.next(sleeper, backoff)) {
+              if (!retry) {
+                LOG.info(
+                    "Quota limit reached when creating table {}:{}.{}, retrying up to {} minutes",
+                    projectId,
+                    datasetId,
+                    table.getTableReference().getTableId(),
+                    TimeUnit.MILLISECONDS.toSeconds(RETRY_CREATE_TABLE_DURATION_MILLIS) / 60.0);
+                retry = true;
+              }
+              continue;
+            }
+          } catch (InterruptedException e1) {
+            // Restore interrupted state and throw the last failure.
+            Thread.currentThread().interrupt();
+            throw e;
+          }
+        }
+        throw e;
       }
-      throw e;
     }
   }
 }
