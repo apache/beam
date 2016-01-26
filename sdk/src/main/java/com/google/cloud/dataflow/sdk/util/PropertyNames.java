@@ -67,6 +67,8 @@ public class PropertyNames {
   public static final String IS_WRAPPER = "is_wrapper";
   public static final String DISALLOW_COMBINER_LIFTING = "disallow_combiner_lifting";
   public static final String NON_PARALLEL_INPUTS = "non_parallel_inputs";
+  public static final String NUM_SHARD_CODERS = "num_shard_coders";
+  public static final String NUM_METADATA_SHARD_CODERS = "num_metadata_shard_coders";
   public static final String NUM_SHARDS = "num_shards";
   public static final String OBJECT_TYPE_NAME = "@type";
   public static final String OUTPUT = "output";
@@ -90,6 +92,7 @@ public class PropertyNames {
   public static final String START_SHUFFLE_POSITION = "start_shuffle_position";
   public static final String STRIP_TRAILING_NEWLINES = "strip_trailing_newlines";
   public static final String TUPLE_TAGS = "tuple_tags";
+  public static final String USE_INDEXED_FORMAT = "use_indexed_format";
   public static final String USER_FN = "user_fn";
   public static final String USER_NAME = "user_name";
   public static final String USES_KEYED_STATE = "uses_keyed_state";
