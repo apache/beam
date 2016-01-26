@@ -318,8 +318,7 @@ public class GameStats extends LeaderBoard {
             .<KV<String, Integer>>into(
                   Sessions.withGapDuration(Duration.standardMinutes(options.getSessionGap())))
         .withOutputTimeFn(OutputTimeFns.outputAtEndOfWindow())
-        .withAllowedLateness(Duration.ZERO)
-        .discardingFiredPanes())
+        .withAllowedLateness(Duration.ZERO))
       .apply("UserSessionSum", Sum.<String>integersPerKey())
       // Get the duration per session.
       .apply("UserSessionActivity", ParDo.of(new UserSessionInfoFn()))
@@ -329,8 +328,7 @@ public class GameStats extends LeaderBoard {
       .apply(Window.named("WindowToExtractSessionMean")
             .<Integer>into(
                 FixedWindows.of(Duration.standardMinutes(options.getUserActivityWindowDuration())))
-            .withAllowedLateness(Duration.standardMinutes(options.getAllowedLateness()))
-            .accumulatingFiredPanes())
+            .withAllowedLateness(Duration.ZERO))
       // Find the mean session duration in each window.
       .apply(Mean.<Integer>globally().withoutDefaults())
       // Write this info to a BigQuery table.
