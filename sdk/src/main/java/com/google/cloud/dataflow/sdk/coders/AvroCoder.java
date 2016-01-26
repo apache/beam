@@ -171,19 +171,42 @@ public class AvroCoder<T> extends StandardCoder<T> {
 
   private final List<String> nonDeterministicReasons;
 
-  private final DatumWriter<T> writer;
-  private final DatumReader<T> reader;
-  private final EncoderFactory encoderFactory = new EncoderFactory();
-  private final DecoderFactory decoderFactory = new DecoderFactory();
+  // Factories allocated by .get() are thread-safe and immutable.
+  private static final EncoderFactory ENCODER_FACTORY = EncoderFactory.get();
+  private static final DecoderFactory DECODER_FACTORY = DecoderFactory.get();
+  // Cache the old encoder/decoder and let the factories reuse them when possible. To be threadsafe,
+  // these are ThreadLocal. This code does not need to be re-entrant as AvroCoder does not use
+  // an inner coder.
+  private final ThreadLocal<BinaryDecoder> decoder;
+  private final ThreadLocal<BinaryEncoder> encoder;
+  private final ThreadLocal<DatumWriter<T>> writer;
+  private final ThreadLocal<DatumReader<T>> reader;
 
   protected AvroCoder(Class<T> type, Schema schema) {
     this.type = type;
     this.schema = schema;
 
-    nonDeterministicReasons = new AvroDeterminismChecker()
-        .check(TypeDescriptor.of(type), schema);
-    this.reader = createDatumReader();
-    this.writer = createDatumWriter();
+    nonDeterministicReasons = new AvroDeterminismChecker().check(TypeDescriptor.of(type), schema);
+
+    // Decoder and Encoder start off null for each thread. They are allocated and potentially
+    // reused inside encode/decode.
+    this.decoder = new ThreadLocal<>();
+    this.encoder = new ThreadLocal<>();
+
+    // Reader and writer are allocated once per thread and are "final" for thread-local Coder
+    // instance.
+    this.reader = new ThreadLocal<DatumReader<T>>() {
+      @Override
+      public DatumReader<T> initialValue() {
+        return createDatumReader();
+      }
+    };
+    this.writer = new ThreadLocal<DatumWriter<T>>() {
+      @Override
+      public DatumWriter<T> initialValue() {
+        return createDatumWriter();
+      }
+    };
   }
 
   /**
@@ -233,17 +256,22 @@ public class AvroCoder<T> extends StandardCoder<T> {
   }
 
   @Override
-  public void encode(T value, OutputStream outStream, Context context)
-      throws IOException {
-    BinaryEncoder encoder = encoderFactory.directBinaryEncoder(outStream, null);
-    writer.write(value, encoder);
-    encoder.flush();
+  public void encode(T value, OutputStream outStream, Context context) throws IOException {
+    // Get a BinaryEncoder instance from the ThreadLocal cache and attempt to reuse it.
+    BinaryEncoder encoderInstance = ENCODER_FACTORY.directBinaryEncoder(outStream, encoder.get());
+    // Save the potentially-new instance for reuse later.
+    encoder.set(encoderInstance);
+    writer.get().write(value, encoderInstance);
+    // Direct binary encoder does not buffer any data and need not be flushed.
   }
 
   @Override
   public T decode(InputStream inStream, Context context) throws IOException {
-    BinaryDecoder decoder = decoderFactory.directBinaryDecoder(inStream, null);
-    return reader.read(null, decoder);
+    // Get a BinaryDecoder instance from the ThreadLocal cache and attempt to reuse it.
+    BinaryDecoder decoderInstance = DECODER_FACTORY.directBinaryDecoder(inStream, decoder.get());
+    // Save the potentially-new instance for later.
+    decoder.set(decoderInstance);
+    return reader.get().read(null, decoderInstance);
   }
 
   @Override
@@ -272,12 +300,12 @@ public class AvroCoder<T> extends StandardCoder<T> {
   }
 
   /**
-   * Returns a new DatumReader that can be used to read from
-   * an Avro file directly. Assumes the schema used to read is
-   * the same as the schema that was used when writing.
+   * Returns a new {@link DatumReader} that can be used to read from an Avro file directly. Assumes
+   * the schema used to read is the same as the schema that was used when writing.
    *
    * @deprecated For {@code AvroCoder} internal use only.
    */
+  // TODO: once we can remove this deprecated function, inline in constructor.
   @Deprecated
   public DatumReader<T> createDatumReader() {
     if (type.equals(GenericRecord.class)) {
@@ -288,11 +316,11 @@ public class AvroCoder<T> extends StandardCoder<T> {
   }
 
   /**
-   * Returns a new DatumWriter that can be used to write to
-   * an Avro file directly.
+   * Returns a new {@link DatumWriter} that can be used to write to an Avro file directly.
    *
    * @deprecated For {@code AvroCoder} internal use only.
    */
+  // TODO: once we can remove this deprecated function, inline in constructor.
   @Deprecated
   public DatumWriter<T> createDatumWriter() {
     if (type.equals(GenericRecord.class)) {
