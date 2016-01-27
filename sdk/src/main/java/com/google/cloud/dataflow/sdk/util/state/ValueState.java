@@ -19,7 +19,7 @@ import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.annotations.Experimental.Kind;
 
 /**
- * sTate holding a single value.
+ * State holding a single value.
  *
  * @param <T> The type of values being stored.
  */
