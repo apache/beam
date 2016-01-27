@@ -16,6 +16,7 @@
 package com.google.cloud.dataflow.sdk.util;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.cloud.dataflow.sdk.coders.AtomicCoder;
 import com.google.cloud.dataflow.sdk.coders.ByteArrayCoder;
@@ -23,6 +24,7 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.common.base.MoreObjects;
 import com.google.common.io.ByteStreams;
+import com.google.common.primitives.UnsignedBytes;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 
@@ -50,7 +52,9 @@ public class RandomAccessData {
   /**
    * A {@link Coder} which encodes the valid parts of this stream.
    * This follows the same encoding scheme as {@link ByteArrayCoder}.
-   * This coder is deterministic and the consistent with equals.
+   * This coder is deterministic and consistent with equals.
+   *
+   * This coder does not support encoding positive infinity.
    */
   public static class RandomAccessDataCoder extends AtomicCoder<RandomAccessData> {
     private static final RandomAccessDataCoder INSTANCE = new RandomAccessDataCoder();
@@ -63,6 +67,9 @@ public class RandomAccessData {
     @Override
     public void encode(RandomAccessData value, OutputStream outStream, Coder.Context context)
         throws CoderException, IOException {
+      if (value == POSITIVE_INFINITY) {
+        throw new CoderException("Positive infinity can not be encoded.");
+      }
       if (!context.isWholeStream) {
         VarInt.encode(value.size, outStream);
       }
@@ -107,18 +114,45 @@ public class RandomAccessData {
     }
   }
 
+  public static final UnsignedLexicographicalComparator UNSIGNED_LEXICOGRAPHICAL_COMPARATOR =
+      new UnsignedLexicographicalComparator();
+
   /**
    * A {@link Comparator} that compares two byte arrays lexicographically. It compares
    * values as a list of unsigned bytes. The first pair of values that follow any common prefix,
    * or when one array is a prefix of the other, treats the shorter array as the lesser.
-   * For example, [] < [0x01] < [0x01, 0x7F] < [0x01, 0x80] < [0x02].
+   * For example, [] < [0x01] < [0x01, 0x7F] < [0x01, 0x80] < [0x02] < POSITIVE INFINITY.
+   *
+   * <p>Note that a token type of positive infinity is supported and is greater than
+   * all other {@link RandomAccessData}.
    */
-  public static final Comparator<RandomAccessData> UNSIGNED_LEXICOGRAPHICAL_COMPARATOR =
-      new Comparator<RandomAccessData>() {
+  public static final class UnsignedLexicographicalComparator
+      implements Comparator<RandomAccessData> {
+    // Do not instantiate
+    private UnsignedLexicographicalComparator() {
+    }
+
     @Override
     public int compare(RandomAccessData o1, RandomAccessData o2) {
+      return compare(o1, o2, 0 /* start from the beginning */);
+    }
+
+    /**
+     * Compare the two sets of bytes starting at the given offset.
+     */
+    public int compare(RandomAccessData o1, RandomAccessData o2, int startOffset) {
+      if (o1 == o2) {
+        return 0;
+      }
+      if (o1 == POSITIVE_INFINITY) {
+        return 1;
+      }
+      if (o2 == POSITIVE_INFINITY) {
+        return -1;
+      }
+
       int minBytesLen = Math.min(o1.size, o2.size);
-      for (int i = 0; i < minBytesLen; i++) {
+      for (int i = startOffset; i < minBytesLen; i++) {
         // unsigned comparison
         int b1 = o1.buffer[i] & 0xFF;
         int b2 = o2.buffer[i] & 0xFF;
@@ -132,7 +166,45 @@ public class RandomAccessData {
       // If both lengths are equal, then both streams are equal.
       return o1.size - o2.size;
     }
-  };
+
+    /**
+     * Compute the length of the common prefix of the two provided sets of bytes.
+     */
+    public int commonPrefixLength(RandomAccessData o1, RandomAccessData o2) {
+      int minBytesLen = Math.min(o1.size, o2.size);
+      for (int i = 0; i < minBytesLen; i++) {
+        // unsigned comparison
+        int b1 = o1.buffer[i] & 0xFF;
+        int b2 = o2.buffer[i] & 0xFF;
+        if (b1 != b2) {
+          return i;
+        }
+      }
+      return minBytesLen;
+    }
+  }
+
+  /** A token type representing positive infinity. */
+  static final RandomAccessData POSITIVE_INFINITY = new RandomAccessData(0);
+
+  /**
+   * Returns a RandomAccessData that is the smallest value of same length which
+   * is strictly greater than this. Note that if this is empty or is all 0xFF then
+   * a token value of positive infinity is returned.
+   *
+   * The {@link UnsignedLexicographicalComparator} supports comparing {@link RandomAccessData}
+   * with support for positive infinitiy.
+   */
+  public RandomAccessData increment() throws IOException {
+    RandomAccessData copy = copy();
+    for (int i = copy.size - 1; i >= 0; --i) {
+      if (copy.buffer[i] != UnsignedBytes.MAX_VALUE) {
+        copy.buffer[i] = UnsignedBytes.checkedCast(UnsignedBytes.toInt(copy.buffer[i]) + 1);
+        return copy;
+      }
+    }
+    return POSITIVE_INFINITY;
+  }
 
   private static final int DEFAULT_INITIAL_BUFFER_SIZE = 128;
 
@@ -141,10 +213,17 @@ public class RandomAccessData {
     this(DEFAULT_INITIAL_BUFFER_SIZE);
   }
 
+  /** Constructs a RandomAccessData with the initial buffer. */
+  public RandomAccessData(byte[] initialBuffer) {
+    checkNotNull(initialBuffer);
+    this.buffer = initialBuffer;
+    this.size = initialBuffer.length;
+  }
+
   /** Constructs a RandomAccessData with the given buffer size. */
   public RandomAccessData(int initialBufferSize) {
     checkArgument(initialBufferSize >= 0, "Expected initial buffer size to be greater than zero.");
-    buffer = new byte[initialBufferSize];
+    this.buffer = new byte[initialBufferSize];
   }
 
   private byte[] buffer;
@@ -220,6 +299,13 @@ public class RandomAccessData {
     size = offset + length;
   }
 
+  /** Returns a copy of this RandomAccessData. */
+  public RandomAccessData copy() throws IOException {
+    RandomAccessData copy = new RandomAccessData(size);
+    writeTo(copy.asOutputStream(), 0, size);
+    return copy;
+  }
+
   @Override
   public boolean equals(Object other) {
     if (other == this) {
@@ -244,7 +330,7 @@ public class RandomAccessData {
   @Override
   public String toString() {
     return MoreObjects.toStringHelper(this)
-        .add("buffer", buffer)
+        .add("buffer", Arrays.copyOf(buffer, size))
         .add("size", size)
         .toString();
   }

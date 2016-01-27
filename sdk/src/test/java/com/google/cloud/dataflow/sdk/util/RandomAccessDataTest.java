@@ -18,13 +18,18 @@ package com.google.cloud.dataflow.sdk.util;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.coders.Coder.Context;
+import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.testing.CoderProperties;
 import com.google.cloud.dataflow.sdk.util.RandomAccessData.RandomAccessDataCoder;
+import com.google.common.primitives.UnsignedBytes;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -40,6 +45,9 @@ import java.util.Arrays;
 public class RandomAccessDataTest {
   private static final byte[] TEST_DATA_A = new byte[]{ 0x01, 0x02, 0x03 };
   private static final byte[] TEST_DATA_B = new byte[]{ 0x06, 0x05, 0x04, 0x03 };
+  private static final byte[] TEST_DATA_C = new byte[]{ 0x06, 0x05, 0x03, 0x03 };
+
+  @Rule public ExpectedException expectedException = ExpectedException.none();
 
   @Test
   public void testCoder() throws Exception {
@@ -60,14 +68,40 @@ public class RandomAccessDataTest {
   }
 
   @Test
+  public void testCoderWithPositiveInfinityIsError() throws Exception {
+    expectedException.expect(CoderException.class);
+    expectedException.expectMessage("Positive infinity can not be encoded");
+    RandomAccessDataCoder.of().encode(
+        RandomAccessData.POSITIVE_INFINITY, new ByteArrayOutputStream(), Context.OUTER);
+  }
+
+  @Test
   public void testLexicographicalComparator() throws Exception {
     RandomAccessData streamA = new RandomAccessData();
     streamA.asOutputStream().write(TEST_DATA_A);
     RandomAccessData streamB = new RandomAccessData();
     streamB.asOutputStream().write(TEST_DATA_B);
-    assertTrue(RandomAccessData.UNSIGNED_LEXICOGRAPHICAL_COMPARATOR.compare(streamA, streamB) < 0);
-    assertTrue(RandomAccessData.UNSIGNED_LEXICOGRAPHICAL_COMPARATOR.compare(streamB, streamA) > 0);
-    assertTrue(RandomAccessData.UNSIGNED_LEXICOGRAPHICAL_COMPARATOR.compare(streamB, streamB) == 0);
+    RandomAccessData streamC = new RandomAccessData();
+    streamC.asOutputStream().write(TEST_DATA_C);
+    assertTrue(RandomAccessData.UNSIGNED_LEXICOGRAPHICAL_COMPARATOR.compare(
+        streamA, streamB) < 0);
+    assertTrue(RandomAccessData.UNSIGNED_LEXICOGRAPHICAL_COMPARATOR.compare(
+        streamB, streamA) > 0);
+    assertTrue(RandomAccessData.UNSIGNED_LEXICOGRAPHICAL_COMPARATOR.compare(
+        streamB, streamB) == 0);
+    // Check common prefix length.
+    assertEquals(2, RandomAccessData.UNSIGNED_LEXICOGRAPHICAL_COMPARATOR.commonPrefixLength(
+        streamB, streamC));
+    // Check that we honor the start offset.
+    assertTrue(RandomAccessData.UNSIGNED_LEXICOGRAPHICAL_COMPARATOR.compare(
+        streamB, streamC, 3) == 0);
+    // Test positive infinity comparisons.
+    assertTrue(RandomAccessData.UNSIGNED_LEXICOGRAPHICAL_COMPARATOR.compare(
+        streamA, RandomAccessData.POSITIVE_INFINITY) < 0);
+    assertTrue(RandomAccessData.UNSIGNED_LEXICOGRAPHICAL_COMPARATOR.compare(
+        RandomAccessData.POSITIVE_INFINITY, RandomAccessData.POSITIVE_INFINITY) == 0);
+    assertTrue(RandomAccessData.UNSIGNED_LEXICOGRAPHICAL_COMPARATOR.compare(
+        RandomAccessData.POSITIVE_INFINITY, streamA) > 0);
   }
 
   @Test
@@ -154,5 +188,18 @@ public class RandomAccessDataTest {
         Arrays.copyOf(stream.array(), TEST_DATA_A.length));
   }
 
+  @Test
+  public void testIncrement() throws Exception {
+    assertEquals(new RandomAccessData(new byte[]{ 0x00, 0x01 }),
+        new RandomAccessData(new byte[]{ 0x00, 0x00 }).increment());
+    assertEquals(new RandomAccessData(new byte[]{ 0x01, UnsignedBytes.MAX_VALUE }),
+        new RandomAccessData(new byte[]{ 0x00, UnsignedBytes.MAX_VALUE }).increment());
+
+    // Test for positive infinity
+    assertSame(RandomAccessData.POSITIVE_INFINITY, new RandomAccessData(new byte[0]).increment());
+    assertSame(RandomAccessData.POSITIVE_INFINITY,
+        new RandomAccessData(new byte[]{ UnsignedBytes.MAX_VALUE }).increment());
+    assertSame(RandomAccessData.POSITIVE_INFINITY, RandomAccessData.POSITIVE_INFINITY.increment());
+  }
 }
 
