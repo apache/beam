@@ -30,10 +30,12 @@ import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.Bigquery.Jobs.Insert;
 import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.DatasetReference;
+import com.google.api.services.bigquery.model.ErrorProto;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationQuery;
 import com.google.api.services.bigquery.model.JobReference;
+import com.google.api.services.bigquery.model.JobStatus;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableCell;
 import com.google.api.services.bigquery.model.TableDataList;
@@ -352,6 +354,12 @@ public class BigQueryTableRowIterator implements Iterator<TableRow>, Closeable {
         + projectId + ". Manual deletion may be required. Error message : {}");
   }
 
+  /**
+   * Executes the specified query and returns a reference to the temporary BigQuery table created
+   * to hold the results.
+   *
+   * @throws IOException if the query fails.
+   */
   private TableReference executeQueryAndWaitForCompletion()
       throws IOException, InterruptedException {
     // Create a temporary dataset to store results.
@@ -384,8 +392,17 @@ public class BigQueryTableRowIterator implements Iterator<TableRow>, Closeable {
       Job pollJob = executeWithBackOff(
           client.jobs().get(projectId, jobId.getJobId()),
           "Error when trying to get status of the job for query " + query + " :{}");
-      if (pollJob.getStatus().getState().equals("DONE")) {
-        return pollJob.getConfiguration().getQuery().getDestinationTable();
+      JobStatus status = pollJob.getStatus();
+      if (status.getState().equals("DONE")) {
+        // Job is DONE, but did not necessarily succeed.
+        ErrorProto error = status.getErrorResult();
+        if (error == null) {
+          return pollJob.getConfiguration().getQuery().getDestinationTable();
+        } else {
+          // There will be no temporary table to delete, so null out the reference.
+          temporaryTableId = null;
+          throw new IOException("Executing query " + query + " failed: " + error.getMessage());
+        }
       }
       try {
         Thread.sleep(QUERY_COMPLETION_POLL_TIME.getMillis());
@@ -460,7 +477,9 @@ public class BigQueryTableRowIterator implements Iterator<TableRow>, Closeable {
     try {
       // Deleting temporary table and dataset that gets generated when executing a query.
       if (temporaryDatasetId != null) {
-        deleteTable(temporaryDatasetId, temporaryTableId);
+        if (temporaryTableId != null) {
+          deleteTable(temporaryDatasetId, temporaryTableId);
+        }
         deleteDataset(temporaryDatasetId);
       }
     } catch (InterruptedException e) {
