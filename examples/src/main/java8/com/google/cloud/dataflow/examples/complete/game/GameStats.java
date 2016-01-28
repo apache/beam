@@ -27,6 +27,7 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.options.Validation;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
+import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn.RequiresWindowAccess;
 import com.google.cloud.dataflow.sdk.transforms.MapElements;
@@ -309,17 +310,18 @@ public class GameStats extends LeaderBoard {
 
 
     // [START DocInclude_SessionCalc]
-    // Calculate the total score for the users per session-- that is, a burst of activity
-    // separated by a gap from further activity. Find and record the mean session lengths.
+    // Detect user sessions-- that is, a burst of activity separated by a gap from further
+    // activity. Find and record the mean session lengths.
     // This information could help the game designers track the changing user engagement
     // as their set of games changes.
     userEvents
       .apply(Window.named("WindowIntoSessions")
             .<KV<String, Integer>>into(
                   Sessions.withGapDuration(Duration.standardMinutes(options.getSessionGap())))
-        .withOutputTimeFn(OutputTimeFns.outputAtEndOfWindow())
-        .withAllowedLateness(Duration.ZERO))
-      .apply("UserSessionSum", Sum.<String>integersPerKey())
+        .withOutputTimeFn(OutputTimeFns.outputAtEndOfWindow()))
+      // For this use, we care only about the existence of the session, not any particular
+      // information aggregated over it, so the following is an efficient way to do that.
+      .apply(Combine.perKey(x -> 0))
       // Get the duration per session.
       .apply("UserSessionActivity", ParDo.of(new UserSessionInfoFn()))
       // [END DocInclude_SessionCalc]
@@ -327,8 +329,7 @@ public class GameStats extends LeaderBoard {
       // Re-window to process groups of session sums according to when the sessions complete.
       .apply(Window.named("WindowToExtractSessionMean")
             .<Integer>into(
-                FixedWindows.of(Duration.standardMinutes(options.getUserActivityWindowDuration())))
-            .withAllowedLateness(Duration.ZERO))
+                FixedWindows.of(Duration.standardMinutes(options.getUserActivityWindowDuration()))))
       // Find the mean session duration in each window.
       .apply(Mean.<Integer>globally().withoutDefaults())
       // Write this info to a BigQuery table.
