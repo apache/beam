@@ -57,6 +57,7 @@ import com.google.cloud.dataflow.sdk.values.PCollection.IsBounded;
 import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -80,6 +81,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.annotation.Nullable;
 
 /**
  * {@link PTransform}s for reading and writing
@@ -339,20 +341,24 @@ public class BigQueryIO {
       TableReference table;
       final String query;
       final boolean validate;
+      @Nullable
+      Boolean flattenResults;
 
       private static final String QUERY_VALIDATION_FAILURE_ERROR =
           "Validation of query \"%1$s\" failed. If the query depends on an earlier stage of the"
           + " pipeline, This validation can be disabled using #withoutValidation.";
 
       private Bound() {
-        this(null, null, null, true);
+        this(null, null, null, true, null);
       }
 
-      private Bound(String name, String query, TableReference reference, boolean validate) {
+      private Bound(String name, String query, TableReference reference, boolean validate,
+          Boolean flattenResults) {
         super(name);
         this.table = reference;
         this.query = query;
         this.validate = validate;
+        this.flattenResults = flattenResults;
       }
 
       /**
@@ -361,7 +367,7 @@ public class BigQueryIO {
        * <p>Does not modify this object.
        */
       public Bound named(String name) {
-        return new Bound(name, query, table, validate);
+        return new Bound(name, query, table, validate, flattenResults);
       }
 
       /**
@@ -380,23 +386,40 @@ public class BigQueryIO {
        * <p>Does not modify this object.
        */
       public Bound from(TableReference table) {
-        return new Bound(name, query, table, validate);
+        return new Bound(name, query, table, validate, flattenResults);
       }
 
       /**
        * Returns a copy of this transform that reads the results of the specified query.
        *
        * <p>Does not modify this object.
+       *
+       * <p>By default, the query results will be flattened -- see
+       * "flattenResults" in the <a href="https://cloud.google.com/bigquery/docs/reference/v2/jobs">
+       * Jobs documentation</a> for more information.  To disable flattening, use
+       * {@link BigQueryIO.Read.Bound#withoutResultFlattening}.
        */
       public Bound fromQuery(String query) {
-        return new Bound(name, query, table, validate);
+        return new Bound(name, query, table, validate,
+            MoreObjects.firstNonNull(flattenResults, Boolean.TRUE));
       }
 
       /**
        * Disable table validation.
        */
       public Bound withoutValidation() {
-        return new Bound(name, query, table, false);
+        return new Bound(name, query, table, false, flattenResults);
+      }
+
+      /**
+       * Disable <a href="https://cloud.google.com/bigquery/docs/reference/v2/jobs">
+       * flattening of query results</a>.
+       *
+       * <p>Only valid when a query is used ({@link #fromQuery}). Setting this option when reading
+       * from a table will cause an error during validation.
+       */
+      public Bound withoutResultFlattening() {
+        return new Bound(name, query, table, validate, false);
       }
 
       /**
@@ -410,6 +433,12 @@ public class BigQueryIO {
         } else if (table != null && query != null) {
           throw new IllegalStateException("Invalid BigQuery read operation. Specifies both a"
               + " query and a table, only one of these should be provided");
+        } else if (table != null && flattenResults != null) {
+          throw new IllegalStateException("Invalid BigQuery read operation. Specifies a"
+              + " table with a result flattening preference, which is not configurable");
+        } else if (query != null && flattenResults == null) {
+          throw new IllegalStateException("Invalid BigQuery read operation. Specifies a"
+              + " query without a result flattening preference");
         }
 
         BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
@@ -499,6 +528,13 @@ public class BigQueryIO {
        */
       public boolean getValidate() {
         return validate;
+      }
+
+      /**
+       * Returns true/false if result flattening is enabled/disabled, or null if not applicable.
+       */
+      public Boolean getFlattenResults() {
+        return flattenResults;
       }
     }
 

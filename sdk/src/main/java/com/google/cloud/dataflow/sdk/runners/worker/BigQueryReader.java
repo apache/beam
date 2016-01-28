@@ -44,13 +44,15 @@ public class BigQueryReader extends NativeReader<WindowedValue<TableRow>> {
   @Nullable private final TableReference tableRef;
   @Nullable private final String query;
   @Nullable private final String projectId;
+  @Nullable private final Boolean flattenResults;
   private final Bigquery bigQueryClient;
 
   private BigQueryReader(TableReference tableRef, String query,  String projectId,
-      Bigquery bigQueryClient) {
+      Bigquery bigQueryClient, Boolean flattenResults) {
     this.tableRef = tableRef;
     this.query = query;
     this.projectId = projectId;
+    this.flattenResults = flattenResults;
     this.bigQueryClient = checkNotNull(bigQueryClient, "bigQueryClient");
   }
 
@@ -59,7 +61,7 @@ public class BigQueryReader extends NativeReader<WindowedValue<TableRow>> {
    * table.
    */
   public static BigQueryReader fromTable(TableReference tableRef, Bigquery bigQueryClient) {
-    return new BigQueryReader(tableRef, null, null, bigQueryClient);
+    return new BigQueryReader(tableRef, null, null, bigQueryClient, null);
   }
 
   /**
@@ -69,7 +71,7 @@ public class BigQueryReader extends NativeReader<WindowedValue<TableRow>> {
   public static BigQueryReader fromTableWithOptions(
       TableReference tableRef, BigQueryOptions bigQueryOptions) {
     Bigquery client = Transport.newBigQueryClient(bigQueryOptions).build();
-    return new BigQueryReader(tableRef, null, null, client);
+    return new BigQueryReader(tableRef, null, null, client, null);
   }
 
   /**
@@ -77,7 +79,7 @@ public class BigQueryReader extends NativeReader<WindowedValue<TableRow>> {
    * executing the specified query in the specified project.
    */
   public static BigQueryReader fromQuery(String query, String projectId, Bigquery bigQueryClient) {
-    return new BigQueryReader(null, query, projectId, bigQueryClient);
+    return new BigQueryReader(null, query, projectId, bigQueryClient, true);
   }
 
   /**
@@ -86,9 +88,10 @@ public class BigQueryReader extends NativeReader<WindowedValue<TableRow>> {
    * specified options.
    */
   public static BigQueryReader fromQueryWithOptions(
-      String query, String projectId, BigQueryOptions bigQueryOptions) {
+      String query, String projectId, BigQueryOptions bigQueryOptions,
+      @Nullable Boolean flattenResults) {
     Bigquery client = Transport.newBigQueryClient(bigQueryOptions).build();
-    return new BigQueryReader(null, query, projectId, client);
+    return new BigQueryReader(null, query, projectId, client, flattenResults);
   }
 
   public TableReference getTableRef() {
@@ -104,7 +107,7 @@ public class BigQueryReader extends NativeReader<WindowedValue<TableRow>> {
     if (tableRef != null) {
       return new BigQueryReaderIterator(tableRef, bigQueryClient);
     } else {
-      return new BigQueryReaderIterator(query, projectId, bigQueryClient);
+      return new BigQueryReaderIterator(query, projectId, bigQueryClient, flattenResults);
     }
   }
 
@@ -119,8 +122,10 @@ public class BigQueryReader extends NativeReader<WindowedValue<TableRow>> {
       rowIterator = BigQueryTableRowIterator.fromTable(tableRef, bigQueryClient);
     }
 
-    public BigQueryReaderIterator(String query, String projectId, Bigquery bigQueryClient) {
-      rowIterator = BigQueryTableRowIterator.fromQuery(query, projectId, bigQueryClient);
+    public BigQueryReaderIterator(String query, String projectId, Bigquery bigQueryClient,
+        @Nullable Boolean flattenResults) {
+      rowIterator = BigQueryTableRowIterator.fromQuery(query, projectId, bigQueryClient,
+          flattenResults);
     }
 
     @Override

@@ -28,6 +28,7 @@ public class PropertyNames {
   public static final String BIGQUERY_SCHEMA = "schema";
   public static final String BIGQUERY_TABLE = "table";
   public static final String BIGQUERY_QUERY = "bigquery_query";
+  public static final String BIGQUERY_FLATTEN_RESULTS = "bigquery_flatten_results";
   public static final String BIGQUERY_WRITE_DISPOSITION = "write_disposition";
   public static final String CO_GBK_RESULT_SCHEMA = "co_gbk_result_schema";
   public static final String COMBINE_FN = "combine_fn";

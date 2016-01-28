@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.runners.worker;
 
+import static com.google.cloud.dataflow.sdk.util.Structs.getBoolean;
 import static com.google.cloud.dataflow.sdk.util.Structs.getString;
 
 import com.google.api.services.bigquery.model.TableReference;
@@ -54,10 +55,11 @@ public class BigQueryReaderFactory implements ReaderFactory {
       PipelineOptions options,
       ExecutionContext executionContext) throws Exception {
     String query = getString(spec, PropertyNames.BIGQUERY_QUERY, null);
+    Boolean flatten = getBoolean(spec, PropertyNames.BIGQUERY_FLATTEN_RESULTS, true);
     if (query != null) {
       GcpOptions gcpOptions = options.as(GcpOptions.class);
       return BigQueryReader.fromQueryWithOptions(
-          query, gcpOptions.getProject(), options.as(BigQueryOptions.class));
+          query, gcpOptions.getProject(), options.as(BigQueryOptions.class), flatten);
     }
 
     String tableId = getString(spec, PropertyNames.BIGQUERY_TABLE, null);

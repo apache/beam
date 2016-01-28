@@ -52,6 +52,7 @@ public class BigQueryIOTranslator {
 
       if (transform.getQuery() != null) {
         context.addInput(PropertyNames.BIGQUERY_QUERY, transform.getQuery());
+        context.addInput(PropertyNames.BIGQUERY_FLATTEN_RESULTS, transform.getFlattenResults());
       } else {
         TableReference table = transform.getTable();
         if (table.getProjectId() == null) {

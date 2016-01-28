@@ -43,6 +43,7 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 
 import org.joda.time.Duration;
@@ -89,6 +90,8 @@ public class BigQueryTableRowIterator implements Iterator<TableRow>, Closeable {
   private static final Duration QUERY_COMPLETION_POLL_TIME = Duration.standardSeconds(1);
 
   private final String query;
+  // Whether to flatten query results.
+  private final boolean flattenResults;
   // Temporary dataset used to store query results.
   private String temporaryDatasetId = null;
   // Temporary table used to store query results.
@@ -96,11 +99,12 @@ public class BigQueryTableRowIterator implements Iterator<TableRow>, Closeable {
 
   private BigQueryTableRowIterator(
       @Nullable TableReference ref, @Nullable String query, @Nullable String projectId,
-      Bigquery client) {
+      Bigquery client, boolean flattenResults) {
     this.ref = ref;
     this.query = query;
     this.projectId = projectId;
     this.client = checkNotNull(client, "client");
+    this.flattenResults = flattenResults;
   }
 
   /**
@@ -109,7 +113,7 @@ public class BigQueryTableRowIterator implements Iterator<TableRow>, Closeable {
   public static BigQueryTableRowIterator fromTable(TableReference ref, Bigquery client) {
     checkNotNull(ref, "ref");
     checkNotNull(client, "client");
-    return new BigQueryTableRowIterator(ref, null, ref.getProjectId(), client);
+    return new BigQueryTableRowIterator(ref, null, ref.getProjectId(), client, true);
   }
 
   /**
@@ -117,11 +121,12 @@ public class BigQueryTableRowIterator implements Iterator<TableRow>, Closeable {
    * specified query in the specified project.
    */
   public static BigQueryTableRowIterator fromQuery(
-      String query, String projectId, Bigquery client) {
+      String query, String projectId, Bigquery client, @Nullable Boolean flattenResults) {
     checkNotNull(query, "query");
     checkNotNull(projectId, "projectId");
     checkNotNull(client, "client");
-    return new BigQueryTableRowIterator(null, query, projectId, client);
+    return new BigQueryTableRowIterator(null, query, projectId, client,
+        MoreObjects.firstNonNull(flattenResults, Boolean.TRUE));
   }
 
   @Override
@@ -376,6 +381,7 @@ public class BigQueryTableRowIterator implements Iterator<TableRow>, Closeable {
     job.setConfiguration(config);
     queryConfig.setQuery(query);
     queryConfig.setAllowLargeResults(true);
+    queryConfig.setFlattenResults(flattenResults);
 
     TableReference destinationTable = new TableReference();
     destinationTable.setProjectId(projectId);

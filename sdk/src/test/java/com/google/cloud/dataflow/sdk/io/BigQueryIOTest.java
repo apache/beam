@@ -185,8 +185,8 @@ public class BigQueryIOTest {
   public void testBuildSourceWithoutTableOrQuery() {
     Pipeline p = TestPipeline.create();
     thrown.expect(IllegalStateException.class);
-    thrown.expectMessage(Matchers.containsString(
-        "Invalid BigQuery read operation, either table reference or query has to be set"));
+    thrown.expectMessage(
+        "Invalid BigQuery read operation, either table reference or query has to be set");
     p.apply(BigQueryIO.Read.named("ReadMyTable"));
     p.run();
   }
@@ -196,13 +196,28 @@ public class BigQueryIOTest {
   public void testBuildSourceWithTableAndQuery() {
     Pipeline p = TestPipeline.create();
     thrown.expect(IllegalStateException.class);
-    thrown.expectMessage(Matchers.containsString(
+    thrown.expectMessage(
         "Invalid BigQuery read operation. Specifies both a query and a table, only one of these"
-        + " should be provided"));
+        + " should be provided");
     p.apply(
         BigQueryIO.Read.named("ReadMyTable")
             .from("foo.com:project:somedataset.sometable")
             .fromQuery("query"));
+    p.run();
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testBuildSourceWithTableAndFlatten() {
+    Pipeline p = TestPipeline.create();
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage(
+        "Invalid BigQuery read operation. Specifies a"
+              + " table with a result flattening preference, which is not configurable");
+    p.apply(
+        BigQueryIO.Read.named("ReadMyTable")
+            .from("foo.com:project:somedataset.sometable")
+            .withoutResultFlattening());
     p.run();
   }
 
@@ -253,7 +268,7 @@ public class BigQueryIOTest {
   public void testBuildSinkWithoutTable() {
     Pipeline p = TestPipeline.create();
     thrown.expect(IllegalStateException.class);
-    thrown.expectMessage(Matchers.containsString("must set the table reference"));
+    thrown.expectMessage("must set the table reference");
     p.apply(Create.<TableRow>of().withCoder(TableRowJsonCoder.of()))
         .apply(BigQueryIO.Write.named("WriteMyTable"));
   }
