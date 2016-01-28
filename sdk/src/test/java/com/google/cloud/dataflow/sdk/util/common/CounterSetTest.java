@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.util.common;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.MAX;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.SUM;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
@@ -107,6 +108,70 @@ public class CounterSetTest {
         + " duplicates incompatible counter " + c1 + " in " + set);
 
     set.addOrReuseCounter(c1Incompatible);
+  }
+
+  @Test
+  public void testMergeWithDifferentNamesAddsAll() {
+    Counter<?> c1 = Counter.longs("c1", SUM);
+    Counter<?> c2 = Counter.ints("c2", MAX);
+
+    set.add(c1);
+    set.add(c2);
+
+    CounterSet newSet = new CounterSet();
+    newSet.merge(set);
+
+    assertThat(newSet, containsInAnyOrder(c1, c2));
+  }
+
+  @SuppressWarnings("unchecked")
+  @Test
+  public void testMergeWithSameNamesMerges() {
+    Counter<Long> c1 = Counter.longs("c1", SUM);
+    Counter<Integer> c2 = Counter.ints("c2", MAX);
+
+    set.add(c1);
+    set.add(c2);
+
+    c1.addValue(3L);
+    c2.addValue(22);
+
+    CounterSet newSet = new CounterSet();
+    Counter<Long> c1Prime = Counter.longs("c1", SUM);
+    Counter<Integer> c2Prime = Counter.ints("c2", MAX);
+
+    c1Prime.addValue(7L);
+    c2Prime.addValue(14);
+
+    newSet.add(c1Prime);
+    newSet.add(c2Prime);
+
+    newSet.merge(set);
+
+    assertThat((Counter<Long>) newSet.getExistingCounter("c1"), equalTo(c1Prime));
+    assertThat((Long) newSet.getExistingCounter("c1").getAggregate(), equalTo(10L));
+
+    assertThat((Counter<Integer>) newSet.getExistingCounter("c2"), equalTo(c2Prime));
+    assertThat((Integer) newSet.getExistingCounter("c2").getAggregate(), equalTo(22));
+  }
+
+  @SuppressWarnings("unchecked")
+  @Test
+  public void testMergeWithIncompatibleTypesThrowsException() {
+    Counter<Long> c1 = Counter.longs("c1", SUM);
+
+    set.add(c1);
+
+    CounterSet newSet = new CounterSet();
+    Counter<Long> c1Prime = Counter.longs("c1", MAX);
+
+    newSet.add(c1Prime);
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("c1");
+    thrown.expectMessage("incompatible counters with the same name");
+
+    newSet.merge(set);
   }
 
   @Test

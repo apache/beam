@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.util.common;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import java.util.AbstractSet;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -127,6 +129,29 @@ public class CounterSet extends AbstractSet<Counter<?>> {
     }
     counters.put(e.getName(), e);
     return true;
+  }
+
+  public synchronized void merge(CounterSet that) {
+    for (Counter<?> theirCounter : that) {
+      Counter<?> myCounter = counters.get(theirCounter.getName());
+      if (myCounter != null) {
+        mergeCounters(myCounter, theirCounter);
+      } else {
+        addCounter(theirCounter);
+      }
+    }
+  }
+
+  private <T> void mergeCounters(Counter<T> mine, Counter<?> theirCounter) {
+    checkArgument(
+        mine.isCompatibleWith(theirCounter),
+        "Can't merge CounterSets containing incompatible counters with the same name: "
+            + "%s (existing) and %s (merged)",
+        mine,
+        theirCounter);
+    @SuppressWarnings("unchecked")
+    Counter<T> theirs = (Counter<T>) theirCounter;
+    mine.merge(theirs);
   }
 
   /**
