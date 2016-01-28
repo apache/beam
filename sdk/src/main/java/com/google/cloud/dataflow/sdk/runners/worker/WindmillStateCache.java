@@ -43,9 +43,18 @@ import javax.servlet.http.HttpServletResponse;
  * Process-wide cache of per-key state.
  */
 public class WindmillStateCache implements StatusDataProvider {
+  // Estimate of overhead per StateId.
+  private static final int PER_STATE_ID_OVERHEAD = 20;
+  // Initial size of hash tables per entry.
+  private static final int INITIAL_HASH_MAP_CAPACITY = 4;
+  // Overhead of each hash map entry.
+  private static final int HASH_MAP_ENTRY_OVERHEAD = 16;
+  // Overhead of each cache entry.  Two longs, plus a hash table.
+  private static final int PER_CACHE_ENTRY_OVERHEAD =
+      16 + HASH_MAP_ENTRY_OVERHEAD * INITIAL_HASH_MAP_CAPACITY;
 
   private Cache<StateId, StateCacheEntry> stateCache;
-  private int weight = 0;
+  private int displayedWeight = 0;  // Only used for status pages and unit tests.
 
   public WindmillStateCache() {
     final Weigher<Weighted, Weighted> weigher = Weighers.weightedKeysAndValues();
@@ -59,7 +68,7 @@ public class WindmillStateCache implements StatusDataProvider {
               @Override
               public void onRemoval(RemovalNotification<StateId, StateCacheEntry> removal) {
                 if (removal.getCause() != RemovalCause.REPLACED) {
-                  weight -= weigher.weigh(removal.getKey(), removal.getValue());
+                  displayedWeight -= weigher.weigh(removal.getKey(), removal.getValue());
                 }
               }
             })
@@ -67,7 +76,7 @@ public class WindmillStateCache implements StatusDataProvider {
   }
 
   public long getWeight() {
-    return weight;
+    return displayedWeight;
   }
 
   /**
@@ -143,9 +152,10 @@ public class WindmillStateCache implements StatusDataProvider {
     StateCacheEntry entry = stateCache.getIfPresent(id);
     if (entry == null || entry.getToken() != token) {
       entry = new StateCacheEntry(token);
-      this.weight += id.getWeight();
+      this.displayedWeight += id.getWeight();
+      this.displayedWeight += entry.getWeight();
     }
-    this.weight += entry.put(namespace, address, value, weight);
+    this.displayedWeight += entry.put(namespace, address, value, weight);
     // Always add back to the cache to update the weight.
     stateCache.put(id, entry);
   }
@@ -186,7 +196,7 @@ public class WindmillStateCache implements StatusDataProvider {
 
     @Override
     public long getWeight() {
-      return processingKey.size();
+      return processingKey.size() + PER_STATE_ID_OVERHEAD;
     }
   }
 
@@ -200,7 +210,7 @@ public class WindmillStateCache implements StatusDataProvider {
     private long weight;
 
     public StateCacheEntry(long token) {
-      this.values = new HashMap<>();
+      this.values = new HashMap<>(INITIAL_HASH_MAP_CAPACITY);
       this.token = token;
       this.weight = 0;
     }
@@ -219,6 +229,7 @@ public class WindmillStateCache implements StatusDataProvider {
       long weightDelta = 0;
       if (weightedValue == null) {
         weightedValue = new WeightedValue<T>();
+        weightDelta += HASH_MAP_ENTRY_OVERHEAD;
       } else {
         weightDelta -= weightedValue.weight;
       }
@@ -232,7 +243,7 @@ public class WindmillStateCache implements StatusDataProvider {
 
     @Override
     public long getWeight() {
-      return weight;
+      return weight + PER_CACHE_ENTRY_OVERHEAD;
     }
 
     public long getToken() {

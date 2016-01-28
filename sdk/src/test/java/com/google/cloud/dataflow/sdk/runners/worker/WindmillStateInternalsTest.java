@@ -787,14 +787,14 @@ public class WindmillStateInternalsTest {
     value.set("Hi");
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(2, cache.getWeight());
+    assertEquals(118, cache.getWeight());
 
     value = underTest.state(NAMESPACE, addr);
     assertEquals("Hi", value.get().read());
     value.clear();
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(0, cache.getWeight());
+    assertEquals(116, cache.getWeight());
 
     value = underTest.state(NAMESPACE, addr);
     assertEquals(null, value.get().read());
@@ -823,7 +823,7 @@ public class WindmillStateInternalsTest {
 
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(10, cache.getWeight());
+    assertEquals(126, cache.getWeight());
 
     bag = underTest.state(NAMESPACE, addr);
     bag.add("goodbye");
@@ -833,7 +833,7 @@ public class WindmillStateInternalsTest {
 
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(3, cache.getWeight());
+    assertEquals(119, cache.getWeight());
 
     bag = underTest.state(NAMESPACE, addr);
     bag.add("new2");
@@ -843,7 +843,7 @@ public class WindmillStateInternalsTest {
 
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(4, cache.getWeight());
+    assertEquals(120, cache.getWeight());
 
     bag = underTest.state(NAMESPACE, addr);
     assertThat(bag.get().read(), Matchers.containsInAnyOrder("new3"));
@@ -872,7 +872,7 @@ public class WindmillStateInternalsTest {
 
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(8, cache.getWeight());
+    assertEquals(124, cache.getWeight());
 
     bag = underTest.state(NAMESPACE, addr);
     assertThat(bag.get().read(), Matchers.equalTo(new Instant(2000)));
@@ -880,7 +880,7 @@ public class WindmillStateInternalsTest {
 
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(8, cache.getWeight());
+    assertEquals(124, cache.getWeight());
 
     bag = underTest.state(NAMESPACE, addr);
     assertEquals(null, bag.get().read());
@@ -907,7 +907,7 @@ public class WindmillStateInternalsTest {
 
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(1, cache.getWeight());
+    assertEquals(117, cache.getWeight());
 
     value = underTest.state(NAMESPACE, COMBINING_ADDR);
     assertThat(value.get().read(), Matchers.equalTo(3));
@@ -917,7 +917,7 @@ public class WindmillStateInternalsTest {
 
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(0, cache.getWeight());
+    assertEquals(116, cache.getWeight());
 
     value = underTest.state(NAMESPACE, COMBINING_ADDR);
     assertThat(value.get().read(), Matchers.equalTo(0));

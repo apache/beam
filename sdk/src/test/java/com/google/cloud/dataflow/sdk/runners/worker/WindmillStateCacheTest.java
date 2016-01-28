@@ -141,13 +141,13 @@ public class WindmillStateCacheTest {
     assertNull(keyCache.get(triggerNamespace(0, 0), new TestStateTag("tag2")));
 
     keyCache.put(StateNamespaces.global(), new TestStateTag("tag1"), new TestState("g1"), 2);
-    assertEquals(5, cache.getWeight());
+    assertEquals(121, cache.getWeight());
     keyCache.put(windowNamespace(0), new TestStateTag("tag2"), new TestState("w2"), 2);
-    assertEquals(10, cache.getWeight());
+    assertEquals(242, cache.getWeight());
     keyCache.put(triggerNamespace(0, 0), new TestStateTag("tag3"), new TestState("t3"), 2);
-    assertEquals(12, cache.getWeight());
+    assertEquals(260, cache.getWeight());
     keyCache.put(triggerNamespace(0, 0), new TestStateTag("tag2"), new TestState("t2"), 2);
-    assertEquals(14, cache.getWeight());
+    assertEquals(278, cache.getWeight());
 
     assertEquals(
         new TestState("g1"), keyCache.get(StateNamespaces.global(), new TestStateTag("tag1")));
@@ -165,12 +165,12 @@ public class WindmillStateCacheTest {
   public void testInvalidation() throws Exception {
     assertNull(keyCache.get(StateNamespaces.global(), new TestStateTag("tag1")));
     keyCache.put(StateNamespaces.global(), new TestStateTag("tag1"), new TestState("g1"), 2);
-    assertEquals(5, cache.getWeight());
+    assertEquals(121, cache.getWeight());
     assertEquals(
         new TestState("g1"), keyCache.get(StateNamespaces.global(), new TestStateTag("tag1")));
 
     keyCache = cache.forComputation(COMPUTATION).forKey(KEY, STATE_FAMILY, 1L);
-    assertEquals(5, cache.getWeight());
+    assertEquals(121, cache.getWeight());
     assertNull(keyCache.get(StateNamespaces.global(), new TestStateTag("tag1")));
     assertEquals(0, cache.getWeight());
   }
@@ -181,7 +181,7 @@ public class WindmillStateCacheTest {
   @Test
   public void testEviction() throws Exception {
     keyCache.put(windowNamespace(0), new TestStateTag("tag2"), new TestState("w2"), 2);
-    assertEquals(5, cache.getWeight());
+    assertEquals(121, cache.getWeight());
     keyCache.put(triggerNamespace(0, 0), new TestStateTag("tag3"), new TestState("t3"), 2000000000);
     assertEquals(0, cache.getWeight());
     // Eviction is atomic across the whole window.
