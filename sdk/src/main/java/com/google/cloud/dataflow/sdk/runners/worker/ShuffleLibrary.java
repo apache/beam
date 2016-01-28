@@ -32,9 +32,13 @@ class ShuffleLibrary {
    */
   static void load() {
     try {
+      final String shuffleClientLibraryPropertyKey = "batch.shuffle_client_library";
+      String shuffleClientLibrary = "libshuffle_client_jni.so.stripped";
+      if (System.getProperties().containsKey(shuffleClientLibraryPropertyKey)) {
+        shuffleClientLibrary = System.getProperty(shuffleClientLibraryPropertyKey);
+      }
       File tempfile = File.createTempFile("libshuffle_client_jni", ".so");
-      InputStream input = ClassLoader.getSystemResourceAsStream(
-          "libshuffle_client_jni.so.stripped");
+      InputStream input = ClassLoader.getSystemResourceAsStream(shuffleClientLibrary);
       Files.copy(input, tempfile.toPath(), StandardCopyOption.REPLACE_EXISTING);
       System.load(tempfile.getAbsolutePath());
     } catch (IOException e) {
