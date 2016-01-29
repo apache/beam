@@ -16,13 +16,12 @@
 package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.runners.worker.KeyedWorkItem;
-import com.google.cloud.dataflow.sdk.runners.worker.LateDataDroppingDoFnRunner;
-import com.google.cloud.dataflow.sdk.runners.worker.StreamingGroupAlsoByWindowsDoFn;
-import com.google.cloud.dataflow.sdk.runners.worker.StreamingSideInputDoFnRunner;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.util.DoFnRunner.ReduceFnExecutor;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext.StepContext;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
+import com.google.cloud.dataflow.sdk.util.common.CounterSet.AddCounterMutator;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 
@@ -47,7 +46,7 @@ public class DoFnRunners {
    *
    * <p>It invokes {@link DoFn#processElement} for each input.
    */
-  public static <InputT, OutputT> DoFnRunner<InputT, OutputT> simpleRunner(
+  static <InputT, OutputT> DoFnRunner<InputT, OutputT> simpleRunner(
       PipelineOptions options,
       DoFn<InputT, OutputT> fn,
       SideInputReader sideInputReader,
@@ -58,27 +57,15 @@ public class DoFnRunners {
       CounterSet.AddCounterMutator addCounterMutator,
       WindowingStrategy<?, ?> windowingStrategy) {
     return new SimpleDoFnRunner<>(
-        options, fn, sideInputReader, outputManager, mainOutputTag, sideOutputTags,
-        stepContext, addCounterMutator, windowingStrategy);
-  }
-
-  /**
-   * Returns an implementation of {@link DoFnRunner} that handles streaming side inputs.
-   *
-   * <p>It blocks and caches input elements if their side inputs are not ready.
-   */
-  public static <InputT, OutputT> DoFnRunner<InputT, OutputT> streamingSideInputRunner(
-      PipelineOptions options,
-      DoFnInfo<InputT, OutputT> doFnInfo,
-      SideInputReader sideInputReader,
-      OutputManager outputManager,
-      TupleTag<OutputT> mainOutputTag,
-      List<TupleTag<?>> sideOutputTags,
-      StepContext stepContext,
-      CounterSet.AddCounterMutator addCounterMutator) {
-  return new StreamingSideInputDoFnRunner<>(
-      options, doFnInfo, sideInputReader, outputManager, mainOutputTag, sideOutputTags,
-      stepContext, addCounterMutator, doFnInfo.getWindowingStrategy());
+        options,
+        fn,
+        sideInputReader,
+        outputManager,
+        mainOutputTag,
+        sideOutputTags,
+        stepContext,
+        addCounterMutator,
+        windowingStrategy);
   }
 
   /**
@@ -86,21 +73,64 @@ public class DoFnRunners {
    *
    * <p>It drops elements from expired windows before they reach the underlying {@link DoFn}.
    */
-  public static <K, InputT, OutputT> DoFnRunner<KeyedWorkItem<K, InputT>, KV<K, OutputT>>
-  lateDataDroppingRunner(
+  static <K, InputT, OutputT, W extends BoundedWindow>
+      DoFnRunner<KeyedWorkItem<K, InputT>, KV<K, OutputT>> lateDataDroppingRunner(
+          PipelineOptions options,
+          ReduceFnExecutor<K, InputT, OutputT, W> reduceFnExecutor,
+          SideInputReader sideInputReader,
+          OutputManager outputManager,
+          TupleTag<KV<K, OutputT>> mainOutputTag,
+          List<TupleTag<?>> sideOutputTags,
+          StepContext stepContext,
+          CounterSet.AddCounterMutator addCounterMutator,
+          WindowingStrategy<?, W> windowingStrategy) {
+    LateDataDroppingDoFnRunner<K, InputT, OutputT, W> runner =
+        new LateDataDroppingDoFnRunner<>(
+            options,
+            reduceFnExecutor,
+            sideInputReader,
+            outputManager,
+            mainOutputTag,
+            sideOutputTags,
+            stepContext,
+            addCounterMutator,
+            windowingStrategy);
+    return runner;
+  }
+
+  public static <InputT, OutputT> DoFnRunner<InputT, OutputT> createDefault(
       PipelineOptions options,
-      DoFnInfo<KeyedWorkItem<K, InputT>, KV<K, OutputT>> doFnInfo,
+      DoFn<InputT, OutputT> doFn,
       SideInputReader sideInputReader,
       OutputManager outputManager,
-      TupleTag<KV<K, OutputT>> mainOutputTag,
+      TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> sideOutputTags,
       StepContext stepContext,
-      CounterSet.AddCounterMutator addCounterMutator) {
-    @SuppressWarnings({"unchecked"})
-    StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, ?> streamingGabwDoFn =
-        (StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, ?>) doFnInfo.getDoFn();
-    return new LateDataDroppingDoFnRunner<>(
-        options,  streamingGabwDoFn, sideInputReader, outputManager, mainOutputTag, sideOutputTags,
-        stepContext, addCounterMutator, doFnInfo.getWindowingStrategy());
+      AddCounterMutator addCounterMutator,
+      WindowingStrategy<?, ?> windowingStrategy) {
+    if (doFn instanceof ReduceFnExecutor) {
+      @SuppressWarnings("rawtypes")
+      ReduceFnExecutor fn = (ReduceFnExecutor) doFn;
+      return lateDataDroppingRunner(
+          options,
+          fn,
+          sideInputReader,
+          outputManager,
+          (TupleTag) mainOutputTag,
+          sideOutputTags,
+          stepContext,
+          addCounterMutator,
+          (WindowingStrategy) windowingStrategy);
+    }
+    return simpleRunner(
+        options,
+        doFn,
+        sideInputReader,
+        outputManager,
+        mainOutputTag,
+        sideOutputTags,
+        stepContext,
+        addCounterMutator,
+        windowingStrategy);
   }
 }

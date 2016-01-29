@@ -270,7 +270,7 @@ public class StreamingSideInputDoFnRunnerTest {
         typedViews, StringUtf8Coder.of());
 
     return (StreamingSideInputDoFnRunner<String, String, IntervalWindow>)
-        DoFnRunners.streamingSideInputRunner(
+        StreamingDoFnRunners.streamingSideInputRunner(
             PipelineOptionsFactory.create(),
             doFnInfo,
             mockSideInputReader,

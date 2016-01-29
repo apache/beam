@@ -16,6 +16,7 @@
 package com.google.cloud.dataflow.sdk.runners.worker;
 
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.dataflow.sdk.util.KeyedWorkItem;
 import com.google.cloud.dataflow.sdk.util.ReshuffleTrigger;
 import com.google.cloud.dataflow.sdk.util.SystemDoFnInternal;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;

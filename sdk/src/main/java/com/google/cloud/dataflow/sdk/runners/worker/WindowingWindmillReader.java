@@ -24,6 +24,7 @@ import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill.WorkItem;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
+import com.google.cloud.dataflow.sdk.util.KeyedWorkItem;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowedValue.FullWindowedValueCoder;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
@@ -99,7 +100,7 @@ class WindowingWindmillReader<K, T> extends NativeReader<WindowedValue<KeyedWork
     final WorkItem workItem = context.getWork();
     final WindowedValue<KeyedWorkItem<K, T>> value =
         WindowedValue.valueInEmptyWindows(
-            KeyedWorkItems.windmillWorkItem(
+            KeyedWorkItems.<K, T>windmillWorkItem(
                 key, workItem, windowCoder, windowsCoder, kvCoder.getValueCoder()));
 
     return new NativeReaderIterator<WindowedValue<KeyedWorkItem<K, T>>>() {

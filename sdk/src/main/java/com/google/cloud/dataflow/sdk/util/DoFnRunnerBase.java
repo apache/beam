@@ -135,6 +135,8 @@ public abstract class DoFnRunnerBase<InputT, OutputT> implements DoFnRunner<Inpu
 
   @Override
   public void processElement(WindowedValue<InputT> elem) {
+    // TODO: Move the DataflowWorkerLoggingMDC into wrapper used on the Dataflow worker in
+    // invokeProcessElement
     // Setup new thread local logging before running user code, and restore it after.
     // Needs to happen here (per-element) since fusion may be running this as part of a call to
     // output in an earlier step.

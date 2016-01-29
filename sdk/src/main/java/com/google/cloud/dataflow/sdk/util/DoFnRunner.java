@@ -15,8 +15,10 @@
  */
 package com.google.cloud.dataflow.sdk.util;
 
+import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn.ProcessContext;
+import com.google.cloud.dataflow.sdk.values.KV;
 
 /**
  * An wrapper interface that represents the execution of a {@link DoFn}.
@@ -41,5 +43,18 @@ public interface DoFnRunner<InputT, OutputT> {
   /**
    * An internal interface for signaling that a {@link DoFn} requires late data dropping.
    */
-  public interface RequiresLateDataDropping {}
+  public interface ReduceFnExecutor<K, InputT, OutputT, W> {
+    /**
+     * Gets this object as a {@link DoFn}.
+     *
+     * Most implementors of this interface are expected to be {@link DoFn} instances, and will
+     * return themselves.
+     */
+    DoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> asDoFn();
+
+    /**
+     * Returns an aggregator that tracks elements that are dropped due to being late.
+     */
+    Aggregator<Long, Long> getDroppedDueToLatenessAggregator();
+  }
 }

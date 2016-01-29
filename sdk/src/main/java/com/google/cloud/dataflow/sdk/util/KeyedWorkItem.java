@@ -13,33 +13,29 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.google.cloud.dataflow.sdk.runners.worker;
+package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.util.TimerInternals.TimerData;
-import com.google.cloud.dataflow.sdk.util.WindowedValue;
 
 /**
  * Interface that contains all the timers and elements associated with a specific work item.
- *
- * <p>Used as the input type of {@link StreamingGroupAlsoByWindowsDoFn}.
  *
  * @param <K> the key type
  * @param <ElemT> the element type
  */
 public interface KeyedWorkItem<K, ElemT> {
-
   /**
    * Returns the key.
    */
-  public K key();
+  K key();
 
   /**
-   * Returns the timers iterable.
+   * Returns an iterable containing the timers.
    */
-  public Iterable<TimerData> timersIterable();
+  Iterable<TimerData> timersIterable();
 
   /**
-   * Returns the elements iterable.
+   * Returns an iterable containing the elements.
    */
-  public Iterable<WindowedValue<ElemT>> elementsIterable();
+  Iterable<WindowedValue<ElemT>> elementsIterable();
 }

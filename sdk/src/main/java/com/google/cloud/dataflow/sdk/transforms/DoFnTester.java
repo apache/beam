@@ -481,7 +481,7 @@ public class DoFnTester<InputT, OutputT> {
       runnerSideInputs = runnerSideInputs.and(entry.getKey().getTagInternal(), entry.getValue());
     }
     outputManager = new DoFnRunnerBase.ListOutputManager();
-    fnRunner = DoFnRunners.simpleRunner(
+    fnRunner = DoFnRunners.createDefault(
         options,
         fn,
         DirectSideInputReader.of(runnerSideInputs),

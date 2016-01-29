@@ -1144,7 +1144,7 @@ public class ParDo {
             outputs);
 
     DoFnRunner<InputT, OutputT> fnRunner =
-        DoFnRunners.simpleRunner(
+        DoFnRunners.createDefault(
             context.getPipelineOptions(),
             fn,
             sideInputReader,

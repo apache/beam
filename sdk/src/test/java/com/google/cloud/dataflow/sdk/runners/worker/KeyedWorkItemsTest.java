@@ -25,6 +25,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo.Timing;
+import com.google.cloud.dataflow.sdk.util.KeyedWorkItem;
 import com.google.cloud.dataflow.sdk.util.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.TimerInternals.TimerData;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
@@ -45,9 +46,9 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 
-/** Tests for {@link KeyedWorkItem}. */
+/** Tests for {@link KeyedWorkItems}. */
 @RunWith(JUnit4.class)
-public class KeyedWorkItemTest {
+public class KeyedWorkItemsTest {
 
   private static final String STATE_FAMILY = "state";
   private static final String KEY = "key";

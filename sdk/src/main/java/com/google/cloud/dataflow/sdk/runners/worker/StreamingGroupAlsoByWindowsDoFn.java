@@ -17,18 +17,13 @@
 package com.google.cloud.dataflow.sdk.runners.worker;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.AppliedCombineFn;
-import com.google.cloud.dataflow.sdk.util.DoFnRunner.RequiresLateDataDropping;
-import com.google.cloud.dataflow.sdk.util.GroupAlsoByWindowsDoFn;
-import com.google.cloud.dataflow.sdk.util.ReduceFnRunner;
+import com.google.cloud.dataflow.sdk.util.GroupAlsoByWindowViaWindowSetDoFn;
+import com.google.cloud.dataflow.sdk.util.KeyedWorkItem;
 import com.google.cloud.dataflow.sdk.util.SystemDoFnInternal;
 import com.google.cloud.dataflow.sdk.util.SystemReduceFn;
-import com.google.cloud.dataflow.sdk.util.TimerInternals;
-import com.google.cloud.dataflow.sdk.util.TimerInternals.TimerData;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.common.base.Preconditions;
@@ -44,64 +39,28 @@ import com.google.common.base.Preconditions;
 @SystemDoFnInternal
 public abstract class StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W extends BoundedWindow>
     extends DoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> {
-  protected final Aggregator<Long, Long> droppedDueToClosedWindow = createAggregator(
-      GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER, new Sum.SumLongFn());
-  protected final Aggregator<Long, Long> droppedDueToLateness = createAggregator(
-      GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_LATENESS_COUNTER, new Sum.SumLongFn());
-
   public static <K, InputT, AccumT, OutputT, W extends BoundedWindow>
-      StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W> create(
+      DoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> create(
           final WindowingStrategy<?, W> windowingStrategy,
           final AppliedCombineFn<K, InputT, AccumT, OutputT> combineFn,
           final Coder<K> keyCoder) {
     Preconditions.checkNotNull(combineFn);
-    return new StreamingGABWViaWindowSetDoFn<>(windowingStrategy,
-        SystemReduceFn.<K, InputT, AccumT, OutputT, W>combining(keyCoder, combineFn));
+    DoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> fn =
+        GroupAlsoByWindowViaWindowSetDoFn.create(
+            windowingStrategy,
+            SystemReduceFn.<K, InputT, AccumT, OutputT, W>combining(keyCoder, combineFn));
+    return fn;
   }
 
   public static <K, V, W extends BoundedWindow>
-  DoFn<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> createForIterable(
-      final WindowingStrategy<?, W> windowingStrategy,
-      final Coder<V> inputCoder) {
+      DoFn<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> createForIterable(
+          final WindowingStrategy<?, W> windowingStrategy, final Coder<V> inputCoder) {
     // If the windowing strategy indicates we're doing a reshuffle, use the special-path.
     if (StreamingGroupAlsoByWindowsReshuffleDoFn.isReshuffle(windowingStrategy)) {
       return new StreamingGroupAlsoByWindowsReshuffleDoFn<>();
     } else {
-      return new StreamingGABWViaWindowSetDoFn<>(
+      return GroupAlsoByWindowViaWindowSetDoFn.create(
           windowingStrategy, SystemReduceFn.<K, V, W>buffering(inputCoder));
-    }
-  }
-
-  private static class StreamingGABWViaWindowSetDoFn<K, InputT, OutputT, W extends BoundedWindow>
-  extends StreamingGroupAlsoByWindowsDoFn<K, InputT, OutputT, W>
-  implements RequiresLateDataDropping {
-    private final WindowingStrategy<Object, W> windowingStrategy;
-    private SystemReduceFn.Factory<K, InputT, OutputT, W> reduceFnFactory;
-
-    public StreamingGABWViaWindowSetDoFn(WindowingStrategy<?, W> windowingStrategy,
-        SystemReduceFn.Factory<K, InputT, OutputT, W> reduceFnFactory) {
-      @SuppressWarnings("unchecked")
-      WindowingStrategy<Object, W> noWildcard = (WindowingStrategy<Object, W>) windowingStrategy;
-      this.windowingStrategy = noWildcard;
-      this.reduceFnFactory = reduceFnFactory;
-    }
-
-    @Override
-    public void processElement(ProcessContext c) throws Exception {
-      KeyedWorkItem<K, InputT> element = c.element();
-
-      @SuppressWarnings("unchecked")
-      K key = c.element().key();
-      TimerInternals timerInternals = c.windowingInternals().timerInternals();
-      ReduceFnRunner<K, InputT, OutputT, W> runner = new ReduceFnRunner<>(
-            key, windowingStrategy, timerInternals, c.windowingInternals(),
-            droppedDueToClosedWindow, reduceFnFactory.create(key));
-
-      for (TimerData timer : element.timersIterable()) {
-        runner.onTimer(timer);
-      }
-      runner.processElements(element.elementsIterable());
-      runner.persist();
     }
   }
 }

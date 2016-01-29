@@ -21,7 +21,6 @@ import com.google.cloud.dataflow.sdk.options.StreamingOptions;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.util.DoFnInfo;
 import com.google.cloud.dataflow.sdk.util.DoFnRunner;
-import com.google.cloud.dataflow.sdk.util.DoFnRunner.RequiresLateDataDropping;
 import com.google.cloud.dataflow.sdk.util.DoFnRunners;
 import com.google.cloud.dataflow.sdk.util.DoFnRunners.OutputManager;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
@@ -179,21 +178,8 @@ public abstract class ParDoFnBase implements ParDoFn {
       }
     };
 
-    if (doFnInfo.getDoFn() instanceof StreamingGroupAlsoByWindowsDoFn
-        && doFnInfo.getDoFn() instanceof RequiresLateDataDropping) {
-      @SuppressWarnings({"unchecked", "rawtypes"})
-      DoFnRunner<Object, Object> objectFnRunner = DoFnRunners.lateDataDroppingRunner(
-          options,
-          (DoFnInfo) doFnInfo,
-          sideInputReader,
-          outputManager,
-          (TupleTag) mainOutputTag,
-          sideOutputTags,
-          stepContext,
-          addCounterMutator);
-      fnRunner = objectFnRunner;
-    } else if (hasStreamingSideInput) {
-      fnRunner = DoFnRunners.streamingSideInputRunner(
+    if (hasStreamingSideInput) {
+      fnRunner = StreamingDoFnRunners.streamingSideInputRunner(
           options,
           doFnInfo,
           sideInputReader,
@@ -203,7 +189,7 @@ public abstract class ParDoFnBase implements ParDoFn {
           stepContext,
           addCounterMutator);
     } else {
-      fnRunner = DoFnRunners.simpleRunner(
+      fnRunner = DoFnRunners.createDefault(
           options,
           doFnInfo.getDoFn(),
           sideInputReader,

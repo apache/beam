@@ -36,6 +36,7 @@ import com.google.cloud.dataflow.sdk.util.DoFnRunner;
 import com.google.cloud.dataflow.sdk.util.DoFnRunnerBase;
 import com.google.cloud.dataflow.sdk.util.DoFnRunners;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
+import com.google.cloud.dataflow.sdk.util.KeyedWorkItem;
 import com.google.cloud.dataflow.sdk.util.NullSideInputReader;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
@@ -200,7 +201,7 @@ public class StreamingGroupAlsoByWindowsReshuffleDoFnTest {
           WindowingStrategy<? super String, IntervalWindow> windowingStrategy,
           DoFn<KeyedWorkItem<String, InputT>, KV<String, OutputT>> fn) {
     return
-        DoFnRunners.simpleRunner(
+        DoFnRunners.createDefault(
             PipelineOptionsFactory.create(),
             fn,
             NullSideInputReader.empty(),

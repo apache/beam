@@ -160,18 +160,19 @@ public class StreamingDataflowWorkerTest {
   }
 
   private ParallelInstruction makeWindowingSourceInstruction(Coder<?> coder) {
-    CloudObject encodedCoder = FullWindowedValueCoder.of(
-        FakeKeyedWorkItemCoder.of(coder), IntervalWindow.getCoder()).asCloudObject();
+    CloudObject encodedCoder =
+        FullWindowedValueCoder.of(FakeKeyedWorkItemCoder.of(coder), IntervalWindow.getCoder())
+            .asCloudObject();
     return new ParallelInstruction()
         .setSystemName(DEFAULT_SOURCE_SYSTEM_NAME)
-        .setRead(new ReadInstruction().setSource(
-            new Source()
-            .setSpec(CloudObject.forClass(WindowingWindmillReader.class))
-            .setCodec(encodedCoder)))
-        .setOutputs(Arrays.asList(
-            new InstructionOutput()
-            .setName("read_output")
-            .setCodec(encodedCoder)));
+        .setRead(
+            new ReadInstruction()
+                .setSource(
+                    new Source()
+                        .setSpec(CloudObject.forClass(WindowingWindmillReader.class))
+                        .setCodec(encodedCoder)))
+        .setOutputs(
+            Arrays.asList(new InstructionOutput().setName("read_output").setCodec(encodedCoder)));
   }
 
   private ParallelInstruction makeSourceInstruction(Coder<?> coder) {

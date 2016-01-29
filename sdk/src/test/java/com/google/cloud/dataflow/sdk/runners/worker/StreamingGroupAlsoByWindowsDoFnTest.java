@@ -49,6 +49,7 @@ import com.google.cloud.dataflow.sdk.util.DoFnRunner;
 import com.google.cloud.dataflow.sdk.util.DoFnRunnerBase;
 import com.google.cloud.dataflow.sdk.util.DoFnRunners;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
+import com.google.cloud.dataflow.sdk.util.KeyedWorkItem;
 import com.google.cloud.dataflow.sdk.util.NullSideInputReader;
 import com.google.cloud.dataflow.sdk.util.ReshuffleTriggerTest;
 import com.google.cloud.dataflow.sdk.util.TimeDomain;
@@ -171,8 +172,9 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
       WorkItem.Builder workItem, Coder<T> valueCoder) {
     @SuppressWarnings({"unchecked", "rawtypes"})
     Coder<Collection<? extends BoundedWindow>> wildcardWindowsCoder = (Coder) windowsCoder;
-    return WindowedValue.valueInEmptyWindows(KeyedWorkItems.windmillWorkItem(
-        KEY, workItem.build(), windowCoder, wildcardWindowsCoder, valueCoder));
+    return WindowedValue.valueInEmptyWindows(
+        KeyedWorkItems.windmillWorkItem(
+            KEY, workItem.build(), windowCoder, wildcardWindowsCoder, valueCoder));
   }
 
   @Test public void testFixedWindows() throws Exception {
@@ -370,7 +372,7 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
     assertThat(item2.getWindows(), Matchers.<BoundedWindow>contains(window(10, 30)));
 
     assertEquals(
-        counters.getExistingCounter("user-merge-DroppedDueToLateness").getAggregate(),
+        counters.getExistingCounter("merge-DroppedDueToLateness").getAggregate(),
         new Long(2));
   }
 
@@ -556,15 +558,16 @@ public class StreamingGroupAlsoByWindowsDoFnTest {
     DoFnInfo<KeyedWorkItem<String, InputT>, KV<String, OutputT>> doFnInfo =
         new DoFnInfo<>(fn, windowingStrategy);
 
-    return DoFnRunners.lateDataDroppingRunner(
+    return DoFnRunners.createDefault(
         PipelineOptionsFactory.create(),
-        doFnInfo,
+        doFnInfo.getDoFn(),
         NullSideInputReader.empty(),
         outputManager,
         outputTag,
         new ArrayList<TupleTag<?>>(),
         execContext.getOrCreateStepContext("merge", "merge", null),
-        counters.getAddCounterMutator());
+        counters.getAddCounterMutator(),
+        doFnInfo.getWindowingStrategy());
   }
 
   private IntervalWindow window(long start, long end) {

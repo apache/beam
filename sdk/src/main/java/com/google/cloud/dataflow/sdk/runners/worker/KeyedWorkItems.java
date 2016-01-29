@@ -23,6 +23,8 @@ import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill.Message;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill.Timer;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
+import com.google.cloud.dataflow.sdk.util.ComposedKeyedWorkItem;
+import com.google.cloud.dataflow.sdk.util.KeyedWorkItem;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.TimerInternals.TimerData;
@@ -79,7 +81,7 @@ public class KeyedWorkItems {
    */
   public static <K, ElemT> KeyedWorkItem<K, ElemT> elementsWorkItem(
       K key, Iterable<WindowedValue<ElemT>> elementsIterable) {
-    return new ComposedKeyedWorkItem<>(key, Collections.<TimerData>emptyList(), elementsIterable);
+    return ComposedKeyedWorkItem.create(key, Collections.<TimerData>emptyList(), elementsIterable);
   }
 
   /**
@@ -90,7 +92,7 @@ public class KeyedWorkItems {
    */
   public static <K, ElemT> KeyedWorkItem<K, ElemT> timersWorkItem(
       K key, Iterable<TimerData> timersIterable) {
-    return new ComposedKeyedWorkItem<>(
+    return ComposedKeyedWorkItem.create(
         key, timersIterable, Collections.<WindowedValue<ElemT>>emptyList());
   }
 
@@ -103,8 +105,7 @@ public class KeyedWorkItems {
    */
   public static <K, ElemT> KeyedWorkItem<K, ElemT> workItem(
       K key, Iterable<TimerData> timersIterable, Iterable<WindowedValue<ElemT>> elementsIterable) {
-    return new ComposedKeyedWorkItem<>(
-        key, timersIterable, elementsIterable);
+    return ComposedKeyedWorkItem.create(key, timersIterable, elementsIterable);
   }
 
   private static class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> {
@@ -214,33 +215,6 @@ public class KeyedWorkItems {
     @Override
     public int hashCode() {
       return Objects.hash(key, workItem);
-    }
-  }
-
-  private static class ComposedKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> {
-    private final K key;
-    private final Iterable<TimerData> timersIterable;
-    private final Iterable<WindowedValue<ElemT>> elementsIterable;
-
-    ComposedKeyedWorkItem(K key, Iterable<TimerData> timersIterable,
-        Iterable<WindowedValue<ElemT>> elementsIterable) {
-      this.key = key;
-      this.timersIterable = timersIterable;
-      this.elementsIterable = elementsIterable;
-    }
-    @Override
-    public K key() {
-      return key;
-    }
-
-    @Override
-    public Iterable<TimerData> timersIterable() {
-      return timersIterable;
-    }
-
-    @Override
-    public Iterable<WindowedValue<ElemT>> elementsIterable() {
-      return elementsIterable;
     }
   }
 
