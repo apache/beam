@@ -86,6 +86,7 @@
   <packaging>pom</packaging>
   <modules>
     <module>sdk</module>
+    <module>worker</module>
     <module>examples</module>
     <module>maven-archetypes/starter</module>
     <module>maven-archetypes/examples</module>
