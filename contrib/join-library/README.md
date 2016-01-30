@@ -23,6 +23,7 @@ Example how to use join-library:
       Join.innerJoin(leftPcollection, rightPcollection);
 
 Join-library can be found on maven-central:
+
     <dependency>
       <groupId>org.linuxalert.dataflow</groupId>
       <artifactId>google-cloud-dataflow-java-contrib-joinlibrary</artifactId>

@@ -7,18 +7,18 @@
 
   <groupId>org.linuxalert.dataflow</groupId>
   <artifactId>google-cloud-dataflow-java-contrib-joinlibrary</artifactId>
-  <name>Dataflow Join Library</name>
+  <name>Google Cloud Dataflow Join Library</name>
   <description>Library with generic join functions for Dataflow.</description>
   <url>https://github.com/GoogleCloudPlatform/DataflowJavaSDK/tree/master/contrib/join-library</url>
   <developers>
     <developer>
-      <id>magru</id>
+      <organization>Google Inc.</organization>
+      <organizationUrl>http://www.google.com</organizationUrl>
+    </developer>
+    <developer>
       <name>Magnus Runesson</name>
       <email>M (dot) Runesson (at) gmail (dot) com</email>
-      <organization>Linuxalert</organization>
-      <organizationUrl>http://www.linuxalert.org/</organizationUrl>
       <roles>
-        <role>Project-Administrator</role>
         <role>Developer</role>
       </roles>
       <timezone>+1</timezone>
@@ -31,7 +31,7 @@
       <url>https://github.com/mrunesson</url>
     </contributor>
   </contributors>
-  <version>0.0.3</version>
+  <version>0.0.4</version>
   <packaging>jar</packaging>
 
   <licenses>
@@ -50,7 +50,7 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <google-cloud-dataflow-version>1.3.0</google-cloud-dataflow-version>
+    <google-cloud-dataflow-version>[1.0.0, 2.0.0)</google-cloud-dataflow-version>
   </properties>
 
   <build>
