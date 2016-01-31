@@ -37,7 +37,6 @@ import com.google.cloud.dataflow.sdk.options.BigQueryOptions;
 import com.google.cloud.dataflow.sdk.options.GcpOptions;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
-import com.google.cloud.dataflow.sdk.runners.worker.BigQueryReader;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
@@ -46,7 +45,6 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.BigQueryTableInserter;
 import com.google.cloud.dataflow.sdk.util.BigQueryTableRowIterator;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
-import com.google.cloud.dataflow.sdk.util.ReaderUtils;
 import com.google.cloud.dataflow.sdk.util.Reshuffle;
 import com.google.cloud.dataflow.sdk.util.Transport;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
@@ -59,6 +57,7 @@ import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -81,6 +80,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
 import javax.annotation.Nullable;
 
 /**
@@ -1411,18 +1411,20 @@ public class BigQueryIO {
       transform.table.setProjectId(options.getProject());
     }
 
-    BigQueryReader reader = null;
+    BigQueryTableRowIterator iterator;
     if (transform.query != null) {
       LOG.info("Reading from BigQuery query {}", transform.query);
-      reader = BigQueryReader.fromQuery(transform.query, options.getProject(), client);
+      iterator =
+          BigQueryTableRowIterator.fromQuery(
+              transform.query, options.getProject(), client, transform.getFlattenResults());
     } else {
-      reader = BigQueryReader.fromTable(transform.table, client);
       LOG.info("Reading from BigQuery table {}", toTableSpec(transform.table));
+      iterator = BigQueryTableRowIterator.fromTable(transform.table, client);
     }
 
-    List<WindowedValue<TableRow>> elems = ReaderUtils.readElemsFromReader(reader);
+    List<TableRow> elems = ImmutableList.copyOf(iterator);
     LOG.info("Number of records read from BigQuery: {}", elems.size());
-    context.setPCollectionWindowedValue(context.getOutput(transform), elems);
+    context.setPCollection(context.getOutput(transform), elems);
   }
 
   private static <K, V> List<V> getOrCreateMapListValue(Map<K, List<V>> map, K key) {
