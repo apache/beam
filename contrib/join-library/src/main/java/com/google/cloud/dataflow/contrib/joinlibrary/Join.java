@@ -44,8 +44,7 @@ public class Join {
    *         KV where Key is of type V1 and Value is type V2.
    */
   public static <K, V1, V2> PCollection<KV<K, KV<V1, V2>>> innerJoin(
-    final PCollection<KV<K, V1>> leftCollection, final PCollection<KV<K, V2>> rightCollection)
-  {
+    final PCollection<KV<K, V1>> leftCollection, final PCollection<KV<K, V2>> rightCollection) {
     Preconditions.checkNotNull(leftCollection);
     Preconditions.checkNotNull(rightCollection);
 

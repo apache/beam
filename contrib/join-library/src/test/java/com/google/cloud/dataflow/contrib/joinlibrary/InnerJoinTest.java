@@ -53,11 +53,13 @@ public class InnerJoinTest {
   public void testJoinOneToOneMapping() {
     leftListOfKv.add(KV.of("Key1", 5L));
     leftListOfKv.add(KV.of("Key2", 4L));
-    PCollection<KV<String, Long>> leftCollection = p.apply(Create.of(leftListOfKv));
+    PCollection<KV<String, Long>> leftCollection =
+        p.apply("CreateLeft", Create.of(leftListOfKv));
 
     listRightOfKv.add(KV.of("Key1", "foo"));
     listRightOfKv.add(KV.of("Key2", "bar"));
-    PCollection<KV<String, String>> rightCollection = p.apply(Create.of(listRightOfKv));
+    PCollection<KV<String, String>> rightCollection =
+        p.apply("CreateRight", Create.of(listRightOfKv));
 
     PCollection<KV<String, KV<Long, String>>> output = Join.innerJoin(
       leftCollection, rightCollection);

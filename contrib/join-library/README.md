@@ -22,4 +22,12 @@ Example how to use join-library:
     PCollection<KV<String, KV<String, Long>>> joinedPcollection =
       Join.innerJoin(leftPcollection, rightPcollection);
 
+Join-library can be found on maven-central:
+
+    <dependency>
+      <groupId>org.linuxalert.dataflow</groupId>
+      <artifactId>google-cloud-dataflow-java-contrib-joinlibrary</artifactId>
+      <version>0.0.3</version>
+    </dependency>
+
 Questions or comments: `M.Runesson [at] gmail [dot] com`
