@@ -32,6 +32,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -45,8 +46,8 @@ import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 import com.google.api.services.dataflow.model.DataflowPackage;
 import com.google.api.services.dataflow.model.DerivedSource;
 import com.google.api.services.dataflow.model.Job;
-import com.google.api.services.dataflow.model.SourceOperationRequest;
 import com.google.api.services.dataflow.model.SourceOperationResponse;
+import com.google.api.services.dataflow.model.SourceSplitOptions;
 import com.google.api.services.dataflow.model.SourceSplitRequest;
 import com.google.api.services.dataflow.model.SourceSplitResponse;
 import com.google.api.services.dataflow.model.Step;
@@ -56,16 +57,19 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.io.BoundedSource;
+import com.google.cloud.dataflow.sdk.io.CountingSource;
 import com.google.cloud.dataflow.sdk.io.Read;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator;
+import com.google.cloud.dataflow.sdk.runners.worker.DataflowApiUtils;
 import com.google.cloud.dataflow.sdk.runners.worker.ReaderFactory;
 import com.google.cloud.dataflow.sdk.runners.worker.StreamingDataflowWorker.ReaderCacheEntry;
 import com.google.cloud.dataflow.sdk.runners.worker.StreamingModeExecutionContext;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.ExpectedLogs;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Sample;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
@@ -102,13 +106,15 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
+import javax.annotation.Nullable;
+
 /**
  * Tests for {@code BasicSerializableSourceFormat}.
  */
 @RunWith(JUnit4.class)
 public class CustomSourcesTest {
-  @Rule
-  public ExpectedException expectedException = ExpectedException.none();
+  @Rule public ExpectedException expectedException = ExpectedException.none();
+  @Rule public ExpectedLogs logged = ExpectedLogs.none(CustomSources.class);
 
   static class TestIO {
     public static Read fromRange(int from, int to) {
@@ -263,7 +269,7 @@ public class CustomSourcesTest {
     for (int i = 0; i < 10; ++i) {
       assertEquals(valueInGlobalWindow(10 + i), elems.get(i));
     }
-    SourceSplitResponse response = performSplit(source, options);
+    SourceSplitResponse response = performSplit(source, options, null /*desiredBundleSizeBytes*/);
     assertEquals("SOURCE_SPLIT_OUTCOME_SPLITTING_HAPPENED", response.getOutcome());
     List<DerivedSource> bundles = response.getBundles();
     assertEquals(5, bundles.size());
@@ -480,12 +486,13 @@ public class CustomSourcesTest {
         translateIOToCloudSource(new SourceProducingInvalidSplits("original", null), options);
 
     expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage(allOf(
-        containsString("Splitting a valid source produced an invalid bundle"),
-        containsString("original"),
-        containsString("badBundle")));
+    expectedException.expectMessage(
+        allOf(
+            containsString("Splitting a valid source produced an invalid source"),
+            containsString("original"),
+            containsString("badBundle")));
     expectedException.expectCause(hasMessage(containsString("intentionally invalid")));
-    performSplit(cloudSource, options);
+    performSplit(cloudSource, options, null /*desiredBundleSizeBytes*/);
   }
 
   private static class FailingReader extends BoundedSource.BoundedReader<Integer> {
@@ -596,13 +603,17 @@ public class CustomSourcesTest {
   }
 
   private static SourceSplitResponse performSplit(
-      com.google.api.services.dataflow.model.Source source, PipelineOptions options)
-      throws Exception {
+      com.google.api.services.dataflow.model.Source source,
+      PipelineOptions options,
+      @Nullable Long desiredBundleSizeBytes)
+          throws Exception {
     SourceSplitRequest splitRequest = new SourceSplitRequest();
     splitRequest.setSource(source);
-    SourceOperationRequest request = new SourceOperationRequest();
-    request.setSplit(splitRequest);
-    SourceOperationResponse response = CustomSources.performSourceOperation(request, options);
+    if (desiredBundleSizeBytes != null) {
+      splitRequest.setOptions(
+          new SourceSplitOptions().setDesiredBundleSizeBytes(desiredBundleSizeBytes));
+    }
+    SourceOperationResponse response = CustomSources.performSplit(splitRequest, options);
     return response.getSplit();
   }
 
@@ -713,5 +724,28 @@ public class CustomSourcesTest {
       }
     }
     return null;
+  }
+
+  @Test
+  public void testLargeSerializedSizeResplits() throws Exception {
+    DataflowPipelineOptions options =
+        PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
+    // Figure out how many splits of CountingSource are needed to exceed the API limits, using an
+    // extra factor of 2 to ensure that we go over the limits.
+    BoundedSource<Long> justForSizing = CountingSource.upTo(1000000L);
+    long size =
+        DataflowApiUtils.computeSerializedSizeBytes(
+            translateIOToCloudSource(justForSizing, options));
+    long numberToSplitToExceedLimit =
+        2 * CustomSources.DATAFLOW_SPLIT_RESPONSE_API_SIZE_BYTES / size;
+
+    // Generate a CountingSource and split it into the desired number of splits
+    // (desired size = 8 bytes, 1 long), triggering the re-split with a larger bundle size.
+    com.google.api.services.dataflow.model.Source source =
+        translateIOToCloudSource(CountingSource.upTo(numberToSplitToExceedLimit), options);
+    SourceSplitResponse split = performSplit(source, options, 8L);
+    logged.verifyWarn("too large for the Google Cloud Dataflow API");
+    logged.verifyWarn(String.format("%d bundles", numberToSplitToExceedLimit));
+    assertThat((long) split.getBundles().size(), lessThan(numberToSplitToExceedLimit));
   }
 }

@@ -41,6 +41,7 @@ import com.google.cloud.dataflow.sdk.util.CloudMetricUtils;
 import com.google.cloud.dataflow.sdk.util.PCollectionViewWindow;
 import com.google.cloud.dataflow.sdk.util.SideInputReader;
 import com.google.cloud.dataflow.sdk.util.UserCodeException;
+import com.google.cloud.dataflow.sdk.util.Weighted;
 import com.google.cloud.dataflow.sdk.util.WeightedValue;
 import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
@@ -106,7 +107,7 @@ public class DataflowWorker {
   private final UserCodeTimeTracker userCodeTimeTracker = new UserCodeTimeTracker();
 
   /**
-   * A weight in "bytes" for the overhead of a {@link Sized} wrapper in the cache. It is just an
+   * A weight in "bytes" for the overhead of a {@link Weighted} wrapper in the cache. It is just an
    * approximation so it is OK for it to be fairly arbitrary as long as it is nonzero.
    */
   private static final int OVERHEAD_WEIGHT = 8;
@@ -154,7 +155,7 @@ public class DataflowWorker {
       // Populate PipelineOptions with data from work unit.
       options.setProject(workItem.getProjectId());
 
-      DataflowExecutionContext executionContext =
+      DataflowExecutionContext<?> executionContext =
           new DataflowWorkerExecutionContext(sideInputCache, options);
 
       CounterSet counters = new CounterSet();
@@ -268,9 +269,15 @@ public class DataflowWorker {
     // TODO: Attach the stack trace as exception details, not to the message.
     error.setMessage(DataflowWorkerLoggingHandler.formatException(t));
 
-    reportStatus(options, "Failure", workItem, worker == null ? null : worker.getOutputCounters(),
-        worker == null ? null : worker.getOutputMetrics(), null/*sourceOperationResponse*/,
-        error == null ? null : Collections.singletonList(error), nextReportIndex);
+    reportStatus(
+        options,
+        "Failure",
+        workItem,
+        worker == null ? null : worker.getOutputCounters(),
+        worker == null ? null : worker.getOutputMetrics(),
+        null /*sourceOperationResponse*/,
+        Collections.singletonList(error),
+        nextReportIndex);
   }
 
   private void reportStatus(DataflowWorkerHarnessOptions options, String status, WorkItem workItem,

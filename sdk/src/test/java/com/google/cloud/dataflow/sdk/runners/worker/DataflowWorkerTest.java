@@ -14,17 +14,16 @@
 
 package com.google.cloud.dataflow.sdk.runners.worker;
 
+import static org.hamcrest.Matchers.greaterThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.argThat;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.google.api.services.dataflow.model.SourceOperationResponse;
 import com.google.api.services.dataflow.model.SourceSplitResponse;
 import com.google.api.services.dataflow.model.SourceSplitShard;
 import com.google.api.services.dataflow.model.WorkItem;
@@ -47,6 +46,7 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import java.io.IOException;
 import java.util.Map;
 
 /** Unit tests for {@link DataflowWorker}. */
@@ -116,13 +116,11 @@ public class DataflowWorkerTest {
   }
 
   @Test
-  public void testIsSplitResponseTooLarge() {
+  public void testIsSplitResponseTooLarge() throws IOException {
     SourceSplitResponse splitResponse = new SourceSplitResponse();
     splitResponse.setShards(
         ImmutableList.<SourceSplitShard>of(new SourceSplitShard(), new SourceSplitShard()));
-    assertTrue(
-        SourceOperationExecutor.determineSplitResponseSize(
-            new SourceOperationResponse().setSplit(splitResponse)) > 0);
+    assertThat(DataflowApiUtils.computeSerializedSizeBytes(splitResponse), greaterThan(0L));
   }
 
   @Test
