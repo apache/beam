@@ -16,25 +16,33 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
+import static org.hamcrest.CoreMatchers.isA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
+import com.google.cloud.dataflow.sdk.Pipeline.PipelineExecutionException;
+import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
+import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
+import com.google.cloud.dataflow.sdk.transforms.Max.MaxIntegerFn;
 
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+
+import java.io.Serializable;
 
 /**
  * Tests for DoFn.
  */
 @RunWith(JUnit4.class)
-public class DoFnTest {
+public class DoFnTest implements Serializable {
 
   @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  public transient ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testCreateAggregatorWithCombinerSucceeds() {
@@ -114,5 +122,70 @@ public class DoFnTest {
         doFn.createAggregator(nameTwo, combiner);
 
     assertNotEquals(aggregatorOne, aggregatorTwo);
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testCreateAggregatorInStartBundleThrows() {
+    TestPipeline p = createTestPipeline(new DoFn<String, String>() {
+      @Override
+      public void startBundle(DoFn<String, String>.Context c) throws Exception {
+        createAggregator("anyAggregate", new MaxIntegerFn());
+      }
+
+      @Override
+      public void processElement(DoFn<String, String>.ProcessContext c) throws Exception {}
+    });
+
+    thrown.expect(PipelineExecutionException.class);
+    thrown.expectCause(isA(IllegalStateException.class));
+
+    p.run();
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testCreateAggregatorInProcessElementThrows() {
+    TestPipeline p = createTestPipeline(new DoFn<String, String>() {
+      @Override
+      public void processElement(ProcessContext c) throws Exception {
+        createAggregator("anyAggregate", new MaxIntegerFn());
+      }
+    });
+
+    thrown.expect(PipelineExecutionException.class);
+    thrown.expectCause(isA(IllegalStateException.class));
+
+    p.run();
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testCreateAggregatorInFinishBundleThrows() {
+    TestPipeline p = createTestPipeline(new DoFn<String, String>() {
+      @Override
+      public void finishBundle(DoFn<String, String>.Context c) throws Exception {
+        createAggregator("anyAggregate", new MaxIntegerFn());
+      }
+
+      @Override
+      public void processElement(DoFn<String, String>.ProcessContext c) throws Exception {}
+    });
+
+    thrown.expect(PipelineExecutionException.class);
+    thrown.expectCause(isA(IllegalStateException.class));
+
+    p.run();
+  }
+
+  /**
+   * Initialize a test pipeline with the specified @{link DoFn}.
+   */
+  private <InputT, OutputT> TestPipeline createTestPipeline(DoFn<InputT, OutputT> fn) {
+    TestPipeline pipeline = TestPipeline.create();
+    pipeline.apply(Create.of((InputT) null))
+     .apply(ParDo.of(fn));
+
+    return pipeline;
   }
 }

@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.annotations.Experimental.Kind;
@@ -207,6 +208,8 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
       for (DelegatingAggregator<?, ?> aggregator : aggregators.values()) {
         setupDelegateAggregator(aggregator);
       }
+
+      aggregatorsAreFinal = true;
     }
 
     private final <AggInputT, AggOutputT> void setupDelegateAggregator(
@@ -317,6 +320,11 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
   private final Map<String, DelegatingAggregator<?, ?>> aggregators;
 
   /**
+   * Protects aggregators from being created after initialization.
+   */
+  private boolean aggregatorsAreFinal;
+
+  /**
    * Prepares this {@code DoFn} instance for processing a batch of elements.
    *
    * <p>By default, does nothing.
@@ -382,7 +390,8 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
   /**
    * Returns an {@link Aggregator} with aggregation logic specified by the
    * {@link CombineFn} argument. The name provided must be unique across
-   * {@link Aggregator}s created within the DoFn.
+   * {@link Aggregator}s created within the DoFn. Aggregators can only be created
+   * during pipeline construction.
    *
    * @param name the name of the aggregator
    * @param combiner the {@link CombineFn} to use in the aggregator
@@ -391,6 +400,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
    * @throws NullPointerException if the name or combiner is null
    * @throws IllegalArgumentException if the given name collides with another
    *         aggregator in this scope
+   * @throws IllegalStateException if called during pipeline processing.
    */
   protected final <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT>
       createAggregator(String name, CombineFn<? super AggInputT, ?, AggOutputT> combiner) {
@@ -400,6 +410,10 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
         "Cannot create aggregator with name %s."
         + " An Aggregator with that name already exists within this scope.",
         name);
+
+    checkState(!aggregatorsAreFinal, "Cannot create an aggregator during DoFn processing."
+        + " Aggregators should be registered during pipeline construction.");
+
     DelegatingAggregator<AggInputT, AggOutputT> aggregator =
         new DelegatingAggregator<>(name, combiner);
     aggregators.put(name, aggregator);
@@ -409,7 +423,8 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
   /**
    * Returns an {@link Aggregator} with the aggregation logic specified by the
    * {@link SerializableFunction} argument. The name provided must be unique
-   * across {@link Aggregator}s created within the DoFn.
+   * across {@link Aggregator}s created within the DoFn. Aggregators can only be
+   * created during pipeline construction.
    *
    * @param name the name of the aggregator
    * @param combiner the {@link SerializableFunction} to use in the aggregator
@@ -418,6 +433,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
    * @throws NullPointerException if the name or combiner is null
    * @throws IllegalArgumentException if the given name collides with another
    *         aggregator in this scope
+   * @throws IllegalStateException if called during pipeline processing.
    */
   protected final <AggInputT> Aggregator<AggInputT, AggInputT> createAggregator(String name,
       SerializableFunction<Iterable<AggInputT>, AggInputT> combiner) {

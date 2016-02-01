@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
+import static org.hamcrest.CoreMatchers.isA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.mockito.Mockito.mock;
@@ -23,19 +24,26 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.cloud.dataflow.sdk.Pipeline.PipelineExecutionException;
+import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
+import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
+import com.google.cloud.dataflow.sdk.transforms.Max.MaxIntegerFn;
 
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.io.Serializable;
+
 /** Tests for {@link DoFnWithContext}. */
 @RunWith(JUnit4.class)
-public class DoFnWithContextTest {
+public class DoFnWithContextTest implements Serializable {
   @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  public transient ExpectedException thrown = ExpectedException.none();
 
   private class NoOpDoFnWithContext extends DoFnWithContext<Void, Void> {
 
@@ -148,5 +156,70 @@ public class DoFnWithContextTest {
     delegateAggregator.addValue(1L);
 
     verify(agg).addValue(1L);
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testCreateAggregatorInStartBundleThrows() {
+    TestPipeline p = createTestPipeline(new DoFnWithContext<String, String>() {
+      @StartBundle
+      public void startBundle(Context c) {
+        createAggregator("anyAggregate", new MaxIntegerFn());
+      }
+
+      @ProcessElement
+      public void processElement(ProcessContext c) {}
+    });
+
+    thrown.expect(PipelineExecutionException.class);
+    thrown.expectCause(isA(IllegalStateException.class));
+
+    p.run();
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testCreateAggregatorInProcessElementThrows() {
+    TestPipeline p = createTestPipeline(new DoFnWithContext<String, String>() {
+      @ProcessElement
+      public void processElement(ProcessContext c) {
+        createAggregator("anyAggregate", new MaxIntegerFn());
+      }
+    });
+
+    thrown.expect(PipelineExecutionException.class);
+    thrown.expectCause(isA(IllegalStateException.class));
+
+    p.run();
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testCreateAggregatorInFinishBundleThrows() {
+    TestPipeline p = createTestPipeline(new DoFnWithContext<String, String>() {
+      @FinishBundle
+      public void finishBundle(Context c) {
+        createAggregator("anyAggregate", new MaxIntegerFn());
+      }
+
+      @ProcessElement
+      public void processElement(ProcessContext c) {}
+    });
+
+    thrown.expect(PipelineExecutionException.class);
+    thrown.expectCause(isA(IllegalStateException.class));
+
+    p.run();
+  }
+
+  /**
+   * Initialize a test pipeline with the specified @{link DoFn}.
+   */
+  private <InputT, OutputT> TestPipeline createTestPipeline(DoFnWithContext<InputT, OutputT> fn) {
+    TestPipeline pipeline = TestPipeline.create();
+    pipeline.apply(Create.of((InputT) null))
+     .apply(ParDo.of(fn));
+
+    return pipeline;
   }
 }
