@@ -192,15 +192,19 @@ public class DataflowWorker {
         }
       }
 
-      // Log all counter values for debugging purposes.
-      for (Counter<?> counter : counters) {
-        LOG.trace("COUNTER {}.", counter);
+      // Log counters for debugging purposes, if TRACE logging is on.
+      if (LOG.isTraceEnabled()) {
+        for (Counter<?> counter : counters) {
+          LOG.trace("COUNTER {}.", counter);
+        }
       }
 
-      // Log all metrics for debugging purposes.
+      // Log metrics for debugging purposes, if TRACE logging is on.
       Collection<Metric<?>> metrics = worker.getOutputMetrics();
-      for (Metric<?> metric : metrics) {
-        LOG.trace("METRIC {}: {}", metric.getName(), metric.getValue());
+      if (LOG.isTraceEnabled()) {
+        for (Metric<?> metric : metrics) {
+          LOG.trace("METRIC {}: {}", metric.getName(), metric.getValue());
+        }
       }
 
       // Report job success.
