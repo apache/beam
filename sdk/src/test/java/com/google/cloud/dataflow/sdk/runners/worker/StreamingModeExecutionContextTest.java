@@ -24,7 +24,7 @@ import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.io.UnboundedSource;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.runners.dataflow.CountingSource;
+import com.google.cloud.dataflow.sdk.runners.dataflow.TestCountingSource;
 import com.google.cloud.dataflow.sdk.runners.worker.StreamingDataflowWorker.ReaderCacheEntry;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.testing.PCollectionViewTesting;
@@ -168,9 +168,9 @@ public class StreamingModeExecutionContextTest {
             /*stateCache=*/null);
 
     UnboundedSource.UnboundedReader<?> reader1 =
-        new CountingSource(Integer.MAX_VALUE).createReader(options, null);
+        new TestCountingSource(Integer.MAX_VALUE).createReader(options, null);
     UnboundedSource.UnboundedReader<?> reader2 =
-        new CountingSource(Integer.MAX_VALUE).createReader(options, null);
+        new TestCountingSource(Integer.MAX_VALUE).createReader(options, null);
 
     readerCache.put(ByteString.copyFromUtf8("0000000000000001"), new ReaderCacheEntry(reader1, 1L));
     readerCache.put(ByteString.copyFromUtf8("0000000000000002"), new ReaderCacheEntry(reader2, 2L));

@@ -23,7 +23,7 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
-import com.google.cloud.dataflow.sdk.runners.dataflow.CountingSource;
+import com.google.cloud.dataflow.sdk.runners.dataflow.TestCountingSource;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
@@ -32,7 +32,6 @@ import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 
 import org.joda.time.Duration;
-
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -108,9 +107,9 @@ public class BoundedReadFromUnboundedSourceTest {
 
     if (p.getOptions().getRunner() == DirectPipelineRunner.class) {
       finalizeTracker = new ArrayList<>();
-      CountingSource.setFinalizeTracker(finalizeTracker);
+      TestCountingSource.setFinalizeTracker(finalizeTracker);
     }
-    CountingSource source = new CountingSource(Integer.MAX_VALUE);
+    TestCountingSource source = new TestCountingSource(Integer.MAX_VALUE);
     if (dedup) {
       source = source.withDedup();
     }

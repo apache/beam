@@ -48,7 +48,7 @@ import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions.CheckEnabled;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.runners.dataflow.CountingSource;
+import com.google.cloud.dataflow.sdk.runners.dataflow.TestCountingSource;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.util.DataflowReleaseInfo;
@@ -870,7 +870,7 @@ public class DataflowPipelineRunnerTest {
 
   @Test
   public void testReadUnboundedUnsupportedInBatch() throws Exception {
-    testUnsupportedSource(Read.from(new CountingSource(1)), "Read.Unbounded", false);
+    testUnsupportedSource(Read.from(new TestCountingSource(1)), "Read.Unbounded", false);
   }
 
   private void testUnsupportedSink(

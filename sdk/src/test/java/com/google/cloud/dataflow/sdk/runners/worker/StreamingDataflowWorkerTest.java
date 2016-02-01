@@ -48,8 +48,8 @@ import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.DataflowWorkerHarnessOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.runners.dataflow.CountingSource;
 import com.google.cloud.dataflow.sdk.runners.dataflow.CustomSources;
+import com.google.cloud.dataflow.sdk.runners.dataflow.TestCountingSource;
 import com.google.cloud.dataflow.sdk.runners.worker.KeyedWorkItems.FakeKeyedWorkItemCoder;
 import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingMDC;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
@@ -989,7 +989,7 @@ public class StreamingDataflowWorkerTest {
                     new ReadInstruction()
                         .setSource(
                             CustomSources.serializeToCloudSource(
-                                new CountingSource(1), options)))
+                                new TestCountingSource(1), options)))
                 .setOutputs(
                     Arrays.asList(
                         new InstructionOutput()
@@ -1004,7 +1004,7 @@ public class StreamingDataflowWorkerTest {
                 new PrintFn(), 0, StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE),
             makeSinkInstruction(StringUtf8Coder.of(), 1, GlobalWindow.Coder.INSTANCE));
 
-    CountingSource.setFinalizeTracker(finalizeTracker);
+    TestCountingSource.setFinalizeTracker(finalizeTracker);
 
     FakeWindmillServer server = new FakeWindmillServer();
     StreamingDataflowWorker worker = new StreamingDataflowWorker(

@@ -611,15 +611,14 @@ public class CustomSourcesTest {
     DataflowPipelineOptions options =
         PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
     com.google.api.services.dataflow.model.Source source =
-        CustomSources.serializeToCloudSource(
-            new CountingSource(Integer.MAX_VALUE), options);
+        CustomSources.serializeToCloudSource(new TestCountingSource(Integer.MAX_VALUE), options);
     List<String> serializedSplits =
         getStrings(source.getSpec(), CustomSources.SERIALIZED_SOURCE_SPLITS, null);
     assertEquals(20, serializedSplits.size());
     for (String serializedSplit : serializedSplits) {
       assertTrue(
           deserializeFromByteArray(decodeBase64(serializedSplit), "source")
-              instanceof CountingSource);
+              instanceof TestCountingSource);
     }
   }
 
@@ -657,7 +656,7 @@ public class CustomSourcesTest {
               CustomSources.create(
                   (CloudObject)
                       CustomSources.serializeToCloudSource(
-                              new CountingSource(Integer.MAX_VALUE), options)
+                              new TestCountingSource(Integer.MAX_VALUE), options)
                           .getSpec(),
                   options,
                   context);

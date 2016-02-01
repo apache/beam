@@ -44,30 +44,30 @@ import javax.annotation.Nullable;
  * from {@code advance}, in order to simulate a source where not all the data is
  * available immediately.
  */
-public class CountingSource
-    extends UnboundedSource<KV<Integer, Integer>, CountingSource.CounterMark> {
+public class TestCountingSource
+    extends UnboundedSource<KV<Integer, Integer>, TestCountingSource.CounterMark> {
   private static List<Integer> finalizeTracker;
   private final int numMessagesPerShard;
   private final int shardNumber;
   private final boolean dedup;
 
   public static void setFinalizeTracker(List<Integer> finalizeTracker) {
-    CountingSource.finalizeTracker = finalizeTracker;
+    TestCountingSource.finalizeTracker = finalizeTracker;
   }
 
-  public CountingSource(int numMessagesPerShard) {
+  public TestCountingSource(int numMessagesPerShard) {
     this(numMessagesPerShard, 0, false);
   }
 
-  public CountingSource withDedup() {
-    return new CountingSource(numMessagesPerShard, shardNumber, true);
+  public TestCountingSource withDedup() {
+    return new TestCountingSource(numMessagesPerShard, shardNumber, true);
   }
 
-  private CountingSource withShardNumber(int shardNumber) {
-    return new CountingSource(numMessagesPerShard, shardNumber, dedup);
+  private TestCountingSource withShardNumber(int shardNumber) {
+    return new TestCountingSource(numMessagesPerShard, shardNumber, dedup);
   }
 
-  private CountingSource(int numMessagesPerShard, int shardNumber, boolean dedup) {
+  private TestCountingSource(int numMessagesPerShard, int shardNumber, boolean dedup) {
     this.numMessagesPerShard = numMessagesPerShard;
     this.shardNumber = shardNumber;
     this.dedup = dedup;
@@ -78,8 +78,9 @@ public class CountingSource
   }
 
   @Override
-  public List<CountingSource> generateInitialSplits(int desiredNumSplits, PipelineOptions options) {
-    List<CountingSource> splits = new ArrayList<>();
+  public List<TestCountingSource> generateInitialSplits(
+      int desiredNumSplits, PipelineOptions options) {
+    List<TestCountingSource> splits = new ArrayList<>();
     for (int i = 0; i < desiredNumSplits; i++) {
       splits.add(withShardNumber(i));
     }
@@ -173,8 +174,8 @@ public class CountingSource
     public void close() {}
 
     @Override
-    public CountingSource getCurrentSource() {
-      return CountingSource.this;
+    public TestCountingSource getCurrentSource() {
+      return TestCountingSource.this;
     }
 
     @Override
