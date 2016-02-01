@@ -18,7 +18,9 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 
 import static com.google.cloud.dataflow.sdk.util.Structs.getBoolean;
 import static com.google.cloud.dataflow.sdk.util.Structs.getString;
+import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.options.BigQueryOptions;
@@ -27,6 +29,7 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
+import com.google.cloud.dataflow.sdk.util.Transport;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 
@@ -46,32 +49,25 @@ public class BigQueryReaderFactory implements ReaderFactory {
       @Nullable CounterSet.AddCounterMutator addCounterMutator,
       @Nullable String operationName)
           throws Exception {
-    return createTyped(spec, coder, options, executionContext);
+    return createTyped(spec, options);
   }
 
-  public BigQueryReader createTyped(
-      CloudObject spec,
-      Coder<?> coder,
-      PipelineOptions options,
-      ExecutionContext executionContext) throws Exception {
+  private BigQueryReader createTyped(CloudObject spec, PipelineOptions options) throws Exception {
+    Bigquery client = Transport.newBigQueryClient(options.as(BigQueryOptions.class)).build();
+
     String query = getString(spec, PropertyNames.BIGQUERY_QUERY, null);
-    Boolean flatten = getBoolean(spec, PropertyNames.BIGQUERY_FLATTEN_RESULTS, true);
     if (query != null) {
-      GcpOptions gcpOptions = options.as(GcpOptions.class);
-      return BigQueryReader.fromQueryWithOptions(
-          query, gcpOptions.getProject(), options.as(BigQueryOptions.class), flatten);
+      String project = options.as(GcpOptions.class).getProject();
+      Boolean flatten = getBoolean(spec, PropertyNames.BIGQUERY_FLATTEN_RESULTS, true);
+      return BigQueryReader.fromQuery(query, project, client, flatten);
+    } else {
+      String tableId = getString(spec, PropertyNames.BIGQUERY_TABLE, null);
+      checkArgument(tableId != null, "Either a table or a query has to be specified");
+      String project = getString(spec, PropertyNames.BIGQUERY_PROJECT);
+      String dataset = getString(spec, PropertyNames.BIGQUERY_DATASET);
+      return BigQueryReader.fromTable(
+          new TableReference().setProjectId(project).setDatasetId(dataset).setTableId(tableId),
+          client);
     }
-
-    String tableId = getString(spec, PropertyNames.BIGQUERY_TABLE, null);
-    if (tableId != null) {
-      return BigQueryReader.fromTableWithOptions(
-          new TableReference()
-              .setProjectId(getString(spec, PropertyNames.BIGQUERY_PROJECT))
-              .setDatasetId(getString(spec, PropertyNames.BIGQUERY_DATASET))
-              .setTableId(tableId),
-          options.as(BigQueryOptions.class));
-    }
-
-    throw new IllegalArgumentException("Either a table or a query has to be specified");
   }
 }

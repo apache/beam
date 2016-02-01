@@ -21,9 +21,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
-import com.google.cloud.dataflow.sdk.options.BigQueryOptions;
 import com.google.cloud.dataflow.sdk.util.BigQueryTableRowIterator;
-import com.google.cloud.dataflow.sdk.util.Transport;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 import com.google.common.annotations.VisibleForTesting;
@@ -60,38 +58,17 @@ public class BigQueryReader extends NativeReader<WindowedValue<TableRow>> {
    * Returns a {@code BigQueryReader} that uses the specified client to read from the specified
    * table.
    */
-  public static BigQueryReader fromTable(TableReference tableRef, Bigquery bigQueryClient) {
+  static BigQueryReader fromTable(TableReference tableRef, Bigquery bigQueryClient) {
     return new BigQueryReader(tableRef, null, null, bigQueryClient, null);
-  }
-
-  /**
-   * Returns a {@code BigQueryReader} that reads from the specified table. The {@link Bigquery}
-   * client is constructed at runtime from the specified options.
-   */
-  public static BigQueryReader fromTableWithOptions(
-      TableReference tableRef, BigQueryOptions bigQueryOptions) {
-    Bigquery client = Transport.newBigQueryClient(bigQueryOptions).build();
-    return new BigQueryReader(tableRef, null, null, client, null);
   }
 
   /**
    * Returns a {@code BigQueryReader} that uses the specified client to read the results from
    * executing the specified query in the specified project.
    */
-  public static BigQueryReader fromQuery(String query, String projectId, Bigquery bigQueryClient) {
-    return new BigQueryReader(null, query, projectId, bigQueryClient, true);
-  }
-
-  /**
-   * Returns a {@code BigQueryReader} that reads the results from executing the specified query in
-   * the specified project. The {@link Bigquery} client is constructed at runtime from the
-   * specified options.
-   */
-  public static BigQueryReader fromQueryWithOptions(
-      String query, String projectId, BigQueryOptions bigQueryOptions,
-      @Nullable Boolean flattenResults) {
-    Bigquery client = Transport.newBigQueryClient(bigQueryOptions).build();
-    return new BigQueryReader(null, query, projectId, client, flattenResults);
+  static BigQueryReader fromQuery(
+      String query, String projectId, Bigquery bigQueryClient, boolean flatten) {
+    return new BigQueryReader(null, query, projectId, bigQueryClient, flatten);
   }
 
   public TableReference getTableRef() {

@@ -562,7 +562,7 @@ public class BigQueryReaderTest {
     setUpMockQuery();
 
     Bigquery bigQueryClient = new Bigquery(mockTransport, Transport.getJsonFactory(), null);
-    BigQueryReader reader = BigQueryReader.fromQuery(QUERY, PROJECT_ID, bigQueryClient);
+    BigQueryReader reader = BigQueryReader.fromQuery(QUERY, PROJECT_ID, bigQueryClient, true);
     BigQueryReader.BigQueryReaderIterator iterator = reader.iterator();
 
     assertTrue(iterator.hasNext());
