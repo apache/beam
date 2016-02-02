@@ -141,4 +141,16 @@ public class AfterProcessingTimeTest {
         new AfterSynchronizedProcessingTime<>(),
         firstElementPlus1.getContinuationTrigger());
   }
+
+  /**
+   * Basic test of compatibility check between identical triggers.
+   */
+  @Test
+  public void testCompatibilityIdentical() throws Exception {
+    Trigger<?> t1 = AfterProcessingTime.pastFirstElementInPane()
+            .plusDelayOf(Duration.standardMinutes(1L));
+    Trigger<?> t2 = AfterProcessingTime.pastFirstElementInPane()
+            .plusDelayOf(Duration.standardMinutes(1L));
+    assertTrue(t1.isCompatible(t2));
+  }
 }

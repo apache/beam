@@ -30,6 +30,7 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Support for manipulating the time at which time-based {@link Trigger}s fire.
@@ -76,16 +77,7 @@ public abstract class TimeTrigger<W extends BoundedWindow> extends OnceTrigger<W
    * @return An updated time trigger that will wait the additional time before firing.
    */
   public TimeTrigger<W> plusDelayOf(final Duration delay) {
-    return newWith(delayFn(delay));
-  }
-
-  private static SerializableFunction<Instant, Instant> delayFn(final Duration delay) {
-    return new SerializableFunction<Instant, Instant>() {
-      @Override
-      public Instant apply(Instant input) {
-        return input.plus(delay);
-      }
-    };
+    return newWith(new DelayFn(delay));
   }
 
   /**
@@ -96,18 +88,7 @@ public abstract class TimeTrigger<W extends BoundedWindow> extends OnceTrigger<W
    * CalendarWindows.
    */
   public TimeTrigger<W> alignedTo(final Duration size, final Instant offset) {
-    return newWith(alignFn(size, offset));
-  }
-
-  private static SerializableFunction<Instant, Instant> alignFn(
-      final Duration size, final Instant offset) {
-    return new SerializableFunction<Instant, Instant>() {
-      @Override
-      public Instant apply(Instant point) {
-        long millisSinceStart = new Duration(offset, point).getMillis() % size.getMillis();
-        return millisSinceStart == 0 ? point : point.plus(size).minus(millisSinceStart);
-      }
-    };
+    return newWith(new AlignFn(size, offset));
   }
 
   /**
@@ -161,4 +142,82 @@ public abstract class TimeTrigger<W extends BoundedWindow> extends OnceTrigger<W
    * @return a new {@code TimeTrigger}.
    */
   protected abstract TimeTrigger<W> newWith(List<SerializableFunction<Instant, Instant>> transform);
+
+  /**
+   * A {@link SerializableFunction} to delay the timestamp at which this triggers fires.
+   */
+  private static final class DelayFn implements SerializableFunction<Instant, Instant> {
+    private final Duration delay;
+
+    public DelayFn(Duration delay) {
+      this.delay = delay;
+    }
+
+    @Override
+    public Instant apply(Instant input) {
+      return input.plus(delay);
+    }
+
+    @Override
+    public boolean equals(Object object) {
+      if (object == this) {
+        return true;
+      }
+
+      if (!(object instanceof DelayFn)) {
+        return false;
+      }
+
+      return this.delay.equals(((DelayFn) object).delay);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(delay);
+    }
+  }
+
+  /**
+   * A {@link SerializableFunction} to align an instant to the nearest interval boundary.
+   */
+  private static final class AlignFn implements SerializableFunction<Instant, Instant> {
+    private final Duration size;
+    private final Instant offset;
+
+
+    /**
+     * Aligns timestamps to the smallest multiple of {@code size} since the {@code offset} greater
+     * than the timestamp.
+     */
+    public AlignFn(Duration size, Instant offset) {
+      this.size = size;
+      this.offset = offset;
+    }
+
+    @Override
+    public Instant apply(Instant point) {
+      long millisSinceStart = new Duration(offset, point).getMillis() % size.getMillis();
+      return millisSinceStart == 0 ? point : point.plus(size).minus(millisSinceStart);
+    }
+
+    @Override
+    public boolean equals(Object object) {
+      if (object == this) {
+        return true;
+      }
+
+      if (!(object instanceof AlignFn)) {
+        return false;
+      }
+
+      AlignFn other = (AlignFn) object;
+      return other.size.equals(this.size)
+          && other.offset.equals(this.offset);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(size, offset);
+    }
+  }
 }
