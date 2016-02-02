@@ -18,16 +18,22 @@ package com.google.cloud.dataflow.sdk.util;
 
 import static org.junit.Assert.assertEquals;
 
+import com.google.api.services.bigquery.model.TableFieldSchema;
+import com.google.api.services.bigquery.model.TableRow;
+import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.coders.DefaultCoder;
 import com.google.cloud.dataflow.sdk.util.AvroUtils.AvroMetadata;
-import com.google.common.base.MoreObjects;
+import com.google.common.collect.Lists;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileConstants;
 import org.apache.avro.file.DataFileWriter;
+import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumWriter;
+import org.apache.avro.reflect.Nullable;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -39,7 +45,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.Random;
 
 /**
@@ -99,51 +104,95 @@ public class AvroUtilsTest {
     AvroMetadata metadata = AvroUtils.readMetadataFromFile(filename);
     // By default, parse validates the schema, which is what we want.
     Schema schema = new Schema.Parser().parse(metadata.getSchemaString());
-    assertEquals(4, schema.getFields().size());
+    assertEquals(8, schema.getFields().size());
+  }
+
+  @Test
+  public void testConvertGenericRecordToTableRow() throws Exception {
+    TableSchema tableSchema = new TableSchema();
+    List<TableFieldSchema> subFields = Lists.<TableFieldSchema>newArrayList(
+        new TableFieldSchema().setName("species").setType("STRING").setMode("NULLABLE"));
+    List<TableFieldSchema> fields =
+        Lists.<TableFieldSchema>newArrayList(
+            new TableFieldSchema().setName("number").setType("INTEGER").setMode("REQUIRED"),
+            new TableFieldSchema().setName("species").setType("STRING").setMode("NULLABLE"),
+            new TableFieldSchema().setName("quality").setType("FLOAT").setMode("NULLABLE"),
+            new TableFieldSchema().setName("quantity").setType("INTEGER").setMode("NULLABLE"),
+            new TableFieldSchema().setName("birthday").setType("TIMESTAMP").setMode("NULLABLE"),
+            new TableFieldSchema().setName("flighted").setType("BOOLEAN").setMode("NULLABLE"),
+            new TableFieldSchema().setName("scion").setType("RECORD").setMode("NULLABLE")
+                .setFields(subFields),
+            new TableFieldSchema().setName("associates").setType("RECORD").setMode("REPEATED")
+                .setFields(subFields));
+    tableSchema.setFields(fields);
+    Schema avroSchema = AvroCoder.of(Bird.class).getSchema();
+
+    {
+      // Test nullable fields.
+      GenericRecord record = new GenericData.Record(avroSchema);
+      record.put("number", 5L);
+      TableRow convertedRow = AvroUtils.convertGenericRecordToTableRow(record, tableSchema);
+      TableRow row = new TableRow()
+          .set("number", "5")
+          .set("associates", new ArrayList<TableRow>());
+      assertEquals(row, convertedRow);
+    }
+    {
+      // Test type conversion for TIMESTAMP, INTEGER, BOOLEAN, and FLOAT.
+      GenericRecord record = new GenericData.Record(avroSchema);
+      record.put("number", 5L);
+      record.put("quality", 5.0);
+      record.put("birthday", 5L);
+      record.put("flighted", Boolean.TRUE);
+      TableRow convertedRow = AvroUtils.convertGenericRecordToTableRow(record, tableSchema);
+      TableRow row = new TableRow()
+          .set("number", "5")
+          .set("birthday", "1970-01-01 00:00:00.000005 UTC")
+          .set("quality", 5.0)
+          .set("associates", new ArrayList<TableRow>())
+          .set("flighted", Boolean.TRUE);
+      assertEquals(row, convertedRow);
+    }
+    {
+      // Test repeated fields.
+      Schema subBirdSchema = AvroCoder.of(Bird.SubBird.class).getSchema();
+      GenericRecord nestedRecord = new GenericData.Record(subBirdSchema);
+      nestedRecord.put("species", "other");
+      GenericRecord record = new GenericData.Record(avroSchema);
+      record.put("number", 5L);
+      record.put("associates", Lists.<GenericRecord>newArrayList(nestedRecord));
+      TableRow convertedRow = AvroUtils.convertGenericRecordToTableRow(record, tableSchema);
+      TableRow row = new TableRow()
+          .set("associates", Lists.<TableRow>newArrayList(
+              new TableRow().set("species", "other")))
+          .set("number", "5");
+      assertEquals(row, convertedRow);
+    }
   }
 
   /**
-   * Class used as the record type in tests.
+   * Pojo class used as the record type in tests.
    */
   @DefaultCoder(AvroCoder.class)
   static class Bird {
     long number;
-    String species;
-    String quality;
-    long quantity;
+    @Nullable String species;
+    @Nullable Double quality;
+    @Nullable Long quantity;
+    @Nullable Long birthday;  // Exercises TIMESTAMP.
+    @Nullable Boolean flighted;
+    @Nullable SubBird scion;
+    SubBird[] associates;
 
-    public Bird() {}
+    static class SubBird {
+      @Nullable String species;
 
-    public Bird(long number, String species, String quality, long quantity) {
-      this.number = number;
-      this.species = species;
-      this.quality = quality;
-      this.quantity = quantity;
+      public SubBird() {}
     }
 
-    @Override
-    public String toString() {
-      return MoreObjects.toStringHelper(Bird.class)
-          .addValue(number)
-          .addValue(species)
-          .addValue(quantity)
-          .addValue(quality)
-          .toString();
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-      if (obj instanceof Bird) {
-        Bird other = (Bird) obj;
-        return Objects.equals(species, other.species) && Objects.equals(quality, other.quality)
-            && quantity == other.quantity && number == other.number;
-      }
-      return false;
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(number, species, quality, quantity);
+    public Bird() {
+      associates = new SubBird[1];
+      associates[0] = new SubBird();
     }
   }
 
@@ -151,15 +200,13 @@ public class AvroUtilsTest {
    * Create a list of n random records.
    */
   private static List<Bird> createRandomRecords(long n) {
-    String[] qualities = {
-        "miserable", "forelorn", "fidgity", "squirrelly", "fanciful", "chipper", "lazy"};
     String[] species = {"pigeons", "owls", "gulls", "hawks", "robins", "jays"};
     Random random = new Random(0);
 
     List<Bird> records = new ArrayList<>();
     for (long i = 0; i < n; i++) {
       Bird bird = new Bird();
-      bird.quality = qualities[random.nextInt(qualities.length)];
+      bird.quality = random.nextDouble();
       bird.species = species[random.nextInt(species.length)];
       bird.number = i;
       bird.quantity = random.nextLong();

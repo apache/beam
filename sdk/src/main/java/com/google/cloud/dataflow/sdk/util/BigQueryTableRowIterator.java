@@ -47,8 +47,6 @@ import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 
 import org.joda.time.Duration;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -197,39 +195,6 @@ public class BigQueryTableRowIterator implements AutoCloseable {
   }
 
   /**
-   * Formats BigQuery seconds-since-epoch into String matching JSON export. Thread-safe and
-   * immutable.
-   */
-  private static final DateTimeFormatter DATE_AND_SECONDS_FORMATER =
-      DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss").withZoneUTC();
-  private static String formatTimestamp(String timestamp) {
-    // timestamp is in "seconds since epoch" format, with scientific notation.
-    // e.g., "1.45206229112345E9" to mean "2016-01-06 06:38:11.123456 UTC".
-    // Separate into seconds and microseconds.
-    double timestampDoubleMicros = Double.parseDouble(timestamp) * 1000000;
-    long timestampMicros = (long) timestampDoubleMicros;
-    long seconds = timestampMicros / 1000000;
-    int micros = (int) (timestampMicros % 1000000);
-    String dayAndTime = DATE_AND_SECONDS_FORMATER.print(seconds * 1000);
-
-    // No sub-second component.
-    if (micros == 0) {
-      return String.format("%s UTC", dayAndTime);
-    }
-
-    // Sub-second component.
-    int digits = 6;
-    int subsecond = micros;
-    while (subsecond % 10 == 0) {
-      digits--;
-      subsecond /= 10;
-    }
-    String formatString = String.format("%%0%dd", digits);
-    String fractionalSeconds = String.format(formatString, subsecond);
-    return String.format("%s.%s UTC", dayAndTime, fractionalSeconds);
-  }
-
-  /**
    * Adjusts a field returned from the BigQuery API to match what we will receive when running
    * BigQuery's export-to-GCS and parallel read, which is the efficient parallel implementation
    * used for batch jobs executed on the Cloud Dataflow service.
@@ -284,7 +249,7 @@ public class BigQueryTableRowIterator implements AutoCloseable {
     }
 
     if (fieldSchema.getType().equals("TIMESTAMP")) {
-      return formatTimestamp((String) v);
+      return AvroUtils.formatTimestamp((String) v);
     }
 
     return v;

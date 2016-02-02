@@ -68,6 +68,7 @@ public interface ReaderFactory {
 
       factories.put("TextSource", TextReaderFactory.getInstance());
       factories.put("AvroSource", new AvroReaderFactory());
+      factories.put("BigQueryAvroSource", new BigQueryAvroReaderFactory());
       factories.put("UngroupedShuffleSource", new UngroupedShuffleReaderFactory());
       factories.put("PartitioningShuffleSource", new PartitioningShuffleReaderFactory());
       factories.put("GroupingShuffleSource", new GroupingShuffleReaderFactory());
