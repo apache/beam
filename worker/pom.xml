@@ -209,6 +209,7 @@
       <groupId>com.google.cloud.dataflow</groupId>
       <artifactId>google-cloud-dataflow-java-sdk-all</artifactId>
       <version>${project.version}</version>
+      <classifier>internal-only</classifier>
     </dependency>
 
     <!-- test dependencies -->
