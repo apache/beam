@@ -16,12 +16,9 @@
 
 package com.google.cloud.dataflow.sdk.util.common.worker;
 
-import static com.google.api.client.util.Base64.encodeBase64String;
-
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -65,42 +62,6 @@ public class PartialGroupByKeyOperation extends ReceivingOperation {
     public AccumT merge(K key, Iterable<AccumT> accumulators);
     public AccumT compact(K key, AccumT accumulator);
     public OutputT extract(K key, AccumT accumulator);
-  }
-
-  /**
-   * A wrapper around a byte[] that uses structural, value-based
-   * equality rather than byte[]'s normal object identity.
-   */
-  public static class StructuralByteArray {
-    byte[] value;
-
-    public StructuralByteArray(byte[] value) {
-      this.value = value;
-    }
-
-    public byte[] getValue() {
-      return value;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (o instanceof StructuralByteArray) {
-        StructuralByteArray that = (StructuralByteArray) o;
-        return Arrays.equals(this.value, that.value);
-      } else {
-        return false;
-      }
-    }
-
-    @Override
-    public int hashCode() {
-      return Arrays.hashCode(value);
-    }
-
-    @Override
-    public String toString() {
-      return "base64:" + encodeBase64String(value);
-    }
   }
 
   // By default, how many bytes we allow the grouping table to consume before

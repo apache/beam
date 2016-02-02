@@ -19,7 +19,6 @@ package com.google.cloud.dataflow.sdk.coders;
 import com.google.cloud.dataflow.sdk.util.ExposedByteArrayOutputStream;
 import com.google.cloud.dataflow.sdk.util.StreamUtils;
 import com.google.cloud.dataflow.sdk.util.VarInt;
-import com.google.cloud.dataflow.sdk.util.common.worker.PartialGroupByKeyOperation.StructuralByteArray;
 import com.google.common.io.ByteStreams;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
