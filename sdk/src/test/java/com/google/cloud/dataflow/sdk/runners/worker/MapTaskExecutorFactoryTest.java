@@ -20,6 +20,8 @@ import static com.google.cloud.dataflow.sdk.runners.worker.DataflowOutputCounter
 import static com.google.cloud.dataflow.sdk.runners.worker.DataflowOutputCounter.getMeanByteCounterName;
 import static com.google.cloud.dataflow.sdk.runners.worker.DataflowOutputCounter.getObjectCounterName;
 import static com.google.cloud.dataflow.sdk.util.CoderUtils.makeCloudEncoding;
+import static com.google.cloud.dataflow.sdk.util.SerializableUtils.serializeToByteArray;
+import static com.google.cloud.dataflow.sdk.util.StringUtils.byteArrayToJsonString;
 import static com.google.cloud.dataflow.sdk.util.Structs.addString;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.MEAN;
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.SUM;
@@ -40,6 +42,9 @@ import com.google.api.services.dataflow.model.PartialGroupByKeyInstruction;
 import com.google.api.services.dataflow.model.ReadInstruction;
 import com.google.api.services.dataflow.model.Source;
 import com.google.api.services.dataflow.model.WriteInstruction;
+import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
+import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
+import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
@@ -49,7 +54,9 @@ import com.google.cloud.dataflow.sdk.runners.worker.ReaderFactoryTest.TestReader
 import com.google.cloud.dataflow.sdk.runners.worker.SinkFactoryTest.TestSink;
 import com.google.cloud.dataflow.sdk.runners.worker.SinkFactoryTest.TestSinkFactory;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
+import com.google.cloud.dataflow.sdk.util.AppliedCombineFn;
 import com.google.cloud.dataflow.sdk.util.BatchModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.DoFnInfo;
@@ -507,6 +514,50 @@ public class MapTaskExecutorFactoryTest {
     assertEquals(pgbkOperation.receivers[0].getReceiverCount(), 0);
     assertEquals(pgbkOperation.initializationState, Operation.InitializationState.UNSTARTED);
 
+    assertSame(
+        pgbkOperation,
+        priorOperations.get(producerIndex).receivers[producerOutputNum].getOnlyReceiver());
+  }
+
+  @Test
+  public void testCreatePartialGroupByKeyOperationWithCombine() throws Exception {
+    List<Operation> priorOperations = Arrays.asList(
+        new Operation[] {new TestOperation(3), new TestOperation(5), new TestOperation(1)});
+
+    int producerIndex = 1;
+    int producerOutputNum = 2;
+
+    ParallelInstruction instruction =
+        createPartialGroupByKeyInstruction(producerIndex, producerOutputNum);
+
+    AppliedCombineFn<?, ?, ?, ?> combineFn = AppliedCombineFn.withInputCoder(
+        new Sum.SumIntegerFn().asKeyedFn(), new CoderRegistry(),
+        KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of()));
+    CloudObject cloudCombineFn = CloudObject.forClassName("CombineFn");
+    addString(cloudCombineFn, PropertyNames.SERIALIZED_FN,
+        byteArrayToJsonString(serializeToByteArray(combineFn)));
+    instruction.getPartialGroupByKey().setValueCombiningFn(cloudCombineFn);
+
+    CounterSet counterSet = new CounterSet();
+    String counterPrefix = "test-";
+    String systemStageName = "stageName";
+    StateSampler stateSampler = new StateSampler(counterPrefix, counterSet.getAddCounterMutator());
+    Operation operation = MapTaskExecutorFactory.createOperation(
+        options,
+        instruction,
+        readerFactoryRegistry,
+        BatchModeExecutionContext.fromOptions(options),
+        priorOperations,
+        counterPrefix,
+        systemStageName,
+        counterSet.getAddCounterMutator(),
+        stateSampler);
+    assertThat(operation, instanceOf(PartialGroupByKeyOperation.class));
+    PartialGroupByKeyOperation pgbkOperation = (PartialGroupByKeyOperation) operation;
+
+    assertEquals(pgbkOperation.receivers.length, 1);
+    assertEquals(pgbkOperation.receivers[0].getReceiverCount(), 0);
+    assertEquals(pgbkOperation.initializationState, Operation.InitializationState.UNSTARTED);
     assertSame(
         pgbkOperation,
         priorOperations.get(producerIndex).receivers[producerOutputNum].getOnlyReceiver());

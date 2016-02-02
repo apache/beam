@@ -17,7 +17,6 @@
 package com.google.cloud.dataflow.sdk.runners.worker;
 
 import static com.google.cloud.dataflow.sdk.util.Structs.getBytes;
-import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.services.dataflow.model.FlattenInstruction;
 import com.google.api.services.dataflow.model.InstructionInput;
@@ -31,17 +30,18 @@ import com.google.api.services.dataflow.model.WriteInstruction;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.transforms.Combine;
-import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.CombineWithContext.RequiresContextInternal;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.AppliedCombineFn;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
+import com.google.cloud.dataflow.sdk.util.PerKeyCombineFnRunner;
+import com.google.cloud.dataflow.sdk.util.PerKeyCombineFnRunners;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.SerializableUtils;
 import com.google.cloud.dataflow.sdk.util.Serializer;
+import com.google.cloud.dataflow.sdk.util.SideInputReader;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowedValue.WindowedValueCoder;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
@@ -63,6 +63,10 @@ import com.google.cloud.dataflow.sdk.util.common.worker.Sink;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
 import com.google.cloud.dataflow.sdk.util.common.worker.WriteOperation;
 import com.google.cloud.dataflow.sdk.values.KV;
+import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 
 import org.joda.time.Instant;
 
@@ -280,9 +284,9 @@ public class MapTaskExecutorFactory {
   }
 
   static PartialGroupByKeyOperation createPartialGroupByKeyOperation(
-      @SuppressWarnings("unused") PipelineOptions options,
+      PipelineOptions options,
       ParallelInstruction instruction,
-      @SuppressWarnings("unused") ExecutionContext executionContext,
+      DataflowExecutionContext<?> executionContext,
       List<Operation> priorOperations, String counterPrefix,
       CounterSet.AddCounterMutator addCounterMutator, StateSampler stateSampler) throws Exception {
     PartialGroupByKeyInstruction pgbk = instruction.getPartialGroupByKey();
@@ -304,35 +308,33 @@ public class MapTaskExecutorFactory {
     OutputReceiver[] receivers =
         createOutputReceivers(instruction, counterPrefix, addCounterMutator, stateSampler, 1);
 
-    PartialGroupByKeyOperation.Combiner<?, ?, ?, ?> valueCombiner = createValueCombiner(pgbk);
+    PartialGroupByKeyOperation.Combiner<?, ?, ?, ?> valueCombiner = null;
+    PartialGroupByKeyOperation.PairInfo pairInfo = PairInfo.create();
+    if (pgbk.getValueCombiningFn() != null) {
+      Object deserializedFn = SerializableUtils.deserializeFromByteArray(
+          getBytes(CloudObject.fromSpec(pgbk.getValueCombiningFn()), PropertyNames.SERIALIZED_FN),
+          "serialized combine fn");
+      AppliedCombineFn<?, ?, ?, ?> combineFn = ((AppliedCombineFn<?, ?, ?, ?>) deserializedFn);
+
+      SideInputReader sideInputReader =
+          executionContext.getSideInputReader(pgbk.getSideInputs(), combineFn.getSideInputViews());
+      valueCombiner = new ValueCombiner<>(
+          PerKeyCombineFnRunners.create(combineFn.getFn()), sideInputReader, options);
+      if (combineFn.getFn() instanceof RequiresContextInternal) {
+        pairInfo = WindowsExpandingPairInfo.create();
+      }
+    }
 
     PartialGroupByKeyOperation operation = new PartialGroupByKeyOperation(
         instruction.getSystemName(),
         new WindowingCoderGroupingKeyCreator<>(keyCoder),
         new CoderSizeEstimator<>(WindowedValue.getValueOnlyCoder(keyCoder)),
         new CoderSizeEstimator<>(valueCoder), 0.001 /*sizeEstimatorSampleRate*/, valueCombiner,
-        PairInfo.create(), receivers, counterPrefix, addCounterMutator, stateSampler);
+        pairInfo, receivers, counterPrefix, addCounterMutator, stateSampler);
 
     attachInput(operation, pgbk.getInput(), priorOperations);
 
     return operation;
-  }
-
-  static ValueCombiner<?, ?, ?, ?> createValueCombiner(PartialGroupByKeyInstruction pgbk)
-      throws Exception {
-    if (pgbk.getValueCombiningFn() == null) {
-      return null;
-    }
-
-    Object deserializedFn = SerializableUtils.deserializeFromByteArray(
-        getBytes(CloudObject.fromSpec(pgbk.getValueCombiningFn()), PropertyNames.SERIALIZED_FN),
-        "serialized combine fn");
-    AppliedCombineFn<?, ?, ?, ?> appliedCombineFn = (AppliedCombineFn<?, ?, ?, ?>) deserializedFn;
-    checkArgument(
-        !(appliedCombineFn.getFn() instanceof RequiresContextInternal),
-        "Combiner lifting is not supported for combine functions with contexts: %s",
-        appliedCombineFn.getFn().getClass().getName());
-    return new ValueCombiner<>(((KeyedCombineFn<?, ?, ?, ?>) appliedCombineFn.getFn()));
   }
 
   /**
@@ -340,35 +342,47 @@ public class MapTaskExecutorFactory {
    */
   public static class ValueCombiner<K, InputT, AccumT, OutputT>
       implements PartialGroupByKeyOperation.Combiner<WindowedValue<K>, InputT, AccumT, OutputT> {
-    private final Combine.KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn;
+    private final PerKeyCombineFnRunner<K, InputT, AccumT, OutputT> combineFn;
+    private final SideInputReader sideInputReader;
+    private final PipelineOptions options;
 
-    private ValueCombiner(Combine.KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn) {
+    private ValueCombiner(
+        PerKeyCombineFnRunner<K, InputT, AccumT, OutputT> combineFn,
+        SideInputReader sideInputReader,
+        PipelineOptions options) {
       this.combineFn = combineFn;
+      this.sideInputReader = sideInputReader;
+      this.options = options;
     }
 
     @Override
     public AccumT createAccumulator(WindowedValue<K> windowedKey) {
-      return this.combineFn.createAccumulator(windowedKey.getValue());
+      return this.combineFn.createAccumulator(windowedKey.getValue(),
+          options, sideInputReader, windowedKey.getWindows());
     }
 
     @Override
     public AccumT add(WindowedValue<K> windowedKey, AccumT accumulator, InputT value) {
-      return this.combineFn.addInput(windowedKey.getValue(), accumulator, value);
+      return this.combineFn.addInput(windowedKey.getValue(), accumulator, value,
+          options, sideInputReader, windowedKey.getWindows());
     }
 
     @Override
     public AccumT merge(WindowedValue<K> windowedKey, Iterable<AccumT> accumulators) {
-      return this.combineFn.mergeAccumulators(windowedKey.getValue(), accumulators);
+      return this.combineFn.mergeAccumulators(windowedKey.getValue(), accumulators,
+          options, sideInputReader, windowedKey.getWindows());
     }
 
     @Override
     public AccumT compact(WindowedValue<K> windowedKey, AccumT accumulator) {
-      return this.combineFn.compact(windowedKey.getValue(), accumulator);
+      return this.combineFn.compact(windowedKey.getValue(), accumulator,
+          options, sideInputReader, windowedKey.getWindows());
     }
 
     @Override
     public OutputT extract(WindowedValue<K> windowedKey, AccumT accumulator) {
-      return this.combineFn.extractOutput(windowedKey.getValue(), accumulator);
+      return this.combineFn.extractOutput(windowedKey.getValue(), accumulator,
+          options, sideInputReader, windowedKey.getWindows());
     }
   }
 
@@ -382,10 +396,46 @@ public class MapTaskExecutorFactory {
     }
     private PairInfo() {}
     @Override
-    public Object getKeyFromInputPair(Object pair) {
+    public Iterable<Object> getKeysFromInputPair(Object pair) {
       @SuppressWarnings("unchecked")
       WindowedValue<KV<?, ?>> windowedKv = (WindowedValue<KV<?, ?>>) pair;
-      return windowedKv.withValue(windowedKv.getValue().getKey());
+      return ImmutableList.<Object>of(windowedKv.withValue(windowedKv.getValue().getKey()));
+    }
+    @Override
+    public Object getValueFromInputPair(Object pair) {
+      @SuppressWarnings("unchecked")
+      WindowedValue<KV<?, ?>> windowedKv = (WindowedValue<KV<?, ?>>) pair;
+      return windowedKv.getValue().getValue();
+    }
+    @Override
+    public Object makeOutputPair(Object key, Object values) {
+      WindowedValue<?> windowedKey = (WindowedValue<?>) key;
+      return windowedKey.withValue(KV.of(windowedKey.getValue(), values));
+    }
+  }
+
+  /**
+   * Implements windows expanding PGBKOp.PairInfo via KVs.
+   */
+  public static class WindowsExpandingPairInfo implements PartialGroupByKeyOperation.PairInfo {
+    private static WindowsExpandingPairInfo theInstance = new WindowsExpandingPairInfo();
+    public static WindowsExpandingPairInfo create() {
+      return theInstance;
+    }
+    private WindowsExpandingPairInfo() {}
+    @Override
+    public Iterable<Object> getKeysFromInputPair(Object pair) {
+      @SuppressWarnings("unchecked")
+      final WindowedValue<KV<?, ?>> windowedKv = (WindowedValue<KV<?, ?>>) pair;
+      Preconditions.checkArgument(!windowedKv.getWindows().isEmpty());
+      return Iterables.transform(windowedKv.getWindows(),
+          new Function<BoundedWindow, Object>() {
+            @Override
+            public Object apply(BoundedWindow window) {
+              return WindowedValue.of(windowedKv.getValue().getKey(),
+                  windowedKv.getTimestamp(), window, windowedKv.getPane());
+            }
+      });
     }
     @Override
     public Object getValueFromInputPair(Object pair) {

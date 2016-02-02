@@ -37,6 +37,7 @@ import com.google.cloud.dataflow.sdk.runners.worker.MapTaskExecutorFactory.Coder
 import com.google.cloud.dataflow.sdk.runners.worker.MapTaskExecutorFactory.ElementByteSizeObservableCoder;
 import com.google.cloud.dataflow.sdk.runners.worker.MapTaskExecutorFactory.PairInfo;
 import com.google.cloud.dataflow.sdk.runners.worker.MapTaskExecutorFactory.WindowingCoderGroupingKeyCreator;
+import com.google.cloud.dataflow.sdk.runners.worker.MapTaskExecutorFactory.WindowsExpandingPairInfo;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
@@ -47,6 +48,7 @@ import com.google.cloud.dataflow.sdk.util.common.worker.PartialGroupByKeyOperati
 import com.google.cloud.dataflow.sdk.util.common.worker.PartialGroupByKeyOperation.SamplingSizeEstimator;
 import com.google.cloud.dataflow.sdk.util.common.worker.PartialGroupByKeyOperation.SizeEstimator;
 import com.google.cloud.dataflow.sdk.values.KV;
+import com.google.common.collect.ImmutableList;
 
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
@@ -181,7 +183,7 @@ public class PartialGroupByKeyOperationTest {
             new CoderSizeEstimator(WindowedValue.getValueOnlyCoder(keyCoder)),
             new CoderSizeEstimator(valueCoder),
             combineFn,
-            PairInfo.create(),
+            WindowsExpandingPairInfo.create(),
             receiver,
             counterPrefix,
             counterSet.getAddCounterMutator(),
@@ -262,8 +264,8 @@ public class PartialGroupByKeyOperationTest {
 
   private static class KvPairInfo implements PartialGroupByKeyOperation.PairInfo {
     @Override
-    public Object getKeyFromInputPair(Object pair) {
-      return ((KV<?, ?>) pair).getKey();
+    public Iterable<Object> getKeysFromInputPair(Object pair) {
+      return ImmutableList.of(((KV<Object, ?>) pair).getKey());
     }
     @Override
     public Object getValueFromInputPair(Object pair) {

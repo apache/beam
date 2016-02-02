@@ -51,7 +51,7 @@ public class PartialGroupByKeyOperation extends ReceivingOperation {
    * that are key/value or key/values pairs.
    */
   public interface PairInfo {
-    public Object getKeyFromInputPair(Object pair);
+    public Iterable<Object> getKeysFromInputPair(Object pair);
     public Object getValueFromInputPair(Object pair);
     public Object makeOutputPair(Object key, Object value);
   }
@@ -310,9 +310,11 @@ public class PartialGroupByKeyOperation extends ReceivingOperation {
      */
     @SuppressWarnings("unchecked")
     public void put(Object pair, Receiver receiver) throws Exception {
-      put((K) pairInfo.getKeyFromInputPair(pair),
-          (InputT) pairInfo.getValueFromInputPair(pair),
-          receiver);
+      for (Object key : pairInfo.getKeysFromInputPair(pair)) {
+        put((K) key,
+            (InputT) pairInfo.getValueFromInputPair(pair),
+            receiver);
+      }
     }
 
     /**

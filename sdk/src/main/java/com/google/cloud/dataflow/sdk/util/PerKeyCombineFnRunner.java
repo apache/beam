@@ -15,10 +15,14 @@
  */
 package com.google.cloud.dataflow.sdk.util;
 
+import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.CombineFnBase.PerKeyCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.util.common.worker.PartialGroupByKeyOperation;
 
 import java.io.Serializable;
+import java.util.Collection;
 
 /**
  * An interface that runs a {@link PerKeyCombineFn} with unified APIs.
@@ -38,7 +42,7 @@ public interface PerKeyCombineFnRunner<K, InputT, AccumT, OutputT> extends Seria
   /////////////////////////////////////////////////////////////////////////////
 
   /**
-   * Forwards the call to a keyed combine function to create accumulator in a {@link DoFn}.
+   * Forwards the call to a {@link PerKeyCombineFn} to create the accumulator in a {@link DoFn}.
    *
    * <p>It constructs a {@code CombineWithContext.Context} from {@code DoFn.ProcessContext}
    * if it is required.
@@ -46,7 +50,7 @@ public interface PerKeyCombineFnRunner<K, InputT, AccumT, OutputT> extends Seria
   public AccumT createAccumulator(K key, DoFn<?, ?>.ProcessContext c);
 
   /**
-   * Forwards the call to a keyed combine function to add input in a {@link DoFn}.
+   * Forwards the call to a {@link PerKeyCombineFn} to add the input in a {@link DoFn}.
    *
    * <p>It constructs a {@code CombineWithContext.Context} from {@code DoFn.ProcessContext}
    * if it is required.
@@ -54,7 +58,7 @@ public interface PerKeyCombineFnRunner<K, InputT, AccumT, OutputT> extends Seria
   public AccumT addInput(K key, AccumT accumulator, InputT input, DoFn<?, ?>.ProcessContext c);
 
   /**
-   * Forwards the call to a keyed combine function to merge accumulators in a {@link DoFn}.
+   * Forwards the call to a {@link PerKeyCombineFn} to merge accumulators in a {@link DoFn}.
    *
    * <p>It constructs a {@code CombineWithContext.Context} from {@code DoFn.ProcessContext}
    * if it is required.
@@ -63,7 +67,7 @@ public interface PerKeyCombineFnRunner<K, InputT, AccumT, OutputT> extends Seria
       K key, Iterable<AccumT> accumulators, DoFn<?, ?>.ProcessContext c);
 
   /**
-   * Forwards the call to a keyed combine function to extract output in a {@link DoFn}.
+   * Forwards the call to a {@link PerKeyCombineFn} to extract the output in a {@link DoFn}.
    *
    * <p>It constructs a {@code CombineWithContext.Context} from {@code DoFn.ProcessContext}
    * if it is required.
@@ -71,7 +75,7 @@ public interface PerKeyCombineFnRunner<K, InputT, AccumT, OutputT> extends Seria
   public OutputT extractOutput(K key, AccumT accumulator, DoFn<?, ?>.ProcessContext c);
 
   /**
-   * Forwards the call to a keyed combine function to compact the accumulator in a {@link DoFn}.
+   * Forwards the call to a {@link PerKeyCombineFn} to compact the accumulator in a {@link DoFn}.
    *
    * <p>It constructs a {@code CombineWithContext.Context} from {@code DoFn.ProcessContext}
    * if it is required.
@@ -79,7 +83,7 @@ public interface PerKeyCombineFnRunner<K, InputT, AccumT, OutputT> extends Seria
   public AccumT compact(K key, AccumT accumulator, DoFn<?, ?>.ProcessContext c);
 
   /**
-   * Forwards the call to a keyed combine function to combine the inputs and extract output
+   * Forwards the call to a {@link PerKeyCombineFn} to combine the inputs and extract output
    * in a {@link DoFn}.
    *
    * <p>It constructs a {@code CombineWithContext.Context} from {@code DoFn.ProcessContext}
@@ -88,10 +92,62 @@ public interface PerKeyCombineFnRunner<K, InputT, AccumT, OutputT> extends Seria
   public OutputT apply(K key, Iterable<? extends InputT> inputs, DoFn<?, ?>.ProcessContext c);
 
   /**
-   * Forwards the call to a keyed combine function to add all inputs in a {@link DoFn}.
+   * Forwards the call to a {@link PerKeyCombineFn} to add all inputs in a {@link DoFn}.
    *
    * <p>It constructs a {@code CombineWithContext.Context} from {@code DoFn.ProcessContext}
    * if it is required.
    */
   public AccumT addInputs(K key, Iterable<InputT> inputs, DoFn<?, ?>.ProcessContext c);
+
+  /////////////////////////////////////////////////////////////////////////////
+
+  /**
+   * Forwards the call to a {@link PerKeyCombineFn} to create the accumulator
+   * in a {@link PartialGroupByKeyOperation}.
+   *
+   * <p>It constructs a {@code CombineWithContext.Context} from
+   * {@link PipelineOptions} and {@link SideInputReader} if it is required.
+   */
+  public AccumT createAccumulator(K key, PipelineOptions options,
+      SideInputReader sideInputReader, Collection<? extends BoundedWindow> windows);
+
+  /**
+   * Forwards the call to a {@link PerKeyCombineFn} to add the input
+   * in a {@link PartialGroupByKeyOperation}.
+   *
+   * <p>It constructs a {@code CombineWithContext.Context} from
+   * {@link PipelineOptions} and {@link SideInputReader} if it is required.
+   */
+  public AccumT addInput(K key, AccumT accumulator, InputT value, PipelineOptions options,
+      SideInputReader sideInputReader, Collection<? extends BoundedWindow> windows);
+
+  /**
+   * Forwards the call to a {@link PerKeyCombineFn} to merge accumulators
+   * in a {@link PartialGroupByKeyOperation}.
+   *
+   * <p>It constructs a {@code CombineWithContext.Context} from
+   * {@link PipelineOptions} and {@link SideInputReader} if it is required.
+   */
+  public AccumT mergeAccumulators(K key, Iterable<AccumT> accumulators, PipelineOptions options,
+      SideInputReader sideInputReader, Collection<? extends BoundedWindow> windows);
+
+  /**
+   * Forwards the call to a {@link PerKeyCombineFn} to extract the output
+   * in a {@link PartialGroupByKeyOperation}.
+   *
+   * <p>It constructs a {@code CombineWithContext.Context} from
+   * {@link PipelineOptions} and {@link SideInputReader} if it is required.
+   */
+  public OutputT extractOutput(K key, AccumT accumulator, PipelineOptions options,
+      SideInputReader sideInputReader, Collection<? extends BoundedWindow> windows);
+
+  /**
+   * Forwards the call to a {@link PerKeyCombineFn} to compact the accumulator
+   * in a {@link PartialGroupByKeyOperation}.
+   *
+   * <p>It constructs a {@code CombineWithContext.Context} from
+   * {@link PipelineOptions} and {@link SideInputReader} if it is required.
+   */
+  public AccumT compact(K key, AccumT accumulator, PipelineOptions options,
+      SideInputReader sideInputReader, Collection<? extends BoundedWindow> windows);
 }
