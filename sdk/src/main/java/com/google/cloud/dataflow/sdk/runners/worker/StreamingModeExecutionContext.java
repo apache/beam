@@ -21,7 +21,6 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.io.UnboundedSource;
 import com.google.cloud.dataflow.sdk.runners.dataflow.CustomSources;
 import com.google.cloud.dataflow.sdk.runners.worker.StateFetcher.SideInputState;
-import com.google.cloud.dataflow.sdk.runners.worker.StreamingDataflowWorker.ReaderCacheEntry;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.BaseExecutionContext;
@@ -59,6 +58,7 @@ import javax.annotation.Nullable;
  */
 public class StreamingModeExecutionContext
     extends DataflowExecutionContext<StreamingModeExecutionContext.StepContext> {
+
   private final String stageName;
   private final Map<TupleTag<?>, Map<BoundedWindow, Object>> sideInputCache;
 

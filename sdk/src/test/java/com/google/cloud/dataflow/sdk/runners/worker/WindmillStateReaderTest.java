@@ -383,14 +383,14 @@ public class WindmillStateReaderTest {
       watermarkFuture.get();
       fail("Expected KeyTokenInvalidException");
     } catch (Throwable e) {
-      assertTrue(StreamingDataflowWorker.isKeyTokenInvalidException(e));
+      assertTrue(KeyTokenInvalidException.isKeyTokenInvalidException(e));
     }
 
     try {
       listFuture.get();
       fail("Expected KeyTokenInvalidException");
     } catch (Throwable e) {
-      assertTrue(StreamingDataflowWorker.isKeyTokenInvalidException(e));
+      assertTrue(KeyTokenInvalidException.isKeyTokenInvalidException(e));
     }
   }
 

@@ -19,7 +19,6 @@ package com.google.cloud.dataflow.sdk.options;
 import com.google.cloud.dataflow.sdk.options.Validation.Required;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunnerRegistrar;
-import com.google.cloud.dataflow.sdk.runners.worker.DataflowWorkerHarness;
 import com.google.cloud.dataflow.sdk.util.StringUtils;
 import com.google.cloud.dataflow.sdk.util.common.ReflectHelpers;
 import com.google.common.base.Function;
@@ -819,14 +818,14 @@ public class PipelineOptionsFactory {
   }
 
   /**
-   * Creates a set of {@link DataflowWorkerHarnessOptions} based of a set of known system
-   * properties. This is meant to only be used from the {@link DataflowWorkerHarness} as a method to
+   * Creates a set of Dataflow worker harness options based of a set of known system
+   * properties. This is meant to only be used from the Dataflow worker harness as a method to
    * bootstrap the worker harness.
    *
    * <p>For internal use only.
    *
    * @return A {@link DataflowWorkerHarnessOptions} object configured for the
-   *         {@link DataflowWorkerHarness}.
+   *         Dataflow worker harness.
    */
   public static DataflowWorkerHarnessOptions createFromSystemPropertiesInternal()
       throws IOException {
@@ -835,11 +834,11 @@ public class PipelineOptionsFactory {
 
   /**
    * Creates a set of {@link DataflowWorkerHarnessOptions} based of a set of known system
-   * properties. This is meant to only be used from the {@link DataflowWorkerHarness} as a method to
+   * properties. This is meant to only be used from the Dataflow worker harness as a method to
    * bootstrap the worker harness.
    *
    * @return A {@link DataflowWorkerHarnessOptions} object configured for the
-   *         {@link DataflowWorkerHarness}.
+   *         Dataflow worker harness.
    * @deprecated for internal use only
    */
   @Deprecated

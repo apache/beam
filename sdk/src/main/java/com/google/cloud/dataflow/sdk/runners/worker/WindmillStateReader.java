@@ -428,8 +428,8 @@ class WindmillStateReader {
 
     if (response.getFailed()) {
       // Set up all the futures for this key to throw an exception:
-      StreamingDataflowWorker.KeyTokenInvalidException keyTokenInvalidException =
-          new StreamingDataflowWorker.KeyTokenInvalidException(key.toStringUtf8());
+      KeyTokenInvalidException keyTokenInvalidException =
+          new KeyTokenInvalidException(key.toStringUtf8());
       for (StateTag stateTag : toFetch) {
         waiting.get(stateTag).future.setException(keyTokenInvalidException);
       }
