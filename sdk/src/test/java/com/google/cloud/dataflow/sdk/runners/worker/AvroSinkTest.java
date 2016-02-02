@@ -16,8 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.runners.worker;
 
-import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.readAllFromReader;
 import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.windowedValuesToValues;
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderUtils.readAllFromReader;
 
 import com.google.cloud.dataflow.sdk.TestUtils;
 import com.google.cloud.dataflow.sdk.coders.AvroCoder;

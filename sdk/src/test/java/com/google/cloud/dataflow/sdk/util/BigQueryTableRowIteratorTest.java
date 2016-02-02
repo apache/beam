@@ -143,7 +143,7 @@ public class BigQueryTableRowIteratorTest {
    * table are both cleaned up.
    */
   @Test
-  public void testReadFromQuery() throws IOException {
+  public void testReadFromQuery() throws IOException, InterruptedException {
     // Mock job inserting.
     Job insertedJob = new Job().setJobReference(new JobReference());
     when(mockJobsInsert.execute()).thenReturn(insertedJob);
@@ -170,15 +170,16 @@ public class BigQueryTableRowIteratorTest {
     String query = "SELECT name, count from table";
     try (BigQueryTableRowIterator iterator =
             BigQueryTableRowIterator.fromQuery(query, "project", mockClient, null)) {
-      assertTrue(iterator.hasNext());
-      TableRow row = iterator.next();
+      iterator.open();
+      assertTrue(iterator.advance());
+      TableRow row = iterator.getCurrent();
 
       assertTrue(row.containsKey("name"));
       assertTrue(row.containsKey("answer"));
       assertEquals("Arthur", row.get("name"));
       assertEquals(42, row.get("answer"));
 
-      assertFalse(iterator.hasNext());
+      assertFalse(iterator.advance());
     }
 
     // Temp dataset created and later deleted.
@@ -228,7 +229,7 @@ public class BigQueryTableRowIteratorTest {
     try (BigQueryTableRowIterator iterator =
             BigQueryTableRowIterator.fromQuery(query, "project", mockClient, null)) {
       try {
-        iterator.hasNext();
+        iterator.open();
         fail();
       } catch (Exception expected) {
         // Verify message explains cause and reports the query.

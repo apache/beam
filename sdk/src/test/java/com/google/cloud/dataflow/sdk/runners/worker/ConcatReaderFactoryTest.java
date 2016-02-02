@@ -16,7 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.runners.worker;
 
-import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.readAllFromReader;
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderUtils.readAllFromReader;
 import static com.google.cloud.dataflow.sdk.util.CoderUtils.makeCloudEncoding;
 import static com.google.cloud.dataflow.sdk.util.Structs.addList;
 import static com.google.cloud.dataflow.sdk.util.Structs.addLong;

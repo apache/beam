@@ -27,7 +27,6 @@ import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader.NativeReaderIterator;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -147,46 +146,4 @@ public class ReaderTestUtils {
     return res;
   }
 
-  /**
-   * Creates a {@link NativeReaderIterator} from the given {@link NativeReader} and reads it
-   * to the end.
-   *
-   * @param reader {@link NativeReader} to read from
-   * @throws IOException
-   */
-  public static <T> List<T> readAllFromReader(NativeReader<T> reader) throws IOException {
-    try (NativeReaderIterator<T> iterator = reader.iterator()) {
-      return readRemainingFromReader(iterator, false);
-    }
-  }
-
-  /**
-   * Read elements from a {@link NativeReader.NativeReaderIterator} until either the reader is
-   * exhausted, or n elements are read.
-   */
-  public static <T> List<T> readNItemsFromReader(
-      NativeReader.NativeReaderIterator<T> reader, int n, boolean started) throws IOException {
-    List<T> res = new ArrayList<>();
-    for (int i = 0; i < n; i++) {
-      if (!((i == 0 && !started) ? reader.start() : reader.advance())) {
-        break;
-      }
-      res.add(reader.getCurrent());
-    }
-    return res;
-  }
-
-  /**
-   * Read elements from a {@link NativeReader.NativeReaderIterator} until either the reader is
-   * exhausted, or n elements are read.
-   */
-  public static <T> List<T> readNItemsFromUnstartedReader(
-      NativeReader.NativeReaderIterator<T> reader, int n) throws IOException {
-    return readNItemsFromReader(reader, n, false);
-  }
-
-  public static <T> List<T> readRemainingFromReader(
-      NativeReader.NativeReaderIterator<T> reader, boolean started) throws IOException {
-    return readNItemsFromReader(reader, Integer.MAX_VALUE, started);
-  }
 }

@@ -52,7 +52,6 @@ import org.joda.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
@@ -68,7 +67,7 @@ import javax.annotation.Nullable;
 /**
  * Iterates over all rows in a table.
  */
-public class BigQueryTableRowIterator implements Iterator<TableRow>, Closeable {
+public class BigQueryTableRowIterator implements AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryTableRowIterator.class);
 
   @Nullable private TableReference ref;
@@ -76,7 +75,8 @@ public class BigQueryTableRowIterator implements Iterator<TableRow>, Closeable {
   @Nullable private TableSchema schema;
   private final Bigquery client;
   private String pageToken;
-  private Iterator<TableRow> rowIterator;
+  private Iterator<TableRow> iteratorOverCurrentBatch;
+  private TableRow current;
   // Set true when the final page is seen from the service.
   private boolean lastPage = false;
 
@@ -129,17 +129,71 @@ public class BigQueryTableRowIterator implements Iterator<TableRow>, Closeable {
         MoreObjects.firstNonNull(flattenResults, Boolean.TRUE));
   }
 
-  @Override
-  public boolean hasNext() {
-    try {
-      if (rowIterator == null || (!rowIterator.hasNext() && !lastPage)) {
-        readNext();
-      }
-    } catch (IOException | InterruptedException e) {
-      throw new RuntimeException(e);
+  /**
+   * Opens the table for read.
+   * @throws IOException on failure
+   */
+  public void open() throws IOException, InterruptedException {
+    if (query != null) {
+      ref = executeQueryAndWaitForCompletion();
     }
+    // Get table schema.
+    Bigquery.Tables.Get get =
+        client.tables().get(ref.getProjectId(), ref.getDatasetId(), ref.getTableId());
 
-    return rowIterator.hasNext();
+    Table table =
+        executeWithBackOff(
+            get,
+            "Error opening BigQuery table  %s of dataset %s  : {}",
+            ref.getTableId(),
+            ref.getDatasetId());
+    schema = table.getSchema();
+  }
+
+  public boolean advance() throws IOException, InterruptedException {
+    while (true) {
+      if (iteratorOverCurrentBatch != null && iteratorOverCurrentBatch.hasNext()) {
+        // Embed schema information into the raw row, so that values have an
+        // associated key.  This matches how rows are read when using the
+        // DataflowPipelineRunner.
+        current = getTypedTableRow(schema.getFields(), iteratorOverCurrentBatch.next());
+        return true;
+      }
+      if (lastPage) {
+        return false;
+      }
+
+      Bigquery.Tabledata.List list =
+          client.tabledata().list(ref.getProjectId(), ref.getDatasetId(), ref.getTableId());
+      if (pageToken != null) {
+        list.setPageToken(pageToken);
+      }
+
+      TableDataList result =
+          executeWithBackOff(
+              list,
+              "Error reading from BigQuery table %s of dataset %s : {}",
+              ref.getTableId(),
+              ref.getDatasetId());
+
+      pageToken = result.getPageToken();
+      iteratorOverCurrentBatch =
+          result.getRows() != null
+              ? result.getRows().iterator()
+              : Collections.<TableRow>emptyIterator();
+
+      // The server may return a page token indefinitely on a zero-length table.
+      if (pageToken == null || result.getTotalRows() != null && result.getTotalRows() == 0) {
+        lastPage = true;
+      }
+    }
+  }
+
+  public TableRow getCurrent() {
+    if (current == null) {
+      throw new NoSuchElementException();
+    }
+    return current;
   }
 
   /**
@@ -310,23 +364,6 @@ public class BigQueryTableRowIterator implements Iterator<TableRow>, Closeable {
     return row;
   }
 
-  @Override
-  public TableRow next() {
-    if (!hasNext()) {
-      throw new NoSuchElementException();
-    }
-
-    // Embed schema information into the raw row, so that values have an
-    // associated key.  This matches how rows are read when using the
-    // DataflowPipelineRunner.
-    return getTypedTableRow(schema.getFields(), rowIterator.next());
-  }
-
-  @Override
-  public void remove() {
-    throw new UnsupportedOperationException();
-  }
-
   // Create a new BigQuery dataset
   private void createDataset(String datasetId) throws IOException, InterruptedException {
     Dataset dataset = new Dataset();
@@ -446,37 +483,8 @@ public class BigQueryTableRowIterator implements Iterator<TableRow>, Closeable {
     return result;
   }
 
-  private void readNext() throws IOException, InterruptedException {
-    if (query != null && ref == null) {
-      ref = executeQueryAndWaitForCompletion();
-    }
-    if (!isOpen()) {
-      open();
-    }
-
-    Bigquery.Tabledata.List list =
-        client.tabledata().list(ref.getProjectId(), ref.getDatasetId(), ref.getTableId());
-    if (pageToken != null) {
-      list.setPageToken(pageToken);
-    }
-
-    TableDataList result =
-        executeWithBackOff(list, "Error reading from BigQuery table %s of dataset %s : {}",
-            ref.getTableId(), ref.getDatasetId());
-
-    pageToken = result.getPageToken();
-    rowIterator =
-        result.getRows() != null
-            ? result.getRows().iterator() : Collections.<TableRow>emptyIterator();
-
-    // The server may return a page token indefinitely on a zero-length table.
-    if (pageToken == null || result.getTotalRows() != null && result.getTotalRows() == 0) {
-      lastPage = true;
-    }
-  }
-
   @Override
-  public void close() throws IOException {
+  public void close() {
     // Prevent any further requests.
     lastPage = true;
 
@@ -488,27 +496,9 @@ public class BigQueryTableRowIterator implements Iterator<TableRow>, Closeable {
         }
         deleteDataset(temporaryDatasetId);
       }
-    } catch (InterruptedException e) {
-      throw new IOException(e);
+    } catch (IOException | InterruptedException e) {
+      throw new RuntimeException(e);
     }
 
-  }
-
-  private boolean isOpen() {
-    return schema != null;
-  }
-
-  /**
-   * Opens the table for read.
-   * @throws IOException on failure
-   */
-  private void open() throws IOException, InterruptedException {
-    // Get table schema.
-    Bigquery.Tables.Get get =
-        client.tables().get(ref.getProjectId(), ref.getDatasetId(), ref.getTableId());
-
-    Table table = executeWithBackOff(get, "Error opening BigQuery table  %s of dataset %s  : {}",
-        ref.getTableId(), ref.getDatasetId());
-    schema = table.getSchema();
   }
 }

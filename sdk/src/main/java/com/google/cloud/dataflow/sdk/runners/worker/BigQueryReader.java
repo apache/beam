@@ -27,6 +27,7 @@ import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 import com.google.common.annotations.VisibleForTesting;
 
 import java.io.IOException;
+import java.util.NoSuchElementException;
 
 import javax.annotation.Nullable;
 
@@ -92,8 +93,9 @@ public class BigQueryReader extends NativeReader<WindowedValue<TableRow>> {
    * A ReaderIterator that yields TableRow objects for each row of a BigQuery table.
    */
   @VisibleForTesting
-  static class BigQueryReaderIterator extends LegacyReaderIterator<WindowedValue<TableRow>> {
+  static class BigQueryReaderIterator extends NativeReaderIterator<WindowedValue<TableRow>> {
     private BigQueryTableRowIterator rowIterator;
+    private WindowedValue<TableRow> current;
 
     public BigQueryReaderIterator(TableReference tableRef, Bigquery bigQueryClient) {
       rowIterator = BigQueryTableRowIterator.fromTable(tableRef, bigQueryClient);
@@ -106,13 +108,34 @@ public class BigQueryReader extends NativeReader<WindowedValue<TableRow>> {
     }
 
     @Override
-    protected boolean hasNextImpl() {
-      return rowIterator.hasNext();
+    public boolean start() throws IOException {
+      try {
+        rowIterator.open();
+      } catch (InterruptedException e) {
+        throw new IOException(e);
+      }
+      return advance();
     }
 
     @Override
-    protected WindowedValue<TableRow> nextImpl() throws IOException {
-      return WindowedValue.valueInGlobalWindow(rowIterator.next());
+    public boolean advance() throws IOException {
+      try {
+        if (!rowIterator.advance()) {
+          return false;
+        }
+      } catch (InterruptedException e) {
+        throw new IOException(e);
+      }
+      current = WindowedValue.valueInGlobalWindow(rowIterator.getCurrent());
+      return true;
+    }
+
+    @Override
+    public WindowedValue<TableRow> getCurrent() throws NoSuchElementException {
+      if (current == null) {
+        throw new NoSuchElementException();
+      }
+      return current;
     }
 
     @Override

@@ -85,7 +85,7 @@ public class WindmillReaderIteratorBaseTest {
     try (TestWindmillReaderIterator iter = new TestWindmillReaderIterator(workItem)) {
       List<Long> actual =
           ReaderTestUtils.windowedValuesToValues(
-              ReaderTestUtils.readRemainingFromReader(iter, false));
+              ReaderUtils.readRemainingFromIterator(iter, false));
       assertFalse(iter.advance());
       List<Long> expected = new ArrayList<>();
       for (int i = 0; i < numTotalMessages; ++i) {

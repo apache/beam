@@ -27,6 +27,7 @@ import org.apache.avro.Schema;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.NoSuchElementException;
 
 import javax.annotation.Nullable;
 
@@ -54,27 +55,48 @@ public class AvroByteReader<T> extends NativeReader<T> {
     return new AvroByteFileIterator();
   }
 
-  class AvroByteFileIterator extends LegacyReaderIterator<T> {
-    private final LegacyReaderIterator<WindowedValue<ByteBuffer>> avroFileIterator;
+  class AvroByteFileIterator extends NativeReaderIterator<T> {
+    private final NativeReaderIterator<WindowedValue<ByteBuffer>> avroFileIterator;
+    private T current;
 
     public AvroByteFileIterator() throws IOException {
       avroFileIterator = avroReader.iterator();
     }
 
     @Override
-    protected boolean hasNextImpl() throws IOException {
-      return avroFileIterator.hasNext();
+    public boolean start() throws IOException {
+      if (!avroFileIterator.start()) {
+        return false;
+      }
+      updateCurrent();
+      return true;
     }
 
     @Override
-    protected T nextImpl() throws IOException {
-      ByteBuffer inBuffer = avroFileIterator.next().getValue();
+    public boolean advance() throws IOException {
+      if (!avroFileIterator.advance()) {
+        return false;
+      }
+      updateCurrent();
+      return true;
+    }
+
+    @Override
+    public T getCurrent() throws NoSuchElementException {
+      if (current == null) {
+        throw new NoSuchElementException();
+      }
+      return current;
+    }
+
+    private void updateCurrent() throws IOException {
+      ByteBuffer inBuffer = avroFileIterator.getCurrent().getValue();
       byte[] encodedElem = new byte[inBuffer.remaining()];
       inBuffer.get(encodedElem);
       assert inBuffer.remaining() == 0;
       inBuffer.clear();
       notifyElementRead(encodedElem.length);
-      return CoderUtils.decodeFromByteArray(coder, encodedElem);
+      current = CoderUtils.decodeFromByteArray(coder, encodedElem);
     }
 
     @Override

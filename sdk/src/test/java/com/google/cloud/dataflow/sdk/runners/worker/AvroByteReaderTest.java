@@ -16,9 +16,9 @@
 
 package com.google.cloud.dataflow.sdk.runners.worker;
 
-import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.readAllFromReader;
-import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.readNItemsFromUnstartedReader;
-import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.readRemainingFromReader;
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderUtils.readAllFromReader;
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderUtils.readNItemsFromUnstartedIterator;
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderUtils.readRemainingFromIterator;
 
 import com.google.cloud.dataflow.sdk.TestUtils;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
@@ -230,7 +230,7 @@ public class AvroByteReaderTest {
     List<T> residualElements = new ArrayList<>();
     try (AvroByteReader<T>.AvroByteFileIterator iterator = reader.iterator()) {
       // Read n elements from the reader
-      primaryElements = readNItemsFromUnstartedReader(iterator, readBeforeSplit);
+      primaryElements = readNItemsFromUnstartedIterator(iterator, readBeforeSplit);
 
       // Request a split at the specified position
       DynamicSplitResult splitResult =
@@ -247,7 +247,7 @@ public class AvroByteReaderTest {
       }
 
       // Finish reading from the original reader.
-      primaryElements.addAll(readRemainingFromReader(iterator, readBeforeSplit > 0));
+      primaryElements.addAll(readRemainingFromIterator(iterator, readBeforeSplit > 0));
 
       if (splitResult != null) {
         Long splitPosition = ReaderTestUtils.positionFromSplitResult(splitResult).getByteOffset();

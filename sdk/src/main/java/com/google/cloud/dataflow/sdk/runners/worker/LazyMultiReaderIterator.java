@@ -20,6 +20,7 @@ import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 
 /**
  * Implements a ReaderIterator over a collection of inputs.
@@ -32,50 +33,55 @@ import java.util.Iterator;
  * to be produced lazily, as an open source iterator may consume process
  * resources such as file descriptors.
  */
-abstract class LazyMultiReaderIterator<T> extends NativeReader.LegacyReaderIterator<T> {
+abstract class LazyMultiReaderIterator<T> extends NativeReader.NativeReaderIterator<T> {
   private final Iterator<String> inputs;
-  NativeReader.LegacyReaderIterator<T> current;
+  private NativeReader.NativeReaderIterator<T> current;
 
   public LazyMultiReaderIterator(Iterator<String> inputs) {
     this.inputs = inputs;
   }
 
   @Override
-  protected boolean hasNextImpl() throws IOException {
-    while (selectReader()) {
-      if (!current.hasNext()) {
-        current.close();
-        current = null;
-      } else {
-        return true;
-      }
-    }
-    return false;
+  public boolean start() throws IOException {
+    return advance();
   }
 
   @Override
-  protected T nextImpl() throws IOException {
-    return current.next();
+  public boolean advance() throws IOException {
+    boolean currentStarted = true;
+    while (true) {
+      // Try moving through the current reader
+      if (current != null) {
+        if (currentStarted ? current.advance() : current.start()) {
+          return true;
+        }
+        current.close();
+        current = null;
+      }
+      // Current reader is done - move on to the next one.
+      if (!inputs.hasNext()) {
+        return false;
+      }
+      current = open(inputs.next());
+      currentStarted = false;
+    }
+  }
+
+  @Override
+  public T getCurrent() throws NoSuchElementException {
+    if (current == null) {
+      throw new NoSuchElementException();
+    }
+    return current.getCurrent();
   }
 
   @Override
   public void close() throws IOException {
-    while (selectReader()) {
+    if (current != null) {
       current.close();
       current = null;
     }
   }
 
-  protected abstract NativeReader.LegacyReaderIterator<T> open(String input) throws IOException;
-
-  boolean selectReader() throws IOException {
-    if (current != null) {
-      return true;
-    }
-    if (inputs.hasNext()) {
-      current = open(inputs.next());
-      return true;
-    }
-    return false;
-  }
+  protected abstract NativeReader.NativeReaderIterator<T> open(String input) throws IOException;
 }

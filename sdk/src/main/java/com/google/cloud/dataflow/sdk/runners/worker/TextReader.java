@@ -48,6 +48,7 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 
 import javax.annotation.Nullable;
 
@@ -117,24 +118,14 @@ public class TextReader<T> extends NativeReader<T> {
     return expandedFilepattern().size();
   }
 
-  private LegacyReaderIterator<T> newReaderIteratorForRangeInFile(
+  private NativeReaderIterator<T> newReaderIteratorForRangeInFile(
       IOChannelFactory factory, String oneFile, long startPosition, @Nullable Long endPosition)
-          throws IOException {
-    // Position before the first record, so we can find the record beginning.
-    final long start = startPosition > 0 ? startPosition - 1 : 0;
-
-    TextFileIterator iterator = newReaderIteratorForRangeWithStrictStart(
-        factory, oneFile, stripTrailingNewlines, start, endPosition);
-
-    // Skip the initial record if start position was set.
-    if (startPosition > 0) {
-      iterator.hasNextImpl();
-    }
-
-    return iterator;
+      throws IOException {
+    return newReaderIteratorForRangeWithStrictStart(
+        factory, oneFile, stripTrailingNewlines, startPosition, endPosition);
   }
 
-  private LegacyReaderIterator<T> newReaderIteratorForFiles(
+  private NativeReaderIterator<T> newReaderIteratorForFiles(
       IOChannelFactory factory, Collection<String> files) throws IOException {
     if (files.size() == 1) {
       return newReaderIteratorForFile(factory, files.iterator().next(), stripTrailingNewlines);
@@ -178,7 +169,7 @@ public class TextReader<T> extends NativeReader<T> {
   }
 
   @Override
-  public LegacyReaderIterator<T> iterator() throws IOException {
+  public NativeReaderIterator<T> iterator() throws IOException {
     IOChannelFactory factory = IOChannelUtils.getFactory(filepattern);
     Collection<String> inputs = expandedFilepattern();
     if (inputs.isEmpty()) {
@@ -264,32 +255,34 @@ public class TextReader<T> extends NativeReader<T> {
     }
 
     @Override
-    protected LegacyReaderIterator<T> open(String input) throws IOException {
+    protected NativeReaderIterator<T> open(String input) throws IOException {
       return newReaderIteratorForFile(factory, input, stripTrailingNewlines);
     }
   }
 
-  class TextFileIterator extends LegacyReaderIterator<T> {
+  class TextFileIterator extends NativeReaderIterator<T> {
     private final CopyableSeekableByteChannel seeker;
     private final PushbackInputStream stream;
     private final OffsetRangeTracker rangeTracker;
     private final ProgressTracker<Integer> progressTracker;
+    private final long startOffset;
     private long offset;
-    private ByteArrayOutputStream nextElement;
+    private T current;
     private ScanState state;
 
     TextFileIterator(CopyableSeekableByteChannel seeker, boolean stripTrailingNewlines,
         long startOffset, @Nullable Long endOffset,
         DecompressingStreamFactory compressionStreamFactory) throws IOException {
+      this.offset = Math.max(0, startOffset - 1);
       this.seeker = checkNotNull(seeker);
-      this.seeker.position(startOffset);
+      this.seeker.position(offset);
       InputStream inputStream =
           compressionStreamFactory.createInputStream(Channels.newInputStream(seeker));
       BufferedInputStream bufferedStream = new BufferedInputStream(inputStream);
       this.stream = new PushbackInputStream(bufferedStream, BUF_SIZE);
       long stopOffset = (endOffset == null) ? OffsetRangeTracker.OFFSET_INFINITY : endOffset;
+      this.startOffset = startOffset;
       this.rangeTracker = new OffsetRangeTracker(startOffset, stopOffset);
-      this.offset = startOffset;
       this.progressTracker = checkNotNull(new ProgressTrackerGroup<Integer>() {
             @Override
             protected void report(Integer lineLength) {
@@ -312,6 +305,7 @@ public class TextReader<T> extends NativeReader<T> {
      *     been reached.
      * @throws IOException if an I/O error occurs
      */
+    @Nullable
     protected ByteArrayOutputStream readElement() throws IOException {
       ByteArrayOutputStream buffer = new ByteArrayOutputStream(BUF_SIZE);
 
@@ -345,21 +339,38 @@ public class TextReader<T> extends NativeReader<T> {
     }
 
     @Override
-    protected boolean hasNextImpl() throws IOException {
-      long startOffset = offset;
-      ByteArrayOutputStream element = readElement(); // As a side effect, updates "offset"
-      if (element != null && rangeTracker.tryReturnRecordAt(true, startOffset)) {
-        nextElement = element;
-        progressTracker.saw((int) (offset - startOffset));
-      } else {
-        nextElement = null;
+    public boolean start() throws IOException {
+      if (this.startOffset > 0) {
+        long savedOffset = offset;
+        // Skip initial partial line.
+        if (readElement() == null) {
+          return false;
+        } else {
+          progressTracker.saw((int) (offset - savedOffset));
+        }
       }
-      return nextElement != null;
+      return advance();
     }
 
     @Override
-    protected T nextImpl() throws IOException {
-      return CoderUtils.decodeFromByteArray(coder, nextElement.toByteArray());
+    public boolean advance() throws IOException {
+      long startOffset = offset;
+      ByteArrayOutputStream element = readElement(); // As a side effect, updates "offset"
+      if (element != null && rangeTracker.tryReturnRecordAt(true, startOffset)) {
+        current = CoderUtils.decodeFromByteArray(coder, element.toByteArray());
+        progressTracker.saw((int) (offset - startOffset));
+      } else {
+        current = null;
+      }
+      return current != null;
+    }
+
+    @Override
+    public T getCurrent() throws NoSuchElementException {
+      if (current == null) {
+        throw new NoSuchElementException();
+      }
+      return current;
     }
 
     @Override

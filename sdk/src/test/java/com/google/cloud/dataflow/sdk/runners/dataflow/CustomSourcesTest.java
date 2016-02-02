@@ -66,6 +66,7 @@ import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator;
 import com.google.cloud.dataflow.sdk.runners.worker.DataflowApiUtils;
 import com.google.cloud.dataflow.sdk.runners.worker.ReaderCacheEntry;
 import com.google.cloud.dataflow.sdk.runners.worker.ReaderFactory;
+import com.google.cloud.dataflow.sdk.runners.worker.ReaderUtils;
 import com.google.cloud.dataflow.sdk.runners.worker.StreamingModeExecutionContext;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
@@ -80,7 +81,6 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.CloudSourceUtils;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
-import com.google.cloud.dataflow.sdk.util.ReaderUtils;
 import com.google.cloud.dataflow.sdk.util.ValueWithRecordId;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
@@ -676,7 +676,7 @@ public class CustomSourcesTest {
       Instant beforeReading = Instant.now();
       int numReadOnThisIteration = 0;
       for (WindowedValue<ValueWithRecordId<KV<Integer, Integer>>> value :
-          ReaderUtils.readElemsFromReader(reader)) {
+          ReaderUtils.readAllFromReader(reader)) {
         assertEquals(KV.of(0, i), value.getValue().getValue());
         assertArrayEquals(
             encodeToByteArray(KvCoder.of(VarIntCoder.of(), VarIntCoder.of()), KV.of(0, i)),

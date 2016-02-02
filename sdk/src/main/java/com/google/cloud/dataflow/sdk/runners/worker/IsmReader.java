@@ -34,7 +34,6 @@ import com.google.cloud.dataflow.sdk.util.ScalableBloomFilter.ScalableBloomFilte
 import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSortedMap;
 
 import java.io.IOException;
@@ -113,9 +112,9 @@ public class IsmReader<K, V> extends NativeReader<KV<K, V>> {
                   RandomAccessDataCoder.of(),
                   valueCoder,
                   footer.getBloomFilterPosition())) {
-        while (iterator.hasNext()) {
-          long startPosition = inChannel.position();
-          KV<RandomAccessData, V> next = iterator.next();
+        long startPosition = inChannel.position();
+        for (boolean more = iterator.start(); more; more = iterator.advance()) {
+          KV<RandomAccessData, V> next = iterator.getCurrent();
           int comparison = RandomAccessData.UNSIGNED_LEXICOGRAPHICAL_COMPARATOR.compare(
               next.getKey(), keyBytes);
           // If the current key is greater then the requested key, this Ism file does not contain
@@ -126,6 +125,7 @@ public class IsmReader<K, V> extends NativeReader<KV<K, V>> {
             notifyElementRead(inChannel.position() - startPosition);
             return KV.of(k, next.getValue());
           }
+          startPosition = inChannel.position();
         }
       }
       // We hit the end of the file, therefore this Ism file does not contain the key.
@@ -156,49 +156,50 @@ public class IsmReader<K, V> extends NativeReader<KV<K, V>> {
    * A {@link NativeReaderIterator
    * Reader.ReaderIterator} which initializes its input stream lazily.
    */
-  private class LazyIsmReaderIterator extends LegacyReaderIterator<KV<K, V>> {
+  private class LazyIsmReaderIterator extends NativeReaderIterator<KV<K, V>> {
     private IsmReaderIterator<K, V> delegate;
     private SeekableByteChannel inChannel;
 
     @Override
-    public boolean hasNextImpl() throws IOException {
-      return getDelegate().hasNext();
+    public boolean start() throws IOException {
+      inChannel = openConnection(filename);
+      initializeFooter(inChannel);
+      delegate =
+          new IsmReaderIterator<>(
+              inChannel,
+              new RandomAccessData(),
+              keyCoder,
+              valueCoder,
+              footer.getBloomFilterPosition());
+
+      long startPosition = inChannel.position();
+      boolean rval = delegate.start();
+      notifyElementRead(inChannel.position() - startPosition);
+      return rval;
     }
 
     @Override
-    public KV<K, V> nextImpl() throws IOException, NoSuchElementException {
-      long startPosition = getChannel().position();
-      KV<K, V> rval = getDelegate().next();
-      notifyElementRead(getChannel().position() - startPosition);
+    public boolean advance() throws IOException {
+      checkState(delegate != null, "unstarted");
+      long startPosition = inChannel.position();
+      boolean rval = delegate.advance();
+      notifyElementRead(inChannel.position() - startPosition);
       return rval;
+    }
+
+    @Override
+    public KV<K, V> getCurrent() {
+      // By the time getCurrent() is called, delegate should already be created by
+      // a start() call.
+      if (delegate == null) {
+        throw new NoSuchElementException();
+      }
+      return delegate.getCurrent();
     }
 
     @Override
     public void close() throws IOException {
       inChannel.close();
-    }
-
-    /**
-     * Return a reader, caching the creation on the first call.
-     */
-    private IsmReaderIterator<K, V> getDelegate() throws IOException {
-      if (delegate == null) {
-        inChannel = getChannel();
-        initializeFooter(inChannel);
-        delegate = new IsmReaderIterator<>(inChannel, new RandomAccessData(),
-            keyCoder, valueCoder, footer.getBloomFilterPosition());
-      }
-      return delegate;
-    }
-
-    /**
-     * Return a connection, caching the creation on the first call.
-     */
-    private SeekableByteChannel getChannel() throws IOException {
-      if (inChannel == null) {
-        inChannel = openConnection(filename);
-      }
-      return inChannel;
     }
   }
 
@@ -207,21 +208,26 @@ public class IsmReader<K, V> extends NativeReader<KV<K, V>> {
    * Reader.ReaderIterator} for Ism formatted files which returns a sequence of
    * {@code KV<K, V>}'s read from a {@link SeekableByteChannel}.
    */
-  private static class IsmReaderIterator<K, V> extends LegacyReaderIterator<KV<K, V>> {
+  private static class IsmReaderIterator<K, V> extends NativeReaderIterator<KV<K, V>> {
     private final SeekableByteChannel inChannel;
     private final InputStream inStream;
     private final RandomAccessData currentKeyBytes;
     private final Coder<K> keyCoder;
     private final Coder<V> valueCoder;
     private final long readLimit;
+    private KV<K, V> current;
 
     /**
      * Start an initialized reader that will start from the given key. This reader iterator does
      * not own the channel and the caller must ensure that it is closed.
      */
-    public IsmReaderIterator(SeekableByteChannel unownedChannel,
-        RandomAccessData currentKeyBytes, Coder<K> keyCoder, Coder<V> valueCoder, long readLimit)
-            throws IOException {
+    public IsmReaderIterator(
+        SeekableByteChannel unownedChannel,
+        RandomAccessData currentKeyBytes,
+        Coder<K> keyCoder,
+        Coder<V> valueCoder,
+        long readLimit)
+        throws IOException {
       checkNotNull(unownedChannel);
       checkNotNull(currentKeyBytes);
       checkNotNull(keyCoder);
@@ -240,15 +246,16 @@ public class IsmReader<K, V> extends NativeReader<KV<K, V>> {
     }
 
     @Override
-    public boolean hasNextImpl() throws IOException {
-      if (inChannel.position() > readLimit) {
-        throw new IllegalStateException("Read past end of stream");
-      }
-      return inChannel.position() < readLimit;
+    public boolean start() throws IOException {
+      return advance();
     }
 
     @Override
-    public KV<K, V> nextImpl() throws IOException, NoSuchElementException {
+    public boolean advance() throws IOException {
+      if (inChannel.position() >= readLimit) {
+        current = null;
+        return false;
+      }
       KeyPrefix keyPrefix = KeyPrefixCoder.of().decode(inStream, Context.NESTED);
       int totalKeyLength = keyPrefix.getSharedKeySize() + keyPrefix.getUnsharedKeySize();
       // currentKey = prevKey[0 : sharedKeySize] + read(unsharedKeySize)
@@ -258,7 +265,16 @@ public class IsmReader<K, V> extends NativeReader<KV<K, V>> {
           keyPrefix.getUnsharedKeySize() /* read unsharedKeySize bytes from the stream */);
       K key = keyCoder.decode(currentKeyBytes.asInputStream(0, totalKeyLength), Context.OUTER);
       V value = valueCoder.decode(inStream, Context.NESTED);
-      return KV.of(key, value);
+      current = KV.of(key, value);
+      return true;
+    }
+
+    @Override
+    public KV<K, V> getCurrent() {
+      if (current == null) {
+        throw new NoSuchElementException();
+      }
+      return current;
     }
   }
 
@@ -286,7 +302,7 @@ public class IsmReader<K, V> extends NativeReader<KV<K, V>> {
     // The index follows the bloom filter directly, so we do not need to do a seek here.
     // This is an optimization.
     @SuppressWarnings("resource")
-    LegacyReaderIterator<KV<RandomAccessData, Long>> iterator =
+    NativeReaderIterator<KV<RandomAccessData, Long>> iterator =
         new IsmReaderIterator<RandomAccessData, Long>(
             inChannel,
             new RandomAccessData(),
@@ -297,8 +313,8 @@ public class IsmReader<K, V> extends NativeReader<KV<K, V>> {
         ImmutableSortedMap.orderedBy(RandomAccessData.UNSIGNED_LEXICOGRAPHICAL_COMPARATOR);
 
     // Read the index into memory.
-    while (iterator.hasNext()) {
-      KV<RandomAccessData, Long> next = iterator.next();
+    for (boolean more = iterator.start(); more; more = iterator.advance()) {
+      KV<RandomAccessData, Long> next = iterator.getCurrent();
       builder.put(next.getKey(), next.getValue());
     }
     index = builder.build();
@@ -310,9 +326,11 @@ public class IsmReader<K, V> extends NativeReader<KV<K, V>> {
    */
   private static SeekableByteChannel openConnection(String filename) throws IOException {
     ReadableByteChannel channel = IOChannelUtils.getFactory(filename).open(filename);
-    Preconditions.checkArgument(channel instanceof SeekableByteChannel,
+    checkArgument(
+        channel instanceof SeekableByteChannel,
         "IsmReader requires a SeekableByteChannel for path %s but received %s.",
-        filename, channel);
+        filename,
+        channel);
     return (SeekableByteChannel) channel;
   }
 }

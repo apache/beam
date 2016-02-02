@@ -24,8 +24,8 @@ import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner.ValueWithMetad
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.worker.AvroReader;
 import com.google.cloud.dataflow.sdk.runners.worker.AvroSink;
+import com.google.cloud.dataflow.sdk.runners.worker.ReaderUtils;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
-import com.google.cloud.dataflow.sdk.util.ReaderUtils;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.util.common.worker.Sink;
@@ -785,12 +785,16 @@ public class AvroIO {
       Read.Bound<T> transform, DirectPipelineRunner.EvaluationContext context) {
     AvroReader<T> reader = new AvroReader<>(transform.filepattern, null, null,
         (AvroCoder<T>) transform.getDefaultOutputCoder(), context.getPipelineOptions());
-    List<WindowedValue<T>> elems = ReaderUtils.readElemsFromReader(reader);
-    List<ValueWithMetadata<T>> output = new ArrayList<>();
-    for (WindowedValue<T> elem : elems) {
-      output.add(ValueWithMetadata.of(elem));
+    try {
+      List<WindowedValue<T>> elems = ReaderUtils.readAllFromReader(reader);
+      List<ValueWithMetadata<T>> output = new ArrayList<>();
+      for (WindowedValue<T> elem : elems) {
+        output.add(ValueWithMetadata.of(elem));
+      }
+      context.setPCollectionValuesWithMetadata(context.getOutput(transform), output);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
     }
-    context.setPCollectionValuesWithMetadata(context.getOutput(transform), output);
   }
 
   private static <T> void evaluateWriteHelper(

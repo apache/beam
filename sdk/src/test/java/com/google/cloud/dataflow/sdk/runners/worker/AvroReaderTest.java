@@ -17,11 +17,11 @@
 package com.google.cloud.dataflow.sdk.runners.worker;
 
 import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.positionFromSplitResult;
-import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.readAllFromReader;
-import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.readNItemsFromUnstartedReader;
-import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.readRemainingFromReader;
 import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.splitRequestAtFraction;
 import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.windowedValuesToValues;
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderUtils.readAllFromReader;
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderUtils.readNItemsFromUnstartedIterator;
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderUtils.readRemainingFromIterator;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.readerProgressToCloudProgress;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.isA;
@@ -31,9 +31,7 @@ import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
 import com.google.cloud.dataflow.sdk.util.MimeTypes;
-import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.worker.ExecutorTestUtils;
-import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader.DynamicSplitResult;
 import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader.Progress;
 
@@ -171,9 +169,9 @@ public class AvroReaderTest {
 
     double progressReported = 0;
     List<T> actualElems = new ArrayList<>();
-    try (NativeReader.LegacyReaderIterator<WindowedValue<T>> iterator = avroReader.iterator()) {
-      while (iterator.hasNext()) {
-        actualElems.add(iterator.next().getValue());
+    try (AvroReader<T>.AvroFileIterator iterator = avroReader.iterator()) {
+      for (boolean more = iterator.start(); more; more = iterator.advance()) {
+        actualElems.add(iterator.getCurrent().getValue());
         double progress = 0.0;
         Progress readerProgress = iterator.getProgress();
         if (readerProgress != null) {
@@ -207,7 +205,7 @@ public class AvroReaderTest {
     try (AvroReader<T>.AvroFileIterator iterator = reader.iterator()) {
       // Read n elements from the reader
       primaryElements =
-          windowedValuesToValues(readNItemsFromUnstartedReader(iterator, readBeforeSplit));
+          windowedValuesToValues(readNItemsFromUnstartedIterator(iterator, readBeforeSplit));
 
       // Request a split at the specified position
       DynamicSplitResult splitResult =
@@ -225,7 +223,7 @@ public class AvroReaderTest {
 
       // Finish reading from the original reader.
       primaryElements.addAll(
-          windowedValuesToValues(readRemainingFromReader(iterator, readBeforeSplit > 0)));
+          windowedValuesToValues(readRemainingFromIterator(iterator, readBeforeSplit > 0)));
 
       if (splitResult != null) {
         Long splitPosition = positionFromSplitResult(splitResult).getByteOffset();

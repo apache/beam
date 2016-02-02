@@ -16,10 +16,13 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.io.TextIO;
+import com.google.cloud.dataflow.sdk.runners.worker.ReaderUtils;
 import com.google.cloud.dataflow.sdk.runners.worker.TextReader;
-import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 
 import org.junit.Assert;
 import org.junit.Rule;
@@ -31,8 +34,6 @@ import org.junit.runners.JUnit4;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.util.Collection;
-import java.util.Set;
-import java.util.TreeSet;
 
 /**
  * Tests for IOFactory.
@@ -81,18 +82,6 @@ public class IOFactoryTest {
         tmpFolder.getRoot() + "/file*", true /* strip newlines */, null, null, StringUtf8Coder.of(),
         TextIO.CompressionType.UNCOMPRESSED);
 
-    Set<String> records = new TreeSet<>();
-    try (NativeReader.LegacyReaderIterator<String> iterator = reader.iterator()) {
-      while (iterator.hasNext()) {
-        records.add(iterator.next());
-      }
-    }
-
-    Assert.assertEquals(records.toString(), 5, records.size());
-    Assert.assertTrue(records.contains("1"));
-    Assert.assertTrue(records.contains("2"));
-    Assert.assertTrue(records.contains("3"));
-    Assert.assertTrue(records.contains("4"));
-    Assert.assertTrue(records.contains("5"));
+    assertThat(ReaderUtils.readAllFromReader(reader), containsInAnyOrder("1", "2", "3", "4", "5"));
   }
 }

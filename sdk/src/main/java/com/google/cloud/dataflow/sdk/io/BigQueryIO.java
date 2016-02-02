@@ -57,7 +57,6 @@ import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -1422,9 +1421,17 @@ public class BigQueryIO {
       iterator = BigQueryTableRowIterator.fromTable(transform.table, client);
     }
 
-    List<TableRow> elems = ImmutableList.copyOf(iterator);
-    LOG.info("Number of records read from BigQuery: {}", elems.size());
-    context.setPCollection(context.getOutput(transform), elems);
+    try (BigQueryTableRowIterator ignored = iterator) {
+      List<TableRow> elems = new ArrayList<>();
+      iterator.open();
+      while (iterator.advance()) {
+        elems.add(iterator.getCurrent());
+      }
+      LOG.info("Number of records read from BigQuery: {}", elems.size());
+      context.setPCollection(context.getOutput(transform), elems);
+    } catch (IOException | InterruptedException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   private static <K, V> List<V> getOrCreateMapListValue(Map<K, List<V>> map, K key) {

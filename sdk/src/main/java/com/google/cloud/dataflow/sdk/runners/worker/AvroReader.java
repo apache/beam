@@ -33,6 +33,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.NoSuchElementException;
 
 import javax.annotation.Nullable;
 
@@ -98,18 +99,34 @@ public class AvroReader<T> extends NativeReader<WindowedValue<T>> {
     return new AvroFileIterator((AvroSource.AvroReader<T>) reader);
   }
 
-  class AvroFileIterator extends LegacyReaderIterator<WindowedValue<T>> {
-    final AvroSource.AvroReader<T> reader;
-    boolean hasStarted = false;
-    long blockOffset = -1;
+  class AvroFileIterator extends NativeReaderIterator<WindowedValue<T>> {
+    private final AvroSource.AvroReader<T> reader;
+    private long blockOffset = -1;
+    private WindowedValue<T> current;
 
     public AvroFileIterator(AvroSource.AvroReader<T> reader) {
       this.reader = reader;
     }
 
     @Override
-    protected WindowedValue<T> nextImpl() throws IOException {
-      T next = reader.getCurrent();
+    public boolean start() throws IOException {
+      if (!reader.start()) {
+        return false;
+      }
+      updateBlockOffsetAndCurrent();
+      return true;
+    }
+
+    @Override
+    public boolean advance() throws IOException {
+      if (!reader.advance()) {
+        return false;
+      }
+      updateBlockOffsetAndCurrent();
+      return true;
+    }
+
+    private void updateBlockOffsetAndCurrent() {
       // Coarse-grained reporting of input bytes consumed.
       // After completing reading a block, the block offset changes.
       long currentOffset = reader.getCurrentBlockOffset();
@@ -117,16 +134,15 @@ public class AvroReader<T> extends NativeReader<WindowedValue<T>> {
         notifyElementRead(reader.getCurrentBlockSize());
         blockOffset = currentOffset;
       }
-      return WindowedValue.valueInGlobalWindow(next);
+      current = WindowedValue.valueInGlobalWindow(reader.getCurrent());
     }
 
     @Override
-    protected boolean hasNextImpl() throws IOException {
-      if (!hasStarted) {
-        hasStarted = true;
-        return reader.start();
+    public WindowedValue<T> getCurrent() throws NoSuchElementException {
+      if (current == null) {
+        throw new NoSuchElementException();
       }
-      return reader.advance();
+      return current;
     }
 
     @Override

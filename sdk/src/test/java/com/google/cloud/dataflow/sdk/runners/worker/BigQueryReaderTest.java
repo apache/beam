@@ -565,14 +565,15 @@ public class BigQueryReaderTest {
     BigQueryReader reader = BigQueryReader.fromQuery(QUERY, PROJECT_ID, bigQueryClient, true);
     BigQueryReader.BigQueryReaderIterator iterator = reader.iterator();
 
-    assertTrue(iterator.hasNext());
-    TableRow row = iterator.next().getValue();
+    assertTrue(iterator.start());
+    TableRow row = iterator.getCurrent().getValue();
 
     assertEquals("Arthur", row.get("name"));
     assertEquals("42", row.get("integer"));
     assertNull(row.getF());
 
-    row = iterator.next().getValue();
+    assertTrue(iterator.advance());
+    row = iterator.getCurrent().getValue();
     assertEquals("Allison", row.get("name"));
     assertEquals("79", row.get("integer"));
     assertNull(row.getF());
@@ -764,9 +765,9 @@ public class BigQueryReaderTest {
         bigQueryClient);
 
     BigQueryReader.BigQueryReaderIterator iterator = reader.iterator();
-    assertTrue(iterator.hasNext());
+    assertTrue(iterator.start());
 
-    TableRow row = iterator.next().getValue();
+    TableRow row = iterator.getCurrent().getValue();
 
     assertEquals("Arthur", row.get("name"));
     assertEquals("42", row.get("integer"));
@@ -782,7 +783,8 @@ public class BigQueryReaderTest {
     assertTrue(((List<?>) row.get("repeatedFloat")).isEmpty());
     assertTrue(((List<?>) row.get("repeatedRecord")).isEmpty());
 
-    row = iterator.next().getValue();
+    assertTrue(iterator.advance());
+    row = iterator.getCurrent().getValue();
 
     assertEquals("Allison", row.get("name"));
     assertEquals("79", row.get("integer"));
@@ -807,7 +809,7 @@ public class BigQueryReaderTest {
     assertEquals(false, nestedRecords.get(1).get("bool"));
     assertNull(nestedRecords.get(1).getF());
 
-    assertFalse(iterator.hasNext());
+    assertFalse(iterator.advance());
 
     verifyTableGet();
     verifyTabledataList();
@@ -898,12 +900,11 @@ public class BigQueryReaderTest {
         .setProjectId(PROJECT_ID).setDatasetId(DATASET).setTableId(TABLE_WITH_FIELD_F);
     BigQueryReader reader = BigQueryReader.fromTable(tableRef, bigQueryClient);
 
-    BigQueryReader.BigQueryReaderIterator iterator = reader.iterator();
-    assertTrue(iterator.hasNext());
+    try (BigQueryReader.BigQueryReaderIterator iterator = reader.iterator()) {
+      thrown.expect(IllegalArgumentException.class);
+      thrown.expectMessage("BigQueryIO does not support records with columns named f");
 
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("BigQueryIO does not support records with columns named f");
-
-    iterator.next().getValue();
+      iterator.start();
+    }
   }
 }

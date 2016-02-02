@@ -17,8 +17,8 @@
 package com.google.cloud.dataflow.sdk.runners.worker;
 
 import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.positionFromSplitResult;
-import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.readAllFromReader;
 import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.splitRequestAtConcatPosition;
+import static com.google.cloud.dataflow.sdk.runners.worker.ReaderUtils.readAllFromReader;
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.readerProgressToCloudProgress;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;

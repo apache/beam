@@ -21,10 +21,10 @@ import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
+import com.google.cloud.dataflow.sdk.runners.worker.ReaderUtils;
 import com.google.cloud.dataflow.sdk.runners.worker.TextReader;
 import com.google.cloud.dataflow.sdk.runners.worker.TextSink;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
-import com.google.cloud.dataflow.sdk.util.ReaderUtils;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.util.common.worker.Sink;
@@ -782,8 +782,12 @@ public class TextIO {
     TextReader<T> reader =
         new TextReader<>(transform.filepattern, true, null, null, transform.coder,
             transform.getCompressionType());
-    List<T> elems = ReaderUtils.readElemsFromReader(reader);
-    context.setPCollection(context.getOutput(transform), elems);
+    try {
+      List<T> elems = ReaderUtils.readAllFromReader(reader);
+      context.setPCollection(context.getOutput(transform), elems);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   private static <T> void evaluateWriteHelper(

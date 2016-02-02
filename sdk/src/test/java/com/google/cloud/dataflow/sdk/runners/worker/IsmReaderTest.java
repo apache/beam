@@ -133,9 +133,11 @@ public class IsmReaderTest {
     reader.addObserver(observer);
 
     Iterator<KV<byte[], byte[]>> expectedIterator = expectedData.iterator();
-    try (NativeReader.LegacyReaderIterator<KV<byte[], byte[]>> iterator = reader.iterator()) {
-      while (iterator.hasNext() && expectedIterator.hasNext()) {
-        KV<byte[], byte[]> actual = iterator.next();
+    try (NativeReader.NativeReaderIterator<KV<byte[], byte[]>> iterator = reader.iterator()) {
+      for (boolean more = iterator.start();
+          more && expectedIterator.hasNext();
+          more = iterator.advance()) {
+        KV<byte[], byte[]> actual = iterator.getCurrent();
         KV<byte[], byte[]> expectedNext = expectedIterator.next();
         assertArrayEquals(actual.getKey(), expectedNext.getKey());
         assertArrayEquals(actual.getValue(), expectedNext.getValue());
@@ -144,15 +146,15 @@ public class IsmReaderTest {
         assertTrue(actual.getValue().length
             <= observer.getActualSizes().get(observer.getActualSizes().size() - 1));
       }
-      if (iterator.hasNext()) {
-        fail("Read more elements then expected, did not expect: " + iterator.next());
+      if (iterator.advance()) {
+        fail("Read more elements then expected, did not expect: " + iterator.getCurrent());
       } else if (expectedIterator.hasNext()) {
         fail("Read less elements then expected, expected: " + expectedIterator.next());
       }
 
       // Verify that we see a {@link NoSuchElementException} if we attempt to go further.
       try {
-        iterator.next();
+        iterator.getCurrent();
         fail("Expected a NoSuchElementException to have been thrown.");
       } catch (NoSuchElementException expected) {
       }
@@ -188,8 +190,8 @@ public class IsmReaderTest {
       assertArrayEquals(actual.getValue(), expectedNext.getValue());
 
       // Verify that the observer saw at least as many bytes as the size of the value.
-      assertTrue(actual.getValue().length
-          <= observer.getActualSizes().get(observer.getActualSizes().size() - 1));
+      List<Integer> actualSizes = observer.getActualSizes();
+      assertTrue(actual.getValue().length <= actualSizes.get(actualSizes.size() - 1));
     }
 
     Iterator<KV<byte[], byte[]>> missingIterator = evenValues.iterator();
