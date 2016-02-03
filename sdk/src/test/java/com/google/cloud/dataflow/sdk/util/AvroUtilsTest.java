@@ -112,12 +112,20 @@ public class AvroUtilsTest {
     TableSchema tableSchema = new TableSchema();
     List<TableFieldSchema> subFields = Lists.<TableFieldSchema>newArrayList(
         new TableFieldSchema().setName("species").setType("STRING").setMode("NULLABLE"));
+    /*
+     * Note that the quality and quantity fields do not have their mode set, so they should default
+     * to NULLABLE. This is an important test of BigQuery semantics.
+     *
+     * All the other fields we set in this function are required on the Schema response.
+     *
+     * See https://cloud.google.com/bigquery/docs/reference/v2/tables#schema
+     */
     List<TableFieldSchema> fields =
         Lists.<TableFieldSchema>newArrayList(
             new TableFieldSchema().setName("number").setType("INTEGER").setMode("REQUIRED"),
             new TableFieldSchema().setName("species").setType("STRING").setMode("NULLABLE"),
-            new TableFieldSchema().setName("quality").setType("FLOAT").setMode("NULLABLE"),
-            new TableFieldSchema().setName("quantity").setType("INTEGER").setMode("NULLABLE"),
+            new TableFieldSchema().setName("quality").setType("FLOAT") /* default to NULLABLE */,
+            new TableFieldSchema().setName("quantity").setType("INTEGER") /* default to NULLABLE */,
             new TableFieldSchema().setName("birthday").setType("TIMESTAMP").setMode("NULLABLE"),
             new TableFieldSchema().setName("flighted").setType("BOOLEAN").setMode("NULLABLE"),
             new TableFieldSchema().setName("scion").setType("RECORD").setMode("NULLABLE")

@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Verify.verify;
 
@@ -201,6 +202,8 @@ public class AvroUtils {
       GenericRecord record, List<TableFieldSchema> fields) {
     TableRow row = new TableRow();
     for (TableFieldSchema subSchema : fields) {
+      // Per https://cloud.google.com/bigquery/docs/reference/v2/tables#schema, the name field
+      // is required, so it may not be null.
       Field field = record.getSchema().getField(subSchema.getName());
       Object convertedValue =
           getTypedCellValue(field.schema(), subSchema, record.get(field.name()));
@@ -214,7 +217,10 @@ public class AvroUtils {
 
   @Nullable
   private static Object getTypedCellValue(Schema schema, TableFieldSchema fieldSchema, Object v) {
-    switch (fieldSchema.getMode()) {
+    // Per https://cloud.google.com/bigquery/docs/reference/v2/tables#schema, the mode field
+    // is optional (and so it may be null), but defaults to "NULLABLE".
+    String mode = firstNonNull(fieldSchema.getMode(), "NULLABLE");
+    switch (mode) {
       case "REQUIRED":
         return convertRequiredField(schema.getType(), fieldSchema, v);
       case "REPEATED":
@@ -264,6 +270,8 @@ public class AvroUtils {
             .put("TIMESTAMP", Type.LONG)
             .put("RECORD", Type.RECORD)
             .build();
+    // Per https://cloud.google.com/bigquery/docs/reference/v2/tables#schema, the type field
+    // is required, so it may not be null.
     String bqType = fieldSchema.getType();
     Type expectedAvroType = fieldMap.get(bqType);
     verify(
