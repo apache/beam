@@ -31,6 +31,7 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO.Write.CreateDisposition;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO.Write.WriteDisposition;
+import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -136,7 +137,7 @@ public class BigQueryTableInserter {
    */
   @Deprecated
   public void insertAll(List<TableRow> rowList) throws IOException {
-    insertAll(defaultRef, rowList, null);
+    insertAll(defaultRef, rowList, null, null);
   }
 
   /**
@@ -147,21 +148,23 @@ public class BigQueryTableInserter {
   @Deprecated
   public void insertAll(List<TableRow> rowList,
       @Nullable List<String> insertIdList) throws IOException {
-    insertAll(defaultRef, rowList, insertIdList);
+    insertAll(defaultRef, rowList, insertIdList, null);
   }
 
   /**
    * Insert all rows from the given list.
    */
   public void insertAll(TableReference ref, List<TableRow> rowList) throws IOException {
-    insertAll(ref, rowList, null);
+    insertAll(ref, rowList, null, null);
   }
 
   /**
-   * Insert all rows from the given list using specified insertIds if not null.
+   * Insert all rows from the given list using specified insertIds if not null. Track count of
+   * bytes written with the Aggregator.
    */
   public void insertAll(TableReference ref, List<TableRow> rowList,
-      @Nullable List<String> insertIdList) throws IOException {
+      @Nullable List<String> insertIdList, Aggregator<Long, Long> byteCountAggregator)
+      throws IOException {
     Preconditions.checkNotNull(ref, "ref");
     if (insertIdList != null && rowList.size() != insertIdList.size()) {
       throw new AssertionError("If insertIdList is not null it needs to have at least "
@@ -217,6 +220,9 @@ public class BigQueryTableInserter {
               }));
           strideIndices.add(strideIndex);
 
+          if (byteCountAggregator != null) {
+            byteCountAggregator.addValue(Long.valueOf(dataSize));
+          }
           dataSize = 0;
           strideIndex = i + 1;
           rows = new LinkedList<>();
