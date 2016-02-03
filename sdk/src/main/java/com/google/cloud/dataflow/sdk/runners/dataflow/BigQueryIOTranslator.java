@@ -49,6 +49,7 @@ public class BigQueryIOTranslator {
       // Actual translation.
       context.addStep(transform, "ParallelRead");
       context.addInput(PropertyNames.FORMAT, "bigquery");
+      context.addInput(PropertyNames.BIGQUERY_EXPORT_FORMAT, "FORMAT_AVRO");
 
       if (transform.getQuery() != null) {
         context.addInput(PropertyNames.BIGQUERY_QUERY, transform.getQuery());
