@@ -15,10 +15,17 @@
  */
 package com.google.cloud.dataflow.sdk.runners.worker;
 
+import static com.google.cloud.dataflow.sdk.util.WindowedValue.valueInEmptyWindows;
+
 import com.google.cloud.dataflow.sdk.coders.ByteArrayCoder;
+import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.runners.worker.IsmFormat.IsmRecord;
+import com.google.cloud.dataflow.sdk.runners.worker.IsmFormat.IsmRecordCoder;
+import com.google.cloud.dataflow.sdk.runners.worker.IsmFormat.MetadataKeyCoder;
+import com.google.cloud.dataflow.sdk.testing.CoderPropertiesTest.NonDeterministicCoder;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.worker.Sink.SinkWriter;
-import com.google.cloud.dataflow.sdk.values.KV;
+import com.google.common.collect.ImmutableList;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -27,64 +34,104 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-import java.util.Arrays;
-import java.util.Random;
-
 /**
  * Tests for {@link IsmSink}.
- * Note that {@link IsmReaderTest} covers reading/writing tests. This tests
+ *
+ * <p>Note that {@link IsmReaderTest} covers reading/writing tests. This tests
  * error cases for the {@link IsmSink}.
  */
 @RunWith(JUnit4.class)
 public class IsmSinkTest {
+  private static final IsmRecordCoder<byte[]> CODER =
+      IsmRecordCoder.of(
+          1, // number or shard key coders for value records
+          1, // number of shard key coders for metadata records
+          ImmutableList.<Coder<?>>of(MetadataKeyCoder.of(ByteArrayCoder.of()), ByteArrayCoder.of()),
+          ByteArrayCoder.of());
+  private static final byte[] EMPTY = new byte[0];
+  private static final Coder<String> NON_DETERMINISTIC_CODER = new NonDeterministicCoder();
+
+
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
   @Rule public ExpectedException expectedException = ExpectedException.none();
 
   @Test
-  public void testWriteOutOfOrderKeysIsError() throws Exception {
-    IsmSink<byte[], byte[]> sink =
-        new IsmSink<>(tmpFolder.newFile().getPath(), ByteArrayCoder.of(), ByteArrayCoder.of());
-    SinkWriter<WindowedValue<KV<byte[], byte[]>>> sinkWriter = sink.writer();
-    sinkWriter.add(WindowedValue.valueInGlobalWindow(KV.of(new byte[]{ 0x01 }, new byte[0])));
+  public void testWriteOutOfOrderKeysWithSameShardKeyIsError() throws Throwable {
+    IsmSink<byte[]> sink =
+        new IsmSink<>(tmpFolder.newFile().getPath(), CODER);
+    SinkWriter<WindowedValue<IsmRecord<byte[]>>> sinkWriter = sink.writer();
+    sinkWriter.add(valueInEmptyWindows(
+        IsmRecord.of(ImmutableList.of(EMPTY, new byte[]{ 0x01 }), EMPTY)));
 
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("expects keys to be written in strictly increasing order");
-    sinkWriter.add(WindowedValue.valueInGlobalWindow(KV.of(new byte[]{ 0x00 }, new byte[0])));
+    sinkWriter.add(valueInEmptyWindows(
+        IsmRecord.of(ImmutableList.of(EMPTY, new byte[]{ 0x00 }), EMPTY)));
   }
 
   @Test
-  public void testWriteEqualsKeysIsError() throws Exception {
-    IsmSink<byte[], byte[]> sink =
-        new IsmSink<>(tmpFolder.newFile().getPath(), ByteArrayCoder.of(), ByteArrayCoder.of());
-    SinkWriter<WindowedValue<KV<byte[], byte[]>>> sinkWriter = sink.writer();
-    sinkWriter.add(WindowedValue.valueInGlobalWindow(KV.of(new byte[]{ 0x00 }, new byte[0])));
+  public void testWriteNonContiguousShardsIsError() throws Throwable {
+    IsmSink<byte[]> sink =
+        new IsmSink<>(tmpFolder.newFile().getPath(), CODER);
+    SinkWriter<WindowedValue<IsmRecord<byte[]>>> sinkWriter = sink.writer();
+    sinkWriter.add(valueInEmptyWindows(
+        IsmRecord.of(ImmutableList.of(new byte[]{ 0x00 }, EMPTY), EMPTY)));
+    sinkWriter.add(valueInEmptyWindows(
+        IsmRecord.of(ImmutableList.of(new byte[]{ 0x01 }, EMPTY), EMPTY)));
+
+    expectedException.expect(IllegalStateException.class);
+    expectedException.expectMessage("for shard which already exists");
+    sinkWriter.add(valueInEmptyWindows(
+        IsmRecord.of(ImmutableList.of(new byte[]{ 0x00 }, EMPTY), EMPTY)));
+  }
+
+  @Test
+  public void testWriteEqualKeysIsError() throws Throwable {
+    IsmSink<byte[]> sink =
+        new IsmSink<>(tmpFolder.newFile().getPath(), CODER);
+    SinkWriter<WindowedValue<IsmRecord<byte[]>>> sinkWriter = sink.writer();
+    sinkWriter.add(valueInEmptyWindows(
+        IsmRecord.of(ImmutableList.of(EMPTY, new byte[]{ 0x01 }), EMPTY)));
 
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("expects keys to be written in strictly increasing order");
-    sinkWriter.add(WindowedValue.valueInGlobalWindow(KV.of(new byte[]{ 0x00 }, new byte[0])));
+    sinkWriter.add(valueInEmptyWindows(
+        IsmRecord.of(ImmutableList.of(EMPTY, new byte[]{ 0x01 }), EMPTY)));
   }
 
   @Test
-  public void testWriteKeyWhichIsProperPrefixOfPreviousKeyIsError() throws Exception {
-    IsmSink<byte[], byte[]> sink =
-        new IsmSink<>(tmpFolder.newFile().getPath(), ByteArrayCoder.of(), ByteArrayCoder.of());
-    SinkWriter<WindowedValue<KV<byte[], byte[]>>> sinkWriter = sink.writer();
-    sinkWriter.add(WindowedValue.valueInGlobalWindow(KV.of(new byte[]{ 0x00, 0x00 }, new byte[0])));
+  public void testWriteKeyWhichIsProperPrefixOfPreviousSecondaryKeyIsError() throws Throwable {
+    IsmSink<byte[]> sink =
+        new IsmSink<>(tmpFolder.newFile().getPath(), CODER);
+    SinkWriter<WindowedValue<IsmRecord<byte[]>>> sinkWriter = sink.writer();
+    sinkWriter.add(valueInEmptyWindows(
+        IsmRecord.of(ImmutableList.of(EMPTY, new byte[]{ 0x00, 0x00 }), EMPTY)));
 
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("expects keys to be written in strictly increasing order");
-    sinkWriter.add(WindowedValue.valueInGlobalWindow(KV.of(new byte[]{ 0x00 }, new byte[0])));
+    sinkWriter.add(valueInEmptyWindows(
+        IsmRecord.of(ImmutableList.of(EMPTY, new byte[]{ 0x00 }), EMPTY)));
   }
 
   @Test
-  public void testWrite() throws Exception {
-    Random random = new Random(23498321490L);
-    for (int i : Arrays.asList(4, 8, 12)) {
-      int minElements = (int) Math.pow(2, i);
-      // Generates between 2^i and 2^(i + 1) elements.
-      IsmReaderTest.runTestRead(
-          IsmReaderTest.dataGenerator(minElements + random.nextInt(minElements),
-              8 /* approximate key size */, 8 /* max value size */), tmpFolder.newFile());
-    }
+  public void testUsingNonDeterministicShardKeyCoder() throws Exception {
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("is expected to be deterministic");
+    new IsmSink<>(tmpFolder.newFile().getPath(), IsmRecordCoder.of(
+        1,
+        0,
+        ImmutableList.<Coder<?>>of(NON_DETERMINISTIC_CODER, ByteArrayCoder.of()),
+        ByteArrayCoder.of()));
+  }
+
+  @Test
+  public void testUsingNonDeterministicNonShardKeyCoder() throws Exception {
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("is expected to be deterministic");
+    new IsmSink<>(tmpFolder.newFile().getPath(), IsmRecordCoder.of(
+        1,
+        0,
+        ImmutableList.<Coder<?>>of(ByteArrayCoder.of(), NON_DETERMINISTIC_CODER),
+        ByteArrayCoder.of()));
   }
 }

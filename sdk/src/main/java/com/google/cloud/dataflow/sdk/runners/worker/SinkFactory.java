@@ -55,6 +55,8 @@ public final class SinkFactory {
                                 TextSinkFactory.class.getName());
     predefinedSinkFactories.put("AvroSink",
                                 AvroSinkFactory.class.getName());
+    predefinedSinkFactories.put("IsmSink",
+                                IsmSinkFactory.class.getName());
     predefinedSinkFactories.put("ShuffleSink",
                                 ShuffleSinkFactory.class.getName());
     predefinedSinkFactories.put("PubsubSink",
@@ -75,6 +77,7 @@ public final class SinkFactory {
       ExecutionContext executionContext,
       CounterSet.AddCounterMutator addCounterMutator)
       throws Exception {
+    @SuppressWarnings("unchecked")
     Coder<T> coder = Serializer.deserialize(cloudSink.getCodec(), Coder.class);
     CloudObject object = CloudObject.fromSpec(cloudSink.getSpec());
 

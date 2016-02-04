@@ -47,7 +47,7 @@ public class CoderPropertiesTest {
   }
 
   /** A coder that says it is not deterministic but actually is. */
-  private static class NonDeterministicCoder extends CustomCoder<String> {
+  public static class NonDeterministicCoder extends CustomCoder<String> {
     @Override
     public void encode(String value, OutputStream outStream, Context context)
         throws CoderException, IOException {

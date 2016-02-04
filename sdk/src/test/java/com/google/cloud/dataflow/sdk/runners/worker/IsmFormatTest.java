@@ -23,6 +23,7 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
+import com.google.cloud.dataflow.sdk.coders.ByteArrayCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.Coder.Context;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
@@ -37,11 +38,13 @@ import com.google.cloud.dataflow.sdk.runners.worker.IsmFormat.KeyPrefix;
 import com.google.cloud.dataflow.sdk.runners.worker.IsmFormat.KeyPrefixCoder;
 import com.google.cloud.dataflow.sdk.runners.worker.IsmFormat.MetadataKeyCoder;
 import com.google.cloud.dataflow.sdk.testing.CoderProperties;
+import com.google.cloud.dataflow.sdk.testing.CoderPropertiesTest.NonDeterministicCoder;
 import com.google.common.collect.ImmutableList;
 
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -54,7 +57,32 @@ import java.io.IOException;
  */
 @RunWith(JUnit4.class)
 public class IsmFormatTest {
+  private static final Coder<String> NON_DETERMINISTIC_CODER = new NonDeterministicCoder();
   @Rule public ExpectedException expectedException = ExpectedException.none();
+  @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
+
+  @Test
+  public void testUsingNonDeterministicShardKeyCoder() throws Exception {
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("is expected to be deterministic");
+    IsmFormat.validateCoderIsCompatible(IsmRecordCoder.of(
+        1, // number or shard key coders for value records
+        0, // number of shard key coders for metadata records
+        ImmutableList.<Coder<?>>of(NON_DETERMINISTIC_CODER, ByteArrayCoder.of()),
+        ByteArrayCoder.of()));
+  }
+
+  @Test
+  public void testUsingNonDeterministicNonShardKeyCoder() throws Exception {
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("is expected to be deterministic");
+    IsmFormat.validateCoderIsCompatible(IsmRecordCoder.of(
+        1, // number or shard key coders for value records
+        0, // number of shard key coders for metadata records
+        ImmutableList.<Coder<?>>of(ByteArrayCoder.of(), NON_DETERMINISTIC_CODER),
+        ByteArrayCoder.of()));
+  }
+
 
   @Test
   public void testKeyPrefixCoder() throws Exception {

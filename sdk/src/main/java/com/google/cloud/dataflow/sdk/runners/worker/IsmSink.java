@@ -15,12 +15,18 @@
  */
 package com.google.cloud.dataflow.sdk.runners.worker;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 
+import com.google.cloud.dataflow.sdk.coders.ByteArrayCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.Coder.Context;
 import com.google.cloud.dataflow.sdk.runners.worker.IsmFormat.Footer;
 import com.google.cloud.dataflow.sdk.runners.worker.IsmFormat.FooterCoder;
+import com.google.cloud.dataflow.sdk.runners.worker.IsmFormat.IsmRecord;
+import com.google.cloud.dataflow.sdk.runners.worker.IsmFormat.IsmRecordCoder;
+import com.google.cloud.dataflow.sdk.runners.worker.IsmFormat.IsmShard;
 import com.google.cloud.dataflow.sdk.runners.worker.IsmFormat.KeyPrefix;
 import com.google.cloud.dataflow.sdk.runners.worker.IsmFormat.KeyPrefixCoder;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
@@ -31,46 +37,59 @@ import com.google.cloud.dataflow.sdk.util.ScalableBloomFilter.ScalableBloomFilte
 import com.google.cloud.dataflow.sdk.util.VarInt;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.worker.Sink;
-import com.google.cloud.dataflow.sdk.values.KV;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
 import com.google.common.io.CountingOutputStream;
 
 import java.io.IOException;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.SortedMap;
+import java.util.TreeMap;
 
 /**
- * A {@link Sink} that writes Ism files. The coder provided is used to encode each key value
- * record. See {@link IsmFormat} for encoded format details.
+ * A {@link Sink} that writes Ism files.
  *
- * @param <K> the type of the keys written to the sink
- * @param <V> the type of the values written to the sink
+ * @param <V> the type of the value written to the sink
  */
-public class IsmSink<K, V> extends Sink<WindowedValue<KV<K, V>>> {
+public class IsmSink<V> extends Sink<WindowedValue<IsmRecord<V>>> {
+  private static final int BLOCK_SIZE_BYTES = 1024 * 1024;
   private final String filename;
-  private final Coder<K> keyCoder;
-  private final Coder<V> valueCoder;
+  private final IsmRecordCoder<V> coder;
 
-  IsmSink(String filename, Coder<K> keyCoder, Coder<V> valueCoder) {
+  /**
+   * Produces a sink for the specified {@code filename} and {@code coder}.
+   * See {@link IsmFormat} for encoded format details.
+   */
+  IsmSink(String filename, IsmRecordCoder<V> coder) {
+    IsmFormat.validateCoderIsCompatible(coder);
     this.filename = filename;
-    this.keyCoder = keyCoder;
-    this.valueCoder = valueCoder;
+    this.coder = coder;
   }
 
   @Override
-  public SinkWriter<WindowedValue<KV<K, V>>> writer() throws IOException {
+  public SinkWriter<WindowedValue<IsmRecord<V>>> writer() throws IOException {
     return new IsmSinkWriter(IOChannelUtils.create(filename, MimeTypes.BINARY));
   }
 
-  private class IsmSinkWriter implements SinkWriter<WindowedValue<KV<K, V>>> {
-    private static final long MAX_BLOCK_SIZE = 1024 * 1024;
+  // Can be overridden by tests to generate files with smaller block sizes for testing.
+  @VisibleForTesting
+  long getBlockSize() {
+    return BLOCK_SIZE_BYTES;
+  }
 
+  private class IsmSinkWriter implements SinkWriter<WindowedValue<IsmRecord<V>>> {
     private final CountingOutputStream out;
     private final RandomAccessData indexOut;
-    private RandomAccessData lastKeyBytes;
+    private RandomAccessData previousKeyBytes;
+    private Optional<Integer> previousShard;
     private RandomAccessData currentKeyBytes;
     private RandomAccessData lastIndexKeyBytes;
     private long lastIndexedPosition;
     private long numberOfKeysWritten;
+    private SortedMap<Integer, IsmShard> shardKeyToShardMap;
     private final ScalableBloomFilter.Builder bloomFilterBuilder;
 
     /**
@@ -80,34 +99,70 @@ public class IsmSink<K, V> extends Sink<WindowedValue<KV<K, V>>> {
       checkNotNull(channel);
       out = new CountingOutputStream(Channels.newOutputStream(channel));
       indexOut = new RandomAccessData();
-      lastKeyBytes = new RandomAccessData();
+      previousShard = Optional.absent();
+      previousKeyBytes = new RandomAccessData();
       currentKeyBytes = new RandomAccessData();
       lastIndexKeyBytes = new RandomAccessData();
       bloomFilterBuilder = ScalableBloomFilter.builder();
+      shardKeyToShardMap = new TreeMap<>();
     }
 
     @Override
-    public long add(WindowedValue<KV<K, V>> windowedValue) throws IOException {
+    public long add(WindowedValue<IsmRecord<V>> windowedRecord) throws IOException {
       // The windowed portion of the value is ignored.
-      KV<K, V> value = windowedValue.getValue();
+      IsmRecord<V> record = windowedRecord.getValue();
+
+      checkArgument(coder.getKeyComponentCoders().size() == record.getKeyComponents().size());
+
+      List<Integer> keyOffsetPositions = new ArrayList<>();
+      final int currentShard =
+          coder.encodeAndHash(record.getKeyComponents(), currentKeyBytes, keyOffsetPositions);
+      // Put each component of the key into the Bloom filter so that we can use the Bloom
+      // filter for key prefix checks.
+      for (Integer offsetPosition : keyOffsetPositions) {
+        bloomFilterBuilder.put(currentKeyBytes.array(), 0, offsetPosition);
+      }
+
+      // If we are moving to another shard, finish outputting the last shard.
+      if (previousShard.isPresent() && currentShard != previousShard.get()) {
+        // We reset last shard to be empty.
+        finishShard();
+      }
 
       long currentPosition = out.getCount();
-      // Marshal the key, compute the common prefix length
-      keyCoder.encode(value.getKey(), currentKeyBytes.asOutputStream(), Context.OUTER);
-      int keySize = currentKeyBytes.size();
-      int sharedKeySize = commonPrefixLength(lastKeyBytes, currentKeyBytes);
+
+      // If we are doing a reset because the shard number is changing we
+      // assume 0 bytes are saved from the previous key.
+      int sharedKeySize;
+      if (!previousShard.isPresent()) {
+        sharedKeySize = 0;
+        // Create a new shard record for the current value being output validating
+        // that we have never seen this shard before.
+        IsmShard ismShard = IsmShard.of(currentShard, currentPosition);
+        checkState(shardKeyToShardMap.put(currentShard, ismShard) == null,
+            "Unexpected insertion of keys %s for shard which already exists %s. "
+            + "Ism files expect that all shards are written contiguously.",
+            record.getKeyComponents(), ismShard);
+      } else {
+        sharedKeySize = commonPrefixLengthWithOrderCheck(previousKeyBytes, currentKeyBytes);
+      }
 
       // Put key-value mapping record into block buffer
-      int unsharedKeySize = keySize - sharedKeySize;
+      int unsharedKeySize = currentKeyBytes.size() - sharedKeySize;
       KeyPrefix keyPrefix = new KeyPrefix(sharedKeySize, unsharedKeySize);
       KeyPrefixCoder.of().encode(keyPrefix, out, Context.NESTED);
       currentKeyBytes.writeTo(out, sharedKeySize, unsharedKeySize);
-      valueCoder.encode(value.getValue(), out, Context.NESTED);
+      if (IsmFormat.isMetadataKey(record.getKeyComponents())) {
+        ByteArrayCoder.of().encode(record.getMetadata(), out, Context.NESTED);
+      } else {
+        coder.getValueCoder().encode(record.getValue(), out, Context.NESTED);
+      }
 
-      // If we have emitted enough bytes to add another entry into the index.
-      if (lastIndexedPosition + MAX_BLOCK_SIZE < out.getCount()) {
-        int sharedIndexKeySize = commonPrefixLength(lastIndexKeyBytes, currentKeyBytes);
-        int unsharedIndexKeySize = keySize - sharedIndexKeySize;
+      // If we have emitted enough bytes to add another entry into the index
+      if (out.getCount() > lastIndexedPosition + getBlockSize()) {
+        int sharedIndexKeySize =
+            commonPrefixLengthWithOrderCheck(lastIndexKeyBytes, currentKeyBytes);
+        int unsharedIndexKeySize = currentKeyBytes.size() - sharedIndexKeySize;
         KeyPrefix indexKeyPrefix = new KeyPrefix(sharedIndexKeySize, unsharedIndexKeySize);
         KeyPrefixCoder.of().encode(indexKeyPrefix, indexOut.asOutputStream(), Context.NESTED);
         currentKeyBytes.writeTo(
@@ -115,14 +170,15 @@ public class IsmSink<K, V> extends Sink<WindowedValue<KV<K, V>>> {
         VarInt.encode(currentPosition, indexOut.asOutputStream());
         lastIndexKeyBytes.resetTo(0);
         currentKeyBytes.writeTo(lastIndexKeyBytes.asOutputStream(), 0, currentKeyBytes.size());
+        lastIndexedPosition = out.getCount();
       }
 
-      // Update the bloom filter
-      bloomFilterBuilder.put(currentKeyBytes.array(), 0, currentKeyBytes.size());
+      // Remember the shard for the current key.
+      previousShard = Optional.of(currentShard);
 
       // Swap the current key and the previous key, resetting the previous key to be re-used.
-      RandomAccessData temp = lastKeyBytes;
-      lastKeyBytes = currentKeyBytes;
+      RandomAccessData temp = previousKeyBytes;
+      previousKeyBytes = currentKeyBytes;
       currentKeyBytes = temp;
       currentKeyBytes.resetTo(0);
 
@@ -135,45 +191,79 @@ public class IsmSink<K, V> extends Sink<WindowedValue<KV<K, V>>> {
      * and perform a key order check. We check that the currently being inserted key
      * is strictly greater than the previous key.
      */
-    private int commonPrefixLength(
+    private int commonPrefixLengthWithOrderCheck(
         RandomAccessData prevKeyBytes, RandomAccessData currentKeyBytes) {
-      byte[] prevKey = prevKeyBytes.array();
-      byte[] currentKey = currentKeyBytes.array();
-      int minBytesLen = Math.min(prevKeyBytes.size(), currentKeyBytes.size());
-      for (int i = 0; i < minBytesLen; i++) {
-        // unsigned comparison
-        int b1 = prevKey[i] & 0xFF;
-        int b2 = currentKey[i] & 0xFF;
-        if (b1 > b2) {
-          throw new IllegalArgumentException(IsmSinkWriter.class.getSimpleName()
-              + " expects keys to be written in strictly increasing order but was given "
-              + prevKeyBytes + " as the previous key and " + currentKeyBytes
-              + " as the current key. Expected " + b1 + " <= " + b2 + " at position " + i + ".");
-        }
-        if (b1 != b2) {
-          return i;
-        }
-      }
-      if (prevKeyBytes.size() >= currentKeyBytes.size()) {
+      int offset = RandomAccessData.UNSIGNED_LEXICOGRAPHICAL_COMPARATOR
+          .commonPrefixLength(prevKeyBytes, currentKeyBytes);
+      int compare = RandomAccessData.UNSIGNED_LEXICOGRAPHICAL_COMPARATOR
+          .compare(prevKeyBytes, currentKeyBytes, offset);
+      if (compare < 0) {
+        return offset;
+      } else if (compare == 0) {
+        throw new IllegalArgumentException(IsmSinkWriter.class.getSimpleName()
+            + " expects keys to be written in strictly increasing order but was given "
+            + prevKeyBytes + " as the previous key and " + currentKeyBytes
+            + " as the current key. Expected " + prevKeyBytes.array()[offset + 1] + " <= "
+            + currentKeyBytes.array()[offset + 1] + " at position " + (offset + 1) + ".");
+      } else {
         throw new IllegalArgumentException(IsmSinkWriter.class.getSimpleName()
             + " expects keys to be written in strictly increasing order but was given "
             + prevKeyBytes + " as the previous key and " + currentKeyBytes
             + " as the current key. Expected length of previous key " + prevKeyBytes.size()
             + " <= " + currentKeyBytes.size() + " to current key.");
       }
-      return minBytesLen;
     }
 
     /**
-     * Completes the construction of the Ism file.
+     * Outputs the end of a shard. This is done by:
+     * <ul>
+     *   <li>updating the shard index for the current shard with the index offset</li>
+     *   <li>writing out the index for the shard</li>
+     *   <li>resetting the last indexed position</li>
+     *   <li>forgetting the last shard</li>
+     * </ul>
+     */
+    private void finishShard() throws IOException {
+      // Update the last shard record as to the position of the index.
+      IsmShard ismShard = shardKeyToShardMap.get(previousShard.get());
+      shardKeyToShardMap.put(
+          previousShard.get(), ismShard.withIndexOffset(out.getCount()));
+
+      indexOut.writeTo(out, 0, indexOut.size());
+      indexOut.resetTo(0);
+
+      // Reset the last indexed position to here.
+      lastIndexedPosition = out.getCount();
+      lastIndexKeyBytes = new RandomAccessData();
+
+      // Clear the last shard.
+      previousShard = Optional.absent();
+    }
+
+    /**
+     * Completes the construction of the Ism file. This is done by:
+     * <ul>
+     *   <li>finishing the last shard if present</li>
+     *   <li>writing out the Bloom filter</li>
+     *   <li>writing out the shard index</li>
+     *   <li>writing out the footer</li>
+     * </ul>
      *
      * @throws IOException if an underlying write fails
      */
     private void finish() throws IOException {
+      // Update the last shard if at least one element was written.
+      if (previousShard.isPresent()) {
+        finishShard();
+      }
+
       long startOfBloomFilter = out.getCount();
       ScalableBloomFilterCoder.of().encode(bloomFilterBuilder.build(), out, Context.NESTED);
+
       long startOfIndex = out.getCount();
-      indexOut.writeTo(out, 0, indexOut.size());
+      IsmFormat.ISM_SHARD_INDEX_CODER.encode(
+          new ArrayList<>(shardKeyToShardMap.values()), out, Context.NESTED);
+
       FooterCoder.of().encode(new Footer(startOfIndex, startOfBloomFilter, numberOfKeysWritten),
           out, Coder.Context.OUTER);
     }
