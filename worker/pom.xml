@@ -42,14 +42,53 @@
   </properties>
 
   <build>
+    <!-- TODO: Remove overrides once we don't need to generate the repackaged
+         source manually when the Guava dependency is broken between
+         the sdk and worker module. -->
+    <sourceDirectory>${project.build.directory}/generated/src/main/java</sourceDirectory>
+    <testSourceDirectory>${project.build.directory}/generated/src/test/java</testSourceDirectory>
+
     <plugins>
+      <!-- TODO: Swap to not using Guava from sdk once Guava dependency
+           can be broken between sdk and worker module. -->
+      <plugin>
+        <groupId>com.google.code.maven-replacer-plugin</groupId>
+        <artifactId>replacer</artifactId>
+        <version>1.5.3</version>
+        <executions>
+          <execution>
+            <phase>process-sources</phase>
+            <goals>
+              <goal>replace</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <basedir>${project.basedir}</basedir>
+          <outputBasedir>${project.build.directory}</outputBasedir>
+          <outputDir>generated</outputDir>
+          <includes>
+            <include>src/**/*.java</include>
+          </includes>
+          <replacements>
+            <replacement>
+              <token>import com.google.common.</token>
+              <value>import com.google.cloud.dataflow.sdk.repackaged.com.google.common.</value>
+            </replacement>
+            <replacement>
+              <token>import com.google.thirdparty.</token>
+              <value>import com.google.cloud.dataflow.sdk.repackaged.com.google.thirdparty.</value>
+            </replacement>
+          </replacements>
+        </configuration>
+      </plugin>
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
       </plugin>
 
-      <!-- Run CheckStyle pass on transforms, as they are release in
-           source form. -->
+      <!-- Run CheckStyle. -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-checkstyle-plugin</artifactId>
@@ -68,6 +107,10 @@
           <includeResources>false</includeResources>
           <includeTestSourceDirectory>true</includeTestSourceDirectory>
           <excludes>${project.build.directory}/generated-test-sources/**</excludes>
+          <!-- TODO: Remove checkstyle override for source directories once maven replacer
+               is removed. -->
+          <sourceDirectory>${project.build.directory}/src/main/java</sourceDirectory>
+          <testSourceDirectory>${project.build.directory}/src/test/java</testSourceDirectory>
         </configuration>
         <executions>
           <execution>
@@ -155,11 +198,11 @@
                      the second relocation. -->
                 <relocation>
                   <pattern>com.google.common</pattern>
-                  <shadedPattern>com.google.cloud.dataflow.sdk.repackaged.com.google.common</shadedPattern>
+                  <shadedPattern>com.google.cloud.dataflow.worker.repackaged.com.google.common</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>com.google.thirdparty</pattern>
-                  <shadedPattern>com.google.cloud.dataflow.sdk.repackaged.com.google.thirdparty</shadedPattern>
+                  <shadedPattern>com.google.cloud.dataflow.worker.repackaged.com.google.thirdparty</shadedPattern>
                 </relocation>
               </relocations>
             </configuration>
@@ -209,7 +252,7 @@
       <groupId>com.google.cloud.dataflow</groupId>
       <artifactId>google-cloud-dataflow-java-sdk-all</artifactId>
       <version>${project.version}</version>
-      <classifier>internal-only</classifier>
+      <scope>provided</scope>
     </dependency>
 
     <dependency>
