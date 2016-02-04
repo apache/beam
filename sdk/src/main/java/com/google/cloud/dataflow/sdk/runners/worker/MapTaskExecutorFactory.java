@@ -26,6 +26,7 @@ import com.google.api.services.dataflow.model.ParDoInstruction;
 import com.google.api.services.dataflow.model.ParallelInstruction;
 import com.google.api.services.dataflow.model.PartialGroupByKeyInstruction;
 import com.google.api.services.dataflow.model.ReadInstruction;
+import com.google.api.services.dataflow.model.Source;
 import com.google.api.services.dataflow.model.WriteInstruction;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
@@ -34,6 +35,7 @@ import com.google.cloud.dataflow.sdk.transforms.CombineWithContext.RequiresConte
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.AppliedCombineFn;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
+import com.google.cloud.dataflow.sdk.util.CloudSourceUtils;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PerKeyCombineFnRunner;
@@ -76,18 +78,18 @@ import java.util.List;
 import javax.annotation.Nullable;
 
 /**
- * Creates a MapTaskExecutor from a MapTask definition.
+ * Creates a {@link MapTaskExecutor} from a {@link MapTask} definition.
  */
 public class MapTaskExecutorFactory {
 
   /**
-   * Creates a new MapTaskExecutor from the given MapTask definition using the provided
-   * {@link ReaderRegistry}.
+   * Creates a new {@link MapTaskExecutor} from the given {@link MapTask} definition using the
+   * provided {@link ReaderFactory}.
    */
   public static MapTaskExecutor create(
       PipelineOptions options,
       MapTask mapTask,
-      ReaderRegistry registry,
+      ReaderFactory readerFactory,
       DataflowExecutionContext<?> context,
       CounterSet counters,
       StateSampler stateSampler)
@@ -101,7 +103,7 @@ public class MapTaskExecutorFactory {
       operations.add(createOperation(
           options,
           instruction,
-          registry,
+          readerFactory,
           context,
           operations,
           counterPrefix,
@@ -115,39 +117,13 @@ public class MapTaskExecutorFactory {
   }
 
   /**
-   * Creates an Operation from the given ParallelInstruction definition using the provided
-   * {@link ReaderRegistry}.
+   * Creates an {@link Operation} from the given {@link ParallelInstruction} definition using the
+   * provided {@link ReaderFactory}.
    */
   static Operation createOperation(
       PipelineOptions options,
       ParallelInstruction instruction,
-      DataflowExecutionContext<?> executionContext,
-      List<Operation> priorOperations,
-      String counterPrefix,
-      String systemStageName,
-      CounterSet.AddCounterMutator addCounterMutator,
-      StateSampler stateSampler)
-          throws Exception {
-    return createOperation(
-        options,
-        instruction,
-        ReaderRegistry.defaultRegistry(),
-        executionContext,
-        priorOperations,
-        counterPrefix,
-        systemStageName,
-        addCounterMutator,
-        stateSampler);
-  }
-
-  /**
-   * Creates an Operation from the given ParallelInstruction definition using the provided
-   * {@link ReaderRegistry}.
-   */
-  static Operation createOperation(
-      PipelineOptions options,
-      ParallelInstruction instruction,
-      ReaderRegistry registry,
+      ReaderFactory readerFactory,
       DataflowExecutionContext<?> executionContext,
       List<Operation> priorOperations,
       String counterPrefix,
@@ -159,7 +135,7 @@ public class MapTaskExecutorFactory {
       return createReadOperation(
           options,
           instruction,
-          registry,
+          readerFactory,
           executionContext,
           priorOperations,
           counterPrefix,
@@ -186,7 +162,7 @@ public class MapTaskExecutorFactory {
   static ReadOperation createReadOperation(
       PipelineOptions options,
       ParallelInstruction instruction,
-      ReaderRegistry registry,
+      ReaderFactory readerFactory,
       DataflowExecutionContext<?> executionContext,
       @SuppressWarnings("unused") List<Operation> priorOperations,
       String counterPrefix,
@@ -197,9 +173,15 @@ public class MapTaskExecutorFactory {
     ReadInstruction read = instruction.getRead();
 
     String operationName = instruction.getSystemName();
+    Source cloudSource = CloudSourceUtils.flattenBaseSpecs(read.getSource());
+    CloudObject sourceSpec = CloudObject.fromSpec(cloudSource.getSpec());
+    Coder<?> coder = null;
+    if (cloudSource.getCodec() != null) {
+      coder = Serializer.deserialize(cloudSource.getCodec(), Coder.class);
+    }
     NativeReader<?> reader =
-        registry.create(
-            read.getSource(), options, executionContext, addCounterMutator, operationName);
+        readerFactory.create(
+            sourceSpec, coder, options, executionContext, addCounterMutator, operationName);
 
     OutputReceiver[] receivers =
         createOutputReceivers(instruction, counterPrefix, addCounterMutator, stateSampler, 1);

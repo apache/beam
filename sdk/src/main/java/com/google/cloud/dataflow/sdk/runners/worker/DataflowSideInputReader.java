@@ -59,6 +59,7 @@ public class DataflowSideInputReader
 
   private DataflowSideInputReader(
       Iterable<? extends SideInputInfo> sideInputInfos,
+      ReaderFactory readerFactory,
       PipelineOptions options,
       ExecutionContext executionContext) throws Exception {
     // Initializing the values may or may not actually read through the
@@ -72,7 +73,7 @@ public class DataflowSideInputReader
       TupleTag<Object> tag = new TupleTag<>(sideInputInfo.getTag());
       ByteSizeObserver observer = new ByteSizeObserver();
       Object sideInputValue = SideInputUtils.readSideInput(
-          options, sideInputInfo, observer, executionContext);
+          options, sideInputInfo, readerFactory, observer, executionContext);
       overheads.put(tag, observer.getBytes());
       observer.reset();
       observers.put(tag, observer);
@@ -87,10 +88,11 @@ public class DataflowSideInputReader
    */
   public static DataflowSideInputReader of(
       Iterable<? extends SideInputInfo> sideInputInfos,
+      ReaderFactory readerFactory,
       PipelineOptions options,
       ExecutionContext context)
       throws Exception {
-    return new DataflowSideInputReader(sideInputInfos, options, context);
+    return new DataflowSideInputReader(sideInputInfos, readerFactory, options, context);
   }
 
   @Override

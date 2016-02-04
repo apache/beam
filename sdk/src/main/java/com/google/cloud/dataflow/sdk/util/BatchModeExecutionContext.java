@@ -21,6 +21,8 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.worker.DataflowExecutionContext;
 import com.google.cloud.dataflow.sdk.runners.worker.DataflowSideInputReader;
+import com.google.cloud.dataflow.sdk.runners.worker.ReaderFactory;
+import com.google.cloud.dataflow.sdk.runners.worker.ReaderRegistry;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
 import com.google.cloud.dataflow.sdk.util.state.InMemoryStateInternals;
 import com.google.cloud.dataflow.sdk.util.state.StateInternals;
@@ -35,10 +37,12 @@ public class BatchModeExecutionContext
     extends DataflowExecutionContext<BatchModeExecutionContext.StepContext> {
   private Object key;
 
-  private PipelineOptions options;
+  private final PipelineOptions options;
+  private final ReaderFactory readerFactory;
 
-  protected BatchModeExecutionContext(PipelineOptions options) {
+  protected BatchModeExecutionContext(PipelineOptions options, ReaderFactory readerFactory) {
     this.options = options;
+    this.readerFactory = readerFactory;
   }
 
   /**
@@ -46,14 +50,16 @@ public class BatchModeExecutionContext
    * pipeline options.
    */
   public static BatchModeExecutionContext withDefaultOptions() {
-    return new BatchModeExecutionContext(PipelineOptionsFactory.create());
+    return new BatchModeExecutionContext(
+        PipelineOptionsFactory.create(),
+        ReaderRegistry.defaultRegistry());
   }
 
   /**
    * Returns a {@link BatchModeExecutionContext} configured according to the provided options.
    */
   public static BatchModeExecutionContext fromOptions(PipelineOptions options) {
-    return new BatchModeExecutionContext(options);
+    return new BatchModeExecutionContext(options, ReaderRegistry.defaultRegistry());
   }
 
   /**
@@ -104,7 +110,8 @@ public class BatchModeExecutionContext
   @Override
   protected SideInputReader getSideInputReader(
       Iterable<? extends SideInputInfo> sideInputInfos) throws Exception {
-    return DataflowSideInputReader.of(sideInputInfos, options, this);
+    return DataflowSideInputReader.of(
+        sideInputInfos, readerFactory, options, this);
   }
 
   @Override

@@ -20,10 +20,12 @@ import static com.google.cloud.dataflow.sdk.util.Structs.getString;
 
 import com.google.api.services.dataflow.model.SideInputInfo;
 import com.google.api.services.dataflow.model.Source;
+import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
+import com.google.cloud.dataflow.sdk.util.Serializer;
 import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 import com.google.common.collect.Iterables;
 
@@ -53,27 +55,31 @@ public class SideInputUtils {
   public static Object readSideInput(
       PipelineOptions options,
       SideInputInfo sideInputInfo,
+      ReaderFactory readerFactory,
       Observer observer,
       ExecutionContext executionContext)
       throws Exception {
     Iterable<Object> elements =
-        readSideInputSources(options, sideInputInfo.getSources(), observer, executionContext);
+        readSideInputSources(options, sideInputInfo.getSources(), readerFactory, observer,
+            executionContext);
     return readSideInputValue(sideInputInfo.getKind(), elements);
   }
 
   public static Object readSideInput(
       PipelineOptions options,
       SideInputInfo sideInputInfo,
+      ReaderFactory readerFactory,
       ExecutionContext executionContext)
       throws Exception {
-    Iterable<Object> elements =
-        readSideInputSources(options, sideInputInfo.getSources(), null, executionContext);
+    Iterable<Object> elements = readSideInputSources(
+        options, sideInputInfo.getSources(), readerFactory, null, executionContext);
     return readSideInputValue(sideInputInfo.getKind(), elements);
   }
 
   private static Iterable<Object> readSideInputSources(
       PipelineOptions options,
       List<Source> sideInputSources,
+      ReaderFactory readerFactory,
       Observer observer,
       ExecutionContext executionContext)
       throws Exception {
@@ -81,11 +87,13 @@ public class SideInputUtils {
     if (numSideInputSources == 0) {
       throw new Exception("expecting at least one side input Source");
     } else if (numSideInputSources == 1) {
-      return readSideInputSource(options, sideInputSources.get(0), observer, executionContext);
+      return readSideInputSource(
+          options, sideInputSources.get(0), readerFactory, observer, executionContext);
     } else {
       List<Iterable<Object>> shards = new ArrayList<>();
       for (Source sideInputSource : sideInputSources) {
-        shards.add(readSideInputSource(options, sideInputSource, observer, executionContext));
+        shards.add(readSideInputSource(
+            options, sideInputSource, readerFactory, observer, executionContext));
       }
       return Iterables.concat(shards);
     }
@@ -94,15 +102,19 @@ public class SideInputUtils {
   private static Iterable<Object> readSideInputSource(
       PipelineOptions options,
       Source sideInputSource,
+      ReaderFactory readerFactory,
       Observer observer,
       ExecutionContext executionContext)
       throws Exception {
+    Coder<?> coder = null;
+    if (sideInputSource.getCodec() != null) {
+      coder = Serializer.deserialize(sideInputSource.getCodec(), Coder.class);
+    }
     // We don't do shuffle sanity check on side inputs, as they don't have to be read completely.
     @SuppressWarnings("unchecked")
     NativeReader<Object> reader =
-        (NativeReader<Object>)
-            ReaderRegistry.defaultRegistry()
-                .create(sideInputSource, options, executionContext, null, null);
+        (NativeReader<Object>) readerFactory.create(CloudObject.fromSpec(sideInputSource.getSpec()),
+            coder, options, executionContext, null, null);
     if (observer != null) {
       reader.addObserver(observer);
     }
@@ -170,6 +182,7 @@ public class SideInputUtils {
       this.state = NextState.UNKNOWN_BEFORE_START;
     }
 
+    @Override
     public boolean hasNext() {
       try {
         switch (state) {
@@ -201,6 +214,7 @@ public class SideInputUtils {
       }
     }
 
+    @Override
     public T next() {
       if (!hasNext()) {
         throw new NoSuchElementException();
