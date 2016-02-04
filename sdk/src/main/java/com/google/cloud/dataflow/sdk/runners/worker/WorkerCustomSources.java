@@ -63,7 +63,6 @@ import java.util.NoSuchElementException;
 
 import javax.annotation.Nullable;
 
-
 /**
  * A helper class for supporting sources defined as {@code Source}.
  *
@@ -134,6 +133,15 @@ public class WorkerCustomSources {
    */
   public static SourceOperationResponse performSplit(
       SourceSplitRequest request, PipelineOptions options) throws Exception {
+    return performSplitWithApiLimit(request, options, DATAFLOW_SPLIT_RESPONSE_API_SIZE_BYTES);
+  }
+
+  /**
+   * A helper method like {@link #performSplit(SourceSplitRequest, PipelineOptions)} but that
+   * allows overriding the API size limit for testing.
+   */
+  static SourceOperationResponse performSplitWithApiLimit(
+      SourceSplitRequest request, PipelineOptions options, long apiByteLimit) throws Exception {
     Source<?> anySource = deserializeFromCloudSource(request.getSource().getSpec());
     checkArgument(
         anySource instanceof BoundedSource, "Cannot split a non-Bounded source: %s", anySource);
@@ -151,8 +159,8 @@ public class WorkerCustomSources {
     long serializedSize = DataflowApiUtils.computeSerializedSizeBytes(splits);
 
     // If split response is too large, scale desired size for expected DATAFLOW_API_SIZE_BYTES/2.
-    if (serializedSize > DATAFLOW_SPLIT_RESPONSE_API_SIZE_BYTES) {
-      double expansion = 2 * (double) serializedSize / DATAFLOW_SPLIT_RESPONSE_API_SIZE_BYTES;
+    if (serializedSize > apiByteLimit) {
+      double expansion = 2 * (double) serializedSize / apiByteLimit;
       long expandedBundleSizeBytes = (long) (desiredBundleSizeBytes * expansion);
       LOG.warn(
           "Splitting source {} into bundles of estimated size {} bytes produced {} bundles, which"
