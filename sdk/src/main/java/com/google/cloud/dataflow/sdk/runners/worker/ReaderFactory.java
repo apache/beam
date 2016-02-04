@@ -19,7 +19,6 @@ package com.google.cloud.dataflow.sdk.runners.worker;
 import com.google.api.services.dataflow.model.Source;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.runners.dataflow.CustomSources;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.CloudSourceUtils;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
@@ -97,7 +96,10 @@ public interface ReaderFactory {
       // Custom sources
       factories.put(
           "com.google.cloud.dataflow.sdk.runners.dataflow.CustomSources",
-          new CustomSources.Factory());
+          new WorkerCustomSources.Factory());
+      factories.put(
+          "com.google.cloud.dataflow.sdk.runners.dataflow.WorkerCustomSources",
+          new WorkerCustomSources.Factory());
 
       return new Registry(factories);
     }

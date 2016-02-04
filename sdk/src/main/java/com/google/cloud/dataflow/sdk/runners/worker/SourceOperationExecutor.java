@@ -20,7 +20,6 @@ import com.google.api.services.dataflow.model.SourceOperationRequest;
 import com.google.api.services.dataflow.model.SourceOperationResponse;
 import com.google.api.services.dataflow.model.SourceSplitRequest;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.runners.dataflow.CustomSources;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.WorkExecutor;
 
@@ -56,7 +55,7 @@ public class SourceOperationExecutor extends WorkExecutor {
     LOG.debug("Executing source operation");
     SourceSplitRequest split = request.getSplit();
     if (split != null) {
-      this.response = CustomSources.performSplit(split, options);
+      this.response = WorkerCustomSources.performSplit(split, options);
     } else {
       throw new UnsupportedOperationException("Unsupported source operation request: " + request);
     }
@@ -71,7 +70,7 @@ public class SourceOperationExecutor extends WorkExecutor {
     try {
       long splitResponseSize =
           DataflowApiUtils.computeSerializedSizeBytes(operationResponse.getSplit());
-      return splitResponseSize > CustomSources.DATAFLOW_SPLIT_RESPONSE_API_SIZE_BYTES;
+      return splitResponseSize > WorkerCustomSources.DATAFLOW_SPLIT_RESPONSE_API_SIZE_BYTES;
     } catch (IOException e) {
       /* Assume that the size is not too large, so that the actual API error is exposed. */
       LOG.warn("Error determining the size of the split response.", e);

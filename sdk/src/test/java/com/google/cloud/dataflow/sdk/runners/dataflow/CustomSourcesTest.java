@@ -15,60 +15,34 @@
  */
 
 package com.google.cloud.dataflow.sdk.runners.dataflow;
-
-import static com.google.api.client.util.Base64.decodeBase64;
-import static com.google.cloud.dataflow.sdk.runners.worker.ReaderTestUtils.splitRequestAtFraction;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.dictionaryToCloudSource;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.readerProgressToCloudProgress;
 import static com.google.cloud.dataflow.sdk.testing.SourceTestUtils.readFromSource;
-import static com.google.cloud.dataflow.sdk.util.CoderUtils.encodeToByteArray;
-import static com.google.cloud.dataflow.sdk.util.SerializableUtils.deserializeFromByteArray;
 import static com.google.cloud.dataflow.sdk.util.Structs.getDictionary;
 import static com.google.cloud.dataflow.sdk.util.Structs.getObject;
-import static com.google.cloud.dataflow.sdk.util.Structs.getStrings;
-import static com.google.cloud.dataflow.sdk.util.WindowedValue.valueInGlobalWindow;
 import static com.google.common.base.Throwables.getStackTraceAsString;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.lessThan;
-import static org.hamcrest.Matchers.lessThanOrEqualTo;
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
 import com.google.api.services.dataflow.model.DataflowPackage;
-import com.google.api.services.dataflow.model.DerivedSource;
 import com.google.api.services.dataflow.model.Job;
-import com.google.api.services.dataflow.model.SourceOperationResponse;
-import com.google.api.services.dataflow.model.SourceSplitOptions;
-import com.google.api.services.dataflow.model.SourceSplitRequest;
-import com.google.api.services.dataflow.model.SourceSplitResponse;
+import com.google.api.services.dataflow.model.Source;
 import com.google.api.services.dataflow.model.Step;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.coders.KvCoder;
-import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.io.BoundedSource;
-import com.google.cloud.dataflow.sdk.io.CountingSource;
 import com.google.cloud.dataflow.sdk.io.Read;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator;
-import com.google.cloud.dataflow.sdk.runners.worker.DataflowApiUtils;
-import com.google.cloud.dataflow.sdk.runners.worker.ReaderCacheEntry;
-import com.google.cloud.dataflow.sdk.runners.worker.ReaderFactory;
-import com.google.cloud.dataflow.sdk.runners.worker.ReaderUtils;
-import com.google.cloud.dataflow.sdk.runners.worker.StreamingModeExecutionContext;
-import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.ExpectedLogs;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
@@ -76,18 +50,12 @@ import com.google.cloud.dataflow.sdk.transforms.Sample;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
-import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.CloudSourceUtils;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
-import com.google.cloud.dataflow.sdk.util.ValueWithRecordId;
-import com.google.cloud.dataflow.sdk.util.WindowedValue;
-import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
-import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.base.Preconditions;
-import com.google.protobuf.ByteString;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -103,13 +71,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
-
-import javax.annotation.Nullable;
 
 /**
- * Tests for {@code BasicSerializableSourceFormat}.
+ * Tests for {@link CustomSources}.
  */
 @RunWith(JUnit4.class)
 public class CustomSourcesTest {
@@ -258,33 +222,6 @@ public class CustomSourcesTest {
   }
 
   @Test
-  public void testSplitAndReadBundlesBack() throws Exception {
-    DataflowPipelineOptions options =
-        PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
-    options.setNumWorkers(5);
-    com.google.api.services.dataflow.model.Source source =
-        translateIOToCloudSource(TestIO.fromRange(10, 20), options);
-    List<WindowedValue<Integer>> elems = CloudSourceUtils.readElemsFromSource(options, source);
-    assertEquals(10, elems.size());
-    for (int i = 0; i < 10; ++i) {
-      assertEquals(valueInGlobalWindow(10 + i), elems.get(i));
-    }
-    SourceSplitResponse response = performSplit(source, options, null /*desiredBundleSizeBytes*/);
-    assertEquals("SOURCE_SPLIT_OUTCOME_SPLITTING_HAPPENED", response.getOutcome());
-    List<DerivedSource> bundles = response.getBundles();
-    assertEquals(5, bundles.size());
-    for (int i = 0; i < 5; ++i) {
-      DerivedSource bundle = bundles.get(i);
-      assertEquals("SOURCE_DERIVATION_MODE_INDEPENDENT", bundle.getDerivationMode());
-      com.google.api.services.dataflow.model.Source bundleSource = bundle.getSource();
-      assertTrue(bundleSource.getDoesNotNeedSplitting());
-      bundleSource.setCodec(source.getCodec());
-      List<WindowedValue<Integer>> xs = CloudSourceUtils.readElemsFromSource(options, bundleSource);
-      assertThat(xs, contains(valueInGlobalWindow(10 + 2 * i), valueInGlobalWindow(11 + 2 * i)));
-    }
-  }
-
-  @Test
   public void testDirectPipelineWithoutTimestamps() throws Exception {
     Pipeline p = TestPipeline.create();
     PCollection<Integer> sum = p
@@ -351,65 +288,6 @@ public class CustomSourcesTest {
     }
   }
 
-  @Test
-  @SuppressWarnings("unchecked")
-  public void testProgressAndSourceSplitTranslation() throws Exception {
-    // Same as previous test, but now using BasicSerializableSourceFormat wrappers.
-    // We know that the underlying reader behaves correctly (because of the previous test),
-    // now check that we are wrapping it correctly.
-    DataflowPipelineOptions options = PipelineOptionsFactory.create()
-        .as(DataflowPipelineOptions.class);
-    NativeReader<WindowedValue<Integer>> reader =
-        (NativeReader<WindowedValue<Integer>>)
-            ReaderFactory.Registry.defaultRegistry()
-                .create(
-                    translateIOToCloudSource(TestIO.fromRange(10, 20), options),
-                    options,
-                    null, // executionContext
-                    null, // addCounterMutator
-                    null); // operationName
-    try (NativeReader.NativeReaderIterator<WindowedValue<Integer>> iterator = reader.iterator()) {
-      assertTrue(iterator.start());
-      assertEquals(
-          0.1,
-          readerProgressToCloudProgress(iterator.getProgress()).getFractionConsumed().doubleValue(),
-          1e-6);
-      assertEquals(valueInGlobalWindow(10), iterator.getCurrent());
-      assertEquals(
-          0.1,
-          readerProgressToCloudProgress(iterator.getProgress()).getFractionConsumed().doubleValue(),
-          1e-6);
-      assertTrue(iterator.advance());
-      assertEquals(valueInGlobalWindow(11), iterator.getCurrent());
-      assertEquals(
-          0.2,
-          readerProgressToCloudProgress(iterator.getProgress()).getFractionConsumed().doubleValue(),
-          1e-6);
-      assertTrue(iterator.advance());
-      assertEquals(valueInGlobalWindow(12), iterator.getCurrent());
-
-      assertNull(iterator.requestDynamicSplit(splitRequestAtFraction(0)));
-      assertNull(iterator.requestDynamicSplit(splitRequestAtFraction(0.1f)));
-      CustomSources.BoundedSourceSplit<Integer> sourceSplit =
-          (CustomSources.BoundedSourceSplit<Integer>)
-              iterator.requestDynamicSplit(splitRequestAtFraction(0.5f));
-      assertNotNull(sourceSplit);
-      assertThat(readFromSource(sourceSplit.primary, options), contains(10, 11, 12, 13, 14));
-      assertThat(readFromSource(sourceSplit.residual, options), contains(15, 16, 17, 18, 19));
-
-      sourceSplit =
-          (CustomSources.BoundedSourceSplit<Integer>)
-              iterator.requestDynamicSplit(splitRequestAtFraction(0.8f));
-      assertNotNull(sourceSplit);
-      assertThat(readFromSource(sourceSplit.primary, options), contains(10, 11, 12, 13));
-      assertThat(readFromSource(sourceSplit.residual, options), contains(14));
-
-      assertTrue(iterator.advance());
-      assertEquals(valueInGlobalWindow(13), iterator.getCurrent());
-      assertFalse(iterator.advance());
-    }
-  }
-
   /**
    * A source that cannot do anything. Intended to be overridden for testing of individual methods.
    */
@@ -447,52 +325,6 @@ public class CustomSourcesTest {
     public Coder<Integer> getDefaultOutputCoder() {
       return BigEndianIntegerCoder.of();
     }
-  }
-
-  private static class SourceProducingInvalidSplits extends MockSource {
-    private String description;
-    private String errorMessage;
-
-    private SourceProducingInvalidSplits(String description, String errorMessage) {
-      this.description = description;
-      this.errorMessage = errorMessage;
-    }
-
-    @Override
-    public List<? extends BoundedSource<Integer>> splitIntoBundles(
-        long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
-      Preconditions.checkState(errorMessage == null, "Unexpected invalid source");
-      return Arrays.asList(
-          new SourceProducingInvalidSplits("goodBundle", null),
-          new SourceProducingInvalidSplits("badBundle", "intentionally invalid"));
-    }
-
-    @Override
-    public void validate() {
-      Preconditions.checkState(errorMessage == null, errorMessage);
-    }
-
-    @Override
-    public String toString() {
-      return description;
-    }
-  }
-
-  @Test
-  public void testSplittingProducedInvalidSource() throws Exception {
-    DataflowPipelineOptions options =
-        PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
-    com.google.api.services.dataflow.model.Source cloudSource =
-        translateIOToCloudSource(new SourceProducingInvalidSplits("original", null), options);
-
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage(
-        allOf(
-            containsString("Splitting a valid source produced an invalid source"),
-            containsString("original"),
-            containsString("badBundle")));
-    expectedException.expectCause(hasMessage(containsString("intentionally invalid")));
-    performSplit(cloudSource, options, null /*desiredBundleSizeBytes*/);
   }
 
   private static class FailingReader extends BoundedSource.BoundedReader<Integer> {
@@ -557,8 +389,7 @@ public class CustomSourcesTest {
   public void testFailureToStartReadingIncludesSourceDetails() throws Exception {
     DataflowPipelineOptions options =
         PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
-    com.google.api.services.dataflow.model.Source source =
-        translateIOToCloudSource(new SourceProducingFailingReader(), options);
+    Source source = translateIOToCloudSource(new SourceProducingFailingReader(), options);
     // Unfortunately Hamcrest doesn't have a matcher that can match on the exception's
     // printStackTrace(), however we just want to verify that the error and source description
     // would be contained in the exception *somewhere*, not necessarily in the top-level
@@ -573,7 +404,7 @@ public class CustomSourcesTest {
     }
   }
 
-  private static com.google.api.services.dataflow.model.Source translateIOToCloudSource(
+  private static Source translateIOToCloudSource(
       BoundedSource<?> io, DataflowPipelineOptions options) throws Exception {
     DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
     Pipeline p = Pipeline.create(options);
@@ -585,9 +416,9 @@ public class CustomSourcesTest {
     return stepToCloudSource(step);
   }
 
-  private static com.google.api.services.dataflow.model.Source stepToCloudSource(Step step)
+  private static Source stepToCloudSource(Step step)
       throws Exception {
-    com.google.api.services.dataflow.model.Source res = dictionaryToCloudSource(
+    Source res = dictionaryToCloudSource(
         getDictionary(step.getProperties(), PropertyNames.SOURCE_STEP_INPUT));
     // Encoding is specified in the step, not in the source itself.  This is
     // normal: incoming Dataflow API Source objects in map tasks will have the
@@ -602,150 +433,12 @@ public class CustomSourcesTest {
     return res;
   }
 
-  private static SourceSplitResponse performSplit(
-      com.google.api.services.dataflow.model.Source source,
-      PipelineOptions options,
-      @Nullable Long desiredBundleSizeBytes)
-          throws Exception {
-    SourceSplitRequest splitRequest = new SourceSplitRequest();
-    splitRequest.setSource(source);
-    if (desiredBundleSizeBytes != null) {
-      splitRequest.setOptions(
-          new SourceSplitOptions().setDesiredBundleSizeBytes(desiredBundleSizeBytes));
-    }
-    SourceOperationResponse response = CustomSources.performSplit(splitRequest, options);
-    return response.getSplit();
-  }
-
-  @Test
-  public void testUnboundedSplits() throws Exception {
-    DataflowPipelineOptions options =
-        PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
-    com.google.api.services.dataflow.model.Source source =
-        CustomSources.serializeToCloudSource(new TestCountingSource(Integer.MAX_VALUE), options);
-    List<String> serializedSplits =
-        getStrings(source.getSpec(), CustomSources.SERIALIZED_SOURCE_SPLITS, null);
-    assertEquals(20, serializedSplits.size());
-    for (String serializedSplit : serializedSplits) {
-      assertTrue(
-          deserializeFromByteArray(decodeBase64(serializedSplit), "source")
-              instanceof TestCountingSource);
-    }
-  }
-
-  @Test
-  public void testReadUnboundedReader() throws Exception {
-    StreamingModeExecutionContext context = new StreamingModeExecutionContext("stageName",
-        new ConcurrentHashMap<ByteString, ReaderCacheEntry>(), /*stateNameMap=*/null,
-        /*stateCache=*/null);
-
-    DataflowPipelineOptions options =
-        PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
-    options.setNumWorkers(5);
-
-    ByteString state = ByteString.EMPTY;
-    for (int i = 0; i < 10 * CustomSources.MAX_UNBOUNDED_BUNDLE_SIZE;
-         /* Incremented in inner loop */) {
-      // Initialize streaming context with state from previous iteration.
-      context.start(
-          Windmill.WorkItem.newBuilder()
-              .setKey(ByteString.copyFromUtf8("0000000000000001")) // key is zero-padded index.
-              .setWorkToken(0) // Required proto field, unused.
-              .setSourceState(
-                  Windmill.SourceState.newBuilder().setState(state).build()) // Source state.
-              .build(),
-          new Instant(0), // input watermark
-          null, // output watermark
-          null, // synchronized processing time
-          null, // StateReader
-          null, // StateFetcher
-          Windmill.WorkItemCommitRequest.newBuilder());
-
-      @SuppressWarnings({"unchecked", "rawtypes"})
-      NativeReader<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>> reader =
-          (NativeReader)
-              CustomSources.create(
-                  (CloudObject)
-                      CustomSources.serializeToCloudSource(
-                              new TestCountingSource(Integer.MAX_VALUE), options)
-                          .getSpec(),
-                  options,
-                  context);
-
-      // Verify data.
-      Instant beforeReading = Instant.now();
-      int numReadOnThisIteration = 0;
-      for (WindowedValue<ValueWithRecordId<KV<Integer, Integer>>> value :
-          ReaderUtils.readAllFromReader(reader)) {
-        assertEquals(KV.of(0, i), value.getValue().getValue());
-        assertArrayEquals(
-            encodeToByteArray(KvCoder.of(VarIntCoder.of(), VarIntCoder.of()), KV.of(0, i)),
-            value.getValue().getId());
-        assertThat(value.getWindows(), contains((BoundedWindow) GlobalWindow.INSTANCE));
-        assertEquals(i, value.getTimestamp().getMillis());
-        i++;
-        numReadOnThisIteration++;
-      }
-      Instant afterReading = Instant.now();
-      assertThat(
-          new Duration(beforeReading, afterReading).getStandardSeconds(),
-          lessThanOrEqualTo(CustomSources.MAX_UNBOUNDED_BUNDLE_READ_TIME.getStandardSeconds() + 1));
-      assertThat(
-          numReadOnThisIteration, lessThanOrEqualTo(CustomSources.MAX_UNBOUNDED_BUNDLE_SIZE));
-
-      // Extract and verify state modifications.
-      context.flushState();
-      state = context.getOutputBuilder().getSourceStateUpdates().getState();
-      // CountingSource's watermark is the last record + 1.  i is now one past the last record,
-      // so the expected watermark is i millis.
-      assertEquals(
-          TimeUnit.MILLISECONDS.toMicros(i), context.getOutputBuilder().getSourceWatermark());
-      assertEquals(
-          1,
-          context
-              .getOutputBuilder()
-              .getSourceStateUpdates()
-              .getFinalizeIdsList()
-              .size());
-
-      assertNotNull(context.getCachedReader());
-
-      Windmill.Counter backlog = getCounter(context, "dataflow_backlog_size-stageName");
-      assertEquals(7L, backlog.getIntScalar());
-      assertTrue(backlog.getCumulative());
-      assertEquals(Windmill.Counter.Kind.SUM, backlog.getKind());
-    }
-  }
-
-  private Windmill.Counter getCounter(StreamingModeExecutionContext context, String name) {
-    for (Windmill.Counter counter : context.getOutputBuilder().getCounterUpdatesList()) {
-      if (counter.getName().equals(name)) {
-        return counter;
-      }
-    }
-    return null;
-  }
-
-  @Test
-  public void testLargeSerializedSizeResplits() throws Exception {
-    DataflowPipelineOptions options =
-        PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
-    // Figure out how many splits of CountingSource are needed to exceed the API limits, using an
-    // extra factor of 2 to ensure that we go over the limits.
-    BoundedSource<Long> justForSizing = CountingSource.upTo(1000000L);
-    long size =
-        DataflowApiUtils.computeSerializedSizeBytes(
-            translateIOToCloudSource(justForSizing, options));
-    long numberToSplitToExceedLimit =
-        2 * CustomSources.DATAFLOW_SPLIT_RESPONSE_API_SIZE_BYTES / size;
-
-    // Generate a CountingSource and split it into the desired number of splits
-    // (desired size = 8 bytes, 1 long), triggering the re-split with a larger bundle size.
-    com.google.api.services.dataflow.model.Source source =
-        translateIOToCloudSource(CountingSource.upTo(numberToSplitToExceedLimit), options);
-    SourceSplitResponse split = performSplit(source, options, 8L);
-    logged.verifyWarn("too large for the Google Cloud Dataflow API");
-    logged.verifyWarn(String.format("%d bundles", numberToSplitToExceedLimit));
-    assertThat((long) split.getBundles().size(), lessThan(numberToSplitToExceedLimit));
+  // Duplicated from runners.worker.SourceTranslationUtils to break dependency on worker
+  private static Source dictionaryToCloudSource(Map<String, Object> params) throws Exception {
+    Source res = new Source();
+    res.setSpec(getDictionary(params, PropertyNames.SOURCE_SPEC));
+    // SOURCE_METADATA and SOURCE_DOES_NOT_NEED_SPLITTING do not have to be
+    // translated, because they only make sense in cloud Source objects produced by the user.
+    return res;
   }
 }
