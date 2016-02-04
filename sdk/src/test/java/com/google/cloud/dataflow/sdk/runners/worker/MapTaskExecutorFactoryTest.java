@@ -99,12 +99,12 @@ public class MapTaskExecutorFactoryTest {
       WindowedValue.getValueOnlyCoder(StringUtf8Coder.of()).asCloudObject();
 
   private PipelineOptions options;
-  private ReaderFactory.Registry readerFactoryRegistry;
+  private ReaderRegistry readerFactoryRegistry;
 
   @Before
   public void setUp() {
     options = PipelineOptionsFactory.create();
-    readerFactoryRegistry = ReaderFactory.Registry.defaultRegistry()
+    readerFactoryRegistry = ReaderRegistry.defaultRegistry()
         .register(
             TestReaderFactory.class.getName(),
             new TestReaderFactory())

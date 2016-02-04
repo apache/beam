@@ -55,7 +55,7 @@ public class BigQueryReaderFactoryTest {
     options.setGcpCredential(new TestCredential());
 
     NativeReader<?> reader =
-        ReaderFactory.Registry.defaultRegistry()
+        ReaderRegistry.defaultRegistry()
             .create(cloudSource, options, DirectModeExecutionContext.create(), null, null);
     assertThat(reader, new IsInstanceOf(BigQueryReader.class));
     BigQueryReader bigQueryReader = (BigQueryReader) reader;
@@ -77,7 +77,7 @@ public class BigQueryReaderFactoryTest {
     options.setGcpCredential(new TestCredential());
 
     NativeReader<?> reader =
-        ReaderFactory.Registry.defaultRegistry()
+        ReaderRegistry.defaultRegistry()
             .create(cloudSource, options, DirectModeExecutionContext.create(), null, null);
 
     assertThat(reader, new IsInstanceOf(BigQueryReader.class));

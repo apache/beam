@@ -92,7 +92,7 @@ public class ConcatReaderFactoryTest {
     @SuppressWarnings("unchecked")
     NativeReader<String> reader =
         (NativeReader<String>)
-            ReaderFactory.Registry.defaultRegistry().create(source, null, null, null, null);
+            ReaderRegistry.defaultRegistry().create(source, null, null, null, null);
     assertNotNull(reader);
 
     List<String> expected = new ArrayList<>();
@@ -111,7 +111,7 @@ public class ConcatReaderFactoryTest {
     @SuppressWarnings("unchecked")
     NativeReader<String> reader =
         (NativeReader<String>)
-            ReaderFactory.Registry.defaultRegistry().create(source, null, null, null, null);
+            ReaderRegistry.defaultRegistry().create(source, null, null, null, null);
     assertNotNull(reader);
 
     List<String> expected = new ArrayList<>();

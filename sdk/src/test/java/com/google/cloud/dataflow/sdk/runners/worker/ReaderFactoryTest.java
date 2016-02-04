@@ -135,7 +135,7 @@ public class ReaderFactoryTest {
 
     PipelineOptions options = PipelineOptionsFactory.create();
     NativeReader<?> reader =
-        ReaderFactory.Registry.defaultRegistry()
+        ReaderRegistry.defaultRegistry()
             .create(
                 cloudSource, options, BatchModeExecutionContext.fromOptions(options), null, null);
     Assert.assertThat(reader, new IsInstanceOf(TextReader.class));
@@ -150,7 +150,7 @@ public class ReaderFactoryTest {
     cloudSource.setCodec(makeCloudEncoding("BigEndianIntegerCoder"));
 
     PipelineOptions options = PipelineOptionsFactory.create();
-    ReaderFactory.Registry registry = ReaderFactory.Registry.defaultRegistry()
+    ReaderRegistry registry = ReaderRegistry.defaultRegistry()
         .register(TestReaderFactory.class.getName(), new TestReaderFactory());
     NativeReader<?> reader =
         registry.create(
@@ -170,7 +170,7 @@ public class ReaderFactoryTest {
     cloudSource.setCodec(makeCloudEncoding("StringUtf8Coder"));
     try {
       PipelineOptions options = PipelineOptionsFactory.create();
-      ReaderFactory.Registry.defaultRegistry().create(
+      ReaderRegistry.defaultRegistry().create(
           cloudSource,
           options,
           BatchModeExecutionContext.fromOptions(options),

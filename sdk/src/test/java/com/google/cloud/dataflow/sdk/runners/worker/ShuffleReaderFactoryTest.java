@@ -71,7 +71,7 @@ public class ShuffleReaderFactoryTest {
     cloudSource.setCodec(encoding);
 
     NativeReader<?> reader =
-        ReaderFactory.Registry.defaultRegistry()
+        ReaderRegistry.defaultRegistry()
             .create(cloudSource, PipelineOptionsFactory.create(), context, null, null);
     Assert.assertThat(reader, new IsInstanceOf(shuffleReaderClass));
     T shuffleSource = (T) reader;

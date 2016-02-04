@@ -42,25 +42,25 @@ import javax.annotation.Nullable;
  */
 public class ConcatReaderFactory implements ReaderFactory {
 
-  private final ReaderFactory.Registry registry;
+  private final ReaderRegistry registry;
 
-  private ConcatReaderFactory(ReaderFactory.Registry registry) {
+  private ConcatReaderFactory(ReaderRegistry registry) {
     this.registry = registry;
   }
 
   /**
    * Returns a new {@link ConcatReaderFactory} that will use the default
-   * {@link ReaderFactory.Registry} to create sub-{@link NativeReader} instances.
+   * {@link ReaderRegistry} to create sub-{@link NativeReader} instances.
    */
   public static ConcatReaderFactory withDefaultRegistry() {
-    return withRegistry(ReaderFactory.Registry.defaultRegistry());
+    return withRegistry(ReaderRegistry.defaultRegistry());
   }
 
   /**
    * Returns a new {@link ConcatReaderFactory} that will use the provided
-   * {@link ReaderFactory.Registry} to create sub-{@link NativeReader} instances.
+   * {@link ReaderRegistry} to create sub-{@link NativeReader} instances.
    */
-  public static ConcatReaderFactory withRegistry(ReaderFactory.Registry registry) {
+  public static ConcatReaderFactory withRegistry(ReaderRegistry registry) {
     return new ConcatReaderFactory(registry);
   }
 

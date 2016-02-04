@@ -72,13 +72,13 @@ public class ConcatReader<T> extends NativeReader<T> {
   private final ExecutionContext executionContext;
   private final CounterSet.AddCounterMutator addCounterMutator;
   private final String operationName;
-  private final ReaderFactory.Registry registry;
+  private final ReaderRegistry registry;
 
   /**
    * Create a {@link ConcatReader} using a given list of encoded {@link Source}s.
    */
   public ConcatReader(
-      ReaderFactory.Registry registry,
+      ReaderRegistry registry,
       PipelineOptions options,
       ExecutionContext executionContext,
       CounterSet.AddCounterMutator addCounterMutator,
@@ -118,10 +118,10 @@ public class ConcatReader<T> extends NativeReader<T> {
     private final CounterSet.AddCounterMutator addCounterMutator;
     private final String operationName;
     private final OffsetRangeTracker rangeTracker;
-    private final ReaderFactory.Registry registry;
+    private final ReaderRegistry registry;
 
     public ConcatIterator(
-        ReaderFactory.Registry registry,
+        ReaderRegistry registry,
         PipelineOptions options,
         ExecutionContext executionContext,
         CounterSet.AddCounterMutator addCounterMutator,

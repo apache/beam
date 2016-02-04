@@ -63,7 +63,7 @@ public class AvroReaderFactoryTest {
     cloudSource.setCodec(encoding);
 
     NativeReader<?> reader =
-        ReaderFactory.Registry.defaultRegistry()
+        ReaderRegistry.defaultRegistry()
             .create(
                 cloudSource,
                 PipelineOptionsFactory.create(),

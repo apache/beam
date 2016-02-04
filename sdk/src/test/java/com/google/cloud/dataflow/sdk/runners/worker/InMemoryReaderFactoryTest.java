@@ -70,7 +70,7 @@ public class InMemoryReaderFactoryTest {
     Source cloudSource = createInMemoryCloudSource(elements, start, end, coder);
 
     NativeReader<?> reader =
-        ReaderFactory.Registry.defaultRegistry()
+        ReaderRegistry.defaultRegistry()
             .create(
                 cloudSource,
                 PipelineOptionsFactory.create(),

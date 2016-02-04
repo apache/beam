@@ -18,7 +18,7 @@ package com.google.cloud.dataflow.sdk.util;
 
 import com.google.api.services.dataflow.model.Source;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.runners.worker.ReaderFactory;
+import com.google.cloud.dataflow.sdk.runners.worker.ReaderRegistry;
 import com.google.cloud.dataflow.sdk.runners.worker.ReaderUtils;
 import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 
@@ -63,7 +63,7 @@ public class CloudSourceUtils {
       @SuppressWarnings("unchecked")
       NativeReader<T> reader =
           (NativeReader<T>)
-              ReaderFactory.Registry.defaultRegistry().create(source, options, null, null, null);
+              ReaderRegistry.defaultRegistry().create(source, options, null, null, null);
       return ReaderUtils.readAllFromReader(reader);
     } catch (Exception e) {
       throw new RuntimeException("Failed to read from source: " + source.toString(), e);

@@ -82,7 +82,7 @@ public class MapTaskExecutorFactory {
 
   /**
    * Creates a new MapTaskExecutor from the given MapTask definition using the default
-   * {@link ReaderFactory.Registry}.
+   * {@link ReaderRegistry}.
    */
   public static MapTaskExecutor create(
       PipelineOptions options,
@@ -93,7 +93,7 @@ public class MapTaskExecutorFactory {
     return create(
         options,
         mapTask,
-        ReaderFactory.Registry.defaultRegistry(),
+        ReaderRegistry.defaultRegistry(),
         context,
         counters,
         stateSampler);
@@ -101,12 +101,12 @@ public class MapTaskExecutorFactory {
 
   /**
    * Creates a new MapTaskExecutor from the given MapTask definition using the provided
-   * {@link ReaderFactory.Registry}.
+   * {@link ReaderRegistry}.
    */
   public static MapTaskExecutor create(
       PipelineOptions options,
       MapTask mapTask,
-      ReaderFactory.Registry registry,
+      ReaderRegistry registry,
       DataflowExecutionContext<?> context,
       CounterSet counters,
       StateSampler stateSampler)
@@ -135,7 +135,7 @@ public class MapTaskExecutorFactory {
 
   /**
    * Creates an Operation from the given ParallelInstruction definition using the provided
-   * {@link ReaderFactory.Registry}.
+   * {@link ReaderRegistry}.
    */
   static Operation createOperation(
       PipelineOptions options,
@@ -150,7 +150,7 @@ public class MapTaskExecutorFactory {
     return createOperation(
         options,
         instruction,
-        ReaderFactory.Registry.defaultRegistry(),
+        ReaderRegistry.defaultRegistry(),
         executionContext,
         priorOperations,
         counterPrefix,
@@ -161,12 +161,12 @@ public class MapTaskExecutorFactory {
 
   /**
    * Creates an Operation from the given ParallelInstruction definition using the provided
-   * {@link ReaderFactory.Registry}.
+   * {@link ReaderRegistry}.
    */
   static Operation createOperation(
       PipelineOptions options,
       ParallelInstruction instruction,
-      ReaderFactory.Registry registry,
+      ReaderRegistry registry,
       DataflowExecutionContext<?> executionContext,
       List<Operation> priorOperations,
       String counterPrefix,
@@ -205,7 +205,7 @@ public class MapTaskExecutorFactory {
   static ReadOperation createReadOperation(
       PipelineOptions options,
       ParallelInstruction instruction,
-      ReaderFactory.Registry registry,
+      ReaderRegistry registry,
       DataflowExecutionContext<?> executionContext,
       @SuppressWarnings("unused") List<Operation> priorOperations,
       String counterPrefix,

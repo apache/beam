@@ -66,12 +66,12 @@ public class ConcatReaderTest {
 
   private List<TestReader<?>> recordedReaders = new ArrayList<>();
 
-  private ReaderFactory.Registry registry;
+  private ReaderRegistry registry;
 
   @Before
   public void setUp() {
     recordedReaders.clear();
-    registry = ReaderFactory.Registry.defaultRegistry()
+    registry = ReaderRegistry.defaultRegistry()
         .register(TestReader.class.getName(), new TestReaderFactory());
   }
 

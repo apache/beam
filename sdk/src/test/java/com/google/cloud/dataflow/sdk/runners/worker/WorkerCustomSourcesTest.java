@@ -358,7 +358,7 @@ public class WorkerCustomSourcesTest {
         .as(DataflowPipelineOptions.class);
     NativeReader<WindowedValue<Integer>> reader =
         (NativeReader<WindowedValue<Integer>>)
-            ReaderFactory.Registry.defaultRegistry()
+            ReaderRegistry.defaultRegistry()
                 .create(
                     translateIOToCloudSource(TestIO.fromRange(10, 20), options),
                     options,

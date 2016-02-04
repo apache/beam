@@ -68,7 +68,7 @@ public class TextReaderFactoryTest {
 
     PipelineOptions options = PipelineOptionsFactory.create();
     NativeReader<?> reader =
-        ReaderFactory.Registry.defaultRegistry()
+        ReaderRegistry.defaultRegistry()
             .create(
                 cloudSource, options, BatchModeExecutionContext.fromOptions(options), null, null);
     Assert.assertThat(reader, new IsInstanceOf(TextReader.class));

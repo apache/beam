@@ -101,7 +101,7 @@ public class SideInputUtils {
     @SuppressWarnings("unchecked")
     NativeReader<Object> reader =
         (NativeReader<Object>)
-            ReaderFactory.Registry.defaultRegistry()
+            ReaderRegistry.defaultRegistry()
                 .create(sideInputSource, options, executionContext, null, null);
     if (observer != null) {
       reader.addObserver(observer);
