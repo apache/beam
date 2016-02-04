@@ -25,7 +25,6 @@ import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill;
 import com.google.cloud.dataflow.sdk.runners.worker.windmill.Windmill.KeyedGetDataRequest;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.common.collect.Iterables;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.ByteString.Output;
 
@@ -121,7 +120,9 @@ public class WindmillStateReaderTest {
 
     Iterable<Integer> results = future.get();
     Mockito.verify(mockWindmill).getStateData(expectedRequest.build());
-    Iterables.size(results);
+    for (Integer unused : results) {
+      // Iterate over the results to force loading all the pages.
+    }
     Mockito.verifyNoMoreInteractions(mockWindmill);
 
     assertThat(results, Matchers.contains(5, 6));
@@ -190,7 +191,9 @@ public class WindmillStateReaderTest {
 
     Iterable<Integer> results = future.get();
     Mockito.verify(mockWindmill).getStateData(expectedRequest1.build());
-    Iterables.size(results);
+    for (Integer unused : results) {
+      // Iterate over the results to force loading all the pages.
+    }
     Mockito.verify(mockWindmill).getStateData(expectedRequest2.build());
     Mockito.verifyNoMoreInteractions(mockWindmill);
 
