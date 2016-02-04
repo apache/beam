@@ -1017,6 +1017,10 @@ public class ParDo {
       return mainOutputTag;
     }
 
+    public TupleTagList getSideOutputTags() {
+      return sideOutputTags;
+    }
+
     public List<PCollectionView<?>> getSideInputs() {
       return sideInputs;
     }
