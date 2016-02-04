@@ -81,25 +81,6 @@ import javax.annotation.Nullable;
 public class MapTaskExecutorFactory {
 
   /**
-   * Creates a new MapTaskExecutor from the given MapTask definition using the default
-   * {@link ReaderRegistry}.
-   */
-  public static MapTaskExecutor create(
-      PipelineOptions options,
-      MapTask mapTask,
-      DataflowExecutionContext<?> context,
-      CounterSet counters,
-      StateSampler stateSampler) throws Exception {
-    return create(
-        options,
-        mapTask,
-        ReaderRegistry.defaultRegistry(),
-        context,
-        counters,
-        stateSampler);
-  }
-
-  /**
    * Creates a new MapTaskExecutor from the given MapTask definition using the provided
    * {@link ReaderRegistry}.
    */
