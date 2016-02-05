@@ -20,8 +20,9 @@ import com.google.cloud.dataflow.sdk.io.UnboundedSource;
 import com.google.cloud.dataflow.sdk.io.UnboundedSource.CheckpointMark;
 import com.google.cloud.dataflow.sdk.io.UnboundedSource.UnboundedReader;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.Bundle;
+import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.InProcessEvaluationContext;
+import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessTransformResult;
 import com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluator;
 import com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluatorFactory;
@@ -53,7 +54,7 @@ public class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory 
   @Override
   public <InputT> TransformEvaluator<InputT> forApplication(
       AppliedPTransform<?, ?, ?> application,
-      @Nullable Bundle<?> inputBundle,
+      @Nullable CommittedBundle<?> inputBundle,
       InProcessEvaluationContext evaluationContext) {
     return getTransformEvaluator((AppliedPTransform) application, evaluationContext);
   }
@@ -91,7 +92,7 @@ public class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory 
 
     @Override
     public InProcessTransformResult finishBundle() throws IOException {
-      Bundle<OutputT> output = evaluationContext.createRootBundle(transform.getOutput());
+      UncommittedBundle<OutputT> output = evaluationContext.createRootBundle(transform.getOutput());
       UnboundedReader<OutputT> reader =
           createReader(
               transform.getTransform().getSource(), evaluationContext.getPipelineOptions());

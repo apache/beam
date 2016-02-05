@@ -21,7 +21,7 @@ package com.google.cloud.dataflow.sdk.util;
  */
 public enum TimeDomain {
   /**
-   * The {@code EVENT_TIME} domain corresponds to the timestamps on the elemnts. Time advances
+   * The {@code EVENT_TIME} domain corresponds to the timestamps on the elements. Time advances
    * on the system watermark advances.
    */
   EVENT_TIME,

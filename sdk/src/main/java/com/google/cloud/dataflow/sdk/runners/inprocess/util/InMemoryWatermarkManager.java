@@ -16,7 +16,7 @@
 package com.google.cloud.dataflow.sdk.runners.inprocess.util;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.Bundle;
+import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
@@ -57,7 +57,8 @@ import javax.annotation.Nullable;
  * {@link PCollection PCollections}.
  *
  * <p>Whenever a non-root {@link AppliedPTransform} finishes processing one or more in-flight
- * elements (referred to as the input {@link Bundle bundle}), the following occurs atomically:
+ * elements (referred to as the input {@link CommittedBundle bundle}), the following occurs
+ * atomically:
  * <ul>
  *  <li>All of the in-flight elements are removed from the collection of pending elements for the
  *      {@link AppliedPTransform}.</li>
@@ -421,12 +422,12 @@ public class InMemoryWatermarkManager {
    *                  elements, the watermark should be the minimum of all buffered elements.
    * @return both watermarks of the source transform
    */
-  public TransformWatermarks updateOutputWatermark(
-      AppliedPTransform<?, ?, ?> transform, Iterable<Bundle<?>> outputs, Instant watermark) {
+  public TransformWatermarks updateOutputWatermark(AppliedPTransform<?, ?, ?> transform,
+      Iterable<CommittedBundle<?>> outputs, Instant watermark) {
     TransformWatermarks watermarks = getWatermarks(transform);
     watermarks.outputWatermark().setHold(watermark);
 
-    for (Bundle<?> output : outputs) {
+    for (CommittedBundle<?> output : outputs) {
       PCollection<?> pCollection = output.getPCollection();
       for (AppliedPTransform<?, ?, ?> consumer : consumers.get(pCollection)) {
         addPending(consumer, output.getElements());
@@ -456,8 +457,8 @@ public class InMemoryWatermarkManager {
    *                     is no hold
    * @return the updated watermark of the transform
    */
-  public TransformWatermarks updateWatermarks(Bundle<?> completed,
-      AppliedPTransform<?, ?, ?> transform, Collection<Bundle<?>> outputs,
+  public TransformWatermarks updateWatermarks(CommittedBundle<?> completed,
+      AppliedPTransform<?, ?, ?> transform, Collection<CommittedBundle<?>> outputs,
       @Nullable Instant earliestHold) {
     updatePending(completed, transform, outputs);
     TransformWatermarks transformWms = transformToWatermarks.get(transform);
@@ -486,13 +487,13 @@ public class InMemoryWatermarkManager {
    * collection of pending elements, and adds all elements produced by the {@link PTransform} to the
    * pending queue of each consumer.
    */
-  private void updatePending(
-      Bundle<?> input, AppliedPTransform<?, ?, ?> transform, Collection<Bundle<?>> outputs) {
+  private void updatePending(CommittedBundle<?> input, AppliedPTransform<?, ?, ?> transform,
+      Collection<CommittedBundle<?>> outputs) {
     AppliedPTransformInputWatermark inputWatermark =
         transformToWatermarks.get(transform).inputWatermark();
     inputWatermark.removePending(input.getElements());
 
-    for (Bundle<?> bundle : outputs) {
+    for (CommittedBundle<?> bundle : outputs) {
       for (AppliedPTransform<?, ?, ?> consumer : consumers.get(bundle.getPCollection())) {
         addPending(consumer, bundle.getElements());
       }

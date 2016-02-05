@@ -15,7 +15,7 @@
  */
 package com.google.cloud.dataflow.sdk.runners.inprocess;
 
-import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.Bundle;
+import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
@@ -34,9 +34,10 @@ public interface InProcessTransformResult {
   AppliedPTransform<?, ?, ?> getTransform();
 
   /**
-   * @return the {@link Bundle Bundles} produced by this transform
+   * Returns the {@link UncommittedBundle (uncommitted) Bundles} output by this transform. These
+   * will be committed by the evaluation context as part of completing this result.
    */
-  Iterable<? extends Bundle<?>> getBundles();
+  Iterable<? extends UncommittedBundle<?>> getOutputBundles();
 
   /**
    * @return the {@link CounterSet} used by this {@link PTransform}, or null if this transform did

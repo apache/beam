@@ -16,10 +16,11 @@
 package com.google.cloud.dataflow.sdk.runners.inprocess.evaluator;
 
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner;
-import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.Bundle;
+import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.InProcessEvaluationContext;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.InProcessExecutionContext;
-import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.InProcessExecutionContext.InMemoryStepContext;
+import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.InProcessExecutionContext.InProcessStepContext;
+import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessTransformResult;
 import com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluator;
 import com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluatorFactory;
@@ -44,7 +45,7 @@ public class ParDoSingleEvaluatorFactory implements TransformEvaluatorFactory {
   @Override
   public <T> TransformEvaluator<T> forApplication(
       final AppliedPTransform<?, ?, ?> application,
-      Bundle<?> inputBundle,
+      CommittedBundle<?> inputBundle,
       InProcessEvaluationContext evaluationContext) {
     @SuppressWarnings({"unchecked", "rawtypes"})
     final ParDoInProcessEvaluator<T> evaluator =
@@ -64,28 +65,29 @@ public class ParDoSingleEvaluatorFactory implements TransformEvaluatorFactory {
     return singleEvaluator;
   }
 
-  private static <InT, OuT> ParDoInProcessEvaluator<InT> createSingleEvaluator(
-      @SuppressWarnings("rawtypes")
-      AppliedPTransform<PCollection<InT>, PCollection<OuT>, Bound<InT, OuT>> application,
-      Bundle<InT> inputBundle,
-      InProcessEvaluationContext evaluationContext) {
-    TupleTag<OuT> mainOutputTag = new TupleTag<>("out");
-    Bundle<OuT> outputBundle = evaluationContext.createBundle(inputBundle, application.getOutput());
+  private static <InputT, OutputT> ParDoInProcessEvaluator<InputT> createSingleEvaluator(
+      @SuppressWarnings("rawtypes") AppliedPTransform<PCollection<InputT>, PCollection<OutputT>,
+          Bound<InputT, OutputT>> application,
+      CommittedBundle<InputT> inputBundle, InProcessEvaluationContext evaluationContext) {
+    TupleTag<OutputT> mainOutputTag = new TupleTag<>("out");
+    UncommittedBundle<OutputT> outputBundle =
+        evaluationContext.createBundle(inputBundle, application.getOutput());
 
     InProcessExecutionContext executionContext = evaluationContext.getExecutionContext(application);
     String stepName = evaluationContext.getStepName(application);
-    InMemoryStepContext stepContext =
+    InProcessStepContext stepContext =
         executionContext.getOrCreateStepContext(stepName, stepName, null);
 
     CounterSet counters = evaluationContext.createCounterSet();
 
-    DoFnRunner<InT, OuT> runner =
+    DoFnRunner<InputT, OutputT> runner =
         DoFnRunners.createDefault(
             evaluationContext.getPipelineOptions(),
             application.getTransform().getFn(),
             evaluationContext.createSideInputReader(application.getTransform().getSideInputs()),
             BundleOutputManager.create(
-                Collections.<TupleTag<?>, Bundle<?>>singletonMap(mainOutputTag, outputBundle)),
+                Collections.<TupleTag<?>, UncommittedBundle<?>>singletonMap(
+                    mainOutputTag, outputBundle)),
             mainOutputTag,
             Collections.<TupleTag<?>>emptyList(),
             stepContext,
@@ -93,7 +95,7 @@ public class ParDoSingleEvaluatorFactory implements TransformEvaluatorFactory {
             application.getInput().getWindowingStrategy());
 
     runner.startBundle();
-    return new ParDoInProcessEvaluator<InT>(
-        runner, application, counters, Collections.<Bundle<?>>singleton(outputBundle));
+    return new ParDoInProcessEvaluator<InputT>(
+        runner, application, counters, Collections.<UncommittedBundle<?>>singleton(outputBundle));
   }
 }

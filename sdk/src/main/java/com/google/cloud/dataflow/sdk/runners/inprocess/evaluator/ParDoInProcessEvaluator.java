@@ -15,7 +15,7 @@
  */
 package com.google.cloud.dataflow.sdk.runners.inprocess.evaluator;
 
-import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.Bundle;
+import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessTransformResult;
 import com.google.cloud.dataflow.sdk.runners.inprocess.util.ImmutableInProcessTransformResult;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
@@ -36,11 +36,11 @@ class ParDoInProcessEvaluator<T> {
   private final DoFnRunner<T, ?> fnRunner;
   private final AppliedPTransform<PCollection<T>, ?, ?> transform;
   private final CounterSet counters;
-  private final Collection<Bundle<?>> outputBundles;
+  private final Collection<UncommittedBundle<?>> outputBundles;
 
   public ParDoInProcessEvaluator(DoFnRunner<T, ?> fnRunner,
       AppliedPTransform<PCollection<T>, ?, ?> transform, CounterSet counters,
-      Collection<Bundle<?>> outputBundles) {
+      Collection<UncommittedBundle<?>> outputBundles) {
     this.fnRunner = fnRunner;
     this.transform = transform;
     this.counters = counters;
@@ -62,13 +62,13 @@ class ParDoInProcessEvaluator<T> {
   }
 
   static class BundleOutputManager implements OutputManager {
-    private final Map<TupleTag<?>, Bundle<?>> bundles;
+    private final Map<TupleTag<?>, UncommittedBundle<?>> bundles;
 
-    public static BundleOutputManager create(Map<TupleTag<?>, Bundle<?>> outputBundles) {
+    public static BundleOutputManager create(Map<TupleTag<?>, UncommittedBundle<?>> outputBundles) {
       return new BundleOutputManager(outputBundles);
     }
 
-    public BundleOutputManager(Map<TupleTag<?>, Bundle<?>> bundles) {
+    private BundleOutputManager(Map<TupleTag<?>, UncommittedBundle<?>> bundles) {
       this.bundles = bundles;
     }
 
@@ -76,7 +76,7 @@ class ParDoInProcessEvaluator<T> {
     @Override
     public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
       @SuppressWarnings("rawtypes")
-      Bundle bundle = bundles.get(tag);
+      UncommittedBundle bundle = bundles.get(tag);
       bundle.add(output);
     }
   }

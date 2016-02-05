@@ -17,8 +17,9 @@ package com.google.cloud.dataflow.sdk.runners.inprocess.evaluator;
 
 import com.google.cloud.dataflow.sdk.io.Read.Bounded;
 import com.google.cloud.dataflow.sdk.io.Source.Reader;
-import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.Bundle;
+import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.InProcessEvaluationContext;
+import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessTransformResult;
 import com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluator;
 import com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluatorFactory;
@@ -52,7 +53,7 @@ public class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
   @Override
   public <InputT> TransformEvaluator<InputT> forApplication(
       AppliedPTransform<?, ?, ?> application,
-      @Nullable Bundle<?> inputBundle,
+      @Nullable CommittedBundle<?> inputBundle,
       InProcessEvaluationContext evaluationContext) {
     return getTransformEvaluator((AppliedPTransform) application, evaluationContext);
   }
@@ -97,7 +98,7 @@ public class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
 
     @Override
     public InProcessTransformResult finishBundle() throws IOException {
-      Bundle<OutputT> output = evaluationContext.createRootBundle(transform.getOutput());
+      UncommittedBundle<OutputT> output = evaluationContext.createRootBundle(transform.getOutput());
       while (contentsRemaining) {
         output.add(
             WindowedValue.timestampedValueInGlobalWindow(

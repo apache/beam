@@ -15,7 +15,7 @@
  */
 package com.google.cloud.dataflow.sdk.runners.inprocess.util;
 
-import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.Bundle;
+import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessTransformResult;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
@@ -31,12 +31,15 @@ import java.util.Collection;
  */
 public class ImmutableInProcessTransformResult implements InProcessTransformResult {
   private final AppliedPTransform<?, ?, ?> transform;
-  private final Iterable<? extends Bundle<?>> bundles;
+  private final Iterable<? extends UncommittedBundle<?>> bundles;
   private final CounterSet counters;
   private final Instant watermarkHold;
 
-  private ImmutableInProcessTransformResult(AppliedPTransform<?, ?, ?> transform,
-      Iterable<? extends Bundle<?>> outputBundles, CounterSet counters, Instant watermarkHold) {
+  private ImmutableInProcessTransformResult(
+      AppliedPTransform<?, ?, ?> transform,
+      Iterable<? extends UncommittedBundle<?>> outputBundles,
+      CounterSet counters,
+      Instant watermarkHold) {
     this.transform = transform;
     this.bundles = outputBundles;
     this.counters = counters;
@@ -44,7 +47,7 @@ public class ImmutableInProcessTransformResult implements InProcessTransformResu
   }
 
   @Override
-  public Iterable<? extends Bundle<?>> getBundles() {
+  public Iterable<? extends UncommittedBundle<?>> getOutputBundles() {
     return bundles;
   }
 
@@ -77,7 +80,7 @@ public class ImmutableInProcessTransformResult implements InProcessTransformResu
    */
   public static class Builder {
     private final AppliedPTransform<?, ?, ?> transform;
-    private final ImmutableList.Builder<Bundle<?>> bundlesBuilder;
+    private final ImmutableList.Builder<UncommittedBundle<?>> bundlesBuilder;
     private CounterSet counters;
     private final Instant watermarkHold;
 
@@ -98,13 +101,14 @@ public class ImmutableInProcessTransformResult implements InProcessTransformResu
       return this;
     }
 
-    public Builder addOutput(Bundle<?> outputBundle, Bundle<?>... outputBundles) {
+    public Builder addOutput(
+        UncommittedBundle<?> outputBundle, UncommittedBundle<?>... outputBundles) {
       bundlesBuilder.add(outputBundle);
       bundlesBuilder.add(outputBundles);
       return this;
     }
 
-    public Builder addOutput(Collection<Bundle<?>> outputBundles) {
+    public Builder addOutput(Collection<UncommittedBundle<?>> outputBundles) {
       bundlesBuilder.addAll(outputBundles);
       return this;
     }

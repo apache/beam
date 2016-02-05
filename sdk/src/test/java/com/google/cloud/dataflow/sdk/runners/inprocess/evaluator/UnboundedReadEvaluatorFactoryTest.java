@@ -23,8 +23,8 @@ import static org.mockito.Mockito.when;
 import com.google.cloud.dataflow.sdk.io.CountingSource;
 import com.google.cloud.dataflow.sdk.io.Read;
 import com.google.cloud.dataflow.sdk.io.UnboundedSource;
-import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.Bundle;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.InProcessEvaluationContext;
+import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessTransformResult;
 import com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluator;
 import com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluatorFactory;
@@ -56,7 +56,7 @@ public class UnboundedReadEvaluatorFactoryTest {
 
     TransformEvaluatorFactory factory = new UnboundedReadEvaluatorFactory();
     InProcessEvaluationContext context = mock(InProcessEvaluationContext.class);
-    Bundle<Long> output = InProcessBundle.unkeyed(longs);
+    UncommittedBundle<Long> output = InProcessBundle.unkeyed(longs);
     when(context.createRootBundle(longs)).thenReturn(output);
 
     TransformEvaluator<?> evaluator =
@@ -65,7 +65,7 @@ public class UnboundedReadEvaluatorFactoryTest {
     assertThat(
         result.getWatermarkHold(), Matchers.<ReadableInstant>lessThan(DateTime.now().toInstant()));
     assertThat(
-        output.getElements(),
+        output.commit(Instant.now()).getElements(),
         containsInAnyOrder(tgw(1L), tgw(2L), tgw(4L), tgw(8L), tgw(9L), tgw(7L), tgw(6L), tgw(5L),
             tgw(3L), tgw(0L)));
   }
@@ -79,7 +79,7 @@ public class UnboundedReadEvaluatorFactoryTest {
 
     TransformEvaluatorFactory factory = new UnboundedReadEvaluatorFactory();
     InProcessEvaluationContext context = mock(InProcessEvaluationContext.class);
-    Bundle<Long> output = InProcessBundle.unkeyed(longs);
+    UncommittedBundle<Long> output = InProcessBundle.unkeyed(longs);
     when(context.createRootBundle(longs)).thenReturn(output);
 
     TransformEvaluator<?> evaluator =
@@ -88,11 +88,11 @@ public class UnboundedReadEvaluatorFactoryTest {
     assertThat(
         result.getWatermarkHold(), Matchers.<ReadableInstant>lessThan(DateTime.now().toInstant()));
     assertThat(
-        output.getElements(),
+        output.commit(Instant.now()).getElements(),
         containsInAnyOrder(tgw(1L), tgw(2L), tgw(4L), tgw(8L), tgw(9L), tgw(7L), tgw(6L), tgw(5L),
             tgw(3L), tgw(0L)));
 
-    Bundle<Long> secondOutput = InProcessBundle.unkeyed(longs);
+    UncommittedBundle<Long> secondOutput = InProcessBundle.unkeyed(longs);
     when(context.createRootBundle(longs)).thenReturn(secondOutput);
     TransformEvaluator<?> secondEvaluator =
         factory.forApplication(longs.getProducingTransformInternal(), null, context);
@@ -101,13 +101,9 @@ public class UnboundedReadEvaluatorFactoryTest {
         secondResult.getWatermarkHold(),
         Matchers.<ReadableInstant>lessThan(DateTime.now().toInstant()));
     assertThat(
-        secondOutput.getElements(),
+        secondOutput.commit(Instant.now()).getElements(),
         containsInAnyOrder(tgw(11L), tgw(12L), tgw(14L), tgw(18L), tgw(19L), tgw(17L), tgw(16L),
             tgw(15L), tgw(13L), tgw(10L)));
-    assertThat(
-        output.getElements(),
-        containsInAnyOrder(tgw(1L), tgw(2L), tgw(4L), tgw(8L), tgw(9L), tgw(7L), tgw(6L), tgw(5L),
-            tgw(3L), tgw(0L)));
   }
 
   /**

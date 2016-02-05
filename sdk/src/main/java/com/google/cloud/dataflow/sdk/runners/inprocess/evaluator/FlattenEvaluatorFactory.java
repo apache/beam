@@ -16,8 +16,9 @@
 package com.google.cloud.dataflow.sdk.runners.inprocess.evaluator;
 
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner;
-import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.Bundle;
+import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.InProcessEvaluationContext;
+import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessTransformResult;
 import com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluator;
 import com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluatorFactory;
@@ -39,7 +40,7 @@ public class FlattenEvaluatorFactory implements TransformEvaluatorFactory {
   @Override
   public <InputT> TransformEvaluator<InputT> forApplication(
       AppliedPTransform<?, ?, ?> application,
-      Bundle<?> inputBundle,
+      CommittedBundle<?> inputBundle,
       InProcessEvaluationContext evaluationContext) {
     return createInMemoryEvaluator((AppliedPTransform) application, inputBundle, evaluationContext);
   }
@@ -48,9 +49,9 @@ public class FlattenEvaluatorFactory implements TransformEvaluatorFactory {
       final AppliedPTransform<
               PCollectionList<InputT>, PCollection<InputT>, FlattenPCollectionList<InputT>>
           application,
-      final Bundle<InputT> inputBundle,
+      final CommittedBundle<InputT> inputBundle,
       final InProcessEvaluationContext evaluationContext) {
-    final Bundle<InputT> outputBundle =
+    final UncommittedBundle<InputT> outputBundle =
         evaluationContext.createBundle(inputBundle, application.getOutput());
     final InProcessTransformResult result =
         ImmutableInProcessTransformResult.withoutHold(application).addOutput(outputBundle).build();
@@ -58,10 +59,11 @@ public class FlattenEvaluatorFactory implements TransformEvaluatorFactory {
   }
 
   private static class FlattenEvaluator<InputT> implements TransformEvaluator<InputT> {
-    private final Bundle<InputT> outputBundle;
+    private final UncommittedBundle<InputT> outputBundle;
     private final InProcessTransformResult result;
 
-    public FlattenEvaluator(Bundle<InputT> outputBundle, InProcessTransformResult result) {
+    public FlattenEvaluator(
+        UncommittedBundle<InputT> outputBundle, InProcessTransformResult result) {
       this.outputBundle = outputBundle;
       this.result = result;
     }

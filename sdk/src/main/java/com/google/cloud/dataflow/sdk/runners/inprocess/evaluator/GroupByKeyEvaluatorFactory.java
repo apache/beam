@@ -21,8 +21,9 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner;
-import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.Bundle;
+import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.InProcessEvaluationContext;
+import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessTransformResult;
 import com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluator;
 import com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluatorFactory;
@@ -51,17 +52,17 @@ public class GroupByKeyEvaluatorFactory implements TransformEvaluatorFactory {
   @SuppressWarnings({"unchecked", "rawtypes"})
   public <InputT> TransformEvaluator<InputT> forApplication(
       AppliedPTransform<?, ?, ?> application,
-      Bundle<?> inputBundle,
+      CommittedBundle<?> inputBundle,
       InProcessEvaluationContext evaluationContext) {
     return createEvaluator(
-        (AppliedPTransform) application, (Bundle) inputBundle, evaluationContext);
+        (AppliedPTransform) application, (CommittedBundle) inputBundle, evaluationContext);
   }
 
   private <K, V> TransformEvaluator<KV<K, V>> createEvaluator(
       final AppliedPTransform<
               PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>, GroupByKeyOnly<K, V>>
           application,
-      final Bundle<KV<K, V>> inputBundle,
+      final CommittedBundle<KV<K, V>> inputBundle,
       final InProcessEvaluationContext evaluationContext) {
     return new GroupByKeyEvaluator<K, V>(evaluationContext, inputBundle, application);
   }
@@ -69,7 +70,7 @@ public class GroupByKeyEvaluatorFactory implements TransformEvaluatorFactory {
   private static class GroupByKeyEvaluator<K, V> implements TransformEvaluator<KV<K, V>> {
     private final InProcessEvaluationContext evaluationContext;
 
-    private final Bundle<KV<K, V>> inputBundle;
+    private final CommittedBundle<KV<K, V>> inputBundle;
     private final AppliedPTransform<
             PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>, GroupByKeyOnly<K, V>>
         application;
@@ -78,7 +79,7 @@ public class GroupByKeyEvaluatorFactory implements TransformEvaluatorFactory {
 
     public GroupByKeyEvaluator(
         InProcessEvaluationContext evaluationContext,
-        Bundle<KV<K, V>> inputBundle,
+        CommittedBundle<KV<K, V>> inputBundle,
         AppliedPTransform<
                 PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>, GroupByKeyOnly<K, V>>
             application) {
@@ -128,7 +129,7 @@ public class GroupByKeyEvaluatorFactory implements TransformEvaluatorFactory {
       for (Map.Entry<GroupingKey<K>, List<V>> groupedEntry : groupingMap.entrySet()) {
         K key = groupedEntry.getKey().key;
         KV<K, Iterable<V>> groupedKv = KV.<K, Iterable<V>>of(key, groupedEntry.getValue());
-        Bundle<KV<K, Iterable<V>>> bundle =
+        UncommittedBundle<KV<K, Iterable<V>>> bundle =
             evaluationContext.createKeyedBundle(inputBundle, key, application.getOutput());
         bundle.add(WindowedValue.valueInEmptyWindows(groupedKv));
         resultBuilder.addOutput(bundle);

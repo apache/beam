@@ -41,7 +41,7 @@ public class ViewEvaluatorFactory implements TransformEvaluatorFactory {
   @Override
   public <T> TransformEvaluator<T> forApplication(
       AppliedPTransform<?, ?, ?> application,
-      InProcessPipelineRunner.Bundle<?> inputBundle,
+      InProcessPipelineRunner.CommittedBundle<?> inputBundle,
       InProcessEvaluationContext evaluationContext) {
     return createEvaluator(
         (AppliedPTransform) application, evaluationContext);

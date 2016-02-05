@@ -15,18 +15,18 @@
  */
 package com.google.cloud.dataflow.sdk.runners.inprocess;
 
-import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.Bundle;
+import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 
 /**
  * An evaluator of a specific application of a transform. Will be used for at least one
- * {@link Bundle}.
+ * {@link CommittedBundle}.
  *
  * @param <InputT> the type of elements that will be passed to {@link #processElement}
  */
 public interface TransformEvaluator<InputT> {
   /**
-   * Process an element in the input {@link Bundle}.
+   * Process an element in the input {@link CommittedBundle}.
    *
    * @param element the element to process
    */

@@ -25,8 +25,8 @@ import static org.mockito.Mockito.when;
 import com.google.cloud.dataflow.sdk.io.BoundedSource;
 import com.google.cloud.dataflow.sdk.io.CountingSource;
 import com.google.cloud.dataflow.sdk.io.Read;
-import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.Bundle;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.InProcessEvaluationContext;
+import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessTransformResult;
 import com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluator;
 import com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluatorFactory;
@@ -53,7 +53,7 @@ public class BoundedReadEvaluatorFactoryTest {
 
     TransformEvaluatorFactory factory = new BoundedReadEvaluatorFactory();
     InProcessEvaluationContext context = mock(InProcessEvaluationContext.class);
-    Bundle<Long> output = InProcessBundle.unkeyed(longs);
+    UncommittedBundle<Long> output = InProcessBundle.unkeyed(longs);
     when(context.createRootBundle(longs)).thenReturn(output);
 
     TransformEvaluator<?> evaluator =
@@ -61,7 +61,7 @@ public class BoundedReadEvaluatorFactoryTest {
     InProcessTransformResult result = evaluator.finishBundle();
     assertThat(result.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
     assertThat(
-        output.getElements(),
+        output.commit(BoundedWindow.TIMESTAMP_MAX_VALUE).getElements(),
         containsInAnyOrder(
             gw(1L), gw(2L), gw(4L), gw(8L), gw(9L), gw(7L), gw(6L), gw(5L), gw(3L), gw(0L)));
   }
@@ -74,27 +74,31 @@ public class BoundedReadEvaluatorFactoryTest {
 
     TransformEvaluatorFactory factory = new BoundedReadEvaluatorFactory();
     InProcessEvaluationContext context = mock(InProcessEvaluationContext.class);
-    Bundle<Long> output = InProcessBundle.unkeyed(longs);
+    UncommittedBundle<Long> output =
+        InProcessBundle.unkeyed(longs);
     when(context.createRootBundle(longs)).thenReturn(output);
 
     TransformEvaluator<?> evaluator =
         factory.forApplication(longs.getProducingTransformInternal(), null, context);
     InProcessTransformResult result = evaluator.finishBundle();
     assertThat(result.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
+    Iterable<? extends WindowedValue<Long>> outputElements =
+        output.commit(BoundedWindow.TIMESTAMP_MAX_VALUE).getElements();
     assertThat(
-        output.getElements(),
+        outputElements,
         containsInAnyOrder(
             gw(1L), gw(2L), gw(4L), gw(8L), gw(9L), gw(7L), gw(6L), gw(5L), gw(3L), gw(0L)));
 
-    Bundle<Long> secondOutput = InProcessBundle.unkeyed(longs);
+    UncommittedBundle<Long> secondOutput = InProcessBundle.unkeyed(longs);
     when(context.createRootBundle(longs)).thenReturn(secondOutput);
     TransformEvaluator<?> secondEvaluator =
         factory.forApplication(longs.getProducingTransformInternal(), null, context);
     InProcessTransformResult secondResult = secondEvaluator.finishBundle();
     assertThat(secondResult.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
-    assertThat(secondOutput.getElements(), emptyIterable());
     assertThat(
-        output.getElements(),
+        secondOutput.commit(BoundedWindow.TIMESTAMP_MAX_VALUE).getElements(), emptyIterable());
+    assertThat(
+        outputElements,
         containsInAnyOrder(
             gw(1L), gw(2L), gw(4L), gw(8L), gw(9L), gw(7L), gw(6L), gw(5L), gw(3L), gw(0L)));
   }

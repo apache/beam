@@ -23,15 +23,19 @@ import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey.GroupByKeyOnly;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import com.google.cloud.dataflow.sdk.util.BaseExecutionContext;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.SideInputReader;
 import com.google.cloud.dataflow.sdk.util.TimerInternals;
+import com.google.cloud.dataflow.sdk.util.TimerInternals.TimerData;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
 import com.google.cloud.dataflow.sdk.util.state.StateInternals;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
+
+import org.joda.time.Instant;
 
 import java.util.List;
 import java.util.Map;
@@ -61,17 +65,37 @@ public class InProcessPipelineRunner {
   /**
    * Part of a {@link PCollection}. Elements are output to a bundle, which will cause them to be
    * executed by {@link PTransform PTransforms} that consume the {@link PCollection} this bundle is
-   * a part of at a later point.
-   * @param <T>
+   * a part of at a later point. This is an uncommitted bundle and can have elements added to it.
+   *
+   * @param <T> the type of elements that can be added to this bundle
    */
-  public static interface Bundle<T> {
+  public static interface UncommittedBundle<T> {
     /**
      * Outputs an element to this bundle.
      *
      * @param element the element to add to this bundle
      * @return this bundle
      */
-    Bundle<T> add(WindowedValue<T> element);
+    UncommittedBundle<T> add(WindowedValue<T> element);
+
+    /**
+     * Commits this {@link UncommittedBundle}, returning an immutable {@link CommittedBundle}
+     * containing all of the elements that were added to it. The {@link #add(WindowedValue)} method
+     * will throw an {@link IllegalStateException} if called after a call to commit.
+     * @param synchronizedProcessingTime the synchronized processing time at which this bundle was
+     *                                   committed
+     */
+    CommittedBundle<T> commit(Instant synchronizedProcessingTime);
+  }
+
+  /**
+   * Part of a {@link PCollection}. Elements are output to an {@link UncommittedBundle}, which will
+   * eventually committed. Committed elements are executed by the {@link PTransform PTransforms}
+   * that consume the {@link PCollection} this bundle is
+   * a part of at a later point.
+   * @param <T> the type of elements contained within this bundle
+   */
+  public static interface CommittedBundle<T> {
 
     /**
      * @return the PCollection that the elements of this bundle belong to
@@ -92,9 +116,20 @@ public class InProcessPipelineRunner {
 
     /**
      * @return an {@link Iterable} containing all of the elements that have been added to this
-     *         {@link Bundle}
+     *         {@link CommittedBundle}
      */
     Iterable<WindowedValue<T>> getElements();
+
+    /**
+     * Returns the processing time output watermark at the time the producing {@link PTransform}
+     * committed this bundle. Downstream synchronized processing time watermarks cannot progress
+     * past this point before consuming this bundle.
+     *
+     * <p>This value is no greater than the earliest incomplete processing time or synchronized
+     * processing time {@link TimerData timer} at the time this bundle was committed, including any
+     * timers that fired to produce this bundle.
+     */
+    Instant getSynchronizedProcessingOutputWatermark();
   }
 
   /**
@@ -114,20 +149,19 @@ public class InProcessPipelineRunner {
    * thread that requires it.
    */
   public static class InProcessExecutionContext
-      extends com.google.cloud.dataflow.sdk.util.BaseExecutionContext<InProcessExecutionContext
-              .InMemoryStepContext> {
+      extends BaseExecutionContext<InProcessExecutionContext.InProcessStepContext> {
     @Override
-    protected InMemoryStepContext createStepContext(
+    protected InProcessStepContext createStepContext(
         String stepName, String transformName, StateSampler stateSampler) {
-      return new InMemoryStepContext(this, stepName, transformName);
+      return new InProcessStepContext(this, stepName, transformName);
     }
 
     /**
      * Step Context for the InMemoryPipelineRunner.
      */
-    public class InMemoryStepContext
+    public class InProcessStepContext
         extends com.google.cloud.dataflow.sdk.util.BaseExecutionContext.StepContext {
-      public InMemoryStepContext(
+      public InProcessStepContext(
           InProcessExecutionContext executionContext, String stepName, String transformName) {
         super(executionContext, stepName, transformName);
       }
@@ -154,20 +188,22 @@ public class InProcessPipelineRunner {
    */
   public static interface InProcessEvaluationContext {
     /**
-     * Create a bundle for use by a source.
+     * Create a {@link UncommittedBundle} for use by a source.
      */
-    <T> Bundle<T> createRootBundle(PCollection<T> output);
+    <T> UncommittedBundle<T> createRootBundle(PCollection<T> output);
 
     /**
-     * Create a {@link Bundle} whose elements belong to the specified {@link PCollection}.
+     * Create a {@link UncommittedBundle} whose elements belong to the specified {@link
+     * PCollection}.
      */
-    <T> Bundle<T> createBundle(Bundle<?> input, PCollection<T> output);
+    <T> UncommittedBundle<T> createBundle(CommittedBundle<?> input, PCollection<T> output);
 
     /**
-     * Create a {@link Bundle} with the specified keys at the specified step. For use by
+     * Create a {@link UncommittedBundle} with the specified keys at the specified step. For use by
      * {@link GroupByKeyOnly} {@link PTransform PTransforms}.
      */
-    <T> Bundle<T> createKeyedBundle(Bundle<?> input, Object key, PCollection<T> output);
+    <T> UncommittedBundle<T> createKeyedBundle(
+        CommittedBundle<?> input, Object key, PCollection<T> output);
 
     /**
      * Create a bundle whose elements will be used in a PCollectionView.
@@ -229,12 +265,12 @@ public class InProcessPipelineRunner {
      * @param consumer the {@link AppliedPTransform} to schedule
      * @param bundle the input bundle to the consumer
      */
-    void scheduleConsumption(AppliedPTransform<?, ?, ?> consumer, Bundle<?> bundle);
+    void scheduleConsumption(AppliedPTransform<?, ?, ?> consumer, CommittedBundle<?> bundle);
 
     /**
      * Blocks until the job being executed enters a terminal state. A job is completed after all
      * root {@link AppliedPTransform AppliedPTransforms} have completed, and all
-     * {@link Bundle Bundles} have been consumed. Jobs may also terminate abnormally.
+     * {@link CommittedBundle Bundles} have been consumed. Jobs may also terminate abnormally.
      */
     void awaitCompletion();
   }

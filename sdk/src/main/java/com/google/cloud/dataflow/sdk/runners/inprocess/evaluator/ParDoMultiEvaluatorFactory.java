@@ -16,10 +16,11 @@
 package com.google.cloud.dataflow.sdk.runners.inprocess.evaluator;
 
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner;
-import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.Bundle;
+import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.InProcessEvaluationContext;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.InProcessExecutionContext;
-import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.InProcessExecutionContext.InMemoryStepContext;
+import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.InProcessExecutionContext.InProcessStepContext;
+import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessTransformResult;
 import com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluator;
 import com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluatorFactory;
@@ -47,7 +48,7 @@ public class ParDoMultiEvaluatorFactory implements TransformEvaluatorFactory {
   @Override
   public <T> TransformEvaluator<T> forApplication(
       AppliedPTransform<?, ?, ?> application,
-      Bundle<?> inputBundle,
+      CommittedBundle<?> inputBundle,
       InProcessEvaluationContext evaluationContext) {
     @SuppressWarnings({"unchecked", "rawtypes"})
     final ParDoInProcessEvaluator<T> multiEvaluator =
@@ -67,11 +68,11 @@ public class ParDoMultiEvaluatorFactory implements TransformEvaluatorFactory {
 
   private static <InT, OuT> ParDoInProcessEvaluator<InT> createMultiEvaluator(
       AppliedPTransform<PCollection<InT>, PCollectionTuple, BoundMulti<InT, OuT>> application,
-      Bundle<InT> inputBundle,
+      CommittedBundle<InT> inputBundle,
       InProcessEvaluationContext evaluationContext) {
     PCollectionTuple output = application.getOutput();
     Map<TupleTag<?>, PCollection<?>> outputs = output.getAll();
-    Map<TupleTag<?>, Bundle<?>> outputBundles = new HashMap<>();
+    Map<TupleTag<?>, UncommittedBundle<?>> outputBundles = new HashMap<>();
     for (Map.Entry<TupleTag<?>, PCollection<?>> outputEntry : outputs.entrySet()) {
       outputBundles.put(
           outputEntry.getKey(),
@@ -79,7 +80,7 @@ public class ParDoMultiEvaluatorFactory implements TransformEvaluatorFactory {
     }
     InProcessExecutionContext executionContext = evaluationContext.getExecutionContext(application);
     String stepName = evaluationContext.getStepName(application);
-    InMemoryStepContext stepContext =
+    InProcessStepContext stepContext =
         executionContext.getOrCreateStepContext(stepName, stepName, null);
 
     CounterSet counters = evaluationContext.createCounterSet();

@@ -15,7 +15,7 @@
  */
 package com.google.cloud.dataflow.sdk.runners.inprocess;
 
-import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.Bundle;
+import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.InProcessEvaluationContext;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
@@ -36,6 +36,6 @@ public interface TransformEvaluatorFactory {
    * made available to the caller.
    */
   <InputT> TransformEvaluator<InputT> forApplication(
-      AppliedPTransform<?, ?, ?> application, @Nullable Bundle<?> inputBundle,
+      AppliedPTransform<?, ?, ?> application, @Nullable CommittedBundle<?> inputBundle,
       InProcessEvaluationContext evaluationContext);
 }

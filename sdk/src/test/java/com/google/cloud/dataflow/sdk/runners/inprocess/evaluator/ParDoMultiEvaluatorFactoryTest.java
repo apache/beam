@@ -15,14 +15,15 @@
  */
 package com.google.cloud.dataflow.sdk.runners.inprocess.evaluator;
 
-import static org.hamcrest.core.IsEqual.equalTo;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.Bundle;
+import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.InProcessEvaluationContext;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.InProcessExecutionContext;
+import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessTransformResult;
 import com.google.cloud.dataflow.sdk.runners.inprocess.util.InProcessBundle;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
@@ -74,16 +75,19 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
         }).withOutputTags(mainOutputTag, TupleTagList.of(elementTag).and(lengthTag));
     PCollectionTuple outputTuple = input.apply(pardo);
 
-    Bundle<String> inputBundle = InProcessBundle.unkeyed(input);
+    CommittedBundle<String> inputBundle = InProcessBundle.unkeyed(input).commit(Instant.now());
 
     PCollection<KV<String, Integer>> mainOutput = outputTuple.get(mainOutputTag);
     PCollection<String> elementOutput = outputTuple.get(elementTag);
     PCollection<Integer> lengthOutput = outputTuple.get(lengthTag);
 
     InProcessEvaluationContext evaluationContext = mock(InProcessEvaluationContext.class);
-    Bundle<KV<String, Integer>> mainOutputBundle = InProcessBundle.unkeyed(mainOutput);
-    Bundle<String> elementOutputBundle = InProcessBundle.unkeyed(elementOutput);
-    Bundle<Integer> lengthOutputBundle = InProcessBundle.unkeyed(lengthOutput);
+    UncommittedBundle<KV<String, Integer>> mainOutputBundle =
+        InProcessBundle.unkeyed(mainOutput);
+    UncommittedBundle<String> elementOutputBundle =
+        InProcessBundle.unkeyed(elementOutput);
+    UncommittedBundle<Integer> lengthOutputBundle =
+        InProcessBundle.unkeyed(lengthOutput);
 
     when(evaluationContext.createBundle(inputBundle, mainOutput)).thenReturn(mainOutputBundle);
     when(evaluationContext.createBundle(inputBundle, elementOutput))
@@ -108,27 +112,27 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
 
     InProcessTransformResult result = evaluator.finishBundle();
     assertThat(
-        result.getBundles(),
-        Matchers.<Bundle<?>>containsInAnyOrder(
+        result.getOutputBundles(),
+        Matchers.<UncommittedBundle<?>>containsInAnyOrder(
             lengthOutputBundle, mainOutputBundle, elementOutputBundle));
     assertThat(result.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
     assertThat(result.getCounters(), equalTo(counters));
 
     assertThat(
-        mainOutputBundle.getElements(),
+        mainOutputBundle.commit(Instant.now()).getElements(),
         Matchers.<WindowedValue<KV<String, Integer>>>containsInAnyOrder(
             WindowedValue.valueInGlobalWindow(KV.of("foo", 3)),
             WindowedValue.timestampedValueInGlobalWindow(KV.of("bara", 4), new Instant(1000)),
             WindowedValue.valueInGlobalWindow(
                 KV.of("bazam", 5), PaneInfo.ON_TIME_AND_ONLY_FIRING)));
     assertThat(
-        elementOutputBundle.getElements(),
+        elementOutputBundle.commit(Instant.now()).getElements(),
         Matchers.<WindowedValue<String>>containsInAnyOrder(
             WindowedValue.valueInGlobalWindow("foo"),
             WindowedValue.timestampedValueInGlobalWindow("bara", new Instant(1000)),
             WindowedValue.valueInGlobalWindow("bazam", PaneInfo.ON_TIME_AND_ONLY_FIRING)));
     assertThat(
-        lengthOutputBundle.getElements(),
+        lengthOutputBundle.commit(Instant.now()).getElements(),
         Matchers.<WindowedValue<Integer>>containsInAnyOrder(
             WindowedValue.valueInGlobalWindow(3),
             WindowedValue.timestampedValueInGlobalWindow(4, new Instant(1000)),

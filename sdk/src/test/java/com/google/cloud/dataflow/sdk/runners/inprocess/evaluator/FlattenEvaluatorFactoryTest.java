@@ -20,8 +20,9 @@ import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.Bundle;
+import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.InProcessEvaluationContext;
+import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessTransformResult;
 import com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluator;
 import com.google.cloud.dataflow.sdk.runners.inprocess.util.InProcessBundle;
@@ -54,22 +55,25 @@ public class FlattenEvaluatorFactoryTest {
 
     PCollection<Integer> flattened = list.apply(Flatten.<Integer>pCollections());
 
-    Bundle<Integer> leftBundle = InProcessBundle.unkeyed(left);
-    Bundle<Integer> rightBundle = InProcessBundle.unkeyed(right);
+    CommittedBundle<Integer> leftBundle = InProcessBundle.unkeyed(left).commit(Instant.now());
+    CommittedBundle<Integer> rightBundle = InProcessBundle.unkeyed(right).commit(Instant.now());
 
     InProcessEvaluationContext context = mock(InProcessEvaluationContext.class);
 
-    Bundle<Integer> flattenedLeftBundle = InProcessBundle.unkeyed(flattened);
-    Bundle<Integer> flattenedRightBundle = InProcessBundle.unkeyed(flattened);
+    UncommittedBundle<Integer> flattenedLeftBundle = InProcessBundle.unkeyed(flattened);
+    UncommittedBundle<Integer> flattenedRightBundle = InProcessBundle.unkeyed(flattened);
 
     when(context.createBundle(leftBundle, flattened)).thenReturn(flattenedLeftBundle);
     when(context.createBundle(rightBundle, flattened)).thenReturn(flattenedRightBundle);
 
     FlattenEvaluatorFactory factory = new FlattenEvaluatorFactory();
-    TransformEvaluator<Integer> leftSideEvaluator = factory.forApplication(
-        flattened.getProducingTransformInternal(), leftBundle, context);
+    TransformEvaluator<Integer> leftSideEvaluator =
+        factory.forApplication(flattened.getProducingTransformInternal(), leftBundle, context);
     TransformEvaluator<Integer> rightSideEvaluator =
-        factory.forApplication(flattened.getProducingTransformInternal(), rightBundle, context);
+        factory.forApplication(
+            flattened.getProducingTransformInternal(),
+            rightBundle,
+            context);
 
     leftSideEvaluator.processElement(WindowedValue.valueInGlobalWindow(1));
     rightSideEvaluator.processElement(WindowedValue.valueInGlobalWindow(-1));
@@ -84,23 +88,27 @@ public class FlattenEvaluatorFactoryTest {
     InProcessTransformResult rightSideResult = rightSideEvaluator.finishBundle();
     InProcessTransformResult leftSideResult = leftSideEvaluator.finishBundle();
 
-    assertThat(rightSideResult.getBundles(), Matchers.<Bundle<?>>contains(flattenedRightBundle));
+    assertThat(
+        rightSideResult.getOutputBundles(),
+        Matchers.<UncommittedBundle<?>>contains(flattenedRightBundle));
     assertThat(
         rightSideResult.getTransform(),
         Matchers.<AppliedPTransform<?, ?, ?>>equalTo(flattened.getProducingTransformInternal()));
-    assertThat(leftSideResult.getBundles(), Matchers.<Bundle<?>>contains(flattenedLeftBundle));
+    assertThat(
+        leftSideResult.getOutputBundles(),
+        Matchers.<UncommittedBundle<?>>contains(flattenedLeftBundle));
     assertThat(
         leftSideResult.getTransform(),
         Matchers.<AppliedPTransform<?, ?, ?>>equalTo(flattened.getProducingTransformInternal()));
 
     assertThat(
-        flattenedLeftBundle.getElements(),
+        flattenedLeftBundle.commit(Instant.now()).getElements(),
         containsInAnyOrder(
             WindowedValue.timestampedValueInGlobalWindow(2, new Instant(1024)),
             WindowedValue.valueInEmptyWindows(4, PaneInfo.NO_FIRING),
             WindowedValue.valueInGlobalWindow(1)));
     assertThat(
-        flattenedRightBundle.getElements(),
+        flattenedRightBundle.commit(Instant.now()).getElements(),
         containsInAnyOrder(
             WindowedValue.valueInEmptyWindows(2, PaneInfo.ON_TIME_AND_ONLY_FIRING),
             WindowedValue.timestampedValueInGlobalWindow(-4, new Instant(-4096)),

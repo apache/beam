@@ -15,14 +15,15 @@
  */
 package com.google.cloud.dataflow.sdk.runners.inprocess.evaluator;
 
-import static org.hamcrest.core.IsEqual.equalTo;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.Bundle;
+import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.InProcessEvaluationContext;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.InProcessExecutionContext;
+import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessTransformResult;
 import com.google.cloud.dataflow.sdk.runners.inprocess.util.InProcessBundle;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
@@ -58,10 +59,11 @@ public class ParDoSingleEvaluatorFactoryTest implements Serializable {
         c.output(c.element().length());
       }
     }));
-    Bundle<String> inputBundle = InProcessBundle.unkeyed(input);
+    CommittedBundle<String> inputBundle = InProcessBundle.unkeyed(input).commit(Instant.now());
 
     InProcessEvaluationContext evaluationContext = mock(InProcessEvaluationContext.class);
-    Bundle<Integer> outputBundle = InProcessBundle.unkeyed(collection);
+    UncommittedBundle<Integer> outputBundle =
+        InProcessBundle.unkeyed(collection);
     when(evaluationContext.createBundle(inputBundle, collection)).thenReturn(outputBundle);
     InProcessExecutionContext executionContext = new InProcessExecutionContext();
     when(evaluationContext.getExecutionContext(collection.getProducingTransformInternal()))
@@ -80,12 +82,12 @@ public class ParDoSingleEvaluatorFactoryTest implements Serializable {
         WindowedValue.valueInGlobalWindow("bazam", PaneInfo.ON_TIME_AND_ONLY_FIRING));
 
     InProcessTransformResult result = evaluator.finishBundle();
-    assertThat(result.getBundles(), Matchers.<Bundle<?>>contains(outputBundle));
+    assertThat(result.getOutputBundles(), Matchers.<UncommittedBundle<?>>contains(outputBundle));
     assertThat(result.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
     assertThat(result.getCounters(), equalTo(counters));
 
     assertThat(
-        outputBundle.getElements(),
+        outputBundle.commit(Instant.now()).getElements(),
         Matchers.<WindowedValue<Integer>>containsInAnyOrder(
             WindowedValue.valueInGlobalWindow(3),
             WindowedValue.timestampedValueInGlobalWindow(4, new Instant(1000)),
