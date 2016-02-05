@@ -550,6 +550,7 @@ public class ApiSurface {
         .pruningPrefix("com.google.cloud.dataflow.integration")
         .pruningPrefix("java")
         .pruningPrefix("com.google.api")
+        .pruningPrefix("com.google.auth")
         .pruningPrefix("com.google.protobuf")
         .pruningPrefix("org.joda.time")
         .pruningPrefix("org.apache.avro")
