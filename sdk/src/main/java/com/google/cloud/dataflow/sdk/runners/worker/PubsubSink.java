@@ -30,6 +30,8 @@ import com.google.protobuf.ByteString;
 
 import java.io.IOException;
 
+import javax.annotation.Nullable;
+
 /**
  * A sink that writes to Pubsub, via a Windmill server.
  *
@@ -55,18 +57,26 @@ class PubsubSink<T> extends Sink<WindowedValue<T>> {
     this.context = context;
   }
 
-  @SuppressWarnings("unused")
-  public static <T> PubsubSink<T> create(PipelineOptions options,
-                                         CloudObject spec,
-                                         Coder<WindowedValue<T>> coder,
-                                         ExecutionContext context,
-                                         CounterSet.AddCounterMutator addCounterMutator)
-      throws Exception {
-    String topic = getString(spec, "pubsub_topic");
-    String timestampLabel = getString(spec, "pubsub_timestamp_label", "");
-    String idLabel = getString(spec, "pubsub_id_label", "");
-    return new PubsubSink<>(
-        topic, timestampLabel, idLabel, coder, (StreamingModeExecutionContext) context);
+  public static class Factory implements SinkFactory {
+    @Override
+    public PubsubSink<?> create(
+        CloudObject spec,
+        Coder<?> coder,
+        @Nullable PipelineOptions options,
+        @Nullable ExecutionContext context,
+        @Nullable CounterSet.AddCounterMutator addCounterMutator)
+            throws Exception {
+      String topic = getString(spec, "pubsub_topic");
+      String timestampLabel = getString(spec, "pubsub_timestamp_label", "");
+      String idLabel = getString(spec, "pubsub_id_label", "");
+
+      @SuppressWarnings("unchecked")
+      Coder<WindowedValue<Object>> typedCoder =
+          (Coder<WindowedValue<Object>>) coder;
+
+      return new PubsubSink<>(
+          topic, timestampLabel, idLabel, typedCoder, (StreamingModeExecutionContext) context);
+    }
   }
 
   @Override

@@ -20,86 +20,24 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
-import com.google.cloud.dataflow.sdk.util.InstanceBuilder;
-import com.google.cloud.dataflow.sdk.util.Serializer;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.Sink;
-import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 
-import java.util.HashMap;
-import java.util.Map;
+import javax.annotation.Nullable;
 
 /**
- * Constructs a Sink from a Dataflow service protocol Sink definition.
- *
- * <p>A SinkFactory concrete "subclass" should define a method with the
- * following signature:
- * <pre> {@code
- * static SomeSinkSubclass<T> create(PipelineOptions, CloudObject,
- *                                   Coder<T>, ExecutionContext,
- *                                   CounterSet.AddCounterMutator);
- * } </pre>
+ * Constructs a {@link Sink} from a Dataflow service {@link CloudObject} specification.
  */
-public final class SinkFactory {
-  // Do not instantiate.
-  private SinkFactory() {}
-
-  /**
-   * A map from the short names of predefined sinks to their full
-   * factory class names.
-   */
-  static Map<String, String> predefinedSinkFactories = new HashMap<>();
-
-  static {
-    predefinedSinkFactories.put("TextSink",
-                                TextSinkFactory.class.getName());
-    predefinedSinkFactories.put("AvroSink",
-                                AvroSinkFactory.class.getName());
-    predefinedSinkFactories.put("IsmSink",
-                                IsmSinkFactory.class.getName());
-    predefinedSinkFactories.put("ShuffleSink",
-                                ShuffleSinkFactory.class.getName());
-    predefinedSinkFactories.put("PubsubSink",
-                                PubsubSink.class.getName());
-    predefinedSinkFactories.put("WindmillSink",
-                                WindmillSink.class.getName());
-  }
+public interface SinkFactory {
 
   /**
    * Creates a {@link Sink} from a Dataflow API Sink definition.
-   *
-   * @throws Exception if the sink could not be decoded and
-   * constructed
    */
-  public static <T> Sink<T> create(
-      PipelineOptions options,
-      com.google.api.services.dataflow.model.Sink cloudSink,
-      ExecutionContext executionContext,
-      CounterSet.AddCounterMutator addCounterMutator)
-      throws Exception {
-    @SuppressWarnings("unchecked")
-    Coder<T> coder = Serializer.deserialize(cloudSink.getCodec(), Coder.class);
-    CloudObject object = CloudObject.fromSpec(cloudSink.getSpec());
-
-    String className = predefinedSinkFactories.get(object.getClassName());
-    if (className == null) {
-      className = object.getClassName();
-    }
-
-    try {
-      return InstanceBuilder.ofType(new TypeDescriptor<Sink<T>>() {})
-          .fromClassName(className)
-          .fromFactoryMethod("create")
-          .withArg(PipelineOptions.class, options)
-          .withArg(CloudObject.class, object)
-          .withArg(Coder.class, coder)
-          .withArg(ExecutionContext.class, executionContext)
-          .withArg(CounterSet.AddCounterMutator.class, addCounterMutator)
-          .build();
-
-    } catch (ClassNotFoundException exn) {
-      throw new Exception(
-          "unable to create a sink from " + cloudSink, exn);
-    }
-  }
+  Sink<?> create(
+      CloudObject sinkSpec,
+      Coder<?> coder,
+      @Nullable PipelineOptions options,
+      @Nullable ExecutionContext executionContext,
+      @Nullable CounterSet.AddCounterMutator addCounterMutator)
+      throws Exception;
 }

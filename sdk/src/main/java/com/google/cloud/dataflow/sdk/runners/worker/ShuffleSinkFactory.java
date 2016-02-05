@@ -28,32 +28,31 @@ import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 
+import javax.annotation.Nullable;
+
 /**
- * Creates a ShuffleSink from a CloudObject spec.
+ * Creates a {@link ShuffleSink} from a {@link CloudObject} spec.
  */
-public class ShuffleSinkFactory {
-  // Do not instantiate.
-  private ShuffleSinkFactory() {}
+public class ShuffleSinkFactory implements SinkFactory {
 
-  public static <T> ShuffleSink<T> create(PipelineOptions options,
-                                          CloudObject spec,
-                                          Coder<WindowedValue<T>> coder,
-                                          ExecutionContext executionContext,
-                                          CounterSet.AddCounterMutator addCounterMutator)
-      throws Exception {
-    return create(options, spec, coder, addCounterMutator);
-  }
+  @Override
+  public ShuffleSink<?> create(
+      CloudObject spec,
+      Coder<?> coder,
+      @Nullable PipelineOptions options,
+      @Nullable ExecutionContext executionContext,
+      @Nullable CounterSet.AddCounterMutator addCounterMutator)
+          throws Exception {
 
-  static <T> ShuffleSink<T> create(PipelineOptions options,
-                                   CloudObject spec,
-                                   Coder<WindowedValue<T>> coder,
-                                   CounterSet.AddCounterMutator addCounterMutator)
-      throws Exception {
+    @SuppressWarnings("unchecked")
+    Coder<WindowedValue<Object>> typedCoder =
+        (Coder<WindowedValue<Object>>) coder;
+
     return new ShuffleSink<>(
         options,
         decodeBase64(getString(spec, PropertyNames.SHUFFLE_WRITER_CONFIG, null)),
         parseShuffleKind(getString(spec, PropertyNames.SHUFFLE_KIND)),
-        coder,
+        typedCoder,
         addCounterMutator);
   }
 }

@@ -26,32 +26,28 @@ import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 
+import javax.annotation.Nullable;
+
 /**
- * Creates a TextSink from a CloudObject spec.
+ * Creates a {@link TextSink} from a {@link CloudObject} spec.
  */
-public final class TextSinkFactory {
-  // Do not instantiate.
-  private TextSinkFactory() {}
-
-  public static <T> TextSink<T> create(PipelineOptions options,
-                                       CloudObject spec,
-                                       Coder<T> coder,
-                                       ExecutionContext executionContext,
-                                       CounterSet.AddCounterMutator addCounterMutator)
-      throws Exception {
-    return create(spec, coder);
-  }
-
-  static <T> TextSink<T> create(CloudObject spec, Coder<T> coder)
-      throws Exception {
+public final class TextSinkFactory implements SinkFactory {
+  @Override
+  public TextSink<?> create(
+      CloudObject spec,
+      Coder<?> coder,
+      @Nullable PipelineOptions options,
+      @Nullable ExecutionContext executionContext,
+      @Nullable CounterSet.AddCounterMutator addCounterMutator)
+          throws Exception {
     return TextSink.create(
-        getString(spec, PropertyNames.FILENAME),
-        "",  // No shard template
-        "",  // No suffix
-        1,   // Exactly one output file
-        getBoolean(spec, PropertyNames.APPEND_TRAILING_NEWLINES, true),
-        getString(spec, PropertyNames.HEADER, null),
-        getString(spec, PropertyNames.FOOTER, null),
-        coder);
+    getString(spec, PropertyNames.FILENAME),
+    "",  // No shard template
+    "",  // No suffix
+    1,   // Exactly one output file
+    getBoolean(spec, PropertyNames.APPEND_TRAILING_NEWLINES, true),
+    getString(spec, PropertyNames.HEADER, null),
+    getString(spec, PropertyNames.FOOTER, null),
+    coder);
   }
 }

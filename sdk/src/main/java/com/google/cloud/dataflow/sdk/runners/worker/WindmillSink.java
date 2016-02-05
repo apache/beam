@@ -42,6 +42,8 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
+import javax.annotation.Nullable;
+
 class WindmillSink<T> extends Sink<WindowedValue<T>> {
   private WindmillStreamWriter writer;
   private final Coder<T> valueCoder;
@@ -81,14 +83,21 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
     return windowsCoder.decode(inStream, Coder.Context.OUTER);
   }
 
-  public static <T> WindmillSink<T> create(PipelineOptions options,
-                                           CloudObject spec,
-                                           Coder<WindowedValue<T>> coder,
-                                           ExecutionContext context,
-                                           CounterSet.AddCounterMutator addCounterMutator)
-      throws Exception {
-    return new WindmillSink<>(getString(spec, "stream_id"), coder,
-        (StreamingModeExecutionContext) context);
+  public static class Factory implements SinkFactory {
+    @Override
+    public WindmillSink<?> create(
+        CloudObject spec,
+        Coder<?> coder,
+        @Nullable PipelineOptions options,
+        @Nullable ExecutionContext context,
+        @Nullable CounterSet.AddCounterMutator addCounterMutator)
+            throws Exception {
+
+      @SuppressWarnings("unchecked")
+      Coder<WindowedValue<Object>> typedCoder = (Coder<WindowedValue<Object>>) coder;
+      return new WindmillSink<>(
+          getString(spec, "stream_id"), typedCoder, (StreamingModeExecutionContext) context);
+    }
   }
 
   @Override

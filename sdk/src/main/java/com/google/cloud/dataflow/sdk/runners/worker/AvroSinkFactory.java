@@ -28,28 +28,21 @@ import com.google.cloud.dataflow.sdk.util.WindowedValue.ValueOnlyWindowedValueCo
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.Sink;
 
+import javax.annotation.Nullable;
+
 /**
- * Creates an AvroSink from a CloudObject spec.
+ * Creates an {@link AvroSink} from a {@link CloudObject} spec.
  */
-@SuppressWarnings("rawtypes")
-public final class AvroSinkFactory {
-  // Do not instantiate.
-  private AvroSinkFactory() {}
+public final class AvroSinkFactory implements SinkFactory {
 
-  @SuppressWarnings("unused")
-  public static <T> Sink<T> create(PipelineOptions options,
-                                   CloudObject spec,
-                                   Coder<T> coder,
-                                   ExecutionContext executionContext,
-                                   CounterSet.AddCounterMutator addCounterMutator)
+  @Override
+  public Sink<?> create(
+      CloudObject spec,
+      Coder<?> coder,
+      @Nullable PipelineOptions options,
+      @Nullable ExecutionContext executionContext,
+      @Nullable CounterSet.AddCounterMutator addCounterMutator)
       throws Exception {
-    return create(spec, coder);
-  }
-
-  static <T> Sink<T> create(CloudObject spec, Coder<T> coder)
-      throws Exception {
-    String filename = getString(spec, PropertyNames.FILENAME);
-
     // Avro sinks are used both for outputting user data at the end of a pipeline and for
     // materializing PCollections as intermediate results. It is important to distinguish these
     // two cases because one requires only the values (outputting with AvroSink) and one requires
@@ -83,6 +76,8 @@ public final class AvroSinkFactory {
     // include the window and timestamp.
     //
     // See AvroReaderFactory#create for the accompanying reader logic.
+    String filename = getString(spec, PropertyNames.FILENAME);
+
     if (coder instanceof ValueOnlyWindowedValueCoder
         && ((ValueOnlyWindowedValueCoder) coder).getValueCoder() instanceof AvroCoder) {
       return new AvroSink(filename, (ValueOnlyWindowedValueCoder<?>) coder);
