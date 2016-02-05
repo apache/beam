@@ -16,8 +16,11 @@
 
 package com.google.cloud.dataflow.sdk.runners;
 
+import static com.google.cloud.dataflow.sdk.util.WindowedValue.valueInGlobalWindow;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.startsWith;
+import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -37,7 +40,9 @@ import com.google.api.services.dataflow.model.ListJobsResponse;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.Pipeline.PipelineVisitor;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
+import com.google.cloud.dataflow.sdk.coders.BigEndianLongCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.coders.VarLongCoder;
 import com.google.cloud.dataflow.sdk.io.AvroIO;
 import com.google.cloud.dataflow.sdk.io.AvroSource;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO;
@@ -48,21 +53,41 @@ import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions.CheckEnabled;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner.BatchViewAsList;
+import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner.BatchViewAsMap;
+import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner.BatchViewAsMultimap;
+import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner.TransformedMap;
 import com.google.cloud.dataflow.sdk.runners.dataflow.TestCountingSource;
+import com.google.cloud.dataflow.sdk.runners.worker.IsmFormat;
+import com.google.cloud.dataflow.sdk.runners.worker.IsmFormat.IsmRecord;
+import com.google.cloud.dataflow.sdk.runners.worker.IsmFormat.IsmRecordCoder;
+import com.google.cloud.dataflow.sdk.runners.worker.IsmFormat.MetadataKeyCoder;
 import com.google.cloud.dataflow.sdk.transforms.Create;
+import com.google.cloud.dataflow.sdk.transforms.DoFnTester;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
+import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.DataflowReleaseInfo;
 import com.google.cloud.dataflow.sdk.util.GcsUtil;
 import com.google.cloud.dataflow.sdk.util.NoopPathValidator;
 import com.google.cloud.dataflow.sdk.util.TestCredential;
+import com.google.cloud.dataflow.sdk.util.UserCodeException;
+import com.google.cloud.dataflow.sdk.util.WindowedValue;
+import com.google.cloud.dataflow.sdk.util.WindowedValue.FullWindowedValueCoder;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.util.gcsfs.GcsPath;
+import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.cloud.dataflow.sdk.values.PValue;
 import com.google.cloud.dataflow.sdk.values.TimestampedValue;
+import com.google.cloud.dataflow.sdk.values.TupleTag;
+import com.google.cloud.dataflow.sdk.values.TupleTagList;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 
 import org.hamcrest.Description;
 import org.hamcrest.Matchers;
@@ -89,6 +114,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Tests for DataflowPipelineRunner.
@@ -713,7 +739,7 @@ public class DataflowPipelineRunnerTest {
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
 
     DataflowPipelineOptions options = buildPipelineOptions(jobCaptor);
-    Pipeline p = DataflowPipeline.create(options);
+    DataflowPipeline p = DataflowPipeline.create(options);
 
     p.apply(Create.of(Arrays.asList(1, 2, 3)))
      .apply(new TestTransform());
@@ -721,7 +747,7 @@ public class DataflowPipelineRunnerTest {
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage(Matchers.containsString("no translator registered"));
     DataflowPipelineTranslator.fromOptions(options)
-        .translate(p, Collections.<DataflowPackage>emptyList());
+        .translate(p, p.getRunner(), Collections.<DataflowPackage>emptyList());
     assertValidJob(jobCaptor.getValue());
   }
 
@@ -755,7 +781,8 @@ public class DataflowPipelineRunnerTest {
           }
         });
 
-    translator.translate(p, Collections.<DataflowPackage>emptyList());
+    translator.translate(
+        p, p.getRunner(), Collections.<DataflowPackage>emptyList());
     assertTrue(transform.translated);
   }
 
@@ -893,5 +920,440 @@ public class DataflowPipelineRunnerTest {
   @Test
   public void testTextIOSinkUnsupportedInStreaming() throws Exception {
     testUnsupportedSink(TextIO.Write.to("foo"), "TextIO.Write", true);
+  }
+
+  @Test
+  public void testBatchViewAsListToIsmRecordForGlobalWindow() throws Exception {
+    DoFnTester<String, IsmRecord<WindowedValue<String>>> doFnTester =
+        DoFnTester.of(new BatchViewAsList.ToIsmRecordForGlobalWindowDoFn<String>());
+
+    // The order of the output elements is important relative to processing order
+    assertThat(doFnTester.processBatch(ImmutableList.of("a", "b", "c")), contains(
+        IsmRecord.of(ImmutableList.of(GlobalWindow.INSTANCE, 0L), valueInGlobalWindow("a")),
+        IsmRecord.of(ImmutableList.of(GlobalWindow.INSTANCE, 1L), valueInGlobalWindow("b")),
+        IsmRecord.of(ImmutableList.of(GlobalWindow.INSTANCE, 2L), valueInGlobalWindow("c"))));
+  }
+
+  @Test
+  public void testBatchViewAsListToIsmRecordForNonGlobalWindow() throws Exception {
+    DoFnTester<KV<Integer, Iterable<KV<IntervalWindow, WindowedValue<Long>>>>,
+               IsmRecord<WindowedValue<Long>>> doFnTester =
+        DoFnTester.of(
+            new BatchViewAsList.ToIsmRecordForNonGlobalWindowDoFn<Long, IntervalWindow>(
+                IntervalWindow.getCoder()));
+
+    IntervalWindow windowA = new IntervalWindow(new Instant(0), new Instant(10));
+    IntervalWindow windowB = new IntervalWindow(new Instant(10), new Instant(20));
+    IntervalWindow windowC = new IntervalWindow(new Instant(20), new Instant(30));
+
+    Iterable<KV<Integer, Iterable<KV<IntervalWindow, WindowedValue<Long>>>>> inputElements =
+        ImmutableList.of(
+            KV.of(1, (Iterable<KV<IntervalWindow, WindowedValue<Long>>>) ImmutableList.of(
+                KV.of(
+                    windowA, WindowedValue.of(110L, new Instant(1), windowA, PaneInfo.NO_FIRING)),
+                KV.of(
+                    windowA, WindowedValue.of(111L, new Instant(3), windowA, PaneInfo.NO_FIRING)),
+                KV.of(
+                    windowA, WindowedValue.of(112L, new Instant(4), windowA, PaneInfo.NO_FIRING)),
+                KV.of(
+                    windowB, WindowedValue.of(120L, new Instant(12), windowB, PaneInfo.NO_FIRING)),
+                KV.of(
+                    windowB, WindowedValue.of(121L, new Instant(14), windowB, PaneInfo.NO_FIRING))
+                )),
+            KV.of(2, (Iterable<KV<IntervalWindow, WindowedValue<Long>>>) ImmutableList.of(
+                KV.of(
+                    windowC, WindowedValue.of(210L, new Instant(25), windowC, PaneInfo.NO_FIRING))
+                )));
+
+    // The order of the output elements is important relative to processing order
+    assertThat(doFnTester.processBatch(inputElements), contains(
+        IsmRecord.of(ImmutableList.of(windowA, 0L),
+            WindowedValue.of(110L, new Instant(1), windowA, PaneInfo.NO_FIRING)),
+        IsmRecord.of(ImmutableList.of(windowA, 1L),
+            WindowedValue.of(111L, new Instant(3), windowA, PaneInfo.NO_FIRING)),
+        IsmRecord.of(ImmutableList.of(windowA, 2L),
+            WindowedValue.of(112L, new Instant(4), windowA, PaneInfo.NO_FIRING)),
+        IsmRecord.of(ImmutableList.of(windowB, 0L),
+            WindowedValue.of(120L, new Instant(12), windowB, PaneInfo.NO_FIRING)),
+        IsmRecord.of(ImmutableList.of(windowB, 1L),
+            WindowedValue.of(121L, new Instant(14), windowB, PaneInfo.NO_FIRING)),
+        IsmRecord.of(ImmutableList.of(windowC, 0L),
+            WindowedValue.of(210L, new Instant(25), windowC, PaneInfo.NO_FIRING))));
+  }
+
+  @Test
+  public void testToIsmRecordForMapLikeDoFn() throws Exception {
+    TupleTag<KV<Integer, KV<IntervalWindow, Long>>> outputForSizeTag = new TupleTag<>();
+    TupleTag<KV<Integer, KV<IntervalWindow, Long>>> outputForEntrySetTag = new TupleTag<>();
+
+    Coder<Long> keyCoder = VarLongCoder.of();
+    Coder<IntervalWindow> windowCoder = IntervalWindow.getCoder();
+
+    IsmRecordCoder<WindowedValue<Long>> ismCoder = IsmRecordCoder.of(
+        1,
+        2,
+        ImmutableList.<Coder<?>>of(
+            MetadataKeyCoder.of(keyCoder),
+            IntervalWindow.getCoder(),
+            BigEndianLongCoder.of()),
+        FullWindowedValueCoder.of(VarLongCoder.of(), windowCoder));
+
+    DoFnTester<KV<Integer, Iterable<KV<KV<Long, IntervalWindow>, WindowedValue<Long>>>>,
+               IsmRecord<WindowedValue<Long>>> doFnTester =
+        DoFnTester.of(new BatchViewAsMultimap.ToIsmRecordForMapLikeDoFn<Long, Long, IntervalWindow>(
+            outputForSizeTag,
+            outputForEntrySetTag,
+            windowCoder,
+            keyCoder,
+            ismCoder,
+            false /* unique keys */));
+    doFnTester.setSideOutputTags(TupleTagList.of(
+        ImmutableList.<TupleTag<?>>of(outputForSizeTag, outputForEntrySetTag)));
+
+    IntervalWindow windowA = new IntervalWindow(new Instant(0), new Instant(10));
+    IntervalWindow windowB = new IntervalWindow(new Instant(10), new Instant(20));
+    IntervalWindow windowC = new IntervalWindow(new Instant(20), new Instant(30));
+
+    Iterable<KV<Integer,
+                Iterable<KV<KV<Long, IntervalWindow>, WindowedValue<Long>>>>> inputElements =
+        ImmutableList.of(
+            KV.of(1, (Iterable<KV<KV<Long, IntervalWindow>, WindowedValue<Long>>>) ImmutableList.of(
+                KV.of(KV.of(1L, windowA),
+                    WindowedValue.of(110L, new Instant(1), windowA, PaneInfo.NO_FIRING)),
+                // same window same key as to previous
+                KV.of(KV.of(1L, windowA),
+                    WindowedValue.of(111L, new Instant(2), windowA, PaneInfo.NO_FIRING)),
+                // same window different key as to previous
+                KV.of(KV.of(2L, windowA),
+                    WindowedValue.of(120L, new Instant(3), windowA, PaneInfo.NO_FIRING)),
+                // different window same key as to previous
+                KV.of(KV.of(2L, windowB),
+                    WindowedValue.of(210L, new Instant(11), windowB, PaneInfo.NO_FIRING)),
+                // different window and different key as to previous
+                KV.of(KV.of(3L, windowB),
+                    WindowedValue.of(220L, new Instant(12), windowB, PaneInfo.NO_FIRING)))),
+            KV.of(2, (Iterable<KV<KV<Long, IntervalWindow>, WindowedValue<Long>>>) ImmutableList.of(
+                // different shard
+                KV.of(KV.of(4L, windowC),
+                    WindowedValue.of(330L, new Instant(21), windowC, PaneInfo.NO_FIRING)))));
+
+    // The order of the output elements is important relative to processing order
+    assertThat(doFnTester.processBatch(inputElements), contains(
+        IsmRecord.of(
+            ImmutableList.of(1L, windowA, 0L),
+            WindowedValue.of(110L, new Instant(1), windowA, PaneInfo.NO_FIRING)),
+        IsmRecord.of(
+            ImmutableList.of(1L, windowA, 1L),
+            WindowedValue.of(111L, new Instant(2), windowA, PaneInfo.NO_FIRING)),
+        IsmRecord.of(
+            ImmutableList.of(2L, windowA, 0L),
+            WindowedValue.of(120L, new Instant(3), windowA, PaneInfo.NO_FIRING)),
+        IsmRecord.of(
+            ImmutableList.of(2L, windowB, 0L),
+            WindowedValue.of(210L, new Instant(11), windowB, PaneInfo.NO_FIRING)),
+        IsmRecord.of(
+            ImmutableList.of(3L, windowB, 0L),
+            WindowedValue.of(220L, new Instant(12), windowB, PaneInfo.NO_FIRING)),
+        IsmRecord.of(
+            ImmutableList.of(4L, windowC, 0L),
+            WindowedValue.of(330L, new Instant(21), windowC, PaneInfo.NO_FIRING))));
+
+    // Verify the number of unique keys per window.
+    assertThat(doFnTester.takeSideOutputElements(outputForSizeTag), contains(
+        KV.of(ismCoder.hash(ImmutableList.of(IsmFormat.getMetadataKey(), windowA)),
+            KV.of(windowA, 2L)),
+        KV.of(ismCoder.hash(ImmutableList.of(IsmFormat.getMetadataKey(), windowB)),
+            KV.of(windowB, 2L)),
+        KV.of(ismCoder.hash(ImmutableList.of(IsmFormat.getMetadataKey(), windowC)),
+            KV.of(windowC, 1L))
+        ));
+
+    // Verify the output for the unique keys.
+    assertThat(doFnTester.takeSideOutputElements(outputForEntrySetTag), contains(
+        KV.of(ismCoder.hash(ImmutableList.of(IsmFormat.getMetadataKey(), windowA)),
+            KV.of(windowA, 1L)),
+        KV.of(ismCoder.hash(ImmutableList.of(IsmFormat.getMetadataKey(), windowA)),
+            KV.of(windowA, 2L)),
+        KV.of(ismCoder.hash(ImmutableList.of(IsmFormat.getMetadataKey(), windowB)),
+            KV.of(windowB, 2L)),
+        KV.of(ismCoder.hash(ImmutableList.of(IsmFormat.getMetadataKey(), windowB)),
+            KV.of(windowB, 3L)),
+        KV.of(ismCoder.hash(ImmutableList.of(IsmFormat.getMetadataKey(), windowC)),
+            KV.of(windowC, 4L))
+        ));
+  }
+
+  @Test
+  public void testToIsmRecordForMapLikeDoFnWithoutUniqueKeysThrowsException() throws Exception {
+    TupleTag<KV<Integer, KV<IntervalWindow, Long>>> outputForSizeTag = new TupleTag<>();
+    TupleTag<KV<Integer, KV<IntervalWindow, Long>>> outputForEntrySetTag = new TupleTag<>();
+
+    Coder<Long> keyCoder = VarLongCoder.of();
+    Coder<IntervalWindow> windowCoder = IntervalWindow.getCoder();
+
+    IsmRecordCoder<WindowedValue<Long>> ismCoder = IsmRecordCoder.of(
+        1,
+        2,
+        ImmutableList.<Coder<?>>of(
+            MetadataKeyCoder.of(keyCoder),
+            IntervalWindow.getCoder(),
+            BigEndianLongCoder.of()),
+        FullWindowedValueCoder.of(VarLongCoder.of(), windowCoder));
+
+    DoFnTester<KV<Integer, Iterable<KV<KV<Long, IntervalWindow>, WindowedValue<Long>>>>,
+               IsmRecord<WindowedValue<Long>>> doFnTester =
+        DoFnTester.of(new BatchViewAsMultimap.ToIsmRecordForMapLikeDoFn<Long, Long, IntervalWindow>(
+            outputForSizeTag,
+            outputForEntrySetTag,
+            windowCoder,
+            keyCoder,
+            ismCoder,
+            true /* unique keys */));
+    doFnTester.setSideOutputTags(TupleTagList.of(
+        ImmutableList.<TupleTag<?>>of(outputForSizeTag, outputForEntrySetTag)));
+
+    IntervalWindow windowA = new IntervalWindow(new Instant(0), new Instant(10));
+
+    Iterable<KV<Integer,
+                Iterable<KV<KV<Long, IntervalWindow>, WindowedValue<Long>>>>> inputElements =
+        ImmutableList.of(
+            KV.of(1, (Iterable<KV<KV<Long, IntervalWindow>, WindowedValue<Long>>>) ImmutableList.of(
+                KV.of(KV.of(1L, windowA),
+                    WindowedValue.of(110L, new Instant(1), windowA, PaneInfo.NO_FIRING)),
+                // same window same key as to previous
+                KV.of(KV.of(1L, windowA),
+                    WindowedValue.of(111L, new Instant(2), windowA, PaneInfo.NO_FIRING)))));
+
+    try {
+      doFnTester.processBatch(inputElements);
+    } catch (UserCodeException e) {
+      assertTrue(e.getCause() instanceof IllegalStateException);
+      IllegalStateException rootCause = (IllegalStateException) e.getCause();
+      assertThat(rootCause.getMessage(), containsString("Unique keys are expected but found key"));
+    }
+  }
+
+  @Test
+  public void testToIsmMetadataRecordForSizeDoFn() throws Exception {
+    TupleTag<KV<Integer, KV<IntervalWindow, Long>>> outputForSizeTag = new TupleTag<>();
+    TupleTag<KV<Integer, KV<IntervalWindow, Long>>> outputForEntrySetTag = new TupleTag<>();
+
+    Coder<Long> keyCoder = VarLongCoder.of();
+    Coder<IntervalWindow> windowCoder = IntervalWindow.getCoder();
+
+    IsmRecordCoder<WindowedValue<Long>> ismCoder = IsmRecordCoder.of(
+        1,
+        2,
+        ImmutableList.<Coder<?>>of(
+            MetadataKeyCoder.of(keyCoder),
+            IntervalWindow.getCoder(),
+            BigEndianLongCoder.of()),
+        FullWindowedValueCoder.of(VarLongCoder.of(), windowCoder));
+
+    DoFnTester<KV<Integer, Iterable<KV<IntervalWindow, Long>>>,
+               IsmRecord<WindowedValue<Long>>> doFnTester = DoFnTester.of(
+        new BatchViewAsMultimap.ToIsmMetadataRecordForSizeDoFn<Long, Long, IntervalWindow>(
+            windowCoder));
+    doFnTester.setSideOutputTags(TupleTagList.of(
+        ImmutableList.<TupleTag<?>>of(outputForSizeTag, outputForEntrySetTag)));
+
+    IntervalWindow windowA = new IntervalWindow(new Instant(0), new Instant(10));
+    IntervalWindow windowB = new IntervalWindow(new Instant(10), new Instant(20));
+    IntervalWindow windowC = new IntervalWindow(new Instant(20), new Instant(30));
+
+    Iterable<KV<Integer, Iterable<KV<IntervalWindow, Long>>>> inputElements =
+        ImmutableList.of(
+            KV.of(1,
+                (Iterable<KV<IntervalWindow, Long>>) ImmutableList.of(
+                    KV.of(windowA, 2L),
+                    KV.of(windowA, 3L),
+                    KV.of(windowB, 7L))),
+            KV.of(ismCoder.hash(ImmutableList.of(IsmFormat.getMetadataKey(), windowB)),
+                (Iterable<KV<IntervalWindow, Long>>) ImmutableList.of(
+                    KV.of(windowC, 9L))));
+
+    // The order of the output elements is important relative to processing order
+    assertThat(doFnTester.processBatch(inputElements), contains(
+        IsmRecord.<WindowedValue<Long>>meta(
+            ImmutableList.of(IsmFormat.getMetadataKey(), windowA, 0L),
+            CoderUtils.encodeToByteArray(VarLongCoder.of(), 5L)),
+        IsmRecord.<WindowedValue<Long>>meta(
+            ImmutableList.of(IsmFormat.getMetadataKey(), windowB, 0L),
+            CoderUtils.encodeToByteArray(VarLongCoder.of(), 7L)),
+        IsmRecord.<WindowedValue<Long>>meta(
+            ImmutableList.of(IsmFormat.getMetadataKey(), windowC, 0L),
+            CoderUtils.encodeToByteArray(VarLongCoder.of(), 9L))
+        ));
+  }
+
+  @Test
+  public void testToIsmMetadataRecordForKeyDoFn() throws Exception {
+    TupleTag<KV<Integer, KV<IntervalWindow, Long>>> outputForSizeTag = new TupleTag<>();
+    TupleTag<KV<Integer, KV<IntervalWindow, Long>>> outputForEntrySetTag = new TupleTag<>();
+
+    Coder<Long> keyCoder = VarLongCoder.of();
+    Coder<IntervalWindow> windowCoder = IntervalWindow.getCoder();
+
+    IsmRecordCoder<WindowedValue<Long>> ismCoder = IsmRecordCoder.of(
+        1,
+        2,
+        ImmutableList.<Coder<?>>of(
+            MetadataKeyCoder.of(keyCoder),
+            IntervalWindow.getCoder(),
+            BigEndianLongCoder.of()),
+        FullWindowedValueCoder.of(VarLongCoder.of(), windowCoder));
+
+    DoFnTester<KV<Integer, Iterable<KV<IntervalWindow, Long>>>,
+               IsmRecord<WindowedValue<Long>>> doFnTester = DoFnTester.of(
+        new BatchViewAsMultimap.ToIsmMetadataRecordForKeyDoFn<Long, Long, IntervalWindow>(
+            keyCoder, windowCoder));
+    doFnTester.setSideOutputTags(TupleTagList.of(
+        ImmutableList.<TupleTag<?>>of(outputForSizeTag, outputForEntrySetTag)));
+
+    IntervalWindow windowA = new IntervalWindow(new Instant(0), new Instant(10));
+    IntervalWindow windowB = new IntervalWindow(new Instant(10), new Instant(20));
+    IntervalWindow windowC = new IntervalWindow(new Instant(20), new Instant(30));
+
+    Iterable<KV<Integer, Iterable<KV<IntervalWindow, Long>>>> inputElements =
+        ImmutableList.of(
+            KV.of(1,
+                (Iterable<KV<IntervalWindow, Long>>) ImmutableList.of(
+                    KV.of(windowA, 2L),
+                    // same window as previous
+                    KV.of(windowA, 3L),
+                    // different window as previous
+                    KV.of(windowB, 3L))),
+            KV.of(ismCoder.hash(ImmutableList.of(IsmFormat.getMetadataKey(), windowB)),
+                (Iterable<KV<IntervalWindow, Long>>) ImmutableList.of(
+                    KV.of(windowC, 3L))));
+
+    // The order of the output elements is important relative to processing order
+    assertThat(doFnTester.processBatch(inputElements), contains(
+        IsmRecord.<WindowedValue<Long>>meta(
+            ImmutableList.of(IsmFormat.getMetadataKey(), windowA, 1L),
+            CoderUtils.encodeToByteArray(VarLongCoder.of(), 2L)),
+        IsmRecord.<WindowedValue<Long>>meta(
+            ImmutableList.of(IsmFormat.getMetadataKey(), windowA, 2L),
+            CoderUtils.encodeToByteArray(VarLongCoder.of(), 3L)),
+        IsmRecord.<WindowedValue<Long>>meta(
+            ImmutableList.of(IsmFormat.getMetadataKey(), windowB, 1L),
+            CoderUtils.encodeToByteArray(VarLongCoder.of(), 3L)),
+        IsmRecord.<WindowedValue<Long>>meta(
+            ImmutableList.of(IsmFormat.getMetadataKey(), windowC, 1L),
+            CoderUtils.encodeToByteArray(VarLongCoder.of(), 3L))
+        ));
+  }
+
+  @Test
+  public void testToMapDoFn() throws Exception {
+    Coder<IntervalWindow> windowCoder = IntervalWindow.getCoder();
+
+    DoFnTester<KV<Integer, Iterable<KV<IntervalWindow, WindowedValue<KV<Long, Long>>>>>,
+                  IsmRecord<WindowedValue<TransformedMap<Long,
+                                                         WindowedValue<Long>,
+                                                         Long>>>> doFnTester =
+        DoFnTester.of(new BatchViewAsMap.ToMapDoFn<Long, Long, IntervalWindow>(windowCoder));
+
+
+    IntervalWindow windowA = new IntervalWindow(new Instant(0), new Instant(10));
+    IntervalWindow windowB = new IntervalWindow(new Instant(10), new Instant(20));
+    IntervalWindow windowC = new IntervalWindow(new Instant(20), new Instant(30));
+
+    Iterable<KV<Integer,
+             Iterable<KV<IntervalWindow, WindowedValue<KV<Long, Long>>>>>> inputElements =
+        ImmutableList.of(
+            KV.of(1,
+                (Iterable<KV<IntervalWindow, WindowedValue<KV<Long, Long>>>>) ImmutableList.of(
+                    KV.of(windowA, WindowedValue.of(
+                        KV.of(1L, 11L), new Instant(3), windowA, PaneInfo.NO_FIRING)),
+                    KV.of(windowA, WindowedValue.of(
+                        KV.of(2L, 21L), new Instant(7), windowA, PaneInfo.NO_FIRING)),
+                    KV.of(windowB, WindowedValue.of(
+                        KV.of(2L, 21L), new Instant(13), windowB, PaneInfo.NO_FIRING)),
+                    KV.of(windowB, WindowedValue.of(
+                        KV.of(3L, 31L), new Instant(15), windowB, PaneInfo.NO_FIRING)))),
+            KV.of(2,
+                (Iterable<KV<IntervalWindow, WindowedValue<KV<Long, Long>>>>) ImmutableList.of(
+                    KV.of(windowC, WindowedValue.of(
+                        KV.of(4L, 41L), new Instant(25), windowC, PaneInfo.NO_FIRING)))));
+
+    // The order of the output elements is important relative to processing order
+    List<IsmRecord<WindowedValue<TransformedMap<Long,
+                                                WindowedValue<Long>,
+                                                Long>>>> output =
+                                                doFnTester.processBatch(inputElements);
+    assertEquals(3, output.size());
+    Map<Long, Long> outputMap;
+
+    outputMap = output.get(0).getValue().getValue();
+    assertEquals(2, outputMap.size());
+    assertEquals(ImmutableMap.of(1L, 11L, 2L, 21L), outputMap);
+
+    outputMap = output.get(1).getValue().getValue();
+    assertEquals(2, outputMap.size());
+    assertEquals(ImmutableMap.of(2L, 21L, 3L, 31L), outputMap);
+
+    outputMap = output.get(2).getValue().getValue();
+    assertEquals(1, outputMap.size());
+    assertEquals(ImmutableMap.of(4L, 41L), outputMap);
+  }
+
+  @Test
+  public void testToMultimapDoFn() throws Exception {
+    Coder<IntervalWindow> windowCoder = IntervalWindow.getCoder();
+
+    DoFnTester<KV<Integer, Iterable<KV<IntervalWindow, WindowedValue<KV<Long, Long>>>>>,
+                  IsmRecord<WindowedValue<TransformedMap<Long,
+                                                         Iterable<WindowedValue<Long>>,
+                                                         Iterable<Long>>>>> doFnTester =
+        DoFnTester.of(
+            new BatchViewAsMultimap.ToMultimapDoFn<Long, Long, IntervalWindow>(windowCoder));
+
+
+    IntervalWindow windowA = new IntervalWindow(new Instant(0), new Instant(10));
+    IntervalWindow windowB = new IntervalWindow(new Instant(10), new Instant(20));
+    IntervalWindow windowC = new IntervalWindow(new Instant(20), new Instant(30));
+
+    Iterable<KV<Integer,
+             Iterable<KV<IntervalWindow, WindowedValue<KV<Long, Long>>>>>> inputElements =
+        ImmutableList.of(
+            KV.of(1,
+                (Iterable<KV<IntervalWindow, WindowedValue<KV<Long, Long>>>>) ImmutableList.of(
+                    KV.of(windowA, WindowedValue.of(
+                        KV.of(1L, 11L), new Instant(3), windowA, PaneInfo.NO_FIRING)),
+                    KV.of(windowA, WindowedValue.of(
+                        KV.of(1L, 12L), new Instant(5), windowA, PaneInfo.NO_FIRING)),
+                    KV.of(windowA, WindowedValue.of(
+                        KV.of(2L, 21L), new Instant(7), windowA, PaneInfo.NO_FIRING)),
+                    KV.of(windowB, WindowedValue.of(
+                        KV.of(2L, 21L), new Instant(13), windowB, PaneInfo.NO_FIRING)),
+                    KV.of(windowB, WindowedValue.of(
+                        KV.of(3L, 31L), new Instant(15), windowB, PaneInfo.NO_FIRING)))),
+            KV.of(2,
+                (Iterable<KV<IntervalWindow, WindowedValue<KV<Long, Long>>>>) ImmutableList.of(
+                    KV.of(windowC, WindowedValue.of(
+                        KV.of(4L, 41L), new Instant(25), windowC, PaneInfo.NO_FIRING)))));
+
+    // The order of the output elements is important relative to processing order
+    List<IsmRecord<WindowedValue<TransformedMap<Long,
+                                                Iterable<WindowedValue<Long>>,
+                                                Iterable<Long>>>>> output =
+                                                doFnTester.processBatch(inputElements);
+    assertEquals(3, output.size());
+    Map<Long, Iterable<Long>> outputMap;
+
+    outputMap = output.get(0).getValue().getValue();
+    assertEquals(2, outputMap.size());
+    assertThat(outputMap.get(1L), containsInAnyOrder(11L, 12L));
+    assertThat(outputMap.get(2L), containsInAnyOrder(21L));
+
+    outputMap = output.get(1).getValue().getValue();
+    assertEquals(2, outputMap.size());
+    assertThat(outputMap.get(2L), containsInAnyOrder(21L));
+    assertThat(outputMap.get(3L), containsInAnyOrder(31L));
+
+    outputMap = output.get(2).getValue().getValue();
+    assertEquals(1, outputMap.size());
+    assertThat(outputMap.get(4L), containsInAnyOrder(41L));
   }
 }

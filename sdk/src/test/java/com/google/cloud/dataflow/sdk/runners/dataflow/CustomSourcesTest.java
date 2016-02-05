@@ -42,6 +42,7 @@ import com.google.cloud.dataflow.sdk.io.Read;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.runners.DataflowPipeline;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.ExpectedLogs;
@@ -53,7 +54,9 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.CloudSourceUtils;
+import com.google.cloud.dataflow.sdk.util.NoopPathValidator;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
+import com.google.cloud.dataflow.sdk.util.TestCredential;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.base.Preconditions;
 
@@ -406,11 +409,17 @@ public class CustomSourcesTest {
 
   private static Source translateIOToCloudSource(
       BoundedSource<?> io, DataflowPipelineOptions options) throws Exception {
+    options.setProject("test-project");
+    options.setTempLocation("gs://test-tmp");
+    options.setPathValidatorClass(NoopPathValidator.class);
+    options.setGcpCredential(new TestCredential());
+
     DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
-    Pipeline p = Pipeline.create(options);
+    DataflowPipeline p = DataflowPipeline.create(options);
     p.begin().apply(Read.from(io));
 
-    Job workflow = translator.translate(p, new ArrayList<DataflowPackage>()).getJob();
+    Job workflow = translator.translate(
+        p, p.getRunner(), new ArrayList<DataflowPackage>()).getJob();
     Step step = workflow.getSteps().get(0);
 
     return stepToCloudSource(step);
