@@ -16,9 +16,6 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.Arrays;
 import java.util.Objects;
 
@@ -29,104 +26,69 @@ import java.util.Objects;
  * reached.
  */
 public class UserCodeException extends RuntimeException {
-  private static final Logger LOG = LoggerFactory.getLogger(UserCodeException.class);
 
-  public UserCodeException(Throwable t) {
+  public static UserCodeException wrap(Throwable t) {
+    if (t instanceof UserCodeException) {
+      return (UserCodeException) t;
+    }
+
+    return new UserCodeException(t);
+  }
+
+  public static RuntimeException wrapIf(boolean condition, Throwable t) {
+    if (condition) {
+      return wrap(t);
+    }
+
+    if (t instanceof RuntimeException) {
+      return (RuntimeException) t;
+    }
+
+    return new RuntimeException(t);
+  }
+
+  private UserCodeException(Throwable t) {
     super(t);
-
-    StackTraceElement[] currentFrames =
-        Thread.currentThread().getStackTrace();
-
-    // We're interested in getting the third stack frame here, since
-    // the exception stack trace includes the getStackTrace frame from
-    // Thread and the frame from where the UserCodeException is
-    // actually thrown. If there aren't more than two frames,
-    // something is odd about where the exception was thrown, so leave
-    // the stack trace alone and allow it to propagate.
-    //
-    // For example, if an exception in user code has a stack trace like this:
-    //
-    // java.lang.NullPointerException
-    // at com.google.cloud.dataflow.sdk.examples.
-    //     SimpleWordCount$ExtractWordsFn.dieHere(SimpleWordCount.java:23)
-    // at com.google.cloud.dataflow.sdk.examples.
-    //     SimpleWordCount$ExtractWordsFn.
-    //         processElement(SimpleWordCount.java:27)
-    // at com.google.cloud.dataflow.sdk.
-    //     DoFnRunner.processElement(DoFnRunner.java:95)       <-- caught here
-    // at com.google.cloud.dataflow.sdk.
-    //     worker.NormalParDoFn.processElement(NormalParDoFn.java:119)
-    // at com.google.cloud.dataflow.sdk.
-    //     worker.executor.ParDoOperation.process(ParDoOperation.java:65)
-    // at com.google.cloud.dataflow.sdk.
-    //     worker.executor.ReadOperation.start(ReadOperation.java:65)
-    // at com.google.cloud.dataflow.sdk.
-    //     worker.executor.MapTaskExecutor.execute(MapTaskExecutor.java:79)
-    // at com.google.cloud.dataflow.sdk.
-    //     worker.DataflowWorkerHarness.main(DataflowWorkerHarness.java:95)
-    //
-    // It would be truncated to:
-    //
-    // java.lang.NullPointerException
-    // at com.google.cloud.dataflow.sdk.examples.
-    //     SimpleWordCount$ExtractWordsFn.dieHere(SimpleWordCount.java:23)
-    // at com.google.cloud.dataflow.sdk.examples.
-    //     SimpleWordCount$ExtractWordsFn.
-    //         processElement(SimpleWordCount.java:27)
-    //
-    // However, we need to get the third stack frame from the
-    // getStackTrace, since after catching the error in DoFnRunner,
-    // the trace is two frames deeper by the time we get it:
-    //
-    // [0] java.lang.Thread.getStackTrace(Thread.java:1568)
-    // [1] com.google.cloud.dataflow.sdk.
-    //         UserCodeException.<init>(UserCodeException.java:16)
-    // [2] com.google.cloud.dataflow.sdk.
-    //         DoFnRunner.processElement(DoFnRunner.java:95)  <-- common frame
-    //
-    // We then proceed to truncate the original exception at the
-    // common frame, setting the UserCodeException's cause to the
-    // truncated stack trace.
-
-    // Check to make sure the stack is > 2 deep.
-    if (currentFrames.length <= 2) {
-      LOG.error("Expecting stack trace to be > 2 frames long.");
-      return;
-    }
-
-    // Perform some checks to make sure javac doesn't change from below us.
-    if (!Objects.equals(currentFrames[1].getClassName(), getClass().getName())) {
-      LOG.error("Expected second frame coming from Thread.currentThread.getStackTrace() "
-          + "to be {}, was: {}", getClass().getName(), currentFrames[1].getClassName());
-      return;
-    }
-    if (Objects.equals(currentFrames[2].getClassName(), currentFrames[1].getClassName())) {
-      LOG.error("Javac's Thread.CurrentThread.getStackTrace() changed unexpectedly.");
-      return;
-    }
-
-    // Now that all checks have passed, select the common frame.
-    StackTraceElement callingFrame = currentFrames[2];
-    // Truncate the user-level stack trace below where the
-    // UserCodeException was thrown.
-    truncateStackTrace(callingFrame, t);
+    truncateStackTrace(t);
   }
 
   /**
-   * Truncates this Throwable's stack frame at the given frame,
+   * Truncates the @{Throwable}'s stack trace to contain only user code,
    * removing all frames below.
+   *
+   * <p>This is to remove infrastructure noise below user code entry point. We do this
+   * by finding common stack frames between the throwable's captured stack and that
+   * of the current thread.
    */
-  private void truncateStackTrace(
-      StackTraceElement currentFrame, Throwable t) {
-    int index = 0;
-    StackTraceElement[] stackTrace = t.getStackTrace();
-    for (StackTraceElement element : stackTrace) {
-      if (Objects.equals(element.getClassName(), currentFrame.getClassName()) &&
-          Objects.equals(element.getMethodName(), currentFrame.getMethodName())) {
-        t.setStackTrace(Arrays.copyOfRange(stackTrace, 0, index));
+  private void truncateStackTrace(Throwable t) {
+
+    StackTraceElement[] currentStack = Thread.currentThread().getStackTrace();
+    StackTraceElement[] throwableStack = t.getStackTrace();
+
+    int currentStackSize = currentStack.length;
+    int throwableStackSize = throwableStack.length;
+
+    int commonFrames = 0;
+    while (framesEqual(currentStack[currentStackSize - commonFrames - 1],
+        throwableStack[throwableStackSize - commonFrames - 1])) {
+      commonFrames++;
+      if (commonFrames >= Math.min(currentStackSize, throwableStackSize)) {
         break;
       }
-      index++;
     }
+
+    StackTraceElement[] truncatedStack = Arrays.copyOfRange(throwableStack, 0,
+        throwableStackSize - commonFrames);
+    t.setStackTrace(truncatedStack);
+  }
+
+  /**
+   * Check if two frames are equal; Frames are considered equal if they point to the same method.
+   */
+  private boolean framesEqual(StackTraceElement frame1, StackTraceElement frame2) {
+    boolean areEqual = Objects.equals(frame1.getClassName(), frame2.getClassName());
+    areEqual &= Objects.equals(frame1.getMethodName(), frame2.getMethodName());
+
+    return areEqual;
   }
 }

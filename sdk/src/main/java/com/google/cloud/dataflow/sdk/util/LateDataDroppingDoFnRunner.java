@@ -25,7 +25,6 @@ import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
-import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 
 import org.joda.time.Instant;
@@ -118,10 +117,8 @@ public class LateDataDroppingDoFnRunner<K, InputT, OutputT, W extends BoundedWin
     // This can contain user code. Wrap it in case it throws an exception.
     try {
       fn.processElement(createProcessContext(elem.withValue(inputs)));
-    } catch (Throwable t) {
-      // Exception in user code.
-      Throwables.propagateIfInstanceOf(t, UserCodeException.class);
-      throw new UserCodeException(t);
+    } catch (Exception ex) {
+      throw wrapUserCodeException(ex);
     }
   }
 

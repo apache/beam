@@ -37,7 +37,6 @@ import com.google.cloud.dataflow.sdk.util.state.StateInternals;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -128,8 +127,7 @@ public abstract class DoFnRunnerBase<InputT, OutputT> implements DoFnRunner<Inpu
       fn.startBundle(context);
     } catch (Throwable t) {
       // Exception in user code.
-      Throwables.propagateIfInstanceOf(t, UserCodeException.class);
-      throw new UserCodeException(t);
+      throw wrapUserCodeException(t);
     }
   }
 
@@ -173,8 +171,7 @@ public abstract class DoFnRunnerBase<InputT, OutputT> implements DoFnRunner<Inpu
       fn.finishBundle(context);
     } catch (Throwable t) {
       // Exception in user code.
-      Throwables.propagateIfInstanceOf(t, UserCodeException.class);
-      throw new UserCodeException(t);
+      throw wrapUserCodeException(t);
     }
   }
 
@@ -275,8 +272,7 @@ public abstract class DoFnRunnerBase<InputT, OutputT> implements DoFnRunner<Inpu
             }
           });
         } catch (Exception e) {
-          Throwables.propagateIfInstanceOf(e, UserCodeException.class);
-          throw new UserCodeException(e);
+          throw UserCodeException.wrap(e);
         }
       }
 
@@ -379,6 +375,14 @@ public abstract class DoFnRunnerBase<InputT, OutputT> implements DoFnRunner<Inpu
    */
   protected DoFn<InputT, OutputT>.ProcessContext createProcessContext(WindowedValue<InputT> elem) {
     return new DoFnProcessContext<InputT, OutputT>(fn, context, elem);
+  }
+
+  protected RuntimeException wrapUserCodeException(Throwable t) {
+    throw UserCodeException.wrapIf(!isSystemDoFn(), t);
+  }
+
+  private boolean isSystemDoFn() {
+    return fn.getClass().isAnnotationPresent(SystemDoFnInternal.class);
   }
 
   /**

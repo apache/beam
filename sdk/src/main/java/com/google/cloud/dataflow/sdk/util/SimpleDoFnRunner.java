@@ -21,7 +21,6 @@ import com.google.cloud.dataflow.sdk.util.DoFnRunners.OutputManager;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext.StepContext;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet.AddCounterMutator;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
-import com.google.common.base.Throwables;
 
 import java.util.List;
 
@@ -44,14 +43,12 @@ public class SimpleDoFnRunner<InputT, OutputT> extends DoFnRunnerBase<InputT, Ou
 
   @Override
   protected void invokeProcessElement(WindowedValue<InputT> elem) {
-    DoFn<InputT, OutputT>.ProcessContext processContext = createProcessContext(elem);
+    final DoFn<InputT, OutputT>.ProcessContext processContext = createProcessContext(elem);
     // This can contain user code. Wrap it in case it throws an exception.
     try {
       fn.processElement(processContext);
-    } catch (Throwable t) {
-      // Exception in user code.
-      Throwables.propagateIfInstanceOf(t, UserCodeException.class);
-      throw new UserCodeException(t);
+    } catch (Exception ex) {
+      throw wrapUserCodeException(ex);
     }
   }
 }

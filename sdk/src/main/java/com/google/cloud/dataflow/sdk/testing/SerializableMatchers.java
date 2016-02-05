@@ -1159,7 +1159,7 @@ class SerializableMatchers implements Serializable {
       try {
         this.encodedValue = CoderUtils.encodeToByteArray(coder, Arrays.asList(value));
       } catch (CoderException exc) {
-        throw new UserCodeException(exc);
+        throw UserCodeException.wrap(exc);
       }
     }
 

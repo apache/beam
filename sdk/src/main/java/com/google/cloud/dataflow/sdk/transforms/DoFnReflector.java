@@ -473,8 +473,7 @@ public abstract class DoFnReflector {
         m.invoke(on, args);
       } catch (InvocationTargetException e) {
         // Exception in user code.
-        Throwables.propagateIfInstanceOf(e.getCause(), UserCodeException.class);
-        throw new UserCodeException(e.getCause());
+        throw UserCodeException.wrap(e.getCause());
       } catch (IllegalAccessException | IllegalArgumentException e) {
         // Exception in our code.
         throw Throwables.propagate(e);

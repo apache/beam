@@ -16,11 +16,13 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
+import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
+import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.DirectModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.DirectSideInputReader;
 import com.google.cloud.dataflow.sdk.util.DoFnRunner;
@@ -45,6 +47,7 @@ import com.google.cloud.dataflow.sdk.values.TypedPValue;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 
+import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -1184,7 +1187,7 @@ public class ParDo {
         fnRunner.processElement(windowedElem);
         inputMutationDetector.verifyUnmodified();
       } catch (CoderException e) {
-        throw new UserCodeException(e);
+        throw UserCodeException.wrap(e);
       } catch (IllegalMutationException exn) {
         throw new IllegalMutationException(
             String.format("DoFn %s mutated input value %s of class %s (new value was %s)."
@@ -1252,7 +1255,7 @@ public class ParDo {
           MutationDetector priorDetector = mutationDetectorForTag.put(tag, newDetector);
           verifyOutputUnmodified(priorDetector);
         } catch (CoderException e) {
-          throw new UserCodeException(e);
+          throw UserCodeException.wrap(e);
         }
       }
 

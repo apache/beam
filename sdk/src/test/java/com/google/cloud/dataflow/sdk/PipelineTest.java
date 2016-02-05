@@ -77,7 +77,7 @@ public class PipelineTest {
     @Override
     public PipelineResult run(Pipeline pipeline) {
       Throwable t = new IllegalStateException("user code exception");
-      throw new UserCodeException(t);
+      throw UserCodeException.wrap(t);
     }
   }
 

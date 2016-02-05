@@ -729,11 +729,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
   private RuntimeException wrapMaybeUserException(Throwable t) {
-    if (reduceFn instanceof SystemReduceFn) {
-      throw Throwables.propagate(t);
-    } else {
-      // Any exceptions that happen inside a non-system ReduceFn are considered user code.
-      throw new UserCodeException(t);
-    }
+    // Any exceptions that happen inside a non-system ReduceFn are considered user code.
+    throw UserCodeException.wrapIf(!(reduceFn instanceof SystemReduceFn), t);
   }
 }

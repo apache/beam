@@ -31,7 +31,6 @@ import com.google.cloud.dataflow.sdk.util.DoFnRunnerBase;
 import com.google.cloud.dataflow.sdk.util.DoFnRunners.OutputManager;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext.StepContext;
 import com.google.cloud.dataflow.sdk.util.SideInputReader;
-import com.google.cloud.dataflow.sdk.util.UserCodeException;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
@@ -191,14 +190,12 @@ public class StreamingSideInputDoFnRunner<InputT, OutputT, W extends BoundedWind
 
       BagState<WindowedValue<InputT>> elementsBag = elementBag(window);
       Iterable<WindowedValue<InputT>> elements = elementsBag.get().read();
-      try {
-        for (WindowedValue<InputT> elem : elements) {
+      for (WindowedValue<InputT> elem : elements) {
+        try {
           fn.processElement(createProcessContext(elem));
+        } catch (Exception ex) {
+          throw wrapUserCodeException(ex);
         }
-      } catch (Throwable t) {
-        // Exception in user code.
-        Throwables.propagateIfInstanceOf(t, UserCodeException.class);
-        throw new UserCodeException(t);
       }
 
       elementsBag.clear();
@@ -239,21 +236,26 @@ public class StreamingSideInputDoFnRunner<InputT, OutputT, W extends BoundedWind
     @SuppressWarnings("unchecked")
     W window = (W) Iterables.getOnlyElement(elem.getWindows());
 
-    // This can contain user code. Wrap it in case it throws an exception.
+    Set<Windmill.GlobalDataRequest> blocked;
     try {
-      Set<Windmill.GlobalDataRequest> blocked = computeBlockedSideInputs(window);
-      if (blocked == null) {
-        fn.processElement(createProcessContext(elem));
-      } else {
-        elementBag(window).add(elem);
-        watermarkHold(window).add(elem.getTimestamp());
+      blocked = computeBlockedSideInputs(window);
+    } catch (IOException ex) {
+      // Can't leak IOException here
+      throw Throwables.propagate(ex);
+    }
 
-        stepContext.addBlockingSideInputs(blocked);
+    if (blocked == null) {
+      // This can contain user code. Wrap it in case it throws an exception.
+      try {
+        fn.processElement(createProcessContext(elem));
+      } catch (Exception ex) {
+        throw wrapUserCodeException(ex);
       }
-    } catch (Throwable t) {
-      // Exception in user code.
-      Throwables.propagateIfInstanceOf(t, UserCodeException.class);
-      throw new UserCodeException(t);
+    } else {
+      elementBag(window).add(elem);
+      watermarkHold(window).add(elem.getTimestamp());
+
+      stepContext.addBlockingSideInputs(blocked);
     }
   }
 
