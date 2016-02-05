@@ -19,7 +19,6 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.CombineFnBase.PerKeyCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.util.common.worker.PartialGroupByKeyOperation;
 
 import java.io.Serializable;
 import java.util.Collection;
@@ -102,8 +101,7 @@ public interface PerKeyCombineFnRunner<K, InputT, AccumT, OutputT> extends Seria
   /////////////////////////////////////////////////////////////////////////////
 
   /**
-   * Forwards the call to a {@link PerKeyCombineFn} to create the accumulator
-   * in a {@link PartialGroupByKeyOperation}.
+   * Forwards the call to a {@link PerKeyCombineFn} to create the accumulator.
    *
    * <p>It constructs a {@code CombineWithContext.Context} from
    * {@link PipelineOptions} and {@link SideInputReader} if it is required.
@@ -112,8 +110,7 @@ public interface PerKeyCombineFnRunner<K, InputT, AccumT, OutputT> extends Seria
       SideInputReader sideInputReader, Collection<? extends BoundedWindow> windows);
 
   /**
-   * Forwards the call to a {@link PerKeyCombineFn} to add the input
-   * in a {@link PartialGroupByKeyOperation}.
+   * Forwards the call to a {@link PerKeyCombineFn} to add the input.
    *
    * <p>It constructs a {@code CombineWithContext.Context} from
    * {@link PipelineOptions} and {@link SideInputReader} if it is required.
@@ -122,8 +119,7 @@ public interface PerKeyCombineFnRunner<K, InputT, AccumT, OutputT> extends Seria
       SideInputReader sideInputReader, Collection<? extends BoundedWindow> windows);
 
   /**
-   * Forwards the call to a {@link PerKeyCombineFn} to merge accumulators
-   * in a {@link PartialGroupByKeyOperation}.
+   * Forwards the call to a {@link PerKeyCombineFn} to merge accumulators.
    *
    * <p>It constructs a {@code CombineWithContext.Context} from
    * {@link PipelineOptions} and {@link SideInputReader} if it is required.
@@ -132,8 +128,7 @@ public interface PerKeyCombineFnRunner<K, InputT, AccumT, OutputT> extends Seria
       SideInputReader sideInputReader, Collection<? extends BoundedWindow> windows);
 
   /**
-   * Forwards the call to a {@link PerKeyCombineFn} to extract the output
-   * in a {@link PartialGroupByKeyOperation}.
+   * Forwards the call to a {@link PerKeyCombineFn} to extract the output.
    *
    * <p>It constructs a {@code CombineWithContext.Context} from
    * {@link PipelineOptions} and {@link SideInputReader} if it is required.
@@ -142,8 +137,7 @@ public interface PerKeyCombineFnRunner<K, InputT, AccumT, OutputT> extends Seria
       SideInputReader sideInputReader, Collection<? extends BoundedWindow> windows);
 
   /**
-   * Forwards the call to a {@link PerKeyCombineFn} to compact the accumulator
-   * in a {@link PartialGroupByKeyOperation}.
+   * Forwards the call to a {@link PerKeyCombineFn} to compact the accumulator.
    *
    * <p>It constructs a {@code CombineWithContext.Context} from
    * {@link PipelineOptions} and {@link SideInputReader} if it is required.
