@@ -25,10 +25,13 @@ import com.google.api.services.dataflow.model.ApproximateReportedProgress;
 import com.google.api.services.dataflow.model.ApproximateSplitRequest;
 import com.google.api.services.dataflow.model.ConcatPosition;
 import com.google.api.services.dataflow.model.Source;
+import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.io.range.OffsetRangeTracker;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.DataflowReaderProgress;
+import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
+import com.google.cloud.dataflow.sdk.util.Serializer;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 import com.google.common.annotations.VisibleForTesting;
@@ -72,20 +75,20 @@ public class ConcatReader<T> extends NativeReader<T> {
   private final ExecutionContext executionContext;
   private final CounterSet.AddCounterMutator addCounterMutator;
   private final String operationName;
-  private final ReaderRegistry registry;
+  private final ReaderFactory readerFactory;
 
   /**
    * Create a {@link ConcatReader} using a given list of encoded {@link Source}s.
    */
   public ConcatReader(
-      ReaderRegistry registry,
+      ReaderFactory readerFactory,
       PipelineOptions options,
       ExecutionContext executionContext,
       CounterSet.AddCounterMutator addCounterMutator,
       String operationName,
       List<Source> sources) {
     Preconditions.checkNotNull(sources);
-    this.registry = registry;
+    this.readerFactory = readerFactory;
     this.sources = sources;
     this.options = options;
     this.executionContext = executionContext;
@@ -100,7 +103,7 @@ public class ConcatReader<T> extends NativeReader<T> {
   @Override
   public ConcatIterator<T> iterator() throws IOException {
     return new ConcatIterator<T>(
-        registry,
+        readerFactory,
         options,
         executionContext,
         addCounterMutator,
@@ -118,16 +121,16 @@ public class ConcatReader<T> extends NativeReader<T> {
     private final CounterSet.AddCounterMutator addCounterMutator;
     private final String operationName;
     private final OffsetRangeTracker rangeTracker;
-    private final ReaderRegistry registry;
+    private final ReaderFactory readerFactory;
 
     public ConcatIterator(
-        ReaderRegistry registry,
+        ReaderFactory readerFactory,
         PipelineOptions options,
         ExecutionContext executionContext,
         CounterSet.AddCounterMutator addCounterMutator,
         String operationName,
         List<Source> sources) {
-      this.registry = registry;
+      this.readerFactory = readerFactory;
       this.sources = sources;
       this.options = options;
       this.executionContext = executionContext;
@@ -168,11 +171,17 @@ public class ConcatReader<T> extends NativeReader<T> {
 
         Source currentSource = sources.get(currentIteratorIndex);
         try {
+          Coder<?> coder = null;
+          if (currentSource.getCodec() != null) {
+            coder = Serializer.deserialize(currentSource.getCodec(), Coder.class);
+          }
           @SuppressWarnings("unchecked")
           NativeReader<T> currentReader =
               (NativeReader<T>)
-                  registry.create(
-                      currentSource, options, executionContext, addCounterMutator, operationName);
+                  readerFactory.create(
+                      CloudObject.fromSpec(currentSource.getSpec()), coder, options,
+                      executionContext, addCounterMutator,
+                      operationName);
           currentIterator = currentReader.iterator();
         } catch (Exception e) {
           throw new IOException("Failed to create a reader for source: " + currentSource, e);

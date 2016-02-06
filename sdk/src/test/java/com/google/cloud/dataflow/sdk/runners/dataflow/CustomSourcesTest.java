@@ -16,24 +16,14 @@
 
 package com.google.cloud.dataflow.sdk.runners.dataflow;
 import static com.google.cloud.dataflow.sdk.testing.SourceTestUtils.readFromSource;
-import static com.google.cloud.dataflow.sdk.util.Structs.getDictionary;
-import static com.google.cloud.dataflow.sdk.util.Structs.getObject;
-import static com.google.common.base.Throwables.getStackTraceAsString;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
-import com.google.api.services.dataflow.model.DataflowPackage;
-import com.google.api.services.dataflow.model.Job;
-import com.google.api.services.dataflow.model.Source;
-import com.google.api.services.dataflow.model.Step;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
@@ -42,8 +32,6 @@ import com.google.cloud.dataflow.sdk.io.Read;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.runners.DataflowPipeline;
-import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.ExpectedLogs;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
@@ -52,11 +40,6 @@ import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
-import com.google.cloud.dataflow.sdk.util.CloudObject;
-import com.google.cloud.dataflow.sdk.util.CloudSourceUtils;
-import com.google.cloud.dataflow.sdk.util.NoopPathValidator;
-import com.google.cloud.dataflow.sdk.util.PropertyNames;
-import com.google.cloud.dataflow.sdk.util.TestCredential;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.base.Preconditions;
 
@@ -70,10 +53,7 @@ import org.junit.runners.JUnit4;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
 
 /**
  * Tests for {@link CustomSources}.
@@ -289,165 +269,5 @@ public class CustomSourcesTest {
       assertEquals(13, reader.getCurrent().intValue());
       assertFalse(reader.advance());
     }
-  }
-
-  /**
-   * A source that cannot do anything. Intended to be overridden for testing of individual methods.
-   */
-  private static class MockSource extends BoundedSource<Integer> {
-    @Override
-    public List<? extends BoundedSource<Integer>> splitIntoBundles(
-        long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
-      return Arrays.asList(this);
-    }
-
-    @Override
-    public void validate() { }
-
-    @Override
-    public boolean producesSortedKeys(PipelineOptions options) {
-      return false;
-    }
-
-    @Override
-    public long getEstimatedSizeBytes(PipelineOptions options) {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public BoundedReader<Integer> createReader(PipelineOptions options) throws IOException {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public String toString() {
-      return "<unknown>";
-    }
-
-    @Override
-    public Coder<Integer> getDefaultOutputCoder() {
-      return BigEndianIntegerCoder.of();
-    }
-  }
-
-  private static class FailingReader extends BoundedSource.BoundedReader<Integer> {
-    private BoundedSource<Integer> source;
-
-    private FailingReader(BoundedSource<Integer> source) {
-      this.source = source;
-    }
-
-    @Override
-    public BoundedSource<Integer> getCurrentSource() {
-      return source;
-    }
-
-    @Override
-    public boolean start() throws IOException {
-      throw new IOException("Intentional error");
-    }
-
-    @Override
-    public boolean advance() throws IOException {
-      throw new IllegalStateException("Should have failed in start()");
-    }
-
-    @Override
-    public Integer getCurrent() throws NoSuchElementException {
-      throw new IllegalStateException("Should have failed in start()");
-    }
-
-    @Override
-    public Instant getCurrentTimestamp() throws NoSuchElementException {
-      throw new IllegalStateException("Should have failed in start()");
-    }
-
-    @Override
-    public void close() throws IOException {}
-
-    @Override
-    public Double getFractionConsumed() {
-      return null;
-    }
-
-    @Override
-    public BoundedSource<Integer> splitAtFraction(double fraction) {
-      return null;
-    }
-  }
-
-  private static class SourceProducingFailingReader extends MockSource {
-    @Override
-    public BoundedReader<Integer> createReader(PipelineOptions options) throws IOException {
-      return new FailingReader(this);
-    }
-
-    @Override
-    public String toString() {
-      return "Some description";
-    }
-  }
-
-  @Test
-  public void testFailureToStartReadingIncludesSourceDetails() throws Exception {
-    DataflowPipelineOptions options =
-        PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
-    Source source = translateIOToCloudSource(new SourceProducingFailingReader(), options);
-    // Unfortunately Hamcrest doesn't have a matcher that can match on the exception's
-    // printStackTrace(), however we just want to verify that the error and source description
-    // would be contained in the exception *somewhere*, not necessarily in the top-level
-    // Exception object. So instead we use Throwables.getStackTraceAsString and match on that.
-    try {
-      CloudSourceUtils.readElemsFromSource(options, source);
-      fail("Expected to fail");
-    } catch (Exception e) {
-      assertThat(
-          getStackTraceAsString(e),
-          allOf(containsString("Intentional error"), containsString("Some description")));
-    }
-  }
-
-  private static Source translateIOToCloudSource(
-      BoundedSource<?> io, DataflowPipelineOptions options) throws Exception {
-    options.setProject("test-project");
-    options.setTempLocation("gs://test-tmp");
-    options.setPathValidatorClass(NoopPathValidator.class);
-    options.setGcpCredential(new TestCredential());
-
-    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
-    DataflowPipeline p = DataflowPipeline.create(options);
-    p.begin().apply(Read.from(io));
-
-    Job workflow = translator.translate(
-        p, p.getRunner(), new ArrayList<DataflowPackage>()).getJob();
-    Step step = workflow.getSteps().get(0);
-
-    return stepToCloudSource(step);
-  }
-
-  private static Source stepToCloudSource(Step step)
-      throws Exception {
-    Source res = dictionaryToCloudSource(
-        getDictionary(step.getProperties(), PropertyNames.SOURCE_STEP_INPUT));
-    // Encoding is specified in the step, not in the source itself.  This is
-    // normal: incoming Dataflow API Source objects in map tasks will have the
-    // encoding filled in from the step's output encoding.
-    @SuppressWarnings("unchecked")
-    List<Map<String, Object>> outputInfo =
-        (List<Map<String, Object>>) step.getProperties().get(PropertyNames.OUTPUT_INFO);
-
-    CloudObject encoding = CloudObject.fromSpec(getObject(outputInfo.get(0),
-        PropertyNames.ENCODING));
-    res.setCodec(encoding);
-    return res;
-  }
-
-  // Duplicated from runners.worker.SourceTranslationUtils to break dependency on worker
-  private static Source dictionaryToCloudSource(Map<String, Object> params) throws Exception {
-    Source res = new Source();
-    res.setSpec(getDictionary(params, PropertyNames.SOURCE_SPEC));
-    // SOURCE_METADATA and SOURCE_DOES_NOT_NEED_SPLITTING do not have to be
-    // translated, because they only make sense in cloud Source objects produced by the user.
-    return res;
   }
 }

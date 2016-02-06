@@ -17,13 +17,9 @@
 package com.google.cloud.dataflow.sdk.util;
 
 import com.google.api.services.dataflow.model.Source;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.runners.worker.ReaderRegistry;
-import com.google.cloud.dataflow.sdk.runners.worker.ReaderUtils;
 import com.google.cloud.dataflow.sdk.util.common.worker.NativeReader;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -51,22 +47,5 @@ public class CloudSourceUtils {
     result.setSpec(params);
     result.setBaseSpecs(null);
     return result;
-  }
-
-  /**
-   * Creates a {@link NativeReader} from the given Dataflow Source API definition and
-   * reads all elements from it.
-   */
-
-  public static <T> List<T> readElemsFromSource(PipelineOptions options, Source source) {
-    try {
-      @SuppressWarnings("unchecked")
-      NativeReader<T> reader =
-          (NativeReader<T>)
-              ReaderRegistry.defaultRegistry().create(source, options, null, null, null);
-      return ReaderUtils.readAllFromReader(reader);
-    } catch (Exception e) {
-      throw new RuntimeException("Failed to read from source: " + source.toString(), e);
-    }
   }
 }
