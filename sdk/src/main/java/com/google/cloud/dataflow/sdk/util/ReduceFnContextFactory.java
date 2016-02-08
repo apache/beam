@@ -20,8 +20,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
-import com.google.cloud.dataflow.sdk.util.ReduceFn.MergingStateContext;
-import com.google.cloud.dataflow.sdk.util.ReduceFn.StateContext;
 import com.google.cloud.dataflow.sdk.util.ReduceFn.Timers;
 import com.google.cloud.dataflow.sdk.util.TimerInternals.TimerData;
 import com.google.cloud.dataflow.sdk.util.state.MergeableState;
@@ -136,7 +134,7 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
   }
 
   static class StateContextImpl<W extends BoundedWindow>
-      implements ReduceFn.StateContext {
+      implements StateContext {
 
     private final ActiveWindowSet<W> activeWindows;
     private final W window;
@@ -185,8 +183,7 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
     }
   }
 
-  static class MergingStateContextImpl<W extends BoundedWindow>
-      implements ReduceFn.MergingStateContext {
+  static class MergingStateContextImpl<W extends BoundedWindow> implements MergingStateContext {
 
     private final StateContextImpl<W> delegate;
     private final Collection<W> mergingWindows;

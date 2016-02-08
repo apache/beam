@@ -309,7 +309,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
               contextFactory.forMerge(toBeMerged, mergeResult);
 
           // Prefetch various state.
-          triggerRunner.prefetchForMerge(mergeResultContext.state());
+          triggerRunner.prefetchForMerge(mergeResult, toBeMerged, mergeResultContext.state());
 
           // Run the reduceFn to perform any needed merging.
           try {

@@ -19,15 +19,12 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.util.state.MergeableState;
-import com.google.cloud.dataflow.sdk.util.state.State;
 import com.google.cloud.dataflow.sdk.util.state.StateContents;
-import com.google.cloud.dataflow.sdk.util.state.StateTag;
 
 import org.joda.time.Instant;
 
 import java.io.Serializable;
 import java.util.Collection;
-import java.util.Map;
 
 import javax.annotation.Nullable;
 
@@ -41,44 +38,6 @@ import javax.annotation.Nullable;
  */
 public abstract class ReduceFn<K, InputT, OutputT, W extends BoundedWindow>
     implements Serializable {
-  /** Interface for interacting with persistent state. */
-  public interface StateContext {
-    /**
-     * Access the storage for the given {@code address} in the current window.
-     *
-     * <p>Never accounts for merged windows. When windows are merged, any state accessed via
-     * this method must be eagerly combined and written into the result window.
-     */
-    <StateT extends State> StateT access(StateTag<StateT> address);
-
-    /**
-     * Access the storage for the given {@code address} in all of the windows that were
-     * merged into the current window.
-     *
-     * <p>If no windows were merged, this reads and writes to just the current window.
-     * Otherwise, when windows merge we do not eagerly combine state, but rather defer the
-     * combination to reading time. Thus reads will be from all 'merged windows' for the
-     * current window, and writes will be to the designated 'writing window' for the current window.
-     */
-    <StateT extends MergeableState<?, ?>> StateT accessAcrossMergedWindows(
-        StateTag<StateT> address);
-  }
-
-  /** Interface for interacting with persistent state within {@link #onMerge}. */
-  public interface MergingStateContext extends StateContext {
-    /**
-     * Analogous to {@link #access}, but across all windows which are about to be merged.
-     */
-    <StateT extends MergeableState<?, ?>> StateT mergingAccess(StateTag<StateT> address);
-
-    /**
-     * Analogous to {@link #access}, but returned as a map from each window which is
-     * about to be merged to the corresponding state.
-     */
-    public abstract <StateT extends State> Map<BoundedWindow, StateT>
-        mergingAccessInEachMergingWindow(StateTag<StateT> address);
-  }
-
   /**
    * Interface for interacting with time.
    */

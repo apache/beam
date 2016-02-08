@@ -26,6 +26,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 
 import java.util.BitSet;
+import java.util.Collection;
 import java.util.Map;
 
 /**
@@ -70,25 +71,25 @@ public class TriggerRunner<W extends BoundedWindow> {
   }
 
   /** Return true if the trigger is closed in the window corresponding to the specified state. */
-  public boolean isClosed(ReduceFn.StateContext state) {
+  public boolean isClosed(StateContext state) {
     return readFinishedBits(state.access(FINISHED_BITS_TAG)).isFinished(rootTrigger);
   }
 
-  public void prefetchForValue(ReduceFn.StateContext state) {
+  public void prefetchForValue(StateContext state) {
     if (isFinishedSetNeeded()) {
       state.access(FINISHED_BITS_TAG).get();
     }
     rootTrigger.getSpec().prefetchOnElement(state);
   }
 
-  public void prefetchOnFire(ReduceFn.StateContext state) {
+  public void prefetchOnFire(StateContext state) {
     if (isFinishedSetNeeded()) {
       state.access(FINISHED_BITS_TAG).get();
     }
     rootTrigger.getSpec().prefetchOnFire(state);
   }
 
-  public void prefetchShouldFire(ReduceFn.StateContext state) {
+  public void prefetchShouldFire(StateContext state) {
     if (isFinishedSetNeeded()) {
       state.access(FINISHED_BITS_TAG).get();
     }
@@ -108,7 +109,7 @@ public class TriggerRunner<W extends BoundedWindow> {
     persistFinishedSet(c.state(), finishedSet);
   }
 
-  public void prefetchForMerge(ReduceFn.MergingStateContext state) {
+  public void prefetchForMerge(W window, Collection<W> mergingWindows, MergingStateContext state) {
     if (isFinishedSetNeeded()) {
       for (ValueState<?> value :
           state.mergingAccessInEachMergingWindow(FINISHED_BITS_TAG).values()) {
@@ -162,7 +163,7 @@ public class TriggerRunner<W extends BoundedWindow> {
   }
 
   private void persistFinishedSet(
-      ReduceFn.StateContext state, FinishedTriggersBitSet modifiedFinishedSet) {
+      StateContext state, FinishedTriggersBitSet modifiedFinishedSet) {
     if (!isFinishedSetNeeded()) {
       return;
     }

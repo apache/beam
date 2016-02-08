@@ -18,7 +18,8 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.util.ExecutableTrigger;
-import com.google.cloud.dataflow.sdk.util.ReduceFn;
+import com.google.cloud.dataflow.sdk.util.MergingStateContext;
+import com.google.cloud.dataflow.sdk.util.StateContext;
 import com.google.cloud.dataflow.sdk.util.TimeDomain;
 import com.google.common.base.Joiner;
 
@@ -189,7 +190,7 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
     public abstract TriggerInfo<W> trigger();
 
     /** Returns the interface for accessing persistent state. */
-    public abstract ReduceFn.StateContext state();
+    public abstract StateContext state();
 
     /** The window that the current context is executing in. */
     public abstract W window();
@@ -216,7 +217,7 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
   }
 
   /**
-   * Extended {@link Context} containing information accessible to the {@link #onElement}
+   * Extended {@link TriggerContext} containing information accessible to the {@link #onElement}
    * operational hook.
    */
   public abstract class OnElementContext extends TriggerContext {
@@ -243,7 +244,7 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
   }
 
   /**
-   * Extended {@link Context} containing information accessible to the {@link #onMerge}
+   * Extended {@link TriggerContext} containing information accessible to the {@link #onMerge}
    * operational hook.
    */
   public abstract class OnMergeContext extends TriggerContext {
@@ -269,7 +270,7 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
     public abstract OnMergeContext forTrigger(ExecutableTrigger<W> trigger);
 
     @Override
-    public abstract ReduceFn.MergingStateContext state();
+    public abstract MergingStateContext state();
 
     @Override
     public abstract MergingTriggerInfo<W> trigger();
@@ -322,10 +323,8 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
   /**
    * Called to allow the trigger to prefetch any state it will likely need to read from during
    * an {@link #onElement} call.
-   *
-   * @param state {@link ReduceFn.StateContext} to prefetch from.
    */
-  public void prefetchOnElement(ReduceFn.StateContext state) {
+  public void prefetchOnElement(StateContext state) {
     if (subTriggers != null) {
       for (Trigger<W> trigger : subTriggers) {
         trigger.prefetchOnElement(state);
@@ -336,10 +335,8 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
   /**
    * Called to allow the trigger to prefetch any state it will likely need to read from during
    * an {@link #onMerge} call.
-   *
-   * @param state {@link ReduceFn.MergingStateContext} to prefetch from.
    */
-  public void prefetchOnMerge(ReduceFn.MergingStateContext state) {
+  public void prefetchOnMerge(MergingStateContext state) {
     if (subTriggers != null) {
       for (Trigger<W> trigger : subTriggers) {
         trigger.prefetchOnMerge(state);
@@ -350,10 +347,8 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
   /**
    * Called to allow the trigger to prefetch any state it will likely need to read from during
    * an {@link #shouldFire} call.
-   *
-   * @param state {@link ReduceFn.StateContext} to prefetch from.
    */
-  public void prefetchShouldFire(ReduceFn.StateContext state) {
+  public void prefetchShouldFire(StateContext state) {
     if (subTriggers != null) {
       for (Trigger<W> trigger : subTriggers) {
         trigger.prefetchShouldFire(state);
@@ -364,10 +359,8 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
   /**
    * Called to allow the trigger to prefetch any state it will likely need to read from during
    * an {@link #onFire} call.
-   *
-   * @param state {@link ReduceFn.StateContext} to prefetch from.
    */
-  public void prefetchOnFire(ReduceFn.StateContext state) {
+  public void prefetchOnFire(StateContext state) {
     if (subTriggers != null) {
       for (Trigger<W> trigger : subTriggers) {
         trigger.prefetchOnFire(state);

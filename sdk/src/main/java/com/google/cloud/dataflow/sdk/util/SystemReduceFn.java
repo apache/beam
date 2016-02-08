@@ -116,7 +116,7 @@ public class SystemReduceFn<K, InputT, OutputT, W extends BoundedWindow>
   }
 
   @Override
-  public void prefetchOnTrigger(com.google.cloud.dataflow.sdk.util.ReduceFn.StateContext c) {
+  public void prefetchOnTrigger(StateContext c) {
     c.accessAcrossMergedWindows(bufferTag).get();
   }
 
