@@ -35,21 +35,19 @@ class ThreadzServlet extends BaseStatusServlet {
   @Override
   public void doGet(HttpServletRequest request, HttpServletResponse response)
       throws IOException {
-    response.setContentType("text/html;charset=utf-8");
+    response.setContentType("text/plain;charset=utf-8");
     response.setStatus(HttpServletResponse.SC_OK);
 
     PrintWriter writer = response.getWriter();
-    writer.println("<html>");
 
     Map<Thread, StackTraceElement[]> stacks = Thread.getAllStackTraces();
     for (Map.Entry<Thread,  StackTraceElement[]> entry : stacks.entrySet()) {
       Thread thread = entry.getKey();
-      writer.println("Thread: " + thread + " State: " + thread.getState() + "<br>");
+      writer.println("--- Thread: " + thread + " State: "
+          + thread.getState() + " stack: ---");
       for (StackTraceElement element : entry.getValue()) {
-        writer.println("&nbsp&nbsp" + element + "<br>");
+        writer.println("  " + element);
       }
-      writer.println("<br>");
     }
-    writer.println("</html>");
   }
 }
