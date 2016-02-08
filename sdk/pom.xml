@@ -299,6 +299,7 @@
               <shadeTestJar>true</shadeTestJar>
               <artifactSet>
                 <includes>
+                  <include>com.google.cloud.bigtable:bigtable-client-core</include>
                   <include>com.google.guava:guava</include>
                 </includes>
               </artifactSet>
@@ -324,6 +325,17 @@
                   <pattern>com.google.thirdparty</pattern>
                   <shadedPattern>com.google.cloud.dataflow.sdk.repackaged.com.google.thirdparty</shadedPattern>
                 </relocation>
+                <relocation>
+                  <pattern>com.google.cloud.bigtable</pattern>
+                  <shadedPattern>com.google.cloud.dataflow.sdk.repackaged.com.google.cloud.bigtable</shadedPattern>
+                  <excludes>
+                    <exclude>com.google.cloud.bigtable.config.BigtableOptions*</exclude>
+                    <exclude>com.google.cloud.bigtable.config.CredentialOptions*</exclude>
+                    <exclude>com.google.cloud.bigtable.config.RetryOptions*</exclude>
+                    <exclude>com.google.cloud.bigtable.grpc.BigtableClusterName</exclude>
+                    <exclude>com.google.cloud.bigtable.grpc.BigtableTableName</exclude>
+                  </excludes>
+                </relocation>
               </relocations>
             </configuration>
           </execution>
@@ -341,6 +353,7 @@
               <finalName>${project.artifactId}-bundled-${project.version}</finalName>
               <artifactSet>
                 <excludes>
+                  <exclude>com.google.cloud.bigtable:bigtable-client-core</exclude>
                   <exclude>com.google.guava:guava</exclude>
                 </excludes>
               </artifactSet>
@@ -430,6 +443,24 @@
       <groupId>com.google.cloud.dataflow</groupId>
       <artifactId>google-cloud-dataflow-java-proto-library-all</artifactId>
       <version>0.5.160127</version>
+    </dependency>
+
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-all</artifactId>
+      <version>0.12.0</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.cloud.bigtable</groupId>
+      <artifactId>bigtable-protos</artifactId>
+      <version>${bigtable.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.cloud.bigtable</groupId>
+      <artifactId>bigtable-client-core</artifactId>
+      <version>${bigtable.version}</version>
     </dependency>
 
     <dependency>

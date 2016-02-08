@@ -551,6 +551,8 @@ public class ApiSurface {
         .pruningPrefix("java")
         .pruningPrefix("com.google.api")
         .pruningPrefix("com.google.auth")
+        .pruningPrefix("com.google.bigtable")
+        .pruningPrefix("com.google.cloud.bigtable")
         .pruningPrefix("com.google.protobuf")
         .pruningPrefix("org.joda.time")
         .pruningPrefix("org.apache.avro")
