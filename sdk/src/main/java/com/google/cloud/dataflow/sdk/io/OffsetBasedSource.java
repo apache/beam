@@ -188,6 +188,17 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
   public abstract OffsetBasedSource<T> createSourceForSubrange(long start, long end);
 
   /**
+   * Whether this source should allow dynamic splitting of the offset ranges.
+   *
+   * <p>True by default. Override this to return false if the source cannot
+   * support dynamic splitting correctly. If this returns false,
+   * {@link OffsetBasedSource.OffsetBasedReader#splitAtFraction} will refuse all split requests.
+   */
+  public boolean allowsDynamicSplitting() {
+    return true;
+  }
+
+  /**
    * A {@link Source.Reader} that implements code common to readers of all
    * {@link OffsetBasedSource}s.
    *
@@ -288,6 +299,9 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
 
     @Override
     public final synchronized OffsetBasedSource<T> splitAtFraction(double fraction) {
+      if (!getCurrentSource().allowsDynamicSplitting()) {
+        return null;
+      }
       if (rangeTracker.getStopPosition() == Long.MAX_VALUE) {
         LOG.debug(
             "Refusing to split unbounded OffsetBasedReader {} at fraction {}",
