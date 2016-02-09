@@ -29,6 +29,9 @@ import com.google.common.reflect.Invokable;
 import com.google.common.reflect.Parameter;
 import com.google.common.reflect.TypeToken;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
@@ -73,11 +76,13 @@ import java.util.regex.Pattern;
  */
 @SuppressWarnings("rawtypes")
 public class ApiSurface {
+  private static Logger logger = LoggerFactory.getLogger(ApiSurface.class);
 
   /**
    * Returns an empty {@link ApiSurface}.
    */
   public static ApiSurface empty() {
+    logger.debug("Returning an empty ApiSurface");
     return new ApiSurface(Collections.<Class<?>>emptySet(), Collections.<Pattern>emptySet());
   }
 
@@ -103,13 +108,14 @@ public class ApiSurface {
     ClassPath classPath = ClassPath.from(ClassLoader.getSystemClassLoader());
 
     Set<Class<?>> newRootClasses = Sets.newHashSet();
-    newRootClasses.addAll(rootClasses);
     for (ClassInfo classInfo : classPath.getTopLevelClassesRecursive(packageName)) {
       Class clazz = classInfo.load();
       if (exposed(clazz.getModifiers())) {
         newRootClasses.add(clazz);
       }
     }
+    logger.debug("Including package {} and subpackages: {}", packageName, newRootClasses);
+    newRootClasses.addAll(rootClasses);
 
     return new ApiSurface(newRootClasses, patternsToPrune);
   }
@@ -119,8 +125,9 @@ public class ApiSurface {
    */
   public ApiSurface includingClass(Class<?> clazz) {
     Set<Class<?>> newRootClasses = Sets.newHashSet();
-    newRootClasses.addAll(rootClasses);
+    logger.debug("Including class {}", clazz);
     newRootClasses.add(clazz);
+    newRootClasses.addAll(rootClasses);
     return new ApiSurface(newRootClasses, patternsToPrune);
   }
 
@@ -354,6 +361,8 @@ public class ApiSurface {
    * See {@link #addExposedTypes(Type, Class)}.
    */
   private void addExposedTypes(TypeToken type, Class<?> cause) {
+    logger.debug(
+        "Adding exposed types from {}, which is the type in type token {}", type.getType(), type);
     addExposedTypes(type.getType(), cause);
   }
 
@@ -364,14 +373,19 @@ public class ApiSurface {
    */
   private void addExposedTypes(Type type, Class<?> cause) {
     if (type instanceof TypeVariable) {
+      logger.debug("Adding exposed types from {}, which is a type variable", type);
       addExposedTypes((TypeVariable) type, cause);
     } else if (type instanceof WildcardType) {
+      logger.debug("Adding exposed types from {}, which is a wildcard type", type);
       addExposedTypes((WildcardType) type, cause);
     } else if (type instanceof GenericArrayType) {
+      logger.debug("Adding exposed types from {}, which is a generic array type", type);
       addExposedTypes((GenericArrayType) type, cause);
     } else if (type instanceof ParameterizedType) {
+      logger.debug("Adding exposed types from {}, which is a parameterized type", type);
       addExposedTypes((ParameterizedType) type, cause);
     } else if (type instanceof Class) {
+      logger.debug("Adding exposed types from {}, which is a class", type);
       addExposedTypes((Class) type, cause);
     } else {
       throw new IllegalArgumentException("Unknown implementation of Type");
@@ -389,6 +403,7 @@ public class ApiSurface {
     }
     visit(type);
     for (Type bound : type.getBounds()) {
+      logger.debug("Adding exposed types from {}, which is a type bound on {}", bound, type);
       addExposedTypes(bound, cause);
     }
   }
@@ -400,9 +415,17 @@ public class ApiSurface {
   private void addExposedTypes(WildcardType type, Class<?> cause) {
     visit(type);
     for (Type lowerBound : type.getLowerBounds()) {
+      logger.debug(
+          "Adding exposed types from {}, which is a type lower bound on wildcard type {}",
+          lowerBound,
+          type);
       addExposedTypes(lowerBound, cause);
     }
     for (Type upperBound : type.getUpperBounds()) {
+      logger.debug(
+          "Adding exposed types from {}, which is a type upper bound on wildcard type {}",
+          upperBound,
+          type);
       addExposedTypes(upperBound, cause);
     }
   }
@@ -417,6 +440,10 @@ public class ApiSurface {
       return;
     }
     visit(type);
+    logger.debug(
+        "Adding exposed types from {}, which is the component type on generic array type {}",
+        type.getGenericComponentType(),
+        type);
     addExposedTypes(type.getGenericComponentType(), cause);
   }
 
@@ -441,8 +468,16 @@ public class ApiSurface {
     // The type parameters themselves may not be pruned,
     // for example with List<MyApiType> probably the
     // standard List is pruned, but MyApiType is not.
+    logger.debug(
+        "Adding exposed types from {}, which is the raw type on parameterized type {}",
+        type.getRawType(),
+        type);
     addExposedTypes(type.getRawType(), cause);
     for (Type typeArg : type.getActualTypeArguments()) {
+      logger.debug(
+          "Adding exposed types from {}, which is a type argument on parameterized type {}",
+          typeArg,
+          type);
       addExposedTypes(typeArg, cause);
     }
   }
@@ -467,20 +502,29 @@ public class ApiSurface {
     TypeToken<?> token = TypeToken.of(clazz);
     for (TypeToken<?> superType : token.getTypes()) {
       if (!superType.equals(token)) {
+        logger.debug(
+            "Adding exposed types from {}, which is a super type token on {}", superType, clazz);
         addExposedTypes(superType, clazz);
       }
     }
     for (Class innerClass : clazz.getDeclaredClasses()) {
       if (exposed(innerClass.getModifiers())) {
+        logger.debug(
+            "Adding exposed types from {}, which is an exposed inner class of {}",
+            innerClass,
+            clazz);
         addExposedTypes(innerClass, clazz);
       }
     }
     for (Field field : clazz.getDeclaredFields()) {
       if (exposed(field.getModifiers())) {
+        logger.debug("Adding exposed types from {}, which is an exposed field on {}", field, clazz);
         addExposedTypes(field, clazz);
       }
     }
     for (Invokable invokable : getExposedInvokables(token)) {
+      logger.debug(
+          "Adding exposed types from {}, which is an exposed invokable on {}", invokable, clazz);
       addExposedTypes(invokable, clazz);
     }
   }
@@ -488,19 +532,39 @@ public class ApiSurface {
   private void addExposedTypes(Invokable<?, ?> invokable, Class<?> cause) {
     addExposedTypes(invokable.getReturnType(), cause);
     for (Annotation annotation : invokable.getAnnotations()) {
+      logger.debug(
+          "Adding exposed types from {}, which is an annotation on invokable {}",
+          annotation,
+          invokable);
      addExposedTypes(annotation.annotationType(), cause);
     }
     for (Parameter parameter : invokable.getParameters()) {
+      logger.debug(
+          "Adding exposed types from {}, which is a parameter on invokable {}",
+          parameter,
+          invokable);
       addExposedTypes(parameter, cause);
     }
     for (TypeToken<?> exceptionType : invokable.getExceptionTypes()) {
+      logger.debug(
+          "Adding exposed types from {}, which is an exception type on invokable {}",
+          exceptionType,
+          invokable);
       addExposedTypes(exceptionType, cause);
     }
   }
 
   private void addExposedTypes(Parameter parameter, Class<?> cause) {
+    logger.debug(
+        "Adding exposed types from {}, which is the type of parameter {}",
+        parameter.getType(),
+        parameter);
     addExposedTypes(parameter.getType(), cause);
     for (Annotation annotation : parameter.getAnnotations()) {
+      logger.debug(
+          "Adding exposed types from {}, which is an annotation on parameter {}",
+          annotation,
+          parameter);
       addExposedTypes(annotation.annotationType(), cause);
     }
   }
@@ -508,6 +572,8 @@ public class ApiSurface {
   private void addExposedTypes(Field field, Class<?> cause) {
     addExposedTypes(field.getGenericType(), cause);
     for (Annotation annotation : field.getDeclaredAnnotations()) {
+      logger.debug(
+          "Adding exposed types from {}, which is an annotation on field {}", annotation, field);
       addExposedTypes(annotation.annotationType(), cause);
     }
   }
@@ -515,7 +581,7 @@ public class ApiSurface {
   /**
    * Returns an {@link Invokable} for each public methods or constructors of a type.
    */
-  private Set<Invokable> getExposedInvokables(TypeToken type) {
+  private Set<Invokable> getExposedInvokables(TypeToken<?> type) {
     Set<Invokable> invokables = Sets.newHashSet();
 
     for (Constructor constructor : type.getRawType().getConstructors()) {
