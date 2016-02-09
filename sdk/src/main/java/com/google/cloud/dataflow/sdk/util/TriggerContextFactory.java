@@ -63,13 +63,13 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     this.windowCoder = windowingStrategy.getWindowFn().windowCoder();
   }
 
-  public Trigger<W>.TriggerContext base(W window, ReduceFn.Timers timers,
+  public Trigger<W>.TriggerContext base(W window, Timers timers,
       ExecutableTrigger<W> rootTrigger, FinishedTriggers finishedSet) {
     return new TriggerContextImpl(window, timers, rootTrigger, finishedSet);
   }
 
   public Trigger<W>.OnElementContext createOnElementContext(
-      W window, ReduceFn.Timers timers, Instant elementTimestamp,
+      W window, Timers timers, Instant elementTimestamp,
       ExecutableTrigger<W> rootTrigger, FinishedTriggers finishedSet) {
     return new OnElementContextImpl(
         window, timers, rootTrigger, finishedSet,
@@ -77,7 +77,7 @@ public class TriggerContextFactory<W extends BoundedWindow> {
   }
 
   public Trigger<W>.OnMergeContext createOnMergeContext(
-      W window, ReduceFn.Timers timers, Collection<W> mergingWindows,
+      W window, Timers timers, Collection<W> mergingWindows,
       ExecutableTrigger<W> rootTrigger, FinishedTriggers finishedSet,
       Map<W, FinishedTriggers> finishedSets) {
     return new OnMergeContextImpl(window, timers, rootTrigger, finishedSet,
@@ -175,12 +175,12 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     }
   }
 
-  private class TriggerTimers implements ReduceFn.Timers {
+  private class TriggerTimers implements Timers {
 
-    private final ReduceFn.Timers timers;
+    private final Timers timers;
     private final W window;
 
-    public TriggerTimers(W window, ReduceFn.Timers timers) {
+    public TriggerTimers(W window, Timers timers) {
       this.timers = timers;
       this.window = window;
     }
@@ -349,12 +349,12 @@ public class TriggerContextFactory<W extends BoundedWindow> {
 
     private final W window;
     private final StateContextImpl state;
-    private final ReduceFn.Timers timers;
+    private final Timers timers;
     private final TriggerInfoImpl triggerInfo;
 
     private TriggerContextImpl(
         W window,
-        ReduceFn.Timers timers,
+        Timers timers,
         ExecutableTrigger<W> trigger,
         FinishedTriggers finishedSet) {
       trigger.getSpec().super();
@@ -411,13 +411,13 @@ public class TriggerContextFactory<W extends BoundedWindow> {
 
     private final W window;
     private final StateContextImpl state;
-    private final ReduceFn.Timers timers;
+    private final Timers timers;
     private final TriggerInfoImpl triggerInfo;
     private final Instant eventTimestamp;
 
     private OnElementContextImpl(
         W window,
-        ReduceFn.Timers timers,
+        Timers timers,
         ExecutableTrigger<W> trigger,
         FinishedTriggers finishedSet,
         Instant eventTimestamp) {
@@ -490,12 +490,12 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     private final MergingStateContext state;
     private final W window;
     private final Collection<W> mergingWindows;
-    private final ReduceFn.Timers timers;
+    private final Timers timers;
     private final MergingTriggerInfoImpl triggerInfo;
 
     private OnMergeContextImpl(
         W window,
-        ReduceFn.Timers timers,
+        Timers timers,
         ExecutableTrigger<W> trigger,
         FinishedTriggers finishedSet,
         Collection<W> mergingWindows,

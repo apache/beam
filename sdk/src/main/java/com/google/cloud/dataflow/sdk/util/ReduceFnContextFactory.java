@@ -20,7 +20,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
-import com.google.cloud.dataflow.sdk.util.ReduceFn.Timers;
 import com.google.cloud.dataflow.sdk.util.TimerInternals.TimerData;
 import com.google.cloud.dataflow.sdk.util.state.MergeableState;
 import com.google.cloud.dataflow.sdk.util.state.State;
@@ -96,7 +95,7 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
   }
 
 
-  private class TimersImpl implements ReduceFn.Timers {
+  private class TimersImpl implements Timers {
 
     private final StateNamespace namespace;
 

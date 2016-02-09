@@ -544,7 +544,7 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
     }
   }
 
-  private class TestTimers implements ReduceFn.Timers {
+  private class TestTimers implements Timers {
     private final StateNamespace namespace;
 
     public TestTimers(StateNamespace namespace) {

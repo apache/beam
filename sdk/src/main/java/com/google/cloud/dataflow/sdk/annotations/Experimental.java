@@ -71,6 +71,9 @@ public @interface Experimental {
     /** State-related experimental APIs. */
     STATE,
 
+    /** Timer-related experimental APIs. */
+    TIMERS,
+
     /** Experimental APIs related to customizing the output time for computed values. */
     OUTPUT_TIME
   }
