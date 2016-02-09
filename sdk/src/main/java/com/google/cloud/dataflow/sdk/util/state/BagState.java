@@ -20,5 +20,5 @@ package com.google.cloud.dataflow.sdk.util.state;
  *
  * @param <T> The type of elements in the bag.
  */
-public interface BagState<T> extends MergeableState<T, Iterable<T>> {
+public interface BagState<T> extends CombiningValueState<T, Iterable<T>> {
 }

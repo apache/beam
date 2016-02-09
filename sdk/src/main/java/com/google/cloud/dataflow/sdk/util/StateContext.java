@@ -16,7 +16,6 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
-import com.google.cloud.dataflow.sdk.util.state.MergeableState;
 import com.google.cloud.dataflow.sdk.util.state.State;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
 
@@ -29,15 +28,4 @@ public interface StateContext {
    * this method must be eagerly combined and written into the result window.
    */
   <StateT extends State> StateT access(StateTag<StateT> address);
-
-  /**
-   * Access the storage for the given {@code address} in all of the windows that were
-   * merged into the current window.
-   *
-   * <p>If no windows were merged, this reads and writes to just the current window.
-   * Otherwise, when windows merge we do not eagerly combine state, but rather defer the
-   * combination to reading time. Thus reads will be from all 'merged windows' for the
-   * current window, and writes will be to the designated 'writing window' for the current window.
-   */
-  <StateT extends MergeableState<?, ?>> StateT accessAcrossMergedWindows(StateTag<StateT> address);
 }

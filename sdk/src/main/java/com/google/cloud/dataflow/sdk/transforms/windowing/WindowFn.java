@@ -132,8 +132,8 @@ public abstract class WindowFn<T, W extends BoundedWindow>
   public abstract W getSideInputWindow(final BoundedWindow window);
 
   /**
-   * @deprecated Implement {@link #getOutputTimeFn} to return either the appropriate
-   * {@link ElementaryOutputTimeFn} or a custom {@link OutputTimeFn} extending
+   * @deprecated Implement {@link #getOutputTimeFn} to return one of the appropriate
+   * {@link OutputTimeFns}, or a custom {@link OutputTimeFn} extending
    * {@link OutputTimeFn.Defaults}.
    */
   @Deprecated

@@ -67,12 +67,20 @@ public interface ActiveWindowSet<W extends BoundedWindow> {
    */
   public interface MergeCallback<W extends BoundedWindow> {
     /**
-     * Called when windows are about to be merged.
+     * Called when windows are about to be merged, but before any {@link #onMerge} callback
+     * has been made.
+     */
+    void prefetchOnMerge(Collection<W> toBeMerged, Collection<W> activeToBeMerged, W mergeResult)
+        throws Exception;
+
+    /**
+     * Called when windows are about to be merged, after all {@link #prefetchOnMerge} calls
+     * have been made, but before the active window set has been updated to reflect the merge.
      *
      * @param toBeMerged the windows about to be merged.
      * @param activeToBeMerged the subset of {@code toBeMerged} corresponding to windows which
      * are currently ACTIVE (and about to be merged). The remaining windows have been deemed
-     * EPHEMERAL.
+     * EPHEMERAL, and thus have no state associated with them.
      * @param mergeResult the result window, either a member of {@code toBeMerged} or new.
      */
     void onMerge(Collection<W> toBeMerged, Collection<W> activeToBeMerged, W mergeResult)
@@ -128,9 +136,16 @@ public interface ActiveWindowSet<W extends BoundedWindow> {
   /**
    * Invoke {@link WindowFn#mergeWindows} on the {@code WindowFn} associated with this window set,
    * merging as many of the active windows as possible. {@code mergeCallback} will be invoked for
-   * each group of windows that are merged. After this no NEW windows will remain.
+   * each group of windows that are merged. After this no NEW windows will remain, all merge
+   * result windows will be ACTIVE, and all windows which have been merged away will not be ACTIVE.
    */
   void merge(MergeCallback<W> mergeCallback) throws Exception;
+
+  /**
+   * Signal that all state in {@link #readStateAddresses} for {@code window} has been merged into
+   * the {@link #writeStateAddress} for {@code window}.
+   */
+  void merged(W window);
 
   /**
    * Return the state address windows for ACTIVE {@code window} from which all state associated
@@ -143,4 +158,10 @@ public interface ActiveWindowSet<W extends BoundedWindow> {
    * written. Always one of the results of {@link #readStateAddresses}.
    */
   W writeStateAddress(W window);
+
+  /**
+   * Return the state address window into which all new state should be written after
+   * ACTIVE windows {@code toBeMerged} have been merged into {@code mergeResult}.
+   */
+  W mergedWriteStateAddress(Collection<W> toBeMerged, W mergeResult);
 }

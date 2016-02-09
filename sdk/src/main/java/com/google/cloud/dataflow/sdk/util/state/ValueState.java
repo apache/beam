@@ -25,6 +25,13 @@ import com.google.cloud.dataflow.sdk.annotations.Experimental.Kind;
  */
 @Experimental(Kind.STATE)
 public interface ValueState<T> extends State {
+  /**
+   * Return the {@link StateContents} object to use for accessing the contents of the buffer.
+   */
   StateContents<T> get();
+
+  /**
+   * Set the value of the buffer.
+   */
   void set(T input);
 }

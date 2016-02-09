@@ -64,8 +64,9 @@ public class StateTags {
    * Create a state tag for values that use a {@link CombineFn} to automatically merge
    * multiple {@code InputT}s into a single {@code OutputT}.
    */
-  public static <InputT, AccumT, OutputT> StateTag<CombiningValueState<InputT, OutputT>>
-  combiningValue(
+  public static <InputT, AccumT, OutputT>
+    StateTag<CombiningValueStateInternal<InputT, AccumT, OutputT>>
+    combiningValue(
       String id, Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
     return combiningValueInternal(id, accumCoder, combineFn);
   }
@@ -77,8 +78,9 @@ public class StateTags {
    * <p>This determines the {@code Coder<AccumT>} from the given {@code Coder<InputT>}, and
    * should only be used to initialize static values.
    */
-  public static <InputT, AccumT, OutputT> StateTag<CombiningValueState<InputT, OutputT>>
-  combiningValueFromInputInternal(
+  public static <InputT, AccumT,
+      OutputT> StateTag<CombiningValueStateInternal<InputT, AccumT, OutputT>>
+      combiningValueFromInputInternal(
       String id, Coder<InputT> inputCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
     try {
       Coder<AccumT> accumCoder = combineFn.getAccumulatorCoder(STANDARD_REGISTRY, inputCoder);
@@ -90,19 +92,13 @@ public class StateTags {
     }
   }
 
-  private static <InputT, AccumT, OutputT> StateTag<CombiningValueState<InputT, OutputT>>
-  combiningValueInternal(
+  private static <InputT, AccumT,
+      OutputT> StateTag<CombiningValueStateInternal<InputT, AccumT, OutputT>>
+      combiningValueInternal(
       String id, Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
-    StateTag<CombiningValueStateInternal<InputT, AccumT, OutputT>> internal =
+    return
         new CombiningValueStateTag<InputT, AccumT, OutputT>(
             new StructuredId(id), accumCoder, combineFn);
-
-    // This is a safe cast, since StateTag only supports reading, and
-    // CombiningValue<InputT, OutputT> is a super-interface of
-    // CombiningValueInternal<InputT, AccumT, OutputT>
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    StateTag<CombiningValueState<InputT, OutputT>> external = (StateTag) internal;
-    return external;
   }
 
   /**
@@ -116,8 +112,8 @@ public class StateTags {
   /**
    * Create a state tag for holding the watermark.
    */
-  public static <T, W extends BoundedWindow> StateTag<WatermarkStateInternal>
-      watermarkStateInternal(String id, OutputTimeFn<W> outputTimeFn) {
+  public static <W extends BoundedWindow> StateTag<WatermarkStateInternal<W>>
+      watermarkStateInternal(String id, OutputTimeFn<? super W> outputTimeFn) {
     return new WatermarkStateTagInternal<W>(new StructuredId(id), outputTimeFn);
   }
 
@@ -138,7 +134,10 @@ public class StateTags {
     if (!(combiningTag instanceof CombiningValueStateTag)) {
       throw new IllegalArgumentException("Unexpected StateTag " + combiningTag);
     }
-    return ((CombiningValueStateTag<InputT, AccumT, OutputT>) combiningTag).asBagTag();
+    @SuppressWarnings("unchecked")
+    CombiningValueStateTag<InputT, AccumT, OutputT> typedTag =
+        (CombiningValueStateTag<InputT, AccumT, OutputT>) combiningTag;
+    return typedTag.asBagTag();
   }
 
   private static class StructuredId implements Serializable {
@@ -156,10 +155,6 @@ public class StateTags {
 
     public StructuredId asKind(StateKind kind) {
       return new StructuredId(kind, rawId);
-    }
-
-    public String getIdString() {
-      return kind.prefix + rawId;
     }
 
     public void appendTo(Appendable sb) throws IOException {
@@ -221,6 +216,7 @@ public class StateTags {
 
     protected abstract StateTag<StateT> asKind(StateKind kind);
 
+    @Override
     public void appendTo(Appendable sb) throws IOException {
       id.appendTo(sb);
     }
@@ -375,7 +371,7 @@ public class StateTags {
   }
 
   private static class WatermarkStateTagInternal<W extends BoundedWindow>
-      extends StateTagBase<WatermarkStateInternal> {
+      extends StateTagBase<WatermarkStateInternal<W>> {
 
     /**
      * When multiple output times are added to hold the watermark, this determines how they are
@@ -390,7 +386,7 @@ public class StateTags {
     }
 
     @Override
-    public WatermarkStateInternal bind(StateBinder visitor) {
+    public WatermarkStateInternal<W> bind(StateBinder visitor) {
       return visitor.bindWatermark(this, outputTimeFn);
     }
 
@@ -414,7 +410,7 @@ public class StateTags {
     }
 
     @Override
-    protected StateTag<WatermarkStateInternal> asKind(StateKind kind) {
+    protected StateTag<WatermarkStateInternal<W>> asKind(StateKind kind) {
       return new WatermarkStateTagInternal<W>(id.asKind(kind), outputTimeFn);
     }
   }

@@ -17,13 +17,11 @@ package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
-import com.google.cloud.dataflow.sdk.util.state.MergeableState;
 import com.google.cloud.dataflow.sdk.util.state.StateContents;
 
 import org.joda.time.Instant;
 
 import java.io.Serializable;
-import java.util.Collection;
 
 /**
  * Specification for processing to happen after elements have been grouped by key.
@@ -65,16 +63,9 @@ public abstract class ReduceFn<K, InputT, OutputT, W extends BoundedWindow>
 
   /** Information accessible within {@link #onMerge}. */
   public abstract class OnMergeContext extends Context {
-    /**
-     * Return the collection of windows that were merged.
-     *
-     * <p>Note that this may include the result window.
-     */
-    public abstract Collection<W> mergingWindows();
-
     /** Return the interface for accessing state. */
     @Override
-    public abstract MergingStateContext state();
+    public abstract MergingStateContext<W> state();
   }
 
   /** Information accessible within {@link #onTrigger}. */
@@ -95,16 +86,6 @@ public abstract class ReduceFn<K, InputT, OutputT, W extends BoundedWindow>
 
   /**
    * Called when windows are merged.
-   *
-   * <p>There are generally two strategies for implementing this and handling merging of state:
-   * <ul>
-   * <li> Lazily merge the state when outputting. This is especially easy if all the state is stored
-   * in {@link MergeableState}, since an automatically merged view can be retrieved.
-   * <li> Eagerly merge the state inside the {@link #onMerge} implementation. Load all the state
-   * from the merging windows and write it back to the result window. In this case the state in the
-   * result window should be cleared into between the read and write in case it was in the source
-   * windows.
-   * </ul>
    */
   public abstract void onMerge(OnMergeContext c) throws Exception;
 
@@ -115,6 +96,14 @@ public abstract class ReduceFn<K, InputT, OutputT, W extends BoundedWindow>
    * any results that should be included in the pane produced by this trigger firing.
    */
   public abstract void onTrigger(OnTriggerContext c) throws Exception;
+
+  /**
+   * Called before {@link #onMerge} is invoked to provide an opportunity to prefetch any needed
+   * state.
+   *
+   * @param c Context to use prefetch from.
+   */
+  public void prefetchOnMerge(MergingStateContext<W> c) throws Exception {}
 
   /**
    * Called before {@link #onTrigger} is invoked to provide an opportunity to prefetch any needed

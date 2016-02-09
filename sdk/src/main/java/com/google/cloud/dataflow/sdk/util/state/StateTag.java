@@ -59,8 +59,8 @@ public interface StateTag<StateT extends State> extends Serializable {
      * <p>This accepts the {@link OutputTimeFn} that dictates how watermark hold timestamps
      * added to the returned {@link WatermarkStateInternal} are to be combined.
      */
-    <W extends BoundedWindow> WatermarkStateInternal bindWatermark(
-        StateTag<WatermarkStateInternal> address,
+    <W extends BoundedWindow> WatermarkStateInternal<W> bindWatermark(
+        StateTag<WatermarkStateInternal<W>> address,
         OutputTimeFn<? super W> outputTimeFn);
   }
 

@@ -18,16 +18,16 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.InstantCoder;
+import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.Min;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnElementContext;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnMergeContext;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerContext;
 import com.google.cloud.dataflow.sdk.util.MergingStateContext;
 import com.google.cloud.dataflow.sdk.util.StateContext;
 import com.google.cloud.dataflow.sdk.util.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.state.CombiningValueState;
+import com.google.cloud.dataflow.sdk.util.state.CombiningValueStateInternal;
+import com.google.cloud.dataflow.sdk.util.state.StateMerging;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
 import com.google.cloud.dataflow.sdk.util.state.StateTags;
 import com.google.common.collect.ImmutableList;
@@ -52,7 +52,8 @@ public abstract class AfterDelayFromFirstElement<W extends BoundedWindow> extend
   protected static final List<SerializableFunction<Instant, Instant>> IDENTITY =
       ImmutableList.<SerializableFunction<Instant, Instant>>of();
 
-  protected static final StateTag<CombiningValueState<Instant, Instant>> DELAYED_UNTIL_TAG =
+  protected static final StateTag<CombiningValueStateInternal<Instant, Combine.Holder<Instant>,
+      Instant>> DELAYED_UNTIL_TAG =
       StateTags.makeSystemTagInternal(StateTags.combiningValueFromInputInternal(
           "delayed", InstantCoder.of(), Min.MinFn.<Instant>naturalOrder()));
 
@@ -171,25 +172,36 @@ public abstract class AfterDelayFromFirstElement<W extends BoundedWindow> extend
   }
 
   @Override
-  public void prefetchOnMerge(MergingStateContext state) {
-    state.mergingAccess(DELAYED_UNTIL_TAG).get();
+  public void prefetchOnMerge(MergingStateContext<W> state) {
+    super.prefetchOnMerge(state);
+    StateMerging.prefetchCombiningValues(state, DELAYED_UNTIL_TAG);
   }
 
   @Override
   public void onMerge(OnMergeContext c) throws Exception {
+    // NOTE: We could try to delete all timers which are still active, but we would
+    // need access to a timer context for each merging window.
+    // for (CombiningValueStateInternal<Instant, Combine.Holder<Instant>, Instant> state :
+    //    c.state().accessInEachMergingWindow(DELAYED_UNTIL_TAG).values()) {
+    //   Instant timestamp = state.get().read();
+    //   if (timestamp != null) {
+    //     <context for merging window>.deleteTimer(timestamp, timeDomain);
+    //   }
+    // }
+    // Instead let them fire and be ignored.
+
     // If the trigger is already finished, there is no way it will become re-activated
     if (c.trigger().isFinished()) {
+      StateMerging.clear(c.state(), DELAYED_UNTIL_TAG);
+      // NOTE: We do not attempt to delete  the timers.
       return;
     }
 
     // Determine the earliest point across all the windows, and delay to that.
-    CombiningValueState<Instant, Instant> mergingDelays =
-        c.state().mergingAccess(DELAYED_UNTIL_TAG);
+    StateMerging.mergeCombiningValues(c.state(), DELAYED_UNTIL_TAG);
 
-    Instant earliestTargetTime = mergingDelays.get().read();
+    Instant earliestTargetTime = c.state().access(DELAYED_UNTIL_TAG).get().read();
     if (earliestTargetTime != null) {
-      mergingDelays.clear();
-      mergingDelays.add(earliestTargetTime);
       c.setTimer(earliestTargetTime, timeDomain);
     }
   }

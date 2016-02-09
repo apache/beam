@@ -19,6 +19,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.common.collect.ImmutableSet;
 
+import java.util.Collection;
 import java.util.Set;
 
 /**
@@ -64,6 +65,8 @@ public class NonMergingActiveWindowSet<W extends BoundedWindow> implements Activ
   @Override
   public void merge(MergeCallback<W> mergeCallback) throws Exception {}
 
+  @Override
+  public void merged(W window) {}
 
   @Override
   public Set<W> readStateAddresses(W window) {
@@ -73,5 +76,10 @@ public class NonMergingActiveWindowSet<W extends BoundedWindow> implements Activ
   @Override
   public W writeStateAddress(W window) {
     return window;
+  }
+
+  @Override
+  public W mergedWriteStateAddress(Collection<W> toBeMerged, W mergeResult) {
+    return mergeResult;
   }
 }

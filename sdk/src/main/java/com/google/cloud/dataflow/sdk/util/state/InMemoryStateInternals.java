@@ -37,7 +37,7 @@ import javax.annotation.Nullable;
  * and for running tests that need state.
  */
 @Experimental(Kind.STATE)
-public class InMemoryStateInternals extends MergingStateInternals {
+public class InMemoryStateInternals implements StateInternals {
   private interface InMemoryState {
     boolean isEmptyForTesting();
   }
@@ -65,10 +65,10 @@ public class InMemoryStateInternals extends MergingStateInternals {
         }
 
         @Override
-        public <W extends BoundedWindow> WatermarkStateInternal bindWatermark(
-            StateTag<WatermarkStateInternal> address,
+        public <W extends BoundedWindow> WatermarkStateInternal<W> bindWatermark(
+            StateTag<WatermarkStateInternal<W>> address,
             OutputTimeFn<? super W> outputTimeFn) {
-          return new WatermarkStateInternalImplementation(outputTimeFn);
+          return new WatermarkStateInternalImplementation<W>(outputTimeFn);
         }
       };
     }
@@ -125,15 +125,15 @@ public class InMemoryStateInternals extends MergingStateInternals {
     }
   }
 
-  private final class WatermarkStateInternalImplementation
-      implements WatermarkStateInternal, InMemoryState {
+  private final class WatermarkStateInternalImplementation<W extends BoundedWindow>
+      implements WatermarkStateInternal<W>, InMemoryState {
 
-    private final OutputTimeFn<?> outputTimeFn;
+    private final OutputTimeFn<? super W> outputTimeFn;
 
     @Nullable
     private Instant combinedHold = null;
 
-    public WatermarkStateInternalImplementation(OutputTimeFn<?> outputTimeFn) {
+    public WatermarkStateInternalImplementation(OutputTimeFn<? super W> outputTimeFn) {
       this.outputTimeFn = outputTimeFn;
     }
 
@@ -143,15 +143,6 @@ public class InMemoryStateInternals extends MergingStateInternals {
       // other users may already have a handle on this WatermarkBagInternal.
       combinedHold = null;
     }
-
-    /**
-     * {@inheritDoc}
-     *
-     * <p>Does nothing. There is only one hold and it is not extraneous.
-     * See {@link MergedWatermarkStateInternal} for a nontrivial implementation.
-     */
-    @Override
-    public void releaseExtraneousHolds() { }
 
     @Override
     public StateContents<Instant> get() {
@@ -182,6 +173,11 @@ public class InMemoryStateInternals extends MergingStateInternals {
           return combinedHold == null;
         }
       };
+    }
+
+    @Override
+    public OutputTimeFn<? super W> getOutputTimeFn() {
+      return outputTimeFn;
     }
 
     @Override
@@ -249,6 +245,11 @@ public class InMemoryStateInternals extends MergingStateInternals {
     public void addAccum(AccumT accum) {
       isCleared = false;
       this.accum = combineFn.mergeAccumulators(Arrays.asList(this.accum, accum));
+    }
+
+    @Override
+    public CombineFn<InputT, AccumT, OutputT> getCombineFn() {
+      return combineFn;
     }
 
     @Override

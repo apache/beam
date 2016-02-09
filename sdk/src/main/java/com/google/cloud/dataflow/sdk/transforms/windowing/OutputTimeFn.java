@@ -179,7 +179,7 @@ public abstract class OutputTimeFn<W extends BoundedWindow> implements Serializa
      * {@inheritDoc}
      *
      * @return {@code false}. An {@link OutputTimeFn} that depends only on the window should extend
-     * {@link DependsOnlyOnWindow}.
+     * {@link OutputTimeFn.DependsOnlyOnWindow}.
      */
     @Override
     public final boolean dependsOnlyOnWindow() {

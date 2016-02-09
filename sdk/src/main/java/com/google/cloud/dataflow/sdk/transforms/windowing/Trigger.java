@@ -232,8 +232,7 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
      * timer firings for a window will be received, but the implementation should choose to ignore
      * those that are not applicable.
      *
-     * @param timestamp the time at which the trigger’s {@link Trigger#onTimer} callback should
-     *        execute
+     * @param timestamp the time at which the trigger should be re-evaluated
      * @param domain the domain that the {@code timestamp} applies to
      */
     public abstract void setTimer(Instant timestamp, TimeDomain domain);
@@ -248,9 +247,6 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
    * operational hook.
    */
   public abstract class OnMergeContext extends TriggerContext {
-    /** The old windows that were merged. */
-    public abstract Iterable<W> oldWindows();
-
     /**
      * Sets a timer to fire when the watermark or processing time is beyond the given timestamp.
      * Timers are not guaranteed to fire immediately, but will be delivered at some time afterwards.
@@ -259,8 +255,7 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
      * timer firings for a window will be received, but the implementation should choose to ignore
      * those that are not applicable.
      *
-     * @param timestamp the time at which the trigger’s {@link Trigger#onTimer} callback should
-     *        execute
+     * @param timestamp the time at which the trigger should be re-evaluated
      * @param domain the domain that the {@code timestamp} applies to
      */
     public abstract void setTimer(Instant timestamp, TimeDomain domain);
@@ -270,7 +265,7 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
     public abstract OnMergeContext forTrigger(ExecutableTrigger<W> trigger);
 
     @Override
-    public abstract MergingStateContext state();
+    public abstract MergingStateContext<W> state();
 
     @Override
     public abstract MergingTriggerInfo<W> trigger();
@@ -294,11 +289,11 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
    *
    * <p>Leaf triggers should update their state by inspecting their status and any state
    * in the merging windows. Composite triggers should update their state by calling
-   * {@link ExecutableTrigger#invokeMerge} on their sub-triggers, and applying appropriate logic.
+   * {@link ExecutableTrigger#invokeOnMerge} on their sub-triggers, and applying appropriate logic.
    *
    * <p>A trigger such as {@link AfterWatermark#pastEndOfWindow} may no longer be finished;
    * it is the responsibility of the trigger itself to record this fact. It is forbidden for
-   * a trigger to become finished due to {@link onMerge}, as it has not yet fired the pending
+   * a trigger to become finished due to {@link #onMerge}, as it has not yet fired the pending
    * elements that led to it being ready to fire.
    *
    * <p>The implementation does not need to clear out any state associated with the old windows.
@@ -336,7 +331,7 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
    * Called to allow the trigger to prefetch any state it will likely need to read from during
    * an {@link #onMerge} call.
    */
-  public void prefetchOnMerge(MergingStateContext state) {
+  public void prefetchOnMerge(MergingStateContext<W> state) {
     if (subTriggers != null) {
       for (Trigger<W> trigger : subTriggers) {
         trigger.prefetchOnMerge(state);

@@ -26,7 +26,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 
 import java.util.BitSet;
-import java.util.Collection;
 import java.util.Map;
 
 /**
@@ -109,10 +108,9 @@ public class TriggerRunner<W extends BoundedWindow> {
     persistFinishedSet(c.state(), finishedSet);
   }
 
-  public void prefetchForMerge(W window, Collection<W> mergingWindows, MergingStateContext state) {
+  public void prefetchForMerge(MergingStateContext<W> state) {
     if (isFinishedSetNeeded()) {
-      for (ValueState<?> value :
-          state.mergingAccessInEachMergingWindow(FINISHED_BITS_TAG).values()) {
+      for (ValueState<?> value : state.accessInEachMergingWindow(FINISHED_BITS_TAG).values()) {
         value.get();
       }
     }
@@ -128,22 +126,24 @@ public class TriggerRunner<W extends BoundedWindow> {
         readFinishedBits(c.state().access(FINISHED_BITS_TAG)).copy();
 
     // And read the finished bits in each merging window.
-    ImmutableMap.Builder<W, FinishedTriggers> mergingFinishedSets = ImmutableMap.builder();
-    Map<BoundedWindow, ValueState<BitSet>> mergingFinishedSetState =
-        c.state().mergingAccessInEachMergingWindow(FINISHED_BITS_TAG);
-    for (W window : c.mergingWindows()) {
+    ImmutableMap.Builder<W, FinishedTriggers> builder = ImmutableMap.builder();
+    for (Map.Entry<W, ValueState<BitSet>> entry :
+        c.state().accessInEachMergingWindow(FINISHED_BITS_TAG).entrySet()) {
       // Don't need to clone these, since the trigger context doesn't allow modification
-      mergingFinishedSets.put(window, readFinishedBits(mergingFinishedSetState.get(window)));
+      builder.put(entry.getKey(), readFinishedBits(entry.getValue()));
     }
+    ImmutableMap<W, FinishedTriggers> mergingFinishedSets = builder.build();
 
     Trigger<W>.OnMergeContext mergeContext = contextFactory.createOnMergeContext(
-            c.window(), c.timers(), c.mergingWindows(), rootTrigger,
-            finishedSet, mergingFinishedSets.build());
+        c.window(), c.timers(), rootTrigger, finishedSet, mergingFinishedSets);
 
     // Run the merge from the trigger
     rootTrigger.invokeOnMerge(mergeContext);
 
     persistFinishedSet(c.state(), finishedSet);
+
+    // Clear the finished bits.
+    clearFinished(c);
   }
 
   public boolean shouldFire(ReduceFn<?, ?, ?, W>.Context c) throws Exception {
@@ -162,8 +162,7 @@ public class TriggerRunner<W extends BoundedWindow> {
     persistFinishedSet(c.state(), finishedSet);
   }
 
-  private void persistFinishedSet(
-      StateContext state, FinishedTriggersBitSet modifiedFinishedSet) {
+  private void persistFinishedSet(StateContext state, FinishedTriggersBitSet modifiedFinishedSet) {
     if (!isFinishedSetNeeded()) {
       return;
     }
@@ -179,25 +178,22 @@ public class TriggerRunner<W extends BoundedWindow> {
   }
 
   /**
+   * Clear finished bits.
+   */
+  public void clearFinished(ReduceFn<?, ?, ?, W>.Context c) {
+    if (isFinishedSetNeeded()) {
+      c.state().access(FINISHED_BITS_TAG).clear();
+    }
+  }
+
+  /**
    * Clear the state used for executing triggers, but leave the finished set to indicate
    * the window is closed.
    */
   public void clearState(ReduceFn<?, ?, ?, W>.Context c) throws Exception {
     // Don't need to clone, because we'll be clearing the finished bits anyways.
     FinishedTriggers finishedSet = readFinishedBits(c.state().access(FINISHED_BITS_TAG));
-    rootTrigger.invokeClear(contextFactory.base(
-        c.window(), c.timers(), rootTrigger, finishedSet));
-  }
-
-  /**
-   * Clear all the state for executing triggers, including the finished bits. This should only be
-   * called after the allowed lateness has elapsed, so that the window will never be recreated.
-   */
-  public void clearEverything(ReduceFn<?, ?, ?, W>.Context c) throws Exception {
-    clearState(c);
-    if (isFinishedSetNeeded()) {
-      c.state().access(FINISHED_BITS_TAG).clear();
-    }
+    rootTrigger.invokeClear(contextFactory.base(c.window(), c.timers(), rootTrigger, finishedSet));
   }
 
   private boolean isFinishedSetNeeded() {

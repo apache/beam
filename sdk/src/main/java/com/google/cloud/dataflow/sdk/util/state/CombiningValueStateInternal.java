@@ -38,4 +38,9 @@ public interface CombiningValueStateInternal<InputT, AccumT, OutputT>
    * merge it with the previous accumulator, or may buffer this accumulator for a future merge.
    */
   void addAccum(AccumT accum);
+
+  /**
+   * Return the combiner function for this state.
+   */
+  CombineFn<InputT, AccumT, OutputT> getCombineFn();
 }

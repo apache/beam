@@ -373,7 +373,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
       Instant minimum = null;
       for (State storage : inMemoryState.values()) {
         if (storage instanceof WatermarkStateInternal) {
-          Instant hold = ((WatermarkStateInternal) storage).get().read();
+          Instant hold = ((WatermarkStateInternal<BoundedWindow>) storage).get().read();
           if (minimum == null || (hold != null && hold.isBefore(minimum))) {
             minimum = hold;
           }

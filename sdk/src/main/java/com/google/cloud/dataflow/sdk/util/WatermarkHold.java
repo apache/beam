@@ -20,6 +20,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFns;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window.ClosingBehavior;
 import com.google.cloud.dataflow.sdk.util.state.StateContents;
+import com.google.cloud.dataflow.sdk.util.state.StateMerging;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
 import com.google.cloud.dataflow.sdk.util.state.StateTags;
 import com.google.cloud.dataflow.sdk.util.state.WatermarkStateInternal;
@@ -48,8 +49,8 @@ public class WatermarkHold<W extends BoundedWindow> implements Serializable {
    * Return tag for state containing the output watermark hold
    * used for elements.
    */
-  public static StateTag<WatermarkStateInternal> watermarkHoldTagForOutputTimeFn(
-      OutputTimeFn<?> outputTimeFn) {
+  public static <W extends BoundedWindow> StateTag<WatermarkStateInternal<W>>
+      watermarkHoldTagForOutputTimeFn(OutputTimeFn<? super W> outputTimeFn) {
     return StateTags.makeSystemTagInternal(StateTags.watermarkStateInternal("hold", outputTimeFn));
   }
 
@@ -57,16 +58,16 @@ public class WatermarkHold<W extends BoundedWindow> implements Serializable {
    * Tag for state containing end-of-window and garbage collection output watermark holds.
    * (We can't piggy-back on the data hold state since the outputTimeFn may be
    * {@link OutputTimeFns#outputAtLatestInputTimestamp()}, in which case every pane will
-   * would take the end-of-window time as its element time.
+   * would take the end-of-window time as its element time.)
    */
   @VisibleForTesting
-  public static final StateTag<WatermarkStateInternal> EXTRA_HOLD_TAG =
+  public static final StateTag<WatermarkStateInternal<BoundedWindow>> EXTRA_HOLD_TAG =
       StateTags.makeSystemTagInternal(StateTags.watermarkStateInternal(
           "extra", OutputTimeFns.outputAtEarliestInputTimestamp()));
 
   private final TimerInternals timerInternals;
   private final WindowingStrategy<?, W> windowingStrategy;
-  private final StateTag<WatermarkStateInternal> elementHoldTag;
+  private final StateTag<WatermarkStateInternal<W>> elementHoldTag;
 
   public WatermarkHold(TimerInternals timerInternals, WindowingStrategy<?, W> windowingStrategy) {
     this.timerInternals = timerInternals;
@@ -178,7 +179,7 @@ public class WatermarkHold<W extends BoundedWindow> implements Serializable {
    */
   public void addHolds(ReduceFn<?, ?, ?, W>.ProcessValueContext context) {
     if (!addElementHold(context)) {
-      addEndOfWindowOrGarbageCollectionHolds(context, true);
+      addEndOfWindowOrGarbageCollectionHolds(context);
     }
   }
 
@@ -220,7 +221,7 @@ public class WatermarkHold<W extends BoundedWindow> implements Serializable {
       tooLate = true;
     } else {
       tooLate = false;
-      context.state().accessAcrossMergedWindows(elementHoldTag).add(elementHold);
+      context.state().access(elementHoldTag).add(elementHold);
     }
     WindowTracing.trace(
         "WatermarkHold.addHolds: element hold at {} is {} for "
@@ -237,10 +238,9 @@ public class WatermarkHold<W extends BoundedWindow> implements Serializable {
    * <p>The end-of-window hold guarantees that an empty {@code ON_TIME} pane can be given
    * a timestamp which will not be considered beyond allowed lateness by any downstream computation.
    */
-  private void addEndOfWindowOrGarbageCollectionHolds(
-      ReduceFn<?, ?, ?, W>.Context context, boolean isActive) {
-    if (!addEndOfWindowHold(context, isActive)) {
-      addGarbageCollectionHold(context, isActive);
+  private void addEndOfWindowOrGarbageCollectionHolds(ReduceFn<?, ?, ?, W>.Context context) {
+    if (!addEndOfWindowHold(context)) {
+      addGarbageCollectionHold(context);
     }
   }
 
@@ -250,7 +250,7 @@ public class WatermarkHold<W extends BoundedWindow> implements Serializable {
    * <p>The end-of-window hold guarantees that any empty {@code ON_TIME} pane can be given
    * a timestamp which will not be considered beyond allowed lateness by any downstream computation.
    */
-  private boolean addEndOfWindowHold(ReduceFn<?, ?, ?, W>.Context context, boolean isActive) {
+  private boolean addEndOfWindowHold(ReduceFn<?, ?, ?, W>.Context context) {
     // Only add an end-of-window hold if we can be sure the end-of-window timer
     // has not yet fired. Otherwise we risk holding up the output watermark until
     // the garbage collection timer fires, which may be a very long time in the future.
@@ -264,21 +264,13 @@ public class WatermarkHold<W extends BoundedWindow> implements Serializable {
       tooLate = false;
       Preconditions.checkState(outputWM == null || !eowHold.isBefore(outputWM),
           "End-of-window hold %s cannot be before output watermark %s", eowHold, outputWM);
-      if (isActive) {
-        context.state().accessAcrossMergedWindows(EXTRA_HOLD_TAG).add(eowHold);
-      } else {
-        // The window is not currently ACTIVE, so we can't use accessAcrossMergedWindows
-        // to collect its state. Instead, store the holds under the window itself. The
-        // caller will be responsible for ensuring the active window set now considers this
-        // window ACTIVE.
-        context.state().access(EXTRA_HOLD_TAG).add(eowHold);
-      }
+      context.state().access(EXTRA_HOLD_TAG).add(eowHold);
     }
     WindowTracing.trace(
-        "WatermarkHold.addEndOfWindowHold: end-of-window hold for %s at {} is {} for "
+        "WatermarkHold.addEndOfWindowHold: end-of-window hold at {} is {} for "
         + "key:{}; window:{}; inputWatermark:{}; outputWatermark:{}",
-        isActive ? "active" : "inactive", eowHold, tooLate ? "too late" : "on-time", context.key(),
-        context.window(), inputWM, outputWM);
+        eowHold, tooLate ? "too late" : "on-time", context.key(), context.window(), inputWM,
+        outputWM);
     return !tooLate;
   }
 
@@ -290,7 +282,7 @@ public class WatermarkHold<W extends BoundedWindow> implements Serializable {
    * computation. If we are sure no empty final panes can be emitted then there's no need
    * for an additional hold.
    */
-  private void addGarbageCollectionHold(ReduceFn<?, ?, ?, W>.Context context, boolean isActive) {
+  private void addGarbageCollectionHold(ReduceFn<?, ?, ?, W>.Context context) {
     // Only add a garbage collection hold if we are sure we need an empty final pane and
     // the window will be garbage collected after the end-of-window trigger.
     if (context.windowingStrategy().getClosingBehavior() == ClosingBehavior.FIRE_ALWAYS
@@ -299,44 +291,39 @@ public class WatermarkHold<W extends BoundedWindow> implements Serializable {
       Instant outputWM = timerInternals.currentOutputWatermarkTime();
       Instant inputWM = timerInternals.currentInputWatermarkTime();
       WindowTracing.trace(
-          "WatermarkHold.addGarbageCollectionHold: garbage collection hold for %s at {} for "
+          "WatermarkHold.addGarbageCollectionHold: garbage collection at {} hold for "
           + "key:{}; window:{}; inputWatermark:{}; outputWatermark:{}",
-          isActive ? "active" : "inactive", gcHold, context.key(), context.window(), inputWM,
-          outputWM);
+          gcHold, context.key(), context.window(), inputWM, outputWM);
       Preconditions.checkState(inputWM == null || !gcHold.isBefore(inputWM),
           "Garbage collection hold %s cannot be before input watermark %s", gcHold, inputWM);
-      if (isActive) {
-        context.state().accessAcrossMergedWindows(EXTRA_HOLD_TAG).add(gcHold);
-      } else {
-        // See comment above for addEndOfWindowHold.
-        context.state().access(EXTRA_HOLD_TAG).add(gcHold);
-      }
+      context.state().access(EXTRA_HOLD_TAG).add(gcHold);
     }
+  }
+
+  /**
+   * Prefetch watermark holds in preparation for merging.
+   */
+  public void prefetchOnMerge(MergingStateContext<W> state) {
+    StateMerging.prefetchWatermarks(state, elementHoldTag);
   }
 
   /**
    * Updates the watermark hold when windows merge if it is possible the merged value does
    * not equal all of the existing holds. For example, if the new window implies a later
    * watermark hold, then earlier holds may be released.
-   *
-   * <p>Note that state may be left behind in merged windows.
    */
-  public void onMerge(final ReduceFn<?, ?, ?, W>.OnMergeContext context) {
+  public void onMerge(ReduceFn<?, ?, ?, W>.OnMergeContext context) {
     WindowTracing.debug("onMerge: for key:{}; window:{}; inputWatermark:{}; outputWatermark:{}",
         context.key(), context.window(), timerInternals.currentInputWatermarkTime(),
         timerInternals.currentOutputWatermarkTime());
-    // If the output hold depends only on the window, then there may not be a hold in place
-    // for the new merged window, so add one.
-    if (windowingStrategy.getOutputTimeFn().dependsOnlyOnWindow()) {
-      Instant arbitraryTimestamp = new Instant(0);
-      context.state()
-          .accessAcrossMergedWindows(elementHoldTag)
-          .add(windowingStrategy.getOutputTimeFn().assignOutputTime(
-              arbitraryTimestamp, context.window()));
-    }
-
-    context.state().accessAcrossMergedWindows(elementHoldTag).releaseExtraneousHolds();
-    context.state().accessAcrossMergedWindows(EXTRA_HOLD_TAG).releaseExtraneousHolds();
+    StateMerging.mergeWatermarks(context.state(), elementHoldTag, context.window());
+    // If we had a cheap way to determine if we have an element hold then we could
+    // avoid adding an unnecessary end-of-window or garbage collection hold.
+    // Simply reading the above merged watermark would impose an additional read for the
+    // common case that the active window has just one undelying state address window and
+    // the hold depends on the min of the elemest timestamps.
+    StateMerging.clear(context.state(), EXTRA_HOLD_TAG);
+    addEndOfWindowOrGarbageCollectionHolds(context);
   }
 
   /**
@@ -347,24 +334,19 @@ public class WatermarkHold<W extends BoundedWindow> implements Serializable {
    * from the windowing strategy of this {@link WatermarkHold}, combined across all the non-late
    * elements in the current pane. If there is no such value the timestamp is the end
    * of the window.
-   *
-   * <p>If {@code willStillBeActive} then any end-of-window or garbage collection holds will
-   * be reestablished in one of the target windows alread in use for this window. Otherwise,
-   * the holds will be placed in this window itself.
    */
-  public StateContents<Instant> extractAndRelease(final ReduceFn<?, ?, ?, W>.Context context,
-      final boolean isFinal, final boolean willStillBeActive) {
+  public StateContents<Instant> extractAndRelease(
+      final ReduceFn<?, ?, ?, W>.Context context, final boolean isFinished) {
     WindowTracing.debug(
         "extractAndRelease: for key:{}; window:{}; inputWatermark:{}; outputWatermark:{}",
         context.key(), context.window(), timerInternals.currentInputWatermarkTime(),
         timerInternals.currentOutputWatermarkTime());
-    final WatermarkStateInternal elementHoldState =
-        context.state().accessAcrossMergedWindows(elementHoldTag);
+    final WatermarkStateInternal<W> elementHoldState = context.state().access(elementHoldTag);
     // Since we only extract holds when a trigger fires it is unreasonable to expect
     // the state to be prefetched.
     final StateContents<Instant> elementHoldFuture = elementHoldState.get();
-    final WatermarkStateInternal extraHoldState =
-        context.state().accessAcrossMergedWindows(EXTRA_HOLD_TAG);
+    final WatermarkStateInternal<BoundedWindow> extraHoldState =
+        context.state().access(EXTRA_HOLD_TAG);
     final StateContents<Instant> extraHoldFuture = extraHoldState.get();
     return new StateContents<Instant>() {
       @Override
@@ -399,8 +381,10 @@ public class WatermarkHold<W extends BoundedWindow> implements Serializable {
         elementHoldState.clear();
         extraHoldState.clear();
 
-        if (!isFinal) {
-          addEndOfWindowOrGarbageCollectionHolds(context, willStillBeActive);
+        if (!isFinished) {
+          // Only need to leave behind an end-of-window or garbage collection hold
+          // if future elements will be processed.
+          addEndOfWindowOrGarbageCollectionHolds(context);
         }
 
         return hold;
@@ -409,21 +393,14 @@ public class WatermarkHold<W extends BoundedWindow> implements Serializable {
   }
 
   /**
-   * Clear any remaining holds. If {@code isActive} then we assume holds could be placed in any
-   * of the target windows for this window. Otherwise we assume only this window has any
-   * end-of-window or garbage collection holds.
+   * Clear any remaining holds.
    */
-  public void clearHolds(ReduceFn<?, ?, ?, W>.Context context, boolean isActive) {
+  public void clearHolds(ReduceFn<?, ?, ?, W>.Context context) {
     WindowTracing.debug(
-        "WatermarkHold.clearHolds: For key:{}; %s window:{}; "
-        + "inputWatermark:{}; outputWatermark:{}",
-        context.key(), isActive ? "active" : "inactive", context.window(),
-        timerInternals.currentInputWatermarkTime(), timerInternals.currentOutputWatermarkTime());
-    if (isActive) {
-      context.state().accessAcrossMergedWindows(elementHoldTag).clear();
-      context.state().accessAcrossMergedWindows(EXTRA_HOLD_TAG).clear();
-    } else {
-      context.state().access(EXTRA_HOLD_TAG).clear();
-    }
+        "WatermarkHold.clearHolds: For key:{}; window:{}; inputWatermark:{}; outputWatermark:{}",
+        context.key(), context.window(), timerInternals.currentInputWatermarkTime(),
+        timerInternals.currentOutputWatermarkTime());
+    context.state().access(elementHoldTag).clear();
+    context.state().access(EXTRA_HOLD_TAG).clear();
   }
 }

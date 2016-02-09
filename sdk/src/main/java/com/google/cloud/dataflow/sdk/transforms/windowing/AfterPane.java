@@ -22,7 +22,8 @@ import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
 import com.google.cloud.dataflow.sdk.util.MergingStateContext;
 import com.google.cloud.dataflow.sdk.util.StateContext;
-import com.google.cloud.dataflow.sdk.util.state.CombiningValueState;
+import com.google.cloud.dataflow.sdk.util.state.CombiningValueStateInternal;
+import com.google.cloud.dataflow.sdk.util.state.StateMerging;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
 import com.google.cloud.dataflow.sdk.util.state.StateTags;
 
@@ -40,7 +41,8 @@ import java.util.Objects;
 @Experimental(Experimental.Kind.TRIGGER)
 public class AfterPane<W extends BoundedWindow> extends OnceTrigger<W>{
 
-  private static final StateTag<CombiningValueState<Long, Long>> ELEMENTS_IN_PANE_TAG =
+private static final StateTag<CombiningValueStateInternal<Long, long[], Long>>
+      ELEMENTS_IN_PANE_TAG =
       StateTags.makeSystemTagInternal(StateTags.combiningValueFromInputInternal(
           "count", VarLongCoder.of(), new Sum.SumLongFn()));
 
@@ -64,21 +66,23 @@ public class AfterPane<W extends BoundedWindow> extends OnceTrigger<W>{
   }
 
   @Override
-  public void prefetchOnMerge(MergingStateContext state) {
-    state.mergingAccess(ELEMENTS_IN_PANE_TAG).get();
+  public void prefetchOnMerge(MergingStateContext<W> state) {
+    super.prefetchOnMerge(state);
+    StateMerging.prefetchCombiningValues(state, ELEMENTS_IN_PANE_TAG);
   }
 
   @Override
   public void onMerge(OnMergeContext context) throws Exception {
+    // If we've already received enough elements and finished in some window,
+    // then this trigger is just finished.
     if (context.trigger().finishedInAnyMergingWindow()) {
       context.trigger().setFinished(true);
+      StateMerging.clear(context.state(), ELEMENTS_IN_PANE_TAG);
       return;
     }
 
-    // Eagerly merge
-    long count = context.state().mergingAccess(ELEMENTS_IN_PANE_TAG).get().read();
-    context.state().mergingAccess(ELEMENTS_IN_PANE_TAG).clear();
-    context.state().access(ELEMENTS_IN_PANE_TAG).add(count);
+    // Otherwise, compute the sum of elements in all the active panes.
+    StateMerging.mergeCombiningValues(context.state(), ELEMENTS_IN_PANE_TAG);
   }
 
   @Override

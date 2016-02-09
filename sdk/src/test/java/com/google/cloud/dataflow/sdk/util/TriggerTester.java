@@ -309,30 +309,26 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
    * since it is just to test the trigger's {@code OnMerge} method.
    */
   public final void mergeWindows() throws Exception {
-    final Map<W, Collection<W>> windowToComponents = new HashMap<>();
-
     activeWindows.merge(new MergeCallback<W>() {
+      @Override
+      public void prefetchOnMerge(Collection<W> toBeMerged, Collection<W> activeToBeMerged,
+          W mergeResult) throws Exception {}
+
       @Override
       public void onMerge(Collection<W> toBeMerged, Collection<W> activeToBeMerged, W mergeResult)
           throws Exception {
-        windowToComponents.put(mergeResult, toBeMerged);
+        Map<W, FinishedTriggers> mergingFinishedSets =
+            Maps.newHashMapWithExpectedSize(activeToBeMerged.size());
+        for (W oldWindow : activeToBeMerged) {
+          mergingFinishedSets.put(oldWindow, getFinishedSet(oldWindow));
+        }
+        executableTrigger.invokeOnMerge(contextFactory.createOnMergeContext(mergeResult,
+            new TestTimers(windowNamespace(mergeResult)), executableTrigger,
+            getFinishedSet(mergeResult), mergingFinishedSets));
         timerInternals.setTimer(TimerData.of(
             windowNamespace(mergeResult), mergeResult.maxTimestamp(), TimeDomain.EVENT_TIME));
       }
     });
-
-    for (Map.Entry<W, Collection<W>> merged : windowToComponents.entrySet()) {
-      W window = merged.getKey();
-      Collection<W> oldWindows = merged.getValue();
-      Map<W, FinishedTriggers> mergingFinishedSets =
-          Maps.newHashMapWithExpectedSize(oldWindows.size());
-      for (W oldWindow : oldWindows) {
-        mergingFinishedSets.put(oldWindow, getFinishedSet(oldWindow));
-      }
-      executableTrigger.invokeOnMerge(
-          contextFactory.createOnMergeContext(window, new TestTimers(windowNamespace(window)),
-              oldWindows, executableTrigger, getFinishedSet(window), mergingFinishedSets));
-    }
   }
 
   private FinishedTriggers getFinishedSet(W window) {
@@ -368,7 +364,8 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
       Instant minimum = null;
       for (State storage : inMemoryState.values()) {
         if (storage instanceof WatermarkStateInternal) {
-          Instant hold = ((WatermarkStateInternal) storage).get().read();
+          @SuppressWarnings("unchecked")
+          Instant hold = ((WatermarkStateInternal<BoundedWindow>) storage).get().read();
           if (minimum == null || (hold != null && hold.isBefore(minimum))) {
             minimum = hold;
           }

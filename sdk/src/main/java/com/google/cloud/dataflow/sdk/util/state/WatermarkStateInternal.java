@@ -17,6 +17,7 @@ package com.google.cloud.dataflow.sdk.util.state;
 
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.annotations.Experimental.Kind;
+import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFn;
 
 import org.joda.time.Instant;
@@ -28,11 +29,11 @@ import org.joda.time.Instant;
  * <p><b><i>For internal use only. This API may change at any time.</i></b>
  */
 @Experimental(Kind.STATE)
-public interface WatermarkStateInternal extends MergeableState<Instant, Instant> {
-
+public interface WatermarkStateInternal<W extends BoundedWindow>
+  extends CombiningValueState<Instant, Instant> {
   /**
-   * Release all holds for windows which have been merged away and incorporate their
-   * combined values (according to {@link OutputTimeFn#merge}) into the result window hold.
+   * Return the {@link OutputTimeFn} which will be used to determine a watermark hold time given
+   * an element timestamp, and to combine watermarks from windows which are about to be merged.
    */
-  void releaseExtraneousHolds();
+  OutputTimeFn<? super W> getOutputTimeFn();
 }
