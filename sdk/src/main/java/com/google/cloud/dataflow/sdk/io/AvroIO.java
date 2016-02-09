@@ -16,21 +16,20 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
+import com.google.cloud.dataflow.sdk.io.Read.Bounded;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
-import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner.ValueWithMetadata;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
-import com.google.cloud.dataflow.sdk.runners.worker.AvroReader;
 import com.google.cloud.dataflow.sdk.runners.worker.AvroSink;
-import com.google.cloud.dataflow.sdk.runners.worker.ReaderUtils;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
-import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.util.common.worker.Sink;
 import com.google.cloud.dataflow.sdk.values.PCollection;
-import com.google.cloud.dataflow.sdk.values.PCollection.IsBounded;
 import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.common.base.Preconditions;
@@ -40,7 +39,6 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.reflect.ReflectData;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -299,15 +297,30 @@ public class AvroIO {
         if (schema == null) {
           throw new IllegalStateException("need to set the schema of an AvroIO.Read transform");
         }
+        if (validate) {
+          try {
+            checkState(
+                !IOChannelUtils.getFactory(filepattern).match(filepattern).isEmpty(),
+                "Unable to find any files matching %s",
+                filepattern);
+          } catch (IOException e) {
+            throw new IllegalStateException(
+                String.format("Failed to validate %s", filepattern), e);
+          }
+        }
 
-        // Force the output's Coder to be what the read is using, and
-        // unchangeable later, to ensure that we read the input in the
-        // format specified by the Read transform.
-        return PCollection.<T>createPrimitiveOutputInternal(
-            input.getPipeline(),
-            WindowingStrategy.globalDefault(),
-            IsBounded.BOUNDED)
-            .setCoder(getDefaultOutputCoder());
+        @SuppressWarnings("unchecked")
+        Bounded<T> read =
+            type == GenericRecord.class
+                ? (Bounded<T>) com.google.cloud.dataflow.sdk.io.Read.from(
+                    AvroSource.from(filepattern).withSchema(schema))
+                : com.google.cloud.dataflow.sdk.io.Read.from(
+                    AvroSource.from(filepattern).withSchema(type));
+
+        PCollection<T> pcol = input.getPipeline().apply(read);
+        // Honor the default output coder that would have been used by this PTransform.
+        pcol.setCoder(getDefaultOutputCoder());
+        return pcol;
       }
 
       @Override
@@ -325,21 +338,6 @@ public class AvroIO {
 
       public boolean needsValidation() {
         return validate;
-      }
-
-      static {
-        @SuppressWarnings("rawtypes")
-        DirectPipelineRunner.TransformEvaluator<Bound> transformEvaluator =
-            new DirectPipelineRunner.TransformEvaluator<Bound>() {
-          @Override
-          @SuppressWarnings("unchecked")
-          public void evaluate(
-              Bound transform, DirectPipelineRunner.EvaluationContext context) {
-            evaluateReadHelper(transform, context);
-          }
-        };
-        DirectPipelineRunner.registerDefaultTransformEvaluator(
-            Bound.class, transformEvaluator);
       }
     }
 
@@ -780,22 +778,6 @@ public class AvroIO {
 
   /** Disallow construction of utility class. */
   private AvroIO() {}
-
-  private static <T> void evaluateReadHelper(
-      Read.Bound<T> transform, DirectPipelineRunner.EvaluationContext context) {
-    AvroReader<T> reader = new AvroReader<>(transform.filepattern, null, null,
-        (AvroCoder<T>) transform.getDefaultOutputCoder(), context.getPipelineOptions());
-    try {
-      List<WindowedValue<T>> elems = ReaderUtils.readAllFromReader(reader);
-      List<ValueWithMetadata<T>> output = new ArrayList<>();
-      for (WindowedValue<T> elem : elems) {
-        output.add(ValueWithMetadata.of(elem));
-      }
-      context.setPCollectionValuesWithMetadata(context.getOutput(transform), output);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-  }
 
   private static <T> void evaluateWriteHelper(
       Write.Bound<T> transform, DirectPipelineRunner.EvaluationContext context) {

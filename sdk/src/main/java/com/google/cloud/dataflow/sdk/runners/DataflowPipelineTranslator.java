@@ -1029,8 +1029,6 @@ public class DataflowPipelineTranslator {
     // IO Translation.
 
     registerTransformTranslator(
-        AvroIO.Read.Bound.class, new AvroIOTranslator.ReadTranslator());
-    registerTransformTranslator(
         AvroIO.Write.Bound.class, new AvroIOTranslator.WriteTranslator());
 
     registerTransformTranslator(

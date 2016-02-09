@@ -32,36 +32,6 @@ import com.google.common.base.Preconditions;
 public class AvroIOTranslator {
 
   /**
-   * Implements AvroIO Read translation for the Dataflow backend.
-   */
-  @SuppressWarnings("rawtypes")
-  public static class ReadTranslator implements TransformTranslator<AvroIO.Read.Bound> {
-
-    @Override
-    public void translate(
-        AvroIO.Read.Bound transform,
-        TranslationContext context) {
-      translateReadHelper(transform, context);
-    }
-
-    private <T> void translateReadHelper(
-        AvroIO.Read.Bound<T> transform,
-        TranslationContext context) {
-      if (context.getPipelineOptions().isStreaming()) {
-        throw new IllegalArgumentException("AvroIO not supported in streaming mode.");
-      }
-
-      PathValidator validator = context.getPipelineOptions().getPathValidator();
-      String filepattern = validator.validateInputFilePatternSupported(transform.getFilepattern());
-      context.addStep(transform, "ParallelRead");
-      context.addInput(PropertyNames.FORMAT, "avro");
-      context.addInput(PropertyNames.FILEPATTERN, filepattern);
-      context.addValueOnlyOutput(PropertyNames.OUTPUT, context.getOutput(transform));
-      context.addInput(PropertyNames.VALIDATE_SOURCE, transform.needsValidation());
-    }
-  }
-
-  /**
    * Implements AvroIO Write translation for the Dataflow backend.
    */
   @SuppressWarnings("rawtypes")
