@@ -20,6 +20,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
 import com.google.cloud.dataflow.sdk.util.TriggerTester;
 import com.google.cloud.dataflow.sdk.util.TriggerTester.SimpleTriggerTester;
 
@@ -135,7 +136,7 @@ public class AfterProcessingTimeTest {
 
   @Test
   public void testContinuation() throws Exception {
-    TimeTrigger<?> firstElementPlus1 =
+    OnceTrigger<?> firstElementPlus1 =
         AfterProcessingTime.pastFirstElementInPane().plusDelayOf(Duration.standardHours(1));
     assertEquals(
         new AfterSynchronizedProcessingTime<>(),

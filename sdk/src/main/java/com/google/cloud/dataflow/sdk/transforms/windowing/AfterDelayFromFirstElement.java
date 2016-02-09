@@ -16,23 +16,45 @@
 
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
+import com.google.cloud.dataflow.sdk.annotations.Experimental;
+import com.google.cloud.dataflow.sdk.coders.InstantCoder;
+import com.google.cloud.dataflow.sdk.transforms.Min;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnElementContext;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnMergeContext;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerContext;
 import com.google.cloud.dataflow.sdk.util.MergingStateContext;
 import com.google.cloud.dataflow.sdk.util.StateContext;
 import com.google.cloud.dataflow.sdk.util.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.state.CombiningValueState;
+import com.google.cloud.dataflow.sdk.util.state.StateTag;
+import com.google.cloud.dataflow.sdk.util.state.StateTags;
+import com.google.common.collect.ImmutableList;
 
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 import java.util.List;
+import java.util.Objects;
 
 import javax.annotation.Nullable;
 
 /**
  * A base class for triggers that happen after a processing time delay from the arrival
  * of the first element in a pane.
+ *
+ * <p>This class is for internal use only and may change at any time.
  */
-abstract class AfterDelayFromFirstElement<W extends BoundedWindow> extends TimeTrigger<W> {
+@Experimental(Experimental.Kind.TRIGGER)
+public abstract class AfterDelayFromFirstElement<W extends BoundedWindow> extends OnceTrigger<W> {
+
+  protected static final List<SerializableFunction<Instant, Instant>> IDENTITY =
+      ImmutableList.<SerializableFunction<Instant, Instant>>of();
+
+  protected static final StateTag<CombiningValueState<Instant, Instant>> DELAYED_UNTIL_TAG =
+      StateTags.makeSystemTagInternal(StateTags.combiningValueFromInputInternal(
+          "delayed", InstantCoder.of(), Min.MinFn.<Instant>naturalOrder()));
 
   /**
    * To complete an implementation, return the desired time from the TriggerContext.
@@ -40,16 +62,91 @@ abstract class AfterDelayFromFirstElement<W extends BoundedWindow> extends TimeT
   @Nullable
   public abstract Instant getCurrentTime(Trigger<W>.TriggerContext context);
 
+  /**
+   * To complete an implementation, return a new instance like this one, but incorporating
+   * the provided timestamp mapping functions. Generally should be used by calling the
+   * constructor of this class from the constructor of the subclass.
+   */
+  protected abstract AfterDelayFromFirstElement<W> newWith(
+      List<SerializableFunction<Instant, Instant>> transform);
+
+  /**
+   * A list of timestampMappers m1, m2, m3, ... m_n considered to be composed in sequence. The
+   * overall mapping for an instance `instance` is `m_n(... m3(m2(m1(instant))`,
+   * implemented via #computeTargetTimestamp
+   */
+  protected final List<SerializableFunction<Instant, Instant>> timestampMappers;
+
   private final TimeDomain timeDomain;
 
   public AfterDelayFromFirstElement(
-      TimeDomain timeDomain, List<SerializableFunction<Instant, Instant>> timestampMappers) {
-    super(timestampMappers);
+      TimeDomain timeDomain,
+      List<SerializableFunction<Instant, Instant>> timestampMappers) {
+    super(null);
+    this.timestampMappers = timestampMappers;
     this.timeDomain = timeDomain;
   }
 
   private Instant getTargetTimestamp(OnElementContext c) {
     return computeTargetTimestamp(c.currentProcessingTime());
+  }
+
+  /**
+   * Aligns timestamps to the smallest multiple of {@code size} since the {@code offset} greater
+   * than the timestamp.
+   *
+   * <p>TODO: Consider sharing this with FixedWindows, and bring over the equivalent of
+   * CalendarWindows.
+   */
+  public AfterDelayFromFirstElement<W> alignedTo(final Duration size, final Instant offset) {
+    return newWith(new AlignFn(size, offset));
+  }
+
+  /**
+   * Aligns the time to be the smallest multiple of {@code size} greater than the timestamp
+   * since the epoch.
+   */
+  public AfterDelayFromFirstElement<W> alignedTo(final Duration size) {
+    return alignedTo(size, new Instant(0));
+  }
+
+  /**
+   * Adds some delay to the original target time.
+   *
+   * @param delay the delay to add
+   * @return An updated time trigger that will wait the additional time before firing.
+   */
+  public AfterDelayFromFirstElement<W> plusDelayOf(final Duration delay) {
+    return newWith(new DelayFn(delay));
+  }
+
+  /**
+   * @deprecated This will be removed in the next major version. Please use only
+   *             {@link #plusDelayOf} and {@link #alignedTo}.
+   */
+  @Deprecated
+  public OnceTrigger<W> mappedTo(SerializableFunction<Instant, Instant> timestampMapper) {
+    return newWith(timestampMapper);
+  }
+
+  @Override
+  public boolean isCompatible(Trigger<?> other) {
+    if (!getClass().equals(other.getClass())) {
+      return false;
+    }
+
+    AfterDelayFromFirstElement<?> that = (AfterDelayFromFirstElement<?>) other;
+    return this.timestampMappers.equals(that.timestampMappers);
+  }
+
+
+  private AfterDelayFromFirstElement<W> newWith(
+      SerializableFunction<Instant, Instant> timestampMapper) {
+    return newWith(
+        ImmutableList.<SerializableFunction<Instant, Instant>>builder()
+            .addAll(timestampMappers)
+            .add(timestampMapper)
+            .build());
   }
 
   @Override
@@ -123,5 +220,91 @@ abstract class AfterDelayFromFirstElement<W extends BoundedWindow> extends TimeT
   @Override
   protected void onOnlyFiring(Trigger<W>.TriggerContext context) throws Exception {
     clear(context);
+  }
+
+  protected Instant computeTargetTimestamp(Instant time) {
+    Instant result = time;
+    for (SerializableFunction<Instant, Instant> timestampMapper : timestampMappers) {
+      result = timestampMapper.apply(result);
+    }
+    return result;
+  }
+
+  /**
+   * A {@link SerializableFunction} to delay the timestamp at which this triggers fires.
+   */
+  private static final class DelayFn implements SerializableFunction<Instant, Instant> {
+    private final Duration delay;
+
+    public DelayFn(Duration delay) {
+      this.delay = delay;
+    }
+
+    @Override
+    public Instant apply(Instant input) {
+      return input.plus(delay);
+    }
+
+    @Override
+    public boolean equals(Object object) {
+      if (object == this) {
+        return true;
+      }
+
+      if (!(object instanceof DelayFn)) {
+        return false;
+      }
+
+      return this.delay.equals(((DelayFn) object).delay);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(delay);
+    }
+  }
+
+  /**
+   * A {@link SerializableFunction} to align an instant to the nearest interval boundary.
+   */
+  static final class AlignFn implements SerializableFunction<Instant, Instant> {
+    private final Duration size;
+    private final Instant offset;
+
+
+    /**
+     * Aligns timestamps to the smallest multiple of {@code size} since the {@code offset} greater
+     * than the timestamp.
+     */
+    public AlignFn(Duration size, Instant offset) {
+      this.size = size;
+      this.offset = offset;
+    }
+
+    @Override
+    public Instant apply(Instant point) {
+      long millisSinceStart = new Duration(offset, point).getMillis() % size.getMillis();
+      return millisSinceStart == 0 ? point : point.plus(size).minus(millisSinceStart);
+    }
+
+    @Override
+    public boolean equals(Object object) {
+      if (object == this) {
+        return true;
+      }
+
+      if (!(object instanceof AlignFn)) {
+        return false;
+      }
+
+      AlignFn other = (AlignFn) object;
+      return other.size.equals(this.size)
+          && other.offset.equals(this.offset);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(size, offset);
+    }
   }
 }
