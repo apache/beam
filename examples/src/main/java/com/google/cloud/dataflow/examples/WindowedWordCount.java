@@ -251,7 +251,7 @@ public class WindowedWordCount {
           .to(getTableReference(options))
           .withSchema(getSchema())
           .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-          .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
+          .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND));
 
     PipelineResult result = pipeline.run();
 
