@@ -20,22 +20,37 @@ import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.C
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.util.TimeDomain;
+import com.google.cloud.dataflow.sdk.util.TimerInternals;
+import com.google.cloud.dataflow.sdk.util.TimerInternals.TimerData;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PValue;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
+import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.SortedMultiset;
 import com.google.common.collect.TreeMultiset;
 
 import org.joda.time.Instant;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableSet;
+import java.util.Objects;
+import java.util.PriorityQueue;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.annotation.Nullable;
@@ -126,7 +141,6 @@ public class InMemoryWatermarkManager {
      *         also be updated
      */
     WatermarkUpdate refresh();
-
   }
 
   /**
@@ -185,11 +199,14 @@ public class InMemoryWatermarkManager {
   private static class AppliedPTransformInputWatermark implements Watermark {
     private final Collection<? extends Watermark> inputWatermarks;
     private final SortedMultiset<WindowedValue<?>> pendingElements;
+    private final Map<Object, NavigableSet<TimerData>> objectTimers;
+
     private AtomicReference<Instant> currentWatermark;
 
     public AppliedPTransformInputWatermark(Collection<? extends Watermark> inputWatermarks) {
       this.inputWatermarks = inputWatermarks;
       this.pendingElements = TreeMultiset.create(PENDING_ELEMENT_COMPARATOR);
+      this.objectTimers = new HashMap<>();
       currentWatermark = new AtomicReference<>(BoundedWindow.TIMESTAMP_MIN_VALUE);
     }
 
@@ -229,20 +246,44 @@ public class InMemoryWatermarkManager {
       return WatermarkUpdate.fromTimestamps(oldWatermark, newWatermark);
     }
 
-    public synchronized void addPending(Iterable<? extends WindowedValue<?>> newPending) {
+    private synchronized void addPendingElements(Iterable<? extends WindowedValue<?>> newPending) {
       for (WindowedValue<?> pendingElement : newPending) {
         pendingElements.add(pendingElement);
       }
     }
 
-    public synchronized void removePending(Iterable<? extends WindowedValue<?>> finishedElements) {
+    private synchronized void removePendingElements(
+        Iterable<? extends WindowedValue<?>> finishedElements) {
       for (WindowedValue<?> finishedElement : finishedElements) {
         pendingElements.remove(finishedElement);
       }
     }
 
+    private synchronized void updateTimers(TimerUpdate update) {
+      NavigableSet<TimerData> keyTimers = objectTimers.get(update.key);
+      if (keyTimers == null) {
+        keyTimers = new TreeSet<>();
+        objectTimers.put(update.key, keyTimers);
+      }
+      for (TimerData timer : update.setTimers) {
+        if (TimeDomain.EVENT_TIME.equals(timer.getDomain())) {
+          keyTimers.add(timer);
+        }
+      }
+      for (TimerData timer : update.deletedTimers) {
+        if (TimeDomain.EVENT_TIME.equals(timer.getDomain())) {
+          keyTimers.remove(timer);
+        }
+      }
+      // We don't keep references to timers that have been fired and delivered via #getFiredTimers()
+    }
+
+    private synchronized Map<Object, List<TimerData>> extractFiredEventTimeTimers() {
+      return extractFiredTimers(currentWatermark.get(), objectTimers);
+    }
+
     @Override
-    public String toString() {
+    public synchronized String toString() {
       return MoreObjects.toStringHelper(AppliedPTransformInputWatermark.class)
           .add("pendingElements", pendingElements)
           .add("currentWatermark", currentWatermark)
@@ -260,17 +301,21 @@ public class InMemoryWatermarkManager {
    */
   private static class AppliedPTransformOutputWatermark implements Watermark {
     private final Watermark inputWatermark;
-    private Instant currentHold;
+    private final PerKeyHolds holds;
     private AtomicReference<Instant> currentWatermark;
 
     public AppliedPTransformOutputWatermark(AppliedPTransformInputWatermark inputWatermark) {
       this.inputWatermark = inputWatermark;
-      currentHold = BoundedWindow.TIMESTAMP_MAX_VALUE;
+      holds = new PerKeyHolds();
       currentWatermark = new AtomicReference<>(BoundedWindow.TIMESTAMP_MIN_VALUE);
     }
 
-    public synchronized void setHold(Instant newHold) {
-      currentHold = newHold;
+    public synchronized void updateHold(Object key, Instant newHold) {
+      if (newHold == null) {
+        holds.removeHold(key);
+      } else {
+        holds.updateHold(key, newHold);
+      }
     }
 
     @Override
@@ -296,35 +341,54 @@ public class InMemoryWatermarkManager {
     @Override
     public synchronized WatermarkUpdate refresh() {
       Instant oldWatermark = currentWatermark.get();
-      Instant newWatermark;
-      if (currentHold == null) {
-        newWatermark = inputWatermark.get();
-      } else {
-        newWatermark = INSTANT_ORDERING.min(inputWatermark.get(), currentHold);
-      }
+      Instant newWatermark = INSTANT_ORDERING.min(inputWatermark.get(), holds.getMinHold());
       newWatermark = INSTANT_ORDERING.max(oldWatermark, newWatermark);
       currentWatermark.set(newWatermark);
       return WatermarkUpdate.fromTimestamps(oldWatermark, newWatermark);
     }
 
     @Override
-    public String toString() {
+    public synchronized String toString() {
       return MoreObjects.toStringHelper(AppliedPTransformOutputWatermark.class)
-          .add("currentHold", currentHold)
+          .add("holds", holds)
           .add("currentWatermark", currentWatermark)
           .toString();
     }
   }
 
+  /**
+   * The input {@link TimeDomain#SYNCHRONIZED_PROCESSING_TIME} hold for an
+   * {@link AppliedPTransform}.
+   *
+   * <p>At any point, the hold value of an {@link SynchronizedProcessingTimeInputWatermark} is equal
+   * to the minimum across all pending bundles at the {@link AppliedPTransform} and all upstream
+   * {@link TimeDomain#SYNCHRONIZED_PROCESSING_TIME} watermarks. The value of the input
+   * synchronized processing time at any step is equal to the maximum of:
+   * <ul>
+   *   <li>The most recently returned synchronized processing input time
+   *   <li>The minimum of
+   *     <ul>
+   *       <li>The current processing time
+   *       <li>The current synchronized processing time input hold
+   *     </ul>
+   * </ul>
+   */
   private static class SynchronizedProcessingTimeInputWatermark implements Watermark {
     private final Collection<? extends Watermark> inputWms;
     private final Collection<CommittedBundle<?>> pendingBundles;
+    private final Map<Object, NavigableSet<TimerData>> processingTimers;
+    private final Map<Object, NavigableSet<TimerData>> synchronizedProcessingTimers;
+
+    private final PriorityQueue<TimerData> pendingTimers;
 
     private AtomicReference<Instant> earliestHold;
 
     public SynchronizedProcessingTimeInputWatermark(Collection<? extends Watermark> inputWms) {
       this.inputWms = inputWms;
       this.pendingBundles = new HashSet<>();
+      this.processingTimers = new HashMap<>();
+      this.synchronizedProcessingTimers = new HashMap<>();
+      this.pendingTimers = new PriorityQueue<>();
       Instant initialHold = BoundedWindow.TIMESTAMP_MAX_VALUE;
       for (Watermark wm : inputWms) {
         initialHold = INSTANT_ORDERING.min(initialHold, wm.get());
@@ -337,6 +401,19 @@ public class InMemoryWatermarkManager {
       return earliestHold.get();
     }
 
+    /**
+     * {@inheritDoc}.
+     *
+     * <p>When refresh is called, the value of the {@link SynchronizedProcessingTimeInputWatermark}
+     * becomes equal to the minimum value of
+     * <ul>
+     *   <li>the timestamps of all currently pending bundles</li>
+     *   <li>all input {@link PCollection} synchronized processing time watermarks</li>
+     * </ul>
+     *
+     * <p>Note that this value is not monotonic, but the returned value for the synchronized
+     * processing time must be.
+     */
     @Override
     public synchronized WatermarkUpdate refresh() {
       Instant oldHold = earliestHold.get();
@@ -362,21 +439,116 @@ public class InMemoryWatermarkManager {
       pendingBundles.remove(bundle);
     }
 
+    /**
+     * Return the earliest timestamp of the earliest timer that has not been completed. This is
+     * either the earliest timestamp across timers that have not been completed, or the earliest
+     * timestamp across timers that have been delivered but have not been completed.
+     */
     public synchronized Instant getEarliestTimerTimestamp() {
-      // TODO: use unfired and pending timers to determine earliest timestamp. Requires supporting
-      // timers.
       Instant earliest = THE_END_OF_TIME.get();
+      for (NavigableSet<TimerData> timers : processingTimers.values()) {
+        if (!timers.isEmpty()) {
+          earliest = INSTANT_ORDERING.min(timers.first().getTimestamp(), earliest);
+        }
+      }
+      for (NavigableSet<TimerData> timers : synchronizedProcessingTimers.values()) {
+        if (!timers.isEmpty()) {
+          earliest = INSTANT_ORDERING.min(timers.first().getTimestamp(), earliest);
+        }
+      }
+      if (!pendingTimers.isEmpty()) {
+        earliest = INSTANT_ORDERING.min(pendingTimers.peek().getTimestamp(), earliest);
+      }
       return earliest;
     }
 
+    private synchronized void updateTimers(TimerUpdate update) {
+      for (TimerData completedTimer : update.completedTimers) {
+        pendingTimers.remove(completedTimer);
+      }
+      Map<TimeDomain, NavigableSet<TimerData>> timerMap = timerMap(update.key);
+      for (TimerData addedTimer : update.setTimers) {
+        NavigableSet<TimerData> timerQueue = timerMap.get(addedTimer.getDomain());
+        if (timerQueue != null) {
+          timerQueue.add(addedTimer);
+        }
+      }
+      for (TimerData deletedTimer : update.deletedTimers) {
+        NavigableSet<TimerData> timerQueue = timerMap.get(deletedTimer.getDomain());
+        if (timerQueue != null) {
+          timerQueue.remove(deletedTimer);
+        }
+      }
+    }
+
+    private synchronized Map<Object, List<TimerData>> extractFiredDomainTimers(
+        TimeDomain domain, Instant firingTime) {
+      Map<Object, List<TimerData>> firedTimers;
+      switch (domain) {
+        case PROCESSING_TIME:
+          firedTimers = extractFiredTimers(firingTime, processingTimers);
+          break;
+        case SYNCHRONIZED_PROCESSING_TIME:
+          firedTimers =
+              extractFiredTimers(
+                  INSTANT_ORDERING.min(firingTime, earliestHold.get()),
+                  synchronizedProcessingTimers);
+          break;
+        default:
+          throw new IllegalArgumentException(
+              "Called getFiredTimers on a Synchronized Processing Time watermark"
+                  + " and gave a non-processing time domain "
+                  + domain);
+      }
+      for (Map.Entry<Object, ? extends Collection<TimerData>> firedTimer : firedTimers.entrySet()) {
+        pendingTimers.addAll(firedTimer.getValue());
+      }
+      return firedTimers;
+    }
+
+    private Map<TimeDomain, NavigableSet<TimerData>> timerMap(Object key) {
+      NavigableSet<TimerData> processingQueue = processingTimers.get(key);
+      if (processingQueue == null) {
+        processingQueue = new TreeSet<>();
+        processingTimers.put(key, processingQueue);
+      }
+      NavigableSet<TimerData> synchronizedProcessingQueue =
+          synchronizedProcessingTimers.get(key);
+      if (synchronizedProcessingQueue == null) {
+        synchronizedProcessingQueue = new TreeSet<>();
+        synchronizedProcessingTimers.put(key, synchronizedProcessingQueue);
+      }
+      EnumMap<TimeDomain, NavigableSet<TimerData>> result = new EnumMap<>(TimeDomain.class);
+      result.put(TimeDomain.PROCESSING_TIME, processingQueue);
+      result.put(TimeDomain.SYNCHRONIZED_PROCESSING_TIME, synchronizedProcessingQueue);
+      return result;
+    }
+
     @Override
-    public String toString() {
+    public synchronized String toString() {
       return MoreObjects.toStringHelper(SynchronizedProcessingTimeInputWatermark.class)
           .add("earliestHold", earliestHold)
           .toString();
     }
   }
 
+  /**
+   * The output {@link TimeDomain#SYNCHRONIZED_PROCESSING_TIME} hold for an
+   * {@link AppliedPTransform}.
+   *
+   * <p>At any point, the hold value of an {@link SynchronizedProcessingTimeOutputWatermark} is
+   * equal to the minimum across all incomplete timers at the {@link AppliedPTransform} and all
+   * upstream {@link TimeDomain#SYNCHRONIZED_PROCESSING_TIME} watermarks. The value of the output
+   * synchronized processing time at any step is equal to the maximum of:
+   * <ul>
+   *   <li>The most recently returned synchronized processing output time
+   *   <li>The minimum of
+   *     <ul>
+   *       <li>The current processing time
+   *       <li>The current synchronized processing time output hold
+   *     </ul>
+   * </ul>
+   */
   private static class SynchronizedProcessingTimeOutputWatermark implements Watermark {
     private final SynchronizedProcessingTimeInputWatermark inputWm;
     private AtomicReference<Instant> latestRefresh;
@@ -392,6 +564,21 @@ public class InMemoryWatermarkManager {
       return latestRefresh.get();
     }
 
+    /**
+     * {@inheritDoc}.
+     *
+     * <p>When refresh is called, the value of the {@link SynchronizedProcessingTimeOutputWatermark}
+     * becomes equal to the minimum value of:
+     * <ul>
+     *   <li>the current input watermark.
+     *   <li>all {@link TimeDomain#SYNCHRONIZED_PROCESSING_TIME} timers that are based on the input
+     *       watermark.
+     *   <li>all {@link TimeDomain#PROCESSING_TIME} timers that are based on the input watermark.
+     * </ul>
+     *
+     * <p>Note that this value is not monotonic, but the returned value for the synchronized
+     * processing time must be.
+     */
     @Override
     public synchronized WatermarkUpdate refresh() {
       // Hold the output synchronized processing time to the input watermark, which takes into
@@ -405,7 +592,7 @@ public class InMemoryWatermarkManager {
     }
 
     @Override
-    public String toString() {
+    public synchronized String toString() {
       return MoreObjects.toStringHelper(SynchronizedProcessingTimeOutputWatermark.class)
           .add("latestRefresh", latestRefresh)
           .toString();
@@ -416,8 +603,7 @@ public class InMemoryWatermarkManager {
    * The {@code Watermark} that is after the latest time it is possible to represent in the global
    * window. This is a distinguished value representing a complete {@link PTransform}.
    */
-  private static final Watermark THE_END_OF_TIME =
-      new Watermark() {
+  private static final Watermark THE_END_OF_TIME = new Watermark() {
         @Override
         public WatermarkUpdate refresh() {
           // THE_END_OF_TIME is a distinguished value that cannot be advanced.
@@ -441,10 +627,41 @@ public class InMemoryWatermarkManager {
       (new WindowedValueByTimestampComparator()).compound(Ordering.arbitrary());
 
   /**
+   * For each (Object, PriorityQueue) pair in the provided map, remove each Timer that is before the
+   * latestTime argument and put in in the result with the same key, then remove all of the keys
+   * which have no more pending timers.
+   *
+   * The result collection retains ordering of timers (from earliest to latest).
+   */
+  private static Map<Object, List<TimerData>> extractFiredTimers(
+      Instant latestTime, Map<Object, NavigableSet<TimerData>> objectTimers) {
+    Map<Object, List<TimerData>> result = new HashMap<>();
+    Set<Object> emptyKeys = new HashSet<>();
+    for (Map.Entry<Object, NavigableSet<TimerData>> pendingTimers : objectTimers.entrySet()) {
+      NavigableSet<TimerData> timers = pendingTimers.getValue();
+      if (!timers.isEmpty() && timers.first().getTimestamp().isBefore(latestTime)) {
+        ArrayList<TimerData> keyFiredTimers = new ArrayList<>();
+        result.put(pendingTimers.getKey(), keyFiredTimers);
+        while (!timers.isEmpty() && timers.first().getTimestamp().isBefore(latestTime)) {
+          keyFiredTimers.add(timers.first());
+          timers.remove(timers.first());
+        }
+      }
+      if (timers.isEmpty()) {
+        emptyKeys.add(pendingTimers.getKey());
+      }
+    }
+    objectTimers.keySet().removeAll(emptyKeys);
+    return result;
+  }
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+
+  /**
    * A map from each {@link PCollection} to all {@link AppliedPTransform PTransform applications}
    * that consume that {@link PCollection}.
    */
-  private final Map<PCollection<?>, Collection<AppliedPTransform<?, ?, ?>>> consumers;
+  private final Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> consumers;
 
   /**
    * The input and output watermark of each {@link AppliedPTransform}.
@@ -462,13 +679,13 @@ public class InMemoryWatermarkManager {
    */
   public static InMemoryWatermarkManager create(
       Collection<AppliedPTransform<?, ?, ?>> rootTransforms,
-      Map<PCollection<?>, Collection<AppliedPTransform<?, ?, ?>>> consumers) {
+      Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> consumers) {
     return new InMemoryWatermarkManager(rootTransforms, consumers);
   }
 
   private InMemoryWatermarkManager(
       Collection<AppliedPTransform<?, ?, ?>> rootTransforms,
-      Map<PCollection<?>, Collection<AppliedPTransform<?, ?, ?>>> consumers) {
+      Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> consumers) {
     this.consumers = consumers;
 
     transformToWatermarks = new HashMap<>();
@@ -559,10 +776,12 @@ public class InMemoryWatermarkManager {
    */
   public void updateOutputWatermark(
       AppliedPTransform<?, ?, ?> transform,
+      TimerUpdate timerUpdate,
       Iterable<? extends CommittedBundle<?>> outputs,
       Instant eventTimeWatermark) {
     TransformWatermarks watermarks = getWatermarks(transform);
-    watermarks.setEventTimeHold(eventTimeWatermark);
+    watermarks.updateTimers(timerUpdate);
+    watermarks.setEventTimeHold(null, eventTimeWatermark);
 
     for (CommittedBundle<?> output : outputs) {
       PCollection<?> pCollection = output.getPCollection();
@@ -595,15 +814,17 @@ public class InMemoryWatermarkManager {
   public void updateWatermarks(
       CommittedBundle<?> completed,
       AppliedPTransform<?, ?, ?> transform,
+      TimerUpdate timerUpdate,
       Iterable<? extends CommittedBundle<?>> outputs,
       @Nullable Instant earliestHold) {
-    updatePending(completed, transform, outputs);
+    updatePending(completed, transform, timerUpdate, outputs);
     TransformWatermarks transformWms = transformToWatermarks.get(transform);
-    transformWms.setEventTimeHold(earliestHold);
+    transformWms.setEventTimeHold(completed.getKey(), earliestHold);
     refreshWatermarks(transform);
   }
 
-  private void refreshWatermarks(AppliedPTransform<?, ?, ?> transform) {
+  private void refreshWatermarks(
+      AppliedPTransform<?, ?, ?> transform) {
     TransformWatermarks myWatermarks = transformToWatermarks.get(transform);
     WatermarkUpdate updateResult = myWatermarks.refresh();
     if (updateResult.isAdvanced()) {
@@ -611,7 +832,7 @@ public class InMemoryWatermarkManager {
         Collection<AppliedPTransform<?, ?, ?>> downstreamTransforms = consumers.get(outputPValue);
         if (downstreamTransforms != null) {
           for (AppliedPTransform<?, ?, ?> downstreamTransform : downstreamTransforms) {
-                refreshWatermarks(downstreamTransform);
+            refreshWatermarks(downstreamTransform);
           }
         }
       }
@@ -627,8 +848,10 @@ public class InMemoryWatermarkManager {
   private void updatePending(
       CommittedBundle<?> input,
       AppliedPTransform<?, ?, ?> transform,
+      TimerUpdate timerUpdate,
       Iterable<? extends CommittedBundle<?>> outputs) {
     TransformWatermarks completedTransform = transformToWatermarks.get(transform);
+    completedTransform.updateTimers(timerUpdate);
     completedTransform.removePending(input);
 
     for (CommittedBundle<?> bundle : outputs) {
@@ -649,6 +872,145 @@ public class InMemoryWatermarkManager {
   }
 
   /**
+   * Returns a map of each {@link PTransform} that has pending timers to those timers. All of the
+   * pending timers will be removed from this {@link InMemoryWatermarkManager}.
+   *
+   * This method exists primarily to extract processing time timers, as watermark timers will be
+   * returned whenever a watermark is updated through
+   * {@link #updateOutputWatermark(AppliedPTransform, TimerUpdate, Iterable, Instant)} and
+   * {@link #updateWatermarks(CommittedBundle, AppliedPTransform, TimerUpdate, Iterable, Instant)}.
+   */
+  public Map<AppliedPTransform<?, ?, ?>, Map<Object, FiredTimers>> extractFiredTimers() {
+    Map<AppliedPTransform<?, ?, ?>, Map<Object, FiredTimers>> allTimers = new HashMap<>();
+    for (Map.Entry<AppliedPTransform<?, ?, ?>, TransformWatermarks> watermarksEntry :
+        transformToWatermarks.entrySet()) {
+      Map<Object, FiredTimers> keyFiredTimers = watermarksEntry.getValue().extractFiredTimers();
+      if (!keyFiredTimers.isEmpty()) {
+        allTimers.put(watermarksEntry.getKey(), keyFiredTimers);
+      }
+    }
+    return allTimers;
+  }
+
+  /**
+   * Returns true if, for any {@link TransformWatermarks} returned by
+   * {@link #getWatermarks(AppliedPTransform)}, the output watermark will be equal to
+   * {@link BoundedWindow#TIMESTAMP_MAX_VALUE}.
+   */
+  public boolean isDone() {
+    for (Map.Entry<AppliedPTransform<?, ?, ?>, TransformWatermarks> watermarksEntry :
+        transformToWatermarks.entrySet()) {
+      Instant endOfTime = THE_END_OF_TIME.get();
+      if (watermarksEntry.getValue().getOutputWatermark().isBefore(endOfTime)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * A (key, Instant) pair that holds the watermark. Holds are per-key, but the watermark is global,
+   * and as such the watermark manager must track holds and the release of holds on a per-key basis.
+   *
+   * <p>The {@link #compareTo(KeyedHold)} method of {@link KeyedHold} is not consistent with equals,
+   * as the key is arbitrarily ordered via identity, rather than object equality.
+   */
+  private static final class KeyedHold implements Comparable<KeyedHold> {
+    private static final Ordering<Object> KEY_ORDERING = Ordering.arbitrary().nullsLast();
+
+    private final Object key;
+    private final Instant timestamp;
+
+    /**
+     * Create a new KeyedHold with the specified key and timestamp.
+     */
+    public static KeyedHold of(Object key, Instant timestamp) {
+      return new KeyedHold(key, MoreObjects.firstNonNull(timestamp, THE_END_OF_TIME.get()));
+    }
+
+    private KeyedHold(Object key, Instant timestamp) {
+      this.key = key;
+      this.timestamp = timestamp;
+    }
+
+    @Override
+    public int compareTo(KeyedHold that) {
+      return ComparisonChain.start()
+          .compare(this.timestamp, that.timestamp)
+          .compare(this.key, that.key, KEY_ORDERING)
+          .result();
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(timestamp, key);
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      if (other == null || !(other instanceof KeyedHold)) {
+        return false;
+      }
+      KeyedHold that = (KeyedHold) other;
+      return Objects.equals(this.timestamp, that.timestamp) && Objects.equals(this.key, that.key);
+    }
+
+    /**
+     * Get the value of this {@link KeyedHold}.
+     */
+    public Instant getTimestamp() {
+      return timestamp;
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(KeyedHold.class)
+          .add("key", key)
+          .add("hold", timestamp)
+          .toString();
+    }
+  }
+
+  private static class PerKeyHolds {
+    private final Map<Object, KeyedHold> keyedHolds;
+    private final PriorityQueue<KeyedHold> allHolds;
+
+    private PerKeyHolds() {
+      this.keyedHolds = new HashMap<>();
+      this.allHolds = new PriorityQueue<>();
+    }
+
+    /**
+     * Gets the minimum hold across all keys in this {@link PerKeyHolds}, or THE_END_OF_TIME if
+     * there are no holds within this {@link PerKeyHolds}.
+     */
+    public Instant getMinHold() {
+      return allHolds.isEmpty() ? THE_END_OF_TIME.get() : allHolds.peek().getTimestamp();
+    }
+
+    /**
+     * Updates the hold of the provided key to the provided value, removing any other holds for
+     * the same key.
+     */
+    public void updateHold(@Nullable Object key, Instant newHold) {
+      removeHold(key);
+      KeyedHold newKeyedHold = KeyedHold.of(key, newHold);
+      keyedHolds.put(key, newKeyedHold);
+      allHolds.offer(newKeyedHold);
+    }
+
+    /**
+     * Removes the hold of the provided key.
+     */
+    public void removeHold(Object key) {
+      KeyedHold oldHold = keyedHolds.get(key);
+      if (oldHold != null) {
+        allHolds.remove(oldHold);
+      }
+    }
+  }
+
+  /**
    * A reference to the input and output watermarks of an {@link AppliedPTransform}.
    */
   public class TransformWatermarks {
@@ -658,30 +1020,21 @@ public class InMemoryWatermarkManager {
     private final SynchronizedProcessingTimeInputWatermark synchronizedProcessingInputWatermark;
     private final SynchronizedProcessingTimeOutputWatermark synchronizedProcessingOutputWatermark;
 
+    private Instant latestSynchronizedInputWm;
+    private Instant latestSynchronizedOutputWm;
+
     private TransformWatermarks(
         AppliedPTransformInputWatermark inputWatermark,
         AppliedPTransformOutputWatermark outputWatermark,
-        SynchronizedProcessingTimeInputWatermark sychronizedProcessingWatermark,
-        SynchronizedProcessingTimeOutputWatermark outputProcessingWatermark) {
+        SynchronizedProcessingTimeInputWatermark inputSynchProcessingWatermark,
+        SynchronizedProcessingTimeOutputWatermark outputSynchProcessingWatermark) {
       this.inputWatermark = inputWatermark;
       this.outputWatermark = outputWatermark;
 
-      this.synchronizedProcessingInputWatermark = sychronizedProcessingWatermark;
-      this.synchronizedProcessingOutputWatermark = outputProcessingWatermark;
-    }
-
-    private void setEventTimeHold(Instant hold) {
-      outputWatermark.setHold(hold);
-    }
-
-    private void removePending(CommittedBundle<?> bundle) {
-      inputWatermark.removePending(bundle.getElements());
-      synchronizedProcessingInputWatermark.removePending(bundle);
-    }
-
-    private void addPending(CommittedBundle<?> bundle) {
-      inputWatermark.addPending(bundle.getElements());
-      synchronizedProcessingInputWatermark.addPending(bundle);
+      this.synchronizedProcessingInputWatermark = inputSynchProcessingWatermark;
+      this.synchronizedProcessingOutputWatermark = outputSynchProcessingWatermark;
+      this.latestSynchronizedInputWm = BoundedWindow.TIMESTAMP_MIN_VALUE;
+      this.latestSynchronizedOutputWm = BoundedWindow.TIMESTAMP_MIN_VALUE;
     }
 
     /**
@@ -691,19 +1044,37 @@ public class InMemoryWatermarkManager {
       return inputWatermark.get();
     }
 
-    public Instant getSynchronizedProcessingInputTime() {
-      return INSTANT_ORDERING.min(Instant.now(), synchronizedProcessingInputWatermark.get());
-    }
-
-    public Instant getSynchronizedProcessingOutputTime() {
-      return INSTANT_ORDERING.min(Instant.now(), synchronizedProcessingOutputWatermark.get());
-    }
-
     /**
      * Returns the output watermark of the {@link AppliedPTransform}.
      */
     public Instant getOutputWatermark() {
       return outputWatermark.get();
+    }
+
+    /**
+     * Returns the synchronized processing input time of the {@link AppliedPTransform}.
+     *
+     * <p>The returned value is guaranteed to be monotonically increasing, and outside of the
+     * presence of holds, will increase as the system time progresses.
+     */
+    public synchronized Instant getSynchronizedProcessingInputTime() {
+      latestSynchronizedInputWm = INSTANT_ORDERING.max(
+          latestSynchronizedInputWm,
+          INSTANT_ORDERING.min(Instant.now(), synchronizedProcessingInputWatermark.get()));
+      return latestSynchronizedInputWm;
+    }
+
+    /**
+     * Returns the synchronized processing output time of the {@link AppliedPTransform}.
+     *
+     * <p>The returned value is guaranteed to be monotonically increasing, and outside of the
+     * presence of holds, will increase as the system time progresses.
+     */
+    public synchronized Instant getSynchronizedProcessingOutputTime() {
+      latestSynchronizedOutputWm = INSTANT_ORDERING.max(
+          latestSynchronizedOutputWm,
+          INSTANT_ORDERING.min(Instant.now(), synchronizedProcessingOutputWatermark.get()));
+      return latestSynchronizedOutputWm;
     }
 
     private WatermarkUpdate refresh() {
@@ -714,6 +1085,67 @@ public class InMemoryWatermarkManager {
       return eventOutputUpdate.union(syncOutputUpdate);
     }
 
+    private void setEventTimeHold(Object key, Instant newHold) {
+      outputWatermark.updateHold(key, newHold);
+    }
+
+    private void removePending(CommittedBundle<?> bundle) {
+      inputWatermark.removePendingElements(bundle.getElements());
+      synchronizedProcessingInputWatermark.removePending(bundle);
+    }
+
+    private void addPending(CommittedBundle<?> bundle) {
+      inputWatermark.addPendingElements(bundle.getElements());
+      synchronizedProcessingInputWatermark.addPending(bundle);
+    }
+
+    private Map<Object, FiredTimers> extractFiredTimers() {
+      Map<Object, List<TimerData>> eventTimeTimers = inputWatermark.extractFiredEventTimeTimers();
+      Map<Object, List<TimerData>> processingTimers;
+      Map<Object, List<TimerData>> synchronizedTimers;
+      if (inputWatermark.get().equals(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+        processingTimers = synchronizedProcessingInputWatermark.extractFiredDomainTimers(
+            TimeDomain.PROCESSING_TIME, BoundedWindow.TIMESTAMP_MAX_VALUE);
+        synchronizedTimers = synchronizedProcessingInputWatermark.extractFiredDomainTimers(
+            TimeDomain.PROCESSING_TIME, BoundedWindow.TIMESTAMP_MAX_VALUE);
+      } else {
+        processingTimers = synchronizedProcessingInputWatermark.extractFiredDomainTimers(
+            TimeDomain.PROCESSING_TIME, Instant.now());
+        synchronizedTimers = synchronizedProcessingInputWatermark.extractFiredDomainTimers(
+            TimeDomain.SYNCHRONIZED_PROCESSING_TIME, getSynchronizedProcessingInputTime());
+      }
+      Map<Object, Map<TimeDomain, List<TimerData>>> groupedTimers = new HashMap<>();
+      groupFiredTimers(groupedTimers, eventTimeTimers, processingTimers, synchronizedTimers);
+
+      Map<Object, FiredTimers> keyFiredTimers = new HashMap<>();
+      for (Map.Entry<Object, Map<TimeDomain, List<TimerData>>> firedTimers :
+          groupedTimers.entrySet()) {
+        keyFiredTimers.put(firedTimers.getKey(), new FiredTimers(firedTimers.getValue()));
+      }
+      return keyFiredTimers;
+    }
+
+    @SafeVarargs
+    private final void groupFiredTimers(
+        Map<Object, Map<TimeDomain, List<TimerData>>> groupedToMutate,
+        Map<Object, List<TimerData>>... timersToGroup) {
+      for (Map<Object, List<TimerData>> subGroup : timersToGroup) {
+        for (Map.Entry<Object, List<TimerData>> newTimers : subGroup.entrySet()) {
+          Map<TimeDomain, List<TimerData>> grouped = groupedToMutate.get(newTimers.getKey());
+          if (grouped == null) {
+            grouped = new HashMap<>();
+            groupedToMutate.put(newTimers.getKey(), grouped);
+          }
+          grouped.put(newTimers.getValue().get(0).getDomain(), newTimers.getValue());
+        }
+      }
+    }
+
+    private void updateTimers(TimerUpdate update) {
+      inputWatermark.updateTimers(update);
+      synchronizedProcessingInputWatermark.updateTimers(update);
+    }
+
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(TransformWatermarks.class)
@@ -722,6 +1154,159 @@ public class InMemoryWatermarkManager {
           .add("inputProcessingTime", synchronizedProcessingInputWatermark)
           .add("outputProcessingTime", synchronizedProcessingOutputWatermark)
           .toString();
+    }
+  }
+
+  /**
+   * A collection of newly set, deleted, and completed timers.
+   *
+   * <p>setTimers and deletedTimers are collections of {@link TimerData} that have been added to the
+   * {@link TimerInternals} of an executed step. completedTimers are timers that were delivered as
+   * the input to the executed step.
+   */
+  public static class TimerUpdate {
+    private final Object key;
+    private final Iterable<? extends TimerData> completedTimers;
+
+    private final Iterable<? extends TimerData> setTimers;
+    private final Iterable<? extends TimerData> deletedTimers;
+
+    /**
+     * Returns a TimerUpdate for a null key with no timers.
+     */
+    public static TimerUpdate empty() {
+      return new TimerUpdate(
+          null,
+          Collections.<TimerData>emptyList(),
+          Collections.<TimerData>emptyList(),
+          Collections.<TimerData>emptyList());
+    }
+
+    /**
+     * Creates a new {@link TimerUpdate} builder with the provided completed timers that needs the
+     * set and deleted timers to be added to it.
+     */
+    public static TimerUpdateBuilder builder(Object key) {
+      return new TimerUpdateBuilder(key);
+    }
+
+    /**
+     * A {@link TimerUpdate} builder that needs to be provided with set timers and deleted timers.
+     */
+    public static final class TimerUpdateBuilder {
+      private final Object key;
+      private final Collection<TimerData> completedTimers;
+      private final Collection<TimerData> setTimers;
+      private final Collection<TimerData> deletedTimers;
+
+      private TimerUpdateBuilder(Object key) {
+        this.key = key;
+        this.completedTimers = new HashSet<>();
+        this.setTimers = new HashSet<>();
+        this.deletedTimers = new HashSet<>();
+      }
+
+      /**
+       * Adds all of the provided timers to the collection of completed timers, and returns this
+       * {@link TimerUpdateBuilder}.
+       */
+      public TimerUpdateBuilder withCompletedTimers(Iterable<TimerData> completedTimers) {
+        Iterables.addAll(this.completedTimers, completedTimers);
+        return this;
+      }
+
+      /**
+       * Adds the provided timer to the collection of set timers, removing it from deleted timers if
+       * it has previously been deleted. Returns this {@link TimerUpdateBuilder}.
+       */
+      public TimerUpdateBuilder setTimer(TimerData setTimer) {
+        deletedTimers.remove(setTimer);
+        setTimers.add(setTimer);
+        return this;
+      }
+
+      /**
+       * Adds the provided timer to the collection of deleted timers, removing it from set timers if
+       * it has previously been set. Returns this {@link TimerUpdateBuilder}.
+       */
+      public TimerUpdateBuilder deletedTimer(TimerData deletedTimer) {
+        deletedTimers.add(deletedTimer);
+        setTimers.remove(deletedTimer);
+        return this;
+      }
+
+      /**
+       * Returns a new {@link TimerUpdate} with the most recently set completedTimers, setTimers,
+       * and deletedTimers.
+       */
+      public TimerUpdate build() {
+        return new TimerUpdate(key, ImmutableSet.copyOf(completedTimers),
+            ImmutableSet.copyOf(setTimers), ImmutableSet.copyOf(deletedTimers));
+      }
+    }
+
+    private TimerUpdate(
+        Object key,
+        Iterable<? extends TimerData> completedTimers,
+        Iterable<? extends TimerData> setTimers,
+        Iterable<? extends TimerData> deletedTimers) {
+      this.key = key;
+      this.completedTimers = completedTimers;
+      this.setTimers = setTimers;
+      this.deletedTimers = deletedTimers;
+    }
+
+    @VisibleForTesting
+    Object getKey() {
+      return key;
+    }
+
+    @VisibleForTesting
+    Iterable<? extends TimerData> getCompletedTimers() {
+      return completedTimers;
+    }
+
+    @VisibleForTesting
+    Iterable<? extends TimerData> getSetTimers() {
+      return setTimers;
+    }
+
+    @VisibleForTesting
+    Iterable<? extends TimerData> getDeletedTimers() {
+      return deletedTimers;
+    }
+  }
+
+  /**
+   * A pair of {@link TimerData} and key which can be delivered to the appropriate
+   * {@link AppliedPTransform}. A timer fires at the transform that set it with a specific key when
+   * the time domain in which it lives progresses past a specified time, as determined by the
+   * {@link InMemoryWatermarkManager}.
+   */
+  public static class FiredTimers {
+    private final Map<TimeDomain, ? extends Collection<TimerData>> timers;
+
+    private FiredTimers(Map<TimeDomain, ? extends Collection<TimerData>> timers) {
+      this.timers = timers;
+    }
+
+    /**
+     * Gets all of the timers that have fired within the provided {@link TimeDomain}. If no timers
+     * fired within the provided domain, return an empty collection.
+     *
+     * <p>Timers within a {@link TimeDomain} are guaranteed to be in order of increasing timestamp.
+     */
+    public Collection<TimerData> getTimers(TimeDomain domain) {
+      Collection<TimerData> domainTimers = timers.get(domain);
+      if (domainTimers == null) {
+        return Collections.emptyList();
+      }
+      return domainTimers;
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(FiredTimers.class).add("timers", timers).toString();
     }
   }
 
