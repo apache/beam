@@ -46,7 +46,7 @@ public class DoFnRunners {
    *
    * <p>It invokes {@link DoFn#processElement} for each input.
    */
-  static <InputT, OutputT> DoFnRunner<InputT, OutputT> simpleRunner(
+  public static <InputT, OutputT> DoFnRunner<InputT, OutputT> simpleRunner(
       PipelineOptions options,
       DoFn<InputT, OutputT> fn,
       SideInputReader sideInputReader,
@@ -73,7 +73,7 @@ public class DoFnRunners {
    *
    * <p>It drops elements from expired windows before they reach the underlying {@link DoFn}.
    */
-  static <K, InputT, OutputT, W extends BoundedWindow>
+  public static <K, InputT, OutputT, W extends BoundedWindow>
       DoFnRunner<KeyedWorkItem<K, InputT>, KV<K, OutputT>> lateDataDroppingRunner(
           PipelineOptions options,
           ReduceFnExecutor<K, InputT, OutputT, W> reduceFnExecutor,
@@ -84,10 +84,10 @@ public class DoFnRunners {
           StepContext stepContext,
           CounterSet.AddCounterMutator addCounterMutator,
           WindowingStrategy<?, W> windowingStrategy) {
-    LateDataDroppingDoFnRunner<K, InputT, OutputT, W> runner =
-        new LateDataDroppingDoFnRunner<>(
+    DoFnRunner<KeyedWorkItem<K, InputT>, KV<K, OutputT>> simpleDoFnRunner =
+        simpleRunner(
             options,
-            reduceFnExecutor,
+            reduceFnExecutor.asDoFn(),
             sideInputReader,
             outputManager,
             mainOutputTag,
@@ -95,7 +95,11 @@ public class DoFnRunners {
             stepContext,
             addCounterMutator,
             windowingStrategy);
-    return runner;
+    return new LateDataDroppingDoFnRunner<>(
+        simpleDoFnRunner,
+        windowingStrategy,
+        stepContext.timerInternals(),
+        reduceFnExecutor.getDroppedDueToLatenessAggregator());
   }
 
   public static <InputT, OutputT> DoFnRunner<InputT, OutputT> createDefault(

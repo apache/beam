@@ -18,11 +18,27 @@ package com.google.cloud.dataflow.sdk.util;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.coders.CoderException;
+import com.google.cloud.dataflow.sdk.coders.InstantCoder;
+import com.google.cloud.dataflow.sdk.coders.StandardCoder;
+import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
+import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.state.StateNamespace;
+import com.google.cloud.dataflow.sdk.util.state.StateNamespaces;
 import com.google.common.base.MoreObjects;
+import com.google.common.base.Preconditions;
+
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.joda.time.Instant;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 
 import javax.annotation.Nullable;
@@ -191,6 +207,63 @@ public interface TimerInternals {
     @Override
     public int compareTo(TimerData o) {
       return Long.compare(timestamp.getMillis(), o.getTimestamp().getMillis());
+    }
+  }
+
+  /**
+   * A {@link Coder} for {@link TimerData}.
+   */
+  public class TimerDataCoder extends StandardCoder<TimerData> {
+    private static final StringUtf8Coder STRING_CODER = StringUtf8Coder.of();
+    private static final InstantCoder INSTANT_CODER = InstantCoder.of();
+    private final Coder<? extends BoundedWindow> windowCoder;
+
+    public static TimerDataCoder of(Coder<? extends BoundedWindow> windowCoder) {
+      return new TimerDataCoder(windowCoder);
+    }
+
+    @SuppressWarnings("unchecked")
+    @JsonCreator
+    public static TimerDataCoder of(
+        @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
+        List<Coder<?>> components) {
+      Preconditions.checkArgument(components.size() == 1,
+          "Expecting 1 components, got " + components.size());
+      return of((Coder<? extends BoundedWindow>) components.get(0));
+    }
+
+    private TimerDataCoder(Coder<? extends BoundedWindow> windowCoder) {
+      this.windowCoder = windowCoder;
+    }
+
+    @Override
+    public void encode(TimerData timer, OutputStream outStream, Context context)
+        throws CoderException, IOException {
+      Context nestedContext = context.nested();
+      STRING_CODER.encode(timer.namespace.stringKey(), outStream, nestedContext);
+      INSTANT_CODER.encode(timer.timestamp, outStream, nestedContext);
+      STRING_CODER.encode(timer.domain.name(), outStream, nestedContext);
+    }
+
+    @Override
+    public TimerData decode(InputStream inStream, Context context)
+        throws CoderException, IOException {
+      Context nestedContext = context.nested();
+      StateNamespace namespace =
+          StateNamespaces.fromString(STRING_CODER.decode(inStream, nestedContext), windowCoder);
+      Instant timestamp = INSTANT_CODER.decode(inStream, nestedContext);
+      TimeDomain domain = TimeDomain.valueOf(STRING_CODER.decode(inStream, nestedContext));
+      return TimerData.of(namespace, timestamp, domain);
+    }
+
+    @Override
+    public List<? extends Coder<?>> getCoderArguments() {
+      return Arrays.asList(windowCoder);
+    }
+
+    @Override
+    public void verifyDeterministic() throws NonDeterministicException {
+      verifyDeterministic("window coder must be deterministic", windowCoder);
     }
   }
 }
