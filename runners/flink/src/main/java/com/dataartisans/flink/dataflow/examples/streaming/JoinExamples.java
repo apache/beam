@@ -53,8 +53,8 @@ public class JoinExamples {
 	static PCollection<String> joinEvents(PCollection<String> streamA,
 										  PCollection<String> streamB) throws Exception {
 
-		final TupleTag<String> firstInfoTag = new TupleTag<String>();
-		final TupleTag<String> secondInfoTag = new TupleTag<String>();
+		final TupleTag<String> firstInfoTag = new TupleTag<>();
+		final TupleTag<String> secondInfoTag = new TupleTag<>();
 
 		// transform both input collections to tuple collections, where the keys are country
 		// codes in both cases.
@@ -118,7 +118,7 @@ public class JoinExamples {
 		}
 	}
 
-	private static interface Options extends WindowedWordCount.StreamingWordCountOptions {
+	private interface Options extends WindowedWordCount.StreamingWordCountOptions {
 
 	}
 

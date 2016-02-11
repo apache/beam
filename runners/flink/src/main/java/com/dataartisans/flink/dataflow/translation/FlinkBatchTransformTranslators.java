@@ -283,7 +283,7 @@ public class FlinkBatchTransformTranslators {
 	private static class ConsoleIOWriteTranslatorBatch implements FlinkBatchPipelineTranslator.BatchTransformTranslator<ConsoleIO.Write.Bound> {
 		@Override
 		public void translateNode(ConsoleIO.Write.Bound transform, FlinkBatchTranslationContext context) {
-			PValue input = (PValue) context.getInput(transform);
+			PValue input = context.getInput(transform);
 			DataSet<?> inputDataSet = context.getInputDataSet(input);
 			inputDataSet.printOnTaskManager(transform.getName());
 		}

@@ -76,8 +76,7 @@ public class FlinkStreamingTransformTranslators {
 	}
 
 	public static FlinkStreamingPipelineTranslator.StreamTransformTranslator<?> getTranslator(PTransform<?, ?> transform) {
-		FlinkStreamingPipelineTranslator.StreamTransformTranslator<?> translator = TRANSLATORS.get(transform.getClass());
-		return translator;
+		return TRANSLATORS.get(transform.getClass());
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -123,7 +122,7 @@ public class FlinkStreamingTransformTranslators {
 		public void translateNode(Read.Unbounded<T> transform, FlinkStreamingTranslationContext context) {
 			PCollection<T> output = context.getOutput(transform);
 
-			DataStream<WindowedValue<T>> source = null;
+			DataStream<WindowedValue<T>> source;
 			if (transform.getSource().getClass().equals(UnboundedFlinkSource.class)) {
 				UnboundedFlinkSource flinkSource = (UnboundedFlinkSource) transform.getSource();
 				source = context.getExecutionEnvironment()

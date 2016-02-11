@@ -28,7 +28,6 @@ import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 
 import org.joda.time.Duration;
-import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,7 +80,7 @@ public class WindowedWordCount {
 		}
 	}
 
-	public static interface StreamingWordCountOptions extends com.dataartisans.flink.dataflow.examples.WordCount.Options {
+	public interface StreamingWordCountOptions extends com.dataartisans.flink.dataflow.examples.WordCount.Options {
 		@Description("Sliding window duration, in seconds")
 		@Default.Long(WINDOW_SIZE)
 		Long getWindowSize();

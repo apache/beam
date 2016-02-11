@@ -76,7 +76,7 @@ public class JoinExamples {
 						KV<String, CoGbkResult> e = c.element();
 						CoGbkResult val = e.getValue();
 						String countryCode = e.getKey();
-						String countryName = "none";
+						String countryName;
 						countryName = e.getValue().getOnly(countryInfoTag, "Kostas");
 						for (String eventInfo : c.element().getValue().getAll(eventInfoTag)) {
 							// Generate a string that combines information from both collection values

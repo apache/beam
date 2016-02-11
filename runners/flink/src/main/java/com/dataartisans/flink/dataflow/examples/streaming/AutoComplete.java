@@ -36,8 +36,6 @@ import org.joda.time.Duration;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * To run the example, first open a socket on a terminal by executing the command:
@@ -242,7 +240,7 @@ public class AutoComplete {
       public void processElement(ProcessContext c) {
       String word = c.element().value;
       for (int i = minPrefix; i <= Math.min(word.length(), maxPrefix); i++) {
-        KV kv = KV.of(word.substring(0, i), c.element());
+        KV<String, CompletionCandidate> kv = KV.of(word.substring(0, i), c.element());
         c.output(kv);
       }
     }
@@ -349,7 +347,7 @@ public class AutoComplete {
    *
    * <p> Inherits standard Dataflow configuration options.
    */
-  private static interface Options extends WindowedWordCount.StreamingWordCountOptions {
+  private interface Options extends WindowedWordCount.StreamingWordCountOptions {
     @Description("Whether to use the recursive algorithm")
     @Default.Boolean(true)
     Boolean getRecursive();

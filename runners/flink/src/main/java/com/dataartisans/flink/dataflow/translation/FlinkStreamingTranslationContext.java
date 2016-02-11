@@ -74,13 +74,11 @@ public class FlinkStreamingTranslationContext {
 
 	@SuppressWarnings("unchecked")
 	public <I extends PInput> I getInput(PTransform<I, ?> transform) {
-		I input = (I) currentTransform.getInput();
-		return input;
+		return (I) currentTransform.getInput();
 	}
 
 	@SuppressWarnings("unchecked")
 	public <O extends POutput> O getOutput(PTransform<?, O> transform) {
-		O output = (O) currentTransform.getOutput();
-		return output;
+		return (O) currentTransform.getOutput();
 	}
 }
