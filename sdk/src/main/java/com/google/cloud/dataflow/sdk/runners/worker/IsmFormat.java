@@ -32,7 +32,6 @@ import com.google.cloud.dataflow.sdk.coders.VarLongCoder;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.RandomAccessData;
-import com.google.cloud.dataflow.sdk.util.ScalableBloomFilter;
 import com.google.cloud.dataflow.sdk.util.VarInt;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.base.MoreObjects;
@@ -67,7 +66,7 @@ import javax.annotation.Nullable;
  * <p>An Ism file is composed of these high level sections (in order):
  * <ul>
  *   <li>shard block</li>
- *   <li>bloom filter (See {@link ScalableBloomFilter} for details on encoding format)</li>
+ *   <li>bloom filter (See {@code ScalableBloomFilter} for details on encoding format)</li>
  *   <li>shard index</li>
  *   <li>footer (See {@link Footer} for details on encoding format)</li>
  * </ul>
