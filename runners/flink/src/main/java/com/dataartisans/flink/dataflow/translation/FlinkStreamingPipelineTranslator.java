@@ -19,7 +19,6 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.TransformTreeNode;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
-import com.google.cloud.dataflow.sdk.transforms.join.CoGroupByKey;
 import com.google.cloud.dataflow.sdk.values.PValue;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
@@ -101,9 +100,6 @@ public class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
 	}
 
 	private <T extends PTransform<?, ?>> void applyStreamingTransform(PTransform<?, ?> transform, TransformTreeNode node, StreamTransformTranslator<?> translator) {
-		if (this.streamingContext == null) {
-			throw new IllegalStateException("The FlinkPipelineTranslator is not yet initialized.");
-		}
 
 		@SuppressWarnings("unchecked")
 		T typedTransform = (T) transform;

@@ -23,7 +23,6 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.CollectionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.environment.RemoteStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -224,7 +223,7 @@ public class FlinkJobExecutionEnvironment {
 		this.flinkStreamEnv.getConfig().setExecutionRetryDelay(3000);
 	}
 
-	private final void checkInitializationState() {
+	private void checkInitializationState() {
 		if (this.options == null) {
 			throw new IllegalStateException("FlinkJobExecutionEnvironment is not initialized yet.");
 		}

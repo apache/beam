@@ -32,7 +32,7 @@ import java.io.File;
 import java.io.PrintWriter;
 import java.net.URI;
 
-import static junit.framework.Assert.*;
+import static org.junit.Assert.*;
 
 /**
  * Tests the translation of custom Write.Bound sinks.

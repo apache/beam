@@ -115,9 +115,6 @@ public class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
 	}
 
 	private <T extends PTransform<?, ?>> void applyBatchTransform(PTransform<?, ?> transform, TransformTreeNode node, BatchTransformTranslator<?> translator) {
-		if (this.batchContext == null) {
-			throw new IllegalStateException("The FlinkPipelineTranslator is not yet initialized.");
-		}
 
 		@SuppressWarnings("unchecked")
 		T typedTransform = (T) transform;

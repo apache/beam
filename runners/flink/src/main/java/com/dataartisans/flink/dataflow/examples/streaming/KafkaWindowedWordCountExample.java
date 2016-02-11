@@ -72,7 +72,7 @@ public class KafkaWindowedWordCountExample {
 		}
 	}
 
-	public static interface KafkaStreamingWordCountOptions extends WindowedWordCount.StreamingWordCountOptions {
+	public interface KafkaStreamingWordCountOptions extends WindowedWordCount.StreamingWordCountOptions {
 		@Description("The Kafka topic to read from")
 		@Default.String(KAFKA_TOPIC)
 		String getKafkaTopic();
