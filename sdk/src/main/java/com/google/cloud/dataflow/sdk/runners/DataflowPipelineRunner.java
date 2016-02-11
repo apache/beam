@@ -321,8 +321,8 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
       ImmutableMap.Builder<Class<?>, Class<?>> builder = ImmutableMap.<Class<?>, Class<?>>builder();
       builder.put(Read.Unbounded.class, UnsupportedIO.class);
       builder.put(Window.Bound.class, AssignWindows.class);
-      if (options.getExperiments() != null
-          && options.getExperiments().contains("enable_ism_side_input")) {
+      if (options.getExperiments() == null
+          || !options.getExperiments().contains("disable_ism_side_input")) {
         builder.put(View.AsMap.class, BatchViewAsMap.class);
         builder.put(View.AsMultimap.class, BatchViewAsMultimap.class);
         builder.put(View.AsSingleton.class, BatchViewAsSingleton.class);

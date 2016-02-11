@@ -647,6 +647,7 @@ public class DataflowPipelineTranslatorTest {
     // in bad ways during refactor
 
     DataflowPipelineOptions options = buildPipelineOptions();
+    options.setExperiments(ImmutableList.of("disable_ism_side_input"));
     DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
 
     DataflowPipeline pipeline = DataflowPipeline.create(options);
@@ -673,6 +674,7 @@ public class DataflowPipelineTranslatorTest {
     // in bad ways during refactor
 
     DataflowPipelineOptions options = buildPipelineOptions();
+    options.setExperiments(ImmutableList.of("disable_ism_side_input"));
     DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
 
     DataflowPipeline pipeline = DataflowPipeline.create(options);
@@ -698,7 +700,6 @@ public class DataflowPipelineTranslatorTest {
     // in bad ways during refactor
 
     DataflowPipelineOptions options = buildPipelineOptions();
-    options.setExperiments(ImmutableList.of("enable_ism_side_input"));
     DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
 
     DataflowPipeline pipeline = DataflowPipeline.create(options);
@@ -727,7 +728,6 @@ public class DataflowPipelineTranslatorTest {
     // in bad ways during refactor
 
     DataflowPipelineOptions options = buildPipelineOptions();
-    options.setExperiments(ImmutableList.of("enable_ism_side_input"));
     DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
 
     DataflowPipeline pipeline = DataflowPipeline.create(options);
