@@ -1,13 +1,72 @@
 Flink-Dataflow
 --------------
 
-Flink-Dataflow is a Google Dataflow Runner for Apache Flink. It enables you to
-run Dataflow programs with Flink as an execution engine.
+Flink-Dataflow is a Runner for Google Dataflow (aka Apache Beam) which enables you to
+run Dataflow programs with Flink. It integrates seamlessly with the Dataflow
+API, allowing you to execute Dataflow programs in streaming or batch mode.
+
+## Streaming
+
+### Full Dataflow Windowing and Triggering Semantics
+
+The Flink Dataflow Runner supports *Event Time* allowing you to analyze data with respect to its
+associated timestamp. It handles out-or-order and late-arriving elements. You may leverage the full
+power of the Dataflow windowing semantics like *time-based*, *sliding*, *tumbling*, or *count*
+windows. You may build *session* windows which allow you to keep track of events associated with
+each other.
+
+### Fault-Tolerance
+
+The program's state is persisted by Apache Flink. You may re-run and resume your program upon
+failure or if you decide to continue computation at a later time.
+
+### Sources and Sinks
+
+Build your own data ingestion or digestion using the source/sink interface. Re-use Flink's sources
+and sinks or use the provided support for Apache Kafka.
+
+### Seamless integration
+
+To execute a Dataflow program in streaming mode, just enable streaming in the `PipelineOptions`:
+
+    options.setStreaming(true);
+
+That's it. If you prefer batched execution, simply disable streaming mode.
+
+## Batch
+
+### Batch optimization
+
+Flink gives you out-of-core algorithms which operate on its managed memory to perform sorting, 
+caching, and hash table operations. We have optimized operations like CoGroup to use Flink's
+optimized out-of-core implementation.
+
+### Fault-Tolerance
+
+We guarantee job-level fault-tolerance which gracefully restarts failed batch jobs.
+
+### Sources and Sinks
+
+Build your own data ingestion or digestion using the source/sink interface or re-use Flink's sources
+and sinks.
+
+## Features
+
+The Flink Dataflow Runner maintains as much compatibility with the Dataflow API as possible. We
+support transformations on data like:
+
+- Grouping
+- Windowing
+- ParDo
+- CoGroup
+- Flatten
+- Combine
+- Side inputs/outputs
+- Encoding
 
 # Getting Started
 
-To get started using Google Dataflow on top of Apache Flink, we need to install the
-latest version of Flink-Dataflow.
+To get started using Flink-Dataflow, we first need to install the latest version.
 
 ## Install Flink-Dataflow ##
 
@@ -46,7 +105,6 @@ p.apply(TextIO.Read.named("ReadLines").from(options.getInput()))
 p.run();
 ```
 
-
 To execute the example, let's first get some sample data:
 
     curl http://www.gutenberg.org/cache/epub/1128/pg1128.txt > kinglear.txt
@@ -58,7 +116,7 @@ Then let's run the included WordCount locally on your machine:
 Congratulations, you have run your first Google Dataflow program on top of Apache Flink!
 
 
-# Running Dataflow on Flink on a cluster
+# Running Dataflow programs on a Flink cluster
 
 You can run your Dataflow program on an Apache Flink cluster. Please start off by creating a new
 Maven project.
@@ -137,14 +195,8 @@ folder to the Flink cluster using the command-line utility like so:
 
     ./bin/flink run /path/to/fat.jar
 
+
+# More
+
 For more information, please visit the [Apache Flink Website](http://flink.apache.org) or contact
 the [Mailinglists](http://flink.apache.org/community.html#mailing-lists).
-
-# Streaming
-
-Streaming support has been added. It is currently in alpha stage. Please give it a try. To use
-streaming, just enable streaming mode in the `PipelineOptions`:
-
-    options.setStreaming(true);
-
-That's all.
