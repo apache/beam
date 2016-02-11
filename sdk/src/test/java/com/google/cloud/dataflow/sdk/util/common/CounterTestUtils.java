@@ -18,59 +18,17 @@ package com.google.cloud.dataflow.sdk.util.common;
 
 import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.MEAN;
 
-import com.google.api.services.dataflow.model.MetricUpdate;
 import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.util.CloudCounterUtils;
 import com.google.cloud.dataflow.sdk.util.common.Counter.CounterMean;
 
 import org.junit.Assert;
 
 import java.io.ByteArrayOutputStream;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
 
 /**
  * Utilities for testing {@link Counter}s.
  */
 public class CounterTestUtils {
-
-  /**
-   * Extracts a MetricUpdate update from the given counter. This is used mainly
-   * for testing.
-   *
-   * @param extractDelta specifies whether or not to extract the cumulative
-   *        aggregate value or the delta since the last extraction.
-   */
-  public static MetricUpdate extractCounterUpdate(Counter<?> counter,
-      boolean extractDelta) {
-    // This may be invoked asynchronously with regular counter updates but
-    // access to counter data is synchronized, so this is safe.
-    return CloudCounterUtils.extractCounter(counter, extractDelta);
-  }
-
-  /**
-   * Extracts MetricUpdate updates from the given counters. This is used mainly
-   * for testing.
-   *
-   * @param extractDelta specifies whether or not to extract the cumulative
-   *        aggregate values or the deltas since the last extraction.
-   */
-  public static List<MetricUpdate> extractCounterUpdates(
-      Collection<Counter<?>> counters, boolean extractDelta) {
-    // This may be invoked asynchronously with regular counter updates but
-    // access to counter data is synchronized, so this is safe. Note however
-    // that the result is NOT an atomic snapshot across all given counters.
-    List<MetricUpdate> cloudCounters = new ArrayList<>(counters.size());
-    for (Counter<?> counter : counters) {
-      MetricUpdate cloudCounter = extractCounterUpdate(counter, extractDelta);
-      if (null != cloudCounter) {
-        cloudCounters.add(cloudCounter);
-      }
-    }
-    return cloudCounters;
-  }
-
   /**
    * A utility method that passes the given (unencoded) elements through
    * coder's registerByteSizeObserver() and encode() methods, and confirms

@@ -25,7 +25,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
-import com.google.api.services.dataflow.model.MetricUpdate;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
@@ -38,7 +37,7 @@ import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.cloud.dataflow.sdk.util.common.CounterProvider;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet.AddCounterMutator;
-import com.google.cloud.dataflow.sdk.util.common.CounterTestUtils;
+import com.google.common.collect.Iterables;
 
 import org.hamcrest.Matchers;
 import org.junit.Assert;
@@ -72,10 +71,7 @@ public class CounterAggregatorTest {
       aggregator.addValue(item);
     }
 
-    List<MetricUpdate> cloudCounterSet = CounterTestUtils.extractCounterUpdates(counters, false);
-    Assert.assertEquals(cloudCounterSet.size(), 1);
-    Assert.assertEquals(cloudCounterSet.get(0),
-                        CounterTestUtils.extractCounterUpdate(expectedCounter, false));
+    assertEquals(Iterables.getOnlyElement(counters), expectedCounter);
   }
 
   @Test

@@ -34,6 +34,13 @@ import java.util.List;
 public class CloudCounterUtils {
   private static final Logger LOG = LoggerFactory.getLogger(CloudCounterUtils.class);
 
+  /**
+   * Extracts MetricUpdate updates from the given counter set. This is used mainly
+   * for testing.
+   *
+   * @param delta specifies whether or not to extract the cumulative
+   *        aggregate values or the deltas since the last extraction.
+   */
   public static List<MetricUpdate> extractCounters(
       CounterSet counters, boolean delta) {
     synchronized (counters) {
@@ -52,6 +59,13 @@ public class CloudCounterUtils {
     }
   }
 
+  /**
+   * Extracts a MetricUpdate update from the given counter. This is used mainly
+   * for testing.
+   *
+   * @param delta specifies whether or not to extract the cumulative
+   *        aggregate value or the delta since the last extraction.
+   */
   public static MetricUpdate extractCounter(Counter<?> counter, boolean delta) {
     // TODO: Omit no-op counter updates, for counters whose
     // values haven't changed since the last time we sent them.
