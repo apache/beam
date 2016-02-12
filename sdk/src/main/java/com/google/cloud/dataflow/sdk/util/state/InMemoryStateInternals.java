@@ -19,6 +19,7 @@ import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.annotations.Experimental.Kind;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
+import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFn;
 import com.google.cloud.dataflow.sdk.util.state.StateTag.StateBinder;
@@ -80,7 +81,7 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
                 StateTag<? super K, CombiningValueStateInternal<InputT, AccumT, OutputT>>
                 address, Coder<AccumT> accumCoder,
                 final CombineFn<InputT, AccumT, OutputT> combineFn) {
-          return new InMemoryCombiningValue<InputT, AccumT, OutputT>(combineFn);
+          return new InMemoryCombiningValue<InputT, AccumT, OutputT>(combineFn.<K>asKeyedFn());
         }
 
         @Override
@@ -88,6 +89,15 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
             StateTag<? super K, WatermarkStateInternal<W>> address,
             OutputTimeFn<? super W> outputTimeFn) {
           return new WatermarkStateInternalImplementation<W>(outputTimeFn);
+        }
+
+        @Override
+        public <InputT, AccumT, OutputT> CombiningValueStateInternal<InputT, AccumT, OutputT>
+            bindKeyedCombiningValue(
+                StateTag<? super K, CombiningValueStateInternal<InputT, AccumT, OutputT>>
+                address, Coder<AccumT> accumCoder,
+                KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn) {
+          return new InMemoryCombiningValue<InputT, AccumT, OutputT>(combineFn);
         }
       };
     }
@@ -208,19 +218,19 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
   private final class InMemoryCombiningValue<InputT, AccumT, OutputT>
       implements CombiningValueStateInternal<InputT, AccumT, OutputT>, InMemoryState {
     private boolean isCleared = true;
-    private final CombineFn<InputT, AccumT, OutputT> combineFn;
+    private final KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn;
     private AccumT accum;
 
-    private InMemoryCombiningValue(CombineFn<InputT, AccumT, OutputT> combineFn) {
+    private InMemoryCombiningValue(KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn) {
       this.combineFn = combineFn;
-      accum = combineFn.createAccumulator();
+      accum = combineFn.createAccumulator(key);
     }
 
     @Override
     public void clear() {
       // Even though we're clearing we can't remove this from the in-memory state map, since
       // other users may already have a handle on this CombiningValue.
-      accum = combineFn.createAccumulator();
+      accum = combineFn.createAccumulator(key);
       isCleared = true;
     }
 
@@ -229,7 +239,7 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
       return new StateContents<OutputT>() {
         @Override
         public OutputT read() {
-          return combineFn.extractOutput(accum);
+          return combineFn.extractOutput(key, accum);
         }
       };
     }
@@ -237,7 +247,7 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     @Override
     public void add(InputT input) {
       isCleared = false;
-      accum = combineFn.addInput(accum, input);
+      accum = combineFn.addInput(key, accum, input);
     }
 
     @Override
@@ -263,12 +273,12 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     @Override
     public void addAccum(AccumT accum) {
       isCleared = false;
-      this.accum = combineFn.mergeAccumulators(Arrays.asList(this.accum, accum));
+      this.accum = combineFn.mergeAccumulators(key, Arrays.asList(this.accum, accum));
     }
 
     @Override
-    public CombineFn<InputT, AccumT, OutputT> getCombineFn() {
-      return combineFn;
+    public AccumT mergeAccumulators(Iterable<AccumT> accumulators) {
+      return combineFn.mergeAccumulators(key, accumulators);
     }
 
     @Override

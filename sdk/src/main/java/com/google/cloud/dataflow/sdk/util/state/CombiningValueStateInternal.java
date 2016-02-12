@@ -40,7 +40,7 @@ public interface CombiningValueStateInternal<InputT, AccumT, OutputT>
   void addAccum(AccumT accum);
 
   /**
-   * Return the combiner function for this state.
+   * Merge the given accumulators according to the underlying combiner.
    */
-  CombineFn<InputT, AccumT, OutputT> getCombineFn();
+  AccumT mergeAccumulators(Iterable<AccumT> accumulators);
 }

@@ -151,7 +151,7 @@ public class StateMerging {
       accumulators.add(future.read());
     }
     // Merge (possibly update and return one of the existing accumulators).
-    AccumT merged = result.getCombineFn().mergeAccumulators(accumulators);
+    AccumT merged = result.mergeAccumulators(accumulators);
     // Clear sources.
     for (CombiningValueStateInternal<InputT, AccumT, OutputT> source : sources) {
       source.clear();

@@ -19,6 +19,7 @@ import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.annotations.Experimental.Kind;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
+import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFn;
@@ -56,6 +57,11 @@ public interface StateTag<K, StateT extends State> extends Serializable {
     bindCombiningValue(
         StateTag<? super K, CombiningValueStateInternal<InputT, AccumT, OutputT>> address,
         Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn);
+
+    <InputT, AccumT, OutputT> CombiningValueStateInternal<InputT, AccumT, OutputT>
+    bindKeyedCombiningValue(
+        StateTag<? super K, CombiningValueStateInternal<InputT, AccumT, OutputT>> address,
+        Coder<AccumT> accumCoder, KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn);
 
     /**
      * Bind to a watermark {@link StateTag}.
