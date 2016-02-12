@@ -147,7 +147,7 @@ public abstract class BaseExecutionContext<T extends ExecutionContext.StepContex
     }
 
     @Override
-    public abstract StateInternals stateInternals();
+    public abstract StateInternals<?> stateInternals();
 
     @Override
     public abstract TimerInternals timerInternals();

@@ -96,7 +96,8 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
 
   protected final WindowingStrategy<Object, W> windowingStrategy;
 
-  private final TestInMemoryStateInternals stateInternals = new TestInMemoryStateInternals();
+  private final TestInMemoryStateInternals<?> stateInternals =
+      new TestInMemoryStateInternals<Object>();
   private final TestTimerInternals timerInternals = new TestTimerInternals();
   private final TriggerContextFactory<W> contextFactory;
   private final WindowFn<Object, W> windowFn;
@@ -176,7 +177,7 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
         @SuppressWarnings("unchecked")
         WindowAndTriggerNamespace<W> namespace = (WindowAndTriggerNamespace<W>) untypedNamespace;
         if (namespace.getWindow().equals(window)) {
-          Set<StateTag<?>> tagsInUse = stateInternals.getTagsInUse(namespace);
+          Set<?> tagsInUse = stateInternals.getTagsInUse(namespace);
           assertTrue("Trigger has not cleared tags: " + tagsInUse, tagsInUse.isEmpty());
         }
       }
@@ -343,11 +344,16 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
   /**
    * Simulate state.
    */
-  private static class TestInMemoryStateInternals extends InMemoryStateInternals {
+  private static class TestInMemoryStateInternals<K> extends InMemoryStateInternals<K> {
 
-    public Set<StateTag<?>> getTagsInUse(StateNamespace namespace) {
-      Set<StateTag<?>> inUse = new HashSet<>();
-      for (Map.Entry<StateTag<?>, State> entry : inMemoryState.getTagsInUse(namespace).entrySet()) {
+    public TestInMemoryStateInternals() {
+      super(null);
+    }
+
+    public Set<StateTag<? super K, ?>> getTagsInUse(StateNamespace namespace) {
+      Set<StateTag<? super K, ?>> inUse = new HashSet<>();
+      for (Map.Entry<StateTag<? super K, ?>, State> entry :
+          inMemoryState.getTagsInUse(namespace).entrySet()) {
         if (!isEmptyForTesting(entry.getValue())) {
           inUse.add(entry.getKey());
         }

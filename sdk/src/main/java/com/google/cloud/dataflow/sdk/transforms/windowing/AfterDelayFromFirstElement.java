@@ -22,11 +22,11 @@ import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.Min;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
-import com.google.cloud.dataflow.sdk.util.MergingStateContext;
-import com.google.cloud.dataflow.sdk.util.StateContext;
 import com.google.cloud.dataflow.sdk.util.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.state.CombiningValueState;
 import com.google.cloud.dataflow.sdk.util.state.CombiningValueStateInternal;
+import com.google.cloud.dataflow.sdk.util.state.MergingStateContext;
+import com.google.cloud.dataflow.sdk.util.state.StateContext;
 import com.google.cloud.dataflow.sdk.util.state.StateMerging;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
 import com.google.cloud.dataflow.sdk.util.state.StateTags;
@@ -52,8 +52,8 @@ public abstract class AfterDelayFromFirstElement<W extends BoundedWindow> extend
   protected static final List<SerializableFunction<Instant, Instant>> IDENTITY =
       ImmutableList.<SerializableFunction<Instant, Instant>>of();
 
-  protected static final StateTag<CombiningValueStateInternal<Instant, Combine.Holder<Instant>,
-      Instant>> DELAYED_UNTIL_TAG =
+  protected static final StateTag<Object, CombiningValueStateInternal<Instant,
+                                              Combine.Holder<Instant>, Instant>> DELAYED_UNTIL_TAG =
       StateTags.makeSystemTagInternal(StateTags.combiningValueFromInputInternal(
           "delayed", InstantCoder.of(), Min.MinFn.<Instant>naturalOrder()));
 
@@ -151,7 +151,7 @@ public abstract class AfterDelayFromFirstElement<W extends BoundedWindow> extend
   }
 
   @Override
-  public void prefetchOnElement(StateContext state) {
+  public void prefetchOnElement(StateContext<?> state) {
     state.access(DELAYED_UNTIL_TAG).get();
   }
 
@@ -172,7 +172,7 @@ public abstract class AfterDelayFromFirstElement<W extends BoundedWindow> extend
   }
 
   @Override
-  public void prefetchOnMerge(MergingStateContext<W> state) {
+  public void prefetchOnMerge(MergingStateContext<?, W> state) {
     super.prefetchOnMerge(state);
     StateMerging.prefetchCombiningValues(state, DELAYED_UNTIL_TAG);
   }
@@ -207,7 +207,7 @@ public abstract class AfterDelayFromFirstElement<W extends BoundedWindow> extend
   }
 
   @Override
-  public void prefetchShouldFire(StateContext state) {
+  public void prefetchShouldFire(StateContext<?> state) {
     state.access(DELAYED_UNTIL_TAG).get();
   }
 

@@ -20,7 +20,9 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.MergingTriggerInfo;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerInfo;
+import com.google.cloud.dataflow.sdk.util.state.MergingStateContext;
 import com.google.cloud.dataflow.sdk.util.state.State;
+import com.google.cloud.dataflow.sdk.util.state.StateContext;
 import com.google.cloud.dataflow.sdk.util.state.StateInternals;
 import com.google.cloud.dataflow.sdk.util.state.StateNamespace;
 import com.google.cloud.dataflow.sdk.util.state.StateNamespaces;
@@ -47,15 +49,14 @@ import javax.annotation.Nullable;
 public class TriggerContextFactory<W extends BoundedWindow> {
 
   private final WindowingStrategy<?, W> windowingStrategy;
-  private StateInternals stateInternals;
+  private StateInternals<?> stateInternals;
   // Future triggers may be able to exploit the active window to state address window mapping.
   @SuppressWarnings("unused")
   private ActiveWindowSet<W> activeWindows;
   private final Coder<W> windowCoder;
 
-
   public TriggerContextFactory(WindowingStrategy<?, W> windowingStrategy,
-      StateInternals stateInternals, ActiveWindowSet<W> activeWindows) {
+      StateInternals<?> stateInternals, ActiveWindowSet<W> activeWindows) {
     this.windowingStrategy = windowingStrategy;
     this.stateInternals = stateInternals;
     this.activeWindows = activeWindows;
@@ -79,12 +80,12 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     return new OnMergeContextImpl(window, timers, rootTrigger, finishedSet, finishedSets);
   }
 
-  public StateContext createStateContext(W window, ExecutableTrigger<W> trigger) {
+  public StateContext<?> createStateContext(W window, ExecutableTrigger<W> trigger) {
     return new StateContextImpl(window, trigger);
   }
 
-  public MergingStateContext<W> createMergingStateContext(ExecutableTrigger<W> trigger,
-      Collection<W> mergingWindows, W mergeResult) {
+  public MergingStateContext<?, W> createMergingStateContext(
+      W mergeResult, Collection<W> mergingWindows, ExecutableTrigger<W> trigger) {
     return new MergingStateContextImpl(trigger, mergingWindows, mergeResult);
   }
 
@@ -259,7 +260,7 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     }
   }
 
-  private class StateContextImpl implements StateContext {
+  private class StateContextImpl implements StateContext<Object> {
     protected final int triggerIndex;
     protected final StateNamespace windowNamespace;
 
@@ -275,12 +276,13 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     }
 
     @Override
-    public <StateT extends State> StateT access(StateTag<StateT> address) {
+    public <StateT extends State> StateT access(StateTag<? super Object, StateT> address) {
       return stateInternals.state(windowNamespace, address);
     }
   }
 
-  private class MergingStateContextImpl extends StateContextImpl implements MergingStateContext<W> {
+  private class MergingStateContextImpl extends StateContextImpl
+  implements MergingStateContext<Object, W> {
     private final Collection<W> activeToBeMerged;
 
     public MergingStateContextImpl(ExecutableTrigger<W> trigger, Collection<W> activeToBeMerged,
@@ -290,13 +292,13 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     }
 
     @Override
-    public <StorageT extends State> StorageT access(StateTag<StorageT> address) {
+    public <StorageT extends State> StorageT access(StateTag<? super Object, StorageT> address) {
       return stateInternals.state(windowNamespace, address);
     }
 
     @Override
     public <StateT extends State> Map<W, StateT> accessInEachMergingWindow(
-        StateTag<StateT> address) {
+        StateTag<? super Object, StateT> address) {
       ImmutableMap.Builder<W, StateT> builder = ImmutableMap.builder();
       for (W mergingWindow : activeToBeMerged) {
         StateT stateForWindow = stateInternals.state(namespaceFor(mergingWindow), address);
@@ -447,7 +449,7 @@ public class TriggerContextFactory<W extends BoundedWindow> {
   }
 
   private class OnMergeContextImpl extends Trigger<W>.OnMergeContext {
-    private final MergingStateContext<W> state;
+    private final MergingStateContext<?, W> state;
     private final W window;
     private final Collection<W> mergingWindows;
     private final Timers timers;
@@ -474,7 +476,7 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     }
 
     @Override
-    public MergingStateContext<W> state() {
+    public MergingStateContext<?, W> state() {
       return state;
     }
 

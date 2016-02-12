@@ -70,6 +70,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.PriorityQueue;
 import java.util.Set;
 
@@ -86,7 +87,10 @@ import javax.annotation.Nullable;
  * @param <W> The type of windows being used.
  */
 public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
-  private final TestInMemoryStateInternals stateInternals = new TestInMemoryStateInternals();
+  private static final String KEY = "TEST_KEY";
+
+  private final TestInMemoryStateInternals<String> stateInternals =
+      new TestInMemoryStateInternals<>(KEY);
   private final TestTimerInternals timerInternals = new TestTimerInternals();
 
   private final WindowFn<Object, W> windowFn;
@@ -95,7 +99,6 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   private final WindowingStrategy<Object, W> objectStrategy;
   private final ReduceFn<String, InputT, OutputT, W> reduceFn;
 
-  private static final String KEY = "TEST_KEY";
   private ExecutableTrigger<W> executableTrigger;
 
   private final InMemoryLongSumAggregator droppedDueToClosedWindow =
@@ -180,28 +183,29 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   public final void assertHasOnlyGlobalAndFinishedSetsFor(W... expectedWindows) {
     assertHasOnlyGlobalAndAllowedTags(
         ImmutableSet.copyOf(expectedWindows),
-        ImmutableSet.<StateTag<?>>of(TriggerRunner.FINISHED_BITS_TAG));
+        ImmutableSet.<StateTag<? super String, ?>>of(TriggerRunner.FINISHED_BITS_TAG));
   }
 
   @SafeVarargs
   public final void assertHasOnlyGlobalAndFinishedSetsAndPaneInfoFor(W... expectedWindows) {
     assertHasOnlyGlobalAndAllowedTags(
         ImmutableSet.copyOf(expectedWindows),
-        ImmutableSet.<StateTag<?>>of(TriggerRunner.FINISHED_BITS_TAG, PaneInfoTracker.PANE_INFO_TAG,
+        ImmutableSet.<StateTag<? super String, ?>>of(
+            TriggerRunner.FINISHED_BITS_TAG, PaneInfoTracker.PANE_INFO_TAG,
             WatermarkHold.watermarkHoldTagForOutputTimeFn(objectStrategy.getOutputTimeFn()),
             WatermarkHold.EXTRA_HOLD_TAG));
   }
 
   public final void assertHasOnlyGlobalState() {
     assertHasOnlyGlobalAndAllowedTags(
-        Collections.<W>emptySet(), Collections.<StateTag<?>>emptySet());
+        Collections.<W>emptySet(), Collections.<StateTag<? super String, ?>>emptySet());
   }
 
   @SafeVarargs
   public final void assertHasOnlyGlobalAndPaneInfoFor(W... expectedWindows) {
     assertHasOnlyGlobalAndAllowedTags(
         ImmutableSet.copyOf(expectedWindows),
-        ImmutableSet.<StateTag<?>>of(
+        ImmutableSet.<StateTag<? super String, ?>>of(
             PaneInfoTracker.PANE_INFO_TAG,
             WatermarkHold.watermarkHoldTagForOutputTimeFn(objectStrategy.getOutputTimeFn()),
             WatermarkHold.EXTRA_HOLD_TAG));
@@ -212,30 +216,30 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
    * {@code expectedWindows} and that each of these windows has only tags from {@code allowedTags}.
    */
   private void assertHasOnlyGlobalAndAllowedTags(
-      Set<W> expectedWindows, Set<StateTag<?>> allowedTags) {
+      Set<W> expectedWindows, Set<StateTag<? super String, ?>> allowedTags) {
     Set<StateNamespace> expectedWindowsSet = new HashSet<>();
     for (W expectedWindow : expectedWindows) {
       expectedWindowsSet.add(windowNamespace(expectedWindow));
     }
-    Map<StateNamespace, Set<StateTag<?>>> actualWindows = new HashMap<>();
+    Map<StateNamespace, Set<StateTag<? super String, ?>>> actualWindows = new HashMap<>();
 
     for (StateNamespace namespace : stateInternals.getNamespacesInUse()) {
       if (namespace instanceof StateNamespaces.GlobalNamespace) {
         continue;
       } else if (namespace instanceof StateNamespaces.WindowNamespace) {
-        Set<StateTag<?>> tagsInUse = stateInternals.getTagsInUse(namespace);
+        Set<StateTag<? super String, ?>> tagsInUse = stateInternals.getTagsInUse(namespace);
         if (tagsInUse.isEmpty()) {
           continue;
         }
         actualWindows.put(namespace, tagsInUse);
-        Set<StateTag<?>> unexpected = Sets.difference(tagsInUse, allowedTags);
+        Set<StateTag<? super String, ?>> unexpected = Sets.difference(tagsInUse, allowedTags);
         if (unexpected.isEmpty()) {
           continue;
         } else {
           fail(namespace + " has unexpected states: " + tagsInUse);
         }
       } else if (namespace instanceof StateNamespaces.WindowAndTriggerNamespace) {
-        Set<StateTag<?>> tagsInUse = stateInternals.getTagsInUse(namespace);
+        Set<StateTag<? super String, ?>> tagsInUse = stateInternals.getTagsInUse(namespace);
         assertTrue(namespace + " contains " + tagsInUse, tagsInUse.isEmpty());
       } else {
         fail("Unrecognized namespace " + namespace);
@@ -353,10 +357,16 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   /**
    * Simulate state.
    */
-  private static class TestInMemoryStateInternals extends InMemoryStateInternals {
-    public Set<StateTag<?>> getTagsInUse(StateNamespace namespace) {
-      Set<StateTag<?>> inUse = new HashSet<>();
-      for (Map.Entry<StateTag<?>, State> entry : inMemoryState.getTagsInUse(namespace).entrySet()) {
+  private static class TestInMemoryStateInternals<K> extends InMemoryStateInternals<K> {
+
+    public TestInMemoryStateInternals(K key) {
+      super(key);
+    }
+
+    public Set<StateTag<? super K, ?>> getTagsInUse(StateNamespace namespace) {
+      Set<StateTag<? super K, ?>> inUse = new HashSet<>();
+      for (Entry<StateTag<? super K, ?>, State> entry :
+        inMemoryState.getTagsInUse(namespace).entrySet()) {
         if (!isEmptyForTesting(entry.getValue())) {
           inUse.add(entry.getKey());
         }
@@ -426,8 +436,12 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     }
 
     @Override
-    public StateInternals stateInternals() {
-      return stateInternals;
+    public StateInternals<Object> stateInternals() {
+      // Safe for testing only
+      @SuppressWarnings({"unchecked", "rawtypes"})
+      TestInMemoryStateInternals<Object> untypedStateInternals =
+          (TestInMemoryStateInternals) stateInternals;
+      return untypedStateInternals;
     }
   }
 

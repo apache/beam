@@ -39,7 +39,11 @@ import java.util.Collection;
  */
 public interface WindowingInternals<InputT, OutputT> {
 
-  StateInternals stateInternals();
+  /**
+   * Unsupported state internals. The key type is unknown. It is up to the user to use the
+   * correct type of key.
+   */
+  StateInternals<?> stateInternals();
 
   /**
    * Output the value at the specified timestamp in the listed windows.

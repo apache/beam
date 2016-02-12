@@ -19,6 +19,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFns;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window.ClosingBehavior;
+import com.google.cloud.dataflow.sdk.util.state.MergingStateContext;
 import com.google.cloud.dataflow.sdk.util.state.StateContents;
 import com.google.cloud.dataflow.sdk.util.state.StateMerging;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
@@ -49,7 +50,7 @@ public class WatermarkHold<W extends BoundedWindow> implements Serializable {
    * Return tag for state containing the output watermark hold
    * used for elements.
    */
-  public static <W extends BoundedWindow> StateTag<WatermarkStateInternal<W>>
+  public static <W extends BoundedWindow> StateTag<Object, WatermarkStateInternal<W>>
       watermarkHoldTagForOutputTimeFn(OutputTimeFn<? super W> outputTimeFn) {
     return StateTags.makeSystemTagInternal(StateTags.watermarkStateInternal("hold", outputTimeFn));
   }
@@ -61,13 +62,13 @@ public class WatermarkHold<W extends BoundedWindow> implements Serializable {
    * would take the end-of-window time as its element time.)
    */
   @VisibleForTesting
-  public static final StateTag<WatermarkStateInternal<BoundedWindow>> EXTRA_HOLD_TAG =
+  public static final StateTag<Object, WatermarkStateInternal<BoundedWindow>> EXTRA_HOLD_TAG =
       StateTags.makeSystemTagInternal(StateTags.watermarkStateInternal(
           "extra", OutputTimeFns.outputAtEarliestInputTimestamp()));
 
   private final TimerInternals timerInternals;
   private final WindowingStrategy<?, W> windowingStrategy;
-  private final StateTag<WatermarkStateInternal<W>> elementHoldTag;
+  private final StateTag<Object, WatermarkStateInternal<W>> elementHoldTag;
 
   public WatermarkHold(TimerInternals timerInternals, WindowingStrategy<?, W> windowingStrategy) {
     this.timerInternals = timerInternals;
@@ -303,7 +304,7 @@ public class WatermarkHold<W extends BoundedWindow> implements Serializable {
   /**
    * Prefetch watermark holds in preparation for merging.
    */
-  public void prefetchOnMerge(MergingStateContext<W> state) {
+  public void prefetchOnMerge(MergingStateContext<?, W> state) {
     StateMerging.prefetchWatermarks(state, elementHoldTag);
   }
 

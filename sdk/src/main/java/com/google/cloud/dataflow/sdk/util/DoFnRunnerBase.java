@@ -549,7 +549,7 @@ public abstract class DoFnRunnerBase<InputT, OutputT> implements DoFnRunner<Inpu
         }
 
         @Override
-        public StateInternals stateInternals() {
+        public StateInternals<?> stateInternals() {
           return context.stepContext.stateInternals();
         }
       };

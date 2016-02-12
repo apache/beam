@@ -20,9 +20,9 @@ import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.VarLongCoder;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
-import com.google.cloud.dataflow.sdk.util.MergingStateContext;
-import com.google.cloud.dataflow.sdk.util.StateContext;
 import com.google.cloud.dataflow.sdk.util.state.CombiningValueStateInternal;
+import com.google.cloud.dataflow.sdk.util.state.MergingStateContext;
+import com.google.cloud.dataflow.sdk.util.state.StateContext;
 import com.google.cloud.dataflow.sdk.util.state.StateMerging;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
 import com.google.cloud.dataflow.sdk.util.state.StateTags;
@@ -41,7 +41,7 @@ import java.util.Objects;
 @Experimental(Experimental.Kind.TRIGGER)
 public class AfterPane<W extends BoundedWindow> extends OnceTrigger<W>{
 
-private static final StateTag<CombiningValueStateInternal<Long, long[], Long>>
+private static final StateTag<Object, CombiningValueStateInternal<Long, long[], Long>>
       ELEMENTS_IN_PANE_TAG =
       StateTags.makeSystemTagInternal(StateTags.combiningValueFromInputInternal(
           "count", VarLongCoder.of(), new Sum.SumLongFn()));
@@ -66,7 +66,7 @@ private static final StateTag<CombiningValueStateInternal<Long, long[], Long>>
   }
 
   @Override
-  public void prefetchOnMerge(MergingStateContext<W> state) {
+  public void prefetchOnMerge(MergingStateContext<?, W> state) {
     super.prefetchOnMerge(state);
     StateMerging.prefetchCombiningValues(state, ELEMENTS_IN_PANE_TAG);
   }
@@ -86,7 +86,7 @@ private static final StateTag<CombiningValueStateInternal<Long, long[], Long>>
   }
 
   @Override
-  public void prefetchShouldFire(StateContext state) {
+  public void prefetchShouldFire(StateContext<?> state) {
     state.access(ELEMENTS_IN_PANE_TAG).get();
   }
 

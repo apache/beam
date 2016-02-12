@@ -35,22 +35,26 @@ import java.io.Serializable;
  *
  * <p>Currently, this can only be used in a step immediately following a {@link GroupByKey}.
  *
+ * @param <K> The type of key that must be used with the state tag. Contravariant: methods should
+ *            accept values of type {@code KeyedStateTag<? super K, StateT>}.
  * @param <StateT> The type of state being tagged.
  */
 @Experimental(Kind.STATE)
-public interface StateTag<StateT extends State> extends Serializable {
+public interface StateTag<K, StateT extends State> extends Serializable {
 
   /**
    * Visitor for binding a {@link StateTag} and to the associated {@link State}.
+   *
+   * @param <K> the type of key this binder embodies.
    */
-  public interface StateBinder {
-    <T> ValueState<T> bindValue(StateTag<ValueState<T>> address, Coder<T> coder);
+  public interface StateBinder<K> {
+    <T> ValueState<T> bindValue(StateTag<? super K, ValueState<T>> address, Coder<T> coder);
 
-    <T> BagState<T> bindBag(StateTag<BagState<T>> address, Coder<T> elemCoder);
+    <T> BagState<T> bindBag(StateTag<? super K, BagState<T>> address, Coder<T> elemCoder);
 
     <InputT, AccumT, OutputT> CombiningValueStateInternal<InputT, AccumT, OutputT>
     bindCombiningValue(
-        StateTag<CombiningValueStateInternal<InputT, AccumT, OutputT>> address,
+        StateTag<? super K, CombiningValueStateInternal<InputT, AccumT, OutputT>> address,
         Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn);
 
     /**
@@ -60,7 +64,7 @@ public interface StateTag<StateT extends State> extends Serializable {
      * added to the returned {@link WatermarkStateInternal} are to be combined.
      */
     <W extends BoundedWindow> WatermarkStateInternal<W> bindWatermark(
-        StateTag<WatermarkStateInternal<W>> address,
+        StateTag<? super K, WatermarkStateInternal<W>> address,
         OutputTimeFn<? super W> outputTimeFn);
   }
 
@@ -75,5 +79,5 @@ public interface StateTag<StateT extends State> extends Serializable {
   /**
    * Use the {@code binder} to create an instance of {@code StateT} appropriate for this address.
    */
-  StateT bind(StateBinder binder);
+  StateT bind(StateBinder<? extends K> binder);
 }

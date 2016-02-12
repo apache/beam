@@ -44,21 +44,23 @@ public class InMemoryStateInternalsTest {
   private static final StateNamespace NAMESPACE_2 = new StateNamespaceForTest("ns2");
   private static final StateNamespace NAMESPACE_3 = new StateNamespaceForTest("ns3");
 
-  private static final StateTag<ValueState<String>> STRING_VALUE_ADDR =
+  private static final StateTag<Object, ValueState<String>> STRING_VALUE_ADDR =
       StateTags.value("stringValue", StringUtf8Coder.of());
-  private static final StateTag<CombiningValueStateInternal<Integer, int[], Integer>>
+  private static final StateTag<Object, CombiningValueStateInternal<Integer, int[], Integer>>
       SUM_INTEGER_ADDR = StateTags.combiningValueFromInputInternal(
           "sumInteger", VarIntCoder.of(), new Sum.SumIntegerFn());
-  private static final StateTag<BagState<String>> STRING_BAG_ADDR =
+  private static final StateTag<Object, BagState<String>> STRING_BAG_ADDR =
       StateTags.bag("stringBag", StringUtf8Coder.of());
-  private static final StateTag<WatermarkStateInternal<BoundedWindow>> WATERMARK_EARLIEST_ADDR =
+  private static final StateTag<Object, WatermarkStateInternal<BoundedWindow>>
+      WATERMARK_EARLIEST_ADDR =
       StateTags.watermarkStateInternal("watermark", OutputTimeFns.outputAtEarliestInputTimestamp());
-  private static final StateTag<WatermarkStateInternal<BoundedWindow>> WATERMARK_LATEST_ADDR =
+  private static final StateTag<Object, WatermarkStateInternal<BoundedWindow>>
+      WATERMARK_LATEST_ADDR =
       StateTags.watermarkStateInternal("watermark", OutputTimeFns.outputAtLatestInputTimestamp());
-  private static final StateTag<WatermarkStateInternal<BoundedWindow>> WATERMARK_EOW_ADDR =
+  private static final StateTag<Object, WatermarkStateInternal<BoundedWindow>> WATERMARK_EOW_ADDR =
       StateTags.watermarkStateInternal("watermark", OutputTimeFns.outputAtEndOfWindow());
 
-  InMemoryStateInternals underTest = new InMemoryStateInternals();
+  InMemoryStateInternals<String> underTest = InMemoryStateInternals.forKey("dummyKey");
 
   @Test
   public void testValue() throws Exception {

@@ -29,6 +29,7 @@ import com.google.cloud.dataflow.sdk.util.ReduceFnContextFactory.StateStyle;
 import com.google.cloud.dataflow.sdk.util.TimerInternals.TimerData;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
 import com.google.cloud.dataflow.sdk.util.state.StateContents;
+import com.google.cloud.dataflow.sdk.util.state.StateInternals;
 import com.google.cloud.dataflow.sdk.util.state.StateNamespaces.WindowNamespace;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -174,7 +175,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
    * <li>Lifetime: Cleared when pane fires or window is garbage collected.
    * </ul>
    */
-  private final NonEmptyPanes<W> nonEmptyPanes;
+  private final NonEmptyPanes<K, W> nonEmptyPanes;
 
   public ReduceFnRunner(K key, WindowingStrategy<?, W> windowingStrategy,
       TimerInternals timerInternals, WindowingInternals<?, KV<K, OutputT>> windowingInternals,
@@ -194,9 +195,15 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
     this.nonEmptyPanes = NonEmptyPanes.create(this.windowingStrategy, this.reduceFn);
     // Note this may trigger a GetData request to load the existing window set.
     this.activeWindows = createActiveWindowSet();
+
+    // It is the user of ReduceFnRunner's responsibility to have state internals with a
+    // compatible key type. This is generally assured by graph construction time validation.
+    @SuppressWarnings("unchecked")
+    StateInternals<K> stateInternals = (StateInternals<K>) this.windowingInternals.stateInternals();
+
     this.contextFactory =
         new ReduceFnContextFactory<K, InputT, OutputT, W>(key, reduceFn, this.windowingStrategy,
-            this.windowingInternals.stateInternals(), this.activeWindows, timerInternals);
+            stateInternals, this.activeWindows, timerInternals);
 
     this.watermarkHold = new WatermarkHold<>(timerInternals, windowingStrategy);
     this.triggerRunner = new TriggerRunner<>(
@@ -257,7 +264,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
           contextFactory.base(mergedWindow, StateStyle.DIRECT);
       ReduceFn<K, InputT, OutputT, W>.Context renamedContext =
           contextFactory.base(mergedWindow, StateStyle.RENAMED);
-      triggerRunner.prefetchShouldFire(directContext.state());
+      triggerRunner.prefetchShouldFire(mergedWindow, directContext.state());
       emitIfAppropriate(directContext, renamedContext, false/* isEndOfWindow */);
     }
 
@@ -342,7 +349,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
         contextFactory.forMerge(activeToBeMerged, mergeResult, StateStyle.RENAMED);
 
     // Prefetch various state.
-    triggerRunner.prefetchForMerge(directMergeContext.state());
+    triggerRunner.prefetchForMerge(mergeResult, activeToBeMerged, directMergeContext.state());
     try {
       reduceFn.prefetchOnMerge(renamedMergeContext.state());
     } catch (Exception e) {
@@ -437,7 +444,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
     for (W window : windows) {
       ReduceFn<K, InputT, OutputT, W>.ProcessValueContext directContext = contextFactory.forValue(
           window, value.getValue(), value.getTimestamp(), StateStyle.DIRECT);
-      triggerRunner.prefetchForValue(directContext.state());
+      triggerRunner.prefetchForValue(window, directContext.state());
     }
 
     // Process the element for each (representative) window it belongs to.
@@ -731,11 +738,11 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
     StateContents<Boolean> isEmptyFuture = nonEmptyPanes.isEmpty(renamedContext);
 
     try {
-      reduceFn.prefetchOnTrigger(renamedContext.state());
+      reduceFn.prefetchOnTrigger(directContext.state());
     } catch (Exception e) {
       throw wrapMaybeUserException(e);
     }
-    triggerRunner.prefetchOnFire(directContext.state()); // Is a no-op. Why?
+    triggerRunner.prefetchOnFire(directContext.window(), directContext.state()); // Is a no-op. Why?
 
     // Calculate the pane info.
     final PaneInfo pane = paneFuture.read();

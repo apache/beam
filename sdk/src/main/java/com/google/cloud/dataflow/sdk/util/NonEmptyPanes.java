@@ -20,6 +20,7 @@ import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
 import com.google.cloud.dataflow.sdk.util.state.CombiningValueStateInternal;
+import com.google.cloud.dataflow.sdk.util.state.MergingStateContext;
 import com.google.cloud.dataflow.sdk.util.state.StateContents;
 import com.google.cloud.dataflow.sdk.util.state.StateMerging;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
@@ -31,9 +32,10 @@ import com.google.cloud.dataflow.sdk.util.state.StateTags;
  *
  * @param <W> The kind of windows being tracked.
  */
-public abstract class NonEmptyPanes<W extends BoundedWindow> {
-  public static <W extends BoundedWindow> NonEmptyPanes<W> create(
-      WindowingStrategy<?, W> strategy, ReduceFn<?, ?, ?, W> reduceFn) {
+public abstract class NonEmptyPanes<K, W extends BoundedWindow> {
+
+  public static <K, W extends BoundedWindow> NonEmptyPanes<K, W> create(
+      WindowingStrategy<?, W> strategy, ReduceFn<K, ?, ?, W> reduceFn) {
     if (strategy.getMode() == AccumulationMode.DISCARDING_FIRED_PANES) {
       return new DiscardingModeNonEmptyPanes<>(reduceFn);
     } else {
@@ -45,62 +47,63 @@ public abstract class NonEmptyPanes<W extends BoundedWindow> {
    * Record that some content has been added to the window in {@code context}, and therefore the
    * current pane is not empty.
    */
-  public abstract void recordContent(ReduceFn<?, ?, ?, W>.Context context);
+  public abstract void recordContent(ReduceFn<K, ?, ?, W>.Context context);
 
   /**
    * Record that the given pane is empty.
    */
-  public abstract void clearPane(ReduceFn<?, ?, ?, W>.Context context);
+  public abstract void clearPane(ReduceFn<K, ?, ?, W>.Context context);
 
   /**
    * Return true if the current pane for the window in {@code context} is empty.
    */
-  public abstract StateContents<Boolean> isEmpty(ReduceFn<?, ?, ?, W>.Context context);
+  public abstract StateContents<Boolean> isEmpty(ReduceFn<K, ?, ?, W>.Context context);
 
   /**
    * Prefetch in preparation for merging.
    */
-  public abstract void prefetchOnMerge(MergingStateContext<W> state);
+  public abstract void prefetchOnMerge(MergingStateContext<K, W> state);
 
   /**
    * Eagerly merge backing state.
    */
-  public abstract void onMerge(MergingStateContext<W> context);
+  public abstract void onMerge(MergingStateContext<K, W> context);
 
   /**
    * An implementation of {@code NonEmptyPanes} optimized for use with discarding mode. Uses the
    * presence of data in the accumulation buffer to record non-empty panes.
    */
-  private static class DiscardingModeNonEmptyPanes<W extends BoundedWindow>
-      extends NonEmptyPanes<W> {
-    private ReduceFn<?, ?, ?, W> reduceFn;
+  private static class DiscardingModeNonEmptyPanes<K, W extends BoundedWindow>
+      extends NonEmptyPanes<K, W> {
 
-    private DiscardingModeNonEmptyPanes(ReduceFn<?, ?, ?, W> reduceFn) {
+    private ReduceFn<K, ?, ?, W> reduceFn;
+
+    private DiscardingModeNonEmptyPanes(ReduceFn<K, ?, ?, W> reduceFn) {
       this.reduceFn = reduceFn;
     }
 
     @Override
-    public StateContents<Boolean> isEmpty(ReduceFn<?, ?, ?, W>.Context context) {
+    public StateContents<Boolean> isEmpty(ReduceFn<K, ?, ?, W>.Context context) {
       return reduceFn.isEmpty(context.state());
     }
 
     @Override
-    public void recordContent(ReduceFn<?, ?, ?, W>.Context context) {
+    public void recordContent(ReduceFn<K, ?, ?, W>.Context context) {
       // Nothing to do -- the reduceFn is tracking contents
     }
 
     @Override
-    public void clearPane(ReduceFn<?, ?, ?, W>.Context context) {
+    public void clearPane(ReduceFn<K, ?, ?, W>.Context context) {
       // Nothing to do -- the reduceFn is tracking contents
     }
 
     @Override
-    public void prefetchOnMerge(MergingStateContext<W> state) {
+    public void prefetchOnMerge(MergingStateContext<K, W> state) {
       // Nothing to do -- the reduceFn is tracking contents
     }
 
     @Override
-    public void onMerge(MergingStateContext<W> context) {
+    public void onMerge(MergingStateContext<K, W> context) {
       // Nothing to do -- the reduceFn is tracking contents
     }
   }
@@ -108,34 +111,36 @@ public abstract class NonEmptyPanes<W extends BoundedWindow> {
   /**
    * An implementation of {@code NonEmptyPanes} for general use.
    */
-  private static class GeneralNonEmptyPanes<W extends BoundedWindow> extends NonEmptyPanes<W> {
-    private static final StateTag<CombiningValueStateInternal<Long, long[], Long>>
+  private static class GeneralNonEmptyPanes<K, W extends BoundedWindow>
+      extends NonEmptyPanes<K, W> {
+
+    private static final StateTag<Object, CombiningValueStateInternal<Long, long[], Long>>
         PANE_ADDITIONS_TAG =
         StateTags.makeSystemTagInternal(StateTags.combiningValueFromInputInternal(
             "count", VarLongCoder.of(), new Sum.SumLongFn()));
 
     @Override
-    public void recordContent(ReduceFn<?, ?, ?, W>.Context context) {
+    public void recordContent(ReduceFn<K, ?, ?, W>.Context context) {
       context.state().access(PANE_ADDITIONS_TAG).add(1L);
     }
 
     @Override
-    public void clearPane(ReduceFn<?, ?, ?, W>.Context context) {
+    public void clearPane(ReduceFn<K, ?, ?, W>.Context context) {
       context.state().access(PANE_ADDITIONS_TAG).clear();
     }
 
     @Override
-    public StateContents<Boolean> isEmpty(ReduceFn<?, ?, ?, W>.Context context) {
+    public StateContents<Boolean> isEmpty(ReduceFn<K, ?, ?, W>.Context context) {
       return context.state().access(PANE_ADDITIONS_TAG).isEmpty();
     }
 
     @Override
-    public void prefetchOnMerge(MergingStateContext<W> state) {
+    public void prefetchOnMerge(MergingStateContext<K, W> state) {
       StateMerging.prefetchCombiningValues(state, PANE_ADDITIONS_TAG);
     }
 
     @Override
-    public void onMerge(MergingStateContext<W> context) {
+    public void onMerge(MergingStateContext<K, W> context) {
       StateMerging.mergeCombiningValues(context, PANE_ADDITIONS_TAG);
     }
   }

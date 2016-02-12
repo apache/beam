@@ -27,19 +27,19 @@ import java.util.Set;
 /**
  * Table mapping {@code StateNamespace} and {@code StateTag<?>} to a {@code State} instance.
  */
-public abstract class StateTable {
+public abstract class StateTable<K> {
 
-  private final Table<StateNamespace, StateTag<?>, State> stateTable =
-      Tables.newCustomTable(new HashMap<StateNamespace, Map<StateTag<?>, State>>(),
-          new Supplier<Map<StateTag<?>, State>>() {
+  private final Table<StateNamespace, StateTag<? super K, ?>, State> stateTable =
+      Tables.newCustomTable(new HashMap<StateNamespace, Map<StateTag<? super K, ?>, State>>(),
+          new Supplier<Map<StateTag<? super K, ?>, State>>() {
         @Override
-        public Map<StateTag<?>, State> get() {
+        public Map<StateTag<? super K, ?>, State> get() {
           return new HashMap<>();
         }
       });
 
   public <StateT extends State> StateT get(
-      StateNamespace namespace, StateTag<StateT> tag) {
+      StateNamespace namespace, StateTag<? super K, StateT> tag) {
     State storage = stateTable.get(namespace, tag);
     if (storage != null) {
       @SuppressWarnings("unchecked")
@@ -68,7 +68,7 @@ public abstract class StateTable {
     return stateTable.containsRow(namespace);
   }
 
-  public Map<StateTag<?>, State> getTagsInUse(StateNamespace namespace) {
+  public Map<StateTag<? super K, ?>, State> getTagsInUse(StateNamespace namespace) {
     return stateTable.row(namespace);
   }
 
@@ -80,5 +80,5 @@ public abstract class StateTable {
    * Provide the {@code StateBinder} to use for creating {@code Storage} instances
    * in the specified {@code namespace}.
    */
-  protected abstract StateBinder binderForNamespace(StateNamespace namespace);
+  protected abstract StateBinder<K> binderForNamespace(StateNamespace namespace);
 }

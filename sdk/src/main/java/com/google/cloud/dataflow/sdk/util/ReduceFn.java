@@ -17,7 +17,9 @@ package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
+import com.google.cloud.dataflow.sdk.util.state.MergingStateContext;
 import com.google.cloud.dataflow.sdk.util.state.StateContents;
+import com.google.cloud.dataflow.sdk.util.state.StateContext;
 
 import org.joda.time.Instant;
 
@@ -46,7 +48,7 @@ public abstract class ReduceFn<K, InputT, OutputT, W extends BoundedWindow>
     public abstract WindowingStrategy<?, W> windowingStrategy();
 
     /** Return the interface for accessing state. */
-    public abstract StateContext state();
+    public abstract StateContext<K> state();
 
     /** Return the interface for accessing timers. */
     public abstract Timers timers();
@@ -65,7 +67,7 @@ public abstract class ReduceFn<K, InputT, OutputT, W extends BoundedWindow>
   public abstract class OnMergeContext extends Context {
     /** Return the interface for accessing state. */
     @Override
-    public abstract MergingStateContext<W> state();
+    public abstract MergingStateContext<K, W> state();
   }
 
   /** Information accessible within {@link #onTrigger}. */
@@ -87,7 +89,7 @@ public abstract class ReduceFn<K, InputT, OutputT, W extends BoundedWindow>
   /**
    * Called when windows are merged.
    */
-  public abstract void onMerge(OnMergeContext c) throws Exception;
+  public abstract void onMerge(OnMergeContext context) throws Exception;
 
   /**
    * Called when triggers fire.
@@ -95,7 +97,7 @@ public abstract class ReduceFn<K, InputT, OutputT, W extends BoundedWindow>
    * <p>Implementations of {@link ReduceFn} should call {@link OnTriggerContext#output} to emit
    * any results that should be included in the pane produced by this trigger firing.
    */
-  public abstract void onTrigger(OnTriggerContext c) throws Exception;
+  public abstract void onTrigger(OnTriggerContext context) throws Exception;
 
   /**
    * Called before {@link #onMerge} is invoked to provide an opportunity to prefetch any needed
@@ -103,24 +105,24 @@ public abstract class ReduceFn<K, InputT, OutputT, W extends BoundedWindow>
    *
    * @param c Context to use prefetch from.
    */
-  public void prefetchOnMerge(MergingStateContext<W> c) throws Exception {}
+  public void prefetchOnMerge(MergingStateContext<K, W> c) throws Exception {}
 
   /**
    * Called before {@link #onTrigger} is invoked to provide an opportunity to prefetch any needed
    * state.
    *
-   * @param c Context to use prefetch from.
+   * @param context Context to use prefetch from.
    */
-  public void prefetchOnTrigger(StateContext c) {}
+  public void prefetchOnTrigger(StateContext<K> context) {}
 
   /**
    * Called to clear any persisted state that the {@link ReduceFn} may be holding. This will be
    * called when the windowing is closing and will receive no future interactions.
    */
-  public abstract void clearState(Context c) throws Exception;
+  public abstract void clearState(Context context) throws Exception;
 
   /**
    * Returns true if the there is no buffered state.
    */
-  public abstract StateContents<Boolean> isEmpty(StateContext c);
+  public abstract StateContents<Boolean> isEmpty(StateContext<K> context);
 }

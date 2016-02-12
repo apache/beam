@@ -20,6 +20,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo.Timing;
 import com.google.cloud.dataflow.sdk.util.state.StateContents;
+import com.google.cloud.dataflow.sdk.util.state.StateContext;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
 import com.google.cloud.dataflow.sdk.util.state.StateTags;
 import com.google.cloud.dataflow.sdk.util.state.ValueState;
@@ -42,10 +43,10 @@ public class PaneInfoTracker {
   }
 
   @VisibleForTesting
-  static final StateTag<ValueState<PaneInfo>> PANE_INFO_TAG =
+  static final StateTag<Object, ValueState<PaneInfo>> PANE_INFO_TAG =
       StateTags.makeSystemTagInternal(StateTags.value("pane", PaneInfoCoder.INSTANCE));
 
-  public void clear(StateContext state) {
+  public void clear(StateContext<?> state) {
     state.access(PANE_INFO_TAG).clear();
   }
 

@@ -89,7 +89,6 @@ class GroupAlsoByWindowsAndCombineDoFn<K, InputT, AccumT, OutputT, W extends Bou
     @SuppressWarnings("unchecked")
     WindowingStrategy<Object, W> objectWindowingStrategy = (WindowingStrategy<Object, W>) strategy;
     this.windowingStrategy = objectWindowingStrategy;
-
   }
 
   @Override

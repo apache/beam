@@ -38,10 +38,10 @@ import org.junit.runners.JUnit4;
 public class StateTagTest {
   @Test
   public void testValueEquality() {
-    StateTag<?> fooVarInt1 = StateTags.value("foo", VarIntCoder.of());
-    StateTag<?> fooVarInt2 = StateTags.value("foo", VarIntCoder.of());
-    StateTag<?> fooBigEndian = StateTags.value("foo", BigEndianIntegerCoder.of());
-    StateTag<?> barVarInt = StateTags.value("bar", VarIntCoder.of());
+    StateTag<?, ?> fooVarInt1 = StateTags.value("foo", VarIntCoder.of());
+    StateTag<?, ?> fooVarInt2 = StateTags.value("foo", VarIntCoder.of());
+    StateTag<?, ?> fooBigEndian = StateTags.value("foo", BigEndianIntegerCoder.of());
+    StateTag<?, ?> barVarInt = StateTags.value("bar", VarIntCoder.of());
 
     assertEquals(fooVarInt1, fooVarInt2);
     assertNotEquals(fooVarInt1, fooBigEndian);
@@ -50,10 +50,10 @@ public class StateTagTest {
 
   @Test
   public void testBagEquality() {
-    StateTag<?> fooVarInt1 = StateTags.bag("foo", VarIntCoder.of());
-    StateTag<?> fooVarInt2 = StateTags.bag("foo", VarIntCoder.of());
-    StateTag<?> fooBigEndian = StateTags.bag("foo", BigEndianIntegerCoder.of());
-    StateTag<?> barVarInt = StateTags.bag("bar", VarIntCoder.of());
+    StateTag<?, ?> fooVarInt1 = StateTags.bag("foo", VarIntCoder.of());
+    StateTag<?, ?> fooVarInt2 = StateTags.bag("foo", VarIntCoder.of());
+    StateTag<?, ?> fooBigEndian = StateTags.bag("foo", BigEndianIntegerCoder.of());
+    StateTag<?, ?> barVarInt = StateTags.bag("bar", VarIntCoder.of());
 
     assertEquals(fooVarInt1, fooVarInt2);
     assertNotEquals(fooVarInt1, fooBigEndian);
@@ -62,14 +62,14 @@ public class StateTagTest {
 
   @Test
   public void testWatermarkBagEquality() {
-    StateTag<?> foo1 = StateTags.watermarkStateInternal(
+    StateTag<?, ?> foo1 = StateTags.watermarkStateInternal(
         "foo", OutputTimeFns.outputAtEarliestInputTimestamp());
-    StateTag<?> foo2 = StateTags.watermarkStateInternal(
+    StateTag<?, ?> foo2 = StateTags.watermarkStateInternal(
         "foo", OutputTimeFns.outputAtEarliestInputTimestamp());
-    StateTag<?> bar = StateTags.watermarkStateInternal(
+    StateTag<?, ?> bar = StateTags.watermarkStateInternal(
         "bar", OutputTimeFns.outputAtEarliestInputTimestamp());
 
-    StateTag<?> bar2 = StateTags.watermarkStateInternal(
+    StateTag<?, ?> bar2 = StateTags.watermarkStateInternal(
         "bar", OutputTimeFns.outputAtLatestInputTimestamp());
 
     // Same id, same fn.
@@ -87,12 +87,12 @@ public class StateTagTest {
     Coder<Integer> input2 = BigEndianIntegerCoder.of();
     MinIntegerFn minFn = new Min.MinIntegerFn();
 
-    StateTag<?> fooCoder1Max1 = StateTags.combiningValueFromInputInternal("foo", input1, maxFn);
-    StateTag<?> fooCoder1Max2 = StateTags.combiningValueFromInputInternal("foo", input1, maxFn);
-    StateTag<?> fooCoder1Min = StateTags.combiningValueFromInputInternal("foo", input1, minFn);
+    StateTag<?, ?> fooCoder1Max1 = StateTags.combiningValueFromInputInternal("foo", input1, maxFn);
+    StateTag<?, ?> fooCoder1Max2 = StateTags.combiningValueFromInputInternal("foo", input1, maxFn);
+    StateTag<?, ?> fooCoder1Min = StateTags.combiningValueFromInputInternal("foo", input1, minFn);
 
-    StateTag<?> fooCoder2Max = StateTags.combiningValueFromInputInternal("foo", input2, maxFn);
-    StateTag<?> barCoder1Max = StateTags.combiningValueFromInputInternal("bar", input1, maxFn);
+    StateTag<?, ?> fooCoder2Max = StateTags.combiningValueFromInputInternal("foo", input2, maxFn);
+    StateTag<?, ?> barCoder1Max = StateTags.combiningValueFromInputInternal("bar", input1, maxFn);
 
     // Same name, coder and combineFn
     assertEquals(fooCoder1Max1, fooCoder1Max2);

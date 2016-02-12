@@ -18,6 +18,8 @@ package com.google.cloud.dataflow.sdk.util;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
+import com.google.cloud.dataflow.sdk.util.state.MergingStateContext;
+import com.google.cloud.dataflow.sdk.util.state.StateContext;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
 import com.google.cloud.dataflow.sdk.util.state.StateTags;
 import com.google.cloud.dataflow.sdk.util.state.ValueState;
@@ -26,6 +28,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 
 import java.util.BitSet;
+import java.util.Collection;
 import java.util.Map;
 
 /**
@@ -43,7 +46,7 @@ import java.util.Map;
  */
 public class TriggerRunner<W extends BoundedWindow> {
   @VisibleForTesting
-  static final StateTag<ValueState<BitSet>> FINISHED_BITS_TAG =
+  static final StateTag<Object, ValueState<BitSet>> FINISHED_BITS_TAG =
       StateTags.makeSystemTagInternal(StateTags.value("closed", BitSetCoder.of()));
 
   private final ExecutableTrigger<W> rootTrigger;
@@ -70,29 +73,30 @@ public class TriggerRunner<W extends BoundedWindow> {
   }
 
   /** Return true if the trigger is closed in the window corresponding to the specified state. */
-  public boolean isClosed(StateContext state) {
+  public boolean isClosed(StateContext<?> state) {
     return readFinishedBits(state.access(FINISHED_BITS_TAG)).isFinished(rootTrigger);
   }
 
-  public void prefetchForValue(StateContext state) {
+  public void prefetchForValue(W window, StateContext<?> state) {
     if (isFinishedSetNeeded()) {
       state.access(FINISHED_BITS_TAG).get();
     }
-    rootTrigger.getSpec().prefetchOnElement(state);
+    rootTrigger.getSpec().prefetchOnElement(contextFactory.createStateContext(window, rootTrigger));
   }
 
-  public void prefetchOnFire(StateContext state) {
+  public void prefetchOnFire(W window, StateContext<?> state) {
     if (isFinishedSetNeeded()) {
       state.access(FINISHED_BITS_TAG).get();
     }
-    rootTrigger.getSpec().prefetchOnFire(state);
+    rootTrigger.getSpec().prefetchOnFire(contextFactory.createStateContext(window, rootTrigger));
   }
 
-  public void prefetchShouldFire(StateContext state) {
+  public void prefetchShouldFire(W window, StateContext<?> state) {
     if (isFinishedSetNeeded()) {
       state.access(FINISHED_BITS_TAG).get();
     }
-    rootTrigger.getSpec().prefetchShouldFire(state);
+    rootTrigger.getSpec().prefetchShouldFire(
+        contextFactory.createStateContext(window, rootTrigger));
   }
 
   /**
@@ -108,13 +112,15 @@ public class TriggerRunner<W extends BoundedWindow> {
     persistFinishedSet(c.state(), finishedSet);
   }
 
-  public void prefetchForMerge(MergingStateContext<W> state) {
+  public void prefetchForMerge(
+      W window, Collection<W> mergingWindows, MergingStateContext<?, W> state) {
     if (isFinishedSetNeeded()) {
       for (ValueState<?> value : state.accessInEachMergingWindow(FINISHED_BITS_TAG).values()) {
         value.get();
       }
     }
-    rootTrigger.getSpec().prefetchOnMerge(state);
+    rootTrigger.getSpec().prefetchOnMerge(contextFactory.createMergingStateContext(
+        window, mergingWindows, rootTrigger));
   }
 
   /**
@@ -162,7 +168,8 @@ public class TriggerRunner<W extends BoundedWindow> {
     persistFinishedSet(c.state(), finishedSet);
   }
 
-  private void persistFinishedSet(StateContext state, FinishedTriggersBitSet modifiedFinishedSet) {
+  private void persistFinishedSet(
+      StateContext<?> state, FinishedTriggersBitSet modifiedFinishedSet) {
     if (!isFinishedSetNeeded()) {
       return;
     }

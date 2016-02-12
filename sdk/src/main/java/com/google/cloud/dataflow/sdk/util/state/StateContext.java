@@ -14,18 +14,24 @@
  * the License.
  */
 
-package com.google.cloud.dataflow.sdk.util;
+package com.google.cloud.dataflow.sdk.util.state;
 
-import com.google.cloud.dataflow.sdk.util.state.State;
-import com.google.cloud.dataflow.sdk.util.state.StateTag;
+import com.google.cloud.dataflow.sdk.annotations.Experimental;
+import com.google.cloud.dataflow.sdk.annotations.Experimental.Kind;
 
-/** Interface for interacting with persistent state. */
-public interface StateContext {
+/**
+ * Interface for interacting with per-key persistent state identified via a
+ * {@link StateTag}.
+ *
+ * <p>For internal use only.
+ */
+@Experimental(Kind.STATE)
+public interface StateContext<K> {
   /**
    * Access the storage for the given {@code address} in the current window.
    *
    * <p>Never accounts for merged windows. When windows are merged, any state accessed via
    * this method must be eagerly combined and written into the result window.
    */
-  <StateT extends State> StateT access(StateTag<StateT> address);
+  <StateT extends State> StateT access(StateTag<? super K, StateT> address);
 }

@@ -16,12 +16,13 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner.ValueWithMetadata;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
 import com.google.cloud.dataflow.sdk.util.state.InMemoryStateInternals;
 import com.google.cloud.dataflow.sdk.util.state.StateInternals;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
@@ -99,8 +100,9 @@ public class DirectModeExecutionContext
    */
   public static class StepContext extends BaseExecutionContext.StepContext {
 
-    private final Map<Object, InMemoryStateInternals> stateInternals = Maps.newHashMap();
-    private InMemoryStateInternals currentStateInternals = null;
+    /** A map from each key to the state associated with it. */
+    private final Map<Object, InMemoryStateInternals<Object>> stateInternals = Maps.newHashMap();
+    private InMemoryStateInternals<Object> currentStateInternals = null;
 
     private StepContext(ExecutionContext executionContext, String stepName, String transformName) {
       super(executionContext, stepName, transformName);
@@ -110,14 +112,14 @@ public class DirectModeExecutionContext
     public void switchKey(Object newKey) {
       currentStateInternals = stateInternals.get(newKey);
       if (currentStateInternals == null) {
-        currentStateInternals = new InMemoryStateInternals();
+        currentStateInternals = InMemoryStateInternals.forKey(newKey);
         stateInternals.put(newKey, currentStateInternals);
       }
     }
 
     @Override
-    public StateInternals stateInternals() {
-      return Preconditions.checkNotNull(currentStateInternals);
+    public StateInternals<Object> stateInternals() {
+      return checkNotNull(currentStateInternals);
     }
 
     @Override

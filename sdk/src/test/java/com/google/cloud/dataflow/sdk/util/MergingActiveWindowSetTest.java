@@ -44,13 +44,13 @@ import java.util.Collection;
 @RunWith(JUnit4.class)
 public class MergingActiveWindowSetTest {
   private Sessions windowFn;
-  private StateInternals state;
+  private StateInternals<String> state;
   private MergingActiveWindowSet<IntervalWindow> set;
 
   @Before
   public void before() {
     windowFn = Sessions.withGapDuration(Duration.millis(10));
-    state = new InMemoryStateInternals();
+    state = InMemoryStateInternals.forKey("dummyKey");
     set = new MergingActiveWindowSet<>(windowFn, state);
   }
 

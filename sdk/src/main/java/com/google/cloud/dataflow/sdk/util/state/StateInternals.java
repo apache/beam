@@ -36,10 +36,13 @@ import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
  * used directly, and is highly likely to change.
  */
 @Experimental(Kind.STATE)
-public interface StateInternals  {
+public interface StateInternals<K> {
+
+  /** The key for this {@link StateInternals}. */
+  K getKey();
 
   /**
    * Return the state associated with {@code address} in the specified {@code namespace}.
    */
-  <T extends State> T state(StateNamespace namespace, StateTag<T> address);
+  <T extends State> T state(StateNamespace namespace, StateTag<? super K, T> address);
 }
