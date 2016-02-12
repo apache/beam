@@ -20,15 +20,18 @@ import static com.google.cloud.dataflow.sdk.util.StringUtils.approximateSimpleNa
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
-import com.google.cloud.dataflow.sdk.runners.dataflow.CustomSources;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.util.SerializableUtils;
+import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollection.IsBounded;
 import com.google.cloud.dataflow.sdk.values.PInput;
 
 import org.joda.time.Duration;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.annotation.Nullable;
 
@@ -152,7 +155,29 @@ public class Read {
             @Override
             public void evaluate(
                 Bounded transform, DirectPipelineRunner.EvaluationContext context) {
-              CustomSources.evaluateReadHelper(transform, context);
+              evaluateReadHelper(transform, context);
+            }
+
+            private <T> void evaluateReadHelper(
+                Read.Bounded<T> transform, DirectPipelineRunner.EvaluationContext context) {
+              try {
+                List<DirectPipelineRunner.ValueWithMetadata<T>> output = new ArrayList<>();
+                BoundedSource<T> source = transform.getSource();
+                try (BoundedSource.BoundedReader<T> reader =
+                    source.createReader(context.getPipelineOptions())) {
+                  for (boolean available = reader.start();
+                      available;
+                      available = reader.advance()) {
+                    output.add(
+                        DirectPipelineRunner.ValueWithMetadata.of(
+                            WindowedValue.timestampedValueInGlobalWindow(
+                                reader.getCurrent(), reader.getCurrentTimestamp())));
+                  }
+                }
+                context.setPCollectionValuesWithMetadata(context.getOutput(transform), output);
+              } catch (Exception e) {
+                throw new RuntimeException(e);
+              }
             }
           });
     }

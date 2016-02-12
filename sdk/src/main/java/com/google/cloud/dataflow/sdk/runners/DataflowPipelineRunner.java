@@ -59,9 +59,9 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptionsValidator;
 import com.google.cloud.dataflow.sdk.options.StreamingOptions;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator.JobSpecification;
 import com.google.cloud.dataflow.sdk.runners.dataflow.AssignWindows;
-import com.google.cloud.dataflow.sdk.runners.dataflow.CustomSources;
 import com.google.cloud.dataflow.sdk.runners.dataflow.DataflowAggregatorTransforms;
 import com.google.cloud.dataflow.sdk.runners.dataflow.PubsubIOTranslator;
+import com.google.cloud.dataflow.sdk.runners.dataflow.ReadTranslator;
 import com.google.cloud.dataflow.sdk.runners.worker.IsmFormat;
 import com.google.cloud.dataflow.sdk.runners.worker.IsmFormat.IsmRecord;
 import com.google.cloud.dataflow.sdk.runners.worker.IsmFormat.IsmRecordCoder;
@@ -1673,8 +1673,6 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
           finalValueCoder);
     }
 
-
-
     private static <K, V, W extends BoundedWindow, ViewT> PCollectionView<ViewT> applyForMapLike(
         DataflowPipelineRunner runner,
         PCollection<KV<K, V>> input,
@@ -2037,8 +2035,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
       @Override
       public void translate(ReadWithIds<?> transform,
           DataflowPipelineTranslator.TranslationContext context) {
-        CustomSources.translateReadHelper(
-            transform.getSource(), transform, context);
+        ReadTranslator.translateReadHelper(transform.getSource(), transform, context);
       }
     }
   }

@@ -17,7 +17,6 @@
 package com.google.cloud.dataflow.sdk.runners.dataflow;
 
 import static com.google.api.client.util.Base64.encodeBase64String;
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudSourceToDictionary;
 import static com.google.cloud.dataflow.sdk.util.SerializableUtils.serializeToByteArray;
 import static com.google.cloud.dataflow.sdk.util.Structs.addString;
 import static com.google.cloud.dataflow.sdk.util.Structs.addStringList;
@@ -25,22 +24,14 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.services.dataflow.model.SourceMetadata;
 import com.google.cloud.dataflow.sdk.io.BoundedSource;
-import com.google.cloud.dataflow.sdk.io.Read;
 import com.google.cloud.dataflow.sdk.io.Source;
 import com.google.cloud.dataflow.sdk.io.UnboundedSource;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator;
-import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
-import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
-import com.google.cloud.dataflow.sdk.util.PropertyNames;
-import com.google.cloud.dataflow.sdk.util.WindowedValue;
-import com.google.cloud.dataflow.sdk.values.PValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.ByteString;
 
-import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -124,47 +115,4 @@ public class CustomSources {
     cloudSource.setMetadata(metadata);
     return cloudSource;
   }
-
-  public static <T> void evaluateReadHelper(
-      Read.Bounded<T> transform, DirectPipelineRunner.EvaluationContext context) {
-    try {
-      List<DirectPipelineRunner.ValueWithMetadata<T>> output = new ArrayList<>();
-      BoundedSource<T> source = transform.getSource();
-      try (BoundedSource.BoundedReader<T> reader =
-          source.createReader(context.getPipelineOptions())) {
-        for (boolean available = reader.start(); available; available = reader.advance()) {
-          output.add(
-              DirectPipelineRunner.ValueWithMetadata.of(
-                  WindowedValue.timestampedValueInGlobalWindow(
-                      reader.getCurrent(), reader.getCurrentTimestamp())));
-        }
-      }
-      context.setPCollectionValuesWithMetadata(context.getOutput(transform), output);
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  public static <T> void translateReadHelper(Source<T> source,
-      PTransform<?, ? extends PValue> transform,
-      DataflowPipelineTranslator.TranslationContext context) {
-    try {
-      context.addStep(transform, "ParallelRead");
-      context.addInput(PropertyNames.FORMAT, PropertyNames.CUSTOM_SOURCE_FORMAT);
-      context.addInput(
-          PropertyNames.SOURCE_STEP_INPUT,
-          cloudSourceToDictionary(serializeToCloudSource(source, context.getPipelineOptions())));
-      context.addValueOnlyOutput(PropertyNames.OUTPUT, context.getOutput(transform));
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  // Commit at least once every 10 seconds or 10k records.  This keeps the watermark advancing
-  // smoothly, and ensures that not too much work will have to be reprocessed in the event of
-  // a crash.
-  @VisibleForTesting
-  static final int MAX_UNBOUNDED_BUNDLE_SIZE = 10000;
-  @VisibleForTesting
-  static final Duration MAX_UNBOUNDED_BUNDLE_READ_TIME = Duration.standardSeconds(10);
 }
