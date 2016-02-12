@@ -39,6 +39,9 @@ import java.io.Serializable;
  * whether an upper bound key is empty.
  */
 public final class ByteKey implements Comparable<ByteKey>, Serializable {
+  /** An empty key. */
+  public static final ByteKey EMPTY = ByteKey.of();
+
   /**
    * Creates a new {@link ByteKey} backed by the specified {@link ByteString}.
    */

@@ -37,7 +37,7 @@ public class ByteKeyTest {
   // A big list of byte[] keys, in ascending sorted order.
   private static final ByteKey[] TEST_KEYS =
       new ByteKey[] {
-        ByteKey.of(),
+        ByteKey.EMPTY,
         ByteKey.of(0),
         ByteKey.of(0, 1),
         ByteKey.of(0, 1, 1),
@@ -149,7 +149,7 @@ public class ByteKeyTest {
    */
   @Test
   public void testToString() {
-    assertEquals("[]", ByteKey.of().toString());
+    assertEquals("[]", ByteKey.EMPTY.toString());
     assertEquals("[00]", ByteKey.of(0).toString());
     assertEquals("[0000]", ByteKey.of(0x00, 0x00).toString());
     assertEquals(
@@ -162,7 +162,7 @@ public class ByteKeyTest {
    */
   @Test
   public void testIsEmpty() {
-    assertTrue("[] is empty", ByteKey.of().isEmpty());
+    assertTrue("[] is empty", ByteKey.EMPTY.isEmpty());
     assertFalse("[00]", ByteKey.of(0).isEmpty());
   }
 
@@ -171,7 +171,7 @@ public class ByteKeyTest {
    */
   @Test
   public void testGetBytes() {
-    assertTrue("[] equal after getBytes", Arrays.equals(new byte[] {}, ByteKey.of().getBytes()));
+    assertTrue("[] equal after getBytes", Arrays.equals(new byte[] {}, ByteKey.EMPTY.getBytes()));
     assertTrue(
         "[00] equal after getBytes", Arrays.equals(new byte[] {0x00}, ByteKey.of(0x00).getBytes()));
   }
