@@ -43,8 +43,15 @@ import java.util.NoSuchElementException;
  *     .withDecompression(CompressedSource.CompressionMode.GZIP)));
  * } </pre>
  *
- * <p>Default compression modes are {@link CompressionMode#GZIP} and {@link CompressionMode#BZIP2}.
- * User-defined compression types are supported by implementing {@link DecompressingChannelFactory}.
+ * <p>Supported compression algorithms are {@link CompressionMode#GZIP} and
+ * {@link CompressionMode#BZIP2}. User-defined compression types are supported by implementing
+ * {@link DecompressingChannelFactory}.
+ *
+ * <p>By default, the compression algorithm is selected from those supported in
+ * {@link CompressionMode} based on the file name provided to the source, namely
+ * {@code ".bz2"} indicates {@link CompressionMode#BZIP2} and {@code ".gz"} indicates
+ * {@link CompressionMode#GZIP}. If the file name does not match any of the supported
+ * algorithms, it is assumed to be uncompressed data.
  *
  * @param <T> The type to read from the compressed file.
  */
@@ -53,7 +60,6 @@ public class CompressedSource<T> extends FileBasedSource<T> {
   /**
    * Factory interface for creating channels that decompress the content of an underlying channel.
    */
-  // TODO: Refactor decompressing channel/stream creation and default instances to util classes.
   public static interface DecompressingChannelFactory extends Serializable {
     /**
      * Given a channel, create a channel that decompresses the content read from the channel.
@@ -64,17 +70,48 @@ public class CompressedSource<T> extends FileBasedSource<T> {
   }
 
   /**
+   * Factory interface for creating channels that decompress the content of an underlying channel,
+   * based on both the channel and the file name.
+   */
+  private static interface FileNameBasedDecompressingChannelFactory
+      extends DecompressingChannelFactory {
+    /**
+     * Given a channel, create a channel that decompresses the content read from the channel.
+     * @throws IOException
+     */
+    ReadableByteChannel createDecompressingChannel(String fileName, ReadableByteChannel channel)
+        throws IOException;
+  }
+
+  /**
    * Default compression types supported by the {@code CompressedSource}.
    */
   public enum CompressionMode implements DecompressingChannelFactory {
+    /**
+     * Reads a byte channel assuming it is compressed with gzip.
+     */
     GZIP {
+      @Override
+      public boolean matches(String fileName) {
+          return fileName.toLowerCase().endsWith(".gz");
+      }
+
       @Override
       public ReadableByteChannel createDecompressingChannel(ReadableByteChannel channel)
           throws IOException {
         return Channels.newChannel(new GzipCompressorInputStream(Channels.newInputStream(channel)));
       }
     },
+
+    /**
+     * Reads a byte channel assuming it is compressed with bzip2.
+     */
     BZIP2 {
+      @Override
+      public boolean matches(String fileName) {
+          return fileName.toLowerCase().endsWith(".bz2");
+      }
+
       @Override
       public ReadableByteChannel createDecompressingChannel(ReadableByteChannel channel)
           throws IOException {
@@ -83,9 +120,46 @@ public class CompressedSource<T> extends FileBasedSource<T> {
       }
     };
 
+    /**
+     * Returns {@code true} if the given file name implies that the contents are compressed
+     * according to the compression embodied by this factory.
+     */
+    public abstract boolean matches(String fileName);
+
     @Override
     public abstract ReadableByteChannel createDecompressingChannel(ReadableByteChannel channel)
         throws IOException;
+  }
+
+  /**
+   * Reads a byte channel detecting compression according to the file name. If the filename
+   * is not any other known {@link CompressionMode}, it is presumed to be uncompressed.
+   */
+  private static class DecompressAccordingToFilename
+      implements FileNameBasedDecompressingChannelFactory {
+
+    @Override
+    public ReadableByteChannel createDecompressingChannel(
+        String fileName, ReadableByteChannel channel) throws IOException {
+      for (CompressionMode type : CompressionMode.values()) {
+        if (type.matches(fileName)) {
+          return type.createDecompressingChannel(channel);
+        }
+      }
+      // Uncompressed
+      return channel;
+    }
+
+    @Override
+    public ReadableByteChannel createDecompressingChannel(ReadableByteChannel channel) {
+      throw new UnsupportedOperationException(
+          String.format("%s does not support createDecompressingChannel(%s) but only"
+              + " createDecompressingChannel(%s,%s)",
+              getClass().getSimpleName(),
+              String.class.getSimpleName(),
+              ReadableByteChannel.class.getSimpleName(),
+              ReadableByteChannel.class.getSimpleName()));
+    }
   }
 
   private final FileBasedSource<T> sourceDelegate;
@@ -102,11 +176,12 @@ public class CompressedSource<T> extends FileBasedSource<T> {
   }
 
   /**
-   * Creates a {@code CompressedSource} from an underlying {@code FileBasedSource} that must be
-   * further configured with {@link CompressedSource#withDecompression}.
+   * Creates a {@code CompressedSource} from an underlying {@code FileBasedSource}. The type
+   * of compression used will be based on the file name extension unless explicitly
+   * configured via {@link CompressedSource#withDecompression}.
    */
   public static <T> CompressedSource<T> from(FileBasedSource<T> sourceDelegate) {
-    return new CompressedSource<>(sourceDelegate, null);
+    return new CompressedSource<>(sourceDelegate, new DecompressAccordingToFilename());
   }
 
   /**
@@ -252,7 +327,16 @@ public class CompressedSource<T> extends FileBasedSource<T> {
      */
     @Override
     protected final void startReading(ReadableByteChannel channel) throws IOException {
-      readerDelegate.startReading(source.getChannelFactory().createDecompressingChannel(channel));
+      if (source.getChannelFactory() instanceof FileNameBasedDecompressingChannelFactory) {
+        FileNameBasedDecompressingChannelFactory channelFactory =
+            (FileNameBasedDecompressingChannelFactory) source.getChannelFactory();
+        readerDelegate.startReading(channelFactory.createDecompressingChannel(
+            getCurrentSource().getFileOrPatternSpec(),
+            channel));
+      } else {
+        readerDelegate.startReading(source.getChannelFactory().createDecompressingChannel(
+            channel));
+      }
     }
 
     /**

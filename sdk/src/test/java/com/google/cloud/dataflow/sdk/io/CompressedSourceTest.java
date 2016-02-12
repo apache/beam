@@ -20,6 +20,7 @@ import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.SerializableCoder;
 import com.google.cloud.dataflow.sdk.io.CompressedSource.CompressionMode;
+import com.google.cloud.dataflow.sdk.io.CompressedSource.DecompressingChannelFactory;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
@@ -44,6 +45,8 @@ import java.nio.channels.ReadableByteChannel;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
+
+import javax.annotation.Nullable;
 
 /**
  * Tests for CompressedSource.
@@ -93,6 +96,69 @@ public class CompressedSourceTest {
   }
 
   /**
+   * Test reading according to filepattern when the file is bzipped.
+   */
+  @Test
+  public void testCompressedAccordingToFilepatternGzip() throws Exception {
+    byte[] input = generateInput(100);
+    File tmpFile = tmpFolder.newFile("test.gz");
+    writeFile(tmpFile, input, CompressionMode.GZIP);
+    verifyReadContents(input, tmpFile, null /* default auto decompression factory */);
+  }
+
+  /**
+   * Test reading according to filepattern when the file is gzipped.
+   */
+  @Test
+  public void testCompressedAccordingToFilepatternBzip2() throws Exception {
+    byte[] input = generateInput(100);
+    File tmpFile = tmpFolder.newFile("test.bz2");
+    writeFile(tmpFile, input, CompressionMode.BZIP2);
+    verifyReadContents(input, tmpFile, null /* default auto decompression factory */);
+  }
+
+  /**
+   * Test reading multiple files with different compression.
+   */
+  @Test
+  public void testHeterogeneousCompression() throws Exception {
+    String baseName = "test-input";
+
+    // Expected data
+    byte[] generated = generateInput(1000);
+    List<Byte> expected = new ArrayList<>();
+
+    // Every sort of compression
+    File uncompressedFile = tmpFolder.newFile(baseName + ".bin");
+    generated = generateInput(1000);
+    try (OutputStream outStream = new FileOutputStream(uncompressedFile)) {
+      outStream.write(generated);
+    }
+    expected.addAll(Bytes.asList(generated));
+
+    File gzipFile = tmpFolder.newFile(baseName + ".gz");
+    generated = generateInput(1000);
+    writeFile(gzipFile, generated, CompressionMode.GZIP);
+    expected.addAll(Bytes.asList(generated));
+
+    File bzip2File = tmpFolder.newFile(baseName + ".bz2");
+    generated = generateInput(1000);
+    writeFile(bzip2File, generateInput(1000), CompressionMode.BZIP2);
+    expected.addAll(Bytes.asList(generated));
+
+    String filePattern = new File(tmpFolder.getRoot().toString(), baseName + ".*").toString();
+
+    Pipeline p = TestPipeline.create();
+
+    CompressedSource<Byte> source =
+        CompressedSource.from(new ByteSource(filePattern, 1));
+    PCollection<Byte> output = p.apply(Read.from(source));
+
+    DataflowAssert.that(output).containsInAnyOrder(expected);
+    p.run();
+  }
+
+  /**
    * Test reading multiple files.
    */
   @Test
@@ -134,7 +200,7 @@ public class CompressedSourceTest {
   /**
    * Get a compressing stream for a given compression mode.
    */
-  private OutputStream getStreamForMode(CompressionMode mode, OutputStream stream)
+  private OutputStream getOutputStreamForMode(CompressionMode mode, OutputStream stream)
       throws IOException {
     switch (mode) {
       case GZIP:
@@ -150,7 +216,7 @@ public class CompressedSourceTest {
    * Writes a single output file.
    */
   private void writeFile(File file, byte[] input, CompressionMode mode) throws IOException {
-    try (OutputStream os = getStreamForMode(mode, new FileOutputStream(file))) {
+    try (OutputStream os = getOutputStreamForMode(mode, new FileOutputStream(file))) {
       os.write(input);
     }
   }
@@ -158,19 +224,33 @@ public class CompressedSourceTest {
   /**
    * Run a single read test, writing and reading back input with the given compression mode.
    */
-  private void runReadTest(byte[] input, CompressionMode mode) throws IOException {
+  private void runReadTest(byte[] input,
+      CompressionMode inputCompressionMode,
+      @Nullable DecompressingChannelFactory decompressionFactory)
+      throws IOException {
     File tmpFile = tmpFolder.newFile();
-    writeFile(tmpFile, input, mode);
+    writeFile(tmpFile, input, inputCompressionMode);
+    verifyReadContents(input, tmpFile, decompressionFactory);
+  }
 
+  private void verifyReadContents(byte[] expected, File inputFile,
+      @Nullable DecompressingChannelFactory decompressionFactory) {
     Pipeline p = TestPipeline.create();
-
     CompressedSource<Byte> source =
-        CompressedSource.from(new ByteSource(tmpFile.toPath().toString(), 1))
-            .withDecompression(mode);
+        CompressedSource.from(new ByteSource(inputFile.toPath().toString(), 1));
+    if (decompressionFactory != null) {
+      source = source.withDecompression(decompressionFactory);
+    }
     PCollection<Byte> output = p.apply(Read.from(source));
-
-    DataflowAssert.that(output).containsInAnyOrder(Bytes.asList(input));
+    DataflowAssert.that(output).containsInAnyOrder(Bytes.asList(expected));
     p.run();
+  }
+
+  /**
+   * Run a single read test, writing and reading back input with the given compression mode.
+   */
+  private void runReadTest(byte[] input, CompressionMode mode) throws IOException {
+    runReadTest(input, mode, mode);
   }
 
   /**
