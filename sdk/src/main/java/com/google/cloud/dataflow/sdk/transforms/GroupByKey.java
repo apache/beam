@@ -25,13 +25,15 @@ import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner.ValueWithMetadata;
+import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.InvalidWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
-import com.google.cloud.dataflow.sdk.util.GroupAlsoByWindowsDoFn;
+import com.google.cloud.dataflow.sdk.util.GroupAlsoByWindowsViaOutputBufferDoFn;
 import com.google.cloud.dataflow.sdk.util.ReifyTimestampAndWindowsDoFn;
+import com.google.cloud.dataflow.sdk.util.SystemReduceFn;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowedValue.FullWindowedValueCoder;
 import com.google.cloud.dataflow.sdk.util.WindowedValue.WindowedValueCoder;
@@ -418,14 +420,18 @@ public class GroupByKey<K, V>
           inputIterableWindowedValueCoder.getValueCoder();
       Coder<Iterable<V>> outputValueCoder =
           IterableCoder.of(inputIterableElementValueCoder);
-      Coder<KV<K, Iterable<V>>> outputKvCoder =
-          KvCoder.of(keyCoder, outputValueCoder);
+      Coder<KV<K, Iterable<V>>> outputKvCoder = KvCoder.of(keyCoder, outputValueCoder);
 
-      GroupAlsoByWindowsDoFn<K, V, Iterable<V>, ?> fn =
-          GroupAlsoByWindowsDoFn.createForIterable(
-              windowingStrategy, inputIterableElementValueCoder);
+      return input
+          .apply(ParDo.of(groupAlsoByWindowsFn(windowingStrategy, inputIterableElementValueCoder)))
+          .setCoder(outputKvCoder);
+    }
 
-      return input.apply(ParDo.of(fn)).setCoder(outputKvCoder);
+    private <W extends BoundedWindow> GroupAlsoByWindowsViaOutputBufferDoFn<K, V, Iterable<V>, W>
+        groupAlsoByWindowsFn(
+            WindowingStrategy<?, W> strategy, Coder<V> inputIterableElementValueCoder) {
+      return new GroupAlsoByWindowsViaOutputBufferDoFn<K, V, Iterable<V>, W>(
+          strategy, SystemReduceFn.<K, V, W>buffering(inputIterableElementValueCoder));
     }
   }
 

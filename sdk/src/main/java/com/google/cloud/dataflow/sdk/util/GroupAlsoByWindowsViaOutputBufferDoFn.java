@@ -30,7 +30,7 @@ import java.util.List;
  * implementation is applicable.
  */
 @SystemDoFnInternal
-class GroupAlsoByWindowsViaOutputBufferDoFn<K, InputT, OutputT, W extends BoundedWindow>
+public class GroupAlsoByWindowsViaOutputBufferDoFn<K, InputT, OutputT, W extends BoundedWindow>
    extends GroupAlsoByWindowsDoFn<K, InputT, OutputT, W> {
 
   private final WindowingStrategy<?, W> strategy;
