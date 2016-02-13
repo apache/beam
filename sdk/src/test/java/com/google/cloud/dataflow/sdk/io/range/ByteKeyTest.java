@@ -34,8 +34,8 @@ import java.util.Arrays;
  */
 @RunWith(JUnit4.class)
 public class ByteKeyTest {
-  // A big list of byte[] keys, in ascending sorted order.
-  private static final ByteKey[] TEST_KEYS =
+  /* A big list of byte[] keys, in ascending sorted order. */
+  static final ByteKey[] TEST_KEYS =
       new ByteKey[] {
         ByteKey.EMPTY,
         ByteKey.of(0),
