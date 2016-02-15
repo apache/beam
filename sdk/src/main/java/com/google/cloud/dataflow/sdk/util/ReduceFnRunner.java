@@ -72,8 +72,7 @@ import java.util.Set;
  * @param <OutputT> The output type that will be produced for each key.
  * @param <W> The type of windows this operates on.
  */
-public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
-    implements ActiveWindowSet.MergeCallback<W> {
+public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
   private final WindowingStrategy<Object, W> windowingStrategy;
 
   private final WindowingInternals<?, KV<K, OutputT>> windowingInternals;
@@ -81,6 +80,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
   private final Aggregator<Long, Long> droppedDueToClosedWindow;
 
   private final K key;
+
+  private final OnMergeCallback onMergeCallback = new OnMergeCallback();
 
   /**
    * Track which windows are still active and which 'state address' windows contain state
@@ -335,86 +336,88 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow>
     }
   }
 
-  /**
-   * Called from the active window set to indicate {@code toBeMerged} (of which only
-   * {@code activeToBeMerged} are ACTIVE and thus have state associated with them) will later
-   * be merged into {@code mergeResult}.
-   */
-  @Override
-  public void prefetchOnMerge(
-      Collection<W> toBeMerged, Collection<W> activeToBeMerged, W mergeResult) throws Exception {
-    ReduceFn<K, InputT, OutputT, W>.OnMergeContext directMergeContext =
-        contextFactory.forMerge(activeToBeMerged, mergeResult, StateStyle.DIRECT);
-    ReduceFn<K, InputT, OutputT, W>.OnMergeContext renamedMergeContext =
-        contextFactory.forMerge(activeToBeMerged, mergeResult, StateStyle.RENAMED);
+  private class OnMergeCallback implements ActiveWindowSet.MergeCallback<W> {
+    /**
+     * Called from the active window set to indicate {@code toBeMerged} (of which only
+     * {@code activeToBeMerged} are ACTIVE and thus have state associated with them) will later
+     * be merged into {@code mergeResult}.
+     */
+    @Override
+    public void prefetchOnMerge(
+        Collection<W> toBeMerged, Collection<W> activeToBeMerged, W mergeResult) throws Exception {
+      ReduceFn<K, InputT, OutputT, W>.OnMergeContext directMergeContext =
+          contextFactory.forMerge(activeToBeMerged, mergeResult, StateStyle.DIRECT);
+      ReduceFn<K, InputT, OutputT, W>.OnMergeContext renamedMergeContext =
+          contextFactory.forMerge(activeToBeMerged, mergeResult, StateStyle.RENAMED);
 
-    // Prefetch various state.
-    triggerRunner.prefetchForMerge(mergeResult, activeToBeMerged, directMergeContext.state());
-    try {
-      reduceFn.prefetchOnMerge(renamedMergeContext.state());
-    } catch (Exception e) {
-      throw wrapMaybeUserException(e);
-    }
-    watermarkHold.prefetchOnMerge(renamedMergeContext.state());
-    nonEmptyPanes.prefetchOnMerge(renamedMergeContext.state());
-  }
-
-  /**
-   * Called from the active window set to indicate {@code toBeMerged} (of which only
-   * {@code activeToBeMerged} are ACTIVE and thus have state associated with them) are about
-   * to be merged into {@code mergeResult}.
-   */
-  @Override
-  public void onMerge(Collection<W> toBeMerged, Collection<W> activeToBeMerged, W mergeResult)
-      throws Exception {
-    // At this point activeWindows has NOT incorporated the results of the merge.
-    ReduceFn<K, InputT, OutputT, W>.OnMergeContext directMergeContext =
-        contextFactory.forMerge(activeToBeMerged, mergeResult, StateStyle.DIRECT);
-    ReduceFn<K, InputT, OutputT, W>.OnMergeContext renamedMergeContext =
-        contextFactory.forMerge(activeToBeMerged, mergeResult, StateStyle.RENAMED);
-
-    // Run the reduceFn to perform any needed merging.
-    try {
-      reduceFn.onMerge(renamedMergeContext);
-    } catch (Exception e) {
-      throw wrapMaybeUserException(e);
-    }
-
-    // Merge the watermark holds.
-    watermarkHold.onMerge(renamedMergeContext);
-
-    // Merge non-empty pane state.
-    nonEmptyPanes.onMerge(renamedMergeContext.state());
-
-    // Have the trigger merge state as needed
-    try {
-      triggerRunner.onMerge(directMergeContext);
-    } catch (Exception e) {
-      Throwables.propagateIfPossible(e);
-      throw new RuntimeException("Failed to merge the triggers", e);
-    }
-
-    for (W active : activeToBeMerged) {
-      if (active.equals(mergeResult)) {
-        // Not merged away.
-        continue;
+      // Prefetch various state.
+      triggerRunner.prefetchForMerge(mergeResult, activeToBeMerged, directMergeContext.state());
+      try {
+        reduceFn.prefetchOnMerge(renamedMergeContext.state());
+      } catch (Exception e) {
+        throw wrapMaybeUserException(e);
       }
-      // Cleanup flavor A: Currently ACTIVE window is about to become MERGED.
-      // Clear any state not already cleared by the onMerge calls above.
-      WindowTracing.debug("ReduceFnRunner.onMerge: Merging {} into {}", active, mergeResult);
-      ReduceFn<K, InputT, OutputT, W>.Context directClearContext =
-          contextFactory.base(active, StateStyle.DIRECT);
-      // No need for the end-of-window or garbage collection timers.
-      cancelEndOfWindowAndGarbageCollectionTimers(directClearContext);
-      // We no longer care about any previous panes of merged away windows. The
-      // merge result window gets to start fresh if it is new.
-      paneInfoTracker.clear(directClearContext.state());
+      watermarkHold.prefetchOnMerge(renamedMergeContext.state());
+      nonEmptyPanes.prefetchOnMerge(renamedMergeContext.state());
+    }
+
+    /**
+     * Called from the active window set to indicate {@code toBeMerged} (of which only
+     * {@code activeToBeMerged} are ACTIVE and thus have state associated with them) are about
+     * to be merged into {@code mergeResult}.
+     */
+    @Override
+    public void onMerge(Collection<W> toBeMerged, Collection<W> activeToBeMerged, W mergeResult)
+        throws Exception {
+      // At this point activeWindows has NOT incorporated the results of the merge.
+      ReduceFn<K, InputT, OutputT, W>.OnMergeContext directMergeContext =
+          contextFactory.forMerge(activeToBeMerged, mergeResult, StateStyle.DIRECT);
+      ReduceFn<K, InputT, OutputT, W>.OnMergeContext renamedMergeContext =
+          contextFactory.forMerge(activeToBeMerged, mergeResult, StateStyle.RENAMED);
+
+      // Run the reduceFn to perform any needed merging.
+      try {
+        reduceFn.onMerge(renamedMergeContext);
+      } catch (Exception e) {
+        throw wrapMaybeUserException(e);
+      }
+
+      // Merge the watermark holds.
+      watermarkHold.onMerge(renamedMergeContext);
+
+      // Merge non-empty pane state.
+      nonEmptyPanes.onMerge(renamedMergeContext.state());
+
+      // Have the trigger merge state as needed
+      try {
+        triggerRunner.onMerge(directMergeContext);
+      } catch (Exception e) {
+        Throwables.propagateIfPossible(e);
+        throw new RuntimeException("Failed to merge the triggers", e);
+      }
+
+      for (W active : activeToBeMerged) {
+        if (active.equals(mergeResult)) {
+          // Not merged away.
+          continue;
+        }
+        // Cleanup flavor A: Currently ACTIVE window is about to become MERGED.
+        // Clear any state not already cleared by the onMerge calls above.
+        WindowTracing.debug("ReduceFnRunner.onMerge: Merging {} into {}", active, mergeResult);
+        ReduceFn<K, InputT, OutputT, W>.Context directClearContext =
+            contextFactory.base(active, StateStyle.DIRECT);
+        // No need for the end-of-window or garbage collection timers.
+        cancelEndOfWindowAndGarbageCollectionTimers(directClearContext);
+        // We no longer care about any previous panes of merged away windows. The
+        // merge result window gets to start fresh if it is new.
+        paneInfoTracker.clear(directClearContext.state());
+      }
     }
   }
 
   private void mergeActiveWindows() {
     try {
-      activeWindows.merge(this);
+      activeWindows.merge(onMergeCallback);
     } catch (Exception e) {
       Throwables.propagateIfPossible(e);
       throw new RuntimeException("Exception while merging windows", e);
