@@ -36,7 +36,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.util.ArrayList;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -49,7 +48,10 @@ public class IntraBundleParallelizationTest {
   private static final AtomicInteger numProcessed = new AtomicInteger();
   private static final AtomicInteger numFailures = new AtomicInteger();
   private static int concurrentElements = 0;
-  private static int maxConcurrency = 0;
+  private static int maxDownstreamConcurrency = 0;
+
+  private static final AtomicInteger maxFnConcurrency = new AtomicInteger();
+  private static final AtomicInteger currentFnConcurrency = new AtomicInteger();
 
   @Before
   public void setUp() {
@@ -57,7 +59,10 @@ public class IntraBundleParallelizationTest {
     numProcessed.set(0);
     numFailures.set(0);
     concurrentElements = 0;
-    maxConcurrency = 0;
+    maxDownstreamConcurrency = 0;
+
+    maxFnConcurrency.set(0);
+    currentFnConcurrency.set(0);
   }
 
   /**
@@ -68,6 +73,7 @@ public class IntraBundleParallelizationTest {
 
     @Override
     public void processElement(ProcessContext c) {
+      startConcurrentCall();
       try {
         sleepMillis(DELAY_MS);
       } catch (InterruptedException e) {
@@ -75,6 +81,7 @@ public class IntraBundleParallelizationTest {
         throw new RuntimeException("Interrupted");
       }
       c.output(c.element());
+      finishConcurrentCall();
     }
   }
 
@@ -88,14 +95,19 @@ public class IntraBundleParallelizationTest {
 
     @Override
     public void processElement(ProcessContext c) {
-      numProcessed.incrementAndGet();
-      if (numSuccesses.decrementAndGet() >= 0) {
-        c.output(c.element());
-        return;
-      }
+      startConcurrentCall();
+      try {
+        numProcessed.incrementAndGet();
+        if (numSuccesses.decrementAndGet() >= 0) {
+          c.output(c.element());
+          return;
+        }
 
-      numFailures.incrementAndGet();
-      throw new RuntimeException("Expected failure");
+        numFailures.incrementAndGet();
+        throw new RuntimeException("Expected failure");
+      } finally {
+        finishConcurrentCall();
+      }
     }
   }
 
@@ -109,8 +121,8 @@ public class IntraBundleParallelizationTest {
       // how this DoFn is called.
       synchronized (ConcurrencyMeasuringFn.class) {
         concurrentElements++;
-        if (concurrentElements > maxConcurrency) {
-          maxConcurrency = concurrentElements;
+        if (concurrentElements > maxDownstreamConcurrency) {
+          maxDownstreamConcurrency = concurrentElements;
         }
       }
 
@@ -122,23 +134,38 @@ public class IntraBundleParallelizationTest {
     }
   }
 
+  private static void startConcurrentCall() {
+    int currentlyExecuting = currentFnConcurrency.incrementAndGet();
+    int maxConcurrency;
+    do {
+      maxConcurrency = maxFnConcurrency.get();
+    } while (maxConcurrency < currentlyExecuting
+        && !maxFnConcurrency.compareAndSet(maxConcurrency, currentlyExecuting));
+  }
+
+  private static void finishConcurrentCall() {
+    currentFnConcurrency.decrementAndGet();
+  }
+
+  /**
+   * Test that the DoFn is parallelized up the the Max Parallelism factor within a bundle, but not
+   * greater than that amount.
+   */
   @Test
   public void testParallelization() {
-    long minDuration = Long.MAX_VALUE;
+    int maxConcurrency = Integer.MIN_VALUE;
     // Take the minimum from multiple runs.
     for (int i = 0; i < 5; ++i) {
-      minDuration = Math.min(minDuration,
+      maxConcurrency = Math.max(maxConcurrency,
           run(2 * PARALLELISM_FACTOR, PARALLELISM_FACTOR, new DelayFn<Integer>()));
     }
 
-    // The minimum is guaranteed to be >= 2x the delay interval, since no more than half the
-    // elements can be scheduled at once.
-    assertThat(minDuration,
-        greaterThanOrEqualTo(2 * DelayFn.DELAY_MS));
-    // Also, it should take <= 8x the delay interval since we should be at least
-    // parallelizing some of the work.
-    assertThat(minDuration,
-        lessThanOrEqualTo(8 * DelayFn.DELAY_MS));
+    // We should run at least some elements in parallel on some run
+    assertThat(maxConcurrency,
+        greaterThanOrEqualTo(2));
+    // No run should execute more elements concurrency than the maximum concurrency allowed.
+    assertThat(maxConcurrency,
+        lessThanOrEqualTo(PARALLELISM_FACTOR));
   }
 
   @Test(timeout = 5000L)
@@ -186,7 +213,18 @@ public class IntraBundleParallelizationTest {
         IntraBundleParallelization.of(new DelayFn<Integer>()).withMaxParallelism(1).getName());
   }
 
-  private long run(int numElements, int maxParallelism, DoFn<Integer, Integer> doFn) {
+  /**
+   * Runs the provided doFn inside of an {@link IntraBundleParallelization} transform.
+   *
+   * <p>This method assumes that the DoFn passed to it will call {@link #startConcurrentCall()}
+   * before processing each elements and {@link #finishConcurrentCall()} after each element.
+   *
+   * @param numElements the size of the input
+   * @param maxParallelism how many threads to execute in parallel
+   * @param doFn the DoFn to execute
+   * @return the maximum observed parallelism of the DoFn
+   */
+  private int run(int numElements, int maxParallelism, DoFn<Integer, Integer> doFn) {
     Pipeline pipeline = TestPipeline.create();
 
     ArrayList<Integer> data = new ArrayList<>(numElements);
@@ -200,14 +238,13 @@ public class IntraBundleParallelizationTest {
         .apply(IntraBundleParallelization.of(doFn).withMaxParallelism(maxParallelism))
         .apply(ParDo.of(downstream));
 
-    long startTime = System.nanoTime();
-
     pipeline.run();
 
+    // All elements should have completed.
+    assertEquals(0, currentFnConcurrency.get());
     // Downstream methods should not see parallel threads.
-    assertEquals(1, maxConcurrency);
+    assertEquals(1, maxDownstreamConcurrency);
 
-    long endTime = System.nanoTime();
-    return TimeUnit.MILLISECONDS.convert(endTime - startTime, TimeUnit.NANOSECONDS);
+    return maxFnConcurrency.get();
   }
 }
