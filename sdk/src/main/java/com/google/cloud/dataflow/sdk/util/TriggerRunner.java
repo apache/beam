@@ -34,19 +34,23 @@ import java.util.Collection;
 import java.util.Map;
 
 /**
- * Executes a trigger while tracking which of its subtriggers are finished.
+ * Executes a trigger while managing persistence of information about which subtriggers are
+ * finished. Subtriggers include all recursive trigger expressions as well as the entire trigger.
  *
  * <p>Specifically, the responsibilities are:
  *
  * <ul>
  *   <li>Invoking the trigger's methods via its {@link ExecutableTrigger} wrapper by
  *       constructing the appropriate trigger contexts.</li>
- *   <li>Tracking which of a trigger's subtriggers are finished.</li>
- *   <li>Adjusting the trigger's subtriggers' finished states upon firing, according to the
- *       trigger's own {@link Trigger#onFire} method.</li>
- *   <li>Adjusting the trigger's subtriggers' finished states upon merging, according to the
- *       trigger's own {@link Trigger#onMerge} method.</li>
+ *   <li>Committing a record of which subtriggers are finished to persistent state.</li>
+ *   <li>Restoring the record of which subtriggers are finished from persistent state.</li>
+ *   <li>Clearing out the persisted finished set when a caller indicates
+ *       (via {#link #clearFinished}) that it is no longer needed.</li>
  * </ul>
+ *
+ * <p>These responsibilities are intertwined: trigger contexts include mutable information about
+ * which subtriggers are finished. This class provides the information when building the contexts
+ * and commits the information when the method of the {@link ExecutableTrigger} returns.
  *
  * @param <W> The kind of windows being processed.
  */
