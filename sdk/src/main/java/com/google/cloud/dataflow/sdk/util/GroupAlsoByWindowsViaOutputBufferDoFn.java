@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.util.state.StateInternals;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.common.collect.Iterables;
 
@@ -54,9 +55,20 @@ public class GroupAlsoByWindowsViaOutputBufferDoFn<K, InputT, OutputT, W extends
     // watermark, knowing that we have all data and it is in timestamp order.
     BatchTimerInternals timerInternals = new BatchTimerInternals(Instant.now());
 
-    ReduceFnRunner<K, InputT, OutputT, W> runner = new ReduceFnRunner<>(
-        key, strategy, timerInternals, c.windowingInternals(),
-        droppedDueToClosedWindow, reduceFnFactory.create(key));
+    // It is the responsibility of the user of GroupAlsoByWindowsViaOutputBufferDoFn to only
+    // provide a WindowingInternals instance with the appropriate key type for StateInternals.
+    @SuppressWarnings("unchecked")
+    StateInternals<K> stateInternals = (StateInternals<K>) c.windowingInternals().stateInternals();
+
+    ReduceFnRunner<K, InputT, OutputT, W> runner =
+        new ReduceFnRunner<K, InputT, OutputT, W>(
+            key,
+            strategy,
+            stateInternals,
+            timerInternals,
+            c.windowingInternals(),
+            droppedDueToClosedWindow,
+            reduceFnFactory.create(key));
 
     Iterable<List<WindowedValue<InputT>>> chunks =
         Iterables.partition(c.element().getValue(), 1000);

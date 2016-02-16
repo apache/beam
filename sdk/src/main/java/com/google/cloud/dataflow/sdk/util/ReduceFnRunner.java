@@ -74,7 +74,9 @@ import java.util.Set;
 public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
   private final WindowingStrategy<Object, W> windowingStrategy;
 
-  private final WindowingInternals<?, KV<K, OutputT>> windowingInternals;
+  private final OutputWindowedValue<KV<K, OutputT>> outputter;
+
+  private final StateInternals<K> stateInternals;
 
   private final Aggregator<Long, Long> droppedDueToClosedWindow;
 
@@ -177,13 +179,19 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
    */
   private final NonEmptyPanes<K, W> nonEmptyPanes;
 
-  public ReduceFnRunner(K key, WindowingStrategy<?, W> windowingStrategy,
-      TimerInternals timerInternals, WindowingInternals<?, KV<K, OutputT>> windowingInternals,
-      Aggregator<Long, Long> droppedDueToClosedWindow, ReduceFn<K, InputT, OutputT, W> reduceFn) {
+  public ReduceFnRunner(
+      K key,
+      WindowingStrategy<?, W> windowingStrategy,
+      StateInternals<K> stateInternals,
+      TimerInternals timerInternals,
+      WindowingInternals<?, KV<K, OutputT>> windowingInternals,
+      Aggregator<Long, Long> droppedDueToClosedWindow,
+      ReduceFn<K, InputT, OutputT, W> reduceFn) {
     this.key = key;
     this.timerInternals = timerInternals;
     this.paneInfoTracker = new PaneInfoTracker(timerInternals);
-    this.windowingInternals = windowingInternals;
+    this.stateInternals = stateInternals;
+    this.outputter = new OutputViaWindowingInternals<>(windowingInternals);
     this.droppedDueToClosedWindow = droppedDueToClosedWindow;
     this.reduceFn = reduceFn;
 
@@ -196,26 +204,21 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     // Note this may trigger a GetData request to load the existing window set.
     this.activeWindows = createActiveWindowSet();
 
-    // It is the user of ReduceFnRunner's responsibility to have state internals with a
-    // compatible key type. This is generally assured by graph construction time validation.
-    @SuppressWarnings("unchecked")
-    StateInternals<K> stateInternals = (StateInternals<K>) this.windowingInternals.stateInternals();
-
     this.contextFactory =
         new ReduceFnContextFactory<K, InputT, OutputT, W>(key, reduceFn, this.windowingStrategy,
             stateInternals, this.activeWindows, timerInternals);
 
     this.watermarkHold = new WatermarkHold<>(timerInternals, windowingStrategy);
-    this.triggerRunner = new TriggerRunner<>(
-        windowingStrategy.getTrigger(),
-        new TriggerContextFactory<>(
-            windowingStrategy, this.windowingInternals.stateInternals(), activeWindows));
+    this.triggerRunner =
+        new TriggerRunner<>(
+            windowingStrategy.getTrigger(),
+            new TriggerContextFactory<>(windowingStrategy, stateInternals, activeWindows));
   }
 
   private ActiveWindowSet<W> createActiveWindowSet() {
     return windowingStrategy.getWindowFn().isNonMerging()
-        ? new NonMergingActiveWindowSet<W>() : new MergingActiveWindowSet<W>(
-               windowingStrategy.getWindowFn(), windowingInternals.stateInternals());
+        ? new NonMergingActiveWindowSet<W>()
+        : new MergingActiveWindowSet<W>(windowingStrategy.getWindowFn(), stateInternals);
   }
 
   @VisibleForTesting
@@ -720,7 +723,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
                   paneInfoTracker.storeCurrentPaneInfo(directContext, pane);
 
                   // Output the actual value.
-                  windowingInternals.outputWindowedValue(
+                  outputter.outputWindowedValue(
                       KV.of(key, toOutput), outputTimestamp, windows, pane);
                 }
               });
@@ -764,5 +767,34 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       timer = timer.plus(windowingStrategy.getAllowedLateness());
       context.timers().deleteTimer(timer, TimeDomain.EVENT_TIME);
     }
+  }
+
+  /**
+   * An object that can output a value with all of its windowing information. This is a deliberately
+   * restricted subinterface of {@link WindowingInternals} to express how it is used here.
+   */
+  private interface OutputWindowedValue<OutputT> {
+    void outputWindowedValue(OutputT output, Instant timestamp,
+        Collection<? extends BoundedWindow> windows, PaneInfo pane);
+  }
+
+  private static class OutputViaWindowingInternals<OutputT>
+      implements OutputWindowedValue<OutputT> {
+
+    private final WindowingInternals<?, OutputT> windowingInternals;
+
+    public OutputViaWindowingInternals(WindowingInternals<?, OutputT> windowingInternals) {
+      this.windowingInternals = windowingInternals;
+    }
+
+    @Override
+    public void outputWindowedValue(
+        OutputT output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo pane) {
+      windowingInternals.outputWindowedValue(output, timestamp, windows, pane);
+    }
+
   }
 }

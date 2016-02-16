@@ -167,8 +167,14 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   }
 
   ReduceFnRunner<String, InputT, OutputT, W> createRunner() {
-    return new ReduceFnRunner<>(KEY, objectStrategy, timerInternals, windowingInternals,
-        droppedDueToClosedWindow, reduceFn);
+    return new ReduceFnRunner<>(
+        KEY,
+        objectStrategy,
+        stateInternals,
+        timerInternals,
+        windowingInternals,
+        droppedDueToClosedWindow,
+        reduceFn);
   }
 
   public ExecutableTrigger<W> getTrigger() {

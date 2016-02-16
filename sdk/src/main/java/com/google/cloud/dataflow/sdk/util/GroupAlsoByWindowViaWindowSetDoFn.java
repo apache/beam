@@ -21,6 +21,7 @@ import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.DoFnRunner.ReduceFnExecutor;
 import com.google.cloud.dataflow.sdk.util.TimerInternals.TimerData;
+import com.google.cloud.dataflow.sdk.util.state.StateInternals;
 import com.google.cloud.dataflow.sdk.values.KV;
 
 /**
@@ -63,10 +64,17 @@ public class GroupAlsoByWindowViaWindowSetDoFn<
 
     K key = c.element().key();
     TimerInternals timerInternals = c.windowingInternals().timerInternals();
+
+    // It is the responsibility of the user of GroupAlsoByWindowsViaWindowSet to only
+    // provide a WindowingInternals instance with the appropriate key type for StateInternals.
+    @SuppressWarnings("unchecked")
+    StateInternals<K> stateInternals = (StateInternals<K>) c.windowingInternals().stateInternals();
+
     ReduceFnRunner<K, InputT, OutputT, W> runner =
         new ReduceFnRunner<>(
             key,
             windowingStrategy,
+            stateInternals,
             timerInternals,
             c.windowingInternals(),
             droppedDueToClosedWindow,
