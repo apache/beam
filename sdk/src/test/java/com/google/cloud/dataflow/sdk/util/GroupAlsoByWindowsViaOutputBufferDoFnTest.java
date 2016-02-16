@@ -17,12 +17,7 @@
 package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
-import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
-import com.google.cloud.dataflow.sdk.coders.VarLongCoder;
-import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
-import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.GroupAlsoByWindowsProperties.GroupAlsoByWindowsDoFnFactory;
 
@@ -54,27 +49,6 @@ public class GroupAlsoByWindowsViaOutputBufferDoFnTest {
     }
   }
 
-  private class CombiningGABWViaOutputBufferDoFnFactory<K, InputT, AccumT, OutputT>
-  implements GroupAlsoByWindowsDoFnFactory<K, InputT, OutputT> {
-
-    private final Coder<K> keyCoder;
-    private final AppliedCombineFn<K, InputT, AccumT, OutputT> combineFn;
-
-    public CombiningGABWViaOutputBufferDoFnFactory(
-        Coder<K> keyCoder, AppliedCombineFn<K, InputT, AccumT, OutputT> combineFn) {
-      this.keyCoder = keyCoder;
-      this.combineFn = combineFn;
-    }
-
-    @Override
-    public <W extends BoundedWindow> GroupAlsoByWindowsDoFn<K, InputT, OutputT, W>
-        forStrategy(WindowingStrategy<?, W> windowingStrategy) {
-      return new GroupAlsoByWindowsViaOutputBufferDoFn<K, InputT, OutputT, W>(
-          windowingStrategy,
-          SystemReduceFn.<K, InputT, AccumT, OutputT, W>combining(keyCoder, combineFn));
-    }
-  }
-
   @Test
   public void testEmptyInputEmptyOutput() throws Exception {
     GroupAlsoByWindowsProperties.emptyInputEmptyOutput(
@@ -94,20 +68,6 @@ public class GroupAlsoByWindowsViaOutputBufferDoFnTest {
   }
 
   @Test
-  public void testCombinesElementsInSlidingWindows() throws Exception {
-    CombineFn<Long, ?, Long> combineFn = new Sum.SumLongFn();
-    AppliedCombineFn<String, Long, ?, Long> appliedFn = AppliedCombineFn.withInputCoder(
-        combineFn.<String>asKeyedFn(), new CoderRegistry(),
-        KvCoder.of(StringUtf8Coder.of(), VarLongCoder.of()));
-
-    GroupAlsoByWindowsProperties.combinesElementsInSlidingWindows(
-        new CombiningGABWViaOutputBufferDoFnFactory<>(
-            StringUtf8Coder.of(),
-            appliedFn),
-        combineFn);
-  }
-
-  @Test
   public void testGroupsIntoOverlappingNonmergingWindows() throws Exception {
     GroupAlsoByWindowsProperties.groupsIntoOverlappingNonmergingWindows(
         new BufferingGABWViaOutputBufferDoFnFactory<String, String>(StringUtf8Coder.of()));
@@ -117,20 +77,6 @@ public class GroupAlsoByWindowsViaOutputBufferDoFnTest {
   public void testGroupsIntoSessions() throws Exception {
     GroupAlsoByWindowsProperties.groupsElementsInMergedSessions(
         new BufferingGABWViaOutputBufferDoFnFactory<String, String>(StringUtf8Coder.of()));
-  }
-
-  @Test
-  public void testCombinesIntoSessions() throws Exception {
-    CombineFn<Long, ?, Long> combineFn = new Sum.SumLongFn();
-    AppliedCombineFn<String, Long, ?, Long> appliedFn = AppliedCombineFn.withInputCoder(
-        combineFn.<String>asKeyedFn(), new CoderRegistry(),
-        KvCoder.of(StringUtf8Coder.of(), VarLongCoder.of()));
-
-    GroupAlsoByWindowsProperties.combinesElementsPerSession(
-        new CombiningGABWViaOutputBufferDoFnFactory<>(
-            StringUtf8Coder.of(),
-            appliedFn),
-        combineFn);
   }
 
   @Test
@@ -161,19 +107,5 @@ public class GroupAlsoByWindowsViaOutputBufferDoFnTest {
   public void testGroupsElementsIntoSessionsWithLatestTimestamp() throws Exception {
     GroupAlsoByWindowsProperties.groupsElementsInMergedSessionsWithLatestTimestamp(
         new BufferingGABWViaOutputBufferDoFnFactory<String, String>(StringUtf8Coder.of()));
-  }
-
-  @Test
-  public void testCombinesIntoSessionsWithEndOfWindowTimestamp() throws Exception {
-    CombineFn<Long, ?, Long> combineFn = new Sum.SumLongFn();
-    AppliedCombineFn<String, Long, ?, Long> appliedFn = AppliedCombineFn.withInputCoder(
-        combineFn.<String>asKeyedFn(), new CoderRegistry(),
-        KvCoder.of(StringUtf8Coder.of(), VarLongCoder.of()));
-
-    GroupAlsoByWindowsProperties.combinesElementsPerSessionWithEndOfWindowTimestamp(
-        new CombiningGABWViaOutputBufferDoFnFactory<>(
-            StringUtf8Coder.of(),
-            appliedFn),
-        combineFn);
   }
 }
