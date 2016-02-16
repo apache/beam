@@ -115,7 +115,7 @@ public interface TimerInternals {
    *  |              |       |       |       |
    *  |              |   D   |   C   |   B   |   A
    *  |              |       |       |       |
-   * GIWN     <=    GOWM <= LOWM <= LIWM <= GIWM
+   * GIWM     <=    GOWM <= LOWM <= LIWM <= GIWM
    * (next stage)
    * -------------------------------------------------> event time
    * </pre>
