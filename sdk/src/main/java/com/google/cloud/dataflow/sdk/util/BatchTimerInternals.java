@@ -101,7 +101,8 @@ public class BatchTimerInternals implements TimerInternals {
         .toString();
   }
 
-  public void advanceInputWatermark(ReduceFnRunner<?, ?, ?, ?> runner, Instant newInputWatermark) {
+  public void advanceInputWatermark(ReduceFnRunner<?, ?, ?, ?> runner, Instant newInputWatermark)
+      throws Exception {
     Preconditions.checkState(!newInputWatermark.isBefore(inputWatermarkTime),
         "Cannot move input watermark time backwards from %s to %s", inputWatermarkTime,
         newInputWatermark);
@@ -109,14 +110,16 @@ public class BatchTimerInternals implements TimerInternals {
     advance(runner, newInputWatermark, TimeDomain.EVENT_TIME);
   }
 
-  public void advanceProcessingTime(ReduceFnRunner<?, ?, ?, ?> runner, Instant newProcessingTime) {
+  public void advanceProcessingTime(ReduceFnRunner<?, ?, ?, ?> runner, Instant newProcessingTime)
+      throws Exception {
     Preconditions.checkState(!newProcessingTime.isBefore(processingTime),
         "Cannot move processing time backwards from %s to %s", processingTime, newProcessingTime);
     processingTime = newProcessingTime;
     advance(runner, newProcessingTime, TimeDomain.PROCESSING_TIME);
   }
 
-  private void advance(ReduceFnRunner<?, ?, ?, ?> runner, Instant newTime, TimeDomain domain) {
+  private void advance(ReduceFnRunner<?, ?, ?, ?> runner, Instant newTime, TimeDomain domain)
+      throws Exception {
     PriorityQueue<TimerData> timers = queue(domain);
     boolean shouldFire = false;
 
@@ -128,7 +131,6 @@ public class BatchTimerInternals implements TimerInternals {
         // Remove before firing, so that if the trigger adds another identical
         // timer we don't remove it.
         timers.remove();
-
         runner.onTimer(timer);
       }
     } while (shouldFire);

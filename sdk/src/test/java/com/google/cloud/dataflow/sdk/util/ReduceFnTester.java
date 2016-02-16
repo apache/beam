@@ -347,7 +347,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     runner.persist();
   }
 
-  public void fireTimer(W window, Instant timestamp, TimeDomain domain) {
+  public void fireTimer(W window, Instant timestamp, TimeDomain domain) throws Exception {
     ReduceFnRunner<String, InputT, OutputT, W> runner = createRunner();
     runner.onTimer(
         TimerData.of(StateNamespaces.window(windowFn.windowCoder(), window), timestamp, domain));
@@ -587,7 +587,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     }
 
     public void advanceInputWatermark(
-        ReduceFnRunner<?, ?, ?, ?> runner, Instant newInputWatermark) {
+        ReduceFnRunner<?, ?, ?, ?> runner, Instant newInputWatermark) throws Exception {
       Preconditions.checkNotNull(newInputWatermark);
       Preconditions.checkState(
           inputWatermarkTime == null || !newInputWatermark.isBefore(inputWatermarkTime),
@@ -626,7 +626,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     }
 
     public void advanceProcessingTime(
-        ReduceFnRunner<?, ?, ?, ?> runner, Instant newProcessingTime) {
+        ReduceFnRunner<?, ?, ?, ?> runner, Instant newProcessingTime) throws Exception {
       Preconditions.checkState(!newProcessingTime.isBefore(processingTime),
           "Cannot move processing time backwards from %s to %s", processingTime, newProcessingTime);
       WindowTracing.trace("TestTimerInternals.advanceProcessingTime: from {} to {}", processingTime,
@@ -636,7 +636,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     }
 
     public void advanceSynchronizedProcessingTime(
-        ReduceFnRunner<?, ?, ?, ?> runner, Instant newSynchronizedProcessingTime) {
+        ReduceFnRunner<?, ?, ?, ?> runner, Instant newSynchronizedProcessingTime) throws Exception {
       Preconditions.checkState(!newSynchronizedProcessingTime.isBefore(synchronizedProcessingTime),
           "Cannot move processing time backwards from %s to %s", processingTime,
           newSynchronizedProcessingTime);
@@ -648,7 +648,8 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     }
 
     private void advanceAndFire(
-        ReduceFnRunner<?, ?, ?, ?> runner, Instant currentTime, TimeDomain domain) {
+        ReduceFnRunner<?, ?, ?, ?> runner, Instant currentTime, TimeDomain domain)
+            throws Exception {
       PriorityQueue<TimerData> queue = queue(domain);
       boolean shouldFire = false;
 
