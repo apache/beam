@@ -367,6 +367,9 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
       @SuppressWarnings("unchecked")
       OutputT windowed = (OutputT) applyWindow((Window.Bound<?>) transform, (PCollection<?>) input);
       return windowed;
+    } else if (Flatten.FlattenPCollectionList.class.equals(transform.getClass())
+        && ((PCollectionList<?>) input).size() == 0) {
+      return (OutputT) Pipeline.applyTransform(input, Create.of());
     } else if (overrides.containsKey(transform.getClass())) {
       // It is the responsibility of whoever constructs overrides to ensure this is type safe.
       @SuppressWarnings("unchecked")
