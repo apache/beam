@@ -27,19 +27,25 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 
+import org.joda.time.Instant;
+
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.Map;
 
 /**
- * Executes a trigger within the context provided by {@link ReduceFnRunner}.
+ * Executes a trigger while tracking which of its subtriggers are finished.
  *
- * <p>This is responsible for:
+ * <p>Specifically, the responsibilities are:
  *
  * <ul>
- * <li> Tracking the finished bits for the trigger tree, included whether the root trigger
- * has finished.
- * <li> Ensuring that the timer and state associated with each trigger node is separate.
+ *   <li>Invoking the trigger's methods via its {@link ExecutableTrigger} wrapper by
+ *       constructing the appropriate trigger contexts.</li>
+ *   <li>Tracking which of a trigger's subtriggers are finished.</li>
+ *   <li>Adjusting the trigger's subtriggers' finished states upon firing, according to the
+ *       trigger's own {@link Trigger#onFire} method.</li>
+ *   <li>Adjusting the trigger's subtriggers' finished states upon merging, according to the
+ *       trigger's own {@link Trigger#onMerge} method.</li>
  * </ul>
  *
  * @param <W> The kind of windows being processed.
@@ -102,14 +108,15 @@ public class TriggerRunner<W extends BoundedWindow> {
   /**
    * Run the trigger logic to deal with a new value.
    */
-  public void processValue(ReduceFn<?, ?, ?, W>.ProcessValueContext c) throws Exception {
+  public void processValue(W window, Instant timestamp, Timers timers, StateContext<?> state)
+      throws Exception {
     // Clone so that we can detect changes and so that changes here don't pollute merging.
     FinishedTriggersBitSet finishedSet =
-        readFinishedBits(c.state().access(FINISHED_BITS_TAG)).copy();
+        readFinishedBits(state.access(FINISHED_BITS_TAG)).copy();
     Trigger<W>.OnElementContext triggerContext = contextFactory.createOnElementContext(
-        c.window(), c.timers(), c.timestamp(), rootTrigger, finishedSet);
+        window, timers, timestamp, rootTrigger, finishedSet);
     rootTrigger.invokeOnElement(triggerContext);
-    persistFinishedSet(c.state(), finishedSet);
+    persistFinishedSet(state, finishedSet);
   }
 
   public void prefetchForMerge(
@@ -126,46 +133,46 @@ public class TriggerRunner<W extends BoundedWindow> {
   /**
    * Run the trigger merging logic as part of executing the specified merge.
    */
-  public void onMerge(ReduceFn<?, ?, ?, W>.OnMergeContext c) throws Exception {
+  public void onMerge(W window, Timers timers, MergingStateContext<?, W> state) throws Exception {
     // Clone so that we can detect changes and so that changes here don't pollute merging.
     FinishedTriggersBitSet finishedSet =
-        readFinishedBits(c.state().access(FINISHED_BITS_TAG)).copy();
+        readFinishedBits(state.access(FINISHED_BITS_TAG)).copy();
 
     // And read the finished bits in each merging window.
     ImmutableMap.Builder<W, FinishedTriggers> builder = ImmutableMap.builder();
     for (Map.Entry<W, ValueState<BitSet>> entry :
-        c.state().accessInEachMergingWindow(FINISHED_BITS_TAG).entrySet()) {
+        state.accessInEachMergingWindow(FINISHED_BITS_TAG).entrySet()) {
       // Don't need to clone these, since the trigger context doesn't allow modification
       builder.put(entry.getKey(), readFinishedBits(entry.getValue()));
     }
     ImmutableMap<W, FinishedTriggers> mergingFinishedSets = builder.build();
 
     Trigger<W>.OnMergeContext mergeContext = contextFactory.createOnMergeContext(
-        c.window(), c.timers(), rootTrigger, finishedSet, mergingFinishedSets);
+        window, timers, rootTrigger, finishedSet, mergingFinishedSets);
 
     // Run the merge from the trigger
     rootTrigger.invokeOnMerge(mergeContext);
 
-    persistFinishedSet(c.state(), finishedSet);
+    persistFinishedSet(state, finishedSet);
 
     // Clear the finished bits.
-    clearFinished(c);
+    clearFinished(state);
   }
 
-  public boolean shouldFire(ReduceFn<?, ?, ?, W>.Context c) throws Exception {
-    FinishedTriggers finishedSet = readFinishedBits(c.state().access(FINISHED_BITS_TAG)).copy();
-    Trigger<W>.TriggerContext context = contextFactory.base(c.window(), c.timers(),
+  public boolean shouldFire(W window, Timers timers, StateContext<?> state) throws Exception {
+    FinishedTriggers finishedSet = readFinishedBits(state.access(FINISHED_BITS_TAG)).copy();
+    Trigger<W>.TriggerContext context = contextFactory.base(window, timers,
         rootTrigger, finishedSet);
     return rootTrigger.invokeShouldFire(context);
   }
 
-  public void onFire(ReduceFn<?, ?, ?, W>.Context c) throws Exception {
+  public void onFire(W window, Timers timers, StateContext<?> state) throws Exception {
     FinishedTriggersBitSet finishedSet =
-        readFinishedBits(c.state().access(FINISHED_BITS_TAG)).copy();
-    Trigger<W>.TriggerContext context = contextFactory.base(c.window(), c.timers(),
+        readFinishedBits(state.access(FINISHED_BITS_TAG)).copy();
+    Trigger<W>.TriggerContext context = contextFactory.base(window, timers,
         rootTrigger, finishedSet);
     rootTrigger.invokeOnFire(context);
-    persistFinishedSet(c.state(), finishedSet);
+    persistFinishedSet(state, finishedSet);
   }
 
   private void persistFinishedSet(
@@ -187,9 +194,9 @@ public class TriggerRunner<W extends BoundedWindow> {
   /**
    * Clear finished bits.
    */
-  public void clearFinished(ReduceFn<?, ?, ?, W>.Context c) {
+  public void clearFinished(StateContext<?> state) {
     if (isFinishedSetNeeded()) {
-      c.state().access(FINISHED_BITS_TAG).clear();
+      state.access(FINISHED_BITS_TAG).clear();
     }
   }
 
@@ -197,10 +204,10 @@ public class TriggerRunner<W extends BoundedWindow> {
    * Clear the state used for executing triggers, but leave the finished set to indicate
    * the window is closed.
    */
-  public void clearState(ReduceFn<?, ?, ?, W>.Context c) throws Exception {
+  public void clearState(W window, Timers timers, StateContext<?> state) throws Exception {
     // Don't need to clone, because we'll be clearing the finished bits anyways.
-    FinishedTriggers finishedSet = readFinishedBits(c.state().access(FINISHED_BITS_TAG));
-    rootTrigger.invokeClear(contextFactory.base(c.window(), c.timers(), rootTrigger, finishedSet));
+    FinishedTriggers finishedSet = readFinishedBits(state.access(FINISHED_BITS_TAG));
+    rootTrigger.invokeClear(contextFactory.base(window, timers, rootTrigger, finishedSet));
   }
 
   private boolean isFinishedSetNeeded() {

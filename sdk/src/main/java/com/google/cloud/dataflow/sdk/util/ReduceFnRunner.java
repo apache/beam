@@ -376,7 +376,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       nonEmptyPanes.onMerge(renamedMergeContext.state());
 
       // Have the trigger merge state as needed
-      triggerRunner.onMerge(directMergeContext);
+      triggerRunner.onMerge(
+          directMergeContext.window(), directMergeContext.timers(), directMergeContext.state());
 
       for (W active : activeToBeMerged) {
         if (active.equals(mergeResult)) {
@@ -464,7 +465,11 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       reduceFn.processValue(renamedContext);
 
       // Run the trigger to update its state
-      triggerRunner.processValue(directContext);
+      triggerRunner.processValue(
+          directContext.window(),
+          directContext.timestamp(),
+          directContext.timers(),
+          directContext.state());
     }
 
     return windows;
@@ -578,7 +583,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       reduceFn.clearState(renamedContext);
       watermarkHold.clearHolds(renamedContext);
       nonEmptyPanes.clearPane(renamedContext.state());
-      triggerRunner.clearState(directContext);
+      triggerRunner.clearState(
+          directContext.window(), directContext.timers(), directContext.state());
     } else {
       // Needed only for backwards compatibility over UPDATE.
       // Clear any end-of-window or garbage collection holds keyed by the current window.
@@ -595,7 +601,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     paneInfoTracker.clear(directContext.state());
     activeWindows.remove(directContext.window());
     // We'll never need to test for the trigger being closed again.
-    triggerRunner.clearFinished(directContext);
+    triggerRunner.clearFinished(directContext.state());
   }
 
   /** Should the reduce function state be cleared? */
@@ -617,13 +623,14 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
   private void emitIfAppropriate(ReduceFn<K, InputT, OutputT, W>.Context directContext,
       ReduceFn<K, InputT, OutputT, W>.Context renamedContext, boolean isEndOfWindow)
       throws Exception {
-    if (!triggerRunner.shouldFire(directContext)) {
+    if (!triggerRunner.shouldFire(
+        directContext.window(), directContext.timers(), directContext.state())) {
       // Ignore unless trigger is ready to fire
       return;
     }
 
     // Inform the trigger of the transition to see if it is finished
-    triggerRunner.onFire(directContext);
+    triggerRunner.onFire(directContext.window(), directContext.timers(), directContext.state());
     boolean isFinished = triggerRunner.isClosed(directContext.state());
 
     // Will be able to clear all element state after triggering?
@@ -647,7 +654,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       // Cleanup flavor D: If trigger is closed we will ignore all new incoming elements.
       // Clear state not otherwise cleared by onTrigger and clearPane above.
       // Remember the trigger is, indeed, closed until the window is garbage collected.
-      triggerRunner.clearState(directContext);
+      triggerRunner.clearState(
+          directContext.window(), directContext.timers(), directContext.state());
       paneInfoTracker.clear(directContext.state());
       activeWindows.remove(directContext.window());
     }
