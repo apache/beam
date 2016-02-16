@@ -34,7 +34,7 @@ import org.joda.time.Instant;
 import java.io.Serializable;
 
 /**
- * Implements the logic needed to hold the output watermark for a computation back
+ * Implements the logic to hold the output watermark for a computation back
  * until it has seen all the elements it needs based on the input watermark for the
  * computation.
  *
@@ -43,9 +43,12 @@ import java.io.Serializable;
  * to the output watermark in order to prevent it progressing beyond a time within a window.
  * The hold will be 'cleared' when the associated pane is emitted.
  *
+ * <p>This class is only intended for use by {@link ReduceFnRunner}. The two evolve together and
+ * will likely break any other uses.
+ *
  * @param <W> The kind of {@link BoundedWindow} the hold is for.
  */
-public class WatermarkHold<W extends BoundedWindow> implements Serializable {
+class WatermarkHold<W extends BoundedWindow> implements Serializable {
   /**
    * Return tag for state containing the output watermark hold
    * used for elements.
