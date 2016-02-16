@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.transforms;
 
 import static com.google.cloud.dataflow.sdk.TestUtils.checkCombineFn;
+import static com.google.common.base.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
@@ -948,6 +949,7 @@ public class CombineTest implements Serializable {
 
     @Override
     public Accumulator addInput(String key, Accumulator accumulator, Integer value) {
+      checkNotNull(key);
       try {
         assertThat(accumulator.value, Matchers.startsWith(key));
         return new Accumulator(accumulator.value + String.valueOf(value));
