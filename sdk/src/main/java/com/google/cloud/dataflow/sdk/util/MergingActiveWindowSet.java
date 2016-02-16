@@ -40,38 +40,39 @@ import java.util.Set;
 import javax.annotation.Nullable;
 
 /**
- * Implementation of {@link ActiveWindowSet} for use with {@link WindowFn}s that support
- * merging. In effect maintains an equivalence class of windows (where two windows which have
- * been merged are in the same class), but also manages which windows contain state which
- * must be merged when a pane is fired.
+ * An {@link ActiveWindowSet} for merging {@link WindowFn} implementations.
  *
- * <p>Note that this object must be serialized and stored when work units are committed such
- * that subsequent work units can recover the equivalence classes etc.
+ * <p>The underlying notion of {@link MergingActiveWindowSet} is that of representing equivalence
+ * classes of merged windows as a mapping from the merged "super-window" to a set of
+ * <i>state address</i> windows in which some state has been persisted. The mapping need not
+ * contain EPHEMERAL windows, because they are created and merged without any persistent state.
+ * Each window must be a state address window for at most one window, so the mapping is
+ * invertible.
  *
- * @param <W> the type of window being managed
+ * <p>The states of a non-expired window are treated as follows:
+ *
+ * <ul>
+ *   <li><b>NEW</b>: a NEW has an empty set of associated state address windows.</li>
+ *   <li><b>ACTIVE</b>: an ACTIVE window will be associated with some nonempty set of state
+ *       address windows. If the window has not merged, this will necessarily be the singleton set
+ *       containing just itself, but it is not required that an ACTIVE window be amongst its
+ *       state address windows.</li>
+ *   <li><b>MERGED</b>: a MERGED window will be in the set of associated windows for some
+ *       other window - that window is retrieved via {@link #representative} (this reverse
+ *       association is implemented in O(1) time).</li>
+ *   <li><b>EPHEMERAL</b>: EPHEMERAL windows are not persisted but are tracked transiently;
+ *       an EPHEMERAL window must be registered with this {@link ActiveWindowSet} by a call
+ *       to {@link #recordMerge} prior to any request for a {@link #representative}.</li>
+ * </ul>
+ *
+ * <p>To illustrate why an ACTIVE window need not be amongst its own state address windows,
+ * consider two active windows W1 and W2 that are merged to form W12. Further writes may be
+ * applied to either of W1 or W2, since a read of W12 implies reading both of W12 and merging
+ * their results. Hence W12 need not have state directly associated with it.
  */
 public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWindowSet<W> {
   private final WindowFn<Object, W> windowFn;
 
-  /**
-   * A map from ACTIVE windows to their state address windows. Writes to the ACTIVE window
-   * state can be redirected to any one of the state address windows. Reads need to merge
-   * from all state address windows. If the set is empty then the window is NEW.
-   *
-   * <ul>
-   * <li>The state address windows will be empty if the window is NEW, we don't yet know what other
-   * windows it may be merged into, and the window does not yet have any state associated with it.
-   * In this way we can distinguish between MERGED and EPHEMERAL windows when merging.
-   * <li>The state address windows will contain just the window itself it it has never been merged
-   * but has state.
-   * <li>It is possible none of the state address windows correspond to the window itself. For
-   * example, two windows W1 and W2 with state may be merged to form W12. From then on additional
-   * state can be added to just W1 or W2. Thus the state address windows for W12 do not need to
-   * include W12.
-   * <li>If W1 is in the set for W2 then W1 is not a state address window of any other active
-   * window. Furthermore W1 will map to W2 in {@link #windowToActiveWindow}.
-   * </ul>
-   */
   @Nullable
   private Map<W, Set<W>> activeWindowToStateAddressWindows;
 
@@ -301,8 +302,8 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
   }
 
   /**
-   * A {@code WindowFn.mergeWindows} call has requested {@code toBeMerged} (which must
-   * all be ACTIVE} be considered equivalent to {@code activeWindow} (which is either a
+   * A {@link WindowFn#mergeWindows} call has determined that {@code toBeMerged} (which must
+   * all be ACTIVE}) should be considered equivalent to {@code activeWindow} (which is either a
    * member of {@code toBeMerged} or is a new window). Make the corresponding change in
    * the active window set.
    */

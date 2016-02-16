@@ -31,31 +31,35 @@ import javax.annotation.Nullable;
  * the windows are merged. The rest is combined lazily when the final state is actually
  * required when emitting a pane. We keep track of this using an {@link ActiveWindowSet}.
  *
- * <p>An element may belong to one or more windows. Each key may have zero or more windows
- * corresponding to elements with that key. A window can be in one of five states:
+ * <p>An {@link ActiveWindowSet} considers a window to be in one of the following states:
+ *
  * <ol>
- * <li>NEW: We have just encountered the window on an incoming element and do not yet know if
- * it should be merged into an ACTIVE window since we have not yet called
- * {@link WindowFn#mergeWindows}.
- * <li>EPHEMERAL: A NEW window has been merged into an ACTIVE window before any state has been
- * associated with that window. Thus the window is neither ACTIVE nor MERGED. These windows
- * are not persistently represented since if they reappear the merge function should again
- * redirect them to an ACTIVE window. (We could collapse EPHEMERAL into MERGED, but keeping them
- * separate cuts down on the number of windows we need to keep track of in the common case
- * of SessionWindows over in-order events.)
- * <li>ACTIVE: A NEW window has state associated with it and has not itself been merged away.
- * The window may have one or more 'state address' windows under which its non-empty state is
- * stored. The true state for an ACTIVE window must be derived by reading all of the state in its
- * state address windows.
- * <li>MERGED: An ACTIVE window has been merged into another ACTIVE window after it had state
- * associated with it. The window will thus appear as a state address window for exactly one
- * ACTIVE window.
- * <li>GARBAGE: The window has been garbage collected. No new elements (even late elements) will
- * ever be assigned to that window. These windows are not explicitly represented anywhere.
- * (Garbage collection is performed by {@link ReduceFnRunner#onTimer}).
+ *   <li><b>NEW</b>: The initial state for a window on an incoming element; we do not yet know
+ *       if it should be merged into an ACTIVE window, or whether it is already present as an
+ *       ACTIVE window, since we have not yet called
+ *       {@link WindowFn#mergeWindows}.</li>
+ *   <li><b>ACTIVE</b>: A window that has state associated with it and has not itself been merged
+ *       away. The window may have one or more <i>state address</i> windows under which its
+ *       non-empty state is stored. A state value for an ACTIVE window must be derived by reading
+ *       the state in all of its state address windows.</li>
+ *   <li><b>EPHEMERAL</b>: A NEW window that has been merged into an ACTIVE window before any state
+ *       has been associated with that window. Thus the window is neither ACTIVE nor MERGED. These
+ *       windows are not persistently represented since if they reappear the merge function should
+ *       again redirect them to an ACTIVE window. EPHEMERAL windows are an optimization for
+ *       the common case of in-order events and {@link Sessions session window} by never associating
+ *       state with windows that are created and immediately merged away.</li>
+ *   <li><b>MERGED</b>: An ACTIVE window has been merged into another ACTIVE window after it had
+ *       state associated with it. The window will thus appear as a state address window for exactly
+ *       one ACTIVE window.</li>
+ *   <li><b>EXPIRED</b>: The window has expired and may have been garbage collected. No new elements
+ *       (even late elements) will ever be assigned to that window. These windows are not explicitly
+ *       represented anywhere; it is expected that the user of {@link ActiveWindowSet} will store
+ *       no state associated with the window.</li>
  * </ol>
  *
- * <p>If no windows will ever be merged we can use the dummy implementation {@link
+ * <p>
+ *
+ * <p>If no windows will ever be merged we can use the trivial implementation {@link
  * NonMergingActiveWindowSet}. Otherwise, the actual implementation of this data structure is in
  * {@link MergingActiveWindowSet}.
  *
