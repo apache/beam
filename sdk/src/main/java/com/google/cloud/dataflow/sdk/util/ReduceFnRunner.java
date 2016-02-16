@@ -55,15 +55,15 @@ import java.util.Set;
  * the triggering logic. The {@code ReduceFnRunner}s responsibilities are:
  *
  * <ul>
- * <li>Tracking the windows that are active (have buffered data) as elements arrive and
- * triggers are fired.
- * <li>Holding the watermark based on the timestamps of elements in a pane and releasing it
- * when the trigger fires.
- * <li>Dropping data that exceeds the maximum allowed lateness.
- * <li>Calling the appropriate callbacks on {@link ReduceFn} based on trigger execution, timer
- * firings, etc.
- * <li>Scheduling garbage collection of state associated with a specific window, and making that
- * happen when the appropriate timer fires.
+ *   <li>Tracking the windows that are active (have buffered data) as elements arrive and
+ *       triggers are fired.
+ *   <li>Holding the watermark based on the timestamps of elements in a pane and releasing it
+ *       when the trigger fires.
+ *   <li>Calling the appropriate callbacks on {@link ReduceFn} based on trigger execution, timer
+ *       firings, etc, and providing appropriate contexts to the {@link ReduceFn} for actions
+ *       such as output.
+ *   <li>Scheduling garbage collection of state associated with a specific window, and making that
+ *       happen when the appropriate timer fires.
  * </ul>
  *
  * @param <K> The type of key being processed.
@@ -72,6 +72,21 @@ import java.util.Set;
  * @param <W> The type of windows this operates on.
  */
 public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
+
+  /**
+   * The {@link ReduceFnRunner} depends on most aspects of the {@link WindowingStrategy}.
+   *
+   * <ul>
+   *   <li>It runs the trigger from the {@link WindowingStrategy}.</li>
+   *   <li>It merges windows according to the {@link WindowingStrategy}.</li>
+   *   <li>It chooses how to track active windows and clear out expired windows
+   *       according to the {@link WindowingStrategy}, based on the allowed lateness and
+   *       whether windows can merge.</li>
+   *   <li>It decides whether to emit empty final panes according to whether the
+   *       {@link WindowingStrategy} requires it.<li>
+   *   <li>It uses discarding or accumulation mode according to the {@link WindowingStrategy}.</li>
+   * </ul>
+   */
   private final WindowingStrategy<Object, W> windowingStrategy;
 
   private final OutputWindowedValue<KV<K, OutputT>> outputter;
@@ -201,7 +216,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     this.windowingStrategy = objectWindowingStrategy;
 
     this.nonEmptyPanes = NonEmptyPanes.create(this.windowingStrategy, this.reduceFn);
-    // Note this may trigger a GetData request to load the existing window set.
+
+    // Note this may incur I/O to load persisted window set data.
     this.activeWindows = createActiveWindowSet();
 
     this.contextFactory =
@@ -232,21 +248,22 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
    *
    * <p>The general strategy is:
    * <ol>
-   * <li>Use {@link WindowedValue#getWindows} (itself determined using
-   * {@link WindowFn#assignWindows}) to determine which windows each element belongs to. Some of
-   * those windows will already have state associated with them. The rest are considered NEW.
-   * <li>Use {@link WindowFn#mergeWindows} to attempt to merge currently ACTIVE and NEW windows.
-   * Each NEW window will become either ACTIVE, MERGED, or EPHEMERAL. (See {@link ActiveWindowSet}
-   * for definitions of these terms.)
-   * <li>If at all possible, eagerly substitute EPHEMERAL windows with their ACTIVE state address
-   * windows before any state is associated with the EPHEMERAL window. In the common case that
-   * windows for new elements are merged into existing ACTIVE windows then no additional storage
-   * or merging overhead will be incurred.
-   * <li>Otherwise, keep track of the state address windows for ACTIVE windows so that their
-   * states can be merged on-demand when a pane fires.
-   * <li>Process the element for each of the windows it's windows have been merged into according
-   * to {@link ActiveWindowSet}. Processing may require running triggers, setting timers, setting
-   * holds, and invoking {@link ReduceFn#onTrigger}.
+   *   <li>Use {@link WindowedValue#getWindows} (itself determined using
+   *       {@link WindowFn#assignWindows}) to determine which windows each element belongs to. Some
+   *       of those windows will already have state associated with them. The rest are considered
+   *       NEW.
+   *   <li>Use {@link WindowFn#mergeWindows} to attempt to merge currently ACTIVE and NEW windows.
+   *       Each NEW window will become either ACTIVE, MERGED, or EPHEMERAL. (See {@link
+   *       ActiveWindowSet} for definitions of these terms.)
+   *   <li>If at all possible, eagerly substitute EPHEMERAL windows with their ACTIVE state address
+   *       windows before any state is associated with the EPHEMERAL window. In the common case that
+   *       windows for new elements are merged into existing ACTIVE windows then no additional
+   *       storage or merging overhead will be incurred.
+   *   <li>Otherwise, keep track of the state address windows for ACTIVE windows so that their
+   *       states can be merged on-demand when a pane fires.
+   *   <li>Process the element for each of the windows it's windows have been merged into according
+   *       to {@link ActiveWindowSet}. Processing may require running triggers, setting timers,
+   *       setting holds, and invoking {@link ReduceFn#onTrigger}.
    * </ol>
    */
   public void processElements(Iterable<WindowedValue<InputT>> values) throws Exception {
@@ -413,8 +430,10 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
    */
   private Collection<W> processElement(WindowedValue<InputT> value) throws Exception {
     // Redirect element windows to the ACTIVE windows they have been merged into.
-    // It is possible two of the element's windows have been merged into the same window.
-    // In that case we'll process the same element for the same window twice.
+    // The compressed representation (value, {window1, window2, ...}) actually represents
+    // distinct elements (value, window1), (value, window2), ...
+    // so if window1 and window2 merge, the resulting window will contain both copies
+    // of the value.
     Collection<W> windows = new ArrayList<>();
     for (BoundedWindow untypedWindow : value.getWindows()) {
       @SuppressWarnings("unchecked")
@@ -506,10 +525,10 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
           "ReduceFnRunner.onTimer: Note that timer {} is for non-ACTIVE window {}", timer, window);
     }
 
-    // If this is an end-of-window timer then we should test if an AfterWatermark trigger
-    // will fire.
-    // It's fine if the window trigger has such trigger, this flag is only used to decide
-    // if an emitted pane should be classified as ON_TIME.
+    // If this is an end-of-window timer then:
+    // 1. We need to set a GC timer
+    // 2. We need to let the PaneInfoTracker know that we are transitioning from early to late,
+    // and possibly emitting an on-time pane.
     boolean isEndOfWindowTimer =
         TimeDomain.EVENT_TIME == timer.getDomain()
         && timer.getTimestamp().equals(window.maxTimestamp());
@@ -701,7 +720,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     StateContents<Boolean> isEmptyFuture = nonEmptyPanes.isEmpty(renamedContext.state());
 
     reduceFn.prefetchOnTrigger(directContext.state());
-    triggerRunner.prefetchOnFire(directContext.window(), directContext.state()); // Is a no-op. Why?
+    triggerRunner.prefetchOnFire(directContext.window(), directContext.state());
 
     // Calculate the pane info.
     final PaneInfo pane = paneFuture.read();
