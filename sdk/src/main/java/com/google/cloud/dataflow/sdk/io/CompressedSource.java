@@ -20,15 +20,19 @@ import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.common.base.Preconditions;
+import com.google.common.io.ByteStreams;
+import com.google.common.primitives.Ints;
 
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 
 import java.io.IOException;
+import java.io.PushbackInputStream;
 import java.io.Serializable;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.util.NoSuchElementException;
+import java.util.zip.GZIPInputStream;
 
 /**
  * A Source that reads from compressed files. A {@code CompressedSources} wraps a delegate
@@ -99,7 +103,22 @@ public class CompressedSource<T> extends FileBasedSource<T> {
       @Override
       public ReadableByteChannel createDecompressingChannel(ReadableByteChannel channel)
           throws IOException {
-        return Channels.newChannel(new GzipCompressorInputStream(Channels.newInputStream(channel)));
+        // Determine if the input stream is gzipped. The input stream returned from the
+        // GCS connector may already be decompressed; GCS does this based on the
+        // content-encoding property.
+        PushbackInputStream stream = new PushbackInputStream(Channels.newInputStream(channel), 2);
+        byte[] headerBytes = new byte[2];
+        int bytesRead = ByteStreams.read(
+            stream /* source */, headerBytes /* dest */, 0 /* offset */, 2 /* len */);
+        stream.unread(headerBytes, 0, bytesRead);
+        if (bytesRead >= 2) {
+          byte zero = 0x00;
+          int header = Ints.fromBytes(zero, zero, headerBytes[1], headerBytes[0]);
+          if (header == GZIPInputStream.GZIP_MAGIC) {
+            return Channels.newChannel(new GzipCompressorInputStream(stream));
+          }
+        }
+        return Channels.newChannel(stream);
       }
     },
 

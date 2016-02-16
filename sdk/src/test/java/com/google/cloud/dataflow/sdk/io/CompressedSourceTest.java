@@ -25,6 +25,7 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.common.io.Files;
 import com.google.common.primitives.Bytes;
 
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
@@ -45,6 +46,7 @@ import java.nio.channels.ReadableByteChannel;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Random;
 
 import javax.annotation.Nullable;
 
@@ -131,9 +133,7 @@ public class CompressedSourceTest {
     // Every sort of compression
     File uncompressedFile = tmpFolder.newFile(baseName + ".bin");
     generated = generateInput(1000);
-    try (OutputStream outStream = new FileOutputStream(uncompressedFile)) {
-      outStream.write(generated);
-    }
+    Files.write(generated, uncompressedFile);
     expected.addAll(Bytes.asList(generated));
 
     File gzipFile = tmpFolder.newFile(baseName + ".gz");
@@ -156,6 +156,42 @@ public class CompressedSourceTest {
 
     DataflowAssert.that(output).containsInAnyOrder(expected);
     p.run();
+  }
+
+  /**
+   * Test reading an uncompressed file with {@link CompressionMode#GZIP}, since we must support
+   * this due to properties of services that we read from.
+   */
+  @Test
+  public void testFalseGzipStream() throws Exception {
+    byte[] input = generateInput(1000);
+    File tmpFile = tmpFolder.newFile("test.gz");
+    Files.write(input, tmpFile);
+    verifyReadContents(input, tmpFile, CompressionMode.GZIP);
+  }
+
+  /**
+   * Test reading an empty input file with gzip; it must be interpreted as uncompressed because
+   * the gzip header is two bytes.
+   */
+  @Test
+  public void testEmptyReadGzipUncompressed() throws Exception {
+    byte[] input = generateInput(0);
+    File tmpFile = tmpFolder.newFile("test.gz");
+    Files.write(input, tmpFile);
+    verifyReadContents(input, tmpFile, CompressionMode.GZIP);
+  }
+
+  /**
+   * Test reading single byte input with gzip; it must be interpreted as uncompressed because
+   * the gzip header is two bytes.
+   */
+  @Test
+  public void testOneByteReadGzipUncompressed() throws Exception {
+    byte[] input = generateInput(1);
+    File tmpFile = tmpFolder.newFile("test.gz");
+    Files.write(input, tmpFile);
+    verifyReadContents(input, tmpFile, CompressionMode.GZIP);
   }
 
   /**
@@ -190,9 +226,11 @@ public class CompressedSourceTest {
    * Generate byte array of given size.
    */
   private byte[] generateInput(int size) {
+    // Arbitrary but fixed seed
+    Random random = new Random(285930);
     byte[] buff = new byte[size];
     for (int i = 0; i < size; i++) {
-      buff[i] = (byte) (i % Byte.MAX_VALUE);
+      buff[i] = (byte) (random.nextInt() % Byte.MAX_VALUE);
     }
     return buff;
   }
@@ -288,7 +326,7 @@ public class CompressedSourceTest {
     private static class ByteReader extends FileBasedReader<Byte> {
       ByteBuffer buff = ByteBuffer.allocate(1);
       Byte current;
-      long offset = 0;
+      long offset = -1;
       ReadableByteChannel channel;
 
       public ByteReader(ByteSource source) {
