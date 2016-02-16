@@ -22,6 +22,7 @@ import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
 import com.google.cloud.dataflow.sdk.util.state.CombiningValueStateInternal;
 import com.google.cloud.dataflow.sdk.util.state.MergingStateContext;
 import com.google.cloud.dataflow.sdk.util.state.StateContents;
+import com.google.cloud.dataflow.sdk.util.state.StateContext;
 import com.google.cloud.dataflow.sdk.util.state.StateMerging;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
 import com.google.cloud.dataflow.sdk.util.state.StateTags;
@@ -34,7 +35,7 @@ import com.google.cloud.dataflow.sdk.util.state.StateTags;
  */
 public abstract class NonEmptyPanes<K, W extends BoundedWindow> {
 
-  public static <K, W extends BoundedWindow> NonEmptyPanes<K, W> create(
+  static <K, W extends BoundedWindow> NonEmptyPanes<K, W> create(
       WindowingStrategy<?, W> strategy, ReduceFn<K, ?, ?, W> reduceFn) {
     if (strategy.getMode() == AccumulationMode.DISCARDING_FIRED_PANES) {
       return new DiscardingModeNonEmptyPanes<>(reduceFn);
@@ -47,17 +48,17 @@ public abstract class NonEmptyPanes<K, W extends BoundedWindow> {
    * Record that some content has been added to the window in {@code context}, and therefore the
    * current pane is not empty.
    */
-  public abstract void recordContent(ReduceFn<K, ?, ?, W>.Context context);
+  public abstract void recordContent(StateContext<K> context);
 
   /**
    * Record that the given pane is empty.
    */
-  public abstract void clearPane(ReduceFn<K, ?, ?, W>.Context context);
+  public abstract void clearPane(StateContext<K> state);
 
   /**
    * Return true if the current pane for the window in {@code context} is empty.
    */
-  public abstract StateContents<Boolean> isEmpty(ReduceFn<K, ?, ?, W>.Context context);
+  public abstract StateContents<Boolean> isEmpty(StateContext<K> context);
 
   /**
    * Prefetch in preparation for merging.
@@ -83,17 +84,17 @@ public abstract class NonEmptyPanes<K, W extends BoundedWindow> {
     }
 
     @Override
-    public StateContents<Boolean> isEmpty(ReduceFn<K, ?, ?, W>.Context context) {
-      return reduceFn.isEmpty(context.state());
+    public StateContents<Boolean> isEmpty(StateContext<K> state) {
+      return reduceFn.isEmpty(state);
     }
 
     @Override
-    public void recordContent(ReduceFn<K, ?, ?, W>.Context context) {
+    public void recordContent(StateContext<K> state) {
       // Nothing to do -- the reduceFn is tracking contents
     }
 
     @Override
-    public void clearPane(ReduceFn<K, ?, ?, W>.Context context) {
+    public void clearPane(StateContext<K> state) {
       // Nothing to do -- the reduceFn is tracking contents
     }
 
@@ -120,18 +121,18 @@ public abstract class NonEmptyPanes<K, W extends BoundedWindow> {
             "count", VarLongCoder.of(), new Sum.SumLongFn()));
 
     @Override
-    public void recordContent(ReduceFn<K, ?, ?, W>.Context context) {
-      context.state().access(PANE_ADDITIONS_TAG).add(1L);
+    public void recordContent(StateContext<K> state) {
+      state.access(PANE_ADDITIONS_TAG).add(1L);
     }
 
     @Override
-    public void clearPane(ReduceFn<K, ?, ?, W>.Context context) {
-      context.state().access(PANE_ADDITIONS_TAG).clear();
+    public void clearPane(StateContext<K> state) {
+      state.access(PANE_ADDITIONS_TAG).clear();
     }
 
     @Override
-    public StateContents<Boolean> isEmpty(ReduceFn<K, ?, ?, W>.Context context) {
-      return context.state().access(PANE_ADDITIONS_TAG).isEmpty();
+    public StateContents<Boolean> isEmpty(StateContext<K> state) {
+      return state.access(PANE_ADDITIONS_TAG).isEmpty();
     }
 
     @Override

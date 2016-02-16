@@ -445,7 +445,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
         continue;
       }
 
-      nonEmptyPanes.recordContent(renamedContext);
+      nonEmptyPanes.recordContent(renamedContext.state());
 
       // Make sure we've scheduled the end-of-window or garbage collection timer for this window
       // However if we have pre-merged then they will already have been scheduled.
@@ -577,7 +577,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       // Since window is still active the trigger has not closed.
       reduceFn.clearState(renamedContext);
       watermarkHold.clearHolds(renamedContext);
-      nonEmptyPanes.clearPane(renamedContext);
+      nonEmptyPanes.clearPane(renamedContext.state());
       triggerRunner.clearState(directContext);
     } else {
       // Needed only for backwards compatibility over UPDATE.
@@ -635,7 +635,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     onTrigger(directContext, renamedContext, isEndOfWindow, isFinished);
 
     // Now that we've triggered, the pane is empty.
-    nonEmptyPanes.clearPane(renamedContext);
+    nonEmptyPanes.clearPane(renamedContext.state());
 
     // Cleanup buffered data if appropriate
     if (shouldDiscard) {
@@ -687,7 +687,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
         watermarkHold.extractAndRelease(renamedContext, isFinished);
     StateContents<PaneInfo> paneFuture =
         paneInfoTracker.getNextPaneInfo(directContext, isWatermarkTrigger, isFinished);
-    StateContents<Boolean> isEmptyFuture = nonEmptyPanes.isEmpty(renamedContext);
+    StateContents<Boolean> isEmptyFuture = nonEmptyPanes.isEmpty(renamedContext.state());
 
     reduceFn.prefetchOnTrigger(directContext.state());
     triggerRunner.prefetchOnFire(directContext.window(), directContext.state()); // Is a no-op. Why?
