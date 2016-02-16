@@ -33,6 +33,7 @@ import com.google.cloud.dataflow.sdk.values.PCollection.IsBounded;
 import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.common.base.Preconditions;
+import com.google.common.io.ByteStreams;
 import com.google.common.primitives.Ints;
 
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
@@ -721,11 +722,14 @@ public class TextIO {
         // GCS connector may already be decompressed, and no action is required.
         PushbackInputStream stream = new PushbackInputStream(inputStream, 2);
         byte[] headerBytes = new byte[2];
-        int bytesRead = stream.read(headerBytes);
+        int bytesRead = ByteStreams.read(
+            stream /* source */, headerBytes /* dest */, 0 /* offset */, 2 /* len */);
         stream.unread(headerBytes, 0, bytesRead);
-        int header = Ints.fromBytes((byte) 0, (byte) 0, headerBytes[1], headerBytes[0]);
-        if (header == GZIPInputStream.GZIP_MAGIC) {
-          return new GZIPInputStream(stream);
+        if (bytesRead >= 2) {
+          int header = Ints.fromBytes((byte) 0, (byte) 0, headerBytes[1], headerBytes[0]);
+          if (header == GZIPInputStream.GZIP_MAGIC) {
+            return new GZIPInputStream(stream);
+          }
         }
         return stream;
       }
