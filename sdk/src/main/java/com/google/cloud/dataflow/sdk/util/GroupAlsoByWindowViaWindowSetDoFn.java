@@ -33,9 +33,8 @@ public class GroupAlsoByWindowViaWindowSetDoFn<
         K, InputT, OutputT, W extends BoundedWindow, RinT extends KeyedWorkItem<K, InputT>>
     extends DoFn<RinT, KV<K, OutputT>> implements ReduceFnExecutor<K, InputT, OutputT, W> {
 
-  public static <K, InputT, OutputT, W extends BoundedWindow,
-          RinputsT extends KeyedWorkItem<K, InputT>>
-      DoFn<RinputsT, KV<K, OutputT>> create(
+  public static <K, InputT, OutputT, W extends BoundedWindow>
+      DoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> create(
           WindowingStrategy<?, W> strategy, SystemReduceFn<K, InputT, ?, OutputT, W> reduceFn) {
     return new GroupAlsoByWindowViaWindowSetDoFn<>(strategy, reduceFn);
   }
