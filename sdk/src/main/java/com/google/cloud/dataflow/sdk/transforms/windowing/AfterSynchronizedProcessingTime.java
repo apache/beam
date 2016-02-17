@@ -32,8 +32,7 @@ class AfterSynchronizedProcessingTime<W extends BoundedWindow>
   @Override
   @Nullable
   public Instant getCurrentTime(Trigger<W>.TriggerContext context) {
-    // TODO: plumb synchronized processing time
-    return context.currentProcessingTime();
+    return context.currentSynchronizedProcessingTime();
   }
 
   public AfterSynchronizedProcessingTime() {
