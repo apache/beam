@@ -828,7 +828,6 @@ public class ViewTest implements Serializable {
                     assertEquals((int) c.element(), c.sideInput(view).size());
                     assertEquals((int) c.element(), c.sideInput(view).entrySet().size());
                     for (Entry<String, Integer> entry : c.sideInput(view).entrySet()) {
-                      System.out.println("LCWIKL: " + entry);
                       c.output(KV.of(entry.getKey(), entry.getValue()));
                     }
                   }
