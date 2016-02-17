@@ -55,51 +55,15 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     return key;
   }
 
-  private interface InMemoryState {
+  interface InMemoryState<T extends InMemoryState<T>> {
     boolean isEmptyForTesting();
+    T copy();
   }
 
   protected final StateTable<K> inMemoryState = new StateTable<K>() {
     @Override
     protected StateBinder<K> binderForNamespace(final StateNamespace namespace) {
-      return new StateBinder<K>() {
-        @Override
-        public <T> ValueState<T> bindValue(
-            StateTag<? super K, ValueState<T>> address, Coder<T> coder) {
-          return new InMemoryValue<T>();
-        }
-
-        @Override
-        public <T> BagState<T> bindBag(
-            final StateTag<? super K, BagState<T>> address, Coder<T> elemCoder) {
-          return new InMemoryBag<T>();
-        }
-
-        @Override
-        public <InputT, AccumT, OutputT> CombiningValueStateInternal<InputT, AccumT, OutputT>
-            bindCombiningValue(
-                StateTag<? super K, CombiningValueStateInternal<InputT, AccumT, OutputT>>
-                address, Coder<AccumT> accumCoder,
-                final CombineFn<InputT, AccumT, OutputT> combineFn) {
-          return new InMemoryCombiningValue<InputT, AccumT, OutputT>(combineFn.<K>asKeyedFn());
-        }
-
-        @Override
-        public <W extends BoundedWindow> WatermarkStateInternal<W> bindWatermark(
-            StateTag<? super K, WatermarkStateInternal<W>> address,
-            OutputTimeFn<? super W> outputTimeFn) {
-          return new WatermarkStateInternalImplementation<W>(outputTimeFn);
-        }
-
-        @Override
-        public <InputT, AccumT, OutputT> CombiningValueStateInternal<InputT, AccumT, OutputT>
-            bindKeyedCombiningValue(
-                StateTag<? super K, CombiningValueStateInternal<InputT, AccumT, OutputT>>
-                address, Coder<AccumT> accumCoder,
-                KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn) {
-          return new InMemoryCombiningValue<InputT, AccumT, OutputT>(combineFn);
-        }
-      };
+      return new InMemoryStateBinder<K>(key);
     }
   };
 
@@ -112,7 +76,7 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
    * that the state has been properly cleaned up.
    */
   protected boolean isEmptyForTesting(State state) {
-    return ((InMemoryState) state).isEmptyForTesting();
+    return ((InMemoryState<?>) state).isEmptyForTesting();
   }
 
   @Override
@@ -120,7 +84,55 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     return inMemoryState.get(namespace, address);
   }
 
-  private final class InMemoryValue<T> implements ValueState<T>, InMemoryState {
+  /**
+   * A {@link StateBinder} that returns In Memory {@link State} objects.
+   */
+  static class InMemoryStateBinder<K> implements StateBinder<K> {
+    private final K key;
+
+    InMemoryStateBinder(K key) {
+      this.key = key;
+    }
+
+    @Override
+    public <T> ValueState<T> bindValue(
+        StateTag<? super K, ValueState<T>> address, Coder<T> coder) {
+      return new InMemoryValue<T>();
+    }
+
+    @Override
+    public <T> BagState<T> bindBag(
+        final StateTag<? super K, BagState<T>> address, Coder<T> elemCoder) {
+      return new InMemoryBag<T>();
+    }
+
+    @Override
+    public <InputT, AccumT, OutputT> CombiningValueStateInternal<InputT, AccumT, OutputT>
+        bindCombiningValue(
+            StateTag<? super K, CombiningValueStateInternal<InputT, AccumT, OutputT>>
+            address, Coder<AccumT> accumCoder,
+            final CombineFn<InputT, AccumT, OutputT> combineFn) {
+      return new InMemoryCombiningValue<K, InputT, AccumT, OutputT>(key, combineFn.<K>asKeyedFn());
+    }
+
+    @Override
+    public <W extends BoundedWindow> WatermarkStateInternal<W> bindWatermark(
+        StateTag<? super K, WatermarkStateInternal<W>> address,
+        OutputTimeFn<? super W> outputTimeFn) {
+      return new WatermarkStateInternalImplementation<W>(outputTimeFn);
+    }
+
+    @Override
+    public <InputT, AccumT, OutputT> CombiningValueStateInternal<InputT, AccumT, OutputT>
+        bindKeyedCombiningValue(
+            StateTag<? super K, CombiningValueStateInternal<InputT, AccumT, OutputT>>
+            address, Coder<AccumT> accumCoder,
+            KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn) {
+      return new InMemoryCombiningValue<K, InputT, AccumT, OutputT>(key, combineFn);
+    }
+  }
+
+  static final class InMemoryValue<T> implements ValueState<T>, InMemoryState<InMemoryValue<T>> {
     private boolean isCleared = true;
     private T value = null;
 
@@ -149,13 +161,23 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     }
 
     @Override
+    public InMemoryValue<T> copy() {
+      InMemoryValue<T> that = new InMemoryValue<>();
+      if (!this.isCleared) {
+        that.isCleared = this.isCleared;
+        that.value = this.value;
+      }
+      return that;
+    }
+
+    @Override
     public boolean isEmptyForTesting() {
       return isCleared;
     }
   }
 
-  private final class WatermarkStateInternalImplementation<W extends BoundedWindow>
-      implements WatermarkStateInternal<W>, InMemoryState {
+  static final class WatermarkStateInternalImplementation<W extends BoundedWindow>
+      implements WatermarkStateInternal<W>, InMemoryState<WatermarkStateInternalImplementation<W>> {
 
     private final OutputTimeFn<? super W> outputTimeFn;
 
@@ -213,15 +235,27 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     public String toString() {
       return Objects.toString(combinedHold);
     }
+
+    @Override
+    public WatermarkStateInternalImplementation<W> copy() {
+      WatermarkStateInternalImplementation<W> that =
+          new WatermarkStateInternalImplementation<>(outputTimeFn);
+      that.combinedHold = this.combinedHold;
+      return that;
+    }
   }
 
-  private final class InMemoryCombiningValue<InputT, AccumT, OutputT>
-      implements CombiningValueStateInternal<InputT, AccumT, OutputT>, InMemoryState {
+  static final class InMemoryCombiningValue<K, InputT, AccumT, OutputT>
+      implements CombiningValueStateInternal<InputT, AccumT, OutputT>,
+                 InMemoryState<InMemoryCombiningValue<K, InputT, AccumT, OutputT>> {
+    private final K key;
     private boolean isCleared = true;
     private final KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn;
     private AccumT accum;
 
-    private InMemoryCombiningValue(KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn) {
+    InMemoryCombiningValue(
+        K key, KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn) {
+      this.key = key;
       this.combineFn = combineFn;
       accum = combineFn.createAccumulator(key);
     }
@@ -285,9 +319,20 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     public boolean isEmptyForTesting() {
       return isCleared;
     }
+
+    @Override
+    public InMemoryCombiningValue<K, InputT, AccumT, OutputT> copy() {
+      InMemoryCombiningValue<K, InputT, AccumT, OutputT> that =
+          new InMemoryCombiningValue<>(key, combineFn);
+      if (!this.isCleared) {
+        that.isCleared = this.isCleared;
+        that.addAccum(accum);
+      }
+      return that;
+    }
   }
 
-  private static final class InMemoryBag<T> implements BagState<T>, InMemoryState {
+  static final class InMemoryBag<T> implements BagState<T>, InMemoryState<InMemoryBag<T>> {
     private List<T> contents = new ArrayList<>();
 
     @Override
@@ -330,6 +375,13 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
           return contents.isEmpty();
         }
       };
+    }
+
+    @Override
+    public InMemoryBag<T> copy() {
+      InMemoryBag<T> that = new InMemoryBag<>();
+      that.contents.addAll(this.contents);
+      return that;
     }
   }
 }
