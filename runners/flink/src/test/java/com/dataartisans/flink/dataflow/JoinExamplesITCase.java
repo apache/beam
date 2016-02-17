@@ -53,13 +53,6 @@ public class JoinExamplesITCase extends JavaProgramTestBase {
 	};
 	static final List<TableRow> EVENT_ARRAY = Arrays.asList(EVENTS);
 
-	private static final KV<String, String> kv1 = KV.of("VM",
-			"Date: 20141212, Actor1: LAOS, url: http://www.chicagotribune.com");
-	private static final KV<String, String> kv2 = KV.of("BE",
-			"Date: 20141213, Actor1: AFGHANISTAN, url: http://cnn.com");
-	private static final KV<String, String> kv3 = KV.of("BE", "Belgium");
-	private static final KV<String, String> kv4 = KV.of("VM", "Vietnam");
-
 	private static final TableRow cc1 = new TableRow()
 			.set("FIPSCC", "VM").set("HumanName", "Vietnam");
 	private static final TableRow cc2 = new TableRow()

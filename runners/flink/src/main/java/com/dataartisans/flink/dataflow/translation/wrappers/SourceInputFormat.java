@@ -49,10 +49,9 @@ public class SourceInputFormat<T> implements InputFormat<T, SourceInputSplit<T>>
 	private BoundedSource.BoundedReader<T> reader = null;
 	private boolean reachedEnd = true;
 
-	public SourceInputFormat(BoundedSource<T> initialSource, PipelineOptions options, Coder<T> coder) {
+	public SourceInputFormat(BoundedSource<T> initialSource, PipelineOptions options) {
 		this.initialSource = initialSource;
 		this.options = options;
-		Coder<T> coder1 = coder;
 	}
 
 	private void writeObject(ObjectOutputStream out)
