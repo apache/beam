@@ -2189,7 +2189,7 @@ public class Combine {
 
               c.output(KV.of(key, combineFnRunner.apply(key, c.element().getValue(), c)));
             }
-          }));
+          }).withSideInputs(sideInputs));
 
       try {
         Coder<KV<K, OutputT>> outputCoder = getDefaultOutputCoder(input);
