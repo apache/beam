@@ -121,7 +121,7 @@ extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
   private final SerializableFunction<InputT, ? extends Iterable<OutputT>> fn;
-  private final TypeDescriptor<OutputT> outputType;
+  private final transient TypeDescriptor<OutputT> outputType;
 
   private FlatMapElements(
       SerializableFunction<InputT, ? extends Iterable<OutputT>> fn,

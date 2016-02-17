@@ -34,7 +34,7 @@ public abstract class SimpleFunction<InputT, OutputT>
    * <p>See {@link #getOutputTypeDescriptor} for more discussion.
    */
   public TypeDescriptor<InputT> getInputTypeDescriptor() {
-    return new TypeDescriptor<InputT>(getClass()) {};
+    return new TypeDescriptor<InputT>(this) {};
   }
 
   /**
@@ -49,6 +49,6 @@ public abstract class SimpleFunction<InputT, OutputT>
    * {@code PCollection<OutputT>}.
    */
   public TypeDescriptor<OutputT> getOutputTypeDescriptor() {
-    return new TypeDescriptor<OutputT>(getClass()) {};
+    return new TypeDescriptor<OutputT>(this) {};
   }
 }

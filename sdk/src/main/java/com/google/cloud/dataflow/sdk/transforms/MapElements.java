@@ -91,7 +91,7 @@ extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
   ///////////////////////////////////////////////////////////////////
 
   private final SerializableFunction<InputT, OutputT> fn;
-  private final TypeDescriptor<OutputT> outputType;
+  private final transient TypeDescriptor<OutputT> outputType;
 
   private MapElements(
       SerializableFunction<InputT, OutputT> fn,

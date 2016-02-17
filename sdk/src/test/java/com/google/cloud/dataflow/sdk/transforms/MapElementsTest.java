@@ -22,6 +22,7 @@ import static org.junit.Assert.assertThat;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
+import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 
@@ -100,5 +101,34 @@ public class MapElementsTest implements Serializable {
         equalTo((TypeDescriptor<String>) new TypeDescriptor<String>() {}));
     assertThat(pipeline.getCoderRegistry().getDefaultCoder(output.getTypeDescriptor()),
         equalTo(pipeline.getCoderRegistry().getDefaultCoder(new TypeDescriptor<String>() {})));
+
+    // Make sure the pipelien runs too
+    pipeline.run();
+  }
+
+  @Test
+  public void testVoidValues() throws Exception {
+    Pipeline pipeline = TestPipeline.create();
+    pipeline
+        .apply(Create.of("hello"))
+        .apply(WithKeys.<String, String>of("k"))
+        .apply(new VoidValues<String, String>() {});
+    // Make sure the pipeline runs
+    pipeline.run();
+  }
+
+  static class VoidValues<K, V>
+      extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Void>>> {
+
+    @Override
+    public PCollection<KV<K, Void>> apply(PCollection<KV<K, V>> input) {
+      return input.apply(MapElements.<KV<K, V>, KV<K, Void>>via(
+          new SimpleFunction<KV<K, V>, KV<K, Void>>() {
+            @Override
+            public KV<K, Void> apply(KV<K, V> input) {
+              return KV.of(input.getKey(), null);
+            }
+          }));
+    }
   }
 }
