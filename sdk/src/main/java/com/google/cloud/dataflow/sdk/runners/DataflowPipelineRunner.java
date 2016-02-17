@@ -27,6 +27,7 @@ import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.DataflowPackage;
 import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.ListJobsResponse;
+import com.google.api.services.dataflow.model.WorkerPool;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.Pipeline.PipelineVisitor;
 import com.google.cloud.dataflow.sdk.PipelineResult.State;
@@ -54,6 +55,7 @@ import com.google.cloud.dataflow.sdk.io.UnboundedSource;
 import com.google.cloud.dataflow.sdk.io.Write;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineDebugOptions;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
+import com.google.cloud.dataflow.sdk.options.DataflowPipelineWorkerPoolOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsValidator;
 import com.google.cloud.dataflow.sdk.options.StreamingOptions;
@@ -193,8 +195,16 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
   /** A set of user defined functions to invoke at different points in execution. */
   private DataflowPipelineRunnerHooks hooks;
 
-  // Environment version information
+  // Environment version information.
   private static final String ENVIRONMENT_MAJOR_VERSION = "4";
+
+  // Default Docker container images that execute Dataflow worker harness, residing in Google
+  // Container Registry, separately for Batch and Streaming.
+  // TODO: Set these once versioned containers are ready.
+  public static final String BATCH_WORKER_HARNESS_CONTAINER_IMAGE = null;
+      //"dataflow.gcr.io/v1beta3/java-batch:20160201-rc00---INVALID";
+  public static final String STREAMING_WORKER_HARNESS_CONTAINER_IMAGE = null;
+      //"dataflow.gcr.io/v1beta3/java-streaming:20160201-rc00---INVALID";
 
   // The limit of CreateJob request size.
   private static final int CREATE_JOB_REQUEST_LIMIT_BYTES = 10 * 1024 * 1024;
@@ -439,6 +449,15 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     }
     newJob.getEnvironment().setDataset(options.getTempDatasetId());
     newJob.getEnvironment().setExperiments(options.getExperiments());
+
+    // Set the Docker container image that executes Dataflow worker harness, residing in Google
+    // Container Registry. Translator is guaranteed to create a worker pool prior to this point.
+    String workerHarnessContainerImage =
+        options.as(DataflowPipelineWorkerPoolOptions.class)
+        .getWorkerHarnessContainerImage();
+    for (WorkerPool workerPool : newJob.getEnvironment().getWorkerPools()) {
+      workerPool.setWorkerHarnessContainerImage(workerHarnessContainerImage);
+    }
 
     // Requirements about the service.
     Map<String, Object> environmentVersion = new HashMap<>();

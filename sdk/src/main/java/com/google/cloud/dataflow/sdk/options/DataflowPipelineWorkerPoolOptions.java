@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.options;
 
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
+import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
@@ -102,6 +103,34 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
   @Description("Remote worker disk size, in gigabytes, or 0 to use the default size.")
   int getDiskSizeGb();
   void setDiskSizeGb(int value);
+
+  /**
+   * Docker container image that executes Dataflow worker harness, residing in Google Container
+   * Registry.
+   */
+  @Default.InstanceFactory(WorkerHarnessContainerImageFactory.class)
+  @Description("Docker container image that executes Dataflow worker harness, residing in Google "
+      + " Container Registry.")
+  @Hidden
+  String getWorkerHarnessContainerImage();
+  void setWorkerHarnessContainerImage(String value);
+
+  /**
+   * Returns the default Docker container image that executes Dataflow worker harness, residing in
+   * Google Container Registry.
+   */
+  public static class WorkerHarnessContainerImageFactory
+      implements DefaultValueFactory<String> {
+    @Override
+    public String create(PipelineOptions options) {
+      DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
+      if (dataflowOptions.isStreaming()) {
+        return DataflowPipelineRunner.STREAMING_WORKER_HARNESS_CONTAINER_IMAGE;
+      } else {
+        return DataflowPipelineRunner.BATCH_WORKER_HARNESS_CONTAINER_IMAGE;
+      }
+    }
+  }
 
   /**
    * GCE <a href="https://cloud.google.com/compute/docs/networking">network</a> for launching
