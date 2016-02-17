@@ -16,13 +16,20 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.instanceOf;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.SerializableCoder;
 import com.google.cloud.dataflow.sdk.io.CompressedSource.CompressionMode;
 import com.google.cloud.dataflow.sdk.io.CompressedSource.DecompressingChannelFactory;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.SourceTestUtils;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.io.Files;
@@ -30,8 +37,10 @@ import com.google.common.primitives.Bytes;
 
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream;
+import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.internal.matchers.ThrowableMessageMatcher;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
@@ -158,6 +167,43 @@ public class CompressedSourceTest {
     p.run();
   }
 
+  @Test
+  public void testUncompressedFileIsSplittable() throws Exception {
+    String baseName = "test-input";
+
+    File uncompressedFile = tmpFolder.newFile(baseName + ".bin");
+    Files.write(generateInput(10), uncompressedFile);
+
+    CompressedSource<Byte> source =
+        CompressedSource.from(new ByteSource(uncompressedFile.getPath(), 1));
+    assertTrue(source.isSplittable());
+    SourceTestUtils.assertSplitAtFractionExhaustive(source, PipelineOptionsFactory.create());
+  }
+
+  @Test
+  public void testGzipFileIsNotSplittable() throws Exception {
+    String baseName = "test-input";
+
+    File compressedFile = tmpFolder.newFile(baseName + ".gz");
+    writeFile(compressedFile, generateInput(10), CompressionMode.GZIP);
+
+    CompressedSource<Byte> source =
+        CompressedSource.from(new ByteSource(compressedFile.getPath(), 1));
+    assertFalse(source.isSplittable());
+  }
+
+  @Test
+  public void testBzip2FileIsNotSplittable() throws Exception {
+    String baseName = "test-input";
+
+    File compressedFile = tmpFolder.newFile(baseName + ".bz2");
+    writeFile(compressedFile, generateInput(10), CompressionMode.BZIP2);
+
+    CompressedSource<Byte> source =
+        CompressedSource.from(new ByteSource(compressedFile.getPath(), 1));
+    assertFalse(source.isSplittable());
+  }
+
   /**
    * Test reading an uncompressed file with {@link CompressionMode#GZIP}, since we must support
    * this due to properties of services that we read from.
@@ -168,6 +214,22 @@ public class CompressedSourceTest {
     File tmpFile = tmpFolder.newFile("test.gz");
     Files.write(input, tmpFile);
     verifyReadContents(input, tmpFile, CompressionMode.GZIP);
+  }
+
+  /**
+   * Test reading an uncompressed file with {@link CompressionMode#BZIP2}, and show that
+   * we fail.
+   */
+  @Test
+  public void testFalseBzip2Stream() throws Exception {
+    byte[] input = generateInput(1000);
+    File tmpFile = tmpFolder.newFile("test.bz2");
+    Files.write(input, tmpFile);
+    thrown.expectCause(Matchers.allOf(
+        instanceOf(IOException.class),
+        ThrowableMessageMatcher.hasMessage(
+            containsString("Stream is not in the BZip2 format"))));
+    verifyReadContents(input, tmpFile, CompressionMode.BZIP2);
   }
 
   /**
@@ -304,12 +366,12 @@ public class CompressedSourceTest {
     }
 
     @Override
-    public FileBasedSource<Byte> createForSubrangeOfFile(String fileName, long start, long end) {
+    protected FileBasedSource<Byte> createForSubrangeOfFile(String fileName, long start, long end) {
       return new ByteSource(fileName, getMinBundleSize(), start, end);
     }
 
     @Override
-    public ByteReader createSingleFileReader(PipelineOptions options) {
+    protected FileBasedReader<Byte> createSingleFileReader(PipelineOptions options) {
       return new ByteReader(this);
     }
 

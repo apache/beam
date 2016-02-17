@@ -162,14 +162,16 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
    * @param end ending byte offset of the new {@code FileBasedSource}. May be Long.MAX_VALUE,
    *        in which case it will be inferred using {@link #getMaxEndOffset}.
    */
-  public abstract FileBasedSource<T> createForSubrangeOfFile(String fileName, long start, long end);
+  protected abstract FileBasedSource<T> createForSubrangeOfFile(
+      String fileName, long start, long end);
 
   /**
    * Creates and returns an instance of a {@code FileBasedReader} implementation for the current
    * source assuming the source represents a single file. File patterns will be handled by
    * {@code FileBasedSource} implementation automatically.
    */
-  public abstract FileBasedReader<T> createSingleFileReader(PipelineOptions options);
+  protected abstract FileBasedReader<T> createSingleFileReader(
+      PipelineOptions options);
 
   @Override
   public final long getEstimatedSizeBytes(PipelineOptions options) throws Exception {

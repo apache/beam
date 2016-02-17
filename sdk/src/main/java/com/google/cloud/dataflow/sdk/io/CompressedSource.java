@@ -85,6 +85,12 @@ public class CompressedSource<T> extends FileBasedSource<T> {
      */
     ReadableByteChannel createDecompressingChannel(String fileName, ReadableByteChannel channel)
         throws IOException;
+
+    /**
+     * Given a file name, returns true if the file name matches any supported compression
+     * scheme.
+     */
+    boolean isCompressed(String fileName);
   }
 
   /**
@@ -179,6 +185,16 @@ public class CompressedSource<T> extends FileBasedSource<T> {
               ReadableByteChannel.class.getSimpleName(),
               ReadableByteChannel.class.getSimpleName()));
     }
+
+    @Override
+    public boolean isCompressed(String fileName) {
+      for (CompressionMode type : CompressionMode.values()) {
+        if  (type.matches(fileName)) {
+          return true;
+        }
+      }
+      return false;
+    }
   }
 
   private final FileBasedSource<T> sourceDelegate;
@@ -253,27 +269,43 @@ public class CompressedSource<T> extends FileBasedSource<T> {
    * source for a single file.
    */
   @Override
-  public CompressedSource<T> createForSubrangeOfFile(String fileName, long start, long end) {
+  protected FileBasedSource<T> createForSubrangeOfFile(String fileName, long start, long end) {
     return new CompressedSource<>(sourceDelegate.createForSubrangeOfFile(fileName, start, end),
         channelFactory, fileName, Long.MAX_VALUE, start, end);
   }
 
   /**
-   * Determines whether a single file represented by this source is splittable. Returns false:
-   * compressed sources are not splittable.
+   * Determines whether a single file represented by this source is splittable. Returns true
+   * if we are using the default decompression factory and and it determines
+   * from the requested file name that the file is not compressed.
    */
   @Override
   protected final boolean isSplittable() throws Exception {
-    return false;
+    if (channelFactory instanceof FileNameBasedDecompressingChannelFactory) {
+      FileNameBasedDecompressingChannelFactory fileNameBasedChannelFactory =
+          (FileNameBasedDecompressingChannelFactory) channelFactory;
+      return !fileNameBasedChannelFactory.isCompressed(getFileOrPatternSpec());
+    }
+    return true;
   }
 
   /**
-   * Creates a {@code CompressedReader} to read a single file.
+   * Creates a {@code FileBasedReader} to read a single file.
    *
    * <p>Uses the delegate source to create a single file reader for the delegate source.
+   * Utilizes the default decompression channel factory to not wrap the source reader
+   * if the file name does not represent a compressed file allowing for splitting of
+   * the source.
    */
   @Override
-  public final CompressedReader<T> createSingleFileReader(PipelineOptions options) {
+  protected final FileBasedReader<T> createSingleFileReader(PipelineOptions options) {
+    if (channelFactory instanceof FileNameBasedDecompressingChannelFactory) {
+      FileNameBasedDecompressingChannelFactory fileNameBasedChannelFactory =
+          (FileNameBasedDecompressingChannelFactory) channelFactory;
+      if (!fileNameBasedChannelFactory.isCompressed(getFileOrPatternSpec())) {
+        return sourceDelegate.createSingleFileReader(options);
+      }
+    }
     return new CompressedReader<T>(
         this, sourceDelegate.createSingleFileReader(options));
   }
