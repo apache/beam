@@ -54,13 +54,13 @@ public class PaneInfoTracker {
    * Return a (future for) the pane info appropriate for {@code context}. The pane info
    * includes the timing for the pane, who's calculation is quite subtle.
    *
-   * @param isWatermarkTrigger should be {@code true} only if the pane is being emitted
-   * because a {@link AfterWatermark#pastEndOfWindow} trigger has fired.
+   * @param isEndOfWindow should be {@code true} only if the pane is being emitted
+   * because an end-of-window timer has fired and the trigger agreed we should fire.
    * @param isFinal should be {@code true} only if the triggering machinery can guarantee
    * no further firings for the
    */
   public StateContents<PaneInfo> getNextPaneInfo(ReduceFn<?, ?, ?, ?>.Context context,
-      final boolean isWatermarkTrigger, final boolean isFinal) {
+      final boolean isEndOfWindow, final boolean isFinal) {
     final Object key = context.key();
     final StateContents<PaneInfo> previousPaneFuture =
         context.state().access(PaneInfoTracker.PANE_INFO_TAG).get();
@@ -70,7 +70,7 @@ public class PaneInfoTracker {
       @Override
       public PaneInfo read() {
         PaneInfo previousPane = previousPaneFuture.read();
-        return describePane(key, windowMaxTimestamp, previousPane, isWatermarkTrigger, isFinal);
+        return describePane(key, windowMaxTimestamp, previousPane, isEndOfWindow, isFinal);
       }
     };
   }
@@ -80,7 +80,7 @@ public class PaneInfoTracker {
   }
 
   private <W> PaneInfo describePane(Object key, Instant windowMaxTimestamp, PaneInfo previousPane,
-      boolean isWatermarkTrigger, boolean isFinal) {
+      boolean isEndOfWindow, boolean isFinal) {
     boolean isFirst = previousPane == null;
     Timing previousTiming = isFirst ? null : previousPane.getTiming();
     long index = isFirst ? 0 : previousPane.getIndex() + 1;
@@ -104,7 +104,7 @@ public class PaneInfoTracker {
       // emitted a non-EARLY pane. Irrespective of how this pane was triggered we must
       // consider this pane LATE.
       timing = Timing.LATE;
-    } else if (isWatermarkTrigger) {
+    } else if (isEndOfWindow) {
       // This is the unique ON_TIME firing for the window.
       timing = Timing.ON_TIME;
     } else {
@@ -115,8 +115,8 @@ public class PaneInfoTracker {
 
     WindowTracing.debug(
         "describePane: {} pane (prev was {}) for key:{}; windowMaxTimestamp:{}; "
-        + "inputWatermark:{}; outputWatermark:{}; isWatermarkTrigger:{}; isLateForOutput:{}",
-        timing, previousTiming, key, windowMaxTimestamp, inputWM, outputWM, isWatermarkTrigger,
+        + "inputWatermark:{}; outputWatermark:{}; isEndOfWindow:{}; isLateForOutput:{}",
+        timing, previousTiming, key, windowMaxTimestamp, inputWM, outputWM, isEndOfWindow,
         isLateForOutput);
 
     if (previousPane != null) {

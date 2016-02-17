@@ -331,8 +331,9 @@ public class AfterWatermark<W extends BoundedWindow> {
 
     @Override
     public void onElement(OnElementContext c) throws Exception {
-      // NOTE: The ReduceFnRunner will have already set an end-of-window timer, so this is
-      // redundant. However we leave it here so that the trigger machinery can stand on its own.
+      // We're interested in knowing when the input watermark passes the end of the window.
+      // (It is possible this has already happened, in which case the timer will be fired
+      // almost immediately).
       c.setTimer(c.window().maxTimestamp(), TimeDomain.EVENT_TIME);
     }
 

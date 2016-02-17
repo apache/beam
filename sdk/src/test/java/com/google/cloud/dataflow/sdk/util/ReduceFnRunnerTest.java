@@ -114,7 +114,8 @@ public class ReduceFnRunnerTest {
     // Test basic execution of a trigger using a non-combining window set and discarding mode.
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
         ReduceFnTester.nonCombining(FixedWindows.of(Duration.millis(10)), mockTrigger,
-            AccumulationMode.DISCARDING_FIRED_PANES, Duration.millis(100));
+            AccumulationMode.DISCARDING_FIRED_PANES, Duration.millis(100),
+            ClosingBehavior.FIRE_IF_NON_EMPTY);
 
     // Pane of {1, 2}
     injectElement(tester, 1);
@@ -143,7 +144,8 @@ public class ReduceFnRunnerTest {
     // Test basic execution of a trigger using a non-combining window set and accumulating mode.
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
         ReduceFnTester.nonCombining(FixedWindows.of(Duration.millis(10)), mockTrigger,
-            AccumulationMode.ACCUMULATING_FIRED_PANES, Duration.millis(100));
+            AccumulationMode.ACCUMULATING_FIRED_PANES, Duration.millis(100),
+            ClosingBehavior.FIRE_IF_NON_EMPTY);
 
     injectElement(tester, 1);
 
@@ -230,7 +232,8 @@ public class ReduceFnRunnerTest {
     // Test handling of late data. Specifically, ensure the watermark hold is correct.
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
         ReduceFnTester.nonCombining(FixedWindows.of(Duration.millis(10)), mockTrigger,
-            AccumulationMode.ACCUMULATING_FIRED_PANES, Duration.millis(10));
+            AccumulationMode.ACCUMULATING_FIRED_PANES, Duration.millis(10),
+            ClosingBehavior.FIRE_IF_NON_EMPTY);
 
     // Input watermark -> null
     assertEquals(null, tester.getWatermarkHold());
@@ -344,10 +347,50 @@ public class ReduceFnRunnerTest {
   }
 
   @Test
+  public void dontSetHoldIfTooLateForEndOfWindowTimer() throws Exception {
+    // Make sure holds are only set if they are accompanied by an end-of-window timer.
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
+        ReduceFnTester.nonCombining(FixedWindows.of(Duration.millis(10)), mockTrigger,
+            AccumulationMode.ACCUMULATING_FIRED_PANES, Duration.millis(10),
+            ClosingBehavior.FIRE_ALWAYS);
+    tester.setAutoAdvanceOutputWatermark(false);
+
+    // Case: Unobservably late
+    tester.advanceInputWatermark(new Instant(15));
+    tester.advanceOutputWatermark(new Instant(11));
+    injectElement(tester, 14);
+    // Hold was applied, waiting for end-of-window timer.
+    assertEquals(new Instant(14), tester.getWatermarkHold());
+    assertEquals(new Instant(19), tester.getNextTimer(TimeDomain.EVENT_TIME));
+
+    // Trigger the end-of-window timer.
+    when(mockTrigger.shouldFire(anyTriggerContext())).thenReturn(true);
+    tester.advanceInputWatermark(new Instant(20));
+    when(mockTrigger.shouldFire(anyTriggerContext())).thenReturn(false);
+    // Hold has been replaced with garbage collection hold. Waiting for garbage collection.
+    assertEquals(new Instant(29), tester.getWatermarkHold());
+    assertEquals(new Instant(29), tester.getNextTimer(TimeDomain.EVENT_TIME));
+
+    // Case: Maybe late 1
+    injectElement(tester, 13);
+    // No change to hold or timers.
+    assertEquals(new Instant(29), tester.getWatermarkHold());
+    assertEquals(new Instant(29), tester.getNextTimer(TimeDomain.EVENT_TIME));
+
+    // Trigger the garbage collection timer.
+    tester.advanceInputWatermark(new Instant(30));
+
+    // Everything should be cleaned up.
+    assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(10), new Instant(20))));
+    tester.assertHasOnlyGlobalAndFinishedSetsFor();
+  }
+
+  @Test
   public void testPaneInfoAllStates() throws Exception {
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
         ReduceFnTester.nonCombining(FixedWindows.of(Duration.millis(10)), mockTrigger,
-            AccumulationMode.DISCARDING_FIRED_PANES, Duration.millis(100));
+            AccumulationMode.DISCARDING_FIRED_PANES, Duration.millis(100),
+            ClosingBehavior.FIRE_IF_NON_EMPTY);
 
     tester.advanceInputWatermark(new Instant(0));
     when(mockTrigger.shouldFire(anyTriggerContext())).thenReturn(true);
@@ -515,7 +558,8 @@ public class ReduceFnRunnerTest {
   public void testPaneInfoSkipToFinish() throws Exception {
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
         ReduceFnTester.nonCombining(FixedWindows.of(Duration.millis(10)), mockTrigger,
-            AccumulationMode.DISCARDING_FIRED_PANES, Duration.millis(100));
+            AccumulationMode.DISCARDING_FIRED_PANES, Duration.millis(100),
+            ClosingBehavior.FIRE_IF_NON_EMPTY);
 
     tester.advanceInputWatermark(new Instant(0));
     when(mockTrigger.shouldFire(anyTriggerContext())).thenReturn(true);
@@ -529,7 +573,8 @@ public class ReduceFnRunnerTest {
   public void testPaneInfoSkipToNonSpeculativeAndFinish() throws Exception {
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
         ReduceFnTester.nonCombining(FixedWindows.of(Duration.millis(10)), mockTrigger,
-            AccumulationMode.DISCARDING_FIRED_PANES, Duration.millis(100));
+            AccumulationMode.DISCARDING_FIRED_PANES, Duration.millis(100),
+            ClosingBehavior.FIRE_IF_NON_EMPTY);
 
     tester.advanceInputWatermark(new Instant(15));
     when(mockTrigger.shouldFire(anyTriggerContext())).thenReturn(true);
@@ -545,7 +590,8 @@ public class ReduceFnRunnerTest {
     // unmerged windows.
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
         ReduceFnTester.nonCombining(Sessions.withGapDuration(Duration.millis(10)), mockTrigger,
-            AccumulationMode.DISCARDING_FIRED_PANES, Duration.millis(0));
+            AccumulationMode.DISCARDING_FIRED_PANES, Duration.millis(0),
+            ClosingBehavior.FIRE_IF_NON_EMPTY);
 
     // All on time data, verify watermark hold.
     // These two windows should pre-merge immediately to [1, 20)
@@ -611,7 +657,8 @@ public class ReduceFnRunnerTest {
     // modify PaneInfo.
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
         ReduceFnTester.nonCombining(FixedWindows.of(Duration.millis(10)), mockTrigger,
-            AccumulationMode.DISCARDING_FIRED_PANES, Duration.millis(100));
+            AccumulationMode.DISCARDING_FIRED_PANES, Duration.millis(100),
+            ClosingBehavior.FIRE_IF_NON_EMPTY);
 
     // Inject a couple of on-time elements and fire at the window end.
     injectElement(tester, 1);
@@ -655,7 +702,8 @@ public class ReduceFnRunnerTest {
     // modify PaneInfo.
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
         ReduceFnTester.nonCombining(FixedWindows.of(Duration.millis(10)), mockTrigger,
-            AccumulationMode.ACCUMULATING_FIRED_PANES, Duration.millis(100));
+            AccumulationMode.ACCUMULATING_FIRED_PANES, Duration.millis(100),
+            ClosingBehavior.FIRE_IF_NON_EMPTY);
 
     // Inject a couple of on-time elements and fire at the window end.
     injectElement(tester, 1);

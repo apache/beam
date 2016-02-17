@@ -35,6 +35,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.TriggerBuilder;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Window.ClosingBehavior;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.TimerInternals.TimerData;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
@@ -99,6 +100,14 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   private final WindowingStrategy<Object, W> objectStrategy;
   private final ReduceFn<String, InputT, OutputT, W> reduceFn;
 
+  /**
+   * If true, the output watermark is automatically advanced to the latest possible
+   * point when the input watermark is advanced. This is the default for most tests.
+   * If false, the output watermark must be explicitly advanced by the test, which can
+   * be used to exercise some of the more subtle behavior of WatermarkHold.
+   */
+  private boolean autoAdvanceOutputWatermark;
+
   private ExecutableTrigger<W> executableTrigger;
 
   private final InMemoryLongSumAggregator droppedDueToClosedWindow =
@@ -114,12 +123,13 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
 
   public static <W extends BoundedWindow> ReduceFnTester<Integer, Iterable<Integer>, W>
       nonCombining(WindowFn<?, W> windowFn, TriggerBuilder<W> trigger, AccumulationMode mode,
-          Duration allowedDataLateness) throws Exception {
+          Duration allowedDataLateness, ClosingBehavior closingBehavior) throws Exception {
     WindowingStrategy<?, W> strategy =
         WindowingStrategy.of(windowFn)
             .withTrigger(trigger.buildTrigger())
             .withMode(mode)
-            .withAllowedLateness(allowedDataLateness);
+            .withAllowedLateness(allowedDataLateness)
+            .withClosingBehavior(closingBehavior);
     return nonCombining(strategy);
   }
 
@@ -163,7 +173,17 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     this.windowFn = objectStrategy.getWindowFn();
     this.windowingInternals = new TestWindowingInternals();
     this.outputCoder = outputCoder;
+    this.autoAdvanceOutputWatermark = true;
     executableTrigger = wildcardStrategy.getTrigger();
+  }
+
+  public void setAutoAdvanceOutputWatermark(boolean autoAdvanceOutputWatermark) {
+    this.autoAdvanceOutputWatermark = autoAdvanceOutputWatermark;
+  }
+
+  @Nullable
+  public Instant getNextTimer(TimeDomain domain) {
+    return timerInternals.getNextTimer(domain);
   }
 
   ReduceFnRunner<String, InputT, OutputT, W> createRunner() {
@@ -304,6 +324,14 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     ReduceFnRunner<String, InputT, OutputT, W> runner = createRunner();
     timerInternals.advanceInputWatermark(runner, newInputWatermark);
     runner.persist();
+  }
+
+  /**
+   * If {@link #autoAdvanceOutputWatermark} is {@literal false}, advance the output watermark
+   * to the given value. Otherwise throw.
+   */
+  public void advanceOutputWatermark(Instant newOutputWatermark) throws Exception {
+    timerInternals.advanceOutputWatermark(newOutputWatermark);
   }
 
   /** Advance the processing time to the specified time, firing any timers that should fire. */
@@ -539,8 +567,31 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     @Nullable
     private Instant synchronizedProcessingTime = null;
 
+    @Nullable
+    public Instant getNextTimer(TimeDomain domain) {
+      TimerData data = null;
+      switch (domain) {
+        case EVENT_TIME:
+           data = watermarkTimers.peek();
+           break;
+        case PROCESSING_TIME:
+        case SYNCHRONIZED_PROCESSING_TIME:
+          data = processingTimers.peek();
+          break;
+      }
+      Preconditions.checkNotNull(data); // cases exhaustive
+      return data == null ? null : data.getTimestamp();
+    }
+
     private PriorityQueue<TimerData> queue(TimeDomain domain) {
-      return TimeDomain.EVENT_TIME.equals(domain) ? watermarkTimers : processingTimers;
+      switch (domain) {
+        case EVENT_TIME:
+          return watermarkTimers;
+        case PROCESSING_TIME:
+        case SYNCHRONIZED_PROCESSING_TIME:
+          return processingTimers;
+      }
+      throw new RuntimeException(); // cases exhaustive
     }
 
     @Override
@@ -610,10 +661,12 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
             + "so output watermark = input watermark");
         hold = inputWatermarkTime;
       }
-      advanceOutputWatermark(hold);
+      if (autoAdvanceOutputWatermark) {
+        advanceOutputWatermark(hold);
+      }
     }
 
-    private void advanceOutputWatermark(Instant newOutputWatermark) {
+    public void advanceOutputWatermark(Instant newOutputWatermark) {
       Preconditions.checkNotNull(newOutputWatermark);
       Preconditions.checkNotNull(inputWatermarkTime);
       if (newOutputWatermark.isAfter(inputWatermarkTime)) {
