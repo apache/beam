@@ -36,8 +36,8 @@ public class GroupAlsoByWindowViaWindowSetDoFn<
   public static <K, InputT, OutputT, W extends BoundedWindow,
           RinputsT extends KeyedWorkItem<K, InputT>>
       DoFn<RinputsT, KV<K, OutputT>> create(
-          WindowingStrategy<?, W> strategy, SystemReduceFn.Factory<K, InputT, OutputT, W> factory) {
-    return new GroupAlsoByWindowViaWindowSetDoFn<>(strategy, factory);
+          WindowingStrategy<?, W> strategy, SystemReduceFn<K, InputT, ?, OutputT, W> reduceFn) {
+    return new GroupAlsoByWindowViaWindowSetDoFn<>(strategy, reduceFn);
   }
 
   protected final Aggregator<Long, Long> droppedDueToClosedWindow =
@@ -47,15 +47,15 @@ public class GroupAlsoByWindowViaWindowSetDoFn<
       createAggregator(GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_LATENESS_COUNTER, new Sum.SumLongFn());
 
   private final WindowingStrategy<Object, W> windowingStrategy;
-  private SystemReduceFn.Factory<K, InputT, OutputT, W> reduceFnFactory;
+  private SystemReduceFn<K, InputT, ?, OutputT, W> reduceFn;
 
   private GroupAlsoByWindowViaWindowSetDoFn(
       WindowingStrategy<?, W> windowingStrategy,
-      SystemReduceFn.Factory<K, InputT, OutputT, W> reduceFnFactory) {
+      SystemReduceFn<K, InputT, ?, OutputT, W> reduceFn) {
     @SuppressWarnings("unchecked")
     WindowingStrategy<Object, W> noWildcard = (WindowingStrategy<Object, W>) windowingStrategy;
     this.windowingStrategy = noWildcard;
-    this.reduceFnFactory = reduceFnFactory;
+    this.reduceFn = reduceFn;
   }
 
   @Override
@@ -70,7 +70,7 @@ public class GroupAlsoByWindowViaWindowSetDoFn<
     @SuppressWarnings("unchecked")
     StateInternals<K> stateInternals = (StateInternals<K>) c.windowingInternals().stateInternals();
 
-    ReduceFnRunner<K, InputT, OutputT, W> runner =
+    ReduceFnRunner<K, InputT, OutputT, W> reduceFnRunner =
         new ReduceFnRunner<>(
             key,
             windowingStrategy,
@@ -78,13 +78,13 @@ public class GroupAlsoByWindowViaWindowSetDoFn<
             timerInternals,
             c.windowingInternals(),
             droppedDueToClosedWindow,
-            reduceFnFactory.create(key));
+            reduceFn);
 
     for (TimerData timer : element.timersIterable()) {
-      runner.onTimer(timer);
+      reduceFnRunner.onTimer(timer);
     }
-    runner.processElements(element.elementsIterable());
-    runner.persist();
+    reduceFnRunner.processElements(element.elementsIterable());
+    reduceFnRunner.persist();
   }
 
   @Override

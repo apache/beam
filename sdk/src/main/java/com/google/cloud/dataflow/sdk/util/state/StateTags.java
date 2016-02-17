@@ -162,7 +162,7 @@ public class StateTags {
   public static <K, InputT, AccumT, OutputT> StateTag<Object, BagState<AccumT>>
       convertToBagTagInternal(
           StateTag<? super K, CombiningValueStateInternal<InputT, AccumT, OutputT>> combiningTag) {
-    if (!(combiningTag instanceof CombiningValueStateTag)) {
+    if (!(combiningTag instanceof KeyedCombiningValueStateTag)) {
       throw new IllegalArgumentException("Unexpected StateTag " + combiningTag);
     }
     // Checked above; conversion to a bag tag depends on the provided tag being one of those

@@ -117,7 +117,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
       nonCombining(WindowingStrategy<?, W> windowingStrategy) throws Exception {
     return new ReduceFnTester<Integer, Iterable<Integer>, W>(
         windowingStrategy,
-        SystemReduceFn.<String, Integer, W>buffering(VarIntCoder.of()).create(KEY),
+        SystemReduceFn.<String, Integer, W>buffering(VarIntCoder.of()),
         IterableCoder.of(VarIntCoder.of()));
   }
 
@@ -146,8 +146,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
 
     return new ReduceFnTester<Integer, OutputT, W>(
         strategy,
-        SystemReduceFn.<String, Integer, AccumT, OutputT, W>combining(StringUtf8Coder.of(), fn)
-            .create(KEY),
+        SystemReduceFn.<String, Integer, AccumT, OutputT, W>combining(StringUtf8Coder.of(), fn),
         outputCoder);
   }
 
