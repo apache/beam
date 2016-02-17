@@ -761,6 +761,8 @@ public class InMemoryWatermarkManager {
     return inputCollectionWatermarks;
   }
 
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+
   /**
    * Gets the input and output watermarks for an {@link AppliedPTransform}. If the
    * {@link AppliedPTransform PTransform} has not processed any elements, return a watermark of
@@ -770,34 +772,6 @@ public class InMemoryWatermarkManager {
    */
   public TransformWatermarks getWatermarks(AppliedPTransform<?, ?, ?> transform) {
     return transformToWatermarks.get(transform);
-  }
-
-  /**
-   * Updates the output watermark of a transform that takes no input.
-   *
-   * <p>The output watermark of a transform that takes no input is determined by that transform, as
-   * there are no input {@link PCollection PCollections}.
-   *
-   * @param eventTimeWatermark the output watermark of the transform. If the transform has buffered
-   *                           input elements, the watermark should be the minimum of all buffered
-   *                           elements.
-   */
-  public void updateOutputWatermark(
-      AppliedPTransform<?, ?, ?> transform,
-      TimerUpdate timerUpdate,
-      Iterable<? extends CommittedBundle<?>> outputs,
-      Instant eventTimeWatermark) {
-    TransformWatermarks watermarks = getWatermarks(transform);
-    watermarks.updateTimers(timerUpdate);
-    watermarks.setEventTimeHold(null, eventTimeWatermark);
-
-    for (CommittedBundle<?> output : outputs) {
-      PCollection<?> pCollection = output.getPCollection();
-      for (AppliedPTransform<?, ?, ?> consumer : consumers.get(pCollection)) {
-        addPending(consumer, output);
-      }
-    }
-    refreshWatermarks(transform);
   }
 
   /**
@@ -820,19 +794,18 @@ public class InMemoryWatermarkManager {
    *                     is no hold
    */
   public void updateWatermarks(
-      CommittedBundle<?> completed,
+      @Nullable CommittedBundle<?> completed,
       AppliedPTransform<?, ?, ?> transform,
       TimerUpdate timerUpdate,
       Iterable<? extends CommittedBundle<?>> outputs,
       @Nullable Instant earliestHold) {
     updatePending(completed, transform, timerUpdate, outputs);
     TransformWatermarks transformWms = transformToWatermarks.get(transform);
-    transformWms.setEventTimeHold(completed.getKey(), earliestHold);
+    transformWms.setEventTimeHold(completed == null ? null : completed.getKey(), earliestHold);
     refreshWatermarks(transform);
   }
 
-  private void refreshWatermarks(
-      AppliedPTransform<?, ?, ?> transform) {
+  private void refreshWatermarks(AppliedPTransform<?, ?, ?> transform) {
     TransformWatermarks myWatermarks = transformToWatermarks.get(transform);
     WatermarkUpdate updateResult = myWatermarks.refresh();
     if (updateResult.isAdvanced()) {
@@ -860,33 +833,21 @@ public class InMemoryWatermarkManager {
       Iterable<? extends CommittedBundle<?>> outputs) {
     TransformWatermarks completedTransform = transformToWatermarks.get(transform);
     completedTransform.updateTimers(timerUpdate);
-    completedTransform.removePending(input);
+    if (input != null) {
+      completedTransform.removePending(input);
+    }
 
     for (CommittedBundle<?> bundle : outputs) {
       for (AppliedPTransform<?, ?, ?> consumer : consumers.get(bundle.getPCollection())) {
-        addPending(consumer, bundle);
+        TransformWatermarks watermarks = transformToWatermarks.get(consumer);
+        watermarks.addPending(bundle);
       }
     }
   }
 
   /**
-   * Adds all of the provided {@link WindowedValue WindowedValues} to the collection of pending
-   * elements for the provided {@link AppliedPTransform}.
-   */
-  private void addPending(
-      AppliedPTransform<?, ?, ?> transform, CommittedBundle<?> pending) {
-    TransformWatermarks watermarks = transformToWatermarks.get(transform);
-    watermarks.addPending(pending);
-  }
-
-  /**
    * Returns a map of each {@link PTransform} that has pending timers to those timers. All of the
    * pending timers will be removed from this {@link InMemoryWatermarkManager}.
-   *
-   * This method exists primarily to extract processing time timers, as watermark timers will be
-   * returned whenever a watermark is updated through
-   * {@link #updateOutputWatermark(AppliedPTransform, TimerUpdate, Iterable, Instant)} and
-   * {@link #updateWatermarks(CommittedBundle, AppliedPTransform, TimerUpdate, Iterable, Instant)}.
    */
   public Map<AppliedPTransform<?, ?, ?>, Map<Object, FiredTimers>> extractFiredTimers() {
     Map<AppliedPTransform<?, ?, ?>, Map<Object, FiredTimers>> allTimers = new HashMap<>();
@@ -1323,5 +1284,16 @@ public class InMemoryWatermarkManager {
     public int compare(WindowedValue<?> o1, WindowedValue<?> o2) {
       return o1.getTimestamp().compareTo(o2.getTimestamp());
     }
+  }
+
+  public Set<AppliedPTransform<?, ?, ?>> getCompletedTransforms() {
+    Set<AppliedPTransform<?, ?, ?>> result = new HashSet<>();
+    for (Map.Entry<AppliedPTransform<?, ?, ?>, TransformWatermarks> wms :
+        transformToWatermarks.entrySet()) {
+      if (wms.getValue().getOutputWatermark().equals(THE_END_OF_TIME.get())) {
+        result.add(wms.getKey());
+      }
+    }
+    return result;
   }
 }

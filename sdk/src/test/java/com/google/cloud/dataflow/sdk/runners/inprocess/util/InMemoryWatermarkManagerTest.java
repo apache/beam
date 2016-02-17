@@ -94,7 +94,8 @@ public class InMemoryWatermarkManagerTest implements Serializable {
       @Override
       public void processElement(DoFn<Integer, Integer>.ProcessContext c) throws Exception {
         c.output(c.element() * 2);
-      }}));
+      }
+    }));
 
     keyed = createdInts.apply("keyed", WithKeys.<String, Integer>of("MyKey"));
 
@@ -110,8 +111,7 @@ public class InMemoryWatermarkManagerTest implements Serializable {
     Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> consumers = new HashMap<>();
     consumers.put(
         createdInts,
-        ImmutableList.<AppliedPTransform<?, ?, ?>>of(
-            filtered.getProducingTransformInternal(),
+        ImmutableList.<AppliedPTransform<?, ?, ?>>of(filtered.getProducingTransformInternal(),
             keyed.getProducingTransformInternal(), flattened.getProducingTransformInternal()));
     consumers.put(
         filtered,
@@ -151,11 +151,8 @@ public class InMemoryWatermarkManagerTest implements Serializable {
   @Test
   public void getWatermarkForUpdatedSourceTransform() {
     CommittedBundle<Integer> output = globallyWindowedBundle(createdInts, 1);
-    manager.updateOutputWatermark(
-        createdInts.getProducingTransformInternal(),
-        TimerUpdate.empty(),
-        Collections.<CommittedBundle<?>>singleton(output),
-        new Instant(8000L));
+    manager.updateWatermarks(null, createdInts.getProducingTransformInternal(), TimerUpdate.empty(),
+        Collections.<CommittedBundle<?>>singleton(output), new Instant(8000L));
     TransformWatermarks updatedSourceWatermark =
         manager.getWatermarks(createdInts.getProducingTransformInternal());
 
@@ -170,10 +167,8 @@ public class InMemoryWatermarkManagerTest implements Serializable {
   public void getWatermarkForMultiInputTransform() {
     CommittedBundle<Integer> secondPcollectionBundle = globallyWindowedBundle(intsToFlatten, -1);
 
-    manager.updateOutputWatermark(
-        intsToFlatten.getProducingTransformInternal(),
-        TimerUpdate.empty(),
-        Collections.<CommittedBundle<?>>singleton(secondPcollectionBundle),
+    manager.updateWatermarks(null, intsToFlatten.getProducingTransformInternal(),
+        TimerUpdate.empty(), Collections.<CommittedBundle<?>>singleton(secondPcollectionBundle),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
 
     // We didn't do anything for the first source, so we shouldn't have progressed the watermark
@@ -202,11 +197,8 @@ public class InMemoryWatermarkManagerTest implements Serializable {
     CommittedBundle<Integer> flattenedBundleSecondCreate = globallyWindowedBundle(flattened, -1);
     // We have finished processing the bundle from the second PCollection, but we haven't consumed
     // anything from the first PCollection yet; so our watermark shouldn't advance
-    manager.updateWatermarks(
-        secondPcollectionBundle,
-        flattened.getProducingTransformInternal(),
-        TimerUpdate.empty(),
-        Collections.<CommittedBundle<?>>singleton(flattenedBundleSecondCreate),
+    manager.updateWatermarks(secondPcollectionBundle, flattened.getProducingTransformInternal(),
+        TimerUpdate.empty(), Collections.<CommittedBundle<?>>singleton(flattenedBundleSecondCreate),
         null);
     TransformWatermarks transformAfterProcessing =
         manager.getWatermarks(flattened.getProducingTransformInternal());
@@ -225,9 +217,7 @@ public class InMemoryWatermarkManagerTest implements Serializable {
         timestampedBundle(createdInts, TimestampedValue.<Integer>of(5, firstCollectionTimestamp));
     // the source is done, but elements are still buffered. The source output watermark should be
     // past the end of the global window
-    manager.updateOutputWatermark(
-        createdInts.getProducingTransformInternal(),
-        TimerUpdate.empty(),
+    manager.updateWatermarks(null, createdInts.getProducingTransformInternal(), TimerUpdate.empty(),
         Collections.<CommittedBundle<?>>singleton(firstPcollectionBundle),
         new Instant(Long.MAX_VALUE));
     TransformWatermarks firstSourceWatermarks =
@@ -255,11 +245,8 @@ public class InMemoryWatermarkManagerTest implements Serializable {
 
     CommittedBundle<?> completedFlattenBundle =
         InProcessBundle.unkeyed(flattened).commit(BoundedWindow.TIMESTAMP_MAX_VALUE);
-    manager.updateWatermarks(
-        firstPcollectionBundle,
-        flattened.getProducingTransformInternal(),
-        TimerUpdate.empty(),
-        Collections.<CommittedBundle<?>>singleton(completedFlattenBundle),
+    manager.updateWatermarks(firstPcollectionBundle, flattened.getProducingTransformInternal(),
+        TimerUpdate.empty(), Collections.<CommittedBundle<?>>singleton(completedFlattenBundle),
         null);
     TransformWatermarks afterConsumingAllInput =
         manager.getWatermarks(flattened.getProducingTransformInternal());
@@ -277,17 +264,11 @@ public class InMemoryWatermarkManagerTest implements Serializable {
    */
   @Test
   public void getWatermarkForMultiConsumedCollection() {
-CommittedBundle<Integer> createdBundle =
-        timestampedBundle(
-            createdInts,
-            TimestampedValue.of(1, new Instant(1_000_000L)),
-            TimestampedValue.of(2, new Instant(1234L)),
-            TimestampedValue.of(3, new Instant(-1000L)));
-    manager.updateOutputWatermark(
-        createdInts.getProducingTransformInternal(),
-        TimerUpdate.empty(),
-        Collections.<CommittedBundle<?>>singleton(createdBundle),
-        new Instant(Long.MAX_VALUE));
+    CommittedBundle<Integer> createdBundle = timestampedBundle(createdInts,
+        TimestampedValue.of(1, new Instant(1_000_000L)), TimestampedValue.of(2, new Instant(1234L)),
+        TimestampedValue.of(3, new Instant(-1000L)));
+    manager.updateWatermarks(null, createdInts.getProducingTransformInternal(), TimerUpdate.empty(),
+        Collections.<CommittedBundle<?>>singleton(createdBundle), new Instant(Long.MAX_VALUE));
     TransformWatermarks createdAfterProducing =
         manager.getWatermarks(createdInts.getProducingTransformInternal());
     assertThat(
@@ -298,12 +279,8 @@ CommittedBundle<Integer> createdBundle =
         timestampedBundle(keyed, TimestampedValue.of(KV.of("MyKey", 1), new Instant(1_000_000L)),
             TimestampedValue.of(KV.of("MyKey", 2), new Instant(1234L)),
             TimestampedValue.of(KV.of("MyKey", 3), new Instant(-1000L)));
-    manager.updateWatermarks(
-        createdBundle,
-        keyed.getProducingTransformInternal(),
-        TimerUpdate.empty(),
-        Collections.<CommittedBundle<?>>singleton(keyBundle),
-        null);
+    manager.updateWatermarks(createdBundle, keyed.getProducingTransformInternal(),
+        TimerUpdate.empty(), Collections.<CommittedBundle<?>>singleton(keyBundle), null);
     TransformWatermarks keyedWatermarks =
         manager.getWatermarks(keyed.getProducingTransformInternal());
     assertThat(
@@ -318,12 +295,8 @@ CommittedBundle<Integer> createdBundle =
 
     CommittedBundle<Integer> filteredBundle =
         timestampedBundle(filtered, TimestampedValue.of(2, new Instant(1234L)));
-    manager.updateWatermarks(
-        createdBundle,
-        filtered.getProducingTransformInternal(),
-        TimerUpdate.empty(),
-        Collections.<CommittedBundle<?>>singleton(filteredBundle),
-        null);
+    manager.updateWatermarks(createdBundle, filtered.getProducingTransformInternal(),
+        TimerUpdate.empty(), Collections.<CommittedBundle<?>>singleton(filteredBundle), null);
     TransformWatermarks filteredProcessedWatermarks =
         manager.getWatermarks(filtered.getProducingTransformInternal());
     assertThat(
@@ -340,29 +313,18 @@ CommittedBundle<Integer> createdBundle =
    */
   @Test
   public void updateWatermarkWithWatermarkHolds() {
-    CommittedBundle<Integer> createdBundle =
-        timestampedBundle(
-            createdInts,
-            TimestampedValue.of(1, new Instant(1_000_000L)),
-            TimestampedValue.of(2, new Instant(1234L)),
-            TimestampedValue.of(3, new Instant(-1000L)));
-    manager.updateOutputWatermark(
-        createdInts.getProducingTransformInternal(),
-        TimerUpdate.empty(),
-        Collections.<CommittedBundle<?>>singleton(createdBundle),
-        new Instant(Long.MAX_VALUE));
+    CommittedBundle<Integer> createdBundle = timestampedBundle(createdInts,
+        TimestampedValue.of(1, new Instant(1_000_000L)), TimestampedValue.of(2, new Instant(1234L)),
+        TimestampedValue.of(3, new Instant(-1000L)));
+    manager.updateWatermarks(null, createdInts.getProducingTransformInternal(), TimerUpdate.empty(),
+        Collections.<CommittedBundle<?>>singleton(createdBundle), new Instant(Long.MAX_VALUE));
 
     CommittedBundle<KV<String, Integer>> keyBundle =
-        timestampedBundle(
-            keyed,
-            TimestampedValue.of(KV.of("MyKey", 1), new Instant(1_000_000L)),
+        timestampedBundle(keyed, TimestampedValue.of(KV.of("MyKey", 1), new Instant(1_000_000L)),
             TimestampedValue.of(KV.of("MyKey", 2), new Instant(1234L)),
             TimestampedValue.of(KV.of("MyKey", 3), new Instant(-1000L)));
-    manager.updateWatermarks(
-        createdBundle,
-        keyed.getProducingTransformInternal(),
-        TimerUpdate.empty(),
-        Collections.<CommittedBundle<?>>singleton(keyBundle),
+    manager.updateWatermarks(createdBundle, keyed.getProducingTransformInternal(),
+        TimerUpdate.empty(), Collections.<CommittedBundle<?>>singleton(keyBundle),
         new Instant(500L));
     TransformWatermarks keyedWatermarks =
         manager.getWatermarks(keyed.getProducingTransformInternal());
@@ -388,7 +350,7 @@ CommittedBundle<Integer> createdBundle =
             .add(WindowedValue.timestampedValueInGlobalWindow(2, new Instant(1234L)))
             .commit(clock.now());
 
-    manager.updateOutputWatermark(createdInts.getProducingTransformInternal(), TimerUpdate.empty(),
+    manager.updateWatermarks(null, createdInts.getProducingTransformInternal(), TimerUpdate.empty(),
         ImmutableList.of(firstKeyBundle, secondKeyBundle), BoundedWindow.TIMESTAMP_MAX_VALUE);
 
     manager.updateWatermarks(firstKeyBundle, filtered.getProducingTransformInternal(),
@@ -433,22 +395,16 @@ CommittedBundle<Integer> createdBundle =
   public void updateOutputWatermarkShouldBeMonotonic() {
     CommittedBundle<?> firstInput =
         InProcessBundle.unkeyed(createdInts).commit(BoundedWindow.TIMESTAMP_MAX_VALUE);
-    manager.updateOutputWatermark(
-        createdInts.getProducingTransformInternal(),
-        TimerUpdate.empty(),
-        Collections.<CommittedBundle<?>>singleton(firstInput),
-        new Instant(0L));
+    manager.updateWatermarks(null, createdInts.getProducingTransformInternal(), TimerUpdate.empty(),
+        Collections.<CommittedBundle<?>>singleton(firstInput), new Instant(0L));
     TransformWatermarks firstWatermarks =
         manager.getWatermarks(createdInts.getProducingTransformInternal());
     assertThat(firstWatermarks.getOutputWatermark(), equalTo(new Instant(0L)));
 
     CommittedBundle<?> secondInput =
         InProcessBundle.unkeyed(createdInts).commit(BoundedWindow.TIMESTAMP_MAX_VALUE);
-    manager.updateOutputWatermark(
-        createdInts.getProducingTransformInternal(),
-        TimerUpdate.empty(),
-        Collections.<CommittedBundle<?>>singleton(secondInput),
-        new Instant(-250L));
+    manager.updateWatermarks(null, createdInts.getProducingTransformInternal(), TimerUpdate.empty(),
+        Collections.<CommittedBundle<?>>singleton(secondInput), new Instant(-250L));
     TransformWatermarks secondWatermarks =
         manager.getWatermarks(createdInts.getProducingTransformInternal());
     assertThat(secondWatermarks.getOutputWatermark(), not(earlierThan(new Instant(0L))));
@@ -460,29 +416,18 @@ CommittedBundle<Integer> createdBundle =
    */
   @Test
   public void updateWatermarkWithHoldsShouldBeMonotonic() {
-    CommittedBundle<Integer> createdBundle =
-        timestampedBundle(
-            createdInts,
-            TimestampedValue.of(1, new Instant(1_000_000L)),
-            TimestampedValue.of(2, new Instant(1234L)),
-            TimestampedValue.of(3, new Instant(-1000L)));
-    manager.updateOutputWatermark(
-        createdInts.getProducingTransformInternal(),
-        TimerUpdate.empty(),
-        Collections.<CommittedBundle<?>>singleton(createdBundle),
-        new Instant(Long.MAX_VALUE));
+    CommittedBundle<Integer> createdBundle = timestampedBundle(createdInts,
+        TimestampedValue.of(1, new Instant(1_000_000L)), TimestampedValue.of(2, new Instant(1234L)),
+        TimestampedValue.of(3, new Instant(-1000L)));
+    manager.updateWatermarks(null, createdInts.getProducingTransformInternal(), TimerUpdate.empty(),
+        Collections.<CommittedBundle<?>>singleton(createdBundle), new Instant(Long.MAX_VALUE));
 
     CommittedBundle<KV<String, Integer>> keyBundle =
-        timestampedBundle(
-            keyed,
-            TimestampedValue.of(KV.of("MyKey", 1), new Instant(1_000_000L)),
+        timestampedBundle(keyed, TimestampedValue.of(KV.of("MyKey", 1), new Instant(1_000_000L)),
             TimestampedValue.of(KV.of("MyKey", 2), new Instant(1234L)),
             TimestampedValue.of(KV.of("MyKey", 3), new Instant(-1000L)));
-    manager.updateWatermarks(
-        createdBundle,
-        keyed.getProducingTransformInternal(),
-        TimerUpdate.empty(),
-        Collections.<CommittedBundle<?>>singleton(keyBundle),
+    manager.updateWatermarks(createdBundle, keyed.getProducingTransformInternal(),
+        TimerUpdate.empty(), Collections.<CommittedBundle<?>>singleton(keyBundle),
         new Instant(500L));
     TransformWatermarks keyedWatermarks =
         manager.getWatermarks(keyed.getProducingTransformInternal());
@@ -509,23 +454,16 @@ CommittedBundle<Integer> createdBundle =
     CommittedBundle<Integer> createdBundle = timestampedBundle(createdInts,
         TimestampedValue.of(1, sourceWatermark), TimestampedValue.of(2, new Instant(1234L)));
 
-    manager.updateOutputWatermark(
-        createdInts.getProducingTransformInternal(),
-        TimerUpdate.empty(),
-        Collections.<CommittedBundle<?>>singleton(createdBundle),
-        sourceWatermark);
+    manager.updateWatermarks(null, createdInts.getProducingTransformInternal(), TimerUpdate.empty(),
+        Collections.<CommittedBundle<?>>singleton(createdBundle), sourceWatermark);
 
     CommittedBundle<KV<String, Integer>> keyBundle =
         timestampedBundle(keyed, TimestampedValue.of(KV.of("MyKey", 1), sourceWatermark),
             TimestampedValue.of(KV.of("MyKey", 2), new Instant(1234L)));
 
     // Finish processing the on-time data. The watermarks should progress to be equal to the source
-    manager.updateWatermarks(
-        createdBundle,
-        keyed.getProducingTransformInternal(),
-        TimerUpdate.empty(),
-        Collections.<CommittedBundle<?>>singleton(keyBundle),
-        null);
+    manager.updateWatermarks(createdBundle, keyed.getProducingTransformInternal(),
+        TimerUpdate.empty(), Collections.<CommittedBundle<?>>singleton(keyBundle), null);
     TransformWatermarks onTimeWatermarks =
         manager.getWatermarks(keyed.getProducingTransformInternal());
     assertThat(onTimeWatermarks.getInputWatermark(), equalTo(sourceWatermark));
@@ -535,11 +473,8 @@ CommittedBundle<Integer> createdBundle =
         timestampedBundle(createdInts, TimestampedValue.of(3, new Instant(-1000L)));
     // the late data arrives in a downstream PCollection after its watermark has advanced past it;
     // we don't advance the watermark past the current watermark until we've consumed the late data
-    manager.updateOutputWatermark(
-        createdInts.getProducingTransformInternal(),
-        TimerUpdate.empty(),
-        Collections.<CommittedBundle<?>>singleton(lateDataBundle),
-        new Instant(2_000_000L));
+    manager.updateWatermarks(null, createdInts.getProducingTransformInternal(), TimerUpdate.empty(),
+        Collections.<CommittedBundle<?>>singleton(lateDataBundle), new Instant(2_000_000L));
     TransformWatermarks bufferedLateWm =
         manager.getWatermarks(createdInts.getProducingTransformInternal());
     assertThat(bufferedLateWm.getOutputWatermark(), equalTo(new Instant(2_000_000L)));
@@ -553,12 +488,8 @@ CommittedBundle<Integer> createdBundle =
 
     CommittedBundle<KV<String, Integer>> lateKeyedBundle =
         timestampedBundle(keyed, TimestampedValue.of(KV.of("MyKey", 3), new Instant(-1000L)));
-    manager.updateWatermarks(
-        lateDataBundle,
-        keyed.getProducingTransformInternal(),
-        TimerUpdate.empty(),
-        Collections.<CommittedBundle<?>>singleton(lateKeyedBundle),
-        null);
+    manager.updateWatermarks(lateDataBundle, keyed.getProducingTransformInternal(),
+        TimerUpdate.empty(), Collections.<CommittedBundle<?>>singleton(lateKeyedBundle), null);
   }
 
   /**
@@ -568,9 +499,7 @@ CommittedBundle<Integer> createdBundle =
   @Test
   public void getWatermarksAfterOnlyEmptyOutput() {
     CommittedBundle<Integer> emptyCreateOutput = globallyWindowedBundle(createdInts);
-    manager.updateOutputWatermark(
-        createdInts.getProducingTransformInternal(),
-        TimerUpdate.empty(),
+    manager.updateWatermarks(null, createdInts.getProducingTransformInternal(), TimerUpdate.empty(),
         Collections.<CommittedBundle<?>>singleton(emptyCreateOutput),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
     TransformWatermarks updatedSourceWatermarks =
@@ -597,18 +526,12 @@ CommittedBundle<Integer> createdBundle =
   @Test
   public void getWatermarksAfterHoldAndEmptyOutput() {
     CommittedBundle<Integer> firstCreateOutput = globallyWindowedBundle(createdInts, 1, 2);
-    manager.updateOutputWatermark(
-        createdInts.getProducingTransformInternal(),
-        TimerUpdate.empty(),
-        Collections.<CommittedBundle<?>>singleton(firstCreateOutput),
-        new Instant(12_000L));
+    manager.updateWatermarks(null, createdInts.getProducingTransformInternal(), TimerUpdate.empty(),
+        Collections.<CommittedBundle<?>>singleton(firstCreateOutput), new Instant(12_000L));
 
     CommittedBundle<Integer> firstFilterOutput = globallyWindowedBundle(filtered);
-    manager.updateWatermarks(
-        firstCreateOutput,
-        filtered.getProducingTransformInternal(),
-        TimerUpdate.empty(),
-        Collections.<CommittedBundle<?>>singleton(firstFilterOutput),
+    manager.updateWatermarks(firstCreateOutput, filtered.getProducingTransformInternal(),
+        TimerUpdate.empty(), Collections.<CommittedBundle<?>>singleton(firstFilterOutput),
         new Instant(10_000L));
     TransformWatermarks firstFilterWatermarks =
         manager.getWatermarks(filtered.getProducingTransformInternal());
@@ -616,9 +539,7 @@ CommittedBundle<Integer> createdBundle =
     assertThat(firstFilterWatermarks.getOutputWatermark(), not(laterThan(new Instant(10_000L))));
 
     CommittedBundle<Integer> emptyCreateOutput = globallyWindowedBundle(createdInts);
-    manager.updateOutputWatermark(
-        createdInts.getProducingTransformInternal(),
-        TimerUpdate.empty(),
+    manager.updateWatermarks(null, createdInts.getProducingTransformInternal(), TimerUpdate.empty(),
         Collections.<CommittedBundle<?>>singleton(emptyCreateOutput),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
     TransformWatermarks updatedSourceWatermarks =
@@ -658,11 +579,8 @@ CommittedBundle<Integer> createdBundle =
     CommittedBundle<Integer> createOutput =
         InProcessBundle.unkeyed(createdInts).commit(new Instant(1250L));
 
-    manager.updateOutputWatermark(
-        createdInts.getProducingTransformInternal(),
-        TimerUpdate.empty(),
-        Collections.<CommittedBundle<?>>singleton(createOutput),
-        BoundedWindow.TIMESTAMP_MAX_VALUE);
+    manager.updateWatermarks(null, createdInts.getProducingTransformInternal(), TimerUpdate.empty(),
+        Collections.<CommittedBundle<?>>singleton(createOutput), BoundedWindow.TIMESTAMP_MAX_VALUE);
     TransformWatermarks createAfterUpdate =
         manager.getWatermarks(createdInts.getProducingTransformInternal());
     assertThat(createAfterUpdate.getSynchronizedProcessingInputTime(), equalTo(clock.now()));
@@ -687,11 +605,8 @@ CommittedBundle<Integer> createdBundle =
 
     CommittedBundle<?> filterOutputBundle =
         InProcessBundle.unkeyed(intsToFlatten).commit(new Instant(1250L));
-    manager.updateWatermarks(
-        createOutput,
-        filtered.getProducingTransformInternal(),
-        TimerUpdate.empty(),
-        Collections.<CommittedBundle<?>>singleton(filterOutputBundle),
+    manager.updateWatermarks(createOutput, filtered.getProducingTransformInternal(),
+        TimerUpdate.empty(), Collections.<CommittedBundle<?>>singleton(filterOutputBundle),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
     TransformWatermarks filterAfterConsumed =
         manager.getWatermarks(filtered.getProducingTransformInternal());
@@ -709,10 +624,10 @@ CommittedBundle<Integer> createdBundle =
    *
    * <p>Also demonstrate that the result is monotonic.
    */
-//  @Test
+  //  @Test
   public void getSynchronizedProcessingTimeOutputHeldToPendingTimers() {
     CommittedBundle<Integer> createdBundle = globallyWindowedBundle(createdInts, 1, 2, 4, 8);
-    manager.updateOutputWatermark(createdInts.getProducingTransformInternal(), TimerUpdate.empty(),
+    manager.updateWatermarks(null, createdInts.getProducingTransformInternal(), TimerUpdate.empty(),
         Collections.<CommittedBundle<?>>singleton(createdBundle), new Instant(1248L));
 
     TransformWatermarks filteredWms =
@@ -735,11 +650,8 @@ CommittedBundle<Integer> createdBundle =
     Instant startTime = clock.now();
     clock.set(startTime.plus(250L));
     // We're held based on the past timer
-    assertThat(
-        filteredWms.getSynchronizedProcessingOutputTime(), not(laterThan(startTime)));
-    assertThat(
-        filteredDoubledWms.getSynchronizedProcessingOutputTime(),
-        not(laterThan(startTime)));
+    assertThat(filteredWms.getSynchronizedProcessingOutputTime(), not(laterThan(startTime)));
+    assertThat(filteredDoubledWms.getSynchronizedProcessingOutputTime(), not(laterThan(startTime)));
     // And we're monotonic
     assertThat(
         filteredWms.getSynchronizedProcessingOutputTime(), not(earlierThan(initialFilteredWm)));
@@ -755,11 +667,8 @@ CommittedBundle<Integer> createdBundle =
             .getTimers(TimeDomain.PROCESSING_TIME),
         contains(pastTimer));
     // Our timer has fired, but has not been completed, so it holds our synchronized processing WM
-    assertThat(
-        filteredWms.getSynchronizedProcessingOutputTime(), not(laterThan(startTime)));
-    assertThat(
-        filteredDoubledWms.getSynchronizedProcessingOutputTime(),
-        not(laterThan(startTime)));
+    assertThat(filteredWms.getSynchronizedProcessingOutputTime(), not(laterThan(startTime)));
+    assertThat(filteredDoubledWms.getSynchronizedProcessingOutputTime(), not(laterThan(startTime)));
 
     CommittedBundle<Integer> filteredTimerBundle =
         InProcessBundle.keyed(filtered, "key").commit(BoundedWindow.TIMESTAMP_MAX_VALUE);
@@ -816,23 +725,17 @@ CommittedBundle<Integer> createdBundle =
     CommittedBundle<Integer> createOutput =
         InProcessBundle.unkeyed(createdInts).commit(new Instant(1250L));
 
-    manager.updateOutputWatermark(
-        createdInts.getProducingTransformInternal(),
-        TimerUpdate.empty(),
-        Collections.<CommittedBundle<?>>singleton(createOutput),
-        BoundedWindow.TIMESTAMP_MAX_VALUE);
+    manager.updateWatermarks(null, createdInts.getProducingTransformInternal(), TimerUpdate.empty(),
+        Collections.<CommittedBundle<?>>singleton(createOutput), BoundedWindow.TIMESTAMP_MAX_VALUE);
     TransformWatermarks createAfterUpdate =
         manager.getWatermarks(createdInts.getProducingTransformInternal());
-    assertThat(
-        createAfterUpdate.getSynchronizedProcessingInputTime(), not(laterThan(clock.now())));
+    assertThat(createAfterUpdate.getSynchronizedProcessingInputTime(), not(laterThan(clock.now())));
     assertThat(
         createAfterUpdate.getSynchronizedProcessingOutputTime(), not(laterThan(clock.now())));
 
     CommittedBundle<Integer> createSecondOutput =
         InProcessBundle.unkeyed(createdInts).commit(new Instant(750L));
-    manager.updateOutputWatermark(
-        createdInts.getProducingTransformInternal(),
-        TimerUpdate.empty(),
+    manager.updateWatermarks(null, createdInts.getProducingTransformInternal(), TimerUpdate.empty(),
         Collections.<CommittedBundle<?>>singleton(createSecondOutput),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
 
@@ -842,7 +745,7 @@ CommittedBundle<Integer> createdBundle =
   @Test
   public void synchronizedProcessingInputTimeIsHeldToUpstreamProcessingTimeTimers() {
     CommittedBundle<Integer> created = globallyWindowedBundle(createdInts, 1, 2, 3);
-    manager.updateOutputWatermark(createdInts.getProducingTransformInternal(), TimerUpdate.empty(),
+    manager.updateWatermarks(null, createdInts.getProducingTransformInternal(), TimerUpdate.empty(),
         Collections.<CommittedBundle<?>>singleton(created), new Instant(40_900L));
 
     CommittedBundle<Integer> filteredBundle = globallyWindowedBundle(filtered, 2, 4);
@@ -850,9 +753,7 @@ CommittedBundle<Integer> createdBundle =
     TimerData upstreamProcessingTimer =
         TimerData.of(StateNamespaces.global(), upstreamHold, TimeDomain.PROCESSING_TIME);
     manager.updateWatermarks(created, filtered.getProducingTransformInternal(),
-        TimerUpdate.builder("key")
-            .setTimer(upstreamProcessingTimer)
-            .build(),
+        TimerUpdate.builder("key").setTimer(upstreamProcessingTimer).build(),
         Collections.<CommittedBundle<?>>singleton(filteredBundle),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
 
@@ -881,7 +782,7 @@ CommittedBundle<Integer> createdBundle =
   @Test
   public void synchronizedProcessingInputTimeIsHeldToPendingBundleTimes() {
     CommittedBundle<Integer> created = globallyWindowedBundle(createdInts, 1, 2, 3);
-    manager.updateOutputWatermark(createdInts.getProducingTransformInternal(), TimerUpdate.empty(),
+    manager.updateWatermarks(null, createdInts.getProducingTransformInternal(), TimerUpdate.empty(),
         Collections.<CommittedBundle<?>>singleton(created), new Instant(29_919_235L));
 
     Instant upstreamHold = new Instant(2048L);
@@ -908,11 +809,8 @@ CommittedBundle<Integer> createdBundle =
 
     // Advance WM of keyed past the first timer, but ahead of the second and third
     CommittedBundle<Integer> createdBundle = globallyWindowedBundle(filtered);
-    manager.updateOutputWatermark(
-        createdInts.getProducingTransformInternal(),
-        TimerUpdate.empty(),
-        Collections.singleton(createdBundle),
-        new Instant(1500L));
+    manager.updateWatermarks(null, createdInts.getProducingTransformInternal(), TimerUpdate.empty(),
+        Collections.singleton(createdBundle), new Instant(1500L));
 
     TimerData earliestTimer =
         TimerData.of(StateNamespaces.global(), new Instant(1000), TimeDomain.EVENT_TIME);
@@ -928,10 +826,7 @@ CommittedBundle<Integer> createdBundle =
             .setTimer(lastTimer)
             .build();
 
-    manager.updateWatermarks(
-        createdBundle,
-        filtered.getProducingTransformInternal(),
-        update,
+    manager.updateWatermarks(createdBundle, filtered.getProducingTransformInternal(), update,
         Collections.<CommittedBundle<?>>singleton(globallyWindowedBundle(intsToFlatten)),
         new Instant(1000L));
 
@@ -945,11 +840,8 @@ CommittedBundle<Integer> createdBundle =
     FiredTimers firstFired = firstFilteredTimers.get(key);
     assertThat(firstFired.getTimers(TimeDomain.EVENT_TIME), contains(earliestTimer));
 
-    manager.updateOutputWatermark(
-        createdInts.getProducingTransformInternal(),
-        TimerUpdate.empty(),
-        Collections.<CommittedBundle<?>>emptyList(),
-        new Instant(50_000L));
+    manager.updateWatermarks(null, createdInts.getProducingTransformInternal(), TimerUpdate.empty(),
+        Collections.<CommittedBundle<?>>emptyList(), new Instant(50_000L));
     Map<AppliedPTransform<?, ?, ?>, Map<Object, FiredTimers>> secondTransformFiredTimers =
         manager.extractFiredTimers();
     assertThat(
@@ -971,11 +863,8 @@ CommittedBundle<Integer> createdBundle =
 
     // Advance WM of keyed past the first timer, but ahead of the second and third
     CommittedBundle<Integer> createdBundle = globallyWindowedBundle(filtered);
-    manager.updateOutputWatermark(
-        createdInts.getProducingTransformInternal(),
-        TimerUpdate.empty(),
-        Collections.singleton(createdBundle),
-        new Instant(1500L));
+    manager.updateWatermarks(null, createdInts.getProducingTransformInternal(), TimerUpdate.empty(),
+        Collections.singleton(createdBundle), new Instant(1500L));
 
     TimerData earliestTimer =
         TimerData.of(StateNamespaces.global(), new Instant(999L), TimeDomain.PROCESSING_TIME);
@@ -988,12 +877,10 @@ CommittedBundle<Integer> createdBundle =
         TimerUpdate.builder(key)
             .setTimer(lastTimer)
             .setTimer(earliestTimer)
-            .setTimer(middleTimer).build();
+            .setTimer(middleTimer)
+            .build();
 
-    manager.updateWatermarks(
-        createdBundle,
-        filtered.getProducingTransformInternal(),
-        update,
+    manager.updateWatermarks(createdBundle, filtered.getProducingTransformInternal(), update,
         Collections.<CommittedBundle<?>>singleton(globallyWindowedBundle(intsToFlatten)),
         new Instant(1000L));
 
@@ -1008,11 +895,8 @@ CommittedBundle<Integer> createdBundle =
     assertThat(firstFired.getTimers(TimeDomain.PROCESSING_TIME), contains(earliestTimer));
 
     clock.set(new Instant(50_000L));
-    manager.updateOutputWatermark(
-        createdInts.getProducingTransformInternal(),
-        TimerUpdate.empty(),
-        Collections.<CommittedBundle<?>>emptyList(),
-        new Instant(50_000L));
+    manager.updateWatermarks(null, createdInts.getProducingTransformInternal(), TimerUpdate.empty(),
+        Collections.<CommittedBundle<?>>emptyList(), new Instant(50_000L));
     Map<AppliedPTransform<?, ?, ?>, Map<Object, FiredTimers>> secondTransformFiredTimers =
         manager.extractFiredTimers();
     assertThat(
@@ -1034,7 +918,7 @@ CommittedBundle<Integer> createdBundle =
 
     // Advance WM of keyed past the first timer, but ahead of the second and third
     CommittedBundle<Integer> createdBundle = globallyWindowedBundle(filtered);
-    manager.updateOutputWatermark(createdInts.getProducingTransformInternal(), TimerUpdate.empty(),
+    manager.updateWatermarks(null, createdInts.getProducingTransformInternal(), TimerUpdate.empty(),
         Collections.singleton(createdBundle), new Instant(1500L));
 
     TimerData earliestTimer = TimerData.of(
@@ -1048,7 +932,8 @@ CommittedBundle<Integer> createdBundle =
         TimerUpdate.builder(key)
             .setTimer(lastTimer)
             .setTimer(earliestTimer)
-            .setTimer(middleTimer).build();
+            .setTimer(middleTimer)
+            .build();
 
     manager.updateWatermarks(createdBundle, filtered.getProducingTransformInternal(), update,
         Collections.<CommittedBundle<?>>singleton(globallyWindowedBundle(intsToFlatten)),
@@ -1066,7 +951,7 @@ CommittedBundle<Integer> createdBundle =
         firstFired.getTimers(TimeDomain.SYNCHRONIZED_PROCESSING_TIME), contains(earliestTimer));
 
     clock.set(new Instant(50_000L));
-    manager.updateOutputWatermark(createdInts.getProducingTransformInternal(), TimerUpdate.empty(),
+    manager.updateWatermarks(null, createdInts.getProducingTransformInternal(), TimerUpdate.empty(),
         Collections.<CommittedBundle<?>>emptyList(), new Instant(50_000L));
     Map<AppliedPTransform<?, ?, ?>, Map<Object, FiredTimers>> secondTransformFiredTimers =
         manager.extractFiredTimers();
