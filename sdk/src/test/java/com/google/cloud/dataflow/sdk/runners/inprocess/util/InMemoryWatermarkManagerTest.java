@@ -52,10 +52,8 @@ import com.google.common.collect.ImmutableList;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
-import org.joda.time.DateTimeUtils;
 import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -72,7 +70,7 @@ import java.util.Map;
  */
 @RunWith(JUnit4.class)
 public class InMemoryWatermarkManagerTest implements Serializable {
-  private static final Instant INITIAL_PROCESSING_TIME = new Instant(1000L);
+  private transient MockClock clock;
 
   private transient PCollection<Integer> createdInts;
 
@@ -87,8 +85,6 @@ public class InMemoryWatermarkManagerTest implements Serializable {
 
   @Before
   public void setup() {
-    DateTimeUtils.setCurrentMillisFixed(INITIAL_PROCESSING_TIME.getMillis());
-
     TestPipeline p = TestPipeline.create();
 
     createdInts = p.apply("createdInts", Create.of(1, 2, 3));
@@ -130,12 +126,9 @@ public class InMemoryWatermarkManagerTest implements Serializable {
             flattened.getProducingTransformInternal()));
     consumers.put(flattened, Collections.<AppliedPTransform<?, ?, ?>>emptyList());
 
-    manager = InMemoryWatermarkManager.create(rootTransforms, consumers);
-  }
+    clock = MockClock.fromInstant(new Instant(1000));
 
-  @After
-  public void tearDown() {
-    DateTimeUtils.setCurrentMillisSystem();
+    manager = InMemoryWatermarkManager.create(clock, rootTransforms, consumers);
   }
 
   /**
@@ -388,12 +381,12 @@ CommittedBundle<Integer> createdBundle =
         InProcessBundle.keyed(createdInts, "Odd")
             .add(WindowedValue.timestampedValueInGlobalWindow(1, new Instant(1_000_000L)))
             .add(WindowedValue.timestampedValueInGlobalWindow(3, new Instant(-1000L)))
-            .commit(Instant.now());
+            .commit(clock.now());
 
     CommittedBundle<Integer> secondKeyBundle =
         InProcessBundle.keyed(createdInts, "Even")
             .add(WindowedValue.timestampedValueInGlobalWindow(2, new Instant(1234L)))
-            .commit(Instant.now());
+            .commit(clock.now());
 
     manager.updateOutputWatermark(createdInts.getProducingTransformInternal(), TimerUpdate.empty(),
         ImmutableList.of(firstKeyBundle, secondKeyBundle), BoundedWindow.TIMESTAMP_MAX_VALUE);
@@ -411,7 +404,7 @@ CommittedBundle<Integer> createdBundle =
     assertThat(filteredWatermarks.getOutputWatermark(), not(laterThan(new Instant(-1000L))));
 
     CommittedBundle<Integer> fauxFirstKeyTimerBundle =
-        InProcessBundle.keyed(createdInts, "Odd").commit(Instant.now());
+        InProcessBundle.keyed(createdInts, "Odd").commit(clock.now());
     manager.updateWatermarks(fauxFirstKeyTimerBundle, filtered.getProducingTransformInternal(),
         TimerUpdate.empty(), Collections.<CommittedBundle<?>>emptyList(),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
@@ -419,7 +412,7 @@ CommittedBundle<Integer> createdBundle =
     assertThat(filteredWatermarks.getOutputWatermark(), equalTo(new Instant(1234L)));
 
     CommittedBundle<Integer> fauxSecondKeyTimerBundle =
-        InProcessBundle.keyed(createdInts, "Even").commit(Instant.now());
+        InProcessBundle.keyed(createdInts, "Even").commit(clock.now());
     manager.updateWatermarks(fauxSecondKeyTimerBundle, filtered.getProducingTransformInternal(),
         TimerUpdate.empty(), Collections.<CommittedBundle<?>>emptyList(), new Instant(5678L));
     assertThat(filteredWatermarks.getOutputWatermark(), equalTo(new Instant(5678L)));
@@ -647,7 +640,7 @@ CommittedBundle<Integer> createdBundle =
   public void getSynchronizedProcessingTimeInputWatermarksHeldToPendingBundles() {
     TransformWatermarks watermarks =
         manager.getWatermarks(createdInts.getProducingTransformInternal());
-    assertThat(watermarks.getSynchronizedProcessingInputTime(), equalTo(INITIAL_PROCESSING_TIME));
+    assertThat(watermarks.getSynchronizedProcessingInputTime(), equalTo(clock.now()));
     assertThat(
         watermarks.getSynchronizedProcessingOutputTime(),
         equalTo(BoundedWindow.TIMESTAMP_MIN_VALUE));
@@ -672,19 +665,19 @@ CommittedBundle<Integer> createdBundle =
         BoundedWindow.TIMESTAMP_MAX_VALUE);
     TransformWatermarks createAfterUpdate =
         manager.getWatermarks(createdInts.getProducingTransformInternal());
-    assertThat(createAfterUpdate.getSynchronizedProcessingInputTime(), equalTo(Instant.now()));
-    assertThat(createAfterUpdate.getSynchronizedProcessingOutputTime(), equalTo(Instant.now()));
+    assertThat(createAfterUpdate.getSynchronizedProcessingInputTime(), equalTo(clock.now()));
+    assertThat(createAfterUpdate.getSynchronizedProcessingOutputTime(), equalTo(clock.now()));
 
     TransformWatermarks filterAfterProduced =
         manager.getWatermarks(filtered.getProducingTransformInternal());
     assertThat(
-        filterAfterProduced.getSynchronizedProcessingInputTime(), not(laterThan(Instant.now())));
+        filterAfterProduced.getSynchronizedProcessingInputTime(), not(laterThan(clock.now())));
     assertThat(
-        filterAfterProduced.getSynchronizedProcessingOutputTime(), not(laterThan(Instant.now())));
+        filterAfterProduced.getSynchronizedProcessingOutputTime(), not(laterThan(clock.now())));
 
-    DateTimeUtils.setCurrentMillisFixed(1500L);
-    assertThat(createAfterUpdate.getSynchronizedProcessingInputTime(), equalTo(Instant.now()));
-    assertThat(createAfterUpdate.getSynchronizedProcessingOutputTime(), equalTo(Instant.now()));
+    clock.set(new Instant(1500L));
+    assertThat(createAfterUpdate.getSynchronizedProcessingInputTime(), equalTo(clock.now()));
+    assertThat(createAfterUpdate.getSynchronizedProcessingOutputTime(), equalTo(clock.now()));
     assertThat(
         filterAfterProduced.getSynchronizedProcessingInputTime(),
         not(laterThan(new Instant(1250L))));
@@ -739,13 +732,14 @@ CommittedBundle<Integer> createdBundle =
     manager.updateWatermarks(createdBundle, filtered.getProducingTransformInternal(), timers,
         Collections.<CommittedBundle<?>>singleton(filteredBundle),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
-    DateTimeUtils.setCurrentMillisFixed(INITIAL_PROCESSING_TIME.plus(250L).getMillis());
+    Instant startTime = clock.now();
+    clock.set(startTime.plus(250L));
     // We're held based on the past timer
     assertThat(
-        filteredWms.getSynchronizedProcessingOutputTime(), not(laterThan(INITIAL_PROCESSING_TIME)));
+        filteredWms.getSynchronizedProcessingOutputTime(), not(laterThan(startTime)));
     assertThat(
         filteredDoubledWms.getSynchronizedProcessingOutputTime(),
-        not(laterThan(INITIAL_PROCESSING_TIME)));
+        not(laterThan(startTime)));
     // And we're monotonic
     assertThat(
         filteredWms.getSynchronizedProcessingOutputTime(), not(earlierThan(initialFilteredWm)));
@@ -762,10 +756,10 @@ CommittedBundle<Integer> createdBundle =
         contains(pastTimer));
     // Our timer has fired, but has not been completed, so it holds our synchronized processing WM
     assertThat(
-        filteredWms.getSynchronizedProcessingOutputTime(), not(laterThan(INITIAL_PROCESSING_TIME)));
+        filteredWms.getSynchronizedProcessingOutputTime(), not(laterThan(startTime)));
     assertThat(
         filteredDoubledWms.getSynchronizedProcessingOutputTime(),
-        not(laterThan(INITIAL_PROCESSING_TIME)));
+        not(laterThan(startTime)));
 
     CommittedBundle<Integer> filteredTimerBundle =
         InProcessBundle.keyed(filtered, "key").commit(BoundedWindow.TIMESTAMP_MAX_VALUE);
@@ -780,18 +774,19 @@ CommittedBundle<Integer> createdBundle =
         Collections.<CommittedBundle<?>>singleton(filteredTimerResult),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
 
-    DateTimeUtils.setCurrentMillisFixed(INITIAL_PROCESSING_TIME.plus(500L).getMillis());
-    assertThat(filteredWms.getSynchronizedProcessingOutputTime(), not(laterThan(Instant.now())));
+    clock.set(startTime.plus(500L));
+    assertThat(filteredWms.getSynchronizedProcessingOutputTime(), not(laterThan(clock.now())));
     // filtered should be held to the time at which the filteredTimerResult fired
     assertThat(
-        filteredDoubledWms.getSynchronizedProcessingOutputTime(), not(INITIAL_PROCESSING_TIME));
+        filteredDoubledWms.getSynchronizedProcessingOutputTime(),
+        not(earlierThan(filteredTimerResult.getSynchronizedProcessingOutputWatermark())));
 
     manager.updateWatermarks(filteredTimerResult, filteredTimesTwo.getProducingTransformInternal(),
         TimerUpdate.empty(), Collections.<CommittedBundle<?>>emptyList(),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
-    assertThat(filteredDoubledWms.getSynchronizedProcessingOutputTime(), equalTo(Instant.now()));
+    assertThat(filteredDoubledWms.getSynchronizedProcessingOutputTime(), equalTo(clock.now()));
 
-    DateTimeUtils.setCurrentMillisFixed(Long.MAX_VALUE);
+    clock.set(new Instant(Long.MAX_VALUE));
     assertThat(filteredWms.getSynchronizedProcessingOutputTime(), equalTo(new Instant(4096)));
     assertThat(
         filteredDoubledWms.getSynchronizedProcessingOutputTime(), equalTo(new Instant(4096)));
@@ -803,9 +798,10 @@ CommittedBundle<Integer> createdBundle =
    */
   @Test
   public void getSynchronizedProcessingTimeOutputTimeIsMonotonic() {
+    Instant startTime = clock.now();
     TransformWatermarks watermarks =
         manager.getWatermarks(createdInts.getProducingTransformInternal());
-    assertThat(watermarks.getSynchronizedProcessingInputTime(), equalTo(INITIAL_PROCESSING_TIME));
+    assertThat(watermarks.getSynchronizedProcessingInputTime(), equalTo(startTime));
 
     TransformWatermarks filteredWatermarks =
         manager.getWatermarks(filtered.getProducingTransformInternal());
@@ -828,9 +824,9 @@ CommittedBundle<Integer> createdBundle =
     TransformWatermarks createAfterUpdate =
         manager.getWatermarks(createdInts.getProducingTransformInternal());
     assertThat(
-        createAfterUpdate.getSynchronizedProcessingInputTime(), not(laterThan(Instant.now())));
+        createAfterUpdate.getSynchronizedProcessingInputTime(), not(laterThan(clock.now())));
     assertThat(
-        createAfterUpdate.getSynchronizedProcessingOutputTime(), not(laterThan(Instant.now())));
+        createAfterUpdate.getSynchronizedProcessingOutputTime(), not(laterThan(clock.now())));
 
     CommittedBundle<Integer> createSecondOutput =
         InProcessBundle.unkeyed(createdInts).commit(new Instant(750L));
@@ -840,7 +836,7 @@ CommittedBundle<Integer> createdBundle =
         Collections.<CommittedBundle<?>>singleton(createSecondOutput),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
 
-    assertThat(createAfterUpdate.getSynchronizedProcessingOutputTime(), equalTo(Instant.now()));
+    assertThat(createAfterUpdate.getSynchronizedProcessingOutputTime(), equalTo(clock.now()));
   }
 
   @Test
@@ -862,9 +858,9 @@ CommittedBundle<Integer> createdBundle =
 
     TransformWatermarks downstreamWms =
         manager.getWatermarks(filteredTimesTwo.getProducingTransformInternal());
-    assertThat(downstreamWms.getSynchronizedProcessingInputTime(), equalTo(Instant.now()));
+    assertThat(downstreamWms.getSynchronizedProcessingInputTime(), equalTo(clock.now()));
 
-    DateTimeUtils.setCurrentMillisFixed(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis());
+    clock.set(BoundedWindow.TIMESTAMP_MAX_VALUE);
     assertThat(downstreamWms.getSynchronizedProcessingInputTime(), equalTo(upstreamHold));
 
     manager.extractFiredTimers();
@@ -879,7 +875,7 @@ CommittedBundle<Integer> createdBundle =
             .build(),
         Collections.<CommittedBundle<?>>emptyList(), BoundedWindow.TIMESTAMP_MAX_VALUE);
 
-    assertThat(downstreamWms.getSynchronizedProcessingInputTime(), not(earlierThan(Instant.now())));
+    assertThat(downstreamWms.getSynchronizedProcessingInputTime(), not(earlierThan(clock.now())));
   }
 
   @Test
@@ -897,9 +893,9 @@ CommittedBundle<Integer> createdBundle =
 
     TransformWatermarks downstreamWms =
         manager.getWatermarks(filteredTimesTwo.getProducingTransformInternal());
-    assertThat(downstreamWms.getSynchronizedProcessingInputTime(), equalTo(Instant.now()));
+    assertThat(downstreamWms.getSynchronizedProcessingInputTime(), equalTo(clock.now()));
 
-    DateTimeUtils.setCurrentMillisFixed(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis());
+    clock.set(BoundedWindow.TIMESTAMP_MAX_VALUE);
     assertThat(downstreamWms.getSynchronizedProcessingInputTime(), equalTo(upstreamHold));
   }
 
@@ -1011,7 +1007,7 @@ CommittedBundle<Integer> createdBundle =
     FiredTimers firstFired = firstFilteredTimers.get(key);
     assertThat(firstFired.getTimers(TimeDomain.PROCESSING_TIME), contains(earliestTimer));
 
-    DateTimeUtils.setCurrentMillisFixed(50_000L);
+    clock.set(new Instant(50_000L));
     manager.updateOutputWatermark(
         createdInts.getProducingTransformInternal(),
         TimerUpdate.empty(),
@@ -1069,7 +1065,7 @@ CommittedBundle<Integer> createdBundle =
     assertThat(
         firstFired.getTimers(TimeDomain.SYNCHRONIZED_PROCESSING_TIME), contains(earliestTimer));
 
-    DateTimeUtils.setCurrentMillisFixed(50_000L);
+    clock.set(new Instant(50_000L));
     manager.updateOutputWatermark(createdInts.getProducingTransformInternal(), TimerUpdate.empty(),
         Collections.<CommittedBundle<?>>emptyList(), new Instant(50_000L));
     Map<AppliedPTransform<?, ?, ?>, Map<Object, FiredTimers>> secondTransformFiredTimers =

@@ -658,6 +658,11 @@ public class InMemoryWatermarkManager {
   ////////////////////////////////////////////////////////////////////////////////////////////////
 
   /**
+   * The {@link Clock} providing the current time in the {@link TimeDomain#PROCESSING_TIME} domain.
+   */
+  private final Clock clock;
+
+  /**
    * A map from each {@link PCollection} to all {@link AppliedPTransform PTransform applications}
    * that consume that {@link PCollection}.
    */
@@ -678,14 +683,17 @@ public class InMemoryWatermarkManager {
    *                  transforms that consume it as a part of their input
    */
   public static InMemoryWatermarkManager create(
+      Clock clock,
       Collection<AppliedPTransform<?, ?, ?>> rootTransforms,
       Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> consumers) {
-    return new InMemoryWatermarkManager(rootTransforms, consumers);
+    return new InMemoryWatermarkManager(clock, rootTransforms, consumers);
   }
 
   private InMemoryWatermarkManager(
+      Clock clock,
       Collection<AppliedPTransform<?, ?, ?>> rootTransforms,
       Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> consumers) {
+    this.clock = clock;
     this.consumers = consumers;
 
     transformToWatermarks = new HashMap<>();
@@ -1060,7 +1068,7 @@ public class InMemoryWatermarkManager {
     public synchronized Instant getSynchronizedProcessingInputTime() {
       latestSynchronizedInputWm = INSTANT_ORDERING.max(
           latestSynchronizedInputWm,
-          INSTANT_ORDERING.min(Instant.now(), synchronizedProcessingInputWatermark.get()));
+          INSTANT_ORDERING.min(clock.now(), synchronizedProcessingInputWatermark.get()));
       return latestSynchronizedInputWm;
     }
 
@@ -1073,7 +1081,7 @@ public class InMemoryWatermarkManager {
     public synchronized Instant getSynchronizedProcessingOutputTime() {
       latestSynchronizedOutputWm = INSTANT_ORDERING.max(
           latestSynchronizedOutputWm,
-          INSTANT_ORDERING.min(Instant.now(), synchronizedProcessingOutputWatermark.get()));
+          INSTANT_ORDERING.min(clock.now(), synchronizedProcessingOutputWatermark.get()));
       return latestSynchronizedOutputWm;
     }
 
@@ -1110,7 +1118,7 @@ public class InMemoryWatermarkManager {
             TimeDomain.PROCESSING_TIME, BoundedWindow.TIMESTAMP_MAX_VALUE);
       } else {
         processingTimers = synchronizedProcessingInputWatermark.extractFiredDomainTimers(
-            TimeDomain.PROCESSING_TIME, Instant.now());
+            TimeDomain.PROCESSING_TIME, clock.now());
         synchronizedTimers = synchronizedProcessingInputWatermark.extractFiredDomainTimers(
             TimeDomain.SYNCHRONIZED_PROCESSING_TIME, getSynchronizedProcessingInputTime());
       }
