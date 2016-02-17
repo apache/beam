@@ -151,7 +151,8 @@ public class FlinkBatchTransformTranslators {
 
 			TypeInformation<T> typeInformation = context.getTypeInfo(output);
 
-			DataSource<T> dataSource = new DataSource<>(context.getExecutionEnvironment(), new SourceInputFormat<>(source, context.getPipelineOptions(), coder), typeInformation, name);
+			DataSource<T> dataSource = new DataSource<>(context.getExecutionEnvironment(),
+					new SourceInputFormat<>(source, context.getPipelineOptions()), typeInformation, name);
 
 			context.setOutputDataSet(output, dataSource);
 		}

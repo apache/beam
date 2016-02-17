@@ -55,20 +55,6 @@ public abstract class FlinkAbstractParDoWrapper<IN, OUTDF, OUTFL> extends RichFl
 		this.windowingStrategy = windowingStrategy;
 	}
 
-//	protected void writeObject(ObjectOutputStream out)
-//			throws IOException, ClassNotFoundException {
-//		out.defaultWriteObject();
-//		ObjectMapper mapper = new ObjectMapper();
-//		mapper.writeValue(out, options);
-//	}
-//
-//	protected void readObject(ObjectInputStream in)
-//			throws IOException, ClassNotFoundException {
-//		in.defaultReadObject();
-//		ObjectMapper mapper = new ObjectMapper();
-//		options = mapper.readValue(in, PipelineOptions.class);
-//	}
-
 	private void initContext(DoFn<IN, OUTDF> function, Collector<WindowedValue<OUTFL>> outCollector) {
 		if (this.context == null) {
 			this.context = new DoFnProcessContext(function, outCollector);
