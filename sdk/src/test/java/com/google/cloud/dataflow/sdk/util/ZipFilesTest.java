@@ -165,18 +165,13 @@ public class ZipFilesTest {
 
     ZipFiles.zipDirectory(tmpDir, zipFile);
 
-    ZipFile zip = new ZipFile(zipFile);
-    try {
+    try (ZipFile zip = new ZipFile(zipFile)) {
       ZipEntry entry = zip.getEntry("zip/myTextFile.txt");
       ByteSource byteSource = ZipFiles.asByteSource(zip, entry);
-
       if (entry.getSize() != -1) {
         assertEquals(entry.getSize(), byteSource.size());
       }
-
       assertArrayEquals("Simple Text".getBytes(StandardCharsets.UTF_8), byteSource.read());
-    } finally {
-      zip.close();
     }
   }
 
@@ -188,25 +183,18 @@ public class ZipFilesTest {
 
     ZipFiles.zipDirectory(tmpDir, zipFile);
 
-    ZipFile zip = new ZipFile(zipFile);
-    try {
+    try (ZipFile zip = new ZipFile(zipFile)) {
       ZipEntry entry = zip.getEntry("zip/myTextFile.txt");
       CharSource charSource = ZipFiles.asCharSource(zip, entry, StandardCharsets.UTF_8);
       assertEquals("Simple Text", charSource.read());
-    } finally {
-      zip.close();
     }
   }
 
   private void assertZipOnlyContains(String zipFileEntry) throws IOException {
-    ZipFile zippedFile = new ZipFile(zipFile);
-    try {
+    try (ZipFile zippedFile = new ZipFile(zipFile)) {
       assertEquals(1, zippedFile.size());
-
       ZipEntry entry = zippedFile.entries().nextElement();
       assertEquals(zipFileEntry, entry.getName());
-    } finally {
-      zippedFile.close();
     }
   }
 
