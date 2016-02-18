@@ -16,12 +16,15 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
+import com.google.common.collect.Iterables;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedOutputStream;
 import java.io.File;
-import java.io.FileFilter;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -66,17 +69,21 @@ public class FileIOChannelFactory implements IOChannelFactory {
     String pathToMatch = file.getAbsolutePath().replaceAll(Matcher.quoteReplacement("\\"),
                                                            Matcher.quoteReplacement("\\\\"));
 
-    final PathMatcher matcher =
-        FileSystems.getDefault().getPathMatcher("glob:" + pathToMatch);
-    File[] files = parent.listFiles(new FileFilter() {
-      @Override
-      public boolean accept(File pathname) {
-        return matcher.matches(pathname.toPath());
-      }
-    });
+    final PathMatcher matcher = FileSystems.getDefault().getPathMatcher("glob:" + pathToMatch);
+
+    Iterable<File> files = com.google.common.io.Files.fileTreeTraverser().preOrderTraversal(parent);
+    Iterable<File> matchedFiles = Iterables.filter(files,
+        Predicates.and(
+            com.google.common.io.Files.isFile(),
+            new Predicate<File>() {
+              @Override
+              public boolean apply(File input) {
+                return matcher.matches(input.toPath());
+              }
+        }));
 
     List<String> result = new LinkedList<>();
-    for (File match : files) {
+    for (File match : matchedFiles) {
       result.add(match.getPath());
     }
 

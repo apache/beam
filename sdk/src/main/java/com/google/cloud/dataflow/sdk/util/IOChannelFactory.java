@@ -40,7 +40,8 @@ public interface IOChannelFactory {
    * all support globs in the final component of a path (eg /foo/bar/*.txt),
    * however they are not required to support globs in the directory paths.
    *
-   * <p>The result is the (possibly empty) set of specifications that match.
+   * <p>The list of resources returned are required to exist and not represent abstract
+   * resources such as symlinks and directories.
    */
   Collection<String> match(String spec) throws IOException;
 

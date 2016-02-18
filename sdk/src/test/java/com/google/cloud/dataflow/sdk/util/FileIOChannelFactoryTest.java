@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -54,7 +55,9 @@ public class FileIOChannelFactoryTest {
         factory.create(path.toString(), MimeTypes.TEXT), StandardCharsets.UTF_8.name())) {
       writer.write(expected);
     }
-    assertThat(Files.readLines(path.toFile(), StandardCharsets.UTF_8), Matchers.hasItems(expected));
+    assertThat(
+        Files.readLines(path.toFile(), StandardCharsets.UTF_8),
+        containsInAnyOrder(expected));
   }
 
   @Test
@@ -111,7 +114,7 @@ public class FileIOChannelFactoryTest {
     temporaryFolder.newFile("ab");
 
     assertThat(factory.match(temporaryFolder.getRoot().toPath().resolve("a").toString()),
-        Matchers.hasItems(expected.toArray(new String[expected.size()])));
+        containsInAnyOrder(expected.toArray(new String[expected.size()])));
   }
 
   @Test
@@ -123,11 +126,32 @@ public class FileIOChannelFactoryTest {
 
     // Windows doesn't like resolving paths with * in them, so the * is appended after resolve.
     assertThat(factory.match(factory.resolve(temporaryFolder.getRoot().getPath(), "b") + "*"),
-        Matchers.hasItems(expected.toArray(new String[expected.size()])));
+        containsInAnyOrder(expected.toArray(new String[expected.size()])));
   }
 
   @Test
-  public void testMatchMultiple() throws Exception {
+  public void testMatchUsingExplicitPath() throws Exception {
+    List<String> expected = ImmutableList.of(temporaryFolder.newFile("a").toString());
+    temporaryFolder.newFile("aa");
+
+    assertThat(factory.match(factory.resolve(temporaryFolder.getRoot().getPath(), "a")),
+        containsInAnyOrder(expected.toArray(new String[expected.size()])));
+  }
+
+  @Test
+  public void testMatchUsingExplicitPathForNonExistentFile() throws Exception {
+    List<String> expected = ImmutableList.of();
+    temporaryFolder.newFile("aa");
+
+    assertThat(factory.match(factory.resolve(temporaryFolder.getRoot().getPath(), "a")),
+        containsInAnyOrder(expected.toArray(new String[expected.size()])));
+  }
+
+  @Test
+  public void testMatchMultipleWithoutSubdirectoryExpansion() throws Exception {
+    File unmatchedSubDir = temporaryFolder.newFolder("aaa");
+    File unmatchedSubDirFile = File.createTempFile("sub-dir-file", "", unmatchedSubDir);
+    unmatchedSubDirFile.deleteOnExit();
     List<String> expected = ImmutableList.of(temporaryFolder.newFile("a").toString(),
         temporaryFolder.newFile("aa").toString(), temporaryFolder.newFile("ab").toString());
     temporaryFolder.newFile("ba");
@@ -135,7 +159,36 @@ public class FileIOChannelFactoryTest {
 
     // Windows doesn't like resolving paths with * in them, so the * is appended after resolve.
     assertThat(factory.match(factory.resolve(temporaryFolder.getRoot().getPath(), "a") + "*"),
+        containsInAnyOrder(expected.toArray(new String[expected.size()])));
+  }
+
+  @Test
+  public void testMatchMultipleWithSubdirectoryExpansion() throws Exception {
+    File matchedSubDir = temporaryFolder.newFolder("a");
+    File matchedSubDirFile = File.createTempFile("sub-dir-file", "", matchedSubDir);
+    matchedSubDirFile.deleteOnExit();
+    File unmatchedSubDir = temporaryFolder.newFolder("b");
+    File unmatchedSubDirFile = File.createTempFile("sub-dir-file", "", unmatchedSubDir);
+    unmatchedSubDirFile.deleteOnExit();
+
+    List<String> expected = ImmutableList.of(matchedSubDirFile.toString(),
+        temporaryFolder.newFile("aa").toString(), temporaryFolder.newFile("ab").toString());
+    temporaryFolder.newFile("ba");
+    temporaryFolder.newFile("bb");
+
+    // Windows doesn't like resolving paths with * in them, so the ** is appended after resolve.
+    assertThat(factory.match(factory.resolve(temporaryFolder.getRoot().getPath(), "a") + "**"),
         Matchers.hasItems(expected.toArray(new String[expected.size()])));
+  }
+
+  @Test
+  public void testMatchWithDirectoryFiltersOutDirectory() throws Exception {
+    List<String> expected = ImmutableList.of(temporaryFolder.newFile("a").toString());
+    temporaryFolder.newFolder("a_dir_that_should_not_be_matched");
+
+    // Windows doesn't like resolving paths with * in them, so the * is appended after resolve.
+    assertThat(factory.match(factory.resolve(temporaryFolder.getRoot().getPath(), "a") + "*"),
+        containsInAnyOrder(expected.toArray(new String[expected.size()])));
   }
 
   @Test
