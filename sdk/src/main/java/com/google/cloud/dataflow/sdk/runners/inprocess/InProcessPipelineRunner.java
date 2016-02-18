@@ -23,17 +23,21 @@ import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey.GroupByKeyOnly;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.util.BaseExecutionContext;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.SideInputReader;
 import com.google.cloud.dataflow.sdk.util.TimerInternals;
 import com.google.cloud.dataflow.sdk.util.TimerInternals.TimerData;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
+import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
 import com.google.cloud.dataflow.sdk.util.state.StateInternals;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
+import com.google.cloud.dataflow.sdk.values.PValue;
 
 import org.joda.time.Instant;
 
@@ -233,6 +237,16 @@ public class InProcessPipelineRunner {
      *         {@link PCollectionView PCollectionViews}
      */
     SideInputReader createSideInputReader(List<PCollectionView<?>> sideInputs);
+
+    /**
+     * Schedules a callback after the watermark for a {@link PValue} after the trigger for the
+     * specified window (with the specified windowing strategy) must have fired from the perspective
+     * of that {@link PValue}, as specified by the value of
+     * {@link Trigger#getWatermarkThatGuaranteesFiring(BoundedWindow)} for the trigger of the
+     * {@link WindowingStrategy}.
+     */
+    void callAfterOutputMustHaveBeenProduced(PValue value, BoundedWindow window,
+        WindowingStrategy<?, ?> windowingStrategy, Runnable runnable);
 
     /**
      * Create a {@link CounterSet} for this {@link Pipeline}. The {@link CounterSet} is independent
