@@ -26,8 +26,9 @@ import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.hash.Hashing;
+import com.google.common.hash.HashingOutputStream;
+import com.google.common.io.ByteStreams;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
@@ -397,11 +398,12 @@ public class ApproximateUnique {
     /**
      * Encodes the given element using the given coder and hashes the encoding.
      */
-    static <T> long hash(T element, Coder<T> coder)
-        throws CoderException, IOException {
-      ByteArrayOutputStream baos = new ByteArrayOutputStream();
-      coder.encode(element, baos, Context.OUTER);
-      return Hashing.murmur3_128().hashBytes(baos.toByteArray()).asLong();
+    static <T> long hash(T element, Coder<T> coder) throws CoderException, IOException {
+      try (HashingOutputStream stream =
+              new HashingOutputStream(Hashing.murmur3_128(), ByteStreams.nullOutputStream())) {
+        coder.encode(element, stream, Context.OUTER);
+        return stream.hash().asLong();
+      }
     }
   }
 

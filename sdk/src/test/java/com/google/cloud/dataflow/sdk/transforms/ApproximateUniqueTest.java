@@ -25,7 +25,6 @@ import com.google.cloud.dataflow.sdk.TestUtils;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
-import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
@@ -200,17 +199,16 @@ public class ApproximateUniqueTest implements Serializable {
    * Applies {@code ApproximateUnique(sampleSize)} verifying that the estimation
    * error falls within the maximum allowed error of {@code 2/sqrt(sampleSize)}.
    */
-  private void runApproximateUniquePipeline(int sampleSize) {
+  private static void runApproximateUniquePipeline(int sampleSize) {
     Pipeline p = TestPipeline.create();
-    PCollection<String> collection = readPCollection(p);
 
-    final PCollectionView<Long> exact = collection
-        .apply(RemoveDuplicates.<String>create())
-        .apply(Combine.globally(new CountElements<String>()))
-        .apply(View.<Long>asSingleton());
-
-    PCollection<Long> approximate = collection
-        .apply(ApproximateUnique.<String>globally(sampleSize));
+    PCollection<String> input = p.apply(Create.of(TEST_LINES));
+    PCollection<Long> approximate = input.apply(ApproximateUnique.<String>globally(sampleSize));
+    final PCollectionView<Long> exact =
+        input
+            .apply(RemoveDuplicates.<String>create())
+            .apply(Count.<String>globally())
+            .apply(View.<Long>asSingleton());
 
     PCollection<KV<Long, Long>> approximateAndExact = approximate
         .apply(ParDo.of(new DoFn<Long, KV<Long, Long>>() {
@@ -221,26 +219,19 @@ public class ApproximateUniqueTest implements Serializable {
             })
             .withSideInputs(exact));
 
-    DataflowAssert.that(approximateAndExact)
-        .satisfies(new VerifyEstimatePerKeyFn(sampleSize));
+    DataflowAssert.that(approximateAndExact).satisfies(new VerifyEstimatePerKeyFn(sampleSize));
 
     p.run();
   }
 
-  /**
-   * Reads a large {@code PCollection<String>}.
-   */
-  private PCollection<String> readPCollection(Pipeline p) {
-    // TODO: Read PCollection from a set of text files.
-    List<String> page = TestUtils.LINES;
-    final int pages = 1000;
-    ArrayList<String> file = new ArrayList<>(pages * page.size());
-    for (int i = 0; i < pages; i++) {
-      file.addAll(page);
+  private static final int TEST_PAGES = 100;
+  private static final List<String> TEST_LINES =
+      new ArrayList<>(TEST_PAGES * TestUtils.LINES.size());
+
+  static {
+    for (int i = 0; i < TEST_PAGES; i++) {
+      TEST_LINES.addAll(TestUtils.LINES);
     }
-    assert file.size() == pages * page.size();
-    PCollection<String> words = p.apply(Create.of(file));
-    return words;
   }
 
   /**
@@ -295,38 +286,6 @@ public class ApproximateUniqueTest implements Serializable {
         verifyEstimate(result.getKey(), sampleSize, result.getValue());
       }
       return null;
-    }
-  }
-
-  /**
-   * Combiner function counting the number of elements in an input PCollection.
-   *
-   * @param <T> the type of elements in the input PCollection.
-   */
-  private static class CountElements<T> extends CombineFn<T, Long, Long> {
-
-    @Override
-    public Long createAccumulator() {
-      return 0L;
-    }
-
-    @Override
-    public Long addInput(Long accumulator, T input) {
-      return accumulator + 1;
-    }
-
-    @Override
-    public Long mergeAccumulators(Iterable<Long> accumulators) {
-      long sum = 0;
-      for (Long accumulator : accumulators) {
-        sum += accumulator;
-      }
-      return sum;
-    }
-
-    @Override
-    public Long extractOutput(Long accumulator) {
-      return accumulator;
     }
   }
 }
