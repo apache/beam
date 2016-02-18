@@ -18,12 +18,20 @@ package com.google.cloud.dataflow.sdk.io.bigtable;
 import com.google.bigtable.admin.table.v1.GetTableRequest;
 import com.google.bigtable.v1.MutateRowRequest;
 import com.google.bigtable.v1.Mutation;
+import com.google.bigtable.v1.ReadRowsRequest;
+import com.google.bigtable.v1.Row;
+import com.google.bigtable.v1.RowRange;
+import com.google.bigtable.v1.SampleRowKeysRequest;
+import com.google.bigtable.v1.SampleRowKeysResponse;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.grpc.BigtableSession;
 import com.google.cloud.bigtable.grpc.async.AsyncExecutor;
 import com.google.cloud.bigtable.grpc.async.HeapSizeManager;
+import com.google.cloud.bigtable.grpc.scanner.ResultScanner;
+import com.google.cloud.dataflow.sdk.io.bigtable.BigtableIO.BigtableSource;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.common.base.MoreObjects;
+import com.google.common.io.Closer;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Empty;
@@ -35,6 +43,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.NoSuchElementException;
 
 /**
  * An implementation of {@link BigtableService} that actually communicates with the Cloud Bigtable
@@ -86,7 +96,75 @@ class BigtableServiceImpl implements BigtableService {
     }
   }
 
-  private class BigtableWriterImpl implements Writer {
+  private class BigtableReaderImpl implements Reader {
+    private BigtableSession session;
+    private final BigtableSource source;
+    private ResultScanner<Row> results;
+    private Row currentRow;
+
+    public BigtableReaderImpl(BigtableSession session, BigtableSource source) {
+      this.session = session;
+      this.source = source;
+    }
+
+    @Override
+    public boolean start() throws IOException {
+      RowRange range =
+          RowRange.newBuilder()
+              .setStartKey(source.getRange().getStartKey().getValue())
+              .setEndKey(source.getRange().getEndKey().getValue())
+              .build();
+      ReadRowsRequest.Builder requestB =
+          ReadRowsRequest.newBuilder()
+              .setRowRange(range)
+              .setTableName(options.getClusterName().toTableNameStr(source.getTableId()));
+      if (source.getRowFilter() != null) {
+        requestB.setFilter(source.getRowFilter());
+      }
+      results = session.getDataClient().readRows(requestB.build());
+      return advance();
+    }
+
+    @Override
+    public boolean advance() throws IOException {
+      currentRow = results.next();
+      return (currentRow != null);
+    }
+
+    @Override
+    public void close() throws IOException {
+      // Goal: by the end of this function, both results and session are null and closed,
+      // independent of what errors they throw or prior state.
+
+      if (session == null) {
+        // Only possible when previously closed, so we know that results is also null.
+        return;
+      }
+
+      // Session does not implement Closeable -- it's AutoCloseable. So we can't register it with
+      // the Closer, but we can use the Closer to simplify the error handling.
+      try (Closer closer = Closer.create()) {
+        if (results != null) {
+          closer.register(results);
+          results = null;
+        }
+
+        session.close();
+      } finally {
+        session = null;
+      }
+    }
+
+    @Override
+    public Row getCurrentRow() throws NoSuchElementException {
+      if (currentRow == null) {
+        throw new NoSuchElementException();
+      }
+      return currentRow;
+    }
+  }
+
+  private static class BigtableWriterImpl implements Writer {
     private BigtableSession session;
     private AsyncExecutor executor;
     private final MutateRowRequest.Builder partialBuilder;
@@ -142,5 +220,22 @@ class BigtableServiceImpl implements BigtableService {
         .toStringHelper(BigtableServiceImpl.class)
         .add("options", options)
         .toString();
+  }
+
+  @Override
+  public Reader createReader(BigtableSource source) throws IOException {
+    BigtableSession session = new BigtableSession(options);
+    return new BigtableReaderImpl(session, source);
+  }
+
+  @Override
+  public List<SampleRowKeysResponse> getSampleRowKeys(BigtableSource source) throws IOException {
+    try (BigtableSession session = new BigtableSession(options)) {
+      SampleRowKeysRequest request =
+          SampleRowKeysRequest.newBuilder()
+              .setTableName(options.getClusterName().toTableNameStr(source.getTableId()))
+              .build();
+      return session.getDataClient().sampleRowKeys(request);
+    }
   }
 }

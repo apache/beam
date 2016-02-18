@@ -16,6 +16,9 @@
 package com.google.cloud.dataflow.sdk.io.bigtable;
 
 import com.google.bigtable.v1.Mutation;
+import com.google.bigtable.v1.Row;
+import com.google.bigtable.v1.SampleRowKeysResponse;
+import com.google.cloud.dataflow.sdk.io.bigtable.BigtableIO.BigtableSource;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.ByteString;
@@ -23,6 +26,8 @@ import com.google.protobuf.Empty;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.List;
+import java.util.NoSuchElementException;
 
 /**
  * An interface for real or fake implementations of Cloud Bigtable.
@@ -52,12 +57,52 @@ interface BigtableService extends Serializable {
   }
 
   /**
+   * The interface of a class that reads from Cloud Bigtable.
+   */
+  interface Reader {
+    /**
+     * Reads the first element (including initialization, such as opening a network connection) and
+     * returns true if an element was found.
+     */
+    boolean start() throws IOException;
+
+    /**
+     * Attempts to read the next element, and returns true if an element has been read.
+     */
+    boolean advance() throws IOException;
+
+    /**
+     * Closes the reader.
+     *
+     * @throws IOException if there is an error.
+     */
+    void close() throws IOException;
+
+    /**
+     * Returns the last row read by a successful start() or advance(), or throws if there is no
+     * current row because the last such call was unsuccessful.
+     */
+    Row getCurrentRow() throws NoSuchElementException;
+  }
+
+  /**
    * Returns {@code true} if the table with the give name exists.
    */
   boolean tableExists(String tableId) throws IOException;
 
   /**
+   * Returns a {@link Reader} that will read from the specified source.
+   */
+  Reader createReader(BigtableSource source) throws IOException;
+
+  /**
    * Returns a {@link Writer} that will write to the specified table.
    */
   Writer openForWriting(String tableId) throws IOException;
+
+  /**
+   * Returns a set of row keys sampled from the underlying table. These contain information about
+   * the distribution of keys within the table.
+   */
+  List<SampleRowKeysResponse> getSampleRowKeys(BigtableSource source) throws IOException;
 }
