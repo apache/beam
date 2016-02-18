@@ -82,7 +82,7 @@ public class CounterSet extends AbstractSet<Counter<?>> {
     if (counter.isCompatibleWith(oldCounter)) {
       // Return the counter to reuse.
       @SuppressWarnings("unchecked")
-      Counter<T> compatibleCounter = (Counter) oldCounter;
+      Counter<T> compatibleCounter = (Counter<T>) oldCounter;
       return compatibleCounter;
     }
     throw new IllegalArgumentException(
