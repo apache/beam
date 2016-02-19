@@ -16,8 +16,6 @@
 
 package com.google.cloud.dataflow.sdk.io.range;
 
-import static org.hamcrest.Matchers.closeTo;
-import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
@@ -69,7 +67,7 @@ public class ByteKeyRangeTest {
         AFTER_10,
       };
 
-  private static final ByteKey[] RANGE_TEST_KEYS =
+  static final ByteKey[] RANGE_TEST_KEYS =
       ImmutableList.<ByteKey>builder()
           .addAll(Arrays.asList(ByteKeyTest.TEST_KEYS))
           .add(ByteKey.EMPTY)
@@ -247,38 +245,6 @@ public class ByteKeyRangeTest {
     }
   }
 
-  /** Exhaustive tests for {@link ByteKeyRange#estimateFractionForKey}. */
-  @Test
-  public void testEstimateFractionForKeyCombinatorial() {
-    double last;
-    for (int i = 0; i < RANGE_TEST_KEYS.length; ++i) {
-      for (int k = i + 1; k < RANGE_TEST_KEYS.length; ++k) {
-        ByteKeyRange range = ByteKeyRange.of(RANGE_TEST_KEYS[i], RANGE_TEST_KEYS[k]);
-        last = 0.0;
-        for (int j = i; j < k; ++j) {
-          ByteKey key = RANGE_TEST_KEYS[j];
-          if (key.isEmpty()) {
-            // Cannot compute progress for unspecified key
-            continue;
-          }
-          double fraction = range.estimateFractionForKey(key);
-          try {
-            assertThat(fraction, greaterThanOrEqualTo(last));
-          } catch (AssertionError e) {
-            throw new AssertionError(
-                String.format(
-                    "Range %s estimated fraction for key %s should be >= fraction for key %s",
-                    range,
-                    key,
-                    RANGE_TEST_KEYS[i]),
-                e);
-          }
-          last = fraction;
-        }
-      }
-    }
-  }
-
   /** Manual tests for {@link ByteKeyRange#interpolateKey}. */
   @Test
   public void testInterpolateKey() {
@@ -321,39 +287,6 @@ public class ByteKeyRangeTest {
     for (ByteKeyRange range : TEST_RANGES) {
       range = ByteKeyRange.ALL_KEYS;
       assertFalse(String.format(fmt, range), range.interpolateKey(0.0).isEmpty());
-    }
-  }
-
-  /**
-   * Combinatorial tests for {@link ByteKeyRange#interpolateKey}, which also checks
-   * {@link ByteKeyRange#estimateFractionForKey} by converting the interpolated keys back to
-   * fractions.
-   */
-  @Test
-  public void testInterpolateKeyAndEstimateFractionCombinatorial() {
-    double delta = 0.0000001;
-    double[] testFractions =
-        new double[] {0.01, 0.1, 0.123, 0.2, 0.3, 0.45738, 0.5, 0.6, 0.7182, 0.8, 0.95, 0.97, 0.99};
-    for (int i = 0; i < RANGE_TEST_KEYS.length; ++i) {
-      for (int j = i + 1; j < RANGE_TEST_KEYS.length; ++j) {
-        ByteKeyRange range = ByteKeyRange.of(RANGE_TEST_KEYS[i], RANGE_TEST_KEYS[j]);
-        ByteKey last = RANGE_TEST_KEYS[i];
-        for (double fraction : testFractions) {
-          try {
-            ByteKey key = range.interpolateKey(fraction);
-            String message = String.format("%s, %s", range, fraction);
-            assertThat(message, key, greaterThanOrEqualTo(last));
-            assertThat(message, range.estimateFractionForKey(key), closeTo(fraction, delta));
-            last = key;
-          } catch (IllegalStateException e) {
-            assertThat(
-                String.format("range: %s fraction: %f", range, fraction),
-                e.getMessage(),
-                containsString("near-empty ByteKeyRange"));
-            continue;
-          }
-        }
-      }
     }
   }
 
