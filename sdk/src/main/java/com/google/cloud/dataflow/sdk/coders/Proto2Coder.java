@@ -140,7 +140,7 @@ public class Proto2Coder<T extends Message> extends AtomicCoder<T> {
         Method registerAllExtensions = extensionHost.getDeclaredMethod(
             "registerAllExtensions", ExtensionRegistry.class);
         Preconditions.checkArgument(
-            0 != (registerAllExtensions.getModifiers() | Modifier.STATIC),
+            Modifier.isStatic(registerAllExtensions.getModifiers()),
             "Method registerAllExtensions() must be static for use with Proto2Coder");
       } catch (NoSuchMethodException | SecurityException e) {
         throw new IllegalArgumentException(e);
