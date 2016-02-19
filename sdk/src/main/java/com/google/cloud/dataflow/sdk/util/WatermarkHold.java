@@ -19,7 +19,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFns;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window.ClosingBehavior;
-import com.google.cloud.dataflow.sdk.util.state.MergingStateContext;
+import com.google.cloud.dataflow.sdk.util.state.MergingStateAccessor;
 import com.google.cloud.dataflow.sdk.util.state.StateContents;
 import com.google.cloud.dataflow.sdk.util.state.StateMerging;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
@@ -345,7 +345,7 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
   /**
    * Prefetch watermark holds in preparation for merging.
    */
-  public void prefetchOnMerge(MergingStateContext<?, W> state) {
+  public void prefetchOnMerge(MergingStateAccessor<?, W> state) {
     StateMerging.prefetchWatermarks(state, elementHoldTag);
   }
 

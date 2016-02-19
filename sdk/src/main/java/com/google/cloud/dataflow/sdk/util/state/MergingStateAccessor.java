@@ -23,12 +23,13 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import java.util.Map;
 
 /**
- * Interface for interacting with persistent state at the moment windows are merging.
+ * Interface for accessing persistent state while windows are merging.
  *
  * <p>For internal use only.
  */
 @Experimental(Kind.STATE)
-public interface MergingStateContext<K, W extends BoundedWindow> extends StateContext<K> {
+public interface MergingStateAccessor<K, W extends BoundedWindow>
+    extends StateAccessor<K> {
   /**
    * Analogous to {@link #access}, but returned as a map from each window which is
    * about to be merged to the corresponding state. Only includes windows which

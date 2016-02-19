@@ -19,8 +19,8 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.util.ExecutableTrigger;
 import com.google.cloud.dataflow.sdk.util.TimeDomain;
-import com.google.cloud.dataflow.sdk.util.state.MergingStateContext;
-import com.google.cloud.dataflow.sdk.util.state.StateContext;
+import com.google.cloud.dataflow.sdk.util.state.MergingStateAccessor;
+import com.google.cloud.dataflow.sdk.util.state.StateAccessor;
 import com.google.common.base.Joiner;
 
 import org.joda.time.Instant;
@@ -190,7 +190,7 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
     public abstract TriggerInfo<W> trigger();
 
     /** Returns the interface for accessing persistent state. */
-    public abstract StateContext<?> state();
+    public abstract StateAccessor<?> state();
 
     /** The window that the current context is executing in. */
     public abstract W window();
@@ -265,7 +265,7 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
     public abstract OnMergeContext forTrigger(ExecutableTrigger<W> trigger);
 
     @Override
-    public abstract MergingStateContext<?, W> state();
+    public abstract MergingStateAccessor<?, W> state();
 
     @Override
     public abstract MergingTriggerInfo<W> trigger();
@@ -319,7 +319,7 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
    * Called to allow the trigger to prefetch any state it will likely need to read from during
    * an {@link #onElement} call.
    */
-  public void prefetchOnElement(StateContext<?> state) {
+  public void prefetchOnElement(StateAccessor<?> state) {
     if (subTriggers != null) {
       for (Trigger<W> trigger : subTriggers) {
         trigger.prefetchOnElement(state);
@@ -331,7 +331,7 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
    * Called to allow the trigger to prefetch any state it will likely need to read from during
    * an {@link #onMerge} call.
    */
-  public void prefetchOnMerge(MergingStateContext<?, W> state) {
+  public void prefetchOnMerge(MergingStateAccessor<?, W> state) {
     if (subTriggers != null) {
       for (Trigger<W> trigger : subTriggers) {
         trigger.prefetchOnMerge(state);
@@ -343,7 +343,7 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
    * Called to allow the trigger to prefetch any state it will likely need to read from during
    * an {@link #shouldFire} call.
    */
-  public void prefetchShouldFire(StateContext<?> state) {
+  public void prefetchShouldFire(StateAccessor<?> state) {
     if (subTriggers != null) {
       for (Trigger<W> trigger : subTriggers) {
         trigger.prefetchShouldFire(state);
@@ -355,7 +355,7 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
    * Called to allow the trigger to prefetch any state it will likely need to read from during
    * an {@link #onFire} call.
    */
-  public void prefetchOnFire(StateContext<?> state) {
+  public void prefetchOnFire(StateAccessor<?> state) {
     if (subTriggers != null) {
       for (Trigger<W> trigger : subTriggers) {
         trigger.prefetchOnFire(state);

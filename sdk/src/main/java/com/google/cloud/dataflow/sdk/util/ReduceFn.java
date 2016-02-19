@@ -17,9 +17,9 @@ package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
-import com.google.cloud.dataflow.sdk.util.state.MergingStateContext;
+import com.google.cloud.dataflow.sdk.util.state.MergingStateAccessor;
+import com.google.cloud.dataflow.sdk.util.state.StateAccessor;
 import com.google.cloud.dataflow.sdk.util.state.StateContents;
-import com.google.cloud.dataflow.sdk.util.state.StateContext;
 
 import org.joda.time.Instant;
 
@@ -48,7 +48,7 @@ public abstract class ReduceFn<K, InputT, OutputT, W extends BoundedWindow>
     public abstract WindowingStrategy<?, W> windowingStrategy();
 
     /** Return the interface for accessing state. */
-    public abstract StateContext<K> state();
+    public abstract StateAccessor<K> state();
 
     /** Return the interface for accessing timers. */
     public abstract Timers timers();
@@ -67,7 +67,7 @@ public abstract class ReduceFn<K, InputT, OutputT, W extends BoundedWindow>
   public abstract class OnMergeContext extends Context {
     /** Return the interface for accessing state. */
     @Override
-    public abstract MergingStateContext<K, W> state();
+    public abstract MergingStateAccessor<K, W> state();
   }
 
   /** Information accessible within {@link #onTrigger}. */
@@ -105,7 +105,7 @@ public abstract class ReduceFn<K, InputT, OutputT, W extends BoundedWindow>
    *
    * @param c Context to use prefetch from.
    */
-  public void prefetchOnMerge(MergingStateContext<K, W> c) throws Exception {}
+  public void prefetchOnMerge(MergingStateAccessor<K, W> c) throws Exception {}
 
   /**
    * Called before {@link #onTrigger} is invoked to provide an opportunity to prefetch any needed
@@ -113,7 +113,7 @@ public abstract class ReduceFn<K, InputT, OutputT, W extends BoundedWindow>
    *
    * @param context Context to use prefetch from.
    */
-  public void prefetchOnTrigger(StateContext<K> context) {}
+  public void prefetchOnTrigger(StateAccessor<K> context) {}
 
   /**
    * Called to clear any persisted state that the {@link ReduceFn} may be holding. This will be
@@ -124,5 +124,5 @@ public abstract class ReduceFn<K, InputT, OutputT, W extends BoundedWindow>
   /**
    * Returns true if the there is no buffered state.
    */
-  public abstract StateContents<Boolean> isEmpty(StateContext<K> context);
+  public abstract StateContents<Boolean> isEmpty(StateAccessor<K> context);
 }

@@ -26,9 +26,9 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.state.BagState;
 import com.google.cloud.dataflow.sdk.util.state.CombiningValueState;
 import com.google.cloud.dataflow.sdk.util.state.CombiningValueStateInternal;
-import com.google.cloud.dataflow.sdk.util.state.MergingStateContext;
+import com.google.cloud.dataflow.sdk.util.state.MergingStateAccessor;
+import com.google.cloud.dataflow.sdk.util.state.StateAccessor;
 import com.google.cloud.dataflow.sdk.util.state.StateContents;
-import com.google.cloud.dataflow.sdk.util.state.StateContext;
 import com.google.cloud.dataflow.sdk.util.state.StateMerging;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
 import com.google.cloud.dataflow.sdk.util.state.StateTags;
@@ -55,7 +55,7 @@ public abstract class SystemReduceFn<K, InputT, AccumT, OutputT, W extends Bound
         StateTags.makeSystemTagInternal(StateTags.bag(BUFFER_NAME, inputCoder));
     return new SystemReduceFn<K, T, Iterable<T>, Iterable<T>, W>(bufferTag) {
       @Override
-      public void prefetchOnMerge(MergingStateContext<K, W> state) throws Exception {
+      public void prefetchOnMerge(MergingStateAccessor<K, W> state) throws Exception {
         StateMerging.prefetchBags(state, bufferTag);
       }
 
@@ -85,7 +85,7 @@ public abstract class SystemReduceFn<K, InputT, AccumT, OutputT, W extends Bound
                 (KeyedCombineFn<K, InputT, AccumT, OutputT>) combineFn.getFn()));
     return new SystemReduceFn<K, InputT, AccumT, OutputT, W>(bufferTag) {
       @Override
-      public void prefetchOnMerge(MergingStateContext<K, W> state) throws Exception {
+      public void prefetchOnMerge(MergingStateAccessor<K, W> state) throws Exception {
         StateMerging.prefetchCombiningValues(state, bufferTag);
       }
 
@@ -109,7 +109,7 @@ public abstract class SystemReduceFn<K, InputT, AccumT, OutputT, W extends Bound
   }
 
   @Override
-  public void prefetchOnTrigger(StateContext<K> state) {
+  public void prefetchOnTrigger(StateAccessor<K> state) {
     state.access(bufferTag).get();
   }
 
@@ -124,7 +124,7 @@ public abstract class SystemReduceFn<K, InputT, AccumT, OutputT, W extends Bound
   }
 
   @Override
-  public StateContents<Boolean> isEmpty(StateContext<K> state) {
+  public StateContents<Boolean> isEmpty(StateAccessor<K> state) {
     return state.access(bufferTag).isEmpty();
   }
 }

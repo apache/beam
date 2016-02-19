@@ -20,13 +20,12 @@ import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.annotations.Experimental.Kind;
 
 /**
- * Interface for interacting with per-key persistent state identified via a
- * {@link StateTag}.
+ * Interface for accessing a {@link StateTag} in the current context.
  *
  * <p>For internal use only.
  */
 @Experimental(Kind.STATE)
-public interface StateContext<K> {
+public interface StateAccessor<K> {
   /**
    * Access the storage for the given {@code address} in the current window.
    *

@@ -21,8 +21,8 @@ import com.google.cloud.dataflow.sdk.coders.VarLongCoder;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
 import com.google.cloud.dataflow.sdk.util.state.CombiningValueStateInternal;
-import com.google.cloud.dataflow.sdk.util.state.MergingStateContext;
-import com.google.cloud.dataflow.sdk.util.state.StateContext;
+import com.google.cloud.dataflow.sdk.util.state.MergingStateAccessor;
+import com.google.cloud.dataflow.sdk.util.state.StateAccessor;
 import com.google.cloud.dataflow.sdk.util.state.StateMerging;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
 import com.google.cloud.dataflow.sdk.util.state.StateTags;
@@ -66,7 +66,7 @@ private static final StateTag<Object, CombiningValueStateInternal<Long, long[], 
   }
 
   @Override
-  public void prefetchOnMerge(MergingStateContext<?, W> state) {
+  public void prefetchOnMerge(MergingStateAccessor<?, W> state) {
     super.prefetchOnMerge(state);
     StateMerging.prefetchCombiningValues(state, ELEMENTS_IN_PANE_TAG);
   }
@@ -86,7 +86,7 @@ private static final StateTag<Object, CombiningValueStateInternal<Long, long[], 
   }
 
   @Override
-  public void prefetchShouldFire(StateContext<?> state) {
+  public void prefetchShouldFire(StateAccessor<?> state) {
     state.access(ELEMENTS_IN_PANE_TAG).get();
   }
 

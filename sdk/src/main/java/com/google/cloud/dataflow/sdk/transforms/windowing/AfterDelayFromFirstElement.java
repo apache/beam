@@ -25,8 +25,8 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
 import com.google.cloud.dataflow.sdk.util.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.state.CombiningValueState;
 import com.google.cloud.dataflow.sdk.util.state.CombiningValueStateInternal;
-import com.google.cloud.dataflow.sdk.util.state.MergingStateContext;
-import com.google.cloud.dataflow.sdk.util.state.StateContext;
+import com.google.cloud.dataflow.sdk.util.state.MergingStateAccessor;
+import com.google.cloud.dataflow.sdk.util.state.StateAccessor;
 import com.google.cloud.dataflow.sdk.util.state.StateMerging;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
 import com.google.cloud.dataflow.sdk.util.state.StateTags;
@@ -151,7 +151,7 @@ public abstract class AfterDelayFromFirstElement<W extends BoundedWindow> extend
   }
 
   @Override
-  public void prefetchOnElement(StateContext<?> state) {
+  public void prefetchOnElement(StateAccessor<?> state) {
     state.access(DELAYED_UNTIL_TAG).get();
   }
 
@@ -172,7 +172,7 @@ public abstract class AfterDelayFromFirstElement<W extends BoundedWindow> extend
   }
 
   @Override
-  public void prefetchOnMerge(MergingStateContext<?, W> state) {
+  public void prefetchOnMerge(MergingStateAccessor<?, W> state) {
     super.prefetchOnMerge(state);
     StateMerging.prefetchCombiningValues(state, DELAYED_UNTIL_TAG);
   }
@@ -207,7 +207,7 @@ public abstract class AfterDelayFromFirstElement<W extends BoundedWindow> extend
   }
 
   @Override
-  public void prefetchShouldFire(StateContext<?> state) {
+  public void prefetchShouldFire(StateAccessor<?> state) {
     state.access(DELAYED_UNTIL_TAG).get();
   }
 

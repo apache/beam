@@ -80,7 +80,7 @@ public class StateTags {
   /**
    * Create a state tag for values that use a {@link KeyedCombineFn} to automatically merge
    * multiple {@code InputT}s into a single {@code OutputT}. The key provided to the
-   * {@link KeyedCombineFn} comes from the keyed {@link StateContext}.
+   * {@link KeyedCombineFn} comes from the keyed {@link StateAccessor}.
    */
   public static <K, InputT, AccumT,
       OutputT> StateTag<K, CombiningValueStateInternal<InputT, AccumT, OutputT>>

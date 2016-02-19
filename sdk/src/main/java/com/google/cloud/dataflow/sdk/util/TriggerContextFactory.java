@@ -20,9 +20,9 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.MergingTriggerInfo;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.TriggerInfo;
-import com.google.cloud.dataflow.sdk.util.state.MergingStateContext;
+import com.google.cloud.dataflow.sdk.util.state.MergingStateAccessor;
 import com.google.cloud.dataflow.sdk.util.state.State;
-import com.google.cloud.dataflow.sdk.util.state.StateContext;
+import com.google.cloud.dataflow.sdk.util.state.StateAccessor;
 import com.google.cloud.dataflow.sdk.util.state.StateInternals;
 import com.google.cloud.dataflow.sdk.util.state.StateNamespace;
 import com.google.cloud.dataflow.sdk.util.state.StateNamespaces;
@@ -80,13 +80,13 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     return new OnMergeContextImpl(window, timers, rootTrigger, finishedSet, finishedSets);
   }
 
-  public StateContext<?> createStateContext(W window, ExecutableTrigger<W> trigger) {
-    return new StateContextImpl(window, trigger);
+  public StateAccessor<?> createStateContext(W window, ExecutableTrigger<W> trigger) {
+    return new StateAccessorImpl(window, trigger);
   }
 
-  public MergingStateContext<?, W> createMergingStateContext(
+  public MergingStateAccessor<?, W> createMergingStateContext(
       W mergeResult, Collection<W> mergingWindows, ExecutableTrigger<W> trigger) {
-    return new MergingStateContextImpl(trigger, mergingWindows, mergeResult);
+    return new MergingStateAccessorImpl(trigger, mergingWindows, mergeResult);
   }
 
   private class TriggerInfoImpl implements Trigger.TriggerInfo<W> {
@@ -260,11 +260,11 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     }
   }
 
-  private class StateContextImpl implements StateContext<Object> {
+  private class StateAccessorImpl implements StateAccessor<Object> {
     protected final int triggerIndex;
     protected final StateNamespace windowNamespace;
 
-    public StateContextImpl(
+    public StateAccessorImpl(
         W window,
         ExecutableTrigger<W> trigger) {
       this.triggerIndex = trigger.getTriggerIndex();
@@ -281,11 +281,11 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     }
   }
 
-  private class MergingStateContextImpl extends StateContextImpl
-  implements MergingStateContext<Object, W> {
+  private class MergingStateAccessorImpl extends StateAccessorImpl
+  implements MergingStateAccessor<Object, W> {
     private final Collection<W> activeToBeMerged;
 
-    public MergingStateContextImpl(ExecutableTrigger<W> trigger, Collection<W> activeToBeMerged,
+    public MergingStateAccessorImpl(ExecutableTrigger<W> trigger, Collection<W> activeToBeMerged,
         W mergeResult) {
       super(mergeResult, trigger);
       this.activeToBeMerged = activeToBeMerged;
@@ -311,7 +311,7 @@ public class TriggerContextFactory<W extends BoundedWindow> {
   private class TriggerContextImpl extends Trigger<W>.TriggerContext {
 
     private final W window;
-    private final StateContextImpl state;
+    private final StateAccessorImpl state;
     private final Timers timers;
     private final TriggerInfoImpl triggerInfo;
 
@@ -322,7 +322,7 @@ public class TriggerContextFactory<W extends BoundedWindow> {
         FinishedTriggers finishedSet) {
       trigger.getSpec().super();
       this.window = window;
-      this.state = new StateContextImpl(window, trigger);
+      this.state = new StateAccessorImpl(window, trigger);
       this.timers = new TriggerTimers(window, timers);
       this.triggerInfo = new TriggerInfoImpl(trigger, finishedSet, this);
     }
@@ -338,7 +338,7 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     }
 
     @Override
-    public StateContext state() {
+    public StateAccessor state() {
       return state;
     }
 
@@ -373,7 +373,7 @@ public class TriggerContextFactory<W extends BoundedWindow> {
   private class OnElementContextImpl extends Trigger<W>.OnElementContext {
 
     private final W window;
-    private final StateContextImpl state;
+    private final StateAccessorImpl state;
     private final Timers timers;
     private final TriggerInfoImpl triggerInfo;
     private final Instant eventTimestamp;
@@ -386,7 +386,7 @@ public class TriggerContextFactory<W extends BoundedWindow> {
         Instant eventTimestamp) {
       trigger.getSpec().super();
       this.window = window;
-      this.state = new StateContextImpl(window, trigger);
+      this.state = new StateAccessorImpl(window, trigger);
       this.timers = new TriggerTimers(window, timers);
       this.triggerInfo = new TriggerInfoImpl(trigger, finishedSet, this);
       this.eventTimestamp = eventTimestamp;
@@ -410,7 +410,7 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     }
 
     @Override
-    public StateContext state() {
+    public StateAccessor state() {
       return state;
     }
 
@@ -449,7 +449,7 @@ public class TriggerContextFactory<W extends BoundedWindow> {
   }
 
   private class OnMergeContextImpl extends Trigger<W>.OnMergeContext {
-    private final MergingStateContext<?, W> state;
+    private final MergingStateAccessor<?, W> state;
     private final W window;
     private final Collection<W> mergingWindows;
     private final Timers timers;
@@ -464,7 +464,7 @@ public class TriggerContextFactory<W extends BoundedWindow> {
       trigger.getSpec().super();
       this.mergingWindows = finishedSets.keySet();
       this.window = window;
-      this.state = new MergingStateContextImpl(trigger, mergingWindows, window);
+      this.state = new MergingStateAccessorImpl(trigger, mergingWindows, window);
       this.timers = new TriggerTimers(window, timers);
       this.triggerInfo = new MergingTriggerInfoImpl(trigger, finishedSet, this, finishedSets);
     }
@@ -476,7 +476,7 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     }
 
     @Override
-    public MergingStateContext<?, W> state() {
+    public MergingStateAccessor<?, W> state() {
       return state;
     }
 

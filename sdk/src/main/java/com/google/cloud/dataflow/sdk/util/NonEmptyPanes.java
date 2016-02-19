@@ -20,9 +20,9 @@ import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
 import com.google.cloud.dataflow.sdk.util.state.CombiningValueStateInternal;
-import com.google.cloud.dataflow.sdk.util.state.MergingStateContext;
+import com.google.cloud.dataflow.sdk.util.state.MergingStateAccessor;
+import com.google.cloud.dataflow.sdk.util.state.StateAccessor;
 import com.google.cloud.dataflow.sdk.util.state.StateContents;
-import com.google.cloud.dataflow.sdk.util.state.StateContext;
 import com.google.cloud.dataflow.sdk.util.state.StateMerging;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
 import com.google.cloud.dataflow.sdk.util.state.StateTags;
@@ -48,27 +48,27 @@ public abstract class NonEmptyPanes<K, W extends BoundedWindow> {
    * Record that some content has been added to the window in {@code context}, and therefore the
    * current pane is not empty.
    */
-  public abstract void recordContent(StateContext<K> context);
+  public abstract void recordContent(StateAccessor<K> context);
 
   /**
    * Record that the given pane is empty.
    */
-  public abstract void clearPane(StateContext<K> state);
+  public abstract void clearPane(StateAccessor<K> state);
 
   /**
    * Return true if the current pane for the window in {@code context} is empty.
    */
-  public abstract StateContents<Boolean> isEmpty(StateContext<K> context);
+  public abstract StateContents<Boolean> isEmpty(StateAccessor<K> context);
 
   /**
    * Prefetch in preparation for merging.
    */
-  public abstract void prefetchOnMerge(MergingStateContext<K, W> state);
+  public abstract void prefetchOnMerge(MergingStateAccessor<K, W> state);
 
   /**
    * Eagerly merge backing state.
    */
-  public abstract void onMerge(MergingStateContext<K, W> context);
+  public abstract void onMerge(MergingStateAccessor<K, W> context);
 
   /**
    * An implementation of {@code NonEmptyPanes} optimized for use with discarding mode. Uses the
@@ -84,27 +84,27 @@ public abstract class NonEmptyPanes<K, W extends BoundedWindow> {
     }
 
     @Override
-    public StateContents<Boolean> isEmpty(StateContext<K> state) {
+    public StateContents<Boolean> isEmpty(StateAccessor<K> state) {
       return reduceFn.isEmpty(state);
     }
 
     @Override
-    public void recordContent(StateContext<K> state) {
+    public void recordContent(StateAccessor<K> state) {
       // Nothing to do -- the reduceFn is tracking contents
     }
 
     @Override
-    public void clearPane(StateContext<K> state) {
+    public void clearPane(StateAccessor<K> state) {
       // Nothing to do -- the reduceFn is tracking contents
     }
 
     @Override
-    public void prefetchOnMerge(MergingStateContext<K, W> state) {
+    public void prefetchOnMerge(MergingStateAccessor<K, W> state) {
       // Nothing to do -- the reduceFn is tracking contents
     }
 
     @Override
-    public void onMerge(MergingStateContext<K, W> context) {
+    public void onMerge(MergingStateAccessor<K, W> context) {
       // Nothing to do -- the reduceFn is tracking contents
     }
   }
@@ -121,27 +121,27 @@ public abstract class NonEmptyPanes<K, W extends BoundedWindow> {
             "count", VarLongCoder.of(), new Sum.SumLongFn()));
 
     @Override
-    public void recordContent(StateContext<K> state) {
+    public void recordContent(StateAccessor<K> state) {
       state.access(PANE_ADDITIONS_TAG).add(1L);
     }
 
     @Override
-    public void clearPane(StateContext<K> state) {
+    public void clearPane(StateAccessor<K> state) {
       state.access(PANE_ADDITIONS_TAG).clear();
     }
 
     @Override
-    public StateContents<Boolean> isEmpty(StateContext<K> state) {
+    public StateContents<Boolean> isEmpty(StateAccessor<K> state) {
       return state.access(PANE_ADDITIONS_TAG).isEmpty();
     }
 
     @Override
-    public void prefetchOnMerge(MergingStateContext<K, W> state) {
+    public void prefetchOnMerge(MergingStateAccessor<K, W> state) {
       StateMerging.prefetchCombiningValues(state, PANE_ADDITIONS_TAG);
     }
 
     @Override
-    public void onMerge(MergingStateContext<K, W> context) {
+    public void onMerge(MergingStateAccessor<K, W> context) {
       StateMerging.mergeCombiningValues(context, PANE_ADDITIONS_TAG);
     }
   }
