@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.runners;
 import static com.google.cloud.dataflow.sdk.util.WindowedValue.valueInGlobalWindow;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.startsWith;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 import static org.junit.Assert.assertEquals;
@@ -95,18 +96,22 @@ import org.hamcrest.TypeSafeMatcher;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.internal.matchers.ThrowableMessageMatcher;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.channels.FileChannel;
+import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
@@ -175,12 +180,23 @@ public class DataflowPipelineRunnerTest {
 
   private GcsUtil buildMockGcsUtil(boolean bucketExists) throws IOException {
     GcsUtil mockGcsUtil = mock(GcsUtil.class);
-    when(mockGcsUtil.create(
-        any(GcsPath.class), anyString()))
-        .thenReturn(FileChannel.open(
-            Files.createTempFile("channel-", ".tmp"),
-            StandardOpenOption.CREATE, StandardOpenOption.DELETE_ON_CLOSE));
+    when(mockGcsUtil.create(any(GcsPath.class), anyString()))
+        .then(new Answer<SeekableByteChannel>() {
+              @Override
+              public SeekableByteChannel answer(InvocationOnMock invocation) throws Throwable {
+                return FileChannel.open(
+                    Files.createTempFile("channel-", ".tmp"),
+                    StandardOpenOption.CREATE, StandardOpenOption.DELETE_ON_CLOSE);
+              }
+            });
+
     when(mockGcsUtil.isGcsPatternSupported(anyString())).thenReturn(true);
+    when(mockGcsUtil.expand(any(GcsPath.class))).then(new Answer<List<GcsPath>>() {
+      @Override
+      public List<GcsPath> answer(InvocationOnMock invocation) throws Throwable {
+        return ImmutableList.of((GcsPath) invocation.getArguments()[0]);
+      }
+    });
     when(mockGcsUtil.bucketExists(any(GcsPath.class))).thenReturn(bucketExists);
     return mockGcsUtil;
   }
@@ -425,10 +441,12 @@ public class DataflowPipelineRunnerTest {
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
 
     Pipeline p = buildDataflowPipeline(buildPipelineOptions(jobCaptor));
-    p.apply(TextIO.Read.named("ReadMyNonGcsFile").from("/tmp/file"));
+    p.apply(TextIO.Read.named("ReadMyNonGcsFile").from(tmpFolder.newFile().getPath()));
 
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(containsString("expected a valid 'gs://' path but was given"));
+    thrown.expectCause(Matchers.allOf(
+        instanceOf(IllegalArgumentException.class),
+        ThrowableMessageMatcher.hasMessage(
+            containsString("expected a valid 'gs://' path but was given"))));
     p.run();
     assertValidJob(jobCaptor.getValue());
   }
@@ -455,8 +473,9 @@ public class DataflowPipelineRunnerTest {
     p.apply(TextIO.Read.named("ReadInvalidGcsFile")
         .from("gs://bucket/tmp//file"));
 
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("consecutive slashes");
+    thrown.expectCause(Matchers.allOf(
+        instanceOf(IllegalArgumentException.class),
+        ThrowableMessageMatcher.hasMessage(containsString("consecutive slashes"))));
     p.run();
     assertValidJob(jobCaptor.getValue());
   }
@@ -1126,6 +1145,7 @@ public class DataflowPipelineRunnerTest {
 
     try {
       doFnTester.processBatch(inputElements);
+      fail("Expected UserCodeException");
     } catch (UserCodeException e) {
       assertTrue(e.getCause() instanceof IllegalStateException);
       IllegalStateException rootCause = (IllegalStateException) e.getCause();

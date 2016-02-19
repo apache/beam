@@ -16,32 +16,41 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.coders.Coder.Context;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
+import com.google.cloud.dataflow.sdk.io.Read.Bounded;
+import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
-import com.google.cloud.dataflow.sdk.runners.worker.ReaderUtils;
 import com.google.cloud.dataflow.sdk.runners.worker.TextReader;
 import com.google.cloud.dataflow.sdk.runners.worker.TextSink;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
-import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.util.common.worker.Sink;
 import com.google.cloud.dataflow.sdk.values.PCollection;
-import com.google.cloud.dataflow.sdk.values.PCollection.IsBounded;
 import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.cloud.dataflow.sdk.values.PInput;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.io.ByteStreams;
 import com.google.common.primitives.Ints;
+import com.google.protobuf.ByteString;
 
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PushbackInputStream;
+import java.nio.ByteBuffer;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.SeekableByteChannel;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
 
@@ -203,7 +212,7 @@ public class TextIO {
       @Nullable private final String filepattern;
 
       /** The Coder to use to decode each line. */
-      @Nullable private final Coder<T> coder;
+      private final Coder<T> coder;
 
       /** An option to indicate if input validation is desired. Default is true. */
       private final boolean validate;
@@ -292,14 +301,48 @@ public class TextIO {
         if (filepattern == null) {
           throw new IllegalStateException("need to set the filepattern of a TextIO.Read transform");
         }
-        // Force the output's Coder to be what the read is using, and
-        // unchangeable later, to ensure that we read the input in the
-        // format specified by the Read transform.
-        return PCollection.<T>createPrimitiveOutputInternal(
-                input.getPipeline(),
-                WindowingStrategy.globalDefault(),
-                IsBounded.BOUNDED)
-            .setCoder(coder);
+
+        if (validate) {
+          try {
+            checkState(
+                !IOChannelUtils.getFactory(filepattern).match(filepattern).isEmpty(),
+                "Unable to find any files matching %s",
+                filepattern);
+          } catch (IOException e) {
+            throw new IllegalStateException(
+                String.format("Failed to validate %s", filepattern), e);
+          }
+        }
+
+        // Create a source specific to the requested compression type.
+        final Bounded<T> read;
+        switch(compressionType) {
+          case UNCOMPRESSED:
+            read = com.google.cloud.dataflow.sdk.io.Read.from(
+                new TextSource<T>(filepattern, coder));
+            break;
+          case AUTO:
+            read = com.google.cloud.dataflow.sdk.io.Read.from(
+                CompressedSource.from(new TextSource<T>(filepattern, coder)));
+            break;
+          case BZIP2:
+            read = com.google.cloud.dataflow.sdk.io.Read.from(
+                CompressedSource.from(new TextSource<T>(filepattern, coder))
+                                .withDecompression(CompressedSource.CompressionMode.BZIP2));
+            break;
+          case GZIP:
+            read = com.google.cloud.dataflow.sdk.io.Read.from(
+                CompressedSource.from(new TextSource<T>(filepattern, coder))
+                                .withDecompression(CompressedSource.CompressionMode.GZIP));
+            break;
+          default:
+            throw new IllegalArgumentException("Unknown compression mode: " + compressionType);
+        }
+
+        PCollection<T> pcol = input.getPipeline().apply("Read", read);
+        // Honor the default output coder that would have been used by this PTransform.
+        pcol.setCoder(getDefaultOutputCoder());
+        return pcol;
       }
 
       @Override
@@ -317,17 +360,6 @@ public class TextIO {
 
       public TextIO.CompressionType getCompressionType() {
         return compressionType;
-      }
-
-      static {
-        DirectPipelineRunner.registerDefaultTransformEvaluator(
-            Bound.class, new DirectPipelineRunner.TransformEvaluator<Bound>() {
-              @Override
-              public void evaluate(
-                  Bound transform, DirectPipelineRunner.EvaluationContext context) {
-                evaluateReadHelper(transform, context);
-              }
-            });
       }
     }
 
@@ -781,16 +813,204 @@ public class TextIO {
   /** Disable construction of utility class. */
   private TextIO() {}
 
-  private static <T> void evaluateReadHelper(
-      Read.Bound<T> transform, DirectPipelineRunner.EvaluationContext context) {
-    TextReader<T> reader =
-        new TextReader<>(transform.filepattern, true, null, null, transform.coder,
-            transform.getCompressionType());
-    try {
-      List<T> elems = ReaderUtils.readAllFromReader(reader);
-      context.setPCollection(context.getOutput(transform), elems);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+  /**
+   * A {@link FileBasedSource} which can decode records delimited by new line characters.
+   *
+   * <p>This source splits the data into records using {@code UTF-8} {@code \n}, {@code \r}, or
+   * {@code \r\n} as the delimiter. This source is not strict and supports decoding the last record
+   * even if it is not delimited. Finally, no records are decoded if the stream is empty.
+   *
+   * <p>This source supports reading from any arbitrary byte position within the stream. If the
+   * starting position is not {@code 0}, then bytes are skipped until the first delimiter is found
+   * representing the beginning of the first record to be decoded.
+   */
+  @VisibleForTesting
+  static class TextSource<T> extends FileBasedSource<T> {
+    /** The Coder to use to decode each line. */
+    private final Coder<T> coder;
+
+    @VisibleForTesting
+    TextSource(String fileSpec, Coder<T> coder) {
+      super(fileSpec, 1L);
+      this.coder = coder;
+    }
+
+    private TextSource(String fileName, long start, long end, Coder<T> coder) {
+      super(fileName, 1L, start, end);
+      this.coder = coder;
+    }
+
+    @Override
+    protected FileBasedSource<T> createForSubrangeOfFile(String fileName, long start, long end) {
+      return new TextSource<>(fileName, start, end, coder);
+    }
+
+    @Override
+    protected FileBasedReader<T> createSingleFileReader(PipelineOptions options) {
+      return new TextBasedReader<>(this);
+    }
+
+    @Override
+    public boolean producesSortedKeys(PipelineOptions options) throws Exception {
+      return false;
+    }
+
+    @Override
+    public Coder<T> getDefaultOutputCoder() {
+      return coder;
+    }
+
+    /**
+     * A {@link com.google.cloud.dataflow.sdk.io.FileBasedSource.FileBasedReader FileBasedReader}
+     * which can decode records delimited by new line characters.
+     *
+     * See {@link TextSource} for further details.
+     */
+    @VisibleForTesting
+    static class TextBasedReader<T> extends FileBasedReader<T> {
+      private static final int READ_BUFFER_SIZE = 8192;
+      private final Coder<T> coder;
+      private final ByteBuffer readBuffer = ByteBuffer.allocate(READ_BUFFER_SIZE);
+      private ByteString buffer;
+      private int startOfSeparatorInBuffer;
+      private int endOfSeparatorInBuffer;
+      private long startOfNextRecord;
+      private boolean eof;
+      private boolean elementIsPresent;
+      private T currentValue;
+      private ReadableByteChannel inChannel;
+
+      private TextBasedReader(TextSource<T> source) {
+        super(source);
+        coder = source.coder;
+        buffer = ByteString.EMPTY;
+      }
+
+      @Override
+      protected long getCurrentOffset() throws NoSuchElementException {
+        if (!elementIsPresent) {
+          throw new NoSuchElementException();
+        }
+        return startOfNextRecord;
+      }
+
+      @Override
+      public T getCurrent() throws NoSuchElementException {
+        if (!elementIsPresent) {
+          throw new NoSuchElementException();
+        }
+        return currentValue;
+      }
+
+      @Override
+      protected void startReading(ReadableByteChannel channel) throws IOException {
+        this.inChannel = channel;
+        // If the first offset is greater than zero, we need to skip bytes until we see our
+        // first separator.
+        if (getCurrentSource().getStartOffset() > 0) {
+          checkState(channel instanceof SeekableByteChannel,
+              "%s only supports reading from a SeekableByteChannel when given a start offset"
+              + " greater than 0.", TextSource.class.getSimpleName());
+          long requiredPosition = getCurrentSource().getStartOffset() - 1;
+          ((SeekableByteChannel) channel).position(requiredPosition);
+          findSeparatorBounds();
+          buffer = buffer.substring(endOfSeparatorInBuffer);
+          startOfNextRecord = requiredPosition + endOfSeparatorInBuffer;
+          endOfSeparatorInBuffer = 0;
+          startOfSeparatorInBuffer = 0;
+        }
+      }
+
+      /**
+       * Locates the start position and end position of the next delimiter. Will
+       * consume the channel till either EOF or the delimiter bounds are found.
+       *
+       * <p>This fills the buffer and updates the positions as follows:
+       * <pre>{@code
+       * ------------------------------------------------------
+       * | element bytes | delimiter bytes | unconsumed bytes |
+       * ------------------------------------------------------
+       * 0            start of          end of              buffer
+       *              separator         separator           size
+       *              in buffer         in buffer
+       * }</pre>
+       */
+      private void findSeparatorBounds() throws IOException {
+        int bytePositionInBuffer = 0;
+        while (true) {
+          if (!tryToEnsureNumberOfBytesInBuffer(bytePositionInBuffer + 1)) {
+            startOfSeparatorInBuffer = endOfSeparatorInBuffer = bytePositionInBuffer;
+            break;
+          }
+
+          byte currentByte = buffer.byteAt(bytePositionInBuffer);
+
+          if (currentByte == '\n') {
+            startOfSeparatorInBuffer = bytePositionInBuffer;
+            endOfSeparatorInBuffer = startOfSeparatorInBuffer + 1;
+            break;
+          } else if (currentByte == '\r') {
+            startOfSeparatorInBuffer = bytePositionInBuffer;
+            endOfSeparatorInBuffer = startOfSeparatorInBuffer + 1;
+
+            if (tryToEnsureNumberOfBytesInBuffer(bytePositionInBuffer + 2)) {
+              currentByte = buffer.byteAt(bytePositionInBuffer + 1);
+              if (currentByte == '\n') {
+                endOfSeparatorInBuffer += 1;
+              }
+            }
+            break;
+          }
+
+          // Move to the next byte in buffer.
+          bytePositionInBuffer += 1;
+        }
+      }
+
+      @Override
+      protected boolean readNextRecord() throws IOException {
+        startOfNextRecord += endOfSeparatorInBuffer;
+        findSeparatorBounds();
+
+        // If we have reached EOF file and consumed all of the buffer then we know
+        // that there are no more records.
+        if (eof && buffer.size() == 0) {
+          elementIsPresent = false;
+          return false;
+        }
+
+        decodeCurrentElement();
+        return true;
+      }
+
+      /**
+       * Decodes the current element updating the buffer to only contain the unconsumed bytes.
+       *
+       * This invalidates the currently stored {@code startOfSeparatorInBuffer} and
+       * {@code endOfSeparatorInBuffer}.
+       */
+      private void decodeCurrentElement() throws IOException {
+        ByteString dataToDecode = buffer.substring(0, startOfSeparatorInBuffer);
+        currentValue = coder.decode(dataToDecode.newInput(), Context.OUTER);
+        elementIsPresent = true;
+        buffer = buffer.substring(endOfSeparatorInBuffer);
+      }
+
+      /**
+       * Returns false if we were unable to ensure the minimum capacity by consuming the channel.
+       */
+      private boolean tryToEnsureNumberOfBytesInBuffer(int minCapacity) throws IOException {
+        // While we aren't at EOF or haven't fulfilled the minimum buffer capacity,
+        // attempt to read more bytes.
+        while (buffer.size() <= minCapacity && !eof) {
+          eof = inChannel.read(readBuffer) == -1;
+          readBuffer.flip();
+          buffer = buffer.concat(ByteString.copyFrom(readBuffer));
+          readBuffer.clear();
+        }
+        // Return true if we were able to honor the minimum buffer capacity request
+        return buffer.size() >= minCapacity;
+      }
     }
   }
 

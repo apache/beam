@@ -18,10 +18,15 @@ package com.google.cloud.dataflow.sdk.runners;
 
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
+import com.google.cloud.dataflow.sdk.io.Read;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.transforms.Count;
 import com.google.cloud.dataflow.sdk.transforms.Create;
@@ -34,11 +39,13 @@ import com.google.cloud.dataflow.sdk.values.PCollectionList;
 import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.cloud.dataflow.sdk.values.PValue;
 
-import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.io.File;
 import java.util.Arrays;
 import java.util.EnumSet;
 
@@ -47,6 +54,7 @@ import java.util.EnumSet;
  */
 @RunWith(JUnit4.class)
 public class TransformTreeTest {
+  @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 
   enum TransformsSeen {
     READ,
@@ -103,11 +111,14 @@ public class TransformTreeTest {
   // visits the nodes and verifies that the hierarchy was captured.
   @Test
   public void testCompositeCapture() throws Exception {
+    File inputFile = tmpFolder.newFile();
+    File outputFile = tmpFolder.newFile();
+
     Pipeline p = DirectPipeline.createForTest();
 
-    p.apply(TextIO.Read.named("ReadMyFile").from("gs://bucket/object"))
+    p.apply(TextIO.Read.named("ReadMyFile").from(inputFile.getPath()))
         .apply(Sample.<String>any(10))
-        .apply(TextIO.Write.named("WriteMyFile").to("gs://bucket/object"));
+        .apply(TextIO.Write.named("WriteMyFile").to(outputFile.getPath()));
 
     final EnumSet<TransformsSeen> visited =
         EnumSet.noneOf(TransformsSeen.class);
@@ -119,19 +130,19 @@ public class TransformTreeTest {
       public void enterCompositeTransform(TransformTreeNode node) {
         PTransform<?, ?> transform = node.getTransform();
         if (transform instanceof Sample.SampleAny) {
-          Assert.assertTrue(visited.add(TransformsSeen.SAMPLE_ANY));
-          Assert.assertNotNull(node.getEnclosingNode());
-          Assert.assertTrue(node.isCompositeNode());
+          assertTrue(visited.add(TransformsSeen.SAMPLE_ANY));
+          assertNotNull(node.getEnclosingNode());
+          assertTrue(node.isCompositeNode());
         }
-        Assert.assertThat(transform, not(instanceOf(TextIO.Read.Bound.class)));
-        Assert.assertThat(transform, not(instanceOf(TextIO.Write.Bound.class)));
+        assertThat(transform, not(instanceOf(Read.Bounded.class)));
+        assertThat(transform, not(instanceOf(TextIO.Write.Bound.class)));
       }
 
       @Override
       public void leaveCompositeTransform(TransformTreeNode node) {
         PTransform<?, ?> transform = node.getTransform();
         if (transform instanceof Sample.SampleAny) {
-          Assert.assertTrue(left.add(TransformsSeen.SAMPLE_ANY));
+          assertTrue(left.add(TransformsSeen.SAMPLE_ANY));
         }
       }
 
@@ -139,11 +150,11 @@ public class TransformTreeTest {
       public void visitTransform(TransformTreeNode node) {
         PTransform<?, ?> transform = node.getTransform();
         // Pick is a composite, should not be visited here.
-        Assert.assertThat(transform, not(instanceOf(Sample.SampleAny.class)));
-        if (transform instanceof TextIO.Read.Bound) {
-          Assert.assertTrue(visited.add(TransformsSeen.READ));
+        assertThat(transform, not(instanceOf(Sample.SampleAny.class)));
+        if (transform instanceof Read.Bounded) {
+          assertTrue(visited.add(TransformsSeen.READ));
         } else if (transform instanceof TextIO.Write.Bound) {
-          Assert.assertTrue(visited.add(TransformsSeen.WRITE));
+          assertTrue(visited.add(TransformsSeen.WRITE));
         }
       }
 
@@ -152,8 +163,8 @@ public class TransformTreeTest {
       }
     });
 
-    Assert.assertTrue(visited.equals(EnumSet.allOf(TransformsSeen.class)));
-    Assert.assertTrue(left.equals(EnumSet.of(TransformsSeen.SAMPLE_ANY)));
+    assertTrue(visited.equals(EnumSet.allOf(TransformsSeen.class)));
+    assertTrue(left.equals(EnumSet.of(TransformsSeen.SAMPLE_ANY)));
   }
 
   @Test(expected = IllegalStateException.class)
@@ -163,7 +174,7 @@ public class TransformTreeTest {
     p.apply(new InvalidCompositeTransform());
 
     p.traverseTopologically(new RecordingPipelineVisitor());
-    Assert.fail("traversal should have failed with an IllegalStateException");
+    fail("traversal should have failed with an IllegalStateException");
   }
 
   @Test
