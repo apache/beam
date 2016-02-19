@@ -24,9 +24,9 @@ import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.C
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.InProcessEvaluationContext;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessTransformResult;
+import com.google.cloud.dataflow.sdk.runners.inprocess.StepTransformResult;
 import com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluator;
 import com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluatorFactory;
-import com.google.cloud.dataflow.sdk.runners.inprocess.util.ImmutableInProcessTransformResult;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
@@ -109,7 +109,7 @@ public class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory 
       checkpointMark.finalizeCheckpoint();
       // TODO: When exercising create initial splits, make this the minimum across all existing
       // readers
-      return ImmutableInProcessTransformResult.withHold(transform, reader.getWatermark())
+      return StepTransformResult.withHold(transform, reader.getWatermark())
           .addOutput(output)
           .build();
     }

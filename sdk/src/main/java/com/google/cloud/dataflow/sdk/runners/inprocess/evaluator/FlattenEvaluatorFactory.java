@@ -20,9 +20,9 @@ import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.C
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.InProcessEvaluationContext;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessTransformResult;
+import com.google.cloud.dataflow.sdk.runners.inprocess.StepTransformResult;
 import com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluator;
 import com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluatorFactory;
-import com.google.cloud.dataflow.sdk.runners.inprocess.util.ImmutableInProcessTransformResult;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.Flatten;
 import com.google.cloud.dataflow.sdk.transforms.Flatten.FlattenPCollectionList;
@@ -54,7 +54,7 @@ public class FlattenEvaluatorFactory implements TransformEvaluatorFactory {
     final UncommittedBundle<InputT> outputBundle =
         evaluationContext.createBundle(inputBundle, application.getOutput());
     final InProcessTransformResult result =
-        ImmutableInProcessTransformResult.withoutHold(application).addOutput(outputBundle).build();
+        StepTransformResult.withoutHold(application).addOutput(outputBundle).build();
     return new FlattenEvaluator<>(outputBundle, result);
   }
 

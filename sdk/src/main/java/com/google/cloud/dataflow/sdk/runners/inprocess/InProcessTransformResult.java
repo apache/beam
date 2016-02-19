@@ -16,9 +16,12 @@
 package com.google.cloud.dataflow.sdk.runners.inprocess;
 
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
+import com.google.cloud.dataflow.sdk.runners.inprocess.util.InMemoryWatermarkManager.TimerUpdate;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
+import com.google.cloud.dataflow.sdk.util.state.CopyOnAccessInMemoryStateInternals;
 
 import org.joda.time.Instant;
 
@@ -29,7 +32,7 @@ import javax.annotation.Nullable;
  */
 public interface InProcessTransformResult {
   /**
-   * @return the {@link AppliedPTransform} that produced this result
+   * Returns the {@link AppliedPTransform} that produced this result.
    */
   AppliedPTransform<?, ?, ?> getTransform();
 
@@ -40,13 +43,33 @@ public interface InProcessTransformResult {
   Iterable<? extends UncommittedBundle<?>> getOutputBundles();
 
   /**
-   * @return the {@link CounterSet} used by this {@link PTransform}, or null if this transform did
-   *         not use a {@link CounterSet}
+   * Returns the {@link CounterSet} used by this {@link PTransform}, or null if this transform did
+   * not use a {@link CounterSet}.
    */
   @Nullable CounterSet getCounters();
 
   /**
-   * @return the Watermark Hold for the transform at the time this result was produced
+   * Returns the Watermark Hold for the transform at the time this result was produced.
+   *
+   * If the transform does not set any watermark hold, returns
+   * {@link BoundedWindow#TIMESTAMP_MAX_VALUE}.
    */
   Instant getWatermarkHold();
+
+  /**
+   * Returns the State used by the transform.
+   *
+   * If this evaluation did not access state, this may return null.
+   */
+  CopyOnAccessInMemoryStateInternals<?> getState();
+
+  /**
+   * Returns a TimerUpdateBuilder that was produced as a result of this evaluation. If the
+   * evaluation was triggered due to the delivery of one or more timers, those timers must be added
+   * to the builder before it is complete.
+   *
+   * <p>If this evaluation did not add or remove any timers, returns an empty TimerUpdate.
+   */
+  TimerUpdate getTimerUpdate();
+
 }

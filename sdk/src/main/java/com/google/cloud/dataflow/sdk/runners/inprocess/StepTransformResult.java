@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Google Inc.
+ * Copyright (C) 2016 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -13,13 +13,15 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.google.cloud.dataflow.sdk.runners.inprocess.util;
+package com.google.cloud.dataflow.sdk.runners.inprocess;
 
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
-import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessTransformResult;
+import com.google.cloud.dataflow.sdk.runners.inprocess.util.InMemoryWatermarkManager.TimerUpdate;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
+import com.google.cloud.dataflow.sdk.util.state.CopyOnAccessInMemoryStateInternals;
+import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 
 import org.joda.time.Instant;
@@ -29,19 +31,25 @@ import java.util.Collection;
 /**
  * An immutable {@link InProcessTransformResult}.
  */
-public class ImmutableInProcessTransformResult implements InProcessTransformResult {
+public class StepTransformResult implements InProcessTransformResult {
   private final AppliedPTransform<?, ?, ?> transform;
   private final Iterable<? extends UncommittedBundle<?>> bundles;
+  private final CopyOnAccessInMemoryStateInternals<?> state;
+  private final TimerUpdate timerUpdate;
   private final CounterSet counters;
   private final Instant watermarkHold;
 
-  private ImmutableInProcessTransformResult(
+  private StepTransformResult(
       AppliedPTransform<?, ?, ?> transform,
       Iterable<? extends UncommittedBundle<?>> outputBundles,
+      CopyOnAccessInMemoryStateInternals<?> state,
+      TimerUpdate timerUpdate,
       CounterSet counters,
       Instant watermarkHold) {
     this.transform = transform;
     this.bundles = outputBundles;
+    this.state = state;
+    this.timerUpdate = timerUpdate;
     this.counters = counters;
     this.watermarkHold = watermarkHold;
   }
@@ -66,8 +74,17 @@ public class ImmutableInProcessTransformResult implements InProcessTransformResu
     return watermarkHold;
   }
 
-  public static Builder withHold(AppliedPTransform<?, ?, ?> transform,
-      Instant watermarkHold) {
+  @Override
+  public CopyOnAccessInMemoryStateInternals<?> getState() {
+    return state;
+  }
+
+  @Override
+  public TimerUpdate getTimerUpdate() {
+    return timerUpdate;
+  }
+
+  public static Builder withHold(AppliedPTransform<?, ?, ?> transform, Instant watermarkHold) {
     return new Builder(transform, watermarkHold);
   }
 
@@ -75,29 +92,53 @@ public class ImmutableInProcessTransformResult implements InProcessTransformResu
     return new Builder(transform, BoundedWindow.TIMESTAMP_MAX_VALUE);
   }
 
+  @Override
+  public String toString() {
+    return MoreObjects.toStringHelper(StepTransformResult.class)
+        .add("transform", transform)
+        .toString();
+  }
+
   /**
-   * A builder for creating instances of {@link ImmutableInProcessTransformResult}.
+   * A builder for creating instances of {@link StepTransformResult}.
    */
   public static class Builder {
     private final AppliedPTransform<?, ?, ?> transform;
     private final ImmutableList.Builder<UncommittedBundle<?>> bundlesBuilder;
+    private CopyOnAccessInMemoryStateInternals<?> state;
+    private TimerUpdate timerUpdate;
     private CounterSet counters;
     private final Instant watermarkHold;
 
-    public Builder(AppliedPTransform<?, ?, ?> transform,
-        Instant watermarkHold) {
+    private Builder(AppliedPTransform<?, ?, ?> transform, Instant watermarkHold) {
       this.transform = transform;
       this.watermarkHold = watermarkHold;
       this.bundlesBuilder = ImmutableList.builder();
+      this.timerUpdate = TimerUpdate.builder(null).build();
     }
 
-    public ImmutableInProcessTransformResult build() {
-      return new ImmutableInProcessTransformResult(
-          transform, bundlesBuilder.build(), counters, watermarkHold);
+    public StepTransformResult build() {
+      return new StepTransformResult(
+          transform,
+          bundlesBuilder.build(),
+          state,
+          timerUpdate,
+          counters,
+          watermarkHold);
     }
 
     public Builder withCounters(CounterSet counters) {
       this.counters = counters;
+      return this;
+    }
+
+    public Builder withState(CopyOnAccessInMemoryStateInternals<?> state) {
+      this.state = state;
+      return this;
+    }
+
+    public Builder withTimerUpdate(TimerUpdate timerUpdate) {
+      this.timerUpdate = timerUpdate;
       return this;
     }
 

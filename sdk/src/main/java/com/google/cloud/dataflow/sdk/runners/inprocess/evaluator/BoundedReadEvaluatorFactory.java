@@ -21,9 +21,9 @@ import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.C
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.InProcessEvaluationContext;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessTransformResult;
+import com.google.cloud.dataflow.sdk.runners.inprocess.StepTransformResult;
 import com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluator;
 import com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluatorFactory;
-import com.google.cloud.dataflow.sdk.runners.inprocess.util.ImmutableInProcessTransformResult;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
@@ -105,7 +105,7 @@ public class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
                 reader.getCurrent(), reader.getCurrentTimestamp()));
         contentsRemaining = reader.advance();
       }
-      return ImmutableInProcessTransformResult
+      return StepTransformResult
           .withHold(transform, BoundedWindow.TIMESTAMP_MAX_VALUE)
           .addOutput(output)
           .build();

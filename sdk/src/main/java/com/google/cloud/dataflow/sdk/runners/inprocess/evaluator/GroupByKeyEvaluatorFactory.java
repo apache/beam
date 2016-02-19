@@ -25,10 +25,10 @@ import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.C
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.InProcessEvaluationContext;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessTransformResult;
+import com.google.cloud.dataflow.sdk.runners.inprocess.StepTransformResult;
+import com.google.cloud.dataflow.sdk.runners.inprocess.StepTransformResult.Builder;
 import com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluator;
 import com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluatorFactory;
-import com.google.cloud.dataflow.sdk.runners.inprocess.util.ImmutableInProcessTransformResult;
-import com.google.cloud.dataflow.sdk.runners.inprocess.util.ImmutableInProcessTransformResult.Builder;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey.GroupByKeyOnly;
@@ -125,7 +125,7 @@ public class GroupByKeyEvaluatorFactory implements TransformEvaluatorFactory {
 
     @Override
     public InProcessTransformResult finishBundle() {
-      Builder resultBuilder = ImmutableInProcessTransformResult.withoutHold(application);
+      Builder resultBuilder = StepTransformResult.withoutHold(application);
       for (Map.Entry<GroupingKey<K>, List<V>> groupedEntry : groupingMap.entrySet()) {
         K key = groupedEntry.getKey().key;
         KV<K, Iterable<V>> groupedKv = KV.<K, Iterable<V>>of(key, groupedEntry.getValue());

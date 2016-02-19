@@ -19,9 +19,9 @@ import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.InProcessEvaluationContext;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.PCollectionViewWriter;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessTransformResult;
+import com.google.cloud.dataflow.sdk.runners.inprocess.StepTransformResult;
 import com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluator;
 import com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluatorFactory;
-import com.google.cloud.dataflow.sdk.runners.inprocess.util.ImmutableInProcessTransformResult;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.View.CreatePCollectionView;
@@ -65,7 +65,7 @@ public class ViewEvaluatorFactory implements TransformEvaluatorFactory {
       @Override
       public InProcessTransformResult finishBundle() {
         writer.add(elements);
-        return ImmutableInProcessTransformResult.withoutHold(application).build();
+        return StepTransformResult.withoutHold(application).build();
       }
     };
   }
