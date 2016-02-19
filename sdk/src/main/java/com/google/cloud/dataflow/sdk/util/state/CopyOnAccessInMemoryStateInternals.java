@@ -25,9 +25,12 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFn;
 import com.google.cloud.dataflow.sdk.util.state.InMemoryStateInternals.InMemoryState;
 import com.google.cloud.dataflow.sdk.util.state.StateTag.StateBinder;
 import com.google.common.base.Optional;
+import com.google.common.collect.Iterables;
 
 import org.joda.time.Instant;
 
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.Map;
 
 import javax.annotation.Nullable;
@@ -102,6 +105,10 @@ public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals<K> 
     return key;
   }
 
+  public boolean isEmpty() {
+    return Iterables.isEmpty(table.values());
+  }
+
   /**
    * A {@link StateTable} that, when a value is retrieved with
    * {@link StateTable#get(StateNamespace, StateTag)}, first attempts to obtain a copy of existing
@@ -167,6 +174,7 @@ public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals<K> 
         }
       }
       earliestWatermarkHold = Optional.of(earliestHold);
+      clearEmpty();
       binderFactory = new InMemoryStateBinderFactory<>(key);
       underlying = Optional.absent();
     }
@@ -185,6 +193,30 @@ public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals<K> 
         }
       }
       return earliest;
+    }
+
+    /**
+     * Clear all empty {@link StateNamespace StateNamespaces} from this table. If all states are
+     * empty, clear the entire table.
+     *
+     * <p>Because {@link InMemoryState} is not removed from the {@link StateTable} after it is
+     * cleared, in case contents are modified after being cleared, the table must be explicitly
+     * checked to ensure that it contains state and removed if not (otherwise we may never use
+     * the table again).
+     */
+    private void clearEmpty() {
+      Collection<StateNamespace> emptyNamespaces = new HashSet<>(this.getNamespacesInUse());
+      for (StateNamespace namespace : this.getNamespacesInUse()) {
+        for (State existingState : this.getTagsInUse(namespace).values()) {
+          if (!((InMemoryState<?>) existingState).isCleared()) {
+            emptyNamespaces.remove(namespace);
+            break;
+          }
+        }
+      }
+      for (StateNamespace empty : emptyNamespaces) {
+        this.clearNamespace(empty);
+      }
     }
 
     @Override

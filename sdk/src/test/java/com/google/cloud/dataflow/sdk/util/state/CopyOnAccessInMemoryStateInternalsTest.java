@@ -22,6 +22,9 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.theInstance;
 import static org.junit.Assert.assertThat;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 
 import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
@@ -262,6 +265,7 @@ public class CopyOnAccessInMemoryStateInternalsTest {
 
     BagState<String> reReadStringBag = internals.state(namespace, bagTag);
     assertThat(reReadStringBag.get().read(), containsInAnyOrder("baz", "bar"));
+    assertThat(internals.isEmpty(), is(false));
   }
 
   @Test
@@ -288,6 +292,7 @@ public class CopyOnAccessInMemoryStateInternalsTest {
     BagState<String> underlyingState = underlying.state(namespace, bagTag);
     assertThat(underlyingState.get().read(), containsInAnyOrder("spam", "bar", "baz"));
     assertThat(underlyingState, is(theInstance(stringBag)));
+    assertThat(internals.isEmpty(), is(false));
   }
 
   @Test
@@ -295,7 +300,7 @@ public class CopyOnAccessInMemoryStateInternalsTest {
     CopyOnAccessInMemoryStateInternals<String> underlying =
         CopyOnAccessInMemoryStateInternals.withUnderlying(key, null);
     CopyOnAccessInMemoryStateInternals<String> secondUnderlying =
-        CopyOnAccessInMemoryStateInternals.withUnderlying(key, underlying);
+        spy(CopyOnAccessInMemoryStateInternals.withUnderlying(key, underlying));
     CopyOnAccessInMemoryStateInternals<String> internals =
         CopyOnAccessInMemoryStateInternals.withUnderlying(key, secondUnderlying);
 
@@ -316,6 +321,8 @@ public class CopyOnAccessInMemoryStateInternalsTest {
     internals.commit();
     BagState<String> internalsStringBag = internals.state(namespace, bagTag);
     assertThat(internalsStringBag.get().read(), emptyIterable());
+    verify(secondUnderlying, never()).state(namespace, bagTag);
+    assertThat(internals.isEmpty(), is(false));
   }
 
   @Test
@@ -371,6 +378,53 @@ public class CopyOnAccessInMemoryStateInternalsTest {
 
     BagState<String> reReadUnderlyingState = underlying.state(namespace, bagTag);
     assertThat(reReadUnderlyingState.get().read(), containsInAnyOrder("bar", "baz"));
+  }
+
+  @Test
+  public void testCommitWithEmptyTableIsEmpty() {
+    CopyOnAccessInMemoryStateInternals<String> internals =
+        CopyOnAccessInMemoryStateInternals.withUnderlying(key, null);
+
+    internals.commit();
+
+    assertThat(internals.isEmpty(), is(true));
+  }
+
+  @Test
+  public void testCommitWithOnlyClearedValuesIsEmpty() {
+    CopyOnAccessInMemoryStateInternals<String> internals =
+        CopyOnAccessInMemoryStateInternals.withUnderlying(key, null);
+
+    StateNamespace namespace = new StateNamespaceForTest("foo");
+    StateTag<Object, BagState<String>> bagTag = StateTags.bag("foo", StringUtf8Coder.of());
+    BagState<String> stringBag = internals.state(namespace, bagTag);
+    assertThat(stringBag.get().read(), emptyIterable());
+
+    stringBag.add("foo");
+    stringBag.clear();
+
+    internals.commit();
+
+    assertThat(internals.isEmpty(), is(true));
+  }
+
+  @Test
+  public void testCommitWithEmptyNewAndFullUnderlyingIsNotEmpty() {
+    CopyOnAccessInMemoryStateInternals<String> underlying =
+        CopyOnAccessInMemoryStateInternals.withUnderlying(key, null);
+    CopyOnAccessInMemoryStateInternals<String> internals =
+        CopyOnAccessInMemoryStateInternals.withUnderlying(key, underlying);
+
+    StateNamespace namespace = new StateNamespaceForTest("foo");
+    StateTag<Object, BagState<String>> bagTag = StateTags.bag("foo", StringUtf8Coder.of());
+    BagState<String> stringBag = underlying.state(namespace, bagTag);
+    assertThat(stringBag.get().read(), emptyIterable());
+
+    stringBag.add("bar");
+    stringBag.add("baz");
+
+    internals.commit();
+    assertThat(internals.isEmpty(), is(false));
   }
 
   @Test
