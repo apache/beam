@@ -18,7 +18,6 @@ package com.google.cloud.dataflow.sdk.runners.dataflow;
 
 import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudSourceToDictionary;
 
-import com.google.cloud.dataflow.sdk.io.FileBasedSource;
 import com.google.cloud.dataflow.sdk.io.Read;
 import com.google.cloud.dataflow.sdk.io.Source;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator;
@@ -41,15 +40,6 @@ public class ReadTranslator implements TransformTranslator<Read.Bounded<?>> {
       PTransform<?, ? extends PValue> transform,
       DataflowPipelineTranslator.TranslationContext context) {
     try {
-      // TODO: Move this validation out of translation once IOChannelUtils is portable
-      // and can be reconstructed on the worker.
-      if (source instanceof FileBasedSource) {
-        String filePatternOrSpec = ((FileBasedSource<?>) source).getFileOrPatternSpec();
-        context.getPipelineOptions()
-               .getPathValidator()
-               .validateInputFilePatternSupported(filePatternOrSpec);
-      }
-
       context.addStep(transform, "ParallelRead");
       context.addInput(PropertyNames.FORMAT, PropertyNames.CUSTOM_SOURCE_FORMAT);
       context.addInput(

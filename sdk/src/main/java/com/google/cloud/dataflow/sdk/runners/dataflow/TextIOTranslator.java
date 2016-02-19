@@ -29,6 +29,40 @@ import com.google.common.base.Preconditions;
  * TextIO transform support code for the Dataflow backend.
  */
 public class TextIOTranslator {
+
+  /**
+   * Implements TextIO Read translation for the Dataflow backend.
+   */
+  @SuppressWarnings({"rawtypes", "unchecked"})
+  public static class ReadTranslator implements TransformTranslator<TextIO.Read.Bound> {
+    @Override
+    public void translate(
+        TextIO.Read.Bound transform,
+        TranslationContext context) {
+      translateReadHelper(transform, context);
+    }
+
+    private <T> void translateReadHelper(
+        TextIO.Read.Bound<T> transform,
+        TranslationContext context) {
+      if (context.getPipelineOptions().isStreaming()) {
+        throw new IllegalArgumentException("TextIO not supported in streaming mode.");
+      }
+
+      PathValidator validator = context.getPipelineOptions().getPathValidator();
+      String filepattern = validator.validateInputFilePatternSupported(transform.getFilepattern());
+
+      context.addStep(transform, "ParallelRead");
+      // TODO: How do we want to specify format and
+      // format-specific properties?
+      context.addInput(PropertyNames.FORMAT, "text");
+      context.addInput(PropertyNames.FILEPATTERN, filepattern);
+      context.addValueOnlyOutput(PropertyNames.OUTPUT, context.getOutput(transform));
+      context.addInput(PropertyNames.VALIDATE_SOURCE, transform.needsValidation());
+      context.addInput(PropertyNames.COMPRESSION_TYPE, transform.getCompressionType().toString());
+    }
+  }
+
   /**
    * Implements TextIO Write translation for the Dataflow backend.
    */
