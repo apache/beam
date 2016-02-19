@@ -20,7 +20,6 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
-import com.google.cloud.dataflow.sdk.runners.worker.logging.DataflowWorkerLoggingMDC;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
@@ -133,28 +132,17 @@ public abstract class DoFnRunnerBase<InputT, OutputT> implements DoFnRunner<Inpu
 
   @Override
   public void processElement(WindowedValue<InputT> elem) {
-    // TODO: Move the DataflowWorkerLoggingMDC into wrapper used on the Dataflow worker in
-    // invokeProcessElement
-    // Setup new thread local logging before running user code, and restore it after.
-    // Needs to happen here (per-element) since fusion may be running this as part of a call to
-    // output in an earlier step.
-    String previousStepName = DataflowWorkerLoggingMDC.getStepName();
-    DataflowWorkerLoggingMDC.setStepName(context.stepContext.getStepName());
-    try {
-      if (elem.getWindows().size() <= 1
-          || (!RequiresWindowAccess.class.isAssignableFrom(fn.getClass())
-          && context.sideInputReader.isEmpty())) {
-        invokeProcessElement(elem);
-      } else {
-        // We could modify the windowed value (and the processContext) to
-        // avoid repeated allocations, but this is more straightforward.
-        for (BoundedWindow window : elem.getWindows()) {
-          invokeProcessElement(WindowedValue.of(
-              elem.getValue(), elem.getTimestamp(), window, elem.getPane()));
-        }
+    if (elem.getWindows().size() <= 1
+        || (!RequiresWindowAccess.class.isAssignableFrom(fn.getClass())
+            && context.sideInputReader.isEmpty())) {
+      invokeProcessElement(elem);
+    } else {
+      // We could modify the windowed value (and the processContext) to
+      // avoid repeated allocations, but this is more straightforward.
+      for (BoundedWindow window : elem.getWindows()) {
+        invokeProcessElement(WindowedValue.of(
+            elem.getValue(), elem.getTimestamp(), window, elem.getPane()));
       }
-    } finally {
-      DataflowWorkerLoggingMDC.setStepName(previousStepName);
     }
   }
 
