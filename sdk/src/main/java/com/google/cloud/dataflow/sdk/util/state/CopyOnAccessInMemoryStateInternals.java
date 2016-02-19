@@ -15,6 +15,8 @@
  */
 package com.google.cloud.dataflow.sdk.util.state;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
@@ -23,6 +25,10 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFn;
 import com.google.cloud.dataflow.sdk.util.state.InMemoryStateInternals.InMemoryState;
 import com.google.cloud.dataflow.sdk.util.state.StateTag.StateBinder;
 import com.google.common.base.Optional;
+
+import org.joda.time.Instant;
+
+import java.util.Map;
 
 import javax.annotation.Nullable;
 
@@ -39,15 +45,16 @@ public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals<K> 
    * Creates a new {@link CopyOnAccessInMemoryStateInternals} with the underlying (possibly null)
    * StateInternals.
    */
-  public static <K> CopyOnAccessInMemoryStateInternals<K> withUnderlying(K key,
-@Nullable CopyOnAccessInMemoryStateInternals<K> underlying) {
+  public static <K> CopyOnAccessInMemoryStateInternals<K> withUnderlying(
+      K key, @Nullable CopyOnAccessInMemoryStateInternals<K> underlying) {
     return new CopyOnAccessInMemoryStateInternals<K>(key, underlying);
   }
 
   private CopyOnAccessInMemoryStateInternals(
       K key, CopyOnAccessInMemoryStateInternals<K> underlying) {
     this.key = key;
-    table = new CopyOnAccessInMemoryStateTable<>(key, underlying == null ? null : underlying.table);
+    table =
+        new CopyOnAccessInMemoryStateTable<K>(key, underlying == null ? null : underlying.table);
   }
 
   /**
@@ -58,11 +65,31 @@ public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals<K> 
    * has not been bound in this {@link CopyOnAccessInMemoryStateInternals}, put a reference to that
    * state within this {@link StateInternals}.
    *
+   * <p>Additionally, stores the {@link WatermarkStateInternal} with the earliest time bound in the
+   * state table after the commit is completed, enabling calls to
+   * {@link #getEarliestWatermarkHold()}.
+   *
    * @return this table
    */
   public CopyOnAccessInMemoryStateInternals<K> commit() {
     table.commit();
     return this;
+  }
+
+  /**
+   * Gets the earliest Watermark Hold present in this table.
+   *
+   * <p>Must be called after this state has been committed. Will throw an
+   * {@link IllegalStateException} if the state has not been committed.
+   */
+  public Instant getEarliestWatermarkHold() {
+    // After commit, the watermark hold is always present, but may be
+    // BoundedWindow#TIMESTAMP_MAX_VALUE if there is no hold set.
+    checkState(
+        table.earliestWatermarkHold.isPresent(),
+        "Can't get the earliest watermark hold in a %s before it is committed",
+        getClass().getSimpleName());
+    return table.earliestWatermarkHold.get();
   }
 
   @Override
@@ -97,17 +124,23 @@ public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals<K> 
      *   <li>During the execution of the {@link #commit()} method, this is a
      *       {@link ReadThroughBinderFactory}, which copies the references to the existing
      *       {@link State} objects to this {@link StateTable}.</li>
-     *   <li>After the execution of the {@link #commit()} method, this is an instance of
-     *       {@link InMemoryStateBinderFactory}, which constructs new instances of state when a
-     *       {@link StateTag} is bound.</li>
+     *   <li>After the execution of the {@link #commit()} method, this is an
+     *       instance of {@link InMemoryStateBinderFactory}, which constructs new instances of state
+     *       when a {@link StateTag} is bound.</li>
      * </ul>
      */
     private StateBinderFactory<K> binderFactory;
+
+    /**
+     * The earliest watermark hold in this table.
+     */
+    private Optional<Instant> earliestWatermarkHold;
 
     public CopyOnAccessInMemoryStateTable(K key, StateTable<K> underlying) {
       this.key = key;
       this.underlying = Optional.fromNullable(underlying);
       binderFactory = new CopyOnBindBinderFactory<>(key, this.underlying);
+      earliestWatermarkHold = Optional.absent();
     }
 
     /**
@@ -123,20 +156,40 @@ public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals<K> 
      * are bound in this {@link StateTable table} and this table represents the canonical state.
      */
     private void commit() {
+      Instant earliestHold = getEarliestWatermarkHold();
       if (underlying.isPresent()) {
         ReadThroughBinderFactory<K> readThroughBinder =
             new ReadThroughBinderFactory<>(underlying.get());
         binderFactory = readThroughBinder;
-        readThroughBinder.readThrough(this);
+        Instant earliestUnderlyingHold = readThroughBinder.readThroughAndGetEarliestHold(this);
+        if (earliestUnderlyingHold.isBefore(earliestHold)) {
+          earliestHold = earliestUnderlyingHold;
+        }
       }
+      earliestWatermarkHold = Optional.of(earliestHold);
       binderFactory = new InMemoryStateBinderFactory<>(key);
       underlying = Optional.absent();
     }
 
+    /**
+     * Get the earliest watermark hold in this table. Ignores the contents of any underlying table.
+     */
+    private Instant getEarliestWatermarkHold() {
+      Instant earliest = BoundedWindow.TIMESTAMP_MAX_VALUE;
+      for (State existingState : this.values()) {
+        if (existingState instanceof WatermarkStateInternal) {
+          Instant hold = ((WatermarkStateInternal<?>) existingState).get().read();
+          if (hold != null && hold.isBefore(earliest)) {
+            earliest = hold;
+          }
+        }
+      }
+      return earliest;
+    }
+
     @Override
     protected StateBinder<K> binderForNamespace(final StateNamespace namespace) {
-      StateBinder<K> stateBinder = binderFactory.forNamespace(namespace);
-      return stateBinder;
+      return binderFactory.forNamespace(namespace);
     }
 
     private static interface StateBinderFactory<K> {
@@ -250,8 +303,8 @@ public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals<K> 
 
     /**
      * {@link StateBinderFactory} that reads directly from the underlying table. Used during calls
-     * to {@link CopyOnAccessInMemoryStateTable#commit()} to read all values from the underlying
-     * table.
+     * to {@link CopyOnAccessInMemoryStateTable#commit()} to read all values from
+     * the underlying table.
      */
     private static class ReadThroughBinderFactory<K> implements StateBinderFactory<K> {
       private final StateTable<K> underlying;
@@ -260,12 +313,26 @@ public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals<K> 
         this.underlying = underlying;
       }
 
-      public void readThrough(StateTable<K> readTo) {
+      public Instant readThroughAndGetEarliestHold(StateTable<K> readTo) {
+        Instant earliestHold = BoundedWindow.TIMESTAMP_MAX_VALUE;
         for (StateNamespace namespace : underlying.getNamespacesInUse()) {
-          for (StateTag<? super K, ?> address : underlying.getTagsInUse(namespace).keySet()) {
-            readTo.get(namespace, address);
+          for (Map.Entry<StateTag<? super K, ?>, ? extends State> existingState :
+              underlying.getTagsInUse(namespace).entrySet()) {
+            if (!((InMemoryState<?>) existingState.getValue()).isCleared()) {
+              // Only read through non-cleared values to ensure that completed windows are
+              // eventually discarded, and remember the earliest watermark hold from among those
+              // values.
+              State state = readTo.get(namespace, existingState.getKey());
+              if (state instanceof WatermarkStateInternal) {
+                Instant hold = ((WatermarkStateInternal<?>) state).get().read();
+                if (hold != null && hold.isBefore(earliestHold)) {
+                  earliestHold = hold;
+                }
+              }
+            }
           }
         }
+        return earliestHold;
       }
 
       @Override

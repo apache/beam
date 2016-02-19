@@ -34,9 +34,12 @@ import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFn;
+import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFns;
 
 import org.joda.time.Instant;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -45,6 +48,7 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class CopyOnAccessInMemoryStateInternalsTest {
+  @Rule public ExpectedException thrown = ExpectedException.none();
   private String key = "foo";
   @Test
   public void testGetWithEmpty() {
@@ -287,6 +291,34 @@ public class CopyOnAccessInMemoryStateInternalsTest {
   }
 
   @Test
+  public void testCommitWithClearedInUnderlying() {
+    CopyOnAccessInMemoryStateInternals<String> underlying =
+        CopyOnAccessInMemoryStateInternals.withUnderlying(key, null);
+    CopyOnAccessInMemoryStateInternals<String> secondUnderlying =
+        CopyOnAccessInMemoryStateInternals.withUnderlying(key, underlying);
+    CopyOnAccessInMemoryStateInternals<String> internals =
+        CopyOnAccessInMemoryStateInternals.withUnderlying(key, secondUnderlying);
+
+    StateNamespace namespace = new StateNamespaceForTest("foo");
+    StateTag<Object, BagState<String>> bagTag = StateTags.bag("foo", StringUtf8Coder.of());
+    BagState<String> stringBag = underlying.state(namespace, bagTag);
+    assertThat(stringBag.get().read(), emptyIterable());
+
+    stringBag.add("bar");
+    stringBag.add("baz");
+    stringBag.clear();
+    // We should not read through the cleared bag
+    secondUnderlying.commit();
+
+    // Should not be visible
+    stringBag.add("foo");
+
+    internals.commit();
+    BagState<String> internalsStringBag = internals.state(namespace, bagTag);
+    assertThat(internalsStringBag.get().read(), emptyIterable());
+  }
+
+  @Test
   public void testCommitWithOverwrittenUnderlying() {
     CopyOnAccessInMemoryStateInternals<String> underlying =
         CopyOnAccessInMemoryStateInternals.withUnderlying(key, null);
@@ -339,5 +371,129 @@ public class CopyOnAccessInMemoryStateInternalsTest {
 
     BagState<String> reReadUnderlyingState = underlying.state(namespace, bagTag);
     assertThat(reReadUnderlyingState.get().read(), containsInAnyOrder("bar", "baz"));
+  }
+
+  @Test
+  public void testGetEarliestWatermarkHoldAfterCommit() {
+    BoundedWindow first = new BoundedWindow() {
+      @Override
+      public Instant maxTimestamp() {
+        return new Instant(2048L);
+      }
+    };
+    BoundedWindow second = new BoundedWindow() {
+      @Override
+      public Instant maxTimestamp() {
+        return new Instant(689743L);
+      }
+    };
+    CopyOnAccessInMemoryStateInternals<String> internals =
+        CopyOnAccessInMemoryStateInternals.withUnderlying("foo", null);
+
+    StateTag<Object, WatermarkStateInternal<BoundedWindow>> firstHoldAddress =
+        StateTags.watermarkStateInternal("foo", OutputTimeFns.outputAtEarliestInputTimestamp());
+    WatermarkStateInternal<BoundedWindow> firstHold =
+        internals.state(StateNamespaces.window(null, first), firstHoldAddress);
+    firstHold.add(new Instant(22L));
+
+    StateTag<Object, WatermarkStateInternal<BoundedWindow>> secondHoldAddress =
+        StateTags.watermarkStateInternal("foo", OutputTimeFns.outputAtEarliestInputTimestamp());
+    WatermarkStateInternal<BoundedWindow> secondHold =
+        internals.state(StateNamespaces.window(null, second), secondHoldAddress);
+    secondHold.add(new Instant(2L));
+
+    internals.commit();
+    assertThat(internals.getEarliestWatermarkHold(), equalTo(new Instant(2L)));
+  }
+
+  @Test
+  public void testGetEarliestWatermarkHoldWithEarliestInUnderlyingTable() {
+    BoundedWindow first = new BoundedWindow() {
+      @Override
+      public Instant maxTimestamp() {
+        return new Instant(2048L);
+      }
+    };
+    BoundedWindow second = new BoundedWindow() {
+      @Override
+      public Instant maxTimestamp() {
+        return new Instant(689743L);
+      }
+    };
+    CopyOnAccessInMemoryStateInternals<String> underlying =
+        CopyOnAccessInMemoryStateInternals.withUnderlying("foo", null);
+    StateTag<Object, WatermarkStateInternal<BoundedWindow>> firstHoldAddress =
+        StateTags.watermarkStateInternal("foo", OutputTimeFns.outputAtEarliestInputTimestamp());
+    WatermarkStateInternal<BoundedWindow> firstHold =
+        underlying.state(StateNamespaces.window(null, first), firstHoldAddress);
+    firstHold.add(new Instant(22L));
+
+    CopyOnAccessInMemoryStateInternals<String> internals =
+        CopyOnAccessInMemoryStateInternals.withUnderlying("foo", underlying.commit());
+
+    StateTag<Object, WatermarkStateInternal<BoundedWindow>> secondHoldAddress =
+        StateTags.watermarkStateInternal("foo", OutputTimeFns.outputAtEarliestInputTimestamp());
+    WatermarkStateInternal<BoundedWindow> secondHold =
+        internals.state(StateNamespaces.window(null, second), secondHoldAddress);
+    secondHold.add(new Instant(244L));
+
+    internals.commit();
+    assertThat(internals.getEarliestWatermarkHold(), equalTo(new Instant(22L)));
+  }
+
+  @Test
+  public void testGetEarliestWatermarkHoldWithEarliestInNewTable() {
+    BoundedWindow first =
+        new BoundedWindow() {
+          @Override
+          public Instant maxTimestamp() {
+            return new Instant(2048L);
+          }
+        };
+    BoundedWindow second =
+        new BoundedWindow() {
+          @Override
+          public Instant maxTimestamp() {
+            return new Instant(689743L);
+          }
+        };
+    CopyOnAccessInMemoryStateInternals<String> underlying =
+        CopyOnAccessInMemoryStateInternals.withUnderlying("foo", null);
+    StateTag<Object, WatermarkStateInternal<BoundedWindow>> firstHoldAddress =
+        StateTags.watermarkStateInternal("foo", OutputTimeFns.outputAtEarliestInputTimestamp());
+    WatermarkStateInternal<BoundedWindow> firstHold =
+        underlying.state(StateNamespaces.window(null, first), firstHoldAddress);
+    firstHold.add(new Instant(224L));
+
+    CopyOnAccessInMemoryStateInternals<String> internals =
+        CopyOnAccessInMemoryStateInternals.withUnderlying("foo", underlying.commit());
+
+    StateTag<Object, WatermarkStateInternal<BoundedWindow>> secondHoldAddress =
+        StateTags.watermarkStateInternal("foo", OutputTimeFns.outputAtEarliestInputTimestamp());
+    WatermarkStateInternal<BoundedWindow> secondHold =
+        internals.state(StateNamespaces.window(null, second), secondHoldAddress);
+    secondHold.add(new Instant(24L));
+
+    internals.commit();
+    assertThat(internals.getEarliestWatermarkHold(), equalTo(new Instant(24L)));
+  }
+
+  @Test
+  public void testGetEarliestHoldBeforeCommit() {
+    CopyOnAccessInMemoryStateInternals<String> internals =
+        CopyOnAccessInMemoryStateInternals.withUnderlying(key, null);
+
+    internals
+        .state(
+            StateNamespaces.global(),
+            StateTags.watermarkStateInternal("foo", OutputTimeFns.outputAtEarliestInputTimestamp()))
+        .add(new Instant(1234L));
+
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage(CopyOnAccessInMemoryStateInternals.class.getSimpleName());
+    thrown.expectMessage("Can't get the earliest watermark hold");
+    thrown.expectMessage("before it is committed");
+
+    internals.getEarliestWatermarkHold();
   }
 }

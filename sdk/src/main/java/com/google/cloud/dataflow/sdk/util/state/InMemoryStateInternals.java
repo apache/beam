@@ -56,7 +56,7 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
   }
 
   interface InMemoryState<T extends InMemoryState<T>> {
-    boolean isEmptyForTesting();
+    boolean isCleared();
     T copy();
   }
 
@@ -76,7 +76,7 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
    * that the state has been properly cleaned up.
    */
   protected boolean isEmptyForTesting(State state) {
-    return ((InMemoryState<?>) state).isEmptyForTesting();
+    return ((InMemoryState<?>) state).isCleared();
   }
 
   @Override
@@ -171,7 +171,7 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     }
 
     @Override
-    public boolean isEmptyForTesting() {
+    public boolean isCleared() {
       return isCleared;
     }
   }
@@ -212,7 +212,7 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     }
 
     @Override
-    public boolean isEmptyForTesting() {
+    public boolean isCleared() {
       return combinedHold == null;
     }
 
@@ -316,7 +316,7 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     }
 
     @Override
-    public boolean isEmptyForTesting() {
+    public boolean isCleared() {
       return isCleared;
     }
 
@@ -363,7 +363,7 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     }
 
     @Override
-    public boolean isEmptyForTesting() {
+    public boolean isCleared() {
       return contents.isEmpty();
     }
 
