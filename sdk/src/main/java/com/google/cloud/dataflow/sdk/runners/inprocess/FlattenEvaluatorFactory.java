@@ -13,16 +13,11 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.google.cloud.dataflow.sdk.runners.inprocess.evaluator;
+package com.google.cloud.dataflow.sdk.runners.inprocess;
 
-import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.InProcessEvaluationContext;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
-import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessTransformResult;
-import com.google.cloud.dataflow.sdk.runners.inprocess.StepTransformResult;
-import com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluator;
-import com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluatorFactory;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.Flatten;
 import com.google.cloud.dataflow.sdk.transforms.Flatten.FlattenPCollectionList;
@@ -35,7 +30,7 @@ import com.google.cloud.dataflow.sdk.values.PCollectionList;
  * The {@link InProcessPipelineRunner} {@link TransformEvaluatorFactory} for the {@link Flatten}
  * {@link PTransform}.
  */
-public class FlattenEvaluatorFactory implements TransformEvaluatorFactory {
+class FlattenEvaluatorFactory implements TransformEvaluatorFactory {
   @SuppressWarnings({"unchecked", "rawtypes"})
   @Override
   public <InputT> TransformEvaluator<InputT> forApplication(

@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.google.cloud.dataflow.sdk.runners.inprocess.evaluator;
+package com.google.cloud.dataflow.sdk.runners.inprocess;
 
 import com.google.cloud.dataflow.sdk.io.Read.Unbounded;
 import com.google.cloud.dataflow.sdk.io.UnboundedSource;
@@ -23,10 +23,6 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.InProcessEvaluationContext;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
-import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessTransformResult;
-import com.google.cloud.dataflow.sdk.runners.inprocess.StepTransformResult;
-import com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluator;
-import com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluatorFactory;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
@@ -42,7 +38,7 @@ import javax.annotation.Nullable;
  * A {@link TransformEvaluatorFactory} that produces {@link TransformEvaluator TransformEvaluators}
  * for the {@link Unbounded Read.Unbounded} primitive {@link PTransform}.
  */
-public class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
+class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
   /*
    * An evaluator for a Source is stateful, to ensure the CheckpointMark is properly persisted.
    * Evaluators are cached here to ensure that the checkpoint mark is appropriately reused

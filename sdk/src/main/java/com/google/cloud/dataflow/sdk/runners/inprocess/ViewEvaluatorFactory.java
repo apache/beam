@@ -13,15 +13,10 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.google.cloud.dataflow.sdk.runners.inprocess.evaluator;
+package com.google.cloud.dataflow.sdk.runners.inprocess;
 
-import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.InProcessEvaluationContext;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.PCollectionViewWriter;
-import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessTransformResult;
-import com.google.cloud.dataflow.sdk.runners.inprocess.StepTransformResult;
-import com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluator;
-import com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluatorFactory;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.View.CreatePCollectionView;
@@ -36,7 +31,7 @@ import java.util.List;
  * The {@link InProcessPipelineRunner} {@link TransformEvaluatorFactory} for the
  * {@link CreatePCollectionView} primitive {@link PTransform}.
  */
-public class ViewEvaluatorFactory implements TransformEvaluatorFactory {
+class ViewEvaluatorFactory implements TransformEvaluatorFactory {
   @SuppressWarnings({"rawtypes", "unchecked"})
   @Override
   public <T> TransformEvaluator<T> forApplication(

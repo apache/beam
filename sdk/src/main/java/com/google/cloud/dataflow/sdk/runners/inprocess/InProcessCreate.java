@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.google.cloud.dataflow.sdk.runners.inprocess.evaluator;
+package com.google.cloud.dataflow.sdk.runners.inprocess;
 
 import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
@@ -44,7 +44,7 @@ import java.util.NoSuchElementException;
  * The coder is inferred via the {@link Values#getDefaultOutputCoder(PInput)} method on the original
  * transform.
  */
-public class InProcessCreate<T> extends PTransform<PInput, PCollection<T>> {
+class InProcessCreate<T> extends PTransform<PInput, PCollection<T>> {
   private final Create.Values<T> original;
   private final InMemorySource<T> source;
 
