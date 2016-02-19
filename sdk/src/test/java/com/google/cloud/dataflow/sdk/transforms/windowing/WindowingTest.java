@@ -16,10 +16,6 @@
 
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
-
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.io.TextIO;
@@ -31,15 +27,12 @@ import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn.RequiresWindowAccess;
 import com.google.cloud.dataflow.sdk.transforms.Flatten;
-import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
-import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionList;
 import com.google.cloud.dataflow.sdk.values.TimestampedValue;
-import com.google.common.collect.Iterables;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -190,50 +183,6 @@ public class WindowingTest implements Serializable {
     DataflowAssert.that(output).containsInAnyOrder(
         output("a", 2, 1, 0, 5),
         output("b", 2, 2, 0, 5));
-
-    p.run();
-  }
-
-  @Test
-  @Category(RunnableOnService.class)
-  public void testElementsSortedByTimestamp() {
-    // The Windowing API does not guarantee that elements will be sorted by
-    // timestamp, but the implementation currently relies on this, so it
-    // needs to be tested.
-
-    Pipeline p = TestPipeline.create();
-
-    PCollection<KV<String, String>> a = p
-        .apply(Create.timestamped(
-            TimestampedValue.of(KV.of("k", "a"), new Instant(1)),
-            TimestampedValue.of(KV.of("k", "b"), new Instant(4)),
-            TimestampedValue.of(KV.of("k", "c"), new Instant(3)),
-            TimestampedValue.of(KV.of("k", "d"), new Instant(5)),
-            TimestampedValue.of(KV.of("k", "e"), new Instant(2)),
-            TimestampedValue.of(KV.of("k", "f"), new Instant(-5)),
-            TimestampedValue.of(KV.of("k", "g"), new Instant(-6)),
-            TimestampedValue.of(KV.of("k", "h"), new Instant(-255)),
-            TimestampedValue.of(KV.of("k", "i"), new Instant(-256)),
-            TimestampedValue.of(KV.of("k", "j"), new Instant(255))));
-
-    PCollection<KV<String, String>> b = a
-        .apply(Window.<KV<String, String>>into(
-            FixedWindows.of(new Duration(1000)).withOffset(new Duration(500))));
-
-    PCollection<KV<String, Iterable<String>>> output = b
-        .apply(GroupByKey.<String, String>create());
-
-    DataflowAssert.that(output).satisfies(
-        new SerializableFunction<Iterable<KV<String, Iterable<String>>>, Void>() {
-          @Override
-          public Void apply(Iterable<KV<String, Iterable<String>>> contents) {
-            KV<String, Iterable<String>> element = Iterables.getOnlyElement(contents);
-            assertThat(element.getKey(), equalTo("k"));
-            assertThat(element.getValue(),
-                contains("i", "h", "g", "f", "a", "e", "c", "b", "d", "j"));
-            return null;
-          }
-        });
 
     p.run();
   }
