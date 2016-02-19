@@ -137,8 +137,8 @@ public class GcsUtil {
 
   /**
    * Expands a pattern into matched paths. The pattern path may contain globs, which are expanded
-   * in the result. This function may return non-existent files so this should not be used to
-   * validate the existence of files in GCS.
+   * in the result. For patterns that only match a single object, we ensure that the object
+   * exists.
    */
   public List<GcsPath> expand(GcsPath gcsPattern) throws IOException {
     Preconditions.checkArgument(isGcsPatternSupported(gcsPattern.getObject()));
@@ -147,9 +147,24 @@ public class GcsUtil {
     String prefix = null;
     if (!m.matches()) {
       // Not a glob.
-      // Results of GCS storage list feature is only eventually consistent so we should not use that
-      // feature to check the existence of single files.
-      return ImmutableList.of(gcsPattern);
+      Storage.Objects.Get getObject = storageClient.objects().get(
+          gcsPattern.getBucket(), gcsPattern.getObject());
+      try {
+        // Use a get request to fetch the metadata of the object,
+        // the request has strong global consistency.
+        ResilientOperation.retry(
+            ResilientOperation.getGoogleRequestCallable(getObject),
+            new AttemptBoundedExponentialBackOff(3, 200),
+            RetryDeterminer.SOCKET_ERRORS,
+            IOException.class);
+        return ImmutableList.of(gcsPattern);
+      } catch (IOException | InterruptedException e) {
+        if (e instanceof IOException && errorExtractor.itemNotFound((IOException) e)) {
+          // If the path was not found, return an empty list.
+          return ImmutableList.of();
+        }
+        throw new IOException("Unable to match files for pattern " + gcsPattern, e);
+      }
     } else {
       // Part before the first wildcard character.
       prefix = m.group("PREFIX");

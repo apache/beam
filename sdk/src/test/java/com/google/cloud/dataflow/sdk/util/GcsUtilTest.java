@@ -69,6 +69,7 @@ import java.net.SocketTimeoutException;
 import java.nio.channels.SeekableByteChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -172,6 +173,7 @@ public class GcsUtilTest {
     gcsUtil.setStorageClient(mockStorage);
 
     Storage.Objects mockStorageObjects = Mockito.mock(Storage.Objects.class);
+    Storage.Objects.Get mockStorageGet = Mockito.mock(Storage.Objects.Get.class);
     Storage.Objects.List mockStorageList = Mockito.mock(Storage.Objects.List.class);
 
     Objects modelObjects = new Objects();
@@ -189,7 +191,11 @@ public class GcsUtilTest {
     modelObjects.setItems(items);
 
     when(mockStorage.objects()).thenReturn(mockStorageObjects);
+    when(mockStorageObjects.get("testbucket", "testdirectory/otherfile")).thenReturn(
+        mockStorageGet);
     when(mockStorageObjects.list("testbucket")).thenReturn(mockStorageList);
+    when(mockStorageGet.execute()).thenReturn(
+        new StorageObject().setBucket("testbucket").setName("testdirectory/otherfile"));
     when(mockStorageList.execute()).thenReturn(modelObjects);
 
     // Test a single file.
@@ -255,10 +261,10 @@ public class GcsUtilTest {
     gcsUtil.expand(pattern);
   }
 
-  // GCSUtil.expand() should not fail for non-existent single files or directories, since GCS file
-  // listing is only eventually consistent.
+  // GCSUtil.expand() should fail when matching a single object when that object does not exist.
+  // We should return the empty result since GCS get object is strongly consistent.
   @Test
-  public void testNonExistent() throws IOException {
+  public void testNonExistentObjectReturnsEmptyResult() throws IOException {
     GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
     GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
 
@@ -266,34 +272,46 @@ public class GcsUtilTest {
     gcsUtil.setStorageClient(mockStorage);
 
     Storage.Objects mockStorageObjects = Mockito.mock(Storage.Objects.class);
-    Storage.Objects.List mockStorageList = Mockito.mock(Storage.Objects.List.class);
+    Storage.Objects.Get mockStorageGet = Mockito.mock(Storage.Objects.Get.class);
 
-    Objects modelObjects = new Objects();
-    List<StorageObject> items = new ArrayList<>();
-
-    // A directory
-    items.add(new StorageObject().setBucket("testbucket").setName("testdirectory/"));
-    modelObjects.setItems(items);
+    GcsPath pattern = GcsPath.fromUri("gs://testbucket/testdirectory/nonexistentfile");
+    GoogleJsonResponseException expectedException =
+        googleJsonResponseException(HttpStatusCodes.STATUS_CODE_NOT_FOUND,
+            "It don't exist", "Nothing here to see");
 
     when(mockStorage.objects()).thenReturn(mockStorageObjects);
-    when(mockStorageObjects.list("testbucket")).thenReturn(mockStorageList);
-    when(mockStorageList.execute()).thenReturn(modelObjects);
+    when(mockStorageObjects.get(pattern.getBucket(), pattern.getObject())).thenReturn(
+        mockStorageGet);
+    when(mockStorageGet.execute()).thenThrow(expectedException);
 
-    {
-      GcsPath pattern = GcsPath.fromUri("gs://testbucket/testdirectory/nonexistentfile");
-      List<GcsPath> expectedFiles =
-          ImmutableList.of(GcsPath.fromUri("gs://testbucket/testdirectory/nonexistentfile"));
+    assertEquals(Collections.EMPTY_LIST, gcsUtil.expand(pattern));
+  }
 
-      assertThat(expectedFiles, contains(gcsUtil.expand(pattern).toArray()));
-    }
+  // GCSUtil.expand() should fail for other errors such as access denied.
+  @Test
+  public void testAccessDeniedObjectThrowsIOException() throws IOException {
+    GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
+    GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
 
-    {
-      GcsPath pattern = GcsPath.fromUri("gs://testbucket/testdirectory/nonexistentdirectory/");
-      List<GcsPath> expectedFiles =
-          ImmutableList.of(GcsPath.fromUri("gs://testbucket/testdirectory/nonexistentdirectory/"));
+    Storage mockStorage = Mockito.mock(Storage.class);
+    gcsUtil.setStorageClient(mockStorage);
 
-      assertThat(expectedFiles, contains(gcsUtil.expand(pattern).toArray()));
-    }
+    Storage.Objects mockStorageObjects = Mockito.mock(Storage.Objects.class);
+    Storage.Objects.Get mockStorageGet = Mockito.mock(Storage.Objects.Get.class);
+
+    GcsPath pattern = GcsPath.fromUri("gs://testbucket/testdirectory/accessdeniedfile");
+    GoogleJsonResponseException expectedException =
+        googleJsonResponseException(HttpStatusCodes.STATUS_CODE_FORBIDDEN,
+            "Waves hand mysteriously", "These aren't the buckets your looking for");
+
+    when(mockStorage.objects()).thenReturn(mockStorageObjects);
+    when(mockStorageObjects.get(pattern.getBucket(), pattern.getObject())).thenReturn(
+        mockStorageGet);
+    when(mockStorageGet.execute()).thenThrow(expectedException);
+
+    thrown.expect(IOException.class);
+    thrown.expectMessage("Unable to match files for pattern");
+    gcsUtil.expand(pattern);
   }
 
   @Test
