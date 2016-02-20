@@ -15,10 +15,11 @@
  */
 package com.google.cloud.dataflow.sdk.coders;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.Structs;
 import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -88,23 +89,26 @@ public class Proto2Coder<T extends Message> extends AtomicCoder<T> {
     this.extensionHostClasses = extensionHostClasses;
   }
 
-  private static final CoderProvider PROVIDER = new CoderProvider() {
-    @Override
-    public <T> Coder<T> getCoder(TypeDescriptor<T> type) throws CannotProvideCoderException {
-      if (type.isSubtypeOf(new TypeDescriptor<Message>() {})) {
-        @SuppressWarnings("unchecked")
-        TypeDescriptor<? extends Message> messageType = (TypeDescriptor<? extends Message>) type;
-        @SuppressWarnings("unchecked")
-        Coder<T> coder = (Coder<T>) Proto2Coder.of(messageType);
-        return coder;
-      } else {
-        throw new CannotProvideCoderException(
-            String.format("Cannot provide Proto2Coder because %s "
-                + "is not a subclass of protocol buffer Messsage",
-                type));
-      }
-    }
-  };
+  private static final CoderProvider PROVIDER =
+      new CoderProvider() {
+        @Override
+        public <T> Coder<T> getCoder(TypeDescriptor<T> type) throws CannotProvideCoderException {
+          if (type.isSubtypeOf(new TypeDescriptor<Message>() {})) {
+            @SuppressWarnings("unchecked")
+            TypeDescriptor<? extends Message> messageType =
+                (TypeDescriptor<? extends Message>) type;
+            @SuppressWarnings("unchecked")
+            Coder<T> coder = (Coder<T>) Proto2Coder.of(messageType);
+            return coder;
+          } else {
+            throw new CannotProvideCoderException(
+                String.format(
+                    "Cannot provide Proto2Coder because %s "
+                        + "is not a subclass of protocol buffer Messsage",
+                    type));
+          }
+        }
+      };
 
   public static CoderProvider coderProvider() {
     return PROVIDER;
@@ -137,9 +141,9 @@ public class Proto2Coder<T extends Message> extends AtomicCoder<T> {
     for (Class<?> extensionHost : moreExtensionHosts) {
       // Attempt to access the required method, to make sure it's present.
       try {
-        Method registerAllExtensions = extensionHost.getDeclaredMethod(
-            "registerAllExtensions", ExtensionRegistry.class);
-        Preconditions.checkArgument(
+        Method registerAllExtensions =
+            extensionHost.getDeclaredMethod("registerAllExtensions", ExtensionRegistry.class);
+        checkArgument(
             Modifier.isStatic(registerAllExtensions.getModifiers()),
             "Method registerAllExtensions() must be static for use with Proto2Coder");
       } catch (NoSuchMethodException | SecurityException e) {
@@ -188,8 +192,7 @@ public class Proto2Coder<T extends Message> extends AtomicCoder<T> {
     for (Class<?> extensionHost : extensionHosts) {
       try {
         // Attempt to access the declared method, to make sure it's present.
-        extensionHost
-            .getDeclaredMethod("registerAllExtensions", ExtensionRegistry.class);
+        extensionHost.getDeclaredMethod("registerAllExtensions", ExtensionRegistry.class);
       } catch (NoSuchMethodException e) {
         throw new IllegalArgumentException(e);
       }
@@ -277,14 +280,11 @@ public class Proto2Coder<T extends Message> extends AtomicCoder<T> {
     if (memoizedParser == null) {
       try {
         @SuppressWarnings("unchecked")
-        T protoMessageInstance = (T) protoMessageClass
-            .getMethod("getDefaultInstance").invoke(null);
+        T protoMessageInstance = (T) protoMessageClass.getMethod("getDefaultInstance").invoke(null);
         @SuppressWarnings("unchecked")
         Parser<T> tParser = (Parser<T>) protoMessageInstance.getParserForType();
         memoizedParser = tParser;
-      } catch (IllegalAccessException
-          | InvocationTargetException
-          | NoSuchMethodException e) {
+      } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
         throw new IllegalArgumentException(e);
       }
     }
@@ -301,9 +301,7 @@ public class Proto2Coder<T extends Message> extends AtomicCoder<T> {
           extensionHost
               .getDeclaredMethod("registerAllExtensions", ExtensionRegistry.class)
               .invoke(null, memoizedExtensionRegistry);
-        } catch (IllegalAccessException
-            | InvocationTargetException
-            | NoSuchMethodException e) {
+        } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
           throw new IllegalStateException(e);
         }
       }
