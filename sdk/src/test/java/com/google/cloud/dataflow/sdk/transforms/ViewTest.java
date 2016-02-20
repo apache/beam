@@ -51,6 +51,7 @@ import com.google.cloud.dataflow.sdk.values.PBegin;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TimestampedValue;
+import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
@@ -1365,13 +1366,19 @@ public class ViewTest implements Serializable {
     thrown.expectMessage("Unable to create a side-input view from input");
     thrown.expectCause(
         ThrowableMessageMatcher.hasMessage(Matchers.containsString("non-bounded PCollection")));
-    pipeline.apply(new PTransform<PBegin, PCollection<KV<String, Integer>>>() {
-      @Override
-      public PCollection<KV<String, Integer>> apply(PBegin input) {
-        return PCollection.createPrimitiveOutputInternal(input.getPipeline(),
-            WindowingStrategy.globalDefault(), PCollection.IsBounded.UNBOUNDED);
-      }
-    }).apply(view);
+    pipeline
+        .apply(
+            new PTransform<PBegin, PCollection<KV<String, Integer>>>() {
+              @Override
+              public PCollection<KV<String, Integer>> apply(PBegin input) {
+                return PCollection.<KV<String, Integer>>createPrimitiveOutputInternal(
+                        input.getPipeline(),
+                        WindowingStrategy.globalDefault(),
+                        PCollection.IsBounded.UNBOUNDED)
+                    .setTypeDescriptorInternal(new TypeDescriptor<KV<String, Integer>>() {});
+              }
+            })
+        .apply(view);
   }
 
   private void testViewNonmerging(

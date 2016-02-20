@@ -46,6 +46,7 @@ import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PBegin;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.TimestampedValue;
+import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -327,19 +328,23 @@ public class GroupByKeyTest {
   public void testGroupByKeyDirectUnbounded() {
     Pipeline p = createTestDirectRunner();
 
-    PCollection<KV<String, Integer>> input = p
-        .apply(new PTransform<PBegin, PCollection<KV<String, Integer>>>() {
-          @Override
-          public PCollection<KV<String, Integer>> apply(PBegin input) {
-            return PCollection.createPrimitiveOutputInternal(input.getPipeline(),
-                WindowingStrategy.globalDefault(), PCollection.IsBounded.UNBOUNDED);
-          }
-        });
+    PCollection<KV<String, Integer>> input =
+        p.apply(
+            new PTransform<PBegin, PCollection<KV<String, Integer>>>() {
+              @Override
+              public PCollection<KV<String, Integer>> apply(PBegin input) {
+                return PCollection.<KV<String, Integer>>createPrimitiveOutputInternal(
+                        input.getPipeline(),
+                        WindowingStrategy.globalDefault(),
+                        PCollection.IsBounded.UNBOUNDED)
+                    .setTypeDescriptorInternal(new TypeDescriptor<KV<String, Integer>>() {});
+              }
+            });
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage(
         "GroupByKey cannot be applied to non-bounded PCollection in the GlobalWindow without "
-        + "a trigger. Use a Window.into or Window.triggering transform prior to GroupByKey.");
+            + "a trigger. Use a Window.into or Window.triggering transform prior to GroupByKey.");
 
     input.apply("GroupByKey", GroupByKey.<String, Integer>create());
   }
@@ -348,14 +353,18 @@ public class GroupByKeyTest {
   public void testGroupByKeyServiceUnbounded() {
     Pipeline p = createTestServiceRunner();
 
-    PCollection<KV<String, Integer>> input = p
-        .apply(new PTransform<PBegin, PCollection<KV<String, Integer>>>() {
-          @Override
-          public PCollection<KV<String, Integer>> apply(PBegin input) {
-            return PCollection.createPrimitiveOutputInternal(input.getPipeline(),
-                WindowingStrategy.globalDefault(), PCollection.IsBounded.UNBOUNDED);
-          }
-        });
+    PCollection<KV<String, Integer>> input =
+        p.apply(
+            new PTransform<PBegin, PCollection<KV<String, Integer>>>() {
+              @Override
+              public PCollection<KV<String, Integer>> apply(PBegin input) {
+                return PCollection.<KV<String, Integer>>createPrimitiveOutputInternal(
+                        input.getPipeline(),
+                        WindowingStrategy.globalDefault(),
+                        PCollection.IsBounded.UNBOUNDED)
+                    .setTypeDescriptorInternal(new TypeDescriptor<KV<String, Integer>>() {});
+              }
+            });
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage(
