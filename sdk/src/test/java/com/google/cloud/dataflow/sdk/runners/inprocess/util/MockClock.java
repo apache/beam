@@ -17,6 +17,7 @@ package com.google.cloud.dataflow.sdk.runners.inprocess.util;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
@@ -43,8 +44,17 @@ public class MockClock implements Clock {
     this.now = newNow;
   }
 
+  public void advance(Duration duration) {
+    checkArgument(
+        duration.getMillis() > 0,
+        "Cannot move MockClock backwards in time by duration %s",
+        duration);
+    set(now.plus(duration));
+  }
+
   @Override
   public Instant now() {
     return now;
   }
+
 }
