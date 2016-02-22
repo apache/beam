@@ -15,13 +15,31 @@
  */
 package com.google.cloud.dataflow.sdk.runners.inprocess;
 
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
+import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.coders.CoderException;
+import com.google.cloud.dataflow.sdk.coders.NullableCoder;
+import com.google.cloud.dataflow.sdk.coders.StandardCoder;
+import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
+import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
+import com.google.cloud.dataflow.sdk.io.BoundedSource;
+import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessCreate.InMemorySource;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.SourceTestUtils;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
+import com.google.cloud.dataflow.sdk.util.SerializableUtils;
 import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.common.collect.ImmutableList;
 
 import org.hamcrest.Matchers;
 import org.junit.Rule;
@@ -30,7 +48,12 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.Serializable;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * Tests for {@link InProcessCreate}.
@@ -48,6 +71,19 @@ public class InProcessCreateTest {
     InProcessCreate<Integer> converted = InProcessCreate.from(og);
 
     DataflowAssert.that(p.apply(converted)).containsInAnyOrder(2, 1, 3);
+  }
+
+  @Test
+  public void testConvertsCreateWithNullElements() {
+    Create.Values<String> og =
+        Create.<String>of("foo", null, "spam", "ham", null, "eggs")
+            .withCoder(NullableCoder.of(StringUtf8Coder.of()));
+
+    InProcessCreate<String> converted = InProcessCreate.from(og);
+    TestPipeline p = TestPipeline.create();
+
+    DataflowAssert.that(p.apply(converted))
+        .containsInAnyOrder(null, "foo", null, "spam", "ham", "eggs");
   }
 
   static class Record implements Serializable {}
@@ -69,5 +105,95 @@ public class InProcessCreateTest {
     p.run();
 
     fail("Unexpectedly Inferred Coder " + c.getCoder());
+  }
+
+  /**
+   * An unserializable class to demonstrate encoding of elements.
+   */
+  private static class UnserializableRecord {
+    private final String myString;
+
+    private UnserializableRecord(String myString) {
+      this.myString = myString;
+    }
+
+    @Override
+    public int hashCode() {
+      return myString.hashCode();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      return myString.equals(((UnserializableRecord) o).myString);
+    }
+
+    static class UnserializableRecordCoder extends StandardCoder<UnserializableRecord> {
+      private final Coder<String> stringCoder = StringUtf8Coder.of();
+
+      @Override
+      public void encode(
+          UnserializableRecord value,
+          OutputStream outStream,
+          com.google.cloud.dataflow.sdk.coders.Coder.Context context)
+          throws CoderException, IOException {
+        stringCoder.encode(value.myString, outStream, context.nested());
+      }
+
+      @Override
+      public UnserializableRecord decode(
+          InputStream inStream, com.google.cloud.dataflow.sdk.coders.Coder.Context context)
+          throws CoderException, IOException {
+        return new UnserializableRecord(stringCoder.decode(inStream, context.nested()));
+      }
+
+      @Override
+      public List<? extends Coder<?>> getCoderArguments() {
+        return Collections.emptyList();
+      }
+
+      @Override
+      public void verifyDeterministic() throws Coder.NonDeterministicException {
+        stringCoder.verifyDeterministic();
+      }
+    }
+  }
+
+  @Test
+  public void testSerializableOnUnserializableElements() throws Exception {
+    List<UnserializableRecord> elements =
+        ImmutableList.of(
+            new UnserializableRecord("foo"),
+            new UnserializableRecord("bar"),
+            new UnserializableRecord("baz"));
+    InMemorySource<UnserializableRecord> source =
+        new InMemorySource<>(elements, new UnserializableRecord.UnserializableRecordCoder());
+    SerializableUtils.ensureSerializable(source);
+  }
+
+  @Test
+  public void testSplitIntoBundles() throws Exception {
+    InProcessCreate.InMemorySource<Integer> source =
+        new InMemorySource<>(ImmutableList.of(1, 2, 3, 4, 5, 6, 7, 8), BigEndianIntegerCoder.of());
+    PipelineOptions options = PipelineOptionsFactory.create();
+    List<? extends BoundedSource<Integer>> splitSources = source.splitIntoBundles(12, options);
+    assertThat(splitSources, hasSize(3));
+    SourceTestUtils.assertSourcesEqualReferenceSource(source, splitSources, options);
+  }
+
+  @Test
+  public void testDoesNotProduceSortedKeys() throws Exception {
+    InProcessCreate.InMemorySource<String> source =
+        new InMemorySource<>(ImmutableList.of("spam", "ham", "eggs"), StringUtf8Coder.of());
+    assertThat(source.producesSortedKeys(PipelineOptionsFactory.create()), is(false));
+  }
+
+  @Test
+  public void testGetDefaultOutputCoderReturnsConstructorCoder() throws Exception {
+    Coder<Integer> coder = VarIntCoder.of();
+    InProcessCreate.InMemorySource<Integer> source =
+        new InMemorySource<>(ImmutableList.of(1, 2, 3, 4, 5, 6, 7, 8), coder);
+
+    Coder<Integer> defaultCoder = source.getDefaultOutputCoder();
+    assertThat(defaultCoder, equalTo(coder));
   }
 }

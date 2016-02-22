@@ -18,35 +18,39 @@ package com.google.cloud.dataflow.sdk.runners.inprocess;
 import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
-import com.google.cloud.dataflow.sdk.coders.StandardCoder;
 import com.google.cloud.dataflow.sdk.io.BoundedSource;
 import com.google.cloud.dataflow.sdk.io.Read;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.Create.Values;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PInput;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
+import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.PeekingIterator;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.Collections;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+import javax.annotation.Nullable;
+
 /**
- * An in memory implementation of the {@link Values Create.Values} {@link PTransform}, implemented'
+ * An in-process implementation of the {@link Values Create.Values} {@link PTransform}, implemented
  * using a {@link BoundedSource}.
  *
  * The coder is inferred via the {@link Values#getDefaultOutputCoder(PInput)} method on the original
  * transform.
  */
-class InProcessCreate<T> extends PTransform<PInput, PCollection<T>> {
+class InProcessCreate<T> extends ForwardingPTransform<PInput, PCollection<T>> {
   private final Create.Values<T> original;
-  private final InMemorySource<T> source;
 
   public static <T> InProcessCreate<T> from(Create.Values<T> original) {
     return new InProcessCreate<>(original);
@@ -54,38 +58,88 @@ class InProcessCreate<T> extends PTransform<PInput, PCollection<T>> {
 
   private InProcessCreate(Values<T> original) {
     this.original = original;
-    this.source = new InMemorySource<>(original.getElements());
   }
 
   @Override
   public PCollection<T> apply(PInput input) {
-    input.getPipeline().getCoderRegistry();
-    PCollection<T> result = input.getPipeline().apply(Read.from(source));
+    Coder<T> elementCoder;
     try {
-      result.setCoder(original.getDefaultOutputCoder(input));
+      elementCoder = original.getDefaultOutputCoder(input);
     } catch (CannotProvideCoderException e) {
-      throw new IllegalArgumentException("Unable to infer a coder and no Coder was specified. "
-          + "Please set a coder by invoking Create.withCoder() explicitly.", e);
+      throw new IllegalArgumentException(
+          "Unable to infer a coder and no Coder was specified. "
+          + "Please set a coder by invoking Create.withCoder() explicitly.",
+          e);
     }
+    InMemorySource<T> source;
+    try {
+      source = new InMemorySource<>(original.getElements(), elementCoder);
+    } catch (IOException e) {
+      throw Throwables.propagate(e);
+    }
+    PCollection<T> result = input.getPipeline().apply(Read.from(source));
+    result.setCoder(elementCoder);
     return result;
   }
 
-  private static class InMemorySource<T> extends BoundedSource<T> {
-    private final Iterable<T> elements;
+  @Override
+  public PTransform<PInput, PCollection<T>> delegate() {
+    return original;
+  }
 
-    public InMemorySource(Iterable<T> elements) {
-      this.elements = elements;
+  @VisibleForTesting
+  static class InMemorySource<T> extends BoundedSource<T> {
+    private final Collection<byte[]> allElementsBytes;
+    private final long totalSize;
+    private final Coder<T> coder;
+
+    public InMemorySource(Iterable<T> elements, Coder<T> elemCoder)
+        throws CoderException, IOException {
+      allElementsBytes = new ArrayList<>();
+      long totalSize = 0L;
+      for (T element : elements) {
+        byte[] bytes = CoderUtils.encodeToByteArray(elemCoder, element);
+        allElementsBytes.add(bytes);
+        totalSize += bytes.length;
+      }
+      this.totalSize = totalSize;
+      this.coder = elemCoder;
+    }
+
+    /**
+     * Create a new source with the specified bytes. The new source owns the input element bytes,
+     * which must not be modified after this constructor is called.
+     */
+    private InMemorySource(Collection<byte[]> elementBytes, long totalSize, Coder<T> coder) {
+      this.allElementsBytes = ImmutableList.copyOf(elementBytes);
+      this.totalSize = totalSize;
+      this.coder = coder;
     }
 
     @Override
     public List<? extends BoundedSource<T>> splitIntoBundles(
         long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
-      return Collections.singletonList(this);
+      ImmutableList.Builder<InMemorySource<T>> resultBuilder = ImmutableList.builder();
+      long currentSourceSize = 0L;
+      List<byte[]> currentElems = new ArrayList<>();
+      for (byte[] elemBytes : allElementsBytes) {
+        currentElems.add(elemBytes);
+        currentSourceSize += elemBytes.length;
+        if (currentSourceSize >= desiredBundleSizeBytes) {
+          resultBuilder.add(new InMemorySource<>(currentElems, currentSourceSize, coder));
+          currentElems.clear();
+          currentSourceSize = 0L;
+        }
+      }
+      if (!currentElems.isEmpty()) {
+        resultBuilder.add(new InMemorySource<>(currentElems, currentSourceSize, coder));
+      }
+      return resultBuilder.build();
     }
 
     @Override
     public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
-      return 0L;
+      return totalSize;
     }
 
     @Override
@@ -95,7 +149,7 @@ class InProcessCreate<T> extends PTransform<PInput, PCollection<T>> {
 
     @Override
     public BoundedSource.BoundedReader<T> createReader(PipelineOptions options) throws IOException {
-      return new IterableReader();
+      return new BytesReader();
     }
 
     @Override
@@ -103,42 +157,19 @@ class InProcessCreate<T> extends PTransform<PInput, PCollection<T>> {
 
     @Override
     public Coder<T> getDefaultOutputCoder() {
-      // Return a coder that exclusively throws exceptions. The coder is set properly in apply, or
-      // an illegal argument exception is thrown.
-      return new StandardCoder<T>() {
-        @Override
-        public void encode(T value, OutputStream outStream,
-            com.google.cloud.dataflow.sdk.coders.Coder.Context context)
-            throws CoderException, IOException {
-          throw new CoderException("Default Create Coder cannot be used");
-        }
-
-        @Override
-        public T decode(
-            InputStream inStream, com.google.cloud.dataflow.sdk.coders.Coder.Context context)
-            throws CoderException, IOException {
-          throw new CoderException("Default Create Coder cannot be used");
-        }
-
-        @Override
-        public List<? extends Coder<?>> getCoderArguments() {
-          return Collections.emptyList();
-        }
-
-        @Override
-        public void verifyDeterministic()
-            throws com.google.cloud.dataflow.sdk.coders.Coder.NonDeterministicException {
-          throw new NonDeterministicException(
-              this, Collections.<String>singletonList("Default Create Coder cannot be used"));
-        }
-      };
+      return coder;
     }
 
-    private class IterableReader extends BoundedReader<T> {
-      private final PeekingIterator<T> iter;
+    private class BytesReader extends BoundedReader<T> {
+      private final PeekingIterator<byte[]> iter;
+      /**
+       * Use an optional to distinguish between null next element (as Optional.absent()) and no next
+       * element (next is null).
+       */
+      @Nullable private Optional<T> next;
 
-      public IterableReader() {
-        this.iter = Iterators.peekingIterator(elements.iterator());
+      public BytesReader() {
+        this.iter = Iterators.peekingIterator(allElementsBytes.iterator());
       }
 
       @Override
@@ -148,18 +179,27 @@ class InProcessCreate<T> extends PTransform<PInput, PCollection<T>> {
 
       @Override
       public boolean start() throws IOException {
-        return iter.hasNext();
+        return advance();
       }
 
       @Override
       public boolean advance() throws IOException {
-        iter.next();
-        return iter.hasNext();
+        boolean hasNext = iter.hasNext();
+        if (hasNext) {
+          next = Optional.fromNullable(CoderUtils.decodeFromByteArray(coder, iter.next()));
+        } else {
+          next = null;
+        }
+        return hasNext;
       }
 
       @Override
+      @Nullable
       public T getCurrent() throws NoSuchElementException {
-        return iter.peek();
+        if (next == null) {
+          throw new NoSuchElementException();
+        }
+        return next.orNull();
       }
 
       @Override
