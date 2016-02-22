@@ -41,3 +41,11 @@ extend MessageC {
   optional MessageA field1 = 101;
   optional MessageB field2 = 102;
 }
+
+message MessageWithMap {
+  map<string, MessageA> field1 = 1;
+}
+
+message ReferencesMessageWithMap {
+  repeated MessageWithMap field1 = 1;
+}
