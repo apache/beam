@@ -26,7 +26,6 @@ import com.google.cloud.dataflow.sdk.io.Read.Bounded;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
-import com.google.cloud.dataflow.sdk.runners.worker.TextReader;
 import com.google.cloud.dataflow.sdk.runners.worker.TextSink;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
@@ -37,22 +36,15 @@ import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import com.google.common.io.ByteStreams;
-import com.google.common.primitives.Ints;
 import com.google.protobuf.ByteString;
 
-import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
-
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.PushbackInputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.regex.Pattern;
-import java.util.zip.GZIPInputStream;
 
 import javax.annotation.Nullable;
 
@@ -735,7 +727,7 @@ public class TextIO {
   /**
    * Possible text file compression types.
    */
-  public static enum CompressionType implements TextReader.DecompressingStreamFactory {
+  public static enum CompressionType {
     /**
      * Automatically determine the compression type based on filename extension.
      */
@@ -747,34 +739,11 @@ public class TextIO {
     /**
      * GZipped.
      */
-    GZIP(".gz") {
-      @Override
-      public InputStream createInputStream(InputStream inputStream) throws IOException {
-        // Determine if the input stream is gzipped. The input stream returned from the
-        // GCS connector may already be decompressed, and no action is required.
-        PushbackInputStream stream = new PushbackInputStream(inputStream, 2);
-        byte[] headerBytes = new byte[2];
-        int bytesRead = ByteStreams.read(
-            stream /* source */, headerBytes /* dest */, 0 /* offset */, 2 /* len */);
-        stream.unread(headerBytes, 0, bytesRead);
-        if (bytesRead >= 2) {
-          int header = Ints.fromBytes((byte) 0, (byte) 0, headerBytes[1], headerBytes[0]);
-          if (header == GZIPInputStream.GZIP_MAGIC) {
-            return new GZIPInputStream(stream);
-          }
-        }
-        return stream;
-      }
-    },
+    GZIP(".gz"),
     /**
      * BZipped.
      */
-    BZIP2(".bz2") {
-      @Override
-      public InputStream createInputStream(InputStream inputStream) throws IOException {
-        return new BZip2CompressorInputStream(inputStream);
-      }
-    };
+    BZIP2(".bz2");
 
     private String filenameSuffix;
 
@@ -789,11 +758,6 @@ public class TextIO {
      */
     public boolean matches(String filename) {
       return filename.toLowerCase().endsWith(filenameSuffix.toLowerCase());
-    }
-
-    @Override
-    public InputStream createInputStream(InputStream inputStream) throws IOException {
-      return inputStream;
     }
   }
 
