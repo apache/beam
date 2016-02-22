@@ -13,11 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.dataartisans.flink.dataflow.translation;
 
 import com.dataartisans.flink.dataflow.translation.functions.UnionCoder;
 import com.dataartisans.flink.dataflow.translation.types.CoderTypeInformation;
 import com.dataartisans.flink.dataflow.translation.wrappers.streaming.*;
+import com.dataartisans.flink.dataflow.translation.wrappers.streaming.io.FlinkStreamingCreateFunction;
 import com.dataartisans.flink.dataflow.translation.wrappers.streaming.io.UnboundedFlinkSource;
 import com.dataartisans.flink.dataflow.translation.wrappers.streaming.io.UnboundedSourceWrapper;
 import com.google.api.client.util.Maps;
@@ -37,6 +39,7 @@ import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.collect.Lists;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.streaming.api.datastream.*;
 import org.apache.flink.util.Collector;
@@ -44,6 +47,8 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.*;
 
 /**
@@ -64,6 +69,8 @@ public class FlinkStreamingTransformTranslators {
 
 	// here you can find all the available translators.
 	static {
+
+		TRANSLATORS.put(Create.Values.class, new CreateStreamingTranslator());
 		TRANSLATORS.put(Read.Unbounded.class, new UnboundedReadSourceTranslator());
 		TRANSLATORS.put(ParDo.Bound.class, new ParDoBoundStreamingTranslator());
 		TRANSLATORS.put(TextIO.Write.Bound.class, new TextIOWriteBoundStreamingTranslator());
@@ -82,6 +89,47 @@ public class FlinkStreamingTransformTranslators {
 	// --------------------------------------------------------------------------------------------
 	//  Transformation Implementations
 	// --------------------------------------------------------------------------------------------
+
+	private static class CreateStreamingTranslator<OUT> implements
+			FlinkStreamingPipelineTranslator.StreamTransformTranslator<Create.Values<OUT>> {
+
+		@Override
+		public void translateNode(Create.Values<OUT> transform, FlinkStreamingTranslationContext context) {
+			PCollection<OUT> output = context.getOutput(transform);
+			Iterable<OUT> elements = transform.getElements();
+
+			// we need to serialize the elements to byte arrays, since they might contain
+			// elements that are not serializable by Java serialization. We deserialize them
+			// in the FlatMap function using the Coder.
+
+			List<byte[]> serializedElements = Lists.newArrayList();
+			Coder<OUT> elementCoder = context.getOutput(transform).getCoder();
+			for (OUT element: elements) {
+				ByteArrayOutputStream bao = new ByteArrayOutputStream();
+				try {
+					elementCoder.encode(element, bao, Coder.Context.OUTER);
+					serializedElements.add(bao.toByteArray());
+				} catch (IOException e) {
+					throw new RuntimeException("Could not serialize Create elements using Coder: " + e);
+				}
+			}
+
+
+			DataStream<Integer> initDataSet = context.getExecutionEnvironment().fromElements(1);
+
+			FlinkStreamingCreateFunction<Integer, OUT> createFunction =
+					new FlinkStreamingCreateFunction<>(serializedElements, elementCoder);
+
+			WindowedValue.ValueOnlyWindowedValueCoder<OUT> windowCoder = WindowedValue.getValueOnlyCoder(elementCoder);
+			TypeInformation<WindowedValue<OUT>> outputType = new CoderTypeInformation<>(windowCoder);
+
+			DataStream<WindowedValue<OUT>> outputDataStream = initDataSet.flatMap(createFunction)
+					.returns(outputType);
+
+			context.setOutputDataStream(context.getOutput(transform), outputDataStream);
+		}
+	}
+
 
 	private static class TextIOWriteBoundStreamingTranslator<T> implements FlinkStreamingPipelineTranslator.StreamTransformTranslator<TextIO.Write.Bound<T>> {
 		private static final Logger LOG = LoggerFactory.getLogger(TextIOWriteBoundStreamingTranslator.class);
@@ -151,12 +199,16 @@ public class FlinkStreamingTransformTranslators {
 					(WindowingStrategy<OUT, ? extends BoundedWindow>)
 							context.getOutput(transform).getWindowingStrategy();
 
-			WindowedValue.WindowedValueCoder<OUT> outputStreamCoder = WindowedValue.getFullCoder(output.getCoder(), windowingStrategy.getWindowFn().windowCoder());
-			CoderTypeInformation<WindowedValue<OUT>> outputWindowedValueCoder = new CoderTypeInformation<>(outputStreamCoder);
+			WindowedValue.WindowedValueCoder<OUT> outputStreamCoder = WindowedValue.getFullCoder(output.getCoder(),
+					windowingStrategy.getWindowFn().windowCoder());
+			CoderTypeInformation<WindowedValue<OUT>> outputWindowedValueCoder =
+					new CoderTypeInformation<>(outputStreamCoder);
 
-			FlinkParDoBoundWrapper<IN, OUT> doFnWrapper = new FlinkParDoBoundWrapper<>(context.getPipelineOptions(), windowingStrategy, transform.getFn());
+			FlinkParDoBoundWrapper<IN, OUT> doFnWrapper = new FlinkParDoBoundWrapper<>(
+					context.getPipelineOptions(), windowingStrategy, transform.getFn());
 			DataStream<WindowedValue<IN>> inputDataStream = context.getInputDataStream(context.getInput(transform));
-			SingleOutputStreamOperator<WindowedValue<OUT>, ?> outDataStream = inputDataStream.flatMap(doFnWrapper).returns(outputWindowedValueCoder);
+			SingleOutputStreamOperator<WindowedValue<OUT>, ?> outDataStream = inputDataStream.flatMap(doFnWrapper)
+					.returns(outputWindowedValueCoder);
 
 			context.setOutputDataStream(context.getOutput(transform), outDataStream);
 		}
