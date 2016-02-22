@@ -27,14 +27,41 @@ import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 public class FlinkTestPipeline extends Pipeline {
 
 	/**
-	 * Creates and returns a new test pipeline.
+	 * Creates and returns a new test pipeline for batch execution.
 	 *
 	 * <p> Use {@link com.google.cloud.dataflow.sdk.testing.DataflowAssert} to add tests, then call
 	 * {@link Pipeline#run} to execute the pipeline and check the tests.
 	 */
 	public static FlinkTestPipeline create() {
-		FlinkPipelineRunner flinkRunner = FlinkPipelineRunner.createForTest();
-		return new FlinkTestPipeline(flinkRunner, flinkRunner.getPipelineOptions());
+		return create(false);
+	}
+
+	/**
+	 * Creates and returns a new test pipeline for streaming execution.
+	 *
+	 * <p> Use {@link com.google.cloud.dataflow.sdk.testing.DataflowAssert} to add tests, then call
+	 * {@link Pipeline#run} to execute the pipeline and check the tests.
+	 *
+	 * @return The Test Pipeline
+	 */
+	public static FlinkTestPipeline createStreaming() {
+		return create(true);
+	}
+
+	/**
+	 * Creates and returns a new test pipeline for streaming or batch execution.
+	 *
+	 * <p> Use {@link com.google.cloud.dataflow.sdk.testing.DataflowAssert} to add tests, then call
+	 * {@link Pipeline#run} to execute the pipeline and check the tests.
+	 *
+	 * @param streaming True for streaming mode, False for batch
+	 * @return The Test Pipeline
+	 */
+	public static FlinkTestPipeline create(boolean streaming) {
+		FlinkPipelineRunner flinkRunner = FlinkPipelineRunner.createForTest(streaming);
+		FlinkPipelineOptions pipelineOptions = flinkRunner.getPipelineOptions();
+		pipelineOptions.setStreaming(streaming);
+		return new FlinkTestPipeline(flinkRunner, pipelineOptions);
 	}
 
 	private FlinkTestPipeline(PipelineRunner<? extends PipelineResult> runner, PipelineOptions

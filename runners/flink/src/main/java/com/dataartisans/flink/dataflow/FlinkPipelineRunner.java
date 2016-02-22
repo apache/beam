@@ -150,11 +150,12 @@ public class FlinkPipelineRunner extends PipelineRunner<FlinkRunnerResult> {
 	 *
 	 * @return The newly created runner.
 	 */
-	public static FlinkPipelineRunner createForTest() {
+	public static FlinkPipelineRunner createForTest(boolean streaming) {
 		FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
 		// we use [auto] for testing since this will make it pick up the Testing
 		// ExecutionEnvironment
 		options.setFlinkMaster("[auto]");
+		options.setStreaming(streaming);
 		return new FlinkPipelineRunner(options);
 	}
 
