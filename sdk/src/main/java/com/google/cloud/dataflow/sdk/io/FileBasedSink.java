@@ -121,6 +121,13 @@ public abstract class FileBasedSink<T> extends Sink<T> {
   }
 
   /**
+   * Returns the base output filename for this file based sink.
+   */
+  public String getBaseOutputFilename() {
+    return baseOutputFilename;
+  }
+
+  /**
    * Perform pipeline-construction-time validation. The default implementation is a no-op.
    * Subclasses should override to ensure the sink is valid and can be written to. It is recommended
    * to use {@link Preconditions} in the implementation of this method.
@@ -806,6 +813,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
   }
 
   static class ReshardForWrite<T> extends PTransform<PCollection<T>, PCollection<T>> {
+    @Override
     public PCollection<T> apply(PCollection<T> input) {
       return input
           // TODO: This would need to be adapted to write per-window shards.
@@ -815,10 +823,12 @@ public abstract class FileBasedSink<T> extends Sink<T> {
           .apply("RandomKey", ParDo.of(
               new DoFn<T, KV<Long, T>>() {
                 transient long counter, step;
+                @Override
                 public void startBundle(Context c) {
                   counter = (long) (Math.random() * Long.MAX_VALUE);
                   step = 1 + 2 * (long) (Math.random() * Long.MAX_VALUE);
                 }
+                @Override
                 public void processElement(ProcessContext c) {
                   counter += step;
                   c.output(KV.of(counter, c.element()));
@@ -827,6 +837,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
           .apply(GroupByKey.<Long, T>create())
           .apply("Ungroup", ParDo.of(
               new DoFn<KV<Long, Iterable<T>>, T>() {
+                @Override
                 public void processElement(ProcessContext c) {
                   for (T item : c.element().getValue()) {
                     c.output(item);
