@@ -264,28 +264,6 @@ public class TextIOTest {
   }
 
   @Test
-  public void testWriteSharded() throws IOException {
-    File outFolder = tmpFolder.newFolder();
-    String filename = outFolder.toPath().resolve("output").toString();
-
-    Pipeline p = TestPipeline.create();
-
-    PCollection<String> input =
-        p.apply(Create.of(Arrays.asList(LINES_ARRAY))
-            .withCoder(StringUtf8Coder.of()));
-
-    input.apply(TextIO.Write.to(filename).withNumShards(2).withSuffix(".txt"));
-
-    p.run();
-
-    String[] files = outFolder.list();
-
-    assertThat(Arrays.asList(files),
-        containsInAnyOrder("output-00000-of-00002.txt",
-                           "output-00001-of-00002.txt"));
-  }
-
-  @Test
   public void testWriteNamed() {
     {
       PTransform<PCollection<String>, PDone> transform1 =
