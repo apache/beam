@@ -22,25 +22,24 @@ import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.io.Read.Bounded;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
+import com.google.cloud.dataflow.sdk.runners.worker.AvroSink;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
-import com.google.cloud.dataflow.sdk.util.MimeTypes;
+import com.google.cloud.dataflow.sdk.util.WindowedValue;
+import com.google.cloud.dataflow.sdk.util.common.worker.Sink;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.cloud.dataflow.sdk.values.PInput;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
 import org.apache.avro.Schema;
-import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.reflect.ReflectData;
 
 import java.io.IOException;
-import java.nio.channels.Channels;
-import java.nio.channels.WritableByteChannel;
+import java.util.List;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
@@ -318,7 +317,7 @@ public class AvroIO {
                 : com.google.cloud.dataflow.sdk.io.Read.from(
                     AvroSource.from(filepattern).withSchema(type));
 
-        PCollection<T> pcol = input.getPipeline().apply("Read", read);
+        PCollection<T> pcol = input.getPipeline().apply(read);
         // Honor the default output coder that would have been used by this PTransform.
         pcol.setCoder(getDefaultOutputCoder());
         return pcol;
@@ -474,6 +473,8 @@ public class AvroIO {
       final int numShards;
       /** Shard template string. */
       final String shardTemplate;
+      /** Insert a shuffle before writing to decouple parallelism when numShards != 0. */
+      final boolean forceReshard;
       /** The class type of the records. */
       final Class<T> type;
       /** The schema of the output file. */
@@ -483,16 +484,18 @@ public class AvroIO {
       final boolean validate;
 
       Bound(Class<T> type) {
-        this(null, null, "", 0, ShardNameTemplate.INDEX_OF_MAX, type, null, true);
+        this(null, null, "", 0, ShardNameTemplate.INDEX_OF_MAX, true, type, null, true);
       }
 
       Bound(String name, String filenamePrefix, String filenameSuffix, int numShards,
-          String shardTemplate, Class<T> type, Schema schema, boolean validate) {
+          String shardTemplate, boolean forceReshard, Class<T> type, Schema schema,
+          boolean validate) {
         super(name);
         this.filenamePrefix = filenamePrefix;
         this.filenameSuffix = filenameSuffix;
         this.numShards = numShards;
         this.shardTemplate = shardTemplate;
+        this.forceReshard = forceReshard;
         this.type = type;
         this.schema = schema;
         this.validate = validate;
@@ -506,7 +509,7 @@ public class AvroIO {
        */
       public Bound<T> named(String name) {
         return new Bound<>(
-            name, filenamePrefix, filenameSuffix, numShards, shardTemplate,
+            name, filenamePrefix, filenameSuffix, numShards, shardTemplate, forceReshard,
             type, schema, validate);
       }
 
@@ -522,7 +525,7 @@ public class AvroIO {
       public Bound<T> to(String filenamePrefix) {
         validateOutputComponent(filenamePrefix);
         return new Bound<>(
-            name, filenamePrefix, filenameSuffix, numShards, shardTemplate,
+            name, filenamePrefix, filenameSuffix, numShards, shardTemplate, forceReshard,
             type, schema, validate);
       }
 
@@ -537,7 +540,7 @@ public class AvroIO {
       public Bound<T> withSuffix(String filenameSuffix) {
         validateOutputComponent(filenameSuffix);
         return new Bound<>(
-            name, filenamePrefix, filenameSuffix, numShards, shardTemplate, type,
+            name, filenamePrefix, filenameSuffix, numShards, shardTemplate, forceReshard, type,
             schema, validate);
       }
 
@@ -556,9 +559,31 @@ public class AvroIO {
        * @see ShardNameTemplate
        */
       public Bound<T> withNumShards(int numShards) {
+        return withNumShards(numShards, forceReshard);
+      }
+
+      /**
+       * Returns a new {@link PTransform} that's like this one but
+       * that uses the provided shard count.
+       *
+       * <p>Constraining the number of shards is likely to reduce
+       * the performance of a pipeline. If forceReshard is true, the output
+       * will be shuffled to obtain the desired sharding. If it is false,
+       * data will not be reshuffled, but parallelism of preceeding stages
+       * may be constrained. Setting this value is not recommended
+       * unless you require a specific number of output files.
+       *
+       * <p>Does not modify this object.
+       *
+       * @param numShards the number of shards to use, or 0 to let the system
+       *                  decide.
+       * @param forceReshard whether to force a reshard to obtain the desired sharding.
+       * @see ShardNameTemplate
+       */
+      private Bound<T> withNumShards(int numShards, boolean forceReshard) {
         Preconditions.checkArgument(numShards >= 0);
         return new Bound<>(
-            name, filenamePrefix, filenameSuffix, numShards, shardTemplate,
+            name, filenamePrefix, filenameSuffix, numShards, shardTemplate, forceReshard,
             type, schema, validate);
       }
 
@@ -572,7 +597,7 @@ public class AvroIO {
        */
       public Bound<T> withShardNameTemplate(String shardTemplate) {
         return new Bound<>(
-            name, filenamePrefix, filenameSuffix, numShards, shardTemplate,
+            name, filenamePrefix, filenameSuffix, numShards, shardTemplate, forceReshard,
             type, schema, validate);
       }
 
@@ -586,7 +611,22 @@ public class AvroIO {
        * <p>Does not modify this object.
        */
       public Bound<T> withoutSharding() {
-        return new Bound<>(name, filenamePrefix, filenameSuffix, 1, "",
+        return withoutSharding(forceReshard);
+      }
+
+      /**
+       * Returns a new {@link PTransform} that's like this one but
+       * that forces a single file as output.
+       *
+       * <p>This is a shortcut for
+       * {@code .withNumShards(1, forceReshard).withShardNameTemplate("")}
+       *
+       * <p>Does not modify this object.
+       *
+       * @param forceReshard whether to force a reshard to obtain the desired sharding.
+       */
+      private Bound<T> withoutSharding(boolean forceReshard) {
+        return new Bound<>(name, filenamePrefix, filenameSuffix, 1, "", forceReshard,
             type, schema, validate);
       }
 
@@ -601,7 +641,7 @@ public class AvroIO {
        */
       public <X> Bound<X> withSchema(Class<X> type) {
         return new Bound<>(name, filenamePrefix, filenameSuffix, numShards, shardTemplate,
-            type, ReflectData.get().getSchema(type), validate);
+            forceReshard, type, ReflectData.get().getSchema(type), validate);
       }
 
       /**
@@ -613,7 +653,7 @@ public class AvroIO {
        */
       public Bound<GenericRecord> withSchema(Schema schema) {
         return new Bound<>(name, filenamePrefix, filenameSuffix, numShards, shardTemplate,
-            GenericRecord.class, schema, validate);
+            forceReshard, GenericRecord.class, schema, validate);
       }
 
       /**
@@ -639,7 +679,7 @@ public class AvroIO {
        */
       public Bound<T> withoutValidation() {
         return new Bound<>(
-            name, filenamePrefix, filenameSuffix, numShards, shardTemplate,
+            name, filenamePrefix, filenameSuffix, numShards, shardTemplate, forceReshard,
             type, schema, false);
       }
 
@@ -653,12 +693,14 @@ public class AvroIO {
           throw new IllegalStateException("need to set the schema of an AvroIO.Write transform");
         }
 
-        // Note that custom sinks currently do not expose sharding controls.
-        // Thus pipeline runner writers need to individually add support internally to
-        // apply user requested sharding limits.
-        return input.apply("Write", com.google.cloud.dataflow.sdk.io.Write.to(
-            new AvroSink<>(
-                filenamePrefix, filenameSuffix, shardTemplate, AvroCoder.of(type, schema))));
+        if (numShards > 0 && forceReshard) {
+          // Reshard and re-apply a version of this write without resharding.
+          return input
+              .apply(new FileBasedSink.ReshardForWrite<T>())
+              .apply(withNumShards(numShards, false));
+        } else {
+          return PDone.in(input.getPipeline());
+        }
       }
 
       /**
@@ -700,6 +742,21 @@ public class AvroIO {
       public boolean needsValidation() {
         return validate;
       }
+
+      static {
+        @SuppressWarnings("rawtypes")
+        DirectPipelineRunner.TransformEvaluator<Bound> transformEvaluator =
+            new DirectPipelineRunner.TransformEvaluator<Bound>() {
+          @Override
+          @SuppressWarnings("unchecked")
+          public void evaluate(
+              Bound transform, DirectPipelineRunner.EvaluationContext context) {
+            evaluateWriteHelper(transform, context);
+          }
+        };
+        DirectPipelineRunner.registerDefaultTransformEvaluator(
+            Bound.class, transformEvaluator);
+      }
     }
 
     /** Disallow construction of utility class. */
@@ -722,72 +779,25 @@ public class AvroIO {
   /** Disallow construction of utility class. */
   private AvroIO() {}
 
-  /**
-   * A {@link FileBasedSink} for Avro files.
-   */
-  @VisibleForTesting
-  static class AvroSink<T> extends FileBasedSink<T> {
-    private final AvroCoder<T> coder;
-
-    @VisibleForTesting
-    AvroSink(
-        String baseOutputFilename, String extension, String fileNameTemplate, AvroCoder<T> coder) {
-      super(baseOutputFilename, extension, fileNameTemplate);
-      this.coder = coder;
+  private static <T> void evaluateWriteHelper(
+      Write.Bound<T> transform, DirectPipelineRunner.EvaluationContext context) {
+    List<WindowedValue<T>> elems =
+        context.getPCollectionWindowedValues(context.getInput(transform));
+    int numShards = transform.numShards;
+    if (numShards < 1) {
+      // System gets to choose. For direct mode, choose 1.
+      numShards = 1;
     }
-
-    @Override
-    public FileBasedSink.FileBasedWriteOperation<T> createWriteOperation(PipelineOptions options) {
-      return new AvroWriteOperation<>(this, coder);
-    }
-
-    /**
-     * A {@link com.google.cloud.dataflow.sdk.io.FileBasedSink.FileBasedWriteOperation
-     * FileBasedWriteOperation} for Avro files.
-     */
-    private static class AvroWriteOperation<T> extends FileBasedWriteOperation<T> {
-      private final AvroCoder<T> coder;
-
-      private AvroWriteOperation(AvroSink<T> sink, AvroCoder<T> coder) {
-        super(sink);
-        this.coder = coder;
+    AvroSink<T> writer = new AvroSink<>(transform.filenamePrefix, transform.shardTemplate,
+        transform.filenameSuffix, numShards,
+        WindowedValue.getValueOnlyCoder(AvroCoder.of(transform.type, transform.schema)));
+    try (Sink.SinkWriter<WindowedValue<T>> sink = writer.writer()) {
+      for (WindowedValue<T> elem : elems) {
+        sink.add(elem);
       }
-
-      @Override
-      public FileBasedWriter<T> createWriter(PipelineOptions options) throws Exception {
-        return new AvroWriter<>(this, coder);
-      }
-    }
-
-    /**
-     * A {@link com.google.cloud.dataflow.sdk.io.FileBasedSink.FileBasedWriter FileBasedWriter}
-     * for Avro files.
-     */
-    private static class AvroWriter<T> extends FileBasedWriter<T> {
-      private final AvroCoder<T> coder;
-      private DataFileWriter<T> dataFileWriter;
-
-      public AvroWriter(FileBasedWriteOperation<T> writeOperation, AvroCoder<T> coder) {
-        super(writeOperation);
-        this.mimeType = MimeTypes.BINARY;
-        this.coder = coder;
-      }
-
-      @Override
-      protected void prepareWrite(WritableByteChannel channel) throws Exception {
-        dataFileWriter = new DataFileWriter<>(coder.createDatumWriter());
-        dataFileWriter.create(coder.getSchema(), Channels.newOutputStream(channel));
-      }
-
-      @Override
-      public void write(T value) throws Exception {
-        dataFileWriter.append(value);
-      }
-
-      @Override
-      protected void writeFooter() throws Exception {
-        dataFileWriter.close();
-      }
+    } catch (IOException exn) {
+      throw new RuntimeException(
+          "unable to write to output file \"" + transform.filenamePrefix + "\"", exn);
     }
   }
 }

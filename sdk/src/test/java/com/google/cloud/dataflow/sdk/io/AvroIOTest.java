@@ -16,28 +16,19 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
-import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.coders.DefaultCoder;
-import com.google.cloud.dataflow.sdk.io.AvroIO.AvroSink;
-import com.google.cloud.dataflow.sdk.io.FileBasedSink.FileBasedWriteOperation;
-import com.google.cloud.dataflow.sdk.io.FileBasedSink.FileBasedWriter;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.DirectPipeline;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterators;
 
-import org.apache.avro.file.DataFileReader;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.reflect.Nullable;
 import org.junit.Rule;
@@ -47,10 +38,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.io.File;
-import java.nio.channels.FileChannel;
-import java.nio.channels.WritableByteChannel;
-import java.nio.file.StandardOpenOption;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -200,38 +187,6 @@ public class AvroIOTest {
 
     DataflowAssert.that(input).containsInAnyOrder(expected);
     p.run();
-  }
-
-  @Test
-  public void testAvroSinkWrite() throws Exception {
-    String[] expectedElements = new String[]{ "first", "second", "third" };
-    PipelineOptions options = PipelineOptionsFactory.create();
-    AvroCoder<String> coder = AvroCoder.of(String.class);
-    File tmpFile = tmpFolder.newFile();
-    AvroSink<String> avroSink = new AvroSink<>(
-        "prefix", "suffix", ShardNameTemplate.INDEX_OF_MAX, coder);
-    FileBasedWriteOperation<String> writeOperation = avroSink.createWriteOperation(options);
-    FileBasedWriter<String> writer = writeOperation.createWriter(options);
-
-    WritableByteChannel channel = FileChannel.open(tmpFile.toPath(), StandardOpenOption.WRITE);
-    writer.prepareWrite(channel);
-    writer.writeHeader();
-    for (String element : expectedElements) {
-      writer.write(element);
-      // We expect the channel to remain open
-      assertTrue(channel.isOpen());
-    }
-
-    writer.close();
-    // Ensure that we properly close the channel
-    assertFalse(channel.isOpen());
-
-    // Validate that the data written matches the expected elements in the expected order
-    try (DataFileReader<String> reader = new DataFileReader<>(tmpFile, coder.createDatumReader())) {
-      List<String> actualElements = new ArrayList<>();
-      Iterators.addAll(actualElements, reader);
-      assertThat(actualElements, contains(expectedElements));
-    }
   }
 
   // TODO: for Write only, test withSuffix, withNumShards,
