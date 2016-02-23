@@ -16,8 +16,11 @@
 
 package com.google.cloud.dataflow.sdk.runners.dataflow;
 
-import static com.google.cloud.dataflow.sdk.runners.worker.SourceTranslationUtils.cloudSourceToDictionary;
+import static com.google.cloud.dataflow.sdk.util.Structs.addBoolean;
+import static com.google.cloud.dataflow.sdk.util.Structs.addDictionary;
+import static com.google.cloud.dataflow.sdk.util.Structs.addLong;
 
+import com.google.api.services.dataflow.model.SourceMetadata;
 import com.google.cloud.dataflow.sdk.io.FileBasedSource;
 import com.google.cloud.dataflow.sdk.io.Read;
 import com.google.cloud.dataflow.sdk.io.Source;
@@ -27,6 +30,9 @@ import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator.Translat
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.values.PValue;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Translator for the {@code Read} {@code PTransform} for the Dataflow back-end.
@@ -60,5 +66,38 @@ public class ReadTranslator implements TransformTranslator<Read.Bounded<?>> {
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
+  }
+
+  // Represents a cloud Source as a dictionary for encoding inside the {@code SOURCE_STEP_INPUT}
+  // property of CloudWorkflowStep.input.
+  private static Map<String, Object> cloudSourceToDictionary(
+      com.google.api.services.dataflow.model.Source source) {
+    // Do not translate encoding - the source's encoding is translated elsewhere
+    // to the step's output info.
+    Map<String, Object> res = new HashMap<>();
+    addDictionary(res, PropertyNames.SOURCE_SPEC, source.getSpec());
+    if (source.getMetadata() != null) {
+      addDictionary(res, PropertyNames.SOURCE_METADATA,
+          cloudSourceMetadataToDictionary(source.getMetadata()));
+    }
+    if (source.getDoesNotNeedSplitting() != null) {
+      addBoolean(
+          res, PropertyNames.SOURCE_DOES_NOT_NEED_SPLITTING, source.getDoesNotNeedSplitting());
+    }
+    return res;
+  }
+
+  private static Map<String, Object> cloudSourceMetadataToDictionary(SourceMetadata metadata) {
+    Map<String, Object> res = new HashMap<>();
+    if (metadata.getProducesSortedKeys() != null) {
+      addBoolean(res, PropertyNames.SOURCE_PRODUCES_SORTED_KEYS, metadata.getProducesSortedKeys());
+    }
+    if (metadata.getEstimatedSizeBytes() != null) {
+      addLong(res, PropertyNames.SOURCE_ESTIMATED_SIZE_BYTES, metadata.getEstimatedSizeBytes());
+    }
+    if (metadata.getInfinite() != null) {
+      addBoolean(res, PropertyNames.SOURCE_IS_INFINITE, metadata.getInfinite());
+    }
+    return res;
   }
 }
