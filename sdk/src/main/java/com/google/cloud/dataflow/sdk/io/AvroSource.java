@@ -242,7 +242,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
   }
 
   @Override
-  public AvroSource<T> createForSubrangeOfFile(String fileName, long start, long end) {
+  public BlockBasedSource<T> createForSubrangeOfFile(String fileName, long start, long end) {
     byte[] syncMarker = this.syncMarker;
     String codec = this.codec;
     String readSchemaString = this.readSchemaString;
@@ -274,7 +274,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
   }
 
   @Override
-  public AvroReader<T> createSingleFileReader(PipelineOptions options) {
+  protected BlockBasedReader<T> createSingleFileReader(PipelineOptions options) {
     return new AvroReader<T>(this);
   }
 

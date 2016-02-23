@@ -81,14 +81,14 @@ public abstract class BlockBasedSource<T> extends FileBasedSource<T> {
    * Creates a {@code BlockBasedSource} for the specified range in a single file.
    */
   @Override
-  public abstract BlockBasedSource<T> createForSubrangeOfFile(
+  protected abstract BlockBasedSource<T> createForSubrangeOfFile(
       String fileName, long start, long end);
 
   /**
    * Creates a {@code BlockBasedReader}.
    */
   @Override
-  public abstract BlockBasedReader<T> createSingleFileReader(PipelineOptions options);
+  protected abstract BlockBasedReader<T> createSingleFileReader(PipelineOptions options);
 
   /**
    * A {@code Block} represents a block of records that can be read.

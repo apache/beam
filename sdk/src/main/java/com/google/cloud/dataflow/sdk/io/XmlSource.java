@@ -183,13 +183,13 @@ public class XmlSource<T> extends FileBasedSource<T> {
   }
 
   @Override
-  public FileBasedSource<T> createForSubrangeOfFile(String fileName, long start, long end) {
+  protected FileBasedSource<T> createForSubrangeOfFile(String fileName, long start, long end) {
     return new XmlSource<T>(
         fileName, getMinBundleSize(), start, end, rootElement, recordElement, recordClass);
   }
 
   @Override
-  public FileBasedReader<T> createSingleFileReader(PipelineOptions options) {
+  protected FileBasedReader<T> createSingleFileReader(PipelineOptions options) {
     return new XMLReader<T>(this);
   }
 
