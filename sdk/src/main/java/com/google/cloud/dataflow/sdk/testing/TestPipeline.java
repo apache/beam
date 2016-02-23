@@ -19,21 +19,22 @@ package com.google.cloud.dataflow.sdk.testing;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.PipelineResult;
 import com.google.cloud.dataflow.sdk.options.ApplicationNameOptions;
+import com.google.cloud.dataflow.sdk.options.GcpOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions.CheckEnabled;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
+import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
+import com.google.cloud.dataflow.sdk.util.TestCredential;
 import com.google.common.base.Optional;
 import com.google.common.collect.Iterators;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.util.Iterator;
+
+import javax.annotation.Nullable;
 
 /**
  * A creator of test pipelines that can be used inside of tests that can be
@@ -67,7 +68,6 @@ import java.util.Iterator;
  */
 public class TestPipeline extends Pipeline {
   private static final String PROPERTY_DATAFLOW_OPTIONS = "dataflowOptions";
-  private static final Logger LOG = LoggerFactory.getLogger(TestPipeline.class);
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
   /**
@@ -77,28 +77,22 @@ public class TestPipeline extends Pipeline {
    * {@link Pipeline#run} to execute the pipeline and check the tests.
    */
   public static TestPipeline create() {
-    if (isIntegrationTest()) {
-      TestDataflowPipelineOptions options = getPipelineOptions();
-      LOG.info("Using passed in options: " + options);
-      options.setStableUniqueNames(CheckEnabled.ERROR);
-      return new TestPipeline(TestDataflowPipelineRunner.fromOptions(options), options);
-    } else {
-      DirectPipelineRunner directRunner = DirectPipelineRunner.createForTest();
-      directRunner.getPipelineOptions().setAppName(getAppName());
-      directRunner.getPipelineOptions().setStableUniqueNames(CheckEnabled.ERROR);
-      return new TestPipeline(directRunner, directRunner.getPipelineOptions());
-    }
+    return fromOptions(testingPipelineOptions());
+  }
+
+  public static TestPipeline fromOptions(PipelineOptions options) {
+    return new TestPipeline(PipelineRunner.fromOptions(options), options);
   }
 
   /**
-   * Returns whether this test is running on the Cloud Dataflow service as described
-   * in {@link TestPipeline}.
+   * Returns whether a {@link TestPipeline} supports dynamic work rebalancing, and thus tests
+   * of dynamic work rebalancing are expected to pass.
    */
-  public static boolean isIntegrationTest() {
-    return Boolean.parseBoolean(System.getProperty("runIntegrationTestOnService"));
+  public boolean supportsDynamicWorkRebalancing() {
+    return getRunner() instanceof DataflowPipelineRunner;
   }
 
-  TestPipeline(PipelineRunner<? extends PipelineResult> runner, PipelineOptions options) {
+  private TestPipeline(PipelineRunner<? extends PipelineResult> runner, PipelineOptions options) {
     super(runner, options);
   }
 
@@ -126,19 +120,40 @@ public class TestPipeline extends Pipeline {
   }
 
   /**
-   * Creates PipelineOptions for testing with a DataflowPipelineRunner.
+   * Creates {@link PipelineOptions} for testing.
    */
-  public static TestDataflowPipelineOptions getPipelineOptions() {
+  public static PipelineOptions testingPipelineOptions() {
     try {
-      TestDataflowPipelineOptions options = PipelineOptionsFactory.fromArgs(
-              MAPPER.readValue(System.getProperty(PROPERTY_DATAFLOW_OPTIONS), String[].class))
-          .as(TestDataflowPipelineOptions.class);
-      options.setAppName(getAppName());
+      @Nullable String systemDataflowOptions = System.getProperty(PROPERTY_DATAFLOW_OPTIONS);
+      PipelineOptions options =
+          systemDataflowOptions == null
+              ? PipelineOptionsFactory.create()
+              : PipelineOptionsFactory.fromArgs(
+                      MAPPER.readValue(
+                          System.getProperty(PROPERTY_DATAFLOW_OPTIONS), String[].class))
+                  .as(PipelineOptions.class);
+
+      options.as(ApplicationNameOptions.class).setAppName(getAppName());
+      if (isIntegrationTest()) {
+        // TODO: adjust everyone's integration test frameworks to set the runner class via the
+        // pipeline options via PROPERTY_DATAFLOW_OPTIONS
+        options.setRunner(TestDataflowPipelineRunner.class);
+      } else {
+        options.as(GcpOptions.class).setGcpCredential(new TestCredential());
+      }
+      options.setStableUniqueNames(CheckEnabled.ERROR);
       return options;
     } catch (IOException e) {
       throw new RuntimeException("Unable to instantiate test options from system property "
           + PROPERTY_DATAFLOW_OPTIONS + ":" + System.getProperty(PROPERTY_DATAFLOW_OPTIONS), e);
     }
+  }
+
+  /**
+   * Returns whether a {@link TestPipeline} should be treated as an integration test.
+   */
+  private static boolean isIntegrationTest() {
+    return Boolean.parseBoolean(System.getProperty("runIntegrationTestOnService"));
   }
 
   /** Returns the class + method name of the test, or a default name. */

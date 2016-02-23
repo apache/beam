@@ -21,6 +21,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 
+import com.google.cloud.dataflow.sdk.options.ApplicationNameOptions;
+import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
+import com.google.cloud.dataflow.sdk.options.GcpOptions;
+import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -57,15 +61,17 @@ public class TestPipelineTest {
       "--diskSizeGb=2"
     });
     System.getProperties().put("dataflowOptions", stringOptions);
-    TestDataflowPipelineOptions options = TestPipeline.getPipelineOptions();
+    DataflowPipelineOptions options =
+        TestPipeline.testingPipelineOptions().as(DataflowPipelineOptions.class);
     assertEquals(DataflowPipelineRunner.class, options.getRunner());
     assertThat(options.getJobName(), startsWith("testpipelinetest0testcreationofpipelineoptions-"));
-    assertEquals("testProject", options.getProject());
+    assertEquals("testProject", options.as(GcpOptions.class).getProject());
     assertEquals("testApiRootUrl", options.getApiRootUrl());
     assertEquals("testDataflowEndpoint", options.getDataflowEndpoint());
     assertEquals("testTempLocation", options.getTempLocation());
     assertEquals("testServiceAccountName", options.getServiceAccountName());
-    assertEquals("testServiceAccountKeyfile", options.getServiceAccountKeyfile());
+    assertEquals(
+        "testServiceAccountKeyfile", options.as(GcpOptions.class).getServiceAccountKeyfile());
     assertEquals("testZone", options.getZone());
     assertEquals(2, options.getDiskSizeGb());
   }
@@ -75,11 +81,9 @@ public class TestPipelineTest {
         ObjectMapper mapper = new ObjectMapper();
     String stringOptions = mapper.writeValueAsString(new String[]{});
     System.getProperties().put("dataflowOptions", stringOptions);
-    TestDataflowPipelineOptions options = TestPipeline.getPipelineOptions();
-    assertThat(options.getAppName(), startsWith(
+    PipelineOptions options = TestPipeline.testingPipelineOptions();
+    assertThat(options.as(ApplicationNameOptions.class).getAppName(), startsWith(
         "TestPipelineTest-testCreationOfPipelineOptionsFromReallyVerboselyNamedTestCase"));
-    assertThat(options.getJobName(), startsWith(
-        "testpipelinetest0testcreationofpipelineoptionsfrom"));
   }
 
   @Test
