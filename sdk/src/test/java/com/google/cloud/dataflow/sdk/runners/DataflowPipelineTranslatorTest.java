@@ -403,7 +403,7 @@ public class DataflowPipelineTranslatorTest {
     pipeline.apply(TextIO.Read.named("ReadMyFile").from("gs://bucket/in"))
         .apply(ParDo.of(new NoOpFn()))
         .apply(new EmbeddedTransform(predefinedStep.clone()))
-        .apply(ParDo.of(new NoOpFn()));
+        .apply(TextIO.Write.named("WriteMyFile").to("gs://bucket/out"));
     Job job = translator.translate(
         pipeline, pipeline.getRunner(), Collections.<DataflowPackage>emptyList()).getJob();
 
@@ -456,7 +456,7 @@ public class DataflowPipelineTranslatorTest {
     Job job = translator.translate(
         pipeline, pipeline.getRunner(), Collections.<DataflowPackage>emptyList()).getJob();
 
-    assertEquals(13, job.getSteps().size());
+    assertEquals(3, job.getSteps().size());
     Step step = job.getSteps().get(1);
     assertEquals(stepName, getString(step.getProperties(), PropertyNames.USER_NAME));
     return step;

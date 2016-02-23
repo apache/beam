@@ -453,12 +453,16 @@ public class DataflowPipelineRunnerTest {
 
   @Test
   public void testNonGcsFilePathInWriteFailure() throws IOException {
-    Pipeline p = buildDataflowPipeline(buildPipelineOptions());
-    PCollection<String> pc = p.apply(TextIO.Read.named("ReadMyGcsFile").from("gs://bucket/object"));
+    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
+
+    Pipeline p = buildDataflowPipeline(buildPipelineOptions(jobCaptor));
+    p.apply(TextIO.Read.named("ReadMyGcsFile").from("gs://bucket/object"))
+        .apply(TextIO.Write.named("WriteMyNonGcsFile").to("/tmp/file"));
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(containsString("expected a valid 'gs://' path but was given"));
-    pc.apply(TextIO.Write.named("WriteMyNonGcsFile").to("/tmp/file"));
+    p.run();
+    assertValidJob(jobCaptor.getValue());
   }
 
   @Test
@@ -478,12 +482,17 @@ public class DataflowPipelineRunnerTest {
 
   @Test
   public void testMultiSlashGcsFileWritePath() throws IOException {
-    Pipeline p = buildDataflowPipeline(buildPipelineOptions());
-    PCollection<String> pc = p.apply(TextIO.Read.named("ReadMyGcsFile").from("gs://bucket/object"));
+    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
+
+    Pipeline p = buildDataflowPipeline(buildPipelineOptions(jobCaptor));
+    p.apply(TextIO.Read.named("ReadMyGcsFile").from("gs://bucket/object"))
+        .apply(TextIO.Write.named("WriteInvalidGcsFile")
+            .to("gs://bucket/tmp//file"));
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("consecutive slashes");
-    pc.apply(TextIO.Write.named("WriteInvalidGcsFile").to("gs://bucket/tmp//file"));
+    p.run();
+    assertValidJob(jobCaptor.getValue());
   }
 
   @Test
