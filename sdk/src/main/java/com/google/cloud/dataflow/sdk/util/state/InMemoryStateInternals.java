@@ -107,25 +107,25 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     }
 
     @Override
-    public <InputT, AccumT, OutputT> CombiningValueStateInternal<InputT, AccumT, OutputT>
+    public <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT>
         bindCombiningValue(
-            StateTag<? super K, CombiningValueStateInternal<InputT, AccumT, OutputT>>
+            StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>>
             address, Coder<AccumT> accumCoder,
             final CombineFn<InputT, AccumT, OutputT> combineFn) {
       return new InMemoryCombiningValue<K, InputT, AccumT, OutputT>(key, combineFn.<K>asKeyedFn());
     }
 
     @Override
-    public <W extends BoundedWindow> WatermarkStateInternal<W> bindWatermark(
-        StateTag<? super K, WatermarkStateInternal<W>> address,
+    public <W extends BoundedWindow> WatermarkHoldState<W> bindWatermark(
+        StateTag<? super K, WatermarkHoldState<W>> address,
         OutputTimeFn<? super W> outputTimeFn) {
-      return new WatermarkStateInternalImplementation<W>(outputTimeFn);
+      return new InMemoryWatermarkHold<W>(outputTimeFn);
     }
 
     @Override
-    public <InputT, AccumT, OutputT> CombiningValueStateInternal<InputT, AccumT, OutputT>
+    public <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT>
         bindKeyedCombiningValue(
-            StateTag<? super K, CombiningValueStateInternal<InputT, AccumT, OutputT>>
+            StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>>
             address, Coder<AccumT> accumCoder,
             KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn) {
       return new InMemoryCombiningValue<K, InputT, AccumT, OutputT>(key, combineFn);
@@ -145,17 +145,17 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     }
 
     @Override
-    public StateContents<T> get() {
-      return new StateContents<T>() {
-        @Override
-        public T read() {
-          return value;
-        }
-      };
+    public InMemoryValue<T> readLater() {
+      return this;
     }
 
     @Override
-    public void set(T input) {
+    public T read() {
+      return value;
+    }
+
+    @Override
+    public void write(T input) {
       isCleared = false;
       this.value = input;
     }
@@ -176,16 +176,21 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     }
   }
 
-  static final class WatermarkStateInternalImplementation<W extends BoundedWindow>
-      implements WatermarkStateInternal<W>, InMemoryState<WatermarkStateInternalImplementation<W>> {
+  static final class InMemoryWatermarkHold<W extends BoundedWindow>
+      implements WatermarkHoldState<W>, InMemoryState<InMemoryWatermarkHold<W>> {
 
     private final OutputTimeFn<? super W> outputTimeFn;
 
     @Nullable
     private Instant combinedHold = null;
 
-    public WatermarkStateInternalImplementation(OutputTimeFn<? super W> outputTimeFn) {
+    public InMemoryWatermarkHold(OutputTimeFn<? super W> outputTimeFn) {
       this.outputTimeFn = outputTimeFn;
+    }
+
+    @Override
+    public InMemoryWatermarkHold<W> readLater() {
+      return this;
     }
 
     @Override
@@ -196,13 +201,8 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     }
 
     @Override
-    public StateContents<Instant> get() {
-      return new StateContents<Instant>() {
-        @Override
-        public Instant read() {
-          return combinedHold;
-        }
-      };
+    public Instant read() {
+      return combinedHold;
     }
 
     @Override
@@ -217,8 +217,12 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     }
 
     @Override
-    public StateContents<Boolean> isEmpty() {
-      return new StateContents<Boolean>() {
+    public ReadableState<Boolean> isEmpty() {
+      return new ReadableState<Boolean>() {
+        @Override
+        public ReadableState<Boolean> readLater() {
+          return this;
+        }
         @Override
         public Boolean read() {
           return combinedHold == null;
@@ -237,17 +241,17 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     }
 
     @Override
-    public WatermarkStateInternalImplementation<W> copy() {
-      WatermarkStateInternalImplementation<W> that =
-          new WatermarkStateInternalImplementation<>(outputTimeFn);
+    public InMemoryWatermarkHold<W> copy() {
+      InMemoryWatermarkHold<W> that =
+          new InMemoryWatermarkHold<>(outputTimeFn);
       that.combinedHold = this.combinedHold;
       return that;
     }
   }
 
   static final class InMemoryCombiningValue<K, InputT, AccumT, OutputT>
-      implements CombiningValueStateInternal<InputT, AccumT, OutputT>,
-                 InMemoryState<InMemoryCombiningValue<K, InputT, AccumT, OutputT>> {
+      implements AccumulatorCombiningState<InputT, AccumT, OutputT>,
+          InMemoryState<InMemoryCombiningValue<K, InputT, AccumT, OutputT>> {
     private final K key;
     private boolean isCleared = true;
     private final KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn;
@@ -261,6 +265,11 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     }
 
     @Override
+    public InMemoryCombiningValue<K, InputT, AccumT, OutputT> readLater() {
+      return this;
+    }
+
+    @Override
     public void clear() {
       // Even though we're clearing we can't remove this from the in-memory state map, since
       // other users may already have a handle on this CombiningValue.
@@ -269,13 +278,8 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     }
 
     @Override
-    public StateContents<OutputT> get() {
-      return new StateContents<OutputT>() {
-        @Override
-        public OutputT read() {
-          return combineFn.extractOutput(key, accum);
-        }
-      };
+    public OutputT read() {
+      return combineFn.extractOutput(key, accum);
     }
 
     @Override
@@ -285,18 +289,17 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     }
 
     @Override
-    public StateContents<AccumT> getAccum() {
-      return new StateContents<AccumT>() {
-        @Override
-        public AccumT read() {
-          return accum;
-        }
-      };
+    public AccumT getAccum() {
+      return accum;
     }
 
     @Override
-    public StateContents<Boolean> isEmpty() {
-      return new StateContents<Boolean>() {
+    public ReadableState<Boolean> isEmpty() {
+      return new ReadableState<Boolean>() {
+        @Override
+        public ReadableState<Boolean> readLater() {
+          return this;
+        }
         @Override
         public Boolean read() {
           return isCleared;
@@ -348,13 +351,13 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     }
 
     @Override
-    public StateContents<Iterable<T>> get() {
-      return new StateContents<Iterable<T>>() {
-        @Override
-        public Iterable<T> read() {
-          return contents;
-        }
-      };
+    public InMemoryBag<T> readLater() {
+      return this;
+    }
+
+    @Override
+    public Iterable<T> read() {
+      return contents;
     }
 
     @Override
@@ -368,8 +371,13 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     }
 
     @Override
-    public StateContents<Boolean> isEmpty() {
-      return new StateContents<Boolean>() {
+    public ReadableState<Boolean> isEmpty() {
+      return new ReadableState<Boolean>() {
+        @Override
+        public ReadableState<Boolean> readLater() {
+          return this;
+        }
+
         @Override
         public Boolean read() {
           return contents.isEmpty();

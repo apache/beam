@@ -68,7 +68,7 @@ public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals<K> 
    * has not been bound in this {@link CopyOnAccessInMemoryStateInternals}, put a reference to that
    * state within this {@link StateInternals}.
    *
-   * <p>Additionally, stores the {@link WatermarkStateInternal} with the earliest time bound in the
+   * <p>Additionally, stores the {@link WatermarkHoldState} with the earliest time bound in the
    * state table after the commit is completed, enabling calls to
    * {@link #getEarliestWatermarkHold()}.
    *
@@ -185,8 +185,8 @@ public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals<K> 
     private Instant getEarliestWatermarkHold() {
       Instant earliest = BoundedWindow.TIMESTAMP_MAX_VALUE;
       for (State existingState : this.values()) {
-        if (existingState instanceof WatermarkStateInternal) {
-          Instant hold = ((WatermarkStateInternal<?>) existingState).get().read();
+        if (existingState instanceof WatermarkHoldState) {
+          Instant hold = ((WatermarkHoldState<?>) existingState).read();
           if (hold != null && hold.isBefore(earliest)) {
             earliest = hold;
           }
@@ -249,17 +249,17 @@ public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals<K> 
       public StateBinder<K> forNamespace(final StateNamespace namespace) {
         return new StateBinder<K>() {
           @Override
-          public <W extends BoundedWindow> WatermarkStateInternal<W> bindWatermark(
-              StateTag<? super K, WatermarkStateInternal<W>> address,
+          public <W extends BoundedWindow> WatermarkHoldState<W> bindWatermark(
+              StateTag<? super K, WatermarkHoldState<W>> address,
               OutputTimeFn<? super W> outputTimeFn) {
             if (containedInUnderlying(namespace, address)) {
               @SuppressWarnings("unchecked")
-              InMemoryState<? extends WatermarkStateInternal<W>> existingState =
-                  (InMemoryStateInternals.InMemoryState<? extends WatermarkStateInternal<W>>)
+              InMemoryState<? extends WatermarkHoldState<W>> existingState =
+                  (InMemoryStateInternals.InMemoryState<? extends WatermarkHoldState<W>>)
                   underlying.get().get(namespace, address);
               return existingState.copy();
             } else {
-              return new InMemoryStateInternals.WatermarkStateInternalImplementation<>(
+              return new InMemoryStateInternals.InMemoryWatermarkHold<>(
                   outputTimeFn);
             }
           }
@@ -279,16 +279,16 @@ public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals<K> 
           }
 
           @Override
-          public <InputT, AccumT, OutputT> CombiningValueStateInternal<InputT, AccumT, OutputT>
+          public <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT>
               bindCombiningValue(
-                  StateTag<? super K, CombiningValueStateInternal<InputT, AccumT, OutputT>> address,
+                  StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
                   Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
             if (containedInUnderlying(namespace, address)) {
               @SuppressWarnings("unchecked")
-              InMemoryState<? extends CombiningValueStateInternal<InputT, AccumT, OutputT>>
+              InMemoryState<? extends AccumulatorCombiningState<InputT, AccumT, OutputT>>
                   existingState = (
                       InMemoryStateInternals
-                          .InMemoryState<? extends CombiningValueStateInternal<InputT, AccumT,
+                          .InMemoryState<? extends AccumulatorCombiningState<InputT, AccumT,
                           OutputT>>) underlying.get().get(namespace, address);
               return existingState.copy();
             } else {
@@ -312,17 +312,17 @@ public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals<K> 
           }
 
           @Override
-          public <InputT, AccumT, OutputT> CombiningValueStateInternal<InputT, AccumT, OutputT>
+          public <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT>
               bindKeyedCombiningValue(
-                  StateTag<? super K, CombiningValueStateInternal<InputT, AccumT, OutputT>> address,
+                  StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
                   Coder<AccumT> accumCoder,
                   KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn) {
             if (containedInUnderlying(namespace, address)) {
               @SuppressWarnings("unchecked")
-              InMemoryState<? extends CombiningValueStateInternal<InputT, AccumT, OutputT>>
+              InMemoryState<? extends AccumulatorCombiningState<InputT, AccumT, OutputT>>
                   existingState = (
                       InMemoryStateInternals
-                          .InMemoryState<? extends CombiningValueStateInternal<InputT, AccumT,
+                          .InMemoryState<? extends AccumulatorCombiningState<InputT, AccumT,
                           OutputT>>) underlying.get().get(namespace, address);
               return existingState.copy();
             } else {
@@ -355,8 +355,8 @@ public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals<K> 
               // eventually discarded, and remember the earliest watermark hold from among those
               // values.
               State state = readTo.get(namespace, existingState.getKey());
-              if (state instanceof WatermarkStateInternal) {
-                Instant hold = ((WatermarkStateInternal<?>) state).get().read();
+              if (state instanceof WatermarkHoldState) {
+                Instant hold = ((WatermarkHoldState<?>) state).read();
                 if (hold != null && hold.isBefore(earliestHold)) {
                   earliestHold = hold;
                 }
@@ -371,8 +371,8 @@ public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals<K> 
       public StateBinder<K> forNamespace(final StateNamespace namespace) {
         return new StateBinder<K>() {
           @Override
-          public <W extends BoundedWindow> WatermarkStateInternal<W> bindWatermark(
-              StateTag<? super K, WatermarkStateInternal<W>> address,
+          public <W extends BoundedWindow> WatermarkHoldState<W> bindWatermark(
+              StateTag<? super K, WatermarkHoldState<W>> address,
               OutputTimeFn<? super W> outputTimeFn) {
             return underlying.get(namespace, address);
           }
@@ -384,9 +384,9 @@ public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals<K> 
           }
 
           @Override
-          public <InputT, AccumT, OutputT> CombiningValueStateInternal<InputT, AccumT, OutputT>
+          public <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT>
               bindCombiningValue(
-                  StateTag<? super K, CombiningValueStateInternal<InputT, AccumT, OutputT>> address,
+                  StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
                   Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
             return underlying.get(namespace, address);
           }
@@ -398,9 +398,9 @@ public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals<K> 
           }
 
           @Override
-          public <InputT, AccumT, OutputT> CombiningValueStateInternal<InputT, AccumT, OutputT>
+          public <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT>
               bindKeyedCombiningValue(
-                  StateTag<? super K, CombiningValueStateInternal<InputT, AccumT, OutputT>> address,
+                  StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
                   Coder<AccumT> accumCoder,
                   KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn) {
             return underlying.get(namespace, address);

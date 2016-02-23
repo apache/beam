@@ -24,20 +24,17 @@ import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
  * @param <InputT> the type of values added to the state
  * @param <OutputT> the type of value extracted from the state
  */
-public interface CombiningValueState<InputT, OutputT> extends State {
+public interface CombiningState<InputT, OutputT> extends ReadableState<OutputT>, State {
   /**
    * Add a value to the buffer.
    */
   void add(InputT value);
 
   /**
-   * Return the {@link StateContents} object to use for accessing the contents of the buffer.
-   */
-  StateContents<OutputT> get();
-
-  /**
    * Return true if this state is empty.
    */
-  StateContents<Boolean> isEmpty();
+  ReadableState<Boolean> isEmpty();
 
+  @Override
+  CombiningState<InputT, OutputT> readLater();
 }

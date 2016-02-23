@@ -29,7 +29,7 @@ import com.google.cloud.dataflow.sdk.util.ReduceFnContextFactory.OnTriggerCallba
 import com.google.cloud.dataflow.sdk.util.ReduceFnContextFactory.StateStyle;
 import com.google.cloud.dataflow.sdk.util.TimerInternals.TimerData;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
-import com.google.cloud.dataflow.sdk.util.state.StateContents;
+import com.google.cloud.dataflow.sdk.util.state.ReadableState;
 import com.google.cloud.dataflow.sdk.util.state.StateInternals;
 import com.google.cloud.dataflow.sdk.util.state.StateNamespaces.WindowNamespace;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -716,12 +716,13 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       boolean isEndOfWindow,
       boolean isFinished)
           throws Exception {
-    // Collect state.
-    StateContents<Instant> outputTimestampFuture =
-        watermarkHold.extractAndRelease(renamedContext, isFinished);
-    StateContents<PaneInfo> paneFuture =
-        paneInfoTracker.getNextPaneInfo(directContext, isEndOfWindow, isFinished);
-    StateContents<Boolean> isEmptyFuture = nonEmptyPanes.isEmpty(renamedContext.state());
+    // Prefetch necessary states
+    ReadableState<Instant> outputTimestampFuture =
+        watermarkHold.extractAndRelease(renamedContext, isFinished).readLater();
+    ReadableState<PaneInfo> paneFuture =
+        paneInfoTracker.getNextPaneInfo(directContext, isEndOfWindow, isFinished).readLater();
+    ReadableState<Boolean> isEmptyFuture =
+        nonEmptyPanes.isEmpty(renamedContext.state()).readLater();
 
     reduceFn.prefetchOnTrigger(directContext.state());
     triggerRunner.prefetchOnFire(directContext.window(), directContext.state());

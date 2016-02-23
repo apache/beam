@@ -76,7 +76,7 @@ public class TriggerRunner<W extends BoundedWindow> {
       return FinishedTriggersBitSet.emptyWithCapacity(rootTrigger.getFirstIndexAfterSubtree());
     }
 
-    BitSet bitSet = state.get().read();
+    BitSet bitSet = state.read();
     return bitSet == null
         ? FinishedTriggersBitSet.emptyWithCapacity(rootTrigger.getFirstIndexAfterSubtree())
             : FinishedTriggersBitSet.fromBitSet(bitSet);
@@ -89,21 +89,21 @@ public class TriggerRunner<W extends BoundedWindow> {
 
   public void prefetchForValue(W window, StateAccessor<?> state) {
     if (isFinishedSetNeeded()) {
-      state.access(FINISHED_BITS_TAG).get();
+      state.access(FINISHED_BITS_TAG).readLater();
     }
     rootTrigger.getSpec().prefetchOnElement(contextFactory.createStateContext(window, rootTrigger));
   }
 
   public void prefetchOnFire(W window, StateAccessor<?> state) {
     if (isFinishedSetNeeded()) {
-      state.access(FINISHED_BITS_TAG).get();
+      state.access(FINISHED_BITS_TAG).readLater();
     }
     rootTrigger.getSpec().prefetchOnFire(contextFactory.createStateContext(window, rootTrigger));
   }
 
   public void prefetchShouldFire(W window, StateAccessor<?> state) {
     if (isFinishedSetNeeded()) {
-      state.access(FINISHED_BITS_TAG).get();
+      state.access(FINISHED_BITS_TAG).readLater();
     }
     rootTrigger.getSpec().prefetchShouldFire(
         contextFactory.createStateContext(window, rootTrigger));
@@ -127,7 +127,7 @@ public class TriggerRunner<W extends BoundedWindow> {
       W window, Collection<W> mergingWindows, MergingStateAccessor<?, W> state) {
     if (isFinishedSetNeeded()) {
       for (ValueState<?> value : state.accessInEachMergingWindow(FINISHED_BITS_TAG).values()) {
-        value.get();
+        value.readLater();
       }
     }
     rootTrigger.getSpec().prefetchOnMerge(contextFactory.createMergingStateContext(
@@ -185,12 +185,12 @@ public class TriggerRunner<W extends BoundedWindow> {
       return;
     }
 
-    ValueState<BitSet> finishedSet = state.access(FINISHED_BITS_TAG);
-    if (!finishedSet.get().equals(modifiedFinishedSet)) {
+    ValueState<BitSet> finishedSetState = state.access(FINISHED_BITS_TAG);
+    if (!readFinishedBits(finishedSetState).equals(modifiedFinishedSet)) {
       if (modifiedFinishedSet.getBitSet().isEmpty()) {
-        finishedSet.clear();
+        finishedSetState.clear();
       } else {
-        finishedSet.set(modifiedFinishedSet.getBitSet());
+        finishedSetState.write(modifiedFinishedSet.getBitSet());
       }
     }
   }

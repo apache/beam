@@ -19,8 +19,8 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.AfterWatermark;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo.Timing;
+import com.google.cloud.dataflow.sdk.util.state.ReadableState;
 import com.google.cloud.dataflow.sdk.util.state.StateAccessor;
-import com.google.cloud.dataflow.sdk.util.state.StateContents;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
 import com.google.cloud.dataflow.sdk.util.state.StateTags;
 import com.google.cloud.dataflow.sdk.util.state.ValueState;
@@ -51,22 +51,28 @@ public class PaneInfoTracker {
   }
 
   /**
-   * Return a (future for) the pane info appropriate for {@code context}. The pane info
-   * includes the timing for the pane, who's calculation is quite subtle.
+   * Return a ({@link ReadableState} for) the pane info appropriate for {@code context}. The pane
+   * info includes the timing for the pane, who's calculation is quite subtle.
    *
    * @param isEndOfWindow should be {@code true} only if the pane is being emitted
    * because an end-of-window timer has fired and the trigger agreed we should fire.
    * @param isFinal should be {@code true} only if the triggering machinery can guarantee
    * no further firings for the
    */
-  public StateContents<PaneInfo> getNextPaneInfo(ReduceFn<?, ?, ?, ?>.Context context,
+  public ReadableState<PaneInfo> getNextPaneInfo(ReduceFn<?, ?, ?, ?>.Context context,
       final boolean isEndOfWindow, final boolean isFinal) {
     final Object key = context.key();
-    final StateContents<PaneInfo> previousPaneFuture =
-        context.state().access(PaneInfoTracker.PANE_INFO_TAG).get();
+    final ReadableState<PaneInfo> previousPaneFuture =
+        context.state().access(PaneInfoTracker.PANE_INFO_TAG);
     final Instant windowMaxTimestamp = context.window().maxTimestamp();
 
-    return new StateContents<PaneInfo>() {
+    return new ReadableState<PaneInfo>() {
+      @Override
+      public ReadableState<PaneInfo> readLater() {
+        previousPaneFuture.readLater();
+        return this;
+      }
+
       @Override
       public PaneInfo read() {
         PaneInfo previousPane = previousPaneFuture.read();
@@ -76,7 +82,7 @@ public class PaneInfoTracker {
   }
 
   public void storeCurrentPaneInfo(ReduceFn<?, ?, ?, ?>.Context context, PaneInfo currentPane) {
-    context.state().access(PANE_INFO_TAG).set(currentPane);
+    context.state().access(PANE_INFO_TAG).write(currentPane);
   }
 
   private <W> PaneInfo describePane(Object key, Instant windowMaxTimestamp, PaneInfo previousPane,

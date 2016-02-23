@@ -45,7 +45,7 @@ import com.google.cloud.dataflow.sdk.util.state.StateInternals;
 import com.google.cloud.dataflow.sdk.util.state.StateNamespace;
 import com.google.cloud.dataflow.sdk.util.state.StateNamespaces;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
-import com.google.cloud.dataflow.sdk.util.state.WatermarkStateInternal;
+import com.google.cloud.dataflow.sdk.util.state.WatermarkHoldState;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
@@ -415,8 +415,8 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     public Instant earliestWatermarkHold() {
       Instant minimum = null;
       for (State storage : inMemoryState.values()) {
-        if (storage instanceof WatermarkStateInternal) {
-          Instant hold = ((WatermarkStateInternal<BoundedWindow>) storage).get().read();
+        if (storage instanceof WatermarkHoldState) {
+          Instant hold = ((WatermarkHoldState<?>) storage).read();
           if (minimum == null || (hold != null && hold.isBefore(minimum))) {
             minimum = hold;
           }

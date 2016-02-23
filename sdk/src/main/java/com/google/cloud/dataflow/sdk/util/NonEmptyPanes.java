@@ -19,10 +19,10 @@ import com.google.cloud.dataflow.sdk.coders.VarLongCoder;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
-import com.google.cloud.dataflow.sdk.util.state.CombiningValueStateInternal;
+import com.google.cloud.dataflow.sdk.util.state.AccumulatorCombiningState;
 import com.google.cloud.dataflow.sdk.util.state.MergingStateAccessor;
+import com.google.cloud.dataflow.sdk.util.state.ReadableState;
 import com.google.cloud.dataflow.sdk.util.state.StateAccessor;
-import com.google.cloud.dataflow.sdk.util.state.StateContents;
 import com.google.cloud.dataflow.sdk.util.state.StateMerging;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
 import com.google.cloud.dataflow.sdk.util.state.StateTags;
@@ -58,7 +58,7 @@ public abstract class NonEmptyPanes<K, W extends BoundedWindow> {
   /**
    * Return true if the current pane for the window in {@code context} is empty.
    */
-  public abstract StateContents<Boolean> isEmpty(StateAccessor<K> context);
+  public abstract ReadableState<Boolean> isEmpty(StateAccessor<K> context);
 
   /**
    * Prefetch in preparation for merging.
@@ -84,7 +84,7 @@ public abstract class NonEmptyPanes<K, W extends BoundedWindow> {
     }
 
     @Override
-    public StateContents<Boolean> isEmpty(StateAccessor<K> state) {
+    public ReadableState<Boolean> isEmpty(StateAccessor<K> state) {
       return reduceFn.isEmpty(state);
     }
 
@@ -115,7 +115,7 @@ public abstract class NonEmptyPanes<K, W extends BoundedWindow> {
   private static class GeneralNonEmptyPanes<K, W extends BoundedWindow>
       extends NonEmptyPanes<K, W> {
 
-    private static final StateTag<Object, CombiningValueStateInternal<Long, long[], Long>>
+    private static final StateTag<Object, AccumulatorCombiningState<Long, long[], Long>>
         PANE_ADDITIONS_TAG =
         StateTags.makeSystemTagInternal(StateTags.combiningValueFromInputInternal(
             "count", VarLongCoder.of(), new Sum.SumLongFn()));
@@ -131,7 +131,7 @@ public abstract class NonEmptyPanes<K, W extends BoundedWindow> {
     }
 
     @Override
-    public StateContents<Boolean> isEmpty(StateAccessor<K> state) {
+    public ReadableState<Boolean> isEmpty(StateAccessor<K> state) {
       return state.access(PANE_ADDITIONS_TAG).isEmpty();
     }
 

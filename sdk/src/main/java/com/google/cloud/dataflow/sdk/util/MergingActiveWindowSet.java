@@ -119,7 +119,7 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
     valueState = state.state(StateNamespaces.global(), mergeTreeAddr);
     // Little use trying to prefetch this state since the ReduceFnRunner is stymied until it is
     // available.
-    activeWindowToStateAddressWindows = emptyIfNull(valueState.get().read());
+    activeWindowToStateAddressWindows = emptyIfNull(valueState.read());
     activeWindowToEphemeralWindows = new HashMap<>();
     originalActiveWindowToStateAddressWindows = deepCopy(activeWindowToStateAddressWindows);
     windowToActiveWindow = invert(activeWindowToStateAddressWindows);
@@ -155,7 +155,7 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
     Preconditions.checkState(
         activeWindowToEphemeralWindows.isEmpty(), "Unexpected EPHEMERAL windows before persist");
 
-    valueState.set(activeWindowToStateAddressWindows);
+    valueState.write(activeWindowToStateAddressWindows);
     // No need to update originalActiveWindowToStateAddressWindows since this object is about to
     // become garbage.
   }

@@ -18,8 +18,8 @@ package com.google.cloud.dataflow.sdk.util;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.util.state.MergingStateAccessor;
+import com.google.cloud.dataflow.sdk.util.state.ReadableState;
 import com.google.cloud.dataflow.sdk.util.state.StateAccessor;
-import com.google.cloud.dataflow.sdk.util.state.StateContents;
 
 import org.joda.time.Instant;
 
@@ -124,5 +124,5 @@ public abstract class ReduceFn<K, InputT, OutputT, W extends BoundedWindow>
   /**
    * Returns true if the there is no buffered state.
    */
-  public abstract StateContents<Boolean> isEmpty(StateAccessor<K> context);
+  public abstract ReadableState<Boolean> isEmpty(StateAccessor<K> context);
 }

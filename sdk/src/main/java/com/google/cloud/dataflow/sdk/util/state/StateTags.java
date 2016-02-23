@@ -71,7 +71,7 @@ public class StateTags {
    * multiple {@code InputT}s into a single {@code OutputT}.
    */
   public static <InputT, AccumT, OutputT>
-    StateTag<Object, CombiningValueStateInternal<InputT, AccumT, OutputT>>
+    StateTag<Object, AccumulatorCombiningState<InputT, AccumT, OutputT>>
     combiningValue(
       String id, Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
     return combiningValueInternal(id, accumCoder, combineFn);
@@ -83,7 +83,7 @@ public class StateTags {
    * {@link KeyedCombineFn} comes from the keyed {@link StateAccessor}.
    */
   public static <K, InputT, AccumT,
-      OutputT> StateTag<K, CombiningValueStateInternal<InputT, AccumT, OutputT>>
+      OutputT> StateTag<K, AccumulatorCombiningState<InputT, AccumT, OutputT>>
       keyedCombiningValue(String id, Coder<AccumT> accumCoder,
           KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn) {
     return keyedCombiningValueInternal(id, accumCoder, combineFn);
@@ -97,7 +97,7 @@ public class StateTags {
    * should only be used to initialize static values.
    */
   public static <InputT, AccumT, OutputT>
-      StateTag<Object, CombiningValueStateInternal<InputT, AccumT, OutputT>>
+      StateTag<Object, AccumulatorCombiningState<InputT, AccumT, OutputT>>
       combiningValueFromInputInternal(
           String id, Coder<InputT> inputCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
     try {
@@ -111,7 +111,7 @@ public class StateTags {
   }
 
   private static <InputT, AccumT,
-      OutputT> StateTag<Object, CombiningValueStateInternal<InputT, AccumT, OutputT>>
+      OutputT> StateTag<Object, AccumulatorCombiningState<InputT, AccumT, OutputT>>
       combiningValueInternal(
       String id, Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
     return
@@ -120,7 +120,7 @@ public class StateTags {
   }
 
   private static <K, InputT, AccumT, OutputT>
-      StateTag<K, CombiningValueStateInternal<InputT, AccumT, OutputT>> keyedCombiningValueInternal(
+      StateTag<K, AccumulatorCombiningState<InputT, AccumT, OutputT>> keyedCombiningValueInternal(
           String id,
           Coder<AccumT> accumCoder,
           KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn) {
@@ -139,7 +139,7 @@ public class StateTags {
   /**
    * Create a state tag for holding the watermark.
    */
-  public static <W extends BoundedWindow> StateTag<Object, WatermarkStateInternal<W>>
+  public static <W extends BoundedWindow> StateTag<Object, WatermarkHoldState<W>>
       watermarkStateInternal(String id, OutputTimeFn<? super W> outputTimeFn) {
     return new WatermarkStateTagInternal<W>(new StructuredId(id), outputTimeFn);
   }
@@ -161,7 +161,7 @@ public class StateTags {
 
   public static <K, InputT, AccumT, OutputT> StateTag<Object, BagState<AccumT>>
       convertToBagTagInternal(
-          StateTag<? super K, CombiningValueStateInternal<InputT, AccumT, OutputT>> combiningTag) {
+          StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> combiningTag) {
     if (!(combiningTag instanceof KeyedCombiningValueStateTag)) {
       throw new IllegalArgumentException("Unexpected StateTag " + combiningTag);
     }
@@ -315,8 +315,8 @@ public class StateTags {
    */
   private static class CombiningValueStateTag<InputT, AccumT, OutputT>
       extends KeyedCombiningValueStateTag<Object, InputT, AccumT, OutputT>
-      implements StateTag<Object, CombiningValueStateInternal<InputT, AccumT, OutputT>>,
-      SystemStateTag<Object, CombiningValueStateInternal<InputT, AccumT, OutputT>> {
+      implements StateTag<Object, AccumulatorCombiningState<InputT, AccumT, OutputT>>,
+      SystemStateTag<Object, AccumulatorCombiningState<InputT, AccumT, OutputT>> {
 
     private final Coder<AccumT> accumCoder;
     private final CombineFn<InputT, AccumT, OutputT> combineFn;
@@ -330,7 +330,7 @@ public class StateTags {
     }
 
     @Override
-    public StateTag<Object, CombiningValueStateInternal<InputT, AccumT, OutputT>>
+    public StateTag<Object, AccumulatorCombiningState<InputT, AccumT, OutputT>>
     asKind(StateKind kind) {
       return new CombiningValueStateTag<InputT, AccumT, OutputT>(
           id.asKind(kind), accumCoder, combineFn);
@@ -347,8 +347,8 @@ public class StateTags {
    * @param <OutputT> type of output values
    */
   private static class KeyedCombiningValueStateTag<K, InputT, AccumT, OutputT>
-      extends StateTagBase<K, CombiningValueStateInternal<InputT, AccumT, OutputT>>
-      implements SystemStateTag<K, CombiningValueStateInternal<InputT, AccumT, OutputT>> {
+      extends StateTagBase<K, AccumulatorCombiningState<InputT, AccumT, OutputT>>
+      implements SystemStateTag<K, AccumulatorCombiningState<InputT, AccumT, OutputT>> {
 
     private final Coder<AccumT> accumCoder;
     private final KeyedCombineFn<K, InputT, AccumT, OutputT> keyedCombineFn;
@@ -362,7 +362,7 @@ public class StateTags {
     }
 
     @Override
-    public CombiningValueStateInternal<InputT, AccumT, OutputT> bind(
+    public AccumulatorCombiningState<InputT, AccumT, OutputT> bind(
         StateBinder<? extends K> visitor) {
       return visitor.bindKeyedCombiningValue(this, accumCoder, keyedCombineFn);
     }
@@ -388,7 +388,7 @@ public class StateTags {
     }
 
     @Override
-    public StateTag<K, CombiningValueStateInternal<InputT, AccumT, OutputT>> asKind(
+    public StateTag<K, AccumulatorCombiningState<InputT, AccumT, OutputT>> asKind(
         StateKind kind) {
       return new KeyedCombiningValueStateTag<>(id.asKind(kind), accumCoder, keyedCombineFn);
     }
@@ -446,7 +446,7 @@ public class StateTags {
   }
 
   private static class WatermarkStateTagInternal<W extends BoundedWindow>
-      extends StateTagBase<Object, WatermarkStateInternal<W>> {
+      extends StateTagBase<Object, WatermarkHoldState<W>> {
 
     /**
      * When multiple output times are added to hold the watermark, this determines how they are
@@ -461,7 +461,7 @@ public class StateTags {
     }
 
     @Override
-    public WatermarkStateInternal<W> bind(StateBinder<? extends Object> visitor) {
+    public WatermarkHoldState<W> bind(StateBinder<? extends Object> visitor) {
       return visitor.bindWatermark(this, outputTimeFn);
     }
 
@@ -485,7 +485,7 @@ public class StateTags {
     }
 
     @Override
-    public StateTag<Object, WatermarkStateInternal<W>> asKind(StateKind kind) {
+    public StateTag<Object, WatermarkHoldState<W>> asKind(StateKind kind) {
       return new WatermarkStateTagInternal<W>(id.asKind(kind), outputTimeFn);
     }
   }

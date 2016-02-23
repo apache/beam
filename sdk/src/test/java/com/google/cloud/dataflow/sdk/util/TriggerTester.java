@@ -38,7 +38,7 @@ import com.google.cloud.dataflow.sdk.util.state.StateNamespaces;
 import com.google.cloud.dataflow.sdk.util.state.StateNamespaces.WindowAndTriggerNamespace;
 import com.google.cloud.dataflow.sdk.util.state.StateNamespaces.WindowNamespace;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
-import com.google.cloud.dataflow.sdk.util.state.WatermarkStateInternal;
+import com.google.cloud.dataflow.sdk.util.state.WatermarkHoldState;
 import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Throwables;
@@ -369,9 +369,9 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
     public Instant earliestWatermarkHold() {
       Instant minimum = null;
       for (State storage : inMemoryState.values()) {
-        if (storage instanceof WatermarkStateInternal) {
+        if (storage instanceof WatermarkHoldState) {
           @SuppressWarnings("unchecked")
-          Instant hold = ((WatermarkStateInternal<BoundedWindow>) storage).get().read();
+          Instant hold = ((WatermarkHoldState<BoundedWindow>) storage).read();
           if (minimum == null || (hold != null && hold.isBefore(minimum))) {
             minimum = hold;
           }

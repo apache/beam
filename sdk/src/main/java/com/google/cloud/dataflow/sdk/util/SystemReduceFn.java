@@ -23,12 +23,12 @@ import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.CombineWithContext.RequiresContextInternal;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.util.state.AccumulatorCombiningState;
 import com.google.cloud.dataflow.sdk.util.state.BagState;
-import com.google.cloud.dataflow.sdk.util.state.CombiningValueState;
-import com.google.cloud.dataflow.sdk.util.state.CombiningValueStateInternal;
+import com.google.cloud.dataflow.sdk.util.state.CombiningState;
 import com.google.cloud.dataflow.sdk.util.state.MergingStateAccessor;
+import com.google.cloud.dataflow.sdk.util.state.ReadableState;
 import com.google.cloud.dataflow.sdk.util.state.StateAccessor;
-import com.google.cloud.dataflow.sdk.util.state.StateContents;
 import com.google.cloud.dataflow.sdk.util.state.StateMerging;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
 import com.google.cloud.dataflow.sdk.util.state.StateTags;
@@ -78,7 +78,7 @@ public abstract class SystemReduceFn<K, InputT, AccumT, OutputT, W extends Bound
         !(combineFn.getFn() instanceof RequiresContextInternal),
         "Combiner lifting is not supported for combine functions with contexts: %s",
         combineFn.getFn().getClass().getName());
-    final StateTag<K, CombiningValueStateInternal<InputT, AccumT, OutputT>> bufferTag =
+    final StateTag<K, AccumulatorCombiningState<InputT, AccumT, OutputT>> bufferTag =
         StateTags.makeSystemTagInternal(
             StateTags.<K, InputT, AccumT, OutputT>keyedCombiningValue(
                 BUFFER_NAME, combineFn.getAccumulatorCoder(),
@@ -96,10 +96,10 @@ public abstract class SystemReduceFn<K, InputT, AccumT, OutputT, W extends Bound
     };
   }
 
-  private StateTag<? super K, ? extends CombiningValueState<InputT, OutputT>> bufferTag;
+  private StateTag<? super K, ? extends CombiningState<InputT, OutputT>> bufferTag;
 
-  private SystemReduceFn(
-      StateTag<? super K, ? extends CombiningValueState<InputT, OutputT>> bufferTag) {
+  public SystemReduceFn(
+      StateTag<? super K, ? extends CombiningState<InputT, OutputT>> bufferTag) {
     this.bufferTag = bufferTag;
   }
 
@@ -110,12 +110,12 @@ public abstract class SystemReduceFn<K, InputT, AccumT, OutputT, W extends Bound
 
   @Override
   public void prefetchOnTrigger(StateAccessor<K> state) {
-    state.access(bufferTag).get();
+    state.access(bufferTag).readLater();
   }
 
   @Override
   public void onTrigger(OnTriggerContext c) throws Exception {
-    c.output(c.state().access(bufferTag).get().read());
+    c.output(c.state().access(bufferTag).read());
   }
 
   @Override
@@ -124,7 +124,7 @@ public abstract class SystemReduceFn<K, InputT, AccumT, OutputT, W extends Bound
   }
 
   @Override
-  public StateContents<Boolean> isEmpty(StateAccessor<K> state) {
+  public ReadableState<Boolean> isEmpty(StateAccessor<K> state) {
     return state.access(bufferTag).isEmpty();
   }
 }

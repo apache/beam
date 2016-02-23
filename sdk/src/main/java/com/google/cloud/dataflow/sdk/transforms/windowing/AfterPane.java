@@ -20,7 +20,7 @@ import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.VarLongCoder;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
-import com.google.cloud.dataflow.sdk.util.state.CombiningValueStateInternal;
+import com.google.cloud.dataflow.sdk.util.state.AccumulatorCombiningState;
 import com.google.cloud.dataflow.sdk.util.state.MergingStateAccessor;
 import com.google.cloud.dataflow.sdk.util.state.StateAccessor;
 import com.google.cloud.dataflow.sdk.util.state.StateMerging;
@@ -41,7 +41,7 @@ import java.util.Objects;
 @Experimental(Experimental.Kind.TRIGGER)
 public class AfterPane<W extends BoundedWindow> extends OnceTrigger<W>{
 
-private static final StateTag<Object, CombiningValueStateInternal<Long, long[], Long>>
+private static final StateTag<Object, AccumulatorCombiningState<Long, long[], Long>>
       ELEMENTS_IN_PANE_TAG =
       StateTags.makeSystemTagInternal(StateTags.combiningValueFromInputInternal(
           "count", VarLongCoder.of(), new Sum.SumLongFn()));
@@ -87,12 +87,12 @@ private static final StateTag<Object, CombiningValueStateInternal<Long, long[], 
 
   @Override
   public void prefetchShouldFire(StateAccessor<?> state) {
-    state.access(ELEMENTS_IN_PANE_TAG).get();
+    state.access(ELEMENTS_IN_PANE_TAG).readLater();
   }
 
   @Override
   public boolean shouldFire(Trigger<W>.TriggerContext context) throws Exception {
-    long count = context.state().access(ELEMENTS_IN_PANE_TAG).get().read();
+    long count = context.state().access(ELEMENTS_IN_PANE_TAG).read();
     return count >= countElems;
   }
 

@@ -292,7 +292,8 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     }
 
     @Override
-    public <StorageT extends State> StorageT access(StateTag<? super Object, StorageT> address) {
+    public <StateT extends State> StateT access(
+        StateTag<? super Object, StateT> address) {
       return stateInternals.state(windowNamespace, address);
     }
 

@@ -53,24 +53,24 @@ public interface StateTag<K, StateT extends State> extends Serializable {
 
     <T> BagState<T> bindBag(StateTag<? super K, BagState<T>> address, Coder<T> elemCoder);
 
-    <InputT, AccumT, OutputT> CombiningValueStateInternal<InputT, AccumT, OutputT>
+    <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT>
     bindCombiningValue(
-        StateTag<? super K, CombiningValueStateInternal<InputT, AccumT, OutputT>> address,
+        StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
         Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn);
 
-    <InputT, AccumT, OutputT> CombiningValueStateInternal<InputT, AccumT, OutputT>
+    <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT>
     bindKeyedCombiningValue(
-        StateTag<? super K, CombiningValueStateInternal<InputT, AccumT, OutputT>> address,
+        StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
         Coder<AccumT> accumCoder, KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn);
 
     /**
      * Bind to a watermark {@link StateTag}.
      *
      * <p>This accepts the {@link OutputTimeFn} that dictates how watermark hold timestamps
-     * added to the returned {@link WatermarkStateInternal} are to be combined.
+     * added to the returned {@link WatermarkHoldState} are to be combined.
      */
-    <W extends BoundedWindow> WatermarkStateInternal<W> bindWatermark(
-        StateTag<? super K, WatermarkStateInternal<W>> address,
+    <W extends BoundedWindow> WatermarkHoldState<W> bindWatermark(
+        StateTag<? super K, WatermarkHoldState<W>> address,
         OutputTimeFn<? super W> outputTimeFn);
   }
 

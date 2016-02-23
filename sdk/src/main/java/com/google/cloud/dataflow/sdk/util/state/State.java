@@ -19,7 +19,7 @@ package com.google.cloud.dataflow.sdk.util.state;
  * Base interface for all state locations.
  *
  * <p>Specific types of state add appropriate accessors for reading and writing values, see
- * {@link ValueState}, {@link BagState}, and {@link CombiningValueState}.
+ * {@link ValueState}, {@link BagState}, and {@link CombiningState}.
  */
 public interface State {
 

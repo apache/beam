@@ -29,11 +29,14 @@ import org.joda.time.Instant;
  * <p><b><i>For internal use only. This API may change at any time.</i></b>
  */
 @Experimental(Kind.STATE)
-public interface WatermarkStateInternal<W extends BoundedWindow>
-  extends CombiningValueState<Instant, Instant> {
+public interface WatermarkHoldState<W extends BoundedWindow>
+    extends CombiningState<Instant, Instant> {
   /**
    * Return the {@link OutputTimeFn} which will be used to determine a watermark hold time given
    * an element timestamp, and to combine watermarks from windows which are about to be merged.
    */
   OutputTimeFn<? super W> getOutputTimeFn();
+
+  @Override
+  WatermarkHoldState<W> readLater();
 }

@@ -20,11 +20,11 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFns;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window.ClosingBehavior;
 import com.google.cloud.dataflow.sdk.util.state.MergingStateAccessor;
-import com.google.cloud.dataflow.sdk.util.state.StateContents;
+import com.google.cloud.dataflow.sdk.util.state.ReadableState;
 import com.google.cloud.dataflow.sdk.util.state.StateMerging;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
 import com.google.cloud.dataflow.sdk.util.state.StateTags;
-import com.google.cloud.dataflow.sdk.util.state.WatermarkStateInternal;
+import com.google.cloud.dataflow.sdk.util.state.WatermarkHoldState;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
@@ -56,9 +56,9 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
    * used for elements.
    */
   public static <W extends BoundedWindow>
-      StateTag<Object, WatermarkStateInternal<W>> watermarkHoldTagForOutputTimeFn(
+      StateTag<Object, WatermarkHoldState<W>> watermarkHoldTagForOutputTimeFn(
           OutputTimeFn<? super W> outputTimeFn) {
-    return StateTags.<Object, WatermarkStateInternal<W>>makeSystemTagInternal(
+    return StateTags.<Object, WatermarkHoldState<W>>makeSystemTagInternal(
         StateTags.<W>watermarkStateInternal("hold", outputTimeFn));
   }
 
@@ -69,13 +69,13 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
    * would take the end-of-window time as its element time.)
    */
   @VisibleForTesting
-  public static final StateTag<Object, WatermarkStateInternal<BoundedWindow>> EXTRA_HOLD_TAG =
+  public static final StateTag<Object, WatermarkHoldState<BoundedWindow>> EXTRA_HOLD_TAG =
       StateTags.makeSystemTagInternal(StateTags.watermarkStateInternal(
           "extra", OutputTimeFns.outputAtEarliestInputTimestamp()));
 
   private final TimerInternals timerInternals;
   private final WindowingStrategy<?, W> windowingStrategy;
-  private final StateTag<Object, WatermarkStateInternal<W>> elementHoldTag;
+  private final StateTag<Object, WatermarkHoldState<W>> elementHoldTag;
 
   public WatermarkHold(TimerInternals timerInternals, WindowingStrategy<?, W> windowingStrategy) {
     this.timerInternals = timerInternals;
@@ -377,25 +377,27 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
    * elements in the current pane. If there is no such value the timestamp is the end
    * of the window.
    */
-  public StateContents<Instant> extractAndRelease(
+  public ReadableState<Instant> extractAndRelease(
       final ReduceFn<?, ?, ?, W>.Context context, final boolean isFinished) {
     WindowTracing.debug(
         "extractAndRelease: for key:{}; window:{}; inputWatermark:{}; outputWatermark:{}",
         context.key(), context.window(), timerInternals.currentInputWatermarkTime(),
         timerInternals.currentOutputWatermarkTime());
-    final WatermarkStateInternal<W> elementHoldState = context.state().access(elementHoldTag);
-    // Since we only extract holds when a trigger fires it is unreasonable to expect
-    // the state to be prefetched.
-    final StateContents<Instant> elementHoldFuture = elementHoldState.get();
-    final WatermarkStateInternal<BoundedWindow> extraHoldState =
-        context.state().access(EXTRA_HOLD_TAG);
-    final StateContents<Instant> extraHoldFuture = extraHoldState.get();
-    return new StateContents<Instant>() {
+    final WatermarkHoldState<W> elementHoldState = context.state().access(elementHoldTag);
+    final WatermarkHoldState<BoundedWindow> extraHoldState = context.state().access(EXTRA_HOLD_TAG);
+    return new ReadableState<Instant>() {
+      @Override
+      public ReadableState<Instant> readLater() {
+        elementHoldState.readLater();
+        extraHoldState.readLater();
+        return this;
+      }
+
       @Override
       public Instant read() {
         // Read both the element and extra holds.
-        Instant elementHold = elementHoldFuture.read();
-        Instant extraHold = extraHoldFuture.read();
+        Instant elementHold = elementHoldState.read();
+        Instant extraHold = extraHoldState.read();
         Instant hold;
         // Find the minimum, accounting for null.
         if (elementHold == null) {

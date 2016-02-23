@@ -19,19 +19,21 @@ import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 
 /**
  * State for a single value that is managed by a {@link CombineFn}. This is an internal extension
- * to {@link CombiningValueState} that includes the {@code AccumT} type.
+ * to {@link CombiningState} that includes the {@code AccumT} type.
  *
  * @param <InputT> the type of values added to the state
  * @param <AccumT> the type of accumulator
  * @param <OutputT> the type of value extracted from the state
  */
-public interface CombiningValueStateInternal<InputT, AccumT, OutputT>
-    extends CombiningValueState<InputT, OutputT> {
+public interface AccumulatorCombiningState<InputT, AccumT, OutputT>
+    extends CombiningState<InputT, OutputT> {
 
   /**
-   * Read the merged accumulator for this combining value.
+   * Read the merged accumulator for this combining value. It is implied that reading the
+   * state involes reading the accumulator, so {@link #readLater} is sufficient to prefetch for
+   * this.
    */
-  StateContents<AccumT> getAccum();
+  AccumT getAccum();
 
   /**
    * Add an accumulator to this combining value. Depending on implementation this may immediately
@@ -43,4 +45,7 @@ public interface CombiningValueStateInternal<InputT, AccumT, OutputT>
    * Merge the given accumulators according to the underlying combiner.
    */
   AccumT mergeAccumulators(Iterable<AccumT> accumulators);
+
+  @Override
+  AccumulatorCombiningState<InputT, AccumT, OutputT> readLater();
 }

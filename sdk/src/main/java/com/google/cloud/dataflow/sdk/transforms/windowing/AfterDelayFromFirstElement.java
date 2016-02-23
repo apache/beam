@@ -23,8 +23,8 @@ import com.google.cloud.dataflow.sdk.transforms.Min;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
 import com.google.cloud.dataflow.sdk.util.TimeDomain;
-import com.google.cloud.dataflow.sdk.util.state.CombiningValueState;
-import com.google.cloud.dataflow.sdk.util.state.CombiningValueStateInternal;
+import com.google.cloud.dataflow.sdk.util.state.AccumulatorCombiningState;
+import com.google.cloud.dataflow.sdk.util.state.CombiningState;
 import com.google.cloud.dataflow.sdk.util.state.MergingStateAccessor;
 import com.google.cloud.dataflow.sdk.util.state.StateAccessor;
 import com.google.cloud.dataflow.sdk.util.state.StateMerging;
@@ -52,7 +52,7 @@ public abstract class AfterDelayFromFirstElement<W extends BoundedWindow> extend
   protected static final List<SerializableFunction<Instant, Instant>> IDENTITY =
       ImmutableList.<SerializableFunction<Instant, Instant>>of();
 
-  protected static final StateTag<Object, CombiningValueStateInternal<Instant,
+  protected static final StateTag<Object, AccumulatorCombiningState<Instant,
                                               Combine.Holder<Instant>, Instant>> DELAYED_UNTIL_TAG =
       StateTags.makeSystemTagInternal(StateTags.combiningValueFromInputInternal(
           "delayed", InstantCoder.of(), Min.MinFn.<Instant>naturalOrder()));
@@ -152,13 +152,13 @@ public abstract class AfterDelayFromFirstElement<W extends BoundedWindow> extend
 
   @Override
   public void prefetchOnElement(StateAccessor<?> state) {
-    state.access(DELAYED_UNTIL_TAG).get();
+    state.access(DELAYED_UNTIL_TAG).readLater();
   }
 
   @Override
   public void onElement(OnElementContext c) throws Exception {
-    CombiningValueState<Instant, Instant> delayUntilState = c.state().access(DELAYED_UNTIL_TAG);
-    Instant oldDelayUntil = delayUntilState.get().read();
+    CombiningState<Instant, Instant> delayUntilState = c.state().access(DELAYED_UNTIL_TAG);
+    Instant oldDelayUntil = delayUntilState.read();
 
     // Since processing time can only advance, resulting in target wake-up times we would
     // ignore anyhow, we don't bother with it if it is already set.
@@ -200,7 +200,7 @@ public abstract class AfterDelayFromFirstElement<W extends BoundedWindow> extend
     // Determine the earliest point across all the windows, and delay to that.
     StateMerging.mergeCombiningValues(c.state(), DELAYED_UNTIL_TAG);
 
-    Instant earliestTargetTime = c.state().access(DELAYED_UNTIL_TAG).get().read();
+    Instant earliestTargetTime = c.state().access(DELAYED_UNTIL_TAG).read();
     if (earliestTargetTime != null) {
       c.setTimer(earliestTargetTime, timeDomain);
     }
@@ -208,7 +208,7 @@ public abstract class AfterDelayFromFirstElement<W extends BoundedWindow> extend
 
   @Override
   public void prefetchShouldFire(StateAccessor<?> state) {
-    state.access(DELAYED_UNTIL_TAG).get();
+    state.access(DELAYED_UNTIL_TAG).readLater();
   }
 
   @Override
@@ -223,7 +223,7 @@ public abstract class AfterDelayFromFirstElement<W extends BoundedWindow> extend
 
   @Override
   public boolean shouldFire(Trigger<W>.TriggerContext context) throws Exception {
-    Instant delayedUntil = context.state().access(DELAYED_UNTIL_TAG).get().read();
+    Instant delayedUntil = context.state().access(DELAYED_UNTIL_TAG).read();
     return delayedUntil != null
         && getCurrentTime(context) != null
         && getCurrentTime(context).isAfter(delayedUntil);
