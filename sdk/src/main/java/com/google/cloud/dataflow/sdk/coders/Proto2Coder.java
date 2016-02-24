@@ -17,6 +17,7 @@ package com.google.cloud.dataflow.sdk.coders;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.cloud.dataflow.sdk.coders.protobuf.ProtoCoder;
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.Structs;
 import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
@@ -71,7 +72,9 @@ import javax.annotation.Nullable;
  * </pre>
  *
  * @param <T> the type of elements handled by this coder, must extend {@code Message}
+ * @deprecated Use {@link ProtoCoder}.
  */
+@Deprecated
 public class Proto2Coder<T extends Message> extends AtomicCoder<T> {
 
   /** The class of Protobuf message to be encoded. */

@@ -22,6 +22,8 @@ import static org.junit.Assert.assertEquals;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.CoderRegistry.IncompatibleCoderException;
+import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageA;
+import com.google.cloud.dataflow.sdk.coders.protobuf.ProtoCoder;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
@@ -33,6 +35,7 @@ import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 import com.google.common.collect.ImmutableList;
+import com.google.protobuf.Duration;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -82,11 +85,14 @@ public class CoderRegistryTest {
   }
 
   @Test
-  public void testProto2CoderFallbackCoderProvider() throws Exception {
+  public void testProtoCoderFallbackCoderProvider() throws Exception {
     CoderRegistry registry = getStandardRegistry();
-    Coder<Proto2CoderTestMessages.MessageA> coder =
-        registry.getDefaultCoder(Proto2CoderTestMessages.MessageA.class);
-    assertEquals(coder, Proto2Coder.of(new TypeDescriptor<Proto2CoderTestMessages.MessageA>() {}));
+
+    // MessageA is a Protocol Buffers test message with syntax 2
+    assertEquals(registry.getDefaultCoder(MessageA.class), ProtoCoder.of(MessageA.class));
+
+    // Duration is a Protocol Buffers default type with syntax 3
+    assertEquals(registry.getDefaultCoder(Duration.class), ProtoCoder.of(Duration.class));
   }
 
   @Test

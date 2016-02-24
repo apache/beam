@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.coders;
 
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException.ReasonCode;
+import com.google.cloud.dataflow.sdk.coders.protobuf.ProtoCoder;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -81,8 +82,8 @@ public class CoderRegistry implements CoderProvider {
   private static final Logger LOG = LoggerFactory.getLogger(CoderRegistry.class);
 
   public CoderRegistry() {
-    setFallbackCoderProvider(CoderProviders.firstOf(Proto2Coder.coderProvider(),
-        SerializableCoder.PROVIDER));
+    setFallbackCoderProvider(
+        CoderProviders.firstOf(ProtoCoder.coderProvider(), SerializableCoder.PROVIDER));
   }
 
   /**

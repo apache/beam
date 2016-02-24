@@ -35,6 +35,7 @@ import org.junit.runners.JUnit4;
 /**
  * Tests for Proto2Coder.
  */
+@SuppressWarnings("deprecation") // test of a deprecated coder.
 @RunWith(JUnit4.class)
 public class Proto2CoderTest {
 
