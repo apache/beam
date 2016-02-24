@@ -22,7 +22,6 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
-import org.apache.flink.streaming.api.functions.source.EventTimeSourceFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
@@ -37,7 +36,7 @@ import org.joda.time.Instant;
  *</p>
  * For now we support non-parallel, not checkpointed sources.
  * */
-public class UnboundedSourceWrapper<T> extends RichSourceFunction<WindowedValue<T>> implements EventTimeSourceFunction<WindowedValue<T>>, Triggerable {
+public class UnboundedSourceWrapper<T> extends RichSourceFunction<WindowedValue<T>> implements Triggerable {
 
 	private final String name;
 	private final UnboundedSource.UnboundedReader<T> reader;
@@ -87,6 +86,7 @@ public class UnboundedSourceWrapper<T> extends RichSourceFunction<WindowedValue<
 				context.collectWithTimestamp(makeWindowedValue(item, timestamp), timestamp.getMillis());
 			}
 
+			// TODO: This will run the loop only until the underlying reader first indicates input has stalled.
 			// try to go to the next record
 			this.isRunning = reader.advance();
 		}

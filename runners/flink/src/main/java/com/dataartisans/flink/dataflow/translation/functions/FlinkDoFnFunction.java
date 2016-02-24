@@ -144,7 +144,11 @@ public class FlinkDoFnFunction<IN, OUT> extends RichMapPartitionFunction<IN, OUT
 
 				@Override
 				public <T> void writePCollectionViewData(TupleTag<?> tag, Iterable<WindowedValue<T>> data, Coder<T> elemCoder) throws IOException {
+				}
 
+				@Override
+				public <T> T sideInput(PCollectionView<T> view, BoundedWindow mainInputWindow) {
+					throw new RuntimeException("sideInput() not implemented.");
 				}
 			};
 		}

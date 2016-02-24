@@ -17,7 +17,7 @@ package com.dataartisans.flink.dataflow.translation.wrappers.streaming.state;
 
 import com.dataartisans.flink.dataflow.translation.types.CoderTypeSerializer;
 import com.google.protobuf.ByteString;
-import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.joda.time.Instant;
 
 import java.io.IOException;
@@ -25,13 +25,13 @@ import java.util.concurrent.TimeUnit;
 
 public class StateCheckpointWriter {
 
-	private final StateBackend.CheckpointStateOutputView output;
+	private final AbstractStateBackend.CheckpointStateOutputView output;
 
-	public static StateCheckpointWriter create(StateBackend.CheckpointStateOutputView output) {
+	public static StateCheckpointWriter create(AbstractStateBackend.CheckpointStateOutputView output) {
 		return new StateCheckpointWriter(output);
 	}
 
-	private StateCheckpointWriter(StateBackend.CheckpointStateOutputView output) {
+	private StateCheckpointWriter(AbstractStateBackend.CheckpointStateOutputView output) {
 		this.output = output;
 	}
 

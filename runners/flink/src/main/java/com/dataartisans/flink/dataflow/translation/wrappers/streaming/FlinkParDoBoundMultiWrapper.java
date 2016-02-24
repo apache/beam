@@ -16,13 +16,13 @@
 package com.dataartisans.flink.dataflow.translation.wrappers.streaming;
 
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.repackaged.com.google.common.base.Preconditions;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.join.RawUnionValue;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowingInternals;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
+import com.google.common.base.Preconditions;
 import org.apache.flink.util.Collector;
 import org.joda.time.Instant;
 

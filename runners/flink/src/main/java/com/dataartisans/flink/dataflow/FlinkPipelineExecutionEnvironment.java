@@ -233,7 +233,7 @@ public class FlinkPipelineExecutionEnvironment {
 
 		// although we do not use the generated timestamps,
 		// enabling timestamps is needed for the watermarks.
-		this.flinkStreamEnv.getConfig().enableTimestamps();
+		// this.flinkStreamEnv.getConfig().enableTimestamps();
 		this.flinkStreamEnv.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
 		// for the following 2 parameters, a value of -1 means that Flink will use

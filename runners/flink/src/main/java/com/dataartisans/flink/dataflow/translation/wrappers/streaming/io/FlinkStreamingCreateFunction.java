@@ -21,6 +21,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.util.Collector;
 import org.joda.time.Instant;
 
@@ -56,5 +57,7 @@ public class FlinkStreamingCreateFunction<IN, OUT> implements FlatMapFunction<IN
 				out.collect(WindowedValue.of(outValue, Instant.now(), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
 			}
 		}
+
+		out.close();
 	}
 }

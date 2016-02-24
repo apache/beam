@@ -69,8 +69,8 @@ public class TopWikipediaSessionsITCase extends StreamingProgramTestBase impleme
 
 		Pipeline p = FlinkTestPipeline.createForStreaming();
 
-		long now = System.currentTimeMillis() + 10000;
-		System.out.println((now + 5000) / 1000);
+		Long now = (System.currentTimeMillis() + 10000) / 1000;
+		System.out.println(now);
 
 		PCollection<KV<String, Long>> output =
 			p.apply(Create.of(Arrays.asList(new TableRow().set("timestamp", now).set
@@ -104,7 +104,7 @@ public class TopWikipediaSessionsITCase extends StreamingProgramTestBase impleme
 				@Override
 				public void processElement(ProcessContext c) throws Exception {
 					TableRow row = c.element();
-					long timestamp = (Long) row.get("timestamp");
+					long timestamp = (Integer) row.get("timestamp");
 					String userName = (String) row.get("contributor_username");
 					if (userName != null) {
 						// Sets the timestamp field to be used in windowing.
@@ -119,6 +119,7 @@ public class TopWikipediaSessionsITCase extends StreamingProgramTestBase impleme
 
 						@Override
 						public void processElement(ProcessContext c) {
+							// TODO: Vacuously true.
 							if (Math.abs(c.element().hashCode()) <= Integer.MAX_VALUE * 1.0) {
 								c.output(c.element());
 							}

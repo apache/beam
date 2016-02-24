@@ -22,6 +22,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.util.*;
 import com.google.cloud.dataflow.sdk.util.state.StateInternals;
+import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import org.apache.flink.util.Collector;
 import org.joda.time.Instant;
@@ -86,6 +87,11 @@ public class FlinkParDoBoundWrapper<IN, OUT> extends FlinkAbstractParDoWrapper<I
 			@Override
 			public <T> void writePCollectionViewData(TupleTag<?> tag, Iterable<WindowedValue<T>> data, Coder<T> elemCoder) throws IOException {
 				throw new RuntimeException("writePCollectionViewData() not supported in Streaming mode.");
+			}
+
+			@Override
+			public <T> T sideInput(PCollectionView<T> view, BoundedWindow mainInputWindow) {
+				throw new RuntimeException("sideInput() not implemented.");
 			}
 		};
 	}

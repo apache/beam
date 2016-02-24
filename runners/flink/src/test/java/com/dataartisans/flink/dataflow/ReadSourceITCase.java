@@ -26,7 +26,7 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.base.Joiner;
-import org.apache.flink.shaded.com.google.common.base.Preconditions;
+import com.google.common.base.Preconditions;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
 import java.io.IOException;

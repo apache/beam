@@ -85,7 +85,8 @@ public interface FlinkPipelineOptions extends PipelineOptions, ApplicationNameOp
 	void setNumberOfExecutionRetries(Integer retries);
 
 	@Description("Sets the delay between executions. A value of {@code -1} indicates that the default value should be used.")
-	@Default.Long(-1L)
+	// TODO: Should really be -1 and the default set correctly.
+	@Default.Long(10L)
 	Long getExecutionRetryDelay();
 	void setExecutionRetryDelay(Long delay);
 }

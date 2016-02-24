@@ -17,7 +17,7 @@ package com.dataartisans.flink.dataflow.translation.wrappers.streaming;
 
 import com.dataartisans.flink.dataflow.translation.wrappers.SerializableFnAggregatorWrapper;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.repackaged.com.google.common.base.Preconditions;
+import com.google.common.base.Preconditions;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
@@ -235,8 +235,7 @@ public abstract class FlinkAbstractParDoWrapper<IN, OUTDF, OUTFL> extends RichFl
 					}
 				});
 			} catch (Exception e) {
-				Throwables.propagateIfInstanceOf(e, UserCodeException.class);
-				throw new UserCodeException(e);
+				throw UserCodeException.wrap(e);
 			}
 		}
 
