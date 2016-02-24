@@ -198,6 +198,11 @@ public class Proto2Coder<T extends Message> extends AtomicCoder<T> {
       }
       extensionHostClasses.add(extensionHost);
     }
+    // The memoized extension registry needs to be recomputed because we have mutated this object.
+    synchronized (this) {
+      memoizedExtensionRegistry = null;
+      getExtensionRegistry();
+    }
     return this;
   }
 
@@ -293,18 +298,19 @@ public class Proto2Coder<T extends Message> extends AtomicCoder<T> {
 
   private transient ExtensionRegistry memoizedExtensionRegistry;
 
-  private ExtensionRegistry getExtensionRegistry() {
+  private synchronized ExtensionRegistry getExtensionRegistry() {
     if (memoizedExtensionRegistry == null) {
-      memoizedExtensionRegistry = ExtensionRegistry.newInstance();
+      ExtensionRegistry registry = ExtensionRegistry.newInstance();
       for (Class<?> extensionHost : extensionHostClasses) {
         try {
           extensionHost
               .getDeclaredMethod("registerAllExtensions", ExtensionRegistry.class)
-              .invoke(null, memoizedExtensionRegistry);
+              .invoke(null, registry);
         } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
           throw new IllegalStateException(e);
         }
       }
+      memoizedExtensionRegistry = registry.getUnmodifiable();
     }
     return memoizedExtensionRegistry;
   }
