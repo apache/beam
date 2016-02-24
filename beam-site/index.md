@@ -31,6 +31,23 @@ Beam provides several useful abstractions that allow you to think about your dat
 
 See the [programming model documentation](https://cloud.google.com/dataflow/model/programming-model) to learn more about how Beam implements these concepts.
 
+<hr>
+<div class="row">
+  <div class="col-md-6">
+    <h3>Blog</h3>
+    <div class="list-group">
+    {% for post in site.posts %}
+    <a class="list-group-item" href="{{ post.url | prepend: site.baseurl }}">{{ post.date | date: "%b %-d, %Y" }} - {{ post.title }}</a>
+    {% endfor %}
+    </div>
+  </div>
+  <div class="col-md-6">
+    <h3>Twitter</h3>
+    <a class="twitter-timeline" href="https://twitter.com/ApacheBeam" data-widget-id="697809684422533120">Tweets by @ApacheBeam</a>
+    <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+"://platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>
+  </div>
+</div>
+
 ## Apache Project
 Apache Beam is an [Apache Software Foundation project](http://www.apache.org),
 available under the Apache v2 license.
