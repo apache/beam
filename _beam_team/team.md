@@ -7,7 +7,7 @@ members:
     email: aljoscha@apache.org
     organization: data Artisans
     roles: committer, PPMC
-    time_zone: +1
+    time_zone: "+1"
   - name: Amit Sela
     apache_id: amitsela
     email: amitsela@apache.org
