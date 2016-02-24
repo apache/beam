@@ -34,6 +34,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.cloud.dataflow.sdk.values.TupleTag;
 
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
@@ -91,6 +92,47 @@ public class ParDoSingleEvaluatorFactoryTest implements Serializable {
             WindowedValue.valueInGlobalWindow(3),
             WindowedValue.timestampedValueInGlobalWindow(4, new Instant(1000)),
             WindowedValue.valueInGlobalWindow(5, PaneInfo.ON_TIME_AND_ONLY_FIRING)));
+  }
+
+  @Test
+  public void testSideOutputToUndeclaredSideOutputSucceeds() throws Exception {
+    TestPipeline p = TestPipeline.create();
+
+    PCollection<String> input = p.apply(Create.of("foo", "bara", "bazam"));
+    final TupleTag<Integer> sideOutputTag = new TupleTag<Integer>() {};
+    PCollection<Integer> collection = input.apply(ParDo.of(new DoFn<String, Integer>() {
+      @Override public void processElement(ProcessContext c) {
+        c.sideOutput(sideOutputTag, c.element().length());
+      }
+    }));
+    CommittedBundle<String> inputBundle = InProcessBundle.unkeyed(input).commit(Instant.now());
+
+    InProcessEvaluationContext evaluationContext = mock(InProcessEvaluationContext.class);
+    UncommittedBundle<Integer> outputBundle =
+        InProcessBundle.unkeyed(collection);
+    when(evaluationContext.createBundle(inputBundle, collection)).thenReturn(outputBundle);
+    InProcessExecutionContext executionContext =
+        new InProcessExecutionContext();
+    when(evaluationContext.getExecutionContext(collection.getProducingTransformInternal()))
+        .thenReturn(executionContext);
+    CounterSet counters = new CounterSet();
+    when(evaluationContext.createCounterSet()).thenReturn(counters);
+
+    TransformEvaluator<String> evaluator =
+        new ParDoSingleEvaluatorFactory().forApplication(
+            collection.getProducingTransformInternal(), inputBundle, evaluationContext);
+
+    evaluator.processElement(WindowedValue.valueInGlobalWindow("foo"));
+    evaluator.processElement(
+        WindowedValue.timestampedValueInGlobalWindow("bara", new Instant(1000)));
+    evaluator.processElement(
+        WindowedValue.valueInGlobalWindow("bazam", PaneInfo.ON_TIME_AND_ONLY_FIRING));
+
+    InProcessTransformResult result = evaluator.finishBundle();
+    assertThat(
+        result.getOutputBundles(), Matchers.<UncommittedBundle<?>>containsInAnyOrder(outputBundle));
+    assertThat(result.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
+    assertThat(result.getCounters(), equalTo(counters));
   }
 }
 

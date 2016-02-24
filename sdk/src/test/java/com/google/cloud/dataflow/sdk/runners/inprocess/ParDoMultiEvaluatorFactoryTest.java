@@ -137,5 +137,79 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
             WindowedValue.timestampedValueInGlobalWindow(4, new Instant(1000)),
             WindowedValue.valueInGlobalWindow(5, PaneInfo.ON_TIME_AND_ONLY_FIRING)));
   }
+
+  @Test
+  public void testParDoMultiUndeclaredSideOutput() throws Exception {
+    TestPipeline p = TestPipeline.create();
+
+    PCollection<String> input = p.apply(Create.of("foo", "bara", "bazam"));
+
+    TupleTag<KV<String, Integer>> mainOutputTag = new TupleTag<KV<String, Integer>>() {};
+    final TupleTag<String> elementTag = new TupleTag<>();
+    final TupleTag<Integer> lengthTag = new TupleTag<>();
+
+    BoundMulti<String, KV<String, Integer>> pardo =
+        ParDo.of(new DoFn<String, KV<String, Integer>>() {
+          @Override
+          public void processElement(ProcessContext c) {
+            c.output(KV.<String, Integer>of(c.element(), c.element().length()));
+            c.sideOutput(elementTag, c.element());
+            c.sideOutput(lengthTag, c.element().length());
+          }
+        }).withOutputTags(mainOutputTag, TupleTagList.of(elementTag));
+    PCollectionTuple outputTuple = input.apply(pardo);
+
+    CommittedBundle<String> inputBundle = InProcessBundle.unkeyed(input).commit(Instant.now());
+
+    PCollection<KV<String, Integer>> mainOutput = outputTuple.get(mainOutputTag);
+    PCollection<String> elementOutput = outputTuple.get(elementTag);
+
+    InProcessEvaluationContext evaluationContext = mock(InProcessEvaluationContext.class);
+    UncommittedBundle<KV<String, Integer>> mainOutputBundle = InProcessBundle.unkeyed(mainOutput);
+    UncommittedBundle<String> elementOutputBundle = InProcessBundle.unkeyed(elementOutput);
+
+    when(evaluationContext.createBundle(inputBundle, mainOutput)).thenReturn(mainOutputBundle);
+    when(evaluationContext.createBundle(inputBundle, elementOutput))
+        .thenReturn(elementOutputBundle);
+
+    InProcessExecutionContext executionContext =
+        new InProcessExecutionContext();
+    when(evaluationContext.getExecutionContext(mainOutput.getProducingTransformInternal()))
+        .thenReturn(executionContext);
+    CounterSet counters = new CounterSet();
+    when(evaluationContext.createCounterSet()).thenReturn(counters);
+
+    com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluator<String> evaluator =
+        new ParDoMultiEvaluatorFactory().forApplication(
+            mainOutput.getProducingTransformInternal(), inputBundle, evaluationContext);
+
+    evaluator.processElement(WindowedValue.valueInGlobalWindow("foo"));
+    evaluator.processElement(
+        WindowedValue.timestampedValueInGlobalWindow("bara", new Instant(1000)));
+    evaluator.processElement(
+        WindowedValue.valueInGlobalWindow("bazam", PaneInfo.ON_TIME_AND_ONLY_FIRING));
+
+    InProcessTransformResult result = evaluator.finishBundle();
+    assertThat(
+        result.getOutputBundles(),
+        Matchers.<UncommittedBundle<?>>containsInAnyOrder(
+            mainOutputBundle, elementOutputBundle));
+    assertThat(result.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
+    assertThat(result.getCounters(), equalTo(counters));
+
+    assertThat(
+        mainOutputBundle.commit(Instant.now()).getElements(),
+        Matchers.<WindowedValue<KV<String, Integer>>>containsInAnyOrder(
+            WindowedValue.valueInGlobalWindow(KV.of("foo", 3)),
+            WindowedValue.timestampedValueInGlobalWindow(KV.of("bara", 4), new Instant(1000)),
+            WindowedValue.valueInGlobalWindow(
+                KV.of("bazam", 5), PaneInfo.ON_TIME_AND_ONLY_FIRING)));
+    assertThat(
+        elementOutputBundle.commit(Instant.now()).getElements(),
+        Matchers.<WindowedValue<String>>containsInAnyOrder(
+            WindowedValue.valueInGlobalWindow("foo"),
+            WindowedValue.timestampedValueInGlobalWindow("bara", new Instant(1000)),
+            WindowedValue.valueInGlobalWindow("bazam", PaneInfo.ON_TIME_AND_ONLY_FIRING)));
+  }
 }
 

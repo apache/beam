@@ -27,7 +27,10 @@ import com.google.cloud.dataflow.sdk.values.TupleTag;
 
 import org.joda.time.Instant;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 class ParDoInProcessEvaluator<T> {
@@ -61,6 +64,7 @@ class ParDoInProcessEvaluator<T> {
 
   static class BundleOutputManager implements OutputManager {
     private final Map<TupleTag<?>, UncommittedBundle<?>> bundles;
+    private final Map<TupleTag<?>, List<?>> undeclaredOutputs;
 
     public static BundleOutputManager create(Map<TupleTag<?>, UncommittedBundle<?>> outputBundles) {
       return new BundleOutputManager(outputBundles);
@@ -68,6 +72,7 @@ class ParDoInProcessEvaluator<T> {
 
     private BundleOutputManager(Map<TupleTag<?>, UncommittedBundle<?>> bundles) {
       this.bundles = bundles;
+      undeclaredOutputs = new HashMap<>();
     }
 
     @SuppressWarnings("unchecked")
@@ -75,8 +80,16 @@ class ParDoInProcessEvaluator<T> {
     public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
       @SuppressWarnings("rawtypes")
       UncommittedBundle bundle = bundles.get(tag);
-      bundle.add(output);
+      if (bundle == null) {
+        List undeclaredContents = undeclaredOutputs.get(tag);
+        if (undeclaredContents == null) {
+          undeclaredContents = new ArrayList<T>();
+          undeclaredOutputs.put(tag, undeclaredContents);
+        }
+        undeclaredContents.add(output);
+      } else {
+        bundle.add(output);
+      }
     }
   }
 }
-
