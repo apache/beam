@@ -21,16 +21,24 @@ import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.google.cloud.dataflow.sdk.coders.KvCoder;
+import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
+import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.InProcessEvaluationContext;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.PCollectionViewWriter;
 import com.google.cloud.dataflow.sdk.runners.inprocess.util.InProcessBundle;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
-import com.google.cloud.dataflow.sdk.transforms.View;
+import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
+import com.google.cloud.dataflow.sdk.transforms.Values;
+import com.google.cloud.dataflow.sdk.transforms.View.CreatePCollectionView;
+import com.google.cloud.dataflow.sdk.transforms.WithKeys;
+import com.google.cloud.dataflow.sdk.util.PCollectionViews;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
+import com.google.common.collect.ImmutableList;
 
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -45,19 +53,30 @@ public class ViewEvaluatorFactoryTest {
   @Test
   public void testInMemoryEvaluator() throws Exception {
     TestPipeline p = TestPipeline.create();
+
     PCollection<String> input = p.apply(Create.of("foo", "bar"));
-    PCollectionView<Iterable<String>> view = input.apply(View.<String>asIterable());
+    CreatePCollectionView<String, Iterable<String>> createView =
+        CreatePCollectionView.of(
+            PCollectionViews.iterableView(p, input.getWindowingStrategy(), StringUtf8Coder.of()));
+    PCollection<Iterable<String>> concat =
+        input.apply(WithKeys.<Void, String>of((Void) null))
+            .setCoder(KvCoder.of(VoidCoder.of(), StringUtf8Coder.of()))
+            .apply(GroupByKey.<Void, String>create())
+            .apply(Values.<Iterable<String>>create());
+    PCollectionView<Iterable<String>> view =
+        concat.apply(new ViewEvaluatorFactory.WriteView<>(createView));
 
     InProcessEvaluationContext context = mock(InProcessEvaluationContext.class);
     TestViewWriter<String, Iterable<String>> viewWriter = new TestViewWriter<>();
-    when(context.createPCollectionViewWriter(input, view)).thenReturn(viewWriter);
+    when(context.createPCollectionViewWriter(concat, view)).thenReturn(viewWriter);
 
     CommittedBundle<String> inputBundle = InProcessBundle.unkeyed(input).commit(Instant.now());
-    TransformEvaluator<String> evaluator = new ViewEvaluatorFactory().forApplication(
-        view.getProducingTransformInternal(), inputBundle, context);
+    TransformEvaluator<Iterable<String>> evaluator =
+        new ViewEvaluatorFactory()
+            .forApplication(view.getProducingTransformInternal(), inputBundle, context);
 
-    evaluator.processElement(WindowedValue.valueInGlobalWindow("foo"));
-    evaluator.processElement(WindowedValue.valueInGlobalWindow("bar"));
+    evaluator.processElement(
+        WindowedValue.<Iterable<String>>valueInGlobalWindow(ImmutableList.of("foo", "bar")));
     assertThat(viewWriter.latest, nullValue());
 
     evaluator.finishBundle();

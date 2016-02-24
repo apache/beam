@@ -20,10 +20,12 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.runners.inprocess.GroupByKeyEvaluatorFactory.InProcessGroupByKey;
+import com.google.cloud.dataflow.sdk.runners.inprocess.ViewEvaluatorFactory.InProcessCreatePCollectionView;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey.GroupByKeyOnly;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import com.google.cloud.dataflow.sdk.transforms.View.CreatePCollectionView;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.util.BaseExecutionContext;
@@ -60,6 +62,7 @@ public class InProcessPipelineRunner {
       defaultTransformOverrides =
           ImmutableMap.<Class<? extends PTransform>, Class<? extends PTransform>>builder()
               .put(GroupByKey.class, InProcessGroupByKey.class)
+              .put(CreatePCollectionView.class, InProcessCreatePCollectionView.class)
               .build();
 
   private static Map<Class<?>, TransformEvaluatorFactory> defaultEvaluatorFactories =
@@ -222,7 +225,7 @@ public class InProcessPipelineRunner {
      * Create a bundle whose elements will be used in a PCollectionView.
      */
     <ElemT, ViewT> PCollectionViewWriter<ElemT, ViewT> createPCollectionViewWriter(
-        PCollection<ElemT> input, PCollectionView<ViewT> output);
+        PCollection<Iterable<ElemT>> input, PCollectionView<ViewT> output);
 
     /**
      * Get the options used by this {@link Pipeline}.

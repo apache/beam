@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.transforms;
 
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
+import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.util.PCollectionViews;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -433,6 +434,10 @@ public class View {
     public static <ElemT, ViewT> CreatePCollectionView<ElemT, ViewT> of(
         PCollectionView<ViewT> view) {
       return new CreatePCollectionView<>(view);
+    }
+
+    public PCollectionView<ViewT> getView() {
+      return view;
     }
 
     @Override
