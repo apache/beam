@@ -263,6 +263,12 @@
       <version>3.1.0</version>
     </dependency>
 
+    <dependency>
+      <groupId>com.google.code.findbugs</groupId>
+      <artifactId>jsr305</artifactId>
+      <version>${jsr305.version}</version>
+    </dependency>
+
     <!-- test dependencies -->
     <dependency>
       <groupId>org.hamcrest</groupId>
