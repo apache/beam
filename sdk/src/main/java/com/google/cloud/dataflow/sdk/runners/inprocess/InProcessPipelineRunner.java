@@ -19,6 +19,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
+import com.google.cloud.dataflow.sdk.runners.inprocess.GroupByKeyEvaluatorFactory.InProcessGroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey.GroupByKeyOnly;
@@ -38,6 +39,7 @@ import com.google.cloud.dataflow.sdk.util.state.StateInternals;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.PValue;
+import com.google.common.collect.ImmutableMap;
 
 import org.joda.time.Instant;
 
@@ -53,6 +55,13 @@ import javax.annotation.Nullable;
  */
 @Experimental
 public class InProcessPipelineRunner {
+  @SuppressWarnings({"rawtypes", "unused"})
+  private static Map<Class<? extends PTransform>, Class<? extends PTransform>>
+      defaultTransformOverrides =
+          ImmutableMap.<Class<? extends PTransform>, Class<? extends PTransform>>builder()
+              .put(GroupByKey.class, InProcessGroupByKey.class)
+              .build();
+
   private static Map<Class<?>, TransformEvaluatorFactory> defaultEvaluatorFactories =
       new ConcurrentHashMap<>();
 

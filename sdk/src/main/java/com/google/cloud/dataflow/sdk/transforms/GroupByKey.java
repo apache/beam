@@ -296,7 +296,7 @@ public class GroupByKey<K, V>
   /**
    * Returns the {@code Coder} of the values of the input to this transform.
    */
-  static <K, V> Coder<V> getInputValueCoder(Coder<KV<K, V>> inputCoder) {
+  public static <K, V> Coder<V> getInputValueCoder(Coder<KV<K, V>> inputCoder) {
     return getInputKvCoder(inputCoder).getValueCoder();
   }
 

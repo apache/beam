@@ -28,8 +28,9 @@ import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.U
 import com.google.cloud.dataflow.sdk.runners.inprocess.util.InProcessBundle;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
-import com.google.cloud.dataflow.sdk.transforms.GroupByKey.GroupByKeyOnly;
-import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
+import com.google.cloud.dataflow.sdk.util.KeyedWorkItem;
+import com.google.cloud.dataflow.sdk.util.KeyedWorkItems;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -58,20 +59,22 @@ public class GroupByKeyEvaluatorFactoryTest {
     KV<String, Integer> firstBar = KV.of("bar", 22);
     KV<String, Integer> secondBar = KV.of("bar", 12);
     KV<String, Integer> firstBaz = KV.of("baz", Integer.MAX_VALUE);
-    PCollection<KV<String, Integer>> kvs =
+    PCollection<KV<String, Integer>> values =
         p.apply(Create.of(firstFoo, firstBar, secondFoo, firstBaz, secondBar, thirdFoo));
-    PCollection<KV<String, Iterable<Integer>>> groupedKvs =
-        kvs.apply(new GroupByKeyOnly<String, Integer>());
+    PCollection<KV<String, WindowedValue<Integer>>> kvs =
+        values.apply(new GroupByKey.ReifyTimestampsAndWindows<String, Integer>());
+    PCollection<KeyedWorkItem<String, Integer>> groupedKvs =
+        kvs.apply(new GroupByKeyEvaluatorFactory.InProcessGroupByKeyOnly<String, Integer>());
 
-    CommittedBundle<KV<String, Integer>> inputBundle =
-        InProcessBundle.unkeyed(kvs).commit(BoundedWindow.TIMESTAMP_MAX_VALUE);
+    CommittedBundle<KV<String, WindowedValue<Integer>>> inputBundle =
+        InProcessBundle.unkeyed(kvs).commit(Instant.now());
     InProcessEvaluationContext evaluationContext = mock(InProcessEvaluationContext.class);
 
-    UncommittedBundle<KV<String, Iterable<Integer>>> fooBundle =
+    UncommittedBundle<KeyedWorkItem<String, Integer>> fooBundle =
         InProcessBundle.keyed(groupedKvs, "foo");
-    UncommittedBundle<KV<String, Iterable<Integer>>> barBundle =
+    UncommittedBundle<KeyedWorkItem<String, Integer>> barBundle =
         InProcessBundle.keyed(groupedKvs, "bar");
-    UncommittedBundle<KV<String, Iterable<Integer>>> bazBundle =
+    UncommittedBundle<KeyedWorkItem<String, Integer>> bazBundle =
         InProcessBundle.keyed(groupedKvs, "baz");
 
     when(evaluationContext.createKeyedBundle(inputBundle, "foo", groupedKvs)).thenReturn(fooBundle);
@@ -80,41 +83,64 @@ public class GroupByKeyEvaluatorFactoryTest {
 
     // The input to a GroupByKey is assumed to be a KvCoder
     @SuppressWarnings("unchecked")
-    Coder<String> keyCoder = ((KvCoder<String, Integer>) kvs.getCoder()).getKeyCoder();
-    TransformEvaluator<KV<String, Integer>> evaluator =
-        new GroupByKeyEvaluatorFactory().forApplication(
-            groupedKvs.getProducingTransformInternal(), inputBundle, evaluationContext);
+    Coder<String> keyCoder =
+        ((KvCoder<String, WindowedValue<Integer>>) kvs.getCoder()).getKeyCoder();
+    TransformEvaluator<KV<String, WindowedValue<Integer>>> evaluator =
+        new GroupByKeyEvaluatorFactory()
+            .forApplication(
+                groupedKvs.getProducingTransformInternal(), inputBundle, evaluationContext);
 
-    evaluator.processElement(WindowedValue.valueInGlobalWindow(firstFoo));
-    evaluator.processElement(WindowedValue.valueInGlobalWindow(secondFoo));
-    evaluator.processElement(WindowedValue.valueInGlobalWindow(thirdFoo));
-    evaluator.processElement(WindowedValue.valueInGlobalWindow(firstBar));
-    evaluator.processElement(WindowedValue.valueInGlobalWindow(secondBar));
-    evaluator.processElement(WindowedValue.valueInGlobalWindow(firstBaz));
+    evaluator.processElement(WindowedValue.valueInEmptyWindows(gwValue(firstFoo)));
+    evaluator.processElement(WindowedValue.valueInEmptyWindows(gwValue(secondFoo)));
+    evaluator.processElement(WindowedValue.valueInEmptyWindows(gwValue(thirdFoo)));
+    evaluator.processElement(WindowedValue.valueInEmptyWindows(gwValue(firstBar)));
+    evaluator.processElement(WindowedValue.valueInEmptyWindows(gwValue(secondBar)));
+    evaluator.processElement(WindowedValue.valueInEmptyWindows(gwValue(firstBaz)));
 
     evaluator.finishBundle();
 
     assertThat(
         fooBundle.commit(Instant.now()).getElements(),
-        contains(new KIterVMatcher<String, Integer>(
-            KV.<String, Iterable<Integer>>of("foo", ImmutableSet.of(-1, 1, 3)), keyCoder)));
+        contains(
+            new KeyedWorkItemMatcher<String, Integer>(
+                KeyedWorkItems.elementsWorkItem(
+                    "foo",
+                    ImmutableSet.of(
+                        WindowedValue.valueInGlobalWindow(-1),
+                        WindowedValue.valueInGlobalWindow(1),
+                        WindowedValue.valueInGlobalWindow(3))),
+                keyCoder)));
     assertThat(
         barBundle.commit(Instant.now()).getElements(),
-        contains(new KIterVMatcher<String, Integer>(
-            KV.<String, Iterable<Integer>>of("bar", ImmutableSet.of(12, 22)), keyCoder)));
+        contains(
+            new KeyedWorkItemMatcher<String, Integer>(
+                KeyedWorkItems.elementsWorkItem(
+                    "bar",
+                    ImmutableSet.of(
+                        WindowedValue.valueInGlobalWindow(12),
+                        WindowedValue.valueInGlobalWindow(22))),
+                keyCoder)));
     assertThat(
         bazBundle.commit(Instant.now()).getElements(),
-        contains(new KIterVMatcher<String, Integer>(
-            KV.<String, Iterable<Integer>>of("baz", ImmutableSet.of(Integer.MAX_VALUE)),
-            keyCoder)));
+        contains(
+            new KeyedWorkItemMatcher<String, Integer>(
+                KeyedWorkItems.elementsWorkItem(
+                    "baz",
+                    ImmutableSet.of(WindowedValue.valueInGlobalWindow(Integer.MAX_VALUE))),
+                keyCoder)));
   }
 
-  private static class KIterVMatcher<K, V> extends BaseMatcher<WindowedValue<KV<K, Iterable<V>>>> {
-    private final KV<K, Iterable<V>> myKv;
+  private <K, V> KV<K, WindowedValue<V>> gwValue(KV<K, V> kv) {
+    return KV.of(kv.getKey(), WindowedValue.valueInGlobalWindow(kv.getValue()));
+  }
+
+  private static class KeyedWorkItemMatcher<K, V>
+      extends BaseMatcher<WindowedValue<KeyedWorkItem<K, V>>> {
+    private final KeyedWorkItem<K, V> myWorkItem;
     private final Coder<K> keyCoder;
 
-    public KIterVMatcher(KV<K, Iterable<V>> myKv, Coder<K> keyCoder) {
-      this.myKv = myKv;
+    public KeyedWorkItemMatcher(KeyedWorkItem<K, V> myWorkItem, Coder<K> keyCoder) {
+      this.myWorkItem = myWorkItem;
       this.keyCoder = keyCoder;
     }
 
@@ -123,20 +149,20 @@ public class GroupByKeyEvaluatorFactoryTest {
       if (item == null || !(item instanceof WindowedValue)) {
         return false;
       }
-      @SuppressWarnings("unchecked")
-      WindowedValue<KV<K, Iterable<V>>> that = (WindowedValue<KV<K, Iterable<V>>>) item;
-      Multiset<V> myValues = HashMultiset.create();
-      Multiset<V> thatValues = HashMultiset.create();
-      for (V value : myKv.getValue()) {
+      WindowedValue<KeyedWorkItem<K, V>> that = (WindowedValue<KeyedWorkItem<K, V>>) item;
+      Multiset<WindowedValue<V>> myValues = HashMultiset.create();
+      Multiset<WindowedValue<V>> thatValues = HashMultiset.create();
+      for (WindowedValue<V> value : myWorkItem.elementsIterable()) {
         myValues.add(value);
       }
-      for (V value : that.getValue().getValue()) {
+      for (WindowedValue<V> value : that.getValue().elementsIterable()) {
         thatValues.add(value);
       }
       try {
         return myValues.equals(thatValues)
-            && keyCoder.structuralValue(myKv.getKey())
-                   .equals(keyCoder.structuralValue(that.getValue().getKey()));
+            && keyCoder
+                .structuralValue(myWorkItem.key())
+                .equals(keyCoder.structuralValue(that.getValue().key()));
       } catch (Exception e) {
         return false;
       }
@@ -144,11 +170,11 @@ public class GroupByKeyEvaluatorFactoryTest {
 
     @Override
     public void describeTo(Description description) {
-      description.appendText("KV<K, Iterable<V>> containing key ")
-          .appendValue(myKv.getKey())
+      description
+          .appendText("KeyedWorkItem<K, V> containing key ")
+          .appendValue(myWorkItem.key())
           .appendText(" and values ")
-          .appendValueList("[", ", ", "]", myKv.getValue());
+          .appendValueList("[", ", ", "]", myWorkItem.elementsIterable());
     }
   }
 }
-
