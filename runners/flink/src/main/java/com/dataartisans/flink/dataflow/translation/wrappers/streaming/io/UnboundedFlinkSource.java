@@ -19,7 +19,7 @@ import com.dataartisans.flink.dataflow.FlinkPipelineRunner;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.io.UnboundedSource;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.repackaged.com.google.common.base.Preconditions;
+import com.google.common.base.Preconditions;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 
 import javax.annotation.Nullable;

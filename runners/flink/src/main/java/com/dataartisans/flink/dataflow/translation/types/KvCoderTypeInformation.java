@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.shaded.com.google.common.base.Preconditions;
+import com.google.common.base.Preconditions;
 
 import java.util.List;
 

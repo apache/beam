@@ -3,29 +3,29 @@
 
 	Copyright 2015 Data Artisans GmbH
 
-	Licensed under the Apache License, Version 2.0 (the "License");
-	you may not use this file except in compliance with the License.
-	You may obtain a copy of the License at
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
 
-		http://www.apache.org/licenses/LICENSE-2.0
+        http://www.apache.org/licenses/LICENSE-2.0
 
-	Unless required by applicable law or agreed to in writing, software
-	distributed under the License is distributed on an "AS IS" BASIS,
-	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-	See the License for the specific language governing permissions and
-	limitations under the License.
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
 
 -->
 <project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
-	xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+		 xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>com.dataartisans</groupId>
 	<artifactId>flink-dataflow</artifactId>
-	<version>0.2</version>
+	<version>0.3-SNAPSHOT</version>
 
-	<name>Flink Dataflow Runner</name>
+	<name>Flink Beam Runner</name>
 	<packaging>jar</packaging>
 
 	<inceptionYear>2015</inceptionYear>
@@ -41,12 +41,13 @@
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-			<flink.version>0.10.1</flink.version>
-			<!-- Default parameters for mvn exec:exec -->
-			<clazz>com.dataartisans.flink.dataflow.examples.WordCount</clazz>
-			<input>kinglear.txt</input>
-			<output>wordcounts.txt</output>
-			<parallelism>1</parallelism>
+		<flink.version>1.0-SNAPSHOT</flink.version>
+		<beam.version>1.5.0-SNAPSHOT</beam.version>
+		<!-- Default parameters for mvn exec:exec -->
+		<clazz>com.dataartisans.flink.dataflow.examples.WordCount</clazz>
+		<input>kinglear.txt</input>
+		<output>wordcounts.txt</output>
+		<parallelism>1</parallelism>
 	</properties>
 
 	<repositories>
@@ -56,9 +57,11 @@
 			<url>https://repository.apache.org/content/repositories/snapshots/</url>
 			<releases>
 				<enabled>false</enabled>
+				<updatePolicy>never</updatePolicy>
 			</releases>
 			<snapshots>
-				<enabled>true</enabled>
+				<enabled>false</enabled>
+				<updatePolicy>never</updatePolicy>
 			</snapshots>
 		</repository>
 	</repositories>
@@ -71,7 +74,12 @@
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java</artifactId>
+			<artifactId>flink-streaming-java_2.10</artifactId>
+			<version>${flink.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-streaming-java_2.10</artifactId>
 			<version>${flink.version}</version>
 			<scope>test</scope>
 			<type>test-jar</type>
@@ -83,48 +91,35 @@
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-avro</artifactId>
+			<artifactId>flink-avro_2.10</artifactId>
 			<version>${flink.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-clients</artifactId>
+			<artifactId>flink-clients_2.10</artifactId>
 			<version>${flink.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils</artifactId>
+			<artifactId>flink-test-utils_2.10</artifactId>
 			<version>${flink.version}</version>
 			<scope>test</scope>
 		</dependency>
-
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-kafka-0.8_2.10</artifactId>
+			<version>${flink.version}</version>
+		</dependency>
 		<dependency>
 			<groupId>com.google.cloud.dataflow</groupId>
 			<artifactId>google-cloud-dataflow-java-sdk-all</artifactId>
-			<version>1.0.0</version>
+			<version>${beam.version}</version>
 			<exclusions>
 				<exclusion>
 					<groupId>org.slf4j</groupId>
 					<artifactId>slf4j-jdk14</artifactId>
 				</exclusion>
 			</exclusions>
-		</dependency>
-
-		<dependency>
-			<groupId>com.google.cloud.dataflow</groupId>
-			<artifactId>google-cloud-dataflow-java-examples-all</artifactId>
-			<version>1.0.0</version>
-			<exclusions>
-				<exclusion>
-					<groupId>org.slf4j</groupId>
-					<artifactId>slf4j-jdk14</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-kafka</artifactId>
-			<version>${flink.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.mockito</groupId>
@@ -133,19 +128,20 @@
 			<scope>test</scope>
 		</dependency>
 		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java</artifactId>
-			<version>${flink.version}</version>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+			<version>19.0</version>
 		</dependency>
 	</dependencies>
 
 	<build>
 		<plugins>
+
 			<!-- JAR Packaging -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
-				<version>2.4</version><!--$NO-MVN-MAN-VER$-->
+				<version>2.6</version><!--$NO-MVN-MAN-VER$-->
 				<configuration>
 					<archive>
 						<manifest>
@@ -230,20 +226,20 @@
 			</plugin>
 
 			<plugin>
-			  <groupId>org.codehaus.mojo</groupId>
-			  <artifactId>exec-maven-plugin</artifactId>
-			  <version>1.2.1</version>
-			  <configuration>
-				<executable>java</executable>
-				<arguments>
-				  <argument>-classpath</argument>
-				  <classpath />
-				  <argument>${clazz}</argument>
-				  <argument>--input=${input}</argument>
-				  <argument>--output=${output}</argument>
-				  <argument>--parallelism=${parallelism}</argument>
-				</arguments>
-			  </configuration>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>exec-maven-plugin</artifactId>
+				<version>1.2.1</version>
+				<configuration>
+					<executable>java</executable>
+					<arguments>
+						<argument>-classpath</argument>
+						<classpath/>
+						<argument>${clazz}</argument>
+						<argument>--input=${input}</argument>
+						<argument>--output=${output}</argument>
+						<argument>--parallelism=${parallelism}</argument>
+					</arguments>
+				</configuration>
 			</plugin>
 
 		</plugins>

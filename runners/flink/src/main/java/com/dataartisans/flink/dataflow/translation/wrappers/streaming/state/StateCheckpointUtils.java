@@ -19,6 +19,7 @@ import com.dataartisans.flink.dataflow.translation.types.CoderTypeSerializer;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFn;
 import com.google.cloud.dataflow.sdk.util.TimeDomain;
 import com.google.cloud.dataflow.sdk.util.TimerInternals;
 import com.google.cloud.dataflow.sdk.util.state.StateNamespace;
@@ -53,7 +54,7 @@ public class StateCheckpointUtils {
 
 	public static <K> Map<K, FlinkStateInternals<K>> decodeState(
 			StateCheckpointReader reader,
-			Combine.KeyedCombineFn<K, ?, ?, ?> combineFn,
+			OutputTimeFn<? super BoundedWindow> outputTimeFn,
 			Coder<K> keyCoder,
 			Coder<? extends BoundedWindow> windowCoder,
 			ClassLoader classLoader) throws IOException, ClassNotFoundException {
@@ -70,7 +71,7 @@ public class StateCheckpointUtils {
 
 			//decode the state associated to the key.
 			FlinkStateInternals<K> stateForKey =
-					new FlinkStateInternals<>(key, keyCoder, windowCoder, combineFn);
+					new FlinkStateInternals<>(key, keyCoder, windowCoder, outputTimeFn);
 			stateForKey.restoreState(reader, classLoader);
 			perKeyStateInternals.put(key, stateForKey);
 		}

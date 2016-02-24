@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeinfo.AtomicType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.shaded.com.google.common.base.Preconditions;
+import com.google.common.base.Preconditions;
 
 /**
  * Flink {@link org.apache.flink.api.common.typeinfo.TypeInformation} for
@@ -34,7 +34,6 @@ public class CoderTypeInformation<T> extends TypeInformation<T> implements Atomi
 
 	private final Coder<T> coder;
 
-	@SuppressWarnings("unchecked")
 	public CoderTypeInformation(Coder<T> coder) {
 		Preconditions.checkNotNull(coder);
 		this.coder = coder;

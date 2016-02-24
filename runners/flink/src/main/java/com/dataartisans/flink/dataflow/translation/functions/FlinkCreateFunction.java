@@ -54,5 +54,7 @@ public class FlinkCreateFunction<IN, OUT> implements FlatMapFunction<IN, OUT> {
 				out.collect(outValue);
 			}
 		}
+
+		out.close();
 	}
 }
