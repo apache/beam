@@ -15,6 +15,7 @@
  */
 package com.google.cloud.dataflow.sdk.util;
 
+import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey.GroupByKeyOnly;
@@ -203,7 +204,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       TimerInternals timerInternals,
       WindowingInternals<?, KV<K, OutputT>> windowingInternals,
       Aggregator<Long, Long> droppedDueToClosedWindow,
-      ReduceFn<K, InputT, OutputT, W> reduceFn) {
+      ReduceFn<K, InputT, OutputT, W> reduceFn,
+      PipelineOptions options) {
     this.key = key;
     this.timerInternals = timerInternals;
     this.paneInfoTracker = new PaneInfoTracker(timerInternals);
@@ -224,7 +226,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
 
     this.contextFactory =
         new ReduceFnContextFactory<K, InputT, OutputT, W>(key, reduceFn, this.windowingStrategy,
-            stateInternals, this.activeWindows, timerInternals);
+            stateInternals, this.activeWindows, timerInternals, windowingInternals, options);
 
     this.watermarkHold = new WatermarkHold<>(timerInternals, windowingStrategy);
     this.triggerRunner =

@@ -540,6 +540,11 @@ public abstract class DoFnRunnerBase<InputT, OutputT> implements DoFnRunner<Inpu
         public StateInternals<?> stateInternals() {
           return context.stepContext.stateInternals();
         }
+
+        @Override
+        public <T> T sideInput(PCollectionView<T> view, BoundedWindow mainInputWindow) {
+          return context.sideInput(view, mainInputWindow);
+        }
       };
     }
 

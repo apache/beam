@@ -91,14 +91,15 @@ public class TriggerRunner<W extends BoundedWindow> {
     if (isFinishedSetNeeded()) {
       state.access(FINISHED_BITS_TAG).readLater();
     }
-    rootTrigger.getSpec().prefetchOnElement(contextFactory.createStateContext(window, rootTrigger));
+    rootTrigger.getSpec().prefetchOnElement(
+        contextFactory.createStateAccessor(window, rootTrigger));
   }
 
   public void prefetchOnFire(W window, StateAccessor<?> state) {
     if (isFinishedSetNeeded()) {
       state.access(FINISHED_BITS_TAG).readLater();
     }
-    rootTrigger.getSpec().prefetchOnFire(contextFactory.createStateContext(window, rootTrigger));
+    rootTrigger.getSpec().prefetchOnFire(contextFactory.createStateAccessor(window, rootTrigger));
   }
 
   public void prefetchShouldFire(W window, StateAccessor<?> state) {
@@ -106,7 +107,7 @@ public class TriggerRunner<W extends BoundedWindow> {
       state.access(FINISHED_BITS_TAG).readLater();
     }
     rootTrigger.getSpec().prefetchShouldFire(
-        contextFactory.createStateContext(window, rootTrigger));
+        contextFactory.createStateAccessor(window, rootTrigger));
   }
 
   /**
@@ -130,7 +131,7 @@ public class TriggerRunner<W extends BoundedWindow> {
         value.readLater();
       }
     }
-    rootTrigger.getSpec().prefetchOnMerge(contextFactory.createMergingStateContext(
+    rootTrigger.getSpec().prefetchOnMerge(contextFactory.createMergingStateAccessor(
         window, mergingWindows, rootTrigger));
   }
 

@@ -26,9 +26,12 @@ import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
+import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
+import com.google.cloud.dataflow.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
@@ -47,6 +50,7 @@ import com.google.cloud.dataflow.sdk.util.state.StateNamespaces;
 import com.google.cloud.dataflow.sdk.util.state.StateTag;
 import com.google.cloud.dataflow.sdk.util.state.WatermarkHoldState;
 import com.google.cloud.dataflow.sdk.values.KV;
+import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.base.Function;
@@ -99,6 +103,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   private final Coder<OutputT> outputCoder;
   private final WindowingStrategy<Object, W> objectStrategy;
   private final ReduceFn<String, InputT, OutputT, W> reduceFn;
+  private final PipelineOptions options;
 
   /**
    * If true, the output watermark is automatically advanced to the latest possible
@@ -118,7 +123,9 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     return new ReduceFnTester<Integer, Iterable<Integer>, W>(
         windowingStrategy,
         SystemReduceFn.<String, Integer, W>buffering(VarIntCoder.of()),
-        IterableCoder.of(VarIntCoder.of()));
+        IterableCoder.of(VarIntCoder.of()),
+        PipelineOptionsFactory.create(),
+        NullSideInputReader.empty());
   }
 
   public static <W extends BoundedWindow> ReduceFnTester<Integer, Iterable<Integer>, W>
@@ -147,9 +154,30 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     return new ReduceFnTester<Integer, OutputT, W>(
         strategy,
         SystemReduceFn.<String, Integer, AccumT, OutputT, W>combining(StringUtf8Coder.of(), fn),
-        outputCoder);
+        outputCoder,
+        PipelineOptionsFactory.create(),
+        NullSideInputReader.empty());
   }
 
+  public static <W extends BoundedWindow, AccumT, OutputT> ReduceFnTester<Integer, OutputT, W>
+  combining(WindowingStrategy<?, W> strategy,
+      KeyedCombineFnWithContext<String, Integer, AccumT, OutputT> combineFn,
+      Coder<OutputT> outputCoder,
+      PipelineOptions options,
+      SideInputReader sideInputReader) throws Exception {
+    CoderRegistry registry = new CoderRegistry();
+    registry.registerStandardCoders();
+    AppliedCombineFn<String, Integer, AccumT, OutputT> fn =
+        AppliedCombineFn.<String, Integer, AccumT, OutputT>withInputCoder(
+            combineFn, registry, KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
+
+    return new ReduceFnTester<Integer, OutputT, W>(
+        strategy,
+        SystemReduceFn.<String, Integer, AccumT, OutputT, W>combining(StringUtf8Coder.of(), fn),
+        outputCoder,
+        options,
+        sideInputReader);
+  }
   public static <W extends BoundedWindow, AccumT, OutputT> ReduceFnTester<Integer, OutputT, W>
       combining(WindowFn<?, W> windowFn, Trigger<W> trigger, AccumulationMode mode,
           KeyedCombineFn<String, Integer, AccumT, OutputT> combineFn, Coder<OutputT> outputCoder,
@@ -163,17 +191,19 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   }
 
   private ReduceFnTester(WindowingStrategy<?, W> wildcardStrategy,
-      ReduceFn<String, InputT, OutputT, W> reduceFn, Coder<OutputT> outputCoder) throws Exception {
+      ReduceFn<String, InputT, OutputT, W> reduceFn, Coder<OutputT> outputCoder,
+      PipelineOptions options, SideInputReader sideInputReader) throws Exception {
     @SuppressWarnings("unchecked")
     WindowingStrategy<Object, W> objectStrategy = (WindowingStrategy<Object, W>) wildcardStrategy;
 
     this.objectStrategy = objectStrategy;
     this.reduceFn = reduceFn;
     this.windowFn = objectStrategy.getWindowFn();
-    this.windowingInternals = new TestWindowingInternals();
+    this.windowingInternals = new TestWindowingInternals(sideInputReader);
     this.outputCoder = outputCoder;
     this.autoAdvanceOutputWatermark = true;
-    executableTrigger = wildcardStrategy.getTrigger();
+    this.executableTrigger = wildcardStrategy.getTrigger();
+    this.options = options;
   }
 
   public void setAutoAdvanceOutputWatermark(boolean autoAdvanceOutputWatermark) {
@@ -193,7 +223,8 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
         timerInternals,
         windowingInternals,
         droppedDueToClosedWindow,
-        reduceFn);
+        reduceFn,
+        options);
   }
 
   public ExecutableTrigger<W> getTrigger() {
@@ -432,6 +463,11 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
    */
   private class TestWindowingInternals implements WindowingInternals<InputT, KV<String, OutputT>> {
     private List<WindowedValue<KV<String, OutputT>>> outputs = new ArrayList<>();
+    private SideInputReader sideInputReader;
+
+    private TestWindowingInternals(SideInputReader sideInputReader) {
+      this.sideInputReader = sideInputReader;
+    }
 
     @Override
     public void outputWindowedValue(KV<String, OutputT> output, Instant timestamp,
@@ -475,6 +511,16 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
       TestInMemoryStateInternals<Object> untypedStateInternals =
           (TestInMemoryStateInternals) stateInternals;
       return untypedStateInternals;
+    }
+
+    @Override
+    public <T> T sideInput(PCollectionView<T> view, BoundedWindow mainInputWindow) {
+      if (!sideInputReader.contains(view)) {
+        throw new IllegalArgumentException("calling sideInput() with unknown view");
+      }
+      BoundedWindow sideInputWindow =
+          view.getWindowingStrategyInternal().getWindowFn().getSideInputWindow(mainInputWindow);
+      return sideInputReader.get(view, sideInputWindow);
     }
   }
 

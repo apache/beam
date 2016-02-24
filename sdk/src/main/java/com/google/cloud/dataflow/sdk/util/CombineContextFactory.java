@@ -19,6 +19,7 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.CombineWithContext.Context;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.util.state.StateContext;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 
 /**
@@ -49,6 +50,23 @@ public class CombineContextFactory {
    * Returns a {@code Combine.Context} that wraps a {@code DoFn.ProcessContext}.
    */
   public static Context createFromProcessContext(final DoFn<?, ?>.ProcessContext c) {
+    return new Context() {
+      @Override
+      public PipelineOptions getPipelineOptions() {
+        return c.getPipelineOptions();
+      }
+
+      @Override
+      public <T> T sideInput(PCollectionView<T> view) {
+        return c.sideInput(view);
+      }
+    };
+  }
+
+  /**
+   * Returns a {@code Combine.Context} that wraps a {@link StateContext}.
+   */
+  public static Context createFromStateContext(final StateContext<?> c) {
     return new Context() {
       @Override
       public PipelineOptions getPipelineOptions() {

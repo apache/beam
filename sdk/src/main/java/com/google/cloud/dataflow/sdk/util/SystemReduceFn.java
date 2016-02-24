@@ -15,12 +15,11 @@
  */
 package com.google.cloud.dataflow.sdk.util;
 
-import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
-import com.google.cloud.dataflow.sdk.transforms.CombineWithContext.RequiresContextInternal;
+import com.google.cloud.dataflow.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.state.AccumulatorCombiningState;
@@ -74,15 +73,19 @@ public abstract class SystemReduceFn<K, InputT, AccumT, OutputT, W extends Bound
       AccumT, OutputT, W>
       combining(
           final Coder<K> keyCoder, final AppliedCombineFn<K, InputT, AccumT, OutputT> combineFn) {
-    checkArgument(
-        !(combineFn.getFn() instanceof RequiresContextInternal),
-        "Combiner lifting is not supported for combine functions with contexts: %s",
-        combineFn.getFn().getClass().getName());
-    final StateTag<K, AccumulatorCombiningState<InputT, AccumT, OutputT>> bufferTag =
-        StateTags.makeSystemTagInternal(
+    final StateTag<K, AccumulatorCombiningState<InputT, AccumT, OutputT>> bufferTag;
+    if (combineFn.getFn() instanceof KeyedCombineFnWithContext) {
+      bufferTag = StateTags.makeSystemTagInternal(
+          StateTags.<K, InputT, AccumT, OutputT>keyedCombiningValueWithContext(
+              BUFFER_NAME, combineFn.getAccumulatorCoder(),
+              (KeyedCombineFnWithContext<K, InputT, AccumT, OutputT>) combineFn.getFn()));
+
+    } else {
+      bufferTag = StateTags.makeSystemTagInternal(
             StateTags.<K, InputT, AccumT, OutputT>keyedCombiningValue(
                 BUFFER_NAME, combineFn.getAccumulatorCoder(),
                 (KeyedCombineFn<K, InputT, AccumT, OutputT>) combineFn.getFn()));
+    }
     return new SystemReduceFn<K, InputT, AccumT, OutputT, W>(bufferTag) {
       @Override
       public void prefetchOnMerge(MergingStateAccessor<K, W> state) throws Exception {

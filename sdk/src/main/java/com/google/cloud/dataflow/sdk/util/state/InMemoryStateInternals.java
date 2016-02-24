@@ -20,8 +20,10 @@ import com.google.cloud.dataflow.sdk.annotations.Experimental.Kind;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
+import com.google.cloud.dataflow.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFn;
+import com.google.cloud.dataflow.sdk.util.CombineFnUtil;
 import com.google.cloud.dataflow.sdk.util.state.StateTag.StateBinder;
 
 import org.joda.time.Instant;
@@ -62,8 +64,8 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
 
   protected final StateTable<K> inMemoryState = new StateTable<K>() {
     @Override
-    protected StateBinder<K> binderForNamespace(final StateNamespace namespace) {
-      return new InMemoryStateBinder<K>(key);
+    protected StateBinder<K> binderForNamespace(StateNamespace namespace, StateContext<?> c) {
+      return new InMemoryStateBinder<K>(key, c);
     }
   };
 
@@ -81,7 +83,13 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
 
   @Override
   public <T extends State> T state(StateNamespace namespace, StateTag<? super K, T> address) {
-    return inMemoryState.get(namespace, address);
+    return inMemoryState.get(namespace, address, StateContexts.nullContext());
+  }
+
+  @Override
+  public <T extends State> T state(
+      StateNamespace namespace, StateTag<? super K, T> address, final StateContext<?> c) {
+    return inMemoryState.get(namespace, address, c);
   }
 
   /**
@@ -89,9 +97,11 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
    */
   static class InMemoryStateBinder<K> implements StateBinder<K> {
     private final K key;
+    private final StateContext<?> c;
 
-    InMemoryStateBinder(K key) {
+    InMemoryStateBinder(K key, StateContext<?> c) {
       this.key = key;
+      this.c = c;
     }
 
     @Override
@@ -109,8 +119,8 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     @Override
     public <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT>
         bindCombiningValue(
-            StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>>
-            address, Coder<AccumT> accumCoder,
+            StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
+            Coder<AccumT> accumCoder,
             final CombineFn<InputT, AccumT, OutputT> combineFn) {
       return new InMemoryCombiningValue<K, InputT, AccumT, OutputT>(key, combineFn.<K>asKeyedFn());
     }
@@ -125,10 +135,19 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     @Override
     public <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT>
         bindKeyedCombiningValue(
-            StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>>
-            address, Coder<AccumT> accumCoder,
+            StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
+            Coder<AccumT> accumCoder,
             KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn) {
       return new InMemoryCombiningValue<K, InputT, AccumT, OutputT>(key, combineFn);
+    }
+
+    @Override
+    public <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT>
+        bindKeyedCombiningValueWithContext(
+            StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
+            Coder<AccumT> accumCoder,
+            KeyedCombineFnWithContext<? super K, InputT, AccumT, OutputT> combineFn) {
+      return bindKeyedCombiningValue(address, accumCoder, CombineFnUtil.bindContext(combineFn, c));
     }
   }
 

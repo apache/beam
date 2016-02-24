@@ -80,11 +80,11 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     return new OnMergeContextImpl(window, timers, rootTrigger, finishedSet, finishedSets);
   }
 
-  public StateAccessor<?> createStateContext(W window, ExecutableTrigger<W> trigger) {
+  public StateAccessor<?> createStateAccessor(W window, ExecutableTrigger<W> trigger) {
     return new StateAccessorImpl(window, trigger);
   }
 
-  public MergingStateAccessor<?, W> createMergingStateContext(
+  public MergingStateAccessor<?, W> createMergingStateAccessor(
       W mergeResult, Collection<W> mergingWindows, ExecutableTrigger<W> trigger) {
     return new MergingStateAccessorImpl(trigger, mergingWindows, mergeResult);
   }

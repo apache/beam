@@ -45,4 +45,11 @@ public interface StateInternals<K> {
    * Return the state associated with {@code address} in the specified {@code namespace}.
    */
   <T extends State> T state(StateNamespace namespace, StateTag<? super K, T> address);
+
+  /**
+   * Return the state associated with {@code address} in the specified {@code namespace}
+   * with the {@link StateContext}.
+   */
+  <T extends State> T state(
+      StateNamespace namespace, StateTag<? super K, T> address, StateContext<?> c);
 }

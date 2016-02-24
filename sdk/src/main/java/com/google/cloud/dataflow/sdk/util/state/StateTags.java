@@ -22,6 +22,7 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
+import com.google.cloud.dataflow.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFn;
 import com.google.common.base.MoreObjects;
@@ -87,6 +88,24 @@ public class StateTags {
       keyedCombiningValue(String id, Coder<AccumT> accumCoder,
           KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn) {
     return keyedCombiningValueInternal(id, accumCoder, combineFn);
+  }
+
+  /**
+   * Create a state tag for values that use a {@link KeyedCombineFnWithContext} to automatically
+   * merge multiple {@code InputT}s into a single {@code OutputT}. The key provided to the
+   * {@link KeyedCombineFn} comes from the keyed {@link StateAccessor}, the context provided comes
+   * from the {@link StateContext}.
+   */
+  public static <K, InputT, AccumT, OutputT>
+      StateTag<K, AccumulatorCombiningState<InputT, AccumT, OutputT>>
+      keyedCombiningValueWithContext(
+          String id,
+          Coder<AccumT> accumCoder,
+          KeyedCombineFnWithContext<K, InputT, AccumT, OutputT> combineFn) {
+    return new KeyedCombiningValueWithContextStateTag<K, InputT, AccumT, OutputT>(
+        new StructuredId(id),
+        accumCoder,
+        combineFn);
   }
 
   /**
@@ -337,9 +356,67 @@ public class StateTags {
     }
   }
 
+  /**
+   * A state cell for values that are combined according to a {@link KeyedCombineFnWithContext}.
+   *
+   * @param <K> the type of keys
+   * @param <InputT> the type of input values
+   * @param <AccumT> type of mutable accumulator values
+   * @param <OutputT> type of output values
+   */
+  private static class KeyedCombiningValueWithContextStateTag<K, InputT, AccumT, OutputT>
+    extends StateTagBase<K, AccumulatorCombiningState<InputT, AccumT, OutputT>>
+    implements SystemStateTag<K, AccumulatorCombiningState<InputT, AccumT, OutputT>> {
+
+    private final Coder<AccumT> accumCoder;
+    private final KeyedCombineFnWithContext<K, InputT, AccumT, OutputT> combineFn;
+
+    protected KeyedCombiningValueWithContextStateTag(
+        StructuredId id,
+        Coder<AccumT> accumCoder,
+        KeyedCombineFnWithContext<K, InputT, AccumT, OutputT> combineFn) {
+      super(id);
+      this.combineFn = combineFn;
+      this.accumCoder = accumCoder;
+    }
+
+    @Override
+    public AccumulatorCombiningState<InputT, AccumT, OutputT> bind(
+        StateBinder<? extends K> visitor) {
+      return visitor.bindKeyedCombiningValueWithContext(this, accumCoder, combineFn);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (obj == this) {
+        return true;
+      }
+
+      if (!(obj instanceof KeyedCombiningValueWithContextStateTag)) {
+        return false;
+      }
+
+      KeyedCombiningValueWithContextStateTag<?, ?, ?, ?> that =
+          (KeyedCombiningValueWithContextStateTag<?, ?, ?, ?>) obj;
+      return Objects.equals(this.id, that.id)
+          && Objects.equals(this.accumCoder, that.accumCoder);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(getClass(), id, accumCoder);
+    }
+
+    @Override
+    public StateTag<K, AccumulatorCombiningState<InputT, AccumT, OutputT>> asKind(
+        StateKind kind) {
+      return new KeyedCombiningValueWithContextStateTag<>(
+          id.asKind(kind), accumCoder, combineFn);
+    }
+  }
 
   /**
-   * A general purpose state cell for values of type {@code T}.
+   * A state cell for values that are combined according to a {@link KeyedCombineFn}.
    *
    * @param <K> the type of keys
    * @param <InputT> the type of input values
@@ -355,9 +432,9 @@ public class StateTags {
 
     protected KeyedCombiningValueStateTag(
         StructuredId id,
-        Coder<AccumT> accumCoder, KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn) {
+        Coder<AccumT> accumCoder, KeyedCombineFn<K, InputT, AccumT, OutputT> keyedCombineFn) {
       super(id);
-      this.keyedCombineFn = combineFn;
+      this.keyedCombineFn = keyedCombineFn;
       this.accumCoder = accumCoder;
     }
 

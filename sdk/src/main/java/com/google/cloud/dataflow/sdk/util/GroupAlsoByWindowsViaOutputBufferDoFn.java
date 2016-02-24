@@ -67,7 +67,8 @@ public class GroupAlsoByWindowsViaOutputBufferDoFn<K, InputT, OutputT, W extends
             timerInternals,
             c.windowingInternals(),
             droppedDueToClosedWindow,
-            reduceFn);
+            reduceFn,
+            c.getPipelineOptions());
 
     Iterable<List<WindowedValue<InputT>>> chunks =
         Iterables.partition(c.element().getValue(), 1000);

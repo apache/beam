@@ -40,11 +40,11 @@ public abstract class StateTable<K> {
 
   /**
    * Gets the {@link State} in the specified {@link StateNamespace} with the specified {@link
-   * StateTag}, binding it using the {@link #binderForNamespace(StateNamespace)} if it is not
+   * StateTag}, binding it using the {@link #binderForNamespace} if it is not
    * already present in this {@link StateTable}.
    */
   public <StateT extends State> StateT get(
-      StateNamespace namespace, StateTag<? super K, StateT> tag) {
+      StateNamespace namespace, StateTag<? super K, StateT> tag, StateContext<?> c) {
     State storage = stateTable.get(namespace, tag);
     if (storage != null) {
       @SuppressWarnings("unchecked")
@@ -52,7 +52,7 @@ public abstract class StateTable<K> {
       return typedStorage;
     }
 
-    StateT typedStorage = tag.bind(binderForNamespace(namespace));
+    StateT typedStorage = tag.bind(binderForNamespace(namespace, c));
     stateTable.put(namespace, tag, typedStorage);
     return typedStorage;
   }
@@ -85,5 +85,5 @@ public abstract class StateTable<K> {
    * Provide the {@code StateBinder} to use for creating {@code Storage} instances
    * in the specified {@code namespace}.
    */
-  protected abstract StateBinder<K> binderForNamespace(StateNamespace namespace);
+  protected abstract StateBinder<K> binderForNamespace(StateNamespace namespace, StateContext<?> c);
 }

@@ -77,7 +77,8 @@ public class GroupAlsoByWindowViaWindowSetDoFn<
             timerInternals,
             c.windowingInternals(),
             droppedDueToClosedWindow,
-            reduceFn);
+            reduceFn,
+            c.getPipelineOptions());
 
     for (TimerData timer : element.timersIterable()) {
       reduceFnRunner.onTimer(timer);

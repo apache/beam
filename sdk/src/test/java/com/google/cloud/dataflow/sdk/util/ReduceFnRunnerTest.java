@@ -25,18 +25,26 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 
 import com.google.cloud.dataflow.sdk.WindowMatchers;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
+import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.transforms.CombineWithContext.CombineFnWithContext;
+import com.google.cloud.dataflow.sdk.transforms.CombineWithContext.Context;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.AfterEach;
 import com.google.cloud.dataflow.sdk.transforms.windowing.AfterFirst;
 import com.google.cloud.dataflow.sdk.transforms.windowing.AfterPane;
 import com.google.cloud.dataflow.sdk.transforms.windowing.AfterProcessingTime;
 import com.google.cloud.dataflow.sdk.transforms.windowing.AfterWatermark;
+import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
@@ -47,7 +55,9 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.SlidingWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window.ClosingBehavior;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
+import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TimestampedValue;
+import com.google.common.base.Preconditions;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -55,12 +65,14 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.Matchers;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -71,8 +83,10 @@ import java.util.List;
  */
 @RunWith(JUnit4.class)
 public class ReduceFnRunnerTest {
-  @Mock
+  @Mock private SideInputReader mockSideInputReader;
   private Trigger<IntervalWindow> mockTrigger;
+  private PCollectionView<Integer> mockView;
+
   private IntervalWindow firstWindow;
 
   private static Trigger<IntervalWindow>.TriggerContext anyTriggerContext() {
@@ -85,7 +99,17 @@ public class ReduceFnRunnerTest {
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
+
+    @SuppressWarnings("unchecked")
+    Trigger<IntervalWindow> mockTriggerUnchecked =
+        mock(Trigger.class, withSettings().serializable());
+    mockTrigger = mockTriggerUnchecked;
     when(mockTrigger.buildTrigger()).thenReturn(mockTrigger);
+
+    @SuppressWarnings("unchecked")
+    PCollectionView<Integer> mockViewUnchecked =
+        mock(PCollectionView.class, withSettings().serializable());
+    mockView = mockViewUnchecked;
     firstWindow = new IntervalWindow(new Instant(0), new Instant(10));
   }
 
@@ -223,6 +247,53 @@ public class ReduceFnRunnerTest {
         contains(
             isSingleWindowedValue(equalTo(3), 1, 0, 10),
             isSingleWindowedValue(equalTo(6), 3, 0, 10)));
+    assertTrue(tester.isMarkedFinished(firstWindow));
+    tester.assertHasOnlyGlobalAndFinishedSetsFor(firstWindow);
+  }
+
+  @Test
+  public void testOnElementCombiningWithContext() throws Exception {
+    Integer expectedValue = 5;
+    WindowingStrategy<?, IntervalWindow> windowingStrategy = WindowingStrategy
+        .of(FixedWindows.of(Duration.millis(10)))
+        .withTrigger(mockTrigger)
+        .withMode(AccumulationMode.DISCARDING_FIRED_PANES)
+        .withAllowedLateness(Duration.millis(100));
+
+    TestOptions options = PipelineOptionsFactory.as(TestOptions.class);
+    options.setValue(5);
+
+    when(mockSideInputReader.contains(Matchers.<PCollectionView<Integer>>any())).thenReturn(true);
+    when(mockSideInputReader.get(
+        Matchers.<PCollectionView<Integer>>any(), any(BoundedWindow.class))).thenReturn(5);
+
+    @SuppressWarnings({"rawtypes", "unchecked", "unused"})
+    Object suppressWarningsVar = when(mockView.getWindowingStrategyInternal())
+        .thenReturn((WindowingStrategy) windowingStrategy);
+
+    SumAndVerifyContextFn combineFn = new SumAndVerifyContextFn(mockView, expectedValue);
+    // Test basic execution of a trigger using a non-combining window set and discarding mode.
+    ReduceFnTester<Integer, Integer, IntervalWindow> tester = ReduceFnTester.combining(
+        windowingStrategy, combineFn.<String>asKeyedFn(),
+        VarIntCoder.of(), options, mockSideInputReader);
+
+    injectElement(tester, 2);
+
+    when(mockTrigger.shouldFire(anyTriggerContext())).thenReturn(true);
+    injectElement(tester, 3);
+
+    when(mockTrigger.shouldFire(anyTriggerContext())).thenReturn(true);
+    triggerShouldFinish(mockTrigger);
+    injectElement(tester, 4);
+
+    // This element shouldn't be seen, because the trigger has finished
+    injectElement(tester, 6);
+
+    assertThat(
+        tester.extractOutput(),
+        contains(
+            isSingleWindowedValue(equalTo(5), 2, 0, 10),
+            isSingleWindowedValue(equalTo(4), 4, 0, 10)));
     assertTrue(tester.isMarkedFinished(firstWindow));
     tester.assertHasOnlyGlobalAndFinishedSetsFor(firstWindow);
   }
@@ -872,5 +943,69 @@ public class ReduceFnRunnerTest {
     assertThat(
         output.get(3),
         WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, true, Timing.LATE, 3, 2)));
+  }
+
+  private static class SumAndVerifyContextFn extends CombineFnWithContext<Integer, int[], Integer> {
+
+    private final PCollectionView<Integer> view;
+    private final int expectedValue;
+
+    private SumAndVerifyContextFn(PCollectionView<Integer> view, int expectedValue) {
+      this.view = view;
+      this.expectedValue = expectedValue;
+    }
+    @Override
+    public int[] createAccumulator(Context c) {
+      Preconditions.checkArgument(
+          c.getPipelineOptions().as(TestOptions.class).getValue() == expectedValue);
+      Preconditions.checkArgument(c.sideInput(view) == expectedValue);
+      return wrap(0);
+    }
+
+    @Override
+    public int[] addInput(int[] accumulator, Integer input, Context c) {
+      Preconditions.checkArgument(
+          c.getPipelineOptions().as(TestOptions.class).getValue() == expectedValue);
+      Preconditions.checkArgument(c.sideInput(view) == expectedValue);
+      accumulator[0] += input.intValue();
+      return accumulator;
+    }
+
+    @Override
+    public int[] mergeAccumulators(Iterable<int[]> accumulators, Context c) {
+      Preconditions.checkArgument(
+          c.getPipelineOptions().as(TestOptions.class).getValue() == expectedValue);
+      Preconditions.checkArgument(c.sideInput(view) == expectedValue);
+      Iterator<int[]> iter = accumulators.iterator();
+      if (!iter.hasNext()) {
+        return createAccumulator(c);
+      } else {
+        int[] running = iter.next();
+        while (iter.hasNext()) {
+          running[0] += iter.next()[0];
+        }
+        return running;
+      }
+    }
+
+    @Override
+    public Integer extractOutput(int[] accumulator, Context c) {
+      Preconditions.checkArgument(
+          c.getPipelineOptions().as(TestOptions.class).getValue() == expectedValue);
+      Preconditions.checkArgument(c.sideInput(view) == expectedValue);
+      return accumulator[0];
+    }
+
+    private int[] wrap(int value) {
+      return new int[] { value };
+    }
+  }
+
+  /**
+   * A {@link PipelineOptions} to test combining with context.
+   */
+  public interface TestOptions extends PipelineOptions {
+    Integer getValue();
+    void setValue(Integer value);
   }
 }
