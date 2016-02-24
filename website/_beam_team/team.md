@@ -69,7 +69,7 @@ members:
     roles: committer, PPMC
     time_zone: "+1"
   - name: Kenneth Knowles
-    apache_id:
+    apache_id: kenn
     email: klk@google.com
     organization: Google
     roles: committer, PPMC
