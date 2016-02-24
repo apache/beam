@@ -16,6 +16,7 @@
 package com.google.cloud.dataflow.sdk.runners.inprocess;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.emptyIterable;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -112,4 +113,26 @@ public class FlattenEvaluatorFactoryTest {
             WindowedValue.timestampedValueInGlobalWindow(-4, new Instant(-4096)),
             WindowedValue.valueInGlobalWindow(-1)));
   }
+
+  @Test
+  public void testFlattenInMemoryEvaluatorWithEmptyPCollectionList() throws Exception {
+    TestPipeline p = TestPipeline.create();
+    PCollectionList<Integer> list = PCollectionList.empty(p);
+
+    PCollection<Integer> flattened = list.apply(Flatten.<Integer>pCollections());
+
+    InProcessEvaluationContext context = mock(InProcessEvaluationContext.class);
+
+    FlattenEvaluatorFactory factory = new FlattenEvaluatorFactory();
+    TransformEvaluator<Integer> emptyEvaluator =
+        factory.forApplication(flattened.getProducingTransformInternal(), null, context);
+
+    InProcessTransformResult leftSideResult = emptyEvaluator.finishBundle();
+
+    assertThat(leftSideResult.getOutputBundles(), emptyIterable());
+    assertThat(
+        leftSideResult.getTransform(),
+        Matchers.<AppliedPTransform<?, ?, ?>>equalTo(flattened.getProducingTransformInternal()));
+  }
+
 }

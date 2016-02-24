@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Google Inc.
+ * Copyright (C) 2016 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -46,6 +46,12 @@ class FlattenEvaluatorFactory implements TransformEvaluatorFactory {
           application,
       final CommittedBundle<InputT> inputBundle,
       final InProcessEvaluationContext evaluationContext) {
+    if (inputBundle == null) {
+      // it is impossible to call processElement on a flatten with no input bundle. A Flatten with
+      // no input bundle occurs as an output of Flatten.pcollections(PCollectionList.empty())
+      return new FlattenEvaluator<>(
+          null, StepTransformResult.withoutHold(application).build());
+    }
     final UncommittedBundle<InputT> outputBundle =
         evaluationContext.createBundle(inputBundle, application.getOutput());
     final InProcessTransformResult result =
