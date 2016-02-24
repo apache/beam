@@ -146,104 +146,110 @@ public class AvroIOGeneratedClassTest {
 
   @Test
   public void testReadFromGeneratedClass() throws Exception {
-    runTestRead(AvroIO.Read.from(avroFile.getPath())
-                           .withSchema(AvroGeneratedUser.class),
-                "AvroIO.Read/Read(AvroSource).out", generateAvroObjects());
-    runTestRead(AvroIO.Read.withSchema(AvroGeneratedUser.class)
-                           .from(avroFile.getPath()),
-                "AvroIO.Read/Read(AvroSource).out", generateAvroObjects());
-    runTestRead(AvroIO.Read.named("MyRead")
-                           .from(avroFile.getPath())
-                           .withSchema(AvroGeneratedUser.class),
-                "MyRead/Read(AvroSource).out", generateAvroObjects());
-    runTestRead(AvroIO.Read.named("MyRead")
-                           .withSchema(AvroGeneratedUser.class)
-                           .from(avroFile.getPath()),
-                "MyRead/Read(AvroSource).out", generateAvroObjects());
-    runTestRead(AvroIO.Read.from(avroFile.getPath())
-                           .withSchema(AvroGeneratedUser.class)
-                           .named("HerRead"),
-                "HerRead/Read(AvroSource).out", generateAvroObjects());
-    runTestRead(AvroIO.Read.from(avroFile.getPath())
-                           .named("HerRead")
-                           .withSchema(AvroGeneratedUser.class),
-                "HerRead/Read(AvroSource).out", generateAvroObjects());
-    runTestRead(AvroIO.Read.withSchema(AvroGeneratedUser.class)
-                           .named("HerRead")
-                           .from(avroFile.getPath()),
-                "HerRead/Read(AvroSource).out", generateAvroObjects());
-    runTestRead(AvroIO.Read.withSchema(AvroGeneratedUser.class)
-                           .from(avroFile.getPath())
-                           .named("HerRead"),
-                "HerRead/Read(AvroSource).out", generateAvroObjects());
+    runTestRead(
+        AvroIO.Read.from(avroFile.getPath()).withSchema(AvroGeneratedUser.class),
+        "AvroIO.Read/Read.out",
+        generateAvroObjects());
+    runTestRead(
+        AvroIO.Read.withSchema(AvroGeneratedUser.class).from(avroFile.getPath()),
+        "AvroIO.Read/Read.out",
+        generateAvroObjects());
+    runTestRead(
+        AvroIO.Read.named("MyRead").from(avroFile.getPath()).withSchema(AvroGeneratedUser.class),
+        "MyRead/Read.out",
+        generateAvroObjects());
+    runTestRead(
+        AvroIO.Read.named("MyRead").withSchema(AvroGeneratedUser.class).from(avroFile.getPath()),
+        "MyRead/Read.out",
+        generateAvroObjects());
+    runTestRead(
+        AvroIO.Read.from(avroFile.getPath()).withSchema(AvroGeneratedUser.class).named("HerRead"),
+        "HerRead/Read.out",
+        generateAvroObjects());
+    runTestRead(
+        AvroIO.Read.from(avroFile.getPath()).named("HerRead").withSchema(AvroGeneratedUser.class),
+        "HerRead/Read.out",
+        generateAvroObjects());
+    runTestRead(
+        AvroIO.Read.withSchema(AvroGeneratedUser.class).named("HerRead").from(avroFile.getPath()),
+        "HerRead/Read.out",
+        generateAvroObjects());
+    runTestRead(
+        AvroIO.Read.withSchema(AvroGeneratedUser.class).from(avroFile.getPath()).named("HerRead"),
+        "HerRead/Read.out",
+        generateAvroObjects());
   }
 
   @Test
   public void testReadFromSchema() throws Exception {
-    runTestRead(AvroIO.Read.from(avroFile.getPath())
-                           .withSchema(schema),
-                "AvroIO.Read/Read(AvroSource).out", generateAvroGenericRecords());
-    runTestRead(AvroIO.Read.withSchema(schema)
-                           .from(avroFile.getPath()),
-                "AvroIO.Read/Read(AvroSource).out", generateAvroGenericRecords());
-    runTestRead(AvroIO.Read.named("MyRead")
-                           .from(avroFile.getPath())
-                           .withSchema(schema),
-                "MyRead/Read(AvroSource).out", generateAvroGenericRecords());
-    runTestRead(AvroIO.Read.named("MyRead")
-                           .withSchema(schema)
-                           .from(avroFile.getPath()),
-                "MyRead/Read(AvroSource).out", generateAvroGenericRecords());
-    runTestRead(AvroIO.Read.from(avroFile.getPath())
-                           .withSchema(schema)
-                           .named("HerRead"),
-                "HerRead/Read(AvroSource).out", generateAvroGenericRecords());
-    runTestRead(AvroIO.Read.from(avroFile.getPath())
-                           .named("HerRead")
-                           .withSchema(schema),
-                "HerRead/Read(AvroSource).out", generateAvroGenericRecords());
-    runTestRead(AvroIO.Read.withSchema(schema)
-                           .named("HerRead")
-                           .from(avroFile.getPath()),
-                "HerRead/Read(AvroSource).out", generateAvroGenericRecords());
-    runTestRead(AvroIO.Read.withSchema(schema)
-                           .from(avroFile.getPath())
-                           .named("HerRead"),
-                "HerRead/Read(AvroSource).out", generateAvroGenericRecords());
+    runTestRead(
+        AvroIO.Read.from(avroFile.getPath()).withSchema(schema),
+        "AvroIO.Read/Read.out",
+        generateAvroGenericRecords());
+    runTestRead(
+        AvroIO.Read.withSchema(schema).from(avroFile.getPath()),
+        "AvroIO.Read/Read.out",
+        generateAvroGenericRecords());
+    runTestRead(
+        AvroIO.Read.named("MyRead").from(avroFile.getPath()).withSchema(schema),
+        "MyRead/Read.out",
+        generateAvroGenericRecords());
+    runTestRead(
+        AvroIO.Read.named("MyRead").withSchema(schema).from(avroFile.getPath()),
+        "MyRead/Read.out",
+        generateAvroGenericRecords());
+    runTestRead(
+        AvroIO.Read.from(avroFile.getPath()).withSchema(schema).named("HerRead"),
+        "HerRead/Read.out",
+        generateAvroGenericRecords());
+    runTestRead(
+        AvroIO.Read.from(avroFile.getPath()).named("HerRead").withSchema(schema),
+        "HerRead/Read.out",
+        generateAvroGenericRecords());
+    runTestRead(
+        AvroIO.Read.withSchema(schema).named("HerRead").from(avroFile.getPath()),
+        "HerRead/Read.out",
+        generateAvroGenericRecords());
+    runTestRead(
+        AvroIO.Read.withSchema(schema).from(avroFile.getPath()).named("HerRead"),
+        "HerRead/Read.out",
+        generateAvroGenericRecords());
   }
 
   @Test
   public void testReadFromSchemaString() throws Exception {
-    runTestRead(AvroIO.Read.from(avroFile.getPath())
-                           .withSchema(schemaString),
-                "AvroIO.Read/Read(AvroSource).out", generateAvroGenericRecords());
-    runTestRead(AvroIO.Read.withSchema(schemaString)
-                           .from(avroFile.getPath()),
-                "AvroIO.Read/Read(AvroSource).out", generateAvroGenericRecords());
-    runTestRead(AvroIO.Read.named("MyRead")
-                           .from(avroFile.getPath())
-                           .withSchema(schemaString),
-                "MyRead/Read(AvroSource).out", generateAvroGenericRecords());
-    runTestRead(AvroIO.Read.named("MyRead")
-                           .withSchema(schemaString)
-                           .from(avroFile.getPath()),
-                "MyRead/Read(AvroSource).out", generateAvroGenericRecords());
-    runTestRead(AvroIO.Read.from(avroFile.getPath())
-                           .withSchema(schemaString)
-                           .named("HerRead"),
-                "HerRead/Read(AvroSource).out", generateAvroGenericRecords());
-    runTestRead(AvroIO.Read.from(avroFile.getPath())
-                           .named("HerRead")
-                           .withSchema(schemaString),
-                "HerRead/Read(AvroSource).out", generateAvroGenericRecords());
-    runTestRead(AvroIO.Read.withSchema(schemaString)
-                           .named("HerRead")
-                           .from(avroFile.getPath()),
-                "HerRead/Read(AvroSource).out", generateAvroGenericRecords());
-    runTestRead(AvroIO.Read.withSchema(schemaString)
-                           .from(avroFile.getPath())
-                           .named("HerRead"),
-                "HerRead/Read(AvroSource).out", generateAvroGenericRecords());
+    runTestRead(
+        AvroIO.Read.from(avroFile.getPath()).withSchema(schemaString),
+        "AvroIO.Read/Read.out",
+        generateAvroGenericRecords());
+    runTestRead(
+        AvroIO.Read.withSchema(schemaString).from(avroFile.getPath()),
+        "AvroIO.Read/Read.out",
+        generateAvroGenericRecords());
+    runTestRead(
+        AvroIO.Read.named("MyRead").from(avroFile.getPath()).withSchema(schemaString),
+        "MyRead/Read.out",
+        generateAvroGenericRecords());
+    runTestRead(
+        AvroIO.Read.named("MyRead").withSchema(schemaString).from(avroFile.getPath()),
+        "MyRead/Read.out",
+        generateAvroGenericRecords());
+    runTestRead(
+        AvroIO.Read.from(avroFile.getPath()).withSchema(schemaString).named("HerRead"),
+        "HerRead/Read.out",
+        generateAvroGenericRecords());
+    runTestRead(
+        AvroIO.Read.from(avroFile.getPath()).named("HerRead").withSchema(schemaString),
+        "HerRead/Read.out",
+        generateAvroGenericRecords());
+    runTestRead(
+        AvroIO.Read.withSchema(schemaString).named("HerRead").from(avroFile.getPath()),
+        "HerRead/Read.out",
+        generateAvroGenericRecords());
+    runTestRead(
+        AvroIO.Read.withSchema(schemaString).from(avroFile.getPath()).named("HerRead"),
+        "HerRead/Read.out",
+        generateAvroGenericRecords());
   }
 
   <T> void runTestWrite(AvroIO.Write.Bound<T> write, String expectedName)

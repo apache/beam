@@ -16,19 +16,25 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.coders.DefaultCoder;
 import com.google.cloud.dataflow.sdk.runners.DirectPipeline;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
+import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterators;
 
+import org.apache.avro.file.DataFileReader;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.reflect.Nullable;
 import org.junit.Rule;
@@ -38,6 +44,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -104,7 +111,7 @@ public class AvroIOTest {
   }
 
   @Test
-  public void testAvroIOWriteAndRead() throws Throwable {
+  public void testAvroIOWriteAndReadASingleFile() throws Throwable {
     DirectPipeline p = DirectPipeline.createForTest();
     List<GenericClass> values = ImmutableList.of(new GenericClass(3, "hi"),
         new GenericClass(5, "bar"));
@@ -187,6 +194,31 @@ public class AvroIOTest {
 
     DataflowAssert.that(input).containsInAnyOrder(expected);
     p.run();
+  }
+
+  @SuppressWarnings("deprecation") // using AvroCoder#createDatumReader for tests.
+  @Test
+  public void testAvroSinkWrite() throws Exception {
+    String outputFilePrefix = new File(tmpFolder.getRoot(), "prefix").getAbsolutePath();
+    String[] expectedElements = new String[] {"first", "second", "third"};
+
+    TestPipeline p = TestPipeline.create();
+    p.apply(Create.<String>of(expectedElements))
+        .apply(AvroIO.Write.to(outputFilePrefix).withSchema(String.class));
+    p.run();
+
+    // Validate that the data written matches the expected elements in the expected order
+    String expectedName =
+        IOChannelUtils.constructName(
+            outputFilePrefix, ShardNameTemplate.INDEX_OF_MAX, "" /* no suffix */, 0, 1);
+    File outputFile = new File(expectedName);
+    assertTrue("Expected output file " + expectedName, outputFile.exists());
+    try (DataFileReader<String> reader =
+            new DataFileReader<>(outputFile, AvroCoder.of(String.class).createDatumReader())) {
+      List<String> actualElements = new ArrayList<>();
+      Iterators.addAll(actualElements, reader);
+      assertThat(actualElements, containsInAnyOrder(expectedElements));
+    }
   }
 
   // TODO: for Write only, test withSuffix, withNumShards,
