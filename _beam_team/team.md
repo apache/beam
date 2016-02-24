@@ -92,7 +92,7 @@ members:
     organization: data Artisans
     roles: committer, PPMC
     time_zone: "+1"
-  - name: Stephan Ewen
+  - name: Tom White
     apache_id:
     email: tom@cloudera.com
     organization: Cloudera
