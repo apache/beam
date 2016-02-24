@@ -28,6 +28,7 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.io.Read;
 import com.google.cloud.dataflow.sdk.io.TextIO;
+import com.google.cloud.dataflow.sdk.io.Write;
 import com.google.cloud.dataflow.sdk.transforms.Count;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
@@ -133,9 +134,12 @@ public class TransformTreeTest {
           assertTrue(visited.add(TransformsSeen.SAMPLE_ANY));
           assertNotNull(node.getEnclosingNode());
           assertTrue(node.isCompositeNode());
+        } else if (transform instanceof Write.Bound) {
+          assertTrue(visited.add(TransformsSeen.WRITE));
+          assertNotNull(node.getEnclosingNode());
+          assertTrue(node.isCompositeNode());
         }
         assertThat(transform, not(instanceOf(Read.Bounded.class)));
-        assertThat(transform, not(instanceOf(TextIO.Write.Bound.class)));
       }
 
       @Override
@@ -151,10 +155,9 @@ public class TransformTreeTest {
         PTransform<?, ?> transform = node.getTransform();
         // Pick is a composite, should not be visited here.
         assertThat(transform, not(instanceOf(Sample.SampleAny.class)));
+        assertThat(transform, not(instanceOf(Write.Bound.class)));
         if (transform instanceof Read.Bounded) {
           assertTrue(visited.add(TransformsSeen.READ));
-        } else if (transform instanceof TextIO.Write.Bound) {
-          assertTrue(visited.add(TransformsSeen.WRITE));
         }
       }
 

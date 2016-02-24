@@ -56,7 +56,6 @@ public class FileBasedSinkTest {
 
   private String baseOutputFilename = "output";
   private String baseTemporaryFilename = "temp";
-  private String testExtension = "test";
 
   private String appendToTempFolder(String filename) {
     return Paths.get(tmpFolder.getRoot().getPath(), filename).toString();
@@ -314,9 +313,26 @@ public class FileBasedSinkTest {
   public void testGenerateOutputFilenamesWithTemplate() {
     List<String> expected;
     List<String> actual;
-    SimpleSink sink = buildSink(".SS.of.NN");
+    SimpleSink sink = new SimpleSink(getBaseOutputFilename(), "test", ".SS.of.NN");
     SimpleSink.SimpleWriteOperation writeOp = new SimpleSink.SimpleWriteOperation(sink);
 
+    expected = Arrays.asList(appendToTempFolder("output.00.of.03.test"),
+        appendToTempFolder("output.01.of.03.test"), appendToTempFolder("output.02.of.03.test"));
+    actual = writeOp.generateDestinationFilenames(3);
+    assertEquals(expected, actual);
+
+    expected = Arrays.asList(appendToTempFolder("output.00.of.01.test"));
+    actual = writeOp.generateDestinationFilenames(1);
+    assertEquals(expected, actual);
+
+    expected = new ArrayList<>();
+    actual = writeOp.generateDestinationFilenames(0);
+    assertEquals(expected, actual);
+
+    // Also validate that we handle the case where the user specified "." that we do
+    // not prefix an additional "." making "..test"
+    sink = new SimpleSink(getBaseOutputFilename(), ".test", ".SS.of.NN");
+    writeOp = new SimpleSink.SimpleWriteOperation(sink);
     expected = Arrays.asList(appendToTempFolder("output.00.of.03.test"),
         appendToTempFolder("output.01.of.03.test"), appendToTempFolder("output.02.of.03.test"));
     actual = writeOp.generateDestinationFilenames(3);
@@ -457,14 +473,7 @@ public class FileBasedSinkTest {
    * Build a SimpleSink with default options.
    */
   private SimpleSink buildSink() {
-    return new SimpleSink(getBaseOutputFilename(), testExtension);
-  }
-
-  /**
-   * Build a SimpleSink with default options and the given shard template.
-   */
-  private SimpleSink buildSink(String shardTemplate) {
-    return new SimpleSink(getBaseOutputFilename(), testExtension, shardTemplate);
+    return new SimpleSink(getBaseOutputFilename(), "test");
   }
 
   /**

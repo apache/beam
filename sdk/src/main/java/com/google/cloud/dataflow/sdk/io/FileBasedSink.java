@@ -355,12 +355,27 @@ public abstract class FileBasedSink<T> extends Sink<T> {
       String baseOutputFilename = getSink().baseOutputFilename;
       String fileNamingTemplate = getSink().fileNamingTemplate;
 
-      String suffix = (extension.length() == 0) ? extension : ("." + extension);
+      String suffix = getFileExtension(extension);
       for (int i = 0; i < numFiles; i++) {
         destFilenames.add(IOChannelUtils.constructName(
             baseOutputFilename, fileNamingTemplate, suffix, i, numFiles));
       }
       return destFilenames;
+    }
+
+    /**
+     * Returns the file extension to be used. If the user did not request a file
+     * extension then this method returns the empty string. Otherwise this method
+     * adds a {@code "."} to the beginning of the users extension if one is not present.
+     */
+    private String getFileExtension(String usersExtension) {
+      if (usersExtension == null || usersExtension.isEmpty()) {
+        return "";
+      }
+      if (usersExtension.startsWith(".")) {
+        return usersExtension;
+      }
+      return "." + usersExtension;
     }
 
     /**

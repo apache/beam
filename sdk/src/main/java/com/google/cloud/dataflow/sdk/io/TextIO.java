@@ -26,11 +26,9 @@ import com.google.cloud.dataflow.sdk.io.Read.Bounded;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
-import com.google.cloud.dataflow.sdk.runners.worker.TextSink;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
-import com.google.cloud.dataflow.sdk.util.WindowedValue;
-import com.google.cloud.dataflow.sdk.util.common.worker.Sink;
+import com.google.cloud.dataflow.sdk.util.MimeTypes;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.cloud.dataflow.sdk.values.PInput;
@@ -39,10 +37,13 @@ import com.google.common.base.Preconditions;
 import com.google.protobuf.ByteString;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
-import java.util.List;
+import java.nio.channels.WritableByteChannel;
+import java.nio.charset.StandardCharsets;
 import java.util.NoSuchElementException;
 import java.util.regex.Pattern;
 
@@ -66,7 +67,7 @@ import javax.annotation.Nullable;
  *
  * <p>See the following examples:
  *
- * <pre> {@code
+ * <pre>{@code
  * Pipeline p = ...;
  *
  * // A simple Read of a local file (only runs locally):
@@ -79,7 +80,7 @@ import javax.annotation.Nullable;
  *     p.apply(TextIO.Read.named("ReadNumbers")
  *                        .from("gs://my_bucket/path/to/numbers-*.txt")
  *                        .withCoder(TextualIntegerCoder.of()));
- * } </pre>
+ * }</pre>
  *
  * <p>To write a {@link PCollection} to one or more text files, use
  * {@link TextIO.Write}, specifying {@link TextIO.Write#to(String)} to specify
@@ -94,7 +95,7 @@ import javax.annotation.Nullable;
  * will be overwritten.
  *
  * <p>For example:
- * <pre> {@code
+ * <pre>{@code
  * // A simple Write to a local file (only runs locally):
  * PCollection<String> lines = ...;
  * lines.apply(TextIO.Write.to("/path/to/file.txt"));
@@ -106,7 +107,7 @@ import javax.annotation.Nullable;
  *                           .to("gs://my_bucket/path/to/numbers")
  *                           .withSuffix(".txt")
  *                           .withCoder(TextualIntegerCoder.of()));
- * } </pre>
+ * }</pre>
  *
  * <h3>Permissions</h3>
  * <p>When run using the {@link DirectPipelineRunner}, your pipeline can read and write text files
@@ -477,9 +478,6 @@ public class TextIO {
       /** Requested number of shards. 0 for automatic. */
       private final int numShards;
 
-      /** Insert a shuffle before writing to decouple parallelism when numShards != 0. */
-      private final boolean forceReshard;
-
       /** The shard template of each file written, combined with prefix and suffix. */
       private final String shardTemplate;
 
@@ -487,17 +485,16 @@ public class TextIO {
       private final boolean validate;
 
       Bound(Coder<T> coder) {
-        this(null, null, "", coder, 0, true, ShardNameTemplate.INDEX_OF_MAX, true);
+        this(null, null, "", coder, 0, ShardNameTemplate.INDEX_OF_MAX, true);
       }
 
       private Bound(String name, String filenamePrefix, String filenameSuffix, Coder<T> coder,
-          int numShards, boolean forceReshard, String shardTemplate, boolean validate) {
+          int numShards, String shardTemplate, boolean validate) {
         super(name);
         this.coder = coder;
         this.filenamePrefix = filenamePrefix;
         this.filenameSuffix = filenameSuffix;
         this.numShards = numShards;
-        this.forceReshard = forceReshard;
         this.shardTemplate = shardTemplate;
         this.validate = validate;
       }
@@ -510,7 +507,7 @@ public class TextIO {
        */
       public Bound<T> named(String name) {
         return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards,
-            forceReshard, shardTemplate, validate);
+            shardTemplate, validate);
       }
 
       /**
@@ -523,7 +520,7 @@ public class TextIO {
        */
       public Bound<T> to(String filenamePrefix) {
         validateOutputComponent(filenamePrefix);
-        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards, forceReshard,
+        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards,
             shardTemplate, validate);
       }
 
@@ -537,7 +534,7 @@ public class TextIO {
        */
       public Bound<T> withSuffix(String nameExtension) {
         validateOutputComponent(nameExtension);
-        return new Bound<>(name, filenamePrefix, nameExtension, coder, numShards, forceReshard,
+        return new Bound<>(name, filenamePrefix, nameExtension, coder, numShards,
             shardTemplate, validate);
       }
 
@@ -556,30 +553,8 @@ public class TextIO {
        * @see ShardNameTemplate
        */
       public Bound<T> withNumShards(int numShards) {
-        return withNumShards(numShards, forceReshard);
-      }
-
-      /**
-       * Returns a transform for writing to text files that's like this one but
-       * that uses the provided shard count.
-       *
-       * <p>Constraining the number of shards is likely to reduce
-       * the performance of a pipeline. If forceReshard is true, the output
-       * will be shuffled to obtain the desired sharding. If it is false,
-       * data will not be reshuffled, but parallelism of preceeding stages
-       * may be constrained. Setting this value is not recommended
-       * unless you require a specific number of output files.
-       *
-       * <p>Does not modify this object.
-       *
-       * @param numShards the number of shards to use, or 0 to let the system
-       *                  decide.
-       * @param forceReshard whether to force a reshard to obtain the desired sharding.
-       * @see ShardNameTemplate
-       */
-      private Bound<T> withNumShards(int numShards, boolean forceReshard) {
         Preconditions.checkArgument(numShards >= 0);
-        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards, forceReshard,
+        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards,
             shardTemplate, validate);
       }
 
@@ -592,7 +567,7 @@ public class TextIO {
        * @see ShardNameTemplate
        */
       public Bound<T> withShardNameTemplate(String shardTemplate) {
-        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards, forceReshard,
+        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards,
             shardTemplate, validate);
       }
 
@@ -610,25 +585,7 @@ public class TextIO {
        * <p>Does not modify this object.
        */
       public Bound<T> withoutSharding() {
-        return withoutSharding(forceReshard);
-      }
-
-      /**
-       * Returns a transform for writing to text files that's like this one but
-       * that forces a single file as output.
-       *
-       * <p>Constraining the number of shards is likely to reduce
-       * the performance of a pipeline. Using this setting is not recommended
-       * unless you truly require a single output file.
-       *
-       * <p>This is a shortcut for
-       * {@code .withNumShards(1, forceReshard).withShardNameTemplate("")}
-       *
-       * <p>Does not modify this object.
-       */
-      private Bound<T> withoutSharding(boolean forceReshard) {
-        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, 1, forceReshard, "",
-            validate);
+        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, 1, "", validate);
       }
 
       /**
@@ -640,7 +597,7 @@ public class TextIO {
        * @param <X> the type of the elements of the input {@link PCollection}
        */
       public <X> Bound<X> withCoder(Coder<X> coder) {
-        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards, forceReshard,
+        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards,
             shardTemplate, validate);
       }
 
@@ -655,7 +612,7 @@ public class TextIO {
        * <p>Does not modify this object.
        */
       public Bound<T> withoutValidation() {
-        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards, forceReshard,
+        return new Bound<>(name, filenamePrefix, filenameSuffix, coder, numShards,
             shardTemplate, false);
       }
 
@@ -665,14 +622,13 @@ public class TextIO {
           throw new IllegalStateException(
               "need to set the filename prefix of a TextIO.Write transform");
         }
-        if (numShards > 0 && forceReshard) {
-          // Reshard and re-apply a version of this write without resharding.
-          return input
-              .apply(new FileBasedSink.ReshardForWrite<T>())
-              .apply(withNumShards(numShards, false));
-        } else {
-          return PDone.in(input.getPipeline());
-        }
+
+        // Note that custom sinks currently do not expose sharding controls.
+        // Thus pipeline runner writers need to individually add support internally to
+        // apply user requested sharding limits.
+        return input.apply("Write", com.google.cloud.dataflow.sdk.io.Write.to(
+            new TextSink<>(
+                filenamePrefix, filenameSuffix, shardTemplate, coder)));
       }
 
       /**
@@ -709,17 +665,6 @@ public class TextIO {
 
       public boolean needsValidation() {
         return validate;
-      }
-
-      static {
-        DirectPipelineRunner.registerDefaultTransformEvaluator(
-            Bound.class, new DirectPipelineRunner.TransformEvaluator<Bound>() {
-              @Override
-              public void evaluate(
-                  Bound transform, DirectPipelineRunner.EvaluationContext context) {
-                evaluateWriteHelper(transform, context);
-              }
-            });
       }
     }
   }
@@ -978,24 +923,70 @@ public class TextIO {
     }
   }
 
-  private static <T> void evaluateWriteHelper(
-      Write.Bound<T> transform, DirectPipelineRunner.EvaluationContext context) {
-    List<T> elems = context.getPCollection(context.getInput(transform));
-    int numShards = transform.numShards;
-    if (numShards < 1) {
-      // System gets to choose. For direct mode, choose 1.
-      numShards = 1;
+  /**
+   * A {@link FileBasedSink} for text files. Produces text files with the new line separator
+   * {@code '\n'} represented in {@code UTF-8} format as the record separator.
+   * Each record (including the last) is terminated.
+   */
+  @VisibleForTesting
+  static class TextSink<T> extends FileBasedSink<T> {
+    private final Coder<T> coder;
+
+    @VisibleForTesting
+    TextSink(
+        String baseOutputFilename, String extension, String fileNameTemplate, Coder<T> coder) {
+      super(baseOutputFilename, extension, fileNameTemplate);
+      this.coder = coder;
     }
-    TextSink<WindowedValue<T>> writer = TextSink.createForDirectPipelineRunner(
-        transform.filenamePrefix, transform.getShardNameTemplate(), transform.filenameSuffix,
-        numShards, true, null, null, transform.coder);
-    try (Sink.SinkWriter<WindowedValue<T>> sink = writer.writer()) {
-      for (T elem : elems) {
-        sink.add(WindowedValue.valueInGlobalWindow(elem));
+
+    @Override
+    public FileBasedSink.FileBasedWriteOperation<T> createWriteOperation(PipelineOptions options) {
+      return new TextWriteOperation<>(this, coder);
+    }
+
+    /**
+     * A {@link com.google.cloud.dataflow.sdk.io.FileBasedSink.FileBasedWriteOperation
+     * FileBasedWriteOperation} for text files.
+     */
+    private static class TextWriteOperation<T> extends FileBasedWriteOperation<T> {
+      private final Coder<T> coder;
+
+      private TextWriteOperation(TextSink<T> sink, Coder<T> coder) {
+        super(sink);
+        this.coder = coder;
       }
-    } catch (IOException exn) {
-      throw new RuntimeException(
-          "unable to write to output file \"" + transform.filenamePrefix + "\"", exn);
+
+      @Override
+      public FileBasedWriter<T> createWriter(PipelineOptions options) throws Exception {
+        return new TextWriter<>(this, coder);
+      }
+    }
+
+    /**
+     * A {@link com.google.cloud.dataflow.sdk.io.FileBasedSink.FileBasedWriter FileBasedWriter}
+     * for text files.
+     */
+    private static class TextWriter<T> extends FileBasedWriter<T> {
+      private static final byte[] NEWLINE = "\n".getBytes(StandardCharsets.UTF_8);
+      private final Coder<T> coder;
+      private OutputStream out;
+
+      public TextWriter(FileBasedWriteOperation<T> writeOperation, Coder<T> coder) {
+        super(writeOperation);
+        this.mimeType = MimeTypes.TEXT;
+        this.coder = coder;
+      }
+
+      @Override
+      protected void prepareWrite(WritableByteChannel channel) throws Exception {
+        out = Channels.newOutputStream(channel);
+      }
+
+      @Override
+      public void write(T value) throws Exception {
+        coder.encode(value, out, Context.OUTER);
+        out.write(NEWLINE);
+      }
     }
   }
 }
