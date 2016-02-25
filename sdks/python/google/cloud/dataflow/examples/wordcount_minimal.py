@@ -16,20 +16,32 @@
 
 from __future__ import absolute_import
 
+import argparse
 import logging
 import re
+import sys
 
 import google.cloud.dataflow as df
-from google.cloud.dataflow.utils.options import add_option
-from google.cloud.dataflow.utils.options import get_options
 
 
-def run(options=None):
+def run(argv=sys.argv[1:]):
   """Main entry point; defines and runs the wordcount pipeline."""
-  p = df.Pipeline(options=get_options(options))
+
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--input',
+                      dest='input',
+                      default='gs://dataflow-samples/shakespeare/kinglear.txt',
+                      help='Input file to process.')
+  parser.add_argument('--output',
+                      dest='output',
+                      required=True,
+                      help='Output file to write results to.')
+  known_args, pipeline_args = parser.parse_known_args(argv)
+
+  p = df.Pipeline(argv=pipeline_args)
 
   # Read the text file[pattern] into a PCollection.
-  lines = p | df.io.Read('read', df.io.TextFileSource(p.options.input))
+  lines = p | df.io.Read('read', df.io.TextFileSource(known_args.input))
 
   # Count the occurrences of each word.
   counts = (lines
@@ -44,19 +56,10 @@ def run(options=None):
 
   # Write the output using a "Write" transform that has side effects.
   # pylint: disable=expression-not-assigned
-  output | df.io.Write('write', df.io.TextFileSink(p.options.output))
+  output | df.io.Write('write', df.io.TextFileSink(known_args.output))
 
   # Actually run the pipeline (all operations above are deferred).
   p.run()
-
-
-add_option(
-    '--input', dest='input',
-    default='gs://dataflow-samples/shakespeare/kinglear.txt',
-    help='Input file to process.')
-add_option(
-    '--output', dest='output', required=True,
-    help='Output file to write results to.')
 
 
 if __name__ == '__main__':

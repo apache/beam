@@ -30,11 +30,11 @@ represents table rows as plain Python dictionaries.
 
 from __future__ import absolute_import
 
+import argparse
 import logging
+import sys
 
 import google.cloud.dataflow as df
-from google.cloud.dataflow.utils.options import add_option
-from google.cloud.dataflow.utils.options import get_options
 
 
 def count_tornadoes(input_data):
@@ -58,34 +58,38 @@ def count_tornadoes(input_data):
           | df.Map('format', lambda (k, v): {'month': k, 'tornado_count': v}))
 
 
-def run(options=None):
-  p = df.Pipeline(options=get_options(options))
+def run(argv=sys.argv[1:]):
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--input',
+                      default='clouddataflow-readonly:samples.weather_stations',
+                      help=('Input BigQuery table to process specified as: '
+                            'PROJECT:DATASET.TABLE or DATASET.TABLE.'))
+  parser.add_argument(
+      '--output',
+      required=True,
+      help=
+      ('Output BigQuery table for results specified as: PROJECT:DATASET.TABLE '
+       'or DATASET.TABLE.'))
+  known_args, pipeline_args = parser.parse_known_args(argv)
+
+  p = df.Pipeline(argv=pipeline_args)
 
   # Read the table rows into a PCollection.
-  rows = p | df.io.Read('read', df.io.BigQuerySource(p.options.input))
+  rows = p | df.io.Read('read', df.io.BigQuerySource(known_args.input))
   counts = count_tornadoes(rows)
 
   # Write the output using a "Write" transform that has side effects.
   # pylint: disable=expression-not-assigned
-  counts | df.io.Write('write', df.io.BigQuerySink(
-      p.options.output,
-      schema='month:INTEGER, tornado_count:INTEGER',
-      create_disposition=df.io.BigQueryDisposition.CREATE_IF_NEEDED,
-      write_disposition=df.io.BigQueryDisposition.WRITE_TRUNCATE))
+  counts | df.io.Write(
+      'write',
+      df.io.BigQuerySink(
+          known_args.output,
+          schema='month:INTEGER, tornado_count:INTEGER',
+          create_disposition=df.io.BigQueryDisposition.CREATE_IF_NEEDED,
+          write_disposition=df.io.BigQueryDisposition.WRITE_TRUNCATE))
 
   # Run the pipeline (all operations are deferred until run() is called).
   p.run()
-
-
-add_option(
-    '--input', dest='input',
-    default='clouddataflow-readonly:samples.weather_stations',
-    help=('Input BigQuery table to process specified as: PROJECT:DATASET.TABLE '
-          'or DATASET.TABLE.'))
-add_option(
-    '--output', dest='output', required=True,
-    help=('Output BigQuery table for results specified as: '
-          'PROJECT:DATASET.TABLE or DATASET.TABLE.'))
 
 
 if __name__ == '__main__':

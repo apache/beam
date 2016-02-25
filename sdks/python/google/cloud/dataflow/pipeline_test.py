@@ -25,6 +25,7 @@ from google.cloud.dataflow.transforms import Create
 from google.cloud.dataflow.transforms import FlatMap
 from google.cloud.dataflow.transforms import PTransform
 from google.cloud.dataflow.transforms import Read
+from google.cloud.dataflow.transforms.util import assert_that, equal_to
 
 
 class FakeSource(Source):
@@ -86,21 +87,25 @@ class PipelineTest(unittest.TestCase):
   def test_create(self):
     pipeline = Pipeline('DirectPipelineRunner')
     pcoll = pipeline | Create('label1', [1, 2, 3])
-    self.assertEqual([1, 2, 3], list(pcoll.get()))
+    assert_that(pcoll, equal_to([1, 2, 3]))
+
     # Test if initial value is an iterator object.
     pcoll2 = pipeline | Create('label2', iter((4, 5, 6)))
     pcoll3 = pcoll2 | FlatMap('do', lambda x: [x + 10])
-    self.assertEqual([14, 15, 16], list(pcoll3.get()))
+    assert_that(pcoll3, equal_to([14, 15, 16]), label='pcoll3')
+    pipeline.run()
 
   def test_create_singleton_pcollection(self):
     pipeline = Pipeline(DirectPipelineRunner())
     pcoll = pipeline | Create('label', [[1, 2, 3]])
-    self.assertEqual([[1, 2, 3]], list(pcoll.get()))
+    assert_that(pcoll, equal_to([[1, 2, 3]]))
+    pipeline.run()
 
   def test_read(self):
     pipeline = Pipeline('DirectPipelineRunner')
     pcoll = pipeline | Read('read', FakeSource([1, 2, 3]))
-    self.assertEqual([1, 2, 3], list(pcoll.get()))
+    assert_that(pcoll, equal_to([1, 2, 3]))
+    pipeline.run()
 
   def test_visit_entire_graph(self):
 
@@ -138,15 +143,15 @@ class PipelineTest(unittest.TestCase):
     pipeline = Pipeline(DirectPipelineRunner())
     pcoll = pipeline | Create('pcoll', [1, 2, 3])
     result = pcoll | PipelineTest.CustomTransform()
-    self.assertEqual([2, 3, 4], list(result.get()))
+    assert_that(result, equal_to([2, 3, 4]))
+    pipeline.run()
 
   def test_reuse_custom_transform_instance(self):
     pipeline = Pipeline(DirectPipelineRunner())
     pcoll1 = pipeline | Create('pcoll1', [1, 2, 3])
     pcoll2 = pipeline | Create('pcoll2', [4, 5, 6])
     transform = PipelineTest.CustomTransform()
-    result1 = pcoll1 | transform
-    self.assertEqual([2, 3, 4], list(result1.get()))
+    pcoll1 | transform
     with self.assertRaises(RuntimeError) as cm:
       pipeline.apply(transform, pcoll2)
     self.assertEqual(
@@ -162,15 +167,17 @@ class PipelineTest(unittest.TestCase):
     pcoll2 = pipeline | Create('pcoll2', [4, 5, 6])
     transform = PipelineTest.CustomTransform()
     result1 = pcoll1 | transform
-    self.assertEqual([2, 3, 4], list(result1.get()))
     result2 = pcoll2 | transform.clone('new label')
-    self.assertEqual([5, 6, 7], list(result2.get()))
+    assert_that(result1, equal_to([2, 3, 4]), label='r1')
+    assert_that(result2, equal_to([5, 6, 7]), label='r2')
+    pipeline.run()
 
   def test_apply_custom_callable(self):
     pipeline = Pipeline('DirectPipelineRunner')
     pcoll = pipeline | Create('pcoll', [1, 2, 3])
     result = pipeline.apply(PipelineTest.custom_callable, pcoll)
-    self.assertEqual([2, 3, 4], list(result.get()))
+    assert_that(result, equal_to([2, 3, 4]))
+    pipeline.run()
 
 
 class Bacon(PipelineOptions):

@@ -25,11 +25,17 @@ from google.cloud.dataflow.pipeline import Pipeline
 import google.cloud.dataflow.pvalue as pvalue
 import google.cloud.dataflow.transforms.combiners as combine
 from google.cloud.dataflow.transforms.ptransform import PTransform
+from google.cloud.dataflow.transforms.util import assert_that, equal_to
 import google.cloud.dataflow.typehints as typehints
 from google.cloud.dataflow.typehints import with_input_types
 from google.cloud.dataflow.typehints import with_output_types
 from google.cloud.dataflow.typehints.typehints_test import TypeHintTestCase
-from google.cloud.dataflow.utils.options import get_options
+from google.cloud.dataflow.utils.options import PipelineOptions
+from google.cloud.dataflow.utils.options import TypeOptions
+
+
+# Disable frequent lint warning due to pipe operator for chaining transforms.
+# pylint: disable=expression-not-assigned
 
 
 class PTransformTest(unittest.TestCase):
@@ -102,13 +108,15 @@ class PTransformTest(unittest.TestCase):
     pipeline = Pipeline('DirectPipelineRunner')
     pcoll = pipeline | df.Create('start', [1, 2, 3])
     result = pcoll | df.ParDo('do', AddNDoFn(), 10)
-    self.assertEqual([11, 12, 13], list(result.get()))
+    assert_that(result, equal_to([11, 12, 13]))
+    pipeline.run()
 
   def test_do_with_callable(self):
     pipeline = Pipeline('DirectPipelineRunner')
     pcoll = pipeline | df.Create('start', [1, 2, 3])
     result = pcoll | df.FlatMap('do', lambda x, addon: [x + addon], 10)
-    self.assertEqual([11, 12, 13], list(result.get()))
+    assert_that(result, equal_to([11, 12, 13]))
+    pipeline.run()
 
   def test_do_with_side_input_as_arg(self):
     pipeline = Pipeline('DirectPipelineRunner')
@@ -116,7 +124,8 @@ class PTransformTest(unittest.TestCase):
     pcoll = pipeline | df.Create('start', [1, 2, 3])
     result = pcoll | df.FlatMap(
         'do', lambda x, addon: [x + addon], pvalue.AsSingleton(side))
-    self.assertEqual([11, 12, 13], list(result.get()))
+    assert_that(result, equal_to([11, 12, 13]))
+    pipeline.run()
 
   def test_do_with_side_input_as_keyword_arg(self):
     pipeline = Pipeline('DirectPipelineRunner')
@@ -124,17 +133,18 @@ class PTransformTest(unittest.TestCase):
     pcoll = pipeline | df.Create('start', [1, 2, 3])
     result = pcoll | df.FlatMap(
         'do', lambda x, addon: [x + addon], addon=pvalue.AsSingleton(side))
-    self.assertEqual([11, 12, 13], list(result.get()))
+    assert_that(result, equal_to([11, 12, 13]))
+    pipeline.run()
 
   def test_do_with_do_fn_returning_string_raises_warning(self):
     pipeline = Pipeline('DirectPipelineRunner')
     pcoll = pipeline | df.Create('start', ['2', '9', '3'])
-    result = pcoll | df.FlatMap('do', lambda x: x + '1')
+    pcoll | df.FlatMap('do', lambda x: x + '1')
 
     # Since the DoFn directly returns a string we should get an error warning
     # us.
     with self.assertRaises(typehints.TypeCheckError) as cm:
-      result.get()
+      pipeline.run()
 
     expected_error_prefix = ('Returning a str from a ParDo or FlatMap '
                              'is discouraged.')
@@ -143,12 +153,12 @@ class PTransformTest(unittest.TestCase):
   def test_do_with_do_fn_returning_dict_raises_warning(self):
     pipeline = Pipeline('DirectPipelineRunner')
     pcoll = pipeline | df.Create('start', ['2', '9', '3'])
-    result = pcoll | df.FlatMap('do', lambda x: {x: '1'})
+    pcoll | df.FlatMap('do', lambda x: {x: '1'})
 
     # Since the DoFn directly returns a dict we should get an error warning
     # us.
     with self.assertRaises(typehints.TypeCheckError) as cm:
-      result.get()
+      pipeline.run()
 
     expected_error_prefix = ('Returning a dict from a ParDo or FlatMap '
                              'is discouraged.')
@@ -159,8 +169,9 @@ class PTransformTest(unittest.TestCase):
     pcoll = pipeline | df.Create('start', [1, 2, 3])
     r1 = pcoll | df.FlatMap('a', lambda x: [x + 1]).with_outputs(main='m')
     r2 = pcoll | df.FlatMap('b', lambda x: [x + 2]).with_outputs(main='m')
-    self.assertEqual([2, 3, 4], list(r1.m.get()))
-    self.assertEqual([3, 4, 5], list(r2.m.get()))
+    assert_that(r1.m, equal_to([2, 3, 4]), label='r1')
+    assert_that(r2.m, equal_to([3, 4, 5]), label='r2')
+    pipeline.run()
 
   def test_do_requires_do_fn_returning_iterable(self):
     # This function is incorrect because it returns an object that isn't an
@@ -169,11 +180,11 @@ class PTransformTest(unittest.TestCase):
       return x + 5
     pipeline = Pipeline('DirectPipelineRunner')
     pcoll = pipeline | df.Create('start', [2, 9, 3])
-    result = pcoll | df.FlatMap('do', incorrect_par_do_fn)
+    pcoll | df.FlatMap('do', incorrect_par_do_fn)
     # It's a requirement that all user-defined functions to a ParDo return
     # an iterable.
     with self.assertRaises(typehints.TypeCheckError) as cm:
-      result.get()
+      pipeline.run()
 
     expected_error_prefix = ('FlatMap and ParDo must return an iterable.')
     self.assertStartswith(cm.exception.message, expected_error_prefix)
@@ -189,17 +200,24 @@ class PTransformTest(unittest.TestCase):
     pipeline = Pipeline('DirectPipelineRunner')
     pcoll = pipeline | df.Create('start', [1, 2, 3])
     result = pcoll | df.ParDo('do', MyDoFn())
-    res = list(result.get())
+
     # May have many bundles, but each has a start and finish.
-    self.assertEqual({'start', 'finish'}, set(res))
-    self.assertEqual(res.count('start'), res.count('finish'))
+    def  matcher():
+      def match(actual):
+        equal_to(['start', 'finish'])(list(set(actual)))
+        equal_to([actual.count('start')])([actual.count('finish')])
+      return match
+
+    assert_that(result, matcher())
+    pipeline.run()
 
   def test_filter(self):
     pipeline = Pipeline('DirectPipelineRunner')
     pcoll = pipeline | df.Create('start', [1, 2, 3, 4])
     result = pcoll | df.Filter(
         'filter', lambda x: x % 2 == 0)
-    self.assertEqual([2, 4], list(result.get()))
+    assert_that(result, equal_to([2, 4]))
+    pipeline.run()
 
   class _MeanCombineFn(df.CombineFn):
 
@@ -223,14 +241,16 @@ class PTransformTest(unittest.TestCase):
     pipeline = Pipeline('DirectPipelineRunner')
     pcoll = pipeline | df.Create('start', vals)
     result = pcoll | df.CombineGlobally('mean', self._MeanCombineFn())
-    self.assertAlmostEqual([sum(vals) / len(vals)], list(result.get()))
+    assert_that(result, equal_to([sum(vals) / len(vals)]))
+    pipeline.run()
 
   def test_combine_with_callable(self):
     vals = [1, 2, 3, 4, 5, 6, 7]
     pipeline = Pipeline('DirectPipelineRunner')
     pcoll = pipeline | df.Create('start', vals)
     result = pcoll | df.CombineGlobally(sum)
-    self.assertEqual([sum(vals)], list(result.get()))
+    assert_that(result, equal_to([sum(vals)]))
+    pipeline.run()
 
   def test_combine_with_side_input_as_arg(self):
     values = [1, 2, 3, 4, 5, 6, 7]
@@ -243,7 +263,8 @@ class PTransformTest(unittest.TestCase):
         lambda vals, d: max(v for v in vals if v % d == 0),
         pvalue.AsSingleton(divisor)).without_defaults()
     filt_vals = [v for v in values if v % 2 == 0]
-    self.assertEqual([max(filt_vals)], list(result.get()))
+    assert_that(result, equal_to([max(filt_vals)]))
+    pipeline.run()
 
   def test_combine_per_key_with_combine_fn(self):
     vals_1 = [1, 2, 3, 4, 5, 6, 7]
@@ -252,9 +273,9 @@ class PTransformTest(unittest.TestCase):
     pcoll = pipeline | df.Create('start', ([('a', x) for x in vals_1] +
                                            [('b', x) for x in vals_2]))
     result = pcoll | df.CombinePerKey('mean', self._MeanCombineFn())
-    self.assertEqual([('a', sum(vals_1) / len(vals_1)),
-                      ('b', sum(vals_2) / len(vals_2))],
-                     sorted(result.get()))
+    assert_that(result, equal_to([('a', sum(vals_1) / len(vals_1)),
+                                  ('b', sum(vals_2) / len(vals_2))]))
+    pipeline.run()
 
   def test_combine_per_key_with_callable(self):
     vals_1 = [1, 2, 3, 4, 5, 6, 7]
@@ -263,8 +284,8 @@ class PTransformTest(unittest.TestCase):
     pcoll = pipeline | df.Create('start', ([('a', x) for x in vals_1] +
                                            [('b', x) for x in vals_2]))
     result = pcoll | df.CombinePerKey(sum)
-    self.assertEqual([('a', sum(vals_1)), ('b', sum(vals_2))],
-                     sorted(result.get()))
+    assert_that(result, equal_to([('a', sum(vals_1)), ('b', sum(vals_2))]))
+    pipeline.run()
 
   def test_combine_per_key_with_side_input_as_arg(self):
     vals_1 = [1, 2, 3, 4, 5, 6, 7]
@@ -278,15 +299,16 @@ class PTransformTest(unittest.TestCase):
         pvalue.AsSingleton(divisor))  # Multiples of divisor only.
     m_1 = max(v for v in vals_1 if v % 2 == 0)
     m_2 = max(v for v in vals_2 if v % 2 == 0)
-    self.assertEqual([('a', m_1), ('b', m_2)], sorted(result.get()))
+    assert_that(result, equal_to([('a', m_1), ('b', m_2)]))
+    pipeline.run()
 
   def test_group_by_key(self):
     pipeline = Pipeline('DirectPipelineRunner')
     pcoll = pipeline | df.Create(
         'start', [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 3)])
     result = pcoll | df.GroupByKey('group')
-    self.assertEqual([(1, [1, 2, 3]), (2, [1, 2]), (3, [1])],
-                     sorted(result.get(), key=lambda x: x[0]))
+    assert_that(result, equal_to([(1, [1, 2, 3]), (2, [1, 2]), (3, [1])]))
+    pipeline.run()
 
   def test_partition_with_partition_fn(self):
 
@@ -299,15 +321,19 @@ class PTransformTest(unittest.TestCase):
     pcoll = pipeline | df.Create('start', [0, 1, 2, 3, 4, 5, 6, 7, 8])
     # Attempt nominal partition operation.
     partitions = pcoll | df.Partition('part1', SomePartitionFn(), 4, 1)
-    self.assertEqual([], list(partitions[0].get()))
-    self.assertEqual([0, 3, 6], sorted(partitions[1].get()))
-    self.assertEqual([1, 4, 7], sorted(partitions[2].get()))
-    self.assertEqual([2, 5, 8], sorted(partitions[3].get()))
+    assert_that(partitions[0], equal_to([]))
+    assert_that(partitions[1], equal_to([0, 3, 6]), label='p1')
+    assert_that(partitions[2], equal_to([1, 4, 7]), label='p2')
+    assert_that(partitions[3], equal_to([2, 5, 8]), label='p3')
+    pipeline.run()
+
     # Check that a bad partition label will yield an error. For the
     # DirectPipelineRunner, this error manifests as an exception.
+    pipeline = Pipeline('DirectPipelineRunner')
+    pcoll = pipeline | df.Create('start', [0, 1, 2, 3, 4, 5, 6, 7, 8])
     partitions = pcoll | df.Partition('part2', SomePartitionFn(), 4, 10000)
     with self.assertRaises(ValueError):
-      partitions[0].get()
+      pipeline.run()
 
   def test_partition_with_callable(self):
     pipeline = Pipeline('DirectPipelineRunner')
@@ -317,10 +343,11 @@ class PTransformTest(unittest.TestCase):
             'part',
             lambda e, n, offset: (e % 3) + offset, 4,
             1))
-    self.assertEqual([], list(partitions[0].get()))
-    self.assertEqual([0, 3, 6], sorted(partitions[1].get()))
-    self.assertEqual([1, 4, 7], sorted(partitions[2].get()))
-    self.assertEqual([2, 5, 8], sorted(partitions[3].get()))
+    assert_that(partitions[0], equal_to([]))
+    assert_that(partitions[1], equal_to([0, 3, 6]), label='p1')
+    assert_that(partitions[2], equal_to([1, 4, 7]), label='p2')
+    assert_that(partitions[3], equal_to([2, 5, 8]), label='p3')
+    pipeline.run()
 
   def test_partition_followed_by_flatten_and_groupbykey(self):
     """Regression test for an issue with how partitions are handled."""
@@ -330,21 +357,24 @@ class PTransformTest(unittest.TestCase):
     partitioned = created | df.Partition('B', lambda x, n: len(x) % n, 3)
     flattened = partitioned | df.Flatten('C')
     grouped = flattened | df.GroupByKey('D')
-    self.assertEqual([('aa', [1, 2]), ('bb', [2])], sorted(grouped.get()))
+    assert_that(grouped, equal_to([('aa', [1, 2]), ('bb', [2])]))
+    pipeline.run()
 
   def test_flatten_pcollections(self):
     pipeline = Pipeline('DirectPipelineRunner')
     pcoll_1 = pipeline | df.Create('start_1', [0, 1, 2, 3])
     pcoll_2 = pipeline | df.Create('start_2', [4, 5, 6, 7])
     result = (pcoll_1, pcoll_2) | df.Flatten('flatten')
-    self.assertEqual([0, 1, 2, 3, 4, 5, 6, 7], sorted(result.get()))
+    assert_that(result, equal_to([0, 1, 2, 3, 4, 5, 6, 7]))
+    pipeline.run()
 
   def test_flatten_no_pcollections(self):
     pipeline = Pipeline('DirectPipelineRunner')
     with self.assertRaises(ValueError):
       () | df.Flatten('pipeline arg missing')
     result = () | df.Flatten('empty', pipeline=pipeline)
-    self.assertEqual([], list(result.get()))
+    assert_that(result, equal_to([]))
+    pipeline.run()
 
   def test_flatten_pcollections_in_iterable(self):
     pipeline = Pipeline('DirectPipelineRunner')
@@ -352,7 +382,8 @@ class PTransformTest(unittest.TestCase):
     pcoll_2 = pipeline | df.Create('start_2', [4, 5, 6, 7])
     result = ([pcoll for pcoll in (pcoll_1, pcoll_2)]
               | df.Flatten('flatten'))
-    self.assertEqual([0, 1, 2, 3, 4, 5, 6, 7], sorted(result.get()))
+    assert_that(result, equal_to([0, 1, 2, 3, 4, 5, 6, 7]))
+    pipeline.run()
 
   def test_flatten_input_type_must_be_iterable(self):
     # Inputs to flatten *must* be an iterable.
@@ -373,11 +404,10 @@ class PTransformTest(unittest.TestCase):
     pcoll_2 = pipeline | df.Create(
         'start_2', [('a', 5), ('a', 6), ('c', 7), ('c', 8)])
     result = (pcoll_1, pcoll_2) | df.CoGroupByKey('cgbk')
-    self.assertEqual([('a', ([1, 2], [5, 6])),
-                      ('b', ([3], [])),
-                      ('c', ([4], [7, 8]))],
-                     sorted((k, tuple(sorted(vlist) for vlist in vlists))
-                            for k, vlists in result.get()))
+    assert_that(result, equal_to([('a', ([1, 2], [5, 6])),
+                                  ('b', ([3], [])),
+                                  ('c', ([4], [7, 8]))]))
+    pipeline.run()
 
   def test_co_group_by_key_on_iterable(self):
     pipeline = Pipeline('DirectPipelineRunner')
@@ -387,11 +417,10 @@ class PTransformTest(unittest.TestCase):
         'start_2', [('a', 5), ('a', 6), ('c', 7), ('c', 8)])
     result = ([pc for pc in (pcoll_1, pcoll_2)]
               | df.CoGroupByKey('cgbk'))
-    self.assertEqual([('a', ([1, 2], [5, 6])),
-                      ('b', ([3], [])),
-                      ('c', ([4], [7, 8]))],
-                     sorted((k, tuple(sorted(vlist) for vlist in vlists))
-                            for k, vlists in result.get()))
+    assert_that(result, equal_to([('a', ([1, 2], [5, 6])),
+                                  ('b', ([3], [])),
+                                  ('c', ([4], [7, 8]))]))
+    pipeline.run()
 
   def test_co_group_by_key_on_dict(self):
     pipeline = Pipeline('DirectPipelineRunner')
@@ -400,18 +429,18 @@ class PTransformTest(unittest.TestCase):
     pcoll_2 = pipeline | df.Create(
         'start_2', [('a', 5), ('a', 6), ('c', 7), ('c', 8)])
     result = {'X': pcoll_1, 'Y': pcoll_2} | df.CoGroupByKey('cgbk')
-    self.assertEqual([('a', {'X': [1, 2], 'Y': [5, 6]}),
-                      ('b', {'X': [3], 'Y': []}),
-                      ('c', {'X': [4], 'Y': [7, 8]})],
-                     sorted(result.get()))
+    assert_that(result, equal_to([('a', {'X': [1, 2], 'Y': [5, 6]}),
+                                  ('b', {'X': [3], 'Y': []}),
+                                  ('c', {'X': [4], 'Y': [7, 8]})]))
+    pipeline.run()
 
   def test_group_by_key_input_must_be_kv_pairs(self):
     pipeline = Pipeline('DirectPipelineRunner')
     pcolls = pipeline | df.Create('A', [1, 2, 3, 4, 5])
 
     with self.assertRaises(typehints.TypeCheckError) as e:
-      grouped = pcolls | df.GroupByKey('D')
-      grouped.get()
+      pcolls | df.GroupByKey('D')
+      pipeline.run()
 
     self.assertEqual('Runtime type violation detected within '
                      'ParDo(D/reify_windows): Input to GroupByKey must be '
@@ -422,8 +451,8 @@ class PTransformTest(unittest.TestCase):
     pipeline = Pipeline('DirectPipelineRunner')
     pcolls = pipeline | df.Create('A', ['a', 'b', 'f'])
     with self.assertRaises(typehints.TypeCheckError) as cm:
-      grouped = pcolls | df.GroupByKeyOnly('D')
-      grouped.get()
+      pcolls | df.GroupByKeyOnly('D')
+      pipeline.run()
 
     expected_error_prefix = ('Input to GroupByKeyOnly must be a PCollection of '
                              'windowed key-value pairs.')
@@ -435,24 +464,25 @@ class PTransformTest(unittest.TestCase):
         'start', [(3, 1), (2, 1), (1, 1), (3, 2), (2, 2), (3, 3)])
     keys = pcoll.apply('keys', df.Keys())
     vals = pcoll.apply('vals', df.Values())
-    self.assertEqual([1, 2, 2, 3, 3, 3], sorted(keys.get()))
-    self.assertEqual([1, 1, 1, 2, 2, 3], sorted(vals.get()))
+    assert_that(keys, equal_to([1, 2, 2, 3, 3, 3]), label='assert:keys')
+    assert_that(vals, equal_to([1, 1, 1, 2, 2, 3]), label='assert:vals')
+    pipeline.run()
 
   def test_kv_swap(self):
     pipeline = Pipeline('DirectPipelineRunner')
     pcoll = pipeline | df.Create(
         'start', [(6, 3), (1, 2), (7, 1), (5, 2), (3, 2)])
     result = pcoll.apply('swap', df.KvSwap())
-    self.assertEqual([(1, 7), (2, 1), (2, 3), (2, 5), (3, 6)],
-                     sorted(result.get()))
+    assert_that(result, equal_to([(1, 7), (2, 1), (2, 3), (2, 5), (3, 6)]))
+    pipeline.run()
 
   def test_remove_duplicates(self):
     pipeline = Pipeline('DirectPipelineRunner')
     pcoll = pipeline | df.Create(
         'start', [6, 3, 1, 1, 9, 'pleat', 'pleat', 'kazoo', 'navel'])
     result = pcoll.apply('nodupes', df.RemoveDuplicates())
-    self.assertEqual(sorted([1, 3, 6, 9, 'pleat', 'kazoo', 'navel']),
-                     sorted(result.get()))
+    assert_that(result, equal_to([1, 3, 6, 9, 'pleat', 'kazoo', 'navel']))
+    pipeline.run()
 
   def test_chained_ptransforms(self):
     pipeline = Pipeline('DirectPipelineRunner')
@@ -460,7 +490,8 @@ class PTransformTest(unittest.TestCase):
          | df.GroupByKey()
          | df.Map(lambda (x, ones): (x, sum(ones))))
     result = pipeline | df.Create('start', ['a', 'a', 'b']) | t
-    self.assertEquals(sorted([('a', 2), ('b', 1)]), sorted(result.get()))
+    assert_that(result, equal_to([('a', 2), ('b', 1)]))
+    pipeline.run()
 
   def test_apply_to_list(self):
     self.assertEqual([1, 2, 3], [0, 1, 2] | df.Map('add_one', lambda x: x + 1))
@@ -525,28 +556,31 @@ class PTransformLabelsTest(unittest.TestCase):
     map2 = df.Map('map2', lambda (x, ones): (x, sum(ones)))
     t = (map1 | gbk | map2)
     result = pipeline | df.Create('start', ['a', 'a', 'b']) | t
-    self.assertEquals(sorted([('a', 2), ('b', 1)]), sorted(result.get()))
     self.assertTrue('map1|gbk|map2/map1' in pipeline.applied_labels)
     self.assertTrue('map1|gbk|map2/gbk' in pipeline.applied_labels)
     self.assertTrue('map1|gbk|map2/map2' in pipeline.applied_labels)
+    assert_that(result, equal_to([('a', 2), ('b', 1)]))
+    pipeline.run()
 
   def test_apply_custom_transform_without_label(self):
     pipeline = Pipeline('DirectPipelineRunner')
     pcoll = pipeline | df.Create('pcoll', [1, 2, 3])
     custom = PTransformLabelsTest.CustomTransform()
     result = pipeline.apply(custom, pcoll)
-    self.assertEqual([2, 3, 4], list(result.get()))
     self.assertTrue('CustomTransform' in pipeline.applied_labels)
     self.assertTrue('CustomTransform/*do*' in pipeline.applied_labels)
+    assert_that(result, equal_to([2, 3, 4]))
+    pipeline.run()
 
   def test_apply_custom_transform_with_label(self):
     pipeline = Pipeline('DirectPipelineRunner')
     pcoll = pipeline | df.Create('pcoll', [1, 2, 3])
     custom = PTransformLabelsTest.CustomTransform('*custom*')
     result = pipeline.apply(custom, pcoll)
-    self.assertEqual([2, 3, 4], list(result.get()))
     self.assertTrue('*custom*' in pipeline.applied_labels)
     self.assertTrue('*custom*/*do*' in pipeline.applied_labels)
+    assert_that(result, equal_to([2, 3, 4]))
+    pipeline.run()
 
   def test_combine_without_label(self):
     vals = [1, 2, 3, 4, 5, 6, 7]
@@ -554,8 +588,9 @@ class PTransformLabelsTest(unittest.TestCase):
     pcoll = pipeline | df.Create('start', vals)
     combine = df.CombineGlobally(sum)
     result = pcoll | combine
-    self.assertEqual([sum(vals)], list(result.get()))
     self.assertTrue('CombineGlobally' in pipeline.applied_labels)
+    assert_that(result, equal_to([sum(vals)]))
+    pipeline.run()
 
   def test_apply_ptransform_using_decorator(self):
     pipeline = Pipeline('DirectPipelineRunner')
@@ -574,14 +609,15 @@ class PTransformLabelsTest(unittest.TestCase):
     pcoll = pipeline | df.Create('start', vals)
     combine = df.CombineGlobally('*sum*', sum)
     result = pcoll | combine
-    self.assertEqual([sum(vals)], list(result.get()))
     self.assertTrue('*sum*' in pipeline.applied_labels)
+    assert_that(result, equal_to([sum(vals)]))
+    pipeline.run()
 
 
 class PTransformTypeCheckTestCase(TypeHintTestCase):
 
   def setUp(self):
-    self.p = Pipeline(options=get_options([]))
+    self.p = Pipeline(options=PipelineOptions([]))
 
   def test_do_fn_pipeline_pipeline_type_check_satisfied(self):
     @with_input_types(int, int)
@@ -594,7 +630,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
          | df.Create('t', [1, 2, 3]).with_output_types(int)
          | df.ParDo('add', AddWithFive(), 5))
 
-    self.assertEqual([6, 7, 8], list(d.get()))
+    assert_that(d, equal_to([6, 7, 8]))
+    self.p.run()
 
   def test_do_fn_pipeline_pipeline_type_check_violated(self):
     @with_input_types(str, str)
@@ -613,7 +650,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
                      e.exception.message)
 
   def test_do_fn_pipeline_runtime_type_check_satisfied(self):
-    self.p.options.runtime_type_check = True
+    self.p.options.view_as(TypeOptions).runtime_type_check = True
 
     @with_input_types(int, int)
     @with_output_types(int)
@@ -625,10 +662,11 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
          | df.Create('t', [1, 2, 3]).with_output_types(int)
          | df.ParDo('add', AddWithNum(), 5))
 
-    self.assertEqual([6, 7, 8], list(d.get()))
+    assert_that(d, equal_to([6, 7, 8]))
+    self.p.run()
 
   def test_do_fn_pipeline_runtime_type_check_violated(self):
-    self.p.options.runtime_type_check = True
+    self.p.options.view_as(TypeOptions).runtime_type_check = True
 
     @with_input_types(int, int)
     @with_output_types(typehints.List[int])
@@ -639,7 +677,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     with self.assertRaises(typehints.TypeCheckError) as e:
       d = (self.p
            | df.Create('t', ['1', '2', '3']).with_output_types(str)
-           | df.ParDo('add', AddWithNum(), 5)).get()
+           | df.ParDo('add', AddWithNum(), 5))
+      self.p.run()
 
     self.assertEqual("Type hint violation for 'add': "
                      "requires <type 'int'> but got <type 'str'> for context",
@@ -672,7 +711,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     d = (self.p
          | df.Create('t', ['t', 'e', 's', 't']).with_output_types(str)
          | df.FlatMap('case', to_all_upper_case))
-    self.assertEqual(['T', 'E', 'S', 'T'], list(d.get()))
+    assert_that(d, equal_to(['T', 'E', 'S', 'T']))
+    self.p.run()
 
     # Output type should have been recognized as 'str' rather than List[str] to
     # do the flatten part of FlatMap.
@@ -702,7 +742,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
          | df.FlatMap('upper', lambda x: [x.upper()])
             .with_input_types(str).with_output_types(str))
 
-    self.assertEqual(['TT', 'EE', 'SS', 'TT'], list(d.get()))
+    assert_that(d, equal_to(['TT', 'EE', 'SS', 'TT']))
+    self.p.run()
 
   def test_map_does_not_type_check_using_type_hints_methods(self):
     # The transform before 'Map' has indicated that it outputs PCollections with
@@ -721,7 +762,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     d = (self.p
          | df.Create('s', [1, 2, 3, 4]).with_output_types(int)
          | df.Map('to_str', lambda x: str(x)).with_input_types(int).with_output_types(str))
-    self.assertEqual(['1', '2', '3', '4'], list(d.get()))
+    assert_that(d, equal_to(['1', '2', '3', '4']))
+    self.p.run()
 
   def test_map_does_not_type_check_using_type_hints_decorator(self):
     @with_input_types(s=str)
@@ -750,7 +792,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     d = (self.p
          | df.Create('bools', [True, False, True]).with_output_types(bool)
          | df.Map('to_ints', bool_to_int))
-    self.assertEqual([1, 0, 1], list(d.get()))
+    assert_that(d, equal_to([1, 0, 1]))
+    self.p.run()
 
   def test_filter_does_not_type_check_using_type_hints_method(self):
     # Filter is expecting an int but instead looks to the 'left' and sees a str
@@ -771,7 +814,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
          | df.Create('strs', ['1', '2', '3', '4', '5']).with_output_types(str)
          | df.Map('to int', lambda x: int(x)).with_input_types(str).with_output_types(int)
          | df.Filter('below 3', lambda x: x < 3).with_input_types(int))
-    self.assertEqual([1, 2], list(d.get()))
+    assert_that(d, equal_to([1, 2]))
+    self.p.run()
 
   def test_filter_does_not_type_check_using_type_hints_decorator(self):
     @with_input_types(a=float)
@@ -851,7 +895,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
                      e.exception.message)
 
   def test_pipeline_checking_pardo_insufficient_type_information(self):
-    self.p.options.type_check_strictness = 'ALL_REQUIRED'
+    self.p.options.view_as(TypeOptions).type_check_strictness = 'ALL_REQUIRED'
 
     # Type checking is enabled, but 'Create' doesn't pass on any relevant type
     # information to the ParDo.
@@ -865,7 +909,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
                      e.exception.message)
 
   def test_pipeline_checking_gbk_insufficient_type_information(self):
-    self.p.options.type_check_strictness = 'ALL_REQUIRED'
+    self.p.options.view_as(TypeOptions).type_check_strictness = 'ALL_REQUIRED'
     # Type checking is enabled, but 'Map' doesn't pass on any relevant type
     # information to GBK-only.
     with self.assertRaises(typehints.TypeCheckError) as e:
@@ -880,7 +924,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
                      e.exception.message)
 
   def test_disable_pipeline_type_check(self):
-    self.p.options.pipeline_type_check = False
+    self.p.options.view_as(TypeOptions).pipeline_type_check = False
 
     # The pipeline below should raise a TypeError, however pipeline type
     # checking was disabled above.
@@ -889,8 +933,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
      | df.Map('lower', lambda x: x.lower()).with_input_types(str).with_output_types(str))
 
   def test_run_time_type_checking_enabled_type_violation(self):
-    self.p.options.pipeline_type_check = False
-    self.p.options.runtime_type_check = True
+    self.p.options.view_as(TypeOptions).pipeline_type_check = False
+    self.p.options.view_as(TypeOptions).runtime_type_check = True
 
     @with_output_types(str)
     @with_input_types(x=int)
@@ -899,11 +943,11 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
     # Function above has been type-hinted to only accept an int. But in the
     # pipeline execution it'll be passed a string due to the output of Create.
-    result = (self.p
-              | df.Create('t', ['some_string'])
-              | df.Map('to str', int_to_string))
+    (self.p
+     | df.Create('t', ['some_string'])
+     | df.Map('to str', int_to_string))
     with self.assertRaises(typehints.TypeCheckError) as e:
-      list(result.get())
+      self.p.run()
 
     self.assertEqual("Runtime type violation detected within ParDo(to str): "
                      "Type-hint for argument: 'x' violated. "
@@ -912,8 +956,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
                      e.exception.message)
 
   def test_run_time_type_checking_enabled_types_satisfied(self):
-    self.p.options.pipeline_type_check = False
-    self.p.options.runtime_type_check = True
+    self.p.options.view_as(TypeOptions).pipeline_type_check = False
+    self.p.options.view_as(TypeOptions).runtime_type_check = True
 
     @with_output_types(typehints.KV[int, str])
     @with_input_types(x=str)
@@ -927,12 +971,14 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
               | df.Map('gen keys', group_with_upper_ord)
               | df.GroupByKey('O'))
 
-    self.assertEqual([(1, ['g']), (3, ['s', 'i', 'n']), (4, ['t', 'e', 't'])],
-                     sorted(list(result.get())))
+    assert_that(result, equal_to([(1, ['g']),
+                                  (3, ['s', 'i', 'n']),
+                                  (4, ['t', 'e', 't'])]))
+    self.p.run()
 
   def test_pipeline_checking_satisfied_but_run_time_types_violate(self):
-    self.p.options.pipeline_type_check = False
-    self.p.options.runtime_type_check = True
+    self.p.options.view_as(TypeOptions).pipeline_type_check = False
+    self.p.options.view_as(TypeOptions).runtime_type_check = True
 
     @with_output_types(typehints.KV[bool, int])
     @with_input_types(a=int)
@@ -941,16 +987,16 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
       # However this returns KV[int, int]
       return (a % 2, a)
 
-    result = (self.p
-              | df.Create('nums', range(5)).with_output_types(int)
-              | df.Map('is even', is_even_as_key)
-              | df.GroupByKey('parity'))
+    (self.p
+     | df.Create('nums', range(5)).with_output_types(int)
+     | df.Map('is even', is_even_as_key)
+     | df.GroupByKey('parity'))
 
     # Although all the types appear to be correct when checked at pipeline
     # construction. Runtime type-checking should detect the 'is_even_as_key' is
     # returning Tuple[int, int], instead of Tuple[bool, int].
     with self.assertRaises(typehints.TypeCheckError) as e:
-      list(result.get())
+      self.p.run()
 
     self.assertEqual(
         "Runtime type violation detected within ParDo(is even): "
@@ -961,7 +1007,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         e.exception.message)
 
   def test_pipeline_checking_satisfied_run_time_checking_satisfied(self):
-    self.p.options.pipeline_type_check = False
+    self.p.options.view_as(TypeOptions).pipeline_type_check = False
 
     @with_output_types(typehints.KV[bool, int])
     @with_input_types(a=int)
@@ -975,12 +1021,12 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
               | df.Map('is even', is_even_as_key)
               | df.GroupByKey('parity'))
 
-    self.assertEqual([(False, [1, 3]), (True, [0, 2, 4])],
-                     sorted(list(result.get())))
+    assert_that(result, equal_to([(False, [1, 3]), (True, [0, 2, 4])]))
+    self.p.run()
 
   def test_pipeline_runtime_checking_violation_simple_type_input(self):
-    self.p.options.runtime_type_check = True
-    self.p.options.pipeline_type_check = False
+    self.p.options.view_as(TypeOptions).runtime_type_check = True
+    self.p.options.view_as(TypeOptions).pipeline_type_check = False
 
     # The type-hinted applied via the 'with_input_types()' method indicates the
     # ParDo should receive an instance of type 'str', however an 'int' will be
@@ -989,7 +1035,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
       (self.p | df.Create('n', [1, 2, 3])
        | (df.FlatMap('to int', lambda x: [int(x)])
           .with_input_types(str).with_output_types(int))
-      ).get()
+      )
+      self.p.run()
 
     self.assertEqual("Runtime type violation detected within ParDo(to int): "
                      "Type-hint for argument: 'x' violated. "
@@ -998,15 +1045,16 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
                      e.exception.message)
 
   def test_pipeline_runtime_checking_violation_composite_type_input(self):
-    self.p.options.runtime_type_check = True
-    self.p.options.pipeline_type_check = False
+    self.p.options.view_as(TypeOptions).runtime_type_check = True
+    self.p.options.view_as(TypeOptions).pipeline_type_check = False
 
     with self.assertRaises(typehints.TypeCheckError) as e:
       (self.p
        | df.Create('n', [(1, 3.0), (2, 4.9), (3, 9.5)])
        | (df.FlatMap('add', lambda (x, y): [x + y])
           .with_input_types(typehints.Tuple[int, int]).with_output_types(int))
-      ).get()
+      )
+      self.p.run()
 
     self.assertEqual("Runtime type violation detected within ParDo(add): "
                      "Type-hint for argument: 'y' violated. "
@@ -1015,18 +1063,22 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
                      e.exception.message)
 
   def test_pipeline_runtime_checking_violation_simple_type_output(self):
-    self.p.options.runtime_type_check = True
-    self.p.options.pipeline_type_check = False
+    self.p.options.view_as(TypeOptions).runtime_type_check = True
+    self.p.options.view_as(TypeOptions).pipeline_type_check = False
 
     # The type-hinted applied via the 'returns()' method indicates the ParDo
     # should output an instance of type 'int', however a 'float' will be
     # generated instead.
-    print "HINTS", df.FlatMap('to int', lambda x: [float(x)]).with_input_types(int).with_output_types(int).get_type_hints()
+    print "HINTS", df.FlatMap(
+        'to int',
+        lambda x: [float(x)]).with_input_types(int).with_output_types(
+            int).get_type_hints()
     with self.assertRaises(typehints.TypeCheckError) as e:
       (self.p | df.Create('n', [1, 2, 3])
        | (df.FlatMap('to int', lambda x: [float(x)])
           .with_input_types(int).with_output_types(int))
-      ).get()
+      )
+      self.p.run()
 
     self.assertEqual("Runtime type violation detected within "
                      "ParDo(to int): "
@@ -1036,8 +1088,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
                      e.exception.message)
 
   def test_pipeline_runtime_checking_violation_composite_type_output(self):
-    self.p.options.runtime_type_check = True
-    self.p.options.pipeline_type_check = False
+    self.p.options.view_as(TypeOptions).runtime_type_check = True
+    self.p.options.view_as(TypeOptions).pipeline_type_check = False
 
     # The type-hinted applied via the 'returns()' method indicates the ParDo
     # should return an instance of type: Tuple[float, int]. However, an instance
@@ -1048,7 +1100,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
        | (df.FlatMap('swap', lambda (x, y): [x + y])
           .with_input_types(typehints.Tuple[int, float])
           .with_output_types(typehints.Tuple[float, int]))
-      ).get()
+      )
+      self.p.run()
 
     self.assertEqual("Runtime type violation detected within "
                      "ParDo(swap): Tuple type constraint violated. "
@@ -1057,8 +1110,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
                      e.exception.message)
 
   def test_pipline_runtime_checking_violation_with_side_inputs_decorator(self):
-    self.p.options.pipeline_type_check = False
-    self.p.options.runtime_type_check = True
+    self.p.options.view_as(TypeOptions).pipeline_type_check = False
+    self.p.options.view_as(TypeOptions).runtime_type_check = True
 
     @with_output_types(int)
     @with_input_types(a=int, b=int)
@@ -1066,7 +1119,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
       return a + b
 
     with self.assertRaises(typehints.TypeCheckError) as e:
-      (self.p | df.Create('t', [1, 2, 3, 4]) | df.Map('add 1', add, 1.0)).get()
+      (self.p | df.Create('t', [1, 2, 3, 4]) | df.Map('add 1', add, 1.0))
+      self.p.run()
 
     self.assertEqual("Runtime type violation detected within ParDo(add 1): "
                      "Type-hint for argument: 'b' violated. "
@@ -1075,15 +1129,16 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
                      e.exception.message)
 
   def test_pipline_runtime_checking_violation_with_side_inputs_via_method(self):
-    self.p.options.runtime_type_check = True
-    self.p.options.pipeline_type_check = False
+    self.p.options.view_as(TypeOptions).runtime_type_check = True
+    self.p.options.view_as(TypeOptions).pipeline_type_check = False
 
     with self.assertRaises(typehints.TypeCheckError) as e:
       (self.p
        | df.Create('t', [1, 2, 3, 4])
        | (df.Map('add 1', lambda x, one: x + one, 1.0)
           .with_input_types(int, int)
-          .with_output_types(float))).get()
+          .with_output_types(float)))
+      self.p.run()
 
     self.assertEqual("Runtime type violation detected within ParDo(add 1): "
                      "Type-hint for argument: 'one' violated. "
@@ -1102,7 +1157,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
          | df.CombineGlobally('sum', sum_ints))
 
     self.assertEqual(int, d.element_type)
-    self.assertEqual(list(d.get()), [6])
+    assert_that(d, equal_to([6]))
+    self.p.run()
 
   def test_combine_func_type_hint_does_not_take_iterable_using_decorator(self):
     @with_output_types(int)
@@ -1137,11 +1193,12 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
          | df.CombineGlobally('sum', sum_ints)
          | df.ParDo('range', range_from_zero))
 
-    self.assertEqual(list(d.get()), [0, 1, 2, 3, 4, 5, 6])
     self.assertEqual(int, d.element_type)
+    assert_that(d, equal_to([0, 1, 2, 3, 4, 5, 6]))
+    self.p.run()
 
   def test_combine_runtime_type_check_satisfied_using_decorators(self):
-    self.p.options.pipeline_type_check = False
+    self.p.options.view_as(TypeOptions).pipeline_type_check = False
 
     @with_output_types(int)
     @with_input_types(ints=typehints.Iterable[int])
@@ -1152,11 +1209,12 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
          | df.Create('k', [5, 5, 5, 5]).with_output_types(int)
          | df.CombineGlobally('mul', iter_mul))
 
-    self.assertEqual([625], list(d.get()))
+    assert_that(d, equal_to([625]))
+    self.p.run()
 
   def test_combine_runtime_type_check_violation_using_decorators(self):
-    self.p.options.pipeline_type_check = False
-    self.p.options.runtime_type_check = True
+    self.p.options.view_as(TypeOptions).pipeline_type_check = False
+    self.p.options.view_as(TypeOptions).runtime_type_check = True
 
     # Combine fn is returning the incorrect type
     @with_output_types(int)
@@ -1167,7 +1225,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     with self.assertRaises(typehints.TypeCheckError) as e:
       (self.p
        | df.Create('k', [5, 5, 5, 5]).with_output_types(int)
-       | df.CombineGlobally('mul', iter_mul)).get()
+       | df.CombineGlobally('mul', iter_mul))
+      self.p.run()
 
     self.assertEqual(
         "Runtime type violation detected within "
@@ -1184,18 +1243,24 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
          | (df.CombineGlobally('concat', lambda s: ''.join(s))
             .with_input_types(str).with_output_types(str)))
 
-    self.assertEqual(''.join(sorted(list(d.get())[0])), 'estt')
+    def matcher(expected):
+      def match(actual):
+        equal_to(expected)(list(actual[0]))
+      return match
+    assert_that(d, matcher('estt'))
+    self.p.run()
 
   def test_combine_runtime_type_check_using_methods(self):
-    self.p.options.pipeline_type_check = False
-    self.p.options.runtime_type_check = True
+    self.p.options.view_as(TypeOptions).pipeline_type_check = False
+    self.p.options.view_as(TypeOptions).runtime_type_check = True
 
     d = (self.p
          | df.Create('s', range(5)).with_output_types(int)
          | (df.CombineGlobally('sum', lambda s: sum(s))
             .with_input_types(int).with_output_types(int)))
 
-    self.assertEqual(list(d.get()), [10])
+    assert_that(d, equal_to([10]))
+    self.p.run()
 
   def test_combine_pipeline_type_check_violation_using_methods(self):
     with self.assertRaises(typehints.TypeCheckError) as e:
@@ -1209,14 +1274,15 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
                      e.exception.message)
 
   def test_combine_runtime_type_check_violation_using_methods(self):
-    self.p.options.pipeline_type_check = False
-    self.p.options.runtime_type_check = True
+    self.p.options.view_as(TypeOptions).pipeline_type_check = False
+    self.p.options.view_as(TypeOptions).runtime_type_check = True
 
     with self.assertRaises(typehints.TypeCheckError) as e:
       (self.p
        | df.Create('e', range(3)).with_output_types(int)
        | (df.CombineGlobally('sort join', lambda s: ''.join(sorted(s)))
-          .with_input_types(str).with_output_types(str))).get()
+          .with_input_types(str).with_output_types(str)))
+      self.p.run()
 
     self.assertEqual("Runtime type violation detected within "
                      "ParDo(sort join/KeyWithVoid): "
@@ -1226,7 +1292,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
                      e.exception.message)
 
   def test_combine_insufficient_type_hint_information(self):
-    self.p.options.type_check_strictness = 'ALL_REQUIRED'
+    self.p.options.view_as(TypeOptions).type_check_strictness = 'ALL_REQUIRED'
 
     with self.assertRaises(typehints.TypeCheckError) as e:
       (self.p
@@ -1246,7 +1312,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
          | combine.Mean.Globally('mean'))
 
     self.assertTrue(d.element_type is float)
-    self.assertEqual([2.0], list(d.get()))
+    assert_that(d, equal_to([2.0]))
+    self.p.run()
 
   def test_mean_globally_pipeline_checking_violated(self):
     with self.assertRaises(typehints.TypeCheckError) as e:
@@ -1261,23 +1328,25 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
                      e.exception.message)
 
   def test_mean_globally_runtime_checking_satisfied(self):
-    self.p.options.runtime_type_check = True
+    self.p.options.view_as(TypeOptions).runtime_type_check = True
 
     d = (self.p
          | df.Create('c', range(5)).with_output_types(int)
          | combine.Mean.Globally('mean'))
 
     self.assertTrue(d.element_type is float)
-    self.assertEqual([2.0], list(d.get()))
+    assert_that(d, equal_to([2.0]))
+    self.p.run()
 
   def test_mean_globally_runtime_checking_violated(self):
-    self.p.options.pipeline_type_check = False
-    self.p.options.runtime_type_check = True
+    self.p.options.view_as(TypeOptions).pipeline_type_check = False
+    self.p.options.view_as(TypeOptions).runtime_type_check = True
 
     with self.assertRaises(typehints.TypeCheckError) as e:
       (self.p
        | df.Create('c', ['t', 'e', 's', 't']).with_output_types(str)
-       | combine.Mean.Globally('mean')).get()
+       | combine.Mean.Globally('mean'))
+      self.p.run()
       self.assertEqual("Runtime type violation detected for transform input "
                        "when executing ParDoFlatMap(Combine): Tuple[Any, "
                        "Iterable[Union[int, float]]] hint type-constraint "
@@ -1297,7 +1366,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
          | combine.Mean.PerKey('even mean'))
 
     self.assertCompatible(typehints.KV[bool, float], d.element_type)
-    self.assertEqual([(False, 2.0), (True, 2.0)], sorted(list(d.get())))
+    assert_that(d, equal_to([(False, 2.0), (True, 2.0)]))
+    self.p.run()
 
   def test_mean_per_key_pipeline_checking_violated(self):
     with self.assertRaises(typehints.TypeCheckError) as e:
@@ -1305,7 +1375,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
        | df.Create('e', map(str, range(5))).with_output_types(str)
        | (df.Map('upper pair', lambda x: (x.upper(), x))
           .with_output_types(typehints.KV[str, str]))
-       | combine.Mean.PerKey('even mean')).get()
+       | combine.Mean.PerKey('even mean'))
+      self.p.run()
 
     self.assertEqual("Type hint violation for 'ParDo': "
                      "requires Tuple[TypeVariable[K], "
@@ -1314,7 +1385,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
                      e.exception.message)
 
   def test_mean_per_key_runtime_checking_satisfied(self):
-    self.p.options.runtime_type_check = True
+    self.p.options.view_as(TypeOptions).runtime_type_check = True
 
     d = (self.p
          | df.Create('c', range(5)).with_output_types(int)
@@ -1323,18 +1394,20 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
          | combine.Mean.PerKey('odd mean'))
 
     self.assertCompatible(typehints.KV[bool, float], d.element_type)
-    self.assertEqual([(False, 2.0), (True, 2.0)], sorted(list(d.get())))
+    assert_that(d, equal_to([(False, 2.0), (True, 2.0)]))
+    self.p.run()
 
   def test_mean_per_key_runtime_checking_violated(self):
-    self.p.options.pipeline_type_check = False
-    self.p.options.runtime_type_check = True
+    self.p.options.view_as(TypeOptions).pipeline_type_check = False
+    self.p.options.view_as(TypeOptions).runtime_type_check = True
 
     with self.assertRaises(typehints.TypeCheckError) as e:
       (self.p
        | df.Create('c', range(5)).with_output_types(int)
        | (df.Map('odd group', lambda x: (x, str(bool(x % 2))))
           .with_output_types(typehints.KV[int, str]))
-       | combine.Mean.PerKey('odd mean')).get()
+       | combine.Mean.PerKey('odd mean'))
+      self.p.run()
 
     self.assertEqual("Runtime type violation detected within "
                      "ParDo(odd mean/CombinePerKey/Combine/ParDo): "
@@ -1356,17 +1429,19 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
          | combine.Count.Globally('count int'))
 
     self.assertTrue(d.element_type is int)
-    self.assertEqual([5], list(d.get()))
+    assert_that(d, equal_to([5]))
+    self.p.run()
 
   def test_count_globally_runtime_type_checking_satisfied(self):
-    self.p.options.runtime_type_check = True
+    self.p.options.view_as(TypeOptions).runtime_type_check = True
 
     d = (self.p
          | df.Create('p', range(5)).with_output_types(int)
          | combine.Count.Globally('count int'))
 
     self.assertTrue(d.element_type is int)
-    self.assertEqual([5], list(d.get()))
+    assert_that(d, equal_to([5]))
+    self.p.run()
 
   def test_count_perkey_pipeline_type_checking_satisfied(self):
     d = (self.p
@@ -1376,7 +1451,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
          | combine.Count.PerKey('count int'))
 
     self.assertCompatible(typehints.KV[bool, int], d.element_type)
-    self.assertEqual([(False, 2), (True, 3)], sorted(list(d.get())))
+    assert_that(d, equal_to([(False, 2), (True, 3)]))
+    self.p.run()
 
   def test_count_perkey_pipeline_type_checking_violated(self):
     with self.assertRaises(typehints.TypeCheckError) as e:
@@ -1390,7 +1466,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
                      e.exception.message)
 
   def test_count_perkey_runtime_type_checking_satisfied(self):
-    self.p.options.runtime_type_check = True
+    self.p.options.view_as(TypeOptions).runtime_type_check = True
 
     d = (self.p
          | df.Create('c', ['t', 'e', 's', 't']).with_output_types(str)
@@ -1398,7 +1474,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
          | combine.Count.PerKey('count dups'))
 
     self.assertCompatible(typehints.KV[str, int], d.element_type)
-    self.assertEqual([('e', 1), ('s', 1), ('t', 2)], sorted(list(d.get())))
+    assert_that(d, equal_to([('e', 1), ('s', 1), ('t', 2)]))
+    self.p.run()
 
   def test_count_perelement_pipeline_type_checking_satisfied(self):
     d = (self.p
@@ -1406,10 +1483,11 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
          | combine.Count.PerElement('count elems'))
 
     self.assertCompatible(typehints.KV[int, int], d.element_type)
-    self.assertEqual([(1, 2), (2, 1), (3, 1)], sorted(list(d.get())))
+    assert_that(d, equal_to([(1, 2), (2, 1), (3, 1)]))
+    self.p.run()
 
   def test_count_perelement_pipeline_type_checking_violated(self):
-    self.p.options.type_check_strictness = 'ALL_REQUIRED'
+    self.p.options.view_as(TypeOptions).type_check_strictness = 'ALL_REQUIRED'
 
     with self.assertRaises(typehints.TypeCheckError) as e:
       (self.p
@@ -1422,14 +1500,15 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
                      e.exception.message)
 
   def test_count_perelement_runtime_type_checking_satisfied(self):
-    self.p.options.runtime_type_check = True
+    self.p.options.view_as(TypeOptions).runtime_type_check = True
 
     d = (self.p
          | df.Create('w', [True, True, False, True, True]).with_output_types(bool)
          | combine.Count.PerElement('count elems'))
 
     self.assertCompatible(typehints.KV[bool, int], d.element_type)
-    self.assertEqual([(False, 1), (True, 4)], sorted(list(d.get())))
+    assert_that(d, equal_to([(False, 1), (True, 4)]))
+    self.p.run()
 
   def test_top_of_pipeline_checking_satisfied(self):
     d = (self.p
@@ -1438,17 +1517,19 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
     self.assertCompatible(typehints.Iterable[int],
                           d.element_type)
-    self.assertEqual([10, 9, 8], list(d.get())[0])
+    assert_that(d, equal_to([[10, 9, 8]]))
+    self.p.run()
 
   def test_top_of_runtime_checking_satisfied(self):
-    self.p.options.runtime_type_check = True
+    self.p.options.view_as(TypeOptions).runtime_type_check = True
 
     d = (self.p
          | df.Create('n', list('testing')).with_output_types(str)
          | combine.Top.Of('acii top', 3, lambda x, y: x < y))
 
     self.assertCompatible(typehints.Iterable[str], d.element_type)
-    self.assertEqual(['t', 't', 's'], list(d.get())[0])
+    assert_that(d, equal_to([['t', 't', 's']]))
+    self.p.run()
 
   def test_per_key_pipeline_checking_violated(self):
     with self.assertRaises(typehints.TypeCheckError) as e:
@@ -1471,10 +1552,11 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
     self.assertCompatible(typehints.Tuple[int, typehints.Iterable[int]],
                           d.element_type)
-    self.assertEqual([(0, [99]), (1, [97]), (2, [98])], sorted(list(d.get())))
+    assert_that(d, equal_to([(0, [99]), (1, [97]), (2, [98])]))
+    self.p.run()
 
   def test_per_key_runtime_checking_satisfied(self):
-    self.p.options.runtime_type_check = True
+    self.p.options.view_as(TypeOptions).runtime_type_check = True
 
     d = (self.p
          | df.Create('n', range(21))
@@ -1484,7 +1566,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
     self.assertCompatible(typehints.KV[int, typehints.Iterable[int]],
                           d.element_type)
-    self.assertEqual([(0, [18]), (1, [19]), (2, [20])], sorted(list(d.get())))
+    assert_that(d, equal_to([(0, [18]), (1, [19]), (2, [20])]))
+    self.p.run()
 
   def test_sample_globally_pipeline_satisfied(self):
     d = (self.p
@@ -1492,17 +1575,27 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
          | combine.Sample.FixedSizeGlobally('sample', 3))
 
     self.assertCompatible(typehints.Iterable[int], d.element_type)
-    self.assertEqual(3, len(list(d.get())[0]))
+    def matcher(expected_len):
+      def match(actual):
+        equal_to([expected_len])([len(actual[0])])
+      return match
+    assert_that(d, matcher(3))
+    self.p.run()
 
   def test_sample_globally_runtime_satisfied(self):
-    self.p.options.runtime_type_check = True
+    self.p.options.view_as(TypeOptions).runtime_type_check = True
 
     d = (self.p
          | df.Create('m', [2, 2, 3, 3]).with_output_types(int)
          | combine.Sample.FixedSizeGlobally('sample', 2))
 
     self.assertCompatible(typehints.Iterable[int], d.element_type)
-    self.assertEqual(2, len(list(d.get())[0]))
+    def matcher(expected_len):
+      def match(actual):
+        equal_to([expected_len])([len(actual[0])])
+      return match
+    assert_that(d, matcher(2))
+    self.p.run()
 
   def test_sample_per_key_pipeline_satisfied(self):
     d = (self.p
@@ -1512,10 +1605,16 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
     self.assertCompatible(typehints.KV[int, typehints.Iterable[int]],
                           d.element_type)
-    self.assertTrue(all(len(sample) == 2 for _, sample in list(d.get())))
+    def matcher(expected_len):
+      def match(actual):
+        for _, sample in actual:
+          equal_to([expected_len])([len(sample)])
+      return match
+    assert_that(d, matcher(2))
+    self.p.run()
 
   def test_sample_per_key_runtime_satisfied(self):
-    self.p.options.runtime_type_check = True
+    self.p.options.view_as(TypeOptions).runtime_type_check = True
 
     d = (self.p
          | (df.Create('m', [(1, 2), (1, 2), (2, 3), (2, 3)])
@@ -1524,7 +1623,13 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
     self.assertCompatible(typehints.KV[int, typehints.Iterable[int]],
                           d.element_type)
-    self.assertTrue(all(len(sample) == 1 for _, sample in list(d.get())))
+    def matcher(expected_len):
+      def match(actual):
+        for _, sample in actual:
+          equal_to([expected_len])([len(sample)])
+      return match
+    assert_that(d, matcher(1))
+    self.p.run()
 
   def test_to_list_pipeline_check_satisfied(self):
     d = (self.p
@@ -1532,17 +1637,27 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
          | combine.ToList('to list'))
 
     self.assertCompatible(typehints.List[int], d.element_type)
-    self.assertEqual([1, 2, 3, 4], sorted(list(d.get())[0]))
+    def matcher(expected):
+      def match(actual):
+        equal_to(expected)(actual[0])
+      return match
+    assert_that(d, matcher([1, 2, 3, 4]))
+    self.p.run()
 
   def test_to_list_runtime_check_satisfied(self):
-    self.p.options.runtime_type_check = True
+    self.p.options.view_as(TypeOptions).runtime_type_check = True
 
     d = (self.p
          | df.Create('c', list('test')).with_output_types(str)
          | combine.ToList('to list'))
 
     self.assertCompatible(typehints.List[str], d.element_type)
-    self.assertEqual(['e', 's', 't', 't'], sorted(list(d.get())[0]))
+    def matcher(expected):
+      def match(actual):
+        equal_to(expected)(actual[0])
+      return match
+    assert_that(d, matcher(['e', 's', 't', 't']))
+    self.p.run()
 
   def test_to_dict_pipeline_check_violated(self):
     with self.assertRaises(typehints.TypeCheckError) as e:
@@ -1558,34 +1673,35 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
   def test_to_dict_pipeline_check_satisfied(self):
     d = (self.p
-         | df.Create('d', [(1, 2), (3, 4)]).with_output_types(typehints.Tuple[int, int])
+         | df.Create(
+             'd',
+             [(1, 2), (3, 4)]).with_output_types(typehints.Tuple[int, int])
          | combine.ToDict('to dict'))
 
-    new_dict = list(d.get())[0]
     self.assertCompatible(typehints.Dict[int, int], d.element_type)
-    self.assertIn(1, new_dict)
-    self.assertIn(3, new_dict)
+    assert_that(d, equal_to([{1: 2, 3: 4}]))
+    self.p.run()
 
   def test_to_dict_runtime_check_satisfied(self):
-    self.p.options.runtime_type_check = True
+    self.p.options.view_as(TypeOptions).runtime_type_check = True
 
     d = (self.p
          | (df.Create('d', [('1', 2), ('3', 4)])
             .with_output_types(typehints.Tuple[str, int]))
          | combine.ToDict('to dict'))
 
-    new_dict = list(d.get())[0]
     self.assertCompatible(typehints.Dict[str, int], d.element_type)
-    self.assertIn('1', new_dict)
-    self.assertIn('3', new_dict)
+    assert_that(d, equal_to([{'1': 2, '3': 4}]))
+    self.p.run()
 
   def test_runtime_type_check_python_type_error(self):
-    self.p.options.runtime_type_check = True
+    self.p.options.view_as(TypeOptions).runtime_type_check = True
 
     with self.assertRaises(TypeError) as e:
       (self.p
        | df.Create('t', [1, 2, 3]).with_output_types(int)
-       | df.Map('len', lambda x: len(x)).with_output_types(int)).get()
+       | df.Map('len', lambda x: len(x)).with_output_types(int))
+      self.p.run()
 
     # Our special type-checking related TypeError shouldn't have been raised.
     # Instead the above pipeline should have triggered a regular Python runtime
@@ -1627,13 +1743,14 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
                      e.exception.message)
 
   def test_type_inference_command_line_flag_toggle(self):
-    self.p.options.pipeline_type_check = False
+    self.p.options.view_as(TypeOptions).pipeline_type_check = False
     x = self.p | df.Create('t', [1, 2, 3, 4])
     self.assertIsNone(x.element_type)
 
-    self.p.options.pipeline_type_check = True
+    self.p.options.view_as(TypeOptions).pipeline_type_check = True
     x = self.p | df.Create('m', [1, 2, 3, 4])
     self.assertEqual(int, x.element_type)
+
 
 if __name__ == '__main__':
   unittest.main()

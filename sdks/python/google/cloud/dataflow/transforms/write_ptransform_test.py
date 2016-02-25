@@ -21,7 +21,8 @@ import google.cloud.dataflow as df
 from google.cloud.dataflow.io import iobase
 from google.cloud.dataflow.pipeline import Pipeline
 from google.cloud.dataflow.transforms.ptransform import PTransform
-from google.cloud.dataflow.utils.options import get_options
+from google.cloud.dataflow.transforms.util import assert_that, is_empty
+from google.cloud.dataflow.utils.options import PipelineOptions
 
 
 class _TestSink(iobase.Sink):
@@ -105,10 +106,12 @@ class WriteTest(unittest.TestCase):
                       return_write_results=True):
     write_to_test_sink = WriteToTestSink(return_init_result,
                                          return_write_results)
-    p = Pipeline(options=get_options([]))
+    p = Pipeline(options=PipelineOptions([]))
     result = p | df.Create('start', data) | write_to_test_sink
 
-    self.assertEqual([], list(result.get()))
+    assert_that(result, is_empty())
+    p.run()
+
     sink = write_to_test_sink.last_sink
     self.assertIsNotNone(sink)
 

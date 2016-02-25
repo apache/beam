@@ -35,12 +35,12 @@ and an output prefix on GCS:
 
 from __future__ import absolute_import
 
+import argparse
 import logging
 import re
+import sys
 
 import google.cloud.dataflow as df
-from google.cloud.dataflow.utils.options import add_option
-from google.cloud.dataflow.utils.options import get_options
 
 
 class FilterTextFn(df.DoFn):
@@ -114,16 +114,27 @@ class CountWords(df.PTransform):
             | df.Map('count', lambda (word, ones): (word, sum(ones))))
 
 
-def run(options=None):
+def run(argv=sys.argv[1:]):
   """Runs the debugging wordcount pipeline."""
-  p = df.Pipeline(options=get_options(options))
+
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--input',
+                      dest='input',
+                      default='gs://dataflow-samples/shakespeare/kinglear.txt',
+                      help='Input file to process.')
+  parser.add_argument('--output',
+                      dest='output',
+                      required=True,
+                      help='Output file to write results to.')
+  known_args, pipeline_args = parser.parse_known_args(argv)
+
+  p = df.Pipeline(argv=pipeline_args)
 
   # Read the text file[pattern] into a PCollection, count the occurrences of
   # each word and filter by a list of words.
-  filtered_words = (p
-                    | df.io.Read('read', df.io.TextFileSource(p.options.input))
-                    | CountWords()
-                    | df.ParDo('FilterText', FilterTextFn('Flourish|stomach')))
+  filtered_words = (
+      p | df.io.Read('read', df.io.TextFileSource(known_args.input))
+      | CountWords() | df.ParDo('FilterText', FilterTextFn('Flourish|stomach')))
 
   # AssertEqualsIgnoringOrderFn is a convenient DoFn to validate its input.
   # Asserts are best used in unit tests with small data sets but is demonstrated
@@ -144,18 +155,10 @@ def run(options=None):
   # pylint: disable=unused-variable
   output = (filtered_words
             | df.Map('format', lambda (word, c): '%s: %s' % (word, c))
-            | df.io.Write('write', df.io.TextFileSink(p.options.output)))
+            | df.io.Write('write', df.io.TextFileSink(known_args.output)))
 
   # Actually run the pipeline (all operations above are deferred).
   p.run()
-
-add_option(
-    '--input', dest='input',
-    default='gs://dataflow-samples/shakespeare/kinglear.txt',
-    help='Input file to process.')
-add_option(
-    '--output', dest='output', required=True,
-    help='Output file to write results to.')
 
 
 if __name__ == '__main__':

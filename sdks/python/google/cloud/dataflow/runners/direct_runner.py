@@ -39,6 +39,7 @@ from google.cloud.dataflow.transforms.window import WindowedValue
 from google.cloud.dataflow.typehints.typecheck import OutputCheckWrapperDoFn
 from google.cloud.dataflow.typehints.typecheck import TypeCheckError
 from google.cloud.dataflow.typehints.typecheck import TypeCheckWrapperDoFn
+from google.cloud.dataflow.utils.options import TypeOptions
 
 
 class DirectPipelineRunner(PipelineRunner):
@@ -105,7 +106,7 @@ class DirectPipelineRunner(PipelineRunner):
     # TODO(robertwb): Do this type checking inside DoFnRunner to get it on
     # remote workers as well?
     options = transform_node.inputs[0].pipeline.options
-    if options is not None and options.runtime_type_check:
+    if options is not None and options.view_as(TypeOptions).runtime_type_check:
       transform.dofn = TypeCheckWrapperDoFn(
           transform.dofn, transform.get_type_hints())
 
@@ -187,8 +188,11 @@ class DirectPipelineRunner(PipelineRunner):
 
   @skip_if_cached
   def run_Read(self, transform_node):
-    transform = transform_node.transform
-    with transform.source.reader() as reader:
+    # TODO(chamikara) Implement a more generic way for passing PipelineOption
+    # to sources when using DirectRunner.
+    source = transform_node.transform.source
+    source.pipeline_options = transform_node.inputs[0].pipeline.options
+    with source.reader() as reader:
       self._cache.cache_output(
           transform_node, [GlobalWindows.WindowedValue(e) for e in reader])
 

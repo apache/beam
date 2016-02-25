@@ -20,7 +20,8 @@ from __future__ import absolute_import
 import collections
 import operator
 
-from google.cloud.dataflow.transforms.core import CombinePerKey, Flatten, GroupByKey, Map
+from google.cloud.dataflow.pvalue import AsIter as AllOf
+from google.cloud.dataflow.transforms.core import CombinePerKey, Create, Flatten, GroupByKey, Map
 from google.cloud.dataflow.transforms.ptransform import PTransform
 from google.cloud.dataflow.transforms.ptransform import ptransform_fn
 
@@ -31,6 +32,9 @@ __all__ = [
     'KvSwap',
     'RemoveDuplicates',
     'Values',
+    'assert_that',
+    'equal_to',
+    'is_empty',
     ]
 
 
@@ -157,3 +161,54 @@ def RemoveDuplicates(label, pcoll):  # pylint: disable=invalid-name
           | Map('%s:ToPairs' % label, lambda v: (v, None))
           | CombinePerKey('%s:Group' % label, lambda vs: None)
           | Keys('%s:RemoveDuplicates' % label))
+
+
+class DataflowAssertException(Exception):
+  """Exception raised by matcher classes used by assert_that transform."""
+
+  pass
+
+
+# Note that equal_to always sorts the expected and actual since what we
+# compare are PCollections for which there is no guaranteed order.
+# However the sorting does not go beyond top level therefore [1,2] and [2,1]
+# are considered equal and [[1,2]] and [[2,1]] are not.
+# TODO(silviuc): Add contains_in_any_order-style matchers.
+def equal_to(expected):
+  def _equal(actual):
+    if sorted(expected) != sorted(actual):
+      raise DataflowAssertException(
+          'Failed assert: %r == %r' % (expected, actual))
+  return _equal
+
+
+def is_empty():
+  def _empty(actual):
+    if actual:
+      raise DataflowAssertException(
+          'Failed assert: [] == %r' % actual)
+  return _empty
+
+
+def assert_that(actual, matcher, label='assert_that'):
+  """A PTransform that checks a PCollection has an expected value.
+
+  Note that assert_that should be used only for testing pipelines since the
+  check relies on materializing the entire PCollection being checked.
+
+  Args:
+    actual: A PCollection.
+    matcher: A matcher function taking as argument the actual value of a
+      materialized PCollection. The matcher validates this actual value against
+      expectations and raises DataflowAssertException if they are not met.
+    label: Optional string label. This is needed in case several assert_that
+      transforms are introduced in the same pipeline.
+
+  Returns:
+    Ignored.
+  """
+
+  def match(_, actual):
+    matcher(actual)
+
+  actual.pipeline | Create(label, [None]) | Map(match, AllOf(actual))

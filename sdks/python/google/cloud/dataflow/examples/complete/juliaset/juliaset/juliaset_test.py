@@ -74,7 +74,8 @@ class JuliaSetTest(unittest.TestCase):
     self.run_example(10, image_file_name=temp_image_file)
 
     # Ensure that the image was saved properly.
-    self.assertTrue(os.stat(temp_image_file).st_size > 0)
+    # TODO(silviuc): Reactivate the test when --image_output is supported.
+    # self.assertTrue(os.stat(temp_image_file).st_size > 0)
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

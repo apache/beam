@@ -16,24 +16,34 @@
 
 from __future__ import absolute_import
 
+import argparse
 import logging
 import re
+import sys
 
 import google.cloud.dataflow as df
-from google.cloud.dataflow.utils.options import add_option
-from google.cloud.dataflow.utils.options import get_options
 
 
-def run(options=None):
-  p = df.Pipeline(options=get_options(options))
+def run(argv=sys.argv[1:]):
+
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--input',
+                      required=True,
+                      help='Input file to process.')
+  parser.add_argument('--output',
+                      required=True,
+                      help='Output file to write results to.')
+  known_args, pipeline_args = parser.parse_known_args(argv)
+
+  p = df.Pipeline(argv=pipeline_args)
 
   (p  # pylint: disable=expression-not-assigned
-   | df.io.Read('read', df.io.TextFileSource(p.options.input))
+   | df.io.Read('read', df.io.TextFileSource(known_args.input))
    | df.FlatMap('split', lambda x: re.findall(r'[A-Za-z\']+', x))
    | TopPerPrefix('TopPerPrefix', 5)
    | df.Map('format',
             lambda (prefix, candidates): '%s: %s' % (prefix, candidates))
-   | df.io.Write('write', df.io.TextFileSink(p.options.output)))
+   | df.io.Write('write', df.io.TextFileSink(known_args.output)))
   p.run()
 
 
@@ -63,14 +73,6 @@ def extract_prefixes((word, count)):
   for k in range(1, len(word) + 1):
     prefix = word[:k]
     yield prefix, (count, word)
-
-
-add_option(
-    '--input', dest='input', required=True,
-    help='Input file to process.')
-add_option(
-    '--output', dest='output', required=True,
-    help='Output file to write results to.')
 
 
 if __name__ == '__main__':

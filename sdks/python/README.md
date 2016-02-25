@@ -7,9 +7,6 @@ and streaming parallel data processing pipelines.
 The Dataflow SDK for Python provides access to Dataflow capabilities
 from the Python programming language.
 
-## Table of Contents
-[TOC]
-
 ## Status of this Release
 
 This is the Google Cloud Dataflow SDK for Python version 0.2.0.

@@ -25,6 +25,7 @@ from google.cloud.dataflow.transforms import GroupByKey
 from google.cloud.dataflow.transforms import Map
 from google.cloud.dataflow.transforms import window
 from google.cloud.dataflow.transforms import WindowInto
+from google.cloud.dataflow.transforms.util import assert_that, equal_to
 from google.cloud.dataflow.transforms.window import FixedWindows
 from google.cloud.dataflow.transforms.window import IntervalWindow
 from google.cloud.dataflow.transforms.window import Sessions
@@ -121,13 +122,13 @@ class WindowTest(unittest.TestCase):
 
     self.assertEqual([IntervalWindow(2, 25)], merge(2, 15, 10))
 
-  def timestamped_key_values(self, key, *timestamps):
-    pipeline = Pipeline('DirectPipelineRunner')
+  def timestamped_key_values(self, pipeline, key, *timestamps):
     return (pipeline | Create('start', timestamps)
             | Map(lambda x: WindowedValue((key, x), x, [])))
 
   def test_sliding_windows(self):
-    pcoll = self.timestamped_key_values('key', 1, 2, 3)
+    p = Pipeline('DirectPipelineRunner')
+    pcoll = self.timestamped_key_values(p, 'key', 1, 2, 3)
     result = (pcoll
               | WindowInto('w', SlidingWindows(period=2, size=4))
               | GroupByKey()
@@ -135,10 +136,12 @@ class WindowTest(unittest.TestCase):
     expected = [('key @ [-2, 2)', [1]),
                 ('key @ [0, 4)', [1, 2, 3]),
                 ('key @ [2, 6)', [2, 3])]
-    self.assertEqual(sorted(expected), sorted(result.get()))
+    assert_that(result, equal_to(expected))
+    p.run()
 
   def test_sessions(self):
-    pcoll = self.timestamped_key_values('key', 1, 2, 3, 20, 35, 27)
+    p = Pipeline('DirectPipelineRunner')
+    pcoll = self.timestamped_key_values(p, 'key', 1, 2, 3, 20, 35, 27)
     result = (pcoll
               | WindowInto('w', Sessions(10))
               | GroupByKey()
@@ -146,7 +149,8 @@ class WindowTest(unittest.TestCase):
               | reify_windows)
     expected = [('key @ [1, 13)', [1, 2, 3]),
                 ('key @ [20, 45)', [20, 27, 35])]
-    self.assertEqual(sorted(expected), sorted(result.get()))
+    assert_that(result, equal_to(expected))
+    p.run()
 
   def test_timestamped_value(self):
     p = Pipeline('DirectPipelineRunner')
@@ -156,9 +160,9 @@ class WindowTest(unittest.TestCase):
               | WindowInto('w', FixedWindows(5))
               | Map(lambda v: ('key', v))
               | GroupByKey())
-    expected = [('key', [0, 1, 2, 3, 4]),
-                ('key', [5, 6, 7, 8, 9])]
-    self.assertEqual(sorted(expected), sorted(result.get()))
+    assert_that(result, equal_to([('key', [0, 1, 2, 3, 4]),
+                                  ('key', [5, 6, 7, 8, 9])]))
+    p.run()
 
   def test_timestamped_with_combiners(self):
     p = Pipeline('DirectPipelineRunner')
@@ -186,10 +190,11 @@ class WindowTest(unittest.TestCase):
     sum_per_window = result | CombinePerKey(sum)
     # Compute mean per key and window.
     mean_per_window = result | combiners.Mean.PerKey()
-    sum_expected = [(0, 10), (1, 35)]
-    mean_expected = [(0, 2.0), (1, 7.0)]
-    self.assertEqual(sorted(sum_expected), sorted(sum_per_window.get()))
-    self.assertEqual(sorted(mean_expected), sorted(mean_per_window.get()))
+    assert_that(sum_per_window, equal_to([(0, 10), (1, 35)]),
+                label='assert:sum')
+    assert_that(mean_per_window, equal_to([(0, 2.0), (1, 7.0)]),
+                label='assert:mean')
+    p.run()
 
 
 if __name__ == '__main__':

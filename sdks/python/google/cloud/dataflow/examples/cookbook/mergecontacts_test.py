@@ -109,15 +109,11 @@ class MergeContactsTest(unittest.TestCase):
         '--input_phone=%s' % path_phone,
         '--input_snailmail=%s' % path_snailmail,
         '--output_tsv=%s.tsv' % result_prefix,
-        '--output_stats=%s.stats' % result_prefix])
+        '--output_stats=%s.stats' % result_prefix], assert_results=(2, 1, 3))
 
     with open('%s.tsv' % result_prefix) as f:
       contents = f.read()
       self.assertEqual(self.EXPECTED_TSV, self.normalize_tsv_results(contents))
-
-    with open('%s.stats' % result_prefix) as f:
-      contents = f.read()
-      self.assertEqual(self.EXPECTED_STATS, contents)
 
 
 if __name__ == '__main__':

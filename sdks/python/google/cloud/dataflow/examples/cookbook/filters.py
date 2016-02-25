@@ -23,12 +23,12 @@
 
 from __future__ import absolute_import
 
+import argparse
 import logging
+import sys
 
 import google.cloud.dataflow as df
 from google.cloud.dataflow.pvalue import AsSingleton
-from google.cloud.dataflow.utils.options import add_option
-from google.cloud.dataflow.utils.options import get_options
 
 
 def filter_cold_days(input_data, month_filter):
@@ -69,33 +69,35 @@ def filter_cold_days(input_data, month_filter):
                   lambda row, mean: row['mean_temp'] < mean, global_mean))
 
 
-def run(options=None):
+def run(argv=sys.argv[1:]):
   """Constructs and runs the example filtering pipeline."""
-  p = df.Pipeline(options=get_options(options))
 
-  input_data = p | df.io.Read('input', df.io.BigQuerySource(p.options.input))
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--input',
+                      help='BigQuery table to read from.',
+                      default='clouddataflow-readonly:samples.weather_stations')
+  parser.add_argument('--output',
+                      required=True,
+                      help='BigQuery table to write to.')
+  parser.add_argument('--month_filter',
+                      default=7,
+                      help='Numeric value of month to filter on.')
+  known_args, pipeline_args = parser.parse_known_args(argv)
+
+  p = df.Pipeline(argv=pipeline_args)
+
+  input_data = p | df.Read('input', df.io.BigQuerySource(known_args.input))
 
   # pylint: disable=expression-not-assigned
-  (filter_cold_days(input_data, p.options.month_filter)
+  (filter_cold_days(input_data, known_args.month_filter)
    | df.io.Write('save to BQ', df.io.BigQuerySink(
-       p.options.output,
+       known_args.output,
        schema='year:INTEGER,month:INTEGER,day:INTEGER,mean_temp:FLOAT',
        create_disposition=df.io.BigQueryDisposition.CREATE_IF_NEEDED,
        write_disposition=df.io.BigQueryDisposition.WRITE_TRUNCATE)))
 
   # Actually run the pipeline (all operations above are deferred).
   p.run()
-
-
-add_option(
-    '--input', dest='input', help='BigQuery table to read from.',
-    default='clouddataflow-readonly:samples.weather_stations')
-add_option(
-    '--output', dest='output', required=True,
-    help='BigQuery table to write to.')
-add_option(
-    '--month_filter', dest='month_filter', default=7,
-    help='Numeric value of month to filter on.')
 
 
 if __name__ == '__main__':

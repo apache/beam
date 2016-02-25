@@ -18,13 +18,16 @@ import datetime
 import json
 import logging
 import os
+import sys
 import urllib2
 
 
-from google.cloud.dataflow.utils import options
-from google.cloud.dataflow.utils import processes
 from oauth2client.client import OAuth2Credentials
 from oauth2client.client import SignedJwtAssertionCredentials
+
+from google.cloud.dataflow.utils import processes
+from google.cloud.dataflow.utils.options import GoogleCloudOptions
+from google.cloud.dataflow.utils.options import PipelineOptions
 
 
 # When we are running in GCE, we can authenticate with VM credentials.
@@ -114,13 +117,14 @@ def get_service_credentials():
     return GCEMetadataCredentials(user_agent=user_agent)
   else:
     # We are currently being run from the command line.
-    cli_options = options.get_options()
-    if cli_options.service_account_name:
-      if not cli_options.service_account_key_file:
+    google_cloud_options = PipelineOptions(
+        sys.argv).view_as(GoogleCloudOptions)
+    if google_cloud_options.service_account_name:
+      if not google_cloud_options.service_account_key_file:
         raise Exception('key file not provided for service account.')
-      if not os.path.exists(cli_options.service_account_key_file):
+      if not os.path.exists(google_cloud_options.service_account_key_file):
         raise Exception('Specified service account key file does not exist.')
-      with file(cli_options.service_account_key_file) as f:
+      with file(google_cloud_options.service_account_key_file) as f:
         service_account_key = f.read()
       client_scopes = [
           'https://www.googleapis.com/auth/bigquery',
@@ -129,8 +133,10 @@ def get_service_credentials():
           'https://www.googleapis.com/auth/userinfo.email',
           'https://www.googleapis.com/auth/datastore'
       ]
-      return SignedJwtAssertionCredentials(cli_options.service_account_name,
-                                           service_account_key, client_scopes,
-                                           user_agent=user_agent)
+      return SignedJwtAssertionCredentials(
+          google_cloud_options.service_account_name,
+          service_account_key,
+          client_scopes,
+          user_agent=user_agent)
     else:
       return _GCloudWrapperCredentials(user_agent)

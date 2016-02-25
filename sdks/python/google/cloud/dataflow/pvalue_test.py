@@ -18,9 +18,6 @@ import unittest
 
 from google.cloud.dataflow.pipeline import Pipeline
 from google.cloud.dataflow.pvalue import PValue
-from google.cloud.dataflow.runners import DirectPipelineRunner
-from google.cloud.dataflow.transforms import Create
-from google.cloud.dataflow.transforms import FlatMap
 from google.cloud.dataflow.transforms import PTransform
 
 
@@ -44,18 +41,6 @@ class PValueTest(unittest.TestCase):
     self.assertRaises(ValueError, PValue,
                       pipeline=Pipeline('DirectPipelineRunner'))
     self.assertRaises(ValueError, PValue, transform=PTransform())
-
-  def test_get_success_with_explicit_runner(self):
-    pipeline = Pipeline('DataflowPipelineRunner')
-    sample = pipeline | Create('label', [1, 2, 3])
-    modified = sample | FlatMap('label2', lambda x: [x + 1])
-    self.assertEqual([2, 3, 4], list(modified.get(DirectPipelineRunner())))
-
-  def test_get_success_with_pipeline_owned_runner(self):
-    pipeline = Pipeline('DirectPipelineRunner')
-    sample = pipeline | Create('label', [1, 2, 3])
-    modified = sample | FlatMap('label2', lambda x: [x + 1])
-    self.assertEqual([2, 3, 4], list(modified.get()))
 
 
 if __name__ == '__main__':

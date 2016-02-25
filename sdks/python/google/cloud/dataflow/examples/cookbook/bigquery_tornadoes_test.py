@@ -31,10 +31,9 @@ class BigQueryTornadoesTest(unittest.TestCase):
         {'month': 1, 'day': 3, 'tornado': True},
         {'month': 2, 'day': 1, 'tornado': True}]))
     results = bigquery_tornadoes.count_tornadoes(rows)
-    self.assertEqual(
-        sorted(results.get()),
-        sorted([{'month': 1, 'tornado_count': 2},
-                {'month': 2, 'tornado_count': 1}]))
+    df.assert_that(results, df.equal_to([{'month': 1, 'tornado_count': 2},
+                                         {'month': 2, 'tornado_count': 1}]))
+    p.run()
 
 
 if __name__ == '__main__':

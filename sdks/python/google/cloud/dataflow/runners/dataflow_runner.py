@@ -72,6 +72,18 @@ class DataflowPipelineRunner(PipelineRunner):
     """Polls for the specified job to finish running (successfully or not)."""
     last_message_time = None
     last_message_id = None
+
+    last_error_rank = float('-inf')
+    last_error_msg = None
+    # Try to prioritize the user-level traceback, if any.
+    def rank_error(msg):
+      if 'work item was attempted' in msg:
+        return -1
+      elif 'Traceback' in msg:
+        return 1
+      else:
+        return 0
+
     while True:
       response = runner.dataflow_client.get_job(job_id)
       # If get() is called very soon after Create() the response may not contain
@@ -102,10 +114,15 @@ class DataflowPipelineRunner(PipelineRunner):
           logging.info(
               '%s: %s: %s: %s', m.id, m.time, m.messageImportance,
               m.messageText)
+          if str(m.messageImportance) == 'JOB_MESSAGE_ERROR':
+            if rank_error(m.messageText) >= last_error_rank:
+              last_error_rank = rank_error(m.messageText)
+              last_error_msg = m.messageText
         if not page_token:
           break
 
     runner.result = DataflowPipelineResult(response)
+    runner.last_error_msg = last_error_msg
 
   def run(self, pipeline, node=None):
     """Remotely executes entire pipeline or parts reachable from node."""
@@ -133,6 +150,10 @@ class DataflowPipelineRunner(PipelineRunner):
       thread.start()
       while thread.isAlive():
         time.sleep(5.0)
+      if self.result.current_state() != PipelineState.DONE:
+        raise DataflowRuntimeException(
+            'Dataflow pipeline failed:\n%s'
+            % getattr(self, 'last_error_msg', None), self.result)
     return self.result
 
   def _get_typehint_based_encoding(self, typehint, window_value=True):
@@ -151,7 +172,7 @@ class DataflowPipelineRunner(PipelineRunner):
   def _get_cloud_encoding(self, coder):
     """Returns an encoding based on a coder object."""
     if not isinstance(coder, coders.Coder):
-      raise Exception('Coder object must inherit from coders.Coder: %s.' %
+      raise TypeError('Coder object must inherit from coders.Coder: %s.' %
                       str(coder))
     return coder.as_cloud_object()
 
@@ -558,3 +579,12 @@ class DataflowPipelineResult(PipelineResult):
 
   def __repr__(self):
     return '<%s %s at %s>' % (self.__class__.__name__, self._job, hex(id(self)))
+
+
+class DataflowRuntimeException(Exception):
+  """Indicates an error has occured in running this pipeline."""
+
+  def __init__(self, msg, result):
+    super(DataflowRuntimeException, self).__init__(msg)
+    self.result = result
+

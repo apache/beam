@@ -36,6 +36,7 @@ from __future__ import absolute_import
 import copy
 import inspect
 import operator
+import sys
 
 from google.cloud.dataflow import error
 from google.cloud.dataflow import pvalue
@@ -351,9 +352,10 @@ class PTransform(WithTypeHints):
       deferred = False
       # pylint: disable=g-import-not-at-top
       from google.cloud.dataflow import pipeline
-      from google.cloud.dataflow.utils.options import get_options
+      from google.cloud.dataflow.utils.options import PipelineOptions
       # pylint: enable=g-import-not-at-top
-      p = pipeline.Pipeline('DirectPipelineRunner', get_options([]))
+      p = pipeline.Pipeline(
+          'DirectPipelineRunner', PipelineOptions(sys.argv))
     else:
       deferred = True
       if not pipelines:

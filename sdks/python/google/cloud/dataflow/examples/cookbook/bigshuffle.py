@@ -16,25 +16,38 @@
 
 from __future__ import absolute_import
 
+import argparse
 import binascii
 import logging
+import sys
+
 
 import google.cloud.dataflow as df
-from google.cloud.dataflow.utils.options import add_option
-from google.cloud.dataflow.utils.options import get_options
 
 
 def crc32line(line):
   return binascii.crc32(line) & 0xffffffff
 
 
-def run(options=None):
+def run(argv=sys.argv[1:]):
   # pylint: disable=expression-not-assigned
 
-  p = df.Pipeline(options=get_options(options))
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--input',
+                      required=True,
+                      help='Input file pattern to process.')
+  parser.add_argument('--output',
+                      required=True,
+                      help='Output file pattern to write results to.')
+  parser.add_argument('--checksum_output',
+                      required=True,
+                      help='Checksum output file pattern.')
+  known_args, pipeline_args = parser.parse_known_args(argv)
+
+  p = df.Pipeline(argv=pipeline_args)
 
   # Read the text file[pattern] into a PCollection.
-  lines = p | df.io.Read('read', df.io.TextFileSource(p.options.input))
+  lines = p | df.io.Read('read', df.io.TextFileSource(known_args.input))
 
   # Count the occurrences of each word.
   output = (lines
@@ -50,10 +63,10 @@ def run(options=None):
                 | df.Map('hex-format', lambda x: '%x' % x))
   input_csum | df.io.Write(
       'write-input-csum',
-      df.io.TextFileSink(p.options.checksum_output + '-input'))
+      df.io.TextFileSink(known_args.checksum_output + '-input'))
 
   # Write the output using a "Write" transform that has side effects.
-  output | df.io.Write('write', df.io.TextFileSink(p.options.output))
+  output | df.io.Write('write', df.io.TextFileSink(known_args.output))
   # Write the output checksum
   output_csum = (output
                  | df.Map('output-csum', crc32line)
@@ -61,20 +74,11 @@ def run(options=None):
                  | df.Map('hex-format-output', lambda x: '%x' % x))
   output_csum | df.io.Write(
       'write-output-csum',
-      df.io.TextFileSink(p.options.checksum_output + '-output'))
+      df.io.TextFileSink(known_args.checksum_output + '-output'))
 
   # Actually run the pipeline (all operations above are deferred).
   p.run()
 
-add_option(
-    '--input', dest='input', required=True,
-    help='Input file pattern to process.')
-add_option(
-    '--output', dest='output', required=True,
-    help='Output file pattern to write results to.')
-add_option(
-    '--checksum_output', dest='checksum_output', required=True,
-    help='Checksum output file pattern.')
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

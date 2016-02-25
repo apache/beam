@@ -33,6 +33,7 @@ from google.cloud.dataflow.transforms.trigger import DefaultTrigger
 from google.cloud.dataflow.transforms.trigger import GeneralTriggerDriver
 from google.cloud.dataflow.transforms.trigger import InMemoryUnmergedState
 from google.cloud.dataflow.transforms.trigger import Repeatedly
+from google.cloud.dataflow.transforms.util import assert_that, equal_to
 from google.cloud.dataflow.transforms.window import FixedWindows
 from google.cloud.dataflow.transforms.window import IntervalWindow
 from google.cloud.dataflow.transforms.window import Sessions
@@ -358,14 +359,13 @@ class TriggerPipelineTest(unittest.TestCase):
                               accumulation_mode=AccumulationMode.DISCARDING)
               | df.GroupByKey()
               | df.Map(lambda (k, v): ('%s-%s' % (k, len(v)), set(v))))
-    self.assertEquals(
+    assert_that(result, equal_to(
         {
             'A-5': {1, 2, 3, 4, 5},
             # A-10, A-11 never emitted due to AfterCount(3) never firing.
             'B-4': {6, 7, 8, 9},
             'B-3': {10, 15, 16},
-        },
-        dict(result.get()))
+        }.iteritems()))
 
 
 class TranscriptTest(unittest.TestCase):

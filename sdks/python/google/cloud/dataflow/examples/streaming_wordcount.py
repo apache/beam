@@ -20,26 +20,35 @@ and is not yet available for use.
 
 from __future__ import absolute_import
 
+import argparse
 import logging
 import re
+import sys
 
 
 import google.cloud.dataflow as df
 from google.cloud.dataflow.transforms.trigger import AccumulationMode
 from google.cloud.dataflow.transforms.trigger import AfterCount
 import google.cloud.dataflow.transforms.window as window
-from google.cloud.dataflow.utils.options import add_option
-from google.cloud.dataflow.utils.options import get_options
 
 
-def run(options=None):
+def run(argv=sys.argv[1:]):
   """Build and run the pipeline."""
 
-  p = df.Pipeline(options=get_options(options))
+  parser = argparse.ArgumentParser()
+  parser.add_argument(
+      '--input_topic', required=True,
+      help='Input PubSub topic of the form "/topics/<PROJECT>/<TOPIC>".')
+  parser.add_argument(
+      '--output_topic', required=True,
+      help='Output PubSub topic of the form "/topics/<PROJECT>/<TOPIC>".')
+  known_args, pipeline_args = parser.parse_known_args(argv)
+
+  p = df.Pipeline(argv=pipeline_args)
 
   # Read the text file[pattern] into a PCollection.
   lines = p | df.io.Read(
-      'read', df.io.PubSubSource(p.options.input_topic))
+      'read', df.io.PubSubSource(known_args.input_topic))
 
   # Capitalize the characters in each line.
   transformed = (lines
@@ -56,16 +65,9 @@ def run(options=None):
   # Write to PubSub.
   # pylint: disable=expression-not-assigned
   transformed | df.io.Write(
-      'pubsub_write', df.io.PubSubSink(p.options.output_topic))
+      'pubsub_write', df.io.PubSubSink(known_args.output_topic))
 
   p.run()
-
-add_option(
-    '--input_topic', dest='input_topic', required=True,
-    help='Input PubSub topic of the form "/topics/<PROJECT>/<TOPIC>".')
-add_option(
-    '--output_topic', dest='output_topic', required=True,
-    help='Output PubSub topic of the form "/topics/<PROJECT>/<TOPIC>".')
 
 
 if __name__ == '__main__':

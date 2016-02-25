@@ -20,9 +20,10 @@ import unittest
 import google.cloud.dataflow as df
 from google.cloud.dataflow import pvalue
 from google.cloud.dataflow import typehints
+from google.cloud.dataflow.transforms.util import assert_that, equal_to
 from google.cloud.dataflow.typehints import WithTypeHints
-from google.cloud.dataflow.utils.options import get_options
 from google.cloud.dataflow.utils.options import OptionsContext
+from google.cloud.dataflow.utils.options import PipelineOptions
 
 # These test often construct a pipeline as value | PTransform to test side
 # effects (e.g. errors).
@@ -156,19 +157,20 @@ class SideInputTest(unittest.TestCase):
     result = ['a', 'bb', 'c'] | df.Map(repeat, 3)
     self.assertEqual(['aaa', 'bbbbbb', 'ccc'], sorted(result))
 
-   # TODO(robertwb): Support partially defined varargs.
-   # with self.assertRaises(typehints.TypeCheckError):
-   #   ['a', 'bb', 'c'] | df.Map(repeat, 'z')
+  # TODO(robertwb): Support partially defined varargs.
+  # with self.assertRaises(typehints.TypeCheckError):
+  #   ['a', 'bb', 'c'] | df.Map(repeat, 'z')
 
   def test_deferred_side_inputs(self):
     @typehints.with_input_types(str, int)
     def repeat(s, times):
       return s * times
-    p = df.Pipeline(options=get_options([]))
+    p = df.Pipeline(options=PipelineOptions([]))
     main_input = p | df.Create(['a', 'bb', 'c'])
     side_input = p | df.Create('side', [3])
     result = main_input | df.Map(repeat, pvalue.AsSingleton(side_input))
-    self.assertEqual(['aaa', 'bbbbbb', 'ccc'], sorted(result.get()))
+    assert_that(result, equal_to(['aaa', 'bbbbbb', 'ccc']))
+    p.run()
 
     bad_side_input = p | df.Create('bad_side', ['z'])
     with self.assertRaises(typehints.TypeCheckError):
@@ -178,11 +180,12 @@ class SideInputTest(unittest.TestCase):
     @typehints.with_input_types(str, typehints.Iterable[str])
     def concat(glue, items):
       return glue.join(sorted(items))
-    p = df.Pipeline(options=get_options([]))
+    p = df.Pipeline(options=PipelineOptions([]))
     main_input = p | df.Create(['a', 'bb', 'c'])
     side_input = p | df.Create('side', ['x', 'y', 'z'])
     result = main_input | df.Map(concat, pvalue.AsIter(side_input))
-    self.assertEqual(['xayaz', 'xbbybbz', 'xcycz'], sorted(result.get()))
+    assert_that(result, equal_to(['xayaz', 'xbbybbz', 'xcycz']))
+    p.run()
 
     bad_side_input = p | df.Create('bad_side', [1, 2, 3])
     with self.assertRaises(typehints.TypeCheckError):

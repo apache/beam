@@ -26,22 +26,11 @@ from google.cloud.dataflow.pipeline import Pipeline
 from google.cloud.dataflow.runners import create_runner
 from google.cloud.dataflow.runners import DataflowPipelineRunner
 from google.cloud.dataflow.runners import DirectPipelineRunner
-from google.cloud.dataflow.runners.runner import PValueCache
 import google.cloud.dataflow.transforms as ptransform
-from google.cloud.dataflow.utils.options import get_options
+from google.cloud.dataflow.utils.options import PipelineOptions
 
 
 class RunnerTest(unittest.TestCase):
-
-  def test_value_cached_and_cleared(self):
-    cache = PValueCache()
-    pipeline = Pipeline(DirectPipelineRunner(cache=cache))
-    pcoll = pipeline | ptransform.Create('start', [1, 2, 3])
-    self.assertEqual([1, 2, 3], list(pcoll.get()))
-    self.assertTrue(cache.is_cached(pcoll))
-    pipeline.runner.clear(pipeline, pcoll)
-    self.assertFalse(cache.is_cached(pcoll))
-    self.assertEqual([1, 2, 3], list(pcoll.get()))
 
   def test_create_runner(self):
     self.assertTrue(
@@ -56,15 +45,15 @@ class RunnerTest(unittest.TestCase):
 
   def test_remote_runner_translation(self):
     remote_runner = DataflowPipelineRunner()
-    p = Pipeline(
-        remote_runner,
-        options=get_options([
-            '--dataflow_endpoint=ignored',
-            '--job_name=test-job',
-            '--project=test-project',
-            '--staging_location=ignored',
-            '--temp_location=/dev/null',
-            '--no_auth=True']))
+    p = Pipeline(remote_runner,
+                 options=PipelineOptions([
+                     '--dataflow_endpoint=ignored',
+                     '--job_name=test-job',
+                     '--project=test-project',
+                     '--staging_location=ignored',
+                     '--temp_location=/dev/null',
+                     '--no_auth=True'
+                 ]))
 
     res = (p | ptransform.Create('create', [1, 2, 3])
            | ptransform.FlatMap('do', lambda x: [(x, x)])

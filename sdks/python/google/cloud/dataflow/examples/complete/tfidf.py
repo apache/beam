@@ -20,14 +20,14 @@ http://en.wikipedia.org/wiki/Tf-idf
 
 from __future__ import absolute_import
 
+import argparse
 import glob
 import math
 import re
+import sys
 
 import google.cloud.dataflow as df
 from google.cloud.dataflow.pvalue import AsSingleton
-from google.cloud.dataflow.utils.options import add_option
-from google.cloud.dataflow.utils.options import get_options
 
 
 def read_documents(pipeline, uris):
@@ -171,24 +171,26 @@ class TfIdf(df.PTransform):
     return word_to_uri_and_tfidf
 
 
-def run(options=None):
-  p = df.Pipeline(options=get_options(options))
+def run(argv=sys.argv[1:]):
+  """Main entry point; defines and runs the tfidf pipeline."""
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--uris',
+                      required=True,
+                      help='URIs to process.')
+  parser.add_argument('--output',
+                      required=True,
+                      help='Output file to write results to.')
+  known_args, pipeline_args = parser.parse_known_args(argv)
+
+  p = df.Pipeline(argv=pipeline_args)
   # Read documents specified by the uris command line option.
-  pcoll = read_documents(p, glob.glob(p.options.uris))
+  pcoll = read_documents(p, glob.glob(known_args.uris))
   # Compute TF-IDF information for each word.
   output = pcoll | TfIdf()
   # Write the output using a "Write" transform that has side effects.
   # pylint: disable=expression-not-assigned
-  output | df.io.Write('write', df.io.TextFileSink(p.options.output))
+  output | df.io.Write('write', df.io.TextFileSink(known_args.output))
   p.run()
-
-
-add_option(
-    '--uris', dest='uris', required=True,
-    help='URIs to process.')
-add_option(
-    '--output', dest='output', required=True,
-    help='Output file to write results to.')
 
 
 if __name__ == '__main__':

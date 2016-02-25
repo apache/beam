@@ -43,6 +43,7 @@ from google.cloud.dataflow.typehints import TypeCheckError
 from google.cloud.dataflow.typehints import Union
 from google.cloud.dataflow.typehints import WithTypeHints
 from google.cloud.dataflow.typehints.trivial_inference import element_type
+from google.cloud.dataflow.utils.options import TypeOptions
 
 
 class DoFnProcessContext(object):
@@ -841,8 +842,8 @@ class CombineValues(PTransformWithSideInputs):
       key_type, _ = input_type.tuple_types
 
     runtime_type_check = (
-        pcoll.pipeline.options is not None
-        and pcoll.pipeline.options.runtime_type_check)
+        pcoll.pipeline.options is not None and
+        pcoll.pipeline.options.view_as(TypeOptions).runtime_type_check)
     return pcoll | ParDo(
         CombineValuesDoFn(key_type, self.fn, runtime_type_check),
         *args, **kwargs)

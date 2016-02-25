@@ -29,6 +29,9 @@ from google.cloud.dataflow.io import iobase
 from google.cloud.dataflow.utils import dependency
 from google.cloud.dataflow.utils import retry
 from google.cloud.dataflow.utils.names import PropertyNames
+from google.cloud.dataflow.utils.options import GoogleCloudOptions
+from google.cloud.dataflow.utils.options import StandardOptions
+from google.cloud.dataflow.utils.options import WorkerOptions
 
 from apitools.base.py import encoding
 from apitools.base.py import exceptions
@@ -169,15 +172,18 @@ class Environment(object):
   """Wrapper for a dataflow Environment protobuf."""
 
   def __init__(self, packages, options, environment_version):
-    self.options = options
+    self.standard_options = options.view_as(StandardOptions)
+    self.google_cloud_options = options.view_as(GoogleCloudOptions)
+    self.worker_options = options.view_as(WorkerOptions)
     self.proto = dataflow.Environment()
     self.proto.clusterManagerApiService = COMPUTE_API_SERVICE
     self.proto.dataset = '%s/cloud_dataflow' % BIGQUERY_API_SERVICE
-    self.proto.tempStoragePrefix = self.options.temp_location.replace(
-        'gs:/', STORAGE_API_SERVICE)
+    self.proto.tempStoragePrefix = (
+        self.google_cloud_options.temp_location.replace('gs:/',
+                                                        STORAGE_API_SERVICE))
     # User agent information.
     self.proto.userAgent = dataflow.Environment.UserAgentValue()
-    self.local = 'localhost' in self.options.dataflow_endpoint
+    self.local = 'localhost' in self.google_cloud_options.dataflow_endpoint
 
     version_string = version.__version__
 
@@ -189,7 +195,7 @@ class Environment(object):
             key='version', value=to_json_value(version_string))])
     # Version information.
     self.proto.version = dataflow.Environment.VersionValue()
-    if self.options.is_streaming:
+    if self.standard_options.is_streaming:
       job_type = 'PYTHON_STREAMING'
     else:
       job_type = 'PYTHON_BATCH'
@@ -205,7 +211,7 @@ class Environment(object):
       package_descriptors.append(
           dataflow.Package(
               location='%s/%s' % (
-                  self.options.staging_location.replace(
+                  self.google_cloud_options.staging_location.replace(
                       'gs:/', STORAGE_API_SERVICE),
                   package),
               name=package))
@@ -216,35 +222,35 @@ class Environment(object):
         taskrunnerSettings=dataflow.TaskRunnerSettings(
             parallelWorkerSettings=dataflow.WorkerSettings(
                 baseUrl='https://dataflow.googleapis.com',
-                servicePath=self.options.dataflow_endpoint)))
+                servicePath=self.google_cloud_options.dataflow_endpoint)))
     # Set worker pool options received through command line.
-    if self.options.num_workers:
-      pool.numWorkers = self.options.num_workers
-    if self.options.machine_type:
-      pool.machineType = self.options.machine_type
-    if self.options.disk_size_gb:
-      pool.diskSizeGb = self.options.disk_size_gb
-    if self.options.disk_type:
-      pool.diskType = self.options.disk_type
-    if self.options.disk_source_image:
-      pool.diskSourceImage = self.options.disk_source_image
-    if self.options.zone:
-      pool.zone = self.options.zone
-    if self.options.network:
-      pool.network = self.options.network
-    if self.options.teardown_policy:
-      if self.options.teardown_policy == 'TEARDOWN_NEVER':
+    if self.worker_options.num_workers:
+      pool.numWorkers = self.worker_options.num_workers
+    if self.worker_options.machine_type:
+      pool.machineType = self.worker_options.machine_type
+    if self.worker_options.disk_size_gb:
+      pool.diskSizeGb = self.worker_options.disk_size_gb
+    if self.worker_options.disk_type:
+      pool.diskType = self.worker_options.disk_type
+    if self.worker_options.disk_source_image:
+      pool.diskSourceImage = self.worker_options.disk_source_image
+    if self.worker_options.zone:
+      pool.zone = self.worker_options.zone
+    if self.worker_options.network:
+      pool.network = self.worker_options.network
+    if self.worker_options.teardown_policy:
+      if self.worker_options.teardown_policy == 'TEARDOWN_NEVER':
         pool.teardownPolicy = (
             dataflow.WorkerPool.TeardownPolicyValueValuesEnum.TEARDOWN_NEVER)
-      elif self.options.teardown_policy == 'TEARDOWN_ALWAYS':
+      elif self.worker_options.teardown_policy == 'TEARDOWN_ALWAYS':
         pool.teardownPolicy = (
             dataflow.WorkerPool.TeardownPolicyValueValuesEnum.TEARDOWN_ALWAYS)
-      elif self.options.teardown_policy == 'TEARDOWN_ON_SUCCESS':
+      elif self.worker_options.teardown_policy == 'TEARDOWN_ON_SUCCESS':
         pool.teardownPolicy = (
             dataflow.WorkerPool
             .TeardownPolicyValueValuesEnum.TEARDOWN_ON_SUCCESS)
 
-    if self.options.is_streaming:
+    if self.standard_options.is_streaming:
       # Use separate data disk for streaming.
       disk = dataflow.Disk()
       if self.local:
@@ -296,8 +302,14 @@ class Job(object):
 
   def __init__(self, options):
     self.options = options
-    required = ['project', 'job_name', 'staging_location', 'temp_location']
-    missing = [option for option in required if not getattr(options, option)]
+    self.google_cloud_options = options.view_as(GoogleCloudOptions)
+    required_google_cloud_options = ['project',
+                                     'job_name',
+                                     'staging_location',
+                                     'temp_location']
+    missing = [
+        option for option in required_google_cloud_options
+        if not getattr(self.google_cloud_options, option)]
     if missing:
       raise ValueError(
           'Missing required configuration parameters: %s' % missing)
@@ -308,14 +320,14 @@ class Job(object):
     # the same time. However the window is extremely small given that
     # time.time() has at least microseconds granularity. We add the suffix only
     # for GCS staging locations where the potential for such clashes is high.
-    if self.options.staging_location.startswith('gs://'):
-      path_suffix = '%s.%f' % (self.options.job_name, time.time())
-      self.options.staging_location = utils.path.join(
-          self.options.staging_location, path_suffix)
-      self.options.temp_location = utils.path.join(
-          self.options.temp_location, path_suffix)
-    self.proto = dataflow.Job(name=self.options.job_name)
-    if self.options.is_streaming:
+    if self.google_cloud_options.staging_location.startswith('gs://'):
+      path_suffix = '%s.%f' % (self.google_cloud_options.job_name, time.time())
+      self.google_cloud_options.staging_location = utils.path.join(
+          self.google_cloud_options.staging_location, path_suffix)
+      self.google_cloud_options.temp_location = utils.path.join(
+          self.google_cloud_options.temp_location, path_suffix)
+    self.proto = dataflow.Job(name=self.google_cloud_options.job_name)
+    if self.options.view_as(StandardOptions).is_streaming:
       self.proto.type = dataflow.Job.TypeValueValuesEnum.JOB_TYPE_STREAMING
     else:
       self.proto.type = dataflow.Job.TypeValueValuesEnum.JOB_TYPE_BATCH
@@ -328,20 +340,21 @@ class DataflowApplicationClient(object):
 
   def __init__(self, options, environment_version):
     """Initializes a Dataflow API client object."""
-    self.options = options
+    self.standard_options = options.view_as(StandardOptions)
+    self.google_cloud_options = options.view_as(GoogleCloudOptions)
     self.environment_version = environment_version
-    if self.options.no_auth:
+    if self.google_cloud_options.no_auth:
       credentials = None
     else:
       credentials = get_service_credentials()
     self._client = dataflow.DataflowV1b3(
-        url=self.options.dataflow_endpoint,
+        url=self.google_cloud_options.dataflow_endpoint,
         credentials=credentials,
-        get_credentials=(not self.options.no_auth))
+        get_credentials=(not self.google_cloud_options.no_auth))
     self._storage_client = storage.StorageV1(
         url='https://www.googleapis.com/storage/v1',
         credentials=credentials,
-        get_credentials=(not self.options.no_auth))
+        get_credentials=(not self.google_cloud_options.no_auth))
 
   # TODO(silviuc): Refactor so that retry logic can be applied.
   @retry.no_retries  # Using no_retries marks this as an integration point.
@@ -425,7 +438,8 @@ class DataflowApplicationClient(object):
     # TODO(silviuc): Remove the debug logging eventually.
     logging.info('JOB: %s', job)
     request = dataflow.DataflowProjectsJobsCreateRequest()
-    request.projectId = self.options.project
+
+    request.projectId = self.google_cloud_options.project
     request.job = job.proto
 
     try:
@@ -433,7 +447,8 @@ class DataflowApplicationClient(object):
     except exceptions.BadStatusCodeError as e:
       logging.error('HTTP status %d trying to create job'
                     ' at dataflow service endpoint %s',
-                    e.response.status, self.options.dataflow_endpoint)
+                    e.response.status,
+                    self.google_cloud_options.dataflow_endpoint)
       logging.fatal('details of server error: %s', e)
       raise
     logging.info('Create job: %s', response)
@@ -465,7 +480,7 @@ class DataflowApplicationClient(object):
 
     request = dataflow.DataflowProjectsJobsUpdateRequest()
     request.jobId = job_id
-    request.projectId = self.options.project
+    request.projectId = self.google_cloud_options.project
     request.job = dataflow.Job(requestedState=new_state)
 
     self._client.projects_jobs.Update(request)
@@ -495,7 +510,7 @@ class DataflowApplicationClient(object):
     """
     request = dataflow.DataflowProjectsJobsGetRequest()
     request.jobId = job_id
-    request.projectId = self.options.project
+    request.projectId = self.google_cloud_options.project
     response = self._client.projects_jobs.Get(request)
     return response
 
@@ -543,7 +558,7 @@ class DataflowApplicationClient(object):
      messageText: A message string.
     """
     request = dataflow.DataflowProjectsJobsMessagesListRequest(
-        jobId=job_id, projectId=self.options.project)
+        jobId=job_id, projectId=self.google_cloud_options.project)
     if page_token is not None:
       request.pageToken = page_token
     if start_time is not None:

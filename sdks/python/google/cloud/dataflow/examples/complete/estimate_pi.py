@@ -23,17 +23,17 @@ we multiply our counts ratio by four to estimate π.
 
 from __future__ import absolute_import
 
+import argparse
 import json
 import logging
 import random
+import sys
 
 
 import google.cloud.dataflow as df
 from google.cloud.dataflow.typehints import Any
 from google.cloud.dataflow.typehints import Iterable
 from google.cloud.dataflow.typehints import Tuple
-from google.cloud.dataflow.utils.options import add_option
-from google.cloud.dataflow.utils.options import get_options
 
 
 @df.typehints.with_output_types(Tuple[int, int, int])
@@ -83,23 +83,26 @@ class JsonCoder(object):
     return json.dumps(x)
 
 
-def run(options=None):
-  p = df.Pipeline(options=get_options(options))
+def run(argv=sys.argv[1:]):
+
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--output',
+                      required=True,
+                      help='Output file to write results to.')
+  known_args, pipeline_args = parser.parse_known_args(argv)
+
+  p = df.Pipeline(argv=pipeline_args)
   # A thousand work items of a million tries each.
   (p  # pylint: disable=expression-not-assigned
    | df.Create('Initialize', [100000] * 100).with_output_types(int)
    | df.Map('Run trials', run_trials)
    | df.CombineGlobally('Sum', combine_results).without_defaults()
    | df.io.Write('Write',
-              df.io.TextFileSink(p.options.output, coder=JsonCoder())))
+                 df.io.TextFileSink(known_args.output,
+                                    coder=JsonCoder())))
 
   # Actually run the pipeline (all operations above are deferred).
   p.run()
-
-
-add_option(
-    '--output', dest='output', required=True,
-    help='Output file to write results to.')
 
 
 if __name__ == '__main__':

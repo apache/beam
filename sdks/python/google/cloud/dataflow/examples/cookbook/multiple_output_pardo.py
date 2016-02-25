@@ -45,22 +45,13 @@ and an output prefix on GCS:
 
 from __future__ import absolute_import
 
+import argparse
 import logging
 import re
+import sys
 
 import google.cloud.dataflow as df
 from google.cloud.dataflow import pvalue
-from google.cloud.dataflow.utils.options import add_option
-from google.cloud.dataflow.utils.options import get_options
-
-
-add_option(
-    '--input', dest='input',
-    default='gs://dataflow-samples/shakespeare/kinglear.txt',
-    help='Input file to process.')
-add_option(
-    '--output', dest='output', required=True,
-    help='Output prefix for files to write results to.')
 
 
 class SplitLinesToWordsFn(df.DoFn):
@@ -125,12 +116,21 @@ class CountWords(df.PTransform):
             | df.Map('format', lambda (word, c): '%s: %s' % (word, c)))
 
 
-def run(options=None):
+def run(argv=sys.argv[1:]):
   """Runs the workflow counting the long words and short words separately."""
 
-  p = df.Pipeline(options=get_options(options))
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--input',
+                      default='gs://dataflow-samples/shakespeare/kinglear.txt',
+                      help='Input file to process.')
+  parser.add_argument('--output',
+                      required=True,
+                      help='Output prefix for files to write results to.')
+  known_args, pipeline_args = parser.parse_known_args(argv)
 
-  lines = p | df.Read('read', df.io.TextFileSource(p.options.input))
+  p = df.Pipeline(argv=pipeline_args)
+
+  lines = p | df.Read('read', df.io.TextFileSource(known_args.input))
 
   # with_outputs allows accessing the side outputs of a DoFn.
   split_lines_result = (lines
@@ -151,18 +151,18 @@ def run(options=None):
    | df.Map('pair_with_key', lambda x: ('chars_temp_key', x))
    | df.GroupByKey()
    | df.Map('count chars', lambda (_, counts): sum(counts))
-   | df.Write('write chars', df.io.TextFileSink(p.options.output + '-chars')))
+   | df.Write('write chars', df.io.TextFileSink(known_args.output + '-chars')))
 
   # pylint: disable=expression-not-assigned
   (short_words
    | CountWords('count short words')
    | df.Write('write short words',
-              df.io.TextFileSink(p.options.output + '-short-words')))
+              df.io.TextFileSink(known_args.output + '-short-words')))
 
   # pylint: disable=expression-not-assigned
   (words
    | CountWords('count words')
-   | df.Write('write words', df.io.TextFileSink(p.options.output + '-words')))
+   | df.Write('write words', df.io.TextFileSink(known_args.output + '-words')))
 
   p.run()
 

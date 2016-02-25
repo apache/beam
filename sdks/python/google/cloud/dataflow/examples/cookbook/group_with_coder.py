@@ -24,24 +24,14 @@ and score.
 
 from __future__ import absolute_import
 
+import argparse
 import logging
+import sys
 
 import google.cloud.dataflow as df
 from google.cloud.dataflow import coders
 from google.cloud.dataflow.typehints import typehints
 from google.cloud.dataflow.typehints.decorators import with_output_types
-from google.cloud.dataflow.utils.options import add_option
-from google.cloud.dataflow.utils.options import get_options
-
-
-add_option('--input',
-           dest='input',
-           required=True,
-           help='Input file to process.')
-add_option('--output',
-           dest='output',
-           required=True,
-           help='Output file to write results to.')
 
 
 class Player(object):
@@ -81,16 +71,26 @@ def get_players(descriptor):
   return Player(name), int(points)
 
 
-def run(options=None):
+def run(argv=sys.argv[1:]):
   """Runs the workflow computing total points from a collection of matches."""
-  p = df.Pipeline(options=get_options(options))
+
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--input',
+                      required=True,
+                      help='Input file to process.')
+  parser.add_argument('--output',
+                      required=True,
+                      help='Output file to write results to.')
+  known_args, pipeline_args = parser.parse_known_args(argv)
+
+  p = df.Pipeline(argv=pipeline_args)
 
   # Register the custom coder for the Player class, so that it will be used in
   # the computation.
   coders.registry.register_coder(Player, PlayerCoder)
 
   (p  # pylint: disable=expression-not-assigned
-   | df.io.Read('read', df.io.TextFileSource(p.options.input))
+   | df.io.Read('read', df.io.TextFileSource(known_args.input))
    # The get_players function is annotated with a type hint above, so the type
    # system knows the output type of the following operation is a key-value pair
    # of a Player and an int. Please see the documentation for details on
@@ -101,9 +101,8 @@ def run(options=None):
    # type of the following operation is the Player type. Since a custom coder
    # is registered for the Player class above, a PlayerCoder will be used to
    # encode Player objects as keys for this combine operation.
-   | df.CombinePerKey(sum)
-   | df.Map(lambda (k, v): '%s,%d' % (k.name, v))
-   | df.io.Write('write', df.io.TextFileSink(p.options.output)))
+   | df.CombinePerKey(sum) | df.Map(lambda (k, v): '%s,%d' % (k.name, v))
+   | df.io.Write('write', df.io.TextFileSink(known_args.output)))
   p.run()
 
 

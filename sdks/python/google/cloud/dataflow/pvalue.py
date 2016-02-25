@@ -79,25 +79,6 @@ class PValue(object):
         self.__class__.__name__,
         self.producer.transform if self.producer else 'n/a')
 
-  def get(self, runner=None):
-    """Materializes a PValue by executing its subtree of transforms.
-
-    The runner used to execute the transforms can be specified either here or
-    as a default runner for the pipeline.
-
-    Args:
-      runner: optional runner object that will be used to execute the portion
-        of the pipeline that will materialize this PValue. If not specified then
-        the default runner specified during pipeline creation will be used.
-    """
-    runner = runner or self.pipeline.runner
-    if not runner:
-      raise error.RunnerError('get() cannot find a runner to execute pipeline.')
-    runner.run(self.pipeline, node=self)
-    # Internally all values are WindowedValue(s) and we want to return only
-    # the underlying value or values depending on the type of the PValue.
-    return self._get_un_windowed_value(runner.get_pvalue(self))
-
   def apply(self, *args, **kwargs):
     """Applies a transform or callable to a PValue.
 
@@ -140,8 +121,22 @@ class PCollection(PValue):
     for v in values:
       yield v.value
 
+  # TODO(silviuc): Remove uses of this method and delete it.
   def _get_values(self):
-    return list(self.get())
+
+    def _get_internal(self, runner=None):
+      """Materializes a PValue by executing its subtree of transforms."""
+
+      runner = runner or self.pipeline.runner
+      if not runner:
+        raise error.RunnerError(
+            'get() cannot find a runner to execute pipeline.')
+      runner.run(self.pipeline, node=self)
+      # Internally all values are WindowedValue(s) and we want to return only
+      # the underlying value or values depending on the type of the PValue.
+      return self._get_un_windowed_value(runner.get_pvalue(self))
+
+    return list(_get_internal(self))
 
 
 class PBegin(PValue):

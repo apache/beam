@@ -19,9 +19,10 @@ We use the quadratic polinomial f(z) = z*z + c, with c = -.62772 +.42193i
 
 from __future__ import absolute_import
 
+import argparse
+import sys
+
 import google.cloud.dataflow as df
-from google.cloud.dataflow.utils.options import add_option
-from google.cloud.dataflow.utils.options import get_options
 
 
 def from_pixel(x, y, n):
@@ -75,9 +76,26 @@ def save_julia_set_visualization(out_file, image_array):
   plt.imsave(out_file, image_array, format='png')
 
 
-def run(options=None):  # pylint: disable=missing-docstring
-  p = df.Pipeline(options=get_options(options))
-  n = int(p.options.grid_size)
+def run(argv=sys.argv[1:]):  # pylint: disable=missing-docstring
+
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--grid_size',
+                      dest='grid_size',
+                      default=1000,
+                      help='Size of the NxN matrix')
+  parser.add_argument(
+      '--coordinate_output',
+      dest='coordinate_output',
+      required=True,
+      help='Output file to write the color coordinates of the image to.')
+  parser.add_argument('--image_output',
+                      dest='image_output',
+                      default=None,
+                      help='Output file to write the resulting image to.')
+  known_args, pipeline_args = parser.parse_known_args(argv)
+
+  p = df.Pipeline(argv=pipeline_args)
+  n = int(known_args.grid_size)
 
   coordinates = generate_julia_set_colors(p, complex(-.62772, .42193), n, 100)
 
@@ -85,32 +103,18 @@ def run(options=None):  # pylint: disable=missing-docstring
   # the output file with an x-coordinate grouping per line.
   # pylint: disable=expression-not-assigned
   # pylint: disable=g-long-lambda
-  (coordinates
-   | df.Map('x coord key', lambda (x, y, i): (x, (x, y, i)))
-   | df.GroupByKey('x coord')
-   | df.Map('format', lambda (k, coords): ' '.join('(%s, %s, %s)' % coord
-                                                   for coord in coords))
-   | df.io.Write('write', df.io.TextFileSink(p.options.coordinate_output)))
+  (coordinates | df.Map('x coord key', lambda (x, y, i): (x, (x, y, i)))
+   | df.GroupByKey('x coord') | df.Map(
+       'format',
+       lambda (k, coords): ' '.join('(%s, %s, %s)' % coord for coord in coords))
+   | df.io.Write('write', df.io.TextFileSink(known_args.coordinate_output)))
   # pylint: enable=g-long-lambda
   # pylint: enable=expression-not-assigned
   p.run()
 
   # Optionally render the image and save it to a file.
-  if p.options.image_output is not None:
-    julia_set_image = generate_julia_set_visualization(coordinates.get(), n,
-                                                       100)
-    save_julia_set_visualization(p.options.image_output, julia_set_image)
-
-
-add_option(
-    '--grid_size', dest='grid_size', default=1000,
-    help='Size of the NxN matrix')
-
-add_option(
-    '--coordinate_output', dest='coordinate_output', required=True,
-    help='Output file to write the color coordinates of the image to.')
-
-add_option(
-    '--image_output', dest='image_output', default=None,
-    help='Output file to write the resulting image to.')
-
+  # TODO(silviuc): Add this functionality.
+  # if p.options.image_output is not None:
+  #  julia_set_image = generate_julia_set_visualization(
+  #      file_with_coordinates, n, 100)
+  #  save_julia_set_visualization(p.options.image_output, julia_set_image)

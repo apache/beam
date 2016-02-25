@@ -113,7 +113,7 @@ from google.cloud.dataflow.internal.json_value import from_json_value
 from google.cloud.dataflow.internal.json_value import to_json_value
 from google.cloud.dataflow.io import iobase
 from google.cloud.dataflow.utils import retry
-from google.cloud.dataflow.utils.options import get_options
+from google.cloud.dataflow.utils.options import GoogleCloudOptions
 
 from apitools.base.py.exceptions import HttpError
 
@@ -446,9 +446,14 @@ class BigQueryReader(iobase.SourceReader):
   def __init__(self, source, test_bigquery_client=None):
     self.source = source
     self.test_bigquery_client = test_bigquery_client
-    self.executing_project = (
-        auth.executing_project if auth.is_running_in_gce
-        else get_options().project)
+    if auth.is_running_in_gce:
+      self.executing_project = auth.executing_project
+    elif hasattr(source, 'pipeline_options'):
+      self.executing_project = (
+          source.pipeline_options.view_as(GoogleCloudOptions).project)
+    else:
+      self.executing_project = None
+
     # TODO(silviuc): Try to automatically get it from gcloud config info.
     if not self.executing_project and test_bigquery_client is None:
       raise RuntimeError(
@@ -499,10 +504,9 @@ class BigQueryWriter(iobase.NativeSinkWriter):
     self.rows_buffer = []
     self.rows_buffer_flush_threshold = buffer_size or 1000
     # Figure out the project, dataset, and table used for the sink.
-    if self.sink.table_reference.projectId:
-      self.project_id = self.sink.table_reference.projectId
-    else:
-      self.project_id = get_options().project
+    self.project_id = self.sink.table_reference.projectId
+    assert self.project_id is not None
+
     self.dataset_id = self.sink.table_reference.datasetId
     self.table_id = self.sink.table_reference.tableId
 

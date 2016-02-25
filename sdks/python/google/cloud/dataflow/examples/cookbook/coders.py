@@ -27,20 +27,12 @@ per line in the following format:
 
 from __future__ import absolute_import
 
+import argparse
 import json
 import logging
+import sys
 
 import google.cloud.dataflow as df
-from google.cloud.dataflow.utils.options import add_option
-from google.cloud.dataflow.utils.options import get_options
-
-
-add_option(
-    '--input', dest='input', required=True,
-    help='Input file to process.')
-add_option(
-    '--output', dest='output', required=True,
-    help='Output file to write results to.')
 
 
 class JsonCoder(object):
@@ -72,15 +64,27 @@ def compute_points(record):
     yield guest_name, 3
 
 
-def run(options=None):
+def run(argv=sys.argv[1:]):
   """Runs the workflow computing total points from a collection of matches."""
-  p = df.Pipeline(options=get_options(options))
+
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--input',
+                      required=True,
+                      help='Input file to process.')
+  parser.add_argument('--output',
+                      required=True,
+                      help='Output file to write results to.')
+  known_args, pipeline_args = parser.parse_known_args(argv)
+
+  p = df.Pipeline(argv=pipeline_args)
   (p  # pylint: disable=expression-not-assigned
-   | df.io.Read('read', df.io.TextFileSource(p.options.input, coder=JsonCoder()))
-   | df.FlatMap('points', compute_points)
-   | df.CombinePerKey(sum)
-   | df.io.Write('write',
-              df.io.TextFileSink(p.options.output, coder=JsonCoder())))
+   | df.io.Read('read',
+                df.io.TextFileSource(known_args.input,
+                                     coder=JsonCoder()))
+   | df.FlatMap('points', compute_points) | df.CombinePerKey(sum) | df.io.Write(
+       'write',
+       df.io.TextFileSink(known_args.output,
+                          coder=JsonCoder())))
   p.run()
 
 

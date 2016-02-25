@@ -23,28 +23,20 @@ import unittest
 from google.cloud.dataflow import utils
 from google.cloud.dataflow.utils import dependency
 from google.cloud.dataflow.utils import names
+from google.cloud.dataflow.utils.options import GoogleCloudOptions
+from google.cloud.dataflow.utils.options import PipelineOptions
+from google.cloud.dataflow.utils.options import SetupOptions
 from google.cloud.dataflow.version import __version__
 
 
 class SetupTest(unittest.TestCase):
 
-  class FakeOptions(object):
-    """Options object with expected attributes for stage_job_resources()."""
-
-    def __init__(self, **kwargs):
-      self.requirements_file = None
-      self.setup_file = None
-      self.extra_packages = None
-      self.save_main_session = True
-      self.staging_location = None
-      self.sdk_location = ''
-      have_temp_location = False
-      for k, v in kwargs.iteritems():
-        if k == 'temp_location':
-          have_temp_location = True
-        setattr(self, k, v)
-      if not have_temp_location:
-        self.temp_location = self.staging_location
+  def update_options(self, options):
+    setup_options = options.view_as(SetupOptions)
+    setup_options.sdk_location = ''
+    google_cloud_options = options.view_as(GoogleCloudOptions)
+    if google_cloud_options.temp_location is None:
+      google_cloud_options.temp_location = google_cloud_options.staging_location
 
   def create_temp_file(self, path, contents):
     with open(path, 'w') as f:
@@ -53,36 +45,43 @@ class SetupTest(unittest.TestCase):
 
   def test_no_staging_location(self):
     with self.assertRaises(RuntimeError) as cm:
-      dependency.stage_job_resources(
-          SetupTest.FakeOptions())
+      dependency.stage_job_resources(PipelineOptions())
     self.assertEqual('The --staging_location option must be specified.',
                      cm.exception.message)
 
   def test_no_temp_location(self):
     staging_dir = tempfile.mkdtemp()
+    options = PipelineOptions()
+    google_cloud_options = options.view_as(GoogleCloudOptions)
+    google_cloud_options.staging_location = staging_dir
+    self.update_options(options)
+    google_cloud_options.temp_location = None
     with self.assertRaises(RuntimeError) as cm:
-      dependency.stage_job_resources(
-          SetupTest.FakeOptions(
-              staging_location=staging_dir,
-              temp_location=None))
+      dependency.stage_job_resources(options)
     self.assertEqual('The --temp_location option must be specified.',
                      cm.exception.message)
 
   def test_no_main_session(self):
     staging_dir = tempfile.mkdtemp()
+    options = PipelineOptions()
+
+    options.view_as(GoogleCloudOptions).staging_location = staging_dir
+    options.view_as(SetupOptions).save_main_session = False
+    self.update_options(options)
+
     self.assertEqual(
         [],
-        dependency.stage_job_resources(
-            SetupTest.FakeOptions(
-                staging_location=staging_dir,
-                save_main_session=False)))
+        dependency.stage_job_resources(options))
 
   def test_default_resources(self):
     staging_dir = tempfile.mkdtemp()
+    options = PipelineOptions()
+    options.view_as(GoogleCloudOptions).staging_location = staging_dir
+    self.update_options(options)
+
     self.assertEqual(
         [names.PICKLED_MAIN_SESSION_FILE],
-        dependency.stage_job_resources(
-            SetupTest.FakeOptions(staging_location=staging_dir)))
+        dependency.stage_job_resources(options))
     self.assertTrue(
         os.path.isfile(
             os.path.join(staging_dir, names.PICKLED_MAIN_SESSION_FILE)))
@@ -90,16 +89,18 @@ class SetupTest(unittest.TestCase):
   def test_with_requirements_file(self):
     staging_dir = tempfile.mkdtemp()
     source_dir = tempfile.mkdtemp()
+
+    options = PipelineOptions()
+    options.view_as(GoogleCloudOptions).staging_location = staging_dir
+    self.update_options(options)
+    options.view_as(SetupOptions).requirements_file = os.path.join(
+        source_dir, dependency.REQUIREMENTS_FILE)
     self.create_temp_file(
         os.path.join(source_dir, dependency.REQUIREMENTS_FILE), 'nothing')
     self.assertEqual(
         [dependency.REQUIREMENTS_FILE,
          names.PICKLED_MAIN_SESSION_FILE],
-        dependency.stage_job_resources(
-            SetupTest.FakeOptions(
-                staging_location=staging_dir,
-                requirements_file=os.path.join(
-                    source_dir, dependency.REQUIREMENTS_FILE))))
+        dependency.stage_job_resources(options))
     self.assertTrue(
         os.path.isfile(
             os.path.join(staging_dir, dependency.REQUIREMENTS_FILE)))
@@ -107,10 +108,11 @@ class SetupTest(unittest.TestCase):
   def test_requirements_file_not_present(self):
     staging_dir = tempfile.mkdtemp()
     with self.assertRaises(RuntimeError) as cm:
-      dependency.stage_job_resources(
-          SetupTest.FakeOptions(
-              staging_location=staging_dir,
-              requirements_file='nosuchfile'))
+      options = PipelineOptions()
+      options.view_as(GoogleCloudOptions).staging_location = staging_dir
+      self.update_options(options)
+      options.view_as(SetupOptions).requirements_file = 'nosuchfile'
+      dependency.stage_job_resources(options)
     self.assertEqual(
         cm.exception.message,
         'The file %s cannot be found. It was specified in the '
@@ -121,13 +123,18 @@ class SetupTest(unittest.TestCase):
     source_dir = tempfile.mkdtemp()
     self.create_temp_file(
         os.path.join(source_dir, 'setup.py'), 'notused')
+
+    options = PipelineOptions()
+    options.view_as(GoogleCloudOptions).staging_location = staging_dir
+    self.update_options(options)
+    options.view_as(SetupOptions).setup_file = os.path.join(
+        source_dir, 'setup.py')
+
     self.assertEqual(
         [dependency.WORKFLOW_TARBALL_FILE,
          names.PICKLED_MAIN_SESSION_FILE],
         dependency.stage_job_resources(
-            SetupTest.FakeOptions(
-                staging_location=staging_dir,
-                setup_file=os.path.join(source_dir, 'setup.py')),
+            options,
             # We replace the build setup command because a realistic one would
             # require the setuptools package to be installed. Note that we can't
             # use "touch" here to create the expected output tarball file, since
@@ -143,11 +150,14 @@ class SetupTest(unittest.TestCase):
 
   def test_setup_file_not_present(self):
     staging_dir = tempfile.mkdtemp()
+
+    options = PipelineOptions()
+    options.view_as(GoogleCloudOptions).staging_location = staging_dir
+    self.update_options(options)
+    options.view_as(SetupOptions).setup_file = 'nosuchfile'
+
     with self.assertRaises(RuntimeError) as cm:
-      dependency.stage_job_resources(
-          SetupTest.FakeOptions(
-              staging_location=staging_dir,
-              setup_file='nosuchfile'))
+      dependency.stage_job_resources(options)
     self.assertEqual(
         cm.exception.message,
         'The file %s cannot be found. It was specified in the '
@@ -156,13 +166,17 @@ class SetupTest(unittest.TestCase):
   def test_setup_file_not_named_setup_dot_py(self):
     staging_dir = tempfile.mkdtemp()
     source_dir = tempfile.mkdtemp()
+
+    options = PipelineOptions()
+    options.view_as(GoogleCloudOptions).staging_location = staging_dir
+    self.update_options(options)
+    options.view_as(SetupOptions).setup_file = (
+        os.path.join(source_dir, 'xyz-setup.py'))
+
     self.create_temp_file(
         os.path.join(source_dir, 'xyz-setup.py'), 'notused')
     with self.assertRaises(RuntimeError) as cm:
-      dependency.stage_job_resources(
-          SetupTest.FakeOptions(
-              staging_location=staging_dir,
-              setup_file=os.path.join(source_dir, 'xyz-setup.py')))
+      dependency.stage_job_resources(options)
     self.assertTrue(
         cm.exception.message.startswith(
             'The --setup_file option expects the full path to a file named '
@@ -187,13 +201,17 @@ class SetupTest(unittest.TestCase):
         'gs://dataflow-sdk-for-python',
         'google-cloud-dataflow-python-sdk-%s.tgz' % __version__)
     self.override_file_copy(expected_from_path, staging_dir)
+
+    options = PipelineOptions()
+    options.view_as(GoogleCloudOptions).staging_location = staging_dir
+    self.update_options(options)
+    options.view_as(SetupOptions).sdk_location = 'default'
+
     self.assertEqual(
         [names.PICKLED_MAIN_SESSION_FILE,
          names.DATAFLOW_SDK_TARBALL_FILE],
         dependency.stage_job_resources(
-            SetupTest.FakeOptions(
-                staging_location=staging_dir,
-                sdk_location='default'),
+            options,
             file_copy=dependency._dependency_file_copy))
 
   def test_sdk_location_local(self):
@@ -204,13 +222,16 @@ class SetupTest(unittest.TestCase):
             sdk_location,
             names.DATAFLOW_SDK_TARBALL_FILE),
         'contents')
+
+    options = PipelineOptions()
+    options.view_as(GoogleCloudOptions).staging_location = staging_dir
+    self.update_options(options)
+    options.view_as(SetupOptions).sdk_location = sdk_location
+
     self.assertEqual(
         [names.PICKLED_MAIN_SESSION_FILE,
          names.DATAFLOW_SDK_TARBALL_FILE],
-        dependency.stage_job_resources(
-            SetupTest.FakeOptions(
-                staging_location=staging_dir,
-                sdk_location=sdk_location)))
+        dependency.stage_job_resources(options))
     tarball_path = os.path.join(
         staging_dir, names.DATAFLOW_SDK_TARBALL_FILE)
     with open(tarball_path) as f:
@@ -220,10 +241,12 @@ class SetupTest(unittest.TestCase):
     staging_dir = tempfile.mkdtemp()
     sdk_location = 'nosuchdir'
     with self.assertRaises(RuntimeError) as cm:
-      dependency.stage_job_resources(
-          SetupTest.FakeOptions(
-              staging_location=staging_dir,
-              sdk_location=sdk_location))
+      options = PipelineOptions()
+      options.view_as(GoogleCloudOptions).staging_location = staging_dir
+      self.update_options(options)
+      options.view_as(SetupOptions).sdk_location = sdk_location
+
+      dependency.stage_job_resources(options)
     self.assertEqual(
         'The file "%s" cannot be found. Its '
         'directory was specified by the --sdk_location command-line option.' %
@@ -237,13 +260,16 @@ class SetupTest(unittest.TestCase):
         sdk_location,
         'google-cloud-dataflow-python-sdk-%s.tgz' % __version__)
     self.override_file_copy(expected_from_path, staging_dir)
+
+    options = PipelineOptions()
+    options.view_as(GoogleCloudOptions).staging_location = staging_dir
+    self.update_options(options)
+    options.view_as(SetupOptions).sdk_location = sdk_location
+
     self.assertEqual(
         [names.PICKLED_MAIN_SESSION_FILE,
          names.DATAFLOW_SDK_TARBALL_FILE],
-        dependency.stage_job_resources(
-            SetupTest.FakeOptions(
-                staging_location=staging_dir,
-                sdk_location=sdk_location)))
+        dependency.stage_job_resources(options))
 
   def test_with_extra_packages(self):
     staging_dir = tempfile.mkdtemp()
@@ -254,25 +280,31 @@ class SetupTest(unittest.TestCase):
         os.path.join(source_dir, 'xyz.tar.gz'), 'nothing')
     self.create_temp_file(
         os.path.join(source_dir, dependency.EXTRA_PACKAGES_FILE), 'nothing')
+
+    options = PipelineOptions()
+    options.view_as(GoogleCloudOptions).staging_location = staging_dir
+    self.update_options(options)
+    options.view_as(SetupOptions).extra_packages = [
+        os.path.join(source_dir, 'abc.tar.gz'),
+        os.path.join(source_dir, 'xyz.tar.gz')]
+
     self.assertEqual(
         ['abc.tar.gz', 'xyz.tar.gz', dependency.EXTRA_PACKAGES_FILE,
          names.PICKLED_MAIN_SESSION_FILE],
-        dependency.stage_job_resources(
-            SetupTest.FakeOptions(
-                staging_location=staging_dir,
-                extra_packages=[
-                    os.path.join(source_dir, 'abc.tar.gz'),
-                    os.path.join(source_dir, 'xyz.tar.gz')])))
+        dependency.stage_job_resources(options))
     with open(os.path.join(staging_dir, dependency.EXTRA_PACKAGES_FILE)) as f:
       self.assertEqual(['abc.tar.gz\n', 'xyz.tar.gz\n'], f.readlines())
 
   def test_with_extra_packages_missing_files(self):
     staging_dir = tempfile.mkdtemp()
     with self.assertRaises(RuntimeError) as cm:
-      dependency.stage_job_resources(
-          SetupTest.FakeOptions(
-              staging_location=staging_dir,
-              extra_packages=['nosuchfile']))
+
+      options = PipelineOptions()
+      options.view_as(GoogleCloudOptions).staging_location = staging_dir
+      self.update_options(options)
+      options.view_as(SetupOptions).extra_packages = ['nosuchfile']
+
+      dependency.stage_job_resources(options)
     self.assertEqual(
         cm.exception.message,
         'The file %s cannot be found. It was specified in the '
@@ -284,10 +316,12 @@ class SetupTest(unittest.TestCase):
     self.create_temp_file(
         os.path.join(source_dir, 'abc.tgz'), 'nothing')
     with self.assertRaises(RuntimeError) as cm:
-      dependency.stage_job_resources(
-          SetupTest.FakeOptions(
-              staging_location=staging_dir,
-              extra_packages=[os.path.join(source_dir, 'abc.tgz')]))
+      options = PipelineOptions()
+      options.view_as(GoogleCloudOptions).staging_location = staging_dir
+      self.update_options(options)
+      options.view_as(SetupOptions).extra_packages = [
+          os.path.join(source_dir, 'abc.tgz')]
+      dependency.stage_job_resources(options)
     self.assertEqual(
         cm.exception.message,
         'The --extra_packages option expects a full path ending with '

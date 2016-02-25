@@ -54,7 +54,11 @@ class TfIdfTest(unittest.TestCase):
         uri_to_line
         | tfidf.TfIdf()
         | df.Map('flatten', lambda (word, (uri, tfidf)): (word, uri, tfidf)))
-    self.assertEqual(set(result.get()), EXPECTED_RESULTS)
+    df.assert_that(result, df.equal_to(EXPECTED_RESULTS))
+    # Run the pipeline. Note that the assert_that above adds to the pipeline
+    # a check that the result PCollection contains expected values. To actually
+    # trigger the check the pipeline must be run.
+    p.run()
 
   def test_basics(self):
     # Setup the files with expected content.

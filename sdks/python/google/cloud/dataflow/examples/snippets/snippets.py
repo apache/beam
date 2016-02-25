@@ -30,7 +30,6 @@ model_pipelines_DESCRIPTION. The tags can contain only letters, digits and _.
 """
 
 import google.cloud.dataflow as df
-from google.cloud.dataflow.utils import options
 
 # Quiet some pylint warnings that happen because of the somewhat special
 # format for the code snippets.
@@ -86,8 +85,9 @@ def construct_pipeline(renames):
     return True
 
   # [START pipelines_constructing_creating]
-  pipeline_options = options.get_options()
-  p = df.Pipeline(options=pipeline_options)
+  from google.cloud.dataflow.utils.options import PipelineOptions
+
+  p = df.Pipeline(options=PipelineOptions())
   # [END pipelines_constructing_creating]
 
   # [START pipelines_constructing_reading]
@@ -110,10 +110,10 @@ def construct_pipeline(renames):
 
   # [START pipelines_constructing_running]
   p.run()
-  # [START pipelines_constructing_running]
+  # [END pipelines_constructing_running]
 
 
-def model_pipelines(pipeline_options=None):
+def model_pipelines(argv):
   """A wordcount snippet as a simple pipeline example.
 
   URL: https://cloud.google.com/dataflow/model/pipelines
@@ -122,40 +122,58 @@ def model_pipelines(pipeline_options=None):
   import re
 
   import google.cloud.dataflow as df
-  from google.cloud.dataflow.utils import options
+  from google.cloud.dataflow.utils.options import PipelineOptions
 
-  options.add_option(
-      '--input', dest='input',
-      default='gs://dataflow-samples/shakespeare/kinglear.txt',
-      help='Input file to process.')
-  options.add_option(
-      '--output', dest='output', required=True,
-      help='Output file to write results to.')
+  class MyOptions(PipelineOptions):
 
-  p = df.Pipeline(options=options.get_options(pipeline_options))
+    @classmethod
+    def _add_argparse_args(cls, parser):
+      parser.add_argument('--input',
+                          dest='input',
+                          default='gs://dataflow-samples/shakespeare/kinglear'
+                          '.txt',
+                          help='Input file to process.')
+      parser.add_argument('--output',
+                          dest='output',
+                          required=True,
+                          help='Output file to write results to.')
+
+  pipeline_options = PipelineOptions(argv)
+  my_options = pipeline_options.view_as(MyOptions)
+
+  p = df.Pipeline(options=pipeline_options)
 
   (p
-   | df.io.Read(df.io.TextFileSource(p.options.input))
+   | df.io.Read(df.io.TextFileSource(my_options.input))
    | df.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
-   | df.Map(lambda x: (x, 1))
-   | df.combiners.Count.PerKey()
-   | df.io.Write(df.io.TextFileSink(p.options.output)))
+   | df.Map(lambda x: (x, 1)) | df.combiners.Count.PerKey()
+   | df.io.Write(df.io.TextFileSink(my_options.output)))
 
   p.run()
   # [END model_pipelines]
 
 
-def model_pcollection(pipeline_options=None):
+def model_pcollection(argv):
   """Creating a PCollection from data in local memory.
 
   URL: https://cloud.google.com/dataflow/model/pcollection
   """
-  options.add_option(
-      '--output', dest='output', required=True,
-      help='Output file to write results to.')
+  from google.cloud.dataflow.utils.options import PipelineOptions
+
+  class MyOptions(PipelineOptions):
+
+    @classmethod
+    def _add_argparse_args(cls, parser):
+      parser.add_argument('--output',
+                          dest='output',
+                          required=True,
+                          help='Output file to write results to.')
+
+  pipeline_options = PipelineOptions(argv)
+  my_options = pipeline_options.view_as(MyOptions)
 
   # [START model_pcollection]
-  p = df.Pipeline(options=options.get_options(pipeline_options))
+  p = df.Pipeline(options=pipeline_options)
 
   (p
    | df.Create([
@@ -163,7 +181,7 @@ def model_pcollection(pipeline_options=None):
        'Whether \'tis nobler in the mind to suffer ',
        'The slings and arrows of outrageous fortune, ',
        'Or to take arms against a sea of troubles, '])
-   | df.io.Write(df.io.TextFileSink(p.options.output)))
+   | df.io.Write(df.io.TextFileSink(my_options.output)))
 
   p.run()
   # [END model_pcollection]
@@ -181,10 +199,10 @@ def model_textio(renames):
     return re.findall(r'[A-Za-z\']+', x)
 
   import google.cloud.dataflow as df
-  from google.cloud.dataflow.utils import options
+  from google.cloud.dataflow.utils.options import PipelineOptions
 
   # [START model_textio_read]
-  p = df.Pipeline(options=options.get_options())
+  p = df.Pipeline(options=PipelineOptions())
   # [START model_pipelineio_read]
   lines = p | df.io.Read(
       'ReadFromText',
@@ -211,10 +229,10 @@ def model_bigqueryio():
   URL: https://cloud.google.com/dataflow/model/bigquery-io
   """
   import google.cloud.dataflow as df
-  from google.cloud.dataflow.utils import options
+  from google.cloud.dataflow.utils.options import PipelineOptions
 
   # [START model_bigqueryio_read]
-  p = df.Pipeline(options=options.get_options())
+  p = df.Pipeline(options=PipelineOptions())
   weather_data = p | df.io.Read(
       'ReadWeatherStations',
       df.io.BigQuerySource(
@@ -222,7 +240,7 @@ def model_bigqueryio():
   # [END model_bigqueryio_read]
 
   # [START model_bigqueryio_query]
-  p = df.Pipeline(options=options.get_options())
+  p = df.Pipeline(options=PipelineOptions())
   weather_data = p | df.io.Read(
       'ReadYearAndTemp',
       df.io.BigQuerySource(
@@ -263,7 +281,7 @@ def model_composite_transform_example(contents, output_path):
   # [START composite_ptransform_apply_method]
   # [START composite_ptransform_declare]
   class CountWords(df.PTransform):
-  # [END composite_ptransform_declare]
+    # [END composite_ptransform_declare]
 
     def apply(self, pcoll):
       return (pcoll
@@ -273,8 +291,8 @@ def model_composite_transform_example(contents, output_path):
   # [END composite_ptransform_apply_method]
   # [END composite_transform_example]
 
-  from google.cloud.dataflow.utils import options
-  p = df.Pipeline(options=options.get_options())
+  from google.cloud.dataflow.utils.options import PipelineOptions
+  p = df.Pipeline(options=PipelineOptions())
   (p
    | df.Create(contents)
    | CountWords()
@@ -289,8 +307,8 @@ def model_multiple_pcollections_flatten(contents, output_path):
   """
   some_hash_fn = lambda s: ord(s[0])
   import google.cloud.dataflow as df
-  from google.cloud.dataflow.utils import options
-  p = df.Pipeline(options=options.get_options())
+  from google.cloud.dataflow.utils.options import PipelineOptions
+  p = df.Pipeline(options=PipelineOptions())
   partition_fn = lambda element, partitions: some_hash_fn(element) % partitions
 
   # Partition into deciles
@@ -329,8 +347,8 @@ def model_multiple_pcollections_partition(contents, output_path):
     """Assume i in [0,100)."""
     return i
   import google.cloud.dataflow as df
-  from google.cloud.dataflow.utils import options
-  p = df.Pipeline(options=options.get_options())
+  from google.cloud.dataflow.utils.options import PipelineOptions
+  p = df.Pipeline(options=PipelineOptions())
 
   students = p | df.Create(contents)
   # [START model_multiple_pcollections_partition]
@@ -358,8 +376,8 @@ def model_group_by_key(contents, output_path):
   import re
 
   import google.cloud.dataflow as df
-  from google.cloud.dataflow.utils import options
-  p = df.Pipeline(options=options.get_options())
+  from google.cloud.dataflow.utils.options import PipelineOptions
+  p = df.Pipeline(options=PipelineOptions())
   words_and_counts = (
       p
       | df.Create(contents)
@@ -385,8 +403,8 @@ def model_co_group_by_key_tuple(email_list, phone_list, output_path):
   URL: https://cloud.google.com/dataflow/model/group-by-key
   """
   import google.cloud.dataflow as df
-  from google.cloud.dataflow.utils import options
-  p = df.Pipeline(options=options.get_options())
+  from google.cloud.dataflow.utils.options import PipelineOptions
+  p = df.Pipeline(options=PipelineOptions())
   # [START model_group_by_key_cogroupbykey_tuple]
   # Each data set is represented by key-value pairs in separate PCollections.
   # Both data sets share a common key type (in this example str).

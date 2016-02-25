@@ -36,22 +36,29 @@ class FiltersTest(unittest.TestCase):
     rows = (p | df.Create('create', self.input_data))
 
     results = filters.filter_cold_days(rows, month)
-    return sorted(results.get())
+    return results
 
   def test_basic(self):
     """Test that the correct result is returned for a simple dataset."""
-    self.assertEqual(
-        self._get_result_for_month(1),
-        sorted([{'year': 2010, 'month': 1, 'day': 1, 'mean_temp': 3},
-                {'year': 2012, 'month': 1, 'day': 2, 'mean_temp': 3}]))
+    results = self._get_result_for_month(1)
+    df.assert_that(
+        results,
+        df.equal_to([{'year': 2010, 'month': 1, 'day': 1, 'mean_temp': 3},
+                     {'year': 2012, 'month': 1, 'day': 2, 'mean_temp': 3}]))
+    results.pipeline.run()
 
   def test_basic_empty(self):
     """Test that the correct empty result is returned for a simple dataset."""
-    self.assertEqual(self._get_result_for_month(3), [])
+    results = self._get_result_for_month(3)
+    df.assert_that(results, df.equal_to([]))
+    results.pipeline.run()
 
   def test_basic_empty_missing(self):
     """Test that the correct empty result is returned for a missing month."""
-    self.assertEqual(self._get_result_for_month(4), [])
+    results = self._get_result_for_month(4)
+    df.assert_that(results, df.equal_to([]))
+    results.pipeline.run()
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

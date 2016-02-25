@@ -59,6 +59,8 @@ from google.cloud.dataflow import utils
 from google.cloud.dataflow.internal import pickler
 from google.cloud.dataflow.utils import names
 from google.cloud.dataflow.utils import processes
+from google.cloud.dataflow.utils.options import GoogleCloudOptions
+from google.cloud.dataflow.utils.options import SetupOptions
 from google.cloud.dataflow.version import __version__
 
 
@@ -170,103 +172,104 @@ def stage_job_resources(options, file_copy=_dependency_file_copy,
   temp_dir = temp_dir or tempfile.mkdtemp()
   resources = []
 
+  google_cloud_options = options.view_as(GoogleCloudOptions)
+  setup_options = options.view_as(SetupOptions)
   # Make sure that all required options are specified. There are a few that have
   # defaults to support local running scenarios.
-  if options.staging_location is None:
+  if google_cloud_options.staging_location is None:
     raise RuntimeError(
         'The --staging_location option must be specified.')
-  if options.temp_location is None:
+  if google_cloud_options.temp_location is None:
     raise RuntimeError(
         'The --temp_location option must be specified.')
 
   # Stage a requirements file if present.
-  if options.requirements_file is not None:
-    if not os.path.isfile(options.requirements_file):
-      raise RuntimeError(
-          'The file %s cannot be found. It was specified in the '
-          '--requirements_file command line option.' %
-          options.requirements_file)
-    staged_path = utils.path.join(options.staging_location, REQUIREMENTS_FILE)
-    file_copy(options.requirements_file, staged_path)
+  if setup_options.requirements_file is not None:
+    if not os.path.isfile(setup_options.requirements_file):
+      raise RuntimeError('The file %s cannot be found. It was specified in the '
+                         '--requirements_file command line option.' %
+                         setup_options.requirements_file)
+    staged_path = utils.path.join(google_cloud_options.staging_location,
+                                  REQUIREMENTS_FILE)
+    file_copy(setup_options.requirements_file, staged_path)
     resources.append(REQUIREMENTS_FILE)
 
   # Handle a setup file if present.
   # We will build the setup package locally and then copy it to the staging
   # location because the staging location is a GCS path and the file cannot be
   # created directly there.
-  if options.setup_file is not None:
-    if not os.path.isfile(options.setup_file):
-      raise RuntimeError(
-          'The file %s cannot be found. It was specified in the '
-          '--setup_file command line option.' %
-          options.setup_file)
-    if os.path.basename(options.setup_file) != 'setup.py':
+  if setup_options.setup_file is not None:
+    if not os.path.isfile(setup_options.setup_file):
+      raise RuntimeError('The file %s cannot be found. It was specified in the '
+                         '--setup_file command line option.' %
+                         setup_options.setup_file)
+    if os.path.basename(setup_options.setup_file) != 'setup.py':
       raise RuntimeError(
           'The --setup_file option expects the full path to a file named '
-          'setup.py instead of %s' %
-          options.setup_file)
-    tarball_file = _build_setup_package(
-        options.setup_file, temp_dir, build_setup_args)
-    staged_path = utils.path.join(options.staging_location,
+          'setup.py instead of %s' % setup_options.setup_file)
+    tarball_file = _build_setup_package(setup_options.setup_file, temp_dir,
+                                        build_setup_args)
+    staged_path = utils.path.join(google_cloud_options.staging_location,
                                   WORKFLOW_TARBALL_FILE)
     file_copy(tarball_file, staged_path)
     resources.append(WORKFLOW_TARBALL_FILE)
 
   # Handle extra local packages that should be staged.
-  if options.extra_packages is not None:
+  if setup_options.extra_packages is not None:
     resources.extend(
-        _stage_extra_packages(
-            options.extra_packages, options.staging_location,
-            file_copy=file_copy, temp_dir=temp_dir))
+        _stage_extra_packages(setup_options.extra_packages,
+                              google_cloud_options.staging_location,
+                              file_copy=file_copy,
+                              temp_dir=temp_dir))
 
   # Pickle the main session if requested.
   # We will create the pickled main session locally and then copy it to the
   # staging location because the staging location is a GCS path and the file
   # cannot be created directly there.
-  if options.save_main_session:
+  if setup_options.save_main_session:
     pickled_session_file = os.path.join(temp_dir,
                                         names.PICKLED_MAIN_SESSION_FILE)
     pickler.dump_session(pickled_session_file)
-    staged_path = utils.path.join(options.staging_location,
+    staged_path = utils.path.join(google_cloud_options.staging_location,
                                   names.PICKLED_MAIN_SESSION_FILE)
     file_copy(pickled_session_file, staged_path)
     resources.append(names.PICKLED_MAIN_SESSION_FILE)
 
-  if hasattr(options, 'sdk_location') and options.sdk_location:
-    if options.sdk_location == 'default':
+  if hasattr(setup_options, 'sdk_location') and setup_options.sdk_location:
+    if setup_options.sdk_location == 'default':
       stage_tarball_from_gcs = True
-    elif options.sdk_location.startswith('gs://'):
+    elif setup_options.sdk_location.startswith('gs://'):
       stage_tarball_from_gcs = True
     else:
       stage_tarball_from_gcs = False
 
-    staged_path = utils.path.join(
-        options.staging_location, names.DATAFLOW_SDK_TARBALL_FILE)
+    staged_path = utils.path.join(google_cloud_options.staging_location,
+                                  names.DATAFLOW_SDK_TARBALL_FILE)
     if stage_tarball_from_gcs:
       # Unit tests running in the 'python setup.py test' context will
       # not have the sdk_location attribute present and therefore we
       # will not stage a tarball.
-      if options.sdk_location == 'default':
+      if setup_options.sdk_location == 'default':
         sdk_folder = 'gs://dataflow-sdk-for-python'
       else:
-        sdk_folder = options.sdk_location
+        sdk_folder = setup_options.sdk_location
       _stage_dataflow_sdk_tarball(sdk_folder, staged_path)
       resources.append(names.DATAFLOW_SDK_TARBALL_FILE)
     else:
       # Check if we have a local Dataflow SDK tarball present. This branch is
       # used by tests running with the SDK built at head.
-      if options.sdk_location == 'default':
+      if setup_options.sdk_location == 'default':
         module_path = os.path.abspath(__file__)
         sdk_dir = os.path.join(os.path.dirname(module_path), '..')
       else:
-        sdk_dir = options.sdk_location
+        sdk_dir = setup_options.sdk_location
       sdk_path = os.path.join(sdk_dir, names.DATAFLOW_SDK_TARBALL_FILE)
       if os.path.isfile(sdk_path):
         logging.info('Copying dataflow SDK "%s" to staging location.', sdk_path)
         file_copy(sdk_path, staged_path)
         resources.append(names.DATAFLOW_SDK_TARBALL_FILE)
       else:
-        if options.sdk_location == 'default':
+        if setup_options.sdk_location == 'default':
           raise RuntimeError('Cannot find default Dataflow SDK tar file "%s"',
                              sdk_path)
         else:

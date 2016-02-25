@@ -15,6 +15,7 @@
 """Tests for all code snippets used in public docs."""
 
 import logging
+import sys
 import tempfile
 import unittest
 
@@ -22,7 +23,8 @@ import google.cloud.dataflow as df
 from google.cloud.dataflow import pvalue
 from google.cloud.dataflow import typehints
 from google.cloud.dataflow.examples.snippets import snippets
-from google.cloud.dataflow.utils import options
+from google.cloud.dataflow.utils.options import PipelineOptions
+from google.cloud.dataflow.utils.options import TypeOptions
 
 
 class ParDoTest(unittest.TestCase):
@@ -119,10 +121,12 @@ class ParDoTest(unittest.TestCase):
                                               upper_bound=pvalue.AsSingleton(avg_word_len))
     # [END model_pardo_side_input]
 
+    df.assert_that(small_words, df.equal_to(['a', 'bb', 'ccc']))
+    df.assert_that(larger_than_average, df.equal_to(['ccc', 'dddd']),
+                   label='larger_than_average')
+    df.assert_that(small_but_nontrivial, df.equal_to(['bb']),
+                   label='small_but_not_trivial')
     p.run()
-    self.assertEqual({'a', 'bb', 'ccc'}, set(small_words.get()))
-    self.assertEqual({'ccc', 'dddd'}, set(larger_than_average.get()))
-    self.assertEqual({'bb'}, set(small_but_nontrivial.get()))
 
   def test_pardo_side_input_dofn(self):
     words = ['a', 'bb', 'ccc', 'dddd']
@@ -204,7 +208,8 @@ class ParDoTest(unittest.TestCase):
 class TypeHintsTest(unittest.TestCase):
 
   def test_bad_types(self):
-    p = df.Pipeline('DirectPipelineRunner', options=options.get_options())
+    p = df.Pipeline('DirectPipelineRunner',
+                    options=PipelineOptions(sys.argv))
 
     # [START type_hints_missing_define_numbers]
     numbers = p | df.Create(['1', '2', '3'])
@@ -225,7 +230,7 @@ class TypeHintsTest(unittest.TestCase):
     # To catch this early, we can assert what types we expect.
     with self.assertRaises(typehints.TypeCheckError):
       # [START type_hints_takes]
-      p.options.pipeline_type_check = True
+      p.options.view_as(TypeOptions).pipeline_type_check = True
       evens = numbers | df.Filter(lambda x: x % 2 == 0).with_input_types(int)
       # [END type_hints_takes]
 
@@ -261,15 +266,6 @@ class TypeHintsTest(unittest.TestCase):
 
 
 class SnippetsTest(unittest.TestCase):
-
-  def setUp(self):
-    # Reset the test defined command line options between test runs.
-    # This is needed only because the multiple workflows comprising the code
-    # snippets are all defined global options (as they should if each would be
-    # a separate file).
-    options.OPTIONS = [
-        (args, kwargs) for args, kwargs in options. OPTIONS
-        if args[0] not in ['--input', '--output', '--notused']]
 
   def create_temp_file(self, contents=''):
     with tempfile.NamedTemporaryFile(delete=False) as f:

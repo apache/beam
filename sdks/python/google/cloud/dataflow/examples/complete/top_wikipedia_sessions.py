@@ -36,6 +36,7 @@ overridden with --input.
 
 from __future__ import absolute_import
 
+import argparse
 import json
 import logging
 import sys
@@ -43,8 +44,6 @@ import sys
 import google.cloud.dataflow as df
 from google.cloud.dataflow import combiners
 from google.cloud.dataflow import window
-from google.cloud.dataflow.utils.options import add_option
-from google.cloud.dataflow.utils.options import get_options
 
 ONE_HOUR_IN_SECONDS = 3600
 THIRTY_DAYS_IN_SECONDS = 30 * 24 * ONE_HOUR_IN_SECONDS
@@ -133,33 +132,38 @@ class ComputeTopSessions(df.PTransform):
             | df.ParDo('FormatOutput', FormatOutputDoFn()))
 
 
-def run(options=None):
+def run(argv=sys.argv[1:]):
   """Runs the Wikipedia top edits pipeline.
 
   Args:
-    options: Pipeline options.
+    argv: Pipeline options as a list of arguments.
   """
-  p = df.Pipeline(options=get_options(options))
+
+  parser = argparse.ArgumentParser()
+  parser.add_argument(
+      '--input',
+      dest='input',
+      default='gs://dataflow-samples/wikipedia_edits/*.json',
+      help='Input specified as a GCS path containing a BigQuery table exported '
+      'as json.')
+  parser.add_argument('--output',
+                      required=True,
+                      help='Output file to write results to.')
+  parser.add_argument('--sampling_threshold',
+                      type=float,
+                      default=0.1,
+                      help='Fraction of entries used for session tracking')
+  known_args, pipeline_args = parser.parse_known_args(argv)
+
+  p = df.Pipeline(argv=pipeline_args)
 
   (p  # pylint: disable=expression-not-assigned
-   | df.io.Read('read', df.io.TextFileSource(p.options.input))
-   | ComputeTopSessions(p.options.sampling_threshold)
-   | df.io.Write('write', df.io.TextFileSink(p.options.output)))
+   | df.Read('read', df.io.TextFileSource(known_args.input))
+   | ComputeTopSessions(known_args.sampling_threshold)
+   | df.io.Write('write', df.io.TextFileSink(known_args.output)))
 
   p.run()
 
-add_option(
-    '--input', dest='input',
-    default='gs://dataflow-samples/wikipedia_edits/*.json',
-    help='Input specified as a GCS path containing a BigQuery table exported '
-    'as json.')
-add_option(
-    '--output', dest='output', required=True,
-    help='Output file to write results to.')
-add_option(
-    '--sampling_threshold', dest='sampling_threshold', type=float,
-    default=0.1,
-    help='Fraction of entries used for session tracking')
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

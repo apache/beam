@@ -19,6 +19,7 @@ import tempfile
 import unittest
 
 from google.cloud.dataflow.examples.cookbook import custom_ptransform
+from google.cloud.dataflow.utils.options import PipelineOptions
 
 
 class CustomCountTest(unittest.TestCase):
@@ -35,9 +36,12 @@ class CustomCountTest(unittest.TestCase):
   def run_pipeline(self, count_implementation, factor=1):
     input_path = self.create_temp_file('CAT\nDOG\nCAT\nCAT\nDOG\n')
     output_path = input_path + '.result'
-    count_implementation([
-        '--input=%s*' % input_path,
-        '--output=%s' % output_path])
+
+    known_args, pipeline_args = custom_ptransform.get_args([
+        '--input=%s*' % input_path, '--output=%s' % output_path
+    ])
+
+    count_implementation(known_args, PipelineOptions(pipeline_args))
     self.assertEqual(["""(u'CAT', %d)""" % (3 * factor),
                       """(u'DOG', %d)""" % (2 * factor)],
                      self.get_output(output_path))

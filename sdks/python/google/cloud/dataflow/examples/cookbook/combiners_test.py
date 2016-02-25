@@ -45,7 +45,8 @@ class CombinersTest(unittest.TestCase):
         | df.Create(CombinersTest.SAMPLE_DATA)
         | df.CombinePerKey(sum))
 
-    self.assertEqual(sorted(result.get()), [('a', 6), ('b', 30), ('c', 100)])
+    df.assert_that(result, df.equal_to([('a', 6), ('b', 30), ('c', 100)]))
+    result.pipeline.run()
 
   def test_combine_per_key_with_custom_callable(self):
     """CombinePerKey using a custom function reducing iterables."""
@@ -60,7 +61,8 @@ class CombinersTest(unittest.TestCase):
         | df.Create(CombinersTest.SAMPLE_DATA)
         | df.CombinePerKey(multiply))
 
-    self.assertEqual(sorted(result.get()), [('a', 6), ('b', 200), ('c', 100)])
+    df.assert_that(result, df.equal_to([('a', 6), ('b', 200), ('c', 100)]))
+    result.pipeline.run()
 
 
 if __name__ == '__main__':

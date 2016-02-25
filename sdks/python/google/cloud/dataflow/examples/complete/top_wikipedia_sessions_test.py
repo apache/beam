@@ -14,23 +14,12 @@
 
 """Test for the top wikipedia sessions example."""
 
-import collections
 import json
-import logging
 import unittest
 
 
 import google.cloud.dataflow as df
 from google.cloud.dataflow.examples.complete import top_wikipedia_sessions
-
-
-def contains_in_any_order(value, expected):
-  vs = collections.Counter(value)
-  es = collections.Counter(expected)
-  if vs != es:
-    raise ValueError(
-        'extra: %s, missing: %s' % (vs - es, es - vs))
-  return True
 
 
 class ComputeTopSessionsTest(unittest.TestCase):
@@ -61,9 +50,8 @@ class ComputeTopSessionsTest(unittest.TestCase):
     edits = p | df.Create('create', self.EDITS)
     result = edits | top_wikipedia_sessions.ComputeTopSessions(1.0)
 
-    result_set = set(result.get())
-    logging.info('Computed result: %s', result_set)
-    assert contains_in_any_order(result_set, self.EXPECTED)
+    df.assert_that(result, df.equal_to(self.EXPECTED))
+    p.run()
 
 
 if __name__ == '__main__':
