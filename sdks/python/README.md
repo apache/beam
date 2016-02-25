@@ -332,10 +332,10 @@ you can write to.
 
 ```python
 import google.cloud.dataflow as df
-# The output table needs to point to something in your project.
-output_table = 'YOUR_PROJECT:DATASET.TABLE'
 input_table = 'clouddataflow-readonly:samples.weather_stations'
-p = df.Pipeline('DirectPipelineRunner')
+project = 'YOUR-PROJECT'
+output_table = '%s:DATASET.TABLENAME' % project
+p = df.Pipeline(argv=['--project', project])
 (p
  | df.Read('read', df.io.BigQuerySource(input_table))
  | df.FlatMap(
@@ -357,12 +357,12 @@ of using the whole table.
 
 ```python
 import google.cloud.dataflow as df
-# The output table needs to point to something in your project.
-output_table = 'YOUR_PROJECT:DATASET.TABLE'
+project = 'YOUR-PROJECT'
+output_table = '%s:DATASET.TABLENAME' % project
 input_query = 'SELECT month, COUNT(month) AS tornado_count ' \
         'FROM [clouddataflow-readonly:samples.weather_stations] ' \
         'WHERE tornado=true GROUP BY month'
-p = df.Pipeline('DirectPipelineRunner')
+p = df.Pipeline(argv=['--project', project])
 (p
 | df.Read('read', df.io.BigQuerySource(query=input_query))
 | df.Write('write', df.io.BigQuerySink(

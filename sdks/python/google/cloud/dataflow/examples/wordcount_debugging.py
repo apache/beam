@@ -78,23 +78,6 @@ class FilterTextFn(df.DoFn):
       context.aggregate_to(self.umatched_words, 1)
 
 
-class AssertEqualsIgnoringOrderFn(df.DoFn):
-  """A DoFn that asserts that its input is the same as the expected value.
-
-  This DoFn is useful only for testing purposes with small data sets. It will
-  materialize all of its input and assumes that its input is a singleton.
-  """
-
-  def __init__(self, expected_elements):
-    super(AssertEqualsIgnoringOrderFn, self).__init__()
-    self.expected_elements = expected_elements
-
-  def process(self, context):
-    assert sorted(context.element) == sorted(self.expected_elements), (
-        'AssertEqualsIgnoringOrderFn input does not match expected value.'
-        '%s != %s' % (context.element, self.expected_elements))
-
-
 class CountWords(df.PTransform):
   """A transform to count the occurrences of each word.
 
@@ -136,19 +119,15 @@ def run(argv=sys.argv[1:]):
       p | df.io.Read('read', df.io.TextFileSource(known_args.input))
       | CountWords() | df.ParDo('FilterText', FilterTextFn('Flourish|stomach')))
 
-  # AssertEqualsIgnoringOrderFn is a convenient DoFn to validate its input.
-  # Asserts are best used in unit tests with small data sets but is demonstrated
-  # here as a teaching tool.
+  # assert_that is a convenient PTransform that checks a PCollection has an
+  # expected value. Asserts are best used in unit tests with small data sets but
+  # is demonstrated here as a teaching tool.
   #
-  # Note AssertEqualsIgnoringOrderFn does not provide any output and that
-  # successful completion of the Pipeline implies that the expectations were
-  # met. Learn more at
+  # Note assert_that does not provide any output and that successful completion
+  # of the Pipeline implies that the expectations were  met. Learn more at
   # https://cloud.google.com/dataflow/pipelines/testing-your-pipeline on how to
   # test your pipeline.
-  # pylint: disable=expression-not-assigned
-  (filtered_words
-   | df.transforms.combiners.ToList('ToList')
-   | df.ParDo(AssertEqualsIgnoringOrderFn([('Flourish', 3), ('stomach', 1)])))
+  df.assert_that(filtered_words, df.equal_to([('Flourish', 3), ('stomach', 1)]))
 
   # Format the counts into a PCollection of strings and write the output using a
   # "Write" transform that has side effects.
