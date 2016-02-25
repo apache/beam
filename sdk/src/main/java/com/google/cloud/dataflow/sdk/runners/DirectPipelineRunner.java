@@ -25,6 +25,7 @@ import com.google.cloud.dataflow.sdk.PipelineResult;
 import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.ListCoder;
+import com.google.cloud.dataflow.sdk.io.AvroIO;
 import com.google.cloud.dataflow.sdk.io.FileBasedSink;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.options.DirectPipelineOptions;
@@ -240,6 +241,8 @@ public class DirectPipelineRunner
       return (OutputT) applyTestCombine((Combine.GroupedValues) transform, (PCollection) input);
     } else if (transform instanceof TextIO.Write.Bound) {
       return (OutputT) applyTextIOWrite((TextIO.Write.Bound) transform, (PCollection<?>) input);
+    } else if (transform instanceof AvroIO.Write.Bound) {
+      return (OutputT) applyAvroIOWrite((AvroIO.Write.Bound) transform, (PCollection<?>) input);
     } else {
       return super.apply(transform, input);
     }
@@ -340,6 +343,62 @@ public class DirectPipelineRunner
       return super.apply(transform.withNumShards(1), input);
     }
     return input.apply(new DirectTextIOWrite<>(transform));
+  }
+
+  /**
+   * Applies AvroIO.Write honoring user requested sharding controls (i.e. withNumShards)
+   * by applying a partition function based upon the number of shards the user requested.
+   */
+  private static class DirectAvroIOWrite<T> extends PTransform<PCollection<T>, PDone> {
+    private final AvroIO.Write.Bound<T> transform;
+
+    private DirectAvroIOWrite(AvroIO.Write.Bound<T> transform) {
+      this.transform = transform;
+    }
+
+    @Override
+    public PDone apply(PCollection<T> input) {
+      checkState(transform.getNumShards() > 1,
+          "DirectAvroIOWrite is expected to only be used when sharding controls are required.");
+
+      // Evenly distribute all the elements across the partitions.
+      PCollectionList<T> partitionedElements =
+          input.apply(Partition.of(transform.getNumShards(),
+                                   new ElementProcessingOrderPartitionFn<T>()));
+
+      // For each input PCollection partition, create a write transform that represents
+      // one of the specific shards.
+      for (int i = 0; i < transform.getNumShards(); ++i) {
+        /*
+         * This logic mirrors the file naming strategy within
+         * {@link FileBasedSink#generateDestinationFilenames()}
+         */
+        String outputFilename = IOChannelUtils.constructName(
+            transform.getFilenamePrefix(),
+            transform.getShardNameTemplate(),
+            getFileExtension(transform.getFilenameSuffix()),
+            i,
+            transform.getNumShards());
+
+        String transformName = String.format("%s(Shard:%s)", transform.getName(), i);
+        partitionedElements.get(i).apply(transformName,
+            transform.withNumShards(1).withShardNameTemplate("").withSuffix("").to(outputFilename));
+      }
+      return PDone.in(input.getPipeline());
+    }
+  }
+
+  /**
+   * Apply the override for AvroIO.Write.Bound if the user requested sharding controls
+   * greater than one.
+   */
+  private <T> PDone applyAvroIOWrite(AvroIO.Write.Bound<T> transform, PCollection<T> input) {
+    if (transform.getNumShards() <= 1) {
+      // By default, the DirectPipelineRunner outputs to only 1 shard. Since the user never
+      // requested sharding controls greater than 1, we default to outputting to 1 file.
+      return super.apply(transform.withNumShards(1), input);
+    }
+    return input.apply(new DirectAvroIOWrite<>(transform));
   }
 
   /**

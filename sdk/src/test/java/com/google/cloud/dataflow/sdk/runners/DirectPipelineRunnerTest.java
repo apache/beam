@@ -25,8 +25,10 @@ import static org.junit.Assert.assertThat;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.AtomicCoder;
+import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
+import com.google.cloud.dataflow.sdk.io.AvroIO;
 import com.google.cloud.dataflow.sdk.io.ShardNameTemplate;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.options.DirectPipelineOptions;
@@ -36,8 +38,10 @@ import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
+import com.google.common.collect.Iterables;
 import com.google.common.io.Files;
 
+import org.apache.avro.file.DataFileReader;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -145,6 +149,55 @@ public class DirectPipelineRunnerTest implements Serializable {
           IOChannelUtils.constructName(prefix, ShardNameTemplate.INDEX_OF_MAX, ".txt", i, 3);
       List<String> shardFileContents =
           Files.readLines(new File(shardFileName), StandardCharsets.UTF_8);
+
+      // Ensure that each file got at least one record
+      assertFalse(shardFileContents.isEmpty());
+
+      allContents.addAll(shardFileContents);
+    }
+
+    assertThat(allContents, containsInAnyOrder(expectedElements));
+  }
+
+  @Test
+  public void testAvroIOWriteWithDefaultShardingStrategy() throws Exception {
+    String prefix = IOChannelUtils.resolve(Files.createTempDir().toString(), "output");
+    Pipeline p = DirectPipeline.createForTest();
+    String[] expectedElements = new String[]{ "a", "b", "c", "d", "e", "f", "g", "h", "i" };
+    p.apply(Create.of(expectedElements))
+     .apply(AvroIO.Write.withSchema(String.class).to(prefix).withSuffix(".avro"));
+    p.run();
+
+    String filename =
+        IOChannelUtils.constructName(prefix, ShardNameTemplate.INDEX_OF_MAX, ".avro", 0, 1);
+    List<String> fileContents = new ArrayList<>();
+    Iterables.addAll(fileContents, DataFileReader.openReader(
+        new File(filename), AvroCoder.of(String.class).createDatumReader()));
+
+    // Ensure that each file got at least one record
+    assertFalse(fileContents.isEmpty());
+
+    assertThat(fileContents, containsInAnyOrder(expectedElements));
+  }
+
+  @Test
+  public void testAvroIOWriteWithLimitedNumberOfShards() throws Exception {
+    final int numShards = 3;
+    String prefix = IOChannelUtils.resolve(Files.createTempDir().toString(), "shardedOutput");
+    Pipeline p = DirectPipeline.createForTest();
+    String[] expectedElements = new String[]{ "a", "b", "c", "d", "e", "f", "g", "h", "i" };
+    p.apply(Create.of(expectedElements))
+     .apply(AvroIO.Write.withSchema(String.class).to(prefix)
+                        .withNumShards(numShards).withSuffix(".avro"));
+    p.run();
+
+    List<String> allContents = new ArrayList<>();
+    for (int i = 0; i < numShards; ++i) {
+      String shardFileName =
+          IOChannelUtils.constructName(prefix, ShardNameTemplate.INDEX_OF_MAX, ".avro", i, 3);
+      List<String> shardFileContents = new ArrayList<>();
+      Iterables.addAll(shardFileContents, DataFileReader.openReader(
+          new File(shardFileName), AvroCoder.of(String.class).createDatumReader()));
 
       // Ensure that each file got at least one record
       assertFalse(shardFileContents.isEmpty());
