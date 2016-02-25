@@ -667,15 +667,22 @@
     <dependency>
       <groupId>org.codehaus.woodstox</groupId>
       <artifactId>stax2-api</artifactId>
-      <version>3.1.1</version>
+      <version>${stax2.version}</version>
       <optional>true</optional>
     </dependency>
 
     <dependency>
       <groupId>org.codehaus.woodstox</groupId>
       <artifactId>woodstox-core-asl</artifactId>
-      <version>4.1.2</version>
+      <version>${woodstox.version}</version>
       <optional>true</optional>
+      <exclusions>
+        <!-- javax.xml.stream:stax-api is included in JDK 1.6+ -->
+        <exclusion>
+          <groupId>javax.xml.stream</groupId>
+          <artifactId>stax-api</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <!--
