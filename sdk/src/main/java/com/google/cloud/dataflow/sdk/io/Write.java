@@ -117,7 +117,7 @@ public class Write {
         PCollection<T> input, WriteOperation<T, WriteT> writeOperation) {
       Pipeline p = input.getPipeline();
 
-      // A coder to user for the WriteOperation.
+      // A coder to use for the WriteOperation.
       @SuppressWarnings("unchecked")
       Coder<WriteOperation<T, WriteT>> operationCoder =
           (Coder<WriteOperation<T, WriteT>>) SerializableCoder.of(writeOperation.getClass());

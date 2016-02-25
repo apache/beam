@@ -184,8 +184,12 @@ public class WriteTest {
       FINALIZED
     }
 
+    // Must be static in case the WriteOperation is serialized before the its coder is obtained.
+    // If this occurs, the value will be modified but not reflected in the WriteOperation that is
+    // executed by the runner, and the finalize method will fail.
+    private static volatile boolean coderCalled = false;
+
     private State state = State.INITIAL;
-    private boolean coderCalled = false;
 
     private final TestSink sink;
     private final UUID id = UUID.randomUUID();
