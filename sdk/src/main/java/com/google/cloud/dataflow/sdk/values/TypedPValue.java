@@ -83,6 +83,9 @@ public abstract class TypedPValue<T> extends PValueBase implements PValue {
       return;
     }
     super.finishSpecifying();
+    // Ensure that this TypedPValue has a coder by inferring the coder if none exists; If not,
+    // this will throw an exception.
+    getCoder();
   }
 
   /////////////////////////////////////////////////////////////////////////////

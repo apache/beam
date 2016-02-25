@@ -20,7 +20,6 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
@@ -132,28 +131,34 @@ public class TypedPValueTest {
   @Test
   public void testParDoWithNoSideOutputsErrorDoesNotMentionTupleTag() {
     Pipeline p = TestPipeline.create();
-    PCollection<EmptyClass> input = p
-        .apply(Create.of(1, 2, 3))
-        .apply(ParDo.of(new EmptyClassDoFn()));
+    PCollection<EmptyClass> input =
+        p.apply(Create.of(1, 2, 3)).apply(ParDo.of(new EmptyClassDoFn()));
 
-    try {
-      input.getCoder();
-    } catch (IllegalStateException exc) {
-      String message = exc.getMessage();
+    thrown.expect(IllegalStateException.class);
 
-      // Output specific to ParDo TupleTag side outputs should not be present.
-      assertThat(message, not(containsString("erasure")));
-      assertThat(message, not(containsString("see TupleTag Javadoc")));
-      // Instead, expect output suggesting other possible fixes.
-      assertThat(message,
-          containsString("Building a Coder using a registered CoderFactory failed"));
-      assertThat(message,
-          containsString("Building a Coder from the @DefaultCoder annotation failed"));
-      assertThat(message,
-          containsString("Building a Coder from the fallback CoderProvider failed"));
-      return;
-    }
-    fail("Should have thrown IllegalStateException due to failure to infer a coder.");
+    // Output specific to ParDo TupleTag side outputs should not be present.
+    thrown.expectMessage(not(containsString("erasure")));
+    thrown.expectMessage(not(containsString("see TupleTag Javadoc")));
+    // Instead, expect output suggesting other possible fixes.
+    thrown.expectMessage(containsString("Building a Coder using a registered CoderFactory failed"));
+    thrown.expectMessage(
+        containsString("Building a Coder from the @DefaultCoder annotation failed"));
+    thrown.expectMessage(containsString("Building a Coder from the fallback CoderProvider failed"));
+
+    input.getCoder();
+  }
+
+  @Test
+  public void testFinishSpecifyingShouldFailIfNoCoderInferrable() {
+    Pipeline p = TestPipeline.create();
+    PCollection<EmptyClass> unencodable =
+        p.apply(Create.of(1, 2, 3)).apply(ParDo.of(new EmptyClassDoFn()));
+
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage("Unable to return a default Coder");
+    thrown.expectMessage("Inferring a Coder from the CoderRegistry failed");
+
+    unencodable.finishSpecifying();
   }
 }
 
