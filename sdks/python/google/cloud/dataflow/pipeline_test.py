@@ -23,6 +23,7 @@ from google.cloud.dataflow.pipeline import PipelineVisitor
 from google.cloud.dataflow.runners import DirectPipelineRunner
 from google.cloud.dataflow.transforms import Create
 from google.cloud.dataflow.transforms import FlatMap
+from google.cloud.dataflow.transforms import Map
 from google.cloud.dataflow.transforms import PTransform
 from google.cloud.dataflow.transforms import Read
 from google.cloud.dataflow.transforms.util import assert_that, equal_to
@@ -156,10 +157,10 @@ class PipelineTest(unittest.TestCase):
       pipeline.apply(transform, pcoll2)
     self.assertEqual(
         cm.exception.message,
-        'Transform with label %s already applied. Please clone the current '
-        'instance using a new label or alternatively create a new instance. '
-        'To clone a transform use: transform.clone(\'NEW LABEL\').'
-        % 'CustomTransform')
+        'Transform "CustomTransform" does not have a stable unique label. '
+        'This will prevent updating of pipelines. '
+        'To clone a transform with a new label use: '
+        'transform.clone("NEW LABEL").')
 
   def test_reuse_cloned_custom_transform_instance(self):
     pipeline = Pipeline(DirectPipelineRunner())
@@ -178,6 +179,20 @@ class PipelineTest(unittest.TestCase):
     result = pipeline.apply(PipelineTest.custom_callable, pcoll)
     assert_that(result, equal_to([2, 3, 4]))
     pipeline.run()
+
+  def test_transform_no_super_init(self):
+    class AddSuffix(PTransform):
+
+      def __init__(self, suffix):
+        # No call to super(...).__init__
+        self.suffix = suffix
+
+      def apply(self, pcoll):
+        return pcoll | Map(lambda x: x + self.suffix)
+
+    self.assertEqual(
+        ['a-x', 'b-x', 'c-x'],
+        sorted(['a', 'b', 'c'] | AddSuffix('-x')))
 
 
 class Bacon(PipelineOptions):

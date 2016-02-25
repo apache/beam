@@ -198,9 +198,10 @@ class Pipeline(object):
     full_label = format_full_label(self._current_transform(), transform)
     if full_label in self.applied_labels:
       raise RuntimeError(
-          'Transform with label %s already applied. Please clone the current '
-          'instance using a new label or alternatively create a new instance. '
-          'To clone a transform use: transform.clone(\'NEW LABEL\').'
+          'Transform "%s" does not have a stable unique label. '
+          'This will prevent updating of pipelines. '
+          'To clone a transform with a new label use: '
+          'transform.clone("NEW LABEL").'
           % full_label)
     self.applied_labels.add(full_label)
 
@@ -244,6 +245,7 @@ class Pipeline(object):
         result.producer = child
       self._current_transform().add_output(result)
       # TODO(robertwb): Multi-input, multi-output inference.
+      # TODO(robertwb): Ideally we'd do intersection here.
       if (type_options is not None and type_options.pipeline_type_check and
           isinstance(result, pvalue.PCollection) and not result.element_type):
         input_element_type = (

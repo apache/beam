@@ -163,13 +163,23 @@ class PTransform(WithTypeHints):
   # Used for nullary transforms.
   pipeline = None
 
+  # Default is unset.
+  _user_label = None
+
   def __init__(self, label=None):
     super(PTransform, self).__init__()
-    self.has_user_label = label is not None
-    # This field may get changed using the result returned by default_label()
-    # when the transform gets applied. This happens only if the label was not
-    # user supplied.
-    self.label = label or self.__class__.__name__
+    self.label = label
+
+  @property
+  def label(self):
+    return self._user_label or self.default_label()
+
+  @label.setter
+  def label(self, value):
+    self._user_label = value
+
+  def default_label(self):
+    return self.__class__.__name__
 
   @classmethod
   def parse_label_and_arg(cls, args, kwargs, arg_name):
@@ -409,8 +419,7 @@ class ChainedPTransform(PTransform):
     self._parts = parts
 
   def _chain_label(self, parts):
-    return '|'.join(
-        p.label if p.has_user_label else p.__class__.__name__ for p in parts)
+    return '|'.join(p.label for p in parts)
 
   def __or__(self, right):
     if isinstance(right, PTransform):

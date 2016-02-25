@@ -76,6 +76,17 @@ class CodersTest(unittest.TestCase):
   def test_pickle_coder(self):
     self.check_coder(coders.PickleCoder(), 'a', 1, 1.5, (1, 2, 3))
 
+  def test_deterministic_pickle_coder(self):
+    coder = coders.DeterministicPickleCoder(coders.PickleCoder(), 'step')
+    self.check_coder(coder, 'a', 1, 1.5, (1, 2, 3))
+    with self.assertRaises(TypeError):
+      self.check_coder(coder, dict())
+    with self.assertRaises(TypeError):
+      self.check_coder(coder, [1, dict()])
+
+    self.check_coder(coders.TupleCoder((coder, coders.PickleCoder())),
+                     (1, dict()), ('a', [dict()]))
+
   def test_bytes_coder(self):
     self.check_coder(coders.BytesCoder(), 'a', '\0', 'z' * 1000)
 

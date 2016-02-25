@@ -295,6 +295,30 @@ class PickleCoder(FastCoder):
     return self
 
 
+class DeterministicPickleCoder(FastCoder):
+  """Throws runtime errors when pickling non-deterministic values."""
+
+  def __init__(self, pickle_coder, step_label):
+    self._pickle_coder = pickle_coder
+    self._step_label = step_label
+
+  def _create_impl(self):
+    return coder_impl.DeterministicPickleCoderImpl(
+        self._pickle_coder.get_impl(), self._step_label)
+
+  def is_deterministic(self):
+    return True
+
+  def is_kv_coder(self):
+    return True
+
+  def key_coder(self):
+    return self
+
+  def value_coder(self):
+    return self
+
+
 class Base64PickleCoder(Coder):
   """Coder of objects by Python pickle, then base64 encoding."""
   # TODO(robertwb): Do base64 encoding where it's needed (e.g. in json) rather

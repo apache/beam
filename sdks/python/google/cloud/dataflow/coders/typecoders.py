@@ -118,6 +118,13 @@ class CoderRegistry(object):
         # operation and that direct output will not be coded.
         # TODO(ccy): refine this behavior.
         pass
+      elif typehint is None:
+        # In some old code, None is used for Any.
+        # TODO(robertwb): Clean this up.
+        pass
+      elif isinstance(typehint, typehints.TypeVariable):
+        # TODO(robertwb): Clean this up when type inference is fully enabled.
+        pass
       else:
         logging.warning('Using fallback coder for typehint: %r.', typehint)
       coder = self._fallback_coder
@@ -137,5 +144,22 @@ class CoderRegistry(object):
     """Returns type/coder tuples for all custom types passed in."""
     return [(t, self._coders[t]) for t in types if t in self.custom_types]
 
+  def verify_deterministic(self, key_coder, op_name, silent=True):
+    if not key_coder.is_deterministic():
+      error_msg = ('The key coder "%s" for %s '
+                   'is not deterministic. This may result in incorrect '
+                   'pipeline output. This can be fixed by adding a type '
+                   'hint to the operation preceding the GroupByKey step, '
+                   'and for custom key classes, by writing a '
+                   'deterministic custom Coder. Please see the '
+                   'documentation for more details.' % (key_coder, op_name))
+      if isinstance(key_coder, (coders.PickleCoder, self._fallback_coder)):
+        if not silent:
+          logging.warning(error_msg)
+        return coders.DeterministicPickleCoder(key_coder, op_name)
+      else:
+        raise ValueError(error_msg)
+    else:
+      return key_coder
 
 registry = CoderRegistry()

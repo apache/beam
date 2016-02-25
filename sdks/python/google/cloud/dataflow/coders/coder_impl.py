@@ -17,6 +17,9 @@
 The actual encode/decode implementations are split off from coders to
 allow conditional (compiled/pure) implementations, which can be used to
 encode many elements with minimial overhead.
+
+This module may be optionally compiled with Cython, using the corresponding
+coder_impl.pxd file for type hints.
 """
 
 import collections
@@ -105,6 +108,41 @@ class CallbackCoderImpl(CoderImpl):
 
   def decode(self, encoded):
     return self._decoder(encoded)
+
+
+class DeterministicPickleCoderImpl(CoderImpl):
+
+  def __init__(self, pickle_coder, step_label):
+    self._pickle_coder = pickle_coder
+    self._step_label = step_label
+
+  def _check_safe(self, value):
+    if isinstance(value, (str, unicode, long, int, float)):
+      pass
+    elif value is None:
+      pass
+    elif isinstance(value, (tuple, list)):
+      for x in value:
+        self._check_safe(x)
+    else:
+      raise TypeError(
+          "Unable to deterministically code '%s' of type '%s', "
+          "please provide a type hint for the input of '%s'" % (
+              value, type(value), self._step_label))
+
+  def encode_to_stream(self, value, stream, nested):
+    self._check_safe(value)
+    return self._pickle_coder.encode_to_stream(value, stream, nested)
+
+  def decode_from_stream(self, stream, nested):
+    return self._pickle_coder.decode_from_stream(stream, nested)
+
+  def encode(self, value):
+    self._check_safe(value)
+    return self._pickle_coder.encode(value)
+
+  def decode(self, encoded):
+    return self._pickle_coder.decode(encoded)
 
 
 class BytesCoderImpl(CoderImpl):

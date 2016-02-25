@@ -292,15 +292,10 @@ class DataflowPipelineRunner(PipelineRunner):
       raise ValueError(('Coder for the GroupByKey operation "%s" is not a '
                         'key-value coder: %s.') % (transform.label,
                                                    coder))
-    key_coder = coder.key_coder()
-    if not key_coder.is_deterministic():
-      logging.warning('The key coder "%s" for the GroupByKey operation "%s" '
-                      'is not deterministic. This may result in incorrect '
-                      'pipeline output. This can be fixed by adding a type '
-                      'hint to the operation preceding the GroupByKey step, '
-                      'and for custom key classes, by writing a deterministic '
-                      'custom Coder. Please see the documentation for more '
-                      'details.', key_coder, transform.label)
+    # TODO(robertwb): Update the coder itself if it changed.
+    coders.registry.verify_deterministic(
+        coder.key_coder(), 'GroupByKey operation "%s"' % transform.label)
+
     return pvalue.PCollection(pipeline=pcoll.pipeline, transform=transform)
 
   def run_GroupByKey(self, transform_node):

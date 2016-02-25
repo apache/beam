@@ -17,7 +17,6 @@
 from __future__ import absolute_import
 
 import copy
-import logging
 import uuid
 import warnings
 
@@ -972,16 +971,9 @@ class GroupByKey(PTransform):
       # Initialize type-hints used below to enforce type-checking and to pass
       # downstream to further PTransforms.
       key_type, value_type = trivial_inference.key_value_types(input_type)
-      key_coder = typecoders.registry.get_coder(key_type)
-      if not key_coder.is_deterministic():
-        logging.warning('The key coder "%s" for the GroupByKey operation "%s" '
-                        'is not deterministic. This may result in incorrect '
-                        'pipeline output. This can be fixed by adding a type '
-                        'hint to the operation preceding the GroupByKey step, '
-                        'and for custom key classes, by writing a '
-                        'deterministic custom Coder. Please see the '
-                        'documentation for more details.',
-                        key_coder, self.label)
+      typecoders.registry.verify_deterministic(
+          typecoders.registry.get_coder(key_type),
+          'GroupByKey operation "%s"' % self.label)
 
       reify_output_type = KV[key_type, typehints.WindowedValue[value_type]]
       gbk_input_type = KV[key_type, Iterable[typehints.WindowedValue[value_type]]]

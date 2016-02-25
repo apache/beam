@@ -262,7 +262,7 @@ class DataflowTest(unittest.TestCase):
           AsList(side_list), AsList(side_list))
     self.assertTrue(
         e.exception.message.startswith(
-            'Transform with label AsList already applied.'))
+            'Transform "AsList" does not have a stable unique label.'))
 
   def test_as_list_with_unique_labels(self):
     a_list = [1, 2, 3]
@@ -281,23 +281,6 @@ class DataflowTest(unittest.TestCase):
         equal_to(expected_list)(actual_list1)
         equal_to(expected_list)(actual_list2)
       return match
-
-    assert_that(results, matcher(1, a_list))
-    pipeline.run()
-
-  def test_as_dict_without_unique_labels(self):
-    some_kvs = [('a', 1), ('b', 2)]
-    pipeline = Pipeline('DirectPipelineRunner')
-    main_input = pipeline | Create('main input', [1])
-    side_kvs = pipeline | Create('side kvs', some_kvs)
-    with self.assertRaises(RuntimeError) as e:
-      _ = main_input | FlatMap(
-          'test',
-          lambda x, dct1, dct2: [[x, dct1, dct2]],
-          AsDict(side_kvs), AsDict(side_kvs))
-    self.assertTrue(
-        e.exception.message.startswith(
-            'Transform with label AsDict already applied.'))
 
   def test_as_dict_with_unique_labels(self):
     some_kvs = [('a', 1), ('b', 2)]

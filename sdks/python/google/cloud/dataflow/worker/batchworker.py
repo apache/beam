@@ -463,7 +463,6 @@ class BatchWorker(object):
     work_item = None
     # Loop forever leasing work items, executing them, and reporting status.
     while True:
-      # TODO(silviuc): Do we still need the outer try/except?
       try:
         # Lease a work item. The lease_work call will retry for server errors
         # (e.g., 500s) however it will not retry for a 404 (no item to lease).

@@ -48,6 +48,12 @@ cdef class CallbackCoderImpl(CoderImpl):
   cdef object _decoder
 
 
+cdef class DeterministicPickleCoderImpl(CoderImpl):
+  cdef CoderImpl _pickle_coder
+  cdef object _step_label
+  cdef bint _check_safe(self, value) except -1
+
+
 cdef class BytesCoderImpl(CoderImpl):
   pass
 
