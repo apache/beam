@@ -1,0 +1,116 @@
+# Copyright 2016 Google Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""A Julia set computing workflow: https://en.wikipedia.org/wiki/Julia_set.
+
+We use the quadratic polinomial f(z) = z*z + c, with c = -.62772 +.42193i
+"""
+
+from __future__ import absolute_import
+
+import google.cloud.dataflow as df
+from google.cloud.dataflow.utils.options import add_option
+from google.cloud.dataflow.utils.options import get_options
+
+
+def from_pixel(x, y, n):
+  """Converts a NxN pixel position to a (-1..1, -1..1) complex number."""
+  return complex(2.0 * x / n - 1.0, 2.0 * y / n - 1.0)
+
+
+def get_julia_set_point_color((x, y), c, n, max_iterations):
+  """Given an pixel, convert it into a point in our julia set."""
+  z = from_pixel(x, y, n)
+  for i in xrange(max_iterations):
+    if z.real * z.real + z.imag * z.imag > 2.0:
+      break
+    z = z * z + c
+  return x, y, i  # pylint: disable=undefined-loop-variable
+
+
+def generate_julia_set_colors(pipeline, c, n, max_iterations):
+  """Compute julia set coordinates for each point in our set."""
+  def point_set(n):
+    for x in range(n):
+      for y in range(n):
+        yield (x, y)
+
+  julia_set_colors = (pipeline
+                      | df.Create('add points', point_set(n))
+                      | df.Map(get_julia_set_point_color, c, n, max_iterations))
+
+  return julia_set_colors
+
+
+def generate_julia_set_visualization(data, n, max_iterations):
+  """Generate the pixel matrix for rendering the julia set as an image."""
+  import numpy as np  # pylint: disable=g-import-not-at-top
+  colors = []
+  for r in range(0, 256, 16):
+    for g in range(0, 256, 16):
+      for b in range(0, 256, 16):
+        colors.append((r, g, b))
+
+  xy = np.zeros((n, n, 3), dtype=np.uint8)
+  for x, y, iteration in data:
+    xy[x, y] = colors[iteration * len(colors) / max_iterations]
+
+  return xy
+
+
+def save_julia_set_visualization(out_file, image_array):
+  """Save the fractal image of our julia set as a png."""
+  from matplotlib import pyplot as plt  # pylint: disable=g-import-not-at-top
+  plt.imsave(out_file, image_array, format='png')
+
+
+def run(options=None):  # pylint: disable=missing-docstring
+  p = df.Pipeline(options=get_options(options))
+  n = int(p.options.grid_size)
+
+  coordinates = generate_julia_set_colors(p, complex(-.62772, .42193), n, 100)
+
+  # Group each coordinate triplet by its x value, then write the coordinates to
+  # the output file with an x-coordinate grouping per line.
+  # pylint: disable=expression-not-assigned
+  # pylint: disable=g-long-lambda
+  (coordinates
+   | df.Map('x coord key', lambda (x, y, i): (x, (x, y, i)))
+   | df.GroupByKey('x coord')
+   | df.Map('format', lambda (k, coords): ' '.join('(%s, %s, %s)' % coord
+                                                   for coord in coords))
+   | df.io.Write('write', df.io.TextFileSink(p.options.coordinate_output)))
+  # pylint: enable=g-long-lambda
+  # pylint: enable=expression-not-assigned
+  p.run()
+
+  # Optionally render the image and save it to a file.
+  if p.options.image_output is not None:
+    julia_set_image = generate_julia_set_visualization(coordinates.get(), n,
+                                                       100)
+    save_julia_set_visualization(p.options.image_output, julia_set_image)
+
+
+add_option(
+    '--grid_size', dest='grid_size', default=1000,
+    help='Size of the NxN matrix')
+
+add_option(
+    '--coordinate_output', dest='coordinate_output', required=True,
+    help='Output file to write the color coordinates of the image to.')
+
+add_option(
+    '--image_output', dest='image_output', default=None,
+    help='Output file to write the resulting image to.')
+
