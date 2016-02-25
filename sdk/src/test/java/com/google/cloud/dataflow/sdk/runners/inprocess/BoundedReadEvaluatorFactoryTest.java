@@ -33,6 +33,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -42,14 +43,23 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class BoundedReadEvaluatorFactoryTest {
+  private BoundedSource<Long> source;
+  private PCollection<Long> longs;
+  private TransformEvaluatorFactory factory;
+  private InProcessEvaluationContext context;
+
+  @Before
+  public void setup() {
+    source = CountingSource.upTo(10L);
+    TestPipeline p = TestPipeline.create();
+    longs = p.apply(Read.from(source));
+
+    factory = new BoundedReadEvaluatorFactory();
+    context = mock(InProcessEvaluationContext.class);
+  }
+
   @Test
   public void boundedSourceInMemoryTransformEvaluatorProducesElements() throws Exception {
-    BoundedSource<Long> source = CountingSource.upTo(10L);
-    TestPipeline p = TestPipeline.create();
-    PCollection<Long> longs = p.apply(Read.from(source));
-
-    TransformEvaluatorFactory factory = new BoundedReadEvaluatorFactory();
-    InProcessEvaluationContext context = mock(InProcessEvaluationContext.class);
     UncommittedBundle<Long> output = InProcessBundle.unkeyed(longs);
     when(context.createRootBundle(longs)).thenReturn(output);
 
@@ -63,14 +73,13 @@ public class BoundedReadEvaluatorFactoryTest {
             gw(1L), gw(2L), gw(4L), gw(8L), gw(9L), gw(7L), gw(6L), gw(5L), gw(3L), gw(0L)));
   }
 
+  /**
+   * Demonstrate that acquiring multiple {@link TransformEvaluator TransformEvaluators} for the same
+   * {@link Bounded Read.Bounded} application with the same evaluation context only produces the
+   * elements once.
+   */
   @Test
-  public void boundedSourceInMemoryTransformEvaluatorMultipleCalls() throws Exception {
-    BoundedSource<Long> source = CountingSource.upTo(10L);
-    TestPipeline p = TestPipeline.create();
-    PCollection<Long> longs = p.apply(Read.from(source));
-
-    TransformEvaluatorFactory factory = new BoundedReadEvaluatorFactory();
-    InProcessEvaluationContext context = mock(InProcessEvaluationContext.class);
+  public void boundedSourceInMemoryTransformEvaluatorAfterFinishIsEmpty() throws Exception {
     UncommittedBundle<Long> output =
         InProcessBundle.unkeyed(longs);
     when(context.createRootBundle(longs)).thenReturn(output);
@@ -91,7 +100,45 @@ public class BoundedReadEvaluatorFactoryTest {
     TransformEvaluator<?> secondEvaluator =
         factory.forApplication(longs.getProducingTransformInternal(), null, context);
     InProcessTransformResult secondResult = secondEvaluator.finishBundle();
-    assertThat(secondResult.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
+    assertThat(secondResult.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MIN_VALUE));
+    assertThat(secondResult.getOutputBundles(), emptyIterable());
+    assertThat(
+        secondOutput.commit(BoundedWindow.TIMESTAMP_MAX_VALUE).getElements(), emptyIterable());
+    assertThat(
+        outputElements,
+        containsInAnyOrder(
+            gw(1L), gw(2L), gw(4L), gw(8L), gw(9L), gw(7L), gw(6L), gw(5L), gw(3L), gw(0L)));
+  }
+
+  /**
+   * Demonstrates that acquiring multiple evaluators from the factory are independent, but
+   * the elements in the source are only produced once.
+   */
+  @Test
+  public void boundedSourceEvaluatorSimultaneousEvaluations() throws Exception {
+    UncommittedBundle<Long> output = InProcessBundle.unkeyed(longs);
+    UncommittedBundle<Long> secondOutput = InProcessBundle.unkeyed(longs);
+    when(context.createRootBundle(longs)).thenReturn(output).thenReturn(secondOutput);
+
+    // create both evaluators before finishing either.
+    TransformEvaluator<?> evaluator =
+        factory.forApplication(longs.getProducingTransformInternal(), null, context);
+    TransformEvaluator<?> secondEvaluator =
+        factory.forApplication(longs.getProducingTransformInternal(), null, context);
+
+    InProcessTransformResult secondResult = secondEvaluator.finishBundle();
+
+    InProcessTransformResult result = evaluator.finishBundle();
+    assertThat(result.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
+    Iterable<? extends WindowedValue<Long>> outputElements =
+        output.commit(BoundedWindow.TIMESTAMP_MAX_VALUE).getElements();
+
+    assertThat(
+        outputElements,
+        containsInAnyOrder(
+            gw(1L), gw(2L), gw(4L), gw(8L), gw(9L), gw(7L), gw(6L), gw(5L), gw(3L), gw(0L)));
+    assertThat(secondResult.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MIN_VALUE));
+    assertThat(secondResult.getOutputBundles(), emptyIterable());
     assertThat(
         secondOutput.commit(BoundedWindow.TIMESTAMP_MAX_VALUE).getElements(), emptyIterable());
     assertThat(

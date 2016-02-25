@@ -27,8 +27,10 @@ import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 
 import java.io.IOException;
-import java.util.Map;
+import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentMap;
 
 import javax.annotation.Nullable;
 
@@ -42,34 +44,62 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
    * Evaluators are cached here to ensure that the reader is not restarted if the evaluator is
    * retriggered.
    */
-  private final Map<EvaluatorKey, BoundedReadEvaluator<?>> sourceEvaluators =
-      new ConcurrentHashMap<>();
+  private final ConcurrentMap<EvaluatorKey, Queue<? extends BoundedReadEvaluator<?>>>
+      sourceEvaluators = new ConcurrentHashMap<>();
 
   @SuppressWarnings({"unchecked", "rawtypes"})
   @Override
   public <InputT> TransformEvaluator<InputT> forApplication(
       AppliedPTransform<?, ?, ?> application,
       @Nullable CommittedBundle<?> inputBundle,
-      InProcessEvaluationContext evaluationContext) {
+      InProcessEvaluationContext evaluationContext)
+      throws IOException {
     return getTransformEvaluator((AppliedPTransform) application, evaluationContext);
   }
 
   private <OutputT> TransformEvaluator<?> getTransformEvaluator(
       final AppliedPTransform<?, PCollection<OutputT>, Bounded<OutputT>> transform,
-      final InProcessEvaluationContext evaluationContext) {
-    EvaluatorKey key = new EvaluatorKey(transform, evaluationContext);
-    @SuppressWarnings("unchecked")
-    BoundedReadEvaluator<OutputT> result =
-        (BoundedReadEvaluator<OutputT>) sourceEvaluators.get(key);
-    if (result == null) {
-      try {
-        result = new BoundedReadEvaluator<OutputT>(transform, evaluationContext);
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-      sourceEvaluators.put(key, result);
+      final InProcessEvaluationContext evaluationContext)
+      throws IOException {
+    BoundedReadEvaluator<?> evaluator =
+        getTransformEvaluatorQueue(transform, evaluationContext).poll();
+    if (evaluator == null) {
+      return EmptyTransformEvaluator.create(transform);
     }
-    return result;
+    return evaluator;
+  }
+
+  /**
+   * Get the queue of {@link TransformEvaluator TransformEvaluators} that produce elements for the
+   * provided application of {@link Bounded Read.Bounded}, initializing it if required.
+   *
+   * <p>This method is thread-safe, and will only produce new evaluators if no other invocation has
+   * already done so.
+   */
+  @SuppressWarnings("unchecked")
+  private <OutputT> Queue<BoundedReadEvaluator<OutputT>> getTransformEvaluatorQueue(
+      final AppliedPTransform<?, PCollection<OutputT>, Bounded<OutputT>> transform,
+      final InProcessEvaluationContext evaluationContext)
+      throws IOException {
+    // Key by the application and the context the evaluation is occurring in (which call to
+    // Pipeline#run).
+    EvaluatorKey key = new EvaluatorKey(transform, evaluationContext);
+    Queue<BoundedReadEvaluator<OutputT>> evaluatorQueue =
+        (Queue<BoundedReadEvaluator<OutputT>>) sourceEvaluators.get(key);
+    if (evaluatorQueue == null) {
+      evaluatorQueue = new ConcurrentLinkedQueue<>();
+      if (sourceEvaluators.putIfAbsent(key, evaluatorQueue) == null) {
+        // If no queue existed in the evaluators, add an evaluator to initialize the evaluator
+        // factory for this transform
+        BoundedReadEvaluator<OutputT> evaluator =
+            new BoundedReadEvaluator<OutputT>(transform, evaluationContext);
+        evaluatorQueue.offer(evaluator);
+      } else {
+        // otherwise return the existing Queue that arrived before us
+        evaluatorQueue = (Queue<BoundedReadEvaluator<OutputT>>) sourceEvaluators.get(key);
+      }
+    }
+    return evaluatorQueue;
   }
 
   private static class BoundedReadEvaluator<OutputT> implements TransformEvaluator<Object> {
@@ -108,4 +138,3 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     }
   }
 }
-
