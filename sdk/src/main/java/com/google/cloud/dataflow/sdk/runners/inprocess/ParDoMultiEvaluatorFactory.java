@@ -15,10 +15,9 @@
  */
 package com.google.cloud.dataflow.sdk.runners.inprocess;
 
+import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessExecutionContext.InProcessStepContext;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.InProcessEvaluationContext;
-import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.InProcessExecutionContext;
-import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.InProcessExecutionContext.InProcessStepContext;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
 import com.google.cloud.dataflow.sdk.runners.inprocess.ParDoInProcessEvaluator.BundleOutputManager;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
@@ -27,7 +26,6 @@ import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo.BoundMulti;
 import com.google.cloud.dataflow.sdk.util.DoFnRunner;
 import com.google.cloud.dataflow.sdk.util.DoFnRunners;
-import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionTuple;
@@ -46,20 +44,7 @@ class ParDoMultiEvaluatorFactory implements TransformEvaluatorFactory {
       AppliedPTransform<?, ?, ?> application,
       CommittedBundle<?> inputBundle,
       InProcessEvaluationContext evaluationContext) {
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    final ParDoInProcessEvaluator<T> multiEvaluator =
-        createMultiEvaluator((AppliedPTransform) application, inputBundle, evaluationContext);
-    return new TransformEvaluator<T>() {
-      @Override
-      public void processElement(WindowedValue<T> value) {
-        multiEvaluator.processElement(value);
-      }
-
-      @Override
-      public InProcessTransformResult finishBundle() {
-        return multiEvaluator.finishBundle();
-      }
-    };
+    return createMultiEvaluator((AppliedPTransform) application, inputBundle, evaluationContext);
   }
 
   private static <InT, OuT> ParDoInProcessEvaluator<InT> createMultiEvaluator(
@@ -74,7 +59,8 @@ class ParDoMultiEvaluatorFactory implements TransformEvaluatorFactory {
           outputEntry.getKey(),
           evaluationContext.createBundle(inputBundle, outputEntry.getValue()));
     }
-    InProcessExecutionContext executionContext = evaluationContext.getExecutionContext(application);
+    InProcessExecutionContext executionContext =
+        evaluationContext.getExecutionContext(application, inputBundle.getKey());
     String stepName = evaluationContext.getStepName(application);
     InProcessStepContext stepContext =
         executionContext.getOrCreateStepContext(stepName, stepName, null);
@@ -96,6 +82,7 @@ class ParDoMultiEvaluatorFactory implements TransformEvaluatorFactory {
 
     runner.startBundle();
 
-    return new ParDoInProcessEvaluator<>(runner, application, counters, outputBundles.values());
+    return new ParDoInProcessEvaluator<>(
+        runner, application, counters, outputBundles.values(), stepContext);
   }
 }

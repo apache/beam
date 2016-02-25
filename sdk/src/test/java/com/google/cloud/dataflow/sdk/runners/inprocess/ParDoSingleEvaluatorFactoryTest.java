@@ -15,28 +15,45 @@
  */
 package com.google.cloud.dataflow.sdk.runners.inprocess;
 
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.InProcessEvaluationContext;
-import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.InProcessExecutionContext;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
+import com.google.cloud.dataflow.sdk.runners.inprocess.util.InMemoryWatermarkManager.TimerUpdate;
 import com.google.cloud.dataflow.sdk.runners.inprocess.util.InProcessBundle;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFns;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
+import com.google.cloud.dataflow.sdk.util.TimeDomain;
+import com.google.cloud.dataflow.sdk.util.TimerInternals.TimerData;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
+import com.google.cloud.dataflow.sdk.util.state.BagState;
+import com.google.cloud.dataflow.sdk.util.state.StateNamespace;
+import com.google.cloud.dataflow.sdk.util.state.StateNamespaces;
+import com.google.cloud.dataflow.sdk.util.state.StateTag;
+import com.google.cloud.dataflow.sdk.util.state.StateTags;
+import com.google.cloud.dataflow.sdk.util.state.WatermarkHoldState;
+import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 
 import org.hamcrest.Matchers;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -65,8 +82,9 @@ public class ParDoSingleEvaluatorFactoryTest implements Serializable {
     UncommittedBundle<Integer> outputBundle =
         InProcessBundle.unkeyed(collection);
     when(evaluationContext.createBundle(inputBundle, collection)).thenReturn(outputBundle);
-    InProcessExecutionContext executionContext = new InProcessExecutionContext();
-    when(evaluationContext.getExecutionContext(collection.getProducingTransformInternal()))
+    InProcessExecutionContext executionContext =
+        new InProcessExecutionContext(null, null, null, null);
+    when(evaluationContext.getExecutionContext(collection.getProducingTransformInternal(), null))
         .thenReturn(executionContext);
     CounterSet counters = new CounterSet();
     when(evaluationContext.createCounterSet()).thenReturn(counters);
@@ -112,8 +130,8 @@ public class ParDoSingleEvaluatorFactoryTest implements Serializable {
         InProcessBundle.unkeyed(collection);
     when(evaluationContext.createBundle(inputBundle, collection)).thenReturn(outputBundle);
     InProcessExecutionContext executionContext =
-        new InProcessExecutionContext();
-    when(evaluationContext.getExecutionContext(collection.getProducingTransformInternal()))
+        new InProcessExecutionContext(null, null, null, null);
+    when(evaluationContext.getExecutionContext(collection.getProducingTransformInternal(), null))
         .thenReturn(executionContext);
     CounterSet counters = new CounterSet();
     when(evaluationContext.createCounterSet()).thenReturn(counters);
@@ -133,6 +151,162 @@ public class ParDoSingleEvaluatorFactoryTest implements Serializable {
         result.getOutputBundles(), Matchers.<UncommittedBundle<?>>containsInAnyOrder(outputBundle));
     assertThat(result.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
     assertThat(result.getCounters(), equalTo(counters));
+  }
+
+  @Test
+  public void finishBundleWithStatePutsStateInResult() throws Exception {
+    TestPipeline p = TestPipeline.create();
+
+    PCollection<String> input = p.apply(Create.of("foo", "bara", "bazam"));
+
+    final StateTag<Object, WatermarkHoldState<BoundedWindow>> watermarkTag =
+        StateTags.watermarkStateInternal("myId", OutputTimeFns.outputAtEarliestInputTimestamp());
+    final StateTag<Object, BagState<String>> bagTag = StateTags.bag("myBag", StringUtf8Coder.of());
+    final StateNamespace windowNs =
+        StateNamespaces.window(GlobalWindow.Coder.INSTANCE, GlobalWindow.INSTANCE);
+    ParDo.Bound<String, KV<String, Integer>> pardo =
+        ParDo.of(
+            new DoFn<String, KV<String, Integer>>() {
+              @Override
+              public void processElement(ProcessContext c) {
+                c.windowingInternals()
+                    .stateInternals()
+                    .state(StateNamespaces.global(), watermarkTag)
+                    .add(new Instant(124443L - c.element().length()));
+                c.windowingInternals()
+                    .stateInternals()
+                    .state(
+                        StateNamespaces.window(GlobalWindow.Coder.INSTANCE, GlobalWindow.INSTANCE),
+                        bagTag)
+                    .add(c.element());
+              }
+            });
+    PCollection<KV<String, Integer>> mainOutput = input.apply(pardo);
+
+    CommittedBundle<String> inputBundle = InProcessBundle.unkeyed(input).commit(Instant.now());
+
+    InProcessEvaluationContext evaluationContext = mock(InProcessEvaluationContext.class);
+    UncommittedBundle<KV<String, Integer>> mainOutputBundle = InProcessBundle.unkeyed(mainOutput);
+
+    when(evaluationContext.createBundle(inputBundle, mainOutput)).thenReturn(mainOutputBundle);
+
+    InProcessExecutionContext executionContext =
+        new InProcessExecutionContext(null, "myKey", null, null);
+    when(evaluationContext.getExecutionContext(mainOutput.getProducingTransformInternal(), null))
+        .thenReturn(executionContext);
+    CounterSet counters = new CounterSet();
+    when(evaluationContext.createCounterSet()).thenReturn(counters);
+
+    com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluator<String> evaluator =
+        new ParDoSingleEvaluatorFactory()
+            .forApplication(
+                mainOutput.getProducingTransformInternal(), inputBundle, evaluationContext);
+
+    evaluator.processElement(WindowedValue.valueInGlobalWindow("foo"));
+    evaluator.processElement(
+        WindowedValue.timestampedValueInGlobalWindow("bara", new Instant(1000)));
+    evaluator.processElement(
+        WindowedValue.valueInGlobalWindow("bazam", PaneInfo.ON_TIME_AND_ONLY_FIRING));
+
+    InProcessTransformResult result = evaluator.finishBundle();
+    assertThat(result.getWatermarkHold(), equalTo(new Instant(124438L)));
+    assertThat(result.getState(), not(nullValue()));
+    assertThat(
+        result.getState().state(StateNamespaces.global(), watermarkTag).read(),
+        equalTo(new Instant(124438L)));
+    assertThat(
+        result.getState().state(windowNs, bagTag).read(),
+        containsInAnyOrder("foo", "bara", "bazam"));
+  }
+
+  @Test
+  public void finishBundleWithStateAndTimersPutsTimersInResult() throws Exception {
+    TestPipeline p = TestPipeline.create();
+
+    PCollection<String> input = p.apply(Create.of("foo", "bara", "bazam"));
+
+    final TimerData addedTimer =
+        TimerData.of(
+            StateNamespaces.window(
+                IntervalWindow.getCoder(),
+                new IntervalWindow(
+                    new Instant(0).plus(Duration.standardMinutes(5)),
+                    new Instant(1)
+                        .plus(Duration.standardMinutes(5))
+                        .plus(Duration.standardHours(1)))),
+            new Instant(54541L),
+            TimeDomain.EVENT_TIME);
+    final TimerData deletedTimer =
+        TimerData.of(
+            StateNamespaces.window(
+                IntervalWindow.getCoder(),
+                new IntervalWindow(new Instant(0), new Instant(0).plus(Duration.standardHours(1)))),
+            new Instant(3400000),
+            TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
+
+    ParDo.Bound<String, KV<String, Integer>> pardo =
+        ParDo.of(
+                new DoFn<String, KV<String, Integer>>() {
+                  @Override
+                  public void processElement(ProcessContext c) {
+                    c.windowingInternals().stateInternals();
+                    c.windowingInternals()
+                        .timerInternals()
+                        .setTimer(
+                            TimerData.of(
+                                StateNamespaces.window(
+                                    IntervalWindow.getCoder(),
+                                    new IntervalWindow(
+                                        new Instant(0).plus(Duration.standardMinutes(5)),
+                                        new Instant(1)
+                                            .plus(Duration.standardMinutes(5))
+                                            .plus(Duration.standardHours(1)))),
+                                new Instant(54541L),
+                                TimeDomain.EVENT_TIME));
+                    c.windowingInternals()
+                        .timerInternals()
+                        .deleteTimer(
+                            TimerData.of(
+                                StateNamespaces.window(
+                                    IntervalWindow.getCoder(),
+                                    new IntervalWindow(
+                                        new Instant(0),
+                                        new Instant(0).plus(Duration.standardHours(1)))),
+                                new Instant(3400000),
+                                TimeDomain.SYNCHRONIZED_PROCESSING_TIME));
+                  }
+                });
+    PCollection<KV<String, Integer>> mainOutput = input.apply(pardo);
+
+    CommittedBundle<String> inputBundle = InProcessBundle.unkeyed(input).commit(Instant.now());
+
+    InProcessEvaluationContext evaluationContext = mock(InProcessEvaluationContext.class);
+    UncommittedBundle<KV<String, Integer>> mainOutputBundle = InProcessBundle.unkeyed(mainOutput);
+
+    when(evaluationContext.createBundle(inputBundle, mainOutput)).thenReturn(mainOutputBundle);
+
+    InProcessExecutionContext executionContext =
+        new InProcessExecutionContext(null, "myKey", null, null);
+    when(evaluationContext.getExecutionContext(mainOutput.getProducingTransformInternal(), null))
+        .thenReturn(executionContext);
+    CounterSet counters = new CounterSet();
+    when(evaluationContext.createCounterSet()).thenReturn(counters);
+
+    TransformEvaluator<String> evaluator =
+        new ParDoSingleEvaluatorFactory()
+            .forApplication(
+                mainOutput.getProducingTransformInternal(), inputBundle, evaluationContext);
+
+    evaluator.processElement(WindowedValue.valueInGlobalWindow("foo"));
+
+    InProcessTransformResult result = evaluator.finishBundle();
+    assertThat(
+        result.getTimerUpdate(),
+        equalTo(
+            TimerUpdate.builder("myKey")
+                .setTimer(addedTimer)
+                .deletedTimer(deletedTimer)
+                .build()));
   }
 }
 

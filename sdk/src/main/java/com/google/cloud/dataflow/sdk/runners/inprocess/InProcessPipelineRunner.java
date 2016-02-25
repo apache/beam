@@ -28,16 +28,12 @@ import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.View.CreatePCollectionView;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
-import com.google.cloud.dataflow.sdk.util.BaseExecutionContext;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
 import com.google.cloud.dataflow.sdk.util.SideInputReader;
-import com.google.cloud.dataflow.sdk.util.TimerInternals;
 import com.google.cloud.dataflow.sdk.util.TimerInternals.TimerData;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
-import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
-import com.google.cloud.dataflow.sdk.util.state.StateInternals;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.PValue;
@@ -159,46 +155,6 @@ public class InProcessPipelineRunner {
   }
 
   /**
-   * Execution Context for the InMemoryPipelineRunner.
-   *
-   * This implementation is not thread safe. A new InMemoryExecutionContext must be created for each
-   * thread that requires it.
-   */
-  public static class InProcessExecutionContext
-      extends BaseExecutionContext<InProcessExecutionContext.InProcessStepContext> {
-    @Override
-    protected InProcessStepContext createStepContext(
-        String stepName, String transformName, StateSampler stateSampler) {
-      return new InProcessStepContext(this, stepName, transformName);
-    }
-
-    /**
-     * Step Context for the InMemoryPipelineRunner.
-     */
-    public class InProcessStepContext
-        extends com.google.cloud.dataflow.sdk.util.BaseExecutionContext.StepContext {
-      public InProcessStepContext(
-          InProcessExecutionContext executionContext, String stepName, String transformName) {
-        super(executionContext, stepName, transformName);
-      }
-
-      @Override
-      public StateInternals stateInternals() {
-        // TODO get or create state for current key.
-        throw new UnsupportedOperationException("StateInternals not yet meaningfully supported");
-      }
-
-      @Override
-      public TimerInternals timerInternals() {
-        // TODO: Have the executionContext/evaluationContext pass this in
-        throw new UnsupportedOperationException("TimerInternals not yet meaningfully supported");
-      }
-    }
-
-  }
-
-
-  /**
    * The evaluation context for the {@link InProcessPipelineRunner}. Contains state shared within
    * the current evaluation.
    */
@@ -235,7 +191,8 @@ public class InProcessPipelineRunner {
     /**
      * Get an {@link ExecutionContext} for the provided application.
      */
-    InProcessExecutionContext getExecutionContext(AppliedPTransform<?, ?, ?> application);
+    InProcessExecutionContext getExecutionContext(
+        AppliedPTransform<?, ?, ?> application, @Nullable Object key);
 
     /**
      * Get the Step Name for the provided application.

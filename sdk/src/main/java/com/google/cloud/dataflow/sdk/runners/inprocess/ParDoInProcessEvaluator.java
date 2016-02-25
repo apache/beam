@@ -15,17 +15,16 @@
  */
 package com.google.cloud.dataflow.sdk.runners.inprocess;
 
+import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessExecutionContext.InProcessStepContext;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
-import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.DoFnRunner;
 import com.google.cloud.dataflow.sdk.util.DoFnRunners.OutputManager;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
+import com.google.cloud.dataflow.sdk.util.state.CopyOnAccessInMemoryStateInternals;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
-
-import org.joda.time.Instant;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -33,31 +32,46 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-class ParDoInProcessEvaluator<T> {
+class ParDoInProcessEvaluator<T> implements TransformEvaluator<T> {
   private final DoFnRunner<T, ?> fnRunner;
   private final AppliedPTransform<PCollection<T>, ?, ?> transform;
   private final CounterSet counters;
   private final Collection<UncommittedBundle<?>> outputBundles;
+  private final InProcessStepContext stepContext;
 
-  public ParDoInProcessEvaluator(DoFnRunner<T, ?> fnRunner,
-      AppliedPTransform<PCollection<T>, ?, ?> transform, CounterSet counters,
-      Collection<UncommittedBundle<?>> outputBundles) {
+  public ParDoInProcessEvaluator(
+      DoFnRunner<T, ?> fnRunner,
+      AppliedPTransform<PCollection<T>, ?, ?> transform,
+      CounterSet counters,
+      Collection<UncommittedBundle<?>> outputBundles,
+      InProcessStepContext stepContext) {
     this.fnRunner = fnRunner;
     this.transform = transform;
     this.counters = counters;
     this.outputBundles = outputBundles;
+    this.stepContext = stepContext;
   }
 
+  @Override
   public void processElement(WindowedValue<T> element) {
     fnRunner.processElement(element);
   }
 
+  @Override
   public InProcessTransformResult finishBundle() {
     fnRunner.finishBundle();
-    // TODO Use a real value
-    Instant hold = BoundedWindow.TIMESTAMP_MAX_VALUE;
-    return StepTransformResult.withHold(transform, hold)
+    StepTransformResult.Builder resultBuilder;
+    CopyOnAccessInMemoryStateInternals<?> state = stepContext.commitState();
+    if (state != null) {
+      resultBuilder =
+          StepTransformResult.withHold(transform, state.getEarliestWatermarkHold())
+              .withState(state);
+    } else {
+      resultBuilder = StepTransformResult.withoutHold(transform);
+    }
+    return resultBuilder
         .addOutput(outputBundles)
+        .withTimerUpdate(stepContext.getTimerUpdate())
         .withCounters(counters)
         .build();
   }
