@@ -67,7 +67,7 @@ public class StateSampler implements AutoCloseable {
   private volatile int currentState;
 
   /** Special value of {@code currentState} that means we do not sample. */
-  private static final int DO_NOT_SAMPLE = -1;
+  public static final int DO_NOT_SAMPLE = -1;
 
   /**
    * A counter that increments with each state transition. May be used
@@ -113,6 +113,30 @@ public class StateSampler implements AutoCloseable {
     this.prefix = prefix;
     this.counterSetMutator = counterSetMutator;
     currentState = DO_NOT_SAMPLE;
+    scheduleSampling(samplingPeriodMs);
+  }
+
+  /**
+   * Constructs a new {@link StateSampler} that can be used to obtain
+   * an approximate breakdown of the time spent by an execution
+   * context in various states, as a fraction of the total time.
+   *
+   * @param prefix the prefix of the counter names for the states
+   * @param counterSetMutator the {@link CounterSet.AddCounterMutator}
+   * used to create a counter for each distinct state
+   */
+  public StateSampler(String prefix,
+                      CounterSet.AddCounterMutator counterSetMutator) {
+    this(prefix, counterSetMutator, DEFAULT_SAMPLING_PERIOD_MS);
+  }
+
+  /**
+   * Called by the constructor to schedule sampling at the given period.
+   *
+   * <p>Should not be overridden by sub-classes unless they want to change
+   * or disable the automatic sampling of state.
+   */
+  protected void scheduleSampling(final long samplingPeriodMs) {
     // Here "stratified sampling" is used, which makes sure that there's 1 uniformly chosen sampled
     // point in every bucket of samplingPeriodMs, to prevent pathological behavior in case some
     // states happen to occur at a similar period.
@@ -146,20 +170,6 @@ public class StateSampler implements AutoCloseable {
             0,
             samplingPeriodMs,
             TimeUnit.MILLISECONDS);
-  }
-
-  /**
-   * Constructs a new {@link StateSampler} that can be used to obtain
-   * an approximate breakdown of the time spent by an execution
-   * context in various states, as a fraction of the total time.
-   *
-   * @param prefix the prefix of the counter names for the states
-   * @param counterSetMutator the {@link CounterSet.AddCounterMutator}
-   * used to create a counter for each distinct state
-   */
-  public StateSampler(String prefix,
-                      CounterSet.AddCounterMutator counterSetMutator) {
-    this(prefix, counterSetMutator, DEFAULT_SAMPLING_PERIOD_MS);
   }
 
   public synchronized void run() {
@@ -252,6 +262,13 @@ public class StateSampler implements AutoCloseable {
     return currentState == DO_NOT_SAMPLE ? null
         : new StateSamplerInfo(countersByState.get(currentState).getName(),
             stateTransitionCount, null);
+  }
+
+  /**
+   * Returns the current state of this state sampler.
+   */
+  public int getCurrentState() {
+    return currentState;
   }
 
   /**
