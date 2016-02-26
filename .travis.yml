@@ -1,0 +1,35 @@
+language: java
+
+sudo: false
+
+notifications:
+  email:
+    recipients:
+      - dataflow-sdk-build-notifications+travis@google.com
+    on_success: change
+    on_failure: always
+
+matrix:
+  include:
+    # On OSX, run with default JDK only.
+    - os: osx
+      env: MAVEN_OVERRIDE=""
+    # On Linux, run with specific JDKs only.
+    - os: linux
+      env: CUSTOM_JDK="oraclejdk8" MAVEN_OVERRIDE="-DforkCount=0"
+    - os: linux
+      env: CUSTOM_JDK="oraclejdk7" MAVEN_OVERRIDE="-DforkCount=0"
+    - os: linux
+      env: CUSTOM_JDK="openjdk7" MAVEN_OVERRIDE="-DforkCount=0"
+
+before_install:
+  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then export JAVA_HOME=$(/usr/libexec/java_home); fi
+  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then jdk_switcher use "$CUSTOM_JDK"; fi
+
+install:
+  - travis_retry mvn install clean -U -DskipTests=true
+
+script:
+  - travis_retry mvn versions:set -DnewVersion=manual_build
+  - travis_retry mvn $MAVEN_OVERRIDE install -U
+  - travis_retry travis/test_wordcount.sh
