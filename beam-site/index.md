@@ -10,7 +10,8 @@ layout: default
 </p>
 
 # Apache Beam (incubating)
-Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Beam pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
+
+Apache Beam is an open source, unified model and set of language-specific SDKs for defining data processing workflows that may then be executed on top of a set of supported runners, currently including [Apache Flink](http://flink.apache.org), [Apache Spark](http://spark.apache.org), and [Google Cloud Dataflow](https://cloud.google.com/dataflow).
 
 ## Using Apache Beam
 You can use Beam for nearly any kind of data processing task, including both batch and streaming data processing. Beam provides a unified data model that can represent any size data set, including an unbounded or infinite data set from a continuously updating data source such as Kafka.
