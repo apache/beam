@@ -1,125 +1,73 @@
-# Google Cloud Dataflow SDK for Java
+# Apache Beam
 
-[Google Cloud Dataflow](https://cloud.google.com/dataflow/) provides a simple,
-powerful programming model for building both batch and streaming parallel data
-processing pipelines. This repository hosts the open-sourced Cloud Dataflow SDK
-for Java, which can be used to run pipelines against the Google Cloud Dataflow
-Service.
+[Apache Beam](http://beam.incubator.apache.org) is a unified model for defining both batch and streaming data-parallel processing pipelines, as well as a set of language-specific SDKs for constructing pipelines and Runners for executing them on distributed processing backends like [Apache Spark](http://spark.apache.org/), [Apache Flink](http://flink.apache.org), and [Google Cloud Dataflow](http://cloud.google.com/dataflow).
 
-[General usage](https://cloud.google.com/dataflow/getting-started) of Google
-Cloud Dataflow does **not** require use of this repository. Instead:
 
-1. depend directly on a specific
-[version](https://cloud.google.com/dataflow/release-notes/java) of the SDK in
-the [Maven Central Repository](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22com.google.cloud.dataflow%22)
-by adding the following dependency to development
-environments like Eclipse or Apache Maven:
+## Status 
 
-        <dependency>
-          <groupId>com.google.cloud.dataflow</groupId>
-          <artifactId>google-cloud-dataflow-java-sdk-all</artifactId>
-          <version>version_number</version>
-        </dependency>
+_**The Apache Beam project is in the process of bootstrapping. This includes the creation of project resources, the refactoring of the initial code submissions, and the formulation of project documentation, planning, and design documents. Please expect a significant amount of churn and breaking changes in the near future.**_
 
-1. download the example pipelines from the separate
-[DataflowJavaSDK-examples](https://github.com/GoogleCloudPlatform/DataflowJavaSDK-examples)
-repository.
+[Build Status](http://builds.apache.org/job/beam-master)
 
-However, if you'd like to contribute to the SDK, write your own PipelineRunner,
-or just dig in for the fun of it, please stay with us here!
-
-## Status [![Build Status](https://travis-ci.org/GoogleCloudPlatform/DataflowJavaSDK.svg?branch=master)](https://travis-ci.org/GoogleCloudPlatform/DataflowJavaSDK)
-
-Both the SDK and the Dataflow Service are generally available, open to all
-developers, and considered stable and fully qualified for production use.
 
 ## Overview
 
-The key concepts in this programming model are:
+Beam provides a general approach to expressing [embarrassingly parallel](https://en.wikipedia.org/wiki/Embarrassingly_parallel) data processing pipelines and supports three categories of users, each of which have relatively disparate backgrounds and needs.
 
-* [`PCollection`](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/sdk/src/main/java/com/google/cloud/dataflow/sdk/values/PCollection.java):
-represents a collection of data, which could be bounded or unbounded in size.
-* [`PTransform`](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/sdk/src/main/java/com/google/cloud/dataflow/sdk/transforms/PTransform.java):
-represents a computation that transforms input PCollections into output
-PCollections.
-* [`Pipeline`](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/sdk/src/main/java/com/google/cloud/dataflow/sdk/Pipeline.java):
-manages a directed acyclic graph of PTransforms and PCollections that is ready
-for execution.
-* [`PipelineRunner`](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/sdk/src/main/java/com/google/cloud/dataflow/sdk/runners/PipelineRunner.java):
-specifies where and how the pipeline should execute.
+1. _End Users_: Writing pipelines with an existing SDK, running it on an existing runner. These users want to focus on writing their application logic and have everything else just work.
+2. _SDK Writers_: Developing a Beam SDK targeted at a specific user community (Java, Python, Scala, Go, R, graphical, etc). These users are language geeks, and  would prefer to be shielded from all the details of various runners and their implementations.
+3. _Runner Writers_: Have an execution environment for distributed processing and would like to support programs written against the Beam Model. Would prefer to be shielded from details of multiple SDKs.
 
-We provide three PipelineRunners:
 
-  1. The [`DirectPipelineRunner`](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/sdk/src/main/java/com/google/cloud/dataflow/sdk/runners/DirectPipelineRunner.java)
-runs the pipeline on your local machine.
-  2. The [`DataflowPipelineRunner`](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/sdk/src/main/java/com/google/cloud/dataflow/sdk/runners/DataflowPipelineRunner.java)
-submits the pipeline to the Dataflow Service, where it runs using managed
-resources in the [Google Cloud Platform](https://cloud.google.com) (GCP).
-  3. The [`BlockingDataflowPipelineRunner`](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/sdk/src/main/java/com/google/cloud/dataflow/sdk/runners/BlockingDataflowPipelineRunner.java)
-submits the pipeline to the Dataflow Service via the `DataflowPipelineRunner`
-and then prints messages about the job status until the execution is complete.
+### The Beam Model
 
-The SDK is built to be extensible and support additional execution environments
-beyond local execution and the Google Cloud Dataflow Service. In partnership
-with [Cloudera](https://www.cloudera.com/), you can run Dataflow pipelines on
-an [Apache Spark](https://spark.apache.org/) backend using the
-[`SparkPipelineRunner`](https://github.com/cloudera/spark-dataflow).
-Additionally, you can run Dataflow pipelines on an
-[Apache Flink](https://flink.apache.org/) backend using the
-[`FlinkPipelineRunner`](https://github.com/dataArtisans/flink-dataflow).
+The model behind Beam evolved from a number of internal Google data processing projects, including [MapReduce](http://research.google.com/archive/mapreduce.html), [FlumeJava](http://research.google.com/pubs/pub35650.html), and [Millwheel](http://research.google.com/pubs/pub41378.html). This model was originally known as the “[Dataflow Model](http://www.vldb.org/pvldb/vol8/p1792-Akidau.pdf)”. 
+
+To learn more about the Beam Model (though still under the original name of Dataflow), see the World Beyond Batch: [Streaming 101](https://wiki.apache.org/incubator/BeamProposal) and [Streaming 102](https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-101) posts on O’Reilly’s Radar site, and the [VLDB 2015 paper](http://www.vldb.org/pvldb/vol8/p1792-Akidau.pdf).
+
+The key concepts in the Beam programming model are:
+
+* `PCollection`: represents a collection of data, which could be bounded or unbounded in size.
+* `PTransform`: represents a computation that transforms input PCollections into output PCollections.
+* `Pipeline`: manages a directed acyclic graph of PTransforms and PCollections that is ready for execution.
+* `PipelineRunner`: specifies where and how the pipeline should execute.
+
+
+### SDKs
+
+Beam supports multiple language specific SDKs for writing pipelines against the Beam Model. 
+
+Currently, this repository contains the Beam Java SDK, which is in the process of evolving from the [Dataflow Java SDK](https://github.com/GoogleCloudPlatform/DataflowJavaSDK). The [Dataflow Python SDK](https://github.com/GoogleCloudPlatform/DataflowPythonSDK) will also become part of Beam in the near future.
+
+Have ideas for new SDKs or DSLs? See the [Jira](https://issues.apache.org/jira/browse/BEAM/component/12328909/).
+
+
+### Runners
+
+Beam supports executing programs on multiple distributed processing backends. After the Beam project's initial bootstrapping completes, it will include:
+  1. The `DirectPipelineRunner` runs the pipeline on your local machine.
+  2. The `DataflowPipelineRunner` submits the pipeline to the [Google Cloud Dataflow](http://cloud.google.com/dataflow/).
+  3. The `SparkPipelineRunner` runs the pipeline on an Apache Spark cluster. See the code that will be donated at [cloudera/spark-dataflow](https://github.com/cloudera/spark-dataflow).
+  4. The `FlinkPipelineRunner` runs the pipeline on an Apache Flink cluster. See the code that will be donated at [dataArtisans/flink-dataflow](https://github.com/dataArtisans/flink-dataflow).
+
+Have ideas for new Runners? See the [Jira](https://issues.apache.org/jira/browse/BEAM/component/12328916/).
+
 
 ## Getting Started
 
-This repository consists of the following parts:
+_Coming soon!_
 
-* The [`sdk`](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/sdk)
-module provides a set of basic Java APIs to program against.
-* The [`examples`](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples)
-module provides a few samples to get started. We recommend starting with the
-`WordCount` example.
-* The [`contrib`](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/contrib)
-directory hosts community-contributed Dataflow modules.
-
-The following command will build both the `sdk` and `example` modules and
-install them in your local Maven repository:
-
-    mvn clean install
-
-You can speed up the build and install process by using the following options:
-
-  1. To skip execution of the unit tests, run:
-
-        mvn install -DskipTests
-
-  2. While iterating on a specific module, use the following command to compile
-  and reinstall it. For example, to reinstall the `examples` module, run:
-
-        mvn install -pl examples
-
-  Be careful, however, as this command will use the most recently installed SDK
-  from the local repository (or Maven Central) even if you have changed it
-  locally.
-
-If you are using [Eclipse](https://eclipse.org/) integrated development
-environment (IDE), the
-[Cloud Dataflow Plugin for Eclipse](https://cloud.google.com/dataflow/getting-started-eclipse)
-provides tools to create and execute Dataflow pipelines locally and on the
-Dataflow Service.
-
-After building and installing, you can execute the `WordCount` and other
-example pipelines by following the instructions in this
-[README](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/README.md).
 
 ## Contact Us
 
-We welcome all usage-related questions on [Stack Overflow](http://stackoverflow.com/questions/tagged/google-cloud-dataflow)
-tagged with `google-cloud-dataflow`.
+To get involved in Apache Beam:
 
-Please use [issue tracker](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/issues)
-on GitHub to report any bugs, comments or questions regarding SDK development.
+* [Subscribe](mailto:user-subscribe@beam.incubator.apache.org) or [mail](mailto:user@beam.incubator.apache.org) the [user@beam.incubator.apache.org](http://mail-archives.apache.org/mod_mbox/incubator-beam-user/) list.
+* [Subscribe](mailto:dev-subscribe@beam.incubator.apache.org) or [mail](mailto:dev@beam.incubator.apache.org) the [dev@beam.incubator.apache.org](http://mail-archives.apache.org/mod_mbox/incubator-beam-dev/) list.
+* Report issues on [Jira](https://issues.apache.org/jira/browse/BEAM).
+
 
 ## More Information
 
-* [Google Cloud Dataflow](https://cloud.google.com/dataflow/)
-* [Dataflow Concepts and Programming Model](https://cloud.google.com/dataflow/model/programming-model)
-* [Java API Reference](https://cloud.google.com/dataflow/java-sdk/JavaDoc/index)
+* [Apache Beam](http://beam.incubator.apache.org)
+* [Apache Beam Documentation](http://beam.incubator.apache.org/documentation)
