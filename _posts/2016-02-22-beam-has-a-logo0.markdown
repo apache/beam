@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "XcX"
+title:  "Dataflow Python SDK is now public!"
 date:   2016-02-25 13:00:00 -0800
 excerpt_separator: <!--more-->
 categories: beam python sdk
