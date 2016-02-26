@@ -207,9 +207,9 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
   // Default Docker container images that execute Dataflow worker harness, residing in Google
   // Container Registry, separately for Batch and Streaming.
   public static final String BATCH_WORKER_HARNESS_CONTAINER_IMAGE
-      = "dataflow.gcr.io/v1beta3/java-batch:INVALID";
+      = "dataflow.gcr.io/v1beta3/java-batch:github-20160225-00";
   public static final String STREAMING_WORKER_HARNESS_CONTAINER_IMAGE
-      = "dataflow.gcr.io/v1beta3/java-streaming:INVALID";
+      = "dataflow.gcr.io/v1beta3/java-streaming:github-20160225-00";
 
   // The limit of CreateJob request size.
   private static final int CREATE_JOB_REQUEST_LIMIT_BYTES = 10 * 1024 * 1024;
