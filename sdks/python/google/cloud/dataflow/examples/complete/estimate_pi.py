@@ -27,7 +27,6 @@ import argparse
 import json
 import logging
 import random
-import sys
 
 
 import google.cloud.dataflow as df
@@ -83,7 +82,7 @@ class JsonCoder(object):
     return json.dumps(x)
 
 
-def run(argv=sys.argv[1:]):
+def run(argv=None):
 
   parser = argparse.ArgumentParser()
   parser.add_argument('--output',

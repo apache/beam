@@ -19,7 +19,6 @@ from __future__ import absolute_import
 import argparse
 import binascii
 import logging
-import sys
 
 
 import google.cloud.dataflow as df
@@ -29,7 +28,7 @@ def crc32line(line):
   return binascii.crc32(line) & 0xffffffff
 
 
-def run(argv=sys.argv[1:]):
+def run(argv=None):
   # pylint: disable=expression-not-assigned
 
   parser = argparse.ArgumentParser()

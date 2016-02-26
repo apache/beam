@@ -25,7 +25,6 @@ from __future__ import absolute_import
 
 import argparse
 import logging
-import sys
 
 import google.cloud.dataflow as df
 from google.cloud.dataflow.pvalue import AsSingleton
@@ -69,7 +68,7 @@ def filter_cold_days(input_data, month_filter):
                   lambda row, mean: row['mean_temp'] < mean, global_mean))
 
 
-def run(argv=sys.argv[1:]):
+def run(argv=None):
   """Constructs and runs the example filtering pipeline."""
 
   parser = argparse.ArgumentParser()

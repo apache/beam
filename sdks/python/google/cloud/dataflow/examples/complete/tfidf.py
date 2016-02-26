@@ -24,7 +24,6 @@ import argparse
 import glob
 import math
 import re
-import sys
 
 import google.cloud.dataflow as df
 from google.cloud.dataflow.pvalue import AsSingleton
@@ -171,7 +170,7 @@ class TfIdf(df.PTransform):
     return word_to_uri_and_tfidf
 
 
-def run(argv=sys.argv[1:]):
+def run(argv=None):
   """Main entry point; defines and runs the tfidf pipeline."""
   parser = argparse.ArgumentParser()
   parser.add_argument('--uris',

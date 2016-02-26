@@ -20,7 +20,6 @@ We use the quadratic polinomial f(z) = z*z + c, with c = -.62772 +.42193i
 from __future__ import absolute_import
 
 import argparse
-import sys
 
 import google.cloud.dataflow as df
 
@@ -76,7 +75,7 @@ def save_julia_set_visualization(out_file, image_array):
   plt.imsave(out_file, image_array, format='png')
 
 
-def run(argv=sys.argv[1:]):  # pylint: disable=missing-docstring
+def run(argv=None):  # pylint: disable=missing-docstring
 
   parser = argparse.ArgumentParser()
   parser.add_argument('--grid_size',

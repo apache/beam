@@ -23,7 +23,6 @@ import google.cloud.dataflow as df
 from google.cloud.dataflow import pvalue
 from google.cloud.dataflow import typehints
 from google.cloud.dataflow.examples.snippets import snippets
-from google.cloud.dataflow.utils.options import PipelineOptions
 from google.cloud.dataflow.utils.options import TypeOptions
 
 
@@ -208,8 +207,7 @@ class ParDoTest(unittest.TestCase):
 class TypeHintsTest(unittest.TestCase):
 
   def test_bad_types(self):
-    p = df.Pipeline('DirectPipelineRunner',
-                    options=PipelineOptions(sys.argv))
+    p = df.Pipeline('DirectPipelineRunner', argv=sys.argv)
 
     # [START type_hints_missing_define_numbers]
     numbers = p | df.Create(['1', '2', '3'])

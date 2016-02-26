@@ -48,7 +48,6 @@ from __future__ import absolute_import
 import argparse
 import logging
 import re
-import sys
 
 import google.cloud.dataflow as df
 from google.cloud.dataflow import pvalue
@@ -116,7 +115,7 @@ class CountWords(df.PTransform):
             | df.Map('format', lambda (word, c): '%s: %s' % (word, c)))
 
 
-def run(argv=sys.argv[1:]):
+def run(argv=None):
   """Runs the workflow counting the long words and short words separately."""
 
   parser = argparse.ArgumentParser()

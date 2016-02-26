@@ -31,12 +31,11 @@ from __future__ import absolute_import
 import argparse
 import logging
 import re
-import sys
 
 import google.cloud.dataflow as df
 
 
-def run(argv=sys.argv[1:], assert_results=None):
+def run(argv=None, assert_results=None):
 
   parser = argparse.ArgumentParser()
   parser.add_argument(

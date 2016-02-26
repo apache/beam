@@ -19,7 +19,6 @@ from __future__ import absolute_import
 import argparse
 import logging
 import re
-import sys
 
 import google.cloud.dataflow as df
 
@@ -47,7 +46,7 @@ class WordExtractingDoFn(df.DoFn):
     return re.findall(r'[A-Za-z\']+', text_line)
 
 
-def run(argv=sys.argv[1:]):
+def run(argv=None):
   """Main entry point; defines and runs the wordcount pipeline."""
 
   parser = argparse.ArgumentParser()

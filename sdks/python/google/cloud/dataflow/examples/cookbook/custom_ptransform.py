@@ -21,7 +21,6 @@ from __future__ import absolute_import
 
 import argparse
 import logging
-import sys
 
 import google.cloud.dataflow as df
 
@@ -119,7 +118,7 @@ def get_args(argv):
   return parser.parse_known_args(argv)
 
 
-def run(argv=sys.argv[1:]):
+def run(argv=None):
   known_args, pipeline_args = get_args(argv)
   options = PipelineOptions(pipeline_args)
 

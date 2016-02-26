@@ -23,7 +23,6 @@ from __future__ import absolute_import
 import argparse
 import logging
 import re
-import sys
 
 
 import google.cloud.dataflow as df
@@ -32,7 +31,7 @@ from google.cloud.dataflow.transforms.trigger import AfterCount
 import google.cloud.dataflow.transforms.window as window
 
 
-def run(argv=sys.argv[1:]):
+def run(argv=None):
   """Build and run the pipeline."""
 
   parser = argparse.ArgumentParser()

@@ -19,12 +19,11 @@ from __future__ import absolute_import
 import argparse
 import logging
 import re
-import sys
 
 import google.cloud.dataflow as df
 
 
-def run(argv=sys.argv[1:]):
+def run(argv=None):
 
   parser = argparse.ArgumentParser()
   parser.add_argument('--input',

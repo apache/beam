@@ -22,12 +22,11 @@ from __future__ import absolute_import
 
 import argparse
 import logging
-import sys
 
 import google.cloud.dataflow as df
 
 
-def run(argv=sys.argv[1:]):
+def run(argv=None):
   """Build and run the pipeline."""
 
   parser = argparse.ArgumentParser()

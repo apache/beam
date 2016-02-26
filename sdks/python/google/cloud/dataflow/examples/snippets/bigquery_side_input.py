@@ -18,24 +18,28 @@ The workflow will read a table that has a 'month' field (among others) and will
 write the values for the field to a text sink.
 """
 
+import argparse
 import logging
 
 import google.cloud.dataflow as df
-from google.cloud.dataflow.utils.options import add_option
-from google.cloud.dataflow.utils.options import get_options
 
 
-def run(options=None):
-  p = df.Pipeline(options=get_options(options))
+def run(argv=None):
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--input', dest='input', required=True)
+  parser.add_argument('--output', dest='output', required=True)
+  known_args, pipeline_args = parser.parse_known_args(argv)
 
+  p = df.Pipeline(argv=pipeline_args)
   (p  # pylint: disable=expression-not-assigned
    | df.Create('one element', ['ignored'])
    | df.FlatMap(
        'filter month',
        lambda _, rows: [row['month'] for row in rows],
        df.pvalue.AsIter(
-           p | df.io.Read('read table', df.io.BigQuerySource(p.options.input))))
-   | df.io.Write('write file', df.io.TextFileSink(p.options.output)))
+           p | df.io.Read('read table',
+                          df.io.BigQuerySource(known_args.input))))
+   | df.io.Write('write file', df.io.TextFileSink(known_args.output)))
 
   # Actually run the pipeline (all operations above are deferred).
   p.run()
@@ -43,6 +47,4 @@ def run(options=None):
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
-  add_option('--input', dest='input', required=True)
-  add_option('--output', dest='output', required=True)
   run()

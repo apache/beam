@@ -38,7 +38,6 @@ from __future__ import absolute_import
 import argparse
 import logging
 import re
-import sys
 
 import google.cloud.dataflow as df
 
@@ -97,7 +96,7 @@ class CountWords(df.PTransform):
             | df.Map('count', lambda (word, ones): (word, sum(ones))))
 
 
-def run(argv=sys.argv[1:]):
+def run(argv=None):
   """Runs the debugging wordcount pipeline."""
 
   parser = argparse.ArgumentParser()

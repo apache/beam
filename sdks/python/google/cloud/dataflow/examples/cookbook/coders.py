@@ -30,7 +30,6 @@ from __future__ import absolute_import
 import argparse
 import json
 import logging
-import sys
 
 import google.cloud.dataflow as df
 
@@ -64,7 +63,7 @@ def compute_points(record):
     yield guest_name, 3
 
 
-def run(argv=sys.argv[1:]):
+def run(argv=None):
   """Runs the workflow computing total points from a collection of matches."""
 
   parser = argparse.ArgumentParser()

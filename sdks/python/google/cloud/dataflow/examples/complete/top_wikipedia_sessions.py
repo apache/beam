@@ -132,7 +132,7 @@ class ComputeTopSessions(df.PTransform):
             | df.ParDo('FormatOutput', FormatOutputDoFn()))
 
 
-def run(argv=sys.argv[1:]):
+def run(argv=None):
   """Runs the Wikipedia top edits pipeline.
 
   Args:
