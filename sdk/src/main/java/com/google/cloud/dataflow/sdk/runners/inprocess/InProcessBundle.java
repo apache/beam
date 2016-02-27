@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Google Inc.
+ * Copyright (C) 2016 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -22,7 +22,6 @@ import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.U
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.base.MoreObjects;
-import com.google.common.base.MoreObjects.ToStringHelper;
 import com.google.common.collect.ImmutableList;
 
 import org.joda.time.Instant;
@@ -62,6 +61,11 @@ public final class InProcessBundle<T> implements UncommittedBundle<T> {
     this.keyed = keyed;
     this.key = key;
     this.elements = ImmutableList.builder();
+  }
+
+  @Override
+  public PCollection<T> getPCollection() {
+    return pcollection;
   }
 
   @Override
@@ -105,12 +109,12 @@ public final class InProcessBundle<T> implements UncommittedBundle<T> {
 
       @Override
       public String toString() {
-        ToStringHelper toStringHelper =
-            MoreObjects.toStringHelper(this).add("pcollection", pcollection);
-        if (keyed) {
-          toStringHelper = toStringHelper.add("key", key);
-        }
-        return toStringHelper.add("elements", elements).toString();
+        return MoreObjects.toStringHelper(this)
+            .omitNullValues()
+            .add("pcollection", pcollection)
+            .add("key", key)
+            .add("elements", committedElements)
+            .toString();
       }
     };
   }
