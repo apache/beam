@@ -866,7 +866,7 @@ public class InMemoryWatermarkManager {
    * {@link #getWatermarks(AppliedPTransform)}, the output watermark will be equal to
    * {@link BoundedWindow#TIMESTAMP_MAX_VALUE}.
    */
-  public boolean isDone() {
+  public boolean allWatermarksAtPositiveInfinity() {
     for (Map.Entry<AppliedPTransform<?, ?, ?>, TransformWatermarks> watermarksEntry :
         transformToWatermarks.entrySet()) {
       Instant endOfTime = THE_END_OF_TIME.get();
