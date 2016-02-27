@@ -1047,6 +1047,18 @@ public class InMemoryWatermarkManagerTest implements Serializable {
     assertThat(built.getCompletedTimers(), emptyIterable());
   }
 
+  @Test
+  public void timerUpdateWithCompletedTimersNotAddedToExisting() {
+    TimerUpdateBuilder builder = TimerUpdate.builder(null);
+    TimerData timer = TimerData.of(StateNamespaces.global(), Instant.now(), TimeDomain.EVENT_TIME);
+
+    TimerUpdate built = builder.build();
+    assertThat(built.getCompletedTimers(), emptyIterable());
+    assertThat(
+        built.withCompletedTimers(ImmutableList.of(timer)).getCompletedTimers(), contains(timer));
+    assertThat(built.getCompletedTimers(), emptyIterable());
+  }
+
   private static Matcher<Instant> earlierThan(final Instant laterInstant) {
     return new BaseMatcher<Instant>() {
       @Override

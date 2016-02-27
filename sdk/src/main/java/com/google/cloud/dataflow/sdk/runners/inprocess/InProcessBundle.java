@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Google Inc.
+ * Copyright (C) 2016 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -65,6 +65,11 @@ public final class InProcessBundle<T> implements UncommittedBundle<T> {
   }
 
   @Override
+  public PCollection<T> getPCollection() {
+    return pcollection;
+  }
+
+  @Override
   public InProcessBundle<T> add(WindowedValue<T> element) {
     checkState(!committed, "Can't add element %s to committed bundle %s", element, this);
     elements.add(element);
@@ -110,7 +115,7 @@ public final class InProcessBundle<T> implements UncommittedBundle<T> {
         if (keyed) {
           toStringHelper = toStringHelper.add("key", key);
         }
-        return toStringHelper.add("elements", elements).toString();
+        return toStringHelper.add("elements", committedElements).toString();
       }
     };
   }
