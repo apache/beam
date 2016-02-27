@@ -15,10 +15,15 @@
  */
 package com.google.cloud.dataflow.sdk.runners.inprocess;
 
+import com.google.cloud.dataflow.sdk.options.Default;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 
 /**
  * Options that can be used to configure the {@link InProcessPipelineRunner}.
  */
-public interface InProcessPipelineOptions extends PipelineOptions {}
+public interface InProcessPipelineOptions extends PipelineOptions {
+  @Default.InstanceFactory(NanosOffsetClock.Factory.class)
+  Clock getClock();
 
+  void setClock(Clock clock);
+}

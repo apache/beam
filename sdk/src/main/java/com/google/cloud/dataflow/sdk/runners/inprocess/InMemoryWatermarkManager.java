@@ -1209,8 +1209,11 @@ public class InMemoryWatermarkManager {
        * and deletedTimers.
        */
       public TimerUpdate build() {
-        return new TimerUpdate(key, ImmutableSet.copyOf(completedTimers),
-            ImmutableSet.copyOf(setTimers), ImmutableSet.copyOf(deletedTimers));
+        return new TimerUpdate(
+            key,
+            ImmutableSet.copyOf(completedTimers),
+            ImmutableSet.copyOf(setTimers),
+            ImmutableSet.copyOf(deletedTimers));
       }
     }
 
@@ -1243,6 +1246,13 @@ public class InMemoryWatermarkManager {
     @VisibleForTesting
     Iterable<? extends TimerData> getDeletedTimers() {
       return deletedTimers;
+    }
+
+    /**
+     * Returns a {@link TimerUpdate} that is like this one, but with the specified completed timers.
+     */
+    public TimerUpdate withCompletedTimers(Iterable<TimerData> completedTimers) {
+      return new TimerUpdate(this.key, completedTimers, setTimers, deletedTimers);
     }
 
     @Override

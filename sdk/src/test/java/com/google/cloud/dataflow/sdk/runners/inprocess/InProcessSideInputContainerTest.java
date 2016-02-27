@@ -24,7 +24,6 @@ import static org.mockito.Mockito.doAnswer;
 
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
-import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.InProcessEvaluationContext;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.Mean;
@@ -137,7 +136,7 @@ public class InProcessSideInputContainerTest {
     container.write(mapView, ImmutableList.<WindowedValue<?>>of(one, two));
 
     Map<String, Integer> viewContents =
-        container.withViews(ImmutableList.<PCollectionView<?>>of(mapView))
+        container.createReaderForViews(ImmutableList.<PCollectionView<?>>of(mapView))
             .get(mapView, firstWindow);
     assertThat(viewContents, hasEntry("one", 1));
     assertThat(viewContents, hasEntry("two", 2));
@@ -153,7 +152,7 @@ public class InProcessSideInputContainerTest {
     container.write(mapView, ImmutableList.<WindowedValue<?>>of(one, two));
 
     Map<String, Integer> viewContents =
-        container.withViews(ImmutableList.<PCollectionView<?>>of(mapView))
+        container.createReaderForViews(ImmutableList.<PCollectionView<?>>of(mapView))
             .get(mapView, secondWindow);
     assertThat(viewContents, hasEntry("one", 1));
     assertThat(viewContents, hasEntry("two", 2));
@@ -164,7 +163,7 @@ public class InProcessSideInputContainerTest {
     container.write(mapView, ImmutableList.<WindowedValue<?>>of(three));
 
     Map<String, Integer> overwrittenViewContents =
-        container.withViews(ImmutableList.<PCollectionView<?>>of(mapView))
+        container.createReaderForViews(ImmutableList.<PCollectionView<?>>of(mapView))
             .get(mapView, secondWindow);
     assertThat(overwrittenViewContents, hasEntry("three", 3));
     assertThat(overwrittenViewContents.size(), is(1));
@@ -176,15 +175,18 @@ public class InProcessSideInputContainerTest {
    */
   @Test
   public void getBlocksUntilPaneAvailable() throws Exception {
-    BoundedWindow window = new BoundedWindow() {
-      @Override
-      public Instant maxTimestamp() {
-        return new Instant(1024L);
-      }
-    };
+    BoundedWindow window =
+        new BoundedWindow() {
+          @Override
+          public Instant maxTimestamp() {
+            return new Instant(1024L);
+          }
+        };
     Future<Double> singletonFuture =
-        getFutureOfView(container.withViews(ImmutableList.<PCollectionView<?>>of(singletonView)),
-            singletonView, window);
+        getFutureOfView(
+            container.createReaderForViews(ImmutableList.<PCollectionView<?>>of(singletonView)),
+            singletonView,
+            window);
 
     WindowedValue<Double> singletonValue =
         WindowedValue.of(4.75, new Instant(475L), window, PaneInfo.ON_TIME_AND_ONLY_FIRING);
@@ -203,7 +205,7 @@ public class InProcessSideInputContainerTest {
       }
     };
     SideInputReader newReader =
-        container.withViews(ImmutableList.<PCollectionView<?>>of(singletonView));
+        container.createReaderForViews(ImmutableList.<PCollectionView<?>>of(singletonView));
     Future<Double> singletonFuture = getFutureOfView(newReader, singletonView, window);
 
     WindowedValue<Double> singletonValue =
@@ -216,25 +218,31 @@ public class InProcessSideInputContainerTest {
 
   @Test
   public void withPCollectionViewsErrorsForContainsNotInViews() {
-    PCollectionView<Map<String, Iterable<String>>> newView = PCollectionViews.multimapView(pipeline,
-        WindowingStrategy.globalDefault(), KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
+    PCollectionView<Map<String, Iterable<String>>> newView =
+        PCollectionViews.multimapView(
+            pipeline,
+            WindowingStrategy.globalDefault(),
+            KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("with unknown views " + ImmutableList.of(newView).toString());
 
-    container.withViews(ImmutableList.<PCollectionView<?>>of(newView));
+    container.createReaderForViews(ImmutableList.<PCollectionView<?>>of(newView));
   }
 
   @Test
   public void withViewsForViewNotInContainerFails() {
-    PCollectionView<Map<String, Iterable<String>>> newView = PCollectionViews.multimapView(pipeline,
-        WindowingStrategy.globalDefault(), KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
+    PCollectionView<Map<String, Iterable<String>>> newView =
+        PCollectionViews.multimapView(
+            pipeline,
+            WindowingStrategy.globalDefault(),
+            KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("unknown views");
     thrown.expectMessage(newView.toString());
 
-    container.withViews(ImmutableList.<PCollectionView<?>>of(newView));
+    container.createReaderForViews(ImmutableList.<PCollectionView<?>>of(newView));
   }
 
   @Test
@@ -242,7 +250,7 @@ public class InProcessSideInputContainerTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("unknown view: " + iterableView.toString());
 
-    container.withViews(ImmutableList.<PCollectionView<?>>of(mapView))
+    container.createReaderForViews(ImmutableList.<PCollectionView<?>>of(mapView))
         .get(iterableView, GlobalWindow.INSTANCE);
   }
 
@@ -255,11 +263,11 @@ public class InProcessSideInputContainerTest {
             PaneInfo.ON_TIME_AND_ONLY_FIRING);
     container.write(singletonView, ImmutableList.of(firstWindowedValue, secondWindowedValue));
     assertThat(
-        container.withViews(ImmutableList.<PCollectionView<?>>of(singletonView))
+        container.createReaderForViews(ImmutableList.<PCollectionView<?>>of(singletonView))
             .get(singletonView, firstWindow),
         equalTo(2.875));
     assertThat(
-        container.withViews(ImmutableList.<PCollectionView<?>>of(singletonView))
+        container.createReaderForViews(ImmutableList.<PCollectionView<?>>of(singletonView))
             .get(singletonView, secondWindow),
         equalTo(4.125));
   }
@@ -274,7 +282,7 @@ public class InProcessSideInputContainerTest {
     container.write(iterableView, ImmutableList.of(firstValue, secondValue));
 
     assertThat(
-        container.withViews(ImmutableList.<PCollectionView<?>>of(iterableView))
+        container.createReaderForViews(ImmutableList.<PCollectionView<?>>of(iterableView))
             .get(iterableView, firstWindow),
         contains(44, 44));
   }
@@ -286,11 +294,11 @@ public class InProcessSideInputContainerTest {
             ImmutableList.of(firstWindow, secondWindow), PaneInfo.ON_TIME_AND_ONLY_FIRING);
     container.write(singletonView, ImmutableList.of(multiWindowedValue));
     assertThat(
-        container.withViews(ImmutableList.<PCollectionView<?>>of(singletonView))
+        container.createReaderForViews(ImmutableList.<PCollectionView<?>>of(singletonView))
             .get(singletonView, firstWindow),
         equalTo(2.875));
     assertThat(
-        container.withViews(ImmutableList.<PCollectionView<?>>of(singletonView))
+        container.createReaderForViews(ImmutableList.<PCollectionView<?>>of(singletonView))
             .get(singletonView, secondWindow),
         equalTo(2.875));
   }
@@ -306,7 +314,7 @@ public class InProcessSideInputContainerTest {
     immediatelyInvokeCallback(mapView, secondWindow);
 
     Map<String, Integer> viewContents =
-        container.withViews(ImmutableList.<PCollectionView<?>>of(mapView))
+        container.createReaderForViews(ImmutableList.<PCollectionView<?>>of(mapView))
             .get(mapView, secondWindow);
 
     assertThat(viewContents, hasEntry("one", 1));
@@ -317,8 +325,11 @@ public class InProcessSideInputContainerTest {
   @Test
   public void finishOnPendingViewsSetsEmptyElements() throws Exception {
     immediatelyInvokeCallback(mapView, secondWindow);
-    Future<Map<String, Integer>> mapFuture = getFutureOfView(
-        container.withViews(ImmutableList.<PCollectionView<?>>of(mapView)), mapView, secondWindow);
+    Future<Map<String, Integer>> mapFuture =
+        getFutureOfView(
+            container.createReaderForViews(ImmutableList.<PCollectionView<?>>of(mapView)),
+            mapView,
+            secondWindow);
 
     assertThat(mapFuture.get().isEmpty(), is(true));
   }
@@ -329,18 +340,21 @@ public class InProcessSideInputContainerTest {
    */
   private void immediatelyInvokeCallback(PCollectionView<?> view, BoundedWindow window) {
     doAnswer(
-        new Answer<Void>() {
-          @Override
-          public Void answer(InvocationOnMock invocation) throws Throwable {
-            Object callback = invocation.getArguments()[3];
-            Runnable callbackRunnable = (Runnable) callback;
-            callbackRunnable.run();
-            return null;
-          }
-        })
+            new Answer<Void>() {
+              @Override
+              public Void answer(InvocationOnMock invocation) throws Throwable {
+                Object callback = invocation.getArguments()[3];
+                Runnable callbackRunnable = (Runnable) callback;
+                callbackRunnable.run();
+                return null;
+              }
+            })
         .when(context)
-        .callAfterOutputMustHaveBeenProduced(Mockito.eq(view), Mockito.eq(window),
-            Mockito.eq(view.getWindowingStrategyInternal()), Mockito.any(Runnable.class));
+        .scheduleAfterOutputWouldBeProduced(
+            Mockito.eq(view),
+            Mockito.eq(window),
+            Mockito.eq(view.getWindowingStrategyInternal()),
+            Mockito.any(Runnable.class));
   }
 
   private <ValueT> Future<ValueT> getFutureOfView(final SideInputReader myReader,
