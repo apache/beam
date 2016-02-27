@@ -21,7 +21,6 @@ import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.inprocess.GroupByKeyEvaluatorFactory.InProcessGroupByKey;
 import com.google.cloud.dataflow.sdk.runners.inprocess.ViewEvaluatorFactory.InProcessCreatePCollectionView;
-import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.View.CreatePCollectionView;
@@ -166,29 +165,5 @@ public class InProcessPipelineRunner {
    */
   public InProcessPipelineOptions getPipelineOptions() {
     return options;
-  }
-
-  /**
-   * An executor that schedules and executes {@link AppliedPTransform AppliedPTransforms} for both
-   * source and intermediate {@link PTransform PTransforms}.
-   */
-  public static interface InProcessExecutor {
-    /**
-     * @param root the root {@link AppliedPTransform} to schedule
-     */
-    void scheduleRoot(AppliedPTransform<?, ?, ?> root);
-
-    /**
-     * @param consumer the {@link AppliedPTransform} to schedule
-     * @param bundle the input bundle to the consumer
-     */
-    void scheduleConsumption(AppliedPTransform<?, ?, ?> consumer, CommittedBundle<?> bundle);
-
-    /**
-     * Blocks until the job being executed enters a terminal state. A job is completed after all
-     * root {@link AppliedPTransform AppliedPTransforms} have completed, and all
-     * {@link CommittedBundle Bundles} have been consumed. Jobs may also terminate abnormally.
-     */
-    void awaitCompletion();
   }
 }
