@@ -36,6 +36,7 @@ import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.state.CopyOnAccessInMemoryStateInternals;
 import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.cloud.dataflow.sdk.values.PCollection.IsBounded;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.PValue;
 import com.google.common.collect.ImmutableList;
@@ -359,6 +360,24 @@ class InProcessEvaluationContext {
    * Returns true if all steps are done.
    */
   public boolean isDone() {
-    return watermarkManager.isDone();
+    if (!options.isShutdownUnboundedProducersWithMaxWatermark() && containsUnboundedPCollection()) {
+      return false;
+    }
+    if (!watermarkManager.allWatermarksAtPositiveInfinity()) {
+      return false;
+    }
+    return true;
+  }
+
+  private boolean containsUnboundedPCollection() {
+    for (AppliedPTransform<?, ?, ?> transform : stepNames.keySet()) {
+      for (PValue value : transform.getInput().expand()) {
+        if (value instanceof PCollection
+            && ((PCollection<?>) value).isBounded().equals(IsBounded.UNBOUNDED)) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 }
