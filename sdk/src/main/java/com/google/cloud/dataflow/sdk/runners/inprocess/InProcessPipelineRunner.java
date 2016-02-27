@@ -33,6 +33,7 @@ import com.google.common.collect.ImmutableMap;
 
 import org.joda.time.Instant;
 
+import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -174,21 +175,21 @@ public class InProcessPipelineRunner {
    */
   public static interface InProcessExecutor {
     /**
-     * @param root the root {@link AppliedPTransform} to schedule
+     * Starts this executor. The provided collection is the collection of root transforms to
+     * initially schedule.
+     *
+     * @param rootTransforms
      */
-    void scheduleRoot(AppliedPTransform<?, ?, ?> root);
-
-    /**
-     * @param consumer the {@link AppliedPTransform} to schedule
-     * @param bundle the input bundle to the consumer
-     */
-    void scheduleConsumption(AppliedPTransform<?, ?, ?> consumer, CommittedBundle<?> bundle);
+    void start(Collection<AppliedPTransform<?, ?, ?>> rootTransforms);
 
     /**
      * Blocks until the job being executed enters a terminal state. A job is completed after all
      * root {@link AppliedPTransform AppliedPTransforms} have completed, and all
      * {@link CommittedBundle Bundles} have been consumed. Jobs may also terminate abnormally.
+     *
+     * @throws Throwable whenever an executor thread throws anything, transfers the throwable to the
+     *                   waiting thread and rethrows it
      */
-    void awaitCompletion();
+    void awaitCompletion() throws Throwable;
   }
 }

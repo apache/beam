@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Google Inc.
+ * Copyright (C) 2016 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -15,16 +15,20 @@
  */
 package com.google.cloud.dataflow.sdk.runners.inprocess;
 
-import com.google.cloud.dataflow.sdk.options.ApplicationNameOptions;
-import com.google.cloud.dataflow.sdk.options.Default;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-
 /**
- * Options that can be used to configure the {@link InProcessPipelineRunner}.
+ * Schedules and completes {@link TransformExecutor TransformExecutors}, controlling concurrency as
+ * appropriate for the {@link StepAndKey} the executor exists for.
  */
-public interface InProcessPipelineOptions extends PipelineOptions, ApplicationNameOptions {
-  @Default.InstanceFactory(NanosOffsetClock.Factory.class)
-  Clock getClock();
+interface TransformExecutorService {
+  /**
+   * Schedule the provided work to be eventually executed.
+   */
+  void schedule(TransformExecutor<?> work);
 
-  void setClock(Clock clock);
+  /**
+   * Finish executing the provided work. This may cause additional
+   * {@link TransformExecutor TransformExecutors} to be evaluated.
+   */
+  void complete(TransformExecutor<?> completed);
 }
+

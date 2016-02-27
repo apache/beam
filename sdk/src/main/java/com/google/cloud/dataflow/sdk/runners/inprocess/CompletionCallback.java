@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Google Inc.
+ * Copyright (C) 2016 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -15,16 +15,19 @@
  */
 package com.google.cloud.dataflow.sdk.runners.inprocess;
 
-import com.google.cloud.dataflow.sdk.options.ApplicationNameOptions;
-import com.google.cloud.dataflow.sdk.options.Default;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
 
 /**
- * Options that can be used to configure the {@link InProcessPipelineRunner}.
+ * A callback for completing a bundle of input.
  */
-public interface InProcessPipelineOptions extends PipelineOptions, ApplicationNameOptions {
-  @Default.InstanceFactory(NanosOffsetClock.Factory.class)
-  Clock getClock();
+interface CompletionCallback {
+  /**
+   * Handle a successful result.
+   */
+  void handleResult(CommittedBundle<?> inputBundle, InProcessTransformResult result);
 
-  void setClock(Clock clock);
+  /**
+   * Handle a result that terminated abnormally due to the provided {@link Throwable}.
+   */
+  void handleThrowable(CommittedBundle<?> inputBundle, Throwable t);
 }
