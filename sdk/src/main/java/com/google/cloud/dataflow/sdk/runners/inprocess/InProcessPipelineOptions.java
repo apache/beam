@@ -17,14 +17,43 @@ package com.google.cloud.dataflow.sdk.runners.inprocess;
 
 import com.google.cloud.dataflow.sdk.options.ApplicationNameOptions;
 import com.google.cloud.dataflow.sdk.options.Default;
+import com.google.cloud.dataflow.sdk.options.Description;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.cloud.dataflow.sdk.options.Validation.Required;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
+import java.util.concurrent.ExecutorService;
 
 /**
  * Options that can be used to configure the {@link InProcessPipelineRunner}.
  */
 public interface InProcessPipelineOptions extends PipelineOptions, ApplicationNameOptions {
+  @JsonIgnore
+  @Default.InstanceFactory(CachedThreadPoolExecutorServiceFactory.class)
+  ExecutorService getExecutorService();
+
+  void setExecutorService(ExecutorService executorService);
+
+  /**
+   * Gets the {@link Clock} used by this pipeline. The clock is used in place of accessing the
+   * system time when time values are required by the evaluator.
+   */
   @Default.InstanceFactory(NanosOffsetClock.Factory.class)
+  @Required
+  @Description(
+      "The processing time source used by the pipeline. When the current time is "
+          + "needed by the evaluator, the result of clock#now() is used.")
   Clock getClock();
 
   void setClock(Clock clock);
+
+  @Default.Boolean(false)
+  @Description("If the pipelien should block awaiting completion of the pipeline. If set to true, "
+      + "a call to Pipeline#run() will block until all PTransforms are complete. Otherwise, the "
+      + "Pipeline will execute asynchronously. If set to false, the completion of the pipeline can "
+      + "be awaited on by use of InProcessPipelineResult#awaitCompletion().")
+  boolean isBlockOnRun();
+
+  void setBlockOnRun(boolean b);
 }

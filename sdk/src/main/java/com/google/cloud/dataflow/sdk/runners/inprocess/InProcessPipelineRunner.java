@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Google Inc.
+ * Copyright (C) 2016 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -15,27 +15,44 @@
  */
 package com.google.cloud.dataflow.sdk.runners.inprocess;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
+import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.Pipeline.PipelineExecutionException;
+import com.google.cloud.dataflow.sdk.PipelineResult;
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.runners.AggregatorPipelineExtractor;
+import com.google.cloud.dataflow.sdk.runners.AggregatorRetrievalException;
+import com.google.cloud.dataflow.sdk.runners.AggregatorValues;
+import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.inprocess.GroupByKeyEvaluatorFactory.InProcessGroupByKey;
-import com.google.cloud.dataflow.sdk.runners.inprocess.ViewEvaluatorFactory.InProcessCreatePCollectionView;
+import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
+import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.View.CreatePCollectionView;
+import com.google.cloud.dataflow.sdk.util.InstanceBuilder;
+import com.google.cloud.dataflow.sdk.util.MapAggregatorValues;
 import com.google.cloud.dataflow.sdk.util.TimerInternals.TimerData;
+import com.google.cloud.dataflow.sdk.util.UserCodeException;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
+import com.google.cloud.dataflow.sdk.util.common.Counter;
+import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
+import com.google.cloud.dataflow.sdk.values.PInput;
+import com.google.cloud.dataflow.sdk.values.POutput;
+import com.google.cloud.dataflow.sdk.values.PValue;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 
 import org.joda.time.Instant;
 
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
 
 import javax.annotation.Nullable;
 
@@ -44,27 +61,18 @@ import javax.annotation.Nullable;
  * {@link PCollection PCollections}.
  */
 @Experimental
-public class InProcessPipelineRunner {
-  @SuppressWarnings({"rawtypes", "unused"})
+public class InProcessPipelineRunner
+    extends PipelineRunner<InProcessPipelineRunner.InProcessPipelineResult> {
+  @SuppressWarnings("rawtypes")
   private static Map<Class<? extends PTransform>, Class<? extends PTransform>>
       defaultTransformOverrides =
           ImmutableMap.<Class<? extends PTransform>, Class<? extends PTransform>>builder()
+              .put(Create.Values.class, InProcessCreate.class)
               .put(GroupByKey.class, InProcessGroupByKey.class)
-              .put(CreatePCollectionView.class, InProcessCreatePCollectionView.class)
+              .put(
+                  CreatePCollectionView.class,
+                  ViewEvaluatorFactory.InProcessCreatePCollectionView.class)
               .build();
-
-  private static Map<Class<?>, TransformEvaluatorFactory> defaultEvaluatorFactories =
-      new ConcurrentHashMap<>();
-
-  /**
-   * Register a default transform evaluator.
-   */
-  public static <TransformT extends PTransform<?, ?>> void registerTransformEvaluatorFactory(
-      Class<TransformT> clazz, TransformEvaluatorFactory evaluator) {
-    checkArgument(defaultEvaluatorFactories.put(clazz, evaluator) == null,
-        "Defining a default factory %s to evaluate Transforms of type %s multiple times", evaluator,
-        clazz);
-  }
 
   /**
    * Part of a {@link PCollection}. Elements are output to a bundle, which will cause them to be
@@ -75,12 +83,14 @@ public class InProcessPipelineRunner {
    */
   public static interface UncommittedBundle<T> {
     /**
-     * Returns the PCollection that the elements of this bundle belong to.
+     * Returns the PCollection that the elements of this {@link UncommittedBundle} belong to.
      */
     PCollection<T> getPCollection();
 
     /**
      * Outputs an element to this bundle.
+     *
+     * The bundle implementation is responsible for properly propagating
      *
      * @param element the element to add to this bundle
      * @return this bundle
@@ -105,7 +115,6 @@ public class InProcessPipelineRunner {
    * @param <T> the type of elements contained within this bundle
    */
   public static interface CommittedBundle<T> {
-
     /**
      * Returns the PCollection that the elements of this bundle belong to.
      */
@@ -124,8 +133,8 @@ public class InProcessPipelineRunner {
     @Nullable Object getKey();
 
     /**
-     * @return an {@link Iterable} containing all of the elements that have been added to this
-     *         {@link CommittedBundle}
+     * Returns an {@link Iterable} containing all of the elements that have been added to this
+     * {@link CommittedBundle}.
      */
     Iterable<WindowedValue<T>> getElements();
 
@@ -154,6 +163,12 @@ public class InProcessPipelineRunner {
   ////////////////////////////////////////////////////////////////////////////////////////////////
   private final InProcessPipelineOptions options;
 
+  public static InProcessPipelineRunner createForTest() {
+    InProcessPipelineOptions options = PipelineOptionsFactory.as(InProcessPipelineOptions.class);
+    options.setBlockOnRun(true);
+    return new InProcessPipelineRunner(options);
+  }
+
   public static InProcessPipelineRunner fromOptions(PipelineOptions options) {
     return new InProcessPipelineRunner(options.as(InProcessPipelineOptions.class));
   }
@@ -167,6 +182,135 @@ public class InProcessPipelineRunner {
    */
   public InProcessPipelineOptions getPipelineOptions() {
     return options;
+  }
+
+  @Override
+  public <OutputT extends POutput, InputT extends PInput> OutputT apply(
+      PTransform<InputT, OutputT> transform, InputT input) {
+    Class<?> overrideClass = defaultTransformOverrides.get(transform.getClass());
+    if (overrideClass != null) {
+      transform.validate(input);
+      // It is the responsibility of whoever constructs overrides to ensure this is type safe.
+      @SuppressWarnings("unchecked")
+      Class<PTransform<InputT, OutputT>> transformClass =
+          (Class<PTransform<InputT, OutputT>>) transform.getClass();
+
+      @SuppressWarnings("unchecked")
+      Class<PTransform<InputT, OutputT>> customTransformClass =
+          (Class<PTransform<InputT, OutputT>>) overrideClass;
+
+      PTransform<InputT, OutputT> customTransform =
+          InstanceBuilder.ofType(customTransformClass)
+          .withArg(transformClass, transform)
+          .build();
+
+      // This overrides the contents of the apply method without changing the TransformTreeNode that
+      // is generated by the PCollection application.
+      return super.apply(customTransform, input);
+    } else {
+      return super.apply(transform, input);
+    }
+  }
+
+  @Override
+  public InProcessPipelineResult run(Pipeline pipeline) {
+    ConsumerTrackingPipelineVisitor visitor = new ConsumerTrackingPipelineVisitor();
+    pipeline.traverseTopologically(visitor);
+    for (PValue unfinalized : visitor.getUnfinalizedPValues()) {
+      unfinalized.finishSpecifying();
+    }
+
+    InProcessEvaluationContext context =
+        InProcessEvaluationContext.create(
+            getPipelineOptions(),
+            TransformEvaluatorRegistry.defaultRegistry(),
+            visitor.getRootTransforms(),
+            visitor.getValueToConsumers(),
+            visitor.getStepNames(),
+            visitor.getViews());
+
+    ExecutorService executorService = context.getPipelineOptions().getExecutorService();
+    InProcessExecutor executor =
+        ExecutorServiceParallelExecutor.create(executorService, context);
+    executor.start(visitor.getRootTransforms());
+
+    Map<Aggregator<?, ?>, Collection<PTransform<?, ?>>> aggregatorSteps =
+        new AggregatorPipelineExtractor(pipeline).getAggregatorSteps();
+    InProcessPipelineResult result =
+        new InProcessPipelineResult(executor, context, aggregatorSteps);
+    if (options.isBlockOnRun()) {
+      try {
+        result.awaitCompletion();
+      } catch (UserCodeException userException) {
+        throw new PipelineExecutionException(userException.getCause());
+      } catch (Throwable t) {
+        Throwables.propagate(t);
+      }
+    }
+    return result;
+  }
+
+  /**
+   * The result of running a {@link Pipeline} with the {@link InProcessPipelineRunner}.
+   *
+   * Throws {@link UnsupportedOperationException} for all methods.
+   */
+  public static class InProcessPipelineResult implements PipelineResult {
+    private final InProcessExecutor executor;
+    private final InProcessEvaluationContext evaluationContext;
+    private final Map<Aggregator<?, ?>, Collection<PTransform<?, ?>>> aggregatorSteps;
+    private State state;
+
+    private InProcessPipelineResult(
+        InProcessExecutor executor,
+        InProcessEvaluationContext evaluationContext,
+        Map<Aggregator<?, ?>, Collection<PTransform<?, ?>>> aggregatorSteps) {
+      this.executor = executor;
+      this.evaluationContext = evaluationContext;
+      this.aggregatorSteps = aggregatorSteps;
+      // Only ever constructed after the executor has started.
+      this.state = State.RUNNING;
+    }
+
+    @Override
+    public State getState() {
+      return state;
+    }
+
+    @Override
+    public <T> AggregatorValues<T> getAggregatorValues(Aggregator<?, T> aggregator)
+        throws AggregatorRetrievalException {
+      CounterSet counters = evaluationContext.getCounters();
+      Collection<PTransform<?, ?>> steps = aggregatorSteps.get(aggregator);
+      Map<String, T> stepValues = new HashMap<>();
+      for (AppliedPTransform<?, ?, ?> transform : evaluationContext.getSteps()) {
+        if (steps.contains(transform.getTransform())) {
+          String stepName =
+              String.format(
+                  "user-%s-%s", evaluationContext.getStepName(transform), aggregator.getName());
+          Counter<T> counter = (Counter<T>) counters.getExistingCounter(stepName);
+          if (counter == null) {
+            throw new IllegalArgumentException(
+                "Aggregator " + aggregator + " is not used in this pipeline");
+          }
+          stepValues.put(transform.getFullName(), counter.getAggregate());
+        }
+      }
+      return new MapAggregatorValues<>(stepValues);
+    }
+
+    public State awaitCompletion() throws Throwable {
+      if (!state.isTerminal()) {
+        try {
+          executor.awaitCompletion();
+          state = State.DONE;
+        } catch (Throwable t) {
+          state = State.FAILED;
+          throw t;
+        }
+      }
+      return state;
+    }
   }
 
   /**
