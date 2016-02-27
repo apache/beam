@@ -46,7 +46,7 @@ It is still early in its development, and significant changes
 should be expected before the first stable version.
 
 Google recently
-[announced its desire](http://googlecloudplatform.blogspot.com/2016/01/Dataflow-and-open-source-proposal-to-join-the-Apache-Incubator.html)
+[announced its intention](http://googlecloudplatform.blogspot.com/2016/01/Dataflow-and-open-source-proposal-to-join-the-Apache-Incubator.html)
 to donate the Google Cloud Dataflow SDKs and Programming Model to
 the Apache Software Foundation (ASF), after which they will be called the
 Apache Beam SDKs.
