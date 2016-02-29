@@ -181,15 +181,21 @@ public class StateTags {
   public static <K, InputT, AccumT, OutputT> StateTag<Object, BagState<AccumT>>
       convertToBagTagInternal(
           StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> combiningTag) {
-    if (!(combiningTag instanceof KeyedCombiningValueStateTag)) {
+    if (combiningTag instanceof KeyedCombiningValueStateTag) {
+      // Checked above; conversion to a bag tag depends on the provided tag being one of those
+      // created via the factory methods in this class.
+      @SuppressWarnings("unchecked")
+      KeyedCombiningValueStateTag<K, InputT, AccumT, OutputT> typedTag =
+          (KeyedCombiningValueStateTag<K, InputT, AccumT, OutputT>) combiningTag;
+      return typedTag.asBagTag();
+    } else if (combiningTag instanceof KeyedCombiningValueWithContextStateTag) {
+      @SuppressWarnings("unchecked")
+      KeyedCombiningValueWithContextStateTag<K, InputT, AccumT, OutputT> typedTag =
+          (KeyedCombiningValueWithContextStateTag<K, InputT, AccumT, OutputT>) combiningTag;
+      return typedTag.asBagTag();
+    } else {
       throw new IllegalArgumentException("Unexpected StateTag " + combiningTag);
     }
-    // Checked above; conversion to a bag tag depends on the provided tag being one of those
-    // created via the factory methods in this class.
-    @SuppressWarnings("unchecked")
-    KeyedCombiningValueStateTag<K, InputT, AccumT, OutputT> typedTag =
-        (KeyedCombiningValueStateTag<K, InputT, AccumT, OutputT>) combiningTag;
-    return typedTag.asBagTag();
   }
 
   private static class StructuredId implements Serializable {
@@ -412,6 +418,10 @@ public class StateTags {
         StateKind kind) {
       return new KeyedCombiningValueWithContextStateTag<>(
           id.asKind(kind), accumCoder, combineFn);
+    }
+
+    private StateTag<Object, BagState<AccumT>> asBagTag() {
+      return new BagStateTag<AccumT>(id, accumCoder);
     }
   }
 
