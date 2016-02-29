@@ -20,12 +20,15 @@ import static org.junit.Assert.assertNotEquals;
 
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
+import com.google.cloud.dataflow.sdk.transforms.Combine.Holder;
 import com.google.cloud.dataflow.sdk.transforms.Max;
 import com.google.cloud.dataflow.sdk.transforms.Max.MaxIntegerFn;
 import com.google.cloud.dataflow.sdk.transforms.Min;
 import com.google.cloud.dataflow.sdk.transforms.Min.MinIntegerFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFns;
+import com.google.cloud.dataflow.sdk.util.CombineFnUtil;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -80,6 +83,7 @@ public class StateTagTest {
     assertEquals(bar, bar2);
   }
 
+  @SuppressWarnings({"unchecked", "rawtypes"})
   @Test
   public void testCombiningValueEquality() {
     MaxIntegerFn maxFn = new Max.MaxIntegerFn();
@@ -96,13 +100,74 @@ public class StateTagTest {
 
     // Same name, coder and combineFn
     assertEquals(fooCoder1Max1, fooCoder1Max2);
+    assertEquals(
+        StateTags.convertToBagTagInternal((StateTag) fooCoder1Max1),
+        StateTags.convertToBagTagInternal((StateTag) fooCoder1Max2));
+
     // Different combineFn, but we treat them as equal since we only serialize the bits.
     assertEquals(fooCoder1Max1, fooCoder1Min);
+    assertEquals(
+        StateTags.convertToBagTagInternal((StateTag) fooCoder1Max1),
+        StateTags.convertToBagTagInternal((StateTag) fooCoder1Min));
 
     // Different input coder coder.
     assertNotEquals(fooCoder1Max1, fooCoder2Max);
+    assertNotEquals(
+        StateTags.convertToBagTagInternal((StateTag) fooCoder1Max1),
+        StateTags.convertToBagTagInternal((StateTag) fooCoder2Max));
 
     // These StateTags have different IDs.
     assertNotEquals(fooCoder1Max1, barCoder1Max);
+    assertNotEquals(
+        StateTags.convertToBagTagInternal((StateTag) fooCoder1Max1),
+        StateTags.convertToBagTagInternal((StateTag) barCoder1Max));
+  }
+
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  @Test
+  public void testCombiningValueWithContextEquality() {
+    CoderRegistry registry = new CoderRegistry();
+    registry.registerStandardCoders();
+
+    MaxIntegerFn maxFn = new Max.MaxIntegerFn();
+    MinIntegerFn minFn = new Min.MinIntegerFn();
+
+    Coder<Holder<Integer>> accum1 = maxFn.getAccumulatorCoder(registry, VarIntCoder.of());
+    Coder<Holder<Integer>> accum2 = minFn.getAccumulatorCoder(registry, BigEndianIntegerCoder.of());
+
+    StateTag<?, ?> fooCoder1Max1 = StateTags.keyedCombiningValueWithContext(
+            "foo", accum1, CombineFnUtil.toFnWithContext(maxFn).<String>asKeyedFn());
+    StateTag<?, ?> fooCoder1Max2 = StateTags.keyedCombiningValueWithContext(
+        "foo", accum1, CombineFnUtil.toFnWithContext(maxFn).asKeyedFn());
+    StateTag<?, ?> fooCoder1Min = StateTags.keyedCombiningValueWithContext(
+        "foo", accum1, CombineFnUtil.toFnWithContext(minFn).asKeyedFn());
+
+    StateTag<?, ?> fooCoder2Max = StateTags.keyedCombiningValueWithContext(
+        "foo", accum2, CombineFnUtil.toFnWithContext(maxFn).asKeyedFn());
+    StateTag<?, ?> barCoder1Max = StateTags.keyedCombiningValueWithContext(
+        "bar", accum1, CombineFnUtil.toFnWithContext(maxFn).asKeyedFn());
+
+    // Same name, coder and combineFn
+    assertEquals(fooCoder1Max1, fooCoder1Max2);
+    assertEquals(
+        StateTags.convertToBagTagInternal((StateTag) fooCoder1Max1),
+        StateTags.convertToBagTagInternal((StateTag) fooCoder1Max2));
+    // Different combineFn, but we treat them as equal since we only serialize the bits.
+    assertEquals(fooCoder1Max1, fooCoder1Min);
+    assertEquals(
+        StateTags.convertToBagTagInternal((StateTag) fooCoder1Max1),
+        StateTags.convertToBagTagInternal((StateTag) fooCoder1Min));
+
+    // Different input coder coder.
+    assertNotEquals(fooCoder1Max1, fooCoder2Max);
+    assertNotEquals(
+        StateTags.convertToBagTagInternal((StateTag) fooCoder1Max1),
+        StateTags.convertToBagTagInternal((StateTag) fooCoder2Max));
+
+    // These StateTags have different IDs.
+    assertNotEquals(fooCoder1Max1, barCoder1Max);
+    assertNotEquals(
+        StateTags.convertToBagTagInternal((StateTag) fooCoder1Max1),
+        StateTags.convertToBagTagInternal((StateTag) barCoder1Max));
   }
 }
