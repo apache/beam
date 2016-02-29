@@ -29,6 +29,10 @@ import org.joda.time.Instant;
 import java.io.IOException;
 import java.io.Serializable;
 
+/**
+ * An implementation of Beam's {@link TimerInternals}, that also provides serialization functionality.
+ * The latter is used when snapshots of the current state are taken, for fault-tolerance.
+ * */
 public abstract class AbstractFlinkTimerInternals<K, VIN> implements TimerInternals, Serializable {
 
 	private TimerOrElement<WindowedValue<KV<K, VIN>>> element;

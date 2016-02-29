@@ -26,6 +26,10 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 
+/**
+ * This class groups the elements by key. It assumes that already the incoming stream
+ * is composed of <code>[Key,Value]</code> pairs.
+ * */
 public class FlinkGroupByKeyWrapper {
 
 	/**

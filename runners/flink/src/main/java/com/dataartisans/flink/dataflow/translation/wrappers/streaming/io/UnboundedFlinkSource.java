@@ -25,6 +25,10 @@ import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunctio
 import javax.annotation.Nullable;
 import java.util.List;
 
+/**
+ * A wrapper translating Flink Sources implementing the {@link RichParallelSourceFunction} interface, into
+ * unbounded Beam sources (see {@link UnboundedSource}).
+ * */
 public class UnboundedFlinkSource<T, C extends UnboundedSource.CheckpointMark> extends UnboundedSource<T, C> {
 
 	private final PipelineOptions options;

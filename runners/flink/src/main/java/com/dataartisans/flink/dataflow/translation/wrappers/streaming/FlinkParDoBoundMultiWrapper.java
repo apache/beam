@@ -28,6 +28,9 @@ import org.joda.time.Instant;
 
 import java.util.Map;
 
+/**
+ * A wrapper for the {@link com.google.cloud.dataflow.sdk.transforms.ParDo.BoundMulti} Beam transformation.
+ * */
 public class FlinkParDoBoundMultiWrapper<IN, OUT> extends FlinkAbstractParDoWrapper<IN, OUT, RawUnionValue> {
 
 	private final TupleTag<?> mainTag;
