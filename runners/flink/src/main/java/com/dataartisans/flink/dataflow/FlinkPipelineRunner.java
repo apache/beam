@@ -54,7 +54,7 @@ public class FlinkPipelineRunner extends PipelineRunner<FlinkRunnerResult> {
 	 */
 	private final FlinkPipelineOptions options;
 
-	private final FlinkJobExecutionEnvironment flinkJobEnv;
+	private final FlinkPipelineExecutionEnvironment flinkJobEnv;
 
 	/**
 	 * Construct a runner from the provided options.
@@ -103,7 +103,7 @@ public class FlinkPipelineRunner extends PipelineRunner<FlinkRunnerResult> {
 
 	private FlinkPipelineRunner(FlinkPipelineOptions options) {
 		this.options = options;
-		this.flinkJobEnv = new FlinkJobExecutionEnvironment(options);
+		this.flinkJobEnv = new FlinkPipelineExecutionEnvironment(options);
 	}
 
 	@Override
@@ -118,7 +118,7 @@ public class FlinkPipelineRunner extends PipelineRunner<FlinkRunnerResult> {
 		
 		JobExecutionResult result;
 		try {
-			result = this.flinkJobEnv.executeJob();
+			result = this.flinkJobEnv.executePipeline();
 		} catch (Exception e) {
 			LOG.error("Pipeline execution failed", e);
 			throw new RuntimeException("Pipeline execution failed", e);

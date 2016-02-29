@@ -69,7 +69,6 @@ public class FlinkStreamingTransformTranslators {
 
 	// here you can find all the available translators.
 	static {
-
 		TRANSLATORS.put(Create.Values.class, new CreateStreamingTranslator());
 		TRANSLATORS.put(Read.Unbounded.class, new UnboundedReadSourceTranslator());
 		TRANSLATORS.put(ParDo.Bound.class, new ParDoBoundStreamingTranslator());
@@ -79,7 +78,6 @@ public class FlinkStreamingTransformTranslators {
 		TRANSLATORS.put(Combine.PerKey.class, new CombinePerKeyTranslator());
 		TRANSLATORS.put(Flatten.FlattenPCollectionList.class, new FlattenPCollectionTranslator());
 		TRANSLATORS.put(ParDo.BoundMulti.class, new ParDoBoundMultiStreamingTranslator());
-
 	}
 
 	public static FlinkStreamingPipelineTranslator.StreamTransformTranslator<?> getTranslator(PTransform<?, ?> transform) {

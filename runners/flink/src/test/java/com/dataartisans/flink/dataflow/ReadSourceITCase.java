@@ -61,7 +61,7 @@ public class ReadSourceITCase extends JavaProgramTestBase {
 
 	private static void runProgram(String resultPath) {
 
-		Pipeline p = FlinkTestPipeline.create();
+		Pipeline p = FlinkTestPipeline.createForBatch();
 
 		PCollection<String> result = p
 				.apply(Read.from(new ReadSource(1, 10)))

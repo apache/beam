@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dataartisans.flink.dataflow;
+package com.dataartisans.flink.dataflow.streaming;
 
+import com.dataartisans.flink.dataflow.FlinkTestPipeline;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.io.TextIO;
@@ -66,7 +67,7 @@ public class TopWikipediaSessionsITCase extends StreamingProgramTestBase impleme
 	@Override
 	protected void testProgram() throws Exception {
 
-		Pipeline p = FlinkTestPipeline.createStreaming();
+		Pipeline p = FlinkTestPipeline.createForStreaming();
 
 		long now = System.currentTimeMillis() + 10000;
 		System.out.println((now + 5000) / 1000);

@@ -99,6 +99,9 @@ public class WindowedWordCount {
 		options.setStreaming(true);
 		options.setWindowSize(10L);
 		options.setSlide(5L);
+		options.setCheckpointingInterval(1000L);
+		options.setNumberOfExecutionRetries(5);
+		options.setExecutionRetryDelay(3000L);
 		options.setRunner(FlinkPipelineRunner.class);
 
 		LOG.info("Windpwed WordCount with Sliding Windows of " + options.getWindowSize() +

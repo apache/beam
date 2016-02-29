@@ -53,7 +53,7 @@ public class TfIdfITCase extends JavaProgramTestBase {
 	@Override
 	protected void testProgram() throws Exception {
 
-		Pipeline pipeline = FlinkTestPipeline.create();
+		Pipeline pipeline = FlinkTestPipeline.createForBatch();
 
 		pipeline.getCoderRegistry().registerCoder(URI.class, StringDelegateCoder.of(URI.class));
 

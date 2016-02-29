@@ -238,9 +238,7 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
 				this.operator = StreamingGroupAlsoByWindowsDoFn.createForIterable(
 						this.windowingStrategy, inputValueCoder);
 			} else {
-
 				Coder<K> inputKeyCoder = inputKvCoder.getKeyCoder();
-				//CoderRegistry dataflowRegistry = input.getPipeline().getCoderRegistry();
 
 				AppliedCombineFn<K, VIN, VACC, VOUT> appliedCombineFn = AppliedCombineFn
 						.withInputCoder(combineFn, coderRegistry, inputKvCoder);

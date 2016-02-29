@@ -51,7 +51,7 @@ public class FlattenizeITCase extends JavaProgramTestBase {
 
 	@Override
 	protected void testProgram() throws Exception {
-		Pipeline p = FlinkTestPipeline.create();
+		Pipeline p = FlinkTestPipeline.createForBatch();
 
 		PCollection<String> p1 = p.apply(Create.of(words));
 		PCollection<String> p2 = p.apply(Create.of(words2));

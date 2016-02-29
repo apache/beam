@@ -56,14 +56,14 @@ public class AvroITCase extends JavaProgramTestBase {
 	}
 
 	private static void runProgram(String tmpPath, String resultPath) {
-		Pipeline p = FlinkTestPipeline.create();
+		Pipeline p = FlinkTestPipeline.createForBatch();
 
 		p.apply(Create.of(new User("Joe", 3, "red"), new User("Mary", 4, "blue")).withCoder(AvroCoder.of(User.class)))
 				.apply(AvroIO.Write.to(tmpPath).withSchema(User.class));
 
 		p.run();
 
-		p = FlinkTestPipeline.create();
+		p = FlinkTestPipeline.createForBatch();
 
 		p.apply(AvroIO.Read.from(tmpPath).withSchema(User.class))
 				.apply(ParDo.of(new DoFn<User, String>() {
