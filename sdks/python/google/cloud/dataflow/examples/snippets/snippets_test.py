@@ -321,6 +321,26 @@ class SnippetsTest(unittest.TestCase):
     # sinks can be built.
     self.assertEqual(None, snippets.model_bigqueryio())
 
+  def test_model_pipeline_options(self):
+    temp_path = self.create_temp_file('aa\nbb\ncc')
+    result_path = temp_path + '.result'
+    snippets.model_pipeline_options([
+        '--input=%s*' % temp_path,
+        '--output=%s' % result_path])
+    self.assertEqual(
+        ['aa', 'bb', 'cc'],
+        self.get_output(result_path))
+
+  def test_model_pipeline_without_pipeline_options(self):
+    temp_path = self.create_temp_file('aa\nbb\ncc')
+    result_path = temp_path + '.result'
+    snippets.model_pipeline_without_pipeline_options([
+        '--input=%s*' % temp_path,
+        '--output=%s' % result_path])
+    self.assertEqual(
+        ['aa', 'bb', 'cc'],
+        self.get_output(result_path))
+
   def test_model_composite_transform_example(self):
     contents = ['aa bb cc', 'bb cc', 'cc']
     result_path = self.create_temp_file()

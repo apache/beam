@@ -187,6 +187,74 @@ def model_pcollection(argv):
   # [END model_pcollection]
 
 
+def model_pipeline_options(argv):
+  """"Creating a Pipeline using a PipelineOptions object.
+
+  URL: https://cloud.google.com/dataflow/pipelines/specifying-exec-params
+  """
+
+  # [START model_pipeline_options_create]
+  from google.cloud.dataflow import Pipeline
+  from google.cloud.dataflow.utils.options import PipelineOptions
+
+  options = PipelineOptions(flags=argv)
+  # [END model_pipeline_options_create]
+
+  # [START model_pipeline_options_define_custom]
+  class MyOptions(PipelineOptions):
+
+    @classmethod
+    def _add_argparse_args(cls, parser):
+      parser.add_argument('--input')
+      parser.add_argument('--output')
+
+  my_options = options.view_as(MyOptions)
+
+  my_input = my_options.input
+  my_output = my_options.output
+  # [END model_pipeline_options_define_custom]
+
+  # [START model_pipeline_options_dataflow_service]
+  from google.cloud.dataflow.utils.options import GoogleCloudOptions
+  from google.cloud.dataflow.utils.options import StandardOptions
+
+  google_cloud_options = options.view_as(GoogleCloudOptions)
+  google_cloud_options.project = 'my-project-id'
+  google_cloud_options.staging_location = 'gs://my-bucket/binaries'
+  options.view_as(StandardOptions).runner = 'DirectPipelineRunner'
+  # [END model_pipeline_options_dataflow_service]
+
+  # [START model_pipeline_options_create_pipeline]
+  p = Pipeline(options=options)
+  lines = p | df.io.Read('ReadFromText', df.io.TextFileSource(my_input))
+  lines | df.io.Write('WriteToText', df.io.TextFileSink(my_output))
+
+  p.run()
+  # [END model_pipeline_options_create_pipeline]
+
+
+def model_pipeline_without_pipeline_options(argv):
+  """"Creating a Pipeline by passing a list of arguments.
+
+  URL: https://cloud.google.com/dataflow/pipelines/specifying-exec-params
+  """
+
+  # [START model_pipeline_without_pipeline_options]
+  import argparse
+
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--input')
+  parser.add_argument('--output')
+  known_args, pipeline_args = parser.parse_known_args(argv)
+
+  p = df.Pipeline(argv=pipeline_args)
+  lines = p | df.io.Read('ReadFromText', df.io.TextFileSource(known_args.input))
+  lines | df.io.Write('WriteToText', df.io.TextFileSink(known_args.output))
+
+  p.run()
+  # [END model_pipeline_without_pipeline_options]
+
+
 def model_textio(renames):
   """Using a Read and Write transform to read/write text files.
 
