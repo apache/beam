@@ -22,6 +22,13 @@ import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.values.PValue;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
+/**
+ * This is a {@link FlinkPipelineTranslator} for streaming jobs. Its role is to translate the user-provided
+ * {@link com.google.cloud.dataflow.sdk.values.PCollection}-based job into a
+ * {@link org.apache.flink.streaming.api.datastream.DataStream} one.
+ *
+ * This is based on {@link com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator}
+ * */
 public class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
 
 	/** The necessary context in the case of a straming job. */
@@ -107,14 +114,16 @@ public class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
 		@SuppressWarnings("unchecked")
 		StreamTransformTranslator<T> typedTranslator = (StreamTransformTranslator<T>) translator;
 
-		// create the applied PTransform on the batchContext
+		// create the applied PTransform on the streamingContext
 		streamingContext.setCurrentTransform(AppliedPTransform.of(
 				node.getFullName(), node.getInput(), node.getOutput(), (PTransform) transform));
 		typedTranslator.translateNode(typedTransform, streamingContext);
 	}
 
 	/**
-	 * A translator of a {@link PTransform}.
+	 * The interface that every Flink translator of a Beam operator should implement.
+	 * This interface is for <b>streaming</b> jobs. For examples of such translators see
+	 * {@link FlinkStreamingTransformTranslators}.
 	 */
 	public interface StreamTransformTranslator<Type extends PTransform> {
 		void translateNode(Type transform, FlinkStreamingTranslationContext context);

@@ -17,6 +17,10 @@ package com.dataartisans.flink.dataflow.translation.wrappers.streaming.state;
 
 import java.io.IOException;
 
+/**
+ * The available types of state, as provided by the Beam SDK. This class is used for serialization/deserialization
+ * purposes.
+ * */
 public enum StateType {
 
 	VALUE(0),

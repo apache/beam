@@ -28,6 +28,10 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.*;
 
+/**
+ * An implementation of the Beam {@link MergingStateInternals}. This implementation simply keeps elements in memory.
+ * This state is periodically checkpointed by Flink, for fault-tolerance.
+ * */
 public class FlinkStateInternals<K> extends MergingStateInternals {
 
 	private final K key;

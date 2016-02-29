@@ -30,8 +30,13 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.joda.time.Instant;
 
-import java.util.Collection;
-
+/**
+ * A wrapper for Beam's unbounded sources. This class wraps around a source implementing the {@link com.google.cloud.dataflow.sdk.io.Read.Unbounded}
+ * interface.
+ *
+ *</p>
+ * For now we support non-parallel, not checkpointed sources.
+ * */
 public class UnboundedSourceWrapper<T> extends RichSourceFunction<WindowedValue<T>> implements EventTimeSourceFunction<WindowedValue<T>>, Triggerable {
 
 	private final String name;

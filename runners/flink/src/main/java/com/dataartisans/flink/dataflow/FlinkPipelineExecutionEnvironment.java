@@ -30,6 +30,14 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
+/**
+ * The class that instantiates and manages the execution of a given job.
+ * Depending on if the job is a Streaming or Batch processing one, it creates
+ * the adequate execution environment ({@link ExecutionEnvironment} or {@link StreamExecutionEnvironment}),
+ * the necessary {@link FlinkPipelineTranslator} ({@link FlinkBatchPipelineTranslator} or
+ * {@link FlinkStreamingPipelineTranslator})to transform the Beam job into a Flink one, and
+ * executes the (translated) job.
+ */
 public class FlinkPipelineExecutionEnvironment {
 
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkPipelineExecutionEnvironment.class);

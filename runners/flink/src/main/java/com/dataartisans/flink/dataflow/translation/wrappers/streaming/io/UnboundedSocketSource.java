@@ -36,6 +36,9 @@ import java.util.NoSuchElementException;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+/**
+ * An example unbounded Beam source that reads input from a socket. This is used mainly for testing and debugging.
+ * */
 public class UnboundedSocketSource<C extends UnboundedSource.CheckpointMark> extends UnboundedSource<String, C> {
 
 	private static final Coder<String> DEFAULT_SOCKET_CODER = StringUtf8Coder.of();

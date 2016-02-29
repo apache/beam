@@ -52,11 +52,10 @@ import java.io.IOException;
 import java.util.*;
 
 /**
- * <p>
- * Coder<?> entryCoder = pCollection.getCoder();
- * if (!(entryCoder instanceof KvCoder<?, ?>)) {
- * throw new IllegalArgumentException("PCollection does not use a KvCoder");
- * }
+ * This class contains all the mappings between Beam and Flink
+ * <b>streaming</b> transformations. The {@link FlinkStreamingPipelineTranslator}
+ * traverses the Beam job and comes here to translate the encountered Beam transformations
+ * into Flink one, based on the mapping available in this class.
  */
 public class FlinkStreamingTransformTranslators {
 
