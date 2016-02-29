@@ -19,7 +19,8 @@ package com.google.cloud.dataflow.sdk.io;
 
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertThat;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.io.CountingInput.UnboundedCountingInput;
@@ -94,6 +95,27 @@ public class CountingInputTest {
 
     addCountingAsserts(input, numElements);
     p.run();
+  }
+
+  @Test
+  public void testUnboundedInputRate() {
+    Pipeline p = TestPipeline.create();
+    long numElements = 5000;
+
+    long elemsPerPeriod = 10L;
+    Duration periodLength = Duration.millis(8);
+    PCollection<Long> input =
+        p.apply(
+            CountingInput.unbounded()
+                .withRate(elemsPerPeriod, periodLength)
+                .withMaxNumRecords(numElements));
+
+    addCountingAsserts(input, numElements);
+    long expectedRuntimeMillis = (periodLength.getMillis() * numElements) / elemsPerPeriod;
+    Instant startTime = Instant.now();
+    p.run();
+    Instant endTime = Instant.now();
+    assertThat(endTime.isAfter(startTime.plus(expectedRuntimeMillis)), is(true));
   }
 
   private static class ElementValueDiff extends DoFn<Long, Long> {
