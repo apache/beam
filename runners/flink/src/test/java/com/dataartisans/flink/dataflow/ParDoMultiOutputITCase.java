@@ -47,7 +47,7 @@ public class ParDoMultiOutputITCase extends JavaProgramTestBase implements Seria
 
 	@Override
 	protected void testProgram() throws Exception {
-		Pipeline p = FlinkTestPipeline.create();
+		Pipeline p = FlinkTestPipeline.createForBatch();
 
 		PCollection<String> words = p.apply(Create.of("Hello", "Whatupmyman", "hey", "SPECIALthere", "MAAA", "MAAFOOO"));
 

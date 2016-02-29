@@ -116,10 +116,10 @@ public abstract class FlinkAbstractParDoWrapper<IN, OUTDF, OUTFL> extends RichFl
 
 		@Override
 		public BoundedWindow window() {
-//			if (!(fn instanceof DoFn.RequiresWindowAccess)) {
-//				throw new UnsupportedOperationException(
-//						"window() is only available in the context of a DoFn marked as RequiresWindow.");
-//			}
+			if (!(fn instanceof DoFn.RequiresWindowAccess)) {
+				throw new UnsupportedOperationException(
+						"window() is only available in the context of a DoFn marked as RequiresWindow.");
+			}
 
 			Collection<? extends BoundedWindow> windows = this.element.getWindows();
 			if (windows.size() != 1) {
@@ -211,7 +211,7 @@ public abstract class FlinkAbstractParDoWrapper<IN, OUTDF, OUTFL> extends RichFl
 					@Override
 					public Object element() {
 						throw new UnsupportedOperationException(
-								"WindowFn attempted to access input element when none was available"); // TODO: 12/16/15 aljoscha's comment in slack
+								"WindowFn attempted to access input element when none was available");
 					}
 
 					@Override

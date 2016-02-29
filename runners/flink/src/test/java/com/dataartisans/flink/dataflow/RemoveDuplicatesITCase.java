@@ -53,7 +53,7 @@ public class RemoveDuplicatesITCase extends JavaProgramTestBase {
 
 		List<String> strings = Arrays.asList("k1", "k5", "k5", "k2", "k1", "k2", "k3");
 
-		Pipeline p = FlinkTestPipeline.create();
+		Pipeline p = FlinkTestPipeline.createForBatch();
 
 		PCollection<String> input =
 				p.apply(Create.of(strings))

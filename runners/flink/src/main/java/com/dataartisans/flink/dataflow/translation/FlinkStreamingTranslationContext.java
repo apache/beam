@@ -18,7 +18,10 @@ package com.dataartisans.flink.dataflow.translation;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
-import com.google.cloud.dataflow.sdk.values.*;
+import com.google.cloud.dataflow.sdk.values.PInput;
+import com.google.cloud.dataflow.sdk.values.POutput;
+import com.google.cloud.dataflow.sdk.values.PValue;
+import com.google.common.base.Preconditions;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
@@ -40,8 +43,8 @@ public class FlinkStreamingTranslationContext {
 	private AppliedPTransform<?, ?, ?> currentTransform;
 
 	public FlinkStreamingTranslationContext(StreamExecutionEnvironment env, PipelineOptions options) {
-		this.env = env;
-		this.options = options;
+		this.env = Preconditions.checkNotNull(env);
+		this.options = Preconditions.checkNotNull(options);
 		this.dataStreams = new HashMap<>();
 	}
 

@@ -38,7 +38,7 @@ public class UnboundedSourceWrapper<T> extends RichSourceFunction<WindowedValue<
 	private final UnboundedSource.UnboundedReader<T> reader;
 
 	private StreamingRuntimeContext runtime = null;
-	private StreamSource.ManualWatermarkContext<T> context = null;
+	private StreamSource.ManualWatermarkContext<WindowedValue<T>> context = null;
 
 	private volatile boolean isRunning = false;
 
@@ -51,8 +51,7 @@ public class UnboundedSourceWrapper<T> extends RichSourceFunction<WindowedValue<
 		return this.name;
 	}
 
-	WindowedValue<T> makeWindowedValue(
-			T output, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo pane) {
+	WindowedValue<T> makeWindowedValue(T output, Instant timestamp) {
 		if (timestamp == null) {
 			timestamp = BoundedWindow.TIMESTAMP_MIN_VALUE;
 		}
@@ -66,7 +65,7 @@ public class UnboundedSourceWrapper<T> extends RichSourceFunction<WindowedValue<
 					"Apparently " + this.name + " is not. Probably you should consider writing your own Wrapper for this source.");
 		}
 
-		context = (StreamSource.ManualWatermarkContext<T>) ctx;
+		context = (StreamSource.ManualWatermarkContext<WindowedValue<T>>) ctx;
 		runtime = (StreamingRuntimeContext) getRuntimeContext();
 
 		this.isRunning = reader.start();
@@ -78,11 +77,9 @@ public class UnboundedSourceWrapper<T> extends RichSourceFunction<WindowedValue<
 			T item = reader.getCurrent();
 			Instant timestamp = reader.getCurrentTimestamp();
 
-			long milliseconds = timestamp.getMillis();
-
 			// write it to the output collector
 			synchronized (ctx.getCheckpointLock()) {
-				ctx.collectWithTimestamp(makeWindowedValue(item, timestamp, null, PaneInfo.NO_FIRING), milliseconds);
+				context.collectWithTimestamp(makeWindowedValue(item, timestamp), timestamp.getMillis());
 			}
 
 			// try to go to the next record

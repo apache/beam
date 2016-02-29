@@ -84,7 +84,7 @@ public class JoinExamplesITCase extends JavaProgramTestBase {
 	@Override
 	protected void testProgram() throws Exception {
 
-		Pipeline p = FlinkTestPipeline.create();
+		Pipeline p = FlinkTestPipeline.createForBatch();
 
 		PCollection<TableRow> input1 = p.apply(Create.of(EVENT_ARRAY));
 		PCollection<TableRow> input2 = p.apply(Create.of(CC_ARRAY));

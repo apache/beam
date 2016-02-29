@@ -58,7 +58,7 @@ public class WordCountITCase extends JavaProgramTestBase {
 	@Override
 	protected void testProgram() throws Exception {
 
-		Pipeline p = FlinkTestPipeline.create();
+		Pipeline p = FlinkTestPipeline.createForBatch();
 
 		PCollection<String> input = p.apply(Create.of(WORDS)).setCoder(StringUtf8Coder.of());
 

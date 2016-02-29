@@ -22,6 +22,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.util.Collector;
+import org.joda.time.Instant;
 
 import java.io.ByteArrayInputStream;
 import java.util.List;
@@ -44,17 +45,15 @@ public class FlinkStreamingCreateFunction<IN, OUT> implements FlatMapFunction<IN
 	public void flatMap(IN value, Collector<WindowedValue<OUT>> out) throws Exception {
 
 		@SuppressWarnings("unchecked")
-		// TODO Flink doesn't allow null values in records
 		OUT voidValue = (OUT) VoidCoderTypeSerializer.VoidValue.INSTANCE;
-
 		for (byte[] element : elements) {
 			ByteArrayInputStream bai = new ByteArrayInputStream(element);
 			OUT outValue = coder.decode(bai, Coder.Context.OUTER);
 
 			if (outValue == null) {
-				out.collect(WindowedValue.of(voidValue, GlobalWindow.TIMESTAMP_MIN_VALUE, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
+				out.collect(WindowedValue.of(voidValue, Instant.now(), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
 			} else {
-				out.collect(WindowedValue.of(outValue, GlobalWindow.TIMESTAMP_MIN_VALUE, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
+				out.collect(WindowedValue.of(outValue, Instant.now(), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
 			}
 		}
 	}

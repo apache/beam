@@ -124,9 +124,10 @@ public class JoinExamples {
 
 	public static void main(String[] args) throws Exception {
 		Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
-
-		// make it a streaming example.
 		options.setStreaming(true);
+		options.setCheckpointingInterval(1000L);
+		options.setNumberOfExecutionRetries(5);
+		options.setExecutionRetryDelay(3000L);
 		options.setRunner(FlinkPipelineRunner.class);
 
 		PTransform<? super PBegin, PCollection<String>> readSourceA =

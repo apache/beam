@@ -80,7 +80,7 @@ public class WordCountJoin3ITCase extends JavaProgramTestBase {
 	@Override
 	protected void testProgram() throws Exception {
 
-		Pipeline p = FlinkTestPipeline.create();
+		Pipeline p = FlinkTestPipeline.createForBatch();
 
 		/* Create two PCollections and join them */
 		PCollection<KV<String,Long>> occurences1 = p.apply(Create.of(WORDS_1))

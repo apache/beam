@@ -63,7 +63,7 @@ public class WriteSinkITCase extends JavaProgramTestBase {
 	}
 
 	private static void runProgram(String resultPath) {
-		Pipeline p = FlinkTestPipeline.create();
+		Pipeline p = FlinkTestPipeline.createForBatch();
 
 		p.apply(Create.of(EXPECTED_RESULT)).setCoder(StringUtf8Coder.of())
 			.apply("CustomSink", Write.to(new MyCustomSink(resultPath)));

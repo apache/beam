@@ -36,7 +36,7 @@ public class SideInputITCase extends JavaProgramTestBase implements Serializable
 	protected void testProgram() throws Exception {
 
 
-		Pipeline p = FlinkTestPipeline.create();
+		Pipeline p = FlinkTestPipeline.createForBatch();
 
 
 		final PCollectionView<String> sidesInput = p

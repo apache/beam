@@ -47,7 +47,7 @@ public class MaybeEmptyTestITCase extends JavaProgramTestBase implements Seriali
 	@Override
 	protected void testProgram() throws Exception {
 
-		Pipeline p = FlinkTestPipeline.create();
+		Pipeline p = FlinkTestPipeline.createForBatch();
 
 		p.apply(Create.of((Void) null)).setCoder(VoidCoder.of())
 				.apply(ParDo.of(

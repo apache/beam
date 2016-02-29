@@ -52,7 +52,7 @@ public class RemoveDuplicatesEmptyITCase extends JavaProgramTestBase {
 
 		List<String> strings = Collections.emptyList();
 
-		Pipeline p = FlinkTestPipeline.create();
+		Pipeline p = FlinkTestPipeline.createForBatch();
 
 		PCollection<String> input =
 				p.apply(Create.of(strings))

@@ -19,6 +19,7 @@ import com.dataartisans.flink.dataflow.translation.FlinkPipelineTranslator;
 import com.dataartisans.flink.dataflow.translation.FlinkBatchPipelineTranslator;
 import com.dataartisans.flink.dataflow.translation.FlinkStreamingPipelineTranslator;
 import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.CollectionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -29,9 +30,9 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
-public class FlinkJobExecutionEnvironment {
+public class FlinkPipelineExecutionEnvironment {
 
-	private static final Logger LOG = LoggerFactory.getLogger(FlinkJobExecutionEnvironment.class);
+	private static final Logger LOG = LoggerFactory.getLogger(FlinkPipelineExecutionEnvironment.class);
 
 	private final FlinkPipelineOptions options;
 
@@ -49,50 +50,51 @@ public class FlinkJobExecutionEnvironment {
 	 * The Flink Streaming execution environment. This is instantiated to either a
 	 * {@link org.apache.flink.streaming.api.environment.LocalStreamEnvironment} or
 	 * a {@link org.apache.flink.streaming.api.environment.RemoteStreamEnvironment}, depending
-	 * on the configuration options, and more specifically, the url of the master url.
+	 * on the configuration options, and more specifically, the url of the master.
 	 */
 	private StreamExecutionEnvironment flinkStreamEnv;
 
 	/**
-	 * Translator for this FlinkPipelineRunner. Its role is to translate the Dataflow operators to
-	 * their Flink based counterparts. Based on the options provided by the user, if we have a streaming job,
-	 * this is instantiated to a FlinkStreamingPipelineTranslator. In other case, i.e. a batch job,
-	 * a FlinkBatchPipelineTranslator is created.
+	 * Translator for this FlinkPipelineRunner. Its role is to translate the Beam operators to
+	 * their Flink counterparts. Based on the options provided by the user, if we have a streaming job,
+	 * this is instantiated as a {@link FlinkStreamingPipelineTranslator}. In other case, i.e. a batch job,
+	 * a {@link FlinkBatchPipelineTranslator} is created.
 	 */
 	private FlinkPipelineTranslator flinkPipelineTranslator;
 
-	public FlinkJobExecutionEnvironment(FlinkPipelineOptions options) {
-		if (options == null) {
-			throw new IllegalArgumentException("Options in the FlinkJobExecutionEnvironment cannot be NULL.");
-		}
-		this.options = options;
-		this.createJobEnvironment();
-		this.createJobGraphTranslator();
+	/**
+	 * Creates a {@link FlinkPipelineExecutionEnvironment} with the user-specified parameters in the
+	 * provided {@link FlinkPipelineOptions}.
+	 *
+	 * @param options the user-defined pipeline options.
+	 * */
+	public FlinkPipelineExecutionEnvironment(FlinkPipelineOptions options) {
+		this.options = Preconditions.checkNotNull(options);
+		this.createPipelineExecutionEnvironment();
+		this.createPipelineTranslator();
 	}
 
 	/**
 	 * Depending on the type of job (Streaming or Batch) and the user-specified options,
 	 * this method creates the adequate ExecutionEnvironment.
 	 */
-	private void createJobEnvironment() {
+	private void createPipelineExecutionEnvironment() {
 		if (options.isStreaming()) {
-			LOG.info("Creating the required STREAMING Environment.");
 			createStreamExecutionEnvironment();
 		} else {
-			LOG.info("Creating the required BATCH Environment.");
 			createBatchExecutionEnvironment();
 		}
 	}
 
 	/**
 	 * Depending on the type of job (Streaming or Batch), this method creates the adequate job graph
-	 * translator. In the case of batch, it will work with DataSets, while for streaming, it will work
-	 * with DataStreams.
+	 * translator. In the case of batch, it will work with {@link org.apache.flink.api.java.DataSet},
+	 * while for streaming, it will work with {@link org.apache.flink.streaming.api.datastream.DataStream}.
 	 */
-	private void createJobGraphTranslator() {
+	private void createPipelineTranslator() {
 		checkInitializationState();
 		if (this.flinkPipelineTranslator != null) {
-			throw new IllegalStateException("JobGraphTranslator already initialized.");
+			throw new IllegalStateException("FlinkPipelineTranslator already initialized.");
 		}
 
 		this.flinkPipelineTranslator = options.isStreaming() ?
@@ -100,35 +102,42 @@ public class FlinkJobExecutionEnvironment {
 				new FlinkBatchPipelineTranslator(flinkBatchEnv, options);
 	}
 
+	/**
+	 * Depending on if the job is a Streaming or a Batch one, this method creates
+	 * the necessary execution environment and pipeline translator, and translates
+	 * the {@link com.google.cloud.dataflow.sdk.values.PCollection} program into
+	 * a {@link org.apache.flink.api.java.DataSet} or {@link org.apache.flink.streaming.api.datastream.DataStream}
+	 * one.
+	 * */
 	public void translate(Pipeline pipeline) {
 		checkInitializationState();
 		if(this.flinkBatchEnv == null && this.flinkStreamEnv == null) {
-			createJobEnvironment();
+			createPipelineExecutionEnvironment();
 		}
 		if (this.flinkPipelineTranslator == null) {
-			createJobGraphTranslator();
+			createPipelineTranslator();
 		}
 		this.flinkPipelineTranslator.translate(pipeline);
 	}
 
-	public JobExecutionResult executeJob() throws Exception {
+	/**
+	 * Launches the program execution.
+	 * */
+	public JobExecutionResult executePipeline() throws Exception {
 		if (options.isStreaming()) {
-
-			System.out.println("Plan: " + this.flinkStreamEnv.getExecutionPlan());
-
 			if (this.flinkStreamEnv == null) {
-				throw new RuntimeException("JobExecutionEnvironment not initialized.");
+				throw new RuntimeException("FlinkPipelineExecutionEnvironment not initialized.");
 			}
 			if (this.flinkPipelineTranslator == null) {
-				throw new RuntimeException("JobGraphTranslator not initialized.");
+				throw new RuntimeException("FlinkPipelineTranslator not initialized.");
 			}
 			return this.flinkStreamEnv.execute();
 		} else {
 			if (this.flinkBatchEnv == null) {
-				throw new RuntimeException("JobExecutionEnvironment not initialized.");
+				throw new RuntimeException("FlinkPipelineExecutionEnvironment not initialized.");
 			}
 			if (this.flinkPipelineTranslator == null) {
-				throw new RuntimeException("JobGraphTranslator not initialized.");
+				throw new RuntimeException("FlinkPipelineTranslator not initialized.");
 			}
 			return this.flinkBatchEnv.execute();
 		}
@@ -141,8 +150,10 @@ public class FlinkJobExecutionEnvironment {
 	 */
 	private void createBatchExecutionEnvironment() {
 		if (this.flinkStreamEnv != null || this.flinkBatchEnv != null) {
-			throw new RuntimeException("JobExecutionEnvironment already initialized.");
+			throw new RuntimeException("FlinkPipelineExecutionEnvironment already initialized.");
 		}
+
+		LOG.info("Creating the required Batch Execution Environment.");
 
 		String masterUrl = options.getFlinkMaster();
 		this.flinkStreamEnv = null;
@@ -181,8 +192,10 @@ public class FlinkJobExecutionEnvironment {
 	 */
 	private void createStreamExecutionEnvironment() {
 		if (this.flinkStreamEnv != null || this.flinkBatchEnv != null) {
-			throw new RuntimeException("JobExecutionEnvironment already initialized.");
+			throw new RuntimeException("FlinkPipelineExecutionEnvironment already initialized.");
 		}
+
+		LOG.info("Creating the required Streaming Environment.");
 
 		String masterUrl = options.getFlinkMaster();
 		this.flinkBatchEnv = null;
@@ -213,21 +226,26 @@ public class FlinkJobExecutionEnvironment {
 		// although we do not use the generated timestamps,
 		// enabling timestamps is needed for the watermarks.
 		this.flinkStreamEnv.getConfig().enableTimestamps();
-
 		this.flinkStreamEnv.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
-		this.flinkStreamEnv.enableCheckpointing(1000);
-		this.flinkStreamEnv.setNumberOfExecutionRetries(5);
+		// for the following 2 parameters, a value of -1 means that Flink will use
+		// the default values as specified in the configuration.
+		this.flinkStreamEnv.setNumberOfExecutionRetries(options.getNumberOfExecutionRetries());
+		this.flinkStreamEnv.getConfig().setExecutionRetryDelay(options.getExecutionRetryDelay());
 
-		LOG.info("Setting execution retry delay to 3 sec");
-		this.flinkStreamEnv.getConfig().setExecutionRetryDelay(3000);
+		// A value of -1 corresponds to disabled checkpointing (see CheckpointConfig in Flink).
+		// If the value is not -1, then the validity checks are applied.
+		// By default, checkpointing is disabled.
+		long checkpointInterval = options.getCheckpointingInterval();
+		if(checkpointInterval != -1) {
+			if (checkpointInterval < 1) {
+				throw new IllegalArgumentException("The checkpoint interval must be positive");
+			}
+			this.flinkStreamEnv.enableCheckpointing(checkpointInterval);
+		}
 	}
 
 	private void checkInitializationState() {
-		if (this.options == null) {
-			throw new IllegalStateException("FlinkJobExecutionEnvironment is not initialized yet.");
-		}
-
 		if (options.isStreaming() && this.flinkBatchEnv != null) {
 			throw new IllegalStateException("Attempted to run a Streaming Job with a Batch Execution Environment.");
 		} else if (!options.isStreaming() && this.flinkStreamEnv != null) {
