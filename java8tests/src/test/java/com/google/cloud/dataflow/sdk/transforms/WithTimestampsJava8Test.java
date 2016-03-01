@@ -63,4 +63,3 @@ public class WithTimestampsJava8Test implements Serializable {
             KV.of(yearTwoThousand, new Instant(Long.valueOf(yearTwoThousand))));
   }
 }
-

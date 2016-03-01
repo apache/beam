@@ -96,4 +96,3 @@ public class RemoveDuplicatesJava8Test {
         RemoveDuplicates.withRepresentativeValueFn((String s) -> s.length()));
   }
 }
-
