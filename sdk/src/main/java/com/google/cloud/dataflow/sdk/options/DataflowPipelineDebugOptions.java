@@ -175,7 +175,6 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
    * 
    * @deprecated This property is replaced by @{link DataflowPipelineOptions#getUpdate()}
    */
-  @JsonIgnore
   @Deprecated
   @Description("If set, replace the existing pipeline with the name specified by --jobName with "
       + "this pipeline, preserving state.")
