@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Apache Beam (incubating)</title>
+  <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
+">
+
+  <link rel="stylesheet" href="/styles/site.css">
+  <link rel="stylesheet" href="/css/theme.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
+  <script src="/js/bootstrap.min.js"></script>
+  <link rel="canonical" href="http://beam.incubator.apache.org/">
+  <link rel="alternate" type="application/rss+xml" title="Apache Beam (incubating)" href="http://beam.incubator.apache.org/feed.xml">
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-73650088-1', 'auto');
+    ga('send', 'pageview');
+
+  </script>
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
+</head>
+
+
+  <body role="document">
+
+    <nav class="navbar navbar-default navbar-fixed-top">
+  <div class="container">
+    <div class="navbar-header">
+      <a href="/" class="navbar-brand" >
+        <img alt="Brand" src="/images/beam_logo_navbar.png">
+      </a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Documentation <span class="caret"></span></a>
+          <ul class="dropdown-menu">
+            <li><a href="/getting_started/">Getting Started</a></li>
+            <li><a href="https://goo.gl/ps8twC">Technical Docs</a></li>
+            <li><a href="https://goo.gl/nk5OM0">Technical Vision</a></li>
+          </ul>
+        </li>
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Community <span class="caret"></span></a>
+          <ul class="dropdown-menu">
+            <li class="dropdown-header">Community</li>
+            <li><a href="/mailing_lists/">Mailing Lists</a></li>
+            <li><a href="https://goo.gl/ps8twC">Technical Docs</a></li>
+            <li><a href="https://goo.gl/nk5OM0">Technical Vision</a></li>
+            <li><a href="/team/">Apache Beam Team</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Contribute</li>
+            <li><a href="/source_repository/">Source Repository</a></li>
+            <li><a href="/issue_tracking/">Issue Tracking</a></li>
+          </ul>
+        </li>
+        <li><a href="/blog">Blog</a></li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div>
+</nav>
+
+
+<link rel="stylesheet" href="">
+
+
+    <div class="container" role="main">
+
+      <div class="container">
+        <p>
+  <div class="alert alert-info alert-dismissible" role="alert">
+  <span class="glyphicon glyphicon-flag" aria-hidden="true"></span>
+  <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+  The Apache Beam project is in the process of bootstrapping. This includes the creation of project resources, the refactoring of the initial code submission, and the formulation of project documentation, planning, and design documents. For more information about Beam see the <a href="/getting-started">getting started page</a>.
+  </div>
+</p>
+
+<h1 id="apache-beam-incubating">Apache Beam (incubating)</h1>
+
+<p>Apache Beam is an open source, unified model and set of language-specific SDKs for defining data processing workflows that may then be executed on top of a set of supported runners, currently including <a href="http://flink.apache.org">Apache Flink</a>, <a href="http://spark.apache.org">Apache Spark</a>, and <a href="https://cloud.google.com/dataflow">Google Cloud Dataflow</a>.</p>
+
+<h2 id="using-apache-beam">Using Apache Beam</h2>
+<p>You can use Beam for nearly any kind of data processing task, including both batch and streaming data processing. Beam provides a unified data model that can represent any size data set, including an unbounded or infinite data set from a continuously updating data source such as Kafka.</p>
+
+<p>In particular, Beam pipelines can represent high-volume computations, where the steps in your job need to process an amount of data that exceeds the memory capacity of a cost-effective cluster. Beam is particularly useful for <a href="http://en.wikipedia.org/wiki/Embarassingly_parallel">Embarrassingly Parallel</a> data processing tasks, in which the problem can be decomposed into many smaller bundles of data that can be processed independently and in parallel.</p>
+
+<p>You can also use Beam for Extract, Transform, and Load (ETL) tasks and pure data integration. These tasks are useful for moving data between different storage media and data sources, transforming data into a more desirable format, or loading data onto a new system.</p>
+
+<h2 id="programming-model">Programming Model</h2>
+<p>Beam provides a simple and <a href="https://cloud.google.com/dataflow/model/programming-model">elegant programming model</a> to express your data processing jobs. Each job is represented by a data processing pipeline that you create by writing a program with Beam. Each pipeline is an independent entity that reads some input data, performs some transforms on that data to gain useful or actionable intelligence about it, and produces some resulting output data. A pipeline’s transform might include filtering, grouping, comparing, or joining data.</p>
+
+<p>Beam provides several useful abstractions that allow you to think about your data processing pipeline in a simple, logical way. Beam simplifies the mechanics of large-scale parallel data processing, freeing you from the need to manage orchestration details such as partitioning your data and coordinating individual workers.</p>
+
+<h2 id="key-concepts">Key Concepts</h2>
+<ul>
+  <li><strong>Simple data representation.</strong> Beam uses a specialized collection class, called PCollection, to represent your pipeline data. This class can represent data sets of virtually unlimited size, including bounded and unbounded data collections.</li>
+  <li><strong>Powerful data transforms.</strong> Beam provides several core data transforms that you can apply to your data. These transforms, called PTransforms, are generic frameworks that apply functions that you provide across an entire data set.</li>
+  <li><strong>I/O APIs for a variety of data formats.</strong> Beam provides APIs that let your pipeline read and write data to and from a variety of formats and storage technologies. Your pipeline can read text files, Avro files, and more.</li>
+</ul>
+
+<p>See the <a href="https://cloud.google.com/dataflow/model/programming-model">programming model documentation</a> to learn more about how Beam implements these concepts.</p>
+
+<hr />
+
+<div class="row">
+  <div class="col-md-6">
+    <h3>Blog</h3>
+    <div class="list-group">
+    
+    <a class="list-group-item" href="/beam/python/sdk/2016/02/25/beam-has-a-logo0.html">Feb 25, 2016 - Dataflow Python SDK is now public!</a>
+    
+    <a class="list-group-item" href="/beam/update/website/2016/02/22/beam-has-a-logo.html">Feb 22, 2016 - Apache Beam has a logo!</a>
+    
+    </div>
+  </div>
+  <div class="col-md-6">
+    <h3>Twitter</h3>
+    <a class="twitter-timeline" href="https://twitter.com/ApacheBeam" data-widget-id="697809684422533120">Tweets by @ApacheBeam</a>
+    <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+"://platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>
+  </div>
+</div>
+
+<h2 id="apache-project">Apache Project</h2>
+<p>Apache Beam is an <a href="http://www.apache.org">Apache Software Foundation project</a>,
+available under the Apache v2 license.</p>
+
+      </div>
+
+
+    <hr>
+  <div class="row">
+      <div class="col-xs-12">
+          <footer>
+              <p class="text-center">&copy; Copyright 2016
+                <a href="http://www.apache.org">The Apache Software Foundation.</a> All Rights Reserved.</p>
+                <p class="text-center"><a href="/privacy_policy">Privacy Policy</a> |
+                <a href="/feed.xml">RSS Feed</a></p>
+          </footer>
+      </div>
+  </div>
+  <!-- container div end -->
+</div>
+
+
+  </body>
+
+</html>
