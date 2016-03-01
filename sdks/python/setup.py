@@ -35,7 +35,7 @@ REQUIRED_PACKAGES = [
     # TODO(silviuc): Redesign requirements to have pinned versions.
     'google-apitools==0.4.11',
     'google-apitools-bigquery-v2',
-    'google-apitools-dataflow-v1b3',
+    'google-apitools-dataflow-v1b3>=0.4.20160217',
     'google-apitools-storage-v1',
     'httplib2>=0.8',
     'mock>=1.0.1',
