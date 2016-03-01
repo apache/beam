@@ -96,6 +96,7 @@
     <module>examples</module>
     <module>maven-archetypes/starter</module>
     <module>maven-archetypes/examples</module>
+    <module>java8tests</module>
   </modules>
 
   <profiles>
