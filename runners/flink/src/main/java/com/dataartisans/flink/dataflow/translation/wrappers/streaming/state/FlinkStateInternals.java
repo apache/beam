@@ -32,8 +32,13 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.*;
 
-// TODO: State should be rewritten to redirect to Flink per-key state so that coders and combiners don't need
-// to be serialized along with encoded values when snapshotting.
+/**
+ * An implementation of the Beam {@link StateInternals}. This implementation simply keeps elements in memory.
+ * This state is periodically checkpointed by Flink, for fault-tolerance.
+ *
+ * TODO: State should be rewritten to redirect to Flink per-key state so that coders and combiners don't need
+ * to be serialized along with encoded values when snapshotting.
+ */
 public class FlinkStateInternals<K> implements StateInternals<K> {
 
 	private final K key;

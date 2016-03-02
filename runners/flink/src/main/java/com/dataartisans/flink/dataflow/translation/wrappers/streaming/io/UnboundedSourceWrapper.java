@@ -72,23 +72,33 @@ public class UnboundedSourceWrapper<T> extends RichSourceFunction<WindowedValue<
 		context = (StreamSource.ManualWatermarkContext<WindowedValue<T>>) ctx;
 		runtime = (StreamingRuntimeContext) getRuntimeContext();
 
-		this.isRunning = reader.start();
+		this.isRunning = true;
+		boolean inputAvailable = reader.start();
+
 		setNextWatermarkTimer(this.runtime);
 
 		while (isRunning) {
 
-			// get it and its timestamp from the source
-			T item = reader.getCurrent();
-			Instant timestamp = reader.getCurrentTimestamp();
-
-			// write it to the output collector
-			synchronized (ctx.getCheckpointLock()) {
-				context.collectWithTimestamp(makeWindowedValue(item, timestamp), timestamp.getMillis());
+			while (!inputAvailable && isRunning) {
+				// wait a bit until we retry to pull more records
+				Thread.sleep(50);
+				inputAvailable = reader.advance();
 			}
 
-			// TODO: This will run the loop only until the underlying reader first indicates input has stalled.
-			// try to go to the next record
-			this.isRunning = reader.advance();
+			if (inputAvailable) {
+
+				// get it and its timestamp from the source
+				T item = reader.getCurrent();
+				Instant timestamp = reader.getCurrentTimestamp();
+
+				// write it to the output collector
+				synchronized (ctx.getCheckpointLock()) {
+					context.collectWithTimestamp(makeWindowedValue(item, timestamp), timestamp.getMillis());
+				}
+
+				inputAvailable = reader.advance();
+			}
+
 		}
 	}
 
