@@ -166,6 +166,7 @@ class TypeOptions(PipelineOptions):
 
 
 class GoogleCloudOptions(PipelineOptions):
+  """Google Cloud Dataflow service execution options."""
 
   @classmethod
   def _add_argparse_args(cls, parser):
@@ -203,10 +204,19 @@ class GoogleCloudOptions(PipelineOptions):
                         'credentials.')
     parser.add_argument('--no_auth', dest='no_auth', type=bool, default=False)
 
+  def validate(self, validator):
+    errors = []
+    if validator.is_service_runner():
+      errors.extend(validator.validate_cloud_options(self))
+      errors.extend(validator.validate_gcs_path(self, 'staging_location'))
+      errors.extend(validator.validate_gcs_path(self, 'temp_location'))
+    return errors
+
 
 # Command line options controlling the worker pool configuration.
 # TODO(silviuc): Update description when autoscaling options are in.
 class WorkerOptions(PipelineOptions):
+  """Worker pool configuration options."""
 
   @classmethod
   def _add_argparse_args(cls, parser):
@@ -263,6 +273,13 @@ class WorkerOptions(PipelineOptions):
         help=
         ('The teardown policy for the VMs. By default this is left unset and '
          'the service sets the default policy.'))
+
+  def validate(self, validator):
+    errors = []
+    if validator.is_service_runner():
+      errors.extend(
+          validator.validate_optional_argument_positive(self, 'num_workers'))
+    return errors
 
 
 class DebugOptions(PipelineOptions):

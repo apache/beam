@@ -50,6 +50,7 @@ from google.cloud.dataflow.typehints import TypeCheckError
 from google.cloud.dataflow.utils.options import PipelineOptions
 from google.cloud.dataflow.utils.options import StandardOptions
 from google.cloud.dataflow.utils.options import TypeOptions
+from google.cloud.dataflow.utils.pipeline_options_validator import PipelineOptionsValidator
 
 
 class Pipeline(object):
@@ -105,6 +106,14 @@ class Pipeline(object):
     elif not isinstance(runner, PipelineRunner):
       raise TypeError('Runner must be a PipelineRunner object or the '
                       'name of a registered runner.')
+
+    # Validate pipeline options
+    if self.options is not None:
+      errors = PipelineOptionsValidator(self.options, runner).validate()
+      if errors:
+        raise ValueError(
+            'Pipeline has validations errors: \n' + '\n'.join(errors))
+
     # List of PValue objects representing a DAG of transformations.
     self._nodes = []
     # Default runner to be used.
