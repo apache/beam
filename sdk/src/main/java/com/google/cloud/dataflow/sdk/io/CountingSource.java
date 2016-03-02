@@ -22,6 +22,7 @@ import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.DefaultCoder;
 import com.google.cloud.dataflow.sdk.coders.VarLongCoder;
+import com.google.cloud.dataflow.sdk.io.CountingInput.UnboundedCountingInput;
 import com.google.cloud.dataflow.sdk.io.UnboundedSource.UnboundedReader;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
@@ -48,29 +49,33 @@ import java.util.NoSuchElementException;
  *
  * <pre>{@code
  * Pipeline p = ...
- * BoundedSource<Long> source = CountingSource.upTo(1000);
- * PCollection<Long> bounded = p.apply(Read.from(source));
+ * PTransform<PBegin, PCollection<Long>> producer = CountingInput.upTo(1000);
+ * PCollection<Long> bounded = p.apply(producer);
  * }</pre>
  *
- * <p>To produce an unbounded {@code PCollection<Long>}, use {@link CountingSource#unbounded} or
- * {@link CountingSource#unboundedWithTimestampFn}:
+ * <p>To produce an unbounded {@code PCollection<Long>}, use {@link CountingInput#unbounded()},
+ * calling {@link UnboundedCountingInput#withTimestampFn(SerializableFunction)} to provide values
+ * with timestamps other than {@link Instant#now}.
  *
  * <pre>{@code
  * Pipeline p = ...
  *
- * // To create an unbounded source that uses processing time as the element timestamp.
- * UnboundedSource<Long, CounterMark> source = CountingSource.unbounded();
+ * // To create an unbounded PCollection that uses processing time as the element timestamp.
+ * PCollection<Long> unbounded = p.apply(CountingInput.unbounded());
  * // Or, to create an unbounded source that uses a provided function to set the element timestamp.
- * UnboundedSource<Long, CounterMark> source = CountingSource.unboundedWithTimestampFn(someFn);
+ * PCollection<Long> unboundedWithTimestamps =
+ *     p.apply(CountingInput.unbounded().withTimestampFn(someFn));
  *
- * PCollection<Long> unbounded = p.apply(Read.from(source));
  * }</pre>
  */
 public class CountingSource {
   /**
    * Creates a {@link BoundedSource} that will produce the specified number of elements,
    * from {@code 0} to {@code numElements - 1}.
+   *
+   * @deprecated use {@link CountingInput#upTo(long)} instead
    */
+  @Deprecated
   public static BoundedSource<Long> upTo(long numElements) {
     checkArgument(numElements > 0, "numElements (%s) must be greater than 0", numElements);
     return new BoundedCountingSource(0, numElements);
@@ -85,7 +90,10 @@ public class CountingSource {
    *
    * <p>Elements in the resulting {@link PCollection PCollection&lt;Long&gt;} will have timestamps
    * corresponding to processing time at element generation, provided by {@link Instant#now}.
+   *
+   * @deprecated use {@link CountingInput#unbounded()} instead
    */
+  @Deprecated
   public static UnboundedSource<Long, CounterMark> unbounded() {
     return unboundedWithTimestampFn(new NowTimestampFn());
   }
@@ -98,7 +106,11 @@ public class CountingSource {
    * limit should never be reached.)
    *
    * <p>Note that the timestamps produced by {@code timestampFn} may not decrease.
+   *
+   * @deprecated use {@link CountingInput#unbounded()} and call
+   *             {@link UnboundedCountingInput#withTimestampFn(SerializableFunction)} instead
    */
+  @Deprecated
   public static UnboundedSource<Long, CounterMark> unboundedWithTimestampFn(
       SerializableFunction<Long, Instant> timestampFn) {
     return new UnboundedCountingSource(0, 1, timestampFn);
@@ -109,11 +121,10 @@ public class CountingSource {
   /** Prevent instantiation. */
   private CountingSource() {}
 
-
   /**
    * A function that returns {@link Instant#now} as the timestamp for each generated element.
    */
-  private static class NowTimestampFn implements SerializableFunction<Long, Instant> {
+  static class NowTimestampFn implements SerializableFunction<Long, Instant> {
     @Override
     public Instant apply(Long input) {
       return Instant.now();
