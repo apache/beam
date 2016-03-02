@@ -4,109 +4,109 @@ description: "The following is a list of developers with commit privileges that 
 members:
   - name: Aljoscha Krettek
     apache_id: aljoscha
-    email: aljoscha@apache.org
+    email: aljoscha [at] apache [dot] org
     organization: data Artisans
     roles: committer, PPMC
     time_zone: "+1"
   - name: Amit Sela
     apache_id: amitsela
-    email: amitsela@apache.org
+    email: amitsela [at] apache [dot] org
     organization: PayPal
     roles: committer, PPMC
     time_zone: "+2"
   - name: Ben Chambers
     apache_id:
-    email: bchambers@google.com
+    email: bchambers [at] google [dot] com
     organization: Google
     roles: committer, PPMC
     time_zone: "-8"
   - name: Craig Chambers
     apache_id:
-    email: chambers@google.com
+    email: chambers [at] google [dot] com
     organization: Google
     roles: committer, PPMC
     time_zone: "-8"
   - name: Dan Halperin
     apache_id:
-    email: dhalperi@google.com
+    email: dhalperi [at] google [dot] com
     organization: Google
     roles: committer, PPMC
     time_zone: "-8"
   - name: Davor Bonaci
-    apache_id:
-    email: davor@google.com
+    apache_id: davor
+    email: davor [at] google [dot] com
     organization: Google
     roles: committer, PPMC
     time_zone: "-8"
   - name: Frances Perry
-    apache_id:
-    email: fjp@google.com
+    apache_id: frances
+    email: fjp [at] google [dot] com
     organization: Google
     roles: committer, PPMC
     time_zone: "-8"
   - name: James Malone
     apache_id: jamesmalone
-    email: jamesmalone@google.com
+    email: jamesmalone [at] google [dot] com
     organization: Google
     roles: committer, PPMC
     time_zone: "-8"
   - name: Jean-Baptiste Onofré
     apache_id: jbonofre
-    email: jbonofre@apache.org
+    email: jbonofre [at] apache [dot] org
     organization: Talend
     roles: champion, committer, PPMC
     time_zone: "+1"
   - name: Josh Wills
     apache_id: jwills
-    email: jwills@apache.org
+    email: jwills [at] apache [dot] org
     organization:
     roles: committer, PPMC
     time_zone: "-8"
   - name: Kostas Tzoumas
     apache_id:
-    email: kostas@data-artisans.com
+    email: kostas [at] data-artisans [dot] com
     organization: data Artisans
     roles: committer, PPMC
     time_zone: "+1"
   - name: Kenneth Knowles
     apache_id: kenn
-    email: klk@google.com
+    email: klk [at] google [dot] com
     organization: Google
     roles: committer, PPMC
     time_zone: "-8"
   - name: Luke Cwik
     apache_id:
-    email: lcwik@google.com
+    email: lcwik [at] google [dot] com
     organization: Google
     roles: committer, PPMC
     time_zone: "-8"
   - name: Maximilian Michels
     apache_id: mxm
-    email: mxm@apache.org
+    email: mxm [at] apache [dot] org
     organization: data Artisans
     roles: committer, PPMC
     time_zone: "+1"
   - name: Stephan Ewen
     apache_id:
-    email: stephan@data-artisans.com
+    email: stephan [at] data-artisans [dot] com
     organization: data Artisans
     roles: committer, PPMC
     time_zone: "+1"
   - name: Tom White
     apache_id:
-    email: tom@cloudera.com
+    email: tom [at] cloudera [dot] com
     organization: Cloudera
     roles: committer, PPMC
     time_zone: "-8"
   - name: Tyler Akidau
     apache_id:
-    email: takidau@google.com
+    email: takidau [at] google [dot] com
     organization: Google
     roles: committer, PPMC
     time_zone: "-8"
   - name: Robert Bradshaw
     apache_id:
-    email: robertwb@google.com
+    email: robertwb [at] google [dot] com
     organization: Google
     roles: committer, PPMC
     time_zone: "-8"

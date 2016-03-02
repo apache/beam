@@ -27,7 +27,7 @@ The team is comprised of Members and Contributors. Members have direct access to
         <tr>
           <th scope="row">{{ member.name }}</th>
           <td scope="row">{{ member.apache_id }}</td>
-          <td scope="row"><a href="mailto:{{ member.email }}">{{ member.email }}</a></td>
+          <td scope="row">{{ member.email }}</td>
           <td scope="row">{{ member.organization }}</td>
           <td scope="row">{{ member.roles }}</td>
           <td scope="row">{{ member.time_zone }}</td>
