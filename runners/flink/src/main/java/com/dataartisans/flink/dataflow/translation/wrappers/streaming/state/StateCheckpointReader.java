@@ -25,65 +25,65 @@ import java.util.concurrent.TimeUnit;
 
 public class StateCheckpointReader {
 
-	private final DataInputView input;
+  private final DataInputView input;
 
-	public StateCheckpointReader(DataInputView in) {
-		this.input = in;
-	}
+  public StateCheckpointReader(DataInputView in) {
+    this.input = in;
+  }
 
-	public ByteString getTag() throws IOException {
-		return ByteString.copyFrom(readRawData());
-	}
+  public ByteString getTag() throws IOException {
+    return ByteString.copyFrom(readRawData());
+  }
 
-	public String getTagToString() throws IOException {
-		return input.readUTF();
-	}
+  public String getTagToString() throws IOException {
+    return input.readUTF();
+  }
 
-	public ByteString getData() throws IOException {
-		return ByteString.copyFrom(readRawData());
-	}
+  public ByteString getData() throws IOException {
+    return ByteString.copyFrom(readRawData());
+  }
 
-	public int getInt() throws IOException {
-		validate();
-		return input.readInt();
-	}
+  public int getInt() throws IOException {
+    validate();
+    return input.readInt();
+  }
 
-	public byte getByte() throws IOException {
-		validate();
-		return input.readByte();
-	}
+  public byte getByte() throws IOException {
+    validate();
+    return input.readByte();
+  }
 
-	public Instant getTimestamp() throws IOException {
-		validate();
-		Long watermarkMillis = input.readLong();
-		return new Instant(TimeUnit.MICROSECONDS.toMillis(watermarkMillis));
-	}
+  public Instant getTimestamp() throws IOException {
+    validate();
+    Long watermarkMillis = input.readLong();
+    return new Instant(TimeUnit.MICROSECONDS.toMillis(watermarkMillis));
+  }
 
-	public <K> K deserializeKey(CoderTypeSerializer<K> keySerializer) throws IOException {
-		return deserializeObject(keySerializer);
-	}
+  public <K> K deserializeKey(CoderTypeSerializer<K> keySerializer) throws IOException {
+    return deserializeObject(keySerializer);
+  }
 
-	public <T> T deserializeObject(CoderTypeSerializer<T> objectSerializer) throws IOException {
-		return objectSerializer.deserialize(input);
-	}
+  public <T> T deserializeObject(CoderTypeSerializer<T> objectSerializer) throws IOException {
+    return objectSerializer.deserialize(input);
+  }
 
-	/////////			Helper Methods			///////
+  /////////      Helper Methods      ///////
 
-	private byte[] readRawData() throws IOException {
-		validate();
-		int size = input.readInt();
+  private byte[] readRawData() throws IOException {
+    validate();
+    int size = input.readInt();
 
-		byte[] serData = new byte[size];
-		int bytesRead = input.read(serData);
-		if (bytesRead != size) {
-			throw new RuntimeException("Error while deserializing checkpoint. Not enough bytes in the input stream.");
-		}
-		return serData;
-	}
+    byte[] serData = new byte[size];
+    int bytesRead = input.read(serData);
+    if (bytesRead != size) {
+      throw new RuntimeException("Error while deserializing checkpoint. Not enough bytes in the input stream.");
+    }
+    return serData;
+  }
 
-	private void validate() {
-		if (this.input == null) {
-			throw new RuntimeException("StateBackend not initialized yet.");
-		}
-	}
+  private void validate() {
+    if (this.input == null) {
+      throw new RuntimeException("StateBackend not initialized yet.");
+    }
+  }
 }

@@ -31,82 +31,82 @@ import java.io.IOException;
  */
 public class VoidCoderTypeSerializer extends TypeSerializer<VoidCoderTypeSerializer.VoidValue> {
 
-	@Override
-	public boolean isImmutableType() {
-		return false;
-	}
+  @Override
+  public boolean isImmutableType() {
+    return false;
+  }
 
-	@Override
-	public VoidCoderTypeSerializer duplicate() {
-		return this;
-	}
+  @Override
+  public VoidCoderTypeSerializer duplicate() {
+    return this;
+  }
 
-	@Override
-	public VoidValue createInstance() {
-		return VoidValue.INSTANCE;
-	}
+  @Override
+  public VoidValue createInstance() {
+    return VoidValue.INSTANCE;
+  }
 
-	@Override
-	public VoidValue copy(VoidValue from) {
-		return from;
-	}
+  @Override
+  public VoidValue copy(VoidValue from) {
+    return from;
+  }
 
-	@Override
-	public VoidValue copy(VoidValue from, VoidValue reuse) {
-		return from;
-	}
+  @Override
+  public VoidValue copy(VoidValue from, VoidValue reuse) {
+    return from;
+  }
 
-	@Override
-	public int getLength() {
-		return 0;
-	}
+  @Override
+  public int getLength() {
+    return 0;
+  }
 
-	@Override
-	public void serialize(VoidValue record, DataOutputView target) throws IOException {
-		target.writeByte(1);
-	}
+  @Override
+  public void serialize(VoidValue record, DataOutputView target) throws IOException {
+    target.writeByte(1);
+  }
 
-	@Override
-	public VoidValue deserialize(DataInputView source) throws IOException {
-		source.readByte();
-		return VoidValue.INSTANCE;
-	}
+  @Override
+  public VoidValue deserialize(DataInputView source) throws IOException {
+    source.readByte();
+    return VoidValue.INSTANCE;
+  }
 
-	@Override
-	public VoidValue deserialize(VoidValue reuse, DataInputView source) throws IOException {
-		return deserialize(source);
-	}
+  @Override
+  public VoidValue deserialize(VoidValue reuse, DataInputView source) throws IOException {
+    return deserialize(source);
+  }
 
-	@Override
-	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		source.readByte();
-		target.writeByte(1);
-	}
+  @Override
+  public void copy(DataInputView source, DataOutputView target) throws IOException {
+    source.readByte();
+    target.writeByte(1);
+  }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj instanceof VoidCoderTypeSerializer) {
-			VoidCoderTypeSerializer other = (VoidCoderTypeSerializer) obj;
-			return other.canEqual(this);
-		} else {
-			return false;
-		}
-	}
+  @Override
+  public boolean equals(Object obj) {
+    if (obj instanceof VoidCoderTypeSerializer) {
+      VoidCoderTypeSerializer other = (VoidCoderTypeSerializer) obj;
+      return other.canEqual(this);
+    } else {
+      return false;
+    }
+  }
 
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof VoidCoderTypeSerializer;
-	}
+  @Override
+  public boolean canEqual(Object obj) {
+    return obj instanceof VoidCoderTypeSerializer;
+  }
 
-	@Override
-	public int hashCode() {
-		return 0;
-	}
+  @Override
+  public int hashCode() {
+    return 0;
+  }
 
-	public static class VoidValue {
-		private VoidValue() {}
-		
-		public static VoidValue INSTANCE = new VoidValue();
-	}
+  public static class VoidValue {
+    private VoidValue() {}
+    
+    public static VoidValue INSTANCE = new VoidValue();
+  }
 
 }

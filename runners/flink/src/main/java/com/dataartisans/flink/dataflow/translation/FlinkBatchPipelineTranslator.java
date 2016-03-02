@@ -31,119 +31,119 @@ import org.apache.flink.api.java.ExecutionEnvironment;
  */
 public class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
 
-	/**
-	 * The necessary context in the case of a batch job.
-	 */
-	private final FlinkBatchTranslationContext batchContext;
+  /**
+   * The necessary context in the case of a batch job.
+   */
+  private final FlinkBatchTranslationContext batchContext;
 
-	private int depth = 0;
+  private int depth = 0;
 
-	/**
-	 * Composite transform that we want to translate before proceeding with other transforms.
-	 */
-	private PTransform<?, ?> currentCompositeTransform;
+  /**
+   * Composite transform that we want to translate before proceeding with other transforms.
+   */
+  private PTransform<?, ?> currentCompositeTransform;
 
-	public FlinkBatchPipelineTranslator(ExecutionEnvironment env, PipelineOptions options) {
-		this.batchContext = new FlinkBatchTranslationContext(env, options);
-	}
+  public FlinkBatchPipelineTranslator(ExecutionEnvironment env, PipelineOptions options) {
+    this.batchContext = new FlinkBatchTranslationContext(env, options);
+  }
 
-	// --------------------------------------------------------------------------------------------
-	//  Pipeline Visitor Methods
-	// --------------------------------------------------------------------------------------------
+  // --------------------------------------------------------------------------------------------
+  //  Pipeline Visitor Methods
+  // --------------------------------------------------------------------------------------------
 
-	@Override
-	public void enterCompositeTransform(TransformTreeNode node) {
-		System.out.println(genSpaces(this.depth) + "enterCompositeTransform- " + formatNodeName(node));
+  @Override
+  public void enterCompositeTransform(TransformTreeNode node) {
+    System.out.println(genSpaces(this.depth) + "enterCompositeTransform- " + formatNodeName(node));
 
-		PTransform<?, ?> transform = node.getTransform();
-		if (transform != null && currentCompositeTransform == null) {
+    PTransform<?, ?> transform = node.getTransform();
+    if (transform != null && currentCompositeTransform == null) {
 
-			BatchTransformTranslator<?> translator = FlinkBatchTransformTranslators.getTranslator(transform);
-			if (translator != null) {
-				currentCompositeTransform = transform;
-				if (transform instanceof CoGroupByKey && node.getInput().expand().size() != 2) {
-					// we can only optimize CoGroupByKey for input size 2
-					currentCompositeTransform = null;
-				}
-			}
-		}
-		this.depth++;
-	}
+      BatchTransformTranslator<?> translator = FlinkBatchTransformTranslators.getTranslator(transform);
+      if (translator != null) {
+        currentCompositeTransform = transform;
+        if (transform instanceof CoGroupByKey && node.getInput().expand().size() != 2) {
+          // we can only optimize CoGroupByKey for input size 2
+          currentCompositeTransform = null;
+        }
+      }
+    }
+    this.depth++;
+  }
 
-	@Override
-	public void leaveCompositeTransform(TransformTreeNode node) {
-		PTransform<?, ?> transform = node.getTransform();
-		if (transform != null && currentCompositeTransform == transform) {
+  @Override
+  public void leaveCompositeTransform(TransformTreeNode node) {
+    PTransform<?, ?> transform = node.getTransform();
+    if (transform != null && currentCompositeTransform == transform) {
 
-			BatchTransformTranslator<?> translator = FlinkBatchTransformTranslators.getTranslator(transform);
-			if (translator != null) {
-				System.out.println(genSpaces(this.depth) + "doingCompositeTransform- " + formatNodeName(node));
-				applyBatchTransform(transform, node, translator);
-				currentCompositeTransform = null;
-			} else {
-				throw new IllegalStateException("Attempted to translate composite transform " +
-						"but no translator was found: " + currentCompositeTransform);
-			}
-		}
-		this.depth--;
-		System.out.println(genSpaces(this.depth) + "leaveCompositeTransform- " + formatNodeName(node));
-	}
+      BatchTransformTranslator<?> translator = FlinkBatchTransformTranslators.getTranslator(transform);
+      if (translator != null) {
+        System.out.println(genSpaces(this.depth) + "doingCompositeTransform- " + formatNodeName(node));
+        applyBatchTransform(transform, node, translator);
+        currentCompositeTransform = null;
+      } else {
+        throw new IllegalStateException("Attempted to translate composite transform " +
+            "but no translator was found: " + currentCompositeTransform);
+      }
+    }
+    this.depth--;
+    System.out.println(genSpaces(this.depth) + "leaveCompositeTransform- " + formatNodeName(node));
+  }
 
-	@Override
-	public void visitTransform(TransformTreeNode node) {
-		System.out.println(genSpaces(this.depth) + "visitTransform- " + formatNodeName(node));
-		if (currentCompositeTransform != null) {
-			// ignore it
-			return;
-		}
+  @Override
+  public void visitTransform(TransformTreeNode node) {
+    System.out.println(genSpaces(this.depth) + "visitTransform- " + formatNodeName(node));
+    if (currentCompositeTransform != null) {
+      // ignore it
+      return;
+    }
 
-		// get the transformation corresponding to hte node we are
-		// currently visiting and translate it into its Flink alternative.
+    // get the transformation corresponding to hte node we are
+    // currently visiting and translate it into its Flink alternative.
 
-		PTransform<?, ?> transform = node.getTransform();
-		BatchTransformTranslator<?> translator = FlinkBatchTransformTranslators.getTranslator(transform);
-		if (translator == null) {
-			System.out.println(node.getTransform().getClass());
-			throw new UnsupportedOperationException("The transform " + transform + " is currently not supported.");
-		}
-		applyBatchTransform(transform, node, translator);
-	}
+    PTransform<?, ?> transform = node.getTransform();
+    BatchTransformTranslator<?> translator = FlinkBatchTransformTranslators.getTranslator(transform);
+    if (translator == null) {
+      System.out.println(node.getTransform().getClass());
+      throw new UnsupportedOperationException("The transform " + transform + " is currently not supported.");
+    }
+    applyBatchTransform(transform, node, translator);
+  }
 
-	@Override
-	public void visitValue(PValue value, TransformTreeNode producer) {
-		// do nothing here
-	}
+  @Override
+  public void visitValue(PValue value, TransformTreeNode producer) {
+    // do nothing here
+  }
 
-	private <T extends PTransform<?, ?>> void applyBatchTransform(PTransform<?, ?> transform, TransformTreeNode node, BatchTransformTranslator<?> translator) {
+  private <T extends PTransform<?, ?>> void applyBatchTransform(PTransform<?, ?> transform, TransformTreeNode node, BatchTransformTranslator<?> translator) {
 
-		@SuppressWarnings("unchecked")
-		T typedTransform = (T) transform;
+    @SuppressWarnings("unchecked")
+    T typedTransform = (T) transform;
 
-		@SuppressWarnings("unchecked")
-		BatchTransformTranslator<T> typedTranslator = (BatchTransformTranslator<T>) translator;
+    @SuppressWarnings("unchecked")
+    BatchTransformTranslator<T> typedTranslator = (BatchTransformTranslator<T>) translator;
 
-		// create the applied PTransform on the batchContext
-		batchContext.setCurrentTransform(AppliedPTransform.of(
-				node.getFullName(), node.getInput(), node.getOutput(), (PTransform) transform));
-		typedTranslator.translateNode(typedTransform, batchContext);
-	}
+    // create the applied PTransform on the batchContext
+    batchContext.setCurrentTransform(AppliedPTransform.of(
+        node.getFullName(), node.getInput(), node.getOutput(), (PTransform) transform));
+    typedTranslator.translateNode(typedTransform, batchContext);
+  }
 
-	/**
-	 * A translator of a {@link PTransform}.
-	 */
-	public interface BatchTransformTranslator<Type extends PTransform> {
-		void translateNode(Type transform, FlinkBatchTranslationContext context);
-	}
+  /**
+   * A translator of a {@link PTransform}.
+   */
+  public interface BatchTransformTranslator<Type extends PTransform> {
+    void translateNode(Type transform, FlinkBatchTranslationContext context);
+  }
 
-	private static String genSpaces(int n) {
-		String s = "";
-		for (int i = 0; i < n; i++) {
-			s += "|   ";
-		}
-		return s;
-	}
+  private static String genSpaces(int n) {
+    String s = "";
+    for (int i = 0; i < n; i++) {
+      s += "|   ";
+    }
+    return s;
+  }
 
-	private static String formatNodeName(TransformTreeNode node) {
-		return node.toString().split("@")[1] + node.getTransform();
-	}
+  private static String formatNodeName(TransformTreeNode node) {
+    return node.toString().split("@")[1] + node.getTransform();
+  }
 }

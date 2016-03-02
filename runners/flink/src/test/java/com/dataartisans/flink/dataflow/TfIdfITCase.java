@@ -32,45 +32,45 @@ import java.net.URI;
 
 public class TfIdfITCase extends JavaProgramTestBase {
 
-	protected String resultPath;
+  protected String resultPath;
 
-	public TfIdfITCase(){
-	}
+  public TfIdfITCase(){
+  }
 
-	static final String[] EXPECTED_RESULT = new String[] {
-			"a", "m", "n", "b", "c", "d"};
+  static final String[] EXPECTED_RESULT = new String[] {
+      "a", "m", "n", "b", "c", "d"};
 
-	@Override
-	protected void preSubmit() throws Exception {
-		resultPath = getTempDirPath("result");
-	}
+  @Override
+  protected void preSubmit() throws Exception {
+    resultPath = getTempDirPath("result");
+  }
 
-	@Override
-	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(Joiner.on('\n').join(EXPECTED_RESULT), resultPath);
-	}
+  @Override
+  protected void postSubmit() throws Exception {
+    compareResultsByLinesInMemory(Joiner.on('\n').join(EXPECTED_RESULT), resultPath);
+  }
 
-	@Override
-	protected void testProgram() throws Exception {
+  @Override
+  protected void testProgram() throws Exception {
 
-		Pipeline pipeline = FlinkTestPipeline.createForBatch();
+    Pipeline pipeline = FlinkTestPipeline.createForBatch();
 
-		pipeline.getCoderRegistry().registerCoder(URI.class, StringDelegateCoder.of(URI.class));
+    pipeline.getCoderRegistry().registerCoder(URI.class, StringDelegateCoder.of(URI.class));
 
-		PCollection<KV<String, KV<URI, Double>>> wordToUriAndTfIdf = pipeline
-				.apply(Create.of(
-						KV.of(new URI("x"), "a b c d"),
-						KV.of(new URI("y"), "a b c"),
-						KV.of(new URI("z"), "a m n")))
-				.apply(new TFIDF.ComputeTfIdf());
+    PCollection<KV<String, KV<URI, Double>>> wordToUriAndTfIdf = pipeline
+        .apply(Create.of(
+            KV.of(new URI("x"), "a b c d"),
+            KV.of(new URI("y"), "a b c"),
+            KV.of(new URI("z"), "a m n")))
+        .apply(new TFIDF.ComputeTfIdf());
 
-		PCollection<String> words = wordToUriAndTfIdf
-				.apply(Keys.<String>create())
-				.apply(RemoveDuplicates.<String>create());
+    PCollection<String> words = wordToUriAndTfIdf
+        .apply(Keys.<String>create())
+        .apply(RemoveDuplicates.<String>create());
 
-		words.apply(TextIO.Write.to(resultPath));
+    words.apply(TextIO.Write.to(resultPath));
 
-		pipeline.run();
-	}
+    pipeline.run();
+  }
 }
 

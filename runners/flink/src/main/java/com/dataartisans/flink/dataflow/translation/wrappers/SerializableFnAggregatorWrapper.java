@@ -33,59 +33,59 @@ import java.io.Serializable;
  */
 public class SerializableFnAggregatorWrapper<AI, AO> implements Aggregator<AI, AO>, Accumulator<AI, Serializable> {
 
-	private AO aa;
-	private Combine.CombineFn<AI, ?, AO> combiner;
+  private AO aa;
+  private Combine.CombineFn<AI, ?, AO> combiner;
 
-	public SerializableFnAggregatorWrapper(Combine.CombineFn<AI, ?, AO> combiner) {
-		this.combiner = combiner;
-		resetLocal();
-	}
-	
-	@Override
-	@SuppressWarnings("unchecked")
-	public void add(AI value) {
-		this.aa = combiner.apply(ImmutableList.of((AI) aa, value));
-	}
+  public SerializableFnAggregatorWrapper(Combine.CombineFn<AI, ?, AO> combiner) {
+    this.combiner = combiner;
+    resetLocal();
+  }
+  
+  @Override
+  @SuppressWarnings("unchecked")
+  public void add(AI value) {
+    this.aa = combiner.apply(ImmutableList.of((AI) aa, value));
+  }
 
-	@Override
-	public Serializable getLocalValue() {
-		return (Serializable) aa;
-	}
+  @Override
+  public Serializable getLocalValue() {
+    return (Serializable) aa;
+  }
 
-	@Override
-	public void resetLocal() {
-		this.aa = combiner.apply(ImmutableList.<AI>of());
-	}
+  @Override
+  public void resetLocal() {
+    this.aa = combiner.apply(ImmutableList.<AI>of());
+  }
 
-	@Override
-	@SuppressWarnings("unchecked")
-	public void merge(Accumulator<AI, Serializable> other) {
-		this.aa = combiner.apply(ImmutableList.of((AI) aa, (AI) other.getLocalValue()));
-	}
+  @Override
+  @SuppressWarnings("unchecked")
+  public void merge(Accumulator<AI, Serializable> other) {
+    this.aa = combiner.apply(ImmutableList.of((AI) aa, (AI) other.getLocalValue()));
+  }
 
-	@Override
-	public void addValue(AI value) {
-		add(value);
-	}
+  @Override
+  public void addValue(AI value) {
+    add(value);
+  }
 
-	@Override
-	public String getName() {
-		return "Aggregator :" + combiner.toString();
-	}
+  @Override
+  public String getName() {
+    return "Aggregator :" + combiner.toString();
+  }
 
-	@Override
-	public Combine.CombineFn<AI, ?, AO> getCombineFn() {
-		return combiner;
-	}
+  @Override
+  public Combine.CombineFn<AI, ?, AO> getCombineFn() {
+    return combiner;
+  }
 
-	@Override
-	public Accumulator<AI, Serializable> clone() {
-		// copy it by merging
-		AO resultCopy = combiner.apply(Lists.newArrayList((AI) aa));
-		SerializableFnAggregatorWrapper<AI, AO> result = new
-				SerializableFnAggregatorWrapper<>(combiner);
+  @Override
+  public Accumulator<AI, Serializable> clone() {
+    // copy it by merging
+    AO resultCopy = combiner.apply(Lists.newArrayList((AI) aa));
+    SerializableFnAggregatorWrapper<AI, AO> result = new
+        SerializableFnAggregatorWrapper<>(combiner);
 
-		result.aa = resultCopy;
-		return result;
-	}
+    result.aa = resultCopy;
+    return result;
+  }
 }

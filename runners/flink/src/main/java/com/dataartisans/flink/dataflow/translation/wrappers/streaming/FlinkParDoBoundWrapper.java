@@ -35,64 +35,64 @@ import java.util.*;
  * */
 public class FlinkParDoBoundWrapper<IN, OUT> extends FlinkAbstractParDoWrapper<IN, OUT, OUT> {
 
-	public FlinkParDoBoundWrapper(PipelineOptions options, WindowingStrategy<?, ?> windowingStrategy, DoFn<IN, OUT> doFn) {
-		super(options, windowingStrategy, doFn);
-	}
+  public FlinkParDoBoundWrapper(PipelineOptions options, WindowingStrategy<?, ?> windowingStrategy, DoFn<IN, OUT> doFn) {
+    super(options, windowingStrategy, doFn);
+  }
 
-	@Override
-	public void outputWithTimestampHelper(WindowedValue<IN> inElement, OUT output, Instant timestamp, Collector<WindowedValue<OUT>> collector) {
-		checkTimestamp(inElement, timestamp);
-		collector.collect(makeWindowedValue(
-				output,
-				timestamp,
-				inElement.getWindows(),
-				inElement.getPane()));
-	}
+  @Override
+  public void outputWithTimestampHelper(WindowedValue<IN> inElement, OUT output, Instant timestamp, Collector<WindowedValue<OUT>> collector) {
+    checkTimestamp(inElement, timestamp);
+    collector.collect(makeWindowedValue(
+        output,
+        timestamp,
+        inElement.getWindows(),
+        inElement.getPane()));
+  }
 
-	@Override
-	public <T> void sideOutputWithTimestampHelper(WindowedValue<IN> inElement, T output, Instant timestamp, Collector<WindowedValue<OUT>> outCollector, TupleTag<T> tag) {
-		// ignore the side output, this can happen when a user does not register
-		// side outputs but then outputs using a freshly created TupleTag.
-		throw new RuntimeException("sideOutput() not not available in ParDo.Bound().");
-	}
+  @Override
+  public <T> void sideOutputWithTimestampHelper(WindowedValue<IN> inElement, T output, Instant timestamp, Collector<WindowedValue<OUT>> outCollector, TupleTag<T> tag) {
+    // ignore the side output, this can happen when a user does not register
+    // side outputs but then outputs using a freshly created TupleTag.
+    throw new RuntimeException("sideOutput() not not available in ParDo.Bound().");
+  }
 
-	@Override
-	public WindowingInternals<IN, OUT> windowingInternalsHelper(final WindowedValue<IN> inElement, final Collector<WindowedValue<OUT>> collector) {
-		return new WindowingInternals<IN, OUT>() {
-			@Override
-			public StateInternals stateInternals() {
-				throw new NullPointerException("StateInternals are not available for ParDo.Bound().");
-			}
+  @Override
+  public WindowingInternals<IN, OUT> windowingInternalsHelper(final WindowedValue<IN> inElement, final Collector<WindowedValue<OUT>> collector) {
+    return new WindowingInternals<IN, OUT>() {
+      @Override
+      public StateInternals stateInternals() {
+        throw new NullPointerException("StateInternals are not available for ParDo.Bound().");
+      }
 
-			@Override
-			public void outputWindowedValue(OUT output, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo pane) {
-				collector.collect(makeWindowedValue(output, timestamp, windows, pane));
-			}
+      @Override
+      public void outputWindowedValue(OUT output, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo pane) {
+        collector.collect(makeWindowedValue(output, timestamp, windows, pane));
+      }
 
-			@Override
-			public TimerInternals timerInternals() {
-				throw new NullPointerException("TimeInternals are not available for ParDo.Bound().");
-			}
+      @Override
+      public TimerInternals timerInternals() {
+        throw new NullPointerException("TimeInternals are not available for ParDo.Bound().");
+      }
 
-			@Override
-			public Collection<? extends BoundedWindow> windows() {
-				return inElement.getWindows();
-			}
+      @Override
+      public Collection<? extends BoundedWindow> windows() {
+        return inElement.getWindows();
+      }
 
-			@Override
-			public PaneInfo pane() {
-				return inElement.getPane();
-			}
+      @Override
+      public PaneInfo pane() {
+        return inElement.getPane();
+      }
 
-			@Override
-			public <T> void writePCollectionViewData(TupleTag<?> tag, Iterable<WindowedValue<T>> data, Coder<T> elemCoder) throws IOException {
-				throw new RuntimeException("writePCollectionViewData() not supported in Streaming mode.");
-			}
+      @Override
+      public <T> void writePCollectionViewData(TupleTag<?> tag, Iterable<WindowedValue<T>> data, Coder<T> elemCoder) throws IOException {
+        throw new RuntimeException("writePCollectionViewData() not supported in Streaming mode.");
+      }
 
-			@Override
-			public <T> T sideInput(PCollectionView<T> view, BoundedWindow mainInputWindow) {
-				throw new RuntimeException("sideInput() not implemented.");
-			}
-		};
-	}
+      @Override
+      public <T> T sideInput(PCollectionView<T> view, BoundedWindow mainInputWindow) {
+        throw new RuntimeException("sideInput() not implemented.");
+      }
+    };
+  }
 }

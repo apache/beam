@@ -41,124 +41,124 @@ import java.util.List;
  * Dataflow {@link com.google.cloud.dataflow.sdk.io.Source}.
  */
 public class SourceInputFormat<T> implements InputFormat<T, SourceInputSplit<T>> {
-	private static final Logger LOG = LoggerFactory.getLogger(SourceInputFormat.class);
+  private static final Logger LOG = LoggerFactory.getLogger(SourceInputFormat.class);
 
-	private final BoundedSource<T> initialSource;
-	private transient PipelineOptions options;
+  private final BoundedSource<T> initialSource;
+  private transient PipelineOptions options;
 
-	private BoundedSource.BoundedReader<T> reader = null;
-	private boolean reachedEnd = true;
+  private BoundedSource.BoundedReader<T> reader = null;
+  private boolean reachedEnd = true;
 
-	public SourceInputFormat(BoundedSource<T> initialSource, PipelineOptions options) {
-		this.initialSource = initialSource;
-		this.options = options;
-	}
+  public SourceInputFormat(BoundedSource<T> initialSource, PipelineOptions options) {
+    this.initialSource = initialSource;
+    this.options = options;
+  }
 
-	private void writeObject(ObjectOutputStream out)
-			throws IOException, ClassNotFoundException {
-		out.defaultWriteObject();
-		ObjectMapper mapper = new ObjectMapper();
-		mapper.writeValue(out, options);
-	}
+  private void writeObject(ObjectOutputStream out)
+      throws IOException, ClassNotFoundException {
+    out.defaultWriteObject();
+    ObjectMapper mapper = new ObjectMapper();
+    mapper.writeValue(out, options);
+  }
 
-	private void readObject(ObjectInputStream in)
-			throws IOException, ClassNotFoundException {
-		in.defaultReadObject();
-		ObjectMapper mapper = new ObjectMapper();
-		options = mapper.readValue(in, PipelineOptions.class);
-	}
+  private void readObject(ObjectInputStream in)
+      throws IOException, ClassNotFoundException {
+    in.defaultReadObject();
+    ObjectMapper mapper = new ObjectMapper();
+    options = mapper.readValue(in, PipelineOptions.class);
+  }
 
-	@Override
-	public void configure(Configuration configuration) {}
+  @Override
+  public void configure(Configuration configuration) {}
 
-	@Override
-	public void open(SourceInputSplit<T> sourceInputSplit) throws IOException {
-		reader = ((BoundedSource<T>) sourceInputSplit.getSource()).createReader(options);
-		reachedEnd = false;
-	}
+  @Override
+  public void open(SourceInputSplit<T> sourceInputSplit) throws IOException {
+    reader = ((BoundedSource<T>) sourceInputSplit.getSource()).createReader(options);
+    reachedEnd = false;
+  }
 
-	@Override
-	public BaseStatistics getStatistics(BaseStatistics baseStatistics) throws IOException {
-		try {
-			final long estimatedSize = initialSource.getEstimatedSizeBytes(options);
+  @Override
+  public BaseStatistics getStatistics(BaseStatistics baseStatistics) throws IOException {
+    try {
+      final long estimatedSize = initialSource.getEstimatedSizeBytes(options);
 
-			return new BaseStatistics() {
-				@Override
-				public long getTotalInputSize() {
-					return estimatedSize;
+      return new BaseStatistics() {
+        @Override
+        public long getTotalInputSize() {
+          return estimatedSize;
 
-				}
+        }
 
-				@Override
-				public long getNumberOfRecords() {
-					return BaseStatistics.NUM_RECORDS_UNKNOWN;
-				}
+        @Override
+        public long getNumberOfRecords() {
+          return BaseStatistics.NUM_RECORDS_UNKNOWN;
+        }
 
-				@Override
-				public float getAverageRecordWidth() {
-					return BaseStatistics.AVG_RECORD_BYTES_UNKNOWN;
-				}
-			};
-		} catch (Exception e) {
-			LOG.warn("Could not read Source statistics: {}", e);
-		}
+        @Override
+        public float getAverageRecordWidth() {
+          return BaseStatistics.AVG_RECORD_BYTES_UNKNOWN;
+        }
+      };
+    } catch (Exception e) {
+      LOG.warn("Could not read Source statistics: {}", e);
+    }
 
-		return null;
-	}
+    return null;
+  }
 
-	@Override
-	@SuppressWarnings("unchecked")
-	public SourceInputSplit<T>[] createInputSplits(int numSplits) throws IOException {
-		long desiredSizeBytes;
-		try {
-			desiredSizeBytes = initialSource.getEstimatedSizeBytes(options) / numSplits;
-			List<? extends Source<T>> shards = initialSource.splitIntoBundles(desiredSizeBytes,
-					options);
-			List<SourceInputSplit<T>> splits = new ArrayList<>();
-			int splitCount = 0;
-			for (Source<T> shard: shards) {
-				splits.add(new SourceInputSplit<>(shard, splitCount++));
-			}
-			return splits.toArray(new SourceInputSplit[splits.size()]);
-		} catch (Exception e) {
-			throw new IOException("Could not create input splits from Source.", e);
-		}
-	}
+  @Override
+  @SuppressWarnings("unchecked")
+  public SourceInputSplit<T>[] createInputSplits(int numSplits) throws IOException {
+    long desiredSizeBytes;
+    try {
+      desiredSizeBytes = initialSource.getEstimatedSizeBytes(options) / numSplits;
+      List<? extends Source<T>> shards = initialSource.splitIntoBundles(desiredSizeBytes,
+          options);
+      List<SourceInputSplit<T>> splits = new ArrayList<>();
+      int splitCount = 0;
+      for (Source<T> shard: shards) {
+        splits.add(new SourceInputSplit<>(shard, splitCount++));
+      }
+      return splits.toArray(new SourceInputSplit[splits.size()]);
+    } catch (Exception e) {
+      throw new IOException("Could not create input splits from Source.", e);
+    }
+  }
 
-	@Override
-	public InputSplitAssigner getInputSplitAssigner(final SourceInputSplit[] sourceInputSplits) {
-		return new InputSplitAssigner() {
-			private int index = 0;
-			private final SourceInputSplit[] splits = sourceInputSplits;
-			@Override
-			public InputSplit getNextInputSplit(String host, int taskId) {
-				if (index < splits.length) {
-					return splits[index++];
-				} else {
-					return null;
-				}
-			}
-		};
-	}
+  @Override
+  public InputSplitAssigner getInputSplitAssigner(final SourceInputSplit[] sourceInputSplits) {
+    return new InputSplitAssigner() {
+      private int index = 0;
+      private final SourceInputSplit[] splits = sourceInputSplits;
+      @Override
+      public InputSplit getNextInputSplit(String host, int taskId) {
+        if (index < splits.length) {
+          return splits[index++];
+        } else {
+          return null;
+        }
+      }
+    };
+  }
 
 
-	@Override
-	public boolean reachedEnd() throws IOException {
-		return reachedEnd;
-	}
+  @Override
+  public boolean reachedEnd() throws IOException {
+    return reachedEnd;
+  }
 
-	@Override
-	public T nextRecord(T t) throws IOException {
+  @Override
+  public T nextRecord(T t) throws IOException {
 
-		reachedEnd = !reader.advance();
-		if (!reachedEnd) {
-			return reader.getCurrent();
-		}
-		return null;
-	}
+    reachedEnd = !reader.advance();
+    if (!reachedEnd) {
+      return reader.getCurrent();
+    }
+    return null;
+  }
 
-	@Override
-	public void close() throws IOException {
-		reader.close();
-	}
+  @Override
+  public void close() throws IOException {
+    reader.close();
+  }
 }

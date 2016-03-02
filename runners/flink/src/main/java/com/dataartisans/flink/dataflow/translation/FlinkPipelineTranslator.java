@@ -28,7 +28,7 @@ import com.google.cloud.dataflow.sdk.Pipeline;
  */
 public abstract class FlinkPipelineTranslator implements Pipeline.PipelineVisitor {
 
-	public void translate(Pipeline pipeline) {
-		pipeline.traverseTopologically(this);
-	}
+  public void translate(Pipeline pipeline) {
+    pipeline.traverseTopologically(this);
+  }
 }

@@ -31,29 +31,29 @@ import java.io.InputStream;
  */
 public class DataInputViewWrapper extends InputStream {
 
-	private DataInputView inputView;
+  private DataInputView inputView;
 
-	public DataInputViewWrapper(DataInputView inputView) {
-		this.inputView = inputView;
-	}
+  public DataInputViewWrapper(DataInputView inputView) {
+    this.inputView = inputView;
+  }
 
-	public void setInputView(DataInputView inputView) {
-		this.inputView = inputView;
-	}
+  public void setInputView(DataInputView inputView) {
+    this.inputView = inputView;
+  }
 
-	@Override
-	public int read() throws IOException {
-		try {
-			return inputView.readUnsignedByte();
-		} catch (EOFException e) {
-			// translate between DataInput and InputStream,
-			// DataInput signals EOF by exception, InputStream does it by returning -1
-			return -1;
-		}
-	}
+  @Override
+  public int read() throws IOException {
+    try {
+      return inputView.readUnsignedByte();
+    } catch (EOFException e) {
+      // translate between DataInput and InputStream,
+      // DataInput signals EOF by exception, InputStream does it by returning -1
+      return -1;
+    }
+  }
 
-	@Override
-	public int read(byte[] b, int off, int len) throws IOException {
-		return inputView.read(b, off, len);
-	}
+  @Override
+  public int read(byte[] b, int off, int len) throws IOException {
+    return inputView.read(b, off, len);
+  }
 }

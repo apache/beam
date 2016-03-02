@@ -32,43 +32,43 @@ import java.util.List;
 
 public class WordCountITCase extends JavaProgramTestBase {
 
-	protected String resultPath;
+  protected String resultPath;
 
-	public WordCountITCase(){
-	}
+  public WordCountITCase(){
+  }
 
-	static final String[] WORDS_ARRAY = new String[] {
-			"hi there", "hi", "hi sue bob",
-			"hi sue", "", "bob hi"};
+  static final String[] WORDS_ARRAY = new String[] {
+      "hi there", "hi", "hi sue bob",
+      "hi sue", "", "bob hi"};
 
-	static final List<String> WORDS = Arrays.asList(WORDS_ARRAY);
+  static final List<String> WORDS = Arrays.asList(WORDS_ARRAY);
 
-	static final String[] COUNTS_ARRAY = new String[] {
-			"hi: 5", "there: 1", "sue: 2", "bob: 2"};
+  static final String[] COUNTS_ARRAY = new String[] {
+      "hi: 5", "there: 1", "sue: 2", "bob: 2"};
 
-	@Override
-	protected void preSubmit() throws Exception {
-		resultPath = getTempDirPath("result");
-	}
+  @Override
+  protected void preSubmit() throws Exception {
+    resultPath = getTempDirPath("result");
+  }
 
-	@Override
-	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(Joiner.on('\n').join(COUNTS_ARRAY), resultPath);
-	}
+  @Override
+  protected void postSubmit() throws Exception {
+    compareResultsByLinesInMemory(Joiner.on('\n').join(COUNTS_ARRAY), resultPath);
+  }
 
-	@Override
-	protected void testProgram() throws Exception {
+  @Override
+  protected void testProgram() throws Exception {
 
-		Pipeline p = FlinkTestPipeline.createForBatch();
+    Pipeline p = FlinkTestPipeline.createForBatch();
 
-		PCollection<String> input = p.apply(Create.of(WORDS)).setCoder(StringUtf8Coder.of());
+    PCollection<String> input = p.apply(Create.of(WORDS)).setCoder(StringUtf8Coder.of());
 
-		input
-				.apply(new WordCount.CountWords())
-				.apply(MapElements.via(new WordCount.FormatAsTextFn()))
-				.apply(TextIO.Write.to(resultPath));
+    input
+        .apply(new WordCount.CountWords())
+        .apply(MapElements.via(new WordCount.FormatAsTextFn()))
+        .apply(TextIO.Write.to(resultPath));
 
-		p.run();
-	}
+    p.run();
+  }
 }
 

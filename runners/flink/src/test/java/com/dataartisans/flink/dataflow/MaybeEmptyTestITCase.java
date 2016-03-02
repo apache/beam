@@ -27,37 +27,37 @@ import java.io.Serializable;
 
 public class MaybeEmptyTestITCase extends JavaProgramTestBase implements Serializable {
 
-	protected String resultPath;
+  protected String resultPath;
 
-	protected final String expected = "test";
+  protected final String expected = "test";
 
-	public MaybeEmptyTestITCase() {
-	}
+  public MaybeEmptyTestITCase() {
+  }
 
-	@Override
-	protected void preSubmit() throws Exception {
-		resultPath = getTempDirPath("result");
-	}
+  @Override
+  protected void preSubmit() throws Exception {
+    resultPath = getTempDirPath("result");
+  }
 
-	@Override
-	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(expected, resultPath);
-	}
+  @Override
+  protected void postSubmit() throws Exception {
+    compareResultsByLinesInMemory(expected, resultPath);
+  }
 
-	@Override
-	protected void testProgram() throws Exception {
+  @Override
+  protected void testProgram() throws Exception {
 
-		Pipeline p = FlinkTestPipeline.createForBatch();
+    Pipeline p = FlinkTestPipeline.createForBatch();
 
-		p.apply(Create.of((Void) null)).setCoder(VoidCoder.of())
-				.apply(ParDo.of(
-						new DoFn<Void, String>() {
-							@Override
-							public void processElement(DoFn<Void, String>.ProcessContext c) {
-								c.output(expected);
-							}
-						})).apply(TextIO.Write.to(resultPath));
-		p.run();
-	}
+    p.apply(Create.of((Void) null)).setCoder(VoidCoder.of())
+        .apply(ParDo.of(
+            new DoFn<Void, String>() {
+              @Override
+              public void processElement(DoFn<Void, String>.ProcessContext c) {
+                c.output(expected);
+              }
+            })).apply(TextIO.Write.to(resultPath));
+    p.run();
+  }
 
 }

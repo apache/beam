@@ -38,92 +38,92 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class FlinkBatchTranslationContext {
-	
-	private final Map<PValue, DataSet<?>> dataSets;
-	private final Map<PCollectionView<?>, DataSet<?>> broadcastDataSets;
+  
+  private final Map<PValue, DataSet<?>> dataSets;
+  private final Map<PCollectionView<?>, DataSet<?>> broadcastDataSets;
 
-	private final ExecutionEnvironment env;
-	private final PipelineOptions options;
+  private final ExecutionEnvironment env;
+  private final PipelineOptions options;
 
-	private AppliedPTransform<?, ?, ?> currentTransform;
-	
-	// ------------------------------------------------------------------------
-	
-	public FlinkBatchTranslationContext(ExecutionEnvironment env, PipelineOptions options) {
-		this.env = env;
-		this.options = options;
-		this.dataSets = new HashMap<>();
-		this.broadcastDataSets = new HashMap<>();
-	}
-	
-	// ------------------------------------------------------------------------
-	
-	public ExecutionEnvironment getExecutionEnvironment() {
-		return env;
-	}
+  private AppliedPTransform<?, ?, ?> currentTransform;
+  
+  // ------------------------------------------------------------------------
+  
+  public FlinkBatchTranslationContext(ExecutionEnvironment env, PipelineOptions options) {
+    this.env = env;
+    this.options = options;
+    this.dataSets = new HashMap<>();
+    this.broadcastDataSets = new HashMap<>();
+  }
+  
+  // ------------------------------------------------------------------------
+  
+  public ExecutionEnvironment getExecutionEnvironment() {
+    return env;
+  }
 
-	public PipelineOptions getPipelineOptions() {
-		return options;
-	}
-	
-	@SuppressWarnings("unchecked")
-	public <T> DataSet<T> getInputDataSet(PValue value) {
-		return (DataSet<T>) dataSets.get(value);
-	}
+  public PipelineOptions getPipelineOptions() {
+    return options;
+  }
+  
+  @SuppressWarnings("unchecked")
+  public <T> DataSet<T> getInputDataSet(PValue value) {
+    return (DataSet<T>) dataSets.get(value);
+  }
 
-	public void setOutputDataSet(PValue value, DataSet<?> set) {
-		if (!dataSets.containsKey(value)) {
-			dataSets.put(value, set);
-		}
-	}
+  public void setOutputDataSet(PValue value, DataSet<?> set) {
+    if (!dataSets.containsKey(value)) {
+      dataSets.put(value, set);
+    }
+  }
 
-	/**
-	 * Sets the AppliedPTransform which carries input/output.
-	 * @param currentTransform
-	 */
-	public void setCurrentTransform(AppliedPTransform<?, ?, ?> currentTransform) {
-		this.currentTransform = currentTransform;
-	}
+  /**
+   * Sets the AppliedPTransform which carries input/output.
+   * @param currentTransform
+   */
+  public void setCurrentTransform(AppliedPTransform<?, ?, ?> currentTransform) {
+    this.currentTransform = currentTransform;
+  }
 
-	@SuppressWarnings("unchecked")
-	public <T> DataSet<T> getSideInputDataSet(PCollectionView<?> value) {
-		return (DataSet<T>) broadcastDataSets.get(value);
-	}
+  @SuppressWarnings("unchecked")
+  public <T> DataSet<T> getSideInputDataSet(PCollectionView<?> value) {
+    return (DataSet<T>) broadcastDataSets.get(value);
+  }
 
-	public void setSideInputDataSet(PCollectionView<?> value, DataSet<?> set) {
-		if (!broadcastDataSets.containsKey(value)) {
-			broadcastDataSets.put(value, set);
-		}
-	}
-	
-	@SuppressWarnings("unchecked")
-	public <T> TypeInformation<T> getTypeInfo(PInput output) {
-		if (output instanceof TypedPValue) {
-			Coder<?> outputCoder = ((TypedPValue) output).getCoder();
-			if (outputCoder instanceof KvCoder) {
-				return new KvCoderTypeInformation((KvCoder) outputCoder);
-			} else {
-				return new CoderTypeInformation(outputCoder);
-			}
-		}
-		return new GenericTypeInfo<>((Class<T>)Object.class);
-	}
+  public void setSideInputDataSet(PCollectionView<?> value, DataSet<?> set) {
+    if (!broadcastDataSets.containsKey(value)) {
+      broadcastDataSets.put(value, set);
+    }
+  }
+  
+  @SuppressWarnings("unchecked")
+  public <T> TypeInformation<T> getTypeInfo(PInput output) {
+    if (output instanceof TypedPValue) {
+      Coder<?> outputCoder = ((TypedPValue) output).getCoder();
+      if (outputCoder instanceof KvCoder) {
+        return new KvCoderTypeInformation((KvCoder) outputCoder);
+      } else {
+        return new CoderTypeInformation(outputCoder);
+      }
+    }
+    return new GenericTypeInfo<>((Class<T>)Object.class);
+  }
 
-	public <T> TypeInformation<T> getInputTypeInfo() {
-		return getTypeInfo(currentTransform.getInput());
-	}
+  public <T> TypeInformation<T> getInputTypeInfo() {
+    return getTypeInfo(currentTransform.getInput());
+  }
 
-	public <T> TypeInformation<T> getOutputTypeInfo() {
-		return getTypeInfo((PValue) currentTransform.getOutput());
-	}
+  public <T> TypeInformation<T> getOutputTypeInfo() {
+    return getTypeInfo((PValue) currentTransform.getOutput());
+  }
 
-	@SuppressWarnings("unchecked")
-	<I extends PInput> I getInput(PTransform<I, ?> transform) {
-		return (I) currentTransform.getInput();
-	}
+  @SuppressWarnings("unchecked")
+  <I extends PInput> I getInput(PTransform<I, ?> transform) {
+    return (I) currentTransform.getInput();
+  }
 
-	@SuppressWarnings("unchecked")
-	<O extends POutput> O getOutput(PTransform<?, O> transform) {
-		return (O) currentTransform.getOutput();
-	}
+  @SuppressWarnings("unchecked")
+  <O extends POutput> O getOutput(PTransform<?, O> transform) {
+    return (O) currentTransform.getOutput();
+  }
 }

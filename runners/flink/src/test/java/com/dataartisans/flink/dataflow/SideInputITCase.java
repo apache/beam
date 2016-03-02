@@ -28,40 +28,40 @@ import java.io.Serializable;
 
 public class SideInputITCase extends JavaProgramTestBase implements Serializable {
 
-	private static final String expected = "Hello!";
+  private static final String expected = "Hello!";
 
-	protected String resultPath;
+  protected String resultPath;
 
-	@Override
-	protected void testProgram() throws Exception {
-
-
-		Pipeline p = FlinkTestPipeline.createForBatch();
+  @Override
+  protected void testProgram() throws Exception {
 
 
-		final PCollectionView<String> sidesInput = p
-				.apply(Create.of(expected))
-				.apply(View.<String>asSingleton());
+    Pipeline p = FlinkTestPipeline.createForBatch();
 
-		p.apply(Create.of("bli"))
-				.apply(ParDo.of(new DoFn<String, String>() {
-					@Override
-					public void processElement(ProcessContext c) throws Exception {
-						String s = c.sideInput(sidesInput);
-						c.output(s);
-					}
-				}).withSideInputs(sidesInput)).apply(TextIO.Write.to(resultPath));
 
-		p.run();
-	}
+    final PCollectionView<String> sidesInput = p
+        .apply(Create.of(expected))
+        .apply(View.<String>asSingleton());
 
-	@Override
-	protected void preSubmit() throws Exception {
-		resultPath = getTempDirPath("result");
-	}
+    p.apply(Create.of("bli"))
+        .apply(ParDo.of(new DoFn<String, String>() {
+          @Override
+          public void processElement(ProcessContext c) throws Exception {
+            String s = c.sideInput(sidesInput);
+            c.output(s);
+          }
+        }).withSideInputs(sidesInput)).apply(TextIO.Write.to(resultPath));
 
-	@Override
-	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(expected, resultPath);
-	}
+    p.run();
+  }
+
+  @Override
+  protected void preSubmit() throws Exception {
+    resultPath = getTempDirPath("result");
+  }
+
+  @Override
+  protected void postSubmit() throws Exception {
+    compareResultsByLinesInMemory(expected, resultPath);
+  }
 }

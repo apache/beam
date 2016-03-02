@@ -25,10 +25,10 @@ import java.io.ByteArrayOutputStream;
  */
 public class InspectableByteArrayOutputStream extends ByteArrayOutputStream {
 
-	/**
-	 * Get the underlying byte array.
-	 */
-	public byte[] getBuffer() {
-		return buf;
-	}
+  /**
+   * Get the underlying byte array.
+   */
+  public byte[] getBuffer() {
+    return buf;
+  }
 }

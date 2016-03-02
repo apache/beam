@@ -30,39 +30,39 @@ import java.util.List;
 
 public class RemoveDuplicatesEmptyITCase extends JavaProgramTestBase {
 
-	protected String resultPath;
+  protected String resultPath;
 
-	public RemoveDuplicatesEmptyITCase(){
-	}
+  public RemoveDuplicatesEmptyITCase(){
+  }
 
-	static final String[] EXPECTED_RESULT = new String[] {};
+  static final String[] EXPECTED_RESULT = new String[] {};
 
-	@Override
-	protected void preSubmit() throws Exception {
-		resultPath = getTempDirPath("result");
-	}
+  @Override
+  protected void preSubmit() throws Exception {
+    resultPath = getTempDirPath("result");
+  }
 
-	@Override
-	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(Joiner.on('\n').join(EXPECTED_RESULT), resultPath);
-	}
+  @Override
+  protected void postSubmit() throws Exception {
+    compareResultsByLinesInMemory(Joiner.on('\n').join(EXPECTED_RESULT), resultPath);
+  }
 
-	@Override
-	protected void testProgram() throws Exception {
+  @Override
+  protected void testProgram() throws Exception {
 
-		List<String> strings = Collections.emptyList();
+    List<String> strings = Collections.emptyList();
 
-		Pipeline p = FlinkTestPipeline.createForBatch();
+    Pipeline p = FlinkTestPipeline.createForBatch();
 
-		PCollection<String> input =
-				p.apply(Create.of(strings))
-						.setCoder(StringUtf8Coder.of());
+    PCollection<String> input =
+        p.apply(Create.of(strings))
+            .setCoder(StringUtf8Coder.of());
 
-		PCollection<String> output =
-				input.apply(RemoveDuplicates.<String>create());
+    PCollection<String> output =
+        input.apply(RemoveDuplicates.<String>create());
 
-		output.apply(TextIO.Write.to(resultPath));
-		p.run();
-	}
+    output.apply(TextIO.Write.to(resultPath));
+    p.run();
+  }
 }
 

@@ -34,31 +34,31 @@ import org.apache.flink.streaming.api.datastream.KeyedStream;
  * */
 public class FlinkGroupByKeyWrapper {
 
-	/**
-	 * Just an auxiliary interface to bypass the fact that java anonymous classes cannot implement
-	 * multiple interfaces.
-	 */
-	private interface KeySelectorWithQueryableResultType<K, V> extends KeySelector<WindowedValue<KV<K, V>>, K>, ResultTypeQueryable<K> {
-	}
+  /**
+   * Just an auxiliary interface to bypass the fact that java anonymous classes cannot implement
+   * multiple interfaces.
+   */
+  private interface KeySelectorWithQueryableResultType<K, V> extends KeySelector<WindowedValue<KV<K, V>>, K>, ResultTypeQueryable<K> {
+  }
 
-	public static <K, V> KeyedStream<WindowedValue<KV<K, V>>, K> groupStreamByKey(DataStream<WindowedValue<KV<K, V>>> inputDataStream, KvCoder<K, V> inputKvCoder) {
-		final Coder<K> keyCoder = inputKvCoder.getKeyCoder();
-		final TypeInformation<K> keyTypeInfo = new CoderTypeInformation<>(keyCoder);
-		final boolean isKeyVoid = keyCoder instanceof VoidCoder;
+  public static <K, V> KeyedStream<WindowedValue<KV<K, V>>, K> groupStreamByKey(DataStream<WindowedValue<KV<K, V>>> inputDataStream, KvCoder<K, V> inputKvCoder) {
+    final Coder<K> keyCoder = inputKvCoder.getKeyCoder();
+    final TypeInformation<K> keyTypeInfo = new CoderTypeInformation<>(keyCoder);
+    final boolean isKeyVoid = keyCoder instanceof VoidCoder;
 
-		return inputDataStream.keyBy(
-				new KeySelectorWithQueryableResultType<K, V>() {
+    return inputDataStream.keyBy(
+        new KeySelectorWithQueryableResultType<K, V>() {
 
-					@Override
-					public K getKey(WindowedValue<KV<K, V>> value) throws Exception {
-						return isKeyVoid ? (K) VoidCoderTypeSerializer.VoidValue.INSTANCE :
-								value.getValue().getKey();
-					}
+          @Override
+          public K getKey(WindowedValue<KV<K, V>> value) throws Exception {
+            return isKeyVoid ? (K) VoidCoderTypeSerializer.VoidValue.INSTANCE :
+                value.getValue().getKey();
+          }
 
-					@Override
-					public TypeInformation<K> getProducedType() {
-						return keyTypeInfo;
-					}
-				});
-	}
+          @Override
+          public TypeInformation<K> getProducedType() {
+            return keyTypeInfo;
+          }
+        });
+  }
 }

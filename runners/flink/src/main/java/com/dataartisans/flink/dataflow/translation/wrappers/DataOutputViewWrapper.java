@@ -29,24 +29,24 @@ import java.io.OutputStream;
  * {@link java.io.OutputStream}.
  */
 public class DataOutputViewWrapper extends OutputStream {
-	
-	private DataOutputView outputView;
+  
+  private DataOutputView outputView;
 
-	public DataOutputViewWrapper(DataOutputView outputView) {
-		this.outputView = outputView;
-	}
+  public DataOutputViewWrapper(DataOutputView outputView) {
+    this.outputView = outputView;
+  }
 
-	public void setOutputView(DataOutputView outputView) {
-		this.outputView = outputView;
-	}
+  public void setOutputView(DataOutputView outputView) {
+    this.outputView = outputView;
+  }
 
-	@Override
-	public void write(int b) throws IOException {
-		outputView.write(b);
-	}
+  @Override
+  public void write(int b) throws IOException {
+    outputView.write(b);
+  }
 
-	@Override
-	public void write(byte[] b, int off, int len) throws IOException {
-		outputView.write(b, off, len);
-	}
+  @Override
+  public void write(byte[] b, int off, int len) throws IOException {
+    outputView.write(b, off, len);
+  }
 }

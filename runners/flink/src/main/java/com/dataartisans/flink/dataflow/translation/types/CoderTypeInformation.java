@@ -32,85 +32,85 @@ import com.google.common.base.Preconditions;
  */
 public class CoderTypeInformation<T> extends TypeInformation<T> implements AtomicType<T> {
 
-	private final Coder<T> coder;
+  private final Coder<T> coder;
 
-	public CoderTypeInformation(Coder<T> coder) {
-		Preconditions.checkNotNull(coder);
-		this.coder = coder;
-	}
+  public CoderTypeInformation(Coder<T> coder) {
+    Preconditions.checkNotNull(coder);
+    this.coder = coder;
+  }
 
-	@Override
-	public boolean isBasicType() {
-		return false;
-	}
+  @Override
+  public boolean isBasicType() {
+    return false;
+  }
 
-	@Override
-	public boolean isTupleType() {
-		return false;
-	}
+  @Override
+  public boolean isTupleType() {
+    return false;
+  }
 
-	@Override
-	public int getArity() {
-		return 1;
-	}
+  @Override
+  public int getArity() {
+    return 1;
+  }
 
-	@Override
-	@SuppressWarnings("unchecked")
-	public Class<T> getTypeClass() {
-		// We don't have the Class, so we have to pass null here. What a shame...
-		return (Class<T>) Object.class;
-	}
+  @Override
+  @SuppressWarnings("unchecked")
+  public Class<T> getTypeClass() {
+    // We don't have the Class, so we have to pass null here. What a shame...
+    return (Class<T>) Object.class;
+  }
 
-	@Override
-	public boolean isKeyType() {
-		return true;
-	}
+  @Override
+  public boolean isKeyType() {
+    return true;
+  }
 
-	@Override
-	@SuppressWarnings("unchecked")
-	public TypeSerializer<T> createSerializer(ExecutionConfig config) {
-		if (coder instanceof VoidCoder) {
-			return (TypeSerializer<T>) new VoidCoderTypeSerializer();
-		}
-		return new CoderTypeSerializer<>(coder);
-	}
+  @Override
+  @SuppressWarnings("unchecked")
+  public TypeSerializer<T> createSerializer(ExecutionConfig config) {
+    if (coder instanceof VoidCoder) {
+      return (TypeSerializer<T>) new VoidCoderTypeSerializer();
+    }
+    return new CoderTypeSerializer<>(coder);
+  }
 
-	@Override
-	public int getTotalFields() {
-		return 2;
-	}
+  @Override
+  public int getTotalFields() {
+    return 2;
+  }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) return true;
-		if (o == null || getClass() != o.getClass()) return false;
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
 
-		CoderTypeInformation that = (CoderTypeInformation) o;
+    CoderTypeInformation that = (CoderTypeInformation) o;
 
-		return coder.equals(that.coder);
+    return coder.equals(that.coder);
 
-	}
+  }
 
-	@Override
-	public int hashCode() {
-		return coder.hashCode();
-	}
+  @Override
+  public int hashCode() {
+    return coder.hashCode();
+  }
 
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof CoderTypeInformation;
-	}
+  @Override
+  public boolean canEqual(Object obj) {
+    return obj instanceof CoderTypeInformation;
+  }
 
-	@Override
-	public String toString() {
-		return "CoderTypeInformation{" +
-				"coder=" + coder +
-				'}';
-	}
+  @Override
+  public String toString() {
+    return "CoderTypeInformation{" +
+        "coder=" + coder +
+        '}';
+  }
 
-	@Override
-	public TypeComparator<T> createComparator(boolean sortOrderAscending, ExecutionConfig
-			executionConfig) {
-		return new CoderComparator<>(coder);
-	}
+  @Override
+  public TypeComparator<T> createComparator(boolean sortOrderAscending, ExecutionConfig
+      executionConfig) {
+    return new CoderComparator<>(coder);
+  }
 }
