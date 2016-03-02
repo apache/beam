@@ -432,3 +432,60 @@ class ToDictCombineFn(core.CombineFn):
 
   def extract_output(self, accumulator):
     return accumulator
+
+
+class PhasedCombineFnExecutor(object):
+  """Executor for phases of combine operations."""
+
+  def __init__(self, phase, fn, args, kwargs):
+
+    if not args and not kwargs:
+      self.combine_fn = fn
+    else:
+
+      class CurriedFn(core.CombineFn):
+        """CombineFn that applies extra arguments."""
+
+        def create_accumulator(self):
+          return fn.create_accumulator(*args, **kwargs)
+
+        def add_input(self, accumulator, element):
+          return fn.add_input(accumulator, element, *args, **kwargs)
+
+        def add_inputs(self, accumulator, elements):
+          return fn.add_inputs(accumulator, elements, *args, **kwargs)
+
+        def merge_accumulators(self, accumulators):
+          return fn.merge_accumulators(accumulators, *args, **kwargs)
+
+        def extract_output(self, accumulator):
+          return fn.extract_output(accumulator, *args, **kwargs)
+
+        def apply(self, elements):
+          return fn.apply(elements, *args, **kwargs)
+
+      self.combine_fn = CurriedFn()
+
+    if phase == 'all':
+      self.apply = self.full_combine
+    elif phase == 'add':
+      self.apply = self.add_only
+    elif phase == 'merge':
+      self.apply = self.merge_only
+    elif phase == 'extract':
+      self.apply = self.extract_only
+    else:
+      raise ValueError('Unexpected phase: %s' % phase)
+
+  def full_combine(self, elements):  # pylint: disable=invalid-name
+    return self.combine_fn.apply(elements)
+
+  def add_only(self, elements):  # pylint: disable=invalid-name
+    return self.combine_fn.add_inputs(
+        self.combine_fn.create_accumulator(), elements)
+
+  def merge_only(self, accumulators):  # pylint: disable=invalid-name
+    return self.combine_fn.merge_accumulators(accumulators)
+
+  def extract_only(self, accumulator):  # pylint: disable=invalid-name
+    return self.combine_fn.extract_output(accumulator)

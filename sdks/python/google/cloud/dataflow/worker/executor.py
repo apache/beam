@@ -26,6 +26,7 @@ from google.cloud.dataflow.runners import common
 import google.cloud.dataflow.transforms as ptransform
 from google.cloud.dataflow.transforms import trigger
 from google.cloud.dataflow.transforms import window
+from google.cloud.dataflow.transforms.combiners import PhasedCombineFnExecutor
 from google.cloud.dataflow.transforms.trigger import InMemoryUnmergedState
 from google.cloud.dataflow.transforms.window import GlobalWindows
 from google.cloud.dataflow.transforms.window import WindowedValue
@@ -443,43 +444,8 @@ class CombineOperation(Operation):
     # and therefore the code to handle the extra args/kwargs is simpler than for
     # the DoFn's of ParDo.
     fn, args, kwargs = pickler.loads(self.spec.serialized_fn)[:3]
-
-    if not args and not kwargs:
-      self.combine_fn = fn
-    else:
-
-      class CurriedFn(ptransform.CombineFn):
-
-        def create_accumulator(self):
-          return fn.create_accumulator(*args, **kwargs)
-
-        def add_input(self, accumulator, element):
-          return fn.add_input(accumulator, element, *args, **kwargs)
-
-        def add_inputs(self, accumulator, elements):
-          return fn.add_inputs(accumulator, elements, *args, **kwargs)
-
-        def merge_accumulators(self, accumulators):
-          return fn.merge_accumulators(accumulators, *args, **kwargs)
-
-        def extract_output(self, accumulator):
-          return fn.extract_output(accumulator, *args, **kwargs)
-
-        def apply(self, elements):
-          return fn.apply(elements, *args, **kwargs)
-
-      self.combine_fn = CurriedFn()
-
-    if self.spec.phase == 'all':
-      self.apply = self.full_combine
-    elif self.spec.phase == 'add':
-      self.apply = self.add_only
-    elif self.spec.phase == 'merge':
-      self.apply = self.merge_only
-    elif self.spec.phase == 'extract':
-      self.apply = self.extract_only
-    else:
-      raise ValueError('Unexpected phase: %s' % self.spec.phase)
+    self.phased_combine_fn = (
+        PhasedCombineFnExecutor(self.spec.phase, fn, args, kwargs))
 
   def finish(self):
     logging.debug('Finishing %s', self)
@@ -489,23 +455,10 @@ class CombineOperation(Operation):
     assert isinstance(o, WindowedValue)
     key, values = o.value
     windowed_result = WindowedValue(
-        (key, self.apply(values)), o.timestamp, o.windows)
+        (key, self.phased_combine_fn.apply(values)), o.timestamp, o.windows)
     for receiver in self.receivers[0]:
       self.counters[0].update(windowed_result)
       receiver.process(windowed_result)
-
-  def full_combine(self, elements):
-    return self.combine_fn.apply(elements)
-
-  def add_only(self, elements):
-    return self.combine_fn.add_inputs(
-        self.combine_fn.create_accumulator(), elements)
-
-  def merge_only(self, accumulators):
-    return self.combine_fn.merge_accumulators(accumulators)
-
-  def extract_only(self, accumulator):
-    return self.combine_fn.extract_output(accumulator)
 
 
 class PGBKOperation(Operation):
@@ -518,6 +471,16 @@ class PGBKOperation(Operation):
 
   def __init__(self, spec):
     super(PGBKOperation, self).__init__(spec)
+    self.phased_combine_fn = None
+    if self.spec.combine_fn:
+      # Combiners do not accept deferred side-inputs (the ignored fourth
+      # argument) and therefore the code to handle the extra args/kwargs is
+      # simpler than for the DoFn's of ParDo.
+      #
+      # TODO(ccy): Combine as we go for each key instead of storing up state
+      # for combination when flushing.
+      fn, args, kwargs = pickler.loads(self.spec.combine_fn)[:3]
+      self.phased_combine_fn = PhasedCombineFnExecutor('add', fn, args, kwargs)
     self.table = collections.defaultdict(list)
     self.size = 0
     # TODO(robertwb) Make this configurable.
@@ -541,8 +504,11 @@ class PGBKOperation(Operation):
         break
       del self.table[kw]
       key, windows = kw
+      output_value = [v.value[1] for v in vs]
+      if self.phased_combine_fn:
+        output_value = self.phased_combine_fn.apply(output_value)
       windowed_value = WindowedValue(
-          (key, [v.value[1] for v in vs]),
+          (key, output_value),
           vs[0].timestamp, windows)
       for receiver in self.receivers[0]:
         self.counters[0].update(windowed_value)
@@ -600,13 +566,23 @@ class BatchGroupAlsoByWindowsOperation(Operation):
   def __init__(self, spec):
     super(BatchGroupAlsoByWindowsOperation, self).__init__(spec)
     self.windowing = pickler.loads(self.spec.window_fn)
+    if self.spec.combine_fn:
+      # Combiners do not accept deferred side-inputs (the ignored fourth
+      # argument) and therefore the code to handle the extra args/kwargs is
+      # simpler than for the DoFn's of ParDo.
+      fn, args, kwargs = pickler.loads(self.spec.combine_fn)[:3]
+      self.phased_combine_fn = (
+          PhasedCombineFnExecutor(self.spec.phase, fn, args, kwargs))
+    else:
+      self.phased_combine_fn = None
 
   def process(self, o):
     """Process a given value."""
     logging.debug('Processing [%s] in %s', o, self)
     assert isinstance(o, WindowedValue)
     k, vs = o.value
-    driver = trigger.create_trigger_driver(self.windowing, True)
+    driver = trigger.create_trigger_driver(
+        self.windowing, is_batch=True, phased_combine_fn=self.phased_combine_fn)
     state = InMemoryUnmergedState()
     # TODO(robertwb): Process in smaller chunks.
     for out_window, values in driver.process_elements(vs, state):

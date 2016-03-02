@@ -210,10 +210,18 @@ Attributes:
 
 WorkerMergeWindows = build_worker_instruction(
     'WorkerMergeWindows',
-    ['window_fn', 'output_tags', 'input', 'coders', 'context'])
-"""Worker details needed to run a WindowInto.
+    ['window_fn', 'combine_fn', 'phase', 'output_tags', 'input', 'coders',
+     'context'])
+"""Worker details needed to run a MergeWindows (aka. GroupAlsoByWindows).
 Attributes:
   window_fn: A serialized Windowing object representing the windowing strategy.
+  combine_fn: A serialized CombineFn object to be used after executing the
+    GroupAlsoByWindows operation. May be None if not a combining operation.
+  phase: Possible values are 'all', 'add', 'merge', and 'extract'.
+    The dataflow optimizer may split the user combiner in 3 separate
+    phases (ADD, MERGE, and EXTRACT), on separate VMs, as it sees
+    fit. The phase attribute dictates which DoFn is actually running in
+    the worker. May be None if not a combining operation.
   output_tags: The string tags used to identify the outputs of a ParDo
     operation. The tag is present even if the ParDo has just one output
     (e.g., ['out'].
@@ -230,7 +238,7 @@ WorkerCombineFn = build_worker_instruction(
     ['serialized_fn', 'phase', 'input'])
 """Worker details needed to run a CombineFn.
 Attributes:
-  serialized_fn: A serialized CombineFn object to be run.
+  serialized_fn: A serialized CombineFn object to be used.
   phase: Possible values are 'all', 'add', 'merge', and 'extract'.
     The dataflow optimizer may split the user combiner in 3 separate
     phases (ADD, MERGE, and EXTRACT), on separate VMs, as it sees
@@ -244,9 +252,10 @@ Attributes:
 
 WorkerPartialGroupByKey = build_worker_instruction(
     'WorkerPartialGroupByKey',
-    ['input'])
+    ['combine_fn', 'input'])
 """Worker details needed to run a partial group-by-key.
 Attributes:
+  combine_fn: A serialized CombineFn object to be used.
   input: A (producer index, output index) tuple representing the
     ParallelInstruction operation whose output feeds into this operation.
     The output index is 0 except for multi-output operations (like ParDo).
@@ -480,12 +489,12 @@ def get_do_work_item(work, env, context):
   elif specs['@type'] == 'MergeBucketsDoFn':
     return WorkerMergeWindows(
         window_fn=specs['serialized_fn']['value'],
+        combine_fn=specs.get('combine_fn', {}).get('value', None),
+        phase=specs.get('phase', {}).get('value', None),
         output_tags=[o.tag for o in work.parDo.multiOutputInfos],
         input=get_input_spec(work.parDo.input),
         coders=None,
         context=context)
-  # TODO(silviuc): Implement support for MergeBucketsDoFn.
-  # TODO(silviuc): Implement support for ReifytimestampsAndWindowsDoFn.
   # AssignBucketsDoFn is intentionally unimplemented.  The implementation of
   # WindowInto in transforms/core.py does not use a service primitive.
   else:
@@ -515,7 +524,15 @@ def get_partial_gbk_work_item(instruction, unused_env, unused_context):
   Returns:
     A WorkerPartialGroupByKey object.
   """
+  combine_fn = None
+  if instruction.partialGroupByKey.valueCombiningFn:
+    combine_fn_specs = {
+        p.key: from_json_value(p.value)
+        for p in (instruction.partialGroupByKey.valueCombiningFn
+                  .additionalProperties)}
+    combine_fn = combine_fn_specs.get('serialized_fn', {}).get('value', None)
   return WorkerPartialGroupByKey(
+      combine_fn=combine_fn,
       input=get_input_spec(instruction.partialGroupByKey.input))
 
 

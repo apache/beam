@@ -514,9 +514,9 @@ class ExecutorTest(unittest.TestCase):
                                              ],
                                     start_index=0,
                                     end_index=100),
-            tag=None), maptask.WorkerPartialGroupByKey(input=(
-                0, 0)), maptask.WorkerInMemoryWrite(output_buffer=output_buffer,
-                                                    input=(1, 0))
+            tag=None),
+        maptask.WorkerPartialGroupByKey(combine_fn=None, input=(0, 0)),
+        maptask.WorkerInMemoryWrite(output_buffer=output_buffer, input=(1, 0))
     ]))
     self.assertEqual([('a', [1, 3, 4]), ('b', [2])], sorted(output_buffer))
 

@@ -36,6 +36,7 @@ from google.cloud.dataflow.runners.runner import PValueCache
 from google.cloud.dataflow.typehints import typehints
 from google.cloud.dataflow.utils.names import PropertyNames
 from google.cloud.dataflow.utils.names import TransformNames
+from google.cloud.dataflow.utils.options import StandardOptions
 
 from apitools.clients import dataflow as dataflow_api
 
@@ -53,7 +54,8 @@ class DataflowPipelineRunner(PipelineRunner):
   # Environment version information. It is passed to the service during a
   # a job submission and is used by the service to establish what features
   # are expected by the workers.
-  ENVIRONMENT_MAJOR_VERSION = '0'
+  BATCH_ENVIRONMENT_MAJOR_VERSION = '4'
+  STREAMING_ENVIRONMENT_MAJOR_VERSION = '0'
 
   def __init__(self, cache=None, blocking=False):
     # Cache of CloudWorkflowStep protos generated while the runner
@@ -134,8 +136,13 @@ class DataflowPipelineRunner(PipelineRunner):
     # starting from the "node" argument (or entire graph if node is None).
     super(DataflowPipelineRunner, self).run(pipeline, node)
     # Get a Dataflow API client and submit the job.
+    standard_options = pipeline.options.view_as(StandardOptions)
+    if standard_options.is_streaming:
+      job_version = DataflowPipelineRunner.STREAMING_ENVIRONMENT_MAJOR_VERSION
+    else:
+      job_version = DataflowPipelineRunner.BATCH_ENVIRONMENT_MAJOR_VERSION
     self.dataflow_client = apiclient.DataflowApplicationClient(
-        pipeline.options, DataflowPipelineRunner.ENVIRONMENT_MAJOR_VERSION)
+        pipeline.options, job_version)
     self.result = DataflowPipelineResult(
         self.dataflow_client.create_job(self.job))
 
@@ -577,9 +584,8 @@ class DataflowPipelineResult(PipelineResult):
 
 
 class DataflowRuntimeException(Exception):
-  """Indicates an error has occured in running this pipeline."""
+  """Indicates an error has occurred in running this pipeline."""
 
   def __init__(self, msg, result):
     super(DataflowRuntimeException, self).__init__(msg)
     self.result = result
-

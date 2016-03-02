@@ -657,13 +657,21 @@ class MergeableStateAdapter(SimpleState):
                        repr(self.raw_state).split('\n'))
 
 
-def create_trigger_driver(windowing, is_batch=False):
+def create_trigger_driver(windowing, is_batch=False, phased_combine_fn=None):
+  """Create the TriggerDriver for the given windowing and options."""
+
   # TODO(robertwb): We can do more if we know elements are in timestamp
   # sorted order.
   if windowing.is_default() and is_batch:
-    return DefaultGlobalBatchTriggerDriver()
+    driver = DefaultGlobalBatchTriggerDriver()
   else:
-    return GeneralTriggerDriver(windowing)
+    driver = GeneralTriggerDriver(windowing)
+
+  if phased_combine_fn:
+    # TODO(ccy): Refactor GeneralTriggerDriver to combine values eagerly using
+    # the known phased_combine_fn here.
+    driver = CombiningTriggerDriver(phased_combine_fn, driver)
+  return driver
 
 
 class TriggerDriver(object):
@@ -699,6 +707,24 @@ class DefaultGlobalBatchTriggerDriver(TriggerDriver):
 
   def process_timer(self, timer_id, timestamp, unused_tag, state):
     raise TypeError('Triggers never set or called for batch default windowing.')
+
+
+class CombiningTriggerDriver(TriggerDriver):
+  """Uses a phased_combine_fn to process output of wrapped TriggerDriver."""
+
+  def __init__(self, phased_combine_fn, underlying):
+    self.phased_combine_fn = phased_combine_fn
+    self.underlying = underlying
+
+  def process_elements(self, windowed_values, state):
+    uncombined = self.underlying.process_elements(windowed_values, state)
+    for window, unwindowed in uncombined:
+      yield window, self.phased_combine_fn.apply(unwindowed)
+
+  def process_timer(self, timer_id, timestamp, tag, state):
+    uncombined = self.underlying.process_timer(timer_id, timestamp, tag, state)
+    for window, unwindowed in uncombined:
+      yield window, self.phased_combine_fn.apply(unwindowed)
 
 
 class GeneralTriggerDriver(TriggerDriver):
