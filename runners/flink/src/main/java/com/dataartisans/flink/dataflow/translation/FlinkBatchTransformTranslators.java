@@ -15,22 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dataartisans.flink.dataflow.translation;
+package org.apache.beam.runners.flink.translation;
 
-import com.dataartisans.flink.dataflow.io.ConsoleIO;
-import com.dataartisans.flink.dataflow.translation.functions.FlinkCoGroupKeyedListAggregator;
-import com.dataartisans.flink.dataflow.translation.functions.FlinkCreateFunction;
-import com.dataartisans.flink.dataflow.translation.functions.FlinkDoFnFunction;
-import com.dataartisans.flink.dataflow.translation.functions.FlinkKeyedListAggregationFunction;
-import com.dataartisans.flink.dataflow.translation.functions.FlinkMultiOutputDoFnFunction;
-import com.dataartisans.flink.dataflow.translation.functions.FlinkMultiOutputPruningFunction;
-import com.dataartisans.flink.dataflow.translation.functions.FlinkPartialReduceFunction;
-import com.dataartisans.flink.dataflow.translation.functions.FlinkReduceFunction;
-import com.dataartisans.flink.dataflow.translation.functions.UnionCoder;
-import com.dataartisans.flink.dataflow.translation.types.CoderTypeInformation;
-import com.dataartisans.flink.dataflow.translation.types.KvCoderTypeInformation;
-import com.dataartisans.flink.dataflow.translation.wrappers.SinkOutputFormat;
-import com.dataartisans.flink.dataflow.translation.wrappers.SourceInputFormat;
+import org.apache.beam.runners.flink.io.ConsoleIO;
+import org.apache.beam.runners.flink.translation.functions.FlinkCoGroupKeyedListAggregator;
+import org.apache.beam.runners.flink.translation.functions.FlinkCreateFunction;
+import org.apache.beam.runners.flink.translation.functions.FlinkDoFnFunction;
+import org.apache.beam.runners.flink.translation.functions.FlinkKeyedListAggregationFunction;
+import org.apache.beam.runners.flink.translation.functions.FlinkMultiOutputDoFnFunction;
+import org.apache.beam.runners.flink.translation.functions.FlinkMultiOutputPruningFunction;
+import org.apache.beam.runners.flink.translation.functions.FlinkPartialReduceFunction;
+import org.apache.beam.runners.flink.translation.functions.FlinkReduceFunction;
+import org.apache.beam.runners.flink.translation.functions.UnionCoder;
+import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
+import org.apache.beam.runners.flink.translation.types.KvCoderTypeInformation;
+import org.apache.beam.runners.flink.translation.wrappers.SinkOutputFormat;
+import org.apache.beam.runners.flink.translation.wrappers.SourceInputFormat;
 import com.google.api.client.util.Maps;
 import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;

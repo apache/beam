@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dataartisans.flink.dataflow.translation.wrappers.streaming;
+package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
-import com.dataartisans.flink.dataflow.translation.wrappers.SerializableFnAggregatorWrapper;
+import org.apache.beam.runners.flink.translation.wrappers.SerializableFnAggregatorWrapper;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.common.base.Preconditions;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;

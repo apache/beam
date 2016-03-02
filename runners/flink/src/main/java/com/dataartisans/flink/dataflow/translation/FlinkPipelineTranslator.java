@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dataartisans.flink.dataflow.translation;
+package org.apache.beam.runners.flink.translation;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 

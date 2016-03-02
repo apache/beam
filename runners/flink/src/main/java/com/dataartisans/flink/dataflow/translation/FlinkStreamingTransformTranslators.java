@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-package com.dataartisans.flink.dataflow.translation;
+package org.apache.beam.runners.flink.translation;
 
-import com.dataartisans.flink.dataflow.translation.functions.UnionCoder;
-import com.dataartisans.flink.dataflow.translation.types.CoderTypeInformation;
-import com.dataartisans.flink.dataflow.translation.wrappers.streaming.*;
-import com.dataartisans.flink.dataflow.translation.wrappers.streaming.io.FlinkStreamingCreateFunction;
-import com.dataartisans.flink.dataflow.translation.wrappers.streaming.io.UnboundedFlinkSource;
-import com.dataartisans.flink.dataflow.translation.wrappers.streaming.io.UnboundedSourceWrapper;
+import org.apache.beam.runners.flink.translation.functions.UnionCoder;
+import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.*;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.io.FlinkStreamingCreateFunction;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.io.UnboundedFlinkSource;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.io.UnboundedSourceWrapper;
 import com.google.api.client.util.Maps;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;

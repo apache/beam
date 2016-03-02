@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dataartisans.flink.dataflow.streaming;
+package org.apache.beam.runners.flink.streaming;
 
-import com.dataartisans.flink.dataflow.translation.wrappers.streaming.state.FlinkStateInternals;
-import com.dataartisans.flink.dataflow.translation.wrappers.streaming.state.StateCheckpointReader;
-import com.dataartisans.flink.dataflow.translation.wrappers.streaming.state.StateCheckpointUtils;
-import com.dataartisans.flink.dataflow.translation.wrappers.streaming.state.StateCheckpointWriter;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkStateInternals;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.state.StateCheckpointReader;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.state.StateCheckpointUtils;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.state.StateCheckpointWriter;
 import com.google.cloud.dataflow.sdk.coders.*;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.CombineWithContext;

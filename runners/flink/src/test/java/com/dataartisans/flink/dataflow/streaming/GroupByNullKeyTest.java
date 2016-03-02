@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dataartisans.flink.dataflow.streaming;
+package org.apache.beam.runners.flink.streaming;
 
-import com.dataartisans.flink.dataflow.FlinkTestPipeline;
+import org.apache.beam.runners.flink.FlinkTestPipeline;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.transforms.Create;

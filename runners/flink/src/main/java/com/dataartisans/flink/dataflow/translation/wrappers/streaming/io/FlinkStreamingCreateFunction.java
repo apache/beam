@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dataartisans.flink.dataflow.translation.wrappers.streaming.io;
+package org.apache.beam.runners.flink.translation.wrappers.streaming.io;
 
-import com.dataartisans.flink.dataflow.translation.types.VoidCoderTypeSerializer;
+import org.apache.beam.runners.flink.translation.types.VoidCoderTypeSerializer;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;

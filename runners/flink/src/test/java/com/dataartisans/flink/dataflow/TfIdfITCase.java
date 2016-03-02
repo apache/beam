@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dataartisans.flink.dataflow;
+package org.apache.beam.runners.flink;
 
-import com.dataartisans.flink.dataflow.examples.TFIDF;
+import org.apache.beam.runners.flink.examples.TFIDF;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.StringDelegateCoder;
 import com.google.cloud.dataflow.sdk.io.TextIO;

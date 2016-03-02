@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dataartisans.flink.dataflow.io;
+package org.apache.beam.runners.flink.io;
 
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -24,7 +24,7 @@ import com.google.cloud.dataflow.sdk.values.PDone;
  * to standard output.
  *
  * This is Flink-specific and will only work when executed using the
- * {@link com.dataartisans.flink.dataflow.FlinkPipelineRunner}.
+ * {@link org.apache.beam.runners.flink.FlinkPipelineRunner}.
  */
 public class ConsoleIO {
 

@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dataartisans.flink.dataflow.translation.wrappers;
+package org.apache.beam.runners.flink.translation.wrappers;
 
 import org.apache.flink.core.memory.DataOutputView;
 
