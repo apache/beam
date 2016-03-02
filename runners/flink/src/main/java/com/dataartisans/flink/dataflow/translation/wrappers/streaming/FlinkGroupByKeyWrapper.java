@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dataartisans.flink.dataflow.translation.wrappers.streaming;
+package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
-import com.dataartisans.flink.dataflow.translation.types.CoderTypeInformation;
-import com.dataartisans.flink.dataflow.translation.types.VoidCoderTypeSerializer;
+import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
+import org.apache.beam.runners.flink.translation.types.VoidCoderTypeSerializer;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;

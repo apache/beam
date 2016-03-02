@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dataartisans.flink.dataflow;
+package org.apache.beam.runners.flink;
 
-import com.dataartisans.flink.dataflow.util.JoinExamples;
+import org.apache.beam.runners.flink.util.JoinExamples;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.io.TextIO;

@@ -15,10 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dataartisans.flink.dataflow.translation;
+package org.apache.beam.runners.flink.translation;
 
-import com.dataartisans.flink.dataflow.translation.types.CoderTypeInformation;
-import com.dataartisans.flink.dataflow.translation.types.KvCoderTypeInformation;
+import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
+import org.apache.beam.runners.flink.translation.types.KvCoderTypeInformation;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;

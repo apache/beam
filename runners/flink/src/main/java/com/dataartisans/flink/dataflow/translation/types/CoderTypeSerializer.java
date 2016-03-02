@@ -15,10 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dataartisans.flink.dataflow.translation.types;
+package org.apache.beam.runners.flink.translation.types;
 
-import com.dataartisans.flink.dataflow.translation.wrappers.DataInputViewWrapper;
-import com.dataartisans.flink.dataflow.translation.wrappers.DataOutputViewWrapper;
+import org.apache.beam.runners.flink.translation.wrappers.DataInputViewWrapper;
+import org.apache.beam.runners.flink.translation.wrappers.DataOutputViewWrapper;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import org.apache.flink.api.common.typeutils.TypeSerializer;

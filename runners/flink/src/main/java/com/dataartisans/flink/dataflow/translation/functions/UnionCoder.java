@@ -14,7 +14,7 @@
  * the License.
  */
 
-package com.dataartisans.flink.dataflow.translation.functions;
+package org.apache.beam.runners.flink.translation.functions;
 
 
 import com.fasterxml.jackson.annotation.JsonCreator;

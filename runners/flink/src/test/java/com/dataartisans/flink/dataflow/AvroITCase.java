@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.dataartisans.flink.dataflow;
+package org.apache.beam.runners.flink;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.AvroCoder;

@@ -15,14 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dataartisans.flink.dataflow.translation.wrappers;
+package org.apache.beam.runners.flink.translation.wrappers;
 
 import com.google.cloud.dataflow.sdk.io.Source;
 import org.apache.flink.core.io.InputSplit;
 
 /**
  * {@link org.apache.flink.core.io.InputSplit} for
- * {@link com.dataartisans.flink.dataflow.translation.wrappers.SourceInputFormat}. We pass
+ * {@link org.apache.beam.runners.flink.translation.wrappers.SourceInputFormat}. We pass
  * the sharded Source around in the input split because Sources simply split up into several
  * Sources for sharding. This is different to how Flink creates a separate InputSplit from
  * an InputFormat.

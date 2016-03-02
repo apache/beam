@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dataartisans.flink.dataflow;
+package org.apache.beam.runners.flink;
 
-import com.dataartisans.flink.dataflow.translation.FlinkPipelineTranslator;
-import com.dataartisans.flink.dataflow.translation.FlinkBatchPipelineTranslator;
-import com.dataartisans.flink.dataflow.translation.FlinkStreamingPipelineTranslator;
+import org.apache.beam.runners.flink.translation.FlinkPipelineTranslator;
+import org.apache.beam.runners.flink.translation.FlinkBatchPipelineTranslator;
+import org.apache.beam.runners.flink.translation.FlinkStreamingPipelineTranslator;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.JobExecutionResult;

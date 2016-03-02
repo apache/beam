@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dataartisans.flink.dataflow;
+package org.apache.beam.runners.flink;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.PipelineResult;
@@ -22,7 +22,7 @@ import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 
 /**
  * {@link com.google.cloud.dataflow.sdk.Pipeline} for testing Dataflow programs on the
- * {@link com.dataartisans.flink.dataflow.FlinkPipelineRunner}.
+ * {@link org.apache.beam.runners.flink.FlinkPipelineRunner}.
  */
 public class FlinkTestPipeline extends Pipeline {
 
