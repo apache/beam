@@ -400,35 +400,6 @@ class DataflowApplicationClient(object):
   @retry.no_retries  # Using no_retries marks this as an integration point.
   def create_job(self, job):
     """Submits for remote execution a job described by the workflow proto."""
-
-    # Checks the whitelisting status of this account. This is just an early
-    # courtesy check to show a warning in case of potential whitelisting errors.
-    # It will not block job submission. Jobs submitted from non-whitelisted
-    # projects will fail to download required files, make no progress and fail
-    # eventually.
-    #
-    # This check will provide a false warning if a project is whitelisted but
-    # not the current user. In that case job will still execute successfully
-    # in the service.
-    #
-    # TODO(altay): Remove once the whitelisting requirements are lifted.
-    try:
-      request = storage.StorageObjectsListRequest(
-          bucket='dataflow-python-docker')
-      self._storage_client.objects.List(request)
-    except exceptions.HttpError as e:
-      if e.status_code == 403:
-        logging.error(
-            '\n*************************************************************\n'
-            'This account is not whitelisted to run Python-based pipelines '
-            'using the Google Cloud Dataflow service. '
-            'Make sure that your project is whitelisted before submitting your '
-            'job. \nPlease see documentation for getting more information on '
-            'getting your project whitelisted.'
-            '\n*************************************************************\n')
-      else:
-        logging.warning('Could not verify whitelisting status.')
-
     # Stage job resources and add an environment proto with their paths.
     resources = dependency.stage_job_resources(
         job.options, file_copy=self._gcs_file_copy)
@@ -454,6 +425,34 @@ class DataflowApplicationClient(object):
     logging.info('Create job: %s', response)
     # The response is a Job proto with the id for the new job.
     logging.info('Created job with id: [%s]', response.id)
+
+    # Show the whitelisting warning. Projects should be whitelisted prior to
+    # submitting jobs to Google Cloud Dataflow service. Please see documentation
+    # for more information.
+    #
+    # TODO(altay): Remove once the whitelisting requirements are lifted.
+    logging.warning(
+        '\n\n***************************************************************\n'
+        '*      WARNING: PROJECT WHITELISTING REQUIRED.                *'
+        '\n***************************************************************\n'
+        'Please make sure your project is whitelisted for running\n'
+        'Python-based pipelines using the Google Cloud Dataflow service.\n\n'
+        'You may ignore this message if you have successfully ran\n'
+        'Python-based pipelines with this project on Google Cloud\n'
+        'Dataflow service before.\n\n'
+        'If your project is not whitelisted, your job will attempt to run\n'
+        'however it will fail to make any progress. Google Cloud Dataflow\n'
+        'service will automatically cancel your non-whitelisted job\n'
+        'after some time due to inactivity. You can also manually cancel\n'
+        'your job using the following command:\n\n'
+        'gcloud alpha dataflow jobs --project=%s cancel %s\n\n'
+        'Please refer to the documentation to learn more about whitelisting\n'
+        'your project at: %s'
+        '\n***************************************************************\n\n',
+        request.projectId, response.id,
+        'https://cloud.google.com/dataflow/'
+    )
+
     return response
 
   @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py
