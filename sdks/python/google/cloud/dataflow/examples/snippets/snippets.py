@@ -187,59 +187,108 @@ def model_pcollection(argv):
   # [END model_pcollection]
 
 
-def model_pipeline_options(argv):
-  """"Creating a Pipeline using a PipelineOptions object.
+def pipeline_options_remote(argv):
+  """"Creating a Pipeline using a PipelineOptions object for remote execution.
 
   URL: https://cloud.google.com/dataflow/pipelines/specifying-exec-params
   """
 
-  # [START model_pipeline_options_create]
   from google.cloud.dataflow import Pipeline
   from google.cloud.dataflow.utils.options import PipelineOptions
 
+  # [START pipeline_options_create]
   options = PipelineOptions(flags=argv)
-  # [END model_pipeline_options_create]
+  # [END pipeline_options_create]
 
-  # [START model_pipeline_options_define_custom]
+  # [START pipeline_options_define_custom]
   class MyOptions(PipelineOptions):
 
     @classmethod
     def _add_argparse_args(cls, parser):
       parser.add_argument('--input')
       parser.add_argument('--output')
+  # [END pipeline_options_define_custom]
+
+  from google.cloud.dataflow.utils.options import GoogleCloudOptions
+  from google.cloud.dataflow.utils.options import StandardOptions
+
+  # [START pipeline_options_dataflow_service]
+  # Create and set your PipelineOptions.
+  options = PipelineOptions(flags=argv)
+
+  # For Cloud execution, set the Cloud Platform project, staging location,
+  # and specify DataflowPipelineRunner or BlockingDataflowPipelineRunner.
+  google_cloud_options = options.view_as(GoogleCloudOptions)
+  google_cloud_options.project = 'my-project-id'
+  google_cloud_options.staging_location = 'gs://my-bucket/binaries'
+  options.view_as(StandardOptions).runner = 'DataflowPipelineRunner'
+
+  # Create the Pipeline with the specified options.
+  p = Pipeline(options=options)
+  # [END pipeline_options_dataflow_service]
+
+  my_options = options.view_as(MyOptions)
+  my_input = my_options.input
+  my_output = my_options.output
+
+  # Overriding the runner for tests.
+  options.view_as(StandardOptions).runner = 'DirectPipelineRunner'
+  p = Pipeline(options=options)
+
+  lines = p | df.io.Read('ReadFromText', df.io.TextFileSource(my_input))
+  lines | df.io.Write('WriteToText', df.io.TextFileSink(my_output))
+
+  p.run()
+
+
+def pipeline_options_local(argv):
+  """"Creating a Pipeline using a PipelineOptions object for local execution.
+
+  URL: https://cloud.google.com/dataflow/pipelines/specifying-exec-params
+  """
+
+  from google.cloud.dataflow import Pipeline
+  from google.cloud.dataflow.utils.options import PipelineOptions
+
+  options = PipelineOptions(flags=argv)
+
+  # [START pipeline_options_define_custom_with_help_and_default]
+  class MyOptions(PipelineOptions):
+
+    @classmethod
+    def _add_argparse_args(cls, parser):
+      parser.add_argument('--input',
+                          help='Input for the dataflow pipeline',
+                          default='gs://my-bucket/input')
+      parser.add_argument('--output',
+                          help='Output for the dataflow pipeline',
+                          default='gs://my-bucket/output')
+  # [END pipeline_options_define_custom_with_help_and_default]
 
   my_options = options.view_as(MyOptions)
 
   my_input = my_options.input
   my_output = my_options.output
-  # [END model_pipeline_options_define_custom]
 
-  # [START model_pipeline_options_dataflow_service]
-  from google.cloud.dataflow.utils.options import GoogleCloudOptions
-  from google.cloud.dataflow.utils.options import StandardOptions
-
-  google_cloud_options = options.view_as(GoogleCloudOptions)
-  google_cloud_options.project = 'my-project-id'
-  google_cloud_options.staging_location = 'gs://my-bucket/binaries'
-  options.view_as(StandardOptions).runner = 'DirectPipelineRunner'
-  # [END model_pipeline_options_dataflow_service]
-
-  # [START model_pipeline_options_create_pipeline]
+  # [START pipeline_options_local]
+  # Create and set your Pipeline Options.
+  options = PipelineOptions()
   p = Pipeline(options=options)
+  # [END pipeline_options_local]
+
   lines = p | df.io.Read('ReadFromText', df.io.TextFileSource(my_input))
   lines | df.io.Write('WriteToText', df.io.TextFileSink(my_output))
-
   p.run()
-  # [END model_pipeline_options_create_pipeline]
 
 
-def model_pipeline_without_pipeline_options(argv):
+def pipeline_options_command_line(argv):
   """"Creating a Pipeline by passing a list of arguments.
 
   URL: https://cloud.google.com/dataflow/pipelines/specifying-exec-params
   """
 
-  # [START model_pipeline_without_pipeline_options]
+  # [START pipeline_options_command_line]
+  # Use Python argparse module to parse custom arguments
   import argparse
 
   parser = argparse.ArgumentParser()
@@ -247,12 +296,13 @@ def model_pipeline_without_pipeline_options(argv):
   parser.add_argument('--output')
   known_args, pipeline_args = parser.parse_known_args(argv)
 
+  # Create the Pipeline with remaining arguments.
   p = df.Pipeline(argv=pipeline_args)
   lines = p | df.io.Read('ReadFromText', df.io.TextFileSource(known_args.input))
   lines | df.io.Write('WriteToText', df.io.TextFileSink(known_args.output))
+  # [END pipeline_options_command_line]
 
   p.run()
-  # [END model_pipeline_without_pipeline_options]
 
 
 def model_textio(renames):

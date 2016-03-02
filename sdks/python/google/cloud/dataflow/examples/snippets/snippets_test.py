@@ -321,25 +321,24 @@ class SnippetsTest(unittest.TestCase):
     # sinks can be built.
     self.assertEqual(None, snippets.model_bigqueryio())
 
-  def test_model_pipeline_options(self):
+  def _run_test_pipeline_for_options(self, fn):
     temp_path = self.create_temp_file('aa\nbb\ncc')
     result_path = temp_path + '.result'
-    snippets.model_pipeline_options([
+    fn([
         '--input=%s*' % temp_path,
         '--output=%s' % result_path])
     self.assertEqual(
         ['aa', 'bb', 'cc'],
         self.get_output(result_path))
 
-  def test_model_pipeline_without_pipeline_options(self):
-    temp_path = self.create_temp_file('aa\nbb\ncc')
-    result_path = temp_path + '.result'
-    snippets.model_pipeline_without_pipeline_options([
-        '--input=%s*' % temp_path,
-        '--output=%s' % result_path])
-    self.assertEqual(
-        ['aa', 'bb', 'cc'],
-        self.get_output(result_path))
+  def test_pipeline_options_local(self):
+    self._run_test_pipeline_for_options(snippets.pipeline_options_local)
+
+  def test_pipeline_options_remote(self):
+    self._run_test_pipeline_for_options(snippets.pipeline_options_remote)
+
+  def test_pipeline_options_command_line(self):
+    self._run_test_pipeline_for_options(snippets.pipeline_options_command_line)
 
   def test_model_composite_transform_example(self):
     contents = ['aa bb cc', 'bb cc', 'cc']
