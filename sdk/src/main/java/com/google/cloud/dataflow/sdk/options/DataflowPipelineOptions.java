@@ -92,6 +92,19 @@ public interface DataflowPipelineOptions extends
   void setJobName(String value);
 
   /**
+   * Whether to update the currently running pipeline with the same name as this one.
+   */
+  @Override
+  @SuppressWarnings("deprecation") // base class member deprecated in favor of this one.
+  @Description(
+      "If set, replace the existing pipeline with the name specified by --jobName with "
+          + "this pipeline, preserving state.")
+  boolean getUpdate();
+  @Override
+  @SuppressWarnings("deprecation") // base class member deprecated in favor of this one.
+  void setUpdate(boolean value);
+
+  /**
    * Returns a normalized job name constructed from {@link ApplicationNameOptions#getAppName()}, the
    * local system user name (if available), and the current time. The normalization makes sure that
    * the job name matches the required pattern of [a-z]([-a-z0-9]*[a-z0-9])? and length limit of 40
