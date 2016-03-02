@@ -33,25 +33,25 @@ import java.util.Iterator;
  */
 public class FlinkReduceFunction<K, VA, VO> implements GroupReduceFunction<KV<K, VA>, KV<K, VO>> {
 
-	private final Combine.KeyedCombineFn<K, ?, VA, VO> keyedCombineFn;
+  private final Combine.KeyedCombineFn<K, ?, VA, VO> keyedCombineFn;
 
-	public FlinkReduceFunction(Combine.KeyedCombineFn<K, ?, VA, VO> keyedCombineFn) {
-		this.keyedCombineFn = keyedCombineFn;
-	}
+  public FlinkReduceFunction(Combine.KeyedCombineFn<K, ?, VA, VO> keyedCombineFn) {
+    this.keyedCombineFn = keyedCombineFn;
+  }
 
-	@Override
-	public void reduce(Iterable<KV<K, VA>> values, Collector<KV<K, VO>> out) throws Exception {
-		Iterator<KV<K, VA>> it = values.iterator();
+  @Override
+  public void reduce(Iterable<KV<K, VA>> values, Collector<KV<K, VO>> out) throws Exception {
+    Iterator<KV<K, VA>> it = values.iterator();
 
-		KV<K, VA> current = it.next();
-		K k = current.getKey();
-		VA accumulator = current.getValue();
+    KV<K, VA> current = it.next();
+    K k = current.getKey();
+    VA accumulator = current.getValue();
 
-		while (it.hasNext()) {
-			current = it.next();
-			keyedCombineFn.mergeAccumulators(k, ImmutableList.of(accumulator, current.getValue()) );
-		}
+    while (it.hasNext()) {
+      current = it.next();
+      keyedCombineFn.mergeAccumulators(k, ImmutableList.of(accumulator, current.getValue()) );
+    }
 
-		out.collect(KV.of(k, keyedCombineFn.extractOutput(k, accumulator)));
-	}
+    out.collect(KV.of(k, keyedCombineFn.extractOutput(k, accumulator)));
+  }
 }

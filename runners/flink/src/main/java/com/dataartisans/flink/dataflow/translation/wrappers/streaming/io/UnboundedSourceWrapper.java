@@ -38,95 +38,95 @@ import org.joda.time.Instant;
  * */
 public class UnboundedSourceWrapper<T> extends RichSourceFunction<WindowedValue<T>> implements Triggerable {
 
-	private final String name;
-	private final UnboundedSource.UnboundedReader<T> reader;
+  private final String name;
+  private final UnboundedSource.UnboundedReader<T> reader;
 
-	private StreamingRuntimeContext runtime = null;
-	private StreamSource.ManualWatermarkContext<WindowedValue<T>> context = null;
+  private StreamingRuntimeContext runtime = null;
+  private StreamSource.ManualWatermarkContext<WindowedValue<T>> context = null;
 
-	private volatile boolean isRunning = false;
+  private volatile boolean isRunning = false;
 
-	public UnboundedSourceWrapper(PipelineOptions options, Read.Unbounded<T> transform) {
-		this.name = transform.getName();
-		this.reader = transform.getSource().createReader(options, null);
-	}
+  public UnboundedSourceWrapper(PipelineOptions options, Read.Unbounded<T> transform) {
+    this.name = transform.getName();
+    this.reader = transform.getSource().createReader(options, null);
+  }
 
-	public String getName() {
-		return this.name;
-	}
+  public String getName() {
+    return this.name;
+  }
 
-	WindowedValue<T> makeWindowedValue(T output, Instant timestamp) {
-		if (timestamp == null) {
-			timestamp = BoundedWindow.TIMESTAMP_MIN_VALUE;
-		}
-		return WindowedValue.of(output, timestamp, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING);
-	}
+  WindowedValue<T> makeWindowedValue(T output, Instant timestamp) {
+    if (timestamp == null) {
+      timestamp = BoundedWindow.TIMESTAMP_MIN_VALUE;
+    }
+    return WindowedValue.of(output, timestamp, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING);
+  }
 
-	@Override
-	public void run(SourceContext<WindowedValue<T>> ctx) throws Exception {
-		if (!(ctx instanceof StreamSource.ManualWatermarkContext)) {
-			throw new RuntimeException("We assume that all sources in Dataflow are EventTimeSourceFunction. " +
-					"Apparently " + this.name + " is not. Probably you should consider writing your own Wrapper for this source.");
-		}
+  @Override
+  public void run(SourceContext<WindowedValue<T>> ctx) throws Exception {
+    if (!(ctx instanceof StreamSource.ManualWatermarkContext)) {
+      throw new RuntimeException("We assume that all sources in Dataflow are EventTimeSourceFunction. " +
+          "Apparently " + this.name + " is not. Probably you should consider writing your own Wrapper for this source.");
+    }
 
-		context = (StreamSource.ManualWatermarkContext<WindowedValue<T>>) ctx;
-		runtime = (StreamingRuntimeContext) getRuntimeContext();
+    context = (StreamSource.ManualWatermarkContext<WindowedValue<T>>) ctx;
+    runtime = (StreamingRuntimeContext) getRuntimeContext();
 
-		this.isRunning = true;
-		boolean inputAvailable = reader.start();
+    this.isRunning = true;
+    boolean inputAvailable = reader.start();
 
-		setNextWatermarkTimer(this.runtime);
+    setNextWatermarkTimer(this.runtime);
 
-		while (isRunning) {
+    while (isRunning) {
 
-			while (!inputAvailable && isRunning) {
-				// wait a bit until we retry to pull more records
-				Thread.sleep(50);
-				inputAvailable = reader.advance();
-			}
+      while (!inputAvailable && isRunning) {
+        // wait a bit until we retry to pull more records
+        Thread.sleep(50);
+        inputAvailable = reader.advance();
+      }
 
-			if (inputAvailable) {
+      if (inputAvailable) {
 
-				// get it and its timestamp from the source
-				T item = reader.getCurrent();
-				Instant timestamp = reader.getCurrentTimestamp();
+        // get it and its timestamp from the source
+        T item = reader.getCurrent();
+        Instant timestamp = reader.getCurrentTimestamp();
 
-				// write it to the output collector
-				synchronized (ctx.getCheckpointLock()) {
-					context.collectWithTimestamp(makeWindowedValue(item, timestamp), timestamp.getMillis());
-				}
+        // write it to the output collector
+        synchronized (ctx.getCheckpointLock()) {
+          context.collectWithTimestamp(makeWindowedValue(item, timestamp), timestamp.getMillis());
+        }
 
-				inputAvailable = reader.advance();
-			}
+        inputAvailable = reader.advance();
+      }
 
-		}
-	}
+    }
+  }
 
-	@Override
-	public void cancel() {
-		isRunning = false;
-	}
+  @Override
+  public void cancel() {
+    isRunning = false;
+  }
 
-	@Override
-	public void trigger(long timestamp) throws Exception {
-		if (this.isRunning) {
-			synchronized (context.getCheckpointLock()) {
-				long watermarkMillis = this.reader.getWatermark().getMillis();
-				context.emitWatermark(new Watermark(watermarkMillis));
-			}
-			setNextWatermarkTimer(this.runtime);
-		}
-	}
+  @Override
+  public void trigger(long timestamp) throws Exception {
+    if (this.isRunning) {
+      synchronized (context.getCheckpointLock()) {
+        long watermarkMillis = this.reader.getWatermark().getMillis();
+        context.emitWatermark(new Watermark(watermarkMillis));
+      }
+      setNextWatermarkTimer(this.runtime);
+    }
+  }
 
-	private void setNextWatermarkTimer(StreamingRuntimeContext runtime) {
-		if (this.isRunning) {
-			long watermarkInterval =  runtime.getExecutionConfig().getAutoWatermarkInterval();
-			long timeToNextWatermark = getTimeToNextWaternark(watermarkInterval);
-			runtime.registerTimer(timeToNextWatermark, this);
-		}
-	}
+  private void setNextWatermarkTimer(StreamingRuntimeContext runtime) {
+    if (this.isRunning) {
+      long watermarkInterval =  runtime.getExecutionConfig().getAutoWatermarkInterval();
+      long timeToNextWatermark = getTimeToNextWaternark(watermarkInterval);
+      runtime.registerTimer(timeToNextWatermark, this);
+    }
+  }
 
-	private long getTimeToNextWaternark(long watermarkInterval) {
-		return System.currentTimeMillis() + watermarkInterval;
-	}
+  private long getTimeToNextWaternark(long watermarkInterval) {
+    return System.currentTimeMillis() + watermarkInterval;
+  }
 }

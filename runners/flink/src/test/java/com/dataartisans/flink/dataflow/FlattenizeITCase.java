@@ -26,47 +26,47 @@ import org.apache.flink.test.util.JavaProgramTestBase;
 
 public class FlattenizeITCase extends JavaProgramTestBase {
 
-	private String resultPath;
-	private String resultPath2;
+  private String resultPath;
+  private String resultPath2;
 
-	private static final String[] words = {"hello", "this", "is", "a", "DataSet!"};
-	private static final String[] words2 = {"hello", "this", "is", "another", "DataSet!"};
-	private static final String[] words3 = {"hello", "this", "is", "yet", "another", "DataSet!"};
+  private static final String[] words = {"hello", "this", "is", "a", "DataSet!"};
+  private static final String[] words2 = {"hello", "this", "is", "another", "DataSet!"};
+  private static final String[] words3 = {"hello", "this", "is", "yet", "another", "DataSet!"};
 
-	@Override
-	protected void preSubmit() throws Exception {
-		resultPath = getTempDirPath("result");
-		resultPath2 = getTempDirPath("result2");
-	}
+  @Override
+  protected void preSubmit() throws Exception {
+    resultPath = getTempDirPath("result");
+    resultPath2 = getTempDirPath("result2");
+  }
 
-	@Override
-	protected void postSubmit() throws Exception {
-		String join = Joiner.on('\n').join(words);
-		String join2 = Joiner.on('\n').join(words2);
-		String join3 = Joiner.on('\n').join(words3);
-		compareResultsByLinesInMemory(join + "\n" + join2, resultPath);
-		compareResultsByLinesInMemory(join + "\n" + join2 + "\n" + join3, resultPath2);
-	}
+  @Override
+  protected void postSubmit() throws Exception {
+    String join = Joiner.on('\n').join(words);
+    String join2 = Joiner.on('\n').join(words2);
+    String join3 = Joiner.on('\n').join(words3);
+    compareResultsByLinesInMemory(join + "\n" + join2, resultPath);
+    compareResultsByLinesInMemory(join + "\n" + join2 + "\n" + join3, resultPath2);
+  }
 
 
-	@Override
-	protected void testProgram() throws Exception {
-		Pipeline p = FlinkTestPipeline.createForBatch();
+  @Override
+  protected void testProgram() throws Exception {
+    Pipeline p = FlinkTestPipeline.createForBatch();
 
-		PCollection<String> p1 = p.apply(Create.of(words));
-		PCollection<String> p2 = p.apply(Create.of(words2));
+    PCollection<String> p1 = p.apply(Create.of(words));
+    PCollection<String> p2 = p.apply(Create.of(words2));
 
-		PCollectionList<String> list = PCollectionList.of(p1).and(p2);
+    PCollectionList<String> list = PCollectionList.of(p1).and(p2);
 
-		list.apply(Flatten.<String>pCollections()).apply(TextIO.Write.to(resultPath));
+    list.apply(Flatten.<String>pCollections()).apply(TextIO.Write.to(resultPath));
 
-		PCollection<String> p3 = p.apply(Create.of(words3));
+    PCollection<String> p3 = p.apply(Create.of(words3));
 
-		PCollectionList<String> list2 = list.and(p3);
+    PCollectionList<String> list2 = list.and(p3);
 
-		list2.apply(Flatten.<String>pCollections()).apply(TextIO.Write.to(resultPath2));
+    list2.apply(Flatten.<String>pCollections()).apply(TextIO.Write.to(resultPath2));
 
-		p.run();
-	}
+    p.run();
+  }
 
 }

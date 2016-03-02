@@ -30,40 +30,40 @@ import java.util.List;
 
 public class RemoveDuplicatesITCase extends JavaProgramTestBase {
 
-	protected String resultPath;
+  protected String resultPath;
 
-	public RemoveDuplicatesITCase(){
-	}
+  public RemoveDuplicatesITCase(){
+  }
 
-	static final String[] EXPECTED_RESULT = new String[] {
-			"k1", "k5", "k2", "k3"};
+  static final String[] EXPECTED_RESULT = new String[] {
+      "k1", "k5", "k2", "k3"};
 
-	@Override
-	protected void preSubmit() throws Exception {
-		resultPath = getTempDirPath("result");
-	}
+  @Override
+  protected void preSubmit() throws Exception {
+    resultPath = getTempDirPath("result");
+  }
 
-	@Override
-	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(Joiner.on('\n').join(EXPECTED_RESULT), resultPath);
-	}
+  @Override
+  protected void postSubmit() throws Exception {
+    compareResultsByLinesInMemory(Joiner.on('\n').join(EXPECTED_RESULT), resultPath);
+  }
 
-	@Override
-	protected void testProgram() throws Exception {
+  @Override
+  protected void testProgram() throws Exception {
 
-		List<String> strings = Arrays.asList("k1", "k5", "k5", "k2", "k1", "k2", "k3");
+    List<String> strings = Arrays.asList("k1", "k5", "k5", "k2", "k1", "k2", "k3");
 
-		Pipeline p = FlinkTestPipeline.createForBatch();
+    Pipeline p = FlinkTestPipeline.createForBatch();
 
-		PCollection<String> input =
-				p.apply(Create.of(strings))
-						.setCoder(StringUtf8Coder.of());
+    PCollection<String> input =
+        p.apply(Create.of(strings))
+            .setCoder(StringUtf8Coder.of());
 
-		PCollection<String> output =
-				input.apply(RemoveDuplicates.<String>create());
+    PCollection<String> output =
+        input.apply(RemoveDuplicates.<String>create());
 
-		output.apply(TextIO.Write.to(resultPath));
-		p.run();
-	}
+    output.apply(TextIO.Write.to(resultPath));
+    p.run();
+  }
 }
 

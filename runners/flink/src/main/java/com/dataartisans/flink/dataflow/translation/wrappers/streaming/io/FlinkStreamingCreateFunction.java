@@ -34,30 +34,30 @@ import java.util.List;
  */
 public class FlinkStreamingCreateFunction<IN, OUT> implements FlatMapFunction<IN, WindowedValue<OUT>> {
 
-	private final List<byte[]> elements;
-	private final Coder<OUT> coder;
+  private final List<byte[]> elements;
+  private final Coder<OUT> coder;
 
-	public FlinkStreamingCreateFunction(List<byte[]> elements, Coder<OUT> coder) {
-		this.elements = elements;
-		this.coder = coder;
-	}
+  public FlinkStreamingCreateFunction(List<byte[]> elements, Coder<OUT> coder) {
+    this.elements = elements;
+    this.coder = coder;
+  }
 
-	@Override
-	public void flatMap(IN value, Collector<WindowedValue<OUT>> out) throws Exception {
+  @Override
+  public void flatMap(IN value, Collector<WindowedValue<OUT>> out) throws Exception {
 
-		@SuppressWarnings("unchecked")
-		OUT voidValue = (OUT) VoidCoderTypeSerializer.VoidValue.INSTANCE;
-		for (byte[] element : elements) {
-			ByteArrayInputStream bai = new ByteArrayInputStream(element);
-			OUT outValue = coder.decode(bai, Coder.Context.OUTER);
+    @SuppressWarnings("unchecked")
+    OUT voidValue = (OUT) VoidCoderTypeSerializer.VoidValue.INSTANCE;
+    for (byte[] element : elements) {
+      ByteArrayInputStream bai = new ByteArrayInputStream(element);
+      OUT outValue = coder.decode(bai, Coder.Context.OUTER);
 
-			if (outValue == null) {
-				out.collect(WindowedValue.of(voidValue, Instant.now(), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
-			} else {
-				out.collect(WindowedValue.of(outValue, Instant.now(), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
-			}
-		}
+      if (outValue == null) {
+        out.collect(WindowedValue.of(voidValue, Instant.now(), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
+      } else {
+        out.collect(WindowedValue.of(outValue, Instant.now(), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
+      }
+    }
 
-		out.close();
-	}
+    out.close();
+  }
 }

@@ -35,118 +35,118 @@ import java.io.ObjectInputStream;
  * Dataflow {@link com.google.cloud.dataflow.sdk.coders.Coder}s
  */
 public class CoderTypeSerializer<T> extends TypeSerializer<T> {
-	
-	private Coder<T> coder;
-	private transient DataInputViewWrapper inputWrapper;
-	private transient DataOutputViewWrapper outputWrapper;
+  
+  private Coder<T> coder;
+  private transient DataInputViewWrapper inputWrapper;
+  private transient DataOutputViewWrapper outputWrapper;
 
-	// We use this for internal encoding/decoding for creating copies using the Coder.
-	private transient InspectableByteArrayOutputStream buffer;
+  // We use this for internal encoding/decoding for creating copies using the Coder.
+  private transient InspectableByteArrayOutputStream buffer;
 
-	public CoderTypeSerializer(Coder<T> coder) {
-		this.coder = coder;
-		this.inputWrapper = new DataInputViewWrapper(null);
-		this.outputWrapper = new DataOutputViewWrapper(null);
+  public CoderTypeSerializer(Coder<T> coder) {
+    this.coder = coder;
+    this.inputWrapper = new DataInputViewWrapper(null);
+    this.outputWrapper = new DataOutputViewWrapper(null);
 
-		buffer = new InspectableByteArrayOutputStream();
-	}
-	
-	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-		in.defaultReadObject();
-		this.inputWrapper = new DataInputViewWrapper(null);
-		this.outputWrapper = new DataOutputViewWrapper(null);
+    buffer = new InspectableByteArrayOutputStream();
+  }
+  
+  private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+    in.defaultReadObject();
+    this.inputWrapper = new DataInputViewWrapper(null);
+    this.outputWrapper = new DataOutputViewWrapper(null);
 
-		buffer = new InspectableByteArrayOutputStream();
-	}
-	
-	@Override
-	public boolean isImmutableType() {
-		return false;
-	}
+    buffer = new InspectableByteArrayOutputStream();
+  }
+  
+  @Override
+  public boolean isImmutableType() {
+    return false;
+  }
 
-	@Override
-	public CoderTypeSerializer<T> duplicate() {
-		return new CoderTypeSerializer<>(coder);
-	}
+  @Override
+  public CoderTypeSerializer<T> duplicate() {
+    return new CoderTypeSerializer<>(coder);
+  }
 
-	@Override
-	public T createInstance() {
-		return null;
-	}
+  @Override
+  public T createInstance() {
+    return null;
+  }
 
-	@Override
-	public T copy(T t) {
-		buffer.reset();
-		try {
-			coder.encode(t, buffer, Coder.Context.OUTER);
-		} catch (IOException e) {
-			throw new RuntimeException("Could not copy.", e);
-		}
-		try {
-			return coder.decode(new ByteArrayInputStream(buffer.getBuffer(), 0, buffer
-					.size()), Coder.Context.OUTER);
-		} catch (IOException e) {
-			throw new RuntimeException("Could not copy.", e);
-		}
-	}
+  @Override
+  public T copy(T t) {
+    buffer.reset();
+    try {
+      coder.encode(t, buffer, Coder.Context.OUTER);
+    } catch (IOException e) {
+      throw new RuntimeException("Could not copy.", e);
+    }
+    try {
+      return coder.decode(new ByteArrayInputStream(buffer.getBuffer(), 0, buffer
+          .size()), Coder.Context.OUTER);
+    } catch (IOException e) {
+      throw new RuntimeException("Could not copy.", e);
+    }
+  }
 
-	@Override
-	public T copy(T t, T reuse) {
-		return copy(t);
-	}
+  @Override
+  public T copy(T t, T reuse) {
+    return copy(t);
+  }
 
-	@Override
-	public int getLength() {
-		return 0;
-	}
+  @Override
+  public int getLength() {
+    return 0;
+  }
 
-	@Override
-	public void serialize(T t, DataOutputView dataOutputView) throws IOException {
-		outputWrapper.setOutputView(dataOutputView);
-		coder.encode(t, outputWrapper, Coder.Context.NESTED);
-	}
+  @Override
+  public void serialize(T t, DataOutputView dataOutputView) throws IOException {
+    outputWrapper.setOutputView(dataOutputView);
+    coder.encode(t, outputWrapper, Coder.Context.NESTED);
+  }
 
-	@Override
-	public T deserialize(DataInputView dataInputView) throws IOException {
-		try {
-			inputWrapper.setInputView(dataInputView);
-			return coder.decode(inputWrapper, Coder.Context.NESTED);
-		} catch (CoderException e) {
-			Throwable cause = e.getCause();
-			if (cause instanceof EOFException) {
-				throw (EOFException) cause;
-			} else {
-				throw e;
-			}
-		}
-	}
+  @Override
+  public T deserialize(DataInputView dataInputView) throws IOException {
+    try {
+      inputWrapper.setInputView(dataInputView);
+      return coder.decode(inputWrapper, Coder.Context.NESTED);
+    } catch (CoderException e) {
+      Throwable cause = e.getCause();
+      if (cause instanceof EOFException) {
+        throw (EOFException) cause;
+      } else {
+        throw e;
+      }
+    }
+  }
 
-	@Override
-	public T deserialize(T t, DataInputView dataInputView) throws IOException {
-		return deserialize(dataInputView);
-	}
+  @Override
+  public T deserialize(T t, DataInputView dataInputView) throws IOException {
+    return deserialize(dataInputView);
+  }
 
-	@Override
-	public void copy(DataInputView dataInputView, DataOutputView dataOutputView) throws IOException {
-		serialize(deserialize(dataInputView), dataOutputView);
-	}
+  @Override
+  public void copy(DataInputView dataInputView, DataOutputView dataOutputView) throws IOException {
+    serialize(deserialize(dataInputView), dataOutputView);
+  }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) return true;
-		if (o == null || getClass() != o.getClass()) return false;
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
 
-		CoderTypeSerializer that = (CoderTypeSerializer) o;
-		return coder.equals(that.coder);
-	}
+    CoderTypeSerializer that = (CoderTypeSerializer) o;
+    return coder.equals(that.coder);
+  }
 
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof CoderTypeSerializer;
-	}
+  @Override
+  public boolean canEqual(Object obj) {
+    return obj instanceof CoderTypeSerializer;
+  }
 
-	@Override
-	public int hashCode() {
-		return coder.hashCode();
-	}
+  @Override
+  public int hashCode() {
+    return coder.hashCode();
+  }
 }

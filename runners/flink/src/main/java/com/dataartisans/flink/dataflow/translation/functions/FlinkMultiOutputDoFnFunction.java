@@ -51,125 +51,125 @@ import java.util.Map;
  */
 public class FlinkMultiOutputDoFnFunction<IN, OUT> extends RichMapPartitionFunction<IN, RawUnionValue> {
 
-	private final DoFn<IN, OUT> doFn;
-	private transient PipelineOptions options;
-	private final Map<TupleTag<?>, Integer> outputMap;
+  private final DoFn<IN, OUT> doFn;
+  private transient PipelineOptions options;
+  private final Map<TupleTag<?>, Integer> outputMap;
 
-	public FlinkMultiOutputDoFnFunction(DoFn<IN, OUT> doFn, PipelineOptions options, Map<TupleTag<?>, Integer> outputMap) {
-		this.doFn = doFn;
-		this.options = options;
-		this.outputMap = outputMap;
-	}
+  public FlinkMultiOutputDoFnFunction(DoFn<IN, OUT> doFn, PipelineOptions options, Map<TupleTag<?>, Integer> outputMap) {
+    this.doFn = doFn;
+    this.options = options;
+    this.outputMap = outputMap;
+  }
 
-	private void writeObject(ObjectOutputStream out)
-			throws IOException, ClassNotFoundException {
-		out.defaultWriteObject();
-		ObjectMapper mapper = new ObjectMapper();
-		mapper.writeValue(out, options);
-	}
+  private void writeObject(ObjectOutputStream out)
+      throws IOException, ClassNotFoundException {
+    out.defaultWriteObject();
+    ObjectMapper mapper = new ObjectMapper();
+    mapper.writeValue(out, options);
+  }
 
-	private void readObject(ObjectInputStream in)
-			throws IOException, ClassNotFoundException {
-		in.defaultReadObject();
-		ObjectMapper mapper = new ObjectMapper();
-		options = mapper.readValue(in, PipelineOptions.class);
+  private void readObject(ObjectInputStream in)
+      throws IOException, ClassNotFoundException {
+    in.defaultReadObject();
+    ObjectMapper mapper = new ObjectMapper();
+    options = mapper.readValue(in, PipelineOptions.class);
 
-	}
+  }
 
-	@Override
-	public void mapPartition(Iterable<IN> values, Collector<RawUnionValue> out) throws Exception {
-		ProcessContext context = new ProcessContext(doFn, out);
-		this.doFn.startBundle(context);
-		for (IN value : values) {
-			context.inValue = value;
-			doFn.processElement(context);
-		}
-		this.doFn.finishBundle(context);
-	}
+  @Override
+  public void mapPartition(Iterable<IN> values, Collector<RawUnionValue> out) throws Exception {
+    ProcessContext context = new ProcessContext(doFn, out);
+    this.doFn.startBundle(context);
+    for (IN value : values) {
+      context.inValue = value;
+      doFn.processElement(context);
+    }
+    this.doFn.finishBundle(context);
+  }
 
-	private class ProcessContext extends DoFn<IN, OUT>.ProcessContext {
+  private class ProcessContext extends DoFn<IN, OUT>.ProcessContext {
 
-		IN inValue;
-		Collector<RawUnionValue> outCollector;
+    IN inValue;
+    Collector<RawUnionValue> outCollector;
 
-		public ProcessContext(DoFn<IN, OUT> fn, Collector<RawUnionValue> outCollector) {
-			fn.super();
-			this.outCollector = outCollector;
-		}
+    public ProcessContext(DoFn<IN, OUT> fn, Collector<RawUnionValue> outCollector) {
+      fn.super();
+      this.outCollector = outCollector;
+    }
 
-		@Override
-		public IN element() {
-			return this.inValue;
-		}
+    @Override
+    public IN element() {
+      return this.inValue;
+    }
 
-		@Override
-		public Instant timestamp() {
-			return Instant.now();
-		}
+    @Override
+    public Instant timestamp() {
+      return Instant.now();
+    }
 
-		@Override
-		public BoundedWindow window() {
-			return GlobalWindow.INSTANCE;
-		}
+    @Override
+    public BoundedWindow window() {
+      return GlobalWindow.INSTANCE;
+    }
 
-		@Override
-		public PaneInfo pane() {
-			return PaneInfo.NO_FIRING;
-		}
+    @Override
+    public PaneInfo pane() {
+      return PaneInfo.NO_FIRING;
+    }
 
-		@Override
-		public WindowingInternals<IN, OUT> windowingInternals() {
-			return null;
-		}
+    @Override
+    public WindowingInternals<IN, OUT> windowingInternals() {
+      return null;
+    }
 
-		@Override
-		public PipelineOptions getPipelineOptions() {
-			return options;
-		}
+    @Override
+    public PipelineOptions getPipelineOptions() {
+      return options;
+    }
 
-		@Override
-		public <T> T sideInput(PCollectionView<T> view) {
-			List<T> sideInput = getRuntimeContext().getBroadcastVariable(view.getTagInternal()
-					.getId());
-			List<WindowedValue<?>> windowedValueList = new ArrayList<>(sideInput.size());
-			for (T input : sideInput) {
-				windowedValueList.add(WindowedValue.of(input, Instant.now(), ImmutableList.of(GlobalWindow.INSTANCE), pane()));
-			}
-			return view.fromIterableInternal(windowedValueList);
-		}
+    @Override
+    public <T> T sideInput(PCollectionView<T> view) {
+      List<T> sideInput = getRuntimeContext().getBroadcastVariable(view.getTagInternal()
+          .getId());
+      List<WindowedValue<?>> windowedValueList = new ArrayList<>(sideInput.size());
+      for (T input : sideInput) {
+        windowedValueList.add(WindowedValue.of(input, Instant.now(), ImmutableList.of(GlobalWindow.INSTANCE), pane()));
+      }
+      return view.fromIterableInternal(windowedValueList);
+    }
 
-		@Override
-		public void output(OUT value) {
-			// assume that index 0 is the default output
-			outCollector.collect(new RawUnionValue(0, value));
-		}
+    @Override
+    public void output(OUT value) {
+      // assume that index 0 is the default output
+      outCollector.collect(new RawUnionValue(0, value));
+    }
 
-		@Override
-		public void outputWithTimestamp(OUT output, Instant timestamp) {
-			// not FLink's way, just output normally
-			output(output);
-		}
+    @Override
+    public void outputWithTimestamp(OUT output, Instant timestamp) {
+      // not FLink's way, just output normally
+      output(output);
+    }
 
-		@Override
-		@SuppressWarnings("unchecked")
-		public <T> void sideOutput(TupleTag<T> tag, T value) {
-			Integer index = outputMap.get(tag);
-			if (index != null) {
-				outCollector.collect(new RawUnionValue(index, value));
-			}
-		}
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T> void sideOutput(TupleTag<T> tag, T value) {
+      Integer index = outputMap.get(tag);
+      if (index != null) {
+        outCollector.collect(new RawUnionValue(index, value));
+      }
+    }
 
-		@Override
-		public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
-			sideOutput(tag, output);
-		}
+    @Override
+    public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+      sideOutput(tag, output);
+    }
 
-		@Override
-		protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregatorInternal(String name, Combine.CombineFn<AggInputT, ?, AggOutputT> combiner) {
-			SerializableFnAggregatorWrapper<AggInputT, AggOutputT> wrapper = new SerializableFnAggregatorWrapper<>(combiner);
-			getRuntimeContext().addAccumulator(name, wrapper);
-			return null;
-		}
+    @Override
+    protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregatorInternal(String name, Combine.CombineFn<AggInputT, ?, AggOutputT> combiner) {
+      SerializableFnAggregatorWrapper<AggInputT, AggOutputT> wrapper = new SerializableFnAggregatorWrapper<>(combiner);
+      getRuntimeContext().addAccumulator(name, wrapper);
+      return null;
+    }
 
-	}
+  }
 }

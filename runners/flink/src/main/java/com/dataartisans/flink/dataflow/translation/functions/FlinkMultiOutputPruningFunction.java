@@ -25,17 +25,17 @@ import org.apache.flink.util.Collector;
  */
 public class FlinkMultiOutputPruningFunction<T> implements FlatMapFunction<RawUnionValue, T> {
 
-	private final int outputTag;
+  private final int outputTag;
 
-	public FlinkMultiOutputPruningFunction(int outputTag) {
-		this.outputTag = outputTag;
-	}
+  public FlinkMultiOutputPruningFunction(int outputTag) {
+    this.outputTag = outputTag;
+  }
 
-	@Override
-	@SuppressWarnings("unchecked")
-	public void flatMap(RawUnionValue rawUnionValue, Collector<T> collector) throws Exception {
-		if (rawUnionValue.getUnionTag() == outputTag) {
-			collector.collect((T) rawUnionValue.getValue());
-		}
-	}
+  @Override
+  @SuppressWarnings("unchecked")
+  public void flatMap(RawUnionValue rawUnionValue, Collector<T> collector) throws Exception {
+    if (rawUnionValue.getUnionTag() == outputTag) {
+      collector.collect((T) rawUnionValue.getValue());
+    }
+  }
 }

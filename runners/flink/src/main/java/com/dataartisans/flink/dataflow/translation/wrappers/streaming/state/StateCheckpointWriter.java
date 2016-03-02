@@ -25,103 +25,103 @@ import java.util.concurrent.TimeUnit;
 
 public class StateCheckpointWriter {
 
-	private final AbstractStateBackend.CheckpointStateOutputView output;
+  private final AbstractStateBackend.CheckpointStateOutputView output;
 
-	public static StateCheckpointWriter create(AbstractStateBackend.CheckpointStateOutputView output) {
-		return new StateCheckpointWriter(output);
-	}
+  public static StateCheckpointWriter create(AbstractStateBackend.CheckpointStateOutputView output) {
+    return new StateCheckpointWriter(output);
+  }
 
-	private StateCheckpointWriter(AbstractStateBackend.CheckpointStateOutputView output) {
-		this.output = output;
-	}
+  private StateCheckpointWriter(AbstractStateBackend.CheckpointStateOutputView output) {
+    this.output = output;
+  }
 
-	/////////			Creating the serialized versions of the different types of state held by dataflow			///////
+  /////////      Creating the serialized versions of the different types of state held by dataflow      ///////
 
-	public StateCheckpointWriter addValueBuilder() throws IOException {
-		validate();
-		StateType.serialize(StateType.VALUE, this);
-		return this;
-	}
+  public StateCheckpointWriter addValueBuilder() throws IOException {
+    validate();
+    StateType.serialize(StateType.VALUE, this);
+    return this;
+  }
 
-	public StateCheckpointWriter addWatermarkHoldsBuilder() throws IOException {
-		validate();
-		StateType.serialize(StateType.WATERMARK, this);
-		return this;
-	}
+  public StateCheckpointWriter addWatermarkHoldsBuilder() throws IOException {
+    validate();
+    StateType.serialize(StateType.WATERMARK, this);
+    return this;
+  }
 
-	public StateCheckpointWriter addListUpdatesBuilder() throws IOException {
-		validate();
-		StateType.serialize(StateType.LIST, this);
-		return this;
-	}
+  public StateCheckpointWriter addListUpdatesBuilder() throws IOException {
+    validate();
+    StateType.serialize(StateType.LIST, this);
+    return this;
+  }
 
-	public StateCheckpointWriter addAccumulatorBuilder() throws IOException {
-		validate();
-		StateType.serialize(StateType.ACCUMULATOR, this);
-		return this;
-	}
+  public StateCheckpointWriter addAccumulatorBuilder() throws IOException {
+    validate();
+    StateType.serialize(StateType.ACCUMULATOR, this);
+    return this;
+  }
 
-	/////////			Setting the tag for a given state element			///////
+  /////////      Setting the tag for a given state element      ///////
 
-	public StateCheckpointWriter setTag(ByteString stateKey) throws IOException {
-		return writeData(stateKey.toByteArray());
-	}
+  public StateCheckpointWriter setTag(ByteString stateKey) throws IOException {
+    return writeData(stateKey.toByteArray());
+  }
 
-	public StateCheckpointWriter setTag(String stateKey) throws IOException {
-		output.writeUTF(stateKey);
-		return this;
-	}
+  public StateCheckpointWriter setTag(String stateKey) throws IOException {
+    output.writeUTF(stateKey);
+    return this;
+  }
 
 
-	public <K> StateCheckpointWriter serializeKey(K key, CoderTypeSerializer<K> keySerializer) throws IOException {
-		return serializeObject(key, keySerializer);
-	}
+  public <K> StateCheckpointWriter serializeKey(K key, CoderTypeSerializer<K> keySerializer) throws IOException {
+    return serializeObject(key, keySerializer);
+  }
 
-	public <T> StateCheckpointWriter serializeObject(T object, CoderTypeSerializer<T> objectSerializer) throws IOException {
-		objectSerializer.serialize(object, output);
-		return this;
-	}
+  public <T> StateCheckpointWriter serializeObject(T object, CoderTypeSerializer<T> objectSerializer) throws IOException {
+    objectSerializer.serialize(object, output);
+    return this;
+  }
 
-	/////////			Write the actual serialized data			//////////
+  /////////      Write the actual serialized data      //////////
 
-	public StateCheckpointWriter setData(ByteString data) throws IOException {
-		return writeData(data.toByteArray());
-	}
+  public StateCheckpointWriter setData(ByteString data) throws IOException {
+    return writeData(data.toByteArray());
+  }
 
-	public StateCheckpointWriter setData(byte[] data) throws IOException {
-		return writeData(data);
-	}
+  public StateCheckpointWriter setData(byte[] data) throws IOException {
+    return writeData(data);
+  }
 
-	public StateCheckpointWriter setTimestamp(Instant timestamp) throws IOException {
-		validate();
-		output.writeLong(TimeUnit.MILLISECONDS.toMicros(timestamp.getMillis()));
-		return this;
-	}
+  public StateCheckpointWriter setTimestamp(Instant timestamp) throws IOException {
+    validate();
+    output.writeLong(TimeUnit.MILLISECONDS.toMicros(timestamp.getMillis()));
+    return this;
+  }
 
-	public StateCheckpointWriter writeInt(int number) throws IOException {
-		validate();
-		output.writeInt(number);
-		return this;
-	}
+  public StateCheckpointWriter writeInt(int number) throws IOException {
+    validate();
+    output.writeInt(number);
+    return this;
+  }
 
-	public StateCheckpointWriter writeByte(byte b) throws IOException {
-		validate();
-		output.writeByte(b);
-		return this;
-	}
+  public StateCheckpointWriter writeByte(byte b) throws IOException {
+    validate();
+    output.writeByte(b);
+    return this;
+  }
 
-	/////////			Helper Methods			///////
+  /////////      Helper Methods      ///////
 
-	private StateCheckpointWriter writeData(byte[] data) throws IOException {
-		validate();
-		output.writeInt(data.length);
-		output.write(data);
-		return this;
-	}
+  private StateCheckpointWriter writeData(byte[] data) throws IOException {
+    validate();
+    output.writeInt(data.length);
+    output.write(data);
+    return this;
+  }
 
-	private void validate() {
-		if (this.output == null) {
-			throw new RuntimeException("StateBackend not initialized yet.");
-		}
-	}
+  private void validate() {
+    if (this.output == null) {
+      throw new RuntimeException("StateBackend not initialized yet.");
+    }
+  }
 }

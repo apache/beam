@@ -28,53 +28,53 @@ import com.google.cloud.dataflow.sdk.values.PDone;
  */
 public class ConsoleIO {
 
-	/**
-	 * A PTransform that writes a PCollection to a standard output.
-	 */
-	public static class Write {
+  /**
+   * A PTransform that writes a PCollection to a standard output.
+   */
+  public static class Write {
 
-		/**
-		 * Returns a ConsoleIO.Write PTransform with a default step name.
-		 */
-		public static Bound create() {
-			return new Bound();
-		}
+    /**
+     * Returns a ConsoleIO.Write PTransform with a default step name.
+     */
+    public static Bound create() {
+      return new Bound();
+    }
 
-		/**
-		 * Returns a ConsoleIO.Write PTransform with the given step name.
-		 */
-		public static Bound named(String name) {
-			return new Bound().named(name);
-		}
+    /**
+     * Returns a ConsoleIO.Write PTransform with the given step name.
+     */
+    public static Bound named(String name) {
+      return new Bound().named(name);
+    }
 
-		/**
-		 * A PTransform that writes a bounded PCollection to standard output.
-		 */
-		public static class Bound extends PTransform<PCollection<?>, PDone> {
-			private static final long serialVersionUID = 0;
+    /**
+     * A PTransform that writes a bounded PCollection to standard output.
+     */
+    public static class Bound extends PTransform<PCollection<?>, PDone> {
+      private static final long serialVersionUID = 0;
 
-			Bound() {
-				super("ConsoleIO.Write");
-			}
+      Bound() {
+        super("ConsoleIO.Write");
+      }
 
-			Bound(String name) {
-				super(name);
-			}
+      Bound(String name) {
+        super(name);
+      }
 
-			/**
-			 * Returns a new ConsoleIO.Write PTransform that's like this one but with the given
-			 * step
-			 * name.  Does not modify this object.
-			 */
-			public Bound named(String name) {
-				return new Bound(name);
-			}
+      /**
+       * Returns a new ConsoleIO.Write PTransform that's like this one but with the given
+       * step
+       * name.  Does not modify this object.
+       */
+      public Bound named(String name) {
+        return new Bound(name);
+      }
 
-			@Override
-			public PDone apply(PCollection<?> input) {
-				return PDone.in(input.getPipeline());
-			}
-		}
-	}
+      @Override
+      public PDone apply(PCollection<?> input) {
+        return PDone.in(input.getPipeline());
+      }
+    }
+  }
 }
 

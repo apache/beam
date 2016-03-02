@@ -30,70 +30,70 @@ import org.apache.flink.test.util.JavaProgramTestBase;
 
 public class AvroITCase extends JavaProgramTestBase {
 
-	protected String resultPath;
-	protected String tmpPath;
+  protected String resultPath;
+  protected String tmpPath;
 
-	public AvroITCase(){
-	}
+  public AvroITCase(){
+  }
 
-	static final String[] EXPECTED_RESULT = new String[] {
-			"Joe red 3",
-			"Mary blue 4",
-			"Mark green 1",
-			"Julia purple 5"
-	};
+  static final String[] EXPECTED_RESULT = new String[] {
+      "Joe red 3",
+      "Mary blue 4",
+      "Mark green 1",
+      "Julia purple 5"
+  };
 
-	@Override
-	protected void preSubmit() throws Exception {
-		resultPath = getTempDirPath("result");
-		tmpPath = getTempDirPath("tmp");
+  @Override
+  protected void preSubmit() throws Exception {
+    resultPath = getTempDirPath("result");
+    tmpPath = getTempDirPath("tmp");
 
-	}
+  }
 
-	@Override
-	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(Joiner.on('\n').join(EXPECTED_RESULT), resultPath);
-	}
+  @Override
+  protected void postSubmit() throws Exception {
+    compareResultsByLinesInMemory(Joiner.on('\n').join(EXPECTED_RESULT), resultPath);
+  }
 
-	@Override
-	protected void testProgram() throws Exception {
-		runProgram(tmpPath, resultPath);
-	}
+  @Override
+  protected void testProgram() throws Exception {
+    runProgram(tmpPath, resultPath);
+  }
 
-	private static void runProgram(String tmpPath, String resultPath) {
-		Pipeline p = FlinkTestPipeline.createForBatch();
+  private static void runProgram(String tmpPath, String resultPath) {
+    Pipeline p = FlinkTestPipeline.createForBatch();
 
-		p
-			.apply(Create.of(
-					new User("Joe", 3, "red"),
-					new User("Mary", 4, "blue"),
-					new User("Mark", 1, "green"),
-					new User("Julia", 5, "purple"))
-				.withCoder(AvroCoder.of(User.class)))
+    p
+      .apply(Create.of(
+          new User("Joe", 3, "red"),
+          new User("Mary", 4, "blue"),
+          new User("Mark", 1, "green"),
+          new User("Julia", 5, "purple"))
+        .withCoder(AvroCoder.of(User.class)))
 
-			.apply(AvroIO.Write.to(tmpPath)
-				.withSchema(User.class));
+      .apply(AvroIO.Write.to(tmpPath)
+        .withSchema(User.class));
 
-		p.run();
+    p.run();
 
-		p = FlinkTestPipeline.createForBatch();
+    p = FlinkTestPipeline.createForBatch();
 
-		p
-			.apply(AvroIO.Read.from(tmpPath).withSchema(User.class).withoutValidation())
+    p
+      .apply(AvroIO.Read.from(tmpPath).withSchema(User.class).withoutValidation())
 
-				.apply(ParDo.of(new DoFn<User, String>() {
-					@Override
-					public void processElement(ProcessContext c) throws Exception {
-						User u = c.element();
-						String result = u.getName() + " " + u.getFavoriteColor() + " " + u.getFavoriteNumber();
-						c.output(result);
-					}
-				}))
+        .apply(ParDo.of(new DoFn<User, String>() {
+          @Override
+          public void processElement(ProcessContext c) throws Exception {
+            User u = c.element();
+            String result = u.getName() + " " + u.getFavoriteColor() + " " + u.getFavoriteNumber();
+            c.output(result);
+          }
+        }))
 
-			.apply(TextIO.Write.to(resultPath));
+      .apply(TextIO.Write.to(resultPath));
 
-		p.run();
-	}
+    p.run();
+  }
 
 }
 

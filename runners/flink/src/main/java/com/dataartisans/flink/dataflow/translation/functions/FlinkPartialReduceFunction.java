@@ -32,29 +32,29 @@ import java.util.Iterator;
  */
 public class FlinkPartialReduceFunction<K, VI, VA> implements GroupCombineFunction<KV<K, VI>, KV<K, VA>> {
 
-	private final Combine.KeyedCombineFn<K, VI, VA, ?> keyedCombineFn;
+  private final Combine.KeyedCombineFn<K, VI, VA, ?> keyedCombineFn;
 
-	public FlinkPartialReduceFunction(Combine.KeyedCombineFn<K, VI, VA, ?>
-			                                  keyedCombineFn) {
-		this.keyedCombineFn = keyedCombineFn;
-	}
+  public FlinkPartialReduceFunction(Combine.KeyedCombineFn<K, VI, VA, ?>
+                                        keyedCombineFn) {
+    this.keyedCombineFn = keyedCombineFn;
+  }
 
-	@Override
-	public void combine(Iterable<KV<K, VI>> elements, Collector<KV<K, VA>> out) throws Exception {
+  @Override
+  public void combine(Iterable<KV<K, VI>> elements, Collector<KV<K, VA>> out) throws Exception {
 
-		final Iterator<KV<K, VI>> iterator = elements.iterator();
-		// create accumulator using the first elements key
-		KV<K, VI> first = iterator.next();
-		K key = first.getKey();
-		VI value = first.getValue();
-		VA accumulator = keyedCombineFn.createAccumulator(key);
-		accumulator = keyedCombineFn.addInput(key, accumulator, value);
+    final Iterator<KV<K, VI>> iterator = elements.iterator();
+    // create accumulator using the first elements key
+    KV<K, VI> first = iterator.next();
+    K key = first.getKey();
+    VI value = first.getValue();
+    VA accumulator = keyedCombineFn.createAccumulator(key);
+    accumulator = keyedCombineFn.addInput(key, accumulator, value);
 
-		while(iterator.hasNext()) {
-			value = iterator.next().getValue();
-			accumulator = keyedCombineFn.addInput(key, accumulator, value);
-		}
+    while(iterator.hasNext()) {
+      value = iterator.next().getValue();
+      accumulator = keyedCombineFn.addInput(key, accumulator, value);
+    }
 
-		out.collect(KV.of(key, accumulator));
-	}
+    out.collect(KV.of(key, accumulator));
+  }
 }

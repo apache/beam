@@ -29,24 +29,24 @@ import org.apache.flink.core.io.InputSplit;
  */
 public class SourceInputSplit<T> implements InputSplit {
 
-	private Source<T> source;
-	private int splitNumber;
+  private Source<T> source;
+  private int splitNumber;
 
-	public SourceInputSplit() {
-	}
+  public SourceInputSplit() {
+  }
 
-	public SourceInputSplit(Source<T> source, int splitNumber) {
-		this.source = source;
-		this.splitNumber = splitNumber;
-	}
+  public SourceInputSplit(Source<T> source, int splitNumber) {
+    this.source = source;
+    this.splitNumber = splitNumber;
+  }
 
-	@Override
-	public int getSplitNumber() {
-		return splitNumber;
-	}
+  @Override
+  public int getSplitNumber() {
+    return splitNumber;
+  }
 
-	public Source<T> getSource() {
-		return source;
-	}
+  public Source<T> getSource() {
+    return source;
+  }
 
 }

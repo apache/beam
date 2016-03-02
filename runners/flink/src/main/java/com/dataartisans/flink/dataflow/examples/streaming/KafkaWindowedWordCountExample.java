@@ -36,106 +36,106 @@ import java.util.Properties;
 
 public class KafkaWindowedWordCountExample {
 
-	static final String KAFKA_TOPIC = "test";  // Default kafka topic to read from
-	static final String KAFKA_BROKER = "localhost:9092";  // Default kafka broker to contact
-	static final String GROUP_ID = "myGroup";  // Default groupId
-	static final String ZOOKEEPER = "localhost:2181";  // Default zookeeper to connect to for Kafka
+  static final String KAFKA_TOPIC = "test";  // Default kafka topic to read from
+  static final String KAFKA_BROKER = "localhost:9092";  // Default kafka broker to contact
+  static final String GROUP_ID = "myGroup";  // Default groupId
+  static final String ZOOKEEPER = "localhost:2181";  // Default zookeeper to connect to for Kafka
 
-	public static class ExtractWordsFn extends DoFn<String, String> {
-		private final Aggregator<Long, Long> emptyLines =
-				createAggregator("emptyLines", new Sum.SumLongFn());
+  public static class ExtractWordsFn extends DoFn<String, String> {
+    private final Aggregator<Long, Long> emptyLines =
+        createAggregator("emptyLines", new Sum.SumLongFn());
 
-		@Override
-		public void processElement(ProcessContext c) {
-			if (c.element().trim().isEmpty()) {
-				emptyLines.addValue(1L);
-			}
+    @Override
+    public void processElement(ProcessContext c) {
+      if (c.element().trim().isEmpty()) {
+        emptyLines.addValue(1L);
+      }
 
-			// Split the line into words.
-			String[] words = c.element().split("[^a-zA-Z']+");
+      // Split the line into words.
+      String[] words = c.element().split("[^a-zA-Z']+");
 
-			// Output each word encountered into the output PCollection.
-			for (String word : words) {
-				if (!word.isEmpty()) {
-					c.output(word);
-				}
-			}
-		}
-	}
+      // Output each word encountered into the output PCollection.
+      for (String word : words) {
+        if (!word.isEmpty()) {
+          c.output(word);
+        }
+      }
+    }
+  }
 
-	public static class FormatAsStringFn extends DoFn<KV<String, Long>, String> {
-		@Override
-		public void processElement(ProcessContext c) {
-			String row = c.element().getKey() + " - " + c.element().getValue() + " @ " + c.timestamp().toString();
-			System.out.println(row);
-			c.output(row);
-		}
-	}
+  public static class FormatAsStringFn extends DoFn<KV<String, Long>, String> {
+    @Override
+    public void processElement(ProcessContext c) {
+      String row = c.element().getKey() + " - " + c.element().getValue() + " @ " + c.timestamp().toString();
+      System.out.println(row);
+      c.output(row);
+    }
+  }
 
-	public interface KafkaStreamingWordCountOptions extends WindowedWordCount.StreamingWordCountOptions {
-		@Description("The Kafka topic to read from")
-		@Default.String(KAFKA_TOPIC)
-		String getKafkaTopic();
+  public interface KafkaStreamingWordCountOptions extends WindowedWordCount.StreamingWordCountOptions {
+    @Description("The Kafka topic to read from")
+    @Default.String(KAFKA_TOPIC)
+    String getKafkaTopic();
 
-		void setKafkaTopic(String value);
+    void setKafkaTopic(String value);
 
-		@Description("The Kafka Broker to read from")
-		@Default.String(KAFKA_BROKER)
-		String getBroker();
+    @Description("The Kafka Broker to read from")
+    @Default.String(KAFKA_BROKER)
+    String getBroker();
 
-		void setBroker(String value);
+    void setBroker(String value);
 
-		@Description("The Zookeeper server to connect to")
-		@Default.String(ZOOKEEPER)
-		String getZookeeper();
+    @Description("The Zookeeper server to connect to")
+    @Default.String(ZOOKEEPER)
+    String getZookeeper();
 
-		void setZookeeper(String value);
+    void setZookeeper(String value);
 
-		@Description("The groupId")
-		@Default.String(GROUP_ID)
-		String getGroup();
+    @Description("The groupId")
+    @Default.String(GROUP_ID)
+    String getGroup();
 
-		void setGroup(String value);
+    void setGroup(String value);
 
-	}
+  }
 
-	public static void main(String[] args) {
-		PipelineOptionsFactory.register(KafkaStreamingWordCountOptions.class);
-		KafkaStreamingWordCountOptions options = PipelineOptionsFactory.fromArgs(args).as(KafkaStreamingWordCountOptions.class);
-		options.setJobName("KafkaExample");
-		options.setStreaming(true);
-		options.setCheckpointingInterval(1000L);
-		options.setNumberOfExecutionRetries(5);
-		options.setExecutionRetryDelay(3000L);
-		options.setRunner(FlinkPipelineRunner.class);
+  public static void main(String[] args) {
+    PipelineOptionsFactory.register(KafkaStreamingWordCountOptions.class);
+    KafkaStreamingWordCountOptions options = PipelineOptionsFactory.fromArgs(args).as(KafkaStreamingWordCountOptions.class);
+    options.setJobName("KafkaExample");
+    options.setStreaming(true);
+    options.setCheckpointingInterval(1000L);
+    options.setNumberOfExecutionRetries(5);
+    options.setExecutionRetryDelay(3000L);
+    options.setRunner(FlinkPipelineRunner.class);
 
-		System.out.println(options.getKafkaTopic() +" "+ options.getZookeeper() +" "+ options.getBroker() +" "+ options.getGroup() );
-		Pipeline pipeline = Pipeline.create(options);
+    System.out.println(options.getKafkaTopic() +" "+ options.getZookeeper() +" "+ options.getBroker() +" "+ options.getGroup() );
+    Pipeline pipeline = Pipeline.create(options);
 
-		Properties p = new Properties();
-		p.setProperty("zookeeper.connect", options.getZookeeper());
-		p.setProperty("bootstrap.servers", options.getBroker());
-		p.setProperty("group.id", options.getGroup());
+    Properties p = new Properties();
+    p.setProperty("zookeeper.connect", options.getZookeeper());
+    p.setProperty("bootstrap.servers", options.getBroker());
+    p.setProperty("group.id", options.getGroup());
 
-		// this is the Flink consumer that reads the input to
-		// the program from a kafka topic.
-		FlinkKafkaConsumer082 kafkaConsumer = new FlinkKafkaConsumer082<>(
-				options.getKafkaTopic(),
-				new SimpleStringSchema(), p);
+    // this is the Flink consumer that reads the input to
+    // the program from a kafka topic.
+    FlinkKafkaConsumer082 kafkaConsumer = new FlinkKafkaConsumer082<>(
+        options.getKafkaTopic(),
+        new SimpleStringSchema(), p);
 
-		PCollection<String> words = pipeline
-				.apply(Read.from(new UnboundedFlinkSource<String, UnboundedSource.CheckpointMark>(options, kafkaConsumer)).named("StreamingWordCount"))
-				.apply(ParDo.of(new ExtractWordsFn()))
-				.apply(Window.<String>into(FixedWindows.of(Duration.standardSeconds(options.getWindowSize())))
-						.triggering(AfterWatermark.pastEndOfWindow()).withAllowedLateness(Duration.ZERO)
-						.discardingFiredPanes());
+    PCollection<String> words = pipeline
+        .apply(Read.from(new UnboundedFlinkSource<String, UnboundedSource.CheckpointMark>(options, kafkaConsumer)).named("StreamingWordCount"))
+        .apply(ParDo.of(new ExtractWordsFn()))
+        .apply(Window.<String>into(FixedWindows.of(Duration.standardSeconds(options.getWindowSize())))
+            .triggering(AfterWatermark.pastEndOfWindow()).withAllowedLateness(Duration.ZERO)
+            .discardingFiredPanes());
 
-		PCollection<KV<String, Long>> wordCounts =
-				words.apply(Count.<String>perElement());
+    PCollection<KV<String, Long>> wordCounts =
+        words.apply(Count.<String>perElement());
 
-		wordCounts.apply(ParDo.of(new FormatAsStringFn()))
-				.apply(TextIO.Write.to("./outputKafka.txt"));
+    wordCounts.apply(ParDo.of(new FormatAsStringFn()))
+        .apply(TextIO.Write.to("./outputKafka.txt"));
 
-		pipeline.run();
-	}
+    pipeline.run();
+  }
 }

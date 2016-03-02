@@ -32,29 +32,29 @@ import java.util.List;
  */
 public class FlinkCreateFunction<IN, OUT> implements FlatMapFunction<IN, OUT> {
 
-	private final List<byte[]> elements;
-	private final Coder<OUT> coder;
+  private final List<byte[]> elements;
+  private final Coder<OUT> coder;
 
-	public FlinkCreateFunction(List<byte[]> elements, Coder<OUT> coder) {
-		this.elements = elements;
-		this.coder = coder;
-	}
+  public FlinkCreateFunction(List<byte[]> elements, Coder<OUT> coder) {
+    this.elements = elements;
+    this.coder = coder;
+  }
 
-	@Override
-	@SuppressWarnings("unchecked")
-	public void flatMap(IN value, Collector<OUT> out) throws Exception {
+  @Override
+  @SuppressWarnings("unchecked")
+  public void flatMap(IN value, Collector<OUT> out) throws Exception {
 
-		for (byte[] element : elements) {
-			ByteArrayInputStream bai = new ByteArrayInputStream(element);
-			OUT outValue = coder.decode(bai, Coder.Context.OUTER);
-			if (outValue == null) {
-				// TODO Flink doesn't allow null values in records
-				out.collect((OUT) VoidCoderTypeSerializer.VoidValue.INSTANCE);
-			} else {
-				out.collect(outValue);
-			}
-		}
+    for (byte[] element : elements) {
+      ByteArrayInputStream bai = new ByteArrayInputStream(element);
+      OUT outValue = coder.decode(bai, Coder.Context.OUTER);
+      if (outValue == null) {
+        // TODO Flink doesn't allow null values in records
+        out.collect((OUT) VoidCoderTypeSerializer.VoidValue.INSTANCE);
+      } else {
+        out.collect(outValue);
+      }
+    }
 
-		out.close();
-	}
+    out.close();
+  }
 }

@@ -30,58 +30,58 @@ import java.util.Map;
 
 public class FlinkStreamingTranslationContext {
 
-	private final StreamExecutionEnvironment env;
-	private final PipelineOptions options;
+  private final StreamExecutionEnvironment env;
+  private final PipelineOptions options;
 
-	/**
-	 * Keeps a mapping between the output value of the PTransform (in Dataflow) and the
-	 * Flink Operator that produced it, after the translation of the correspondinf PTransform
-	 * to its Flink equivalent.
-	 * */
-	private final Map<PValue, DataStream<?>> dataStreams;
+  /**
+   * Keeps a mapping between the output value of the PTransform (in Dataflow) and the
+   * Flink Operator that produced it, after the translation of the correspondinf PTransform
+   * to its Flink equivalent.
+   * */
+  private final Map<PValue, DataStream<?>> dataStreams;
 
-	private AppliedPTransform<?, ?, ?> currentTransform;
+  private AppliedPTransform<?, ?, ?> currentTransform;
 
-	public FlinkStreamingTranslationContext(StreamExecutionEnvironment env, PipelineOptions options) {
-		this.env = Preconditions.checkNotNull(env);
-		this.options = Preconditions.checkNotNull(options);
-		this.dataStreams = new HashMap<>();
-	}
+  public FlinkStreamingTranslationContext(StreamExecutionEnvironment env, PipelineOptions options) {
+    this.env = Preconditions.checkNotNull(env);
+    this.options = Preconditions.checkNotNull(options);
+    this.dataStreams = new HashMap<>();
+  }
 
-	public StreamExecutionEnvironment getExecutionEnvironment() {
-		return env;
-	}
+  public StreamExecutionEnvironment getExecutionEnvironment() {
+    return env;
+  }
 
-	public PipelineOptions getPipelineOptions() {
-		return options;
-	}
+  public PipelineOptions getPipelineOptions() {
+    return options;
+  }
 
-	@SuppressWarnings("unchecked")
-	public <T> DataStream<T> getInputDataStream(PValue value) {
-		return (DataStream<T>) dataStreams.get(value);
-	}
+  @SuppressWarnings("unchecked")
+  public <T> DataStream<T> getInputDataStream(PValue value) {
+    return (DataStream<T>) dataStreams.get(value);
+  }
 
-	public void setOutputDataStream(PValue value, DataStream<?> set) {
-		if (!dataStreams.containsKey(value)) {
-			dataStreams.put(value, set);
-		}
-	}
+  public void setOutputDataStream(PValue value, DataStream<?> set) {
+    if (!dataStreams.containsKey(value)) {
+      dataStreams.put(value, set);
+    }
+  }
 
-	/**
-	 * Sets the AppliedPTransform which carries input/output.
-	 * @param currentTransform
-	 */
-	public void setCurrentTransform(AppliedPTransform<?, ?, ?> currentTransform) {
-		this.currentTransform = currentTransform;
-	}
+  /**
+   * Sets the AppliedPTransform which carries input/output.
+   * @param currentTransform
+   */
+  public void setCurrentTransform(AppliedPTransform<?, ?, ?> currentTransform) {
+    this.currentTransform = currentTransform;
+  }
 
-	@SuppressWarnings("unchecked")
-	public <I extends PInput> I getInput(PTransform<I, ?> transform) {
-		return (I) currentTransform.getInput();
-	}
+  @SuppressWarnings("unchecked")
+  public <I extends PInput> I getInput(PTransform<I, ?> transform) {
+    return (I) currentTransform.getInput();
+  }
 
-	@SuppressWarnings("unchecked")
-	public <O extends POutput> O getOutput(PTransform<?, O> transform) {
-		return (O) currentTransform.getOutput();
-	}
+  @SuppressWarnings("unchecked")
+  public <O extends POutput> O getOutput(PTransform<?, O> transform) {
+    return (O) currentTransform.getOutput();
+  }
 }

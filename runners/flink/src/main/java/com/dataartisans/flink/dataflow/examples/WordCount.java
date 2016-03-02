@@ -29,83 +29,83 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
 
 public class WordCount {
 
-	public static class ExtractWordsFn extends DoFn<String, String> {
-		private final Aggregator<Long, Long> emptyLines =
-				createAggregator("emptyLines", new Sum.SumLongFn());
+  public static class ExtractWordsFn extends DoFn<String, String> {
+    private final Aggregator<Long, Long> emptyLines =
+        createAggregator("emptyLines", new Sum.SumLongFn());
 
-		@Override
-		public void processElement(ProcessContext c) {
-			if (c.element().trim().isEmpty()) {
-				emptyLines.addValue(1L);
-			}
+    @Override
+    public void processElement(ProcessContext c) {
+      if (c.element().trim().isEmpty()) {
+        emptyLines.addValue(1L);
+      }
 
-			// Split the line into words.
-			String[] words = c.element().split("[^a-zA-Z']+");
+      // Split the line into words.
+      String[] words = c.element().split("[^a-zA-Z']+");
 
-			// Output each word encountered into the output PCollection.
-			for (String word : words) {
-				if (!word.isEmpty()) {
-					c.output(word);
-				}
-			}
-		}
-	}
+      // Output each word encountered into the output PCollection.
+      for (String word : words) {
+        if (!word.isEmpty()) {
+          c.output(word);
+        }
+      }
+    }
+  }
 
-	public static class CountWords extends PTransform<PCollection<String>,
+  public static class CountWords extends PTransform<PCollection<String>,
                     PCollection<KV<String, Long>>> {
-		@Override
-		public PCollection<KV<String, Long>> apply(PCollection<String> lines) {
+    @Override
+    public PCollection<KV<String, Long>> apply(PCollection<String> lines) {
 
-			// Convert lines of text into individual words.
-			PCollection<String> words = lines.apply(
-					ParDo.of(new ExtractWordsFn()));
+      // Convert lines of text into individual words.
+      PCollection<String> words = lines.apply(
+          ParDo.of(new ExtractWordsFn()));
 
-			// Count the number of times each word occurs.
-			PCollection<KV<String, Long>> wordCounts =
-					words.apply(Count.<String>perElement());
+      // Count the number of times each word occurs.
+      PCollection<KV<String, Long>> wordCounts =
+          words.apply(Count.<String>perElement());
 
-			return wordCounts;
-		}
-	}
+      return wordCounts;
+    }
+  }
 
-	/** A SimpleFunction that converts a Word and Count into a printable string. */
-	public static class FormatAsTextFn extends SimpleFunction<KV<String, Long>, String> {
-		@Override
-		public String apply(KV<String, Long> input) {
-			return input.getKey() + ": " + input.getValue();
-		}
-	}
+  /** A SimpleFunction that converts a Word and Count into a printable string. */
+  public static class FormatAsTextFn extends SimpleFunction<KV<String, Long>, String> {
+    @Override
+    public String apply(KV<String, Long> input) {
+      return input.getKey() + ": " + input.getValue();
+    }
+  }
 
-	/**
-	 * Options supported by {@link WordCount}.
-	 * <p>
-	 * Inherits standard configuration options.
-	 */
-	public interface Options extends PipelineOptions, FlinkPipelineOptions {
-		@Description("Path of the file to read from")
-		@Default.String("gs://dataflow-samples/shakespeare/kinglear.txt")
-		String getInput();
-		void setInput(String value);
+  /**
+   * Options supported by {@link WordCount}.
+   * <p>
+   * Inherits standard configuration options.
+   */
+  public interface Options extends PipelineOptions, FlinkPipelineOptions {
+    @Description("Path of the file to read from")
+    @Default.String("gs://dataflow-samples/shakespeare/kinglear.txt")
+    String getInput();
+    void setInput(String value);
 
-		@Description("Path of the file to write to")
-		String getOutput();
-		void setOutput(String value);
-	}
+    @Description("Path of the file to write to")
+    String getOutput();
+    void setOutput(String value);
+  }
 
-	public static void main(String[] args) {
+  public static void main(String[] args) {
 
-		Options options = PipelineOptionsFactory.fromArgs(args).withValidation()
-				.as(Options.class);
-		options.setRunner(FlinkPipelineRunner.class);
+    Options options = PipelineOptionsFactory.fromArgs(args).withValidation()
+        .as(Options.class);
+    options.setRunner(FlinkPipelineRunner.class);
 
-		Pipeline p = Pipeline.create(options);
+    Pipeline p = Pipeline.create(options);
 
-		p.apply(TextIO.Read.named("ReadLines").from(options.getInput()))
-				.apply(new CountWords())
-				.apply(MapElements.via(new FormatAsTextFn()))
-				.apply(TextIO.Write.named("WriteCounts").to(options.getOutput()));
+    p.apply(TextIO.Read.named("ReadLines").from(options.getInput()))
+        .apply(new CountWords())
+        .apply(MapElements.via(new FormatAsTextFn()))
+        .apply(TextIO.Write.named("WriteCounts").to(options.getOutput()));
 
-		p.run();
-	}
+    p.run();
+  }
 
 }

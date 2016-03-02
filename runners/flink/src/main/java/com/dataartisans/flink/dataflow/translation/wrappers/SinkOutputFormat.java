@@ -38,84 +38,84 @@ import java.lang.reflect.Field;
  */
 public class SinkOutputFormat<T> implements OutputFormat<T> {
 
-	private final Sink<T> sink;
+  private final Sink<T> sink;
 
-	private transient PipelineOptions pipelineOptions;
+  private transient PipelineOptions pipelineOptions;
 
-	private Sink.WriteOperation<T, ?> writeOperation;
-	private Sink.Writer<T, ?> writer;
+  private Sink.WriteOperation<T, ?> writeOperation;
+  private Sink.Writer<T, ?> writer;
 
-	private AbstractID uid = new AbstractID();
+  private AbstractID uid = new AbstractID();
 
-	public SinkOutputFormat(Write.Bound<T> transform, PipelineOptions pipelineOptions) {
-		this.sink = extractSink(transform);
-		this.pipelineOptions = Preconditions.checkNotNull(pipelineOptions);
-	}
+  public SinkOutputFormat(Write.Bound<T> transform, PipelineOptions pipelineOptions) {
+    this.sink = extractSink(transform);
+    this.pipelineOptions = Preconditions.checkNotNull(pipelineOptions);
+  }
 
-	private Sink<T> extractSink(Write.Bound<T> transform) {
-		// TODO possibly add a getter in the upstream
-		try {
-			Field sinkField = transform.getClass().getDeclaredField("sink");
-			sinkField.setAccessible(true);
-			@SuppressWarnings("unchecked")
-			Sink<T> extractedSink = (Sink<T>) sinkField.get(transform);
-			return extractedSink;
-		} catch (NoSuchFieldException | IllegalAccessException e) {
-			throw new RuntimeException("Could not acquire custom sink field.", e);
-		}
-	}
+  private Sink<T> extractSink(Write.Bound<T> transform) {
+    // TODO possibly add a getter in the upstream
+    try {
+      Field sinkField = transform.getClass().getDeclaredField("sink");
+      sinkField.setAccessible(true);
+      @SuppressWarnings("unchecked")
+      Sink<T> extractedSink = (Sink<T>) sinkField.get(transform);
+      return extractedSink;
+    } catch (NoSuchFieldException | IllegalAccessException e) {
+      throw new RuntimeException("Could not acquire custom sink field.", e);
+    }
+  }
 
-	@Override
-	public void configure(Configuration configuration) {
-		writeOperation = sink.createWriteOperation(pipelineOptions);
-		try {
-			writeOperation.initialize(pipelineOptions);
-		} catch (Exception e) {
-			throw new RuntimeException("Failed to initialize the write operation.", e);
-		}
-	}
+  @Override
+  public void configure(Configuration configuration) {
+    writeOperation = sink.createWriteOperation(pipelineOptions);
+    try {
+      writeOperation.initialize(pipelineOptions);
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to initialize the write operation.", e);
+    }
+  }
 
-	@Override
-	public void open(int taskNumber, int numTasks) throws IOException {
-		try {
-			writer = writeOperation.createWriter(pipelineOptions);
-		} catch (Exception e) {
-			throw new IOException("Couldn't create writer.", e);
-		}
-		try {
-			writer.open(uid + "-" + String.valueOf(taskNumber));
-		} catch (Exception e) {
-			throw new IOException("Couldn't open writer.", e);
-		}
-	}
+  @Override
+  public void open(int taskNumber, int numTasks) throws IOException {
+    try {
+      writer = writeOperation.createWriter(pipelineOptions);
+    } catch (Exception e) {
+      throw new IOException("Couldn't create writer.", e);
+    }
+    try {
+      writer.open(uid + "-" + String.valueOf(taskNumber));
+    } catch (Exception e) {
+      throw new IOException("Couldn't open writer.", e);
+    }
+  }
 
-	@Override
-	public void writeRecord(T record) throws IOException {
-		try {
-			writer.write(record);
-		} catch (Exception e) {
-			throw new IOException("Couldn't write record.", e);
-		}
-	}
+  @Override
+  public void writeRecord(T record) throws IOException {
+    try {
+      writer.write(record);
+    } catch (Exception e) {
+      throw new IOException("Couldn't write record.", e);
+    }
+  }
 
-	@Override
-	public void close() throws IOException {
-		try {
-			writer.close();
-		} catch (Exception e) {
-			throw new IOException("Couldn't close writer.", e);
-		}
-	}
+  @Override
+  public void close() throws IOException {
+    try {
+      writer.close();
+    } catch (Exception e) {
+      throw new IOException("Couldn't close writer.", e);
+    }
+  }
 
-	private void writeObject(ObjectOutputStream out) throws IOException, ClassNotFoundException {
-		out.defaultWriteObject();
-		ObjectMapper mapper = new ObjectMapper();
-		mapper.writeValue(out, pipelineOptions);
-	}
+  private void writeObject(ObjectOutputStream out) throws IOException, ClassNotFoundException {
+    out.defaultWriteObject();
+    ObjectMapper mapper = new ObjectMapper();
+    mapper.writeValue(out, pipelineOptions);
+  }
 
-	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-		in.defaultReadObject();
-		ObjectMapper mapper = new ObjectMapper();
-		pipelineOptions = mapper.readValue(in, PipelineOptions.class);
-	}
+  private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+    in.defaultReadObject();
+    ObjectMapper mapper = new ObjectMapper();
+    pipelineOptions = mapper.readValue(in, PipelineOptions.class);
+  }
 }

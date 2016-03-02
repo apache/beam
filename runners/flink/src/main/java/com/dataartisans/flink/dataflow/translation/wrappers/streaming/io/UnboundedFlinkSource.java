@@ -31,50 +31,50 @@ import java.util.List;
  * */
 public class UnboundedFlinkSource<T, C extends UnboundedSource.CheckpointMark> extends UnboundedSource<T, C> {
 
-	private final PipelineOptions options;
-	private final RichParallelSourceFunction<T> flinkSource;
+  private final PipelineOptions options;
+  private final RichParallelSourceFunction<T> flinkSource;
 
-	public UnboundedFlinkSource(PipelineOptions pipelineOptions, RichParallelSourceFunction<T> source) {
-		if(!pipelineOptions.getRunner().equals(FlinkPipelineRunner.class)) {
-			throw new RuntimeException("Flink Sources are supported only when running with the FlinkPipelineRunner.");
-		}
-		options = Preconditions.checkNotNull(pipelineOptions);
-		flinkSource = Preconditions.checkNotNull(source);
-		validate();
-	}
+  public UnboundedFlinkSource(PipelineOptions pipelineOptions, RichParallelSourceFunction<T> source) {
+    if(!pipelineOptions.getRunner().equals(FlinkPipelineRunner.class)) {
+      throw new RuntimeException("Flink Sources are supported only when running with the FlinkPipelineRunner.");
+    }
+    options = Preconditions.checkNotNull(pipelineOptions);
+    flinkSource = Preconditions.checkNotNull(source);
+    validate();
+  }
 
-	public RichParallelSourceFunction<T> getFlinkSource() {
-		return this.flinkSource;
-	}
+  public RichParallelSourceFunction<T> getFlinkSource() {
+    return this.flinkSource;
+  }
 
-	@Override
-	public List<? extends UnboundedSource<T, C>> generateInitialSplits(int desiredNumSplits, PipelineOptions options) throws Exception {
-		throw new RuntimeException("Flink Sources are supported only when running with the FlinkPipelineRunner.");
-	}
+  @Override
+  public List<? extends UnboundedSource<T, C>> generateInitialSplits(int desiredNumSplits, PipelineOptions options) throws Exception {
+    throw new RuntimeException("Flink Sources are supported only when running with the FlinkPipelineRunner.");
+  }
 
-	@Override
-	public UnboundedReader<T> createReader(PipelineOptions options, @Nullable C checkpointMark) {
-		throw new RuntimeException("Flink Sources are supported only when running with the FlinkPipelineRunner.");
-	}
+  @Override
+  public UnboundedReader<T> createReader(PipelineOptions options, @Nullable C checkpointMark) {
+    throw new RuntimeException("Flink Sources are supported only when running with the FlinkPipelineRunner.");
+  }
 
-	@Nullable
-	@Override
-	public Coder<C> getCheckpointMarkCoder() {
-		throw new RuntimeException("Flink Sources are supported only when running with the FlinkPipelineRunner.");
-	}
+  @Nullable
+  @Override
+  public Coder<C> getCheckpointMarkCoder() {
+    throw new RuntimeException("Flink Sources are supported only when running with the FlinkPipelineRunner.");
+  }
 
 
-	@Override
-	public void validate() {
-		Preconditions.checkNotNull(options);
-		Preconditions.checkNotNull(flinkSource);
-		if(!options.getRunner().equals(FlinkPipelineRunner.class)) {
-			throw new RuntimeException("Flink Sources are supported only when running with the FlinkPipelineRunner.");
-		}
-	}
+  @Override
+  public void validate() {
+    Preconditions.checkNotNull(options);
+    Preconditions.checkNotNull(flinkSource);
+    if(!options.getRunner().equals(FlinkPipelineRunner.class)) {
+      throw new RuntimeException("Flink Sources are supported only when running with the FlinkPipelineRunner.");
+    }
+  }
 
-	@Override
-	public Coder<T> getDefaultOutputCoder() {
-		throw new RuntimeException("Flink Sources are supported only when running with the FlinkPipelineRunner.");
-	}
+  @Override
+  public Coder<T> getDefaultOutputCoder() {
+    throw new RuntimeException("Flink Sources are supported only when running with the FlinkPipelineRunner.");
+  }
 }

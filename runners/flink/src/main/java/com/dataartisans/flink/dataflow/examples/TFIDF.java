@@ -89,364 +89,364 @@ import java.util.Set;
  * {@code --input}.
  */
 public class TFIDF {
-	/**
-	 * Options supported by {@link TFIDF}.
-	 * <p>
-	 * Inherits standard configuration options.
-	 */
-	private interface Options extends PipelineOptions, FlinkPipelineOptions {
-		@Description("Path to the directory or GCS prefix containing files to read from")
-		@Default.String("gs://dataflow-samples/shakespeare/")
-		String getInput();
-		void setInput(String value);
+  /**
+   * Options supported by {@link TFIDF}.
+   * <p>
+   * Inherits standard configuration options.
+   */
+  private interface Options extends PipelineOptions, FlinkPipelineOptions {
+    @Description("Path to the directory or GCS prefix containing files to read from")
+    @Default.String("gs://dataflow-samples/shakespeare/")
+    String getInput();
+    void setInput(String value);
 
-		@Description("Prefix of output URI to write to")
-		@Validation.Required
-		String getOutput();
-		void setOutput(String value);
-	}
+    @Description("Prefix of output URI to write to")
+    @Validation.Required
+    String getOutput();
+    void setOutput(String value);
+  }
 
-	/**
-	 * Lists documents contained beneath the {@code options.input} prefix/directory.
-	 */
-	public static Set<URI> listInputDocuments(Options options)
-			throws URISyntaxException, IOException {
-		URI baseUri = new URI(options.getInput());
+  /**
+   * Lists documents contained beneath the {@code options.input} prefix/directory.
+   */
+  public static Set<URI> listInputDocuments(Options options)
+      throws URISyntaxException, IOException {
+    URI baseUri = new URI(options.getInput());
 
-		// List all documents in the directory or GCS prefix.
-		URI absoluteUri;
-		if (baseUri.getScheme() != null) {
-			absoluteUri = baseUri;
-		} else {
-			absoluteUri = new URI(
-					"file",
-					baseUri.getAuthority(),
-					baseUri.getPath(),
-					baseUri.getQuery(),
-					baseUri.getFragment());
-		}
+    // List all documents in the directory or GCS prefix.
+    URI absoluteUri;
+    if (baseUri.getScheme() != null) {
+      absoluteUri = baseUri;
+    } else {
+      absoluteUri = new URI(
+          "file",
+          baseUri.getAuthority(),
+          baseUri.getPath(),
+          baseUri.getQuery(),
+          baseUri.getFragment());
+    }
 
-		Set<URI> uris = new HashSet<>();
-		if (absoluteUri.getScheme().equals("file")) {
-			File directory = new File(absoluteUri);
-			for (String entry : directory.list()) {
-				File path = new File(directory, entry);
-				uris.add(path.toURI());
-			}
-		} else if (absoluteUri.getScheme().equals("gs")) {
-			GcsUtil gcsUtil = options.as(GcsOptions.class).getGcsUtil();
-			URI gcsUriGlob = new URI(
-					absoluteUri.getScheme(),
-					absoluteUri.getAuthority(),
-					absoluteUri.getPath() + "*",
-					absoluteUri.getQuery(),
-					absoluteUri.getFragment());
-			for (GcsPath entry : gcsUtil.expand(GcsPath.fromUri(gcsUriGlob))) {
-				uris.add(entry.toUri());
-			}
-		}
+    Set<URI> uris = new HashSet<>();
+    if (absoluteUri.getScheme().equals("file")) {
+      File directory = new File(absoluteUri);
+      for (String entry : directory.list()) {
+        File path = new File(directory, entry);
+        uris.add(path.toURI());
+      }
+    } else if (absoluteUri.getScheme().equals("gs")) {
+      GcsUtil gcsUtil = options.as(GcsOptions.class).getGcsUtil();
+      URI gcsUriGlob = new URI(
+          absoluteUri.getScheme(),
+          absoluteUri.getAuthority(),
+          absoluteUri.getPath() + "*",
+          absoluteUri.getQuery(),
+          absoluteUri.getFragment());
+      for (GcsPath entry : gcsUtil.expand(GcsPath.fromUri(gcsUriGlob))) {
+        uris.add(entry.toUri());
+      }
+    }
 
-		return uris;
-	}
+    return uris;
+  }
 
-	/**
-	 * Reads the documents at the provided uris and returns all lines
-	 * from the documents tagged with which document they are from.
-	 */
-	public static class ReadDocuments
-			extends PTransform<PInput, PCollection<KV<URI, String>>> {
-		private static final long serialVersionUID = 0;
+  /**
+   * Reads the documents at the provided uris and returns all lines
+   * from the documents tagged with which document they are from.
+   */
+  public static class ReadDocuments
+      extends PTransform<PInput, PCollection<KV<URI, String>>> {
+    private static final long serialVersionUID = 0;
 
-		private Iterable<URI> uris;
+    private Iterable<URI> uris;
 
-		public ReadDocuments(Iterable<URI> uris) {
-			this.uris = uris;
-		}
+    public ReadDocuments(Iterable<URI> uris) {
+      this.uris = uris;
+    }
 
-		@Override
-		public Coder<?> getDefaultOutputCoder() {
-			return KvCoder.of(StringDelegateCoder.of(URI.class), StringUtf8Coder.of());
-		}
+    @Override
+    public Coder<?> getDefaultOutputCoder() {
+      return KvCoder.of(StringDelegateCoder.of(URI.class), StringUtf8Coder.of());
+    }
 
-		@Override
-		public PCollection<KV<URI, String>> apply(PInput input) {
-			Pipeline pipeline = input.getPipeline();
+    @Override
+    public PCollection<KV<URI, String>> apply(PInput input) {
+      Pipeline pipeline = input.getPipeline();
 
-			// Create one TextIO.Read transform for each document
-			// and add its output to a PCollectionList
-			PCollectionList<KV<URI, String>> urisToLines =
-					PCollectionList.empty(pipeline);
+      // Create one TextIO.Read transform for each document
+      // and add its output to a PCollectionList
+      PCollectionList<KV<URI, String>> urisToLines =
+          PCollectionList.empty(pipeline);
 
-			// TextIO.Read supports:
-			//  - file: URIs and paths locally
-			//  - gs: URIs on the service
-			for (final URI uri : uris) {
-				String uriString;
-				if (uri.getScheme().equals("file")) {
-					uriString = new File(uri).getPath();
-				} else {
-					uriString = uri.toString();
-				}
+      // TextIO.Read supports:
+      //  - file: URIs and paths locally
+      //  - gs: URIs on the service
+      for (final URI uri : uris) {
+        String uriString;
+        if (uri.getScheme().equals("file")) {
+          uriString = new File(uri).getPath();
+        } else {
+          uriString = uri.toString();
+        }
 
-				PCollection<KV<URI, String>> oneUriToLines = pipeline
-						.apply(TextIO.Read.from(uriString)
-								.named("TextIO.Read(" + uriString + ")"))
-						.apply("WithKeys(" + uriString + ")", WithKeys.<URI, String>of(uri));
+        PCollection<KV<URI, String>> oneUriToLines = pipeline
+            .apply(TextIO.Read.from(uriString)
+                .named("TextIO.Read(" + uriString + ")"))
+            .apply("WithKeys(" + uriString + ")", WithKeys.<URI, String>of(uri));
 
-				urisToLines = urisToLines.and(oneUriToLines);
-			}
+        urisToLines = urisToLines.and(oneUriToLines);
+      }
 
-			return urisToLines.apply(Flatten.<KV<URI, String>>pCollections());
-		}
-	}
+      return urisToLines.apply(Flatten.<KV<URI, String>>pCollections());
+    }
+  }
 
-	/**
-	 * A transform containing a basic TF-IDF pipeline. The input consists of KV objects
-	 * where the key is the document's URI and the value is a piece
-	 * of the document's content. The output is mapping from terms to
-	 * scores for each document URI.
-	 */
-	public static class ComputeTfIdf
-			extends PTransform<PCollection<KV<URI, String>>, PCollection<KV<String, KV<URI, Double>>>> {
-		private static final long serialVersionUID = 0;
+  /**
+   * A transform containing a basic TF-IDF pipeline. The input consists of KV objects
+   * where the key is the document's URI and the value is a piece
+   * of the document's content. The output is mapping from terms to
+   * scores for each document URI.
+   */
+  public static class ComputeTfIdf
+      extends PTransform<PCollection<KV<URI, String>>, PCollection<KV<String, KV<URI, Double>>>> {
+    private static final long serialVersionUID = 0;
 
-		public ComputeTfIdf() { }
+    public ComputeTfIdf() { }
 
-		@Override
-		public PCollection<KV<String, KV<URI, Double>>> apply(
-				PCollection<KV<URI, String>> uriToContent) {
+    @Override
+    public PCollection<KV<String, KV<URI, Double>>> apply(
+        PCollection<KV<URI, String>> uriToContent) {
 
-			// Compute the total number of documents, and
-			// prepare this singleton PCollectionView for
-			// use as a side input.
-			final PCollectionView<Long> totalDocuments =
-					uriToContent
-							.apply("GetURIs", Keys.<URI>create())
-							.apply("RemoveDuplicateDocs", RemoveDuplicates.<URI>create())
-							.apply(Count.<URI>globally())
-							.apply(View.<Long>asSingleton());
+      // Compute the total number of documents, and
+      // prepare this singleton PCollectionView for
+      // use as a side input.
+      final PCollectionView<Long> totalDocuments =
+          uriToContent
+              .apply("GetURIs", Keys.<URI>create())
+              .apply("RemoveDuplicateDocs", RemoveDuplicates.<URI>create())
+              .apply(Count.<URI>globally())
+              .apply(View.<Long>asSingleton());
 
-			// Create a collection of pairs mapping a URI to each
-			// of the words in the document associated with that that URI.
-			PCollection<KV<URI, String>> uriToWords = uriToContent
-					.apply(ParDo.named("SplitWords").of(
-							new DoFn<KV<URI, String>, KV<URI, String>>() {
-								private static final long serialVersionUID = 0;
+      // Create a collection of pairs mapping a URI to each
+      // of the words in the document associated with that that URI.
+      PCollection<KV<URI, String>> uriToWords = uriToContent
+          .apply(ParDo.named("SplitWords").of(
+              new DoFn<KV<URI, String>, KV<URI, String>>() {
+                private static final long serialVersionUID = 0;
 
-								@Override
-								public void processElement(ProcessContext c) {
-									URI uri = c.element().getKey();
-									String line = c.element().getValue();
-									for (String word : line.split("\\W+")) {
-										// Log INFO messages when the word “love” is found.
-										if (word.toLowerCase().equals("love")) {
-											LOG.info("Found {}", word.toLowerCase());
-										}
+                @Override
+                public void processElement(ProcessContext c) {
+                  URI uri = c.element().getKey();
+                  String line = c.element().getValue();
+                  for (String word : line.split("\\W+")) {
+                    // Log INFO messages when the word “love” is found.
+                    if (word.toLowerCase().equals("love")) {
+                      LOG.info("Found {}", word.toLowerCase());
+                    }
 
-										if (!word.isEmpty()) {
-											c.output(KV.of(uri, word.toLowerCase()));
-										}
-									}
-								}
-							}));
+                    if (!word.isEmpty()) {
+                      c.output(KV.of(uri, word.toLowerCase()));
+                    }
+                  }
+                }
+              }));
 
-			// Compute a mapping from each word to the total
-			// number of documents in which it appears.
-			PCollection<KV<String, Long>> wordToDocCount = uriToWords
-					.apply("RemoveDuplicateWords", RemoveDuplicates.<KV<URI, String>>create())
-					.apply(Values.<String>create())
-					.apply("CountDocs", Count.<String>perElement());
+      // Compute a mapping from each word to the total
+      // number of documents in which it appears.
+      PCollection<KV<String, Long>> wordToDocCount = uriToWords
+          .apply("RemoveDuplicateWords", RemoveDuplicates.<KV<URI, String>>create())
+          .apply(Values.<String>create())
+          .apply("CountDocs", Count.<String>perElement());
 
-			// Compute a mapping from each URI to the total
-			// number of words in the document associated with that URI.
-			PCollection<KV<URI, Long>> uriToWordTotal = uriToWords
-					.apply("GetURIs2", Keys.<URI>create())
-					.apply("CountWords", Count.<URI>perElement());
+      // Compute a mapping from each URI to the total
+      // number of words in the document associated with that URI.
+      PCollection<KV<URI, Long>> uriToWordTotal = uriToWords
+          .apply("GetURIs2", Keys.<URI>create())
+          .apply("CountWords", Count.<URI>perElement());
 
-			// Count, for each (URI, word) pair, the number of
-			// occurrences of that word in the document associated
-			// with the URI.
-			PCollection<KV<KV<URI, String>, Long>> uriAndWordToCount = uriToWords
-					.apply("CountWordDocPairs", Count.<KV<URI, String>>perElement());
+      // Count, for each (URI, word) pair, the number of
+      // occurrences of that word in the document associated
+      // with the URI.
+      PCollection<KV<KV<URI, String>, Long>> uriAndWordToCount = uriToWords
+          .apply("CountWordDocPairs", Count.<KV<URI, String>>perElement());
 
-			// Adjust the above collection to a mapping from
-			// (URI, word) pairs to counts into an isomorphic mapping
-			// from URI to (word, count) pairs, to prepare for a join
-			// by the URI key.
-			PCollection<KV<URI, KV<String, Long>>> uriToWordAndCount = uriAndWordToCount
-					.apply(ParDo.named("ShiftKeys").of(
-							new DoFn<KV<KV<URI, String>, Long>, KV<URI, KV<String, Long>>>() {
-								private static final long serialVersionUID = 0;
+      // Adjust the above collection to a mapping from
+      // (URI, word) pairs to counts into an isomorphic mapping
+      // from URI to (word, count) pairs, to prepare for a join
+      // by the URI key.
+      PCollection<KV<URI, KV<String, Long>>> uriToWordAndCount = uriAndWordToCount
+          .apply(ParDo.named("ShiftKeys").of(
+              new DoFn<KV<KV<URI, String>, Long>, KV<URI, KV<String, Long>>>() {
+                private static final long serialVersionUID = 0;
 
-								@Override
-								public void processElement(ProcessContext c) {
-									URI uri = c.element().getKey().getKey();
-									String word = c.element().getKey().getValue();
-									Long occurrences = c.element().getValue();
-									c.output(KV.of(uri, KV.of(word, occurrences)));
-								}
-							}));
+                @Override
+                public void processElement(ProcessContext c) {
+                  URI uri = c.element().getKey().getKey();
+                  String word = c.element().getKey().getValue();
+                  Long occurrences = c.element().getValue();
+                  c.output(KV.of(uri, KV.of(word, occurrences)));
+                }
+              }));
 
-			// Prepare to join the mapping of URI to (word, count) pairs with
-			// the mapping of URI to total word counts, by associating
-			// each of the input PCollection<KV<URI, ...>> with
-			// a tuple tag. Each input must have the same key type, URI
-			// in this case. The type parameter of the tuple tag matches
-			// the types of the values for each collection.
-			final TupleTag<Long> wordTotalsTag = new TupleTag<>();
-			final TupleTag<KV<String, Long>> wordCountsTag = new TupleTag<>();
-			KeyedPCollectionTuple<URI> coGbkInput = KeyedPCollectionTuple
-					.of(wordTotalsTag, uriToWordTotal)
-					.and(wordCountsTag, uriToWordAndCount);
+      // Prepare to join the mapping of URI to (word, count) pairs with
+      // the mapping of URI to total word counts, by associating
+      // each of the input PCollection<KV<URI, ...>> with
+      // a tuple tag. Each input must have the same key type, URI
+      // in this case. The type parameter of the tuple tag matches
+      // the types of the values for each collection.
+      final TupleTag<Long> wordTotalsTag = new TupleTag<>();
+      final TupleTag<KV<String, Long>> wordCountsTag = new TupleTag<>();
+      KeyedPCollectionTuple<URI> coGbkInput = KeyedPCollectionTuple
+          .of(wordTotalsTag, uriToWordTotal)
+          .and(wordCountsTag, uriToWordAndCount);
 
-			// Perform a CoGroupByKey (a sort of pre-join) on the prepared
-			// inputs. This yields a mapping from URI to a CoGbkResult
-			// (CoGroupByKey Result). The CoGbkResult is a mapping
-			// from the above tuple tags to the values in each input
-			// associated with a particular URI. In this case, each
-			// KV<URI, CoGbkResult> group a URI with the total number of
-			// words in that document as well as all the (word, count)
-			// pairs for particular words.
-			PCollection<KV<URI, CoGbkResult>> uriToWordAndCountAndTotal = coGbkInput
-					.apply("CoGroupByUri", CoGroupByKey.<URI>create());
+      // Perform a CoGroupByKey (a sort of pre-join) on the prepared
+      // inputs. This yields a mapping from URI to a CoGbkResult
+      // (CoGroupByKey Result). The CoGbkResult is a mapping
+      // from the above tuple tags to the values in each input
+      // associated with a particular URI. In this case, each
+      // KV<URI, CoGbkResult> group a URI with the total number of
+      // words in that document as well as all the (word, count)
+      // pairs for particular words.
+      PCollection<KV<URI, CoGbkResult>> uriToWordAndCountAndTotal = coGbkInput
+          .apply("CoGroupByUri", CoGroupByKey.<URI>create());
 
-			// Compute a mapping from each word to a (URI, term frequency)
-			// pair for each URI. A word's term frequency for a document
-			// is simply the number of times that word occurs in the document
-			// divided by the total number of words in the document.
-			PCollection<KV<String, KV<URI, Double>>> wordToUriAndTf = uriToWordAndCountAndTotal
-					.apply(ParDo.named("ComputeTermFrequencies").of(
-							new DoFn<KV<URI, CoGbkResult>, KV<String, KV<URI, Double>>>() {
-								private static final long serialVersionUID = 0;
+      // Compute a mapping from each word to a (URI, term frequency)
+      // pair for each URI. A word's term frequency for a document
+      // is simply the number of times that word occurs in the document
+      // divided by the total number of words in the document.
+      PCollection<KV<String, KV<URI, Double>>> wordToUriAndTf = uriToWordAndCountAndTotal
+          .apply(ParDo.named("ComputeTermFrequencies").of(
+              new DoFn<KV<URI, CoGbkResult>, KV<String, KV<URI, Double>>>() {
+                private static final long serialVersionUID = 0;
 
-								@Override
-								public void processElement(ProcessContext c) {
-									URI uri = c.element().getKey();
-									Long wordTotal = c.element().getValue().getOnly(wordTotalsTag);
+                @Override
+                public void processElement(ProcessContext c) {
+                  URI uri = c.element().getKey();
+                  Long wordTotal = c.element().getValue().getOnly(wordTotalsTag);
 
-									for (KV<String, Long> wordAndCount
-											: c.element().getValue().getAll(wordCountsTag)) {
-										String word = wordAndCount.getKey();
-										Long wordCount = wordAndCount.getValue();
-										Double termFrequency = wordCount.doubleValue() / wordTotal.doubleValue();
-										c.output(KV.of(word, KV.of(uri, termFrequency)));
-									}
-								}
-							}));
+                  for (KV<String, Long> wordAndCount
+                      : c.element().getValue().getAll(wordCountsTag)) {
+                    String word = wordAndCount.getKey();
+                    Long wordCount = wordAndCount.getValue();
+                    Double termFrequency = wordCount.doubleValue() / wordTotal.doubleValue();
+                    c.output(KV.of(word, KV.of(uri, termFrequency)));
+                  }
+                }
+              }));
 
-			// Compute a mapping from each word to its document frequency.
-			// A word's document frequency in a corpus is the number of
-			// documents in which the word appears divided by the total
-			// number of documents in the corpus. Note how the total number of
-			// documents is passed as a side input; the same value is
-			// presented to each invocation of the DoFn.
-			PCollection<KV<String, Double>> wordToDf = wordToDocCount
-					.apply(ParDo
-							.named("ComputeDocFrequencies")
-							.withSideInputs(totalDocuments)
-							.of(new DoFn<KV<String, Long>, KV<String, Double>>() {
-								private static final long serialVersionUID = 0;
+      // Compute a mapping from each word to its document frequency.
+      // A word's document frequency in a corpus is the number of
+      // documents in which the word appears divided by the total
+      // number of documents in the corpus. Note how the total number of
+      // documents is passed as a side input; the same value is
+      // presented to each invocation of the DoFn.
+      PCollection<KV<String, Double>> wordToDf = wordToDocCount
+          .apply(ParDo
+              .named("ComputeDocFrequencies")
+              .withSideInputs(totalDocuments)
+              .of(new DoFn<KV<String, Long>, KV<String, Double>>() {
+                private static final long serialVersionUID = 0;
 
-								@Override
-								public void processElement(ProcessContext c) {
-									String word = c.element().getKey();
-									Long documentCount = c.element().getValue();
-									Long documentTotal = c.sideInput(totalDocuments);
-									Double documentFrequency = documentCount.doubleValue()
-											/ documentTotal.doubleValue();
+                @Override
+                public void processElement(ProcessContext c) {
+                  String word = c.element().getKey();
+                  Long documentCount = c.element().getValue();
+                  Long documentTotal = c.sideInput(totalDocuments);
+                  Double documentFrequency = documentCount.doubleValue()
+                      / documentTotal.doubleValue();
 
-									c.output(KV.of(word, documentFrequency));
-								}
-							}));
+                  c.output(KV.of(word, documentFrequency));
+                }
+              }));
 
-			// Join the term frequency and document frequency
-			// collections, each keyed on the word.
-			final TupleTag<KV<URI, Double>> tfTag = new TupleTag<>();
-			final TupleTag<Double> dfTag = new TupleTag<>();
-			PCollection<KV<String, CoGbkResult>> wordToUriAndTfAndDf = KeyedPCollectionTuple
-					.of(tfTag, wordToUriAndTf)
-					.and(dfTag, wordToDf)
-					.apply(CoGroupByKey.<String>create());
+      // Join the term frequency and document frequency
+      // collections, each keyed on the word.
+      final TupleTag<KV<URI, Double>> tfTag = new TupleTag<>();
+      final TupleTag<Double> dfTag = new TupleTag<>();
+      PCollection<KV<String, CoGbkResult>> wordToUriAndTfAndDf = KeyedPCollectionTuple
+          .of(tfTag, wordToUriAndTf)
+          .and(dfTag, wordToDf)
+          .apply(CoGroupByKey.<String>create());
 
-			// Compute a mapping from each word to a (URI, TF-IDF) score
-			// for each URI. There are a variety of definitions of TF-IDF
-			// ("term frequency - inverse document frequency") score;
-			// here we use a basic version that is the term frequency
-			// divided by the log of the document frequency.
+      // Compute a mapping from each word to a (URI, TF-IDF) score
+      // for each URI. There are a variety of definitions of TF-IDF
+      // ("term frequency - inverse document frequency") score;
+      // here we use a basic version that is the term frequency
+      // divided by the log of the document frequency.
 
-			return wordToUriAndTfAndDf
-					.apply(ParDo.named("ComputeTfIdf").of(
-							new DoFn<KV<String, CoGbkResult>, KV<String, KV<URI, Double>>>() {
-								private static final long serialVersionUID1 = 0;
+      return wordToUriAndTfAndDf
+          .apply(ParDo.named("ComputeTfIdf").of(
+              new DoFn<KV<String, CoGbkResult>, KV<String, KV<URI, Double>>>() {
+                private static final long serialVersionUID1 = 0;
 
-								@Override
-								public void processElement(ProcessContext c) {
-									String word = c.element().getKey();
-									Double df = c.element().getValue().getOnly(dfTag);
+                @Override
+                public void processElement(ProcessContext c) {
+                  String word = c.element().getKey();
+                  Double df = c.element().getValue().getOnly(dfTag);
 
-									for (KV<URI, Double> uriAndTf : c.element().getValue().getAll(tfTag)) {
-										URI uri = uriAndTf.getKey();
-										Double tf = uriAndTf.getValue();
-										Double tfIdf = tf * Math.log(1 / df);
-										c.output(KV.of(word, KV.of(uri, tfIdf)));
-									}
-								}
-							}));
-		}
+                  for (KV<URI, Double> uriAndTf : c.element().getValue().getAll(tfTag)) {
+                    URI uri = uriAndTf.getKey();
+                    Double tf = uriAndTf.getValue();
+                    Double tfIdf = tf * Math.log(1 / df);
+                    c.output(KV.of(word, KV.of(uri, tfIdf)));
+                  }
+                }
+              }));
+    }
 
-		// Instantiate Logger.
-		// It is suggested that the user specify the class name of the containing class
-		// (in this case ComputeTfIdf).
-		private static final Logger LOG = LoggerFactory.getLogger(ComputeTfIdf.class);
-	}
+    // Instantiate Logger.
+    // It is suggested that the user specify the class name of the containing class
+    // (in this case ComputeTfIdf).
+    private static final Logger LOG = LoggerFactory.getLogger(ComputeTfIdf.class);
+  }
 
-	/**
-	 * A {@link PTransform} to write, in CSV format, a mapping from term and URI
-	 * to score.
-	 */
-	public static class WriteTfIdf
-			extends PTransform<PCollection<KV<String, KV<URI, Double>>>, PDone> {
-		private static final long serialVersionUID = 0;
+  /**
+   * A {@link PTransform} to write, in CSV format, a mapping from term and URI
+   * to score.
+   */
+  public static class WriteTfIdf
+      extends PTransform<PCollection<KV<String, KV<URI, Double>>>, PDone> {
+    private static final long serialVersionUID = 0;
 
-		private String output;
+    private String output;
 
-		public WriteTfIdf(String output) {
-			this.output = output;
-		}
+    public WriteTfIdf(String output) {
+      this.output = output;
+    }
 
-		@Override
-		public PDone apply(PCollection<KV<String, KV<URI, Double>>> wordToUriAndTfIdf) {
-			return wordToUriAndTfIdf
-					.apply(ParDo.named("Format").of(new DoFn<KV<String, KV<URI, Double>>, String>() {
-						private static final long serialVersionUID = 0;
+    @Override
+    public PDone apply(PCollection<KV<String, KV<URI, Double>>> wordToUriAndTfIdf) {
+      return wordToUriAndTfIdf
+          .apply(ParDo.named("Format").of(new DoFn<KV<String, KV<URI, Double>>, String>() {
+            private static final long serialVersionUID = 0;
 
-						@Override
-						public void processElement(ProcessContext c) {
-							c.output(String.format("%s,\t%s,\t%f",
-									c.element().getKey(),
-									c.element().getValue().getKey(),
-									c.element().getValue().getValue()));
-						}
-					}))
-					.apply(TextIO.Write
-							.to(output)
-							.withSuffix(".csv"));
-		}
-	}
+            @Override
+            public void processElement(ProcessContext c) {
+              c.output(String.format("%s,\t%s,\t%f",
+                  c.element().getKey(),
+                  c.element().getValue().getKey(),
+                  c.element().getValue().getValue()));
+            }
+          }))
+          .apply(TextIO.Write
+              .to(output)
+              .withSuffix(".csv"));
+    }
+  }
 
-	public static void main(String[] args) throws Exception {
-		Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
+  public static void main(String[] args) throws Exception {
+    Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
 
-		options.setRunner(FlinkPipelineRunner.class);
+    options.setRunner(FlinkPipelineRunner.class);
 
-		Pipeline pipeline = Pipeline.create(options);
-		pipeline.getCoderRegistry().registerCoder(URI.class, StringDelegateCoder.of(URI.class));
+    Pipeline pipeline = Pipeline.create(options);
+    pipeline.getCoderRegistry().registerCoder(URI.class, StringDelegateCoder.of(URI.class));
 
-		pipeline
-				.apply(new ReadDocuments(listInputDocuments(options)))
-				.apply(new ComputeTfIdf())
-				.apply(new WriteTfIdf(options.getOutput()));
+    pipeline
+        .apply(new ReadDocuments(listInputDocuments(options)))
+        .apply(new ComputeTfIdf())
+        .apply(new WriteTfIdf(options.getOutput()));
 
-		pipeline.run();
-	}
+    pipeline.run();
+  }
 }
