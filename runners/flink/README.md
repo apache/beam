@@ -1,17 +1,17 @@
-Flink-Dataflow
---------------
+Flink Beam Runner (Flink-Runner)
+-------------------------------
 
-Flink-Dataflow is a Runner for Google Dataflow (aka Apache Beam) which enables you to
-run Dataflow programs with Flink. It integrates seamlessly with the Dataflow
-API, allowing you to execute Dataflow programs in streaming or batch mode.
+Flink-Runner is a Runner for Apache Beam which enables you to
+run Beam dataflows with Flink. It integrates seamlessly with the Beam
+API, allowing you to execute Apache Beam programs in streaming or batch mode.
 
 ## Streaming
 
-### Full Dataflow Windowing and Triggering Semantics
+### Full Beam Windowing and Triggering Semantics
 
-The Flink Dataflow Runner supports *Event Time* allowing you to analyze data with respect to its
+The Flink Beam Runner supports *Event Time* allowing you to analyze data with respect to its
 associated timestamp. It handles out-or-order and late-arriving elements. You may leverage the full
-power of the Dataflow windowing semantics like *time-based*, *sliding*, *tumbling*, or *count*
+power of the Beam windowing semantics like *time-based*, *sliding*, *tumbling*, or *count*
 windows. You may build *session* windows which allow you to keep track of events associated with
 each other.
 
@@ -27,7 +27,7 @@ and sinks or use the provided support for Apache Kafka.
 
 ### Seamless integration
 
-To execute a Dataflow program in streaming mode, just enable streaming in the `PipelineOptions`:
+To execute a Beam program in streaming mode, just enable streaming in the `PipelineOptions`:
 
     options.setStreaming(true);
 
@@ -52,7 +52,7 @@ and sinks.
 
 ## Features
 
-The Flink Dataflow Runner maintains as much compatibility with the Dataflow API as possible. We
+The Flink Beam Runner maintains as much compatibility with the Beam API as possible. We
 support transformations on data like:
 
 - Grouping
@@ -66,25 +66,25 @@ support transformations on data like:
 
 # Getting Started
 
-To get started using Flink-Dataflow, we first need to install the latest version.
+To get started using the Flink Runner, we first need to install the latest version.
 
-## Install Flink-Dataflow ##
+## Install Flink-Runner ##
 
-To retrieve the latest version of Flink-Dataflow, run the following command
+To retrieve the latest version of Flink-Runner, run the following command
 
-    git clone https://github.com/dataArtisans/flink-dataflow
+    git clone https://github.com/apache/incubator-beam
 
-Then switch to the newly created directory and run Maven to build the Dataflow runner:
+Then switch to the newly created directory and run Maven to build the Beam runner:
 
-    cd flink-dataflow
+    cd incubator-beam
     mvn clean install -DskipTests
 
-Flink-Dataflow is now installed in your local maven repository.
+Flink-Runner is now installed in your local maven repository.
 
 ## Executing an example
 
 Next, let's run the classic WordCount example. It's semantically identically to
-the example provided with Google Dataflow. Only this time, we chose the
+the example provided with ApacheBeam. Only this time, we chose the
 `FlinkPipelineRunner` to execute the WordCount on top of Flink.
 
 Here's an excerpt from the WordCount class file:
@@ -113,15 +113,15 @@ Then let's run the included WordCount locally on your machine:
 
     mvn exec:exec -Dinput=kinglear.txt -Doutput=wordcounts.txt
 
-Congratulations, you have run your first Google Dataflow program on top of Apache Flink!
+Congratulations, you have run your first ApacheBeam program on top of Apache Flink!
 
 
-# Running Dataflow programs on a Flink cluster
+# Running Beam programs on a Flink cluster
 
-You can run your Dataflow program on an Apache Flink cluster. Please start off by creating a new
+You can run your Beam program on an Apache Flink cluster. Please start off by creating a new
 Maven project.
 
-    mvn archetype:generate -DgroupId=com.mycompany.dataflow -DartifactId=dataflow-test \
+    mvn archetype:generate -DgroupId=com.mycompany.beam -DartifactId=beam-test \
         -DarchetypeArtifactId=maven-archetype-quickstart -DinteractiveMode=false
 
 The contents of the root `pom.xml` should be slightly changed aftewards (explanation below):
@@ -133,14 +133,14 @@ The contents of the root `pom.xml` should be slightly changed aftewards (explana
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.mycompany.dataflow</groupId>
-    <artifactId>dataflow-test</artifactId>
+    <groupId>com.mycompany.beam</groupId>
+    <artifactId>beam-test</artifactId>
     <version>1.0</version>
 
     <dependencies>
         <dependency>
-            <groupId>com.dataartisans</groupId>
-            <artifactId>flink-dataflow</artifactId>
+            <groupId>org.apache.beam</groupId>
+            <artifactId>flink-runner</artifactId>
             <version>0.2</version>
         </dependency>
     </dependencies>
@@ -182,13 +182,13 @@ The contents of the root `pom.xml` should be slightly changed aftewards (explana
 
 The following changes have been made:
 
-1. The Flink Dataflow Runner was added as a dependency.
+1. The Flink Beam Runner was added as a dependency.
 
 2. The Maven Shade plugin was added to build a fat jar.
 
-A fat jar is necessary if you want to submit your Dataflow code to a Flink cluster. The fat jar
-includes your program code but also Dataflow code which is necessary during runtime. Note that this
-step is necessary because the Dataflow Runner is not part of Flink.
+A fat jar is necessary if you want to submit your Beam code to a Flink cluster. The fat jar
+includes your program code but also Beam code which is necessary during runtime. Note that this
+step is necessary because the Beam Runner is not part of Flink.
 
 You can then build the jar using `mvn clean package`. Please submit the fat jar in the `target`
 folder to the Flink cluster using the command-line utility like so:
