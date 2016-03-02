@@ -43,10 +43,8 @@ import org.apache.flink.streaming.api.operators.*;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
-import org.apache.flink.util.Collector;
 import org.joda.time.Instant;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.*;
 
@@ -309,7 +307,6 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
 
 	@Override
 	public void close() throws Exception {
-		processWatermark(new Watermark(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));
 		super.close();
 	}
 
@@ -517,9 +514,9 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
 				@Override
 				public void outputWindowedValue(KV<K, VOUT> output, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo pane) {
 					// TODO: No need to represent timestamp twice.
-					// collector.setAbsoluteTimestamp(timestamp.getMillis());
-					collector.setAbsoluteTimestamp(0);
+					collector.setAbsoluteTimestamp(timestamp.getMillis());
 					collector.collect(WindowedValue.of(output, timestamp, windows, pane));
+
 				}
 
 				@Override

@@ -70,7 +70,6 @@ public class TopWikipediaSessionsITCase extends StreamingProgramTestBase impleme
 		Pipeline p = FlinkTestPipeline.createForStreaming();
 
 		Long now = (System.currentTimeMillis() + 10000) / 1000;
-		System.out.println(now);
 
 		PCollection<KV<String, Long>> output =
 			p.apply(Create.of(Arrays.asList(new TableRow().set("timestamp", now).set
@@ -113,28 +112,15 @@ public class TopWikipediaSessionsITCase extends StreamingProgramTestBase impleme
 				}
 			}))
 
-			.apply(ParDo.named("SampleUsers").of(
-					new DoFn<String, String>() {
-						private static final long serialVersionUID = 0;
+			.apply(Window.<String>into(Sessions.withGapDuration(Duration.standardMinutes(1))))
 
-						@Override
-						public void processElement(ProcessContext c) {
-							// TODO: Vacuously true.
-							if (Math.abs(c.element().hashCode()) <= Integer.MAX_VALUE * 1.0) {
-								c.output(c.element());
-							}
-						}
-					}))
-
-					.apply(Window.<String>into(Sessions.withGapDuration(Duration.standardMinutes(1))))
-					.apply(Count.<String>perElement());
+			.apply(Count.<String>perElement());
 
 		PCollection<String> format = output.apply(ParDo.of(new DoFn<KV<String, Long>, String>() {
 			@Override
 			public void processElement(ProcessContext c) throws Exception {
 				KV<String, Long> el = c.element();
 				String out = "user: " + el.getKey() + " value:" + el.getValue();
-				System.out.println(out);
 				c.output(out);
 			}
 		}));

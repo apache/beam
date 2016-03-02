@@ -204,7 +204,7 @@ public class FlinkStreamingTransformTranslators {
 			FlinkParDoBoundWrapper<IN, OUT> doFnWrapper = new FlinkParDoBoundWrapper<>(
 					context.getPipelineOptions(), windowingStrategy, transform.getFn());
 			DataStream<WindowedValue<IN>> inputDataStream = context.getInputDataStream(context.getInput(transform));
-			SingleOutputStreamOperator<WindowedValue<OUT>, ?> outDataStream = inputDataStream.flatMap(doFnWrapper)
+			SingleOutputStreamOperator<WindowedValue<OUT>> outDataStream = inputDataStream.flatMap(doFnWrapper)
 					.returns(outputWindowedValueCoder);
 
 			context.setOutputDataStream(context.getOutput(transform), outDataStream);
@@ -232,7 +232,7 @@ public class FlinkStreamingTransformTranslators {
 			final FlinkParDoBoundWrapper<T, T> windowDoFnAssigner = new FlinkParDoBoundWrapper<>(
 					context.getPipelineOptions(), windowingStrategy, createWindowAssigner(windowFn));
 
-			SingleOutputStreamOperator<WindowedValue<T>, ?> windowedStream =
+			SingleOutputStreamOperator<WindowedValue<T>> windowedStream =
 					inputDataStream.flatMap(windowDoFnAssigner).returns(outputWindowedValueCoder);
 			context.setOutputDataStream(context.getOutput(transform), windowedStream);
 		}
@@ -349,7 +349,7 @@ public class FlinkStreamingTransformTranslators {
 					transform.getMainOutputTag(), tagsToLabels);
 
 			DataStream<WindowedValue<IN>> inputDataStream = context.getInputDataStream(context.getInput(transform));
-			SingleOutputStreamOperator<WindowedValue<RawUnionValue>, ?> intermDataStream =
+			SingleOutputStreamOperator<WindowedValue<RawUnionValue>> intermDataStream =
 					inputDataStream.flatMap(doFnWrapper).returns(intermWindowedValueCoder);
 
 			for (Map.Entry<TupleTag<?>, PCollection<?>> output : outputs.entrySet()) {
