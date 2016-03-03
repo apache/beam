@@ -96,13 +96,19 @@ def _nested_type_wrapper(fun):
 dill.dill.Pickler.dispatch[type] = _nested_type_wrapper(
     dill.dill.Pickler.dispatch[type])
 
-# Monkey patch dill to have entries for UnboundMethodType and MethodType
-# which map to the same value.
-_dill_rtmap = dill.dill._reverse_typemap  # pylint: disable=protected-access
-if 'UnboundMethodType' not in _dill_rtmap and 'MethodType' in _dill_rtmap:
-  _dill_rtmap['UnboundMethodType'] = _dill_rtmap['MethodType']
-elif 'MethodType' not in _dill_rtmap and 'UnboundMethodType' in _dill_rtmap:
-  _dill_rtmap['MethodType'] = _dill_rtmap['UnboundMethodType']
+# Guard against dill not being full initialized when generating docs.
+if 'save_module' in dir(dill.dill):
+  # Always pickle non-main modules by name.
+  old_save_module = dill.dill.save_module
+  @dill.dill.register(dill.dill.ModuleType)
+  def save_module(pickler, obj):
+    if dill.dill.is_dill(pickler) and obj is pickler._main:
+      return old_save_module(pickler, obj)
+    else:
+      dill.dill.log.info('M2: %s' % obj)
+      pickler.save_reduce(dill.dill._import_module, (obj.__name__,), obj=obj)
+      dill.dill.log.info('# M2')
+
 
 # Turn off verbose logging from the dill pickler.
 logging.getLogger('dill').setLevel(logging.WARN)
