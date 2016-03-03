@@ -499,6 +499,11 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
           directContext.timestamp(),
           directContext.timers(),
           directContext.state());
+
+      // At this point, if triggerRunner.shouldFire before the processValue then
+      // triggerRunner.shouldFire after the processValue. In other words adding values
+      // cannot take a trigger state from firing to non-firing.
+      // (We don't actually assert this since it is too slow.)
     }
 
     return windows;
@@ -568,6 +573,11 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       boolean isEndOfWindow = TimeDomain.EVENT_TIME == timer.getDomain()
           && timer.getTimestamp().equals(window.maxTimestamp());
       if (isEndOfWindow) {
+        // If the window strategy trigger includes a watermark trigger then at this point
+        // there should be no data holds, either because we'd already cleared them on an
+        // earlier onTrigger, or because we just cleared them on the above emitIfAppropriate.
+        // We could assert this but it is very expensive.
+
         // Since we are processing an on-time firing we should schedule the garbage collection
         // timer. (If getAllowedLateness is zero then the timer event will be considered a
         // cleanup event and handled by the above).
@@ -715,8 +725,11 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       ReduceFn<K, InputT, OutputT, W>.Context renamedContext,
       boolean isFinished)
           throws Exception {
+    Instant inputWM = timerInternals.currentInputWatermarkTime();
+    Preconditions.checkNotNull(inputWM);
+
     // Prefetch necessary states
-    ReadableState<Instant> outputTimestampFuture =
+    ReadableState<WatermarkHold.OldAndNewHolds> outputTimestampFuture =
         watermarkHold.extractAndRelease(renamedContext, isFinished).readLater();
     ReadableState<PaneInfo> paneFuture =
         paneInfoTracker.getNextPaneInfo(directContext, isFinished).readLater();
@@ -729,7 +742,41 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     // Calculate the pane info.
     final PaneInfo pane = paneFuture.read();
     // Extract the window hold, and as a side effect clear it.
-    final Instant outputTimestamp = outputTimestampFuture.read();
+
+    WatermarkHold.OldAndNewHolds pair = outputTimestampFuture.read();
+    final Instant outputTimestamp = pair.oldHold;
+    @Nullable Instant newHold = pair.newHold;
+
+    if (newHold != null && inputWM != null) {
+      // We can't be finished yet.
+      Preconditions.checkState(
+        !isFinished, "new hold at %s but finished %s", newHold, directContext.window());
+      // The hold cannot be behind the input watermark.
+      Preconditions.checkState(
+        !newHold.isBefore(inputWM), "new hold %s is before input watermark %s", newHold, inputWM);
+      if (newHold.isAfter(directContext.window().maxTimestamp())) {
+        // The hold must be for garbage collection, which can't have happened yet.
+        Preconditions.checkState(
+          newHold.isEqual(
+            directContext.window().maxTimestamp().plus(windowingStrategy.getAllowedLateness())),
+          "new hold %s should be at garbage collection for window %s plus %s",
+          newHold,
+          directContext.window(),
+          windowingStrategy.getAllowedLateness());
+      } else {
+        // The hold must be for the end-of-window, which can't have happened yet.
+        Preconditions.checkState(
+          newHold.isEqual(directContext.window().maxTimestamp()),
+          "new hold %s should be at end of window %s",
+          newHold,
+          directContext.window());
+        Preconditions.checkState(
+          !isEndOfWindow,
+          "new hold at %s for %s but this is the watermark trigger",
+          newHold,
+          directContext.window());
+      }
+    }
 
     // Only emit a pane if it has data or empty panes are observable.
     if (needToEmit(isEmptyFuture.read(), isFinished, pane.getTiming())) {

@@ -228,6 +228,7 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
 
     Instant outputWM = timerInternals.currentOutputWatermarkTime();
     Instant inputWM = timerInternals.currentInputWatermarkTime();
+    Preconditions.checkNotNull(inputWM);
 
     // Only add the hold if we can be sure:
     // - the backend will be able to respect it
@@ -287,6 +288,8 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
     // by the end of window (ie the end of window is at or ahead of the input watermark).
     Instant outputWM = timerInternals.currentOutputWatermarkTime();
     Instant inputWM = timerInternals.currentInputWatermarkTime();
+    Preconditions.checkNotNull(inputWM);
+
     String which;
     boolean tooLate;
     Instant eowHold = context.window().maxTimestamp();
@@ -329,6 +332,8 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
       Instant gcHold = context.window().maxTimestamp().plus(windowingStrategy.getAllowedLateness());
       Instant outputWM = timerInternals.currentOutputWatermarkTime();
       Instant inputWM = timerInternals.currentInputWatermarkTime();
+      Preconditions.checkNotNull(inputWM);
+
       WindowTracing.trace(
           "WatermarkHold.addGarbageCollectionHold: garbage collection at {} hold for "
           + "key:{}; window:{}; inputWatermark:{}; outputWatermark:{}",
@@ -369,6 +374,19 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
   }
 
   /**
+   * Result of {@link #extractAndRelease}.
+   */
+  public static class OldAndNewHolds {
+    public final Instant oldHold;
+    @Nullable public final Instant newHold;
+
+    public OldAndNewHolds(Instant oldHold, @Nullable Instant newHold) {
+      this.oldHold = oldHold;
+      this.newHold = newHold;
+    }
+  }
+
+  /**
    * Return (a future for) the earliest hold for {@code context}. Clear all the holds after
    * reading, but add/restore an end-of-window or garbage collection hold if required.
    *
@@ -377,7 +395,7 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
    * elements in the current pane. If there is no such value the timestamp is the end
    * of the window.
    */
-  public ReadableState<Instant> extractAndRelease(
+  public ReadableState<OldAndNewHolds> extractAndRelease(
       final ReduceFn<?, ?, ?, W>.Context context, final boolean isFinished) {
     WindowTracing.debug(
         "extractAndRelease: for key:{}; window:{}; inputWatermark:{}; outputWatermark:{}",
@@ -385,38 +403,38 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
         timerInternals.currentOutputWatermarkTime());
     final WatermarkHoldState<W> elementHoldState = context.state().access(elementHoldTag);
     final WatermarkHoldState<BoundedWindow> extraHoldState = context.state().access(EXTRA_HOLD_TAG);
-    return new ReadableState<Instant>() {
+    return new ReadableState<OldAndNewHolds>() {
       @Override
-      public ReadableState<Instant> readLater() {
+      public ReadableState<OldAndNewHolds> readLater() {
         elementHoldState.readLater();
         extraHoldState.readLater();
         return this;
       }
 
       @Override
-      public Instant read() {
+      public OldAndNewHolds read() {
         // Read both the element and extra holds.
         Instant elementHold = elementHoldState.read();
         Instant extraHold = extraHoldState.read();
-        Instant hold;
+        Instant oldHold;
         // Find the minimum, accounting for null.
         if (elementHold == null) {
-          hold = extraHold;
+          oldHold = extraHold;
         } else if (extraHold == null) {
-          hold = elementHold;
+          oldHold = elementHold;
         } else if (elementHold.isBefore(extraHold)) {
-          hold = elementHold;
+          oldHold = elementHold;
         } else {
-          hold = extraHold;
+          oldHold = extraHold;
         }
-        if (hold == null || hold.isAfter(context.window().maxTimestamp())) {
+        if (oldHold == null || oldHold.isAfter(context.window().maxTimestamp())) {
           // If no hold (eg because all elements came in behind the output watermark), or
           // the hold was for garbage collection, take the end of window as the result.
           WindowTracing.debug(
               "WatermarkHold.extractAndRelease.read: clipping from {} to end of window "
               + "for key:{}; window:{}",
-              hold, context.key(), context.window());
-          hold = context.window().maxTimestamp();
+              oldHold, context.key(), context.window());
+          oldHold = context.window().maxTimestamp();
         }
         WindowTracing.debug("WatermarkHold.extractAndRelease.read: clearing for key:{}; window:{}",
             context.key(), context.window());
@@ -425,13 +443,14 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
         elementHoldState.clear();
         extraHoldState.clear();
 
+        @Nullable Instant newHold = null;
         if (!isFinished) {
           // Only need to leave behind an end-of-window or garbage collection hold
           // if future elements will be processed.
-          addEndOfWindowOrGarbageCollectionHolds(context);
+          newHold = addEndOfWindowOrGarbageCollectionHolds(context);
         }
 
-        return hold;
+        return new OldAndNewHolds(oldHold, newHold);
       }
     };
   }
@@ -446,5 +465,13 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
         timerInternals.currentOutputWatermarkTime());
     context.state().access(elementHoldTag).clear();
     context.state().access(EXTRA_HOLD_TAG).clear();
+  }
+
+  /**
+   * Return the current data hold, or null if none. Does not clear. For debugging only.
+   */
+  @Nullable
+  public Instant getDataCurrent(ReduceFn<?, ?, ?, W>.Context context) {
+    return context.state().access(elementHoldTag).read();
   }
 }
