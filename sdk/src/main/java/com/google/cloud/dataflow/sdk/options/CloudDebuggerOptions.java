@@ -16,7 +16,10 @@
 
 package com.google.cloud.dataflow.sdk.options;
 
+import com.google.api.services.clouddebugger.v2.model.Debuggee;
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
+
+import javax.annotation.Nullable;
 
 /**
  * Options for controlling Cloud Debugger.
@@ -32,5 +35,9 @@ public interface CloudDebuggerOptions {
   @Description("Whether to enable the Cloud Debugger snapshot agent for the current job.")
   boolean getEnableCloudDebugger();
   void setEnableCloudDebugger(boolean enabled);
-}
 
+  @Description("The Cloud Debugger debugee to associate with. This should not be set directly.")
+  @Hidden
+  @Nullable Debuggee getDebuggee();
+  void setDebuggee(Debuggee debuggee);
+}
