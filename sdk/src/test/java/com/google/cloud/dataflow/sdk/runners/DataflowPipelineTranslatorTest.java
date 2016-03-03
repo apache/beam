@@ -231,6 +231,40 @@ public class DataflowPipelineTranslatorTest {
   }
 
   @Test
+  public void testSubnetworkConfig() throws IOException {
+    final String testSubnetwork = "zones/ZONE/subnetworks/SUBNETWORK";
+
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setSubnetwork(testSubnetwork);
+
+    DataflowPipeline p = buildPipeline(options);
+    p.traverseTopologically(new RecordingPipelineVisitor());
+    Job job =
+        DataflowPipelineTranslator.fromOptions(options)
+            .translate(p, p.getRunner(), Collections.<DataflowPackage>emptyList())
+            .getJob();
+
+    assertEquals(1, job.getEnvironment().getWorkerPools().size());
+    assertEquals(testSubnetwork,
+        job.getEnvironment().getWorkerPools().get(0).getSubnetwork());
+  }
+
+  @Test
+  public void testSubnetworkConfigMissing() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+
+    DataflowPipeline p = buildPipeline(options);
+    p.traverseTopologically(new RecordingPipelineVisitor());
+    Job job =
+        DataflowPipelineTranslator.fromOptions(options)
+            .translate(p, p.getRunner(), Collections.<DataflowPackage>emptyList())
+            .getJob();
+
+    assertEquals(1, job.getEnvironment().getWorkerPools().size());
+    assertNull(job.getEnvironment().getWorkerPools().get(0).getSubnetwork());
+  }
+
+  @Test
   public void testScalingAlgorithmMissing() throws IOException {
     DataflowPipelineOptions options = buildPipelineOptions();
 
