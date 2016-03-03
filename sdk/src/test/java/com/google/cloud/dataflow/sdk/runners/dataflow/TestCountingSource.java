@@ -27,6 +27,8 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.values.KV;
 
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -46,31 +48,47 @@ import javax.annotation.Nullable;
  */
 public class TestCountingSource
     extends UnboundedSource<KV<Integer, Integer>, TestCountingSource.CounterMark> {
+  private static final Logger LOG = LoggerFactory.getLogger(TestCountingSource.class);
+
   private static List<Integer> finalizeTracker;
   private final int numMessagesPerShard;
   private final int shardNumber;
   private final boolean dedup;
+  private final boolean throwOnFirstSnapshot;
+
+  /**
+   * We only allow an exception to be thrown from getCheckpointMark
+   * at most once. This must be static since the entire TestCountingSource
+   * instance may re-serialized when the pipeline recovers and retries.
+   */
+  private static boolean thrown = false;
 
   public static void setFinalizeTracker(List<Integer> finalizeTracker) {
     TestCountingSource.finalizeTracker = finalizeTracker;
   }
 
   public TestCountingSource(int numMessagesPerShard) {
-    this(numMessagesPerShard, 0, false);
+    this(numMessagesPerShard, 0, false, false);
   }
 
   public TestCountingSource withDedup() {
-    return new TestCountingSource(numMessagesPerShard, shardNumber, true);
+    return new TestCountingSource(numMessagesPerShard, shardNumber, true, throwOnFirstSnapshot);
   }
 
   private TestCountingSource withShardNumber(int shardNumber) {
-    return new TestCountingSource(numMessagesPerShard, shardNumber, dedup);
+    return new TestCountingSource(numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot);
   }
 
-  private TestCountingSource(int numMessagesPerShard, int shardNumber, boolean dedup) {
+  public TestCountingSource withThrowOnFirstSnapshot(boolean throwOnFirstSnapshot) {
+    return new TestCountingSource(numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot);
+  }
+
+  private TestCountingSource(
+      int numMessagesPerShard, int shardNumber, boolean dedup, boolean throwOnFirstSnapshot) {
     this.numMessagesPerShard = numMessagesPerShard;
     this.shardNumber = shardNumber;
     this.dedup = dedup;
+    this.throwOnFirstSnapshot = throwOnFirstSnapshot;
   }
 
   public int getShardNumber() {
@@ -187,6 +205,11 @@ public class TestCountingSource
 
     @Override
     public CheckpointMark getCheckpointMark() {
+      if (throwOnFirstSnapshot && !thrown) {
+        thrown = true;
+        LOG.error("Throwing exception while checkpointing counter");
+        throw new RuntimeException("failed during checkpoint");
+      }
       return new CounterMark(current);
     }
 
