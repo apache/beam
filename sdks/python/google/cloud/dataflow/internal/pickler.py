@@ -96,6 +96,13 @@ def _nested_type_wrapper(fun):
 dill.dill.Pickler.dispatch[type] = _nested_type_wrapper(
     dill.dill.Pickler.dispatch[type])
 
+# Monkey patch dill to have entries for UnboundMethodType and MethodType
+# which map to the same value.
+_dill_rtmap = dill.dill._reverse_typemap  # pylint: disable=protected-access
+if 'UnboundMethodType' not in _dill_rtmap and 'MethodType' in _dill_rtmap:
+  _dill_rtmap['UnboundMethodType'] = _dill_rtmap['MethodType']
+elif 'MethodType' not in _dill_rtmap and 'UnboundMethodType' in _dill_rtmap:
+  _dill_rtmap['MethodType'] = _dill_rtmap['UnboundMethodType']
 
 # Turn off verbose logging from the dill pickler.
 logging.getLogger('dill').setLevel(logging.WARN)
