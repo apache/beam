@@ -80,10 +80,10 @@ public class GroupAlsoByWindowViaWindowSetDoFn<
             reduceFn,
             c.getPipelineOptions());
 
+    reduceFnRunner.processElements(element.elementsIterable());
     for (TimerData timer : element.timersIterable()) {
       reduceFnRunner.onTimer(timer);
     }
-    reduceFnRunner.processElements(element.elementsIterable());
     reduceFnRunner.persist();
   }
 
