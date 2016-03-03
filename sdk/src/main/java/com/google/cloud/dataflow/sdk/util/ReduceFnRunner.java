@@ -289,7 +289,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       ReduceFn<K, InputT, OutputT, W>.Context renamedContext =
           contextFactory.base(mergedWindow, StateStyle.RENAMED);
       triggerRunner.prefetchShouldFire(mergedWindow, directContext.state());
-      emitIfAppropriate(directContext, renamedContext, false/* isEndOfWindow */);
+      emitIfAppropriate(directContext, renamedContext);
     }
 
     // We're all done with merging and emitting elements so can compress the activeWindow state.
@@ -532,14 +532,6 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
           "ReduceFnRunner.onTimer: Note that timer {} is for non-ACTIVE window {}", timer, window);
     }
 
-    // If this is an end-of-window timer then:
-    // 1. We need to set a GC timer
-    // 2. We need to let the PaneInfoTracker know that we are transitioning from early to late,
-    // and possibly emitting an on-time pane.
-    boolean isEndOfWindow =
-        TimeDomain.EVENT_TIME == timer.getDomain()
-        && timer.getTimestamp().equals(window.maxTimestamp());
-
     // If this is a garbage collection timer then we should trigger and garbage collect the window.
     Instant cleanupTime = window.maxTimestamp().plus(windowingStrategy.getAllowedLateness());
     boolean isGarbageCollection =
@@ -556,7 +548,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
         // We need to call onTrigger to emit the final pane if required.
         // The final pane *may* be ON_TIME if no prior ON_TIME pane has been emitted,
         // and the watermark has passed the end of the window.
-        onTrigger(directContext, renamedContext, isEndOfWindow, true/* isFinished */);
+        onTrigger(directContext, renamedContext, true/* isFinished */);
       }
 
       // Cleanup flavor B: Clear all the remaining state for this window since we'll never
@@ -569,9 +561,12 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
           key, window, timer.getTimestamp(), timerInternals.currentInputWatermarkTime(),
           timerInternals.currentOutputWatermarkTime());
       if (windowIsActive) {
-        emitIfAppropriate(directContext, renamedContext, isEndOfWindow);
+        emitIfAppropriate(directContext, renamedContext);
       }
 
+      // If this is an end-of-window timer then, we need to set a GC timer
+      boolean isEndOfWindow = TimeDomain.EVENT_TIME == timer.getDomain()
+          && timer.getTimestamp().equals(window.maxTimestamp());
       if (isEndOfWindow) {
         // Since we are processing an on-time firing we should schedule the garbage collection
         // timer. (If getAllowedLateness is zero then the timer event will be considered a
@@ -649,7 +644,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
    * Possibly emit a pane if a trigger is ready to fire or timers require it, and cleanup state.
    */
   private void emitIfAppropriate(ReduceFn<K, InputT, OutputT, W>.Context directContext,
-      ReduceFn<K, InputT, OutputT, W>.Context renamedContext, boolean isEndOfWindow)
+      ReduceFn<K, InputT, OutputT, W>.Context renamedContext)
       throws Exception {
     if (!triggerRunner.shouldFire(
         directContext.window(), directContext.timers(), directContext.state())) {
@@ -667,7 +662,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     // Run onTrigger to produce the actual pane contents.
     // As a side effect it will clear all element holds, but not necessarily any
     // end-of-window or garbage collection holds.
-    onTrigger(directContext, renamedContext, isEndOfWindow, isFinished);
+    onTrigger(directContext, renamedContext, isFinished);
 
     // Now that we've triggered, the pane is empty.
     nonEmptyPanes.clearPane(renamedContext.state());
@@ -692,13 +687,12 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
   /**
    * Do we need to emit a pane?
    */
-  private boolean needToEmit(
-      boolean isEmpty, boolean isEndOfWindow, boolean isFinished, PaneInfo.Timing timing) {
+  private boolean needToEmit(boolean isEmpty, boolean isFinished, PaneInfo.Timing timing) {
     if (!isEmpty) {
       // The pane has elements.
       return true;
     }
-    if (isEndOfWindow && timing == Timing.ON_TIME) {
+    if (timing == Timing.ON_TIME) {
       // This is the unique ON_TIME pane.
       return true;
     }
@@ -715,14 +709,13 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
   private void onTrigger(
       final ReduceFn<K, InputT, OutputT, W>.Context directContext,
       ReduceFn<K, InputT, OutputT, W>.Context renamedContext,
-      boolean isEndOfWindow,
       boolean isFinished)
           throws Exception {
     // Prefetch necessary states
     ReadableState<Instant> outputTimestampFuture =
         watermarkHold.extractAndRelease(renamedContext, isFinished).readLater();
     ReadableState<PaneInfo> paneFuture =
-        paneInfoTracker.getNextPaneInfo(directContext, isEndOfWindow, isFinished).readLater();
+        paneInfoTracker.getNextPaneInfo(directContext, isFinished).readLater();
     ReadableState<Boolean> isEmptyFuture =
         nonEmptyPanes.isEmpty(renamedContext.state()).readLater();
 
@@ -735,7 +728,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     final Instant outputTimestamp = outputTimestampFuture.read();
 
     // Only emit a pane if it has data or empty panes are observable.
-    if (needToEmit(isEmptyFuture.read(), isEndOfWindow, isFinished, pane.getTiming())) {
+    if (needToEmit(isEmptyFuture.read(), isFinished, pane.getTiming())) {
       // Run reduceFn.onTrigger method.
       final List<W> windows = Collections.singletonList(directContext.window());
       ReduceFn<K, InputT, OutputT, W>.OnTriggerContext renamedTriggerContext =
