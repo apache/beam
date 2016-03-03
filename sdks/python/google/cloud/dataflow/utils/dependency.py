@@ -69,6 +69,9 @@ WORKFLOW_TARBALL_FILE = 'workflow.tar.gz'
 REQUIREMENTS_FILE = 'requirements.txt'
 EXTRA_PACKAGES_FILE = 'extra_packages.txt'
 
+PACKAGES_URL_PREFIX = (
+    'https://github.com/GoogleCloudPlatform/DataflowPythonSDK/archive')
+
 
 def _dependency_file_copy(from_path, to_path):
   """Copies a local file to a GCS file or vice versa."""
@@ -88,6 +91,26 @@ def _dependency_file_copy(from_path, to_path):
                    'will follow): %s ', os.path.dirname(to_path))
       os.mkdir(os.path.dirname(to_path))
     shutil.copyfile(from_path, to_path)
+
+
+def _dependency_file_download(from_url, to_folder):
+  """Downloads a file from a URL and returns path to the local file."""
+  # TODO(silviuc): We should cache downloads so we do not do it for every job.
+  try:
+    # We check if the file is actually there because wget returns a file
+    # even for a 404 response (file will contain the contents of the 404
+    # response).
+    response, content = __import__('httplib2').Http().request(from_url)
+    if int(response['status']) >= 400:
+      raise RuntimeError(
+          'Dataflow SDK not found at %s (response: %s)' % (from_url, response))
+    local_download_file = os.path.join(to_folder, 'dataflow-sdk.tar.gz')
+    with open(local_download_file, 'w') as f:
+      f.write(content)
+  except Exception:
+    logging.info('Failed to download SDK from %s', from_url)
+    raise
+  return local_download_file
 
 
 def _stage_extra_packages(extra_packages,
@@ -237,23 +260,31 @@ def stage_job_resources(options, file_copy=_dependency_file_copy,
 
   if hasattr(setup_options, 'sdk_location') and setup_options.sdk_location:
     if setup_options.sdk_location == 'default':
-      stage_tarball_from_gcs = True
-    elif setup_options.sdk_location.startswith('gs://'):
-      stage_tarball_from_gcs = True
+      stage_tarball_from_remote_location = True
+    elif (setup_options.sdk_location.startswith('gs://') or
+          setup_options.sdk_location.startswith('http://') or
+          setup_options.sdk_location.startswith('https://')):
+      stage_tarball_from_remote_location = True
     else:
-      stage_tarball_from_gcs = False
+      stage_tarball_from_remote_location = False
 
     staged_path = utils.path.join(google_cloud_options.staging_location,
                                   names.DATAFLOW_SDK_TARBALL_FILE)
-    if stage_tarball_from_gcs:
+    if stage_tarball_from_remote_location:
+      # If --sdk_location is not specified then the appropriate URL is built
+      # based on the version of the currently running SDK. If the option is
+      # present then no version matching is made and the exact URL or path
+      # is expected.
+      #
       # Unit tests running in the 'python setup.py test' context will
       # not have the sdk_location attribute present and therefore we
       # will not stage a tarball.
       if setup_options.sdk_location == 'default':
-        sdk_folder = 'gs://dataflow-sdk-for-python'
+        sdk_remote_location = '%s/v%s.tar.gz' % (
+            PACKAGES_URL_PREFIX, __version__)
       else:
-        sdk_folder = setup_options.sdk_location
-      _stage_dataflow_sdk_tarball(sdk_folder, staged_path)
+        sdk_remote_location = setup_options.sdk_location
+      _stage_dataflow_sdk_tarball(sdk_remote_location, staged_path, temp_dir)
       resources.append(names.DATAFLOW_SDK_TARBALL_FILE)
     else:
       # Check if we have a local Dataflow SDK tarball present. This branch is
@@ -306,23 +337,34 @@ def _build_setup_package(setup_file, temp_dir, build_setup_args=None):
     os.chdir(saved_current_directory)
 
 
-def _stage_dataflow_sdk_tarball(sdk_release_folder, staged_path):
+def _stage_dataflow_sdk_tarball(sdk_remote_location, staged_path, temp_dir):
   """Stage a Dataflow SDK tarball with the appropriate version.
 
-  This function expects to find in the SDK release folder a file with the name
-  google-cloud-dataflow-python-sdk-VERSION.tgz where VERSION is the version
-  string for the containing SDK from google.cloud.dataflow.version.__version__.
-
   Args:
-    sdk_release_folder: A local path or GCS path containing a Dataflow SDK
-      tarball with the appropriate version.
+    sdk_remote_location: A GCS path to a Dataflow SDK tarball or a URL from
+      the file can be downloaded.
     staged_path: GCS path where the found SDK tarball should be copied.
+    temp_dir: path to temporary location where the file should be downloaded.
+
+  Raises:
+    RuntimeError: If wget on the URL specified returs errors or the file
+      cannot be copied from/to GCS.
   """
-  # Build the expected tarball file path.
-  tarball_file_name = 'google-cloud-dataflow-python-sdk-%s.tgz' % __version__
-  tarball_file_path = utils.path.join(sdk_release_folder, tarball_file_name)
-  # Stage the file to the GCS staging area.
-  logging.info(
-      'Staging Dataflow SDK tarball from %s to %s',
-      tarball_file_path, staged_path)
-  _dependency_file_copy(tarball_file_path, staged_path)
+  if (sdk_remote_location.startswith('http://') or
+      sdk_remote_location.startswith('https://')):
+    logging.info(
+        'Staging Dataflow SDK tarball from %s to %s',
+        sdk_remote_location, staged_path)
+    local_download_file = _dependency_file_download(
+        sdk_remote_location, temp_dir)
+    _dependency_file_copy(local_download_file, staged_path)
+  elif sdk_remote_location.startswith('gs://'):
+    # Stage the file to the GCS staging area.
+    logging.info(
+        'Staging Dataflow SDK tarball from %s to %s',
+        sdk_remote_location, staged_path)
+    _dependency_file_copy(sdk_remote_location, staged_path)
+  else:
+    raise RuntimeError(
+        'The --sdk_location option was used with an unsupported '
+        'type of location: %s' % sdk_remote_location)

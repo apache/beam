@@ -195,11 +195,22 @@ class SetupTest(unittest.TestCase):
         shutil.copyfile(from_path, to_path)
     dependency._dependency_file_copy = file_copy
 
+  def override_file_download(self, expected_from_url, expected_to_folder):
+    def file_download(from_url, _):
+      self.assertEqual(expected_from_url, from_url)
+      tarball_path = os.path.join(expected_to_folder, 'sdk-tarball')
+      with open(tarball_path, 'w') as f:
+        f.write('Some contents.')
+      return tarball_path
+    dependency._dependency_file_download = file_download
+    return os.path.join(expected_to_folder, 'sdk-tarball')
+
   def test_sdk_location_default(self):
     staging_dir = tempfile.mkdtemp()
-    expected_from_path = utils.path.join(
-        'gs://dataflow-sdk-for-python',
-        'google-cloud-dataflow-python-sdk-%s.tgz' % __version__)
+    expected_from_url = '%s/v%s.tar.gz' % (
+        dependency.PACKAGES_URL_PREFIX, __version__)
+    expected_from_path = self.override_file_download(
+        expected_from_url, staging_dir)
     self.override_file_copy(expected_from_path, staging_dir)
 
     options = PipelineOptions()
@@ -255,11 +266,8 @@ class SetupTest(unittest.TestCase):
 
   def test_sdk_location_gcs(self):
     staging_dir = tempfile.mkdtemp()
-    sdk_location = 'gs://my-gcs-bucket'
-    expected_from_path = utils.path.join(
-        sdk_location,
-        'google-cloud-dataflow-python-sdk-%s.tgz' % __version__)
-    self.override_file_copy(expected_from_path, staging_dir)
+    sdk_location = 'gs://my-gcs-bucket/tarball.tar.gz'
+    self.override_file_copy(sdk_location, staging_dir)
 
     options = PipelineOptions()
     options.view_as(GoogleCloudOptions).staging_location = staging_dir

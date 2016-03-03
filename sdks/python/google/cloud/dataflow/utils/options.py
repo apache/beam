@@ -334,11 +334,10 @@ class SetupOptions(PipelineOptions):
         '--sdk_location',
         default='default',
         help=
-        ('GCS folder or local directory containing the Dataflow SDK for Python '
-         'tar file. Workflow submissions will copy an SDK tarball from here. '
-         'If this is a GCS folder, the corresponding SDK version will be added '
-         'to the tar file name. Otherwise (used only for testing the SDK), '
-         'this is the name of a local directory. If the string "default", '
+        ('Override the default GitHub location from where Dataflow SDK is '
+         'downloaded. It can be an URL, a GCS path, or a local path to an '
+         'SDK tarball. Workflow submissions will download or copy an SDK '
+         'tarball from here. If the string "default", '
          'a standard SDK location is used. If empty, no SDK is copied.'))
     parser.add_argument(
         '--extra_package',
