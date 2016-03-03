@@ -44,6 +44,9 @@ REQUIRED_PACKAGES = [
     # known good version.
     'oauth2client==1.5.2',
     'protorpc>=0.9.1',
+    # Take protobuf as a dependency to make sure the google namespace is
+    # shared correctly.
+    'protobuf==3.0.0b2',
     'python-gflags>=2.0',
     'pyyaml>=3.10',
     ]
