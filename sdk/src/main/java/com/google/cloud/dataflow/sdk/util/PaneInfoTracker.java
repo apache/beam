@@ -54,13 +54,11 @@ public class PaneInfoTracker {
    * Return a ({@link ReadableState} for) the pane info appropriate for {@code context}. The pane
    * info includes the timing for the pane, who's calculation is quite subtle.
    *
-   * @param isEndOfWindow should be {@code true} only if the pane is being emitted
-   * because an end-of-window timer has fired and the trigger agreed we should fire.
    * @param isFinal should be {@code true} only if the triggering machinery can guarantee
    * no further firings for the
    */
-  public ReadableState<PaneInfo> getNextPaneInfo(ReduceFn<?, ?, ?, ?>.Context context,
-      final boolean isEndOfWindow, final boolean isFinal) {
+  public ReadableState<PaneInfo> getNextPaneInfo(
+      ReduceFn<?, ?, ?, ?>.Context context, final boolean isFinal) {
     final Object key = context.key();
     final ReadableState<PaneInfo> previousPaneFuture =
         context.state().access(PaneInfoTracker.PANE_INFO_TAG);
@@ -76,7 +74,7 @@ public class PaneInfoTracker {
       @Override
       public PaneInfo read() {
         PaneInfo previousPane = previousPaneFuture.read();
-        return describePane(key, windowMaxTimestamp, previousPane, isEndOfWindow, isFinal);
+        return describePane(key, windowMaxTimestamp, previousPane, isFinal);
       }
     };
   }
@@ -85,8 +83,8 @@ public class PaneInfoTracker {
     context.state().access(PANE_INFO_TAG).write(currentPane);
   }
 
-  private <W> PaneInfo describePane(Object key, Instant windowMaxTimestamp, PaneInfo previousPane,
-      boolean isEndOfWindow, boolean isFinal) {
+  private <W> PaneInfo describePane(
+      Object key, Instant windowMaxTimestamp, PaneInfo previousPane, boolean isFinal) {
     boolean isFirst = previousPane == null;
     Timing previousTiming = isFirst ? null : previousPane.getTiming();
     long index = isFirst ? 0 : previousPane.getIndex() + 1;
@@ -104,26 +102,28 @@ public class PaneInfoTracker {
     // if the output watermark is behind the end of the window.
     boolean onlyEarlyPanesSoFar = previousTiming == null || previousTiming == Timing.EARLY;
 
+    // True is the input watermark hasn't passed the window's max timestamp.
+    boolean isEarlyForInput = inputWM == null || !inputWM.isAfter(windowMaxTimestamp);
+
     Timing timing;
     if (isLateForOutput || !onlyEarlyPanesSoFar) {
       // The output watermark has already passed the end of this window, or we have already
       // emitted a non-EARLY pane. Irrespective of how this pane was triggered we must
       // consider this pane LATE.
       timing = Timing.LATE;
-    } else if (isEndOfWindow) {
-      // This is the unique ON_TIME firing for the window.
-      timing = Timing.ON_TIME;
-    } else {
-      // All other cases are EARLY.
+    } else if (isEarlyForInput) {
+      // This is an EARLY firing.
       timing = Timing.EARLY;
       nonSpeculativeIndex = -1;
+    } else {
+      // This is the unique ON_TIME firing for the window.
+      timing = Timing.ON_TIME;
     }
 
     WindowTracing.debug(
         "describePane: {} pane (prev was {}) for key:{}; windowMaxTimestamp:{}; "
-        + "inputWatermark:{}; outputWatermark:{}; isEndOfWindow:{}; isLateForOutput:{}",
-        timing, previousTiming, key, windowMaxTimestamp, inputWM, outputWM, isEndOfWindow,
-        isLateForOutput);
+        + "inputWatermark:{}; outputWatermark:{}; isLateForOutput:{}",
+        timing, previousTiming, key, windowMaxTimestamp, inputWM, outputWM, isLateForOutput);
 
     if (previousPane != null) {
       // Timing transitions should follow EARLY* ON_TIME? LATE*
