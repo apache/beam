@@ -213,7 +213,8 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
 
   /**
    * If {@literal true}, save a heap dump before killing a thread or process which is GC
-   * thrashing or out of memory.
+   * thrashing or out of memory. The location of the heap file will either be echoed back
+   * to the user, or the user will be given the oppourtunity to download the heap file.
    *
    * <p>
    * CAUTION: Heap dumps can of comparable size to the default boot disk. Consider increasing
