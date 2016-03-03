@@ -216,11 +216,14 @@ def pipeline_options_remote(argv):
   # Create and set your PipelineOptions.
   options = PipelineOptions(flags=argv)
 
-  # For Cloud execution, set the Cloud Platform project, staging location,
-  # and specify DataflowPipelineRunner or BlockingDataflowPipelineRunner.
+  # For Cloud execution, set the Cloud Platform project, job_name,
+  # staging location, temp_location and specify DataflowPipelineRunner or
+  # BlockingDataflowPipelineRunner.
   google_cloud_options = options.view_as(GoogleCloudOptions)
   google_cloud_options.project = 'my-project-id'
+  google_cloud_options.job_name = 'myjob'
   google_cloud_options.staging_location = 'gs://my-bucket/binaries'
+  google_cloud_options.temp_location = 'gs://my-bucket/temp'
   options.view_as(StandardOptions).runner = 'DataflowPipelineRunner'
 
   # Create the Pipeline with the specified options.
