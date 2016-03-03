@@ -54,7 +54,13 @@ public class TestCountingSource
   private final int numMessagesPerShard;
   private final int shardNumber;
   private final boolean dedup;
-  private boolean throwOnFirstSnapshot;
+  private final boolean throwOnFirstSnapshot;
+
+  /**
+   * We only allow an exception to be thrown from getCheckpointMark
+   * at most once. This must be static since the entire TestCountingSource
+   * instance may re-serialized when the pipeline recovers and retries.
+   */
   private static boolean thrown = false;
 
   public static void setFinalizeTracker(List<Integer> finalizeTracker) {
