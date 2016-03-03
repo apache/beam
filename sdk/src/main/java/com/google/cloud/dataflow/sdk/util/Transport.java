@@ -23,6 +23,7 @@ import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.bigquery.Bigquery;
+import com.google.api.services.clouddebugger.v2.Clouddebugger;
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.pubsub.Pubsub;
 import com.google.api.services.storage.Storage;
@@ -145,6 +146,14 @@ public class Transport {
         .setApplicationName(options.getAppName())
         .setRootUrl(components.rootUrl)
         .setServicePath(components.servicePath)
+        .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
+  }
+
+  public static Clouddebugger.Builder newClouddebuggerClient(DataflowPipelineOptions options) {
+    return new Clouddebugger.Builder(getTransport(),
+        getJsonFactory(),
+        chainHttpRequestInitializer(options.getGcpCredential(), new RetryHttpRequestInitializer()))
+        .setApplicationName(options.getAppName())
         .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
   }
 

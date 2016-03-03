@@ -23,6 +23,10 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import com.google.api.services.clouddebugger.v2.Clouddebugger;
+import com.google.api.services.clouddebugger.v2.model.Debuggee;
+import com.google.api.services.clouddebugger.v2.model.RegisterDebuggeeRequest;
+import com.google.api.services.clouddebugger.v2.model.RegisterDebuggeeResponse;
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.DataflowPackage;
 import com.google.api.services.dataflow.model.Job;
@@ -167,6 +171,8 @@ import java.util.Random;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+
+import javax.annotation.Nullable;
 
 /**
  * A {@link PipelineRunner} that executes the operations in the
@@ -420,6 +426,43 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     return super.apply(new AssignWindows<>(transform), input);
   }
 
+  private void maybeRegisterDebuggee(DataflowPipelineOptions options, String uniquifier) {
+    if (!options.getEnableCloudDebugger()) {
+      return;
+    }
+    
+    if (options.getDebuggee() != null) {
+      throw new RuntimeException("Should not specify the debuggee");
+    }
+
+    Clouddebugger debuggerClient = Transport.newClouddebuggerClient(options).build();
+    Debuggee debuggee = registerDebuggee(debuggerClient, uniquifier);
+    options.setDebuggee(debuggee);
+  }
+
+  private Debuggee registerDebuggee(Clouddebugger debuggerClient, String uniquifier) {
+    RegisterDebuggeeRequest registerReq = new RegisterDebuggeeRequest();
+    registerReq.setDebuggee(new Debuggee()
+        .setProject(options.getProject())
+        .setUniquifier(uniquifier)
+        .setDescription(uniquifier)
+        .setAgentVersion("google.com/cloud-dataflow-java/v1"));
+
+    try {
+      RegisterDebuggeeResponse registerResponse =
+          debuggerClient.controller().debuggees().register(registerReq).execute();
+      Debuggee debuggee = registerResponse.getDebuggee();
+      if (debuggee.getStatus() != null && debuggee.getStatus().getIsError()) {
+        throw new RuntimeException("Unable to register with the debugger: " +
+            debuggee.getStatus().getDescription().getFormat());
+      }
+
+      return debuggee;
+    } catch (IOException e) {
+      throw new RuntimeException("Unable to register with the debugger: ", e);
+    }
+  }
+
   @Override
   public DataflowPipelineJob run(Pipeline pipeline) {
     logWarningIfPCollectionViewHasNonDeterministicKeyCoder(pipeline);
@@ -428,9 +471,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
         + "related to Google Compute Engine usage and other Google Cloud Services.");
 
     List<DataflowPackage> packages = options.getStager().stageFiles();
-    JobSpecification jobSpecification =
-        translator.translate(pipeline, this, packages);
-    Job newJob = jobSpecification.getJob();
+
 
     // Set a unique client_request_id in the CreateJob request.
     // This is used to ensure idempotence of job creation across retried
@@ -442,6 +483,15 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     int randomNum = new Random().nextInt(9000) + 1000;
     String requestId = DateTimeFormat.forPattern("YYYYMMddHHmmssmmm").withZone(DateTimeZone.UTC)
         .print(DateTimeUtils.currentTimeMillis()) + "_" + randomNum;
+
+    // Try to create a debuggee ID. This must happen before the job is translated since it may
+    // update the options.
+    DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
+    maybeRegisterDebuggee(dataflowOptions, requestId);
+
+    JobSpecification jobSpecification =
+        translator.translate(pipeline, this, packages);
+    Job newJob = jobSpecification.getJob();
     newJob.setClientRequestId(requestId);
 
     String version = DataflowReleaseInfo.getReleaseInfo().getVersion();
@@ -450,7 +500,6 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     newJob.getEnvironment().setUserAgent(DataflowReleaseInfo.getReleaseInfo());
     // The Dataflow Service may write to the temporary directory directly, so
     // must be verified.
-    DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
     if (!Strings.isNullOrEmpty(options.getTempLocation())) {
       newJob.getEnvironment().setTempStoragePrefix(
           dataflowOptions.getPathValidator().verifyPath(options.getTempLocation()));
