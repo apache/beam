@@ -9,4 +9,6 @@ jdk:
   # not supported yet :(
   #- openjdk8
 
+install: (git clone --depth 1 https://github.com/GoogleCloudPlatform/DataflowJavaSDK.git sdk && cd sdk && mvn clean install -DskipTests)
+
 script: mvn verify
