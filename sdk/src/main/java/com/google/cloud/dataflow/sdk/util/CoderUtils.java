@@ -286,7 +286,7 @@ public final class CoderUtils {
           // com.google.cloud.dataflow.sdk.coders.  We do this via creating
           // the class object so that class loaders have a chance to get
           // involved -- and since we need the class object anyway.
-          return Class.forName("com.google.cloud.dataflow.sdk.coders." + id);
+          return Class.forName(Coder.class.getPackage().getName() + "." + id);
         } catch (ClassNotFoundException e) {
           throw new RuntimeException("Unable to convert coder ID " + id + " to class", e);
         }
