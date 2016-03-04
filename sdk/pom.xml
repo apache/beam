@@ -453,12 +453,6 @@
     </dependency>
 
     <dependency>
-      <groupId>com.google.cloud.dataflow</groupId>
-      <artifactId>google-cloud-dataflow-java-proto-library-all</artifactId>
-      <version>0.5.160222</version>
-    </dependency>
-
-    <dependency>
       <groupId>io.grpc</groupId>
       <artifactId>grpc-all</artifactId>
       <version>0.12.0</version>
@@ -813,6 +807,13 @@
       <groupId>org.mockito</groupId>
       <artifactId>mockito-all</artifactId>
       <version>1.10.19</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.cloud.dataflow</groupId>
+      <artifactId>google-cloud-dataflow-java-proto-library-all</artifactId>
+      <version>0.5.160304</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
