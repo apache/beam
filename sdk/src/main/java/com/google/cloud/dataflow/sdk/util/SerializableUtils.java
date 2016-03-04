@@ -23,6 +23,9 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.common.base.Preconditions;
 
+import org.xerial.snappy.SnappyInputStream;
+import org.xerial.snappy.SnappyOutputStream;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -43,7 +46,7 @@ public class SerializableUtils {
   public static byte[] serializeToByteArray(Serializable value) {
     try {
       ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-      try (ObjectOutputStream oos = new ObjectOutputStream(buffer)) {
+      try (ObjectOutputStream oos = new ObjectOutputStream(new SnappyOutputStream(buffer))) {
         oos.writeObject(value);
       }
       return buffer.toByteArray();
@@ -66,7 +69,7 @@ public class SerializableUtils {
       String description) {
     try {
       try (ObjectInputStream ois = new ObjectInputStream(
-          new ByteArrayInputStream(encodedValue))) {
+          new SnappyInputStream(new ByteArrayInputStream(encodedValue)))) {
         return ois.readObject();
       }
     } catch (IOException | ClassNotFoundException exn) {
