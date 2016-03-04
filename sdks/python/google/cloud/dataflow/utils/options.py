@@ -131,11 +131,11 @@ class StandardOptions(PipelineOptions):
         help=('Pipeline runner used to execute the workflow. Valid values are '
               'DirectPipelineRunner, DataflowPipelineRunner, '
               'and BlockingDataflowPipelineRunner.'))
-    # Whether this is a streaming job.
-    # TODO(ccy): This should be an option on the pipeline runner.
-    parser.add_argument('--is_streaming',
+    # Whether to enable streaming mode.
+    parser.add_argument('--streaming',
                         default=False,
-                        help='Whether the job is a streaming job.')
+                        action='store_true',
+                        help='Whether to enable streaming mode.')
 
 
 class TypeOptions(PipelineOptions):

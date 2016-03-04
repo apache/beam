@@ -137,7 +137,7 @@ class DataflowPipelineRunner(PipelineRunner):
     super(DataflowPipelineRunner, self).run(pipeline, node)
     # Get a Dataflow API client and submit the job.
     standard_options = pipeline.options.view_as(StandardOptions)
-    if standard_options.is_streaming:
+    if standard_options.streaming:
       job_version = DataflowPipelineRunner.STREAMING_ENVIRONMENT_MAJOR_VERSION
     else:
       job_version = DataflowPipelineRunner.BATCH_ENVIRONMENT_MAJOR_VERSION

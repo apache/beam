@@ -195,7 +195,7 @@ class Environment(object):
             key='version', value=to_json_value(version_string))])
     # Version information.
     self.proto.version = dataflow.Environment.VersionValue()
-    if self.standard_options.is_streaming:
+    if self.standard_options.streaming:
       job_type = 'PYTHON_STREAMING'
     else:
       job_type = 'PYTHON_BATCH'
@@ -250,7 +250,7 @@ class Environment(object):
             dataflow.WorkerPool
             .TeardownPolicyValueValuesEnum.TEARDOWN_ON_SUCCESS)
 
-    if self.standard_options.is_streaming:
+    if self.standard_options.streaming:
       # Use separate data disk for streaming.
       disk = dataflow.Disk()
       if self.local:
@@ -327,7 +327,7 @@ class Job(object):
       self.google_cloud_options.temp_location = utils.path.join(
           self.google_cloud_options.temp_location, path_suffix)
     self.proto = dataflow.Job(name=self.google_cloud_options.job_name)
-    if self.options.view_as(StandardOptions).is_streaming:
+    if self.options.view_as(StandardOptions).streaming:
       self.proto.type = dataflow.Job.TypeValueValuesEnum.JOB_TYPE_STREAMING
     else:
       self.proto.type = dataflow.Job.TypeValueValuesEnum.JOB_TYPE_BATCH
