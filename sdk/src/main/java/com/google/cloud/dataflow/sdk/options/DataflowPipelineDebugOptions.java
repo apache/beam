@@ -172,7 +172,7 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
 
   /**
    * Whether to update the currently running pipeline with the same name as this one.
-   * 
+   *
    * @deprecated This property is replaced by @{link DataflowPipelineOptions#getUpdate()}
    */
   @Deprecated

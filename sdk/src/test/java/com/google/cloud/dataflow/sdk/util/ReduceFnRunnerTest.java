@@ -479,19 +479,20 @@ public class ReduceFnRunnerTest {
     when(mockTrigger.shouldFire(anyTriggerContext())).thenReturn(true);
     injectElement(tester, 3);
     assertThat(tester.extractOutput(), contains(
-        // This is late, because the trigger wasn't waiting for AfterWatermark
-        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, false, Timing.EARLY, 2, -1))));
+        WindowMatchers.valueWithPaneInfo(
+            PaneInfo.createPane(false, false, Timing.ON_TIME, 2, 0))));
 
     when(mockTrigger.shouldFire(anyTriggerContext())).thenReturn(true);
     injectElement(tester, 4);
     assertThat(tester.extractOutput(), contains(
-        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, false, Timing.EARLY, 3, -1))));
+        WindowMatchers.valueWithPaneInfo(
+            PaneInfo.createPane(false, false, Timing.LATE, 3, 1))));
 
     when(mockTrigger.shouldFire(anyTriggerContext())).thenReturn(true);
     triggerShouldFinish(mockTrigger);
     injectElement(tester, 5);
     assertThat(tester.extractOutput(), contains(
-        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, true, Timing.EARLY, 4, -1))));
+        WindowMatchers.valueWithPaneInfo(PaneInfo.createPane(false, true, Timing.LATE, 4, 2))));
   }
 
   @Test
