@@ -28,7 +28,6 @@ from google.cloud.dataflow.internal import windmill_pb2
 from google.cloud.dataflow.internal import windmill_service_pb2
 from google.cloud.dataflow.utils import retry
 from google.cloud.dataflow.worker import executor
-from google.cloud.dataflow.worker import logger
 from google.cloud.dataflow.worker import maptask
 from google.cloud.dataflow.worker import windmillstate
 import apitools.base.py as apitools_base
@@ -86,12 +85,6 @@ class StreamingWorker(object):
     self.project_id = properties['project_id']
     self.job_id = properties['job_id']
     self.worker_id = properties['worker_id']
-    self.log_path = properties['dataflow.worker.logging.location']
-    # Initialize the logging machinery.
-    logger.initialize(job_id=self.job_id,
-                      worker_id=self.worker_id,
-                      log_path=self.log_path)
-    logging.info('Streaming worker started with: %s', properties)
 
     self.client_id = random.getrandbits(63)
     windmill_host = properties.get('windmill.host', self.worker_id)

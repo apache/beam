@@ -80,9 +80,6 @@ class BatchWorker(object):
     # The following properties are passed to the worker when its container
     # gets started and are not used right now.
     self.root_url = properties['root_url']
-    # TODO(silviuc): Figure out how to use this logging location.
-    # Should we log something to this specific location?
-    self.log_path = properties['dataflow.worker.logging.location']
     self.reporting_enabled = properties['reporting_enabled']
     self.temp_gcs_directory = properties['temp_gcs_directory']
     # Detect if the worker is running in a GCE VM.
@@ -93,11 +90,6 @@ class BatchWorker(object):
     self.local_staging_directory = (properties['local_staging_directory']
                                     if self.running_in_gce else
                                     self.temp_gcs_directory)
-    # Initialize the logging machinery.
-    logger.initialize(job_id=self.job_id,
-                      worker_id=self.worker_id,
-                      log_path=self.log_path)
-    logging.info('Batch worker started with: %s', properties)
 
     self.client = apiclient.DataflowWorkerClient(
         worker=self,

@@ -23,6 +23,7 @@ import re
 import sys
 
 from google.cloud.dataflow.worker import batchworker
+from google.cloud.dataflow.worker import logger
 
 
 def parse_properties(args):
@@ -39,6 +40,15 @@ def parse_properties(args):
 
 def main():
   properties, unused_args = parse_properties(sys.argv[1:])
+
+  # Initialize the logging machinery.
+  job_id = properties['job_id']
+  worker_id = properties['worker_id']
+  log_path = properties['dataflow.worker.logging.location']
+  logger.initialize(job_id, worker_id, log_path)
+
+  logging.info('Worker started with properties: %s', properties)
+
   if unused_args:
     logging.warning('Unrecognized arguments %s', unused_args)
 
