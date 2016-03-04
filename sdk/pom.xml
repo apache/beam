@@ -455,7 +455,7 @@
     <dependency>
       <groupId>com.google.cloud.dataflow</groupId>
       <artifactId>google-cloud-dataflow-java-proto-library-all</artifactId>
-      <version>0.5.160222</version>
+      <version>0.5.160304</version>
     </dependency>
 
     <dependency>
