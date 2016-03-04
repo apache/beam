@@ -146,7 +146,6 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
     }
 
     @Override
-    @Nullable
     public Instant currentEventTime() {
       return timerInternals.currentInputWatermarkTime();
     }

@@ -54,7 +54,6 @@ public interface Timers {
   @Nullable
   public abstract Instant currentSynchronizedProcessingTime();
 
-  /** Returns the current event time or {@code null} if unknown. */
-  @Nullable
+  /** Returns the current event time. */
   public abstract Instant currentEventTime();
 }
