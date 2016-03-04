@@ -37,7 +37,7 @@ import org.junit.runners.JUnit4;
 import java.io.IOException;
 
 /**
- * Tests for @{link UserCodeException} functionality.
+ * Tests for {@link UserCodeException} functionality.
  */
 @RunWith(JUnit4.class)
 public class UserCodeExceptionTest {
