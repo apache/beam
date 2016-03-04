@@ -213,7 +213,7 @@ public class DoFnWithContextTest implements Serializable {
   }
 
   /**
-   * Initialize a test pipeline with the specified @{link DoFn}.
+   * Initialize a test pipeline with the specified {@link DoFn}.
    */
   private <InputT, OutputT> TestPipeline createTestPipeline(DoFnWithContext<InputT, OutputT> fn) {
     TestPipeline pipeline = TestPipeline.create();

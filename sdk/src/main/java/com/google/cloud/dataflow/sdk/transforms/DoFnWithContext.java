@@ -407,7 +407,7 @@ public abstract class DoFnWithContext<InputT, OutputT> implements Serializable {
   }
 
   /**
-   * Finalize the @{link DoFnWithContext} construction to prepare for processing.
+   * Finalize the {@link DoFnWithContext} construction to prepare for processing.
    * This method should be called by runners before any processing methods.
    */
   void prepareForProcessing() {
