@@ -33,7 +33,7 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Tests for base @{link DoFnRunnerBase} functionality.
+ * Tests for base {@link DoFnRunnerBase} functionality.
  */
 @RunWith(JUnit4.class)
 public class SimpleDoFnRunnerTest {
