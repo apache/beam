@@ -104,7 +104,14 @@ class JsonLogFormatter(logging.Formatter):
         record.levelname if record.levelname != 'WARNING' else 'WARN')
     # Prepare the actual message using the message formatting string and the
     # positional arguments as they have been used in the log call.
-    output['message'] = record.msg % record.args
+    if record.args:
+      try:
+        output['message'] = record.msg % record.args
+      except (TypeError, ValueError):
+        output['message'] = '%s with args (%s)' % (record.msg, record.args)
+    else:
+      output['message'] = record.msg
+
     # The thread ID is logged as a combination of the process ID and thread ID
     # since workers can run in multiple processes.
     output['thread'] = '%s:%s' % (record.process, record.thread)

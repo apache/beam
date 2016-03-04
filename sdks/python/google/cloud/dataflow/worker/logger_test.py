@@ -97,6 +97,28 @@ class JsonLogFormatterTest(unittest.TestCase):
     record = self.create_log_record(**self.SAMPLE_RECORD)
     self.assertEqual(json.loads(formatter.format(record)), self.SAMPLE_OUTPUT)
 
+  def test_record_with_format_character(self):
+    test_cases = [
+        {'msg': '%A', 'args': (), 'expected': '%A'},
+        {'msg': '%s', 'args': (), 'expected': '%s'},
+        {'msg': '%A%s', 'args': ('xy'), 'expected': '%A%s with args (xy)'},
+        {'msg': '%s%s', 'args': (1), 'expected': '%s%s with args (1)'},
+    ]
+
+    record = self.SAMPLE_RECORD
+    output = self.SAMPLE_OUTPUT
+    formatter = logger.JsonLogFormatter(job_id='jobid', worker_id='workerid')
+
+    for case in test_cases:
+      record['msg'] = case['msg']
+      record['args'] = case['args']
+      output['message'] = case['expected']
+
+      self.maxDiff = None
+      self.assertEqual(
+          json.loads(formatter.format(self.create_log_record(**record))),
+          output)
+
   def test_record_with_per_thread_info(self):
     with logger.PerThreadLoggingContext(
         work_item_id='workitem', stage_name='stage', step_name='step'):
