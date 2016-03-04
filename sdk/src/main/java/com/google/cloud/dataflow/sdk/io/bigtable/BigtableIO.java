@@ -41,9 +41,9 @@ import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.util.DataflowReleaseInfo;
 import com.google.cloud.dataflow.sdk.values.KV;
+import com.google.cloud.dataflow.sdk.values.PBegin;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PDone;
-import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.FutureCallback;
@@ -176,7 +176,7 @@ public class BigtableIO {
    * @see BigtableIO
    */
   @Experimental
-  public static class Read extends PTransform<PInput, PCollection<Row>> {
+  public static class Read extends PTransform<PBegin, PCollection<Row>> {
     /**
      * Returns a new {@link BigtableIO.Read} that will read from the Cloud Bigtable cluster
      * indicated by the given options, and using any other specified customizations.
@@ -241,14 +241,14 @@ public class BigtableIO {
     }
 
     @Override
-    public PCollection<Row> apply(PInput input) {
+    public PCollection<Row> apply(PBegin input) {
       BigtableSource source =
           new BigtableSource(getBigtableService(), tableId, filter, ByteKeyRange.ALL_KEYS, null);
       return input.getPipeline().apply(com.google.cloud.dataflow.sdk.io.Read.from(source));
     }
 
     @Override
-    public void validate(PInput input) {
+    public void validate(PBegin input) {
       checkArgument(options != null, "BigtableOptions not specified");
       checkArgument(!tableId.isEmpty(), "Table ID not specified");
       try {
