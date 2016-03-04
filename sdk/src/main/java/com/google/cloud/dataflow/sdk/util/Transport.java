@@ -152,10 +152,7 @@ public class Transport {
   public static Clouddebugger.Builder newClouddebuggerClient(DataflowPipelineOptions options) {
     return new Clouddebugger.Builder(getTransport(),
         getJsonFactory(),
-        chainHttpRequestInitializer(
-            options.getGcpCredential(),
-            // Do not log 404. It clutters the output and is possible even required by the caller.
-            new RetryHttpRequestInitializer(ImmutableList.of(404))))
+        chainHttpRequestInitializer(options.getGcpCredential(), new RetryHttpRequestInitializer()))
         .setApplicationName(options.getAppName())
         .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
   }

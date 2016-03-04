@@ -445,15 +445,13 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
           debuggerClient.controller().debuggees().register(registerReq).execute();
       Debuggee debuggee = registerResponse.getDebuggee();
       if (debuggee.getStatus() != null && debuggee.getStatus().getIsError()) {
-        LOG.error("Error registering with debugger: {}",
+        throw new RuntimeException("Unable to register with the debugger: " +
             debuggee.getStatus().getDescription().getFormat());
-        return;
       }
 
       options.setDebuggee(debuggee);
     } catch (IOException e) {
-      System.out.println("Unable to register with debugger: " + e);
-      LOG.error("Unable to register with debugger:", e);
+      throw new RuntimeException("Unable to register with the debugger: ", e);
     }
   }
 
