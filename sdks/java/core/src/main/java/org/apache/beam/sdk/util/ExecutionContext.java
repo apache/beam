@@ -19,7 +19,6 @@ package org.apache.beam.sdk.util;
 
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.common.worker.StateSampler;
 import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.values.TupleTag;
 
@@ -34,8 +33,7 @@ public interface ExecutionContext {
   /**
    * Returns the {@link StepContext} associated with the given step.
    */
-  StepContext getOrCreateStepContext(
-      String stepName, String transformName, StateSampler stateSampler);
+  StepContext getOrCreateStepContext(String stepName, String transformName);
 
   /**
    * Returns a collection view of all of the {@link StepContext}s.

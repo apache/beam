@@ -483,15 +483,16 @@ public class DoFnTester<InputT, OutputT> {
       runnerSideInputs = runnerSideInputs.and(entry.getKey().getTagInternal(), entry.getValue());
     }
     outputManager = new DoFnRunnerBase.ListOutputManager();
-    fnRunner = DoFnRunners.createDefault(
-        options,
-        fn,
-        DirectSideInputReader.of(runnerSideInputs),
-        outputManager,
-        mainOutputTag,
-        sideOutputTags,
-        DirectModeExecutionContext.create().getOrCreateStepContext(STEP_NAME, TRANSFORM_NAME, null),
-        counterSet.getAddCounterMutator(),
-        WindowingStrategy.globalDefault());
+    fnRunner =
+        DoFnRunners.createDefault(
+            options,
+            fn,
+            DirectSideInputReader.of(runnerSideInputs),
+            outputManager,
+            mainOutputTag,
+            sideOutputTags,
+            DirectModeExecutionContext.create().getOrCreateStepContext(STEP_NAME, TRANSFORM_NAME),
+            counterSet.getAddCounterMutator(),
+            WindowingStrategy.globalDefault());
   }
 }
