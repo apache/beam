@@ -41,6 +41,7 @@ import com.google.cloud.dataflow.sdk.util.state.StateTag;
 import com.google.cloud.dataflow.sdk.util.state.WatermarkHoldState;
 import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 import com.google.common.base.MoreObjects;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -428,7 +429,7 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
 
     /** Current input watermark. */
     @Nullable
-    private Instant inputWatermarkTime = null;
+    private Instant inputWatermarkTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
     /** Current output watermark. */
     @Nullable
@@ -471,9 +472,8 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
     }
 
     @Override
-    @Nullable
     public Instant currentInputWatermarkTime() {
-      return inputWatermarkTime;
+      return Preconditions.checkNotNull(inputWatermarkTime);
     }
 
     @Override
@@ -495,7 +495,7 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
 
     public void advanceInputWatermark(Instant newInputWatermark) throws Exception {
       checkNotNull(newInputWatermark);
-      checkState(inputWatermarkTime == null || !newInputWatermark.isBefore(inputWatermarkTime),
+      checkState(!newInputWatermark.isBefore(inputWatermarkTime),
           "Cannot move input watermark time backwards from %s to %s", inputWatermarkTime,
           newInputWatermark);
       WindowTracing.trace("TestTimerInternals.advanceInputWatermark: from {} to {}",
@@ -513,7 +513,6 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
 
     private void advanceOutputWatermark(Instant newOutputWatermark) throws Exception {
       checkNotNull(newOutputWatermark);
-      checkNotNull(inputWatermarkTime);
       if (newOutputWatermark.isAfter(inputWatermarkTime)) {
         WindowTracing.trace(
             "TestTimerInternals.advanceOutputWatermark: clipping output watermark from {} to {}",
@@ -577,7 +576,6 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
     }
 
     @Override
-    @Nullable
     public Instant currentEventTime() {
       return timerInternals.currentInputWatermarkTime();
     }

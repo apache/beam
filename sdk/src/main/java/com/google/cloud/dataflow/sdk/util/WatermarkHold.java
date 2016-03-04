@@ -228,7 +228,6 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
 
     Instant outputWM = timerInternals.currentOutputWatermarkTime();
     Instant inputWM = timerInternals.currentInputWatermarkTime();
-    Preconditions.checkNotNull(inputWM);
 
     // Only add the hold if we can be sure:
     // - the backend will be able to respect it
@@ -242,7 +241,7 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
     if (outputWM != null && elementHold.isBefore(outputWM)) {
       which = "too late to effect output watermark";
       tooLate = true;
-    } else if (inputWM != null && context.window().maxTimestamp().isBefore(inputWM)) {
+    } else if (context.window().maxTimestamp().isBefore(inputWM)) {
       which = "too late for end-of-window timer";
       tooLate = true;
     } else {
@@ -288,12 +287,11 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
     // by the end of window (ie the end of window is at or ahead of the input watermark).
     Instant outputWM = timerInternals.currentOutputWatermarkTime();
     Instant inputWM = timerInternals.currentInputWatermarkTime();
-    Preconditions.checkNotNull(inputWM);
 
     String which;
     boolean tooLate;
     Instant eowHold = context.window().maxTimestamp();
-    if (inputWM != null && eowHold.isBefore(inputWM)) {
+    if (eowHold.isBefore(inputWM)) {
       which = "too late for end-of-window timer";
       tooLate = true;
     } else {
@@ -332,13 +330,12 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
       Instant gcHold = context.window().maxTimestamp().plus(windowingStrategy.getAllowedLateness());
       Instant outputWM = timerInternals.currentOutputWatermarkTime();
       Instant inputWM = timerInternals.currentInputWatermarkTime();
-      Preconditions.checkNotNull(inputWM);
 
       WindowTracing.trace(
           "WatermarkHold.addGarbageCollectionHold: garbage collection at {} hold for "
           + "key:{}; window:{}; inputWatermark:{}; outputWatermark:{}",
           gcHold, context.key(), context.window(), inputWM, outputWM);
-      Preconditions.checkState(inputWM == null || !gcHold.isBefore(inputWM),
+      Preconditions.checkState(!gcHold.isBefore(inputWM),
           "Garbage collection hold %s cannot be before input watermark %s", gcHold, inputWM);
       context.state().access(EXTRA_HOLD_TAG).add(gcHold);
       return gcHold;
