@@ -175,6 +175,7 @@ class DataflowAssertException(Exception):
 # are considered equal and [[1,2]] and [[2,1]] are not.
 # TODO(silviuc): Add contains_in_any_order-style matchers.
 def equal_to(expected):
+  expected = list(expected)
   def _equal(actual):
     if sorted(expected) != sorted(actual):
       raise DataflowAssertException(

@@ -41,6 +41,7 @@ import sys
 from google.cloud.dataflow import error
 from google.cloud.dataflow import pvalue
 from google.cloud.dataflow import typehints
+from google.cloud.dataflow.internal import pickler
 from google.cloud.dataflow.internal import util
 from google.cloud.dataflow.typehints import getcallargs_forhints
 from google.cloud.dataflow.typehints import TypeCheckError
@@ -464,6 +465,14 @@ class PTransformWithSideInputs(PTransform):
     self.args, self.kwargs, self.side_inputs = util.remove_objects_from_args(
         args, kwargs, (pvalue.AsSingleton, pvalue.AsIter))
     self.raw_side_inputs = args, kwargs
+
+    # Prevent name collisions with fns of the form '<function <lambda> at ...>'
+    self._cached_fn = self.fn
+
+    # Ensure fn and side inputs are picklable for remote execution.
+    self.fn = pickler.loads(pickler.dumps(self.fn))
+    self.args = pickler.loads(pickler.dumps(self.args))
+    self.kwargs = pickler.loads(pickler.dumps(self.kwargs))
 
   def with_input_types(
       self, input_type_hint, *side_inputs_arg_hints, **side_input_kwarg_hints):

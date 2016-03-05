@@ -40,16 +40,21 @@ Typical usage:
 from __future__ import absolute_import
 
 import logging
+import os
+import shutil
+import tempfile
 
 from google.cloud.dataflow import error
 from google.cloud.dataflow import pvalue
 from google.cloud.dataflow import typehints
+from google.cloud.dataflow.internal import pickler
 from google.cloud.dataflow.runners import create_runner
 from google.cloud.dataflow.runners import PipelineRunner
 from google.cloud.dataflow.transforms import format_full_label
 from google.cloud.dataflow.transforms import ptransform
 from google.cloud.dataflow.typehints import TypeCheckError
 from google.cloud.dataflow.utils.options import PipelineOptions
+from google.cloud.dataflow.utils.options import SetupOptions
 from google.cloud.dataflow.utils.options import StandardOptions
 from google.cloud.dataflow.utils.options import TypeOptions
 from google.cloud.dataflow.utils.pipeline_options_validator import PipelineOptionsValidator
@@ -145,6 +150,13 @@ class Pipeline(object):
 
   def run(self):
     """Runs the pipeline. Returns whatever our runner returns after running."""
+    if not self.options or self.options.view_as(SetupOptions).save_main_session:
+      # If this option is chosen, verify we can pickle the main session early.
+      tmpdir = tempfile.mkdtemp()
+      try:
+        pickler.dump_session(os.path.join(tmpdir, 'main_session.pickle'))
+      finally:
+        shutil.rmtree(tmpdir)
     return self.runner.run(self)
 
   def visit(self, visitor, node=None):
@@ -194,19 +206,7 @@ class Pipeline(object):
         and needs to be cloned in order to apply again.
     """
     if not isinstance(transform, ptransform.PTransform):
-
-      class CallableTransform(ptransform.PTransform):
-
-        def __init__(self, callee):
-          super(CallableTransform, self).__init__(
-              label=getattr(callee, '__name__', 'Callable'))
-          self._callee = callee
-
-        def apply(self, *args, **kwargs):
-          return self._callee(*args, **kwargs)
-
-      assert callable(transform)
-      transform = CallableTransform(transform)
+      transform = _CallableWrapperPTransform(transform)
 
     full_label = format_full_label(self._current_transform(), transform)
     if full_label in self.applied_labels:
@@ -292,6 +292,18 @@ class Pipeline(object):
 
     self.transforms_stack.pop()
     return pvalueish_result
+
+
+class _CallableWrapperPTransform(ptransform.PTransform):
+
+  def __init__(self, callee):
+    assert callable(callee)
+    super(_CallableWrapperPTransform, self).__init__(
+        label=getattr(callee, '__name__', 'Callable'))
+    self._callee = callee
+
+  def apply(self, *args, **kwargs):
+    return self._callee(*args, **kwargs)
 
 
 class PipelineVisitor(object):

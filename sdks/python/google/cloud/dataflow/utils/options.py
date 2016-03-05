@@ -100,7 +100,11 @@ class PipelineOptions(object):
                   self._visible_option_list())
 
   def __getattr__(self, name):
-    if name in self._visible_option_list():
+    # Special methods which may be accessed before the object is
+    # fully constructed (e.g. in unpickling).
+    if name[:2] == name[-2:] == '__':
+      return object.__getattr__(self, name)
+    elif name in self._visible_option_list():
       return self._all_options.get(name, getattr(self._visible_options, name))
     else:
       raise AttributeError("'%s' object has no attribute '%s'" %

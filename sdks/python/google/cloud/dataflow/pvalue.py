@@ -138,6 +138,16 @@ class PCollection(PValue):
 
     return list(_get_internal(self))
 
+  def __reduce_ex__(self, unused_version):
+    # Pickling a PCollection is almost always the wrong thing to do, but we
+    # can't prohibit it as it often gets implicitly picked up (e.g. as part
+    # of a closure).
+    return _InvalidUnpickledPCollection, ()
+
+
+class _InvalidUnpickledPCollection(object):
+  pass
+
 
 class PBegin(PValue):
   """A pipeline begin marker used as input to create/read transforms.
@@ -182,6 +192,10 @@ class DoOutputsTuple(object):
       yield self[tag]
 
   def __getattr__(self, tag):
+    # Special methods which may be accessed before the object is
+    # fully constructed (e.g. in unpickling).
+    if tag[:2] == tag[-2:] == '__':
+      return object.__getattr__(self, tag)
     return self[tag]
 
   def __getitem__(self, tag):

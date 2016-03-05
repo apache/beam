@@ -16,7 +16,7 @@
 
 from __future__ import absolute_import
 
-import copy
+import logging
 
 
 def create_runner(runner_name):
@@ -76,7 +76,11 @@ class PipelineRunner(object):
         self.runner = runner
 
       def visit_transform(self, transform_node):
-        self.runner.run_transform(transform_node)
+        try:
+          self.runner.run_transform(transform_node)
+        except:
+          logging.error('Error while visiting %s', transform_node.full_label)
+          raise
 
     pipeline.visit(RunVisitor(self), node=node)
     return PipelineResult(state=PipelineState.DONE)
@@ -169,27 +173,22 @@ class PValueCache(object):
   def __len__(self):
     return len(self._cache)
 
-  def _get_pvalue_with_real_producer(self, pvalue):
-    """Returns a pvalue with the real producer for the passed in pvalue.
+  def _ensure_pvalue_has_real_producer(self, pvalue):
+    """Ensure the passed-in PValue has the real_producer attribute.
 
     Args:
       pvalue: A PValue instance whose cached value is requested.
-
-    Returns:
-      A pvalue containing the real producer.
 
     During the runner's execution only the results of the primitive transforms
     are cached. Whenever we are looking for a PValue that is the output of a
     composite transform we need to find the output of its rightmost transform
     part.
     """
-    real_producer = pvalue.producer
-    while real_producer.parts:
-      real_producer = real_producer.parts[-1]
-    if real_producer != pvalue.producer:
-      pvalue = copy.copy(pvalue)
-      pvalue.producer = real_producer
-    return pvalue
+    if not hasattr(pvalue, 'read_producer'):
+      real_producer = pvalue.producer
+      while real_producer.parts:
+        real_producer = real_producer.parts[-1]
+      pvalue.real_producer = real_producer
 
   def is_cached(self, pobj):
     # Import here to avoid circular dependencies.
@@ -197,8 +196,8 @@ class PValueCache(object):
     if isinstance(pobj, AppliedPTransform):
       transform = pobj
     else:
-      pobj = self._get_pvalue_with_real_producer(pobj)
-      transform = pobj.producer
+      self._ensure_pvalue_has_real_producer(pobj)
+      transform = pobj.real_producer
     return (id(transform), None) in self._cache
 
   def cache_output(self, transform, tag_or_value, value=None):
@@ -211,11 +210,12 @@ class PValueCache(object):
 
   def get_pvalue(self, pvalue):
     """Gets the value associated with a PValue from the cache."""
-    pvalue = self._get_pvalue_with_real_producer(pvalue)
+    self._ensure_pvalue_has_real_producer(pvalue)
     try:
       return self._cache[self.key(pvalue)]
     except KeyError:
-      if pvalue.tag is not None and (id(pvalue.producer), None) in self._cache:
+      if (pvalue.tag is not None
+          and (id(pvalue.real_producer), None) in self._cache):
         # This is an undeclared, empty side output of a DoFn executed
         # in the local runner before this side output referenced.
         return []
@@ -224,12 +224,12 @@ class PValueCache(object):
 
   def clear_pvalue(self, pvalue):
     """Removes a PValue from the cache."""
-    pvalue = self._get_pvalue_with_real_producer(pvalue)
     if self.is_cached(pvalue):
       del self._cache[self.key(pvalue)]
 
   def key(self, pobj):
-    return id(pobj.producer), pobj.tag
+    self._ensure_pvalue_has_real_producer(pobj)
+    return id(pobj.real_producer), pobj.tag
 
 
 class PipelineState(object):

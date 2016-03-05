@@ -26,16 +26,10 @@ the coders.*PickleCoder classes should be used instead.
 import base64
 import logging
 import sys
+import traceback
 import types
 
 import dill
-
-# Monkey patch dill to handle DictionaryTypes correctly.
-# TODO(silviuc): Make sure we submit the fix upstream to GitHub dill project.
-# pylint: disable=protected-access
-dill.dill._reverse_typemap['DictionaryType'] = type({})
-dill.dill._reverse_typemap['DictType'] = type({})
-# pylint: enable=protected-access
 
 
 def is_nested_class(cls):
@@ -49,9 +43,9 @@ def find_containing_class(nested_class):
   """Finds containing class of a nestec class passed as argument."""
 
   def find_containing_class_inner(outer):
-    for v in outer.__dict__.values():
+    for k, v in outer.__dict__.items():
       if v is nested_class:
-        return outer
+        return outer, k
       elif isinstance(v, (type, types.ClassType)) and hasattr(v, '__dict__'):
         res = find_containing_class_inner(v)
         if res: return res
@@ -79,11 +73,20 @@ def _nested_type_wrapper(fun):
     # parts of the type (i.e., name, base classes, dictionary) and then
     # recreate it during unpickling.
     if is_nested_class(obj) and obj.__module__ != '__main__':
-      containing_class = find_containing_class(obj)
-      if containing_class is not None:
+      containing_class_and_name = find_containing_class(obj)
+      if containing_class_and_name is not None:
         return pickler.save_reduce(
-            getattr, (containing_class, obj.__name__), obj=obj)
-    return fun(pickler, obj)
+            getattr, containing_class_and_name, obj=obj)
+    try:
+      return fun(pickler, obj)
+    except dill.dill.PicklingError:
+      # pylint: disable=protected-access
+      return pickler.save_reduce(
+          dill.dill._create_type,
+          (type(obj), obj.__name__, obj.__bases__,
+           dill.dill._dict_from_dictproxy(obj.__dict__)),
+          obj=obj)
+      # pylint: enable=protected-access
 
   return wrapper
 
@@ -96,18 +99,55 @@ def _nested_type_wrapper(fun):
 dill.dill.Pickler.dispatch[type] = _nested_type_wrapper(
     dill.dill.Pickler.dispatch[type])
 
-# Guard against dill not being full initialized when generating docs.
+# This if guards against dill not being full initialized when generating docs.
 if 'save_module' in dir(dill.dill):
+
   # Always pickle non-main modules by name.
   old_save_module = dill.dill.save_module
+
   @dill.dill.register(dill.dill.ModuleType)
   def save_module(pickler, obj):
     if dill.dill.is_dill(pickler) and obj is pickler._main:
       return old_save_module(pickler, obj)
     else:
       dill.dill.log.info('M2: %s' % obj)
+      # pylint: disable=protected-access
       pickler.save_reduce(dill.dill._import_module, (obj.__name__,), obj=obj)
+      # pylint: enable=protected-access
       dill.dill.log.info('# M2')
+
+  # Pickle module dictionaries (commonly found in lambda's globals)
+  # by referencing their module.
+  old_save_module_dict = dill.dill.save_module_dict
+  known_module_dicts = {}
+
+  @dill.dill.register(dict)
+  def new_save_module_dict(pickler, obj):
+    obj_id = id(obj)
+    if not known_module_dicts or '__file__' in obj or '__package__' in obj:
+      if obj_id not in known_module_dicts:
+        for m in sys.modules.values():
+          if m and m.__name__ != '__main__':
+            known_module_dicts[id(m.__dict__)] = m
+    if obj_id in known_module_dicts and dill.dill.is_dill(pickler) and False:
+      return pickler.save_reduce(
+          getattr, (known_module_dicts[obj_id], '__dict__'), obj=obj)
+    else:
+      return old_save_module_dict(pickler, obj)
+  dill.dill.save_module_dict = new_save_module_dict
+
+
+  def _nest_dill_logging():
+    """Prefix all dill logging with its depth in the callstack.
+
+    Useful for debugging pickling of deeply nested structures.
+    """
+    old_log_info = dill.dill.log.info
+    def new_log_info(msg, *args, **kwargs):
+      old_log_info(
+          ('1 2 3 4 5 6 7 8 9 0 ' * 10)[:len(traceback.extract_stack())] + msg,
+          *args, **kwargs)
+    dill.dill.log.info = new_log_info
 
 
 # Turn off verbose logging from the dill pickler.
@@ -118,11 +158,23 @@ logging.getLogger('dill').setLevel(logging.WARN)
 # pickler.loads() being used for data, which results in an unnecessary base64
 # encoding.  This should be cleaned up.
 def dumps(o):
-  return base64.b64encode(dill.dumps(o))
+  try:
+    return base64.b64encode(dill.dumps(o))
+  except Exception:          # pylint: disable=broad-except
+    dill.dill._trace(True)   # pylint: disable=protected-access
+    return base64.b64encode(dill.dumps(o))
+  finally:
+    dill.dill._trace(False)  # pylint: disable=protected-access
 
 
 def loads(s):
-  return dill.loads(base64.b64decode(s))
+  try:
+    return dill.loads(base64.b64decode(s))
+  except Exception:          # pylint: disable=broad-except
+    dill.dill._trace(True)   # pylint: disable=protected-access
+    return dill.loads(base64.b64decode(s))
+  finally:
+    dill.dill._trace(False)  # pylint: disable=protected-access
 
 
 def dump_session(file_path):

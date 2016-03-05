@@ -64,6 +64,12 @@ class PicklerTest(unittest.TestCase):
         'Y:abc',
         loads(dumps(module_test.TopClass.MiddleClass.NestedClass('abc'))).datum)
 
+  def test_dynamic_class(self):
+    """Tests that a nested class object is pickled correctly."""
+    self.assertEquals(
+        'Z:abc',
+        loads(dumps(module_test.create_class('abc'))).get())
+
 
 if __name__ == '__main__':
   unittest.main()

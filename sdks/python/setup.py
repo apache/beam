@@ -29,7 +29,7 @@ except ImportError:
 
 # Configure the required packages and scripts to install.
 REQUIRED_PACKAGES = [
-    'dill>=0.2.2',
+    'dill>=0.2.5',
     # Pin the version of APItools since 0.4.12 is broken and 0.4.11 is the
     # last known good.
     # TODO(silviuc): Redesign requirements to have pinned versions.

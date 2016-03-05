@@ -47,4 +47,13 @@ class Xyz(object):
     return re.findall(r'\w+', s)
 
 
+def create_class(datum):
+  """Creates an unnamable class to be pickled."""
+
+  class Z(object):
+
+    def get(self):
+      return 'Z:%s' % datum
+  return Z()
+
 XYZ_OBJECT = Xyz()
