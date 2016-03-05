@@ -30,6 +30,5 @@ install:
   - travis_retry mvn install clean -U -DskipTests=true
 
 script:
-  - travis_retry mvn versions:set -DnewVersion=manual_build
-  - travis_retry mvn $MAVEN_OVERRIDE verify -U
+  - travis_retry mvn $MAVEN_OVERRIDE install -U
   - travis_retry travis/test_wordcount.sh
