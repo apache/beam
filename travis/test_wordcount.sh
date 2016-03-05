@@ -18,7 +18,8 @@ set -e
 set -o pipefail
 
 PASS=1
-JAR_FILE=examples/target/google-cloud-dataflow-java-examples-all-bundled-manual_build.jar
+VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version | grep -v '\[')
+JAR_FILE=examples/target/google-cloud-dataflow-java-examples-all-bundled-${VERSION}.jar
 
 function check_result_hash {
   local name=$1
