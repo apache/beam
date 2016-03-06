@@ -60,9 +60,9 @@ def worker_printable_fields(workerproto):
           # want to output value 0 but not None nor []
           if (value or value == 0)
           and name not in
-          ('coder', 'coders', 'elements', 'serialized_fn',
+          ('coder', 'coders', 'elements', 'serialized_fn', 'window_fn',
            'append_trailing_newlines', 'strip_trailing_newlines',
-           'compression_type',
+           'compression_type', 'context',
            'start_shuffle_position', 'end_shuffle_position',
            'shuffle_reader_config', 'shuffle_writer_config')]
 

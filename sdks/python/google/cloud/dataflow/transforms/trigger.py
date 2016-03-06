@@ -702,6 +702,8 @@ class DefaultGlobalBatchTriggerDriver(TriggerDriver):
       class UnwindowedValues(object):
         def __iter__(self):
           return (wv.value for wv in windowed_values)
+        def __repr__(self):
+          return '<UnwindowedValues of %s>' % windowed_values
       unwindowed = UnwindowedValues()
     yield GlobalWindow(), unwindowed
 

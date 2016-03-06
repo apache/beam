@@ -39,14 +39,14 @@ from google.cloud.dataflow.transforms import window
 
 def _dict_printable_fields(dict_object, skip_fields):
   """Returns a list of strings for the interesting fields of a dict."""
-  return ['%s=%s' % (name, value)
+  return ['%s=%r' % (name, value)
           for name, value in dict_object.iteritems()
           # want to output value 0 but not None nor []
           if (value or value == 0)
           and name not in skip_fields]
 
 _minor_fields = ['coder', 'key_coder', 'value_coder',
-                 'elements',
+                 'config_bytes', 'elements',
                  'append_trailing_newlines', 'strip_trailing_newlines',
                  'compression_type']
 

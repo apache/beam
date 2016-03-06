@@ -14,8 +14,6 @@
 
 """Worker operations executor."""
 
-import logging
-
 from google.cloud.dataflow.internal import util
 from google.cloud.dataflow.pvalue import SideOutputValue
 from google.cloud.dataflow.transforms import core
@@ -77,7 +75,6 @@ class DoFnRunner(object):
     self._process_outputs(None, self.dofn.start_bundle(self.context))
 
   def finish(self):
-    logging.debug('Finishing %s', self)
     self.context.set_element(None)
     self._process_outputs(None, self.dofn.finish_bundle(self.context))
 
