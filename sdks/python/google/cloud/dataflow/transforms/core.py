@@ -30,6 +30,8 @@ from google.cloud.dataflow.transforms import window
 from google.cloud.dataflow.transforms.ptransform import PTransform
 from google.cloud.dataflow.transforms.ptransform import ptransform_fn
 from google.cloud.dataflow.transforms.ptransform import PTransformWithSideInputs
+from google.cloud.dataflow.transforms.window import MIN_TIMESTAMP
+from google.cloud.dataflow.transforms.window import OutputTimeFn
 from google.cloud.dataflow.transforms.window import WindowedValue
 from google.cloud.dataflow.transforms.window import WindowFn
 from google.cloud.dataflow.typehints import Any
@@ -953,12 +955,14 @@ class GroupByKey(PTransform):
       driver = create_trigger_driver(self.windowing, True)
       state = InMemoryUnmergedState()
       # TODO(robertwb): Conditionally process in smaller chunks.
-      for out_window, values in driver.process_elements(vs, state):
-        yield window.WindowedValue((k, values), out_window.end, [out_window])
+      for out_window, values, timestamp in (
+          driver.process_elements(state, vs, MIN_TIMESTAMP)):
+        yield window.WindowedValue((k, values), timestamp, [out_window])
       while state.timers:
-        for timer_window, (tag, timestamp) in state.get_and_clear_timers():
-          for out_window, values in driver.process_timer(timer_window,
-                                                         timestamp, tag, state):
+        fired = state.get_and_clear_timers()
+        for timer_window, (name, time_domain, fire_time) in fired:
+          for out_window, values, timestamp in driver.process_timer(
+              timer_window, name, time_domain, fire_time, state):
             yield window.WindowedValue(
                 (k, values), out_window.end, [out_window])
 
@@ -1056,7 +1060,8 @@ class Partition(PTransformWithSideInputs):
 
 class Windowing(object):
 
-  def __init__(self, windowfn, triggerfn=None, accumulation_mode=None):
+  def __init__(self, windowfn, triggerfn=None, accumulation_mode=None,
+               output_time_fn=None):
     global AccumulationMode, DefaultTrigger
     # pylint: disable=g-import-not-at-top
     from google.cloud.dataflow.transforms.trigger import AccumulationMode, DefaultTrigger
@@ -1072,14 +1077,17 @@ class Windowing(object):
     self.windowfn = windowfn
     self.triggerfn = triggerfn
     self.accumulation_mode = accumulation_mode
+    self.output_time_fn = output_time_fn or OutputTimeFn.OUTPUT_AT_EOW
     self._is_default = (
         self.windowfn == window.GlobalWindows() and
         self.triggerfn == DefaultTrigger() and
-        self.accumulation_mode == AccumulationMode.DISCARDING)
+        self.accumulation_mode == AccumulationMode.DISCARDING and
+        self.output_time_fn == OutputTimeFn.OUTPUT_AT_EOW)
 
   def __repr__(self):
-    return "Windowing(%s, %s, %s)" % (self.windowfn, self.triggerfn,
-                                      self.accumulation_mode)
+    return "Windowing(%s, %s, %s, %s)" % (self.windowfn, self.triggerfn,
+                                          self.accumulation_mode,
+                                          self.output_time_fn)
 
   def is_default(self):
     return self._is_default
@@ -1122,8 +1130,10 @@ class WindowInto(ParDo):  # pylint: disable=g-wrong-blank-lines
     """
     triggerfn = kwargs.pop('trigger', None)
     accumulation_mode = kwargs.pop('accumulation_mode', None)
+    output_time_fn = kwargs.pop('output_time_fn', None)
     label, windowfn = self.parse_label_and_arg(args, kwargs, 'windowfn')
-    self.windowing = Windowing(windowfn, triggerfn, accumulation_mode)
+    self.windowing = Windowing(windowfn, triggerfn, accumulation_mode,
+                               output_time_fn)
     dofn = self.WindowIntoFn(self.windowing)
     super(WindowInto, self).__init__(label, dofn)
 

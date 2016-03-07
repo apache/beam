@@ -19,4 +19,5 @@ from google.cloud.dataflow.transforms import combiners
 from google.cloud.dataflow.transforms.aggregator import *
 from google.cloud.dataflow.transforms.core import *
 from google.cloud.dataflow.transforms.ptransform import *
+from google.cloud.dataflow.transforms.timeutil import *
 from google.cloud.dataflow.transforms.util import *

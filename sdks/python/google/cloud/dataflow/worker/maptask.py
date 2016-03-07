@@ -287,10 +287,11 @@ class BatchExecutionContext(ExecutionContext):
 class StreamingExecutionContext(ExecutionContext):
 
   def start(self, computation_id, work_item, input_data_watermark,
-            workitem_commit_request, windmill, state):
+            output_data_watermark, workitem_commit_request, windmill, state):
     self.computation_id = computation_id
     self.work_item = work_item
     self.input_data_watermark = input_data_watermark
+    self.output_data_watermark = output_data_watermark
     self.workitem_commit_request = workitem_commit_request
     self.windmill = windmill
     self.state = state

@@ -29,6 +29,7 @@ from google.cloud.dataflow.internal import windmill_service_pb2
 from google.cloud.dataflow.utils import retry
 from google.cloud.dataflow.worker import executor
 from google.cloud.dataflow.worker import maptask
+from google.cloud.dataflow.worker import windmillio
 from google.cloud.dataflow.worker import windmillstate
 import apitools.base.py as apitools_base
 import apitools.clients.dataflow as dataflow
@@ -146,7 +147,8 @@ class StreamingWorker(object):
 
       for computation_work in work_response.work:
         computation_id = computation_work.computation_id
-        input_data_watermark = computation_work.input_data_watermark
+        input_data_watermark = windmillio.windmill_to_harness_timestamp(
+            computation_work.input_data_watermark)
         if computation_id not in self.instruction_map:
           self.get_config(computation_id)
         map_task_proto = self.instruction_map[computation_id]
@@ -177,9 +179,12 @@ class StreamingWorker(object):
         self.windmill)
     state_internals = windmillstate.WindmillStateInternals(reader)
     state = windmillstate.WindmillUnmergedState(state_internals)
+    output_data_watermark = windmillio.windmill_to_harness_timestamp(
+        work_item.output_data_watermark)
 
     context.start(computation_id, work_item, input_data_watermark,
-                  workitem_commit_request, self.windmill, state)
+                  output_data_watermark, workitem_commit_request,
+                  self.windmill, state)
 
     map_task_executor = executor.MapTaskExecutor()
     map_task = maptask.decode_map_task(map_task_proto, env, context)

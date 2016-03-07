@@ -27,7 +27,7 @@ import re
 
 import google.cloud.dataflow as df
 from google.cloud.dataflow.transforms.trigger import AccumulationMode
-from google.cloud.dataflow.transforms.trigger import AfterCount
+from google.cloud.dataflow.transforms.trigger import DefaultTrigger
 import google.cloud.dataflow.transforms.window as window
 
 
@@ -51,11 +51,12 @@ def run(argv=None):
 
   # Capitalize the characters in each line.
   transformed = (lines
-                 | (df.FlatMap('split', lambda x: re.findall(r'[A-Za-z\']+', x))
+                 | (df.FlatMap('split',
+                               lambda x: re.findall(r'[A-Za-z\']+', x))
                     .with_output_types(unicode))
                  | df.Map('pair_with_one', lambda x: (x, 1))
-                 | df.WindowInto(window.FixedWindows(60, 0),
-                                 trigger=AfterCount(3),
+                 | df.WindowInto(window.FixedWindows(15, 0),
+                                 trigger=DefaultTrigger(),
                                  accumulation_mode=AccumulationMode.DISCARDING)
                  | df.GroupByKey('group')
                  | df.Map('count', lambda (word, ones): (word, sum(ones)))

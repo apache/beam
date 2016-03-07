@@ -18,11 +18,10 @@ Windmill sources and sinks are used internally in streaming pipelines.
 
 from __future__ import absolute_import
 
-import time
-
 from google.cloud.dataflow.io import coders
 from google.cloud.dataflow.io import iobase
 from google.cloud.dataflow.io import pubsub
+from google.cloud.dataflow.transforms.timeutil import TimeDomain
 from google.cloud.dataflow.transforms.window import GlobalWindows
 from google.cloud.dataflow.transforms.window import WindowedValue
 
@@ -105,9 +104,14 @@ class PubSubWindmillWriter(iobase.NativeSinkWriter):
         id_label=self.sink.id_label)
     return self
 
-  def Write(self, line):
-    data = self.sink.coder.encode(line)
-    timestamp = harness_to_windmill_timestamp(time.time())
+  @property
+  def takes_windowed_values(self):
+    """Returns whether this writer takes windowed values."""
+    return True
+
+  def Write(self, windowed_value):
+    data = self.sink.coder.encode(windowed_value.value)
+    timestamp = harness_to_windmill_timestamp(windowed_value.timestamp)
     self.output_message_bundle.messages.add(data=data, timestamp=timestamp)
 
   def __exit__(self, exception_type, exception_value, traceback):
@@ -164,7 +168,8 @@ class WindmillWriter(iobase.NativeSinkWriter):
     # resulting windowed value to Windmill.  Note that in this streaming case,
     # the service does not add a ReifyWindows step, so we do that here.
     key, value = windowed_kv.value
-    timestamp = harness_to_windmill_timestamp(windowed_kv.timestamp)
+    timestamp = windowed_kv.timestamp
+    wm_timestamp = harness_to_windmill_timestamp(timestamp)
     windows = windowed_kv.windows
     windowed_value = WindowedValue(value, timestamp, windows)
 
@@ -179,7 +184,7 @@ class WindmillWriter(iobase.NativeSinkWriter):
       self.keyed_output[encoded_key] = (
           self.windmill_pb2.KeyedMessageBundle(key=encoded_key))
     self.keyed_output[encoded_key].messages.add(
-        timestamp=timestamp,
+        timestamp=wm_timestamp,
         data=encoded_value,
         metadata=metadata)
 
@@ -188,6 +193,26 @@ class WindmillWriter(iobase.NativeSinkWriter):
         destination_stream_id=self.sink.stream_id,
         bundles=self.keyed_output.values())
     del self.keyed_output
+
+
+class WindmillTimer(object):
+  """Timer sent by Windmill."""
+
+  def __init__(self, key, namespace, name, time_domain, timestamp,
+               state_family):
+    self.key = key
+    self.namespace = namespace
+    self.name = name
+    self.time_domain = time_domain
+    self.timestamp = timestamp
+    self.state_family = state_family
+
+  def __repr__(self):
+    return ('WindmillTimer(key=%s, namespace=%s, name=%s, time_domain=%s, '
+            'timestamp=%s, state_family=%s)') % (self.key, self.namespace,
+                                                 self.name, self.time_domain,
+                                                 self.timestamp,
+                                                 self.state_family)
 
 
 class KeyedWorkItem(object):
@@ -201,10 +226,29 @@ class KeyedWorkItem(object):
     self.wv_coder = coders.WindowedValueCoder(value_coder)
     self.key = self.key_coder.decode(work_item.key)
 
+    # Avoid dependency on gRPC during testing.
+    # pylint: disable=g-import-not-at-top
+    from google.cloud.dataflow.internal import windmill_pb2
+    # pylint: enable=g-import-not-at-top
+    self.windmill_pb2 = windmill_pb2
+
   def elements(self):
     for bundle in self.work_item.message_bundles:
       for message in bundle.messages:
         yield self.wv_coder.decode(message.data)
+
+  def timers(self):
+    if self.work_item.timers:
+      for timer_item in self.work_item.timers.timers:
+        (namespace, name, unused_time_domain) = timer_item.tag.split('|')
+        yield WindmillTimer(
+            key=self.key,
+            namespace=namespace,
+            name=name,
+            time_domain=TimeDomain.from_string(
+                self.windmill_pb2.Timer.Type.Name(timer_item.type)),
+            timestamp=windmill_to_harness_timestamp(timer_item.timestamp),
+            state_family=timer_item.state_family)
 
   def __repr__(self):
     return 'KeyedWorkItem(%r)' % self.key

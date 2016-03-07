@@ -36,10 +36,19 @@ from google.cloud.dataflow.transforms.trigger import Repeatedly
 from google.cloud.dataflow.transforms.util import assert_that, equal_to
 from google.cloud.dataflow.transforms.window import FixedWindows
 from google.cloud.dataflow.transforms.window import IntervalWindow
+from google.cloud.dataflow.transforms.window import MIN_TIMESTAMP
+from google.cloud.dataflow.transforms.window import OutputTimeFn
 from google.cloud.dataflow.transforms.window import Sessions
 from google.cloud.dataflow.transforms.window import TimestampedValue
 from google.cloud.dataflow.transforms.window import WindowedValue
 from google.cloud.dataflow.transforms.window import WindowFn
+
+
+class CustomTimestampingFixedWindowsWindowFn(FixedWindows):
+  """WindowFn for testing custom timestamping."""
+
+  def get_transformed_output_time(self, unused_window, input_timestamp):
+    return input_timestamp + 100
 
 
 class TriggerTest(unittest.TestCase):
@@ -86,23 +95,27 @@ class TriggerTest(unittest.TestCase):
     state = InMemoryUnmergedState()
 
     for bundle in bundles:
-      for out_window, values in driver.process_elements(bundle, state):
+      output = driver.process_elements(state, bundle, MIN_TIMESTAMP)
+      for out_window, values, unused_timestamp in output:
         actual_panes[out_window].append(set(values))
 
     while state.timers:
-      for timer_window, (tag, timestamp) in state.get_and_clear_timers():
-        for out_window, values in driver.process_timer(
-            timer_window, timestamp, tag, state):
+      for timer_window, (name, time_domain, timestamp) in (
+          state.get_and_clear_timers()):
+        for out_window, values, unused_timestamp in driver.process_timer(
+            timer_window, name, time_domain, timestamp, state):
           actual_panes[out_window].append(set(values))
 
     for bundle in late_bundles:
-      for out_window, values in driver.process_elements(bundle, state):
+      output = driver.process_elements(state, bundle, MIN_TIMESTAMP)
+      for out_window, values, unused_timestamp in output:
         actual_panes[out_window].append(set(values))
 
       while state.timers:
-        for timer_window, (tag, timestamp) in state.get_and_clear_timers():
-          for out_window, values in driver.process_timer(
-              timer_window, timestamp, tag, state):
+        for timer_window, (name, time_domain, timestamp) in (
+            state.get_and_clear_timers()):
+          for out_window, values, unused_timestamp in driver.process_timer(
+              timer_window, name, time_domain, timestamp, state):
             actual_panes[out_window].append(set(values))
 
     self.assertEqual(expected_panes, actual_panes)
@@ -462,18 +475,23 @@ class TranscriptTest(unittest.TestCase):
     from google.cloud.dataflow.transforms import window as window_module
     from google.cloud.dataflow.transforms import trigger as trigger_module
     # pylint: enable=g-import-not-at-top
-    window_names = dict(window_module.__dict__)
+    window_fn_names = dict(window_module.__dict__)
+    window_fn_names.update({'CustomTimestampingFixedWindowsWindowFn':
+                            CustomTimestampingFixedWindowsWindowFn})
     trigger_names = {'Default': DefaultTrigger}
     trigger_names.update(trigger_module.__dict__)
 
-    window_fn = parse_fn(spec.get('window_fn', 'GlobalWindows'), window_names)
+    window_fn = parse_fn(spec.get('window_fn', 'GlobalWindows'),
+                         window_fn_names)
     trigger_fn = parse_fn(spec.get('trigger_fn', 'Default'), trigger_names)
     accumulation_mode = getattr(
         AccumulationMode, spec.get('accumulation_mode', 'ACCUMULATING').upper())
+    output_time_fn = getattr(
+        OutputTimeFn, spec.get('output_time_fn', 'OUTPUT_AT_EOW').upper())
     allowed_lateness = float(spec.get('allowed_lateness', '-inf'))
 
     driver = GeneralTriggerDriver(
-        Windowing(window_fn, trigger_fn, accumulation_mode))
+        Windowing(window_fn, trigger_fn, accumulation_mode, output_time_fn))
     state = InMemoryUnmergedState()
     output = []
     watermark = float('-inf')
@@ -481,11 +499,12 @@ class TranscriptTest(unittest.TestCase):
     def fire_timers():
       to_fire = state.get_and_clear_timers(watermark)
       while to_fire:
-        for timer_window, (tag, timestamp) in to_fire:
-          for window, values in driver.process_timer(
-              timer_window, timestamp, tag, state):
+        for timer_window, (name, time_domain, t_timestamp) in to_fire:
+          for window, values, timestamp in driver.process_timer(
+              timer_window, name, time_domain, t_timestamp, state):
             output.append({'window': [window.start, window.end - 1],
-                           'values': sorted(values)})
+                           'values': sorted(values),
+                           'timestamp': timestamp})
         to_fire = state.get_and_clear_timers(watermark)
 
     for line in spec['transcript']:
@@ -502,8 +521,10 @@ class TranscriptTest(unittest.TestCase):
             WindowedValue(t, t, window_fn.assign(WindowFn.AssignContext(t, t)))
             for t in params]
         output = [{'window': [window.start, window.end - 1],
-                   'values': sorted(values)}
-                  for window, values in driver.process_elements(bundle, state)]
+                   'values': sorted(values),
+                   'timestamp': timestamp}
+                  for window, values, timestamp
+                  in driver.process_elements(state, bundle, watermark)]
         fire_timers()
 
       elif action == 'watermark':

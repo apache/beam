@@ -56,9 +56,7 @@ def main():
     # TODO(ccy): right now, if we pull this in when not in the worker
     # environment, this will fail on not being able to pull in the correct gRPC
     # C dependencies.  I am investigating a fix.
-    # pylint: disable=g-import-not-at-top
-    from google.cloud.dataflow.worker import streamingworker
-    # pylint: enable=g-import-not-at-top
+    from google.cloud.dataflow.worker import streamingworker  # pylint: disable=g-import-not-at-top
     # Initialize the random number generator, which is used to generate Windmill
     # client IDs.
     random.seed()

@@ -40,9 +40,35 @@ WindowFn.
 
 from __future__ import absolute_import
 
+from google.cloud.dataflow.transforms import timeutil
+
 
 MIN_TIMESTAMP = float('-Inf')
 MAX_TIMESTAMP = float('Inf')
+
+
+# TODO(ccy): revisit naming and semantics once Java Apache Beam finalizes their
+# behavior.
+class OutputTimeFn(object):
+  """Determines how output timestamps of grouping operations are assigned."""
+
+  OUTPUT_AT_EOW = 'OUTPUT_AT_EOW'
+  OUTPUT_AT_EARLIEST = 'OUTPUT_AT_EARLIEST'
+  OUTPUT_AT_MAX = 'OUTPUT_AT_MAX'
+  OUTPUT_AT_EARLIEST_TRANSFORMED = 'OUTPUT_AT_EARLIEST_TRANSFORMED'
+
+  @staticmethod
+  def get_impl(output_time_fn, window_fn):
+    if output_time_fn == OutputTimeFn.OUTPUT_AT_EOW:
+      return timeutil.OutputAtEndOfWindowImpl()
+    elif output_time_fn == OutputTimeFn.OUTPUT_AT_EARLIEST:
+      return timeutil.OutputAtEarliestInputTimestampImpl()
+    elif output_time_fn == OutputTimeFn.OUTPUT_AT_MAX:
+      return timeutil.OutputAtLatestInputTimestampImpl()
+    elif output_time_fn == OutputTimeFn.OUTPUT_AT_EARLIEST_TRANSFORMED:
+      return timeutil.OutputAtEarliestTransformedInputTimestampImpl(window_fn)
+    else:
+      raise ValueError('Invalid OutputTimeFn: %s.' % output_time_fn)
 
 
 class WindowFn(object):
@@ -73,6 +99,24 @@ class WindowFn(object):
     """Returns a window that is the result of merging a set of windows."""
     raise NotImplementedError
 
+  def get_transformed_output_time(self, window, input_timestamp):  # pylint: disable=unused-argument
+    """Given input time and output window, returns output time for window.
+
+    If OutputTimeFn.OUTPUT_AT_EARLIEST_TRANSFORMED is used in the Windowing,
+    the output timestamp for the given window will be the earliest of the
+    timestamps returned by get_transformed_output_time() for elements of the
+    window.
+
+    Arguments:
+      window: Output window of element.
+      input_timestamp: Input timestamp of element.
+
+    Returns:
+      Transformed timestamp.
+    """
+    # By default, just return the input timestamp.
+    return input_timestamp
+
 
 class BoundedWindow(object):
   """A window for timestamps in range (-infinity, end).
@@ -89,7 +133,7 @@ class BoundedWindow(object):
     return cmp(self.end, other.end) or cmp(hash(self), hash(other))
 
   def __eq__(self, other):
-    raise NotImplemented
+    raise NotImplementedError
 
   def __hash__(self):
     return hash(self.end)
@@ -186,6 +230,7 @@ class GlobalWindow(BoundedWindow):
 
   def __init__(self):
     super(GlobalWindow, self).__init__(MAX_TIMESTAMP)
+    self.start = MIN_TIMESTAMP
 
   def __repr__(self):
     return 'GlobalWindow'

@@ -24,6 +24,7 @@ import logging
 
 from google.cloud.dataflow.internal import windmill_pb2
 from google.cloud.dataflow.transforms import trigger
+from google.cloud.dataflow.worker import windmillio
 
 
 # Max timestamp value used in Windmill requests.
@@ -42,13 +43,13 @@ class WindmillUnmergedState(trigger.UnmergedState):
   def get_global_state(self, tag, default=None):
     return self.internals.access('_global_', tag).get() or default
 
-  def set_timer(self, window, tag, timestamp):
-    # TODO(ccy): implement this.
-    logging.info('Ignoring set_timer(%s).', (window, tag, timestamp))
+  def set_timer(self, window, name, time_domain, timestamp):
+    namespace = self._encode_window(window)
+    self.internals.add_output_timer(namespace, name, time_domain, timestamp)
 
-  def clear_timer(self, window, tag):
-    # TODO(ccy): implement this.
-    logging.info('Ignoring clear_timer(%s).', (window, tag))
+  def clear_timer(self, window, name, time_domain):
+    namespace = self._encode_window(window)
+    self.internals.clear_output_timer(namespace, name, time_domain)
 
   def get_window(self, timer_id):
     return timer_id
@@ -68,11 +69,6 @@ class WindmillUnmergedState(trigger.UnmergedState):
     return self.internals.access(namespace, tag).get()
 
   def clear_state(self, window, tag):
-    if tag is None:
-      # TODO(ccy): either implement this, or if this primitive is not supported
-      # by Windmill, modify the upstream caller in the triggering code.
-      logging.info('Ignoring clear all state request for window %s.', window)
-      return
     namespace = self._encode_window(window)
     self.internals.access(namespace, tag).clear()
 
@@ -83,6 +79,7 @@ class WindmillStateInternals(object):
   def __init__(self, reader):
     self.reader = reader
     self.accessed = {}
+    self.output_timers = {}
 
   def access(self, namespace, state_tag):
     """Returns accessor for given namespace and state tag."""
@@ -101,13 +98,36 @@ class WindmillStateInternals(object):
         # Value state with combiner.
         self.accessed[state_key] = WindmillCombiningValueAccessor(
             self.reader, state_key, state_tag.combine_fn)
+      elif isinstance(state_tag, trigger.WatermarkHoldStateTag):
+        # Watermark hold state.
+        self.accessed[state_key] = WindmillWatermarkHoldAccessor(
+            self.reader, state_key, state_tag.output_time_fn_impl)
       else:
         raise ValueError('Invalid state tag.')
     return self.accessed[state_key]
 
+  def add_output_timer(self, namespace, name, time_domain, timestamp):
+    windmill_ts = windmillio.harness_to_windmill_timestamp(timestamp)
+    # Note: The character "|" must not be in the given namespace or name
+    # since we use it as the delimiter in the combined tag string.
+    assert '|' not in namespace
+    assert '|' not in name
+    self.output_timers[(namespace, name, time_domain)] = windmill_pb2.Timer(
+        tag='%s|%s|%s' % (namespace, name, time_domain),
+        timestamp=windmill_ts,
+        type=time_domain,
+        state_family='')
+
+  def clear_output_timer(self, namespace, name, time_domain):
+    self.output_timers[(namespace, name, time_domain)] = windmill_pb2.Timer(
+        tag='%s|%s|%s' % (namespace, name, time_domain),
+        type=time_domain,
+        state_family='')
+
   def persist_to(self, commit_request):
     for unused_key, accessor in self.accessed.iteritems():
       accessor.persist_to(commit_request)
+    commit_request.output_timers.extend(self.output_timers.values())
 
 
 class WindmillStateReader(object):
@@ -152,6 +172,21 @@ class WindmillStateReader(object):
         state_family='',
         end_timestamp=MAX_TIMESTAMP,
         fetch_max_bytes=WindmillStateReader.MAX_LIST_BYTES)
+    computation_request.requests.extend([keyed_request])
+    request.requests.extend([computation_request])
+    return self.windmill.GetData(request)
+
+  def fetch_watermark_hold(self, state_key):
+    """Get the watermark hold at given state tag."""
+    request = windmill_pb2.GetDataRequest()
+    computation_request = windmill_pb2.ComputationGetDataRequest(
+        computation_id=self.computation_id)
+    keyed_request = windmill_pb2.KeyedGetDataRequest(
+        key=self.key,
+        work_token=self.work_token)
+    keyed_request.watermark_holds_to_fetch.add(
+        tag=state_key,
+        state_family='')
     computation_request.requests.extend([keyed_request])
     request.requests.extend([computation_request])
     return self.windmill.GetData(request)
@@ -215,6 +250,7 @@ class WindmillValueAccessor(StateAccessor):
     self.value = None
     self.fetched = False
     self.modified = False
+    self.cleared = False
 
   def get(self):
     if not self.fetched:
@@ -223,6 +259,7 @@ class WindmillValueAccessor(StateAccessor):
 
   def add(self, value):
     self.modified = True
+    self.cleared = False
     # Note: we don't do a deep copy of the added value; it is the caller's
     # responsibility to make sure the value doesn't change until the value
     # is committed to Windmill.
@@ -230,6 +267,7 @@ class WindmillValueAccessor(StateAccessor):
 
   def clear(self):
     self.modified = True
+    self.cleared = True
     self.value = None
 
   def _fetch(self):
@@ -257,11 +295,16 @@ class WindmillValueAccessor(StateAccessor):
     if not self.modified:
       return
 
+    if self.cleared:
+      encoded_value = ''
+    else:
+      encoded_value = encode_value(self.value)
+
     commit_request.value_updates.add(
         tag=self.state_key,
         state_family='',
         value=windmill_pb2.Value(
-            data=encode_value(self.value),
+            data=encoded_value,
             timestamp=MAX_TIMESTAMP))
 
 
@@ -412,3 +455,83 @@ class WindmillBagAccessor(StateAccessor):
           state_family='')
       for encoded_value in self.encoded_new_values:
         list_updates.values.add(data=encoded_value, timestamp=MAX_TIMESTAMP)
+
+
+class WindmillWatermarkHoldAccessor(StateAccessor):
+  """Accessor for watermark hold state in Windmill."""
+
+  def __init__(self, reader, state_key, output_time_fn_impl):
+    self.reader = reader
+    self.state_key = state_key
+    self.output_time_fn_impl = output_time_fn_impl
+
+    self.hold_time = None
+    self.fetched = False
+    self.modified = False
+    self.cleared = False
+
+  def get(self):
+    if not self.fetched:
+      self._fetch()
+    if self.cleared:
+      return None
+    return self.hold_time
+
+  def add(self, value):
+    # TODO(ccy): once WindmillStateReader supports asynchronous I/O, we won't
+    # have to do this synchronously, i.e. we can fire off the fetch here and
+    # return, queuing up (possibly eagerly-combined) values to be accumulated
+    # into the hold time for until we have the response.
+    if not self.fetched:
+      self._fetch()
+
+    self.cleared = False
+    self.modified = True
+    if self.hold_time is None:
+      self.hold_time = value
+    else:
+      self.hold_time = self.output_time_fn_impl.combine(self.hold_time, value)
+
+  def clear(self):
+    self.modified = True
+    self.cleared = True
+
+  def _fetch(self):
+    """Fetch state from Windmill."""
+    result = self.reader.fetch_watermark_hold(self.state_key)
+    for wrapper in result.data:
+      for item in wrapper.data:
+        for value in item.watermark_holds:
+          if (len(value.timestamps) == 1 and
+              value.timestamps[0] == MAX_TIMESTAMP):
+            # When uninitialized, Windmill returns MAX_TIMESTAMP
+            self.hold_time = None
+          else:
+            for wm_timestamp in value.timestamps:
+              timestamp = windmillio.windmill_to_harness_timestamp(
+                  wm_timestamp)
+              if self.hold_time is None:
+                self.hold_time = timestamp
+              else:
+                self.hold_time = self.output_time_fn_impl.combine(
+                    self.hold_time, timestamp)
+    self.fetched = True
+
+  def persist_to(self, commit_request):
+    # TODO(ccy): Apparently sending reset=True below is expensive for Windmill
+    # if we haven't done a read.  We will need to optimize this if we ever do
+    # blind writes here.
+
+    if not self.modified:
+      return
+
+    if self.cleared:
+      value_to_persist = None
+    else:
+      value_to_persist = [
+          windmillio.harness_to_windmill_timestamp(self.hold_time)]
+    commit_request.watermark_holds.add(
+        tag=self.state_key,
+        state_family='',
+        timestamps=value_to_persist,
+        reset=True)

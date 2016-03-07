@@ -29,6 +29,7 @@ from google.cloud.dataflow.transforms import window
 from google.cloud.dataflow.transforms.combiners import PhasedCombineFnExecutor
 from google.cloud.dataflow.transforms.trigger import InMemoryUnmergedState
 from google.cloud.dataflow.transforms.window import GlobalWindows
+from google.cloud.dataflow.transforms.window import MIN_TIMESTAMP
 from google.cloud.dataflow.transforms.window import WindowedValue
 from google.cloud.dataflow.utils.names import PropertyNames
 from google.cloud.dataflow.worker import logger
@@ -63,6 +64,7 @@ class Operation(object):
     return opcounters.OperationCounters(self.step_name, output_index)
 
   def start(self):
+    """Start operation."""
     # If the operation has receivers, create one counter set per receiver.
     for output_index in self.receivers:
       self.counters[output_index] = self.new_operation_counters(output_index)
@@ -73,6 +75,11 @@ class Operation(object):
         yield counter
 
   def finish(self):
+    """Finish operation."""
+    pass
+
+  def process(self, o):
+    """Process element in operation."""
     pass
 
   def add_receiver(self, operation, output_index=0):
@@ -584,16 +591,21 @@ class BatchGroupAlsoByWindowsOperation(Operation):
     driver = trigger.create_trigger_driver(
         self.windowing, is_batch=True, phased_combine_fn=self.phased_combine_fn)
     state = InMemoryUnmergedState()
+
     # TODO(robertwb): Process in smaller chunks.
-    for out_window, values in driver.process_elements(vs, state):
+    for out_window, values, timestamp in (
+        driver.process_elements(state, vs, MIN_TIMESTAMP)):
       self.output(
-          window.WindowedValue((k, values), out_window.end, [out_window]))
+          window.WindowedValue((k, values), timestamp, [out_window]))
+
     while state.timers:
-      for timer_window, (tag, timestamp) in state.get_and_clear_timers():
-        for out_window, values in driver.process_timer(timer_window,
-                                                       timestamp, tag, state):
-          self.output(window.WindowedValue(
-              (k, values), out_window.end, [out_window]))
+      timers = state.get_and_clear_timers()
+      for timer_window, (name, time_domain, timestamp) in timers:
+        for out_window, values, timestamp in (
+            driver.process_timer(timer_window, name, time_domain, timestamp,
+                                 state)):
+          self.output(
+              window.WindowedValue((k, values), timestamp, [out_window]))
 
   def output(self, windowed_result):
     for receiver in self.receivers[0]:
@@ -602,7 +614,7 @@ class BatchGroupAlsoByWindowsOperation(Operation):
 
 
 class StreamingGroupAlsoByWindowsOperation(Operation):
-  """BatchGroupAlsoByWindowsOperation operation.
+  """StreamingGroupAlsoByWindowsOperation operation.
 
   Implements GroupAlsoByWindow for streaming pipelines.
   """
@@ -617,10 +629,21 @@ class StreamingGroupAlsoByWindowsOperation(Operation):
     keyed_work = o.value
     driver = trigger.create_trigger_driver(self.windowing)
     state = self.spec.context.state
-    for out_window, values in driver.process_elements(keyed_work.elements(),
-                                                      state):
-      self.output(window.WindowedValue((keyed_work.key, values),
-                                       out_window.end, [out_window]))
+    output_watermark = self.spec.context.output_data_watermark
+
+    for out_window, values, timestamp in (
+        driver.process_elements(state, keyed_work.elements(),
+                                output_watermark)):
+      self.output(window.WindowedValue((keyed_work.key, values), timestamp,
+                                       [out_window]))
+
+    for timer in keyed_work.timers():
+      timer_window = int(timer.namespace)
+      for out_window, values, timestamp in (
+          driver.process_timer(timer_window, timer.name, timer.time_domain,
+                               timer.timestamp, state)):
+        self.output(window.WindowedValue((keyed_work.key, values), timestamp,
+                                         [out_window]))
 
   def output(self, windowed_result):
     for receiver in self.receivers[0]:
