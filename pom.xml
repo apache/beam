@@ -70,7 +70,7 @@
     <avro.version>1.7.7</avro.version>
     <bigquery.version>v2-rev248-1.21.0</bigquery.version>
     <bigtable.version>0.2.3</bigtable.version>
-    <dataflow.version>v1b3-rev19-1.21.0</dataflow.version>
+    <dataflow.version>v1b3-rev22-1.21.0</dataflow.version>
     <dataflow.proto.version>0.5.160222</dataflow.proto.version>
     <datastore.version>v1beta2-rev1-4.0.0</datastore.version>
     <google-clients.version>1.21.0</google-clients.version>

@@ -442,6 +442,9 @@ public class DataflowPipelineTranslator {
       if (!Strings.isNullOrEmpty(options.getNetwork())) {
         workerPool.setNetwork(options.getNetwork());
       }
+      if (!Strings.isNullOrEmpty(options.getSubnetwork())) {
+        workerPool.setSubnetwork(options.getSubnetwork());
+      }
       if (options.getDiskSizeGb() > 0) {
         workerPool.setDiskSizeGb(options.getDiskSizeGb());
       }

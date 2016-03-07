@@ -145,6 +145,18 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
   void setNetwork(String value);
 
   /**
+   * GCE <a href="https://cloud.google.com/compute/docs/networking">subnetwork</a> for launching
+   * workers.
+   *
+   * <p>Default is up to the Dataflow service. Expected format is zones/ZONE/subnetworks/SUBNETWORK.
+   */
+  @Description("GCE subnetwork for launching workers. For more information, see the reference "
+      + "documentation https://cloud.google.com/compute/docs/networking. "
+      + "Default is up to the Dataflow service.")
+  String getSubnetwork();
+  void setSubnetwork(String value);
+
+  /**
    * GCE <a href="https://developers.google.com/compute/docs/zones"
    * >availability zone</a> for launching workers.
    *
