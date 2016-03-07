@@ -443,12 +443,20 @@ public class PipelineOptionsFactory {
   private static final Map<String, Class<? extends PipelineRunner<?>>> SUPPORTED_PIPELINE_RUNNERS;
 
   /** Classes that are used as the boundary in the stack trace to find the callers class name. */
-  private static final Set<String> PIPELINE_OPTIONS_FACTORY_CLASSES = ImmutableSet.of(
-      PipelineOptionsFactory.class.getName(),
-      Builder.class.getName());
+  private static final Set<String> PIPELINE_OPTIONS_FACTORY_CLASSES =
+      ImmutableSet.of(PipelineOptionsFactory.class.getName(), Builder.class.getName());
 
   /** Methods that are ignored when validating the proxy class. */
   private static final Set<Method> IGNORED_METHODS;
+
+  /** A predicate that checks if a method is synthetic via {@link Method#isSynthetic()}. */
+  private static final Predicate<Method> NOT_SYNTHETIC_PREDICATE =
+      new Predicate<Method>() {
+        @Override
+        public boolean apply(Method input) {
+          return !input.isSynthetic();
+        }
+      };
 
   /** The set of options that have been registered and visible to the user. */
   private static final Set<Class<? extends PipelineOptions>> REGISTERED_OPTIONS =
@@ -662,7 +670,9 @@ public class PipelineOptionsFactory {
     Preconditions.checkNotNull(iface);
     validateWellFormed(iface, REGISTERED_OPTIONS);
 
-    Iterable<Method> methods = ReflectHelpers.getClosureOfMethodsOnInterface(iface);
+    Iterable<Method> methods =
+        Iterables.filter(
+            ReflectHelpers.getClosureOfMethodsOnInterface(iface), NOT_SYNTHETIC_PREDICATE);
     ListMultimap<Class<?>, Method> ifaceToMethods = ArrayListMultimap.create();
     for (Method method : methods) {
       // Process only methods that are not marked as hidden.
@@ -876,7 +886,8 @@ public class PipelineOptionsFactory {
       throws IntrospectionException {
     // The sorting is important to make this method stable.
     SortedSet<Method> methods = Sets.newTreeSet(MethodComparator.INSTANCE);
-    methods.addAll(Arrays.asList(beanClass.getMethods()));
+    methods.addAll(
+        Collections2.filter(Arrays.asList(beanClass.getMethods()), NOT_SYNTHETIC_PREDICATE));
     SortedMap<String, Method> propertyNamesToGetters = getPropertyNamesToGetters(methods);
     List<PropertyDescriptor> descriptors = Lists.newArrayList();
 
@@ -1017,8 +1028,9 @@ public class PipelineOptionsFactory {
       Class<?> klass) throws IntrospectionException {
     Set<Method> methods = Sets.newHashSet(IGNORED_METHODS);
     // Ignore static methods, "equals", "hashCode", "toString" and "as" on the generated class.
+    // Ignore synthetic methods
     for (Method method : klass.getMethods()) {
-      if (Modifier.isStatic(method.getModifiers())) {
+      if (Modifier.isStatic(method.getModifiers()) || method.isSynthetic()) {
         methods.add(method);
       }
     }
@@ -1035,6 +1047,7 @@ public class PipelineOptionsFactory {
     // Verify that there are no methods with the same name with two different return types.
     Iterable<Method> interfaceMethods = FluentIterable
         .from(ReflectHelpers.getClosureOfMethodsOnInterface(iface))
+        .filter(NOT_SYNTHETIC_PREDICATE)
         .toSortedSet(MethodComparator.INSTANCE);
     SortedSetMultimap<Method, Method> methodNameToMethodMap =
         TreeMultimap.create(MethodNameComparator.INSTANCE, MethodComparator.INSTANCE);
@@ -1059,10 +1072,13 @@ public class PipelineOptionsFactory {
 
     // Verify that there is no getter with a mixed @JsonIgnore annotation and verify
     // that no setter has @JsonIgnore.
-    Iterable<Method> allInterfaceMethods = FluentIterable
-        .from(ReflectHelpers.getClosureOfMethodsOnInterfaces(validatedPipelineOptionsInterfaces))
-        .append(ReflectHelpers.getClosureOfMethodsOnInterface(iface))
-        .toSortedSet(MethodComparator.INSTANCE);
+    Iterable<Method> allInterfaceMethods =
+        FluentIterable.from(
+                ReflectHelpers.getClosureOfMethodsOnInterfaces(
+                    validatedPipelineOptionsInterfaces))
+            .append(ReflectHelpers.getClosureOfMethodsOnInterface(iface))
+            .filter(NOT_SYNTHETIC_PREDICATE)
+            .toSortedSet(MethodComparator.INSTANCE);
     SortedSetMultimap<Method, Method> methodNameToAllMethodMap =
         TreeMultimap.create(MethodNameComparator.INSTANCE, MethodComparator.INSTANCE);
     for (Method method : allInterfaceMethods) {
@@ -1146,7 +1162,10 @@ public class PipelineOptionsFactory {
 
     // Verify that no additional methods are on an interface that aren't a bean property.
     SortedSet<Method> unknownMethods = new TreeSet<>(MethodComparator.INSTANCE);
-    unknownMethods.addAll(Sets.difference(Sets.newHashSet(klass.getMethods()), methods));
+    unknownMethods.addAll(
+        Sets.filter(
+            Sets.difference(Sets.newHashSet(klass.getMethods()), methods),
+            NOT_SYNTHETIC_PREDICATE));
     Preconditions.checkArgument(unknownMethods.isEmpty(),
         "Methods %s on [%s] do not conform to being bean properties.",
         FluentIterable.from(unknownMethods).transform(ReflectHelpers.METHOD_FORMATTER),
