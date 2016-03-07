@@ -78,8 +78,8 @@ class JsonLogFormatter(logging.Formatter):
         attribute.
       msecs: A double representing the msecs part of the record creation
         (e.g., 624.5970726013184).
-      msg: Logging message containing formatting instructions. This is the first
-        argument of a log call.
+      msg: Logging message containing formatting instructions or an arbitrary
+        object. This is the first argument of a log call.
       args: A tuple containing the positional arguments for the logging call.
       levelname: A string. Possible values are: INFO, WARNING, ERROR, etc.
       exc_info: None or a 3-tuple with exception information as it is
@@ -102,15 +102,19 @@ class JsonLogFormatter(logging.Formatter):
     # property. WARNING becomes WARN.
     output['severity'] = (
         record.levelname if record.levelname != 'WARNING' else 'WARN')
+
+    # msg could be an arbitrary object, convert it to a string first.
+    record_msg = str(record.msg)
+
     # Prepare the actual message using the message formatting string and the
     # positional arguments as they have been used in the log call.
     if record.args:
       try:
-        output['message'] = record.msg % record.args
+        output['message'] = record_msg % record.args
       except (TypeError, ValueError):
-        output['message'] = '%s with args (%s)' % (record.msg, record.args)
+        output['message'] = '%s with args (%s)' % (record_msg, record.args)
     else:
-      output['message'] = record.msg
+      output['message'] = record_msg
 
     # The thread ID is logged as a combination of the process ID and thread ID
     # since workers can run in multiple processes.
