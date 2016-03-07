@@ -70,6 +70,9 @@ class PicklerTest(unittest.TestCase):
         'Z:abc',
         loads(dumps(module_test.create_class('abc'))).get())
 
+  def test_generators(self):
+    with self.assertRaises(TypeError):
+      dumps((_ for _ in range(10)))
 
 if __name__ == '__main__':
   unittest.main()

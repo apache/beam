@@ -99,6 +99,15 @@ def _nested_type_wrapper(fun):
 dill.dill.Pickler.dispatch[type] = _nested_type_wrapper(
     dill.dill.Pickler.dispatch[type])
 
+
+# Dill pickles generators objects without complaint, but unpickling produces
+# TypeError: object.__new__(generator) is not safe, use generator.__new__()
+# on some versions of Python.
+def reject_generators(unused_pickler, unused_obj):
+  raise TypeError("can't (safely) pickle generator objects")
+dill.dill.Pickler.dispatch[types.GeneratorType] = reject_generators
+
+
 # This if guards against dill not being full initialized when generating docs.
 if 'save_module' in dir(dill.dill):
 
