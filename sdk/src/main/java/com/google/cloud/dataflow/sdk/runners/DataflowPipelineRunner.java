@@ -426,13 +426,21 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     return super.apply(new AssignWindows<>(transform), input);
   }
 
-  @Nullable
   private void maybeRegisterDebuggee(DataflowPipelineOptions options, String uniquifier) {
-    if (!options.getEnableCloudDebugger() || options.getDebuggee() != null) {
+    if (!options.getEnableCloudDebugger()) {
       return;
+    }
+    
+    if (options.getDebuggee() != null) {
+      throw new RuntimeException("Should not specify the debuggee");
     }
 
     Clouddebugger debuggerClient = Transport.newClouddebuggerClient(options).build();
+    Debuggee debuggee = registerDebuggee(debuggerClient, uniquifier);
+    options.setDebuggee(debuggee);
+  }
+
+  private Debuggee registerDebuggee(Clouddebugger debuggerClient, String uniquifier) {
     RegisterDebuggeeRequest registerReq = new RegisterDebuggeeRequest();
     registerReq.setDebuggee(new Debuggee()
         .setProject(options.getProject())
@@ -449,7 +457,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
             debuggee.getStatus().getDescription().getFormat());
       }
 
-      options.setDebuggee(debuggee);
+      return debuggee;
     } catch (IOException e) {
       throw new RuntimeException("Unable to register with the debugger: ", e);
     }
