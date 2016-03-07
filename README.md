@@ -44,11 +44,15 @@ Have ideas for new SDKs or DSLs? See the [Jira](https://issues.apache.org/jira/b
 
 ### Runners
 
-Beam supports executing programs on multiple distributed processing backends. After the Beam project's initial bootstrapping completes, it will include:
-  1. The `DirectPipelineRunner` runs the pipeline on your local machine.
-  2. The `DataflowPipelineRunner` submits the pipeline to the [Google Cloud Dataflow](http://cloud.google.com/dataflow/).
-  3. The `SparkPipelineRunner` runs the pipeline on an Apache Spark cluster. See the code that will be donated at [cloudera/spark-dataflow](https://github.com/cloudera/spark-dataflow).
-  4. The `FlinkPipelineRunner` runs the pipeline on an Apache Flink cluster. See the code that will be donated at [dataArtisans/flink-dataflow](https://github.com/dataArtisans/flink-dataflow).
+Beam supports executing programs on multiple distributed processing backends (runners). It currently includes the following Runners:
+
+- The `DirectPipelineRunner` runs the pipeline on your local machine.
+- The `DataflowPipelineRunner` submits the pipeline to the [Google Cloud Dataflow](http://cloud.google.com/dataflow/).
+- The `FlinkPipelineRunner` runs the pipeline on an Apache Flink cluster. The code has been donated from [dataArtisans/flink-dataflow](https://github.com/dataArtisans/flink-dataflow) and is now part of Beam.
+
+After the Beam project's initial bootstrapping completes, it will include:
+- The `SparkPipelineRunner` runs the pipeline on an Apache Spark cluster. See the code that will be donated at [cloudera/spark-dataflow](https://github.com/cloudera/spark-dataflow).
+- The `GearpumpRunner` runs the pipeline on a Gearpump: [Gearpump](https://github.com/gearpump/gearpump)
 
 Have ideas for new Runners? See the [Jira](https://issues.apache.org/jira/browse/BEAM/component/12328916/).
 
@@ -56,6 +60,10 @@ Have ideas for new Runners? See the [Jira](https://issues.apache.org/jira/browse
 ## Getting Started
 
 _Coming soon!_
+
+### Flink Runner
+
+See the Flink Runner [README](https://github.com/apache/incubator-beam/runners/flink).
 
 
 ## Contact Us
