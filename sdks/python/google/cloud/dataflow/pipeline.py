@@ -107,8 +107,10 @@ class Pipeline(object):
 
     if runner is None and self.options is not None:
       runner = self.options.view_as(StandardOptions).runner
-      logging.info(('Missing pipeline option (runner). Executing pipeline '
-                    'using the default runner: %s.'), runner)
+      if runner is None:
+        runner = StandardOptions.DEFAULT_RUNNER
+        logging.info(('Missing pipeline option (runner). Executing pipeline '
+                      'using the default runner: %s.'), runner)
 
     if isinstance(runner, str):
       runner = create_runner(runner)

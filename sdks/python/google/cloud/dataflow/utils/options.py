@@ -127,11 +127,12 @@ class PipelineOptions(object):
 
 class StandardOptions(PipelineOptions):
 
+  DEFAULT_RUNNER = 'DirectPipelineRunner'
+
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument(
         '--runner',
-        default='DirectPipelineRunner',
         help=('Pipeline runner used to execute the workflow. Valid values are '
               'DirectPipelineRunner, DataflowPipelineRunner, '
               'and BlockingDataflowPipelineRunner.'))
