@@ -136,15 +136,33 @@ def _stage_extra_packages(extra_packages,
       name patterns.
   """
   resources = []
+  tempdir = None
+  local_packages = []
   for package in extra_packages:
-    if not os.path.isfile(package):
-      raise RuntimeError(
-          'The file %s cannot be found. It was specified in the '
-          '--extra_packages command line option.' % package)
     if not os.path.basename(package).endswith('.tar.gz'):
       raise RuntimeError(
           'The --extra_packages option expects a full path ending with '
           '\'.tar.gz\' instead of %s' % package)
+
+    if not os.path.isfile(package):
+      if package.startswith('gs://'):
+        if not tempdir:
+          tempdir = tempfile.mkdtemp()
+        logging.info('Downloading extra package: %s locally before staging',
+                     package)
+        _dependency_file_copy(package, tempdir)
+      else:
+        raise RuntimeError(
+            'The file %s cannot be found. It was specified in the '
+            '--extra_packages command line option.' % package)
+    else:
+      local_packages.append(package)
+
+  if tempdir:
+    local_packages.extend(
+        [utils.path.join(tempdir, f) for f in os.listdir(tempdir)])
+
+  for package in local_packages:
     basename = os.path.basename(package)
     staged_path = utils.path.join(staging_location, basename)
     file_copy(package, staged_path)
@@ -157,13 +175,26 @@ def _stage_extra_packages(extra_packages,
   # dependency on B by downloading the package from PyPI. If package B is
   # installed first this is avoided.
   with open(os.path.join(temp_dir, EXTRA_PACKAGES_FILE), 'wt') as f:
-    for package in extra_packages:
+    for package in local_packages:
       f.write('%s\n' % os.path.basename(package))
   staged_path = utils.path.join(staging_location, EXTRA_PACKAGES_FILE)
   # Note that the caller of this function is responsible for deleting the
   # temporary folder where all temp files are created, including this one.
   file_copy(os.path.join(temp_dir, EXTRA_PACKAGES_FILE), staged_path)
   resources.append(EXTRA_PACKAGES_FILE)
+
+  # Remove temp files created by downloading packages from GCS.
+  if tempdir:
+    try:
+      temp_files = os.listdir(tempdir)
+      for temp_file in temp_files:
+        os.remove(utils.path.join(tempdir, temp_file))
+      os.rmdir(tempdir)
+    except OSError as e:
+      logging.info(
+          '%s: (Ignored) Failed to delete all temporary files in %s.',
+          e, tempdir)
+
   return resources
 
 

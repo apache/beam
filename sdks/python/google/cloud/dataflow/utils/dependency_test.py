@@ -294,14 +294,32 @@ class SetupTest(unittest.TestCase):
     self.update_options(options)
     options.view_as(SetupOptions).extra_packages = [
         os.path.join(source_dir, 'abc.tar.gz'),
-        os.path.join(source_dir, 'xyz.tar.gz')]
+        os.path.join(source_dir, 'xyz.tar.gz'),
+        'gs://my-gcs-bucket/gcs.tar.gz']
+
+    gcs_copied_files = []
+    def file_copy(from_path, to_path):
+      if from_path.startswith('gs://'):
+        gcs_copied_files.append(from_path)
+        _, from_name = os.path.split(from_path)
+        self.create_temp_file(os.path.join(to_path, from_name), 'nothing')
+        logging.info('Fake copied GCS file: %s to %s', from_path, to_path)
+      elif to_path.startswith('gs://'):
+        logging.info('Faking file_copy(%s, %s)', from_path, to_path)
+      else:
+        shutil.copyfile(from_path, to_path)
+
+    dependency._dependency_file_copy = file_copy
 
     self.assertEqual(
-        ['abc.tar.gz', 'xyz.tar.gz', dependency.EXTRA_PACKAGES_FILE,
+        ['abc.tar.gz', 'xyz.tar.gz', 'gcs.tar.gz',
+         dependency.EXTRA_PACKAGES_FILE,
          names.PICKLED_MAIN_SESSION_FILE],
         dependency.stage_job_resources(options))
     with open(os.path.join(staging_dir, dependency.EXTRA_PACKAGES_FILE)) as f:
-      self.assertEqual(['abc.tar.gz\n', 'xyz.tar.gz\n'], f.readlines())
+      self.assertEqual(['abc.tar.gz\n', 'xyz.tar.gz\n', 'gcs.tar.gz\n'],
+                       f.readlines())
+    self.assertEqual(['gs://my-gcs-bucket/gcs.tar.gz'], gcs_copied_files)
 
   def test_with_extra_packages_missing_files(self):
     staging_dir = tempfile.mkdtemp()
@@ -310,13 +328,13 @@ class SetupTest(unittest.TestCase):
       options = PipelineOptions()
       options.view_as(GoogleCloudOptions).staging_location = staging_dir
       self.update_options(options)
-      options.view_as(SetupOptions).extra_packages = ['nosuchfile']
+      options.view_as(SetupOptions).extra_packages = ['nosuchfile.tar.gz']
 
       dependency.stage_job_resources(options)
     self.assertEqual(
         cm.exception.message,
         'The file %s cannot be found. It was specified in the '
-        '--extra_packages command line option.' % 'nosuchfile')
+        '--extra_packages command line option.' % 'nosuchfile.tar.gz')
 
   def test_with_extra_packages_invalid_file_name(self):
     staging_dir = tempfile.mkdtemp()
