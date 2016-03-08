@@ -22,6 +22,7 @@ import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
+import com.google.cloud.dataflow.sdk.coders.NullableCoder;
 import com.google.cloud.dataflow.sdk.coders.StandardCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
@@ -233,6 +234,47 @@ public class CombineFnsTest {
     p.run();
   }
 
+  @Test
+  @Category(RunnableOnService.class)
+  public void testComposedCombineNullValues() {
+    Pipeline p = TestPipeline.create();
+    p.getCoderRegistry().registerCoder(UserString.class, NullableCoder.of(UserStringCoder.of()));
+    p.getCoderRegistry().registerCoder(String.class, NullableCoder.of(StringUtf8Coder.of()));
+
+    PCollection<KV<String, KV<Integer, UserString>>> perKeyInput = p.apply(
+        Create.timestamped(
+            Arrays.asList(
+                KV.of("a", KV.of(1, UserString.of("1"))),
+                KV.of("a", KV.of(1, UserString.of("1"))),
+                KV.of("a", KV.of(4, UserString.of("4"))),
+                KV.of("b", KV.of(1, UserString.of("1"))),
+                KV.of("b", KV.of(13, UserString.of("13")))),
+            Arrays.asList(0L, 4L, 7L, 10L, 16L))
+        .withCoder(KvCoder.of(
+            StringUtf8Coder.of(),
+            KvCoder.of(
+                BigEndianIntegerCoder.of(), NullableCoder.of(UserStringCoder.of())))));
+
+    TupleTag<Integer> maxIntTag = new TupleTag<Integer>();
+    TupleTag<UserString> concatStringTag = new TupleTag<UserString>();
+
+    PCollection<KV<String, KV<Integer, String>>> combinePerKey = perKeyInput
+        .apply(Combine.perKey(CombineFns.composeKeyed()
+            .with(
+                new GetIntegerFunction(),
+                new MaxIntegerFn().<String>asKeyedFn(),
+                maxIntTag)
+            .with(
+                new GetUserStringFunction(),
+                new OutputNullString().<String>asKeyedFn(),
+                concatStringTag)))
+        .apply("ExtractPerKeyResult", ParDo.of(new ExtractResultDoFn(maxIntTag, concatStringTag)));
+    DataflowAssert.that(combinePerKey).containsInAnyOrder(
+        KV.of("a", KV.of(4, (String) null)),
+        KV.of("b", KV.of(13, (String) null)));
+    p.run();
+  }
+
   private static class UserString implements Serializable {
     private String strValue;
 
@@ -297,6 +339,13 @@ public class CombineFnsTest {
     }
   }
 
+  private static class OutputNullString extends BinaryCombineFn<UserString> {
+    @Override
+    public UserString apply(UserString left, UserString right) {
+      return null;
+    }
+  }
+
   private static class ConcatStringWithContext
       extends KeyedCombineFnWithContext<String, UserString, UserString, UserString> {
     private final PCollectionView<String> view;
@@ -354,9 +403,10 @@ public class CombineFnsTest {
 
     @Override
     public void processElement(ProcessContext c) throws Exception {
+      UserString userString = c.element().getValue().get(concatStringTag);
       KV<Integer, String> value = KV.of(
           c.element().getValue().get(maxIntTag),
-          c.element().getValue().get(concatStringTag).strValue);
+          userString == null ? null : userString.strValue);
       c.output(KV.of(c.element().getKey(), value));
     }
   }

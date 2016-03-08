@@ -47,6 +47,7 @@ import java.io.Serializable;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 /**
@@ -250,8 +251,12 @@ public class CombineFns {
    * <p>See {@link #compose()} or {@link #composeKeyed()}) for details.
    */
   public static class CoCombineResult implements Serializable {
+
+    private enum NULL_VALUE {
+      INSTANCE;
+    }
+
     private final Map<TupleTag<?>, Object> valuesMap;
-    private final Set<TupleTag<?>> tupleTags;
 
     /**
      * The constructor of {@link CoCombineResult}.
@@ -262,10 +267,16 @@ public class CombineFns {
      *
      * @throws NullPointerException if any key or value in {@code valuesMap} is null
      */
-    CoCombineResult(
-        Map<TupleTag<?>, Object> valuesMap, Iterable<TupleTag<?>> tupleTags) {
-      this.valuesMap = ImmutableMap.copyOf(valuesMap);
-      this.tupleTags = ImmutableSet.copyOf(tupleTags);
+    CoCombineResult(Map<TupleTag<?>, Object> valuesMap) {
+      ImmutableMap.Builder<TupleTag<?>, Object> builder = ImmutableMap.builder();
+      for (Entry<TupleTag<?>, Object> entry : valuesMap.entrySet()) {
+        if (entry.getValue() != null) {
+          builder.put(entry);
+        } else {
+          builder.put(entry.getKey(), NULL_VALUE.INSTANCE);
+        }
+      }
+      this.valuesMap = builder.build();
     }
 
     /**
@@ -275,8 +286,14 @@ public class CombineFns {
      */
     @SuppressWarnings("unchecked")
     public <V> V get(TupleTag<V> tag) {
-      checkArgument(tupleTags.contains(tag), "TupleTag " + tag + " is not in the CoCombineResult");
-      return (V) valuesMap.get(tag);
+      checkArgument(
+          valuesMap.keySet().contains(tag), "TupleTag " + tag + " is not in the CoCombineResult");
+      Object value = valuesMap.get(tag);
+      if (value == NULL_VALUE.INSTANCE) {
+        return null;
+      } else {
+        return (V) value;
+      }
     }
   }
 
@@ -410,12 +427,11 @@ public class CombineFns {
     public CoCombineResult extractOutput(Object[] accumulator) {
       Map<TupleTag<?>, Object> valuesMap = Maps.newHashMap();
       for (int i = 0; i < combineFnCount; ++i) {
-        Object output = combineFns.get(i).extractOutput(accumulator[i]);
-        if (output != null) {
-          valuesMap.put(outputTags.get(i), output);
-        }
+        valuesMap.put(
+            outputTags.get(i),
+            combineFns.get(i).extractOutput(accumulator[i]));
       }
-      return new CoCombineResult(valuesMap, outputTags);
+      return new CoCombineResult(valuesMap);
     }
 
     @Override
@@ -544,12 +560,11 @@ public class CombineFns {
     public CoCombineResult extractOutput(Object[] accumulator, Context c) {
       Map<TupleTag<?>, Object> valuesMap = Maps.newHashMap();
       for (int i = 0; i < combineFnCount; ++i) {
-        Object output = combineFnWithContexts.get(i).extractOutput(accumulator[i], c);
-        if (output != null) {
-          valuesMap.put(outputTags.get(i), output);
-        }
+        valuesMap.put(
+            outputTags.get(i),
+            combineFnWithContexts.get(i).extractOutput(accumulator[i], c));
       }
-      return new CoCombineResult(valuesMap, outputTags);
+      return new CoCombineResult(valuesMap);
     }
 
     @Override
@@ -725,12 +740,11 @@ public class CombineFns {
     public CoCombineResult extractOutput(K key, Object[] accumulator) {
       Map<TupleTag<?>, Object> valuesMap = Maps.newHashMap();
       for (int i = 0; i < combineFnCount; ++i) {
-        Object output = keyedCombineFns.get(i).extractOutput(key, accumulator[i]);
-        if (output != null) {
-          valuesMap.put(outputTags.get(i), output);
-        }
+        valuesMap.put(
+            outputTags.get(i),
+            keyedCombineFns.get(i).extractOutput(key, accumulator[i]));
       }
-      return new CoCombineResult(valuesMap, outputTags);
+      return new CoCombineResult(valuesMap);
     }
 
     @Override
@@ -871,12 +885,11 @@ public class CombineFns {
     public CoCombineResult extractOutput(K key, Object[] accumulator, Context c) {
       Map<TupleTag<?>, Object> valuesMap = Maps.newHashMap();
       for (int i = 0; i < combineFnCount; ++i) {
-        Object output = keyedCombineFns.get(i).extractOutput(key, accumulator[i], c);
-        if (output != null) {
-          valuesMap.put(outputTags.get(i), output);
-        }
+        valuesMap.put(
+            outputTags.get(i),
+            keyedCombineFns.get(i).extractOutput(key, accumulator[i], c));
       }
-      return new CoCombineResult(valuesMap, outputTags);
+      return new CoCombineResult(valuesMap);
     }
 
     @Override
