@@ -33,10 +33,13 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /**
  * Tests for {@link CountingInput}.
  */
+@RunWith(JUnit4.class)
 public class CountingInputTest {
   public static void addCountingAsserts(PCollection<Long> input, long numElements) {
     // Count == numElements
