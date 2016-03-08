@@ -172,8 +172,6 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
-import javax.annotation.Nullable;
-
 /**
  * A {@link PipelineRunner} that executes the operations in the
  * pipeline by first translating them to the Dataflow representation
@@ -430,7 +428,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     if (!options.getEnableCloudDebugger()) {
       return;
     }
-    
+
     if (options.getDebuggee() != null) {
       throw new RuntimeException("Should not specify the debuggee");
     }

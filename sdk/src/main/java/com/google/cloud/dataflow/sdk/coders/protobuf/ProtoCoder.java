@@ -17,8 +17,6 @@ package com.google.cloud.dataflow.sdk.coders.protobuf;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import com.google.api.services.datastore.DatastoreV1;
-import com.google.api.services.datastore.DatastoreV1.Entity;
 import com.google.cloud.dataflow.sdk.coders.AtomicCoder;
 import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
