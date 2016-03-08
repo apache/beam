@@ -171,7 +171,7 @@
             <!-- Integration Tests -->
             <plugin>
                 <artifactId>maven-failsafe-plugin</artifactId>
-                <version>2.17</version><!--$NO-MVN-MAN-VER$-->
+                <version>2.17</version>
                 <executions>
                     <execution>
                         <goals>
@@ -180,19 +180,20 @@
                         </goals>
                     </execution>
                 </executions>
-				<configuration>
-					<argLine>-Dlog4j.configuration=log4j-test.properties  -XX:-UseGCOverheadLimit</argLine>
-				</configuration>
+                <configuration>
+                    <forkCount>1</forkCount>
+                    <argLine>-Dlog4j.configuration=log4j-test.properties  -XX:-UseGCOverheadLimit</argLine>
+                </configuration>
             </plugin>
 
             <!-- Unit Tests -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>2.17</version><!--$NO-MVN-MAN-VER$-->
-				<configuration>
-					<argLine>-Dlog4j.configuration=log4j-test.properties  -XX:-UseGCOverheadLimit</argLine>
-				</configuration>
+                <version>2.17</version>
+                <configuration>
+                    <argLine>-Dlog4j.configuration=log4j-test.properties  -XX:-UseGCOverheadLimit</argLine>
+                </configuration>
             </plugin>
 
             <!-- Eclipse Integration -->

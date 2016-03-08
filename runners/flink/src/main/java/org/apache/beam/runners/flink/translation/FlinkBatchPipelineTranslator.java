@@ -24,12 +24,16 @@ import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.join.CoGroupByKey;
 import com.google.cloud.dataflow.sdk.values.PValue;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * FlinkBatchPipelineTranslator knows how to translate Pipeline objects into Flink Jobs.
  * This is based on {@link com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator}
  */
 public class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
+
+  private static final Logger LOG = LoggerFactory.getLogger(FlinkBatchPipelineTranslator.class);
 
   /**
    * The necessary context in the case of a batch job.
@@ -53,7 +57,7 @@ public class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
 
   @Override
   public void enterCompositeTransform(TransformTreeNode node) {
-    System.out.println(genSpaces(this.depth) + "enterCompositeTransform- " + formatNodeName(node));
+    LOG.info(genSpaces(this.depth) + "enterCompositeTransform- " + formatNodeName(node));
 
     PTransform<?, ?> transform = node.getTransform();
     if (transform != null && currentCompositeTransform == null) {
@@ -77,7 +81,7 @@ public class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
 
       BatchTransformTranslator<?> translator = FlinkBatchTransformTranslators.getTranslator(transform);
       if (translator != null) {
-        System.out.println(genSpaces(this.depth) + "doingCompositeTransform- " + formatNodeName(node));
+        LOG.info(genSpaces(this.depth) + "doingCompositeTransform- " + formatNodeName(node));
         applyBatchTransform(transform, node, translator);
         currentCompositeTransform = null;
       } else {
@@ -86,12 +90,12 @@ public class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
       }
     }
     this.depth--;
-    System.out.println(genSpaces(this.depth) + "leaveCompositeTransform- " + formatNodeName(node));
+    LOG.info(genSpaces(this.depth) + "leaveCompositeTransform- " + formatNodeName(node));
   }
 
   @Override
   public void visitTransform(TransformTreeNode node) {
-    System.out.println(genSpaces(this.depth) + "visitTransform- " + formatNodeName(node));
+    LOG.info(genSpaces(this.depth) + "visitTransform- " + formatNodeName(node));
     if (currentCompositeTransform != null) {
       // ignore it
       return;
@@ -103,7 +107,7 @@ public class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
     PTransform<?, ?> transform = node.getTransform();
     BatchTransformTranslator<?> translator = FlinkBatchTransformTranslators.getTranslator(transform);
     if (translator == null) {
-      System.out.println(node.getTransform().getClass());
+      LOG.info(node.getTransform().getClass().toString());
       throw new UnsupportedOperationException("The transform " + transform + " is currently not supported.");
     }
     applyBatchTransform(transform, node, translator);
