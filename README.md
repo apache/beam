@@ -62,7 +62,7 @@ _Coming soon!_
 
 ### Flink Runner
 
-See the Flink Runner [README](https://github.com/apache/incubator-beam/runners/flink).
+See the Flink Runner [README](https://github.com/apache/incubator-beam/tree/master/runners/flink).
 
 
 ## Contact Us
