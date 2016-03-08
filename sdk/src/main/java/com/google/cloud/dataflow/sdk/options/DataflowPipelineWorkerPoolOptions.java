@@ -148,7 +148,7 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
    * GCE <a href="https://cloud.google.com/compute/docs/networking">subnetwork</a> for launching
    * workers.
    *
-   * <p>Default is up to the Dataflow service.  Expected format is zones/ZONE/subnetworks/SUBNETWORK.
+   * <p>Default is up to the Dataflow service. Expected format is zones/ZONE/subnetworks/SUBNETWORK.
    */
   @Description("GCE subnetwork for launching workers. For more information, see the reference "
       + "documentation https://cloud.google.com/compute/docs/networking. "
