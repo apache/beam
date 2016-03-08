@@ -52,7 +52,7 @@ members:
     time_zone: "-8"
   - name: Jean-Baptiste Onofré
     apache_id: jbonofre
-    email: davor@google.com
+    email: jbonofre@apache.org
     organization: Talend
     roles: champion, committer, PPMC
     time_zone: "+1"
