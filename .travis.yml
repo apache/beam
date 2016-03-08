@@ -4,8 +4,6 @@ sudo: false
 
 notifications:
   email:
-    recipients:
-      - dataflow-sdk-build-notifications+travis@google.com
     on_success: change
     on_failure: always
 
