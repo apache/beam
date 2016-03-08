@@ -15,7 +15,7 @@ members:
     roles: committer, PPMC
     time_zone: "+2"
   - name: Ben Chambers
-    apache_id:
+    apache_id: bchambers
     email: bchambers [at] google [dot] com
     organization: Google
     roles: committer, PPMC
@@ -27,7 +27,7 @@ members:
     roles: committer, PPMC
     time_zone: "-8"
   - name: Dan Halperin
-    apache_id:
+    apache_id: dhalperi
     email: dhalperi [at] google [dot] com
     organization: Google
     roles: committer, PPMC
@@ -63,7 +63,7 @@ members:
     roles: committer, PPMC
     time_zone: "-8"
   - name: Kostas Tzoumas
-    apache_id:
+    apache_id: ktzoumas
     email: kostas [at] data-artisans [dot] com
     organization: data Artisans
     roles: committer, PPMC
@@ -75,7 +75,7 @@ members:
     roles: committer, PPMC
     time_zone: "-8"
   - name: Luke Cwik
-    apache_id:
+    apache_id: lcwik
     email: lcwik [at] google [dot] com
     organization: Google
     roles: committer, PPMC
@@ -87,25 +87,25 @@ members:
     roles: committer, PPMC
     time_zone: "+1"
   - name: Stephan Ewen
-    apache_id:
+    apache_id: sewen
     email: stephan [at] data-artisans [dot] com
     organization: data Artisans
     roles: committer, PPMC
     time_zone: "+1"
   - name: Tom White
-    apache_id:
+    apache_id: tomwhite
     email: tom [at] cloudera [dot] com
     organization: Cloudera
     roles: committer, PPMC
     time_zone: "-8"
   - name: Tyler Akidau
-    apache_id:
+    apache_id: takidau
     email: takidau [at] google [dot] com
     organization: Google
     roles: committer, PPMC
     time_zone: "-8"
   - name: Robert Bradshaw
-    apache_id:
+    apache_id: robertwb
     email: robertwb [at] google [dot] com
     organization: Google
     roles: committer, PPMC
