@@ -34,7 +34,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   name='windmill_service.proto',
   package='google.dataflow.windmillservice.v1alpha1',
   syntax='proto2',
-  serialized_pb=_b('\n\x16windmill_service.proto\x12(google.dataflow.windmillservice.v1alpha1\x1a\x0ewindmill.proto2\xf9\x02\n\x1c\x43loudWindmillServiceV1Alpha1\x12>\n\x07GetWork\x12\x18.windmill.GetWorkRequest\x1a\x19.windmill.GetWorkResponse\x12>\n\x07GetData\x12\x18.windmill.GetDataRequest\x1a\x19.windmill.GetDataResponse\x12G\n\nCommitWork\x12\x1b.windmill.CommitWorkRequest\x1a\x1c.windmill.CommitWorkResponse\x12\x44\n\tGetConfig\x12\x1a.windmill.GetConfigRequest\x1a\x1b.windmill.GetConfigResponse\x12J\n\x0bReportStats\x12\x1c.windmill.ReportStatsRequest\x1a\x1d.windmill.ReportStatsResponse')
+  serialized_pb=_b('\n\x16windmill_service.proto\x12(google.dataflow.windmillservice.v1alpha1\x1a\x0ewindmill.proto2\xf9\x02\n\x1c\x43loudWindmillServiceV1Alpha1\x12>\n\x07GetWork\x12\x18.windmill.GetWorkRequest\x1a\x19.windmill.GetWorkResponse\x12>\n\x07GetData\x12\x18.windmill.GetDataRequest\x1a\x19.windmill.GetDataResponse\x12G\n\nCommitWork\x12\x1b.windmill.CommitWorkRequest\x1a\x1c.windmill.CommitWorkResponse\x12\x44\n\tGetConfig\x12\x1a.windmill.GetConfigRequest\x1a\x1b.windmill.GetConfigResponse\x12J\n\x0bReportStats\x12\x1c.windmill.ReportStatsRequest\x1a\x1d.windmill.ReportStatsResponseB7\n5com.google.cloud.dataflow.sdk.runners.worker.windmill')
   ,
   dependencies=[windmill__pb2.DESCRIPTOR,])
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
@@ -43,6 +43,8 @@ _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 
 
+DESCRIPTOR.has_options = True
+DESCRIPTOR._options = _descriptor._ParseOptions(descriptor_pb2.FileOptions(), _b('\n5com.google.cloud.dataflow.sdk.runners.worker.windmill'))
 import abc
 from grpc.beta import implementations as beta_implementations
 from grpc.framework.common import cardinality
