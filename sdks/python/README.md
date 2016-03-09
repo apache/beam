@@ -8,37 +8,34 @@ The Dataflow SDK for Python provides access to Dataflow capabilities
 from the Python programming language.
 
 ## Table of Contents
-<!-- start of TOC -->
-  * [Status of this Release](#status)
-  * [Overview of Dataflow Programming](#overview)
+  * [Status of this Release](#status-of-this-release)
+  * [Overview of Dataflow Programming](#overview-of-dataflow-programming)
   * [Getting Started](#getting-started)
-      * [Setting up an environment](#environment)
-          * [Install ``pip``](#pip)
-          * [Install ``virtualenv``](#virtualenv)
-          * [Install ``setuptools``](#setuptools)
-      * [Getting the Dataflow software](#getting)
-          * [Create and activate virtual environment](#activate)
+      * [Setting up an environment](#setting-up-an-environment)
+          * [Install ``pip``](#install-pip)
+          * [Install ``virtualenv``](#install-virtualenv)
+          * [Install ``setuptools``](#install-setuptools)
+      * [Getting the Dataflow software](#getting-the-dataflow-software)
+          * [Create and activate virtual environment](#create-and-activate-virtual-environment)
           * [Download](#download)
           * [Install](#install)
           * [Test](#test)
-  * [Local execution of a pipeline](#local)
-  * [A Quick Tour of the Source Code](#tour)
-  * [Some Simple Examples](#examples)
+  * [Local execution of a pipeline](#local-execution-of-a-pipeline)
+  * [A Quick Tour of the Source Code](#a-quick-tour-of-the-source-code)
+  * [Some Simple Examples](#some-simple-examples)
       * [Hello world](#hello-world)
-      * [Hello world (with Map)](#map)
-      * [Hello world (with FlatMap)](#flatmap)
-      * [Hello world (with FlatMap and yield)](#yield)
-      * [Counting words](#counting)
-      * [Counting words with GroupByKey](#groupbykey)
-      * [Type hints](#type)
+      * [Hello world (with Map)](#hello-world-with-map)
+      * [Hello world (with FlatMap)](#hello-world-with-flatmap)
+      * [Hello world (with FlatMap and yield)](#hello-world-with-flatmap-and-yield)
+      * [Counting words](#counting-words)
+      * [Counting words with GroupByKey](#counting-words-with-groupbykey)
+      * [Type hints](#type-hints)
       * [BigQuery](#bigquery)
-      * [Combiner Examples](#combiner)
+      * [Combiner Examples](#combiner-examples)
       * [More Examples](#more-examples)
-  * [Organizing Your Code](#organizing)
-  * [Contact Us](#contact)
-<!-- end of TOC -->
+  * [Organizing Your Code](#organizing-your-code)
+  * [Contact Us](#contact-us)
 
-<a name="status"></a>
 ## Status of this Release
 
 This is the Google Cloud Dataflow SDK for Python version 0.2.0.
@@ -56,7 +53,6 @@ The SDK for Java is actively transitioning to
 an ASF incubator project.  The SDK for Python will be added
 to Apache Beam soon after.  Expect many renames.
 
-<a name="overview"></a>
 ## Overview of Dataflow Programming
 
 For an introduction to the programming model, please read
@@ -82,16 +78,13 @@ This release has some significant limitations:
 * Triggers are not supported.
 * The SDK works only on Python 2.7.
 
-<a name="getting-started"></a>
 ## Getting Started
 
-<a name="environment"></a>
 ### Setting up an environment
 
 If this is the first time you are installing the Dataflow SDK, you may need to
 set up your machine's Python development environment.
 
-<a name="pip"></a>
 #### Install ``pip``
 
 `pip` is Python's package manager.  If you already have `pip` installed
@@ -128,7 +121,6 @@ After downloading `get-pip.py`, run it to install `pip`:
 python ./get-pip.py
 ```
 
-<a name="virtualenv"></a>
 #### Install ``virtualenv``
 
 We recommend installing in a
@@ -140,7 +132,6 @@ your `virtualenv`:
 
     pip install --upgrade virtualenv
 
-<a name="setuptools"></a>
 #### Install ``setuptools``
 
 If you are not going to use a Python virtual environment (but we recommend you
@@ -150,10 +141,8 @@ version 17.1 or newer is installed on your system (type `easy_install
 
     pip install --upgrade setuptools
 
-<a name="getting"></a>
 ### Getting the Dataflow software
 
-<a name="activate"></a>
 #### Create and activate virtual environment
 
 A virtual environment is a directory tree containing its own Python
@@ -170,14 +159,12 @@ environment's directories.  To activate a virtual environment in Bash:
 That is, source the script `bin/activate` under the virtual environment
 directory you created.
 
-<a name="download"></a>
 #### Download
 
 Clone the SDK from GitHub:
 
     git clone https://github.com/GoogleCloudPlatform/DataflowPythonSDK
 
-<a name="install"></a>
 #### Install
 
 With a virtual environment active, install the Dataflow package:
@@ -185,14 +172,12 @@ With a virtual environment active, install the Dataflow package:
     cd DataflowPythonSDK
     python setup.py install
 
-<a name="test"></a>
 #### Test
 
 After install, run the tests to make sure everything is okay.
 
     python setup.py test
 
-<a name="local"></a>
 ## Local execution of a pipeline
 
 The `google/cloud/dataflow/examples` subdirectory in the
@@ -203,7 +188,6 @@ example script. For instance, to run `wordcount.py`, try:
 
     python google/cloud/dataflow/examples/wordcount.py --output OUTPUT_FILE
 
-<a name="tour"></a>
 ## A Quick Tour of the Source Code
 
 You can follow along this tour by, with your virtual environment
@@ -226,10 +210,8 @@ Some interesting classes to navigate to:
 * combiners, in file
 [`google/cloud/dataflow/transforms/combiners.py`](http://localhost:8888/google.cloud.dataflow.transforms.combiners.html)
 
-<a name="examples"></a>
 ## Some Simple Examples
 
-<a name="hello-world"></a>
 ### Hello world
 
 Create a transform from an iterable and use the pipe operator to chain
@@ -248,7 +230,6 @@ p = df.Pipeline('DirectPipelineRunner')
 p.run()
 ```
 
-<a name="map"></a>
 ### Hello world (with Map)
 
 The `Map` transform takes a callable, which will be applied to each
@@ -268,7 +249,6 @@ p = df.Pipeline('DirectPipelineRunner')
 p.run()
 ```
 
-<a name="flatmap"></a>
 ### Hello world (with FlatMap)
 
 A `FlatMap` is like a `Map` except its callable returns a (possibly
@@ -287,7 +267,6 @@ p = df.Pipeline('DirectPipelineRunner')
 p.run()
 ```
 
-<a name="yield"></a>
 ### Hello world (with FlatMap and yield)
 
 The callable of a `FlatMap` can be a generator, that is,
@@ -308,7 +287,6 @@ def add_greetings(name, messages):
 p.run()
 ```
 
-<a name="counting"></a>
 ### Counting words
 
 This example counts the words in a text and also shows how to read a
@@ -328,7 +306,6 @@ p = df.Pipeline('DirectPipelineRunner')
 p.run()
 ```
 
-<a name="groupbykey"></a>
 ### Counting words with GroupByKey
 
 Here we use `GroupByKey` to count the words.
@@ -358,7 +335,6 @@ class MyCountTransform(df.PTransform):
 p.run()
 ```
 
-<a name="type"></a>
 ### Type hints
 
 In some cases, you can improve the efficiency of the data encoding by providing
@@ -376,7 +352,6 @@ p = df.Pipeline('DirectPipelineRunner')
 p.run()
 ```
 
-<a name="bigquery"></a>
 ### BigQuery
 
 Here is a pipeline that reads input from a BigQuery table and writes the result
@@ -427,7 +402,6 @@ p = df.Pipeline(argv=['--project', project])
 p.run()
 ```
 
-<a name="combiner"></a>
 ### Combiner Examples
 
 A common case for Dataflow combiners is to sum (or max or min) over the values
@@ -451,13 +425,11 @@ p.run()
 The `google/cloud/dataflow/examples/cookbook/combiners_test.py` file in the
 source distribution contains more combiner examples.
 
-<a name="more-examples"></a>
 ### More Examples
 
 The `google/cloud/dataflow/examples` subdirectory in the
 source distribution has some larger examples.
 
-<a name="organizing"></a>
 ## Organizing Your Code
 
 Many projects will grow to multiple source code files. It is beneficial to
@@ -471,7 +443,6 @@ command line option to create a source distribution out of the project files,
 stage the resulting tarball and later install it in the workers executing the
 job.
 
-<a name="contact"></a>
 ## Contact Us
 
 We welcome all usage-related questions on
