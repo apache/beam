@@ -523,7 +523,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     // - The trigger may implement isClosed as constant false.
     // - If the window function does not support windowing then all windows will be considered
     // active.
-    // So we must combine the above.
+    // So we must take conjunction of activeWindows and triggerRunner state.
     boolean windowIsActive =
         activeWindows.isActive(window) && !triggerRunner.isClosed(directContext.state());
 
@@ -602,7 +602,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       boolean windowIsActive)
           throws Exception {
     if (windowIsActive) {
-      // Since window is still active the trigger has not closed.
+      // Since window was still active the trigger may not have closed.
       reduceFn.clearState(renamedContext);
       watermarkHold.clearHolds(renamedContext);
       nonEmptyPanes.clearPane(renamedContext.state());
@@ -622,7 +622,10 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       }
     }
     paneInfoTracker.clear(directContext.state());
-    activeWindows.remove(directContext.window());
+    if (activeWindows.isActive(directContext.window())) {
+      // Don't need to track address state windows anymore
+      activeWindows.remove(directContext.window());
+    }
     // We'll never need to test for the trigger being closed again.
     triggerRunner.clearFinished(directContext.state());
   }

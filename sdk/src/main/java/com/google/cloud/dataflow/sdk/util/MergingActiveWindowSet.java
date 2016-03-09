@@ -72,9 +72,7 @@ import javax.annotation.Nullable;
  */
 public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWindowSet<W> {
   private final WindowFn<Object, W> windowFn;
-
-  @Nullable
-  private Map<W, Set<W>> activeWindowToStateAddressWindows;
+  private final Map<W, Set<W>> activeWindowToStateAddressWindows;
 
   /**
    * As above, but only for EPHEMERAL windows. Does not need to be persisted.
@@ -94,16 +92,14 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
    * MERGED. Otherwise W1 is EPHEMERAL.
    * </ul>
    */
-  @Nullable
-  private Map<W, W> windowToActiveWindow;
+  private final Map<W, W> windowToActiveWindow;
 
   /**
    * Deep clone of {@link #activeWindowToStateAddressWindows} as of last commit.
    *
    * <p>Used to avoid writing to state if no changes have been made during the work unit.
    */
-  @Nullable
-  private Map<W, Set<W>> originalActiveWindowToStateAddressWindows;
+  private final Map<W, Set<W>> originalActiveWindowToStateAddressWindows;
 
   /**
    * Handle representing our state in the backend.
@@ -195,6 +191,7 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
 
   @Override
   public void remove(W window) {
+    Preconditions.checkState(isActive(window), "Window %s is not active", window);
     for (W stateAddressWindow : activeWindowToStateAddressWindows.get(window)) {
       windowToActiveWindow.remove(stateAddressWindow);
     }
@@ -522,7 +519,7 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
   private static <W> Map<W, Set<W>> deepCopy(Map<W, Set<W>> multimap) {
     Map<W, Set<W>> newMultimap = new HashMap<>();
     for (Map.Entry<W, Set<W>> entry : multimap.entrySet()) {
-      newMultimap.put(entry.getKey(), new LinkedHashSet<W>(entry.getValue()));
+      newMultimap.put(entry.getKey(), new LinkedHashSet<>(entry.getValue()));
     }
     return newMultimap;
   }
