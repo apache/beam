@@ -211,7 +211,7 @@ class TypeHintsTest(unittest.TestCase):
 
     # [START type_hints_missing_define_numbers]
     numbers = p | df.Create(['1', '2', '3'])
-    # [START type_hints_missing_define_numbers]
+    # [END type_hints_missing_define_numbers]
 
     # Consider the following code.
     # [START type_hints_missing_apply]
@@ -261,6 +261,58 @@ class TypeHintsTest(unittest.TestCase):
     with self.assertRaises(typehints.TypeCheckError):
       words_with_lens | df.Map(lambda x: x).with_input_types(
           df.typehints.Tuple[int, int])
+
+  def test_runtime_checks_off(self):
+    p = df.Pipeline('DirectPipelineRunner', argv=sys.argv)
+    # [START type_hints_runtime_off]
+    p | df.Create(['a']) | df.Map(lambda x: 3).with_output_types(str)
+    p.run()
+    # [END type_hints_runtime_off]
+
+  def test_runtime_checks_on(self):
+    p = df.Pipeline('DirectPipelineRunner', argv=sys.argv)
+    with self.assertRaises(typehints.TypeCheckError):
+      # [START type_hints_runtime_on]
+      p.options.view_as(TypeOptions).runtime_type_check = True
+      p | df.Create(['a']) | df.Map(lambda x: 3).with_output_types(str)
+      p.run()
+      # [END type_hints_runtime_on]
+
+  def test_deterministic_key(self):
+    p = df.Pipeline('DirectPipelineRunner', argv=sys.argv)
+    lines = ['banana,fruit,3', 'kiwi,fruit,2', 'kiwi,fruit,2', 'zucchini,veg,3']
+
+    # [START type_hints_deterministic_key]
+    class Player(object):
+      def __init__(self, team, name):
+        self.team = team
+        self.name = name
+
+    class PlayerCoder(df.coders.Coder):
+      def encode(self, player):
+        return '%s:%s' % (player.team, player.name)
+
+      def decode(self, s):
+        return Player(*s.split(':'))
+
+      def is_deterministic(self):
+        return True
+
+    df.coders.registry.register_coder(Player, PlayerCoder)
+
+    def parse_player_and_score(csv):
+      name, team, score = csv.split(',')
+      return Player(team, name), int(score)
+
+    totals = (
+        lines
+        | df.Map(parse_player_and_score)
+        | df.CombinePerKey(sum).with_input_types(df.typehints.Tuple[Player, int]))
+    # [END type_hints_deterministic_key]
+
+    self.assertEquals(
+        {('banana', 3), ('kiwi', 4), ('zucchini', 3)},
+        set(totals | df.Map(lambda (k, v): (k.name, v))))
 
 
 class SnippetsTest(unittest.TestCase):

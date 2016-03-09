@@ -474,6 +474,9 @@ class PTransformWithSideInputs(PTransform):
     self.args = pickler.loads(pickler.dumps(self.args))
     self.kwargs = pickler.loads(pickler.dumps(self.kwargs))
 
+    # For type hints, because loads(dumps(class)) != class.
+    self.fn = self._cached_fn
+
   def with_input_types(
       self, input_type_hint, *side_inputs_arg_hints, **side_input_kwarg_hints):
     """Annotates the types of main inputs and side inputs for the PTransform.

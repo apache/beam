@@ -62,6 +62,7 @@ The examples subdirectory has some examples.
 
 import google.cloud.dataflow.internal.pickler
 
+from google.cloud.dataflow import coders
 from google.cloud.dataflow import io
 from google.cloud.dataflow import typehints
 from google.cloud.dataflow.pipeline import Pipeline

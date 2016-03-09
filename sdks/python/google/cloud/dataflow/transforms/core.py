@@ -424,7 +424,7 @@ class CallableWrapperCombineFn(CombineFn):
       return hints
 
 
-class PartitionFn(object):
+class PartitionFn(WithTypeHints):
   """A function object used by a Partition transform.
 
   A PartitionFn specifies how individual values in a PCollection will be placed
