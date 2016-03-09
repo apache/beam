@@ -16,8 +16,6 @@
 
 from __future__ import absolute_import
 
-from numbers import Number
-
 from google.cloud.dataflow.utils.counters import Counter
 
 
@@ -27,27 +25,14 @@ class OperationCounters(object):
   def __init__(self, step_name, output_index=0):
     self.element_counter = Counter(
         '%s-out%d-ElementCount' % (step_name, output_index), Counter.SUM)
-    self.mean_byte_counter = Counter(
-        '%s-out%d-MeanByteCount' % (step_name, output_index), Counter.MEAN)
 
-  def update(self, windowed_value):
+  def update(self, windowed_value):  # pylint: disable=unused-argument
     """Add one value to this counter."""
-    if isinstance(windowed_value.value, Number):
-      size = 4  # numbers take 4 bytes
-    else:
-      try:
-        # len() gives the right answer for at least strings
-        size = len(windowed_value.value)
-      except (AttributeError, TypeError):
-        # it's an object, not data, and there's nothing to count.
-        size = 0
-    self.mean_byte_counter.update(size)
     self.element_counter.update(1)
 
   def __iter__(self):
     """Iterator over all our counters."""
     yield self.element_counter
-    yield self.mean_byte_counter
 
   def __str__(self):
     return '<%s [%s]>' % (self.__class__.__name__,
