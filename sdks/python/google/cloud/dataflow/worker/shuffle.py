@@ -86,8 +86,14 @@ class ShuffleEntry(object):
     self.position = position
 
   def __str__(self):
-    return '<ShuffleEntry %s, %s, %s, %s>' % (
-        self.key, self.secondary_key, self.value, self.position)
+    return '<%s>' % self._str_internal()
+
+  def __repr__(self):
+    return '<%s at %s>' % (self._str_internal(), hex(id(self)))
+
+  def _str_internal(self):
+    return 'ShuffleEntry %s%s' % (self.key, '/%s' % self.secondary_key
+                                  if self.secondary_key != self.key else '')
 
   def __eq__(self, other):
     return (self.key == other.key and
@@ -285,6 +291,15 @@ class ShuffleKeyValuesIterable(object):
         self.entries_iterator.push_back(entry)
         break
       yield self.value_coder.decode(entry.value)
+
+  def __str__(self):
+    return '<%s>' % self._str_internal()
+
+  def __repr__(self):
+    return '<%s at %s>' % (self._str_internal(), hex(id(self)))
+
+  def _str_internal(self):
+    return '%s on %s' % (self.__class__.__name__, self.key)
 
 
 class ShuffleReaderBase(iobase.SourceReader):
