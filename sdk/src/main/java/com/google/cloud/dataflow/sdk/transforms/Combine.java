@@ -1690,21 +1690,9 @@ public class Combine {
 
     @Override
     public PCollection<KV<K, OutputT>> apply(PCollection<KV<K, InputT>> input) {
-      if (fn instanceof RequiresContextInternal) {
-        return input
-            .apply(GroupByKey.<K, InputT>create(fewKeys))
-            .apply(ParDo.of(new DoFn<KV<K, Iterable<InputT>>, KV<K, Iterable<InputT>>>() {
-              @Override
-              public void processElement(ProcessContext c) throws Exception {
-                c.output(c.element());
-              }
-            }))
-            .apply(Combine.<K, InputT, OutputT>groupedValues(fn).withSideInputs(sideInputs));
-      } else {
-        return input
-            .apply(GroupByKey.<K, InputT>create(fewKeys))
-            .apply(Combine.<K, InputT, OutputT>groupedValues(fn).withSideInputs(sideInputs));
-      }
+      return input
+          .apply(GroupByKey.<K, InputT>create(fewKeys))
+          .apply(Combine.<K, InputT, OutputT>groupedValues(fn).withSideInputs(sideInputs));
     }
   }
 
