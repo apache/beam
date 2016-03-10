@@ -14,6 +14,8 @@
 
 """Worker operations executor."""
 
+import sys
+
 from google.cloud.dataflow.internal import util
 from google.cloud.dataflow.pvalue import SideOutputValue
 from google.cloud.dataflow.transforms import core
@@ -72,17 +74,44 @@ class DoFnRunner(object):
 
   def start(self):
     self.context.set_element(None)
-    self._process_outputs(None, self.dofn.start_bundle(self.context))
+    try:
+      self._process_outputs(None, self.dofn.start_bundle(self.context))
+    except BaseException as exn:
+      raise self.augment_exception(exn)
 
   def finish(self):
     self.context.set_element(None)
-    self._process_outputs(None, self.dofn.finish_bundle(self.context))
+    try:
+      self._process_outputs(None, self.dofn.finish_bundle(self.context))
+    except BaseException as exn:
+      raise self.augment_exception(exn)
 
   def process(self, element):
-    with self.logger.PerThreadLoggingContext(step_name=self.step_name):
-      assert isinstance(element, WindowedValue)
-      self.context.set_element(element)
-      self._process_outputs(element, self.dofn.process(self.context))
+    try:
+      with self.logger.PerThreadLoggingContext(step_name=self.step_name):
+        assert isinstance(element, WindowedValue)
+        self.context.set_element(element)
+        self._process_outputs(element, self.dofn.process(self.context))
+    except BaseException as exn:
+      raise self.augment_exception(exn)
+
+  def augment_exception(self, exn):
+    try:
+      if getattr(exn, '_tagged_with_step', False) or not self.step_name:
+        return exn
+      args = exn.args
+      if args and isinstance(args[0], str):
+        args = (args[0] + " [while running '%s']" % self.step_name,) + args[1:]
+        # Poor man's exception chaining.
+        try:
+          raise type(exn), args, sys.exc_info()[2]
+        except BaseException as new_exn:
+          new_exn._tagged_with_step = True
+          return new_exn
+      else:
+        return exn
+    except:
+      return exn
 
   def _process_outputs(self, element, results):
     """Dispatch the result of computation to the appropriate receivers.

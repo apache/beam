@@ -291,11 +291,17 @@ class Largest(TopCombineFn):
   def __init__(self, n):
     super(Largest, self).__init__(n, lambda a, b: a < b)
 
+  def default_label(self):
+    return 'Largest(%s)' % self._n
+
 
 class Smallest(TopCombineFn):
 
   def __init__(self, n):
     super(Smallest, self).__init__(n, lambda a, b: b < a)
+
+  def default_label(self):
+    return 'Smallest(%s)' % self._n
 
 
 class Sample(object):

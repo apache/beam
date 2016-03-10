@@ -36,6 +36,7 @@ from __future__ import absolute_import
 import copy
 import inspect
 import operator
+import os
 import sys
 
 from google.cloud.dataflow import error
@@ -445,14 +446,16 @@ class PTransformWithSideInputs(PTransform):
   """
 
   def __init__(self, fn_or_label, *args, **kwargs):
-    if fn_or_label is None:
-      fn_or_label = str(args[0])
-    if isinstance(fn_or_label, str):
+    if fn_or_label is None or isinstance(fn_or_label, basestring):
       label = fn_or_label
-      self.fn, args = self.make_fn(args[0]), args[1:]
+      fn, args = args[0], args[1:]
     else:
       label = None
-      self.fn = self.make_fn(fn_or_label)
+      fn = fn_or_label
+    if isinstance(fn, type) and issubclass(fn, typehints.WithTypeHints):
+      # Don't treat Fn class objects as callables.
+      raise ValueError('Use %s() not %s.' % (fn.__name__, fn.__name__))
+    self.fn = self.make_fn(fn)
     # Now that we figure out the label, initialize the super-class.
     super(PTransformWithSideInputs, self).__init__(label=label)
 
@@ -548,6 +551,9 @@ class PTransformWithSideInputs(PTransform):
     # by methods detecting callables and wrapping them in DoFns.
     return fn
 
+  def default_label(self):
+    return '%s(%s)' % (self.__class__.__name__, self.fn.default_label())
+
 
 class CallablePTransform(PTransform):
   """A class wrapper for a function-based transform."""
@@ -561,11 +567,11 @@ class CallablePTransform(PTransform):
 
   def __call__(self, *args, **kwargs):
     if args and args[0] is None:
-      label, self._args = self.fn.__name__, args[1:]
+      label, self._args = None, args[1:]
     elif args and isinstance(args[0], str):
       label, self._args = args[0], args[1:]
     else:
-      label, self._args = self.fn.__name__, args
+      label, self._args = None, args
     self._kwargs = kwargs
     # We know the label now, so initialize the super-class.
     super(CallablePTransform, self).__init__(label=label)
@@ -585,6 +591,13 @@ class CallablePTransform(PTransform):
       # Might not be a function.
       pass
     return self.fn(self.label, pcoll, *args, **kwargs)
+
+  def default_label(self):
+    if self._args:
+      return '%s(%s)' % (
+          label_from_callable(self.fn), label_from_callable(self._args[0]))
+    else:
+      return label_from_callable(self.fn)
 
 
 def ptransform_fn(fn):
@@ -640,3 +653,17 @@ def format_full_label(applied_transform, pending_transform):
   # Remove leading backslash because the monitoring UI expects names that do not
   # start with such a character.
   return label if not label.startswith('/') else label[1:]
+
+
+def label_from_callable(fn):
+  if hasattr(fn, 'default_label'):
+    return fn.default_label()
+  elif hasattr(fn, '__name__'):
+    if fn.__name__ == '<lambda>':
+      return '<lambda at %s:%s>' % (
+          os.path.basename(fn.func_code.co_filename),
+          fn.func_code.co_firstlineno)
+    else:
+      return fn.__name__
+  else:
+    return str(fn)

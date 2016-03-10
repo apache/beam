@@ -136,7 +136,8 @@ class DirectPipelineRunner(PipelineRunner):
     runner = DoFnRunner(transform.dofn, transform.args, transform.kwargs,
                         side_inputs, transform_node.inputs[0].windowing,
                         context, TaggedRecievers(),
-                        collections.defaultdict(NoOpCounters))
+                        collections.defaultdict(NoOpCounters),
+                        step_name=transform_node.full_label)
     runner.start()
     for v in self._cache.get_pvalue(transform_node.inputs[0]):
       runner.process(v)

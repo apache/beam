@@ -133,7 +133,8 @@ class CoGroupByKey(PTransform):
       if self.pipeline:
         assert pcoll.pipeline == self.pipeline
 
-    return ([pcoll | Map(_pair_tag_with_value, tag) for tag, pcoll in pcolls]
+    return ([pcoll | Map('pair_with_%s' % tag, _pair_tag_with_value, tag)
+             for tag, pcoll in pcolls]
             | Flatten(pipeline=self.pipeline)
             | GroupByKey()
             | Map(_merge_tagged_vals_under_key, result_ctor, result_ctor_arg))
@@ -212,4 +213,12 @@ def assert_that(actual, matcher, label='assert_that'):
   def match(_, actual):
     matcher(actual)
 
-  actual.pipeline | Create(label, [None]) | Map(match, AllOf(actual))
+  class AssertThat(PTransform):
+
+    def apply(self, pipeline):
+      return pipeline | Create('singleton', [None]) | Map(match, AllOf(actual))
+
+    def default_label(self):
+      return label
+
+  actual.pipeline | AssertThat()

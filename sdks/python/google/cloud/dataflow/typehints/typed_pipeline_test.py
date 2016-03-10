@@ -174,7 +174,7 @@ class SideInputTest(unittest.TestCase):
 
     bad_side_input = p | df.Create('bad_side', ['z'])
     with self.assertRaises(typehints.TypeCheckError):
-      main_input | df.Map(repeat, pvalue.AsSingleton(bad_side_input))
+      main_input | df.Map('again', repeat, pvalue.AsSingleton(bad_side_input))
 
   def test_deferred_side_input_iterable(self):
     @typehints.with_input_types(str, typehints.Iterable[str])

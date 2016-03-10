@@ -26,6 +26,7 @@ from google.cloud.dataflow.coders import typecoders
 from google.cloud.dataflow.internal import util
 from google.cloud.dataflow.pvalue import AsIter
 from google.cloud.dataflow.pvalue import AsSingleton
+from google.cloud.dataflow.transforms import ptransform
 from google.cloud.dataflow.transforms import window
 from google.cloud.dataflow.transforms.ptransform import PTransform
 from google.cloud.dataflow.transforms.ptransform import ptransform_fn
@@ -118,6 +119,9 @@ class DoFn(WithTypeHints):
   define the desired behavior (start_bundle/finish_bundle and process) or wrap a
   callable object using the CallableWrapperDoFn class.
   """
+
+  def default_label(self):
+    return self.__class__.__name__
 
   def infer_output_type(self, input_type):
     # TODO(robertwb): Side inputs types.
@@ -260,8 +264,8 @@ class CombineFn(WithTypeHints):
      the output value.
   """
 
-  def __init__(self):
-    super(CombineFn, self).__init__()
+  def default_label(self):
+    return self.__class__.__name__
 
   def create_accumulator(self, *args, **kwargs):
     """Return a fresh, empty accumulator for the combine operation.
@@ -430,6 +434,9 @@ class PartitionFn(WithTypeHints):
   A PartitionFn specifies how individual values in a PCollection will be placed
   into separate partitions, indexed by an integer.
   """
+
+  def default_label(self):
+    return self.__class__.__name__
 
   def partition_for(self, context, num_partitions, *args, **kwargs):
     """Specify which partition will receive this element.
@@ -601,6 +608,9 @@ def FlatMap(fn_or_label, *args, **kwargs):  # pylint: disable=invalid-name
         'Received %r instead for %s argument.'
         % (fn, 'first' if label is None else 'second'))
 
+  if label is None:
+    label = 'FlatMap(%s)' % ptransform.label_from_callable(fn)
+
   return ParDo(label, CallableWrapperDoFn(fn), *args, **kwargs)
 
 
@@ -640,6 +650,9 @@ def Map(fn_or_label, *args, **kwargs):  # pylint: disable=invalid-name
   # pylint: disable=protected-access
   wrapper._argspec_fn = fn
   # pylint: enable=protected-access
+
+  if label is None:
+    label = 'Map(%s)' % ptransform.label_from_callable(fn)
 
   return FlatMap(label, wrapper, *args, **kwargs)
 
@@ -684,6 +697,9 @@ def Filter(fn_or_label, *args, **kwargs):  # pylint: disable=invalid-name
   # pylint: disable=protected-access
   wrapper._argspec_fn = fn
   # pylint: enable=protected-access
+
+  if label is None:
+    label = 'Filter(%s)' % ptransform.label_from_callable(fn)
 
   return FlatMap(label, wrapper, *args, **kwargs)
 
@@ -735,6 +751,9 @@ class CombineGlobally(PTransform):
     self.args = args
     self.kwargs = kwargs
 
+  def default_label(self):
+    return 'CombineGlobally(%s)' % ptransform.label_from_callable(self.fn)
+
   def clone(self, **extra_attributes):
     clone = copy.copy(self)
     clone.__dict__.update(extra_attributes)
@@ -760,7 +779,7 @@ class CombineGlobally(PTransform):
     combined = (pcoll
             | add_input_types(Map('KeyWithVoid', lambda v: (None, v))
                .with_output_types(KV[None, pcoll.element_type]))
-            | CombinePerKey(self.fn, *self.args, **self.kwargs)
+            | CombinePerKey('CombinePerKey', self.fn, *self.args, **self.kwargs)
             | Map('UnKey', lambda (k, v): v))
 
     if not self.has_defaults and not self.as_view:
