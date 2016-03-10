@@ -602,7 +602,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       boolean windowIsActive)
           throws Exception {
     if (windowIsActive) {
-      // Since window was still active the trigger may not have closed.
+      // Since both the window is in the active window set AND the trigger was not yet closed,
+      // it is possible we still have state.
       reduceFn.clearState(renamedContext);
       watermarkHold.clearHolds(renamedContext);
       nonEmptyPanes.clearPane(renamedContext.state());
@@ -623,7 +624,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     }
     paneInfoTracker.clear(directContext.state());
     if (activeWindows.isActive(directContext.window())) {
-      // Don't need to track address state windows anymore
+      // Don't need to track address state windows anymore.
       activeWindows.remove(directContext.window());
     }
     // We'll never need to test for the trigger being closed again.
