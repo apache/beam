@@ -191,8 +191,12 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
 
   @Override
   public void remove(W window) {
-    Preconditions.checkState(isActive(window), "Window %s is not active", window);
-    for (W stateAddressWindow : activeWindowToStateAddressWindows.get(window)) {
+    Set<W> stateAddressWindows = activeWindowToStateAddressWindows.get(window);
+    if (stateAddressWindows == null) {
+      // Window is no longer active.
+      return;
+    }
+    for (W stateAddressWindow : stateAddressWindows) {
       windowToActiveWindow.remove(stateAddressWindow);
     }
     activeWindowToStateAddressWindows.remove(window);
