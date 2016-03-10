@@ -272,6 +272,10 @@ class WorkerOptions(PipelineOptions):
             'GCE network for launching workers. Default is up to the Dataflow '
             'service.'))
     parser.add_argument(
+        '--worker_harness_container_image',
+        default=None,
+        help='Docker image to use for the worker harness.')
+    parser.add_argument(
         '--teardown_policy',
         choices=['TEARDOWN_ALWAYS', 'TEARDOWN_NEVER', 'TEARDOWN_ON_SUCCESS'],
         default=None,
