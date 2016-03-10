@@ -723,7 +723,6 @@ public class ReduceFnRunnerTest {
         equalTo(PaneInfo.createPane(true, true, Timing.ON_TIME, 0, 0)));
   }
 
-
   /**
    * Tests that when data is assigned to multiple windows but some of those windows have
    * had their triggers finish, then the data is dropped and counted accurately.
