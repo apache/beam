@@ -491,7 +491,6 @@ class BatchWorker(object):
             with work_item.lock:
               self.set_current_work_item_and_executor(
                   work_item, executor.MapTaskExecutor())
-              work_item.map_task.executed_operations = []
               self.report_completion_status(
                   work_item, exception_details=deferred_exception_details)
               work_item.done = True

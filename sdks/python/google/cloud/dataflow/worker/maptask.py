@@ -551,6 +551,7 @@ class MapTask(object):
     self.operations = operations
     self.stage_name = stage_name
     self.step_names = step_names
+    self.executed_operations = []
 
   def __str__(self):
     return '<%s %s steps=%s>' % (self.__class__.__name__, self.stage_name,
