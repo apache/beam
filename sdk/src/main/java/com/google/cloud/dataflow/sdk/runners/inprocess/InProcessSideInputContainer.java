@@ -17,7 +17,6 @@ package com.google.cloud.dataflow.sdk.runners.inprocess;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.InProcessEvaluationContext;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.util.PCollectionViewWindow;
@@ -26,6 +25,7 @@ import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.common.base.MoreObjects;
+import com.google.common.base.Throwables;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -108,8 +108,7 @@ class InProcessSideInputContainer {
    *
    * <p>The provided iterable is expected to contain only a single window and pane.
    */
-  public void write(PCollectionView<?> view, Iterable<? extends WindowedValue<?>> values)
-      throws ExecutionException {
+  public void write(PCollectionView<?> view, Iterable<? extends WindowedValue<?>> values) {
     Map<BoundedWindow, Collection<WindowedValue<?>>> valuesPerWindow = new HashMap<>();
     for (WindowedValue<?> value : values) {
       for (BoundedWindow window : value.getWindows()) {
@@ -124,9 +123,10 @@ class InProcessSideInputContainer {
     for (Map.Entry<BoundedWindow, Collection<WindowedValue<?>>> windowValues :
         valuesPerWindow.entrySet()) {
       PCollectionViewWindow<?> windowedView = PCollectionViewWindow.of(view, windowValues.getKey());
-      SettableFuture<Iterable<? extends WindowedValue<?>>> future = viewByWindows.get(windowedView);
-      if (future.isDone()) {
-        try {
+      SettableFuture<Iterable<? extends WindowedValue<?>>> future = null;
+      try {
+        future = viewByWindows.get(windowedView);
+        if (future.isDone()) {
           Iterator<? extends WindowedValue<?>> existingValues = future.get().iterator();
           PaneInfo newPane = windowValues.getValue().iterator().next().getPane();
           // The current value may have no elements, if no elements were produced for the window,
@@ -136,13 +136,16 @@ class InProcessSideInputContainer {
             viewByWindows.invalidate(windowedView);
             viewByWindows.get(windowedView).set(windowValues.getValue());
           }
-        } catch (InterruptedException e) {
-          // TODO: Handle meaningfully. This should never really happen when the result remains
-          // useful, but the result could be available and the thread can still be interrupted.
-          Thread.currentThread().interrupt();
+        } else {
+          future.set(windowValues.getValue());
         }
-      } else {
-        future.set(windowValues.getValue());
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        if (future != null && !future.isDone()) {
+          future.set(Collections.<WindowedValue<?>>emptyList());
+        }
+      } catch (ExecutionException e) {
+        Throwables.propagate(e.getCause());
       }
     }
   }

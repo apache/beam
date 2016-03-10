@@ -15,7 +15,6 @@
  */
 package com.google.cloud.dataflow.sdk.runners.inprocess;
 
-import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.InProcessEvaluationContext;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 
 import java.util.Objects;
