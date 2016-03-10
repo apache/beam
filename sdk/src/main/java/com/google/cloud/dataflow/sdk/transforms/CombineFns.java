@@ -33,7 +33,6 @@ import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
@@ -48,7 +47,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Set;
 
 /**
  * Static utility methods that create combine function instances.
@@ -252,7 +250,7 @@ public class CombineFns {
    */
   public static class CoCombineResult implements Serializable {
 
-    private enum NULL_VALUE {
+    private enum NullValue {
       INSTANCE;
     }
 
@@ -273,7 +271,7 @@ public class CombineFns {
         if (entry.getValue() != null) {
           builder.put(entry);
         } else {
-          builder.put(entry.getKey(), NULL_VALUE.INSTANCE);
+          builder.put(entry.getKey(), NullValue.INSTANCE);
         }
       }
       this.valuesMap = builder.build();
@@ -289,7 +287,7 @@ public class CombineFns {
       checkArgument(
           valuesMap.keySet().contains(tag), "TupleTag " + tag + " is not in the CoCombineResult");
       Object value = valuesMap.get(tag);
-      if (value == NULL_VALUE.INSTANCE) {
+      if (value == NullValue.INSTANCE) {
         return null;
       } else {
         return (V) value;
