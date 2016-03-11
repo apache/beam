@@ -189,8 +189,8 @@ class DirectPipelineRunner(PipelineRunner):
 
   @skip_if_cached
   def run_Read(self, transform_node):
-    # TODO(chamikara) Implement a more generic way for passing PipelineOption
-    # to sources when using DirectRunner.
+    # TODO(chamikara) Implement a more generic way for passing PipelineOptions
+    # to sources and sinks when using DirectRunner.
     source = transform_node.transform.source
     source.pipeline_options = transform_node.inputs[0].pipeline.options
     with source.reader() as reader:
@@ -199,7 +199,8 @@ class DirectPipelineRunner(PipelineRunner):
 
   @skip_if_cached
   def run__NativeWrite(self, transform_node):
-    transform = transform_node.transform
-    with transform.sink.writer() as writer:
+    sink = transform_node.transform.sink
+    sink.pipeline_options = transform_node.inputs[0].pipeline.options
+    with sink.writer() as writer:
       for v in self._cache.get_pvalue(transform_node.inputs[0]):
         writer.Write(v.value)

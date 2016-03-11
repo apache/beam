@@ -24,6 +24,7 @@ import google.cloud.dataflow as df
 from google.cloud.dataflow.internal.json_value import to_json_value
 from google.cloud.dataflow.io.bigquery import RowAsDictJsonCoder
 from google.cloud.dataflow.io.bigquery import TableRowJsonCoder
+from google.cloud.dataflow.utils.options import PipelineOptions
 
 from apitools.base.py.exceptions import HttpError
 from apitools.clients import bigquery
@@ -270,6 +271,15 @@ class TestBigQueryReader(unittest.TestCase):
     # adjust our expectation below accordingly.
     self.assertEqual(actual_rows, expected_rows * 2)
 
+  def test_table_schema_without_project(self):
+    # Reader should pick executing project by default.
+    source = df.io.BigQuerySource(table='mydataset.mytable')
+    options = PipelineOptions(flags=['--project', 'myproject'])
+    source.pipeline_options = options
+    reader = source.reader()
+    self.assertEquals('SELECT * FROM [myproject:mydataset.mytable];',
+                      reader.query)
+
 
 class TestBigQueryWriter(unittest.TestCase):
 
@@ -427,6 +437,13 @@ class TestBigQueryWriter(unittest.TestCase):
             tableDataInsertAllRequest=bigquery.TableDataInsertAllRequest(
                 rows=expected_rows)))
 
+  def test_table_schema_without_project(self):
+    # Writer should pick executing project by default.
+    sink = df.io.BigQuerySink(table='mydataset.mytable')
+    options = PipelineOptions(flags=['--project', 'myproject'])
+    sink.pipeline_options = options
+    writer = sink.writer()
+    self.assertEquals('myproject', writer.project_id)
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

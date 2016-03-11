@@ -355,7 +355,7 @@ you can write to.
 import google.cloud.dataflow as df
 input_table = 'clouddataflow-readonly:samples.weather_stations'
 project = 'YOUR-PROJECT'
-output_table = '%s:DATASET.TABLENAME' % project
+output_table = 'DATASET.TABLENAME'
 p = df.Pipeline(argv=['--project', project])
 (p
  | df.Read('read', df.io.BigQuerySource(input_table))
@@ -379,7 +379,7 @@ of using the whole table.
 ```python
 import google.cloud.dataflow as df
 project = 'YOUR-PROJECT'
-output_table = '%s:DATASET.TABLENAME' % project
+output_table = 'DATASET.TABLENAME'
 input_query = 'SELECT month, COUNT(month) AS tornado_count ' \
         'FROM [clouddataflow-readonly:samples.weather_stations] ' \
         'WHERE tornado=true GROUP BY month'

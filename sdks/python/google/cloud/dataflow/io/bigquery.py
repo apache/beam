@@ -466,8 +466,13 @@ class BigQueryReader(iobase.SourceReader):
     # getting additional details.
     self.schema = None
     if self.source.query is None:
+      # If table schema did not define a project we default to executing
+      # project.
+      project_id = self.source.table_reference.projectId
+      if not project_id:
+        project_id = self.executing_project
       self.query = 'SELECT * FROM [%s:%s.%s];' % (
-          self.source.table_reference.projectId,
+          project_id,
           self.source.table_reference.datasetId,
           self.source.table_reference.tableId)
     else:
@@ -505,6 +510,12 @@ class BigQueryWriter(iobase.NativeSinkWriter):
     self.rows_buffer_flush_threshold = buffer_size or 1000
     # Figure out the project, dataset, and table used for the sink.
     self.project_id = self.sink.table_reference.projectId
+
+    # If table schema did not define a project we default to executing project.
+    if self.project_id is None and hasattr(sink, 'pipeline_options'):
+      self.project_id = (
+          sink.pipeline_options.view_as(GoogleCloudOptions).project)
+
     assert self.project_id is not None
 
     self.dataset_id = self.sink.table_reference.datasetId
