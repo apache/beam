@@ -79,18 +79,14 @@ class StreamingWorker(object):
   # Maximum number of items to return in a GetWork request.
   MAX_GET_WORK_ITEMS = 100
 
-  # TODO(altay): Remove windmill default port and host.
-  WINDMILL_DEFAULT_PORT = 12355
-
   def __init__(self, properties):
     self.project_id = properties['project_id']
     self.job_id = properties['job_id']
     self.worker_id = properties['worker_id']
 
     self.client_id = random.getrandbits(63)
-    windmill_host = properties.get('windmill.host', self.worker_id)
-    windmill_port = int(properties.get('windmill.hostport',
-                                       StreamingWorker.WINDMILL_DEFAULT_PORT))
+    windmill_host = properties['windmill.host']
+    windmill_port = int(properties['windmill.grpc_port'])
     logging.info('Using gRPC to connect to Windmill at %s:%d.', windmill_host,
                  windmill_port)
     self.windmill = WindmillClient(windmill_host, windmill_port)
