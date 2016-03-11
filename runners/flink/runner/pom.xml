@@ -84,11 +84,6 @@
         </exclusion>
       </exclusions>
     </dependency>
-    <dependency>
-      <groupId>com.google.auto.service</groupId>
-      <artifactId>auto-service</artifactId>
-      <version>1.0-rc2</version>
-    </dependency>
     <!-- Test scoped -->
     <dependency>
       <groupId>com.google.cloud.dataflow</groupId>
@@ -120,6 +115,13 @@
       <artifactId>mockito-all</artifactId>
       <version>1.9.5</version>
       <scope>test</scope>
+    </dependency>
+    <!-- Optional Pipeline Registration -->
+    <dependency>
+      <groupId>com.google.auto.service</groupId>
+      <artifactId>auto-service</artifactId>
+      <version>1.0-rc2</version>
+      <optional>true</optional>
     </dependency>
   </dependencies>
 
