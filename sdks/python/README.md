@@ -17,9 +17,7 @@ from the Python programming language.
           * [Install ``setuptools``](#install-setuptools)
       * [Getting the Dataflow software](#getting-the-dataflow-software)
           * [Create and activate virtual environment](#create-and-activate-virtual-environment)
-          * [Download](#download)
-          * [Install](#install)
-          * [Test](#test)
+          * [Download and install](#download-and-install)
   * [Local execution of a pipeline](#local-execution-of-a-pipeline)
   * [A Quick Tour of the Source Code](#a-quick-tour-of-the-source-code)
   * [Some Simple Examples](#some-simple-examples)
@@ -159,34 +157,28 @@ environment's directories.  To activate a virtual environment in Bash:
 That is, source the script `bin/activate` under the virtual environment
 directory you created.
 
-#### Download
+#### Download and install
 
-Clone the SDK from GitHub:
+Install the latest tarball from GitHub by browsing to
+<https://github.com/GoogleCloudPlatform/DataflowPythonSDK/releases/latest>
+and copying one of the "Source code" links.  The `.tar.gz` file is smaller;
+we'll assume you use that one.  With a virtual environment active, paste the
+URL into a ``pip install`` shell command, executing something like this:
 
-    git clone https://github.com/GoogleCloudPlatform/DataflowPythonSDK
-
-#### Install
-
-With a virtual environment active, install the Dataflow package:
-
-    cd DataflowPythonSDK
-    python setup.py install
-
-#### Test
-
-After install, run the tests to make sure everything is okay.
-
-    python setup.py test
+```sh
+pip install https://github.com/GoogleCloud/DataflowPythonSDK/va.b.c.tar.gz
+```
 
 ## Local execution of a pipeline
 
-The `google/cloud/dataflow/examples` subdirectory in the
-source distribution has many examples large and small.
+The `$VIRTUAL_ENV/lib/python2.7/site-packages/google/cloud/dataflow/examples`
+subdirectory (the `google/cloud/dataflow/examples` subdirectory in the
+source distribution) has many examples large and small.
 
 All examples can be run locally by passing the arguments required by the
 example script. For instance, to run `wordcount.py`, try:
 
-    python google/cloud/dataflow/examples/wordcount.py --output OUTPUT_FILE
+    python -m google.cloud.dataflow.examples.wordcount --output OUTPUT_FILE
 
 ## A Quick Tour of the Source Code
 

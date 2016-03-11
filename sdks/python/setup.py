@@ -83,7 +83,14 @@ def get_dataflow_docstring():
     docstring = re.sub(r'\.\n', title_underline, docstring, count=1)
   return docstring
 
+
 _PYTHON_DATAFLOW_VERSION = get_dataflow_version()
+
+
+def get_download_url():
+  """Calculate a permanent download URL for this version."""
+  return ('https://github.com/GoogleCloudPlatform/DataflowPythonSDK/'
+          'archive/v%s.tar.gz' % _PYTHON_DATAFLOW_VERSION)
 
 
 setuptools.setup(
@@ -91,9 +98,9 @@ setuptools.setup(
     version=_PYTHON_DATAFLOW_VERSION,
     description='Google Cloud Dataflow SDK for Python',
     long_description=get_dataflow_docstring(),
-    url='http://cloud.google.com/dataflow/',
+    url='https://cloud.google.com/dataflow/',
+    download_url=get_download_url(),
     author='Google, Inc.',
-    author_email='dataflow-feedback@google.com',
     packages=setuptools.find_packages(),
     entry_points={
         'console_scripts': CONSOLE_SCRIPTS,
