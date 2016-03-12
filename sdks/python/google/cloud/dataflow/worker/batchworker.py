@@ -105,6 +105,10 @@ class BatchWorker(object):
     self._current_executor = None
     self.environment = maptask.WorkerEnvironment()
 
+    # If 'True', progress_reporting_thread keeps sending progress updates for
+    # the currently set work item; does not send progress updates otherwise.
+    self.report_progress = False
+
   @property
   def current_work_item(self):
     with self.lock:
@@ -339,6 +343,15 @@ class BatchWorker(object):
       try:
         self.log_memory_usage_if_needed(force=False)
 
+        if not self.report_progress:
+          logging.debug('Progress update thread was paused. '
+                        'Sleeping a bit...')
+          if work_item is not None:
+            logging.debug('Releasing current work item')
+            work_item = None
+          time.sleep(1.0)
+          continue
+
         # If thread does not work on something then try to get the current work
         # item from the worker object. This in turn can be None if there where
         # no work items to lease from the service.
@@ -378,11 +391,16 @@ class BatchWorker(object):
     self.log_memory_usage_if_needed(force=True)
     try:
       with work_item.lock:
+        # If we still have a split result from a previous work item (which must
+        # have failed) we clear it here.
+        self.dynamic_split_result_to_report = None
+
         self.set_current_work_item_and_executor(work_item,
                                                 executor.MapTaskExecutor())
-
+      self.report_progress = True
       self.current_executor.execute(work_item.map_task)
     except Exception:  # pylint: disable=broad-except
+      self.report_progress = False
       exception_details = traceback.format_exc()
       logging.error('Exception: %s', exception_details, exc_info=True)
       # Completed with errors means failed.
@@ -390,6 +408,7 @@ class BatchWorker(object):
         self.report_completion_status(work_item,
                                       exception_details=exception_details)
     else:
+      self.report_progress = False
       with work_item.lock:
         self.report_completion_status(work_item)
     with work_item.lock:
