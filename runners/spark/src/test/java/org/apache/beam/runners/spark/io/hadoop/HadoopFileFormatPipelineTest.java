@@ -16,11 +16,13 @@
 package org.apache.beam.runners.spark.io.hadoop;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import org.apache.beam.runners.spark.EvaluationResult;
 import org.apache.beam.runners.spark.SparkPipelineRunner;
+import org.apache.beam.runners.spark.coders.WritableCoder;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
@@ -66,7 +68,8 @@ public class HadoopFileFormatPipelineTest {
         (Class<? extends FileInputFormat<IntWritable, Text>>) (Class<?>) SequenceFileInputFormat.class;
     HadoopIO.Read.Bound<IntWritable,Text> read =
         HadoopIO.Read.from(inputFile.getAbsolutePath(), inputFormatClass, IntWritable.class, Text.class);
-    PCollection<KV<IntWritable, Text>> input = p.apply(read);
+    PCollection<KV<IntWritable, Text>> input = p.apply(read)
+        .setCoder(KvCoder.of(WritableCoder.of(IntWritable.class), WritableCoder.of(Text.class)));
     @SuppressWarnings("unchecked")
     Class<? extends FileOutputFormat<IntWritable, Text>> outputFormatClass =
         (Class<? extends FileOutputFormat<IntWritable, Text>>) (Class<?>) TemplatedSequenceFileOutputFormat.class;
