@@ -261,7 +261,7 @@ class SetupTest(unittest.TestCase):
     self.assertEqual(
         'The file "%s" cannot be found. Its '
         'directory was specified by the --sdk_location command-line option.' %
-        os.path.join(sdk_location, names.DATAFLOW_SDK_TARBALL_FILE),
+        sdk_location,
         cm.exception.message)
 
   def test_sdk_location_gcs(self):

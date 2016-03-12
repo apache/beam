@@ -322,10 +322,13 @@ def stage_job_resources(options, file_copy=_dependency_file_copy,
       # used by tests running with the SDK built at head.
       if setup_options.sdk_location == 'default':
         module_path = os.path.abspath(__file__)
-        sdk_dir = os.path.join(os.path.dirname(module_path), '..')
+        sdk_path = os.path.join(
+            os.path.dirname(module_path), '..', names.DATAFLOW_SDK_TARBALL_FILE)
+      elif os.path.isdir(setup_options.sdk_location):
+        sdk_path = os.path.join(
+            setup_options.sdk_location, names.DATAFLOW_SDK_TARBALL_FILE)
       else:
-        sdk_dir = setup_options.sdk_location
-      sdk_path = os.path.join(sdk_dir, names.DATAFLOW_SDK_TARBALL_FILE)
+        sdk_path = setup_options.sdk_location
       if os.path.isfile(sdk_path):
         logging.info('Copying dataflow SDK "%s" to staging location.', sdk_path)
         file_copy(sdk_path, staged_path)
