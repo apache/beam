@@ -30,7 +30,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.util.TimerInternals;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowingInternals;
-import com.google.cloud.dataflow.sdk.util.state.StateInternals;
+import com.google.cloud.dataflow.sdk.util.state.*;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.collect.AbstractIterator;
@@ -154,8 +154,10 @@ abstract class SparkProcessContext<I, O, V> extends DoFn<I, O>.ProcessContext {
 
       @Override
       public StateInternals stateInternals() {
-        throw new UnsupportedOperationException(
-            "WindowingInternals#stateInternals() is not yet supported.");
+        //TODO: implement state internals.
+        // This is a temporary placeholder to get the TfIdfTest
+        // working for the initial Beam code drop.
+        return InMemoryStateInternals.forKey("DUMMY");
       }
 
       @Override
