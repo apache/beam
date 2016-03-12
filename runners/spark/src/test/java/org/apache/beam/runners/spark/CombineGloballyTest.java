@@ -73,7 +73,7 @@ public class CombineGloballyTest {
 
     @Override
     public String extractOutput(StringBuilder accumulator) {
-      return accumulator.toString();
+      return accumulator != null ? accumulator.toString(): "";
     }
 
     private static StringBuilder combine(StringBuilder accum, String datum) {
