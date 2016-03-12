@@ -17,16 +17,21 @@
  */
 package org.apache.beam.sdk.util;
 
+import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
+import org.hamcrest.Description;
+import org.hamcrest.Matcher;
+import org.hamcrest.TypeSafeDiagnosingMatcher;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -45,15 +50,7 @@ public class ApiSurfaceTest {
 
   @Test
   public void testOurApiSurface() throws Exception {
-    ApiSurface checkedApiSurface = ApiSurface.getSdkApiSurface()
-      .pruningClassName("org.apache.beam.sdk.runners.worker.StateFetcher")
-      .pruningClassName("org.apache.beam.sdk.util.common.ReflectHelpers")
-      .pruningClassName("org.apache.beam.sdk.DataflowMatchers")
-      .pruningClassName("org.apache.beam.sdk.TestUtils")
-      .pruningClassName("org.apache.beam.sdk.WindowMatchers")
-      .pruningClassName("org.apache.beam.sdk.transforms.display.DisplayDataMatchers");
-
-    checkedApiSurface.getExposedClasses();
+    ApiSurface checkedApiSurface = ApiSurface.getSdkApiSurface();
 
     Map<Class<?>, List<Class<?>>> disallowedClasses = Maps.newHashMap();
     for (Class<?> clazz : checkedApiSurface.getExposedClasses()) {
@@ -75,8 +72,61 @@ public class ApiSurfaceTest {
     }
   }
 
+  @SuppressWarnings("unchecked")
+  private static final Set<Matcher<Class<?>>> ALLOWED_PACKAGES =
+      ImmutableSet.of(
+          inPackage("org.apache.beam"),
+          inPackage("com.google.api.client"),
+          inPackage("com.google.api.services.bigquery"),
+          inPackage("com.google.api.services.dataflow"),
+          inPackage("com.google.api.services.datastore"),
+          inPackage("com.google.api.services.pubsub"),
+          inPackage("com.google.api.services.storage"),
+          inPackage("com.google.auth"),
+          inPackage("com.google.bigtable.v1"),
+          inPackage("com.google.cloud.bigtable.config"),
+          inPackage("com.google.cloud.bigtable.grpc"),
+          inPackage("com.google.protobuf"),
+          inPackage("com.fasterxml.jackson.annotation"),
+          inPackage("io.grpc"),
+          inPackage("org.apache.avro"),
+          inPackage("org.apache.commons.logging"), // via BigTable
+          inPackage("org.hamcrest"), // via DataflowMatchers
+          inPackage("org.codehaus.jackson"), // via Avro
+          inPackage("org.joda.time"),
+          inPackage("org.junit"),
+          inPackage("java"));
+
+  @SuppressWarnings({"rawtypes", "unchecked"})
   private boolean classIsAllowed(Class<?> clazz) {
-    return  clazz.getName().startsWith("org.apache.beam");
+    // Safe cast inexpressible in Java without rawtypes
+    return anyOf((Iterable) ALLOWED_PACKAGES).matches(clazz);
+  }
+
+  private static final Matcher<Class<?>> inPackage(String packageName) {
+    return new ClassInPackage(packageName);
+  }
+
+  private static class ClassInPackage extends TypeSafeDiagnosingMatcher<Class<?>> {
+
+    private final String packageName;
+
+    public ClassInPackage(String packageName) {
+      this.packageName = packageName;
+    }
+
+    @Override
+    public void describeTo(Description description) {
+      description.appendText("Class in package \"");
+      description.appendText(packageName);
+      description.appendText("\"");
+    }
+
+    @Override
+    protected boolean matchesSafely(Class<?> clazz, Description mismatchDescription) {
+      return clazz.getName().startsWith(packageName + ".");
+    }
+
   }
 
   //////////////////////////////////////////////////////////////////////////////////
