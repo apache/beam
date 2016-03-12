@@ -610,22 +610,18 @@ public class ApiSurface {
 
   ////////////////////////////////////////////////////////////////////////////
 
+  /**
+   * All classes transitively reachable via only public method signatures of the SDK.
+   *
+   * <p>Note that our idea of "public" does not include various internal-only APIs.
+   */
   public static ApiSurface getSdkApiSurface() throws IOException {
     return ApiSurface.ofPackage("org.apache.beam")
-        .pruningPattern("org[.]apache[.]beam.*Test")
-        .pruningPattern("org[.]apache[.]beam.*Benchmark")
-        .pruningPrefix("org.apache.beam.integration")
-        .pruningPrefix("java")
-        .pruningPrefix("com.google.api")
-        .pruningPrefix("com.google.auth")
-        .pruningPrefix("com.google.bigtable.v1")
-        .pruningPrefix("com.google.cloud.bigtable.config")
-        .pruningPrefix("com.google.cloud.bigtable.grpc.Bigtable*Name")
-        .pruningPrefix("com.google.protobuf")
-        .pruningPrefix("org.joda.time")
-        .pruningPrefix("org.apache.avro")
-        .pruningPrefix("org.junit")
-        .pruningPrefix("com.fasterxml.jackson.annotation");
+        .pruningPattern("org[.]apache[.]beam[.].*Test")
+
+        // Exposes Guava, but not intended for users
+        .pruningClassName("org.apache.beam.sdk.util.common.ReflectHelpers")
+        .pruningPrefix("java");
   }
 
   public static void main(String[] args) throws Exception {

@@ -45,15 +45,7 @@ public class ApiSurfaceTest {
 
   @Test
   public void testOurApiSurface() throws Exception {
-    ApiSurface checkedApiSurface = ApiSurface.getSdkApiSurface()
-      .pruningClassName("org.apache.beam.sdk.runners.worker.StateFetcher")
-      .pruningClassName("org.apache.beam.sdk.util.common.ReflectHelpers")
-      .pruningClassName("org.apache.beam.sdk.DataflowMatchers")
-      .pruningClassName("org.apache.beam.sdk.TestUtils")
-      .pruningClassName("org.apache.beam.sdk.WindowMatchers")
-      .pruningClassName("org.apache.beam.sdk.transforms.display.DisplayDataMatchers");
-
-    checkedApiSurface.getExposedClasses();
+    ApiSurface checkedApiSurface = ApiSurface.getSdkApiSurface();
 
     Map<Class<?>, List<Class<?>>> disallowedClasses = Maps.newHashMap();
     for (Class<?> clazz : checkedApiSurface.getExposedClasses()) {
@@ -76,7 +68,33 @@ public class ApiSurfaceTest {
   }
 
   private boolean classIsAllowed(Class<?> clazz) {
-    return  clazz.getName().startsWith("org.apache.beam");
+    return clazz.getName().startsWith("org.apache.beam")
+        || clazz.getName().startsWith("com.google.api.client.")
+        || clazz.getName().startsWith("com.google.api.services.bigquery.")
+        || clazz.getName().startsWith("com.google.api.services.dataflow.")
+        || clazz.getName().startsWith("com.google.api.services.datastore.")
+        || clazz.getName().startsWith("com.google.api.services.pubsub.")
+        || clazz.getName().startsWith("com.google.api.services.storage.")
+        || clazz.getName().startsWith("com.google.auth.")
+        || clazz.getName().startsWith("com.google.bigtable.v1.")
+        || clazz.getName().startsWith("com.google.cloud.bigtable.config.")
+        || clazz.getName().startsWith("com.google.cloud.bigtable.grpc.")
+        || clazz.getName().startsWith("com.google.protobuf.")
+
+        || clazz.getName().startsWith("com.fasterxml.jackson.annotation.")
+
+        || clazz.getName().startsWith("io.grpc.")
+
+        || clazz.getName().startsWith("org.apache.avro.")
+
+        // exposed by BigTable - maybe can get away from it
+        || clazz.getName().startsWith("org.apache.commons.logging.")
+        || clazz.getName().startsWith("org.hamcrest") // via DataflowMatchers
+        || clazz.getName().startsWith("org.codehaus.jackson") // via Avro
+        || clazz.getName().startsWith("org.joda.time.")
+        || clazz.getName().startsWith("org.junit.")
+
+        || clazz.getName().startsWith("java.");
   }
 
   //////////////////////////////////////////////////////////////////////////////////
