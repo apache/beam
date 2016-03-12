@@ -32,7 +32,7 @@ import org.junit.runners.JUnit4;
 public class PipelineOptionsFactoryJava8Test {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
-  private static interface OptsWithDefault extends PipelineOptions {
+  private static interface OptionsWithDefaultMethod extends PipelineOptions {
     default Number getValue() {
       return 1024;
     }
@@ -42,32 +42,33 @@ public class PipelineOptionsFactoryJava8Test {
 
   @Test
   public void testDefaultMethodIgnoresDefaultImplementation() {
-    OptsWithDefault optsWithDefault = PipelineOptionsFactory.as(OptsWithDefault.class);
+    OptionsWithDefaultMethod optsWithDefault =
+        PipelineOptionsFactory.as(OptionsWithDefaultMethod.class);
     assertThat(optsWithDefault.getValue(), nullValue());
 
     optsWithDefault.setValue(12.25);
     assertThat(optsWithDefault.getValue(), equalTo(Double.valueOf(12.25)));
   }
 
-  private static interface ExtendedOptsWithDefault extends OptsWithDefault {}
+  private static interface ExtendedOptionsWithDefault extends OptionsWithDefaultMethod {}
 
   @Test
   public void testDefaultMethodInExtendedClassIgnoresDefaultImplementation() {
-    OptsWithDefault extendedOptsWithDefault =
-        PipelineOptionsFactory.as(ExtendedOptsWithDefault.class);
+    OptionsWithDefaultMethod extendedOptsWithDefault =
+        PipelineOptionsFactory.as(ExtendedOptionsWithDefault.class);
     assertThat(extendedOptsWithDefault.getValue(), nullValue());
 
     extendedOptsWithDefault.setValue(Double.NEGATIVE_INFINITY);
     assertThat(extendedOptsWithDefault.getValue(), equalTo(Double.NEGATIVE_INFINITY));
   }
 
-  private static interface Opts extends PipelineOptions {
+  private static interface Options extends PipelineOptions {
     Number getValue();
 
     void setValue(Number value);
   }
 
-  private static interface SubtypeReturingOpts extends Opts {
+  private static interface SubtypeReturingOptions extends Options {
     @Override
     Integer getValue();
     void setValue(Integer value);
@@ -78,12 +79,12 @@ public class PipelineOptionsFactoryJava8Test {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
         "Method [getValue] has multiple definitions [public abstract java.lang.Integer "
-        + "com.google.cloud.dataflow.sdk.options.PipelineOptionsFactoryJava8Test$"
-        + "SubtypeReturingOpts.getValue(), public abstract java.lang.Number "
-        + "com.google.cloud.dataflow.sdk.options.PipelineOptionsFactoryJava8Test$Opts"
-        + ".getValue()] with different return types for ["
-        + "com.google.cloud.dataflow.sdk.options.PipelineOptionsFactoryJava8Test$"
-        + "SubtypeReturingOpts].");
-    PipelineOptionsFactory.as(SubtypeReturingOpts.class);
+            + "com.google.cloud.dataflow.sdk.options.PipelineOptionsFactoryJava8Test$"
+            + "SubtypeReturingOptions.getValue(), public abstract java.lang.Number "
+            + "com.google.cloud.dataflow.sdk.options.PipelineOptionsFactoryJava8Test$Options"
+            + ".getValue()] with different return types for ["
+            + "com.google.cloud.dataflow.sdk.options.PipelineOptionsFactoryJava8Test$"
+            + "SubtypeReturingOptions].");
+    PipelineOptionsFactory.as(SubtypeReturingOptions.class);
   }
 }
