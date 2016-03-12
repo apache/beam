@@ -15,6 +15,8 @@
 package org.apache.beam.runners.spark.streaming;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.coders.KvCoder;
+import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
@@ -79,7 +81,7 @@ public class KafkaStreamingTest {
     producerProps.put("bootstrap.servers", EMBEDDED_KAFKA_CLUSTER.getBrokerList());
     Serializer<String> stringSerializer = new StringSerializer();
     try (@SuppressWarnings("unchecked") KafkaProducer<String, String> kafkaProducer =
-            new KafkaProducer(producerProps, stringSerializer, stringSerializer)) {
+        new KafkaProducer(producerProps, stringSerializer, stringSerializer)) {
       for (Map.Entry<String, String> en : KAFKA_MESSAGES.entrySet()) {
         kafkaProducer.send(new ProducerRecord<>(TOPIC, en.getKey(), en.getValue()));
       }
@@ -96,13 +98,14 @@ public class KafkaStreamingTest {
     Pipeline p = Pipeline.create(options);
 
     Map<String, String> kafkaParams = ImmutableMap.of(
-            "metadata.broker.list", EMBEDDED_KAFKA_CLUSTER.getBrokerList(),
-            "auto.offset.reset", "smallest"
+        "metadata.broker.list", EMBEDDED_KAFKA_CLUSTER.getBrokerList(),
+        "auto.offset.reset", "smallest"
     );
 
     PCollection<KV<String, String>> kafkaInput = p.apply(KafkaIO.Read.from(StringDecoder.class,
         StringDecoder.class, String.class, String.class, Collections.singleton(TOPIC),
-        kafkaParams));
+        kafkaParams))
+        .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
     PCollection<KV<String, String>> windowedWords = kafkaInput
         .apply(Window.<KV<String, String>>into(FixedWindows.of(Duration.standardSeconds(1))));
 
