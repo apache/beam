@@ -309,6 +309,8 @@ class ShuffleReaderBase(iobase.SourceReader):
     self.source = shuffle_source
     self.reader = reader
     self.entries_iterable = None
+    self.key_coder = self.source.key_coder.get_impl()
+    self.value_coder = self.source.value_coder.get_impl()
 
   def __enter__(self):
     if self.reader is None:
@@ -340,7 +342,7 @@ class GroupedShuffleReader(ShuffleReaderBase):
       entries_iterator.push_back(entry)
       key_values = ShuffleKeyValuesIterable(
           entries_iterator,
-          entry.key, self.source.value_coder, entry.position)
+          entry.key, self.value_coder, entry.position)
       group_start = entry.position
 
       last_group_start = self._range_tracker.last_group_start
@@ -354,7 +356,7 @@ class GroupedShuffleReader(ShuffleReaderBase):
         # source.
         return
 
-      yield (self.source.key_coder.decode(entry.key), key_values)
+      yield (self.key_coder.decode(entry.key), key_values)
       # We need to drain the iterator returned just in case this
       # was not done by the caller. Otherwise we will not properly advance
       # to the next key but rather return the next entry for the current
@@ -406,7 +408,7 @@ class UngroupedShuffleReader(ShuffleReaderBase):
 
   def __iter__(self):
     for entry in self.entries_iterable:
-      yield self.source.value_coder.decode(entry.value)
+      yield self.value_coder.decode(entry.value)
 
 
 class ShuffleSourceBase(iobase.Source):
@@ -451,6 +453,8 @@ class ShuffleSinkWriter(iobase.NativeSinkWriter):
     self.writer = writer
     self.stream = StringIO.StringIO()
     self.bytes_buffered = 0
+    self.key_coder = self.sink.key_coder.get_impl()
+    self.value_coder = self.sink.value_coder.get_impl()
 
   def __enter__(self):
     if self.writer is None:
@@ -468,9 +472,9 @@ class ShuffleSinkWriter(iobase.NativeSinkWriter):
 
   def Write(self, key, secondary_key, value):
     entry = ShuffleEntry(
-        self.sink.key_coder.encode(key),
-        self.sink.key_coder.encode(secondary_key),
-        self.sink.value_coder.encode(value),
+        self.key_coder.encode(key),
+        secondary_key,
+        self.value_coder.encode(value),
         position=None)
     entry.to_bytes(self.stream, with_position=False)
     self.bytes_buffered += entry.size

@@ -328,10 +328,9 @@ class ShuffleWriteOperation(Operation):
       k, v = str(random.getrandbits(64)), o.value
     else:
       k, v = o.value
-    # TODO(silviuc): Figure out what is the proper value for the secondary key.
-    # For now the secondary key is a duplicate of the primary key just because
-    # they both use the same coder.
-    self.writer.Write(k, k, v)
+    # TODO(silviuc): Use timestamps for the secondary key to get values in
+    # times-sorted order.
+    self.writer.Write(k, '', v)
 
 
 class DoOperation(Operation):

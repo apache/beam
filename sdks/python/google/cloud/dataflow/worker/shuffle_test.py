@@ -19,6 +19,7 @@ import cStringIO as StringIO
 import logging
 import unittest
 
+from google.cloud.dataflow import coders
 from google.cloud.dataflow.io import iobase
 from google.cloud.dataflow.worker.shuffle import GroupedShuffleSource
 from google.cloud.dataflow.worker.shuffle import ShuffleEntry
@@ -26,7 +27,7 @@ from google.cloud.dataflow.worker.shuffle import ShuffleSink
 from google.cloud.dataflow.worker.shuffle import UngroupedShuffleSource
 
 
-class Base64Coder(object):
+class Base64Coder(coders.Coder):
   """Simple base64 coder used throughout the tests."""
 
   def decode(self, o):
@@ -67,7 +68,7 @@ class FakeShuffleReader(object):
     for key, value in descriptor:
       ShuffleEntry(
           coder.encode(key),
-          coder.encode('2nd-%s' % key),
+          '',
           coder.encode(value),
           position=str(position)).to_bytes(stream)
       position += 1
@@ -348,7 +349,7 @@ class TestShuffleSink(unittest.TestCase):
 
   def test_basics(self):
     source = ShuffleSink(config_bytes='not used', coder=Base64Coder())
-    entries = [('a', '2nd-a', '1'), ('b', '2nd-b', '0'), ('b', '2nd-b', '1')]
+    entries = [('a', '', '1'), ('b', '', '0'), ('b', '', '1')]
     fake_writer = FakeShuffleWriter()
     with source.writer(test_writer=fake_writer) as writer:
       for entry in entries:

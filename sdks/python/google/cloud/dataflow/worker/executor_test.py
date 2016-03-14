@@ -186,8 +186,8 @@ class ExecutorTest(unittest.TestCase):
         test_shuffle_sink=shuffle_sink_mock)
     # Make sure we have seen all the (k, v) writes.
     shuffle_sink_mock.writer().Write.assert_has_calls(
-        [mock.call('a', 'a', 1), mock.call('b', 'b', 1),
-         mock.call('c', 'c', 1), mock.call('d', 'd', 1)])
+        [mock.call('a', '', 1), mock.call('b', '', 1),
+         mock.call('c', '', 1), mock.call('d', '', 1)])
 
   def test_shuffle_read_do_write(self):
     output_path = self.create_temp_file('n/a')
