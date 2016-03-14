@@ -384,17 +384,22 @@ class CallableWrapperCombineFn(CombineFn):
     return self._EMPTY
 
   def add_input(self, accumulator, element, *args, **kwargs):
-    return self.add_inputs([element], *args, **kwargs)
+    if accumulator is self._EMPTY:
+      return element
+    else:
+      return self._fn([accumulator, element], *args, **kwargs)
 
   def add_inputs(self, accumulator, elements, *args, **kwargs):
-    if accumulator is not self._EMPTY:
+    if accumulator is self._EMPTY:
+      return self._fn(elements, *args, **kwargs)
+    elif isinstance(elements, (list, tuple)):
+      return self._fn([accumulator] + elements, *args, **kwargs)
+    else:
       def union():
         yield accumulator
         for e in elements:
           yield e
-    else:
-      union = lambda: elements
-    return self._fn(union(), *args, **kwargs)
+      return self._fn(union(), *args, **kwargs)
 
   def merge_accumulators(self, accumulators, *args, **kwargs):
     # It's (weakly) assumed that self._fn is associative.

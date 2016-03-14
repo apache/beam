@@ -452,37 +452,42 @@ class ToDictCombineFn(core.CombineFn):
     return accumulator
 
 
+def curry_combine_fn(fn, args, kwargs):
+  if not args and not kwargs:
+    return fn
+
+  else:
+
+    class CurriedFn(core.CombineFn):
+      """CombineFn that applies extra arguments."""
+
+      def create_accumulator(self):
+        return fn.create_accumulator(*args, **kwargs)
+
+      def add_input(self, accumulator, element):
+        return fn.add_input(accumulator, element, *args, **kwargs)
+
+      def add_inputs(self, accumulator, elements):
+        return fn.add_inputs(accumulator, elements, *args, **kwargs)
+
+      def merge_accumulators(self, accumulators):
+        return fn.merge_accumulators(accumulators, *args, **kwargs)
+
+      def extract_output(self, accumulator):
+        return fn.extract_output(accumulator, *args, **kwargs)
+
+      def apply(self, elements):
+        return fn.apply(elements, *args, **kwargs)
+
+    return CurriedFn()
+
+
 class PhasedCombineFnExecutor(object):
   """Executor for phases of combine operations."""
 
   def __init__(self, phase, fn, args, kwargs):
 
-    if not args and not kwargs:
-      self.combine_fn = fn
-    else:
-
-      class CurriedFn(core.CombineFn):
-        """CombineFn that applies extra arguments."""
-
-        def create_accumulator(self):
-          return fn.create_accumulator(*args, **kwargs)
-
-        def add_input(self, accumulator, element):
-          return fn.add_input(accumulator, element, *args, **kwargs)
-
-        def add_inputs(self, accumulator, elements):
-          return fn.add_inputs(accumulator, elements, *args, **kwargs)
-
-        def merge_accumulators(self, accumulators):
-          return fn.merge_accumulators(accumulators, *args, **kwargs)
-
-        def extract_output(self, accumulator):
-          return fn.extract_output(accumulator, *args, **kwargs)
-
-        def apply(self, elements):
-          return fn.apply(elements, *args, **kwargs)
-
-      self.combine_fn = CurriedFn()
+    self.combine_fn = curry_combine_fn(fn, args, kwargs)
 
     if phase == 'all':
       self.apply = self.full_combine

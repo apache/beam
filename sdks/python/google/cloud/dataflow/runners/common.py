@@ -93,25 +93,18 @@ class DoFnRunner(object):
         self.context.set_element(element)
         self._process_outputs(element, self.dofn.process(self.context))
     except BaseException as exn:
-      raise self.augment_exception(exn)
+      self.reraise_augmented(exn)
 
-  def augment_exception(self, exn):
-    try:
-      if getattr(exn, '_tagged_with_step', False) or not self.step_name:
-        return exn
-      args = exn.args
-      if args and isinstance(args[0], str):
-        args = (args[0] + " [while running '%s']" % self.step_name,) + args[1:]
-        # Poor man's exception chaining.
-        try:
-          raise type(exn), args, sys.exc_info()[2]
-        except BaseException as new_exn:
-          new_exn._tagged_with_step = True
-          return new_exn
-      else:
-        return exn
-    except:
-      return exn
+  def reraise_augmented(self, exn):
+    if getattr(exn, '_tagged_with_step', False) or not self.step_name:
+      raise
+    args = exn.args
+    if args and isinstance(args[0], str):
+      args = (args[0] + " [while running '%s']" % self.step_name,) + args[1:]
+      # Poor man's exception chaining.
+      raise type(exn), args, sys.exc_info()[2]
+    else:
+      raise
 
   def _process_outputs(self, element, results):
     """Dispatch the result of computation to the appropriate receivers.

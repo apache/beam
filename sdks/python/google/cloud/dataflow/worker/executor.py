@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# cython: profile=True
+
 """Worker operations executor."""
 
 import collections
@@ -24,8 +26,10 @@ from google.cloud.dataflow.internal import pickler
 from google.cloud.dataflow.pvalue import EmptySideInput
 from google.cloud.dataflow.runners import common
 import google.cloud.dataflow.transforms as ptransform
+from google.cloud.dataflow.transforms import combiners
 from google.cloud.dataflow.transforms import trigger
 from google.cloud.dataflow.transforms import window
+from google.cloud.dataflow.transforms.combiners import curry_combine_fn
 from google.cloud.dataflow.transforms.combiners import PhasedCombineFnExecutor
 from google.cloud.dataflow.transforms.trigger import InMemoryUnmergedState
 from google.cloud.dataflow.transforms.window import GlobalWindows
@@ -147,8 +151,8 @@ class ReadOperation(Operation):
           windowed_value = value
         else:
           windowed_value = GlobalWindows.WindowedValue(value)
+        self.counters[0].update(windowed_value)
         for receiver in self.receivers[0]:
-          self.counters[0].update(windowed_value)
           receiver.process(windowed_value)
 
   def side_read_all(self, singleton=False):
@@ -239,9 +243,9 @@ class GroupedShuffleReadOperation(Operation):
     with self.shuffle_source.reader() as reader:
       for key, key_values in reader:
         self._reader = reader
+        windowed_value = GlobalWindows.WindowedValue((key, key_values))
+        self.counters[0].update(windowed_value)
         for receiver in self.receivers[0]:
-          windowed_value = GlobalWindows.WindowedValue((key, key_values))
-          self.counters[0].update(windowed_value)
           receiver.process(windowed_value)
 
   def get_progress(self):
@@ -271,9 +275,9 @@ class UngroupedShuffleReadOperation(Operation):
     with self.shuffle_source.reader() as reader:
       for value in reader:
         self._reader = reader
+        windowed_value = GlobalWindows.WindowedValue(value)
+        self.counters[0].update(windowed_value)
         for receiver in self.receivers[0]:
-          windowed_value = GlobalWindows.WindowedValue(value)
-          self.counters[0].update(windowed_value)
           receiver.process(windowed_value)
 
   def get_progress(self):
@@ -463,9 +467,16 @@ class CombineOperation(Operation):
     key, values = o.value
     windowed_result = WindowedValue(
         (key, self.phased_combine_fn.apply(values)), o.timestamp, o.windows)
+    self.counters[0].update(windowed_result)
     for receiver in self.receivers[0]:
-      self.counters[0].update(windowed_result)
       receiver.process(windowed_result)
+
+
+def create_pgbk_op(spec):
+  if spec.combine_fn:
+    return PGBKCVOperation(spec)
+  else:
+    return PGBKOperation(spec)
 
 
 class PGBKOperation(Operation):
@@ -478,16 +489,7 @@ class PGBKOperation(Operation):
 
   def __init__(self, spec):
     super(PGBKOperation, self).__init__(spec)
-    self.phased_combine_fn = None
-    if self.spec.combine_fn:
-      # Combiners do not accept deferred side-inputs (the ignored fourth
-      # argument) and therefore the code to handle the extra args/kwargs is
-      # simpler than for the DoFn's of ParDo.
-      #
-      # TODO(ccy): Combine as we go for each key instead of storing up state
-      # for combination when flushing.
-      fn, args, kwargs = pickler.loads(self.spec.combine_fn)[:3]
-      self.phased_combine_fn = PhasedCombineFnExecutor('add', fn, args, kwargs)
+    assert not self.spec.combine_fn
     self.table = collections.defaultdict(list)
     self.size = 0
     # TODO(robertwb) Make this configurable.
@@ -512,14 +514,56 @@ class PGBKOperation(Operation):
       del self.table[kw]
       key, windows = kw
       output_value = [v.value[1] for v in vs]
-      if self.phased_combine_fn:
-        output_value = self.phased_combine_fn.apply(output_value)
       windowed_value = WindowedValue(
           (key, output_value),
           vs[0].timestamp, windows)
+      self.counters[0].update(windowed_value)
       for receiver in self.receivers[0]:
-        self.counters[0].update(windowed_value)
         receiver.process(windowed_value)
+
+
+class PGBKCVOperation(Operation):
+
+  def __init__(self, spec):
+    super(PGBKCVOperation, self).__init__(spec)
+    # Combiners do not accept deferred side-inputs (the ignored fourth
+    # argument) and therefore the code to handle the extra args/kwargs is
+    # simpler than for the DoFn's of ParDo.
+    fn, args, kwargs = pickler.loads(self.spec.combine_fn)[:3]
+    self.combine_fn = curry_combine_fn(fn, args, kwargs)
+    # Optimization for the (known tiny accumulator, often wide keyspace)
+    # count function.
+    # TODO(robertwb): Bound by in-memory size rather than key count.
+    self.max_keys = (
+        1000000 if isinstance(fn, combiners.CountCombineFn) else 10000)
+    self.key_count = 0
+    self.table = {}
+
+  def process(self, wkv):
+    key, value = wkv.value
+    wkey = tuple(wkv.windows), key
+    entry = self.table.get(wkey, None)
+    if entry is None:
+      if self.key_count >= self.max_keys:
+        old_wkey = self.table.iterkeys().next()  # Any key, could use LRU
+        self.output(old_wkey, self.table.pop(old_wkey)[0])
+      else:
+        self.key_count += 1
+      entry = self.table[wkey] = [self.combine_fn.create_accumulator()]
+    entry[0] = self.combine_fn.add_inputs(entry[0], [value])
+
+  def finish(self):
+    for wkey, value in self.table.iteritems():
+      self.output(wkey, value[0])
+    self.entries = {}
+    self.key_count = 0
+
+  def output(self, wkey, value):
+    windows, key = wkey
+    windowed_value = WindowedValue((key, value), windows[0].end, windows)
+    self.counters[0].update(windowed_value)
+    for receiver in self.receivers[0]:
+      receiver.process(windowed_value)
 
 
 class FlattenOperation(Operation):
@@ -533,8 +577,8 @@ class FlattenOperation(Operation):
     logging.debug('Processing [%s] in %s', o, self)
     assert isinstance(o, WindowedValue)
     windowed_result = WindowedValue(o.value, o.timestamp, o.windows)
+    self.counters[0].update(windowed_result)
     for receiver in self.receivers[0]:
-      self.counters[0].update(windowed_result)
       receiver.process(windowed_result)
 
 
@@ -559,8 +603,8 @@ class ReifyTimestampAndWindowsOperation(Operation):
             o.timestamp, o.windows))
 
   def output(self, windowed_result):
+    self.counters[0].update(windowed_result)
     for receiver in self.receivers[0]:
-      self.counters[0].update(windowed_result)
       receiver.process(windowed_result)
 
 
@@ -608,8 +652,8 @@ class BatchGroupAlsoByWindowsOperation(Operation):
               window.WindowedValue((k, values), timestamp, [out_window]))
 
   def output(self, windowed_result):
+    self.counters[0].update(windowed_result)
     for receiver in self.receivers[0]:
-      self.counters[0].update(windowed_result)
       receiver.process(windowed_result)
 
 
@@ -646,8 +690,8 @@ class StreamingGroupAlsoByWindowsOperation(Operation):
                                          [out_window]))
 
   def output(self, windowed_result):
+    self.counters[0].update(windowed_result)
     for receiver in self.receivers[0]:
-      self.counters[0].update(windowed_result)
       receiver.process(windowed_result)
 
 
@@ -706,7 +750,7 @@ class MapTaskExecutor(object):
       elif isinstance(spec, maptask.WorkerCombineFn):
         op = CombineOperation(spec)
       elif isinstance(spec, maptask.WorkerPartialGroupByKey):
-        op = PGBKOperation(spec)
+        op = create_pgbk_op(spec)
       elif isinstance(spec, maptask.WorkerDoFn):
         op = DoOperation(spec)
       elif isinstance(spec, maptask.WorkerGroupingShuffleRead):
