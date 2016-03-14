@@ -219,8 +219,8 @@ class GroupedShuffleRangeTracker(iobase.RangeTracker):
                       'of range', self, decoded_split_position)
         return False
 
-      logging.info('Agreeing to split %r at %r'
-                   , self, decoded_split_position)
+      logging.debug('Agreeing to split %r at %r'
+                    , self, decoded_split_position)
       self._decoded_stop_pos = decoded_split_position
       return True
 

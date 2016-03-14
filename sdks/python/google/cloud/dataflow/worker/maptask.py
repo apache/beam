@@ -678,10 +678,16 @@ class WorkerEnvironment(object):
       # Note that the worker does not really implement AVRO yet.It takes
       # advantage that both reading and writing is done through the worker to
       # choose a supported format (text files with one pickled object per line).
+      start_offset = None
+      if 'start_offset' in specs:
+        start_offset = int(specs['start_offset']['value'])
+      end_offset = None
+      if 'end_offset' in specs:
+        end_offset = int(specs['end_offset']['value'])
       return io.TextFileSource(
           file_path=specs['filename']['value'],
-          start_offset=None,
-          end_offset=None,
+          start_offset=start_offset,
+          end_offset=end_offset,
           strip_trailing_newlines=True,
           coder=coders.Base64PickleCoder())
 
