@@ -236,7 +236,7 @@ class FloatCoder(Coder):
     return True
 
 
-def dumps(o):
+def maybe_dill_dumps(o):
   """Pickle using cPickle or the Dill pickler as a fallback."""
   # We need to use the dill pickler for objects of certain custom classes,
   # including, for example, ones that contain lambdas.
@@ -246,7 +246,7 @@ def dumps(o):
     return dill.dumps(o)
 
 
-def loads(o):
+def maybe_dill_loads(o):
   """Unpickle using cPickle or the Dill pickler as a fallback."""
   try:
     return pickle.loads(o)
@@ -254,11 +254,8 @@ def loads(o):
     return dill.loads(o)
 
 
-class PickleCoder(FastCoder):
-  """Coder using Python's pickle functionality."""
-
-  def _create_impl(self):
-    return coder_impl.CallbackCoderImpl(dumps, loads)
+class _PickleCoderBase(FastCoder):
+  """Base class for pickling coders."""
 
   def is_deterministic(self):
     # Note that the default coder, the PickleCoder, is not deterministic (for
@@ -268,7 +265,7 @@ class PickleCoder(FastCoder):
     return False
 
   def as_cloud_object(self, is_pair_like=True):
-    value = super(PickleCoder, self).as_cloud_object()
+    value = super(_PickleCoderBase, self).as_cloud_object()
     # We currently use this coder in places where we cannot infer the coder to
     # use for the value type in a more granular way.  In places where the
     # service expects a pair, it checks for the "is_pair_like" key, in which
@@ -293,6 +290,20 @@ class PickleCoder(FastCoder):
 
   def value_coder(self):
     return self
+
+
+class PickleCoder(_PickleCoderBase):
+  """Coder using Python's pickle functionality."""
+
+  def _create_impl(self):
+    return coder_impl.CallbackCoderImpl(pickle.dumps, pickle.loads)
+
+
+class DillCoder(_PickleCoderBase):
+  """Coder using dill's pickle functionality."""
+
+  def _create_impl(self):
+    return coder_impl.CallbackCoderImpl(maybe_dill_dumps, maybe_dill_loads)
 
 
 class DeterministicPickleCoder(FastCoder):

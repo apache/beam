@@ -19,7 +19,19 @@ import math
 import sys
 import unittest
 
+import dill
+
 import coders
+
+
+# Defined out of line for picklability.
+class CustomCoder(coders.Coder):
+
+  def encode(self, x):
+    return str(x+1)
+
+  def decode(self, encoded):
+    return int(encoded) - 1
 
 
 class CodersTest(unittest.TestCase):
@@ -34,9 +46,10 @@ class CodersTest(unittest.TestCase):
 
   @classmethod
   def tearDownClass(cls):
-    standard = set(
-        c for c in coders.__dict__.values()
-        if isinstance(c, type) and issubclass(c, coders.Coder))
+    standard = set(c
+                   for c in coders.__dict__.values()
+                   if isinstance(c, type) and issubclass(c, coders.Coder) and
+                   'Base' not in c.__name__)
     standard -= set([coders.Coder, coders.ToStringCoder, coders.FloatCoder,
                      coders.Base64PickleCoder, coders.FastCoder,
                      coders.WindowCoder, coders.WindowedValueCoder])
@@ -59,15 +72,12 @@ class CodersTest(unittest.TestCase):
     self._observe(coder)
     for v in values:
       self.assertEqual(v, coder.decode(coder.encode(v)))
+    copy1 = dill.loads(dill.dumps(coder))
+    copy2 = dill.loads(dill.dumps(coder))
+    for v in values:
+      self.assertEqual(v, copy1.decode(copy2.encode(v)))
 
   def test_custom_coder(self):
-    class CustomCoder(coders.Coder):
-
-      def encode(self, x):
-        return str(x+1)
-
-      def decode(self, encoded):
-        return int(encoded) - 1
 
     self.check_coder(CustomCoder(), 1, -10, 5)
     self.check_coder(coders.TupleCoder((CustomCoder(), coders.BytesCoder())),
@@ -86,6 +96,13 @@ class CodersTest(unittest.TestCase):
 
     self.check_coder(coders.TupleCoder((coder, coders.PickleCoder())),
                      (1, dict()), ('a', [dict()]))
+
+  def test_dill_coder(self):
+    cell_value = (lambda x: lambda: x)(0).func_closure[0]
+    self.check_coder(coders.DillCoder(), 'a', 1, cell_value)
+    self.check_coder(
+        coders.TupleCoder((coders.VarIntCoder(), coders.DillCoder())),
+        (1, cell_value))
 
   def test_bytes_coder(self):
     self.check_coder(coders.BytesCoder(), 'a', '\0', 'z' * 1000)
