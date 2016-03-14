@@ -25,6 +25,7 @@ import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.collect.Iterables;
+import org.apache.beam.runners.spark.translation.SparkPipelineOptionsFactory;
 import org.junit.Test;
 
 import java.util.Collections;

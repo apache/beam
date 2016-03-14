@@ -30,7 +30,7 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.common.collect.ImmutableList;
 
-import org.apache.beam.runners.spark.SparkRuntimeContext;
+import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
 
 /**
  * This class wraps a map of named aggregators. Spark expects that all accumulators be declared
