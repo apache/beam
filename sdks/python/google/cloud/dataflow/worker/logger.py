@@ -28,6 +28,19 @@ per_thread_worker_data = threading.local()
 
 class PerThreadLoggingContext(object):
   """A context manager to add per thread attributes."""
+  _instance = dict()
+
+  def __new__(cls, *args, **kwargs):
+    # TODO(robertwb): make the class generic, this is special-cased to save
+    # time on the DoFn
+    if not args and len(kwargs) == 1 and 'step_name' in kwargs:
+      k = kwargs['step_name']
+      if k not in cls._instance:
+        cls._instance[k] = super(PerThreadLoggingContext, cls).__new__(
+            cls, *args, **kwargs)
+      return cls._instance[k]
+    else:
+      return super(PerThreadLoggingContext, cls).__new__(cls, *args, **kwargs)
 
   def __init__(self, *args, **kwargs):
     if args:
