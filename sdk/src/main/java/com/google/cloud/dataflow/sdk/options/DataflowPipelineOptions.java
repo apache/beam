@@ -34,8 +34,6 @@ public interface DataflowPipelineOptions extends
     GcsOptions, StreamingOptions, CloudDebuggerOptions, DataflowWorkerLoggingOptions,
     DataflowProfilingOptions {
 
-  static final String DATAFLOW_STORAGE_LOCATION = "Dataflow Storage Location";
-
   @Description("Project id. Required when running a Dataflow in the cloud. "
       + "See https://cloud.google.com/storage/docs/projects for further details.")
   @Override
@@ -46,36 +44,18 @@ public interface DataflowPipelineOptions extends
   void setProject(String value);
 
   /**
-   * GCS path for temporary files, e.g. gs://bucket/object
-   *
-   * <p>Must be a valid Cloud Storage URL, beginning with the prefix "gs://"
-   *
-   * <p>At least one of {@link #getTempLocation()} or {@link #getStagingLocation()} must be set. If
-   * {@link #getTempLocation()} is not set, then the Dataflow pipeline defaults to using
-   * {@link #getStagingLocation()}.
-   */
-  @Description("GCS path for temporary files, eg \"gs://bucket/object\". "
-      + "Must be a valid Cloud Storage URL, beginning with the prefix \"gs://\". "
-      + "At least one of tempLocation or stagingLocation must be set. If tempLocation is unset, "
-      + "defaults to using stagingLocation.")
-  @Validation.Required(groups = {DATAFLOW_STORAGE_LOCATION})
-  String getTempLocation();
-  void setTempLocation(String value);
-
-  /**
    * GCS path for staging local files, e.g. gs://bucket/object
    *
    * <p>Must be a valid Cloud Storage URL, beginning with the prefix "gs://"
    *
-   * <p>At least one of {@link #getTempLocation()} or {@link #getStagingLocation()} must be set. If
-   * {@link #getTempLocation()} is not set, then the Dataflow pipeline defaults to using
-   * {@link #getStagingLocation()}.
+   * <p>At least one of {@link PipelineOptions#getTempLocation()} or {@link #getStagingLocation()}
+   * must be set. If {@link #getStagingLocation()} is not set, then the Dataflow
+   * pipeline defaults to using {@link PipelineOptions#getTempLocation()}.
    */
   @Description("GCS path for staging local files, e.g. \"gs://bucket/object\". "
       + "Must be a valid Cloud Storage URL, beginning with the prefix \"gs://\". "
       + "At least one of stagingLocation or tempLocation must be set. If stagingLocation is unset, "
       + "defaults to using tempLocation.")
-  @Validation.Required(groups = {DATAFLOW_STORAGE_LOCATION})
   String getStagingLocation();
   void setStagingLocation(String value);
 

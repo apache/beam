@@ -649,10 +649,8 @@ public class DataflowPipelineRunnerTest {
     options.setProject("foo-project");
 
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Missing required value for group");
-    thrown.expectMessage(DataflowPipelineOptions.DATAFLOW_STORAGE_LOCATION);
-    thrown.expectMessage("getStagingLocation");
-    thrown.expectMessage("getTempLocation");
+    thrown.expectMessage(
+        "Missing required value: at least one of tempLocation or stagingLocation must be set.");
 
     DataflowPipelineRunner.fromOptions(options);
   }
