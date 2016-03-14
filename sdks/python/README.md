@@ -18,6 +18,7 @@ from the Python programming language.
       * [Getting the Dataflow software](#getting-the-dataflow-software)
           * [Create and activate virtual environment](#create-and-activate-virtual-environment)
           * [Download and install](#download-and-install)
+          * [Notes on installing with ``setup.py install``](#notes-on-installing-with-setuppy-install)
   * [Local execution of a pipeline](#local-execution-of-a-pipeline)
   * [A Quick Tour of the Source Code](#a-quick-tour-of-the-source-code)
   * [Some Simple Examples](#some-simple-examples)
@@ -133,9 +134,9 @@ your `virtualenv`:
 #### Install ``setuptools``
 
 If you are not going to use a Python virtual environment (but we recommend you
-do; see the previous section), then you will need to ensure `setuptools`
-version 17.1 or newer is installed on your system (type `easy_install
---version` to check).  If you do not have that installed:
+do; see the previous section), ensure `setuptools` version 17.1 or newer is
+installed (type `easy_install --version` to check).  If you do not have that
+installed:
 
     pip install --upgrade setuptools
 
@@ -168,6 +169,28 @@ URL into a ``pip install`` shell command, executing something like this:
 ```sh
 pip install https://github.com/GoogleCloud/DataflowPythonSDK/va.b.c.tar.gz
 ```
+
+#### Notes on installing with ``setup.py install``
+
+We recommend installing using ``pip install``, as described above.
+However, you also may install from an unpacked source code tree.
+You can get such a tree by un-tarring the ``.tar.gz`` file or
+by using ``git clone``.  From a source tree, you can install by running
+
+    cd DataflowPythonSDK*
+    python setup.py install --root /
+    python setup.py test
+
+The ``--root /`` prevents Dataflow from being installed as an ``egg`` package.
+This workaround prevents failures if Dataflow is installed in the same virtual
+environment as another package under the ``google`` top-level package.
+
+If you get import errors during or after installing with ``setup.py``,
+uninstall the package:
+
+    pip uninstall python-dataflow
+
+and use the ``pip install`` method described above to re-install it.
 
 ## Local execution of a pipeline
 
