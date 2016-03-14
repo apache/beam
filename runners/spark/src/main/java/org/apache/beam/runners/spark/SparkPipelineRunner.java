@@ -28,10 +28,10 @@ import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.cloud.dataflow.sdk.values.POutput;
 import com.google.cloud.dataflow.sdk.values.PValue;
 
-import org.apache.beam.runners.spark.streaming.SparkStreamingPipelineOptions;
-import org.apache.beam.runners.spark.streaming.StreamingEvaluationContext;
-import org.apache.beam.runners.spark.streaming.StreamingTransformTranslator;
-import org.apache.beam.runners.spark.streaming.StreamingWindowPipelineDetector;
+import org.apache.beam.runners.spark.translation.*;
+import org.apache.beam.runners.spark.translation.streaming.StreamingEvaluationContext;
+import org.apache.beam.runners.spark.translation.streaming.StreamingTransformTranslator;
+import org.apache.beam.runners.spark.translation.streaming.StreamingWindowPipelineDetector;
 
 import org.apache.spark.SparkException;
 import org.apache.spark.api.java.JavaSparkContext;

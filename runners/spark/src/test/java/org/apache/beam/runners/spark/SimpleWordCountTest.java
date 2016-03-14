@@ -25,6 +25,7 @@ import com.google.cloud.dataflow.sdk.transforms.*;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.collect.ImmutableSet;
+import org.apache.beam.runners.spark.translation.SparkPipelineOptionsFactory;
 import org.junit.Test;
 
 import java.util.Arrays;
