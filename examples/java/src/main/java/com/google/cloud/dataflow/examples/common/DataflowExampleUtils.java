@@ -50,6 +50,7 @@ import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.google.common.util.concurrent.Uninterruptibles;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -108,6 +109,7 @@ public class DataflowExampleUtils {
         }
       } while (BackOffUtils.next(sleeper, backOff));
     } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
       // Ignore InterruptedException
     }
     Throwables.propagate(lastException);
@@ -442,11 +444,7 @@ public class DataflowExampleUtils {
               System.out.println(
                   "The example pipeline is still running. Verifying the cancellation.");
             }
-            try {
-              Thread.sleep(10000);
-            } catch (InterruptedException e) {
-              // Ignore
-            }
+            Uninterruptibles.sleepUninterruptibly(10, TimeUnit.SECONDS);
           }
           if (!cancellationVerified) {
             System.out.println("Failed to verify the cancellation for job: " + job.getJobId());

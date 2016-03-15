@@ -118,6 +118,9 @@ public class BlockingDataflowPipelineRunner extends
             BUILTIN_JOB_TIMEOUT_SEC, TimeUnit.SECONDS,
             new MonitoringUtil.PrintHandler(options.getJobMessageOutput()));
       } catch (IOException | InterruptedException ex) {
+        if (ex instanceof InterruptedException) {
+          Thread.currentThread().interrupt();
+        }
         LOG.debug("Exception caught while retrieving status for job {}", job.getJobId(), ex);
         throw new DataflowServiceException(
             job, "Exception caught while retrieving status for job " + job.getJobId(), ex);
