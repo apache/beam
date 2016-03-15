@@ -15,6 +15,8 @@
  */
 package com.google.cloud.dataflow.sdk.runners.inprocess;
 
+import com.google.cloud.dataflow.sdk.io.BoundedSource;
+import com.google.cloud.dataflow.sdk.io.BoundedSource.BoundedReader;
 import com.google.cloud.dataflow.sdk.io.Read.Bounded;
 import com.google.cloud.dataflow.sdk.io.Source.Reader;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
@@ -78,8 +80,7 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
   @SuppressWarnings("unchecked")
   private <OutputT> Queue<BoundedReadEvaluator<OutputT>> getTransformEvaluatorQueue(
       final AppliedPTransform<?, PCollection<OutputT>, Bounded<OutputT>> transform,
-      final InProcessEvaluationContext evaluationContext)
-      throws IOException {
+      final InProcessEvaluationContext evaluationContext) {
     // Key by the application and the context the evaluation is occurring in (which call to
     // Pipeline#run).
     EvaluatorKey key = new EvaluatorKey(transform, evaluationContext);
@@ -101,21 +102,25 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     return evaluatorQueue;
   }
 
+  /**
+   * A {@link BoundedReadEvaluator} produces elements from an underlying {@link BoundedSource},
+   * discarding all input elements. Within the call to {@link #finishBundle()}, the evaluator
+   * creates the {@link BoundedReader} and consumes all available input.
+   *
+   * <p>A {@link BoundedReadEvaluator} should only be created once per {@link BoundedSource}, and
+   * each evaluator should only be called once per evaluation of the pipeline. Otherwise, the source
+   * may produce duplicate elements.
+   */
   private static class BoundedReadEvaluator<OutputT> implements TransformEvaluator<Object> {
     private final AppliedPTransform<?, PCollection<OutputT>, Bounded<OutputT>> transform;
     private final InProcessEvaluationContext evaluationContext;
-    private final Reader<OutputT> reader;
     private boolean contentsRemaining;
 
     public BoundedReadEvaluator(
         AppliedPTransform<?, PCollection<OutputT>, Bounded<OutputT>> transform,
-        InProcessEvaluationContext evaluationContext)
-        throws IOException {
+        InProcessEvaluationContext evaluationContext) {
       this.transform = transform;
       this.evaluationContext = evaluationContext;
-      reader =
-          transform.getTransform().getSource().createReader(evaluationContext.getPipelineOptions());
-      contentsRemaining = reader.start();
     }
 
     @Override
@@ -123,17 +128,25 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
 
     @Override
     public InProcessTransformResult finishBundle() throws IOException {
-      UncommittedBundle<OutputT> output = evaluationContext.createRootBundle(transform.getOutput());
-      while (contentsRemaining) {
-        output.add(
-            WindowedValue.timestampedValueInGlobalWindow(
-                reader.getCurrent(), reader.getCurrentTimestamp()));
-        contentsRemaining = reader.advance();
+      try (final Reader<OutputT> reader =
+              transform
+                  .getTransform()
+                  .getSource()
+                  .createReader(evaluationContext.getPipelineOptions());) {
+        contentsRemaining = reader.start();
+        UncommittedBundle<OutputT> output =
+            evaluationContext.createRootBundle(transform.getOutput());
+        while (contentsRemaining) {
+          output.add(
+              WindowedValue.timestampedValueInGlobalWindow(
+                  reader.getCurrent(), reader.getCurrentTimestamp()));
+          contentsRemaining = reader.advance();
+        }
+        reader.close();
+        return StepTransformResult.withHold(transform, BoundedWindow.TIMESTAMP_MAX_VALUE)
+            .addOutput(output)
+            .build();
       }
-      return StepTransformResult
-          .withHold(transform, BoundedWindow.TIMESTAMP_MAX_VALUE)
-          .addOutput(output)
-          .build();
     }
   }
 }
