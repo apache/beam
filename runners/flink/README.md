@@ -84,7 +84,7 @@ Flink-Runner is now installed in your local maven repository.
 ## Executing an example
 
 Next, let's run the classic WordCount example. It's semantically identically to
-the example provided with ApacheBeam. Only this time, we chose the
+the example provided with Apache Beam. Only this time, we chose the
 `FlinkPipelineRunner` to execute the WordCount on top of Flink.
 
 Here's an excerpt from the WordCount class file:
@@ -107,13 +107,14 @@ p.run();
 
 To execute the example, let's first get some sample data:
 
-    curl http://www.gutenberg.org/cache/epub/1128/pg1128.txt > kinglear.txt
+    curl http://www.gutenberg.org/cache/epub/1128/pg1128.txt > examples/kinglear.txt
 
 Then let's run the included WordCount locally on your machine:
 
+    cd examples
     mvn exec:exec -Dinput=kinglear.txt -Doutput=wordcounts.txt
 
-Congratulations, you have run your first ApacheBeam program on top of Apache Flink!
+Congratulations, you have run your first Apache Beam program on top of Apache Flink!
 
 
 # Running Beam programs on a Flink cluster
@@ -129,53 +130,53 @@ The contents of the root `pom.xml` should be slightly changed aftewards (explana
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <modelVersion>4.0.0</modelVersion>
+     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.mycompany.beam</groupId>
-    <artifactId>beam-test</artifactId>
-    <version>1.0</version>
+  <groupId>com.mycompany.beam</groupId>
+  <artifactId>beam-test</artifactId>
+  <version>1.0</version>
 
-    <dependencies>
-        <dependency>
-            <groupId>org.apache.beam</groupId>
-            <artifactId>flink-runner</artifactId>
-            <version>0.3-SNAPSHOT</version>
-        </dependency>
-    </dependencies>
+  <dependencies>
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>flink-runner_2.10</artifactId>
+      <version>0.4-SNAPSHOT</version>
+    </dependency>
+  </dependencies>
 
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <version>2.4.1</version>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>shade</goal>
-                        </goals>
-                        <configuration>
-                            <transformers>
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>org.apache.beam.runners.flink.examples.WordCount</mainClass>
-                                </transformer>
-                            </transformers>
-                            <artifactSet>
-                                <excludes>
-                                    <exclude>org.apache.flink:*</exclude>
-                                </excludes>
-                            </artifactSet>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>2.4.1</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <transformers>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                  <mainClass>org.apache.beam.runners.flink.examples.WordCount</mainClass>
+                </transformer>
+              </transformers>
+              <artifactSet>
+                <excludes>
+                  <exclude>org.apache.flink:*</exclude>
+                </excludes>
+              </artifactSet>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
 
-        </plugins>
+    </plugins>
 
-    </build>
+  </build>
 
 </project>
 ```
