@@ -15,3 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.runners.spark.translation.streaming;
+
+import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.runners.spark.SparkStreamingPipelineOptions;
+
+public final class SparkStreamingPipelineOptionsFactory {
+
+  private SparkStreamingPipelineOptionsFactory() {
+  }
+
+  public static SparkStreamingPipelineOptions create() {
+    return PipelineOptionsFactory.as(SparkStreamingPipelineOptions.class);
+  }
+}

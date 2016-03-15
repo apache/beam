@@ -15,3 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+package org.apache.beam.runners.spark.translation;
+
+import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.cloud.dataflow.sdk.options.PipelineOptionsRegistrar;
+import com.google.common.collect.ImmutableList;
+import org.apache.beam.runners.spark.SparkPipelineOptions;
+
+public class SparkPipelineOptionsRegistrar implements PipelineOptionsRegistrar {
+  @Override
+  public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
+    return ImmutableList.<Class<? extends PipelineOptions>>of(SparkPipelineOptions.class);
+  }
+}

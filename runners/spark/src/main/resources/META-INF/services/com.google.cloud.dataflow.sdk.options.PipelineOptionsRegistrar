@@ -13,5 +13,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-com.cloudera.dataflow.spark.SparkPipelineOptionsRegistrar
-com.cloudera.dataflow.spark.streaming.SparkStreamingPipelineOptionsRegistrar
+org.apache.beam.runners.spark.translation.SparkPipelineOptionsRegistrar
+org.apache.beam.runners.spark.translation.streaming.SparkStreamingPipelineOptionsRegistrar

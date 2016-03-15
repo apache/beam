@@ -15,3 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+package org.apache.beam.runners.spark.io.hadoop;
+
+/**
+ * A marker interface that implementations of
+ * {@link org.apache.hadoop.mapreduce.lib.output.FileOutputFormat} implement to indicate
+ * that they produce shard names that adhere to the template in
+ * {@link HadoopIO.Write}.
+ *
+ * Some common shard names are defined in
+ * {@link com.google.cloud.dataflow.sdk.io.ShardNameTemplate}.
+ */
+public interface ShardNameTemplateAware {
+}
