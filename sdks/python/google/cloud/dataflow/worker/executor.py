@@ -554,7 +554,7 @@ class PGBKCVOperation(Operation):
   def finish(self):
     for wkey, value in self.table.iteritems():
       self.output(wkey, value[0])
-    self.entries = {}
+    self.table = {}
     self.key_count = 0
 
   def output(self, wkey, value):
@@ -815,4 +815,4 @@ class MapTaskExecutor(object):
       logging.debug('Starting op %d %s', ix, op)
       op.start()
     for op in self._ops:
-      op.finish()
+      op.finish(*())

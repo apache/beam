@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# cython: profile=False
+# cython: overflowcheck=True
+
 """Counters collect the progress of the Worker for reporting to the service."""
 
 
@@ -61,12 +64,25 @@ class Counter(object):
     """
     self.name = name
     self.aggregation_kind = aggregation_kind
-    self.total = 0
+    assert aggregation_kind == self.SUM  # update only handles sum
+    self.c_total = 0
+    self.py_total = 0
     self.elements = 0
 
   def update(self, count):
-    self.total += count
+    try:
+      self._update_small(count)
+    except OverflowError:
+      self.py_total += count
     self.elements += 1
+
+  def _update_small(self, delta):
+    new_total = self.c_total + delta  # overflow is checked
+    self.c_total = new_total
+
+  @property
+  def total(self):
+    return self.c_total + self.py_total
 
   def __str__(self):
     return '<%s>' % self._str_internal()

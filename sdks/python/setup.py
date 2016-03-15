@@ -105,8 +105,13 @@ setuptools.setup(
     entry_points={
         'console_scripts': CONSOLE_SCRIPTS,
         },
-    ext_modules=cythonize(
-        ['**/*.pyx', 'google/cloud/dataflow/coders/coder_impl.py']),
+    ext_modules=cythonize([
+        '**/*.pyx',
+        'google/cloud/dataflow/coders/coder_impl.py',
+        'google/cloud/dataflow/runners/common.py',
+        'google/cloud/dataflow/worker/executor.py',
+        'google/cloud/dataflow/utils/counters.py',
+    ]),
     setup_requires=['nose>=1.0'],
     install_requires=REQUIRED_PACKAGES,
     test_suite='nose.collector',
