@@ -21,6 +21,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
 import com.google.api.client.util.Data;
+import com.google.api.services.bigquery.model.JobConfigurationLoad;
+import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
@@ -31,10 +33,14 @@ import com.google.cloud.dataflow.sdk.io.BigQueryIO.Write.CreateDisposition;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO.Write.WriteDisposition;
 import com.google.cloud.dataflow.sdk.options.BigQueryOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.testing.ExpectedLogs;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
+import com.google.cloud.dataflow.sdk.util.BigQueryServices;
+import com.google.cloud.dataflow.sdk.util.BigQueryServices.Status;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
+import com.google.common.collect.ImmutableList;
 
 import org.hamcrest.Matchers;
 import org.junit.Assert;
@@ -43,8 +49,15 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+
+import java.io.File;
+import java.io.FileFilter;
+import java.io.IOException;
 
 /**
  * Tests for BigQueryIO.
@@ -52,8 +65,96 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class BigQueryIOTest {
 
+  private static class FakeBigQueryServices implements BigQueryServices {
+
+    private Object[] startLoadJobReturns;
+    private Object[] pollJobStatusReturns;
+
+    /**
+     * Sets the return values for the mock {@link LoadService#startLoadJob}.
+     *
+     * <p>Throws if the {@link Object} is a {@link Exception}, returns otherwise.
+     */
+    private FakeBigQueryServices startLoadJobReturns(Object... startLoadJobReturns) {
+      this.startLoadJobReturns = startLoadJobReturns;
+      return this;
+    }
+
+    /**
+     * Sets the return values for the mock {@link LoadService#pollJobStatus}.
+     *
+     * <p>Throws if the {@link Object} is a {@link Exception}, returns otherwise.
+     */
+    private FakeBigQueryServices pollJobStatusReturns(Object... pollJobStatusReturns) {
+      this.pollJobStatusReturns = pollJobStatusReturns;
+      return this;
+    }
+
+    @Override
+    public LoadService getLoadService(BigQueryOptions bqOptions) {
+      return new FakeLoadService(startLoadJobReturns, pollJobStatusReturns);
+    }
+
+    private static class FakeLoadService implements BigQueryServices.LoadService {
+
+      private Object[] startLoadJobReturns;
+      private Object[] pollJobStatusReturns;
+      private int startLoadJobCallsCount;
+      private int pollJobStatusCallsCount;
+
+      public FakeLoadService(Object[] startLoadJobReturns, Object[] pollJobStatusReturns) {
+        this.startLoadJobReturns = startLoadJobReturns;
+        this.pollJobStatusReturns = pollJobStatusReturns;
+        this.startLoadJobCallsCount = 0;
+        this.pollJobStatusCallsCount = 0;
+      }
+
+      @Override
+      public void startLoadJob(String jobId, JobConfigurationLoad loadConfig)
+          throws InterruptedException, IOException {
+        if (startLoadJobCallsCount < startLoadJobReturns.length) {
+          Object ret = startLoadJobReturns[startLoadJobCallsCount++];
+          if (ret instanceof IOException) {
+            throw (IOException) ret;
+          } else if (ret instanceof InterruptedException) {
+            throw (InterruptedException) ret;
+          } else {
+            return;
+          }
+        } else {
+          throw new RuntimeException(
+              "Exceeded expected number of calls: " + startLoadJobReturns.length);
+        }
+      }
+
+      @Override
+      public Status pollJobStatus(String projectId, String jobId) throws InterruptedException {
+        if (pollJobStatusCallsCount < pollJobStatusReturns.length) {
+          Object ret = pollJobStatusReturns[pollJobStatusCallsCount++];
+          if (ret instanceof Status) {
+            return (Status) ret;
+          } else if (ret instanceof InterruptedException) {
+            throw (InterruptedException) ret;
+          } else {
+            throw new RuntimeException("Unexpected return type: " + ret.getClass());
+          }
+        } else {
+          throw new RuntimeException(
+              "Exceeded expected number of calls: " + pollJobStatusReturns.length);
+        }
+      }
+    }
+  }
+
   @Rule
   public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedLogs logged = ExpectedLogs.none(BigQueryIO.class);
+  @Rule
+  public TemporaryFolder testFolder = new TemporaryFolder();
+  @Mock
+  public BigQueryServices.LoadService mockBqLoadService;
+
+  private BigQueryOptions bqOptions;
 
   private void checkReadTableObject(
       BigQueryIO.Read.Bound bound, String project, String dataset, String table) {
@@ -93,10 +194,10 @@ public class BigQueryIOTest {
       BigQueryIO.Write.Bound bound, String project, String dataset, String table,
       TableSchema schema, CreateDisposition createDisposition,
       WriteDisposition writeDisposition, boolean validate) {
-    assertEquals(project, bound.table.getProjectId());
-    assertEquals(dataset, bound.table.getDatasetId());
-    assertEquals(table, bound.table.getTableId());
-    assertEquals(schema, bound.schema);
+    assertEquals(project, bound.getTable().getProjectId());
+    assertEquals(dataset, bound.getTable().getDatasetId());
+    assertEquals(table, bound.getTable().getTableId());
+    assertEquals(schema, bound.getSchema());
     assertEquals(createDisposition, bound.createDisposition);
     assertEquals(writeDisposition, bound.writeDisposition);
     assertEquals(validate, bound.validate);
@@ -104,8 +205,11 @@ public class BigQueryIOTest {
 
   @Before
   public void setUp() {
-    BigQueryOptions options = PipelineOptionsFactory.as(BigQueryOptions.class);
-    options.setProject("defaultProject");
+    bqOptions = PipelineOptionsFactory.as(BigQueryOptions.class);
+    bqOptions.setProject("defaultProject");
+    bqOptions.setTempLocation(testFolder.getRoot().getAbsolutePath() + "/BigQueryIOTest/");
+
+    MockitoAnnotations.initMocks(this);
   }
 
   @Test
@@ -223,6 +327,67 @@ public class BigQueryIOTest {
   }
 
   @Test
+  public void testCustomSink() throws Exception {
+    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
+        .startLoadJobReturns("done", "done", "done")
+        .pollJobStatusReturns(Status.FAILED, Status.FAILED, Status.SUCCEEDED);
+
+    Pipeline p = TestPipeline.create(bqOptions);
+    p.apply(Create.of(
+        new TableRow().set("name", "a").set("number", 1),
+        new TableRow().set("name", "b").set("number", 2),
+        new TableRow().set("name", "c").set("number", 3)))
+    .setCoder(TableRowJsonCoder.of())
+    .apply(BigQueryIO.Write.to("project-id:dataset-id.table-id")
+        .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+        .withSchema(new TableSchema().setFields(
+            ImmutableList.of(
+                new TableFieldSchema().setName("name").setType("STRING"),
+                new TableFieldSchema().setName("number").setType("INTEGER"))))
+        .withTestServices(fakeBqServices)
+        .withoutValidation());
+    p.run();
+
+    logged.verifyInfo("Starting BigQuery load job");
+    logged.verifyInfo("Previous load jobs failed, retrying.");
+    File tempDir = new File(bqOptions.getTempLocation());
+    assertEquals(0, tempDir.listFiles(new FileFilter() {
+      @Override
+      public boolean accept(File pathname) {
+        return pathname.isFile();
+      }}).length);
+  }
+
+  @Test
+  public void testCustomSinkUnknown() throws Exception {
+    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
+        .startLoadJobReturns("done", "done")
+        .pollJobStatusReturns(Status.FAILED, Status.UNKNOWN);
+
+    Pipeline p = TestPipeline.create(bqOptions);
+    p.apply(Create.of(
+        new TableRow().set("name", "a").set("number", 1),
+        new TableRow().set("name", "b").set("number", 2),
+        new TableRow().set("name", "c").set("number", 3)))
+    .setCoder(TableRowJsonCoder.of())
+    .apply(BigQueryIO.Write.to("project-id:dataset-id.table-id")
+        .withCreateDisposition(CreateDisposition.CREATE_NEVER)
+        .withTestServices(fakeBqServices)
+        .withoutValidation());
+
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("Failed to poll the load job status.");
+    p.run();
+
+    File tempDir = new File(bqOptions.getTempLocation());
+    assertEquals(0, tempDir.listFiles(new FileFilter() {
+      @Override
+      public boolean accept(File pathname) {
+        return pathname.isFile();
+      }}).length);
+  }
+
+  @Test
   public void testBuildSink() {
     BigQueryIO.Write.Bound bound = BigQueryIO.Write.named("WriteMyTable")
         .to("foo.com:project:somedataset.sometable");
@@ -334,7 +499,6 @@ public class BigQueryIOTest {
         null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY);
   }
 
-
   private void testWriteValidatesDataset(boolean streaming) {
     BigQueryOptions options = PipelineOptionsFactory.as(BigQueryOptions.class);
     options.setProject("someproject");
@@ -351,15 +515,11 @@ public class BigQueryIOTest {
     thrown.expectMessage(
         Matchers.either(Matchers.containsString("Unable to confirm BigQuery dataset presence"))
             .or(Matchers.containsString("BigQuery dataset not found for table")));
-    try {
-      p.apply(Create.<TableRow>of().withCoder(TableRowJsonCoder.of()))
-       .apply(BigQueryIO.Write.named("WriteMyTable")
-           .to(tableRef)
-           .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
-           .withSchema(new TableSchema()));
-    } finally {
-      Assert.assertEquals("someproject", tableRef.getProjectId());
-    }
+    p.apply(Create.<TableRow>of().withCoder(TableRowJsonCoder.of()))
+     .apply(BigQueryIO.Write.named("WriteMyTable")
+         .to(tableRef)
+         .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+         .withSchema(new TableSchema()));
   }
 
   @Test
