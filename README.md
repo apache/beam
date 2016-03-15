@@ -49,9 +49,7 @@ Beam supports executing programs on multiple distributed processing backends thr
 - The `DirectPipelineRunner` runs the pipeline on your local machine.
 - The `DataflowPipelineRunner` submits the pipeline to the [Google Cloud Dataflow](http://cloud.google.com/dataflow/).
 - The `FlinkPipelineRunner` runs the pipeline on an Apache Flink cluster. The code has been donated from [dataArtisans/flink-dataflow](https://github.com/dataArtisans/flink-dataflow) and is now part of Beam.
-
-After the Beam project's initial bootstrapping completes, it will include:
-- The `SparkPipelineRunner` runs the pipeline on an Apache Spark cluster. See the code that will be donated at [cloudera/spark-dataflow](https://github.com/cloudera/spark-dataflow).
+- The `SparkPipelineRunner` runs the pipeline on an Apache Spark cluster. The code has been donated from [cloudera/spark-dataflow](https://github.com/cloudera/spark-dataflow) and is now part of Beam.
 
 Have ideas for new Runners? See the [Jira](https://issues.apache.org/jira/browse/BEAM/component/12328916/).
 
@@ -64,6 +62,9 @@ _Coming soon!_
 
 See the Flink Runner [README](https://github.com/apache/incubator-beam/tree/master/runners/flink).
 
+### Spark Runner
+
+See the Spark Runner [README](https://github.com/apache/incubator-beam/tree/master/runners/spark).
 
 ## Contact Us
 

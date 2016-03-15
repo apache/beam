@@ -15,3 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.runners.spark.translation;
+
+import com.google.cloud.dataflow.sdk.transforms.PTransform;
+
+/**
+ * Translator to support translation between Dataflow transformations and Spark transformations.
+ */
+public interface SparkPipelineTranslator {
+
+  boolean hasTranslation(Class<? extends PTransform<?, ?>> clazz);
+
+  <PT extends PTransform<?, ?>> TransformEvaluator<PT> translate(Class<PT> clazz);
+}

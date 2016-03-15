@@ -15,3 +15,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+package org.apache.beam.runners.spark.io.hadoop;
+
+import java.io.IOException;
+
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.mapreduce.JobContext;
+import org.apache.hadoop.mapreduce.TaskAttemptContext;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
+
+public class TemplatedTextOutputFormat<K, V> extends TextOutputFormat<K, V>
+    implements ShardNameTemplateAware {
+
+  @Override
+  public void checkOutputSpecs(JobContext job) {
+    // don't fail if the output already exists
+  }
+
+  @Override
+  public Path getDefaultWorkFile(TaskAttemptContext context,
+      String extension) throws IOException {
+    // note that the passed-in extension is ignored since it comes from the template
+    return ShardNameTemplateHelper.getDefaultWorkFile(this, context);
+  }
+
+}
