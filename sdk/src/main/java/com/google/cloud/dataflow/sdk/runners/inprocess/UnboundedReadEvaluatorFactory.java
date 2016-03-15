@@ -122,28 +122,29 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     @Override
     public InProcessTransformResult finishBundle() throws IOException {
       UncommittedBundle<OutputT> output = evaluationContext.createRootBundle(transform.getOutput());
-      UnboundedReader<OutputT> reader =
-          createReader(
-              transform.getTransform().getSource(), evaluationContext.getPipelineOptions());
-      int numElements = 0;
-      if (reader.start()) {
-        do {
-          output.add(
-              WindowedValue.timestampedValueInGlobalWindow(
-                  reader.getCurrent(), reader.getCurrentTimestamp()));
-          numElements++;
-        } while (numElements < ARBITRARY_MAX_ELEMENTS && reader.advance());
+      try (UnboundedReader<OutputT> reader =
+              createReader(
+                  transform.getTransform().getSource(), evaluationContext.getPipelineOptions());) {
+        int numElements = 0;
+        if (reader.start()) {
+          do {
+            output.add(
+                WindowedValue.timestampedValueInGlobalWindow(
+                    reader.getCurrent(), reader.getCurrentTimestamp()));
+            numElements++;
+          } while (numElements < ARBITRARY_MAX_ELEMENTS && reader.advance());
+        }
+        checkpointMark = reader.getCheckpointMark();
+        checkpointMark.finalizeCheckpoint();
+        // TODO: When exercising create initial splits, make this the minimum watermark across all
+        // existing readers
+        StepTransformResult result =
+            StepTransformResult.withHold(transform, reader.getWatermark())
+                .addOutput(output)
+                .build();
+        evaluatorQueue.offer(this);
+        return result;
       }
-      checkpointMark = reader.getCheckpointMark();
-      checkpointMark.finalizeCheckpoint();
-      // TODO: When exercising create initial splits, make this the minimum watermark across all
-      // existing readers
-      StepTransformResult result =
-          StepTransformResult.withHold(transform, reader.getWatermark())
-              .addOutput(output)
-              .build();
-      evaluatorQueue.offer(this);
-      return result;
     }
 
     private <CheckpointMarkT extends CheckpointMark> UnboundedReader<OutputT> createReader(
