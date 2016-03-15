@@ -49,6 +49,7 @@ from google.cloud.dataflow.internal import apiclient
 from google.cloud.dataflow.internal import auth
 from google.cloud.dataflow.internal import pickler
 from google.cloud.dataflow.utils import names
+from google.cloud.dataflow.utils import profiler
 from google.cloud.dataflow.utils import retry
 from google.cloud.dataflow.worker import executor
 from google.cloud.dataflow.worker import logger
@@ -69,7 +70,7 @@ class BatchWorker(object):
   STATUS_HTTP_PORT = 0  # A value of 0 will pick a random unused port.
   MEMORY_USAGE_REPORTING_INTERVAL_SECS = 5 * 60
 
-  def __init__(self, properties):
+  def __init__(self, properties, sdk_pipeline_options):
     """Initializes a worker object from command line arguments."""
     self.project_id = properties['project_id']
     self.job_id = properties['job_id']
@@ -108,6 +109,11 @@ class BatchWorker(object):
     # If 'True', progress_reporting_thread keeps sending progress updates for
     # the currently set work item; does not send progress updates otherwise.
     self.report_progress = False
+
+    # If 'True' each work item will be profiled with cProfile. Results will
+    # be logged and also saved to profile_location if set.
+    self.work_item_profiling = sdk_pipeline_options.get('profile', False)
+    self.profile_location = sdk_pipeline_options.get('profile_location', None)
 
   @property
   def current_work_item(self):
@@ -518,7 +524,15 @@ class BatchWorker(object):
             # failed.  The progress reporting_thread will take care of sending
             # updates and updating in the workitem object the reporting indexes
             # and duration for the lease.
-            self.do_work(work_item)
+
+            if self.work_item_profiling:
+              with profiler.Profile(
+                  profile_id=work_item.proto.id,
+                  profile_location=self.profile_location, log_results=True):
+                self.do_work(work_item)
+            else:
+              self.do_work(work_item)
+
           logging.info('Completed work item: %s in %.9f seconds',
                        work_item.proto.id, time.time() - start_time)
 

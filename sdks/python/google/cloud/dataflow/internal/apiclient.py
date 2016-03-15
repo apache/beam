@@ -262,6 +262,17 @@ class Environment(object):
       pool.dataDisks.append(disk)
     self.proto.workerPools.append(pool)
 
+    sdk_pipeline_options = options.get_all_options()
+    if sdk_pipeline_options:
+      self.proto.sdkPipelineOptions = (
+          dataflow.Environment.SdkPipelineOptionsValue())
+
+      for k, v in sdk_pipeline_options.iteritems():
+        if v is not None:
+          self.proto.sdkPipelineOptions.additionalProperties.append(
+              dataflow.Environment.SdkPipelineOptionsValue.AdditionalProperty(
+                  key=k, value=to_json_value(v)))
+
 
 class Job(object):
   """Wrapper for a dataflow Job protobuf."""

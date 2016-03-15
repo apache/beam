@@ -17,6 +17,7 @@
 # thread-safety issue with datetime.datetime.strptime if this module is not
 # already imported.
 import _strptime  # pylint: disable=unused-import
+import json
 import logging
 import random
 import re
@@ -49,6 +50,11 @@ def main():
 
   logging.info('Worker started with properties: %s', properties)
 
+  sdk_pipeline_options = json.loads(
+      properties.get('sdk_pipeline_options', '{}'))
+  logging.info('Worker started with sdk_pipeline_options: %s',
+               sdk_pipeline_options)
+
   if unused_args:
     logging.warning('Unrecognized arguments %s', unused_args)
 
@@ -64,7 +70,7 @@ def main():
     streamingworker.StreamingWorker(properties).run()
   else:
     logging.info('Starting batch worker.')
-    batchworker.BatchWorker(properties).run()
+    batchworker.BatchWorker(properties, sdk_pipeline_options).run()
 
 
 if __name__ == '__main__':

@@ -255,10 +255,10 @@ class PipelineOptionsTest(unittest.TestCase):
   def test_dir(self):
     options = Breakfast()
     self.assertEquals(
-        ['slices', 'style', 'view_as'],
+        ['get_all_options', 'slices', 'style', 'view_as'],
         [attr for attr in dir(options) if not attr.startswith('_')])
     self.assertEquals(
-        ['style', 'view_as'],
+        ['get_all_options', 'style', 'view_as'],
         [attr for attr in dir(options.view_as(Eggs))
          if not attr.startswith('_')])
 

@@ -19,11 +19,6 @@ TODO(silviuc): Should rename this module to pipeline_options.
 
 import argparse
 
-# Raw (unparsed) options. They are also added by other modules that want to
-# contribute modules other than the ones defined in this file. See add_option(),
-# below.
-OPTIONS = []
-
 
 class PipelineOptions(object):
   """Pipeline options class used as container for command line options.
@@ -85,6 +80,21 @@ class PipelineOptions(object):
   def _add_argparse_args(cls, parser):
     # Override this in subclasses to provide options.
     pass
+
+  def get_all_options(self):
+    """Returns a dictionary of all defined arguments.
+
+    Returns a dictionary of all defined arguments (arguments that are defined in
+    any subclass of PipelineOptions) into a dictionary.
+
+    Returns:
+      Dictionary of all args and values.
+    """
+    parser = argparse.ArgumentParser()
+    for cls in PipelineOptions.__subclasses__():
+      cls._add_argparse_args(parser)  # pylint: disable=protected-access
+    known_args, _ = parser.parse_known_args(self._flags)
+    return vars(known_args)
 
   def view_as(self, cls):
     view = cls(self._flags)
@@ -298,6 +308,18 @@ class DebugOptions(PipelineOptions):
     parser.add_argument('--dataflow_job_file',
                         default=None,
                         help='Debug file to write the workflow specification.')
+
+
+class ProfilingOptions(PipelineOptions):
+
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument('--profile',
+                        action='store_true',
+                        help='Enable work item profiling')
+    parser.add_argument('--profile_location',
+                        default=None,
+                        help='GCS path for saving profiler data.')
 
 
 class SetupOptions(PipelineOptions):
