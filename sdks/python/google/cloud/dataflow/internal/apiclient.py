@@ -428,6 +428,10 @@ class DataflowApplicationClient(object):
     logging.info('Create job: %s', response)
     # The response is a Job proto with the id for the new job.
     logging.info('Created job with id: [%s]', response.id)
+    logging.info(
+        'To accesss the Dataflow monitoring console, please navigate to '
+        'https://console.developers.google.com/project/%s/dataflow/job/%s',
+        self.google_cloud_options.project, response.id)
 
     # Show the whitelisting warning. Projects should be whitelisted prior to
     # submitting jobs to Google Cloud Dataflow service. Please see documentation
