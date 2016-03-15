@@ -407,12 +407,12 @@ class BatchWorker(object):
       with work_item.lock:
         self.report_completion_status(work_item,
                                       exception_details=exception_details)
+        work_item.done = True
     else:
       self.report_progress = False
       with work_item.lock:
         self.report_completion_status(work_item)
-    with work_item.lock:
-      work_item.done = True
+        work_item.done = True
 
   def status_server(self):
     """Executes the serving loop for the status server."""
