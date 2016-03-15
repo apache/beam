@@ -22,7 +22,10 @@ import com.google.cloud.dataflow.sdk.runners.TransformTreeNode;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.values.PValue;
+import org.apache.beam.runners.flink.FlinkPipelineRunner;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This is a {@link FlinkPipelineTranslator} for streaming jobs. Its role is to translate the user-provided
@@ -32,6 +35,8 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
  * This is based on {@link com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator}
  * */
 public class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
+
+  private static final Logger LOG = LoggerFactory.getLogger(FlinkStreamingPipelineTranslator.class);
 
   /** The necessary context in the case of a straming job. */
   private final FlinkStreamingTranslationContext streamingContext;
@@ -51,7 +56,7 @@ public class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
 
   @Override
   public void enterCompositeTransform(TransformTreeNode node) {
-    System.out.println(genSpaces(this.depth) + "enterCompositeTransform- " + formatNodeName(node));
+    LOG.info(genSpaces(this.depth) + "enterCompositeTransform- " + formatNodeName(node));
 
     PTransform<?, ?> transform = node.getTransform();
     if (transform != null && currentCompositeTransform == null) {
@@ -71,7 +76,7 @@ public class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
 
       StreamTransformTranslator<?> translator = FlinkStreamingTransformTranslators.getTranslator(transform);
       if (translator != null) {
-        System.out.println(genSpaces(this.depth) + "doingCompositeTransform- " + formatNodeName(node));
+        LOG.info(genSpaces(this.depth) + "doingCompositeTransform- " + formatNodeName(node));
         applyStreamingTransform(transform, node, translator);
         currentCompositeTransform = null;
       } else {
@@ -80,12 +85,12 @@ public class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
       }
     }
     this.depth--;
-    System.out.println(genSpaces(this.depth) + "leaveCompositeTransform- " + formatNodeName(node));
+    LOG.info(genSpaces(this.depth) + "leaveCompositeTransform- " + formatNodeName(node));
   }
 
   @Override
   public void visitTransform(TransformTreeNode node) {
-    System.out.println(genSpaces(this.depth) + "visitTransform- " + formatNodeName(node));
+    LOG.info(genSpaces(this.depth) + "visitTransform- " + formatNodeName(node));
     if (currentCompositeTransform != null) {
       // ignore it
       return;
@@ -97,7 +102,7 @@ public class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
     PTransform<?, ?> transform = node.getTransform();
     StreamTransformTranslator<?> translator = FlinkStreamingTransformTranslators.getTranslator(transform);
     if (translator == null) {
-      System.out.println(node.getTransform().getClass());
+      LOG.info(node.getTransform().getClass().toString());
       throw new UnsupportedOperationException("The transform " + transform + " is currently not supported.");
     }
     applyStreamingTransform(transform, node, translator);

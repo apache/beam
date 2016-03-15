@@ -141,7 +141,7 @@ The contents of the root `pom.xml` should be slightly changed aftewards (explana
         <dependency>
             <groupId>org.apache.beam</groupId>
             <artifactId>flink-runner</artifactId>
-            <version>0.2</version>
+            <version>0.3-SNAPSHOT</version>
         </dependency>
     </dependencies>
 
@@ -160,7 +160,7 @@ The contents of the root `pom.xml` should be slightly changed aftewards (explana
                         <configuration>
                             <transformers>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>WordCount</mainClass>
+                                    <mainClass>org.apache.beam.runners.flink.examples.WordCount</mainClass>
                                 </transformer>
                             </transformers>
                             <artifactSet>

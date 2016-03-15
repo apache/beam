@@ -26,7 +26,6 @@ import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.common.base.Joiner;
-import org.apache.flink.api.io.avro.example.User;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
 
@@ -95,6 +94,33 @@ public class AvroITCase extends JavaProgramTestBase {
       .apply(TextIO.Write.to(resultPath));
 
     p.run();
+  }
+
+  private static class User {
+
+    private String name;
+    private int favoriteNumber;
+    private String favoriteColor;
+
+    public User() {}
+
+    public User(String name, int favoriteNumber, String favoriteColor) {
+      this.name = name;
+      this.favoriteNumber = favoriteNumber;
+      this.favoriteColor = favoriteColor;
+    }
+
+    public String getName() {
+      return name;
+    }
+
+    public String getFavoriteColor() {
+      return favoriteColor;
+    }
+
+    public int getFavoriteNumber() {
+      return favoriteNumber;
+    }
   }
 
 }

@@ -25,7 +25,7 @@
     <parent>
         <groupId>org.apache.beam</groupId>
         <artifactId>runners</artifactId>
-        <version>1.5.0-SNAPSHOT</version>
+        <version>1.6.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>flink-runner</artifactId>
@@ -47,8 +47,9 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <flink.version>1.0-SNAPSHOT</flink.version>
-        <beam.version>1.5.0-SNAPSHOT</beam.version>
+        <flink.version>1.0.0</flink.version>
+        <beam.version>1.6.0-SNAPSHOT</beam.version>
+        <scala.major.version>2.10</scala.major.version>
         <!-- Default parameters for mvn exec:exec -->
         <clazz>org.apache.beam.runners.flink.examples.WordCount</clazz>
         <input>kinglear.txt</input>
@@ -78,12 +79,12 @@
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-streaming-java_2.10</artifactId>
+            <artifactId>flink-streaming-java_${scala.major.version}</artifactId>
             <version>${flink.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-streaming-java_2.10</artifactId>
+            <artifactId>flink-streaming-java_${scala.major.version}</artifactId>
             <version>${flink.version}</version>
             <scope>test</scope>
             <type>test-jar</type>
@@ -95,28 +96,23 @@
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-avro_2.10</artifactId>
+            <artifactId>flink-clients_${scala.major.version}</artifactId>
             <version>${flink.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-clients_2.10</artifactId>
-            <version>${flink.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.flink</groupId>
-            <artifactId>flink-test-utils_2.10</artifactId>
+            <artifactId>flink-test-utils_${scala.major.version}</artifactId>
             <version>${flink.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-connector-kafka-0.8_2.10</artifactId>
+            <artifactId>flink-connector-kafka-0.8_${scala.major.version}</artifactId>
             <version>${flink.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-avro</artifactId>
+            <artifactId>flink-avro_${scala.major.version}</artifactId>
             <version>${flink.version}</version>
         </dependency>
         <dependency>
@@ -171,7 +167,7 @@
             <!-- Integration Tests -->
             <plugin>
                 <artifactId>maven-failsafe-plugin</artifactId>
-                <version>2.17</version><!--$NO-MVN-MAN-VER$-->
+                <version>2.17</version>
                 <executions>
                     <execution>
                         <goals>
@@ -180,19 +176,20 @@
                         </goals>
                     </execution>
                 </executions>
-				<configuration>
-					<argLine>-Dlog4j.configuration=log4j-test.properties  -XX:-UseGCOverheadLimit</argLine>
-				</configuration>
+                <configuration>
+                    <forkCount>1</forkCount>
+                    <argLine>-Dlog4j.configuration=log4j-test.properties  -XX:-UseGCOverheadLimit</argLine>
+                </configuration>
             </plugin>
 
             <!-- Unit Tests -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>2.17</version><!--$NO-MVN-MAN-VER$-->
-				<configuration>
-					<argLine>-Dlog4j.configuration=log4j-test.properties  -XX:-UseGCOverheadLimit</argLine>
-				</configuration>
+                <version>2.17</version>
+                <configuration>
+                    <argLine>-Dlog4j.configuration=log4j-test.properties  -XX:-UseGCOverheadLimit</argLine>
+                </configuration>
             </plugin>
 
             <!-- Eclipse Integration -->
