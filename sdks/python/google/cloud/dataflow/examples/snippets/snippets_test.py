@@ -392,6 +392,16 @@ class SnippetsTest(unittest.TestCase):
   def test_pipeline_options_command_line(self):
     self._run_test_pipeline_for_options(snippets.pipeline_options_command_line)
 
+  def test_pipeline_logging(self):
+    result_path = self.create_temp_file()
+    lines = ['we found love right where we are',
+             'we found love right from the start',
+             'we found love in a hopeless place']
+    snippets.pipeline_logging(lines, result_path)
+    self.assertEqual(
+        sorted(' '.join(lines).split(' ')),
+        self.get_output(result_path))
+
   def test_model_composite_transform_example(self):
     contents = ['aa bb cc', 'bb cc', 'cc']
     result_path = self.create_temp_file()

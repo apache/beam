@@ -285,7 +285,7 @@ def pipeline_options_local(argv):
 
 
 def pipeline_options_command_line(argv):
-  """"Creating a Pipeline by passing a list of arguments.
+  """Creating a Pipeline by passing a list of arguments.
 
   URL: https://cloud.google.com/dataflow/pipelines/specifying-exec-params
   """
@@ -304,6 +304,43 @@ def pipeline_options_command_line(argv):
   lines = p | df.io.Read('ReadFromText', df.io.TextFileSource(known_args.input))
   lines | df.io.Write('WriteToText', df.io.TextFileSink(known_args.output))
   # [END pipeline_options_command_line]
+
+  p.run()
+
+
+def pipeline_logging(lines, output):
+  """Logging Pipeline Messages.
+
+  URL: https://cloud.google.com/dataflow/pipelines/logging
+  """
+
+  import re
+  import google.cloud.dataflow as df
+  from google.cloud.dataflow.utils.options import PipelineOptions
+
+  # [START pipeline_logging]
+  # import Python logging module.
+  import logging
+
+  class ExtractWordsFn(df.DoFn):
+
+    def process(self, context):
+      words = re.findall(r'[A-Za-z\']+', context.element)
+      for word in words:
+        yield word
+
+        if word.lower() == 'love':
+          # Log using the root logger at info or higher levels
+          logging.info('Found : %s', word.lower())
+
+  # Remaining WordCount example code ...
+  # [END pipeline_logging]
+
+  p = df.Pipeline(options=PipelineOptions())
+  (p
+   | df.Create(lines)
+   | df.ParDo('ExtractWords', ExtractWordsFn())
+   | df.io.Write('WriteToText', df.io.TextFileSink(output)))
 
   p.run()
 
