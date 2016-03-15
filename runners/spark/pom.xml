@@ -17,7 +17,7 @@ License.
     <parent>
         <groupId>org.apache.beam</groupId>
         <artifactId>runners</artifactId>
-        <version>1.5.0-SNAPSHOT</version>
+        <version>1.6.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>spark-runner</artifactId>
@@ -41,7 +41,7 @@ License.
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <java.version>1.7</java.version>
         <spark.version>1.5.2</spark.version>
-        <beam.version>1.5.0-SNAPSHOT</beam.version>
+        <beam.version>1.6.0-SNAPSHOT</beam.version>
     </properties>
 
     <repositories>
