@@ -44,7 +44,7 @@ import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.LinkedHashSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -484,7 +484,7 @@ public abstract class WindowedValue<T> {
 
     private void ensureWindowsAreASet() {
       if (!(windows instanceof Set)) {
-        windows = new LinkedHashSet<>(windows);
+        windows = new HashSet<>(windows);
       }
     }
   }
