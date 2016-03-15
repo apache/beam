@@ -12,10 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+cimport cython
+
 cdef class Operation(object):
   cdef public spec
-  cdef public receivers
-  cdef public counters
+  cdef public list receivers
+  cdef public list counters
 
   cdef public step_name  # initialized lazily
 
@@ -23,10 +25,53 @@ cdef class Operation(object):
   cpdef process(self, windowed_value)
   cpdef finish(self)
 
+  @cython.locals(receiver=Operation)
+  cpdef output(self, windowed_value, int output_index=*)
+
+cdef class ReadOperation(Operation):
+  cdef object _current_progress
+  cdef object _reader
+
+cdef class DoOperation(Operation):
+  cdef object state
+  cdef object context
+  cdef object dofn_runner
+
+cdef class CombineOperation(Operation):
+  cdef object phased_combine_fn
+
+cdef class ShuffleWriteOperation(Operation):
+  cdef object shuffle_sink
+  cdef object writer
+  cdef bint is_ungrouped
+
+cdef class GroupedShuffleReadOperation(Operation):
+  cdef object shuffle_source
+  cdef object _reader
+
+cdef class UngroupedShuffleReadOperation(Operation):
+  cdef object shuffle_source
+  cdef object _reader
+
+cdef class FlattenOperation(Operation):
+  pass
+
+cdef class ReifyTimestampAndWindowsOperation(Operation):
+  pass
+
+cdef class BatchGroupAlsoByWindowsOperation(Operation):
+  cdef object windowing
+  cdef object phased_combine_fn
+
+cdef class StreamingGroupAlsoByWindowsOperation(Operation):
+  cdef object windowing
+  cdef object phased_combine_fn
+
+
 cdef class PGBKCVOperation(Operation):
   cdef public object combine_fn
   cdef dict table
   cdef long max_keys
   cdef long key_count
 
-  cpdef output(self, tuple wkey, value)
+  cpdef output_key(self, tuple wkey, value)

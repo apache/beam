@@ -58,23 +58,20 @@ class Operation(object):
       spec: A maptask.Worker* instance.
     """
     self.spec = spec
-    self.receivers = collections.defaultdict(list)
+    self.receivers = [[]]
     # Initially we have no counters.  Initializing this here makes it
     # safe to call itercounters() at any time, even if start() has
     # not been called yet.
-    self.counters = collections.defaultdict(self.new_operation_counters)
-
-  def new_operation_counters(self, output_index=0):
-    return opcounters.OperationCounters(self.step_name, output_index)
+    self.counters = []
 
   def start(self):
     """Start operation."""
     # If the operation has receivers, create one counter set per receiver.
-    for output_index in self.receivers:
-      self.counters[output_index] = self.new_operation_counters(output_index)
+    self.counters = [opcounters.OperationCounters(self.step_name, output_index)
+                     for output_index in range(len(self.receivers))]
 
   def itercounters(self):
-    for opcounter in self.counters.values():
+    for opcounter in self.counters:
       for counter in opcounter:
         yield counter
 
@@ -86,8 +83,15 @@ class Operation(object):
     """Process element in operation."""
     pass
 
+  def output(self, windowed_value, output_index=0):
+    self.counters[output_index].update(windowed_value)
+    for receiver in self.receivers[output_index]:
+      receiver.process(windowed_value)
+
   def add_receiver(self, operation, output_index=0):
     """Adds a receiver operation for the specified output."""
+    while len(self.receivers) <= output_index:
+      self.receivers.append([])
     self.receivers[output_index].append(operation)
 
   def __str__(self):
@@ -151,9 +155,7 @@ class ReadOperation(Operation):
           windowed_value = value
         else:
           windowed_value = GlobalWindows.WindowedValue(value)
-        self.counters[0].update(windowed_value)
-        for receiver in self.receivers[0]:
-          receiver.process(windowed_value)
+        self.output(windowed_value)
 
   def side_read_all(self, singleton=False):
     # TODO(mairbek): Should we return WindowedValue here?
@@ -244,9 +246,7 @@ class GroupedShuffleReadOperation(Operation):
       for key, key_values in reader:
         self._reader = reader
         windowed_value = GlobalWindows.WindowedValue((key, key_values))
-        self.counters[0].update(windowed_value)
-        for receiver in self.receivers[0]:
-          receiver.process(windowed_value)
+        self.output(windowed_value)
 
   def get_progress(self):
     if self._reader is not None:
@@ -276,9 +276,7 @@ class UngroupedShuffleReadOperation(Operation):
       for value in reader:
         self._reader = reader
         windowed_value = GlobalWindows.WindowedValue(value)
-        self.counters[0].update(windowed_value)
-        for receiver in self.receivers[0]:
-          receiver.process(windowed_value)
+        self.output(windowed_value)
 
   def get_progress(self):
     # 'UngroupedShuffleReader' does not support progress reporting.
@@ -305,6 +303,7 @@ class ShuffleWriteOperation(Operation):
           self.spec.shuffle_writer_config, coder=self.spec.coders)
     self.writer = self.shuffle_sink.writer()
     self.writer.__enter__()
+    self.is_ungrouped = self.spec.shuffle_kind == 'ungrouped'
 
   def finish(self):
     logging.debug('Finishing %s', self)
@@ -323,7 +322,7 @@ class ShuffleWriteOperation(Operation):
     # used to reshard workflow outputs into a fixed set of files. This is
     # achieved by using an UngroupedShuffleSource to read back the values
     # written in 'ungrouped' mode.
-    if self.spec.shuffle_kind == 'ungrouped':
+    if self.is_ungrouped:
       # We want to spread the values uniformly to all shufflers.
       k, v = str(random.getrandbits(64)), o.value
     else:
@@ -411,7 +410,6 @@ class DoOperation(Operation):
     # tagged with None and is associated with its corresponding index.
     tagged_receivers = {}
     tagged_counters = {}
-    self._tag_map = {}
     output_tag_prefix = PropertyNames.OUT + '_'
     for index, tag in enumerate(self.spec.output_tags):
       if tag == PropertyNames.OUT:
@@ -441,8 +439,7 @@ class DoOperation(Operation):
     self.dofn_runner.finish()
 
   def process(self, o):
-    with logger.PerThreadLoggingContext(step_name=self.step_name):
-      self.dofn_runner.process(o)
+    self.dofn_runner.process(o)
 
 
 class CombineOperation(Operation):
@@ -464,11 +461,9 @@ class CombineOperation(Operation):
     logging.debug('Processing [%s] in %s', o, self)
     assert isinstance(o, WindowedValue)
     key, values = o.value
-    windowed_result = WindowedValue(
+    windowed_value = WindowedValue(
         (key, self.phased_combine_fn.apply(values)), o.timestamp, o.windows)
-    self.counters[0].update(windowed_result)
-    for receiver in self.receivers[0]:
-      receiver.process(windowed_result)
+    self.output(windowed_value)
 
 
 def create_pgbk_op(spec):
@@ -516,9 +511,7 @@ class PGBKOperation(Operation):
       windowed_value = WindowedValue(
           (key, output_value),
           vs[0].timestamp, windows)
-      self.counters[0].update(windowed_value)
-      for receiver in self.receivers[0]:
-        receiver.process(windowed_value)
+      self.output(windowed_value)
 
 
 class PGBKCVOperation(Operation):
@@ -544,25 +537,30 @@ class PGBKCVOperation(Operation):
     entry = self.table.get(wkey, None)
     if entry is None:
       if self.key_count >= self.max_keys:
-        old_wkey = self.table.iterkeys().next()  # Any key, could use LRU
-        self.output(old_wkey, self.table.pop(old_wkey)[0])
-      else:
-        self.key_count += 1
+        target = self.key_count * 9 // 10
+        old_wkeys = []
+        # TODO(robertwb): Use an LRU cache?
+        for old_wkey, old_wvalue in enumerate(self.table.iterkeys()):
+          old_wkeys.append(old_wkey)  # Can't mutate while iterating.
+          self.output_key(old_wkey, old_wvalue)
+          self.key_count -= 1
+          if self.key_count <= target:
+            break
+        for old_wkey in reversed(old_wkeys):
+          del self.table[old_wkey]
+      self.key_count += 1
       entry = self.table[wkey] = [self.combine_fn.create_accumulator()]
     entry[0] = self.combine_fn.add_inputs(entry[0], [value])
 
   def finish(self):
     for wkey, value in self.table.iteritems():
-      self.output(wkey, value[0])
+      self.output_key(wkey, value[0])
     self.table = {}
     self.key_count = 0
 
-  def output(self, wkey, value):
+  def output_key(self, wkey, value):
     windows, key = wkey
-    windowed_value = WindowedValue((key, value), windows[0].end, windows)
-    self.counters[0].update(windowed_value)
-    for receiver in self.receivers[0]:
-      receiver.process(windowed_value)
+    self.output(WindowedValue((key, value), windows[0].end, windows))
 
 
 class FlattenOperation(Operation):
@@ -575,10 +573,7 @@ class FlattenOperation(Operation):
   def process(self, o):
     logging.debug('Processing [%s] in %s', o, self)
     assert isinstance(o, WindowedValue)
-    windowed_result = WindowedValue(o.value, o.timestamp, o.windows)
-    self.counters[0].update(windowed_result)
-    for receiver in self.receivers[0]:
-      receiver.process(windowed_result)
+    self.output(o)
 
 
 class ReifyTimestampAndWindowsOperation(Operation):
@@ -600,11 +595,6 @@ class ReifyTimestampAndWindowsOperation(Operation):
         window.WindowedValue(
             (k, window.WindowedValue(v, o.timestamp, o.windows)),
             o.timestamp, o.windows))
-
-  def output(self, windowed_result):
-    self.counters[0].update(windowed_result)
-    for receiver in self.receivers[0]:
-      receiver.process(windowed_result)
 
 
 class BatchGroupAlsoByWindowsOperation(Operation):
@@ -650,11 +640,6 @@ class BatchGroupAlsoByWindowsOperation(Operation):
           self.output(
               window.WindowedValue((k, values), timestamp, [out_window]))
 
-  def output(self, windowed_result):
-    self.counters[0].update(windowed_result)
-    for receiver in self.receivers[0]:
-      receiver.process(windowed_result)
-
 
 class StreamingGroupAlsoByWindowsOperation(Operation):
   """StreamingGroupAlsoByWindowsOperation operation.
@@ -687,11 +672,6 @@ class StreamingGroupAlsoByWindowsOperation(Operation):
                                timer.timestamp, state)):
         self.output(window.WindowedValue((keyed_work.key, values), timestamp,
                                          [out_window]))
-
-  def output(self, windowed_result):
-    self.counters[0].update(windowed_result)
-    for receiver in self.receivers[0]:
-      receiver.process(windowed_result)
 
 
 class MapTaskExecutor(object):
