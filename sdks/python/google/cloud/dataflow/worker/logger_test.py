@@ -26,45 +26,43 @@ from google.cloud.dataflow.worker import logger
 class PerThreadLoggingContextTest(unittest.TestCase):
 
   def thread_check_attribute(self, name):
-    self.assertFalse(hasattr(logger.per_thread_worker_data, name))
-    with logger.PerThreadLoggingContext(xyz='thread-value'):
+    self.assertFalse(name in logger.per_thread_worker_data.get_data())
+    with logger.PerThreadLoggingContext(**{name: 'thread-value'}):
       self.assertEqual(
-          getattr(logger.per_thread_worker_data, name), 'thread-value')
-    self.assertFalse(hasattr(logger.per_thread_worker_data, name))
+          logger.per_thread_worker_data.get_data()[name], 'thread-value')
+    self.assertFalse(name in logger.per_thread_worker_data.get_data())
 
   def test_no_positional_args(self):
-    with self.assertRaises(ValueError) as exn:
+    with self.assertRaises(TypeError):
       with logger.PerThreadLoggingContext('something'):
         pass
-    self.assertEqual(
-        exn.exception.message,
-        'PerThreadLoggingContext expects only keyword arguments.')
 
   def test_per_thread_attribute(self):
-    self.assertFalse(hasattr(logger.per_thread_worker_data, 'xyz'))
+    self.assertFalse('xyz' in logger.per_thread_worker_data.get_data())
     with logger.PerThreadLoggingContext(xyz='value'):
-      self.assertEqual(logger.per_thread_worker_data.xyz, 'value')
+      self.assertEqual(logger.per_thread_worker_data.get_data()['xyz'], 'value')
       thread = threading.Thread(
           target=self.thread_check_attribute, args=('xyz',))
       thread.start()
       thread.join()
-      self.assertEqual(logger.per_thread_worker_data.xyz, 'value')
-    self.assertFalse(hasattr(logger.per_thread_worker_data, 'xyz'))
+      self.assertEqual(logger.per_thread_worker_data.get_data()['xyz'], 'value')
+    self.assertFalse('xyz' in logger.per_thread_worker_data.get_data())
 
   def test_set_when_undefined(self):
-    self.assertFalse(hasattr(logger.per_thread_worker_data, 'xyz'))
+    self.assertFalse('xyz' in logger.per_thread_worker_data.get_data())
     with logger.PerThreadLoggingContext(xyz='value'):
-      self.assertEqual(logger.per_thread_worker_data.xyz, 'value')
-    self.assertFalse(hasattr(logger.per_thread_worker_data, 'xyz'))
+      self.assertEqual(logger.per_thread_worker_data.get_data()['xyz'], 'value')
+    self.assertFalse('xyz' in logger.per_thread_worker_data.get_data())
 
   def test_set_when_already_defined(self):
-    self.assertFalse(hasattr(logger.per_thread_worker_data, 'xyz'))
+    self.assertFalse('xyz' in logger.per_thread_worker_data.get_data())
     with logger.PerThreadLoggingContext(xyz='value'):
-      self.assertEqual(logger.per_thread_worker_data.xyz, 'value')
+      self.assertEqual(logger.per_thread_worker_data.get_data()['xyz'], 'value')
       with logger.PerThreadLoggingContext(xyz='value2'):
-        self.assertEqual(logger.per_thread_worker_data.xyz, 'value2')
-      self.assertEqual(logger.per_thread_worker_data.xyz, 'value')
-    self.assertFalse(hasattr(logger.per_thread_worker_data, 'xyz'))
+        self.assertEqual(
+            logger.per_thread_worker_data.get_data()['xyz'], 'value2')
+      self.assertEqual(logger.per_thread_worker_data.get_data()['xyz'], 'value')
+    self.assertFalse('xyz' in logger.per_thread_worker_data.get_data())
 
 
 class JsonLogFormatterTest(unittest.TestCase):
@@ -139,6 +137,31 @@ class JsonLogFormatterTest(unittest.TestCase):
     expected_output.update(
         {'work': 'workitem', 'stage': 'stage', 'step': 'step'})
     self.assertEqual(log_output, expected_output)
+
+  def test_nested_with_per_thread_info(self):
+    formatter = logger.JsonLogFormatter(job_id='jobid', worker_id='workerid')
+    with logger.PerThreadLoggingContext(
+        work_item_id='workitem', stage_name='stage', step_name='step1'):
+      record = self.create_log_record(**self.SAMPLE_RECORD)
+      log_output1 = json.loads(formatter.format(record))
+
+      with logger.PerThreadLoggingContext(step_name='step2'):
+        record = self.create_log_record(**self.SAMPLE_RECORD)
+        log_output2 = json.loads(formatter.format(record))
+
+      record = self.create_log_record(**self.SAMPLE_RECORD)
+      log_output3 = json.loads(formatter.format(record))
+
+    record = self.create_log_record(**self.SAMPLE_RECORD)
+    log_output4 = json.loads(formatter.format(record))
+
+    self.assertEqual(log_output1, dict(
+        self.SAMPLE_OUTPUT, work='workitem', stage='stage', step='step1'))
+    self.assertEqual(log_output2, dict(
+        self.SAMPLE_OUTPUT, work='workitem', stage='stage', step='step2'))
+    self.assertEqual(log_output3, dict(
+        self.SAMPLE_OUTPUT, work='workitem', stage='stage', step='step1'))
+    self.assertEqual(log_output4, self.SAMPLE_OUTPUT)
 
   def test_exception_record(self):
     formatter = logger.JsonLogFormatter(job_id='jobid', worker_id='workerid')

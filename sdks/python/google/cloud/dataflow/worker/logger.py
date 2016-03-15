@@ -23,45 +23,32 @@ import traceback
 # Per-thread worker information. This is used only for logging to set
 # context information that changes while work items get executed:
 # work_item_id, step_name, stage_name.
-per_thread_worker_data = threading.local()
+class _PerThreadWorkerData(threading.local):
+
+  def __init__(self):
+    super(_PerThreadWorkerData, self).__init__()
+    self.stack = []
+
+  def get_data(self):
+    all_data = {}
+    for datum in self.stack:
+      all_data.update(datum)
+    return all_data
+
+per_thread_worker_data = _PerThreadWorkerData()
 
 
 class PerThreadLoggingContext(object):
   """A context manager to add per thread attributes."""
-  _instance = dict()
 
-  def __new__(cls, *args, **kwargs):
-    # TODO(robertwb): make the class generic, this is special-cased to save
-    # time on the DoFn
-    if not args and len(kwargs) == 1 and 'step_name' in kwargs:
-      k = kwargs['step_name']
-      if k not in cls._instance:
-        cls._instance[k] = super(PerThreadLoggingContext, cls).__new__(
-            cls, *args, **kwargs)
-      return cls._instance[k]
-    else:
-      return super(PerThreadLoggingContext, cls).__new__(cls, *args, **kwargs)
-
-  def __init__(self, *args, **kwargs):
-    if args:
-      raise ValueError(
-          'PerThreadLoggingContext expects only keyword arguments.')
+  def __init__(self, **kwargs):
     self.kwargs = kwargs
-    self.previous = {}
 
   def __enter__(self):
-    for key in self.kwargs:
-      if hasattr(per_thread_worker_data, key):
-        self.previous[key] = getattr(per_thread_worker_data, key)
-      setattr(per_thread_worker_data, key, self.kwargs[key])
-    return self
+    per_thread_worker_data.stack.append(self.kwargs)
 
   def __exit__(self, exn_type, exn_value, exn_traceback):
-    for key in self.kwargs:
-      if key in self.previous:
-        setattr(per_thread_worker_data, key, self.previous[key])
-      else:
-        delattr(per_thread_worker_data, key)
+    per_thread_worker_data.stack.pop()
 
 
 class JsonLogFormatter(logging.Formatter):
@@ -138,12 +125,13 @@ class JsonLogFormatter(logging.Formatter):
     # Stage, step and work item ID come from thread local storage since they
     # change with every new work item leased for execution. If there is no
     # work item ID then we make sure the step is undefined too.
-    if hasattr(per_thread_worker_data, 'work_item_id'):
-      output['work'] = getattr(per_thread_worker_data, 'work_item_id')
-    if hasattr(per_thread_worker_data, 'stage_name'):
-      output['stage'] = getattr(per_thread_worker_data, 'stage_name')
-    if hasattr(per_thread_worker_data, 'step_name'):
-      output['step'] = getattr(per_thread_worker_data, 'step_name')
+    data = per_thread_worker_data.get_data()
+    if 'work_item_id' in data:
+      output['work'] = data['work_item_id']
+    if 'stage_name' in data:
+      output['stage'] = data['stage_name']
+    if 'step_name' in data:
+      output['step'] = data['step_name']
     # All logging happens using the root logger. We will add the basename of the
     # file and the function name where the logging happened to make it easier
     # to identify who generated the record.
