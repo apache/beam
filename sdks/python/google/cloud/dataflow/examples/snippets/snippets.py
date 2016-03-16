@@ -345,6 +345,198 @@ def pipeline_logging(lines, output):
   p.run()
 
 
+def examples_wordcount_minimal(renames):
+  """MinimalWordCount example snippets.
+
+  URL:
+  https://cloud.google.com/dataflow/examples/wordcount-example#MinimalWordCount
+  """
+  import re
+
+  import google.cloud.dataflow as df
+
+  from google.cloud.dataflow.utils.options import GoogleCloudOptions
+  from google.cloud.dataflow.utils.options import StandardOptions
+  from google.cloud.dataflow.utils.options import PipelineOptions
+
+  # [START examples_wordcount_minimal_options]
+  options = PipelineOptions()
+  google_cloud_options = options.view_as(GoogleCloudOptions)
+  google_cloud_options.project = 'my-project-id'
+  google_cloud_options.job_name = 'myjob'
+  google_cloud_options.staging_location = 'gs://your-bucket-name-here/staging'
+  google_cloud_options.temp_location = 'gs://your-bucket-name-here/temp'
+  options.view_as(StandardOptions).runner = 'BlockingDataflowPipelineRunner'
+  # [END examples_wordcount_minimal_options]
+
+  # Run it locally for testing.
+  options = PipelineOptions()
+
+  # [START examples_wordcount_minimal_create]
+  p = df.Pipeline(options=options)
+  # [END examples_wordcount_minimal_create]
+
+  (
+      # [START examples_wordcount_minimal_read]
+      p | df.io.Read(df.io.TextFileSource(
+          'gs://dataflow-samples/shakespeare/kinglear.txt'))
+      # [END examples_wordcount_minimal_read]
+
+      # [START examples_wordcount_minimal_pardo]
+      | df.FlatMap('ExtractWords', lambda x: re.findall(r'[A-Za-z\']+', x))
+      # [END examples_wordcount_minimal_pardo]
+
+      # [START examples_wordcount_minimal_count]
+      | df.combiners.Count.PerElement()
+      # [END examples_wordcount_minimal_count]
+
+      # [START examples_wordcount_minimal_map]
+      | df.Map(lambda (word, count): '%s: %s' % (word, count))
+      # [END examples_wordcount_minimal_map]
+
+      # [START examples_wordcount_minimal_write]
+      | df.io.Write(df.io.TextFileSink('gs://my-bucket/counts.txt'))
+      # [END examples_wordcount_minimal_write]
+  )
+
+  p.visit(SnippetUtils.RenameFiles(renames))
+
+  # [START examples_wordcount_minimal_run]
+  p.run()
+  # [END examples_wordcount_minimal_run]
+
+
+def examples_wordcount_wordcount(renames):
+  """WordCount example snippets.
+
+  URL:
+  https://cloud.google.com/dataflow/examples/wordcount-example#WordCount
+  """
+  import re
+
+  import google.cloud.dataflow as df
+  from google.cloud.dataflow.utils.options import PipelineOptions
+
+  argv = []
+
+  # [START examples_wordcount_wordcount_options]
+  class WordCountOptions(PipelineOptions):
+
+    @classmethod
+    def _add_argparse_args(cls, parser):
+      parser.add_argument('--input',
+                          help='Input for the dataflow pipeline',
+                          default='gs://my-bucket/input')
+
+  options = PipelineOptions(argv)
+  p = df.Pipeline(options=options)
+  # [END examples_wordcount_wordcount_options]
+
+  lines = p | df.io.Read(df.io.TextFileSource(
+      'gs://dataflow-samples/shakespeare/kinglear.txt'))
+
+  # [START examples_wordcount_wordcount_composite]
+  class CountWords(df.PTransform):
+
+    def apply(self, pcoll):
+      return (pcoll
+              # Convert lines of text into individual words.
+              | df.FlatMap(
+                  'ExtractWords', lambda x: re.findall(r'[A-Za-z\']+', x))
+
+              # Count the number of times each word occurs.
+              | df.combiners.Count.PerElement())
+
+  counts = lines | CountWords()
+  # [END examples_wordcount_wordcount_composite]
+
+  # [START examples_wordcount_wordcount_dofn]
+  class FormatAsTextFn(df.DoFn):
+
+    def process(self, context):
+      word, count = context.element
+      yield '%s: %s' % (word, count)
+
+  formatted = counts | df.ParDo(FormatAsTextFn())
+  # [END examples_wordcount_wordcount_dofn]
+
+  formatted | df.io.Write(df.io.TextFileSink('gs://my-bucket/counts.txt'))
+  p.visit(SnippetUtils.RenameFiles(renames))
+  p.run()
+
+
+def examples_wordcount_debugging(renames):
+  """DebuggingWordCount example snippets.
+
+  URL:
+  https://cloud.google.com/dataflow/examples/wordcount-example#DebuggingWordCount
+  """
+  import re
+
+  import google.cloud.dataflow as df
+  from google.cloud.dataflow.utils.options import PipelineOptions
+
+  # [START example_wordcount_debugging_logging]
+  # [START example_wordcount_debugging_aggregators]
+  import logging
+
+  class FilterTextFn(df.DoFn):
+    """A DoFn that filters for a specific key based on a regular expression."""
+
+    # A custom aggregator can track values in your pipeline as it runs. Create
+    # custom aggregators matched_word and unmatched_words.
+    matched_words = df.Aggregator('matched_words')
+    umatched_words = df.Aggregator('umatched_words')
+
+    def __init__(self, pattern):
+      self.pattern = pattern
+
+    def process(self, context):
+      word, _ = context.element
+      if re.match(self.pattern, word):
+        # Log at INFO level each element we match. When executing this pipeline
+        # using the Dataflow service, these log lines will appear in the Cloud
+        # Logging UI.
+        logging.info('Matched %s', word)
+
+        # Add 1 to the custom aggregator matched_words
+        context.aggregate_to(self.matched_words, 1)
+        yield context.element
+      else:
+        # Log at the "DEBUG" level each element that is not matched. Different
+        # log levels can be used to control the verbosity of logging providing
+        # an effective mechanism to filter less important information. Note
+        # currently only "INFO" and higher level logs are emitted to the Cloud
+        # Logger. This log message will not be visible in the Cloud Logger.
+        logging.debug('Did not match %s', word)
+
+        # Add 1 to the custom aggregator umatched_words
+        context.aggregate_to(self.umatched_words, 1)
+  # [END example_wordcount_debugging_logging]
+  # [END example_wordcount_debugging_aggregators]
+
+  p = df.Pipeline(options=PipelineOptions())
+  filtered_words = (
+      p
+      | df.io.Read(df.io.TextFileSource(
+          'gs://dataflow-samples/shakespeare/kinglear.txt'))
+      | df.FlatMap('ExtractWords', lambda x: re.findall(r'[A-Za-z\']+', x))
+      | df.combiners.Count.PerElement()
+      | df.ParDo('FilterText', FilterTextFn('Flourish|stomach')))
+
+  # [START example_wordcount_debugging_assert]
+  df.assert_that(filtered_words, df.equal_to([('Flourish', 3), ('stomach', 1)]))
+  # [END example_wordcount_debugging_assert]
+
+  output = (filtered_words
+            | df.Map('format', lambda (word, c): '%s: %s' % (word, c))
+            | df.io.Write(
+                'write', df.io.TextFileSink('gs://my-bucket/counts.txt')))
+
+  p.visit(SnippetUtils.RenameFiles(renames))
+  p.run()
+
+
 def model_textio(renames):
   """Using a Read and Write transform to read/write text files.
 

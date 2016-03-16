@@ -402,6 +402,29 @@ class SnippetsTest(unittest.TestCase):
         sorted(' '.join(lines).split(' ')),
         self.get_output(result_path))
 
+  def test_examples_wordcount(self):
+    pipelines = [snippets.examples_wordcount_minimal,
+                 snippets.examples_wordcount_wordcount]
+
+    for pipeline in pipelines:
+      temp_path = self.create_temp_file(
+          'abc def ghi\n abc jkl')
+      result_path = self.create_temp_file()
+      pipeline({'read': temp_path, 'write': result_path})
+      self.assertEqual(
+          self.get_output(result_path),
+          ['abc: 2', 'def: 1', 'ghi: 1', 'jkl: 1'])
+
+  def test_examples_wordcount_debugging(self):
+    temp_path = self.create_temp_file(
+        'Flourish Flourish Flourish stomach abc def')
+    result_path = self.create_temp_file()
+    snippets.examples_wordcount_debugging(
+        {'read': temp_path, 'write': result_path})
+    self.assertEqual(
+        self.get_output(result_path),
+        ['Flourish: 3', 'stomach: 1'])
+
   def test_model_composite_transform_example(self):
     contents = ['aa bb cc', 'bb cc', 'cc']
     result_path = self.create_temp_file()
