@@ -80,7 +80,7 @@ public class AfterWatermark<W extends BoundedWindow> {
   public interface AfterWatermarkEarly<W extends BoundedWindow> extends TriggerBuilder<W> {
     /**
      * Creates a new {@code Trigger} like the this, except that it fires repeatedly whenever
-     * the given {@code Trigger} fires before the watermark has passed the end of the window.
+     * the given {@code Trigger} fires after the watermark has passed the end of the window.
      */
     TriggerBuilder<W> withLateFirings(OnceTrigger<W> lateTrigger);
   }
@@ -91,7 +91,7 @@ public class AfterWatermark<W extends BoundedWindow> {
   public interface AfterWatermarkLate<W extends BoundedWindow> extends TriggerBuilder<W> {
     /**
      * Creates a new {@code Trigger} like the this, except that it fires repeatedly whenever
-     * the given {@code Trigger} fires after the watermark has passed the end of the window.
+     * the given {@code Trigger} fires before the watermark has passed the end of the window.
      */
     TriggerBuilder<W> withEarlyFirings(OnceTrigger<W> earlyTrigger);
   }
