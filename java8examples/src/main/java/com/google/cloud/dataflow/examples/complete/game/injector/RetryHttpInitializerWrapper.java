@@ -124,4 +124,3 @@ public class RetryHttpInitializerWrapper implements HttpRequestInitializer {
                         .setSleeper(sleeper));
     }
 }
-

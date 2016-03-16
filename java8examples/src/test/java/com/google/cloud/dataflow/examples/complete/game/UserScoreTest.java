@@ -28,12 +28,10 @@ import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFnTester;
 import com.google.cloud.dataflow.sdk.transforms.MapElements;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
-import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 
-import org.hamcrest.CoreMatchers;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -72,17 +70,17 @@ public class UserScoreTest implements Serializable {
   static final List<String> GAME_EVENTS = Arrays.asList(GAME_EVENTS_ARRAY);
   static final List<String> GAME_EVENTS2 = Arrays.asList(GAME_EVENTS_ARRAY2);
 
-  static final KV[] USER_SUMS = new KV[] {
+  static final List<KV<String, Integer>> USER_SUMS = Arrays.asList(
       KV.of("user0_MagentaKangaroo", 3), KV.of("user13_ApricotQuokka", 15),
       KV.of("user6_AmberNumbat", 11), KV.of("user7_AlmondWallaby", 15),
       KV.of("user7_AndroidGreenKookaburra", 23),
-      KV.of("user19_BisqueBilby", 14) };
+      KV.of("user19_BisqueBilby", 14));
 
-  static final KV[] TEAM_SUMS = new KV[] {
+  static final List<KV<String, Integer>> TEAM_SUMS = Arrays.asList(
       KV.of("MagentaKangaroo", 3), KV.of("ApricotQuokka", 15),
       KV.of("AmberNumbat", 11), KV.of("AlmondWallaby", 15),
       KV.of("AndroidGreenKookaburra", 23),
-      KV.of("BisqueBilby", 14) };
+      KV.of("BisqueBilby", 14));
 
   /** Test the ParseEventFn DoFn. */
   @Test

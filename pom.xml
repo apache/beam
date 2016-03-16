@@ -109,6 +109,15 @@
       </modules>
     </profile>
     <profile>
+      <id>java8-examples</id>
+      <activation>
+        <jdk>[1.8,)</jdk>
+      </activation>
+      <modules>
+        <module>java8examples</module>
+      </modules>
+    </profile>
+    <profile>
       <id>doclint-java8-disable</id>
       <activation>
         <jdk>[1.8,)</jdk>

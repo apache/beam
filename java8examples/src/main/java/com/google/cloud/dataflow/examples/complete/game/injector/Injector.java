@@ -19,17 +19,17 @@ package com.google.cloud.dataflow.examples.complete.game.injector;
 import com.google.api.services.pubsub.Pubsub;
 import com.google.api.services.pubsub.model.PublishRequest;
 import com.google.api.services.pubsub.model.PubsubMessage;
-
 import com.google.common.collect.ImmutableMap;
+
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
+
 import java.io.BufferedOutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
-import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -224,7 +224,6 @@ class Injector {
     if (random.nextInt(ROBOT_PROBABILITY) == 0) {
       robot = "Robot-" + random.nextInt(NUM_ROBOTS);
     }
-    long currTime = System.currentTimeMillis();
     // Create the new team.
     TeamInfo newTeam = new TeamInfo(teamName, System.currentTimeMillis(), robot);
     liveTeams.add(newTeam);
@@ -245,7 +244,7 @@ class Injector {
     TeamInfo team = randomTeam(liveTeams);
     String teamName = team.getTeamName();
     String user;
-    int PARSE_ERROR_RATE = 900000;
+    final int parseErrorRate = 900000;
 
     String robot = team.getRobot();
     // If the team has an associated robot team member...
@@ -264,7 +263,7 @@ class Injector {
     String event = user + "," + teamName + "," + random.nextInt(MAX_SCORE);
     // Randomly introduce occasional parse errors. You can see a custom counter tracking the number
     // of such errors in the Dataflow Monitoring UI, as the example pipeline runs.
-    if (random.nextInt(PARSE_ERROR_RATE) == 0) {
+    if (random.nextInt(parseErrorRate) == 0) {
       System.out.println("Introducing a parse error.");
       event = "THIS LINE REPRESENTS CORRUPT DATA AND WILL CAUSE A PARSE ERROR";
     }
@@ -316,7 +315,6 @@ class Injector {
    */
   public static void publishDataToFile(String fileName, int numMessages, int delayInMillis)
       throws IOException {
-    List<PubsubMessage> pubsubMessages = new ArrayList<>();
     PrintWriter out = new PrintWriter(new OutputStreamWriter(
         new BufferedOutputStream(new FileOutputStream(fileName, true)), "UTF-8"));
 
@@ -337,8 +335,7 @@ class Injector {
   }
 
 
-  public static void main(String[] args)
-      throws GeneralSecurityException, IOException, InterruptedException {
+  public static void main(String[] args) throws IOException, InterruptedException {
     if (args.length < 3) {
       System.out.println("Usage: Injector project-name (topic-name|none) (filename|none)");
       System.exit(1);
@@ -400,6 +397,7 @@ class Injector {
       } else { // Write to PubSub.
         // Start a thread to inject some data.
         new Thread(){
+          @Override
           public void run() {
             try {
               publishData(numMessages, delayInMillis);

@@ -111,9 +111,3 @@ you can override when you start up the pipeline if those tables already exist.
 Depending on the windowing intervals defined in a given pipeline, you may have
 to wait for a while (more than an hour) before you start to see results written
 to the BigQuery tables.
-
-
-
-
-
-

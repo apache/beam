@@ -24,7 +24,6 @@ import com.google.cloud.dataflow.sdk.io.PubsubIO;
 import com.google.cloud.dataflow.sdk.options.Default;
 import com.google.cloud.dataflow.sdk.options.Description;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.options.Validation;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
@@ -76,8 +75,8 @@ import java.util.TimeZone;
  * subsequent fixed windowing. (This could be used to tell us what games are giving us greater
  * user retention).
  *
- * <p> Run {@link injector.Injector} to generate pubsub data for this pipeline.  The Injector
- * documentation provides more detail.
+ * <p> Run {@literal com.google.cloud.dataflow.examples.complete.game.injector.Injector} to generate
+ * pubsub data for this pipeline. The {@literal Injector} documentation provides more detail.
  *
  * <p> To execute this pipeline using the Dataflow service, specify the pipeline configuration
  * like this:
@@ -95,14 +94,10 @@ import java.util.TimeZone;
 public class GameStats extends LeaderBoard {
 
   private static final String TIMESTAMP_ATTRIBUTE = "timestamp_ms";
-  private static final Logger LOG = LoggerFactory.getLogger(GameStats.class);
 
   private static DateTimeFormatter fmt =
       DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSS")
           .withZone(DateTimeZone.forTimeZone(TimeZone.getTimeZone("PST")));
-  static final Duration FIVE_MINUTES = Duration.standardMinutes(5);
-  static final Duration TEN_MINUTES = Duration.standardMinutes(10);
-
 
   /**
    * Filter out all but those users with a high clickrate, which we will consider as 'spammy' uesrs.
@@ -172,11 +167,6 @@ public class GameStats extends LeaderBoard {
    * Options supported by {@link GameStats}.
    */
   static interface Options extends LeaderBoard.Options {
-    @Description("Pub/Sub topic to read from")
-    @Validation.Required
-    String getTopic();
-    void setTopic(String value);
-
     @Description("Numeric value of fixed window duration for user analysis, in minutes")
     @Default.Integer(60)
     Integer getFixedWindowDuration();
@@ -299,7 +289,9 @@ public class GameStats extends LeaderBoard {
                   // If the user is not in the spammers Map, output the data element.
                   if (c.sideInput(spammersView).get(c.element().getUser().trim()) == null) {
                     c.output(c.element());
-                  }}}))
+                  }
+                }
+              }))
       // Extract and sum teamname/score pairs from the event data.
       .apply("ExtractTeamScore", new ExtractAndSumScore("team"))
       // [END DocInclude_FilterAndCalc]
