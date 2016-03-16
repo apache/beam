@@ -460,6 +460,11 @@ class DataflowPipelineRunner(PipelineRunner):
                          ' a query',
                          transform.source)
     elif transform.source.format == 'pubsub':
+      standard_options = (
+          transform_node.inputs[0].pipeline.options.view_as(StandardOptions))
+      if not standard_options.streaming:
+        raise ValueError('PubSubSource is currently only available for use in '
+                         'streaming pipelines.')
       step.add_property(PropertyNames.PUBSUB_TOPIC, transform.source.topic)
       if transform.source.subscription:
         step.add_property(PropertyNames.PUBSUB_SUBSCRIPTION,
@@ -526,6 +531,11 @@ class DataflowPipelineRunner(PipelineRunner):
         step.add_property(
             PropertyNames.BIGQUERY_SCHEMA, transform.sink.schema_as_json())
     elif transform.sink.format == 'pubsub':
+      standard_options = (
+          transform_node.inputs[0].pipeline.options.view_as(StandardOptions))
+      if not standard_options.streaming:
+        raise ValueError('PubSubSink is currently only available for use in '
+                         'streaming pipelines.')
       step.add_property(PropertyNames.PUBSUB_TOPIC, transform.sink.topic)
     else:
       raise ValueError(

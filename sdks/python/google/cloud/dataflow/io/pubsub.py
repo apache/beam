@@ -36,6 +36,10 @@ class PubSubSource(iobase.Source):
     """Source format name required for remote execution."""
     return 'pubsub'
 
+  def reader(self):
+    raise NotImplementedError(
+        'PubSubSource is not supported in local execution.')
+
 
 class PubSubSink(iobase.NativeSink):
   """Sink for writing to a given Cloud Pub/Sub topic."""
@@ -48,3 +52,7 @@ class PubSubSink(iobase.NativeSink):
   def format(self):
     """Sink format name required for remote execution."""
     return 'pubsub'
+
+  def writer(self):
+    raise NotImplementedError(
+        'PubSubSink is not supported in local execution.')
