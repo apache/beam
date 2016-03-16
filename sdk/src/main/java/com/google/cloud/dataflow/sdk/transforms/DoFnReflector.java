@@ -625,19 +625,20 @@ public abstract class DoFnReflector {
     @Override
     public void startBundle(DoFn<InputT, OutputT>.Context c) throws Exception {
       ContextAdapter<InputT, OutputT> adapter = new ContextAdapter<>(fn, c);
-      reflector.invokeStartBundle(fn, adapter, adapter);
+      reflector.invokeStartBundle(fn, (DoFnWithContext<InputT, OutputT>.Context) adapter, adapter);
     }
 
     @Override
     public void finishBundle(DoFn<InputT, OutputT>.Context c) throws Exception {
       ContextAdapter<InputT, OutputT> adapter = new ContextAdapter<>(fn, c);
-      reflector.invokeFinishBundle(fn, adapter, adapter);
+      reflector.invokeFinishBundle(fn, (DoFnWithContext<InputT, OutputT>.Context) adapter, adapter);
     }
 
     @Override
     public void processElement(DoFn<InputT, OutputT>.ProcessContext c) throws Exception {
       ProcessContextAdapter<InputT, OutputT> adapter = new ProcessContextAdapter<>(fn, c);
-      reflector.invokeProcessElement(fn, adapter, adapter);
+      reflector.invokeProcessElement(
+          fn, (DoFnWithContext<InputT, OutputT>.ProcessContext) adapter, adapter);
     }
 
     @Override
