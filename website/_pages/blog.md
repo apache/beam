@@ -8,11 +8,10 @@ This is the blog for the Apache Beam project. This blog contains news and update
 for the project.
 
 {% for post in site.posts %}
-{% assign author = site.data.authors[post.author] %}
+{% assign authors = post.authors %}
 
 ### <a class="post-link" href="{{ post.url | prepend: site.baseurl }}">{{ post.title }}</a>
-<i>{{ post.date | date: "%b %-d, %Y" }}{% if author %} - posted by {{ author.name }} [<a href="https://twitter.com/{{ author.twitter }}">@{{ author.twitter }}</a>]
-{% endif %}</i>
+<i>{{ post.date | date: "%b %-d, %Y" }}{% if authors %} • {% include authors-list.md %}{% endif %}</i>
 
 {{ post.excerpt }}
 
