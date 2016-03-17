@@ -22,6 +22,7 @@ import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData.Builder;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.DirectModeExecutionContext;
 import com.google.cloud.dataflow.sdk.util.DirectSideInputReader;
@@ -785,6 +786,18 @@ public class ParDo {
       } else {
         return String.format("ParDo(%s)", StringUtils.approximateSimpleName(clazz));
       }
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>{@link ParDo} registers its internal {@link DoFn} as a subcomponent for display metadata.
+     * {@link DoFn} implementations can register display data by overriding
+     * {@link DoFn#populateDisplayData}.
+     */
+    @Override
+    public void populateDisplayData(Builder builder) {
+      builder.include(fn);
     }
 
     public DoFn<InputT, OutputT> getFn() {
