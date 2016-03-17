@@ -24,6 +24,14 @@ import java.util.concurrent.Callable;
 
 import javax.annotation.Nullable;
 
+/**
+ * A {@link Callable} responsible for constructing a {@link TransformEvaluator} from a
+ * {@link TransformEvaluatorFactory} and evaluating it on some bundle of input, and registering
+ * the result using a registered {@link CompletionCallback}.
+ *
+ * <p>A {@link TransformExecutor} that is currently executing also provides access to the thread
+ * that it is being executed on.
+ */
 class TransformExecutor<T> implements Callable<InProcessTransformResult> {
   public static <T> TransformExecutor<T> create(
       TransformEvaluatorFactory factory,
@@ -41,14 +49,15 @@ class TransformExecutor<T> implements Callable<InProcessTransformResult> {
         transformEvaluationState);
   }
 
-  private final TransformEvaluatorFactory factory;
+  private final TransformEvaluatorFactory evaluatorFactory;
   private final InProcessEvaluationContext evaluationContext;
 
-  private final CommittedBundle<T> inputBundle;
+  /** The transform that will be evaluated. */
   private final AppliedPTransform<?, ?, ?> transform;
+  /** The inputs this {@link TransformExecutor} will deliver to the transform. */
+  private final CommittedBundle<T> inputBundle;
 
   private final CompletionCallback onComplete;
-
   private final TransformExecutorService transformEvaluationState;
 
   private Thread thread;
@@ -60,7 +69,7 @@ class TransformExecutor<T> implements Callable<InProcessTransformResult> {
       AppliedPTransform<?, ?, ?> transform,
       CompletionCallback completionCallback,
       TransformExecutorService transformEvaluationState) {
-    this.factory = factory;
+    this.evaluatorFactory = factory;
     this.evaluationContext = evaluationContext;
 
     this.inputBundle = inputBundle;
@@ -76,7 +85,7 @@ class TransformExecutor<T> implements Callable<InProcessTransformResult> {
     this.thread = Thread.currentThread();
     try {
       TransformEvaluator<T> evaluator =
-          factory.forApplication(transform, inputBundle, evaluationContext);
+          evaluatorFactory.forApplication(transform, inputBundle, evaluationContext);
       if (inputBundle != null) {
         for (WindowedValue<T> value : inputBundle.getElements()) {
           evaluator.processElement(value);

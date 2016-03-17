@@ -18,7 +18,6 @@ package com.google.cloud.dataflow.sdk.runners.inprocess;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InMemoryWatermarkManager.FiredTimers;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
-import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.InProcessExecutor;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.util.KeyedWorkItem;
 import com.google.cloud.dataflow.sdk.util.KeyedWorkItems;
@@ -39,6 +38,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
@@ -58,6 +58,7 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
   private final ExecutorService executorService;
 
   private final Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers;
+  private final Set<PValue> keyedPValues;
   private final TransformEvaluatorRegistry registry;
   private final InProcessEvaluationContext evaluationContext;
 
@@ -67,25 +68,30 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
   private final Queue<ExecutorUpdate> allUpdates;
   private final BlockingQueue<VisibleExecutorUpdate> visibleUpdates;
 
+  private final TransformExecutorService parallelExecutorService;
   private final CompletionCallback defaultCompletionCallback;
+
   private Collection<AppliedPTransform<?, ?, ?>> rootNodes;
 
   public static ExecutorServiceParallelExecutor create(
       ExecutorService executorService,
       Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers,
+      Set<PValue> keyedPValues,
       TransformEvaluatorRegistry registry,
       InProcessEvaluationContext context) {
     return new ExecutorServiceParallelExecutor(
-        executorService, valueToConsumers, registry, context);
+        executorService, valueToConsumers, keyedPValues, registry, context);
   }
 
   private ExecutorServiceParallelExecutor(
       ExecutorService executorService,
       Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers,
+      Set<PValue> keyedPValues,
       TransformEvaluatorRegistry registry,
       InProcessEvaluationContext context) {
     this.executorService = executorService;
     this.valueToConsumers = valueToConsumers;
+    this.keyedPValues = keyedPValues;
     this.registry = registry;
     this.evaluationContext = context;
 
@@ -95,7 +101,9 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
     this.allUpdates = new ConcurrentLinkedQueue<>();
     this.visibleUpdates = new ArrayBlockingQueue<>(20);
 
-    defaultCompletionCallback = new TimerlessCompletionCallback();
+    parallelExecutorService =
+        TransformExecutorServices.parallel(executorService, scheduledExecutors);
+    defaultCompletionCallback = new DefaultCompletionCallback();
   }
 
   @Override
@@ -108,7 +116,7 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
   @SuppressWarnings("unchecked")
   public void scheduleConsumption(
       AppliedPTransform<?, ?, ?> consumer,
-      CommittedBundle<?> bundle,
+      @Nullable CommittedBundle<?> bundle,
       CompletionCallback onComplete) {
     evaluateBundle(consumer, bundle, onComplete);
   }
@@ -117,12 +125,22 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
       final AppliedPTransform<?, ?, ?> transform,
       @Nullable final CommittedBundle<T> bundle,
       final CompletionCallback onComplete) {
-    final StepAndKey stepAndKey = StepAndKey.of(transform, bundle == null ? null : bundle.getKey());
-    TransformExecutorService state =
-        getStepAndKeyExecutorService(stepAndKey, bundle == null ? true : !bundle.isKeyed());
+    TransformExecutorService transformExecutor;
+    if (isKeyed(bundle.getPCollection())) {
+      final StepAndKey stepAndKey =
+          StepAndKey.of(transform, bundle == null ? null : bundle.getKey());
+      transformExecutor = getSerialExecutorService(stepAndKey);
+    } else {
+      transformExecutor = parallelExecutorService;
+    }
     TransformExecutor<T> callable =
-        TransformExecutor.create(registry, evaluationContext, bundle, transform, onComplete, state);
-    state.schedule(callable);
+        TransformExecutor.create(
+            registry, evaluationContext, bundle, transform, onComplete, transformExecutor);
+    transformExecutor.schedule(callable);
+  }
+
+  private boolean isKeyed(PValue pvalue) {
+    return keyedPValues.contains(pvalue);
   }
 
   private void scheduleConsumers(CommittedBundle<?> bundle) {
@@ -131,14 +149,10 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
     }
   }
 
-  private TransformExecutorService getStepAndKeyExecutorService(
-      StepAndKey stepAndKey, boolean parallelizable) {
+  private TransformExecutorService getSerialExecutorService(StepAndKey stepAndKey) {
     if (!currentEvaluations.containsKey(stepAndKey)) {
-      TransformExecutorService evaluationState =
-          parallelizable
-              ? TransformExecutorServices.parallel(executorService, scheduledExecutors)
-              : TransformExecutorServices.serial(executorService, scheduledExecutors);
-      currentEvaluations.putIfAbsent(stepAndKey, evaluationState);
+      currentEvaluations.putIfAbsent(
+          stepAndKey, TransformExecutorServices.serial(executorService, scheduledExecutors));
     }
     return currentEvaluations.get(stepAndKey);
   }
@@ -149,17 +163,18 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
     do {
       update = visibleUpdates.take();
       if (update.throwable.isPresent()) {
-        if (update.throwable.get() instanceof Exception) {
-          throw update.throwable.get();
-        } else {
-          throw update.throwable.get();
-        }
+        throw update.throwable.get();
       }
     } while (!update.isDone());
     executorService.shutdown();
   }
 
-  private class TimerlessCompletionCallback implements CompletionCallback {
+  /**
+   * The default {@link CompletionCallback}. The default completion callback is used to complete
+   * transform evaluations that are triggered due to the arrival of elements from an upstream
+   * transform, or for a source transform.
+   */
+  private class DefaultCompletionCallback implements CompletionCallback {
     @Override
     public void handleResult(CommittedBundle<?> inputBundle, InProcessTransformResult result) {
       Iterable<? extends CommittedBundle<?>> resultBundles =
@@ -175,6 +190,12 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
     }
   }
 
+  /**
+   * A {@link CompletionCallback} where the completed bundle was produced to deliver some collection
+   * of {@link TimerData timers}. When the evaluator completes successfully, reports all of the
+   * timers used to create the input to the {@link InProcessEvaluationContext evaluation context}
+   * as part of the result.
+   */
   private class TimerCompletionCallback implements CompletionCallback {
     private final Iterable<TimerData> timers;
 
@@ -237,7 +258,7 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
   }
 
   /**
-   * An update of interest to the user. Used in {@link #awaitCompletion} to decide weather to
+   * An update of interest to the user. Used in {@link #awaitCompletion} to decide whether to
    * return normally or throw an exception.
    */
   private static class VisibleExecutorUpdate {
@@ -305,7 +326,7 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
       }
     }
 
-    public void fireTimers() throws Exception {
+    private void fireTimers() throws Exception {
       try {
         for (Map.Entry<AppliedPTransform<?, ?, ?>, Map<Object, FiredTimers>> transformTimers :
             evaluationContext.extractFiredTimers().entrySet()) {

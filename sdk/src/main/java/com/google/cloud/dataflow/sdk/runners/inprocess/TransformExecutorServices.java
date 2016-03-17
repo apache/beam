@@ -50,8 +50,11 @@ final class TransformExecutorServices {
   }
 
   /**
-   * The evaluation of a step where the input is unkeyed. Unkeyed inputs can be evaluated in
-   * parallel with an arbitrary amount of parallelism.
+   * A {@link TransformExecutorService} with unlimited parallelism. Any {@link TransformExecutor}
+   * scheduled will be immediately submitted to the {@link ExecutorService}.
+   *
+   * <p>A principal use of this is for the evaluation of an unkeyed Step. Unkeyed computations are
+   * processed in parallel.
    */
   private static class ParallelEvaluationState implements TransformExecutorService {
     private final ExecutorService executor;
@@ -76,9 +79,12 @@ final class TransformExecutorServices {
   }
 
   /**
-   * The evaluation of a (Step, Key) pair. (Step, Key) computations are processed serially;
-   * scheduling a computation will add it to the Work Queue if a computation is in progress, and
-   * completing a computation will schedule the next item in the work queue, if it exists.
+   * A {@link TransformExecutorService} with a single work queue. Any {@link TransformExecutor}
+   * scheduled will be placed on the work queue. Only one item of work will be submitted to the
+   * {@link ExecutorService} at any time.
+   *
+   * <p>A principal use of this is for the serial evaluation of a (Step, Key) pair.
+   * Keyed computations are processed serially per step.
    */
   private static class SerialEvaluationState implements TransformExecutorService {
     private final ExecutorService executor;

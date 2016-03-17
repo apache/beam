@@ -21,7 +21,6 @@ import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.inprocess.GroupByKeyEvaluatorFactory.InProcessGroupByKey;
 import com.google.cloud.dataflow.sdk.runners.inprocess.ViewEvaluatorFactory.InProcessCreatePCollectionView;
-import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.View.CreatePCollectionView;
@@ -33,7 +32,6 @@ import com.google.common.collect.ImmutableMap;
 
 import org.joda.time.Instant;
 
-import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -167,29 +165,5 @@ public class InProcessPipelineRunner {
    */
   public InProcessPipelineOptions getPipelineOptions() {
     return options;
-  }
-
-  /**
-   * An executor that schedules and executes {@link AppliedPTransform AppliedPTransforms} for both
-   * source and intermediate {@link PTransform PTransforms}.
-   */
-  public static interface InProcessExecutor {
-    /**
-     * Starts this executor. The provided collection is the collection of root transforms to
-     * initially schedule.
-     *
-     * @param rootTransforms
-     */
-    void start(Collection<AppliedPTransform<?, ?, ?>> rootTransforms);
-
-    /**
-     * Blocks until the job being executed enters a terminal state. A job is completed after all
-     * root {@link AppliedPTransform AppliedPTransforms} have completed, and all
-     * {@link CommittedBundle Bundles} have been consumed. Jobs may also terminate abnormally.
-     *
-     * @throws Throwable whenever an executor thread throws anything, transfers the throwable to the
-     *                   waiting thread and rethrows it
-     */
-    void awaitCompletion() throws Throwable;
   }
 }

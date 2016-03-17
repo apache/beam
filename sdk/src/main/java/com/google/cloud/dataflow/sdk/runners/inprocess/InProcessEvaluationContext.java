@@ -360,12 +360,13 @@ class InProcessEvaluationContext {
    * Returns true if all steps are done.
    */
   public boolean isDone() {
-    boolean done = true;
     if (!options.isShutdownUnboundedProducersWithMaxWatermark() && containsUnboundedPCollection()) {
       return false;
     }
-    done &= watermarkManager.allWatermarksAtPositiveInfinity();
-    return done;
+    if (!watermarkManager.allWatermarksAtPositiveInfinity()) {
+      return false;
+    }
+    return true;
   }
 
   private boolean containsUnboundedPCollection() {
