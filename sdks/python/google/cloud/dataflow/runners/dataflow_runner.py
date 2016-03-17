@@ -77,6 +77,12 @@ class DataflowPipelineRunner(PipelineRunner):
 
     last_error_rank = float('-inf')
     last_error_msg = None
+    last_job_state = None
+    # How long to wait after pipeline failure for the error
+    # message to show up giving the reason for the failure.
+    # It typically takes about 30 seconds.
+    final_countdown_timer_secs = 50.0
+    sleep_secs = 5.0
     # Try to prioritize the user-level traceback, if any.
     def rank_error(msg):
       if 'work item was attempted' in msg:
@@ -91,11 +97,24 @@ class DataflowPipelineRunner(PipelineRunner):
       # If get() is called very soon after Create() the response may not contain
       # an initialized 'currentState' field.
       if response.currentState is not None:
-        logging.info('Job %s is in state %s.', job_id,
-                     str(response.currentState))
+        if response.currentState != last_job_state:
+          logging.info('Job %s is in state %s', job_id, response.currentState)
+          last_job_state = response.currentState
         if str(response.currentState) != 'JOB_STATE_RUNNING':
-          break
-      time.sleep(5.0)
+          # Stop checking for new messages on timeout, explanatory
+          # message received, success, or a terminal job state caused
+          # by the user that therefore doesn't require explanation.
+          if (final_countdown_timer_secs <= 0.0
+              or last_error_msg is not None
+              or str(response.currentState) == 'JOB_STATE_DONE'
+              or str(response.currentState) == 'JOB_STATE_CANCELLED'
+              or str(response.currentState) == 'JOB_STATE_UPDATED'
+              or str(response.currentState) == 'JOB_STATE_DRAINED'):
+            break
+          # The job has failed; ensure we see any final error messages.
+          sleep_secs = 1.0      # poll faster during the final countdown
+          final_countdown_timer_secs -= sleep_secs
+      time.sleep(sleep_secs)
 
       # Get all messages since beginning of the job run or since last message.
       page_token = None
@@ -463,7 +482,7 @@ class DataflowPipelineRunner(PipelineRunner):
       standard_options = (
           transform_node.inputs[0].pipeline.options.view_as(StandardOptions))
       if not standard_options.streaming:
-        raise ValueError('PubSubSource is currently only available for use in '
+        raise ValueError('PubSubSource is currently available for use only in '
                          'streaming pipelines.')
       step.add_property(PropertyNames.PUBSUB_TOPIC, transform.source.topic)
       if transform.source.subscription:
@@ -534,7 +553,7 @@ class DataflowPipelineRunner(PipelineRunner):
       standard_options = (
           transform_node.inputs[0].pipeline.options.view_as(StandardOptions))
       if not standard_options.streaming:
-        raise ValueError('PubSubSink is currently only available for use in '
+        raise ValueError('PubSubSink is currently available for use only in '
                          'streaming pipelines.')
       step.add_property(PropertyNames.PUBSUB_TOPIC, transform.sink.topic)
     else:
