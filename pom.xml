@@ -233,10 +233,6 @@
           <configuration>
             <parallel>${testParallelValue}</parallel>
             <threadCount>4</threadCount>
-            <additionalClasspathElements>
-              <additionalClasspathElement>${project.build.directory}/${project.artifactId}-${project.version}.jar</additionalClasspathElement>
-              <additionalClasspathElement>${project.build.directory}/${project.artifactId}-${project.version}-tests.jar</additionalClasspathElement>
-            </additionalClasspathElements>
             <groups>${testGroups}</groups>
             <systemPropertyVariables>
               <runIntegrationTestOnService>${runIntegrationTestOnService}</runIntegrationTestOnService>

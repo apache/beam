@@ -328,7 +328,7 @@
         <executions>
           <execution>
             <id>schemas</id>
-            <phase>generate-test-sources</phase>
+            <phase>generate-sources</phase>
             <goals>
               <goal>schema</goal>
             </goals>
