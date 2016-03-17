@@ -103,7 +103,7 @@ public class KafkaWindowedWordCountExample {
   public static void main(String[] args) {
     PipelineOptionsFactory.register(KafkaStreamingWordCountOptions.class);
     KafkaStreamingWordCountOptions options = PipelineOptionsFactory.fromArgs(args).as(KafkaStreamingWordCountOptions.class);
-    options.setJobName("KafkaExample");
+    options.setJobName("KafkaExample - WindowSize: " + options.getWindowSize() + " seconds");
     options.setStreaming(true);
     options.setCheckpointingInterval(1000L);
     options.setNumberOfExecutionRetries(5);

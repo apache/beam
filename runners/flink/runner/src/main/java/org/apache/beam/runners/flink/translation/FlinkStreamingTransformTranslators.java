@@ -44,6 +44,7 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.streaming.api.datastream.*;
+import org.apache.flink.streaming.api.functions.IngestionTimeExtractor;
 import org.apache.flink.util.Collector;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -179,7 +180,7 @@ public class FlinkStreamingTransformTranslators {
               public void flatMap(String s, Collector<WindowedValue<String>> collector) throws Exception {
                 collector.collect(WindowedValue.<String>of(s, Instant.now(), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
               }
-            });
+            }).assignTimestampsAndWatermarks(new IngestionTimeExtractor());
       } else {
         source = context.getExecutionEnvironment()
             .addSource(new UnboundedSourceWrapper<>(context.getPipelineOptions(), transform));

@@ -17,12 +17,10 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming.io;
 
-import org.apache.beam.runners.flink.FlinkPipelineRunner;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.io.UnboundedSource;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.common.base.Preconditions;
-import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
@@ -30,7 +28,7 @@ import javax.annotation.Nullable;
 import java.util.List;
 
 /**
- * A wrapper translating Flink Sources implementing the {@link RichParallelSourceFunction} interface, into
+ * A wrapper translating Flink Sources implementing the {@link SourceFunction} interface, into
  * unbounded Beam sources (see {@link UnboundedSource}).
  * */
 public class UnboundedFlinkSource<T> extends UnboundedSource<T, UnboundedSource.CheckpointMark> {
@@ -68,7 +66,8 @@ public class UnboundedFlinkSource<T> extends UnboundedSource<T, UnboundedSource.
 
   @Override
   public Coder<T> getDefaultOutputCoder() {
-    throw new RuntimeException("Flink Sources are supported only when running with the FlinkPipelineRunner.");
+    // The coder is specified in the Flink source
+    return null;
   }
 
   /**
