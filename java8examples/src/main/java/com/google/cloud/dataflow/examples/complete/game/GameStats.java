@@ -75,8 +75,8 @@ import java.util.TimeZone;
  * subsequent fixed windowing. (This could be used to tell us what games are giving us greater
  * user retention).
  *
- * <p> Run {@literal com.google.cloud.dataflow.examples.complete.game.injector.Injector} to generate
- * pubsub data for this pipeline. The {@literal Injector} documentation provides more detail.
+ * <p> Run {@code com.google.cloud.dataflow.examples.complete.game.injector.Injector} to generate
+ * pubsub data for this pipeline. The {@code Injector} documentation provides more detail.
  *
  * <p> To execute this pipeline using the Dataflow service, specify the pipeline configuration
  * like this:
