@@ -29,6 +29,7 @@ import com.google.cloud.dataflow.sdk.transforms.CombineFnBase.PerKeyCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import com.google.cloud.dataflow.sdk.transforms.CombineWithContext.Context;
 import com.google.cloud.dataflow.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
+import com.google.cloud.dataflow.sdk.util.CombineFnUtil;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.collect.ImmutableList;
@@ -369,7 +370,7 @@ public class CombineFns {
       checkUniqueness(outputTags, outputTag);
       List<CombineFnWithContext<Object, Object, Object>> fnsWithContext = Lists.newArrayList();
       for (CombineFn<Object, Object, Object> fn : combineFns) {
-        fnsWithContext.add(toFnWithContext(fn));
+        fnsWithContext.add(CombineFnUtil.toFnWithContext(fn));
       }
       return new ComposedCombineFnWithContext<>(
           ImmutableList.<SerializableFunction<DataT, ?>>builder()
@@ -510,7 +511,7 @@ public class CombineFns {
               .build(),
           ImmutableList.<CombineFnWithContext<?, ?, ?>>builder()
               .addAll(combineFnWithContexts)
-              .add(toFnWithContext(globalCombineFn))
+              .add(CombineFnUtil.toFnWithContext(globalCombineFn))
               .build(),
           ImmutableList.<TupleTag<?>>builder()
               .addAll(outputTags)
@@ -660,7 +661,7 @@ public class CombineFns {
       List<KeyedCombineFnWithContext<K, Object, Object, Object>> fnsWithContext =
           Lists.newArrayList();
       for (KeyedCombineFn<K, Object, Object, Object> fn : keyedCombineFns) {
-        fnsWithContext.add(toFnWithContext(fn));
+        fnsWithContext.add(CombineFnUtil.toFnWithContext(fn));
       }
       return new ComposedKeyedCombineFnWithContext<>(
           ImmutableList.<SerializableFunction<DataT, ?>>builder()
@@ -824,7 +825,7 @@ public class CombineFns {
               .build(),
           ImmutableList.<KeyedCombineFnWithContext<K, ?, ?, ?>>builder()
               .addAll(keyedCombineFns)
-              .add(toFnWithContext(perKeyCombineFn))
+              .add(CombineFnUtil.toFnWithContext(perKeyCombineFn))
               .build(),
           ImmutableList.<TupleTag<?>>builder()
               .addAll(outputTags)
@@ -994,99 +995,6 @@ public class CombineFns {
       for (int i = 0; i < codersCount; ++i) {
         coders.get(i).verifyDeterministic();
       }
-    }
-  }
-
-  @SuppressWarnings("unchecked")
-  private static <InputT, AccumT, OutputT> CombineFnWithContext<InputT, AccumT, OutputT>
-  toFnWithContext(GlobalCombineFn<InputT, AccumT, OutputT> globalCombineFn) {
-    if (globalCombineFn instanceof CombineFnWithContext) {
-      return (CombineFnWithContext<InputT, AccumT, OutputT>) globalCombineFn;
-    } else {
-      final CombineFn<InputT, AccumT, OutputT> combineFn =
-          (CombineFn<InputT, AccumT, OutputT>) globalCombineFn;
-      return new CombineFnWithContext<InputT, AccumT, OutputT>() {
-        @Override
-        public AccumT createAccumulator(Context c) {
-          return combineFn.createAccumulator();
-        }
-        @Override
-        public AccumT addInput(AccumT accumulator, InputT input, Context c) {
-          return combineFn.addInput(accumulator, input);
-        }
-        @Override
-        public AccumT mergeAccumulators(Iterable<AccumT> accumulators, Context c) {
-          return combineFn.mergeAccumulators(accumulators);
-        }
-        @Override
-        public OutputT extractOutput(AccumT accumulator, Context c) {
-          return combineFn.extractOutput(accumulator);
-        }
-        @Override
-        public AccumT compact(AccumT accumulator, Context c) {
-          return combineFn.compact(accumulator);
-        }
-        @Override
-        public OutputT defaultValue() {
-          return combineFn.defaultValue();
-        }
-        @Override
-        public Coder<AccumT> getAccumulatorCoder(CoderRegistry registry, Coder<InputT> inputCoder)
-            throws CannotProvideCoderException {
-          return combineFn.getAccumulatorCoder(registry, inputCoder);
-        }
-        @Override
-        public Coder<OutputT> getDefaultOutputCoder(
-            CoderRegistry registry, Coder<InputT> inputCoder) throws CannotProvideCoderException {
-          return combineFn.getDefaultOutputCoder(registry, inputCoder);
-        }
-      };
-    }
-  }
-
-  private static <K, InputT, AccumT, OutputT> KeyedCombineFnWithContext<K, InputT, AccumT, OutputT>
-  toFnWithContext(PerKeyCombineFn<K, InputT, AccumT, OutputT> perKeyCombineFn) {
-    if (perKeyCombineFn instanceof KeyedCombineFnWithContext) {
-      @SuppressWarnings("unchecked")
-      KeyedCombineFnWithContext<K, InputT, AccumT, OutputT> keyedCombineFnWithContext =
-          (KeyedCombineFnWithContext<K, InputT, AccumT, OutputT>) perKeyCombineFn;
-      return keyedCombineFnWithContext;
-    } else {
-      @SuppressWarnings("unchecked")
-      final KeyedCombineFn<K, InputT, AccumT, OutputT> keyedCombineFn =
-          (KeyedCombineFn<K, InputT, AccumT, OutputT>) perKeyCombineFn;
-      return new KeyedCombineFnWithContext<K, InputT, AccumT, OutputT>() {
-        @Override
-        public AccumT createAccumulator(K key, Context c) {
-          return keyedCombineFn.createAccumulator(key);
-        }
-        @Override
-        public AccumT addInput(K key, AccumT accumulator, InputT value, Context c) {
-          return keyedCombineFn.addInput(key, accumulator, value);
-        }
-        @Override
-        public AccumT mergeAccumulators(K key, Iterable<AccumT> accumulators, Context c) {
-          return keyedCombineFn.mergeAccumulators(key, accumulators);
-        }
-        @Override
-        public OutputT extractOutput(K key, AccumT accumulator, Context c) {
-          return keyedCombineFn.extractOutput(key, accumulator);
-        }
-        @Override
-        public AccumT compact(K key, AccumT accumulator, Context c) {
-          return keyedCombineFn.compact(key, accumulator);
-        }
-        @Override
-        public Coder<AccumT> getAccumulatorCoder(CoderRegistry registry, Coder<K> keyCoder,
-            Coder<InputT> inputCoder) throws CannotProvideCoderException {
-          return keyedCombineFn.getAccumulatorCoder(registry, keyCoder, inputCoder);
-        }
-        @Override
-        public Coder<OutputT> getDefaultOutputCoder(CoderRegistry registry, Coder<K> keyCoder,
-            Coder<InputT> inputCoder) throws CannotProvideCoderException {
-          return keyedCombineFn.getDefaultOutputCoder(registry, keyCoder, inputCoder);
-        }
-      };
     }
   }
 
