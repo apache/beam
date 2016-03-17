@@ -404,7 +404,8 @@ class SnippetsTest(unittest.TestCase):
 
   def test_examples_wordcount(self):
     pipelines = [snippets.examples_wordcount_minimal,
-                 snippets.examples_wordcount_wordcount]
+                 snippets.examples_wordcount_wordcount,
+                 snippets.pipeline_monitoring]
 
     for pipeline in pipelines:
       temp_path = self.create_temp_file(

@@ -345,6 +345,72 @@ def pipeline_logging(lines, output):
   p.run()
 
 
+def pipeline_monitoring(renames):
+  """Using monitoring interface snippets.
+
+  URL: https://cloud.google.com/dataflow/pipelines/dataflow-monitoring-intf
+  """
+
+  import re
+  import google.cloud.dataflow as df
+  from google.cloud.dataflow.utils.options import PipelineOptions
+
+  class WordCountOptions(PipelineOptions):
+
+    @classmethod
+    def _add_argparse_args(cls, parser):
+      parser.add_argument('--input',
+                          help='Input for the dataflow pipeline',
+                          default='gs://my-bucket/input')
+      parser.add_argument('--output',
+                          help='output for the dataflow pipeline',
+                          default='gs://my-bucket/output')
+
+  class ExtractWordsFn(df.DoFn):
+
+    def process(self, context):
+      words = re.findall(r'[A-Za-z\']+', context.element)
+      for word in words:
+        yield word
+
+  class FormatCountsFn(df.DoFn):
+
+    def process(self, context):
+      word, count = context.element
+      yield '%s: %s' % (word, count)
+
+  # [START pipeline_monitoring_composite]
+  # The CountWords Composite Transform inside the WordCount pipeline.
+  class CountWords(df.PTransform):
+
+    def apply(self, pcoll):
+      return (pcoll
+              # Convert lines of text into individual words.
+              | df.ParDo('ExtractWords', ExtractWordsFn())
+              # Count the number of times each word occurs.
+              | df.combiners.Count.PerElement()
+              # Format each word and count into a printable string.
+              | df.ParDo('FormatCounts', FormatCountsFn()))
+  # [END pipeline_monitoring_composite]
+
+  pipeline_options = PipelineOptions()
+  options = pipeline_options.view_as(WordCountOptions)
+  p = df.Pipeline(options=pipeline_options)
+
+  # [START pipeline_monitoring_execution]
+  (p
+   # Read the lines of the input text.
+   | df.io.Read('ReadLines', df.io.TextFileSource(options.input))
+   # Count the words.
+   | CountWords()
+   # Write the formatted word counts to output.
+   | df.io.Write('WriteCounts', df.io.TextFileSink(options.output)))
+  # [END pipeline_monitoring_execution]
+
+  p.visit(SnippetUtils.RenameFiles(renames))
+  p.run()
+
+
 def examples_wordcount_minimal(renames):
   """MinimalWordCount example snippets.
 
