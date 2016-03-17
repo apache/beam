@@ -4,7 +4,8 @@ title:  "Apache Beam has a logo!"
 date:   2016-02-22 10:21:48 -0800
 excerpt_separator: <!--more-->
 categories: beam update website
-author: jamesmalone
+authors: 
+- jamesmalone
 ---
 
 One of the major benefits of Apache Beam is the fact that it unifies both
