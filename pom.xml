@@ -100,6 +100,24 @@
 
   <profiles>
     <profile>
+      <id>java8-tests</id>
+      <activation>
+        <jdk>[1.8,)</jdk>
+      </activation>
+      <modules>
+        <module>java8tests</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>java8-examples</id>
+      <activation>
+        <jdk>[1.8,)</jdk>
+      </activation>
+      <modules>
+        <module>java8examples</module>
+      </modules>
+    </profile>
+    <profile>
       <id>doclint-java8-disable</id>
       <activation>
         <jdk>[1.8,)</jdk>
@@ -215,10 +233,6 @@
           <configuration>
             <parallel>${testParallelValue}</parallel>
             <threadCount>4</threadCount>
-            <additionalClasspathElements>
-              <additionalClasspathElement>${project.build.directory}/${project.artifactId}-${project.version}.jar</additionalClasspathElement>
-              <additionalClasspathElement>${project.build.directory}/${project.artifactId}-${project.version}-tests.jar</additionalClasspathElement>
-            </additionalClasspathElements>
             <groups>${testGroups}</groups>
             <systemPropertyVariables>
               <runIntegrationTestOnService>${runIntegrationTestOnService}</runIntegrationTestOnService>

@@ -54,13 +54,14 @@ import java.util.Map;
  */
 class GroupByKeyEvaluatorFactory implements TransformEvaluatorFactory {
   @Override
-  @SuppressWarnings({"unchecked", "rawtypes"})
   public <InputT> TransformEvaluator<InputT> forApplication(
       AppliedPTransform<?, ?, ?> application,
       CommittedBundle<?> inputBundle,
       InProcessEvaluationContext evaluationContext) {
-    return createEvaluator(
-        (AppliedPTransform) application, (CommittedBundle) inputBundle, evaluationContext);
+    @SuppressWarnings({"cast", "unchecked", "rawtypes"})
+    TransformEvaluator<InputT> evaluator = (TransformEvaluator<InputT>) createEvaluator(
+            (AppliedPTransform) application, (CommittedBundle) inputBundle, evaluationContext);
+    return evaluator;
   }
 
   private <K, V> TransformEvaluator<KV<K, WindowedValue<V>>> createEvaluator(

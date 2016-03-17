@@ -54,77 +54,6 @@
         <testParallelValue>both</testParallelValue>
       </properties>
     </profile>
-
-    <profile>
-      <id>java8tests</id>
-      <activation>
-        <jdk>[1.8,)</jdk>
-      </activation>
-
-      <build>
-        <plugins>
-          <!-- Tells Maven about the Java 8 test source root. -->
-          <plugin>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>build-helper-maven-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>add-java8-test-source</id>
-                <phase>initialize</phase>
-                <goals>
-                  <goal>add-test-source</goal>
-                </goals>
-                <configuration>
-                  <sources>
-                    <source>${project.basedir}/src/test/java8</source>
-                  </sources>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-
-          <!-- Set `-source 1.8 -target 1.8` for Java 8 tests
-               and `-source 1.7 -target 1.7` for Java 7 tests -->
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-compiler-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>default-testCompile</id>
-                <phase>test-compile</phase>
-                <goals>
-                  <goal>testCompile</goal>
-                </goals>
-                <configuration>
-                  <testSource>1.7</testSource>
-                  <testTarget>1.7</testTarget>
-                  <testExcludes>
-                    <!-- This pattern is brittle; we would prefer to filter on the directory
-                         but that seems to be unavailable to us. -->
-                    <exclude>**/*Java8Test.java</exclude>
-                  </testExcludes>
-                </configuration>
-              </execution>
-
-              <execution>
-                <id>java8-testCompile</id>
-                <phase>test-compile</phase>
-                <goals>
-                  <goal>testCompile</goal>
-                </goals>
-                <configuration>
-                  <testSource>1.8</testSource>
-                  <testTarget>1.8</testTarget>
-                  <testIncludes>
-                    <include>**/*Java8Test.java</include>
-                  </testIncludes>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
   </profiles>
 
   <build>
@@ -399,7 +328,7 @@
         <executions>
           <execution>
             <id>schemas</id>
-            <phase>generate-test-sources</phase>
+            <phase>generate-sources</phase>
             <goals>
               <goal>schema</goal>
             </goals>

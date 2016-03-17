@@ -115,7 +115,8 @@ public class DoFnRunners {
     if (doFn instanceof ReduceFnExecutor) {
       @SuppressWarnings("rawtypes")
       ReduceFnExecutor fn = (ReduceFnExecutor) doFn;
-      return lateDataDroppingRunner(
+      @SuppressWarnings({"unchecked", "cast", "rawtypes"})
+      DoFnRunner<InputT, OutputT> runner = (DoFnRunner<InputT, OutputT>) lateDataDroppingRunner(
           options,
           fn,
           sideInputReader,
@@ -125,6 +126,7 @@ public class DoFnRunners {
           stepContext,
           addCounterMutator,
           (WindowingStrategy) windowingStrategy);
+      return runner;
     }
     return simpleRunner(
         options,

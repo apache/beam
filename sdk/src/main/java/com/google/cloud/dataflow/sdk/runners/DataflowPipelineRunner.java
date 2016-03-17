@@ -866,12 +866,13 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
           input.getWindowingStrategy().getWindowFn().windowCoder();
 
       @SuppressWarnings({"rawtypes", "unchecked"})
-      PCollectionView<ViewT> view = PCollectionViews.singletonView(
-          input.getPipeline(),
-          (WindowingStrategy) input.getWindowingStrategy(),
-          hasDefault,
-          defaultValue,
-          defaultValueCoder);
+      PCollectionView<ViewT> view =
+          (PCollectionView<ViewT>) PCollectionViews.<FinalT, W>singletonView(
+              input.getPipeline(),
+              (WindowingStrategy) input.getWindowingStrategy(),
+              hasDefault,
+              defaultValue,
+              defaultValueCoder);
 
       IsmRecordCoder<WindowedValue<FinalT>> ismCoder =
           coderForSingleton(windowCoder, defaultValueCoder);
