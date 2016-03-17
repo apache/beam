@@ -22,7 +22,9 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.io.UnboundedSource;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.common.base.Preconditions;
+import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -31,52 +33,51 @@ import java.util.List;
  * A wrapper translating Flink Sources implementing the {@link RichParallelSourceFunction} interface, into
  * unbounded Beam sources (see {@link UnboundedSource}).
  * */
-public class UnboundedFlinkSource<T, C extends UnboundedSource.CheckpointMark> extends UnboundedSource<T, C> {
+public class UnboundedFlinkSource<T> extends UnboundedSource<T, UnboundedSource.CheckpointMark> {
 
-  private final PipelineOptions options;
-  private final RichParallelSourceFunction<T> flinkSource;
+  private final SourceFunction<T> flinkSource;
 
-  public UnboundedFlinkSource(PipelineOptions pipelineOptions, RichParallelSourceFunction<T> source) {
-    if(!pipelineOptions.getRunner().equals(FlinkPipelineRunner.class)) {
-      throw new RuntimeException("Flink Sources are supported only when running with the FlinkPipelineRunner.");
-    }
-    options = Preconditions.checkNotNull(pipelineOptions);
+  public UnboundedFlinkSource(SourceFunction<T> source) {
     flinkSource = Preconditions.checkNotNull(source);
-    validate();
   }
 
-  public RichParallelSourceFunction<T> getFlinkSource() {
+  public SourceFunction<T> getFlinkSource() {
     return this.flinkSource;
   }
 
   @Override
-  public List<? extends UnboundedSource<T, C>> generateInitialSplits(int desiredNumSplits, PipelineOptions options) throws Exception {
+  public List<? extends UnboundedSource<T, UnboundedSource.CheckpointMark>> generateInitialSplits(int desiredNumSplits, PipelineOptions options) throws Exception {
     throw new RuntimeException("Flink Sources are supported only when running with the FlinkPipelineRunner.");
   }
 
   @Override
-  public UnboundedReader<T> createReader(PipelineOptions options, @Nullable C checkpointMark) {
+  public UnboundedReader<T> createReader(PipelineOptions options, @Nullable CheckpointMark checkpointMark) {
     throw new RuntimeException("Flink Sources are supported only when running with the FlinkPipelineRunner.");
   }
 
   @Nullable
   @Override
-  public Coder<C> getCheckpointMarkCoder() {
+  public Coder<UnboundedSource.CheckpointMark> getCheckpointMarkCoder() {
     throw new RuntimeException("Flink Sources are supported only when running with the FlinkPipelineRunner.");
   }
 
 
   @Override
   public void validate() {
-    Preconditions.checkNotNull(options);
-    Preconditions.checkNotNull(flinkSource);
-    if(!options.getRunner().equals(FlinkPipelineRunner.class)) {
-      throw new RuntimeException("Flink Sources are supported only when running with the FlinkPipelineRunner.");
-    }
   }
 
   @Override
   public Coder<T> getDefaultOutputCoder() {
     throw new RuntimeException("Flink Sources are supported only when running with the FlinkPipelineRunner.");
+  }
+
+  /**
+   * Creates a new unbounded source from a Flink source.
+   * @param flinkSource The Flink source function
+   * @param <T> The type that the source function produces.
+   * @return The wrapped source function.
+   */
+  public static <T> UnboundedSource<T, UnboundedSource.CheckpointMark> of(SourceFunction<T> flinkSource) {
+    return new UnboundedFlinkSource<>(flinkSource);
   }
 }
