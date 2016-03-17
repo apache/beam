@@ -99,6 +99,16 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     return evaluatorQueue;
   }
 
+  /**
+   * A {@link UnboundedReadEvaluator} produces elements from an underlying {@link UnboundedSource},
+   * discarding all input elements. Within the call to {@link #finishBundle()}, the evaluator
+   * creates the {@link UnboundedReader} and consumes some currently available input.
+   *
+   * <p>Calls to {@link UnboundedReadEvaluator} are not internally thread-safe, and should only be
+   * used by a single thread at a time. Each {@link UnboundedReadEvaluator} maintains its own
+   * checkpoint, and constructs its reader from the current checkpoint in each call to
+   * {@link #finishBundle()}.
+   */
   private static class UnboundedReadEvaluator<OutputT> implements TransformEvaluator<Object> {
     private static final int ARBITRARY_MAX_ELEMENTS = 10;
     private final AppliedPTransform<?, PCollection<OutputT>, Unbounded<OutputT>> transform;

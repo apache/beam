@@ -15,6 +15,8 @@
  */
 package com.google.cloud.dataflow.sdk.runners.inprocess;
 
+import com.google.cloud.dataflow.sdk.io.BoundedSource;
+import com.google.cloud.dataflow.sdk.io.BoundedSource.BoundedReader;
 import com.google.cloud.dataflow.sdk.io.Read.Bounded;
 import com.google.cloud.dataflow.sdk.io.Source.Reader;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
@@ -100,6 +102,15 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     return evaluatorQueue;
   }
 
+  /**
+   * A {@link BoundedReadEvaluator} produces elements from an underlying {@link BoundedSource},
+   * discarding all input elements. Within the call to {@link #finishBundle()}, the evaluator
+   * creates the {@link BoundedReader} and consumes all available input.
+   *
+   * <p>A {@link BoundedReadEvaluator} should only be created once per {@link BoundedSource}, and
+   * each evaluator should only be called once per evaluation of the pipeline. Otherwise, the source
+   * may produce duplicate elements.
+   */
   private static class BoundedReadEvaluator<OutputT> implements TransformEvaluator<Object> {
     private final AppliedPTransform<?, PCollection<OutputT>, Bounded<OutputT>> transform;
     private final InProcessEvaluationContext evaluationContext;
