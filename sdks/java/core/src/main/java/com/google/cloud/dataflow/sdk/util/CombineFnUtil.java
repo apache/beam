@@ -1,4 +1,3 @@
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -24,6 +23,7 @@ import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.CombineFnBase.GlobalCombineFn;
+import com.google.cloud.dataflow.sdk.transforms.CombineFnBase.PerKeyCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import com.google.cloud.dataflow.sdk.transforms.CombineWithContext.Context;
 import com.google.cloud.dataflow.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
@@ -100,6 +100,55 @@ public class CombineFnUtil {
         public Coder<OutputT> getDefaultOutputCoder(
             CoderRegistry registry, Coder<InputT> inputCoder) throws CannotProvideCoderException {
           return combineFn.getDefaultOutputCoder(registry, inputCoder);
+        }
+      };
+    }
+  }
+
+  /**
+   * Return a {@link KeyedCombineFnWithContext} from the given {@link PerKeyCombineFn}.
+   */
+  public static <K, InputT, AccumT, OutputT> KeyedCombineFnWithContext<K, InputT, AccumT, OutputT>
+  toFnWithContext(PerKeyCombineFn<K, InputT, AccumT, OutputT> perKeyCombineFn) {
+    if (perKeyCombineFn instanceof KeyedCombineFnWithContext) {
+      @SuppressWarnings("unchecked")
+      KeyedCombineFnWithContext<K, InputT, AccumT, OutputT> keyedCombineFnWithContext =
+          (KeyedCombineFnWithContext<K, InputT, AccumT, OutputT>) perKeyCombineFn;
+      return keyedCombineFnWithContext;
+    } else {
+      @SuppressWarnings("unchecked")
+      final KeyedCombineFn<K, InputT, AccumT, OutputT> keyedCombineFn =
+          (KeyedCombineFn<K, InputT, AccumT, OutputT>) perKeyCombineFn;
+      return new KeyedCombineFnWithContext<K, InputT, AccumT, OutputT>() {
+        @Override
+        public AccumT createAccumulator(K key, Context c) {
+          return keyedCombineFn.createAccumulator(key);
+        }
+        @Override
+        public AccumT addInput(K key, AccumT accumulator, InputT value, Context c) {
+          return keyedCombineFn.addInput(key, accumulator, value);
+        }
+        @Override
+        public AccumT mergeAccumulators(K key, Iterable<AccumT> accumulators, Context c) {
+          return keyedCombineFn.mergeAccumulators(key, accumulators);
+        }
+        @Override
+        public OutputT extractOutput(K key, AccumT accumulator, Context c) {
+          return keyedCombineFn.extractOutput(key, accumulator);
+        }
+        @Override
+        public AccumT compact(K key, AccumT accumulator, Context c) {
+          return keyedCombineFn.compact(key, accumulator);
+        }
+        @Override
+        public Coder<AccumT> getAccumulatorCoder(CoderRegistry registry, Coder<K> keyCoder,
+            Coder<InputT> inputCoder) throws CannotProvideCoderException {
+          return keyedCombineFn.getAccumulatorCoder(registry, keyCoder, inputCoder);
+        }
+        @Override
+        public Coder<OutputT> getDefaultOutputCoder(CoderRegistry registry, Coder<K> keyCoder,
+            Coder<InputT> inputCoder) throws CannotProvideCoderException {
+          return keyedCombineFn.getDefaultOutputCoder(registry, keyCoder, inputCoder);
         }
       };
     }
