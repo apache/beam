@@ -3,7 +3,7 @@ layout: post
 title:  "Clarifying & Formalizing Runner Capabilities"
 date:   2016-03-17 11:00:00 -0700
 excerpt_separator: <!--more-->
-categories: beam compatibility
+categories: beam capability
 authors:
   - fjp
   - takidau
