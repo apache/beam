@@ -59,12 +59,12 @@ To get the latest version of the Spark Runner, first clone the Beam repository:
     git clone https://github.com/apache/incubator-beam
 
     
-then switch to the newly created directory and run Maven to build the Apache Beam:
+Then switch to the newly created directory and run Maven to build the Apache Beam:
 
     cd incubator-beam
     mvn clean install -DskipTests
 
-now Apache Beam and the Spark Runner are installed in your local maven repository.
+Now Apache Beam and the Spark Runner are installed in your local maven repository.
 
 If we wanted to run a Beam pipeline with the default options of a single threaded Spark
 instance in local mode, we would do the following:
@@ -85,7 +85,11 @@ would do the following:
 First download a text document to use as input:
 
     curl http://www.gutenberg.org/cache/epub/1128/pg1128.txt > /tmp/kinglear.txt
+    
+Switch to the Spark runner directory:
 
+    cd runners/spark
+    
 Then run the [word count example][wc] from the SDK using a single threaded Spark instance
 in local mode:
 
@@ -115,7 +119,7 @@ Then run the word count example using Spark submit with the `yarn-client` master
     spark-submit \
       --class com.google.cloud.dataflow.examples.WordCount \
       --master yarn-client \
-      target/spark-dataflow-*-spark-app.jar \
+      target/spark-runner-*-spark-app.jar \
         --inputFile=kinglear.txt --output=out --runner=SparkPipelineRunner --sparkMaster=yarn-client
 
 Check the output by running:
