@@ -23,7 +23,6 @@ import urllib2
 
 
 from oauth2client.client import OAuth2Credentials
-from oauth2client.client import SignedJwtAssertionCredentials
 
 from google.cloud.dataflow.utils import processes
 from google.cloud.dataflow.utils.options import GoogleCloudOptions
@@ -124,8 +123,6 @@ def get_service_credentials():
         raise Exception('key file not provided for service account.')
       if not os.path.exists(google_cloud_options.service_account_key_file):
         raise Exception('Specified service account key file does not exist.')
-      with file(google_cloud_options.service_account_key_file) as f:
-        service_account_key = f.read()
       client_scopes = [
           'https://www.googleapis.com/auth/bigquery',
           'https://www.googleapis.com/auth/cloud-platform',
@@ -133,10 +130,26 @@ def get_service_credentials():
           'https://www.googleapis.com/auth/userinfo.email',
           'https://www.googleapis.com/auth/datastore'
       ]
-      return SignedJwtAssertionCredentials(
-          google_cloud_options.service_account_name,
-          service_account_key,
-          client_scopes,
-          user_agent=user_agent)
+
+      # The following code uses oauth2client >=2.0.0 functionality and if this
+      # is not available due to import errors will use 1.5.2 functionality.
+      # TODO(silviuc): Remove the 1.5.2 when dependencies have been updated.
+      try:
+        from oauth2client.service_account import ServiceAccountCredentials
+        return ServiceAccountCredentials.from_p12_keyfile(
+            google_cloud_options.service_account_name,
+            google_cloud_options.service_account_key_file,
+            client_scopes,
+            user_agent=user_agent)
+      except ImportError:
+        with file(google_cloud_options.service_account_key_file) as f:
+          service_account_key = f.read()
+        from oauth2client.client import SignedJwtAssertionCredentials
+        return SignedJwtAssertionCredentials(
+            google_cloud_options.service_account_name,
+            service_account_key,
+            client_scopes,
+            user_agent=user_agent)
+
     else:
       return _GCloudWrapperCredentials(user_agent)
