@@ -6,8 +6,8 @@
 </description>
     <link>http://beam.incubator.apache.org/</link>
     <atom:link href="http://beam.incubator.apache.org/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Thu, 17 Mar 2016 14:39:57 -0700</pubDate>
-    <lastBuildDate>Thu, 17 Mar 2016 14:39:57 -0700</lastBuildDate>
+    <pubDate>Thu, 17 Mar 2016 16:30:47 -0700</pubDate>
+    <lastBuildDate>Thu, 17 Mar 2016 16:30:47 -0700</lastBuildDate>
     <generator>Jekyll v3.1.2</generator>
     
       <item>
@@ -795,13 +795,13 @@
 
 </description>
         <pubDate>Thu, 17 Mar 2016 11:00:00 -0700</pubDate>
-        <link>http://beam.incubator.apache.org/beam/compatibility/2016/03/17/compatability-matrix.html</link>
-        <guid isPermaLink="true">http://beam.incubator.apache.org/beam/compatibility/2016/03/17/compatability-matrix.html</guid>
+        <link>http://beam.incubator.apache.org/beam/capability/2016/03/17/capability-matrix.html</link>
+        <guid isPermaLink="true">http://beam.incubator.apache.org/beam/capability/2016/03/17/capability-matrix.html</guid>
         
         
         <category>beam</category>
         
-        <category>compatibility</category>
+        <category>capability</category>
         
       </item>
     
