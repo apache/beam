@@ -6,9 +6,804 @@
 </description>
     <link>http://beam.incubator.apache.org/</link>
     <atom:link href="http://beam.incubator.apache.org/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Tue, 08 Mar 2016 10:32:11 +0100</pubDate>
-    <lastBuildDate>Tue, 08 Mar 2016 10:32:11 +0100</lastBuildDate>
-    <generator>Jekyll v2.5.3</generator>
+    <pubDate>Thu, 17 Mar 2016 14:39:57 -0700</pubDate>
+    <lastBuildDate>Thu, 17 Mar 2016 14:39:57 -0700</lastBuildDate>
+    <generator>Jekyll v3.1.2</generator>
+    
+      <item>
+        <title>Clarifying &amp; Formalizing Runner Capabilities</title>
+        <description>&lt;p&gt;With initial code drops complete (&lt;a href=&quot;https://github.com/apache/incubator-beam/pull/1&quot;&gt;Dataflow SDK and Runner&lt;/a&gt;, &lt;a href=&quot;https://github.com/apache/incubator-beam/pull/12&quot;&gt;Flink Runner&lt;/a&gt;, &lt;a href=&quot;https://github.com/apache/incubator-beam/pull/42&quot;&gt;Spark Runner&lt;/a&gt;) and expressed interest in runner implementations for &lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-9&quot;&gt;Storm&lt;/a&gt;, &lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-19&quot;&gt;Hadoop&lt;/a&gt;, and &lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-79&quot;&gt;Gearpump&lt;/a&gt; (amongst others), we wanted to start addressing a big question in the Apache Beam (incubating) community: what capabilities will each runner be able to support?&lt;/p&gt;
+
+&lt;p&gt;While we’d love to have a world where all runners support the full suite of semantics included in the Beam Model (formerly referred to as the &lt;a href=&quot;http://www.vldb.org/pvldb/vol8/p1792-Akidau.pdf&quot;&gt;Dataflow Model&lt;/a&gt;), practically speaking, there will always be certain features that some runners can’t provide. For example, a Hadoop-based runner would be inherently batch-based and may be unable to (easily) implement support for unbounded collections. However, that doesn’t prevent it from being extremely useful for a large set of uses. In other cases, the implementations provided by one runner may have slightly different semantics that those provided by another (e.g. even though the current suite of runners all support exactly-once delivery guarantees, an &lt;a href=&quot;http://samza.apache.org/&quot;&gt;Apache Samza&lt;/a&gt; runner, which would be a welcome addition, would currently only support at-least-once).&lt;/p&gt;
+
+&lt;p&gt;To help clarify things, we’ve been working on enumerating the key features of the Beam model in a &lt;a href=&quot;/capability-matrix/&quot;&gt;capability matrix&lt;/a&gt; for all existing runners, categorized around the four key questions addressed by the model: &lt;span class=&quot;wwwh-what-dark&quot;&gt;What&lt;/span&gt; / &lt;span class=&quot;wwwh-where-dark&quot;&gt;Where&lt;/span&gt; / &lt;span class=&quot;wwwh-when-dark&quot;&gt;When&lt;/span&gt; / &lt;span class=&quot;wwwh-how-dark&quot;&gt;How&lt;/span&gt; (if you’re not familiar with those questions, you might want to read through &lt;a href=&quot;http://oreilly.com/ideas/the-world-beyond-batch-streaming-102&quot;&gt;Streaming 102&lt;/a&gt; for an overview). This table will be maintained over time as the model evolves, our understanding grows, and runners are created or features added.&lt;/p&gt;
+
+&lt;p&gt;Included below is a summary snapshot of our current understanding of the capabilities of the existing runners (see the &lt;a href=&quot;/capability-matrix/&quot;&gt;live version&lt;/a&gt; for full details, descriptions, and Jira links); since integration is still under way, the system as whole isn’t yet in a completely stable, usable state. But that should be changing in the near future, and we’ll be updating loud and clear on this blog when the first supported Beam 1.0 release happens.&lt;/p&gt;
+
+&lt;p&gt;In the meantime, these tables should help clarify where we expect to be in the very near term, and help guide expectations about what existing runners are capable of, and what features runner implementers will be tackling next.&lt;/p&gt;
+
+&lt;script type=&quot;text/javascript&quot;&gt;
+  function ToggleTables(showDetails, anchor) {
+    document.getElementById(&quot;cap-summary&quot;).style.display = showDetails ? &quot;none&quot; : &quot;block&quot;;
+    document.getElementById(&quot;cap-full&quot;).style.display = showDetails ? &quot;block&quot; : &quot;none&quot;;
+    location.hash = anchor;
+  }
+&lt;/script&gt;
+
+&lt;!-- Summary table --&gt;
+
+&lt;div id=&quot;cap-blog&quot; style=&quot;display:block&quot;&gt;
+&lt;table class=&quot;cap-summary&quot;&gt;
+  
+  &lt;tr class=&quot;cap-summary&quot; id=&quot;cap-blog-what&quot;&gt;
+    &lt;th class=&quot;cap-summary color-metadata format-category&quot; colspan=&quot;5&quot; style=&quot;color:#ca1&quot;&gt;What is being computed?&lt;/th&gt;
+  &lt;/tr&gt;
+  &lt;tr class=&quot;cap-summary&quot;&gt;
+    &lt;th class=&quot;cap-summary color-capability&quot;&gt;&lt;/th&gt;
+  
+    &lt;th class=&quot;cap-summary color-platform format-platform&quot; style=&quot;color:#ec3&quot;&gt;Beam Model&lt;/th&gt;
+  
+    &lt;th class=&quot;cap-summary color-platform format-platform&quot; style=&quot;color:#ec3&quot;&gt;Google Cloud Dataflow&lt;/th&gt;
+  
+    &lt;th class=&quot;cap-summary color-platform format-platform&quot; style=&quot;color:#ec3&quot;&gt;Apache Flink&lt;/th&gt;
+  
+    &lt;th class=&quot;cap-summary color-platform format-platform&quot; style=&quot;color:#ec3&quot;&gt;Apache Spark&lt;/th&gt;
+  
+  &lt;/tr&gt;
+  
+  &lt;tr class=&quot;cap-summary&quot;&gt;
+    &lt;th class=&quot;cap-summary color-capability format-capability&quot; style=&quot;color:#ec3&quot;&gt;ParDo&lt;/th&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+  &lt;/tr&gt;
+  
+  &lt;tr class=&quot;cap-summary&quot;&gt;
+    &lt;th class=&quot;cap-summary color-capability format-capability&quot; style=&quot;color:#ec3&quot;&gt;GroupByKey&lt;/th&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#fe5;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;~&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+  &lt;/tr&gt;
+  
+  &lt;tr class=&quot;cap-summary&quot;&gt;
+    &lt;th class=&quot;cap-summary color-capability format-capability&quot; style=&quot;color:#ec3&quot;&gt;Flatten&lt;/th&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+  &lt;/tr&gt;
+  
+  &lt;tr class=&quot;cap-summary&quot;&gt;
+    &lt;th class=&quot;cap-summary color-capability format-capability&quot; style=&quot;color:#ec3&quot;&gt;Combine&lt;/th&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+  &lt;/tr&gt;
+  
+  &lt;tr class=&quot;cap-summary&quot;&gt;
+    &lt;th class=&quot;cap-summary color-capability format-capability&quot; style=&quot;color:#ec3&quot;&gt;Composite Transforms&lt;/th&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#fe5;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;~&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#fe5;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;~&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#fe5;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;~&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+  &lt;/tr&gt;
+  
+  &lt;tr class=&quot;cap-summary&quot;&gt;
+    &lt;th class=&quot;cap-summary color-capability format-capability&quot; style=&quot;color:#ec3&quot;&gt;Side Inputs&lt;/th&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#fe5;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;~&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#fe5;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;~&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+  &lt;/tr&gt;
+  
+  &lt;tr class=&quot;cap-summary&quot;&gt;
+    &lt;th class=&quot;cap-summary color-capability format-capability&quot; style=&quot;color:#ec3&quot;&gt;Source API&lt;/th&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#fe5;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;~&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ec3;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+  &lt;/tr&gt;
+  
+  &lt;tr class=&quot;cap-summary&quot;&gt;
+    &lt;th class=&quot;cap-summary color-capability format-capability&quot; style=&quot;color:#ec3&quot;&gt;Aggregators&lt;/th&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#fe5;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;~&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#fe5;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;~&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#fe5;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;~&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#fe5;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;~&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+  &lt;/tr&gt;
+  
+  &lt;tr class=&quot;cap-summary&quot;&gt;
+    &lt;th class=&quot;cap-summary color-capability format-capability&quot; style=&quot;color:#ec3&quot;&gt;Keyed State&lt;/th&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#ca1&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+  &lt;/tr&gt;
+  
+  &lt;tr class=&quot;cap-summary&quot;&gt;
+    &lt;td class=&quot;cap-summary color-blank cap-blank&quot; colspan=&quot;5&quot;&gt;&lt;/td&gt;
+  &lt;/tr&gt;
+  
+  &lt;tr class=&quot;cap-summary&quot; id=&quot;cap-blog-where&quot;&gt;
+    &lt;th class=&quot;cap-summary color-metadata format-category&quot; colspan=&quot;5&quot; style=&quot;color:#37d&quot;&gt;Where in event time?&lt;/th&gt;
+  &lt;/tr&gt;
+  &lt;tr class=&quot;cap-summary&quot;&gt;
+    &lt;th class=&quot;cap-summary color-capability&quot;&gt;&lt;/th&gt;
+  
+    &lt;th class=&quot;cap-summary color-platform format-platform&quot; style=&quot;color:#59f&quot;&gt;Beam Model&lt;/th&gt;
+  
+    &lt;th class=&quot;cap-summary color-platform format-platform&quot; style=&quot;color:#59f&quot;&gt;Google Cloud Dataflow&lt;/th&gt;
+  
+    &lt;th class=&quot;cap-summary color-platform format-platform&quot; style=&quot;color:#59f&quot;&gt;Apache Flink&lt;/th&gt;
+  
+    &lt;th class=&quot;cap-summary color-platform format-platform&quot; style=&quot;color:#59f&quot;&gt;Apache Spark&lt;/th&gt;
+  
+  &lt;/tr&gt;
+  
+  &lt;tr class=&quot;cap-summary&quot;&gt;
+    &lt;th class=&quot;cap-summary color-capability format-capability&quot; style=&quot;color:#59f&quot;&gt;Global windows&lt;/th&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+  &lt;/tr&gt;
+  
+  &lt;tr class=&quot;cap-summary&quot;&gt;
+    &lt;th class=&quot;cap-summary color-capability format-capability&quot; style=&quot;color:#59f&quot;&gt;Fixed windows&lt;/th&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8cf;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;~&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+  &lt;/tr&gt;
+  
+  &lt;tr class=&quot;cap-summary&quot;&gt;
+    &lt;th class=&quot;cap-summary color-capability format-capability&quot; style=&quot;color:#59f&quot;&gt;Sliding windows&lt;/th&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+  &lt;/tr&gt;
+  
+  &lt;tr class=&quot;cap-summary&quot;&gt;
+    &lt;th class=&quot;cap-summary color-capability format-capability&quot; style=&quot;color:#59f&quot;&gt;Session windows&lt;/th&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+  &lt;/tr&gt;
+  
+  &lt;tr class=&quot;cap-summary&quot;&gt;
+    &lt;th class=&quot;cap-summary color-capability format-capability&quot; style=&quot;color:#59f&quot;&gt;Custom windows&lt;/th&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+  &lt;/tr&gt;
+  
+  &lt;tr class=&quot;cap-summary&quot;&gt;
+    &lt;th class=&quot;cap-summary color-capability format-capability&quot; style=&quot;color:#59f&quot;&gt;Custom merging windows&lt;/th&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+  &lt;/tr&gt;
+  
+  &lt;tr class=&quot;cap-summary&quot;&gt;
+    &lt;th class=&quot;cap-summary color-capability format-capability&quot; style=&quot;color:#59f&quot;&gt;Timestamp control&lt;/th&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#59f;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#37d&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+  &lt;/tr&gt;
+  
+  &lt;tr class=&quot;cap-summary&quot;&gt;
+    &lt;td class=&quot;cap-summary color-blank cap-blank&quot; colspan=&quot;5&quot;&gt;&lt;/td&gt;
+  &lt;/tr&gt;
+  
+  &lt;tr class=&quot;cap-summary&quot; id=&quot;cap-blog-when&quot;&gt;
+    &lt;th class=&quot;cap-summary color-metadata format-category&quot; colspan=&quot;5&quot; style=&quot;color:#6a4&quot;&gt;When in processing time?&lt;/th&gt;
+  &lt;/tr&gt;
+  &lt;tr class=&quot;cap-summary&quot;&gt;
+    &lt;th class=&quot;cap-summary color-capability&quot;&gt;&lt;/th&gt;
+  
+    &lt;th class=&quot;cap-summary color-platform format-platform&quot; style=&quot;color:#8c6&quot;&gt;Beam Model&lt;/th&gt;
+  
+    &lt;th class=&quot;cap-summary color-platform format-platform&quot; style=&quot;color:#8c6&quot;&gt;Google Cloud Dataflow&lt;/th&gt;
+  
+    &lt;th class=&quot;cap-summary color-platform format-platform&quot; style=&quot;color:#8c6&quot;&gt;Apache Flink&lt;/th&gt;
+  
+    &lt;th class=&quot;cap-summary color-platform format-platform&quot; style=&quot;color:#8c6&quot;&gt;Apache Spark&lt;/th&gt;
+  
+  &lt;/tr&gt;
+  
+  &lt;tr class=&quot;cap-summary&quot;&gt;
+    &lt;th class=&quot;cap-summary color-capability format-capability&quot; style=&quot;color:#8c6&quot;&gt;Configurable triggering&lt;/th&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+  &lt;/tr&gt;
+  
+  &lt;tr class=&quot;cap-summary&quot;&gt;
+    &lt;th class=&quot;cap-summary color-capability format-capability&quot; style=&quot;color:#8c6&quot;&gt;Event-time triggers&lt;/th&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+  &lt;/tr&gt;
+  
+  &lt;tr class=&quot;cap-summary&quot;&gt;
+    &lt;th class=&quot;cap-summary color-capability format-capability&quot; style=&quot;color:#8c6&quot;&gt;Processing-time triggers&lt;/th&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+  &lt;/tr&gt;
+  
+  &lt;tr class=&quot;cap-summary&quot;&gt;
+    &lt;th class=&quot;cap-summary color-capability format-capability&quot; style=&quot;color:#8c6&quot;&gt;Count triggers&lt;/th&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+  &lt;/tr&gt;
+  
+  &lt;tr class=&quot;cap-summary&quot;&gt;
+    &lt;th class=&quot;cap-summary color-capability format-capability&quot; style=&quot;color:#8c6&quot;&gt;[Meta]data driven triggers&lt;/th&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+  &lt;/tr&gt;
+  
+  &lt;tr class=&quot;cap-summary&quot;&gt;
+    &lt;th class=&quot;cap-summary color-capability format-capability&quot; style=&quot;color:#8c6&quot;&gt;Composite triggers&lt;/th&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+  &lt;/tr&gt;
+  
+  &lt;tr class=&quot;cap-summary&quot;&gt;
+    &lt;th class=&quot;cap-summary color-capability format-capability&quot; style=&quot;color:#8c6&quot;&gt;Allowed lateness&lt;/th&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#8c6;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+  &lt;/tr&gt;
+  
+  &lt;tr class=&quot;cap-summary&quot;&gt;
+    &lt;th class=&quot;cap-summary color-capability format-capability&quot; style=&quot;color:#8c6&quot;&gt;Timers&lt;/th&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#6a4&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+  &lt;/tr&gt;
+  
+  &lt;tr class=&quot;cap-summary&quot;&gt;
+    &lt;td class=&quot;cap-summary color-blank cap-blank&quot; colspan=&quot;5&quot;&gt;&lt;/td&gt;
+  &lt;/tr&gt;
+  
+  &lt;tr class=&quot;cap-summary&quot; id=&quot;cap-blog-how&quot;&gt;
+    &lt;th class=&quot;cap-summary color-metadata format-category&quot; colspan=&quot;5&quot; style=&quot;color:#b55&quot;&gt;How do refinements relate?&lt;/th&gt;
+  &lt;/tr&gt;
+  &lt;tr class=&quot;cap-summary&quot;&gt;
+    &lt;th class=&quot;cap-summary color-capability&quot;&gt;&lt;/th&gt;
+  
+    &lt;th class=&quot;cap-summary color-platform format-platform&quot; style=&quot;color:#d77&quot;&gt;Beam Model&lt;/th&gt;
+  
+    &lt;th class=&quot;cap-summary color-platform format-platform&quot; style=&quot;color:#d77&quot;&gt;Google Cloud Dataflow&lt;/th&gt;
+  
+    &lt;th class=&quot;cap-summary color-platform format-platform&quot; style=&quot;color:#d77&quot;&gt;Apache Flink&lt;/th&gt;
+  
+    &lt;th class=&quot;cap-summary color-platform format-platform&quot; style=&quot;color:#d77&quot;&gt;Apache Spark&lt;/th&gt;
+  
+  &lt;/tr&gt;
+  
+  &lt;tr class=&quot;cap-summary&quot;&gt;
+    &lt;th class=&quot;cap-summary color-capability format-capability&quot; style=&quot;color:#d77&quot;&gt;Discarding&lt;/th&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#d77;border-color:#b55&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#d77;border-color:#b55&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#d77;border-color:#b55&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#d77;border-color:#b55&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+  &lt;/tr&gt;
+  
+  &lt;tr class=&quot;cap-summary&quot;&gt;
+    &lt;th class=&quot;cap-summary color-capability format-capability&quot; style=&quot;color:#d77&quot;&gt;Accumulating&lt;/th&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#d77;border-color:#b55&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#d77;border-color:#b55&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#d77;border-color:#b55&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2713;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#b55&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+  &lt;/tr&gt;
+  
+  &lt;tr class=&quot;cap-summary&quot;&gt;
+    &lt;th class=&quot;cap-summary color-capability format-capability&quot; style=&quot;color:#d77&quot;&gt;Accumulating &amp;amp; Retracting&lt;/th&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#b55&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#b55&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#b55&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+    
+
+    &lt;td width=&quot;25%&quot; class=&quot;cap-summary&quot; style=&quot;background-color:#ddd;border-color:#b55&quot;&gt;&lt;b&gt;&lt;center&gt;&amp;#x2715;&lt;/center&gt;&lt;/b&gt;
+&lt;/td&gt;
+    
+  &lt;/tr&gt;
+  
+  &lt;tr class=&quot;cap-summary&quot;&gt;
+    &lt;td class=&quot;cap-summary color-blank cap-blank&quot; colspan=&quot;5&quot;&gt;&lt;/td&gt;
+  &lt;/tr&gt;
+  
+&lt;/table&gt;
+&lt;/div&gt;
+
+</description>
+        <pubDate>Thu, 17 Mar 2016 11:00:00 -0700</pubDate>
+        <link>http://beam.incubator.apache.org/beam/compatibility/2016/03/17/compatability-matrix.html</link>
+        <guid isPermaLink="true">http://beam.incubator.apache.org/beam/compatibility/2016/03/17/compatability-matrix.html</guid>
+        
+        
+        <category>beam</category>
+        
+        <category>compatibility</category>
+        
+      </item>
     
       <item>
         <title>Dataflow Python SDK is now public!</title>
@@ -25,7 +820,7 @@ included the &lt;a href=&quot;https://github.com/GoogleCloudPlatform/DataflowJav
 
 &lt;p&gt;Apache Beam Team&lt;/p&gt;
 </description>
-        <pubDate>Thu, 25 Feb 2016 22:00:00 +0100</pubDate>
+        <pubDate>Thu, 25 Feb 2016 13:00:00 -0800</pubDate>
         <link>http://beam.incubator.apache.org/beam/python/sdk/2016/02/25/beam-has-a-logo0.html</link>
         <guid isPermaLink="true">http://beam.incubator.apache.org/beam/python/sdk/2016/02/25/beam-has-a-logo0.html</guid>
         
@@ -56,10 +851,10 @@ now has a logo.&lt;/p&gt;
 unification of bath and streaming, as beams of light, within the ‘B’. We will base
 our future website and documentation design around this logo and its coloring. We
 will also make various permutations and resolutions of this logo available in the
-coming weeks. For any questions or comments, send an email to the &lt;code&gt;dev@&lt;/code&gt; email list
+coming weeks. For any questions or comments, send an email to the &lt;code class=&quot;highlighter-rouge&quot;&gt;dev@&lt;/code&gt; email list
 for Apache Beam.&lt;/p&gt;
 </description>
-        <pubDate>Mon, 22 Feb 2016 19:21:48 +0100</pubDate>
+        <pubDate>Mon, 22 Feb 2016 10:21:48 -0800</pubDate>
         <link>http://beam.incubator.apache.org/beam/update/website/2016/02/22/beam-has-a-logo.html</link>
         <guid isPermaLink="true">http://beam.incubator.apache.org/beam/update/website/2016/02/22/beam-has-a-logo.html</guid>
         
