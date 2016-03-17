@@ -242,8 +242,10 @@ class WorkerOptions(PipelineOptions):
         help=
         ('Number of workers to use when executing the Dataflow job. If not '
          'set, the Dataflow service will use a reasonable default.'))
+    # TODO(silviuc): Remove --machine_type variant of the flag.
     parser.add_argument(
-        '--machine_type',
+        '--worker_machine_type', '--machine_type',
+        dest='machine_type',
         default=None,
         help=('Machine type to create Dataflow worker VMs as. See '
               'https://cloud.google.com/compute/docs/machine-types '
@@ -257,8 +259,10 @@ class WorkerOptions(PipelineOptions):
         help=
         ('Remote worker disk size, in gigabytes, or 0 to use the default size. '
          'If not set, the Dataflow service will use a reasonable default.'))
+    # TODO(silviuc): Remove --disk_type variant of the flag.
     parser.add_argument(
-        '--disk_type',
+        '--worker_disk_type', '--disk_type',
+        dest='disk_type',
         default=None,
         help=('Specifies what type of persistent disk should be used.'))
     parser.add_argument(
