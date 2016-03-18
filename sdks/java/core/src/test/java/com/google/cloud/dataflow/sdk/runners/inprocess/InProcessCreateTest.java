@@ -24,11 +24,11 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.coders.AtomicCoder;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.coders.NullableCoder;
-import com.google.cloud.dataflow.sdk.coders.StandardCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.io.BoundedSource;
@@ -36,6 +36,7 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessCreate.InMemorySource;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.SourceTestUtils;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
@@ -46,6 +47,7 @@ import com.google.common.collect.ImmutableList;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -54,8 +56,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 /**
  * Tests for {@link InProcessCreate}.
@@ -66,6 +69,7 @@ public class InProcessCreateTest {
   public ExpectedException thrown = ExpectedException.none();
 
   @Test
+  @Category(RunnableOnService.class)
   public void testConvertsCreate() {
     TestPipeline p = TestPipeline.create();
     Create.Values<Integer> og = Create.of(1, 2, 3);
@@ -78,6 +82,7 @@ public class InProcessCreateTest {
   }
 
   @Test
+  @Category(RunnableOnService.class)
   public void testConvertsCreateWithNullElements() {
     Create.Values<String> og =
         Create.<String>of("foo", null, "spam", "ham", null, "eggs")
@@ -133,7 +138,7 @@ public class InProcessCreateTest {
       return myString.equals(((UnserializableRecord) o).myString);
     }
 
-    static class UnserializableRecordCoder extends StandardCoder<UnserializableRecord> {
+    static class UnserializableRecordCoder extends AtomicCoder<UnserializableRecord> {
       private final Coder<String> stringCoder = StringUtf8Coder.of();
 
       @Override
@@ -151,17 +156,28 @@ public class InProcessCreateTest {
           throws CoderException, IOException {
         return new UnserializableRecord(stringCoder.decode(inStream, context.nested()));
       }
-
-      @Override
-      public List<? extends Coder<?>> getCoderArguments() {
-        return Collections.emptyList();
-      }
-
-      @Override
-      public void verifyDeterministic() throws Coder.NonDeterministicException {
-        stringCoder.verifyDeterministic();
-      }
     }
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testConvertsUnserializableElements() throws Exception {
+    List<UnserializableRecord> elements =
+        ImmutableList.of(
+            new UnserializableRecord("foo"),
+            new UnserializableRecord("bar"),
+            new UnserializableRecord("baz"));
+    InProcessCreate<UnserializableRecord> create =
+        InProcessCreate.from(
+            Create.of(elements).withCoder(new UnserializableRecord.UnserializableRecordCoder()));
+
+    TestPipeline p = TestPipeline.create();
+    DataflowAssert.that(p.apply(create))
+        .containsInAnyOrder(
+            new UnserializableRecord("foo"),
+            new UnserializableRecord("bar"),
+            new UnserializableRecord("baz"));
+    p.run();
   }
 
   @Test
@@ -172,14 +188,15 @@ public class InProcessCreateTest {
             new UnserializableRecord("bar"),
             new UnserializableRecord("baz"));
     InMemorySource<UnserializableRecord> source =
-        new InMemorySource<>(elements, new UnserializableRecord.UnserializableRecordCoder());
+        InMemorySource.fromIterable(elements, new UnserializableRecord.UnserializableRecordCoder());
     SerializableUtils.ensureSerializable(source);
   }
 
   @Test
   public void testSplitIntoBundles() throws Exception {
     InProcessCreate.InMemorySource<Integer> source =
-        new InMemorySource<>(ImmutableList.of(1, 2, 3, 4, 5, 6, 7, 8), BigEndianIntegerCoder.of());
+        InMemorySource.fromIterable(
+            ImmutableList.of(1, 2, 3, 4, 5, 6, 7, 8), BigEndianIntegerCoder.of());
     PipelineOptions options = PipelineOptionsFactory.create();
     List<? extends BoundedSource<Integer>> splitSources = source.splitIntoBundles(12, options);
     assertThat(splitSources, hasSize(3));
@@ -189,7 +206,7 @@ public class InProcessCreateTest {
   @Test
   public void testDoesNotProduceSortedKeys() throws Exception {
     InProcessCreate.InMemorySource<String> source =
-        new InMemorySource<>(ImmutableList.of("spam", "ham", "eggs"), StringUtf8Coder.of());
+        InMemorySource.fromIterable(ImmutableList.of("spam", "ham", "eggs"), StringUtf8Coder.of());
     assertThat(source.producesSortedKeys(PipelineOptionsFactory.create()), is(false));
   }
 
@@ -197,9 +214,22 @@ public class InProcessCreateTest {
   public void testGetDefaultOutputCoderReturnsConstructorCoder() throws Exception {
     Coder<Integer> coder = VarIntCoder.of();
     InProcessCreate.InMemorySource<Integer> source =
-        new InMemorySource<>(ImmutableList.of(1, 2, 3, 4, 5, 6, 7, 8), coder);
+        InMemorySource.fromIterable(ImmutableList.of(1, 2, 3, 4, 5, 6, 7, 8), coder);
 
     Coder<Integer> defaultCoder = source.getDefaultOutputCoder();
     assertThat(defaultCoder, equalTo(coder));
+  }
+
+  @Test
+  public void testSplitAtFraction() throws Exception {
+    List<Integer> elements = new ArrayList<>();
+    Random random = new Random();
+    for (int i = 0; i < 25; i++) {
+      elements.add(random.nextInt());
+    }
+    InProcessCreate.InMemorySource<Integer> source =
+        InMemorySource.fromIterable(elements, VarIntCoder.of());
+
+    SourceTestUtils.assertSplitAtFractionExhaustive(source, PipelineOptionsFactory.create());
   }
 }
