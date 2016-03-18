@@ -374,8 +374,9 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
                   KeyedWorkItems.timersWorkItem(keyTimers.getKey(), delivery);
               @SuppressWarnings({"unchecked", "rawtypes"})
               CommittedBundle<?> bundle =
-                  InProcessBundle.<KeyedWorkItem<Object, Object>>keyed(
-                          (PCollection) transform.getInput(), keyTimers.getKey())
+                  evaluationContext
+                      .createKeyedBundle(
+                          null, keyTimers.getKey(), (PCollection) transform.getInput())
                       .add(WindowedValue.valueInEmptyWindows(work))
                       .commit(Instant.now());
               scheduleConsumption(transform, bundle, new TimerCompletionCallback(delivery));
