@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.options;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.cloud.dataflow.sdk.options.Validation.Required;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunnerRegistrar;
@@ -1442,10 +1444,26 @@ public class PipelineOptionsFactory {
         JavaType type = MAPPER.getTypeFactory().constructType(method.getGenericReturnType());
         if ("runner".equals(entry.getKey())) {
           String runner = Iterables.getOnlyElement(entry.getValue());
-          Preconditions.checkArgument(SUPPORTED_PIPELINE_RUNNERS.containsKey(runner),
-              "Unknown 'runner' specified '%s', supported pipeline runners %s",
-              runner, Sets.newTreeSet(SUPPORTED_PIPELINE_RUNNERS.keySet()));
-          convertedOptions.put("runner", SUPPORTED_PIPELINE_RUNNERS.get(runner));
+          if (SUPPORTED_PIPELINE_RUNNERS.containsKey(runner)) {
+            convertedOptions.put("runner", SUPPORTED_PIPELINE_RUNNERS.get(runner));
+          } else {
+            try {
+              Class<?> runnerClass = Class.forName(runner);
+              checkArgument(
+                  PipelineRunner.class.isAssignableFrom(runnerClass),
+                  "Class '%s' does not implement PipelineRunner. Supported pipeline runners %s",
+                  runner,
+                  Sets.newTreeSet(SUPPORTED_PIPELINE_RUNNERS.keySet()));
+              convertedOptions.put("runner", runnerClass);
+            } catch (ClassNotFoundException e) {
+              String msg =
+                  String.format(
+                      "Unknown 'runner' specified '%s', supported pipeline runners %s",
+                      runner,
+                      Sets.newTreeSet(SUPPORTED_PIPELINE_RUNNERS.keySet()));
+                throw new IllegalArgumentException(msg, e);
+            }
+          }
         } else if ((returnType.isArray() && (SIMPLE_TYPES.contains(returnType.getComponentType())
                 || returnType.getComponentType().isEnum()))
             || Collection.class.isAssignableFrom(returnType)) {
