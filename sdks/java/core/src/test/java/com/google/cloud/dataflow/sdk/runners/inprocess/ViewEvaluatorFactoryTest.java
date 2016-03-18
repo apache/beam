@@ -50,6 +50,8 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class ViewEvaluatorFactoryTest {
+  private BundleFactory bundleFactory = InProcessBundleFactory.create();
+
   @Test
   public void testInMemoryEvaluator() throws Exception {
     TestPipeline p = TestPipeline.create();
@@ -70,7 +72,8 @@ public class ViewEvaluatorFactoryTest {
     TestViewWriter<String, Iterable<String>> viewWriter = new TestViewWriter<>();
     when(context.createPCollectionViewWriter(concat, view)).thenReturn(viewWriter);
 
-    CommittedBundle<String> inputBundle = InProcessBundle.unkeyed(input).commit(Instant.now());
+    CommittedBundle<String> inputBundle =
+        bundleFactory.createRootBundle(input).commit(Instant.now());
     TransformEvaluator<Iterable<String>> evaluator =
         new ViewEvaluatorFactory()
             .forApplication(view.getProducingTransformInternal(), inputBundle, context);

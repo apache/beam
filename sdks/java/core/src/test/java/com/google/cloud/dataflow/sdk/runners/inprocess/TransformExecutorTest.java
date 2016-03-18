@@ -75,6 +75,7 @@ public class TransformExecutorTest {
 
   private RegisteringCompletionCallback completionCallback;
   private TransformExecutorService transformEvaluationState;
+  private BundleFactory bundleFactory;
   @Mock private InProcessEvaluationContext evaluationContext;
   @Mock private TransformEvaluatorRegistry registry;
   private Map<TransformExecutor<?>, Boolean> scheduled;
@@ -82,6 +83,8 @@ public class TransformExecutorTest {
   @Before
   public void setup() {
     MockitoAnnotations.initMocks(this);
+
+    bundleFactory = InProcessBundleFactory.create();
 
     scheduled = new HashMap<>();
     transformEvaluationState =
@@ -157,7 +160,7 @@ public class TransformExecutorTest {
     WindowedValue<String> spam = WindowedValue.valueInGlobalWindow("spam");
     WindowedValue<String> third = WindowedValue.valueInGlobalWindow("third");
     CommittedBundle<String> inputBundle =
-        InProcessBundle.unkeyed(created).add(foo).add(spam).add(third).commit(Instant.now());
+        bundleFactory.createRootBundle(created).add(foo).add(spam).add(third).commit(Instant.now());
     when(
             registry.<String>forApplication(
                 downstream.getProducingTransformInternal(), inputBundle, evaluationContext))
@@ -203,7 +206,7 @@ public class TransformExecutorTest {
 
     WindowedValue<String> foo = WindowedValue.valueInGlobalWindow("foo");
     CommittedBundle<String> inputBundle =
-        InProcessBundle.unkeyed(created).add(foo).commit(Instant.now());
+        bundleFactory.createRootBundle(created).add(foo).commit(Instant.now());
     when(
             registry.<String>forApplication(
                 downstream.getProducingTransformInternal(), inputBundle, evaluationContext))
@@ -241,7 +244,8 @@ public class TransformExecutorTest {
           }
         };
 
-    CommittedBundle<String> inputBundle = InProcessBundle.unkeyed(created).commit(Instant.now());
+    CommittedBundle<String> inputBundle =
+        bundleFactory.createRootBundle(created).commit(Instant.now());
     when(
             registry.<String>forApplication(
                 downstream.getProducingTransformInternal(), inputBundle, evaluationContext))

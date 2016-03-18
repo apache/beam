@@ -50,6 +50,8 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class GroupByKeyEvaluatorFactoryTest {
+  private BundleFactory bundleFactory = InProcessBundleFactory.create();
+
   @Test
   public void testInMemoryEvaluator() throws Exception {
     TestPipeline p = TestPipeline.create();
@@ -67,15 +69,15 @@ public class GroupByKeyEvaluatorFactoryTest {
         kvs.apply(new GroupByKeyEvaluatorFactory.InProcessGroupByKeyOnly<String, Integer>());
 
     CommittedBundle<KV<String, WindowedValue<Integer>>> inputBundle =
-        InProcessBundle.unkeyed(kvs).commit(Instant.now());
+        bundleFactory.createRootBundle(kvs).commit(Instant.now());
     InProcessEvaluationContext evaluationContext = mock(InProcessEvaluationContext.class);
 
     UncommittedBundle<KeyedWorkItem<String, Integer>> fooBundle =
-        InProcessBundle.keyed(groupedKvs, "foo");
+        bundleFactory.createKeyedBundle(null, "foo", groupedKvs);
     UncommittedBundle<KeyedWorkItem<String, Integer>> barBundle =
-        InProcessBundle.keyed(groupedKvs, "bar");
+        bundleFactory.createKeyedBundle(null, "bar", groupedKvs);
     UncommittedBundle<KeyedWorkItem<String, Integer>> bazBundle =
-        InProcessBundle.keyed(groupedKvs, "baz");
+        bundleFactory.createKeyedBundle(null, "baz", groupedKvs);
 
     when(evaluationContext.createKeyedBundle(inputBundle, "foo", groupedKvs)).thenReturn(fooBundle);
     when(evaluationContext.createKeyedBundle(inputBundle, "bar", groupedKvs)).thenReturn(barBundle);

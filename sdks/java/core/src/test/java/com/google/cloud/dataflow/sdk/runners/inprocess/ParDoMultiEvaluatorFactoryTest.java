@@ -69,6 +69,8 @@ import java.io.Serializable;
  */
 @RunWith(JUnit4.class)
 public class ParDoMultiEvaluatorFactoryTest implements Serializable {
+  private transient BundleFactory bundleFactory = InProcessBundleFactory.create();
+
   @Test
   public void testParDoMultiInMemoryTransformEvaluator() throws Exception {
     TestPipeline p = TestPipeline.create();
@@ -80,26 +82,30 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
     final TupleTag<Integer> lengthTag = new TupleTag<>();
 
     BoundMulti<String, KV<String, Integer>> pardo =
-        ParDo.of(new DoFn<String, KV<String, Integer>>() {
-          @Override
-          public void processElement(ProcessContext c) {
-            c.output(KV.<String, Integer>of(c.element(), c.element().length()));
-            c.sideOutput(elementTag, c.element());
-            c.sideOutput(lengthTag, c.element().length());
-          }
-        }).withOutputTags(mainOutputTag, TupleTagList.of(elementTag).and(lengthTag));
+        ParDo.of(
+                new DoFn<String, KV<String, Integer>>() {
+                  @Override
+                  public void processElement(ProcessContext c) {
+                    c.output(KV.<String, Integer>of(c.element(), c.element().length()));
+                    c.sideOutput(elementTag, c.element());
+                    c.sideOutput(lengthTag, c.element().length());
+                  }
+                })
+            .withOutputTags(mainOutputTag, TupleTagList.of(elementTag).and(lengthTag));
     PCollectionTuple outputTuple = input.apply(pardo);
 
-    CommittedBundle<String> inputBundle = InProcessBundle.unkeyed(input).commit(Instant.now());
+    CommittedBundle<String> inputBundle =
+        bundleFactory.createRootBundle(input).commit(Instant.now());
 
     PCollection<KV<String, Integer>> mainOutput = outputTuple.get(mainOutputTag);
     PCollection<String> elementOutput = outputTuple.get(elementTag);
     PCollection<Integer> lengthOutput = outputTuple.get(lengthTag);
 
     InProcessEvaluationContext evaluationContext = mock(InProcessEvaluationContext.class);
-    UncommittedBundle<KV<String, Integer>> mainOutputBundle = InProcessBundle.unkeyed(mainOutput);
-    UncommittedBundle<String> elementOutputBundle = InProcessBundle.unkeyed(elementOutput);
-    UncommittedBundle<Integer> lengthOutputBundle = InProcessBundle.unkeyed(lengthOutput);
+    UncommittedBundle<KV<String, Integer>> mainOutputBundle =
+        bundleFactory.createRootBundle(mainOutput);
+    UncommittedBundle<String> elementOutputBundle = bundleFactory.createRootBundle(elementOutput);
+    UncommittedBundle<Integer> lengthOutputBundle = bundleFactory.createRootBundle(lengthOutput);
 
     when(evaluationContext.createBundle(inputBundle, mainOutput)).thenReturn(mainOutputBundle);
     when(evaluationContext.createBundle(inputBundle, elementOutput))
@@ -114,8 +120,9 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
     when(evaluationContext.createCounterSet()).thenReturn(counters);
 
     com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluator<String> evaluator =
-        new ParDoMultiEvaluatorFactory().forApplication(
-            mainOutput.getProducingTransformInternal(), inputBundle, evaluationContext);
+        new ParDoMultiEvaluatorFactory()
+            .forApplication(
+                mainOutput.getProducingTransformInternal(), inputBundle, evaluationContext);
 
     evaluator.processElement(WindowedValue.valueInGlobalWindow("foo"));
     evaluator.processElement(
@@ -163,24 +170,28 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
     final TupleTag<Integer> lengthTag = new TupleTag<>();
 
     BoundMulti<String, KV<String, Integer>> pardo =
-        ParDo.of(new DoFn<String, KV<String, Integer>>() {
-          @Override
-          public void processElement(ProcessContext c) {
-            c.output(KV.<String, Integer>of(c.element(), c.element().length()));
-            c.sideOutput(elementTag, c.element());
-            c.sideOutput(lengthTag, c.element().length());
-          }
-        }).withOutputTags(mainOutputTag, TupleTagList.of(elementTag));
+        ParDo.of(
+                new DoFn<String, KV<String, Integer>>() {
+                  @Override
+                  public void processElement(ProcessContext c) {
+                    c.output(KV.<String, Integer>of(c.element(), c.element().length()));
+                    c.sideOutput(elementTag, c.element());
+                    c.sideOutput(lengthTag, c.element().length());
+                  }
+                })
+            .withOutputTags(mainOutputTag, TupleTagList.of(elementTag));
     PCollectionTuple outputTuple = input.apply(pardo);
 
-    CommittedBundle<String> inputBundle = InProcessBundle.unkeyed(input).commit(Instant.now());
+    CommittedBundle<String> inputBundle =
+        bundleFactory.createRootBundle(input).commit(Instant.now());
 
     PCollection<KV<String, Integer>> mainOutput = outputTuple.get(mainOutputTag);
     PCollection<String> elementOutput = outputTuple.get(elementTag);
 
     InProcessEvaluationContext evaluationContext = mock(InProcessEvaluationContext.class);
-    UncommittedBundle<KV<String, Integer>> mainOutputBundle = InProcessBundle.unkeyed(mainOutput);
-    UncommittedBundle<String> elementOutputBundle = InProcessBundle.unkeyed(elementOutput);
+    UncommittedBundle<KV<String, Integer>> mainOutputBundle =
+        bundleFactory.createRootBundle(mainOutput);
+    UncommittedBundle<String> elementOutputBundle = bundleFactory.createRootBundle(elementOutput);
 
     when(evaluationContext.createBundle(inputBundle, mainOutput)).thenReturn(mainOutputBundle);
     when(evaluationContext.createBundle(inputBundle, elementOutput))
@@ -194,8 +205,9 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
     when(evaluationContext.createCounterSet()).thenReturn(counters);
 
     com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluator<String> evaluator =
-        new ParDoMultiEvaluatorFactory().forApplication(
-            mainOutput.getProducingTransformInternal(), inputBundle, evaluationContext);
+        new ParDoMultiEvaluatorFactory()
+            .forApplication(
+                mainOutput.getProducingTransformInternal(), inputBundle, evaluationContext);
 
     evaluator.processElement(WindowedValue.valueInGlobalWindow("foo"));
     evaluator.processElement(
@@ -206,8 +218,7 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
     InProcessTransformResult result = evaluator.finishBundle();
     assertThat(
         result.getOutputBundles(),
-        Matchers.<UncommittedBundle<?>>containsInAnyOrder(
-            mainOutputBundle, elementOutputBundle));
+        Matchers.<UncommittedBundle<?>>containsInAnyOrder(mainOutputBundle, elementOutputBundle));
     assertThat(result.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
     assertThat(result.getCounters(), equalTo(counters));
 
@@ -261,14 +272,16 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
             .withOutputTags(mainOutputTag, TupleTagList.of(elementTag));
     PCollectionTuple outputTuple = input.apply(pardo);
 
-    CommittedBundle<String> inputBundle = InProcessBundle.unkeyed(input).commit(Instant.now());
+    CommittedBundle<String> inputBundle =
+        bundleFactory.createRootBundle(input).commit(Instant.now());
 
     PCollection<KV<String, Integer>> mainOutput = outputTuple.get(mainOutputTag);
     PCollection<String> elementOutput = outputTuple.get(elementTag);
 
     InProcessEvaluationContext evaluationContext = mock(InProcessEvaluationContext.class);
-    UncommittedBundle<KV<String, Integer>> mainOutputBundle = InProcessBundle.unkeyed(mainOutput);
-    UncommittedBundle<String> elementOutputBundle = InProcessBundle.unkeyed(elementOutput);
+    UncommittedBundle<KV<String, Integer>> mainOutputBundle =
+        bundleFactory.createRootBundle(mainOutput);
+    UncommittedBundle<String> elementOutputBundle = bundleFactory.createRootBundle(elementOutput);
 
     when(evaluationContext.createBundle(inputBundle, mainOutput)).thenReturn(mainOutputBundle);
     when(evaluationContext.createBundle(inputBundle, elementOutput))
@@ -282,8 +295,9 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
     when(evaluationContext.createCounterSet()).thenReturn(counters);
 
     com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluator<String> evaluator =
-        new ParDoMultiEvaluatorFactory().forApplication(
-            mainOutput.getProducingTransformInternal(), inputBundle, evaluationContext);
+        new ParDoMultiEvaluatorFactory()
+            .forApplication(
+                mainOutput.getProducingTransformInternal(), inputBundle, evaluationContext);
 
     evaluator.processElement(WindowedValue.valueInGlobalWindow("foo"));
     evaluator.processElement(
@@ -368,14 +382,16 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
             .withOutputTags(mainOutputTag, TupleTagList.of(elementTag));
     PCollectionTuple outputTuple = input.apply(pardo);
 
-    CommittedBundle<String> inputBundle = InProcessBundle.unkeyed(input).commit(Instant.now());
+    CommittedBundle<String> inputBundle =
+        bundleFactory.createRootBundle(input).commit(Instant.now());
 
     PCollection<KV<String, Integer>> mainOutput = outputTuple.get(mainOutputTag);
     PCollection<String> elementOutput = outputTuple.get(elementTag);
 
     InProcessEvaluationContext evaluationContext = mock(InProcessEvaluationContext.class);
-    UncommittedBundle<KV<String, Integer>> mainOutputBundle = InProcessBundle.unkeyed(mainOutput);
-    UncommittedBundle<String> elementOutputBundle = InProcessBundle.unkeyed(elementOutput);
+    UncommittedBundle<KV<String, Integer>> mainOutputBundle =
+        bundleFactory.createRootBundle(mainOutput);
+    UncommittedBundle<String> elementOutputBundle = bundleFactory.createRootBundle(elementOutput);
 
     when(evaluationContext.createBundle(inputBundle, mainOutput)).thenReturn(mainOutputBundle);
     when(evaluationContext.createBundle(inputBundle, elementOutput))
@@ -389,8 +405,9 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
     when(evaluationContext.createCounterSet()).thenReturn(counters);
 
     com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluator<String> evaluator =
-        new ParDoMultiEvaluatorFactory().forApplication(
-            mainOutput.getProducingTransformInternal(), inputBundle, evaluationContext);
+        new ParDoMultiEvaluatorFactory()
+            .forApplication(
+                mainOutput.getProducingTransformInternal(), inputBundle, evaluationContext);
 
     evaluator.processElement(WindowedValue.valueInGlobalWindow("foo"));
     evaluator.processElement(
