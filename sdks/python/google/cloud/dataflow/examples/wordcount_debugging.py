@@ -24,7 +24,7 @@ on GCS:
 To execute this pipeline using the Google Cloud Dataflow service, specify
 pipeline configuration:
   --project YOUR_PROJECT_ID
-  --stagingLocation gs://YOUR_STAGING_DIRECTORY
+  --staging_location gs://YOUR_STAGING_DIRECTORY
   --temp_location gs://YOUR_TEMP_DIRECTORY
   --job_name YOUR_JOB_NAME
   --runner BlockingDataflowPipelineRunner
