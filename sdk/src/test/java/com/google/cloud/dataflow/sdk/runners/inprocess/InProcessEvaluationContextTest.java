@@ -110,6 +110,7 @@ public class InProcessEvaluationContextTest {
     context =
         InProcessEvaluationContext.create(
             runner.getPipelineOptions(),
+            InProcessBundleFactory.create(),
             rootTransforms,
             valueToConsumers,
             cVis.getStepNames(),
@@ -156,7 +157,9 @@ public class InProcessEvaluationContextTest {
     stepContext.stateInternals().state(StateNamespaces.global(), intBag).add(1);
 
     context.handleResult(
-        InProcessBundle.keyed(created, "foo").commit(Instant.now()),
+        InProcessBundleFactory.create()
+            .createKeyedBundle(null, "foo", created)
+            .commit(Instant.now()),
         ImmutableList.<TimerData>of(),
         StepTransformResult.withoutHold(created.getProducingTransformInternal())
             .withState(stepContext.commitState())
@@ -248,7 +251,7 @@ public class InProcessEvaluationContextTest {
             .withCounters(againCounters)
             .build();
     context.handleResult(
-        InProcessBundle.unkeyed(created).commit(Instant.now()),
+        context.createRootBundle(created).commit(Instant.now()),
         ImmutableList.<TimerData>of(),
         secondResult);
     assertThat((Long) context.getCounters().getExistingCounter("foo").getAggregate(), equalTo(12L));
@@ -275,7 +278,7 @@ public class InProcessEvaluationContextTest {
             .build();
 
     context.handleResult(
-        InProcessBundle.keyed(created, myKey).commit(Instant.now()),
+        context.createKeyedBundle(null, myKey, created).commit(Instant.now()),
         ImmutableList.<TimerData>of(),
         stateResult);
 
@@ -357,7 +360,7 @@ public class InProcessEvaluationContextTest {
     // haven't added any timers, must be empty
     assertThat(context.extractFiredTimers().entrySet(), emptyIterable());
     context.handleResult(
-        InProcessBundle.keyed(created, key).commit(Instant.now()),
+        context.createKeyedBundle(null, key, created).commit(Instant.now()),
         ImmutableList.<TimerData>of(),
         timerResult);
 

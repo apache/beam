@@ -70,6 +70,8 @@ public class UnboundedReadEvaluatorFactoryTest {
   private InProcessEvaluationContext context;
   private UncommittedBundle<Long> output;
 
+  private BundleFactory bundleFactory = InProcessBundleFactory.create();
+
   @Before
   public void setup() {
     UnboundedSource<Long, ?> source =
@@ -79,7 +81,7 @@ public class UnboundedReadEvaluatorFactoryTest {
 
     factory = new UnboundedReadEvaluatorFactory();
     context = mock(InProcessEvaluationContext.class);
-    output = InProcessBundle.unkeyed(longs);
+    output = bundleFactory.createRootBundle(longs);
     when(context.createRootBundle(longs)).thenReturn(output);
   }
 
@@ -116,7 +118,7 @@ public class UnboundedReadEvaluatorFactoryTest {
             tgw(1L), tgw(2L), tgw(4L), tgw(8L), tgw(9L), tgw(7L), tgw(6L), tgw(5L), tgw(3L),
             tgw(0L)));
 
-    UncommittedBundle<Long> secondOutput = InProcessBundle.unkeyed(longs);
+    UncommittedBundle<Long> secondOutput = bundleFactory.createRootBundle(longs);
     when(context.createRootBundle(longs)).thenReturn(secondOutput);
     TransformEvaluator<?> secondEvaluator =
         factory.forApplication(longs.getProducingTransformInternal(), null, context);
@@ -139,6 +141,7 @@ public class UnboundedReadEvaluatorFactoryTest {
     PCollection<Long> pcollection = p.apply(Read.from(source));
     AppliedPTransform<?, ?, ?> sourceTransform = pcollection.getProducingTransformInternal();
 
+    UncommittedBundle<Long> output = bundleFactory.createRootBundle(pcollection);
     when(context.createRootBundle(pcollection)).thenReturn(output);
 
     TransformEvaluator<?> evaluator = factory.forApplication(sourceTransform, null, context);
@@ -156,6 +159,7 @@ public class UnboundedReadEvaluatorFactoryTest {
     PCollection<Long> pcollection = p.apply(Read.from(source));
     AppliedPTransform<?, ?, ?> sourceTransform = pcollection.getProducingTransformInternal();
 
+    UncommittedBundle<Long> output = bundleFactory.createRootBundle(pcollection);
     when(context.createRootBundle(pcollection)).thenReturn(output);
 
     TransformEvaluator<?> evaluator = factory.forApplication(sourceTransform, null, context);
@@ -173,7 +177,7 @@ public class UnboundedReadEvaluatorFactoryTest {
    */
   @Test
   public void unboundedSourceWithMultipleSimultaneousEvaluatorsIndependent() throws Exception {
-    UncommittedBundle<Long> secondOutput = InProcessBundle.unkeyed(longs);
+    UncommittedBundle<Long> secondOutput = bundleFactory.createRootBundle(longs);
 
     TransformEvaluator<?> evaluator =
         factory.forApplication(longs.getProducingTransformInternal(), null, context);
