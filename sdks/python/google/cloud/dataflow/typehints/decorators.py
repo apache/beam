@@ -74,7 +74,6 @@ defined, or before importing a module containing type-hinted functions.
 
 import inspect
 import types
-import warnings
 
 from google.cloud.dataflow.typehints import check_constraint
 from google.cloud.dataflow.typehints import CompositeTypeHintError
@@ -340,12 +339,6 @@ def with_input_types(*positional_hints, **keyword_hints):
   return annotate
 
 
-def takes(*args, **kwargs):
-  warnings.warn('takes is deprectaed, use with_input_types instead',
-                warnings.DeprecationWarning)
-  return with_input_types(*args, **kwargs)
-
-
 def with_output_types(*return_type_hint, **kwargs):
   """A decorator that type-checks defined type-hints for return values(s).
 
@@ -407,12 +400,6 @@ def with_output_types(*return_type_hint, **kwargs):
     get_type_hints(f).set_output_types(return_type_hint)
     return f
   return annotate
-
-
-def returns(*args, **kwargs):
-  warnings.warn('returns is deprecated, use with_output_types instead',
-                warnings.DeprecationWarning)
-  return with_output_types(*args, **kwargs)
 
 
 def _check_instance_type(

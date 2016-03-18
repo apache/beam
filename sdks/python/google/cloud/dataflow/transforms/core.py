@@ -18,7 +18,6 @@ from __future__ import absolute_import
 
 import copy
 import uuid
-import warnings
 
 from google.cloud.dataflow import pvalue
 from google.cloud.dataflow import typehints
@@ -818,12 +817,6 @@ class CombineGlobally(PTransform):
       return (pcoll.pipeline
               | Create('DoOnce', [None])
               | typed(Map('InjectDefault', lambda _, s: s, view)))
-
-
-def Combine(*args, **kwargs):  # pylint: disable=invalid-name
-  warnings.warn('Combine is deprecated, use CombineGlobally instead',
-                DeprecationWarning)
-  return CombineGlobally(*args, **kwargs)
 
 
 @ptransform_fn
