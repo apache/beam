@@ -21,6 +21,8 @@ import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.io.BoundedSource;
+import com.google.cloud.dataflow.sdk.io.OffsetBasedSource;
+import com.google.cloud.dataflow.sdk.io.OffsetBasedSource.OffsetBasedReader;
 import com.google.cloud.dataflow.sdk.io.Read;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.Create;
@@ -32,12 +34,8 @@ import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.PeekingIterator;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.NoSuchElementException;
 
@@ -74,7 +72,7 @@ class InProcessCreate<T> extends ForwardingPTransform<PInput, PCollection<T>> {
     }
     InMemorySource<T> source;
     try {
-      source = new InMemorySource<>(original.getElements(), elementCoder);
+      source = InMemorySource.fromIterable(original.getElements(), elementCoder);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -89,53 +87,32 @@ class InProcessCreate<T> extends ForwardingPTransform<PInput, PCollection<T>> {
   }
 
   @VisibleForTesting
-  static class InMemorySource<T> extends BoundedSource<T> {
-    private final Collection<byte[]> allElementsBytes;
+  static class InMemorySource<T> extends OffsetBasedSource<T> {
+    private final List<byte[]> allElementsBytes;
     private final long totalSize;
     private final Coder<T> coder;
 
-    public InMemorySource(Iterable<T> elements, Coder<T> elemCoder)
+    public static <T> InMemorySource<T> fromIterable(Iterable<T> elements, Coder<T> elemCoder)
         throws CoderException, IOException {
-      allElementsBytes = new ArrayList<>();
+      ImmutableList.Builder<byte[]> allElementsBytes = ImmutableList.builder();
       long totalSize = 0L;
       for (T element : elements) {
         byte[] bytes = CoderUtils.encodeToByteArray(elemCoder, element);
         allElementsBytes.add(bytes);
         totalSize += bytes.length;
       }
-      this.totalSize = totalSize;
-      this.coder = elemCoder;
+      return new InMemorySource<>(allElementsBytes.build(), totalSize, elemCoder);
     }
 
     /**
      * Create a new source with the specified bytes. The new source owns the input element bytes,
      * which must not be modified after this constructor is called.
      */
-    private InMemorySource(Collection<byte[]> elementBytes, long totalSize, Coder<T> coder) {
+    private InMemorySource(List<byte[]> elementBytes, long totalSize, Coder<T> coder) {
+      super(0, elementBytes.size(), 1);
       this.allElementsBytes = ImmutableList.copyOf(elementBytes);
       this.totalSize = totalSize;
       this.coder = coder;
-    }
-
-    @Override
-    public List<? extends BoundedSource<T>> splitIntoBundles(
-        long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
-      ImmutableList.Builder<InMemorySource<T>> resultBuilder = ImmutableList.builder();
-      long currentSourceSize = 0L;
-      List<byte[]> currentElems = new ArrayList<>();
-      for (byte[] elemBytes : allElementsBytes) {
-        currentElems.add(elemBytes);
-        currentSourceSize += elemBytes.length;
-        if (currentSourceSize >= desiredBundleSizeBytes) {
-          resultBuilder.add(new InMemorySource<>(currentElems, currentSourceSize, coder));
-          currentElems.clear();
-          currentSourceSize = 0L;
-        }
-      }
-      if (!currentElems.isEmpty()) {
-        resultBuilder.add(new InMemorySource<>(currentElems, currentSourceSize, coder));
-      }
-      return resultBuilder.build();
     }
 
     @Override
@@ -150,7 +127,7 @@ class InProcessCreate<T> extends ForwardingPTransform<PInput, PCollection<T>> {
 
     @Override
     public BoundedSource.BoundedReader<T> createReader(PipelineOptions options) throws IOException {
-      return new BytesReader();
+      return new BytesReader<>(this);
     }
 
     @Override
@@ -161,50 +138,80 @@ class InProcessCreate<T> extends ForwardingPTransform<PInput, PCollection<T>> {
       return coder;
     }
 
-    private class BytesReader extends BoundedReader<T> {
-      private final PeekingIterator<byte[]> iter;
-      /**
-       * Use an optional to distinguish between null next element (as Optional.absent()) and no next
-       * element (next is null).
-       */
-      @Nullable private Optional<T> next;
+    @Override
+    public long getMaxEndOffset(PipelineOptions options) throws Exception {
+      return allElementsBytes.size();
+    }
 
-      public BytesReader() {
-        this.iter = Iterators.peekingIterator(allElementsBytes.iterator());
+    @Override
+    public OffsetBasedSource<T> createSourceForSubrange(long start, long end) {
+      List<byte[]> primaryElems = allElementsBytes.subList((int) start, (int) end);
+      long primarySizeEstimate =
+          (long) (totalSize * primaryElems.size() / (double) allElementsBytes.size());
+      return new InMemorySource<>(primaryElems, primarySizeEstimate, coder);
+    }
+
+    @Override
+    public long getBytesPerOffset() {
+      if (allElementsBytes.size() == 0) {
+        return 0L;
       }
+      return totalSize / allElementsBytes.size();
+    }
+  }
 
-      @Override
-      public BoundedSource<T> getCurrentSource() {
-        return InMemorySource.this;
+  private static class BytesReader<T> extends OffsetBasedReader<T> {
+    private int index;
+    /**
+     * Use an optional to distinguish between null next element (as Optional.absent()) and no next
+     * element (next is null).
+     */
+    @Nullable private Optional<T> next;
+
+    public BytesReader(InMemorySource<T> source) {
+      super(source);
+      index = -1;
+    }
+
+    @Override
+    @Nullable
+    public T getCurrent() throws NoSuchElementException {
+      if (next == null) {
+        throw new NoSuchElementException();
       }
+      return next.orNull();
+    }
 
-      @Override
-      public boolean start() throws IOException {
-        return advance();
+    @Override
+    public void close() throws IOException {}
+
+    @Override
+    protected long getCurrentOffset() {
+      return index;
+    }
+
+    @Override
+    protected boolean startImpl() throws IOException {
+      return advanceImpl();
+    }
+
+    @Override
+    public synchronized InMemorySource<T> getCurrentSource() {
+      return (InMemorySource<T>) super.getCurrentSource();
+    }
+
+    @Override
+    protected boolean advanceImpl() throws IOException {
+      InMemorySource<T> source = getCurrentSource();
+      index++;
+      if (index >= source.allElementsBytes.size()) {
+        return false;
       }
-
-      @Override
-      public boolean advance() throws IOException {
-        boolean hasNext = iter.hasNext();
-        if (hasNext) {
-          next = Optional.fromNullable(CoderUtils.decodeFromByteArray(coder, iter.next()));
-        } else {
-          next = null;
-        }
-        return hasNext;
-      }
-
-      @Override
-      @Nullable
-      public T getCurrent() throws NoSuchElementException {
-        if (next == null) {
-          throw new NoSuchElementException();
-        }
-        return next.orNull();
-      }
-
-      @Override
-      public void close() throws IOException {}
+      next =
+          Optional.fromNullable(
+              CoderUtils.decodeFromByteArray(
+                  source.coder, source.allElementsBytes.get(index)));
+      return true;
     }
   }
 }
