@@ -90,9 +90,6 @@ class TypeCodersTest(unittest.TestCase):
     self.assertEqual(
         real_coder.encode(0x0404), expected_coder.encode(0x0404))
     self.assertEqual(0x0404, real_coder.decode(real_coder.encode(0x0404)))
-
-    real_coder = typecoders.registry.get_coder(long)
-    expected_coder = coders.VarIntCoder()
     self.assertEqual(
         real_coder.encode(0x040404040404),
         expected_coder.encode(0x040404040404))

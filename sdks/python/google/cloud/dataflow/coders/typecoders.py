@@ -78,7 +78,6 @@ class CoderRegistry(object):
   def register_standard_coders(self, fallback_coder):
     """Register coders for all basic and composite types."""
     self._register_coder_internal(int, coders.VarIntCoder)
-    self._register_coder_internal(long, coders.VarIntCoder)
     self._register_coder_internal(float, coders.FloatCoder)
     self._register_coder_internal(str, coders.BytesCoder)
     self._register_coder_internal(bytes, coders.BytesCoder)
