@@ -9,6 +9,7 @@ from the Python programming language.
 
 ## Table of Contents
   * [Status of this Release](#status-of-this-release)
+  * [Signing up for Alpha Batch Cloud Execution](#signing-up-for-alpha-batch-cloud-execution)
   * [Overview of Dataflow Programming](#overview-of-dataflow-programming)
   * [Getting Started](#getting-started)
       * [Setting up an environment](#setting-up-an-environment)
@@ -37,8 +38,8 @@ from the Python programming language.
 
 ## Status of this Release
 
-This is the Google Cloud Dataflow SDK for Python version 0.2.0.
-It is still early in its development, and significant changes
+This is a version of Google Cloud Dataflow SDK for Python that is
+still early in its development, and significant changes
 should be expected before the first stable version.
 
 Google recently
@@ -51,6 +52,16 @@ The SDK for Java is actively transitioning to
 [Apache Beam](http://beam.incubator.apache.org/),
 an ASF incubator project.  The SDK for Python will be added
 to Apache Beam soon after.  Expect many renames.
+
+## Signing up for Alpha Batch Cloud Execution
+
+Google Cloud Dataflow now provides Alpha support for Batch pipelines written
+with the SDK for Python. This Alpha program is designed to give customers access
+to the service for early testing. Customers are advised
+not to use this feature in production systems. If you are interested in
+being considered to participate in the Alpha program,
+please submit this [form](http://goo.gl/forms/o4w14whz9x).
+Note that filling the form does not guarantee entry to the Alpha program.
 
 ## Overview of Dataflow Programming
 

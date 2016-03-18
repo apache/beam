@@ -468,7 +468,7 @@ class DataflowApplicationClient(object):
         'your project at: %s'
         '\n***************************************************************\n\n',
         request.projectId, response.id,
-        'https://goo.gl/jgdBe2'
+        'http://goo.gl/forms/o4w14whz9x'
     )
 
     return response
