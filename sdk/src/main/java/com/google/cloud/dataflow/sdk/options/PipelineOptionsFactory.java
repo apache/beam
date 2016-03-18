@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.options;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.cloud.dataflow.sdk.options.Validation.Required;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunnerRegistrar;
@@ -1391,7 +1393,10 @@ public class PipelineOptionsFactory {
    * split up each string on ','.
    *
    * <p>We special case the "runner" option. It is mapped to the class of the {@link PipelineRunner}
-   * based off of the {@link PipelineRunner}s simple class name or fully qualified class name.
+   * based off of the {@link PipelineRunner PipelineRunners} simple class name. If the provided
+   * runner name is not registered via a {@link PipelineRunnerRegistrar}, we attempt to obtain the
+   * class that the name represents using {@link Class#forName(String)} and use the result class if
+   * it subclasses {@link PipelineRunner}.
    *
    * <p>If strict parsing is enabled, unknown options or options that cannot be converted to
    * the expected java type using an {@link ObjectMapper} will be ignored.
@@ -1442,10 +1447,26 @@ public class PipelineOptionsFactory {
         JavaType type = MAPPER.getTypeFactory().constructType(method.getGenericReturnType());
         if ("runner".equals(entry.getKey())) {
           String runner = Iterables.getOnlyElement(entry.getValue());
-          Preconditions.checkArgument(SUPPORTED_PIPELINE_RUNNERS.containsKey(runner),
-              "Unknown 'runner' specified '%s', supported pipeline runners %s",
-              runner, Sets.newTreeSet(SUPPORTED_PIPELINE_RUNNERS.keySet()));
-          convertedOptions.put("runner", SUPPORTED_PIPELINE_RUNNERS.get(runner));
+          if (SUPPORTED_PIPELINE_RUNNERS.containsKey(runner)) {
+            convertedOptions.put("runner", SUPPORTED_PIPELINE_RUNNERS.get(runner));
+          } else {
+            try {
+              Class<?> runnerClass = Class.forName(runner);
+              checkArgument(
+                  PipelineRunner.class.isAssignableFrom(runnerClass),
+                  "Class '%s' does not implement PipelineRunner. Supported pipeline runners %s",
+                  runner,
+                  Sets.newTreeSet(SUPPORTED_PIPELINE_RUNNERS.keySet()));
+              convertedOptions.put("runner", runnerClass);
+            } catch (ClassNotFoundException e) {
+              String msg =
+                  String.format(
+                      "Unknown 'runner' specified '%s', supported pipeline runners %s",
+                      runner,
+                      Sets.newTreeSet(SUPPORTED_PIPELINE_RUNNERS.keySet()));
+                throw new IllegalArgumentException(msg, e);
+            }
+          }
         } else if ((returnType.isArray() && (SIMPLE_TYPES.contains(returnType.getComponentType())
                 || returnType.getComponentType().isEnum()))
             || Collection.class.isAssignableFrom(returnType)) {
