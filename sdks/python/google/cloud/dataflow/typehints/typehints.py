@@ -21,6 +21,7 @@ static or run-time type-checking in regular Python code.
 
 Type-hints are defined by 'indexing' a type-parameter into a defined
 CompositeTypeHint instance:
+
   * 'List[int]'.
 
 Valid type-hints are partitioned into two categories: simple, and composite.
@@ -36,6 +37,7 @@ avoid conflicting with the namespace of the built-in container types, when
 specifying this category of type-hints, the first letter should capitalized.
 The following composite type-hints are permitted. NOTE: 'T' can be any of the
 type-hints listed or a simple Python type:
+
   * Any
   * Union[T, T, T]
   * Optional[T]
@@ -50,6 +52,7 @@ type-hints listed or a simple Python type:
   * Generator[T]
 
 Type-hints can be nested, allowing one to define type-hints for complex types:
+
   * 'List[Tuple[int, int, str]]
 
 In addition, type-hints can be used to implement run-time type-checking via the
@@ -250,6 +253,7 @@ class CompositeTypeHint(object):
   use: CompositeTypeHint[type_parameter] to create a type-hint object that
   behaves like any other Python object. This allows one to create
   'type-aliases' by assigning the returned type-hints to a variable.
+
     * Example: 'Coordinates = List[Tuple[int, int]]'
   """
 
@@ -384,6 +388,7 @@ class UnionHint(CompositeTypeHint):
 
   Duplicate type parameters are ignored. Additonally, Nested Union hints will
   be flattened out. For example:
+
     * Union[Union[str, int], bool] -> Union[str, int, bool]
 
   A candidate type instance satisfies a UnionConstraint if it is an
@@ -393,6 +398,7 @@ class UnionHint(CompositeTypeHint):
   ensure compatibility with nested type-hints.
 
   When comparing two Union hints, ordering is enforced before comparison.
+
     * Union[int, str] == Union[str, int]
   """
 
@@ -495,6 +501,7 @@ class TupleHint(CompositeTypeHint):
 
   Tuple[X, Y] represents a tuple of *exactly* two elements, with the first
   being of type 'X' and the second an instance of type 'Y'.
+
     * (1, 2) satisfies Tuple[int, int]
 
   Additionally, one is able to type-hint an arbitary length, homogeneous tuple
@@ -633,6 +640,7 @@ class ListHint(CompositeTypeHint):
   List[X] represents an instance of a list populated by a single homogeneous
   type. The parameterized type 'X' can either be a built-in Python type or an
   instance of another TypeConstraint.
+
     * ['1', '2', '3'] satisfies List[str]
   """
 

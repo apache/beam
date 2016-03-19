@@ -25,7 +25,7 @@ class PipelineOptions(object):
 
   The class is essentially a wrapper over the standard argparse Python module
   (see https://docs.python.org/3/library/argparse.html).  To define one option
-  or a group of options you subclass from PipelineOptions:
+  or a group of options you subclass from PipelineOptions::
 
     class XyzOptions(PipelineOptions):
 
@@ -38,7 +38,7 @@ class PipelineOptions(object):
   described in the argparse public documentation.
 
   Pipeline objects require an options object during initialization.
-  This is obtained simply by initializing an options class as defined above:
+  This is obtained simply by initializing an options class as defined above::
 
     p = Pipeline(options=XyzOptions())
     if p.options.xyz == 'end':

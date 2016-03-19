@@ -28,8 +28,10 @@ from google.cloud.dataflow.utils.options import WorkerOptions
 class PipelineOptionsValidator(object):
   """Validates PipelineOptions.
 
-  Goes through a list of known PipelineOption subclassess and calls:
+  Goes through a list of known PipelineOption subclassess and calls::
+
     validate(validator)
+
   if one is implemented. Aggregates a list of validation errors from all and
   returns an aggregated list.
   """

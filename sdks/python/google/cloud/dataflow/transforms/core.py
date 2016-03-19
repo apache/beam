@@ -1043,7 +1043,9 @@ class Partition(PTransformWithSideInputs):
   Uses the specified PartitionFn to separate an input PCollection into the
   specified number of sub-PCollections.
 
-  When apply()d, a Partition() PTransform requires the following arguments:
+  When apply()d, a Partition() PTransform requires the following:
+
+  Args:
     partitionfn: a PartitionFn, or a callable with the signature described in
       CallableWrapperPartitionFn.
     n: number of output partitions.
@@ -1179,7 +1181,7 @@ class Flatten(PTransform):
 
   Copies all elements in 0 or more PCollections into a single output
   PCollection. If there are no input PCollections, the resulting PCollection
-  will be empty (but see also **kwargs below).
+  will be empty (but see also kwargs below).
 
   Args:
     label: name of this transform instance. Useful while monitoring and

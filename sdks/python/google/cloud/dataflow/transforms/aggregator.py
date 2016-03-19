@@ -45,24 +45,26 @@ from google.cloud.dataflow.utils.counters import Counter
 class Aggregator(object):
   """A user-specified aggregator of statistics about pipeline data.
 
-  Arg:
+  Args:
     combine_fn: how to combine values input to the aggregation.
-  It must be one of these arithmetic functions:
-   - Python's built-in sum
-   - Python's built-in min
-   - Python's built-in max
-   - Python's built-in df.Mean()
-  The default is sum.
+      It must be one of these arithmetic functions:
+
+       - Python's built-in sum
+       - Python's built-in min
+       - Python's built-in max
+       - df.Mean()
+
+      The default is sum.
 
     type: describes the numeric type that will be accepted as input
-  for aggregation; by default types appropriate to the combine_fn are accepted.
+      for aggregation; by default types appropriate to the combine_fn
+      are accepted.
 
-  Example uses:
+  Example uses::
 
-  import google.cloud.dataflow as df
-  simple_counter = df.Aggregator('example-counter')
-  complex_counter = df.Aggregator('other-counter', df.Mean(), float)
-
+    import google.cloud.dataflow as df
+    simple_counter = df.Aggregator('example-counter')
+    complex_counter = df.Aggregator('other-counter', df.Mean(), float)
   """
 
   def __init__(self,

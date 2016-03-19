@@ -34,7 +34,7 @@ encode_to_bytes and decode_from_bytes methods. The framework uses duck-typing
 for coders so it is not strictly required to subclass from CoderBase as long as
 the encode/decode methods are defined.
 
-Registering a coder class is made with a register_coder() call:
+Registering a coder class is made with a register_coder() call::
 
   from google.cloud.dataflow import coders
   ...
@@ -43,7 +43,7 @@ Registering a coder class is made with a register_coder() call:
 Additionally, DoFns and PTransforms may need type hints. This is not always
 necessary since there is functionality to infer the return types of DoFns by
 analyzing the code. For instance, for the function below the return type of
-'Xyz' will be inferred:
+'Xyz' will be inferred::
 
   def MakeXyzs(v):
     return Xyz(v)
@@ -52,7 +52,7 @@ If Xyz is inferred then its coder will be used whenever the framework needs to
 serialize data (e.g., writing to the shuffler subsystem responsible for group by
 key operations). If a typehint is needed it can be specified by decorating the
 DoFns or using with_input_types/with_output_types methods on PTransforms. For
-example, the above function can be decorated:
+example, the above function can be decorated::
 
   @with_output_types(Xyz)
   def MakeXyzs(v):

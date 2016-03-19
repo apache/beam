@@ -190,7 +190,8 @@ class PTransform(WithTypeHints):
     The function is used by functions that take a (label, arg_name) list of
     parameters and in which first label could be optional even if the arg_name
     is not passed as a keyword. More specifically the following calling patterns
-    are allowed:
+    are allowed::
+
       (value)
       ('label', value)
       (arg_name=value)
@@ -613,25 +614,25 @@ def ptransform_fn(fn):
   The standard method is to subclass from PTransform and override the apply()
   method. An equivalent effect can be obtained by defining a function that
   takes a label, an input PCollection and additional optional arguments and
-  returns a resulting PCollection. For example:
+  returns a resulting PCollection. For example::
 
     @ptransform_fn
     def CustomMapper(label, pcoll, mapfn):
       return pcoll | ParDo(mapfn)
 
-  The equivalent approach using PTransform subclassing:
+  The equivalent approach using PTransform subclassing::
 
     class CustomMapper(PTransform):
       def apply(self, pcoll, mapfn):
         return pcoll | ParDo(mapfn)
 
   With either method the custom PTransform can be used in pipelines as if
-  it were one of the "native" PTransforms:
+  it were one of the "native" PTransforms::
 
     result_pcoll = input_pcoll | CustomMapper('label', somefn)
 
   Note that for both solutions the underlying implementation of the pipe
-  operator (e.g., |) will inject the pcoll argument in its proper place
+  operator (i.e., `|`) will inject the pcoll argument in its proper place
   (first argument if no label was specified and second argument otherwise).
   """
   return CallablePTransform(fn)

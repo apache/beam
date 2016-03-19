@@ -42,14 +42,14 @@ class CoGroupByKey(PTransform):
   """Groups results across several PCollections by key.
 
   Given an input dict mapping serializable keys (called "tags") to 0 or more
-  PCollections of (key, value) tuples, e.g.:
+  PCollections of (key, value) tuples, e.g.::
 
      {'pc1': pcoll1, 'pc2': pcoll2, 33333: pcoll3}
 
   creates a single output PCollection of (key, value) tuples whose keys are the
   unique input keys from all inputs, and whose values are dicts mapping each
   tag to an iterable of whatever values were under the key in the corresponding
-  PCollection.
+  PCollection::
 
     ('some key', {'pc1': ['value 1 under "some key" in pcoll1',
                           'value 2 under "some key" in pcoll1'],
@@ -59,13 +59,14 @@ class CoGroupByKey(PTransform):
   Note that pcoll2 had no values associated with "some key".
 
   CoGroupByKey also works for tuples, lists, or other flat iterables of
-  PCollections, in which case the values of the resulting PCollections will be
-  tuples whose nth value is the list of values from the nth PCollection---
-  conceptually, the "tags" are the indices into the input. Thus, for an input of
+  PCollections, in which case the values of the resulting PCollections
+  will be tuples whose nth value is the list of values from the nth
+  PCollection---conceptually, the "tags" are the indices into the input.
+  Thus, for this input::
 
      (pcoll1, pcoll2, pcoll3)
 
-  the output PCollection's value for "some key" is
+  the output PCollection's value for "some key" is::
 
     ('some key', (['value 1 under "some key" in pcoll1',
                    'value 2 under "some key" in pcoll1'],

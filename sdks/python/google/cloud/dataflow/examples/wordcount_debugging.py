@@ -18,18 +18,21 @@ On top of the basic concepts in the wordcount example, this workflow introduces
 logging to Cloud Logging, and using assertions in a Dataflow pipeline.
 
 To execute this pipeline locally, specify a local output file or output prefix
-on GCS:
+on GCS::
+
   --output [YOUR_LOCAL_FILE | gs://YOUR_OUTPUT_PREFIX]
 
 To execute this pipeline using the Google Cloud Dataflow service, specify
-pipeline configuration:
+pipeline configuration::
+
   --project YOUR_PROJECT_ID
   --staging_location gs://YOUR_STAGING_DIRECTORY
   --temp_location gs://YOUR_TEMP_DIRECTORY
   --job_name YOUR_JOB_NAME
   --runner BlockingDataflowPipelineRunner
 
-and an output prefix on GCS:
+and an output prefix on GCS::
+
   --output gs://YOUR_OUTPUT_PREFIX
 """
 

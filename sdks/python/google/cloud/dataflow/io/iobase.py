@@ -291,20 +291,20 @@ class NativeSinkWriter(object):
 class RangeTracker(object):
   """A thread-safe helper object for implementing dynamic work rebalancing.
 
-  'RangeTracker' can be used for implementing dynamic work rebalancing in
-  position-based subclasses of 'iobase.SourceReader'.
+  ``RangeTracker`` can be used for implementing dynamic work rebalancing in
+  position-based subclasses of ``iobase.SourceReader``.
 
-  Usage of the RangeTracker class hierarchy
-  -----------------------------------------
-  The 'RangeTracker' class should not be used per se---all users should use
+  **Usage of the RangeTracker class hierarchy**
+
+  The ``RangeTracker`` class should not be used per se---all users should use
   its subclasses directly. We declare it here because all subclasses have
   roughly the same interface and the same properties, to centralize the
   documentation.
 
-  Currently we provide one implementation: 'iobase.OffsetRangeTracker'.
+  Currently we provide one implementation: ``iobase.OffsetRangeTracker``.
 
-  Position-based sources
-  ----------------------
+  **Position-based sources**
+
   A position-based source is one where the source can be described by a range
   of positions of an ordered type and the records returned by the reader can be
   described by positions of the same type.
@@ -326,10 +326,10 @@ class RangeTracker(object):
   before 'A'.
 
   The sections below explain exactly what properties these definitions must
-  satisfy, and how to use a 'RangeTracker' with a properly defined source.
+  satisfy, and how to use a ``RangeTracker`` with a properly defined source.
 
-  Properties of position-based sources
-  ------------------------------------
+  **Properties of position-based sources**
+
   The main requirement for position-based sources is *associativity*: reading
   records from '[A, B)' and records from '[B, C)' should give the same
   records as reading from '[A, C)', where 'A <= B <= C'. This property
@@ -360,8 +360,8 @@ class RangeTracker(object):
   In all cases, all records returned by a source '[A, B)' must *start* at or
   after 'A'.
 
-  Split points
-  ------------
+  **Split points**
+
   Some sources may have records that are not directly addressable. For example,
   imagine a file format consisting of a sequence of compressed blocks. Each
   block can be assigned an offset, but records within the block cannot be
@@ -395,8 +395,8 @@ class RangeTracker(object):
   position ranges, the total set of records will be the full set of records in
   the source, and each record will be read exactly once.
 
-  Consumed positions
-  ------------------
+  **Consumed positions**
+
   As the source is being read, and records read from it are being passed to the
   downstream transforms in the pipeline, we say that positions in the source are
   being *consumed*. When a reader has read a record (or promised to a caller
@@ -420,24 +420,24 @@ class RangeTracker(object):
   def try_return_record_at(self, is_at_split_point, record_start):
     """Atomically determines if a record at the given position can be returned.
 
-    Additionally, Updates the internal state of the 'RangeTracker'.
+    Additionally, Updates the internal state of the ``RangeTracker``.
 
     In particular:
 
-    * If 'is_at_split_point' is 'True', and 'record_start' is outside the
-      current range, returns 'False';
-    * Otherwise, updates the last-consumed position to 'record_start' and
-      returns 'True'.
+    * If ``is_at_split_point`` is ``True``, and ``record_start`` is outside the
+      current range, returns ``False``;
+    * Otherwise, updates the last-consumed position to ``record_start`` and
+      returns ``True``.
 
     This method MUST be called on all split point records. It may be called on
     every record.
 
-    Method 'try_return_record_at' and method 'try_split_at_position' will be
+    Method ``try_return_record_at`` and method ``try_split_at_position`` will be
     accessed by different threads and implementor must ensure that only one of
     these methods is executed at a given time.
 
     Args:
-      is_at_split_point: 'True' if record is at a split point, 'False'
+      is_at_split_point: ``True`` if record is at a split point, ``False``
       otherwise.
 
       record_start: starting position of the record.
@@ -454,15 +454,15 @@ class RangeTracker(object):
     '[get_start_position(), split_position())' (i.e., 'split_position()'
     has not been consumed yet).
 
-    Updates the current range to be the primary and returns 'True'. This
+    Updates the current range to be the primary and returns ``True``. This
     means that all further calls on the current object will interpret their
     arguments relative to the primary range.
 
     If the split position has already been consumed, or if no
-    'try_return_record_at' call was made yet, returns 'False'. The
+    ``try_return_record_at`` call was made yet, returns ``False``. The
     second condition is to prevent dynamic splitting during reader start-up.
 
-    Method 'try_return_record_at' and method 'try_split_at_position' will be
+    Method ``try_return_record_at`` and method ``try_split_at_position`` will be
     accessed by different threads and implementor must ensure that only one of
     these methods is executed at a given time.
 
@@ -483,12 +483,13 @@ class RangeTracker(object):
 
 
 class Sink(object):
-  """A resource that can be written to using the 'df.io.Write' transform.
+  """A resource that can be written to using the ``df.io.Write`` transform.
 
-  Here 'df' stands for Dataflow Python code imported in following manner.
-  'import google.cloud.dataflow as df'.
+  Here ``df`` stands for Dataflow Python code imported in following manner.
+  ``import google.cloud.dataflow as df``.
 
-  A parallel write to an 'iobase.Sink' consists of three phases:
+  A parallel write to an ``iobase.Sink`` consists of three phases:
+
   1. A sequential *initialization* phase (e.g., creating a temporary output
      directory, etc.)
   2. A parallel write phase where workers write *bundles* of records
@@ -502,117 +503,117 @@ class Sink(object):
 
   1. iobase.Sink
 
-  'iobase.Sink' is an immutable logical description of the location/resource to
-  write to. Depending on the type of sink, it may contain fields such as the
+  ``iobase.Sink`` is an immutable logical description of the location/resource
+  to write to. Depending on the type of sink, it may contain fields such as the
   path to an output directory on a filesystem, a database table name,
-  etc. 'iobase.Sink' provides methods for performing a write operation to the
+  etc. ``iobase.Sink`` provides methods for performing a write operation to the
   sink described by it. To this end, implementors of an extension of
-  'iobase.Sink' must implement three methods:
-  'initialize_write()', 'open_writer()', and 'finalize_write()'.
+  ``iobase.Sink`` must implement three methods:
+  ``initialize_write()``, ``open_writer()``, and ``finalize_write()``.
 
   2. iobase.Writer
 
-  'iobase.Writer' is used to write a single bundle of records. An
-  'iobase.Writer' defines two methods: 'write()' which writes a
-  single record from the bundle and 'close()' which is called once
+  ``iobase.Writer`` is used to write a single bundle of records. An
+  ``iobase.Writer`` defines two methods: ``write()`` which writes a
+  single record from the bundle and ``close()`` which is called once
   at the end of writing a bundle.
 
-  Execution of the Write transform
-  --------------------------------
-  'initialize_write()' and 'finalize_write()' are conceptually called once: at
-  the beginning and end of a 'Write' transform. However, implementors must
+  **Execution of the Write transform**
+
+  ``initialize_write()`` and ``finalize_write()`` are conceptually called once:
+  at the beginning and end of a ``Write`` transform. However, implementors must
   ensure that these methods are *idempotent*, as they may be called multiple
   times on different machines in the case of failure/retry or for redundancy.
 
-  'initialize_write()' should perform any initialization that needs to be done
-  prior to writing to the sink. 'initialize_write()' may return a result
-  (let's call this 'init_result') that contains any parameters it wants to pass
-  on to its writers about the sink. For example, a sink that writes to a file
-  system may return an 'init_result' that contains a dynamically generated
-  unique directory to which data should be written.
+  ``initialize_write()`` should perform any initialization that needs to be done
+  prior to writing to the sink. ``initialize_write()`` may return a result
+  (let's call this ``init_result``) that contains any parameters it wants to
+  pass on to its writers about the sink. For example, a sink that writes to a
+  file system may return an ``init_result`` that contains a dynamically
+  generated unique directory to which data should be written.
 
   To perform writing of a bundle of elements, Dataflow execution engine will
-  create an 'iobase.Writer' using the implementation of
-  'iobase.Sink.open_writer()'. When invoking 'open_writer()' execution engine
-  will provide the 'init_result' returned by 'initialize_write()' invocation as
-  well as a *bundle id* (let's call this 'bundle_id') that is unique for each
-  invocation of 'open_writer()'.
+  create an ``iobase.Writer`` using the implementation of
+  ``iobase.Sink.open_writer()``. When invoking ``open_writer()`` execution
+  engine will provide the ``init_result`` returned by ``initialize_write()``
+  invocation as well as a *bundle id* (let's call this ``bundle_id``) that is
+  unique for each invocation of ``open_writer()``.
 
-  Execution engine will then invoke 'iobase.Writer.write()' implementation for
+  Execution engine will then invoke ``iobase.Writer.write()`` implementation for
   each element that has to be written. Once all elements of a bundle are
-  written, execution engine will invoke 'iobase.Writer.close()' implementation
-  which should return a result (let's call this 'write_result') that contains
+  written, execution engine will invoke ``iobase.Writer.close()`` implementation
+  which should return a result (let's call this ``write_result``) that contains
   information that encodes the result of the write and, in most cases, some
   encoding of the unique bundle id. For example, if each bundle is written to a
-  unique temporary file, 'close()' method may return an object that contains the
-  temporary file name. After writing of all bundles is complete, execution
-  engine will invoke 'finalize_write()' implementation. As parameters to this
-  invocation execution engine will provide 'init_result' as well as an iterable
-  of 'write_result's.
+  unique temporary file, ``close()`` method may return an object that contains
+  the temporary file name. After writing of all bundles is complete, execution
+  engine will invoke ``finalize_write()`` implementation. As parameters to this
+  invocation execution engine will provide ``init_result`` as well as an
+  iterable of ``write_result``.
 
   The execution of a write transform can be illustrated using following pseudo
-  code. Assume that the outer for loop happens in parallel across many machines.
+  code (assume that the outer for loop happens in parallel across many
+  machines)::
 
-  ------------------------------------------------------------------------------
-  init_result = sink.initialize_write()
-  write_results = []
-  for bundle in partition(pcoll):
-    writer = sink.open_writer(init_result, generate_bundle_id())
-    for elem in bundle:
-      writer.write(elem)
-    write_results.append(writer.close())
-  sink.finalize_write(init_result, write_results)
-  ------------------------------------------------------------------------------
+    init_result = sink.initialize_write()
+    write_results = []
+    for bundle in partition(pcoll):
+      writer = sink.open_writer(init_result, generate_bundle_id())
+      for elem in bundle:
+        writer.write(elem)
+      write_results.append(writer.close())
+    sink.finalize_write(init_result, write_results)
 
-  init_result
-  -----------
+
+  **init_result**
+
   Methods of 'iobase.Sink' should agree on the 'init_result' type that will be
   returned when initializing the sink. This type can be a client-defined object
   or an existing type. The returned type must be picklable using Dataflow coder
-  'coders.PickleCoder'. Returning an init_result is optional.
+  ``coders.PickleCoder``. Returning an init_result is optional.
 
-  bundle_id
-  ---------
+  **bundle_id**
+
   In order to ensure fault-tolerance, a bundle may be executed multiple times
   (e.g., in the event of failure/retry or for redundancy). However, exactly one
   of these executions will have its result passed to the
-  'iobase.Sink.finalize_write()' method. Each call to
-  'iobase.Sink.open_writer()' is passed a unique bundle id when it is called by
-  the 'WriteImpl' transform, so even redundant or retried bundles will have a
-  unique way of identifying their output.
+  ``iobase.Sink.finalize_write()`` method. Each call to
+  ``iobase.Sink.open_writer()`` is passed a unique bundle id when it is called
+  by the ``WriteImpl`` transform, so even redundant or retried bundles will have
+  a unique way of identifying their output.
 
   The bundle id should be used to guarantee that a bundle's output is unique.
   This uniqueness guarantee is important; if a bundle is to be output to a file,
   for example, the name of the file must be unique to avoid conflicts with other
   writers. The bundle id should be encoded in the writer result returned by the
-  writer and subsequently used by the 'finalize_write()' method to identify the
-  results of successful writes.
+  writer and subsequently used by the ``finalize_write()`` method to identify
+  the results of successful writes.
 
   For example, consider the scenario where a Writer writes files containing
-  serialized records and the 'finalize_write()' is to merge or rename these
+  serialized records and the ``finalize_write()`` is to merge or rename these
   output files. In this case, a writer may use its unique id to name its output
   file (to avoid conflicts) and return the name of the file it wrote as its
-  writer result. The 'finalize_write()' will then receive an 'Iterable' of
+  writer result. The ``finalize_write()`` will then receive an ``Iterable`` of
   output file names that it can then merge or rename using some bundle naming
   scheme.
 
-  write_result
-  ------------
-  'iobase.Writer.close()' and 'finalize_write()' implementations must agree on
-  type of the 'write_result' object returned when invoking
-  'iobase.Writer.close()'. This type can be a client-defined object or
+  **write_result**
+
+  ``iobase.Writer.close()`` and ``finalize_write()`` implementations must agree
+  on type of the ``write_result`` object returned when invoking
+  ``iobase.Writer.close()``. This type can be a client-defined object or
   an existing type. The returned type must be picklable using Dataflow coder
-  'coders.PickleCoder'. Returning a 'write_result' when 'iobase.Writer.close()'
-  is invoked is optional but if unique 'write_result's are not returned,
-  sink should, guarantee idempotency when same bundle is written multiple times
-  due to failure/retry or redundancy.
+  ``coders.PickleCoder``. Returning a ``write_result`` when
+  ``iobase.Writer.close()`` is invoked is optional but if unique
+  ``write_result`` objects are not returned, sink should, guarantee idempotency
+  when same bundle is written multiple times due to failure/retry or redundancy.
 
 
-  More information
-  ----------------
+  **More information**
+
   For more information on creating new sinks please refer to the official
   documentation at
-  'https://cloud.google.com/dataflow/model/custom-io#creating-sinks'.
+  ``https://cloud.google.com/dataflow/model/custom-io#creating-sinks``.
   """
 
   def initialize_write(self):
@@ -621,7 +622,7 @@ class Sink(object):
     Invoked before any data is written to the sink.
 
 
-    Please see documentation in 'iobase.Sink' for an example.
+    Please see documentation in ``iobase.Sink`` for an example.
 
     Returns:
       An object that contains any sink specific state generated by
@@ -637,7 +638,7 @@ class Sink(object):
       init_result: the result of initialize_write() invocation.
       uid: a unique identifier generated by the system.
     Returns:
-      an 'iobase.Writer' that can be used to write a bundle of records to the
+      an ``iobase.Writer`` that can be used to write a bundle of records to the
       current sink.
     """
     raise NotImplementedError
@@ -669,8 +670,8 @@ class Sink(object):
     consistent if finalize is called multiple times.
 
     Args:
-      init_result: the result of 'initialize_write()' invocation.
-      writer_results: an iterable containing results of 'Writer.close()'
+      init_result: the result of ``initialize_write()`` invocation.
+      writer_results: an iterable containing results of ``Writer.close()``
         invocations. This will only contain results of successful writes, and
         will only contain the result of a single successful write for a given
         bundle.
@@ -679,14 +680,14 @@ class Sink(object):
 
 
 class Writer(object):
-  """Writes a bundle of elements from a 'PCollection' to a sink.
+  """Writes a bundle of elements from a ``PCollection`` to a sink.
 
-  A Writer  'iobase.Writer.write()' writes and elements to the sink while
-  'iobase.Writer.close()' is called after all elements in the bundle have been
+  A Writer  ``iobase.Writer.write()`` writes and elements to the sink while
+  ``iobase.Writer.close()`` is called after all elements in the bundle have been
   written.
 
-  See 'iobase.Sink' for more detailed documentation about the process of writing
-  to a sink.
+  See ``iobase.Sink`` for more detailed documentation about the process of
+  writing to a sink.
   """
 
   def write(self, value):
@@ -696,7 +697,8 @@ class Writer(object):
   def close(self):
     """Closes the current writer.
 
-    Please see documentation in 'iobase.Sink' for an example.
+    Please see documentation in ``iobase.Sink`` for an example.
+
     Returns:
       An object representing the writes that were performed by the current
       writer.
@@ -719,7 +721,7 @@ class _NativeWrite(ptransform.PTransform):
       *args: A tuple of position arguments.
       **kwargs: A dictionary of keyword arguments.
     Returns:
-      a 'pvalue.PDone'.
+      a ``pvalue.PDone``.
 
     The *args, **kwargs are expected to be (label, sink) or (sink).
     """
@@ -758,29 +760,31 @@ class Read(ptransform.PTransform):
 
 
 class Write(ptransform.PTransform):
-  """A 'PTransform' that writes to a sink.
+  """A ``PTransform`` that writes to a sink.
 
-  A sink should inherit 'iobase.Sink'. Such implementations are
-  handled using a composite transform that consists of three 'ParDo's -
-  (1) a 'ParDo' performing a global initialization (2) a 'ParDo' performing a
-  parallel write and (3) a 'ParDo' performing a global finalization. In the case
-  of an empty 'PCollection', only the global initialization and finalization
-  will be performed. Currently only batch workflows support custom sinks.
+  A sink should inherit ``iobase.Sink``. Such implementations are
+  handled using a composite transform that consists of three ``ParDo``s -
+  (1) a ``ParDo`` performing a global initialization (2) a ``ParDo`` performing
+  a parallel write and (3) a ``ParDo`` performing a global finalization. In the
+  case of an empty ``PCollection``, only the global initialization and
+  finalization will be performed. Currently only batch workflows support custom
+  sinks.
 
-  Example usage:
+  Example usage::
 
       pcollection | df.io.Write(MySink())
 
-  This returns a 'pvalue.PValue' object that represents the end of the Pipeline.
+  This returns a ``pvalue.PValue`` object that represents the end of the
+  Pipeline.
 
   The sink argument may also be a full PTransform, in which case it will be
   applied directly.  This allows composite sink-like transforms (e.g. a sink
   with some pre-processing DoFns) to be used the same as all other sinks.
 
-  This transform also supports sinks that inherit 'iobase.NativeSink'. These are
-  sinks that are implemented natively by the Dataflow service and hence should
-  not be updated by users. These sinks are processed using a Dataflow native
-  write transform.
+  This transform also supports sinks that inherit ``iobase.NativeSink``. These
+  are sinks that are implemented natively by the Dataflow service and hence
+  should not be updated by users. These sinks are processed using a Dataflow
+  native write transform.
   """
 
   def __init__(self, *args, **kwargs):

@@ -21,43 +21,51 @@ return values.
 Type-hints for functions are annotated using two separate decorators. One is for
 type-hinting the types of function arguments, the other for type-hinting the
 function return value. Type-hints can either be specified in the form of
-positional arguments:
+positional arguments::
+
   @with_input_types(int, int)
   def add(a, b):
     return a + b
 
-Keyword arguments:
+Keyword arguments::
+
   @with_input_types(a=int, b=int)
   def add(a, b):
     return a + b
 
-Or even a mix of both:
+Or even a mix of both::
+
   @with_input_types(int, b=int)
   def add(a, b):
     return a + b
 
-Example usage for type-hinting arguments only:
+Example usage for type-hinting arguments only::
+
   @with_input_types(s=str)
   def to_lower(a):
     return a.lower()
 
-Example usage for type-hinting return values only:
+Example usage for type-hinting return values only::
+
   @with_output_types(Tuple[int, bool])
   def compress_point(ec_point):
     return ec_point.x, ec_point.y < 0
 
-Example usage for type-hinting both arguments and return values:
+Example usage for type-hinting both arguments and return values::
+
   @with_input_types(a=int)
   @with_output_types(str)
   def int_to_str(a):
     return str(a)
 
 Type-hinting a function with arguments that unpack tuples are also supported. As
-an example, such a function would be defined as:
+an example, such a function would be defined as::
+
   def foo((a, b)):
     ...
 
-The valid type-hint for such as function looks like the following:
+The valid type-hint for such as function looks like the following::
+
   @with_input_types(a=int, b=int)
   def foo((a, b)):
     ...
@@ -296,11 +304,14 @@ def with_input_types(*positional_hints, **keyword_hints):
   violate the type-hint constraints defined, a TypeCheckError detailing the
   error will be raised.
 
-  To be used as:
+  To be used as::
+
     * @with_input_types(s=str)  # just @with_input_types(str) will work too.
       def upper(s):
         return s.upper()
-  Or:
+
+  Or::
+
     * @with_input_types(ls=List[Tuple[int, int])
       def increment(ls):
         [(i + 1, j + 1) for (i,j) in ls]
@@ -352,13 +363,15 @@ def with_output_types(*return_type_hint, **kwargs):
   If the ultimate return value for the function violates the specified type-hint
   a TypeCheckError will be raised detailing the type-constraint violation.
 
-  This decorator is intended to be used like:
+  This decorator is intended to be used like::
+
     * @with_output_types(Set[Coordinate])
       def parse_ints(ints):
         ....
         return [Coordinate.from_int(i) for i in ints]
 
-  Or with a simple type-hint:
+  Or with a simple type-hint::
+
     * @with_output_types(bool)
       def negate(p):
         return not p if p else p
