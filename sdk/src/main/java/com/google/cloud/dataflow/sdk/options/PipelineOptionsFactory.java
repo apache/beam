@@ -1393,7 +1393,10 @@ public class PipelineOptionsFactory {
    * split up each string on ','.
    *
    * <p>We special case the "runner" option. It is mapped to the class of the {@link PipelineRunner}
-   * based off of the {@link PipelineRunner}s simple class name or fully qualified class name.
+   * based off of the {@link PipelineRunner PipelineRunners} simple class name. If the provided
+   * runner name is not registered via a {@link PipelineRunnerRegistrar}, we attempt to obtain the
+   * class that the name represents using {@link Class#forName(String)} and use the result class if
+   * it subclasses {@link PipelineRunner}.
    *
    * <p>If strict parsing is enabled, unknown options or options that cannot be converted to
    * the expected java type using an {@link ObjectMapper} will be ignored.
