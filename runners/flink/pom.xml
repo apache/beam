@@ -24,7 +24,7 @@
 
   <parent>
     <groupId>org.apache.beam</groupId>
-    <artifactId>runners</artifactId>
+    <artifactId>runners-parent</artifactId>
     <version>1.6.0-SNAPSHOT</version>
   </parent>
 
