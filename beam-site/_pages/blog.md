@@ -15,5 +15,20 @@ for the project.
 
 {{ post.excerpt }}
 
+<!-- Render a "read more" button if the post is longer than the excerpt -->
+{% capture content_words %}
+  {{ post.content | number_of_words }}
+{% endcapture %}
+{% capture excerpt_words %}
+  {{ post.excerpt | number_of_words }}
+{% endcapture %}
+{% if excerpt_words != content_words %}
+<p>
+<a class="btn btn-default btn-sm" href="{{ post.url }}/#read-more" role="button">
+Read more&nbsp;<span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span>
+</a>
+</p>
+{% endif %}
+
 <hr>
 {% endfor %}
