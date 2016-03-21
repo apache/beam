@@ -35,7 +35,9 @@ import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.cloud.dataflow.sdk.values.PValue;
 
 import org.hamcrest.Matchers;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -47,13 +49,25 @@ import java.util.List;
  */
 @RunWith(JUnit4.class)
 public class ConsumerTrackingPipelineVisitorTest implements Serializable {
+  @Rule public transient ExpectedException thrown = ExpectedException.none();
+
   private transient TestPipeline p = TestPipeline.create();
   private transient ConsumerTrackingPipelineVisitor visitor = new ConsumerTrackingPipelineVisitor();
 
   @Test
   public void getViewsReturnsViews() {
     PCollectionView<List<String>> listView =
-        p.apply("listCreate", Create.of("foo", "bar")).apply(View.<String>asList());
+        p.apply("listCreate", Create.of("foo", "bar"))
+            .apply(
+                ParDo.of(
+                    new DoFn<String, String>() {
+                      @Override
+                      public void processElement(DoFn<String, String>.ProcessContext c)
+                          throws Exception {
+                        c.output(Integer.toString(c.element().length()));
+                      }
+                    }))
+            .apply(View.<String>asList());
     PCollectionView<Object> singletonView =
         p.apply("singletonCreate", Create.<Object>of(1, 2, 3)).apply(View.<Object>asSingleton());
     p.traverseTopologically(visitor);
@@ -158,5 +172,62 @@ public class ConsumerTrackingPipelineVisitorTest implements Serializable {
 
     p.traverseTopologically(visitor);
     assertThat(visitor.getUnfinalizedPValues(), emptyIterable());
+  }
+
+  @Test
+  public void traverseMultipleTimesThrows() {
+    p.apply(Create.of(1, 2, 3));
+
+    p.traverseTopologically(visitor);
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage(ConsumerTrackingPipelineVisitor.class.getSimpleName());
+    thrown.expectMessage("is finalized");
+    p.traverseTopologically(visitor);
+  }
+
+  @Test
+  public void traverseIndependentPathsSucceeds() {
+    p.apply("left", Create.of(1, 2, 3));
+    p.apply("right", Create.of("foo", "bar", "baz"));
+
+    p.traverseTopologically(visitor);
+  }
+
+  @Test
+  public void getRootTransformsWithoutVisitingThrows() {
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage("completely traversed");
+    thrown.expectMessage("getRootTransforms");
+    visitor.getRootTransforms();
+  }
+  @Test
+  public void getStepNamesWithoutVisitingThrows() {
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage("completely traversed");
+    thrown.expectMessage("getStepNames");
+    visitor.getStepNames();
+  }
+  @Test
+  public void getUnfinalizedPValuesWithoutVisitingThrows() {
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage("completely traversed");
+    thrown.expectMessage("getUnfinalizedPValues");
+    visitor.getUnfinalizedPValues();
+  }
+
+  @Test
+  public void getValueToConsumersWithoutVisitingThrows() {
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage("completely traversed");
+    thrown.expectMessage("getValueToConsumers");
+    visitor.getValueToConsumers();
+  }
+
+  @Test
+  public void getViewsWithoutVisitingThrows() {
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage("completely traversed");
+    thrown.expectMessage("getViews");
+    visitor.getViews();
   }
 }

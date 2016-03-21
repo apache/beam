@@ -44,7 +44,9 @@ import com.google.common.collect.ImmutableSet;
 
 import org.hamcrest.Matchers;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -57,6 +59,8 @@ import java.util.Set;
  */
 @RunWith(JUnit4.class)
 public class KeyedPValueTrackingVisitorTest {
+  @Rule public ExpectedException thrown = ExpectedException.none();
+
   private KeyedPValueTrackingVisitor visitor;
   private Pipeline p;
 
@@ -157,12 +161,14 @@ public class KeyedPValueTrackingVisitorTest {
   public void multiInputTransformAllUnkeyedUnkeyedOutput() {
     PCollection<KV<Integer, Iterable<Void>>> unkeyed =
         p.apply(
+            "unkeyed",
             Create.<KV<Integer, Iterable<Void>>>of(
                     KV.<Integer, Iterable<Void>>of(2, Collections.<Void>emptyList()))
                 .withCoder(KvCoder.of(VarIntCoder.of(), IterableCoder.of(VoidCoder.of()))));
 
     PCollection<KV<Integer, Iterable<Void>>> alsoUnkeyed =
         p.apply(
+            "alsoUnkeyed",
             Create.of(KV.<Integer, Iterable<Void>>of(-1, Collections.<Void>emptyList()))
                 .withCoder(KvCoder.of(VarIntCoder.of(), IterableCoder.of(VoidCoder.of()))));
 
@@ -181,6 +187,7 @@ public class KeyedPValueTrackingVisitorTest {
   public void multiInputTransformPartiallyKeyedUnkeyedOutput() {
     PCollection<KV<Integer, Iterable<Void>>> keyed =
         p.apply(
+                "createKeyed",
                 Create.<KV<Integer, Void>>of(
                         KV.of(1, (Void) null), KV.of(2, (Void) null), KV.of(3, (Void) null))
                     .withCoder(KvCoder.of(VarIntCoder.of(), VoidCoder.of())))
@@ -188,6 +195,7 @@ public class KeyedPValueTrackingVisitorTest {
 
     PCollection<KV<Integer, Iterable<Void>>> unkeyed =
         p.apply(
+            "CreateUnkeyedKVs",
             Create.of(KV.<Integer, Iterable<Void>>of(-1, Collections.<Void>emptyList()))
                 .withCoder(KvCoder.of(VarIntCoder.of(), IterableCoder.of(VoidCoder.of()))));
 
@@ -206,17 +214,19 @@ public class KeyedPValueTrackingVisitorTest {
   public void multiInputTransformAllKeyedKeyedOutput() {
     PCollection<KV<Integer, Iterable<Void>>> keyed =
         p.apply(
+                "firstUnkeyed",
                 Create.<KV<Integer, Void>>of(
                         KV.of(1, (Void) null), KV.of(2, (Void) null), KV.of(3, (Void) null))
                     .withCoder(KvCoder.of(VarIntCoder.of(), VoidCoder.of())))
-            .apply(GroupByKey.<Integer, Void>create());
+            .apply("firstGBK", GroupByKey.<Integer, Void>create());
 
     PCollection<KV<Integer, Iterable<Void>>> alsoKeyed =
         p.apply(
+                "alsoUnkeyed",
                 Create.<KV<Integer, Void>>of(
                         KV.of(-11, (Void) null), KV.of(-12, (Void) null), KV.of(-3, (Void) null))
                     .withCoder(KvCoder.of(VarIntCoder.of(), VoidCoder.of())))
-            .apply(GroupByKey.<Integer, Void>create());
+            .apply("AlsoGBK", GroupByKey.<Integer, Void>create());
 
     PCollection<KV<Integer, Iterable<Void>>> multiKeyed =
         PCollectionList.of(keyed)
@@ -227,6 +237,31 @@ public class KeyedPValueTrackingVisitorTest {
 
     Set<PValue> keyedPValues = visitor.getKeyedPValues();
     assertThat(keyedPValues, Matchers.<PValue>hasItem(multiKeyed));
+  }
+
+  @Test
+  public void traverseMultipleTimesThrows() {
+    p.apply(
+            Create.<KV<Integer, Void>>of(
+                    KV.of(1, (Void) null), KV.of(2, (Void) null), KV.of(3, (Void) null))
+                .withCoder(KvCoder.of(VarIntCoder.of(), VoidCoder.of())))
+        .apply(GroupByKey.<Integer, Void>create())
+        .apply(Keys.<Integer>create());
+
+    p.traverseTopologically(visitor);
+
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage("already been finalized");
+    thrown.expectMessage(KeyedPValueTrackingVisitor.class.getSimpleName());
+    p.traverseTopologically(visitor);
+  }
+
+  @Test
+  public void getKeyedPValuesBeforeTraverseThrows() {
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage("completely traversed");
+    thrown.expectMessage("getKeyedPValues");
+    visitor.getKeyedPValues();
   }
 
   private static class OutputMultiDoFn extends DoFn<KV<Integer, Iterable<Void>>, Integer> {

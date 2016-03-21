@@ -15,8 +15,11 @@
  */
 package com.google.cloud.dataflow.sdk.runners.inprocess;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import com.google.cloud.dataflow.sdk.Pipeline.PipelineVisitor;
 import com.google.cloud.dataflow.sdk.runners.TransformTreeNode;
+import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.values.PValue;
 
@@ -24,12 +27,21 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * A pipeline visitor that tracks all keyed values.
+ * A pipeline visitor that tracks all keyed {@link PValue PValues}. A {@link PValue} is keyed if it
+ * is the result of a {@link PTransform} that produces keyed outputs, or the result of a
+ * {@link PTransform} that consumes exclusively keyed inputs. A {@link PTransform} that produces
+ * keyed outputs is assumed to colocate output elements that share a key.
+ *
+ * <p>All {@link GroupByKey} transforms, or their runner-specific implementation primitive, produce
+ * keyed output.
  */
+// TODO: Handle Key-preserving transforms when appropriate and more aggressively make PTransforms
+// unkeyed
 class KeyedPValueTrackingVisitor implements PipelineVisitor {
   @SuppressWarnings("rawtypes")
   private final Set<Class<? extends PTransform>> producesKeyedOutputs;
   private final Set<PValue> keyedValues;
+  private boolean finalized;
 
   public static KeyedPValueTrackingVisitor create(
       @SuppressWarnings("rawtypes") Set<Class<? extends PTransform>> producesKeyedOutputs) {
@@ -43,10 +55,25 @@ class KeyedPValueTrackingVisitor implements PipelineVisitor {
   }
 
   @Override
-  public void enterCompositeTransform(TransformTreeNode node) {}
+  public void enterCompositeTransform(TransformTreeNode node) {
+    checkState(
+        !finalized,
+        "Attempted to use a %s that has already been finalized on a pipeline (visiting node %s)",
+        KeyedPValueTrackingVisitor.class.getSimpleName(),
+        node);
+  }
 
   @Override
-  public void leaveCompositeTransform(TransformTreeNode node) {}
+  public void leaveCompositeTransform(TransformTreeNode node) {
+    checkState(
+        !finalized,
+        "Attempted to use a %s that has already been finalized on a pipeline (visiting node %s)",
+        KeyedPValueTrackingVisitor.class.getSimpleName(),
+        node);
+    if (node.isRootNode()) {
+      finalized = true;
+    }
+  }
 
   @Override
   public void visitTransform(TransformTreeNode node) {}
@@ -62,6 +89,8 @@ class KeyedPValueTrackingVisitor implements PipelineVisitor {
   }
 
   public Set<PValue> getKeyedPValues() {
+    checkState(
+        finalized, "can't call getKeyedPValues before a Pipeline has been completely traversed");
     return keyedValues;
   }
 }

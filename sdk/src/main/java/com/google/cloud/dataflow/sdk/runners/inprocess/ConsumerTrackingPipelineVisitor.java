@@ -15,6 +15,8 @@
  */
 package com.google.cloud.dataflow.sdk.runners.inprocess;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.Pipeline.PipelineVisitor;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
@@ -44,12 +46,29 @@ public class ConsumerTrackingPipelineVisitor implements PipelineVisitor {
   private Map<AppliedPTransform<?, ?, ?>, String> stepNames = new HashMap<>();
   private Set<PValue> toFinalize = new HashSet<>();
   private int numTransforms = 0;
+  private boolean finalized = false;
 
   @Override
-  public void enterCompositeTransform(TransformTreeNode node) {}
+  public void enterCompositeTransform(TransformTreeNode node) {
+    checkState(
+        !finalized,
+        "Attempting to traverse a pipeline (node %s) with a %s "
+            + "which has already visited a Pipeline and is finalized",
+        node.getFullName(),
+        ConsumerTrackingPipelineVisitor.class.getSimpleName());
+  }
 
   @Override
-  public void leaveCompositeTransform(TransformTreeNode node) {}
+  public void leaveCompositeTransform(TransformTreeNode node) {
+    checkState(
+        !finalized,
+        "Attempting to traverse a pipeline (node %s) with a %s which is already finalized",
+        node.getFullName(),
+        ConsumerTrackingPipelineVisitor.class.getSimpleName());
+    if (node.isRootNode()) {
+      finalized = true;
+    }
+  }
 
   @Override
   public void visitTransform(TransformTreeNode node) {
@@ -97,6 +116,10 @@ public class ConsumerTrackingPipelineVisitor implements PipelineVisitor {
    * {@code AppliedPTransform#getInput().expand()} will contain the argument {@link PValue}.
    */
   public Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> getValueToConsumers() {
+    checkState(
+        finalized,
+        "Can't call getValueToConsumers before the Pipeline has been completely traversed");
+
     return valueToConsumers;
   }
 
@@ -105,6 +128,9 @@ public class ConsumerTrackingPipelineVisitor implements PipelineVisitor {
    * name.
    */
   public Map<AppliedPTransform<?, ?, ?>, String> getStepNames() {
+    checkState(
+        finalized, "Can't call getStepNames before the Pipeline has been completely traversed");
+
     return stepNames;
   }
 
@@ -113,6 +139,10 @@ public class ConsumerTrackingPipelineVisitor implements PipelineVisitor {
    * a {@link PInput} where the {@link PInput#expand()} returns an empty collection.
    */
   public Collection<AppliedPTransform<?, ?, ?>> getRootTransforms() {
+    checkState(
+        finalized,
+        "Can't call getRootTransforms before the Pipeline has been completely traversed");
+
     return rootTransforms;
   }
 
@@ -121,6 +151,8 @@ public class ConsumerTrackingPipelineVisitor implements PipelineVisitor {
    * {@link Pipeline}.
    */
   public Collection<PCollectionView<?>> getViews() {
+    checkState(finalized, "Can't call getViews before the Pipeline has been completely traversed");
+
     return views;
   }
 
@@ -130,6 +162,10 @@ public class ConsumerTrackingPipelineVisitor implements PipelineVisitor {
    * {@link Pipeline} is executed.
    */
   public Set<PValue> getUnfinalizedPValues() {
+    checkState(
+        finalized,
+        "Can't call getUnfinalizedPValues before the Pipeline has been completely traversed");
+
     return toFinalize;
   }
 }

@@ -20,7 +20,6 @@ import com.google.cloud.dataflow.sdk.Pipeline.PipelineExecutionException;
 import com.google.cloud.dataflow.sdk.PipelineResult;
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.AggregatorPipelineExtractor;
 import com.google.cloud.dataflow.sdk.runners.AggregatorRetrievalException;
 import com.google.cloud.dataflow.sdk.runners.AggregatorValues;
@@ -66,6 +65,12 @@ import javax.annotation.Nullable;
 @Experimental
 public class InProcessPipelineRunner
     extends PipelineRunner<InProcessPipelineRunner.InProcessPipelineResult> {
+  /**
+   * The default set of transform overrides to use in the {@link InProcessPipelineRunner}.
+   *
+   * <p>A transform override must have a single-argument constructor that takes an instance of the
+   * type of transform it is overriding.
+   */
   @SuppressWarnings("rawtypes")
   private static Map<Class<? extends PTransform>, Class<? extends PTransform>>
       defaultTransformOverrides =
@@ -165,12 +170,6 @@ public class InProcessPipelineRunner
   ////////////////////////////////////////////////////////////////////////////////////////////////
   private final InProcessPipelineOptions options;
 
-  public static InProcessPipelineRunner createForTest() {
-    InProcessPipelineOptions options = PipelineOptionsFactory.as(InProcessPipelineOptions.class);
-    options.setBlockOnRun(true);
-    return new InProcessPipelineRunner(options);
-  }
-
   public static InProcessPipelineRunner fromOptions(PipelineOptions options) {
     return new InProcessPipelineRunner(options.as(InProcessPipelineOptions.class));
   }
@@ -191,7 +190,6 @@ public class InProcessPipelineRunner
       PTransform<InputT, OutputT> transform, InputT input) {
     Class<?> overrideClass = defaultTransformOverrides.get(transform.getClass());
     if (overrideClass != null) {
-      transform.validate(input);
       // It is the responsibility of whoever constructs overrides to ensure this is type safe.
       @SuppressWarnings("unchecked")
       Class<PTransform<InputT, OutputT>> transformClass =
@@ -302,11 +300,9 @@ public class InProcessPipelineRunner
               String.format(
                   "user-%s-%s", evaluationContext.getStepName(transform), aggregator.getName());
           Counter<T> counter = (Counter<T>) counters.getExistingCounter(stepName);
-          if (counter == null) {
-            throw new IllegalArgumentException(
-                "Aggregator " + aggregator + " is not used in this pipeline");
+          if (counter != null) {
+            stepValues.put(transform.getFullName(), counter.getAggregate());
           }
-          stepValues.put(transform.getFullName(), counter.getAggregate());
         }
       }
       return new MapAggregatorValues<>(stepValues);
@@ -332,6 +328,9 @@ public class InProcessPipelineRunner
         try {
           executor.awaitCompletion();
           state = State.DONE;
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          throw e;
         } catch (Throwable t) {
           state = State.FAILED;
           throw t;
