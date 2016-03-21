@@ -128,7 +128,7 @@ class Operation(object):
     if not is_recursive and getattr(self, 'receivers', []):
       printable_fields.append('receivers=[%s]' % ', '.join([
           rop.str_internal(is_recursive=True)
-          for oplist in self.receivers.values()
+          for oplist in self.receivers
           for rop in oplist]))
 
     return '<%s %s>' % (printable_name, ', '.join(printable_fields))
