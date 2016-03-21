@@ -6,13 +6,15 @@
 </description>
     <link>http://beam.incubator.apache.org/</link>
     <atom:link href="http://beam.incubator.apache.org/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Thu, 17 Mar 2016 16:30:47 -0700</pubDate>
-    <lastBuildDate>Thu, 17 Mar 2016 16:30:47 -0700</lastBuildDate>
+    <pubDate>Mon, 21 Mar 2016 12:27:44 -0700</pubDate>
+    <lastBuildDate>Mon, 21 Mar 2016 12:27:44 -0700</lastBuildDate>
     <generator>Jekyll v3.1.2</generator>
     
       <item>
         <title>Clarifying &amp; Formalizing Runner Capabilities</title>
         <description>&lt;p&gt;With initial code drops complete (&lt;a href=&quot;https://github.com/apache/incubator-beam/pull/1&quot;&gt;Dataflow SDK and Runner&lt;/a&gt;, &lt;a href=&quot;https://github.com/apache/incubator-beam/pull/12&quot;&gt;Flink Runner&lt;/a&gt;, &lt;a href=&quot;https://github.com/apache/incubator-beam/pull/42&quot;&gt;Spark Runner&lt;/a&gt;) and expressed interest in runner implementations for &lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-9&quot;&gt;Storm&lt;/a&gt;, &lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-19&quot;&gt;Hadoop&lt;/a&gt;, and &lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-79&quot;&gt;Gearpump&lt;/a&gt; (amongst others), we wanted to start addressing a big question in the Apache Beam (incubating) community: what capabilities will each runner be able to support?&lt;/p&gt;
+
+&lt;!--more--&gt;
 
 &lt;p&gt;While we’d love to have a world where all runners support the full suite of semantics included in the Beam Model (formerly referred to as the &lt;a href=&quot;http://www.vldb.org/pvldb/vol8/p1792-Akidau.pdf&quot;&gt;Dataflow Model&lt;/a&gt;), practically speaking, there will always be certain features that some runners can’t provide. For example, a Hadoop-based runner would be inherently batch-based and may be unable to (easily) implement support for unbounded collections. However, that doesn’t prevent it from being extremely useful for a large set of uses. In other cases, the implementations provided by one runner may have slightly different semantics that those provided by another (e.g. even though the current suite of runners all support exactly-once delivery guarantees, an &lt;a href=&quot;http://samza.apache.org/&quot;&gt;Apache Samza&lt;/a&gt; runner, which would be a welcome addition, would currently only support at-least-once).&lt;/p&gt;
 
