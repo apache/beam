@@ -494,7 +494,7 @@ class TranscriptTest(unittest.TestCase):
         Windowing(window_fn, trigger_fn, accumulation_mode, output_time_fn))
     state = InMemoryUnmergedState()
     output = []
-    watermark = float('-inf')
+    watermark = MIN_TIMESTAMP
 
     def fire_timers():
       to_fire = state.get_and_clear_timers(watermark)

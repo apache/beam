@@ -31,8 +31,14 @@ implicitly in a single window (see GlobalWindows), unless WindowInto is
 applied.
 
 For example, a simple form of windowing divides up the data into fixed-width
-time intervals, using FixedWindows. Floating-point seconds are used as the time
-unit for built-in windowing strategies available here.
+time intervals, using FixedWindows.
+
+Seconds are used as the time unit for the built-in windowing primitives here.
+Integer or floating point seconds can be passed to these primitives.
+
+Internally, seconds, with microsecond granularity, are stored as
+timeutil.Timestamp and timeutil.Duration objects. This is done to avoid
+precision errors that would occur with floating point representations.
 
 Custom windowing function classes can be created, by subclassing from
 WindowFn.
@@ -41,10 +47,10 @@ WindowFn.
 from __future__ import absolute_import
 
 from google.cloud.dataflow.transforms import timeutil
-
-
-MIN_TIMESTAMP = float('-Inf')
-MAX_TIMESTAMP = float('Inf')
+from google.cloud.dataflow.transforms.timeutil import Duration
+from google.cloud.dataflow.transforms.timeutil import MAX_TIMESTAMP
+from google.cloud.dataflow.transforms.timeutil import MIN_TIMESTAMP
+from google.cloud.dataflow.transforms.timeutil import Timestamp
 
 
 # TODO(ccy): revisit naming and semantics once Java Apache Beam finalizes their
@@ -78,7 +84,7 @@ class WindowFn(object):
     """Context passed to WindowFn.assign()."""
 
     def __init__(self, timestamp, element=None, existing_windows=None):
-      self.timestamp = timestamp
+      self.timestamp = Timestamp.of(timestamp)
       self.element = element
       self.existing_windows = existing_windows
 
@@ -109,7 +115,8 @@ class WindowFn(object):
 
     Arguments:
       window: Output window of element.
-      input_timestamp: Input timestamp of element.
+      input_timestamp: Input timestamp of element as a timeutil.Timestamp
+        object.
 
     Returns:
       Transformed timestamp.
@@ -122,11 +129,11 @@ class BoundedWindow(object):
   """A window for timestamps in range (-infinity, end).
 
   Attributes:
-    end: End of window as floating-point seconds since Unix epoch.
+    end: End of window.
   """
 
   def __init__(self, end):
-    self.end = end
+    self.end = Timestamp.of(end)
 
   def __cmp__(self, other):
     # Order first by endpoint, then arbitrarily.
@@ -139,20 +146,20 @@ class BoundedWindow(object):
     return hash(self.end)
 
   def __repr__(self):
-    return '[?, %s)' % self.end
+    return '[?, %s)' % float(self.end)
 
 
 class IntervalWindow(BoundedWindow):
   """A window for timestamps in range [start, end).
 
   Attributes:
-    start: Start of window as floating-point seconds since Unix epoch.
-    end: End of window as floating-point seconds since Unix epoch.
+    start: Start of window as seconds since Unix epoch.
+    end: End of window as seconds since Unix epoch.
   """
 
   def __init__(self, start, end):
     super(IntervalWindow, self).__init__(end)
-    self.start = start
+    self.start = Timestamp.of(start)
 
   def __hash__(self):
     return hash((self.start, self.end))
@@ -161,7 +168,7 @@ class IntervalWindow(BoundedWindow):
     return self.start == other.start and self.end == other.end
 
   def __repr__(self):
-    return '[%s, %s)' % (self.start, self.end)
+    return '[%s, %s)' % (float(self.start), float(self.end))
 
   def intersects(self, other):
     return other.start < self.end or self.start < other.end
@@ -176,15 +183,14 @@ class WindowedValue(object):
 
   Attributes:
     value: The underlying value of a windowed value.
-    timestamp: Timestamp associated with the value as floating-point seconds
-      since Unix epoch.
+    timestamp: Timestamp associated with the value as seconds since Unix epoch.
     windows: A set (iterable) of window objects for the value. The window
       object are descendants of the BoundedWindow class.
   """
 
   def __init__(self, value, timestamp, windows):
     self.value = value
-    self.timestamp = timestamp
+    self.timestamp = Timestamp.of(timestamp)
     self.windows = windows
 
   def __repr__(self):
@@ -192,7 +198,7 @@ class WindowedValue(object):
         repr(self.value),
         'MIN_TIMESTAMP' if self.timestamp == MIN_TIMESTAMP else
         'MAX_TIMESTAMP' if self.timestamp == MAX_TIMESTAMP else
-        self.timestamp,
+        float(self.timestamp),
         self.windows)
 
   def __hash__(self):
@@ -210,13 +216,12 @@ class TimestampedValue(object):
 
   Attributes:
     value: The underlying value.
-    timestamp: Timestamp associated with the value as floating-point seconds
-      since Unix epoch.
+    timestamp: Timestamp associated with the value as seconds since Unix epoch.
   """
 
   def __init__(self, value, timestamp):
     self.value = value
-    self.timestamp = timestamp
+    self.timestamp = Timestamp.of(timestamp)
 
 
 class GlobalWindow(BoundedWindow):
@@ -275,18 +280,17 @@ class FixedWindows(WindowFn):
   [N * size + offset, (N + 1) * size + offset)
 
   Attributes:
-    size: Size of the window as floating-point seconds.
-    offset: Offset of this window as floating-point seconds since Unix epoch.
-      Windows start at t=N * size + offset where t=0 is the epoch. The offset
-      must be a value in range [0, size). If it is not it will be normalized to
-      this range.
+    size: Size of the window as seconds.
+    offset: Offset of this window as seconds since Unix epoch. Windows start at
+      t=N * size + offset where t=0 is the epoch. The offset must be a value
+      in range [0, size). If it is not it will be normalized to this range.
   """
 
   def __init__(self, size, offset=0):
     if size <= 0:
       raise ValueError('The size parameter must be strictly positive.')
-    self.size = size
-    self.offset = offset % size
+    self.size = Duration.of(size)
+    self.offset = Timestamp.of(offset) % self.size
 
   def assign(self, context):
     timestamp = context.timestamp
@@ -305,25 +309,24 @@ class SlidingWindows(WindowFn):
   [N * period + offset, N * period + offset + size)
 
   Attributes:
-    size: Size of the window as floating-point seconds.
-    period: Period of the windows as floating-point seconds.
-    offset: Offset of this window as floating-point seconds since Unix epoch.
-      Windows start at t=N * period + offset where t=0 is the epoch. The offset
-      must be a value in range [0, period). If it is not it will be normalized
-      to this range.
+    size: Size of the window as seconds.
+    period: Period of the windows as seconds.
+    offset: Offset of this window as seconds since Unix epoch. Windows start at
+      t=N * period + offset where t=0 is the epoch. The offset must be a value
+      in range [0, period). If it is not it will be normalized to this range.
   """
 
   def __init__(self, size, period, offset=0):
     if size <= 0:
       raise ValueError('The size parameter must be strictly positive.')
-    self.size = size
-    self.period = period
-    self.offset = offset % size
+    self.size = Duration.of(size)
+    self.period = Duration.of(period)
+    self.offset = Timestamp.of(offset) % size
 
   def assign(self, context):
     timestamp = context.timestamp
     start = timestamp - (timestamp - self.offset) % self.period
-    return [IntervalWindow(s, s + self.size)
+    return [IntervalWindow(Timestamp.of(s), Timestamp.of(s) + self.size)
             for s in range(start, start - self.size, -self.period)]
 
   def merge(self, merge_context):
@@ -343,7 +346,7 @@ class Sessions(WindowFn):
   def __init__(self, gap_size):
     if gap_size <= 0:
       raise ValueError('The size parameter must be strictly positive.')
-    self.gap_size = gap_size
+    self.gap_size = Duration.of(gap_size)
 
   def assign(self, context):
     timestamp = context.timestamp

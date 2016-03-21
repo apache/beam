@@ -133,9 +133,9 @@ class WindowTest(unittest.TestCase):
               | WindowInto('w', SlidingWindows(period=2, size=4))
               | GroupByKey()
               | reify_windows)
-    expected = [('key @ [-2, 2)', [1]),
-                ('key @ [0, 4)', [1, 2, 3]),
-                ('key @ [2, 6)', [2, 3])]
+    expected = [('key @ [-2.0, 2.0)', [1]),
+                ('key @ [0.0, 4.0)', [1, 2, 3]),
+                ('key @ [2.0, 6.0)', [2, 3])]
     assert_that(result, equal_to(expected))
     p.run()
 
@@ -147,8 +147,8 @@ class WindowTest(unittest.TestCase):
               | GroupByKey()
               | sort_values
               | reify_windows)
-    expected = [('key @ [1, 13)', [1, 2, 3]),
-                ('key @ [20, 45)', [20, 27, 35])]
+    expected = [('key @ [1.0, 13.0)', [1, 2, 3]),
+                ('key @ [20.0, 45.0)', [20, 27, 35])]
     assert_that(result, equal_to(expected))
     p.run()
 

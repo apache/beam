@@ -24,9 +24,10 @@ import copy
 
 from google.cloud.dataflow.transforms import combiners
 from google.cloud.dataflow.transforms import core
+from google.cloud.dataflow.transforms.timeutil import MAX_TIMESTAMP
+from google.cloud.dataflow.transforms.timeutil import MIN_TIMESTAMP
 from google.cloud.dataflow.transforms.timeutil import TimeDomain
 from google.cloud.dataflow.transforms.window import GlobalWindow
-from google.cloud.dataflow.transforms.window import MIN_TIMESTAMP
 from google.cloud.dataflow.transforms.window import OutputTimeFn
 from google.cloud.dataflow.transforms.window import WindowFn
 
@@ -830,9 +831,7 @@ class GeneralTriggerDriver(TriggerDriver):
         self.trigger_fn.on_element(value, window, context)
 
       # Maybe fire this window.
-      # TODO(ccy): Wire through min timestamp constant once we move to using
-      # datetime and timedelta objects for internal timestamps and intervals.
-      watermark = float('-inf')
+      watermark = MIN_TIMESTAMP
       if self.trigger_fn.should_fire(watermark, window, context):
         finished = self.trigger_fn.on_fire(watermark, window, context)
         yield self._output(window, finished, state)
@@ -936,7 +935,7 @@ class InMemoryUnmergedState(UnmergedState):
     if not self.state[window]:
       self.state.pop(window, None)
 
-  def get_and_clear_timers(self, watermark=float('inf')):
+  def get_and_clear_timers(self, watermark=MAX_TIMESTAMP):
     expired = []
     for window, timers in list(self.timers.items()):
       for (name, time_domain), timestamp in list(timers.items()):

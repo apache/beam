@@ -22,18 +22,19 @@ from google.cloud.dataflow.io import coders
 from google.cloud.dataflow.io import iobase
 from google.cloud.dataflow.io import pubsub
 from google.cloud.dataflow.transforms.timeutil import TimeDomain
+from google.cloud.dataflow.transforms.timeutil import Timestamp
 from google.cloud.dataflow.transforms.window import GlobalWindows
 from google.cloud.dataflow.transforms.window import WindowedValue
 
 
-def harness_to_windmill_timestamp(float_timestamp):
+def harness_to_windmill_timestamp(timestamp):
   # The timestamp taken by Windmill is in microseconds.
-  return int(float_timestamp * 1000000)
+  return timestamp.micros
 
 
 def windmill_to_harness_timestamp(windmill_timestamp):
   # The timestamp given by Windmill is in microseconds.
-  return windmill_timestamp / 1000000.0
+  return Timestamp(micros=windmill_timestamp)
 
 
 class PubSubWindmillSource(pubsub.PubSubSource):
