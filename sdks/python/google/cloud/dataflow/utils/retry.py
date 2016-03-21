@@ -29,6 +29,11 @@ import traceback
 from apitools.base.py.exceptions import HttpError
 
 
+class PermanentException(Exception):
+  """Base class for exceptions that should not be retried."""
+  pass
+
+
 class FuzzedExponentialIntervals(object):
   """Iterable for intervals that are exponentially spaced, with fuzzing.
 
@@ -75,6 +80,8 @@ def retry_on_server_errors_filter(exception):
       return True
     else:
       return False
+  elif isinstance(exception, PermanentException):
+    return False
   else:
     # We may get here for non HttpErrors such as socket timeouts, SSL
     # exceptions, etc.

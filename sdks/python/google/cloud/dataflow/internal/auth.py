@@ -25,6 +25,7 @@ import urllib2
 from oauth2client.client import OAuth2Credentials
 
 from google.cloud.dataflow.utils import processes
+from google.cloud.dataflow.utils import retry
 from google.cloud.dataflow.utils.options import GoogleCloudOptions
 from google.cloud.dataflow.utils.options import PipelineOptions
 
@@ -51,6 +52,10 @@ def set_running_in_gce(worker_executing_project):
   global executing_project
   is_running_in_gce = True
   executing_project = worker_executing_project
+
+
+class AuthenticationException(retry.PermanentException):
+  pass
 
 
 class GCEMetadataCredentials(OAuth2Credentials):
@@ -98,8 +103,8 @@ class _GCloudWrapperCredentials(OAuth2Credentials):
       gcloud_process = processes.Popen(
           ['gcloud', 'auth', 'print-access-token'], stdout=processes.PIPE)
     except OSError as exn:
-      logging.error('The gcloud tool was not found.')
-      raise exn
+      logging.error('The gcloud tool was not found.', exc_info=True)
+      raise AuthenticationException('The gcloud tool was not found: %s' % exn)
     output, _ = gcloud_process.communicate()
     self.access_token = output.strip()
 
@@ -120,9 +125,11 @@ def get_service_credentials():
         sys.argv).view_as(GoogleCloudOptions)
     if google_cloud_options.service_account_name:
       if not google_cloud_options.service_account_key_file:
-        raise Exception('key file not provided for service account.')
+        raise AuthenticationException(
+            'key file not provided for service account.')
       if not os.path.exists(google_cloud_options.service_account_key_file):
-        raise Exception('Specified service account key file does not exist.')
+        raise AuthenticationException(
+            'Specified service account key file does not exist.')
       client_scopes = [
           'https://www.googleapis.com/auth/bigquery',
           'https://www.googleapis.com/auth/cloud-platform',
