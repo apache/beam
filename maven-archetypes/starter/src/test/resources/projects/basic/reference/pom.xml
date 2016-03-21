@@ -23,9 +23,9 @@
 
   <dependencies>
     <dependency>
-      <groupId>com.google.cloud.dataflow</groupId>
-      <artifactId>google-cloud-dataflow-java-sdk-all</artifactId>
-      <version>[1.0.0, 2.0.0)</version>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>java-sdk-all</artifactId>
+      <version>[0, 2)</version>
     </dependency>
 
     <!-- slf4j API frontend binding with JUL backend -->
