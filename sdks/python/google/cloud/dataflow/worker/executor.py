@@ -109,6 +109,8 @@ class Operation(object):
     """Start operation."""
     for receiver in self.receivers:
       receiver.start(self.step_name)
+    self.debug_logging_enabled = logging.getLogger().isEnabledFor(
+        logging.DEBUG)
 
   def itercounters(self):
     for receiver in self.receivers:
@@ -240,7 +242,8 @@ class WriteOperation(Operation):
     self.writer.__exit__(None, None, None)
 
   def process(self, o):
-    logging.debug('Processing [%s] in %s', o, self)
+    if self.debug_logging_enabled:
+      logging.debug('Processing [%s] in %s', o, self)
     assert isinstance(o, WindowedValue)
     self.receivers[0].update_counters(o)
     if self.use_windowed_value:
@@ -257,7 +260,8 @@ class InMemoryWriteOperation(Operation):
     self.spec = spec
 
   def process(self, o):
-    logging.debug('Processing [%s] in %s', o, self)
+    if self.debug_logging_enabled:
+      logging.debug('Processing [%s] in %s', o, self)
     assert isinstance(o, WindowedValue)
     self.receivers[0].update_counters(o)
     self.spec.output_buffer.append(o.value)
@@ -346,7 +350,8 @@ class ShuffleWriteOperation(Operation):
     self.writer.__exit__(None, None, None)
 
   def process(self, o):
-    logging.debug('Processing [%s] in %s', o, self)
+    if self.debug_logging_enabled:
+      logging.debug('Processing [%s] in %s', o, self)
     assert isinstance(o, WindowedValue)
     self.receivers[0].update_counters(o)
     # We typically write into shuffle key/value pairs. This is the reason why
@@ -485,7 +490,8 @@ class CombineOperation(Operation):
     logging.debug('Finishing %s', self)
 
   def process(self, o):
-    logging.debug('Processing [%s] in %s', o, self)
+    if self.debug_logging_enabled:
+      logging.debug('Processing [%s] in %s', o, self)
     assert isinstance(o, WindowedValue)
     key, values = o.value
     windowed_value = WindowedValue(
@@ -598,7 +604,8 @@ class FlattenOperation(Operation):
   """
 
   def process(self, o):
-    logging.debug('Processing [%s] in %s', o, self)
+    if self.debug_logging_enabled:
+      logging.debug('Processing [%s] in %s', o, self)
     assert isinstance(o, WindowedValue)
     self.output(o)
 
@@ -615,7 +622,8 @@ class ReifyTimestampAndWindowsOperation(Operation):
     super(ReifyTimestampAndWindowsOperation, self).__init__(spec)
 
   def process(self, o):
-    logging.debug('Processing [%s] in %s', o, self)
+    if self.debug_logging_enabled:
+      logging.debug('Processing [%s] in %s', o, self)
     assert isinstance(o, WindowedValue)
     k, v = o.value
     self.output(
@@ -645,7 +653,8 @@ class BatchGroupAlsoByWindowsOperation(Operation):
 
   def process(self, o):
     """Process a given value."""
-    logging.debug('Processing [%s] in %s', o, self)
+    if self.debug_logging_enabled:
+      logging.debug('Processing [%s] in %s', o, self)
     assert isinstance(o, WindowedValue)
     k, vs = o.value
     driver = trigger.create_trigger_driver(
@@ -679,7 +688,8 @@ class StreamingGroupAlsoByWindowsOperation(Operation):
     self.windowing = pickler.loads(self.spec.window_fn)
 
   def process(self, o):
-    logging.debug('Processing [%s] in %s', o, self)
+    if self.debug_logging_enabled:
+      logging.debug('Processing [%s] in %s', o, self)
     assert isinstance(o, WindowedValue)
     keyed_work = o.value
     driver = trigger.create_trigger_driver(self.windowing)

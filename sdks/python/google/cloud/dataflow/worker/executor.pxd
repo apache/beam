@@ -18,6 +18,7 @@ cdef class Operation(object):
   cdef public spec
   cdef public list receivers
   cdef public list counters
+  cdef readonly bint debug_logging_enabled
 
   cdef public step_name  # initialized lazily
 
