@@ -413,7 +413,7 @@ class WorkItemTest(unittest.TestCase):
                 shuffle_kind='group_keys',
                 shuffle_writer_config='opaque',
                 input=(1, 0),
-                coders=(CODER.key_coder(), CODER.value_coder()))]))
+                coder=CODER)]))
 
   def test_text_source_to_shuffle_sink(self):
     work = workitem.get_work_items(get_text_source_to_shuffle_sink_message())
@@ -433,7 +433,7 @@ class WorkItemTest(unittest.TestCase):
                 shuffle_kind='group_keys',
                 shuffle_writer_config='opaque',
                 input=(1, 0),
-                coders=(CODER.key_coder(), CODER.value_coder()))]))
+                coder=CODER)]))
 
   def test_shuffle_source_to_text_sink(self):
     work = workitem.get_work_items(
@@ -445,7 +445,7 @@ class WorkItemTest(unittest.TestCase):
                 start_shuffle_position='opaque',
                 end_shuffle_position='opaque',
                 shuffle_reader_config='opaque',
-                coders=(CODER.key_coder(), CODER.value_coder())),
+                coder=CODER),
             maptask.WorkerWrite(io.TextFileSink(
                 file_path_prefix='gs://somefile',
                 append_trailing_newlines=True,
@@ -461,7 +461,7 @@ class WorkItemTest(unittest.TestCase):
                 start_shuffle_position='opaque',
                 end_shuffle_position='opaque',
                 shuffle_reader_config='opaque',
-                coders=(CODER.key_coder(), CODER.value_coder())),
+                coder=CODER),
             maptask.WorkerWrite(io.TextFileSink(
                 file_path_prefix='gs://somefile',
                 append_trailing_newlines=True,

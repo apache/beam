@@ -97,7 +97,7 @@ Attributes:
 WorkerGroupingShuffleRead = build_worker_instruction(
     'WorkerGroupingShuffleRead',
     ['start_shuffle_position', 'end_shuffle_position',
-     'shuffle_reader_config', 'coders'])
+     'shuffle_reader_config', 'coder'])
 """Worker details needed to read from a grouping shuffle source.
 
 Attributes:
@@ -108,14 +108,14 @@ Attributes:
   shuffle_reader_config: An opaque string used to initialize the shuffle
     reader. Contains things like connection endpoints for the shuffle
     server appliance and various options.
-  coders: A 2-tuple of coders (key, value) to decode shuffle entries.
+  coder: The KV coder used to decode shuffle entries.
 """
 
 
 WorkerUngroupedShuffleRead = build_worker_instruction(
     'WorkerUngroupedShuffleRead',
     ['start_shuffle_position', 'end_shuffle_position',
-     'shuffle_reader_config', 'coders'])
+     'shuffle_reader_config', 'coder'])
 """Worker details needed to read from an ungrouped shuffle source.
 
 Attributes:
@@ -126,7 +126,7 @@ Attributes:
   shuffle_reader_config: An opaque string used to initialize the shuffle
     reader. Contains things like connection endpoints for the shuffle
     server appliance and various options.
-  coders: A 2-tuple of coders (key, value) to decode shuffle entries.
+  coder: The value coder used to decode shuffle entries.
 """
 
 
@@ -160,7 +160,7 @@ Attributes:
 
 WorkerShuffleWrite = build_worker_instruction(
     'WorkerShuffleWrite',
-    ['shuffle_kind', 'shuffle_writer_config', 'input', 'coders'])
+    ['shuffle_kind', 'shuffle_writer_config', 'input', 'coder'])
 """Worker details needed to write to a shuffle sink.
 
 Attributes:
@@ -173,7 +173,8 @@ Attributes:
   input: A (producer index, output index) tuple representing the
     ParallelInstruction operation whose output feeds into this operation.
     The output index is 0 except for multi-output operations (like ParDo).
-  coders: A 2-tuple of coders (key, value) to encode shuffle entries.
+  coder: The coder for input elements. If the shuffle_kind is grouping, this is
+    expected to be a KV coder.
 """
 
 
@@ -370,20 +371,23 @@ def get_read_work_item(work, env, context):
   if source:
     return WorkerRead(source, tag=None)
 
-  # TODO(mairbek) create Shuffler Source/Reader
-  kv_coders = get_coder_from_spec(codec_specs, kv_pair=True)
+  coder = get_coder_from_spec(codec_specs)
+  # TODO(ccy): Reconcile WindowedValueCoder wrappings for sources with custom
+  # coders so this special case won't be necessary.
+  if isinstance(coder, coders.WindowedValueCoder):
+    coder = coder.wrapped_value_coder
   if specs['@type'] == 'GroupingShuffleSource':
     return WorkerGroupingShuffleRead(
         start_shuffle_position=specs['start_shuffle_position']['value'],
         end_shuffle_position=specs['end_shuffle_position']['value'],
         shuffle_reader_config=specs['shuffle_reader_config']['value'],
-        coders=kv_coders)
+        coder=coder)
   elif specs['@type'] == 'UngroupedShuffleSource':
     return WorkerUngroupedShuffleRead(
         start_shuffle_position=specs['start_shuffle_position']['value'],
         end_shuffle_position=specs['end_shuffle_position']['value'],
         shuffle_reader_config=specs['shuffle_reader_config']['value'],
-        coders=kv_coders)
+        coder=coder)
   else:
     raise NotImplementedError('Unknown source type: %r' % specs)
 
@@ -452,14 +456,17 @@ def get_write_work_item(work, env, context):
   sink = env.parse_sink(specs, codec_specs, context)
   if sink:
     return WorkerWrite(sink, input=get_input_spec(work.write.input))
-  # TODO(mairbek) create Shuffler Sink/Writer
   if specs['@type'] == 'ShuffleSink':
-    kv_coders = get_coder_from_spec(codec_specs, kv_pair=True)
+    coder = get_coder_from_spec(codec_specs)
+    # TODO(ccy): Reconcile WindowedValueCoder wrappings for sources with custom
+    # coders so this special case won't be necessary.
+    if isinstance(coder, coders.WindowedValueCoder):
+      coder = coder.wrapped_value_coder
     return WorkerShuffleWrite(
         shuffle_kind=specs['shuffle_kind']['value'],
         shuffle_writer_config=specs['shuffle_writer_config']['value'],
         input=get_input_spec(work.write.input),
-        coders=kv_coders)
+        coder=coder)
   else:
     raise NotImplementedError('Unknown sink type: %r' % specs)
 

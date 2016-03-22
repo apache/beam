@@ -98,7 +98,7 @@ class ProgressRequestRecordingInMemorySource(inmemory.InMemorySource):
 
 class ExecutorTest(unittest.TestCase):
 
-  SHUFFLE_CODERS = (coders.PickleCoder(), coders.PickleCoder())
+  SHUFFLE_CODER = coders.PickleCoder()
 
   def create_temp_file(self, content_text):
     """Creates a temporary file with content and returns the path to it."""
@@ -178,7 +178,7 @@ class ExecutorTest(unittest.TestCase):
         maptask.WorkerShuffleWrite(shuffle_kind='group_keys',
                                    shuffle_writer_config='none',
                                    input=(1, 0),
-                                   coders=self.SHUFFLE_CODERS)
+                                   coder=self.SHUFFLE_CODER)
     ]
     shuffle_sink_mock = mock.MagicMock()
     executor.MapTaskExecutor().execute(
@@ -195,7 +195,7 @@ class ExecutorTest(unittest.TestCase):
         maptask.WorkerGroupingShuffleRead(shuffle_reader_config='none',
                                           start_shuffle_position='aaa',
                                           end_shuffle_position='zzz',
-                                          coders=self.SHUFFLE_CODERS),
+                                          coder=self.SHUFFLE_CODER),
         maptask.WorkerDoFn(serialized_fn=pickle_with_side_inputs(
             ptransform.CallableWrapperDoFn(
                 lambda (k, vs): [str((k, v)) for v in vs])),
@@ -223,7 +223,7 @@ class ExecutorTest(unittest.TestCase):
         maptask.WorkerUngroupedShuffleRead(shuffle_reader_config='none',
                                            start_shuffle_position='aaa',
                                            end_shuffle_position='zzz',
-                                           coders=self.SHUFFLE_CODERS),
+                                           coder=self.SHUFFLE_CODER),
         maptask.WorkerWrite(
             fileio.TextFileSink(file_path_prefix=output_path,
                                 append_trailing_newlines=True,

@@ -22,6 +22,7 @@ import logging
 import random
 
 
+from google.cloud.dataflow.coders import BytesCoder
 from google.cloud.dataflow.internal import pickler
 from google.cloud.dataflow.pvalue import EmptySideInput
 from google.cloud.dataflow.runners import common
@@ -278,8 +279,9 @@ class GroupedShuffleReadOperation(Operation):
   def start(self):
     super(GroupedShuffleReadOperation, self).start()
     if self.shuffle_source is None:
+      coders = (self.spec.coder.key_coder(), self.spec.coder.value_coder())
       self.shuffle_source = shuffle.GroupedShuffleSource(
-          self.spec.shuffle_reader_config, coder=self.spec.coders,
+          self.spec.shuffle_reader_config, coder=coders,
           start_position=self.spec.start_shuffle_position,
           end_position=self.spec.end_shuffle_position)
     with self.shuffle_source.reader() as reader:
@@ -308,8 +310,9 @@ class UngroupedShuffleReadOperation(Operation):
   def start(self):
     super(UngroupedShuffleReadOperation, self).start()
     if self.shuffle_source is None:
+      coders = (BytesCoder(), self.spec.coder)
       self.shuffle_source = shuffle.UngroupedShuffleSource(
-          self.spec.shuffle_reader_config, coder=self.spec.coders,
+          self.spec.shuffle_reader_config, coder=coders,
           start_position=self.spec.start_shuffle_position,
           end_position=self.spec.end_shuffle_position)
     with self.shuffle_source.reader() as reader:
@@ -337,13 +340,17 @@ class ShuffleWriteOperation(Operation):
 
   def start(self):
     super(ShuffleWriteOperation, self).start()
-    # TODO(silviuc): Shuffle 'kind' is ignored!
+    self.is_ungrouped = self.spec.shuffle_kind == 'ungrouped'
+    coder = self.spec.coder
+    if self.is_ungrouped:
+      coders = (BytesCoder(), coder)
+    else:
+      coders = (coder.key_coder(), coder.value_coder())
     if self.shuffle_sink is None:
       self.shuffle_sink = shuffle.ShuffleSink(
-          self.spec.shuffle_writer_config, coder=self.spec.coders)
+          self.spec.shuffle_writer_config, coder=coders)
     self.writer = self.shuffle_sink.writer()
     self.writer.__enter__()
-    self.is_ungrouped = self.spec.shuffle_kind == 'ungrouped'
 
   def finish(self):
     logging.debug('Finishing %s', self)
