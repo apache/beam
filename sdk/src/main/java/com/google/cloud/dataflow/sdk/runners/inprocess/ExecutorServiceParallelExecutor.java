@@ -395,18 +395,29 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
       }
     }
 
+    /**
+     * Return true if the provided executor might make more progress if no action is taken.
+     */
     private boolean isExecutorBlocked(TransformExecutor<?> executor) {
       Thread thread = executor.getThread();
       if (thread == null) {
         return false;
       }
       switch (thread.getState()) {
-        case BLOCKED:
-        case WAITING:
         case TERMINATED:
+          throw new IllegalStateException(String.format(
+              "Unexpectedly encountered a Terminated TransformExecutor %s", executor));
+        case WAITING:
         case TIMED_WAITING:
+          // The thread is waiting for some external input. Adding more work may cause the thread
+          // to stop waiting (e.g. the thread is waiting on an unbounded side input)
           return true;
+        case BLOCKED:
+          // The executor is blocked on acquisition of a java monitor. This usually means it is
+          // making a call to the EvaluationContext, but not a model-blocking call - and will
+          // eventually complete, at which point we may reevaluate.
         default:
+          // NEW and RUNNABLE threads can make progress
           return false;
       }
     }
