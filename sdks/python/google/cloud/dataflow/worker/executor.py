@@ -42,6 +42,45 @@ from google.cloud.dataflow.worker import opcounters
 from google.cloud.dataflow.worker import shuffle
 
 
+class ReceiverSet(object):
+  """A ReceiverSet represents a graph edge between two Operation nodes.
+
+  The ReceiverSet object collects information from the output of the
+  Operation at one end of its edge and the input of the Operation at
+  the other edge.
+  ReceiverSets are attached to the outputting Operation.
+  """
+
+  def __init__(self, output_index=0):
+    self.receivers = []
+    self.opcounter = None
+    self.output_index = output_index
+
+  def start(self, step_name):
+    self.opcounter = opcounters.OperationCounters(step_name, self.output_index)
+
+  def add_receiver(self, receiving_operation):
+    self.receivers.append(receiving_operation)
+
+  def output(self, windowed_value):
+    self.update_counters(windowed_value)
+    for receiver in self.receivers:
+      receiver.process(windowed_value)
+
+  def update_counters(self, windowed_value):
+    if self.opcounter:
+      self.opcounter.update(windowed_value)
+
+  def itercounters(self):
+    if self.opcounter:
+      for counter in self.opcounter:
+        yield counter
+
+  def __str__(self):
+    return '[%s]' % ' '.join([r.str_internal(is_recursive=True)
+                              for r in self.receivers])
+
+
 class Operation(object):
   """An operation representing the live version of a work item specification.
 
@@ -58,21 +97,22 @@ class Operation(object):
       spec: A maptask.Worker* instance.
     """
     self.spec = spec
-    self.receivers = [[]]
-    # Initially we have no counters.  Initializing this here makes it
-    # safe to call itercounters() at any time, even if start() has
-    # not been called yet.
-    self.counters = []
+    # Create the ReceiverSet for the default output.
+    # We need this in several cases:
+    # A. There may be no receiver explicitly created for an output:
+    #  1. ParDo without anything following it, executed for side effect.
+    #  2. Partition, which generates a default output that isn't used.
+    # B. Write operations want opcounters, even though they have no outputs.
+    self.receivers = [ReceiverSet()]
 
   def start(self):
     """Start operation."""
-    # If the operation has receivers, create one counter set per receiver.
-    self.counters = [opcounters.OperationCounters(self.step_name, output_index)
-                     for output_index in range(len(self.receivers))]
+    for receiver in self.receivers:
+      receiver.start(self.step_name)
 
   def itercounters(self):
-    for opcounter in self.counters:
-      for counter in opcounter:
+    for receiver in self.receivers:
+      for counter in receiver.itercounters():
         yield counter
 
   def finish(self):
@@ -84,15 +124,13 @@ class Operation(object):
     pass
 
   def output(self, windowed_value, output_index=0):
-    self.counters[output_index].update(windowed_value)
-    for receiver in self.receivers[output_index]:
-      receiver.process(windowed_value)
+    self.receivers[output_index].output(windowed_value)
 
   def add_receiver(self, operation, output_index=0):
     """Adds a receiver operation for the specified output."""
     while len(self.receivers) <= output_index:
-      self.receivers.append([])
-    self.receivers[output_index].append(operation)
+      self.receivers.append(ReceiverSet(len(self.receivers)))
+    self.receivers[output_index].add_receiver(operation)
 
   def __str__(self):
     """Generates a useful string for this object.
@@ -127,9 +165,7 @@ class Operation(object):
 
     if not is_recursive and getattr(self, 'receivers', []):
       printable_fields.append('receivers=[%s]' % ', '.join([
-          rop.str_internal(is_recursive=True)
-          for oplist in self.receivers
-          for rop in oplist]))
+          str(receiver) for receiver in self.receivers]))
 
     return '<%s %s>' % (printable_name, ', '.join(printable_fields))
 
@@ -206,7 +242,7 @@ class WriteOperation(Operation):
   def process(self, o):
     logging.debug('Processing [%s] in %s', o, self)
     assert isinstance(o, WindowedValue)
-    self.counters[0].update(o)
+    self.receivers[0].update_counters(o)
     if self.use_windowed_value:
       self.writer.Write(o)
     else:
@@ -223,7 +259,7 @@ class InMemoryWriteOperation(Operation):
   def process(self, o):
     logging.debug('Processing [%s] in %s', o, self)
     assert isinstance(o, WindowedValue)
-    self.counters[0].update(o)
+    self.receivers[0].update_counters(o)
     self.spec.output_buffer.append(o.value)
 
 
@@ -312,7 +348,7 @@ class ShuffleWriteOperation(Operation):
   def process(self, o):
     logging.debug('Processing [%s] in %s', o, self)
     assert isinstance(o, WindowedValue)
-    self.counters[0].update(o)
+    self.receivers[0].update_counters(o)
     # We typically write into shuffle key/value pairs. This is the reason why
     # the else branch below expects the value attribute of the WindowedValue
     # argument to be a KV pair. However the service may write to shuffle in
@@ -409,7 +445,6 @@ class DoOperation(Operation):
     # by the DoFn function to the appropriate receivers. The main output is
     # tagged with None and is associated with its corresponding index.
     tagged_receivers = {}
-    tagged_counters = {}
     output_tag_prefix = PropertyNames.OUT + '_'
     for index, tag in enumerate(self.spec.output_tags):
       if tag == PropertyNames.OUT:
@@ -418,19 +453,11 @@ class DoOperation(Operation):
         original_tag = tag[len(output_tag_prefix):]
       else:
         raise ValueError('Unexpected output name for operation: %s' % tag)
-      # There may be no receiver for this output, in which case the
-      # lookup will create one, and this value will be processed
-      # for any side effect.  This is desirable.  There are two (known)
-      # cases where there is no receiver for an output:
-      #  1. ParDo without anything following it, executed for side effect.
-      #  2. Partition (shows up here in the worker as Flatten), which
-      #     generates a default output that isn't used.
       tagged_receivers[original_tag] = self.receivers[index]
-      tagged_counters[original_tag] = self.counters[index]
 
     self.dofn_runner = common.DoFnRunner(
         fn, args, kwargs, self._read_side_inputs(tags_and_types),
-        window_fn, self.context, tagged_receivers, tagged_counters,
+        window_fn, self.context, tagged_receivers,
         logger, self.step_name)
 
     self.dofn_runner.start()
@@ -773,12 +800,12 @@ class MapTaskExecutor(object):
 
       # Add receiver operations to the appropriate producers.
       if hasattr(op.spec, 'input'):
-        producer, index = op.spec.input
-        self._ops[producer].add_receiver(op, index)
+        producer, output_index = op.spec.input
+        self._ops[producer].add_receiver(op, output_index)
       # Flatten has 'inputs', not 'input'
       if hasattr(op.spec, 'inputs'):
-        for producer, index in op.spec.inputs:
-          self._ops[producer].add_receiver(op, index)
+        for producer, output_index in op.spec.inputs:
+          self._ops[producer].add_receiver(op, output_index)
 
     # Inject the step names into the operations.
     # This is used for logging and assigning names to counters.

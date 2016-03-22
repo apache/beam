@@ -114,19 +114,15 @@ class DirectPipelineRunner(PipelineRunner):
     transform.dofn = OutputCheckWrapperDoFn(
         transform.dofn, transform_node.full_label)
 
-    class NoOpCounters(object):
-      def update(self, element):
-        pass
-
-    class RecordingReciever(object):
+    class RecordingReceiverSet(object):
       def __init__(self, tag):
         self.tag = tag
-      def process(self, element):
+      def output(self, element):
         results[self.tag].append(element)
 
-    class TaggedRecievers(dict):
+    class TaggedReceivers(dict):
       def __missing__(self, key):
-        return [RecordingReciever(key)]
+        return RecordingReceiverSet(key)
 
     results = collections.defaultdict(list)
     # Some tags may be empty.
@@ -135,8 +131,7 @@ class DirectPipelineRunner(PipelineRunner):
 
     runner = DoFnRunner(transform.dofn, transform.args, transform.kwargs,
                         side_inputs, transform_node.inputs[0].windowing,
-                        context, TaggedRecievers(),
-                        collections.defaultdict(NoOpCounters),
+                        context, TaggedReceivers(),
                         step_name=transform_node.full_label)
     runner.start()
     for v in self._cache.get_pvalue(transform_node.inputs[0]):

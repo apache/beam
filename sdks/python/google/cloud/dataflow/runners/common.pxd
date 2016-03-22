@@ -20,11 +20,9 @@ cdef class DoFnRunner(object):
   cdef object window_fn
   cdef object context
   cdef object tagged_receivers
-  cdef object tagged_counters
   cdef object logger
   cdef object step_name
 
-  cdef list main_receivers
-  cdef object main_counters
+  cdef object main_receivers
 
   cpdef _process_outputs(self, element, results)

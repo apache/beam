@@ -48,7 +48,6 @@ class DoFnRunner(object):
                windowing,
                context,
                tagged_receivers,
-               tagged_counters,
                logger=None,
                step_name=None):
     if not args and not kwargs:
@@ -70,13 +69,11 @@ class DoFnRunner(object):
     self.window_fn = windowing.windowfn
     self.context = context
     self.tagged_receivers = tagged_receivers
-    self.tagged_counters = tagged_counters
     self.logger = logger or FakeLogger()
     self.step_name = step_name
 
     # Optimize for the common case.
     self.main_receivers = tagged_receivers[None]
-    self.main_counters = tagged_counters[None]
 
   def start(self):
     self.context.set_element(None)
@@ -150,15 +147,10 @@ class DoFnRunner(object):
       else:
         windowed_value = WindowedValue(
             result, element.timestamp, element.windows)
-      # TODO(robertwb): Should the counters be on the context?
       if tag is None:
-        self.main_counters.update(windowed_value)
-        for receiver in self.main_receivers:
-          receiver.process(windowed_value)
+        self.main_receivers.output(windowed_value)
       else:
-        self.tagged_counters[tag].update(windowed_value)
-        for receiver in self.tagged_receivers[tag]:
-          receiver.process(windowed_value)
+        self.tagged_receivers[tag].output(windowed_value)
 
 class NoContext(WindowFn.AssignContext):
   """An uninspectable WindowFn.AssignContext."""
