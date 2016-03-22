@@ -862,22 +862,6 @@ public class InMemoryWatermarkManager {
   }
 
   /**
-   * Returns true if, for any {@link TransformWatermarks} returned by
-   * {@link #getWatermarks(AppliedPTransform)}, the output watermark will be equal to
-   * {@link BoundedWindow#TIMESTAMP_MAX_VALUE}.
-   */
-  public boolean allWatermarksAtPositiveInfinity() {
-    for (Map.Entry<AppliedPTransform<?, ?, ?>, TransformWatermarks> watermarksEntry :
-        transformToWatermarks.entrySet()) {
-      Instant endOfTime = THE_END_OF_TIME.get();
-      if (watermarksEntry.getValue().getOutputWatermark().isBefore(endOfTime)) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  /**
    * A (key, Instant) pair that holds the watermark. Holds are per-key, but the watermark is global,
    * and as such the watermark manager must track holds and the release of holds on a per-key basis.
    *

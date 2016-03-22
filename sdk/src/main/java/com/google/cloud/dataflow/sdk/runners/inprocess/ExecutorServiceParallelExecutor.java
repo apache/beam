@@ -304,8 +304,8 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
             visibleUpdates.offer(VisibleExecutorUpdate.fromThrowable(update.getException().get()));
           }
         }
-        fireTimers();
-        mightNeedMoreWork();
+        boolean timersFired = fireTimers();
+        addWorkIfNecessary(timersFired);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         LOG.error("Monitor died due to being interrupted");
@@ -326,8 +326,12 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
       }
     }
 
-    private void fireTimers() throws Exception {
+    /**
+     * Fires any available timers. Returns true if at least one timer was fired.
+     */
+    private boolean fireTimers() throws Exception {
       try {
+        boolean firedTimers = false;
         for (Map.Entry<AppliedPTransform<?, ?, ?>, Map<Object, FiredTimers>> transformTimers :
             evaluationContext.extractFiredTimers().entrySet()) {
           AppliedPTransform<?, ?, ?> transform = transformTimers.getKey();
@@ -346,9 +350,11 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
                       .add(WindowedValue.valueInEmptyWindows(work))
                       .commit(Instant.now());
               scheduleConsumption(transform, bundle, new TimerCompletionCallback(delivery));
+              firedTimers = true;
             }
           }
         }
+        return firedTimers;
       } catch (Exception e) {
         LOG.error("Internal Error while delivering timers", e);
         throw e;
@@ -367,26 +373,58 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
       return false;
     }
 
-    private void mightNeedMoreWork() {
-      synchronized (scheduledExecutors) {
-        for (TransformExecutor<?> executor : scheduledExecutors.keySet()) {
-          Thread thread = executor.getThread();
-          if (thread != null) {
-            switch (thread.getState()) {
-              case BLOCKED:
-              case WAITING:
-              case TERMINATED:
-              case TIMED_WAITING:
-                break;
-              default:
-                return;
-            }
-          }
+    /**
+     * If all active {@link TransformExecutor TransformExecutors} are in a blocked state,
+     * add more work from root nodes that may have additional work. This ensures that if a pipeline
+     * has elements available from the root nodes it will add those elements when necessary.
+     */
+    private void addWorkIfNecessary(boolean firedTimers) {
+      // If any timers have fired, they will add more work; We don't need to add more
+      if (firedTimers) {
+        return;
+      }
+      for (TransformExecutor<?> executor : scheduledExecutors.keySet()) {
+        if (!isExecutorBlocked(executor)) {
+          // We have at least one executor that can proceed without adding additional work
+          return;
         }
       }
       // All current TransformExecutors are blocked; add more work from the roots.
       for (AppliedPTransform<?, ?, ?> root : rootNodes) {
-        scheduleConsumption(root, null, defaultCompletionCallback);
+        if (!evaluationContext.isDone(root)) {
+          scheduleConsumption(root, null, defaultCompletionCallback);
+        }
+      }
+    }
+
+    /**
+     * Return true if the provided executor might make more progress if no action is taken.
+     *
+     * <p>May return false even if all executor threads are currently blocked or cleaning up, as
+     * these can cause more work to be scheduled. If this does not occur, after these calls
+     * terminate, future calls will return true if all executors are waiting.
+     */
+    private boolean isExecutorBlocked(TransformExecutor<?> executor) {
+      Thread thread = executor.getThread();
+      if (thread == null) {
+        return false;
+      }
+      switch (thread.getState()) {
+        case TERMINATED:
+          throw new IllegalStateException(String.format(
+              "Unexpectedly encountered a Terminated TransformExecutor %s", executor));
+        case WAITING:
+        case TIMED_WAITING:
+          // The thread is waiting for some external input. Adding more work may cause the thread
+          // to stop waiting (e.g. the thread is waiting on an unbounded side input)
+          return true;
+        case BLOCKED:
+          // The executor is blocked on acquisition of a java monitor. This usually means it is
+          // making a call to the EvaluationContext, but not a model-blocking call - and will
+          // eventually complete, at which point we may reevaluate.
+        default:
+          // NEW and RUNNABLE threads can make progress
+          return false;
       }
     }
   }
