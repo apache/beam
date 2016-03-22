@@ -305,7 +305,8 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
           }
         }
         if (!fireTimers()) {
-          mightNeedMoreWork();
+          // If any timers have fired, they will add more work; We don't need to add more
+          addWorkIfNecessary();
         }
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
@@ -327,6 +328,9 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
       }
     }
 
+    /**
+     * Fires any available timers. Returns true if at least one timer was fired.
+     */
     private boolean fireTimers() throws Exception {
       try {
         boolean firedTimers = false;
@@ -371,19 +375,16 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
       return false;
     }
 
-    private void mightNeedMoreWork() {
+    /**
+     * If all active {@link TransformExecutor TransformExecutors} are in a blocked state,
+     * add more work from root nodes that may have additional work. This ensures that if a pipeline
+     * has elements available from the root nodes it will add those elements when necessary.
+     */
+    private void addWorkIfNecessary() {
       for (TransformExecutor<?> executor : scheduledExecutors.keySet()) {
-        Thread thread = executor.getThread();
-        if (thread != null) {
-          switch (thread.getState()) {
-            case BLOCKED:
-            case WAITING:
-            case TERMINATED:
-            case TIMED_WAITING:
-              break;
-            default:
-              return;
-          }
+        if (!isExecutorBlocked(executor)) {
+          // We have at least one executor that can proceed without adding additional work
+          return;
         }
       }
       // All current TransformExecutors are blocked; add more work from the roots.
@@ -391,6 +392,22 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
         if (!evaluationContext.isDone(root)) {
           scheduleConsumption(root, null, defaultCompletionCallback);
         }
+      }
+    }
+
+    private boolean isExecutorBlocked(TransformExecutor<?> executor) {
+      Thread thread = executor.getThread();
+      if (thread == null) {
+        return false;
+      }
+      switch (thread.getState()) {
+        case BLOCKED:
+        case WAITING:
+        case TERMINATED:
+        case TIMED_WAITING:
+          return true;
+        default:
+          return false;
       }
     }
   }

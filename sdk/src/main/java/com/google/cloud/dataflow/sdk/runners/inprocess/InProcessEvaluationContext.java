@@ -356,6 +356,17 @@ class InProcessEvaluationContext {
     return watermarkManager.extractFiredTimers();
   }
 
+  /**
+   * Returns true if the step will not produce additional output.
+   *
+   * <p>If the provided transform produces only {@link IsBounded#BOUNDED}
+   * {@link PCollection PCollections}, returns true if the watermark is at
+   * {@link BoundedWindow#TIMESTAMP_MAX_VALUE positive infinity}.
+   *
+   * <p>If the provided transform produces any {@link IsBounded#UNBOUNDED}
+   * {@link PCollection PCollections}, returns the value of
+   * {@link InProcessPipelineOptions#isShutdownUnboundedProducersWithMaxWatermark()}.
+   */
   public boolean isDone(AppliedPTransform<?, ?, ?> transform) {
     boolean done = true;
     for (PValue output : transform.getOutput().expand()) {
@@ -375,6 +386,7 @@ class InProcessEvaluationContext {
     }
     return done;
   }
+
   /**
    * Returns true if all steps are done.
    */
