@@ -606,7 +606,7 @@ public class DisplayDataTest {
         urlMatcher, "display item with url", "URL") {
       @Override
       protected String featureValueOf(DisplayData.Item actual) {
-        return actual.getUrl();
+        return actual.getLinkUrl();
       }
     };
   }

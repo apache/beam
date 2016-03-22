@@ -59,6 +59,7 @@ import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.View;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.util.AppliedCombineFn;
@@ -79,6 +80,7 @@ import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.cloud.dataflow.sdk.values.TypedPValue;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -548,6 +550,7 @@ public class DataflowPipelineTranslator {
       currentStep.setKind(type);
       steps.add(currentStep);
       addInput(PropertyNames.USER_NAME, getFullName(transform));
+      addDisplayData(PropertyNames.DISPLAY_DATA, DisplayData.from(transform));
     }
 
     @Override
@@ -723,6 +726,15 @@ public class DataflowPipelineTranslator {
       }
 
       outputInfoList.add(outputInfo);
+    }
+
+    private void addDisplayData(String name, DisplayData displayData) {
+      List<Map<String, Object>> serializedItems = Lists.newArrayList();
+      for (DisplayData.Item item : displayData.items()) {
+        serializedItems.add(MAPPER.convertValue(item, Map.class));
+      }
+
+      addList(getProperties(), name, serializedItems);
     }
 
     @Override
