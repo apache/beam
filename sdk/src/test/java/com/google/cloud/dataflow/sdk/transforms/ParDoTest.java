@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasKey;
 import static com.google.cloud.dataflow.sdk.util.SerializableUtils.serializeToByteArray;
 import static com.google.cloud.dataflow.sdk.util.StringUtils.byteArrayToJsonString;
 import static com.google.cloud.dataflow.sdk.util.StringUtils.jsonStringToByteArray;
@@ -39,6 +41,9 @@ import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.DoFn.RequiresWindowAccess;
+import com.google.cloud.dataflow.sdk.transforms.ParDo.Bound;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData.Builder;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.util.IllegalMutationException;
@@ -1514,5 +1519,23 @@ public class ParDoTest implements Serializable {
     thrown.expectMessage("input");
     thrown.expectMessage("must not be mutated");
     pipeline.run();
+  }
+
+  @Test
+  public void testIncludesDoFnDisplayData() {
+    Bound<String, String> parDo =
+        ParDo.of(
+            new DoFn<String, String>() {
+              @Override
+              public void processElement(ProcessContext c) {}
+
+              @Override
+              public void populateDisplayData(Builder builder) {
+                builder.add("foo", "bar");
+              }
+            });
+
+    DisplayData displayData = DisplayData.from(parDo);
+    assertThat(displayData, hasDisplayItem(hasKey("foo")));
   }
 }
