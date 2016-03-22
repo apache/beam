@@ -28,9 +28,8 @@ import java.util.Set;
 
 /**
  * A pipeline visitor that tracks all keyed {@link PValue PValues}. A {@link PValue} is keyed if it
- * is the result of a {@link PTransform} that produces keyed outputs, or the result of a
- * {@link PTransform} that consumes exclusively keyed inputs. A {@link PTransform} that produces
- * keyed outputs is assumed to colocate output elements that share a key.
+ * is the result of a {@link PTransform} that produces keyed outputs. A {@link PTransform} that
+ * produces keyed outputs is assumed to colocate output elements that share a key.
  *
  * <p>All {@link GroupByKey} transforms, or their runner-specific implementation primitive, produce
  * keyed output.
@@ -72,6 +71,8 @@ class KeyedPValueTrackingVisitor implements PipelineVisitor {
         node);
     if (node.isRootNode()) {
       finalized = true;
+    } else if (producesKeyedOutputs.contains(node.getTransform().getClass())) {
+      keyedValues.addAll(node.getExpandedOutputs());
     }
   }
 
@@ -81,9 +82,6 @@ class KeyedPValueTrackingVisitor implements PipelineVisitor {
   @Override
   public void visitValue(PValue value, TransformTreeNode producer) {
     if (producesKeyedOutputs.contains(producer.getTransform().getClass())) {
-      keyedValues.addAll(value.expand());
-    } else if (!producer.getInput().expand().isEmpty()
-        && keyedValues.containsAll(producer.getInput().expand())) {
       keyedValues.addAll(value.expand());
     }
   }

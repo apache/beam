@@ -222,7 +222,8 @@ public class InProcessPipelineRunner
     @SuppressWarnings("rawtypes")
     KeyedPValueTrackingVisitor keyedPValueVisitor =
         KeyedPValueTrackingVisitor.create(
-            ImmutableSet.<Class<? extends PTransform>>of(InProcessGroupByKeyOnly.class));
+            ImmutableSet.<Class<? extends PTransform>>of(
+                GroupByKey.class, InProcessGroupByKeyOnly.class));
     pipeline.traverseTopologically(keyedPValueVisitor);
 
     InProcessEvaluationContext context =

@@ -15,6 +15,7 @@
  */
 package com.google.cloud.dataflow.sdk.runners.inprocess;
 
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
@@ -25,24 +26,16 @@ import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.runners.inprocess.GroupByKeyEvaluatorFactory.InProcessGroupByKeyOnly;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.Flatten;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.Keys;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
-import com.google.cloud.dataflow.sdk.values.PCollectionList;
-import com.google.cloud.dataflow.sdk.values.PCollectionTuple;
-import com.google.cloud.dataflow.sdk.values.PValue;
-import com.google.cloud.dataflow.sdk.values.TupleTag;
-import com.google.cloud.dataflow.sdk.values.TupleTagList;
 import com.google.common.collect.ImmutableSet;
 
-import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -50,7 +43,6 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Set;
 
@@ -67,176 +59,84 @@ public class KeyedPValueTrackingVisitorTest {
   @Before
   public void setup() {
     PipelineOptions options = PipelineOptionsFactory.create();
-    // Overrides for GroupByKey, specifically
-    options.setRunner(InProcessPipelineRunner.class);
 
     p = Pipeline.create(options);
     @SuppressWarnings("rawtypes")
     Set<Class<? extends PTransform>> producesKeyed =
-        ImmutableSet.<Class<? extends PTransform>>of(InProcessGroupByKeyOnly.class);
+        ImmutableSet.<Class<? extends PTransform>>of(PrimitiveKeyer.class, CompositeKeyer.class);
     visitor = KeyedPValueTrackingVisitor.create(producesKeyed);
   }
 
   @Test
-  public void singleInputTransformKeyedInputKeyedOutput() {
-    PCollection<KV<Integer, Iterable<Void>>> keyed =
-        p.apply(
-                Create.<KV<Integer, Void>>of(
-                        KV.of(1, (Void) null), KV.of(2, (Void) null), KV.of(3, (Void) null))
-                    .withCoder(KvCoder.of(VarIntCoder.of(), VoidCoder.of())))
-            .apply(GroupByKey.<Integer, Void>create());
-
-    PCollection<Integer> keys = keyed.apply(Keys.<Integer>create());
+  public void primitiveProducesKeyedOutputUnkeyedInputKeyedOutput() {
+    PCollection<Integer> keyed =
+        p.apply(Create.<Integer>of(1, 2, 3)).apply(new PrimitiveKeyer<Integer>());
 
     p.traverseTopologically(visitor);
-
-    Set<PValue> keyedPValues = visitor.getKeyedPValues();
-    assertThat(keyedPValues, Matchers.<PValue>hasItem(keys));
+    assertThat(visitor.getKeyedPValues(), hasItem(keyed));
   }
 
   @Test
-  public void singleInputTransformUnkeyedInputUnkeyedOutput() {
+  public void primitiveProducesKeyedOutputKeyedInputKeyedOutut() {
+    PCollection<Integer> keyed =
+        p.apply(Create.<Integer>of(1, 2, 3))
+            .apply("firstKey", new PrimitiveKeyer<Integer>())
+            .apply("secondKey", new PrimitiveKeyer<Integer>());
+
+    p.traverseTopologically(visitor);
+    assertThat(visitor.getKeyedPValues(), hasItem(keyed));
+  }
+
+  @Test
+  public void compositeProducesKeyedOutputUnkeyedInputKeyedOutput() {
+    PCollection<Integer> keyed =
+        p.apply(Create.<Integer>of(1, 2, 3)).apply(new CompositeKeyer<Integer>());
+
+    p.traverseTopologically(visitor);
+    assertThat(visitor.getKeyedPValues(), hasItem(keyed));
+  }
+
+  @Test
+  public void compositeProducesKeyedOutputKeyedInputKeyedOutut() {
+    PCollection<Integer> keyed =
+        p.apply(Create.<Integer>of(1, 2, 3))
+            .apply("firstKey", new CompositeKeyer<Integer>())
+            .apply("secondKey", new CompositeKeyer<Integer>());
+
+    p.traverseTopologically(visitor);
+    assertThat(visitor.getKeyedPValues(), hasItem(keyed));
+  }
+
+
+  @Test
+  public void noInputUnkeyedOutput() {
     PCollection<KV<Integer, Iterable<Void>>> unkeyed =
         p.apply(
             Create.of(KV.<Integer, Iterable<Void>>of(-1, Collections.<Void>emptyList()))
                 .withCoder(KvCoder.of(VarIntCoder.of(), IterableCoder.of(VoidCoder.of()))));
 
     p.traverseTopologically(visitor);
-
-    Set<PValue> keyedPValues = visitor.getKeyedPValues();
-    assertThat(keyedPValues, not(Matchers.<PValue>hasItem(unkeyed)));
+    assertThat(visitor.getKeyedPValues(), not(hasItem(unkeyed)));
   }
 
   @Test
-  public void multiOutputTransformKeyedInputKeyedOutputs() {
-    PCollection<KV<Integer, Iterable<Void>>> keyed =
-        p.apply(
-                Create.<KV<Integer, Void>>of(
-                        KV.of(1, (Void) null), KV.of(2, (Void) null), KV.of(3, (Void) null))
-                    .withCoder(KvCoder.of(VarIntCoder.of(), VoidCoder.of())))
-            .apply(GroupByKey.<Integer, Void>create());
-
-    TupleTag<Integer> mainOutputTag = new TupleTag<Integer>() {};
-    TupleTag<Iterable<Void>> sideOutputTag = new TupleTag<Iterable<Void>>() {};
-    TupleTag<KV<Integer, Iterable<Void>>> otherSideOutputTag =
-        new TupleTag<KV<Integer, Iterable<Void>>>() {};
-    TupleTagList sideOutputTags = TupleTagList.of(sideOutputTag).and(otherSideOutputTag);
-    PCollectionTuple outputs =
-        keyed.apply(ParDo.withOutputTags(mainOutputTag, sideOutputTags).of(new OutputMultiDoFn()));
+  public void keyedInputNotProducesKeyedOutputUnkeyedOutput() {
+    PCollection<Integer> onceKeyed =
+        p.apply(Create.<Integer>of(1, 2, 3))
+            .apply(new PrimitiveKeyer<Integer>())
+            .apply(ParDo.of(new IdentityFn<Integer>()));
 
     p.traverseTopologically(visitor);
-
-    Set<PValue> keyedPValues = visitor.getKeyedPValues();
-
-    Collection<PValue> allOutputs = (Collection<PValue>) outputs.expand();
-    assertThat(keyedPValues, Matchers.<PValue>hasItems(allOutputs.toArray(new PValue[0])));
+    assertThat(visitor.getKeyedPValues(), not(hasItem(onceKeyed)));
   }
 
   @Test
-  public void multiOutputTransformUnkeyedInputUnkeyedOutputs() {
-    PCollection<KV<Integer, Iterable<Void>>> unkeyed =
-        p.apply(
-            Create.of(KV.<Integer, Iterable<Void>>of(-1, Collections.<Void>emptyList()))
-                .withCoder(KvCoder.of(VarIntCoder.of(), IterableCoder.of(VoidCoder.of()))));
-
-
-    TupleTag<Integer> mainOutputTag = new TupleTag<Integer>() {};
-    TupleTag<Iterable<Void>> sideOutputTag = new TupleTag<Iterable<Void>>() {};
-    TupleTag<KV<Integer, Iterable<Void>>> otherSideOutputTag =
-        new TupleTag<KV<Integer, Iterable<Void>>>() {};
-    TupleTagList sideOutputTags = TupleTagList.of(sideOutputTag).and(otherSideOutputTag);
-    PCollectionTuple outputs =
-        unkeyed.apply(
-            ParDo.withOutputTags(mainOutputTag, sideOutputTags).of(new OutputMultiDoFn()));
+  public void unkeyedInputNotProducesKeyedOutputUnkeyedOutput() {
+    PCollection<Integer> unkeyed =
+        p.apply(Create.<Integer>of(1, 2, 3)).apply(ParDo.of(new IdentityFn<Integer>()));
 
     p.traverseTopologically(visitor);
-
-    Set<PValue> keyedPValues = visitor.getKeyedPValues();
-
-    Collection<PValue> allOutputs = (Collection<PValue>) outputs.expand();
-    assertThat(keyedPValues, not(Matchers.<PValue>hasItems(allOutputs.toArray(new PValue[0]))));
-  }
-
-  @Test
-  public void multiInputTransformAllUnkeyedUnkeyedOutput() {
-    PCollection<KV<Integer, Iterable<Void>>> unkeyed =
-        p.apply(
-            "unkeyed",
-            Create.<KV<Integer, Iterable<Void>>>of(
-                    KV.<Integer, Iterable<Void>>of(2, Collections.<Void>emptyList()))
-                .withCoder(KvCoder.of(VarIntCoder.of(), IterableCoder.of(VoidCoder.of()))));
-
-    PCollection<KV<Integer, Iterable<Void>>> alsoUnkeyed =
-        p.apply(
-            "alsoUnkeyed",
-            Create.of(KV.<Integer, Iterable<Void>>of(-1, Collections.<Void>emptyList()))
-                .withCoder(KvCoder.of(VarIntCoder.of(), IterableCoder.of(VoidCoder.of()))));
-
-    PCollection<KV<Integer, Iterable<Void>>> fromAllUnkeyed =
-        PCollectionList.of(unkeyed)
-            .and(alsoUnkeyed)
-            .apply(Flatten.<KV<Integer, Iterable<Void>>>pCollections());
-
-    p.traverseTopologically(visitor);
-
-    Set<PValue> keyedPValues = visitor.getKeyedPValues();
-    assertThat(keyedPValues, not(Matchers.<PValue>hasItem(fromAllUnkeyed)));
-  }
-
-  @Test
-  public void multiInputTransformPartiallyKeyedUnkeyedOutput() {
-    PCollection<KV<Integer, Iterable<Void>>> keyed =
-        p.apply(
-                "createKeyed",
-                Create.<KV<Integer, Void>>of(
-                        KV.of(1, (Void) null), KV.of(2, (Void) null), KV.of(3, (Void) null))
-                    .withCoder(KvCoder.of(VarIntCoder.of(), VoidCoder.of())))
-            .apply(GroupByKey.<Integer, Void>create());
-
-    PCollection<KV<Integer, Iterable<Void>>> unkeyed =
-        p.apply(
-            "CreateUnkeyedKVs",
-            Create.of(KV.<Integer, Iterable<Void>>of(-1, Collections.<Void>emptyList()))
-                .withCoder(KvCoder.of(VarIntCoder.of(), IterableCoder.of(VoidCoder.of()))));
-
-    PCollection<KV<Integer, Iterable<Void>>> partiallyKeyed =
-        PCollectionList.of(keyed)
-            .and(unkeyed)
-            .apply(Flatten.<KV<Integer, Iterable<Void>>>pCollections());
-
-    p.traverseTopologically(visitor);
-
-    Set<PValue> keyedPValues = visitor.getKeyedPValues();
-    assertThat(keyedPValues, not(Matchers.<PValue>hasItem(partiallyKeyed)));
-  }
-
-  @Test
-  public void multiInputTransformAllKeyedKeyedOutput() {
-    PCollection<KV<Integer, Iterable<Void>>> keyed =
-        p.apply(
-                "firstUnkeyed",
-                Create.<KV<Integer, Void>>of(
-                        KV.of(1, (Void) null), KV.of(2, (Void) null), KV.of(3, (Void) null))
-                    .withCoder(KvCoder.of(VarIntCoder.of(), VoidCoder.of())))
-            .apply("firstGBK", GroupByKey.<Integer, Void>create());
-
-    PCollection<KV<Integer, Iterable<Void>>> alsoKeyed =
-        p.apply(
-                "alsoUnkeyed",
-                Create.<KV<Integer, Void>>of(
-                        KV.of(-11, (Void) null), KV.of(-12, (Void) null), KV.of(-3, (Void) null))
-                    .withCoder(KvCoder.of(VarIntCoder.of(), VoidCoder.of())))
-            .apply("AlsoGBK", GroupByKey.<Integer, Void>create());
-
-    PCollection<KV<Integer, Iterable<Void>>> multiKeyed =
-        PCollectionList.of(keyed)
-            .and(alsoKeyed)
-            .apply(Flatten.<KV<Integer, Iterable<Void>>>pCollections());
-
-    p.traverseTopologically(visitor);
-
-    Set<PValue> keyedPValues = visitor.getKeyedPValues();
-    assertThat(keyedPValues, Matchers.<PValue>hasItem(multiKeyed));
+    assertThat(visitor.getKeyedPValues(), not(hasItem(unkeyed)));
   }
 
   @Test
@@ -264,9 +164,26 @@ public class KeyedPValueTrackingVisitorTest {
     visitor.getKeyedPValues();
   }
 
-  private static class OutputMultiDoFn extends DoFn<KV<Integer, Iterable<Void>>, Integer> {
+  private static class PrimitiveKeyer<K> extends PTransform<PCollection<K>, PCollection<K>> {
     @Override
-    public void processElement(DoFn<KV<Integer, Iterable<Void>>, Integer>.ProcessContext c)
-        throws Exception {}
+    public PCollection<K> apply(PCollection<K> input) {
+      return PCollection.<K>createPrimitiveOutputInternal(
+              input.getPipeline(), input.getWindowingStrategy(), input.isBounded())
+          .setCoder(input.getCoder());
+    }
+  }
+
+  private static class CompositeKeyer<K> extends PTransform<PCollection<K>, PCollection<K>> {
+    @Override
+    public PCollection<K> apply(PCollection<K> input) {
+      return input.apply(new PrimitiveKeyer<K>()).apply(ParDo.of(new IdentityFn<K>()));
+    }
+  }
+
+  private static class IdentityFn<K> extends DoFn<K, K> {
+    @Override
+    public void processElement(DoFn<K, K>.ProcessContext c) throws Exception {
+      c.output(c.element());
+    }
   }
 }
