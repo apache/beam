@@ -357,27 +357,49 @@ class InProcessEvaluationContext {
   }
 
   /**
-   * Returns true if all steps are done.
+   * Returns true if the step will not produce additional output.
+   *
+   * <p>If the provided transform produces only {@link IsBounded#BOUNDED}
+   * {@link PCollection PCollections}, returns true if the watermark is at
+   * {@link BoundedWindow#TIMESTAMP_MAX_VALUE positive infinity}.
+   *
+   * <p>If the provided transform produces any {@link IsBounded#UNBOUNDED}
+   * {@link PCollection PCollections}, returns the value of
+   * {@link InProcessPipelineOptions#isShutdownUnboundedProducersWithMaxWatermark()}.
    */
-  public boolean isDone() {
-    if (!options.isShutdownUnboundedProducersWithMaxWatermark() && containsUnboundedPCollection()) {
+  public boolean isDone(AppliedPTransform<?, ?, ?> transform) {
+    // if the PTransform's watermark isn't at the max value, it isn't done
+    if (watermarkManager
+        .getWatermarks(transform)
+        .getOutputWatermark()
+        .isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
       return false;
     }
-    if (!watermarkManager.allWatermarksAtPositiveInfinity()) {
-      return false;
-    }
-    return true;
-  }
-
-  private boolean containsUnboundedPCollection() {
-    for (AppliedPTransform<?, ?, ?> transform : stepNames.keySet()) {
-      for (PValue value : transform.getInput().expand()) {
-        if (value instanceof PCollection
-            && ((PCollection<?>) value).isBounded().equals(IsBounded.UNBOUNDED)) {
-          return true;
+    // If the PTransform has any unbounded outputs, and unbounded producers should not be shut down,
+    // the PTransform may produce additional output. It is not done.
+    for (PValue output : transform.getOutput().expand()) {
+      if (output instanceof PCollection) {
+        IsBounded bounded = ((PCollection<?>) output).isBounded();
+        if (bounded.equals(IsBounded.UNBOUNDED)
+            && !options.isShutdownUnboundedProducersWithMaxWatermark()) {
+          return false;
         }
       }
     }
-    return false;
+    // The PTransform's watermark was at positive infinity and all of its outputs are known to be
+    // done. It is done.
+    return true;
+  }
+
+  /**
+   * Returns true if all steps are done.
+   */
+  public boolean isDone() {
+    for (AppliedPTransform<?, ?, ?> transform : stepNames.keySet()) {
+      if (!isDone(transform)) {
+        return false;
+      }
+    }
+    return true;
   }
 }
