@@ -304,8 +304,9 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
             visibleUpdates.offer(VisibleExecutorUpdate.fromThrowable(update.getException().get()));
           }
         }
-        fireTimers();
-        mightNeedMoreWork();
+        if (!fireTimers()) {
+          mightNeedMoreWork();
+        }
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         LOG.error("Monitor died due to being interrupted");
@@ -326,8 +327,9 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
       }
     }
 
-    private void fireTimers() throws Exception {
+    private boolean fireTimers() throws Exception {
       try {
+        boolean firedTimers = false;
         for (Map.Entry<AppliedPTransform<?, ?, ?>, Map<Object, FiredTimers>> transformTimers :
             evaluationContext.extractFiredTimers().entrySet()) {
           AppliedPTransform<?, ?, ?> transform = transformTimers.getKey();
@@ -346,9 +348,11 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
                       .add(WindowedValue.valueInEmptyWindows(work))
                       .commit(Instant.now());
               scheduleConsumption(transform, bundle, new TimerCompletionCallback(delivery));
+              firedTimers = true;
             }
           }
         }
+        return firedTimers;
       } catch (Exception e) {
         LOG.error("Internal Error while delivering timers", e);
         throw e;
@@ -368,25 +372,25 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
     }
 
     private void mightNeedMoreWork() {
-      synchronized (scheduledExecutors) {
-        for (TransformExecutor<?> executor : scheduledExecutors.keySet()) {
-          Thread thread = executor.getThread();
-          if (thread != null) {
-            switch (thread.getState()) {
-              case BLOCKED:
-              case WAITING:
-              case TERMINATED:
-              case TIMED_WAITING:
-                break;
-              default:
-                return;
-            }
+      for (TransformExecutor<?> executor : scheduledExecutors.keySet()) {
+        Thread thread = executor.getThread();
+        if (thread != null) {
+          switch (thread.getState()) {
+            case BLOCKED:
+            case WAITING:
+            case TERMINATED:
+            case TIMED_WAITING:
+              break;
+            default:
+              return;
           }
         }
       }
       // All current TransformExecutors are blocked; add more work from the roots.
       for (AppliedPTransform<?, ?, ?> root : rootNodes) {
-        scheduleConsumption(root, null, defaultCompletionCallback);
+        if (!evaluationContext.isDone(root)) {
+          scheduleConsumption(root, null, defaultCompletionCallback);
+        }
       }
     }
   }

@@ -356,6 +356,25 @@ class InProcessEvaluationContext {
     return watermarkManager.extractFiredTimers();
   }
 
+  public boolean isDone(AppliedPTransform<?, ?, ?> transform) {
+    boolean done = true;
+    for (PValue output : transform.getOutput().expand()) {
+      if (output instanceof PCollection) {
+        IsBounded bounded = ((PCollection<?>) output).isBounded();
+        if (bounded.equals(IsBounded.BOUNDED)
+            || options.isShutdownUnboundedProducersWithMaxWatermark()) {
+          done &=
+              watermarkManager
+                  .getWatermarks(transform)
+                  .getOutputWatermark()
+                  .equals(BoundedWindow.TIMESTAMP_MAX_VALUE);
+        } else {
+          done = false;
+        }
+      }
+    }
+    return done;
+  }
   /**
    * Returns true if all steps are done.
    */
