@@ -1,62 +1,44 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-Copyright (c) 2014, Cloudera, Inc. All Rights Reserved.
-Cloudera, Inc. licenses this file to you under the Apache License,
-Version 2.0 (the "License"). You may not use this file except in
-compliance with the License. You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-This software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-CONDITIONS OF ANY KIND, either express or implied. See the License for
-the specific language governing permissions and limitations under the
-License.
+    Licensed to the Apache Software Foundation (ASF) under one or more
+    contributor license agreements.  See the NOTICE file distributed with
+    this work for additional information regarding copyright ownership.
+    The ASF licenses this file to You under the Apache License, Version 2.0
+    (the "License"); you may not use this file except in compliance with
+    the License.  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
         <groupId>org.apache.beam</groupId>
         <artifactId>runners-parent</artifactId>
-        <version>1.6.0-SNAPSHOT</version>
+        <version>0.1.0-incubating-SNAPSHOT</version>
     </parent>
 
     <artifactId>spark-runner</artifactId>
-    <version>0.4.3-SNAPSHOT</version>
 
-    <name>Spark Beam Runner</name>
+    <name>Apache Beam :: Runners :: Spark</name>
     <packaging>jar</packaging>
-
-    <inceptionYear>2014</inceptionYear>
-
-    <licenses>
-        <license>
-            <name>The Apache Software License, Version 2.0</name>
-            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
-            <distribution>repo</distribution>
-        </license>
-    </licenses>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <java.version>1.7</java.version>
         <spark.version>1.5.2</spark.version>
-        <beam.version>1.6.0-SNAPSHOT</beam.version>
+        <beam.version>0.1.0-incubating-SNAPSHOT</beam.version>
     </properties>
-
-    <repositories>
-        <repository>
-            <id>apache.snapshots</id>
-            <name>Apache Development Snapshot Repository</name>
-            <url>https://repository.apache.org/content/repositories/snapshots/</url>
-            <releases>
-                <enabled>false</enabled>
-            </releases>
-            <snapshots>
-                <enabled>true</enabled>
-            </snapshots>
-        </repository>
-    </repositories>
 
     <dependencies>
         <dependency>
@@ -89,8 +71,8 @@ License.
             <version>${guava.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.google.cloud.dataflow</groupId>
-            <artifactId>google-cloud-dataflow-java-sdk-all</artifactId>
+            <groupId>org.apache.beam</groupId>
+            <artifactId>java-sdk-all</artifactId>
             <version>${beam.version}</version>
             <exclusions>
                 <!-- Use Hadoop/Spark's backend logger -->
@@ -101,8 +83,8 @@ License.
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>com.google.cloud.dataflow</groupId>
-            <artifactId>google-cloud-dataflow-java-examples-all</artifactId>
+            <groupId>org.apache.beam</groupId>
+            <artifactId>java-examples-all</artifactId>
             <version>${beam.version}</version>
             <exclusions>
                 <!-- Use Hadoop/Spark's backend logger -->
@@ -411,42 +393,7 @@ License.
         </plugins>
     </reporting>
 
-
-    <developers>
-        <developer>
-            <name>Cloudera, Inc.</name>
-        </developer>
-    </developers>
-
-    <scm>
-        <connection>scm:git:https://github.com/cloudera/spark-dataflow.git</connection>
-        <developerConnection>scm:git:https://github.com/cloudera/spark-dataflow.git</developerConnection>
-        <url>scm:git:https://github.com/cloudera/spark-dataflow.git</url>
-        <tag>HEAD</tag>
-    </scm>
-
-    <prerequisites>
-        <maven>3.2.1</maven>
-    </prerequisites>
-
     <profiles>
-        <profile>
-            <id>release-sign-artifacts</id>
-            <activation>
-                <property>
-                    <name>performRelease</name>
-                    <value>true</value>
-                </property>
-            </activation>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-gpg-plugin</artifactId>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
         <profile>
             <id>jacoco</id>
             <build>

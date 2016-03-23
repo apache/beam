@@ -1,38 +1,38 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  ~ Copyright (C) 2015 Google Inc.
-  ~
-  ~ Licensed under the Apache License, Version 2.0 (the "License"); you may not
-  ~ use this file except in compliance with the License. You may obtain a copy of
-  ~ the License at
-  ~
-  ~ http://www.apache.org/licenses/LICENSE-2.0
-  ~
-  ~ Unless required by applicable law or agreed to in writing, software
-  ~ distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-  ~ WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-  ~ License for the specific language governing permissions and limitations under
-  ~ the License.
-  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+<!--
+    Licensed to the Apache Software Foundation (ASF) under one or more
+    contributor license agreements.  See the NOTICE file distributed with
+    this work for additional information regarding copyright ownership.
+    The ASF licenses this file to You under the Apache License, Version 2.0
+    (the "License"); you may not use this file except in compliance with
+    the License.  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+-->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>com.google.cloud.dataflow</groupId>
-    <artifactId>google-cloud-dataflow-java-sdk-parent</artifactId>
-    <version>1.6.0-SNAPSHOT</version>
+    <groupId>org.apache.beam</groupId>
+    <artifactId>parent</artifactId>
+    <version>0.1.0-incubating-SNAPSHOT</version>
+    <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <groupId>com.google.cloud.dataflow</groupId>
-  <artifactId>google-cloud-dataflow-java-examples-all</artifactId>
-  <name>Google Cloud Dataflow Java Examples - All</name>
-  <description>Google Cloud Dataflow Java SDK provides a simple, Java-based
-    interface for processing virtually any size data using Google cloud
-    resources. This artifact includes all Dataflow Java SDK
-    examples.</description>
-  <url>http://cloud.google.com/dataflow</url>
+  <artifactId>java-examples-all</artifactId>
+  <name>Apache Beam :: Examples :: Java All</name>
+  <description>Apache Beam SDK provides a simple, Java-based
+  interface for processing virtually any size data. This
+  artifact includes all Apache Beam Java SDK examples.</description>
 
   <packaging>jar</packaging>
 
@@ -112,8 +112,8 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-javadoc-plugin</artifactId>
         <configuration>
-          <windowtitle>Google Cloud Dataflow Examples</windowtitle>
-          <doctitle>Google Cloud Dataflow Examples</doctitle>
+          <windowtitle>Apache Beam Examples</windowtitle>
+          <doctitle>Apache Beam Examples</doctitle>
 
           <subpackages>com.google.cloud.dataflow.examples</subpackages>
           <additionalparam>-exclude com.google.cloud.dataflow.sdk.runners.worker:com.google.cloud.dataflow.sdk.runners.dataflow:com.google.cloud.dataflow.sdk.util ${dataflow.javadoc_opts}</additionalparam>
@@ -237,8 +237,8 @@
 
   <dependencies>
     <dependency>
-      <groupId>com.google.cloud.dataflow</groupId>
-      <artifactId>google-cloud-dataflow-java-sdk-all</artifactId>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>java-sdk-all</artifactId>
       <version>${project.version}</version>
     </dependency>
 
