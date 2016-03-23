@@ -41,7 +41,7 @@ transcript:
 name: output_time_fn_latest
 window_fn: FixedWindows(10)
 trigger_fn: Default
-output_time_fn: OUTPUT_AT_MAX
+output_time_fn: OUTPUT_AT_LATEST
 transcript:
   - input: [1, 2, 3, 10, 11, 25]
   - watermark: 100

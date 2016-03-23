@@ -60,7 +60,7 @@ class OutputTimeFn(object):
 
   OUTPUT_AT_EOW = 'OUTPUT_AT_EOW'
   OUTPUT_AT_EARLIEST = 'OUTPUT_AT_EARLIEST'
-  OUTPUT_AT_MAX = 'OUTPUT_AT_MAX'
+  OUTPUT_AT_LATEST = 'OUTPUT_AT_LATEST'
   OUTPUT_AT_EARLIEST_TRANSFORMED = 'OUTPUT_AT_EARLIEST_TRANSFORMED'
 
   @staticmethod
@@ -69,7 +69,7 @@ class OutputTimeFn(object):
       return timeutil.OutputAtEndOfWindowImpl()
     elif output_time_fn == OutputTimeFn.OUTPUT_AT_EARLIEST:
       return timeutil.OutputAtEarliestInputTimestampImpl()
-    elif output_time_fn == OutputTimeFn.OUTPUT_AT_MAX:
+    elif output_time_fn == OutputTimeFn.OUTPUT_AT_LATEST:
       return timeutil.OutputAtLatestInputTimestampImpl()
     elif output_time_fn == OutputTimeFn.OUTPUT_AT_EARLIEST_TRANSFORMED:
       return timeutil.OutputAtEarliestTransformedInputTimestampImpl(window_fn)
