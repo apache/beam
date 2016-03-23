@@ -40,7 +40,7 @@ import java.io.ObjectOutputStream;
  * A wrapper for Beam's unbounded sources. This class wraps around a source implementing the
  * {@link com.google.cloud.dataflow.sdk.io.Read.Unbounded}  interface.
  *
- * For now we only support non-parallel sources.
+ * For now we only support non-parallel sources, checkpointing is WIP.
  * */
 public class UnboundedSourceWrapper<T> extends RichSourceFunction<WindowedValue<T>> implements Triggerable {
 

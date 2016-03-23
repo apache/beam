@@ -35,6 +35,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableList;
 import org.apache.beam.runners.flink.FlinkTestPipeline;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 import org.joda.time.Instant;
@@ -47,6 +48,7 @@ import java.util.NoSuchElementException;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.fail;
 
 
 public class UnboundedSourceITCase extends StreamingProgramTestBase {
@@ -94,6 +96,7 @@ public class UnboundedSourceITCase extends StreamingProgramTestBase {
 
     try {
       p.run();
+      fail();
     } catch(Exception e) {
       assertEquals("The source terminates as expected.", e.getCause().getCause().getMessage());
     }
@@ -114,7 +117,7 @@ public class UnboundedSourceITCase extends StreamingProgramTestBase {
     @Override
     public List<? extends UnboundedSource<Integer, CheckpointMark>> generateInitialSplits(
         int desiredNumSplits, PipelineOptions options) throws Exception {
-      return null;
+      return ImmutableList.of(this);
     }
 
     @Override
@@ -141,6 +144,8 @@ public class UnboundedSourceITCase extends StreamingProgramTestBase {
 
       private int current;
 
+      private long watermark;
+
       public RangeReadReader(PipelineOptions options) {
         assertNotNull(options);
         current = from;
@@ -154,6 +159,8 @@ public class UnboundedSourceITCase extends StreamingProgramTestBase {
       @Override
       public boolean advance() throws IOException {
         current++;
+        watermark++;
+
         if (current >= to) {
           try {
             compareResultsByLinesInMemory(Joiner.on('\n').join(EXPECTED_RESULT), resultPath);
@@ -175,7 +182,7 @@ public class UnboundedSourceITCase extends StreamingProgramTestBase {
 
       @Override
       public Instant getCurrentTimestamp() throws NoSuchElementException {
-        return Instant.now();
+        return new Instant(current);
       }
 
       @Override
@@ -184,7 +191,7 @@ public class UnboundedSourceITCase extends StreamingProgramTestBase {
 
       @Override
       public Instant getWatermark() {
-        return Instant.now();
+        return new Instant(watermark);
       }
 
       @Override
