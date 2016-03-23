@@ -401,7 +401,7 @@ class InProcessEvaluationContext {
 
   private boolean containsUnboundedPCollection() {
     for (AppliedPTransform<?, ?, ?> transform : stepNames.keySet()) {
-      for (PValue value : transform.getInput().expand()) {
+      for (PValue value : transform.getOutput().expand()) {
         if (value instanceof PCollection
             && ((PCollection<?>) value).isBounded().equals(IsBounded.UNBOUNDED)) {
           return true;
