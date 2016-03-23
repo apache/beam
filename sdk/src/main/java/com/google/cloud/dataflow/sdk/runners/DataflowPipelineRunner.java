@@ -424,6 +424,12 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     return super.apply(new AssignWindows<>(transform), input);
   }
 
+  private String debuggerMessage(String projectId, String uniquifier) {
+    return String.format("To debug your job, visit Google Cloud Debugger at: "
+        + "https://console.developers.google.com/debug?project=%s&dbgee=%s",
+        projectId, uniquifier);
+  }
+
   private void maybeRegisterDebuggee(DataflowPipelineOptions options, String uniquifier) {
     if (!options.getEnableCloudDebugger()) {
       return;
@@ -436,6 +442,8 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     Clouddebugger debuggerClient = Transport.newClouddebuggerClient(options).build();
     Debuggee debuggee = registerDebuggee(debuggerClient, uniquifier);
     options.setDebuggee(debuggee);
+
+    System.out.println(debuggerMessage(options.getProject(), debuggee.getUniquifier()));
   }
 
   private Debuggee registerDebuggee(Clouddebugger debuggerClient, String uniquifier) {
