@@ -94,7 +94,7 @@
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>java-sdk-all</artifactId>
-      <version>[0, 2)</version>
+      <version>[0-incubating, 2-incubating)</version>
     </dependency>
 
     <dependency>
