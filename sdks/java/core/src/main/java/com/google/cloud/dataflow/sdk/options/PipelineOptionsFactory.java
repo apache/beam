@@ -602,7 +602,7 @@ public class PipelineOptionsFactory {
         COMBINED_CACHE.put(combinedPipelineOptionsInterfaces,
             new Registration<T>(allProxyClass, propertyDescriptors));
       } catch (IntrospectionException e) {
-        throw Throwables.propagate(e);
+        throw new RuntimeException(e);
       }
     }
 
@@ -617,7 +617,7 @@ public class PipelineOptionsFactory {
         INTERFACE_CACHE.put(iface,
             new Registration<T>(proxyClass, propertyDescriptors));
       } catch (IntrospectionException e) {
-        throw Throwables.propagate(e);
+        throw new RuntimeException(e);
       }
     }
     @SuppressWarnings("unchecked")

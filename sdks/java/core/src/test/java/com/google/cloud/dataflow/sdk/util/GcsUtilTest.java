@@ -52,7 +52,6 @@ import com.google.cloud.dataflow.sdk.testing.FastNanoClockAndSleeper;
 import com.google.cloud.dataflow.sdk.util.gcsfs.GcsPath;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadChannel;
 import com.google.cloud.hadoop.util.ClientRequestHelper;
-import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 
 import org.junit.Rule;
@@ -141,20 +140,21 @@ public class GcsUtilTest {
     for (int i = 0; i < numThreads; i++) {
       final int currentLatch = i;
       countDownLatches[i] = new CountDownLatch(1);
-      executorService.execute(new Runnable() {
-        @Override
-        public void run() {
-          // Wait for latch N and then release latch N - 1
-          try {
-            countDownLatches[currentLatch].await();
-            if (currentLatch > 0) {
-              countDownLatches[currentLatch - 1].countDown();
+      executorService.execute(
+          new Runnable() {
+            @Override
+            public void run() {
+              // Wait for latch N and then release latch N - 1
+              try {
+                countDownLatches[currentLatch].await();
+                if (currentLatch > 0) {
+                  countDownLatches[currentLatch - 1].countDown();
+                }
+              } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+              }
             }
-          } catch (InterruptedException e) {
-            throw Throwables.propagate(e);
-          }
-        }
-      });
+          });
     }
 
     // Release the last latch starting the chain reaction.
