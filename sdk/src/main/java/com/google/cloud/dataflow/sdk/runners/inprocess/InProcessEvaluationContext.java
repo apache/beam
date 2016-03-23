@@ -368,12 +368,15 @@ class InProcessEvaluationContext {
    * {@link InProcessPipelineOptions#isShutdownUnboundedProducersWithMaxWatermark()}.
    */
   public boolean isDone(AppliedPTransform<?, ?, ?> transform) {
-    if (!watermarkManager
+    // if the PTransform's watermark isn't at the max value, it isn't done
+    if (watermarkManager
         .getWatermarks(transform)
         .getOutputWatermark()
-        .equals(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+        .isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
       return false;
     }
+    // If the PTransform has any unbounded outputs, and unbounded producers should not be shut down,
+    // the PTransform may produce additional output. It is not done.
     for (PValue output : transform.getOutput().expand()) {
       if (output instanceof PCollection) {
         IsBounded bounded = ((PCollection<?>) output).isBounded();
@@ -383,6 +386,8 @@ class InProcessEvaluationContext {
         }
       }
     }
+    // The PTransform's watermark was at positive infinity and all of its outputs are known to be
+    // done. It is done.
     return true;
   }
 
@@ -390,24 +395,11 @@ class InProcessEvaluationContext {
    * Returns true if all steps are done.
    */
   public boolean isDone() {
-    if (!options.isShutdownUnboundedProducersWithMaxWatermark() && containsUnboundedPCollection()) {
-      return false;
-    }
-    if (!watermarkManager.allWatermarksAtPositiveInfinity()) {
-      return false;
-    }
-    return true;
-  }
-
-  private boolean containsUnboundedPCollection() {
     for (AppliedPTransform<?, ?, ?> transform : stepNames.keySet()) {
-      for (PValue value : transform.getOutput().expand()) {
-        if (value instanceof PCollection
-            && ((PCollection<?>) value).isBounded().equals(IsBounded.UNBOUNDED)) {
-          return true;
-        }
+      if (!isDone(transform)) {
+        return false;
       }
     }
-    return false;
+    return true;
   }
 }
