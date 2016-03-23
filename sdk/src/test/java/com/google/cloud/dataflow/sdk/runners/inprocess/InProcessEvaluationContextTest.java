@@ -24,12 +24,14 @@ import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
+import com.google.cloud.dataflow.sdk.io.CountingInput;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InMemoryWatermarkManager.FiredTimers;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InMemoryWatermarkManager.TimerUpdate;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessExecutionContext.InProcessStepContext;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.PCollectionViewWriter;
+import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.Create;
@@ -58,6 +60,7 @@ import com.google.cloud.dataflow.sdk.values.PCollection.IsBounded;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.PValue;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
@@ -80,25 +83,33 @@ import java.util.concurrent.TimeUnit;
 public class InProcessEvaluationContextTest {
   private TestPipeline p;
   private InProcessEvaluationContext context;
+
   private PCollection<Integer> created;
   private PCollection<KV<String, Integer>> downstream;
   private PCollectionView<Iterable<Integer>> view;
+  private PCollection<Long> unbounded;
+
 
   @Before
   public void setup() {
     InProcessPipelineRunner runner =
         InProcessPipelineRunner.fromOptions(PipelineOptionsFactory.create());
+
     p = TestPipeline.create();
+
     created = p.apply(Create.of(1, 2, 3));
     downstream = created.apply(WithKeys.<String, Integer>of("foo"));
     view = created.apply(View.<Integer>asIterable());
+    unbounded = p.apply(CountingInput.unbounded());
     Collection<AppliedPTransform<?, ?, ?>> rootTransforms =
-        ImmutableList.<AppliedPTransform<?, ?, ?>>of(created.getProducingTransformInternal());
+        ImmutableList.<AppliedPTransform<?, ?, ?>>of(
+            created.getProducingTransformInternal(), unbounded.getProducingTransformInternal());
     Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers = new HashMap<>();
     valueToConsumers.put(
         created,
         ImmutableList.<AppliedPTransform<?, ?, ?>>of(
             downstream.getProducingTransformInternal(), view.getProducingTransformInternal()));
+    valueToConsumers.put(unbounded, ImmutableList.<AppliedPTransform<?, ?, ?>>of());
     valueToConsumers.put(downstream, ImmutableList.<AppliedPTransform<?, ?, ?>>of());
     valueToConsumers.put(view, ImmutableList.<AppliedPTransform<?, ?, ?>>of());
 
@@ -106,6 +117,7 @@ public class InProcessEvaluationContextTest {
     stepNames.put(created.getProducingTransformInternal(), "s1");
     stepNames.put(downstream.getProducingTransformInternal(), "s2");
     stepNames.put(view.getProducingTransformInternal(), "s3");
+    stepNames.put(unbounded.getProducingTransformInternal(), "s4");
 
     Collection<PCollectionView<?>> views = ImmutableList.<PCollectionView<?>>of(view);
     context = InProcessEvaluationContext.create(
@@ -419,6 +431,102 @@ public class InProcessEvaluationContextTest {
             .commit(Instant.now());
     assertThat(keyedBundle.isKeyed(), is(true));
     assertThat(keyedBundle.getKey(), Matchers.<Object>equalTo("foo"));
+  }
+
+  @Test
+  public void isDoneWithUnboundedPCollectionAndShutdown() {
+    context.getPipelineOptions().setShutdownUnboundedProducersWithMaxWatermark(true);
+    assertThat(context.isDone(unbounded.getProducingTransformInternal()), is(false));
+
+    context.handleResult(
+        null,
+        ImmutableList.<TimerData>of(),
+        StepTransformResult.withoutHold(unbounded.getProducingTransformInternal()).build());
+    assertThat(context.isDone(unbounded.getProducingTransformInternal()), is(true));
+  }
+
+  @Test
+  public void isDoneWithUnboundedPCollectionAndNotShutdown() {
+    context.getPipelineOptions().setShutdownUnboundedProducersWithMaxWatermark(false);
+    assertThat(context.isDone(unbounded.getProducingTransformInternal()), is(false));
+
+    context.handleResult(
+        null,
+        ImmutableList.<TimerData>of(),
+        StepTransformResult.withoutHold(unbounded.getProducingTransformInternal()).build());
+    assertThat(context.isDone(unbounded.getProducingTransformInternal()), is(false));
+  }
+
+  @Test
+  public void isDoneWithOnlyBoundedPCollections() {
+    context.getPipelineOptions().setShutdownUnboundedProducersWithMaxWatermark(false);
+    assertThat(context.isDone(created.getProducingTransformInternal()), is(false));
+
+    context.handleResult(
+        null,
+        ImmutableList.<TimerData>of(),
+        StepTransformResult.withoutHold(created.getProducingTransformInternal()).build());
+    assertThat(context.isDone(created.getProducingTransformInternal()), is(true));
+  }
+
+  @Test
+  public void isDoneWithPartiallyDone() {
+    context.getPipelineOptions().setShutdownUnboundedProducersWithMaxWatermark(true);
+    assertThat(context.isDone(), is(false));
+
+    UncommittedBundle<Integer> rootBundle = context.createRootBundle(created);
+    rootBundle.add(WindowedValue.valueInGlobalWindow(1));
+    Iterable<? extends CommittedBundle<?>> handleResult =
+        context.handleResult(
+            null,
+            ImmutableList.<TimerData>of(),
+            StepTransformResult.withoutHold(created.getProducingTransformInternal())
+                .addOutput(rootBundle)
+                .build());
+    @SuppressWarnings("unchecked")
+    CommittedBundle<Integer> committedBundle =
+        (CommittedBundle<Integer>) Iterables.getOnlyElement(handleResult);
+    context.handleResult(
+        null,
+        ImmutableList.<TimerData>of(),
+        StepTransformResult.withoutHold(unbounded.getProducingTransformInternal()).build());
+    context.handleResult(
+        committedBundle,
+        ImmutableList.<TimerData>of(),
+        StepTransformResult.withoutHold(downstream.getProducingTransformInternal()).build());
+    assertThat(context.isDone(), is(false));
+
+    context.handleResult(
+        committedBundle,
+        ImmutableList.<TimerData>of(),
+        StepTransformResult.withoutHold(view.getProducingTransformInternal()).build());
+    assertThat(context.isDone(), is(true));
+  }
+
+  @Test
+  public void isDoneWithUnboundedAndNotShutdown() {
+    context.getPipelineOptions().setShutdownUnboundedProducersWithMaxWatermark(false);
+    assertThat(context.isDone(), is(false));
+
+    context.handleResult(
+        null,
+        ImmutableList.<TimerData>of(),
+        StepTransformResult.withoutHold(created.getProducingTransformInternal()).build());
+    context.handleResult(
+        null,
+        ImmutableList.<TimerData>of(),
+        StepTransformResult.withoutHold(unbounded.getProducingTransformInternal()).build());
+    context.handleResult(
+        context.createRootBundle(created).commit(Instant.now()),
+        ImmutableList.<TimerData>of(),
+        StepTransformResult.withoutHold(downstream.getProducingTransformInternal()).build());
+    assertThat(context.isDone(), is(false));
+
+    context.handleResult(
+        context.createRootBundle(created).commit(Instant.now()),
+        ImmutableList.<TimerData>of(),
+        StepTransformResult.withoutHold(view.getProducingTransformInternal()).build());
+    assertThat(context.isDone(), is(false));
   }
 
   private static class TestBoundedWindow extends BoundedWindow {
