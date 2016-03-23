@@ -339,7 +339,7 @@ def stage_job_resources(options, file_copy=_dependency_file_copy,
                              sdk_path)
         else:
           raise RuntimeError(
-              'The file "%s" cannot be found. Its directory was specified by '
+              'The file "%s" cannot be found. Its location was specified by '
               'the --sdk_location command-line option.' %
               sdk_path)
 

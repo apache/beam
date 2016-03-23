@@ -260,7 +260,7 @@ class SetupTest(unittest.TestCase):
       dependency.stage_job_resources(options)
     self.assertEqual(
         'The file "%s" cannot be found. Its '
-        'directory was specified by the --sdk_location command-line option.' %
+        'location was specified by the --sdk_location command-line option.' %
         sdk_location,
         cm.exception.message)
 
