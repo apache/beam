@@ -304,10 +304,8 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
             visibleUpdates.offer(VisibleExecutorUpdate.fromThrowable(update.getException().get()));
           }
         }
-        if (!fireTimers()) {
-          // If any timers have fired, they will add more work; We don't need to add more
-          addWorkIfNecessary();
-        }
+        boolean timersFired = fireTimers();
+        addWorkIfNecessary(timersFired);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         LOG.error("Monitor died due to being interrupted");
@@ -380,7 +378,11 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
      * add more work from root nodes that may have additional work. This ensures that if a pipeline
      * has elements available from the root nodes it will add those elements when necessary.
      */
-    private void addWorkIfNecessary() {
+    private void addWorkIfNecessary(boolean firedTimers) {
+      // If any timers have fired, they will add more work; We don't need to add more
+      if (firedTimers) {
+        return;
+      }
       for (TransformExecutor<?> executor : scheduledExecutors.keySet()) {
         if (!isExecutorBlocked(executor)) {
           // We have at least one executor that can proceed without adding additional work
@@ -397,6 +399,10 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
 
     /**
      * Return true if the provided executor might make more progress if no action is taken.
+     *
+     * <p>May return false even if all executor threads are currently blocked or cleaning up, as
+     * these can cause more work to be scheduled. If this does not occur, after these calls
+     * terminate, future calls will return true if all executors are waiting.
      */
     private boolean isExecutorBlocked(TransformExecutor<?> executor) {
       Thread thread = executor.getThread();

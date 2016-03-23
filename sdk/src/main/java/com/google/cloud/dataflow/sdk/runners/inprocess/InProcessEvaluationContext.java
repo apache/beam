@@ -368,23 +368,22 @@ class InProcessEvaluationContext {
    * {@link InProcessPipelineOptions#isShutdownUnboundedProducersWithMaxWatermark()}.
    */
   public boolean isDone(AppliedPTransform<?, ?, ?> transform) {
-    boolean done = true;
+    if (!watermarkManager
+        .getWatermarks(transform)
+        .getOutputWatermark()
+        .equals(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+      return false;
+    }
     for (PValue output : transform.getOutput().expand()) {
       if (output instanceof PCollection) {
         IsBounded bounded = ((PCollection<?>) output).isBounded();
-        if (bounded.equals(IsBounded.BOUNDED)
-            || options.isShutdownUnboundedProducersWithMaxWatermark()) {
-          done &=
-              watermarkManager
-                  .getWatermarks(transform)
-                  .getOutputWatermark()
-                  .equals(BoundedWindow.TIMESTAMP_MAX_VALUE);
-        } else {
-          done = false;
+        if (bounded.equals(IsBounded.UNBOUNDED)
+            && !options.isShutdownUnboundedProducersWithMaxWatermark()) {
+          return false;
         }
       }
     }
-    return done;
+    return true;
   }
 
   /**
