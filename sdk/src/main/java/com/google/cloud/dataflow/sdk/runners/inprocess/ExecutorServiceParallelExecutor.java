@@ -126,7 +126,7 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
       @Nullable final CommittedBundle<T> bundle,
       final CompletionCallback onComplete) {
     TransformExecutorService transformExecutor;
-    if (isKeyed(bundle.getPCollection())) {
+    if (bundle != null && isKeyed(bundle.getPCollection())) {
       final StepAndKey stepAndKey =
           StepAndKey.of(transform, bundle == null ? null : bundle.getKey());
       transformExecutor = getSerialExecutorService(stepAndKey);
