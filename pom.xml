@@ -125,7 +125,7 @@
   <packaging>pom</packaging>
 
   <modules>
-    <module>sdk</module>
+    <module>sdks/java/core</module>
     <module>runners</module>
     <module>examples</module>
     <module>maven-archetypes</module>
