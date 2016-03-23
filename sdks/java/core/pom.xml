@@ -157,7 +157,8 @@
       </plugin>
 
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId> <artifactId>maven-javadoc-plugin</artifactId>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-javadoc-plugin</artifactId>
         <configuration>
           <windowtitle>Google Cloud Dataflow SDK ${project.version} API</windowtitle>
           <doctitle>Google Cloud Dataflow SDK for Java, version ${project.version}</doctitle>
