@@ -424,10 +424,10 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     return super.apply(new AssignWindows<>(transform), input);
   }
 
-  private String debuggerMessage(String projectId, String uniqifier) {
-    return String.format("To view the debugger console, go to "
+  private String debuggerMessage(String projectId, String uniquifier) {
+    return String.format("To debug your job, visit Google Cloud Debugger at: "
         + "https://console.developers.google.com/debug?project=%s&dbgee=%s",
-        projectId, uniqifier);
+        projectId, uniquifier);
   }
 
   private void maybeRegisterDebuggee(DataflowPipelineOptions options, String uniquifier) {
