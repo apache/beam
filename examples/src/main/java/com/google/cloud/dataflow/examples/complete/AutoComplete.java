@@ -57,6 +57,7 @@ import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PBegin;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionList;
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 
 import org.joda.time.Duration;
@@ -432,10 +433,14 @@ public class AutoComplete {
     Boolean getOutputToBigQuery();
     void setOutputToBigQuery(Boolean value);
 
-    @Description("Whether output to Datastoree")
+    @Description("Whether output to Datastore")
     @Default.Boolean(false)
     Boolean getOutputToDatastore();
     void setOutputToDatastore(Boolean value);
+
+    @Description("Datastore output dataset ID, defaults to project ID")
+    String getOutputDataset();
+    void setOutputDataset(String value);
   }
 
   public static void main(String[] args) throws IOException {
@@ -477,7 +482,8 @@ public class AutoComplete {
     if (options.getOutputToDatastore()) {
       toWrite
       .apply(ParDo.named("FormatForDatastore").of(new FormatForDatastore(options.getKind())))
-      .apply(DatastoreIO.writeTo(options.getProject()));
+      .apply(DatastoreIO.writeTo(MoreObjects.firstNonNull(
+          options.getOutputDataset(), options.getProject())));
     }
     if (options.getOutputToBigQuery()) {
       dataflowUtils.setupBigQueryTable();
