@@ -211,7 +211,7 @@ public class BigtableIO {
      *
      * <p>Does not modify this object.
      */
-    Read withRowFilter(RowFilter filter) {
+    public Read withRowFilter(RowFilter filter) {
       checkNotNull(filter, "filter");
       return new Read(options, tableId, filter, bigtableService);
     }
