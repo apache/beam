@@ -128,7 +128,7 @@
     <module>sdks/java/core</module>
     <module>runners</module>
     <module>examples/java</module>
-    <module>maven-archetypes</module>
+    <module>sdks/java/maven-archetypes</module>
   </modules>
 
   <profiles>
