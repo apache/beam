@@ -10,6 +10,8 @@ target/
 # Ignore Eclipse files.
 .classpath
 .project
+.factorypath
+.checkstyle
 .settings/
 
 # The build process generates the dependency-reduced POM, but it shouldn't be
