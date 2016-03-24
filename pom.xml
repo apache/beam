@@ -147,7 +147,7 @@
         <jdk>[1.8,)</jdk>
       </activation>
       <modules>
-        <module>java8examples</module>
+        <module>examples/java8</module>
       </modules>
     </profile>
     <profile>

@@ -25,7 +25,7 @@
     <groupId>org.apache.beam</groupId>
     <artifactId>parent</artifactId>
     <version>0.1.0-incubating-SNAPSHOT</version>
-    <relativePath>../pom.xml</relativePath>
+    <relativePath>../../pom.xml</relativePath>
   </parent>
 
   <artifactId>java8examples-all</artifactId>
@@ -85,7 +85,7 @@
           </dependency>
         </dependencies>
         <configuration>
-          <configLocation>../checkstyle.xml</configLocation>
+          <configLocation>../../checkstyle.xml</configLocation>
           <consoleOutput>true</consoleOutput>
           <failOnViolation>true</failOnViolation>
           <includeTestSourceDirectory>true</includeTestSourceDirectory>
