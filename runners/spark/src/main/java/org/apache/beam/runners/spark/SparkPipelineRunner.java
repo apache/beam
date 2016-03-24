@@ -23,7 +23,10 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsValidator;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.TransformTreeNode;
+import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import com.google.cloud.dataflow.sdk.util.GroupByKeyViaGroupByKeyOnly;
+import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.cloud.dataflow.sdk.values.POutput;
 import com.google.cloud.dataflow.sdk.values.PValue;
@@ -103,6 +106,23 @@ public final class SparkPipelineRunner extends PipelineRunner<EvaluationResult> 
         PipelineOptionsValidator.validate(SparkPipelineOptions.class, options);
     return new SparkPipelineRunner(sparkOptions);
   }
+
+  /**
+   * Overrides for this runner.
+   */
+  @SuppressWarnings("rawtypes")
+  @Override
+  public <OT extends POutput, IT extends PInput> OT apply(
+      PTransform<IT, OT> transform, IT input) {
+
+    if (transform instanceof GroupByKey) {
+      return (OT) ((PCollection) input).apply(
+          new GroupByKeyViaGroupByKeyOnly((GroupByKey) transform));
+    } else {
+      return super.apply(transform, input);
+    }
+  }
+
 
   /**
    * No parameter constructor defaults to running this pipeline in Spark's local mode, in a single

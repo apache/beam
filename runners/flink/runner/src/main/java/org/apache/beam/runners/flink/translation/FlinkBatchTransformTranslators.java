@@ -96,7 +96,7 @@ public class FlinkBatchTransformTranslators {
   // --------------------------------------------------------------------------------------------
   //  Transform Translator Registry
   // --------------------------------------------------------------------------------------------
-  
+
   @SuppressWarnings("rawtypes")
   private static final Map<Class<? extends PTransform>, FlinkBatchPipelineTranslator.BatchTransformTranslator> TRANSLATORS = new HashMap<>();
 
@@ -112,7 +112,6 @@ public class FlinkBatchTransformTranslators {
 
     TRANSLATORS.put(Flatten.FlattenPCollectionList.class, new FlattenPCollectionTranslatorBatch());
 
-    TRANSLATORS.put(GroupByKey.GroupByKeyOnly.class, new GroupByKeyOnlyTranslatorBatch());
     // TODO we're currently ignoring windows here but that has to change in the future
     TRANSLATORS.put(GroupByKey.class, new GroupByKeyTranslatorBatch());
 
@@ -302,25 +301,8 @@ public class FlinkBatchTransformTranslators {
     }
   }
 
-  private static class GroupByKeyOnlyTranslatorBatch<K, V> implements FlinkBatchPipelineTranslator.BatchTransformTranslator<GroupByKey.GroupByKeyOnly<K, V>> {
-
-    @Override
-    public void translateNode(GroupByKey.GroupByKeyOnly<K, V> transform, FlinkBatchTranslationContext context) {
-      DataSet<KV<K, V>> inputDataSet = context.getInputDataSet(context.getInput(transform));
-      GroupReduceFunction<KV<K, V>, KV<K, Iterable<V>>> groupReduceFunction = new FlinkKeyedListAggregationFunction<>();
-
-      TypeInformation<KV<K, Iterable<V>>> typeInformation = context.getTypeInfo(context.getOutput(transform));
-
-      Grouping<KV<K, V>> grouping = new UnsortedGrouping<>(inputDataSet, new Keys.ExpressionKeys<>(new String[]{"key"}, inputDataSet.getType()));
-
-      GroupReduceOperator<KV<K, V>, KV<K, Iterable<V>>> outputDataSet =
-          new GroupReduceOperator<>(grouping, typeInformation, groupReduceFunction, transform.getName());
-      context.setOutputDataSet(context.getOutput(transform), outputDataSet);
-    }
-  }
-
   /**
-   * Translates a GroupByKey while ignoring window assignments. This is identical to the {@link GroupByKeyOnlyTranslatorBatch}
+   * Translates a GroupByKey while ignoring window assignments. Current ignores windows.
    */
   private static class GroupByKeyTranslatorBatch<K, V> implements FlinkBatchPipelineTranslator.BatchTransformTranslator<GroupByKey<K, V>> {
 
@@ -406,7 +388,7 @@ public class FlinkBatchTransformTranslators {
 //      context.setOutputDataSet(transform.getOutput(), outputDataSet);
 //    }
 //  }
-  
+
   private static class ParDoBoundTranslatorBatch<IN, OUT> implements FlinkBatchPipelineTranslator.BatchTransformTranslator<ParDo.Bound<IN, OUT>> {
     private static final Logger LOG = LoggerFactory.getLogger(ParDoBoundTranslatorBatch.class);
 
@@ -589,6 +571,6 @@ public class FlinkBatchTransformTranslators {
   // --------------------------------------------------------------------------------------------
   //  Miscellaneous
   // --------------------------------------------------------------------------------------------
-  
+
   private FlinkBatchTransformTranslators() {}
 }
