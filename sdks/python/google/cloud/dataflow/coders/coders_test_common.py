@@ -50,9 +50,14 @@ class CodersTest(unittest.TestCase):
                    for c in coders.__dict__.values()
                    if isinstance(c, type) and issubclass(c, coders.Coder) and
                    'Base' not in c.__name__)
-    standard -= set([coders.Coder, coders.ToStringCoder, coders.FloatCoder,
-                     coders.Base64PickleCoder, coders.FastCoder,
-                     coders.WindowCoder, coders.WindowedValueCoder])
+    standard -= set([coders.Coder,
+                     coders.FastCoder,
+                     coders.Base64PickleCoder,
+                     coders.FloatCoder,
+                     coders.TimestampCoder,
+                     coders.ToStringCoder,
+                     coders.WindowCoder,
+                     coders.WindowedValueCoder])
     assert not standard - cls.seen, standard - cls.seen
     assert not standard - cls.seen_nested, standard - cls.seen_nested
 
@@ -123,6 +128,16 @@ class CodersTest(unittest.TestCase):
     self.check_coder(coders.FloatCoder(),
                      *[float(2 ** (0.1 * x)) for x in range(-100, 100)])
     self.check_coder(coders.FloatCoder(), float('-Inf'), float('Inf'))
+
+  def test_timestamp_coder(self):
+    self.check_coder(coders.TimestampCoder(),
+                     *[coders.Timestamp(micros=x) for x in range(-100, 100)])
+    self.check_coder(coders.TimestampCoder(),
+                     coders.Timestamp(micros=-1234567890),
+                     coders.Timestamp(micros=1234567890))
+    self.check_coder(coders.TimestampCoder(),
+                     coders.Timestamp(micros=-1234567890123456789),
+                     coders.Timestamp(micros=1234567890123456789))
 
   def test_tuple_coder(self):
     self.check_coder(

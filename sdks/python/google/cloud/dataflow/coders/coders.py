@@ -15,6 +15,7 @@
 """Collection of useful coders."""
 
 import base64
+import collections
 import cPickle as pickle
 import struct
 
@@ -27,10 +28,12 @@ try:
   # Import dill from the pickler module to make sure our monkey-patching of dill
   # occurs.
   from google.cloud.dataflow.internal.pickler import dill
+  from google.cloud.dataflow.transforms.timeutil import Timestamp
 except ImportError:
   # We fall back to using the stock dill library in tests that don't use the
   # full Python SDK.
   import dill
+  Timestamp = collections.namedtuple('Timestamp', 'micros')
 
 
 def serialize_coder(coder):
@@ -236,6 +239,20 @@ class FloatCoder(Coder):
     return True
 
 
+# TODO(ccy): Write a Cython implementation of TimestampCoder.
+class TimestampCoder(Coder):
+  """A coder used for timeutil.Timestamp values."""
+
+  def encode(self, value):
+    return struct.pack('<q', value.micros)
+
+  def decode(self, encoded):
+    return Timestamp(micros=struct.unpack('<q', encoded)[0])
+
+  def is_deterministic(self):
+    return True
+
+
 def maybe_dill_dumps(o):
   """Pickle using cPickle or the Dill pickler as a fallback."""
   # We need to use the dill pickler for objects of certain custom classes,
@@ -428,7 +445,7 @@ class WindowedValueCoder(FastCoder):
   def __init__(self, wrapped_value_coder, timestamp_coder=None,
                window_coder=None):
     if not timestamp_coder:
-      timestamp_coder = FloatCoder()
+      timestamp_coder = TimestampCoder()
     if not window_coder:
       window_coder = PickleCoder()
     self.wrapped_value_coder = wrapped_value_coder
