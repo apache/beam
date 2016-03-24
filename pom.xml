@@ -125,10 +125,10 @@
   <packaging>pom</packaging>
 
   <modules>
-    <module>sdk</module>
+    <module>sdks/java/core</module>
     <module>runners</module>
-    <module>examples</module>
-    <module>maven-archetypes</module>
+    <module>examples/java</module>
+    <module>sdks/java/maven-archetypes</module>
   </modules>
 
   <profiles>
@@ -138,7 +138,7 @@
         <jdk>[1.8,)</jdk>
       </activation>
       <modules>
-        <module>java8tests</module>
+        <module>sdks/java/java8tests</module>
       </modules>
     </profile>
     <profile>
@@ -147,7 +147,7 @@
         <jdk>[1.8,)</jdk>
       </activation>
       <modules>
-        <module>java8examples</module>
+        <module>examples/java8</module>
       </modules>
     </profile>
     <profile>
