@@ -58,6 +58,14 @@ cdef class BytesCoderImpl(CoderImpl):
   pass
 
 
+cdef class FloatCoderImpl(StreamCoderImpl):
+  pass
+
+
+cdef class TimestampCoderImpl(StreamCoderImpl):
+  cdef object timestamp_class
+
+
 cdef list small_ints
 cdef class VarIntCoderImpl(StreamCoderImpl):
   @cython.locals(ivalue=libc.stdint.int64_t)

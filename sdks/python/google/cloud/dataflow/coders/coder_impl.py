@@ -162,6 +162,27 @@ class BytesCoderImpl(CoderImpl):
     return encoded
 
 
+class FloatCoderImpl(StreamCoderImpl):
+
+  def encode_to_stream(self, value, out, nested):
+    out.write_bigendian_double(value)
+
+  def decode_from_stream(self, in_stream, nested):
+    return in_stream.read_bigendian_double()
+
+
+class TimestampCoderImpl(StreamCoderImpl):
+
+  def __init__(self, timestamp_class):
+    self.timestamp_class = timestamp_class
+
+  def encode_to_stream(self, value, out, nested):
+    out.write_bigendian_int64(value.micros)
+
+  def decode_from_stream(self, in_stream, nested):
+    return self.timestamp_class(micros=in_stream.read_bigendian_int64())
+
+
 small_ints = [chr(_) for _ in range(128)]
 
 

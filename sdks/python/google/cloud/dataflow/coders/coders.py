@@ -17,7 +17,6 @@
 import base64
 import collections
 import cPickle as pickle
-import struct
 
 from google.cloud.dataflow.coders import coder_impl
 
@@ -225,29 +224,21 @@ class VarIntCoder(FastCoder):
     return True
 
 
-# TODO(ccy): Write a Cython implementation of FloatCoder.
-class FloatCoder(Coder):
+class FloatCoder(FastCoder):
   """A coder used for floating-point values."""
 
-  def encode(self, value):
-    return struct.pack('<d', value)
-
-  def decode(self, encoded):
-    return struct.unpack('<d', encoded)[0]
+  def _create_impl(self):
+    return coder_impl.FloatCoderImpl()
 
   def is_deterministic(self):
     return True
 
 
-# TODO(ccy): Write a Cython implementation of TimestampCoder.
-class TimestampCoder(Coder):
+class TimestampCoder(FastCoder):
   """A coder used for timeutil.Timestamp values."""
 
-  def encode(self, value):
-    return struct.pack('<q', value.micros)
-
-  def decode(self, encoded):
-    return Timestamp(micros=struct.unpack('<q', encoded)[0])
+  def _create_impl(self):
+    return coder_impl.TimestampCoderImpl(Timestamp)
 
   def is_deterministic(self):
     return True

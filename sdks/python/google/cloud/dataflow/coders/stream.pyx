@@ -40,7 +40,6 @@ cdef class OutputStream(object):
     self.pos += blen
 
   cpdef write_byte(self, unsigned char val):
-    assert 0 <= val <= 0xFF
     if  self.size <= self.pos:
       self.extend(1)
     self.data[self.pos] = val
@@ -58,6 +57,33 @@ cdef class OutputStream(object):
       self.write_byte(bits)
       if not v:
         break
+
+  cpdef write_bigendian_int64(self, libc.stdint.int64_t signed_v):
+    cdef libc.stdint.uint64_t v = signed_v
+    if  self.size < self.pos - 8:
+      self.extend(8)
+    self.data[self.pos    ] = <unsigned char>(v >> 56)
+    self.data[self.pos + 1] = <unsigned char>(v >> 48)
+    self.data[self.pos + 2] = <unsigned char>(v >> 40)
+    self.data[self.pos + 3] = <unsigned char>(v >> 32)
+    self.data[self.pos + 4] = <unsigned char>(v >> 24)
+    self.data[self.pos + 5] = <unsigned char>(v >> 16)
+    self.data[self.pos + 6] = <unsigned char>(v >>  8)
+    self.data[self.pos + 7] = <unsigned char>(v      )
+    self.pos += 8
+
+  cpdef write_bigendian_int32(self, libc.stdint.int32_t signed_v):
+    cdef libc.stdint.uint32_t v = signed_v
+    if  self.size < self.pos - 4:
+      self.extend(4)
+    self.data[self.pos    ] = <unsigned char>(v >> 24)
+    self.data[self.pos + 1] = <unsigned char>(v >> 16)
+    self.data[self.pos + 2] = <unsigned char>(v >>  8)
+    self.data[self.pos + 3] = <unsigned char>(v      )
+    self.pos += 4
+
+  cpdef write_bigendian_double(self, double d):
+    self.write_bigendian_int64((<libc.stdint.int64_t*><char*>&d)[0])
 
   cpdef bytes get(self):
     return self.data[:self.pos]
@@ -111,3 +137,25 @@ cdef class InputStream(object):
       if not (byte & 0x80):
         break
     return result
+
+  cpdef libc.stdint.int64_t read_bigendian_int64(self) except? -1:
+    self.pos += 8
+    return (<unsigned char>self.allc[self.pos - 1]
+      | <libc.stdint.uint64_t><unsigned char>self.allc[self.pos - 2] <<  8
+      | <libc.stdint.uint64_t><unsigned char>self.allc[self.pos - 3] << 16
+      | <libc.stdint.uint64_t><unsigned char>self.allc[self.pos - 4] << 24
+      | <libc.stdint.uint64_t><unsigned char>self.allc[self.pos - 5] << 32
+      | <libc.stdint.uint64_t><unsigned char>self.allc[self.pos - 6] << 40
+      | <libc.stdint.uint64_t><unsigned char>self.allc[self.pos - 7] << 48
+      | <libc.stdint.uint64_t><unsigned char>self.allc[self.pos - 8] << 56)
+
+  cpdef libc.stdint.int32_t read_bigendian_int32(self) except? -1:
+    self.pos += 4
+    return (<unsigned char>self.allc[self.pos - 1]
+      | <libc.stdint.uint32_t><unsigned char>self.allc[self.pos - 2] <<  8
+      | <libc.stdint.uint32_t><unsigned char>self.allc[self.pos - 3] << 16
+      | <libc.stdint.uint32_t><unsigned char>self.allc[self.pos - 4] << 24)
+
+  cpdef double read_bigendian_double(self) except? -1:
+    cdef libc.stdint.int64_t as_long = self.read_bigendian_int64()
+    return (<double*><char*>&as_long)[0]

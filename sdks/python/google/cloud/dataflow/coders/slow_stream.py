@@ -14,6 +14,8 @@
 
 """A pure Python implementation of stream.pyx."""
 
+import struct
+
 
 class OutputStream(object):
   """A pure Python implementation of stream.OutputStream."""
@@ -43,6 +45,15 @@ class OutputStream(object):
       self.write_byte(bits)
       if not v:
         break
+
+  def write_bigendian_int64(self, v):
+    self.write(struct.pack('>q', v))
+
+  def write_bigendian_int32(self, v):
+    self.write(struct.pack('>i', v))
+
+  def write_bigendian_double(self, v):
+    self.write(struct.pack('>d', v))
 
   def get(self):
     return ''.join(self.data)
@@ -87,3 +98,12 @@ class InputStream(object):
     if result >= 1 << 63:
       result -= 1 << 64
     return result
+
+  def read_bigendian_int64(self):
+    return struct.unpack('>q', self.read(8))[0]
+
+  def read_bigendian_int32(self):
+    return struct.unpack('>i', self.read(4))[0]
+
+  def read_bigendian_double(self):
+    return struct.unpack('>d', self.read(8))[0]
