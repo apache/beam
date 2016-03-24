@@ -25,17 +25,17 @@
     <groupId>org.apache.beam</groupId>
     <artifactId>parent</artifactId>
     <version>0.1.0-incubating-SNAPSHOT</version>
+    <relativePath>../../../pom.xml</relativePath>
   </parent>
 
-  <artifactId>runners-parent</artifactId>
-
+  <artifactId>maven-archetypes-parent</artifactId>
   <packaging>pom</packaging>
 
-  <name>Apache Beam :: Runners</name>
+  <name>Apache Beam :: Maven Archetypes</name>
 
   <modules>
-    <module>flink</module>
-    <module>spark</module>
+    <module>starter</module>
+    <module>examples</module>
   </modules>
 
 </project>

@@ -23,57 +23,34 @@
 
   <parent>
     <groupId>org.apache.beam</groupId>
-    <artifactId>flink-runner-parent</artifactId>
+    <artifactId>maven-archetypes-parent</artifactId>
     <version>0.1.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>flink-runner-examples_2.10</artifactId>
+  <artifactId>maven-archetypes-examples</artifactId>
+  <name>Apache Beam :: Maven Archetypes :: Examples</name>
+  <description>A Maven Archetype to create a project containing all the
+    example pipelines from the Apache Beam Java SDK.</description>
 
-  <name>Apache Beam :: Runners :: Flink :: Examples</name>
-
-  <packaging>jar</packaging>
-
-  <properties>
-    <!-- Default parameters for mvn exec:exec -->
-    <clazz>org.apache.beam.runners.flink.examples.WordCount</clazz>
-    <input>kinglear.txt</input>
-    <output>wordcounts.txt</output>
-    <parallelism>1</parallelism>
-  </properties>
-
-  <dependencies>
-
-    <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>flink-runner_2.10</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-  </dependencies>
+  <packaging>maven-archetype</packaging>
 
   <build>
-    <plugins>
+    <extensions>
+      <extension>
+        <groupId>org.apache.maven.archetype</groupId>
+        <artifactId>archetype-packaging</artifactId>
+        <version>2.4</version>
+      </extension>
+    </extensions>
 
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>exec-maven-plugin</artifactId>
-        <version>1.2.1</version>
-        <configuration>
-          <executable>java</executable>
-          <arguments>
-            <argument>-classpath</argument>
-            <classpath/>
-            <argument>${clazz}</argument>
-            <argument>--input=${input}</argument>
-            <argument>--output=${output}</argument>
-            <argument>--parallelism=${parallelism}</argument>
-          </arguments>
-        </configuration>
-      </plugin>
-
-    </plugins>
-
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <artifactId>maven-archetype-plugin</artifactId>
+          <version>2.4</version>
+        </plugin>
+      </plugins>
+    </pluginManagement>
   </build>
-
 </project>
