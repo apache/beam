@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.options;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.cloud.dataflow.sdk.options.Validation.Required;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunnerRegistrar;
@@ -443,12 +445,20 @@ public class PipelineOptionsFactory {
   private static final Map<String, Class<? extends PipelineRunner<?>>> SUPPORTED_PIPELINE_RUNNERS;
 
   /** Classes that are used as the boundary in the stack trace to find the callers class name. */
-  private static final Set<String> PIPELINE_OPTIONS_FACTORY_CLASSES = ImmutableSet.of(
-      PipelineOptionsFactory.class.getName(),
-      Builder.class.getName());
+  private static final Set<String> PIPELINE_OPTIONS_FACTORY_CLASSES =
+      ImmutableSet.of(PipelineOptionsFactory.class.getName(), Builder.class.getName());
 
   /** Methods that are ignored when validating the proxy class. */
   private static final Set<Method> IGNORED_METHODS;
+
+  /** A predicate that checks if a method is synthetic via {@link Method#isSynthetic()}. */
+  private static final Predicate<Method> NOT_SYNTHETIC_PREDICATE =
+      new Predicate<Method>() {
+        @Override
+        public boolean apply(Method input) {
+          return !input.isSynthetic();
+        }
+      };
 
   /** The set of options that have been registered and visible to the user. */
   private static final Set<Class<? extends PipelineOptions>> REGISTERED_OPTIONS =
@@ -662,7 +672,9 @@ public class PipelineOptionsFactory {
     Preconditions.checkNotNull(iface);
     validateWellFormed(iface, REGISTERED_OPTIONS);
 
-    Iterable<Method> methods = ReflectHelpers.getClosureOfMethodsOnInterface(iface);
+    Iterable<Method> methods =
+        Iterables.filter(
+            ReflectHelpers.getClosureOfMethodsOnInterface(iface), NOT_SYNTHETIC_PREDICATE);
     ListMultimap<Class<?>, Method> ifaceToMethods = ArrayListMultimap.create();
     for (Method method : methods) {
       // Process only methods that are not marked as hidden.
@@ -876,7 +888,8 @@ public class PipelineOptionsFactory {
       throws IntrospectionException {
     // The sorting is important to make this method stable.
     SortedSet<Method> methods = Sets.newTreeSet(MethodComparator.INSTANCE);
-    methods.addAll(Arrays.asList(beanClass.getMethods()));
+    methods.addAll(
+        Collections2.filter(Arrays.asList(beanClass.getMethods()), NOT_SYNTHETIC_PREDICATE));
     SortedMap<String, Method> propertyNamesToGetters = getPropertyNamesToGetters(methods);
     List<PropertyDescriptor> descriptors = Lists.newArrayList();
 
@@ -1017,8 +1030,9 @@ public class PipelineOptionsFactory {
       Class<?> klass) throws IntrospectionException {
     Set<Method> methods = Sets.newHashSet(IGNORED_METHODS);
     // Ignore static methods, "equals", "hashCode", "toString" and "as" on the generated class.
+    // Ignore synthetic methods
     for (Method method : klass.getMethods()) {
-      if (Modifier.isStatic(method.getModifiers())) {
+      if (Modifier.isStatic(method.getModifiers()) || method.isSynthetic()) {
         methods.add(method);
       }
     }
@@ -1035,6 +1049,7 @@ public class PipelineOptionsFactory {
     // Verify that there are no methods with the same name with two different return types.
     Iterable<Method> interfaceMethods = FluentIterable
         .from(ReflectHelpers.getClosureOfMethodsOnInterface(iface))
+        .filter(NOT_SYNTHETIC_PREDICATE)
         .toSortedSet(MethodComparator.INSTANCE);
     SortedSetMultimap<Method, Method> methodNameToMethodMap =
         TreeMultimap.create(MethodNameComparator.INSTANCE, MethodComparator.INSTANCE);
@@ -1059,10 +1074,13 @@ public class PipelineOptionsFactory {
 
     // Verify that there is no getter with a mixed @JsonIgnore annotation and verify
     // that no setter has @JsonIgnore.
-    Iterable<Method> allInterfaceMethods = FluentIterable
-        .from(ReflectHelpers.getClosureOfMethodsOnInterfaces(validatedPipelineOptionsInterfaces))
-        .append(ReflectHelpers.getClosureOfMethodsOnInterface(iface))
-        .toSortedSet(MethodComparator.INSTANCE);
+    Iterable<Method> allInterfaceMethods =
+        FluentIterable.from(
+                ReflectHelpers.getClosureOfMethodsOnInterfaces(
+                    validatedPipelineOptionsInterfaces))
+            .append(ReflectHelpers.getClosureOfMethodsOnInterface(iface))
+            .filter(NOT_SYNTHETIC_PREDICATE)
+            .toSortedSet(MethodComparator.INSTANCE);
     SortedSetMultimap<Method, Method> methodNameToAllMethodMap =
         TreeMultimap.create(MethodNameComparator.INSTANCE, MethodComparator.INSTANCE);
     for (Method method : allInterfaceMethods) {
@@ -1146,7 +1164,10 @@ public class PipelineOptionsFactory {
 
     // Verify that no additional methods are on an interface that aren't a bean property.
     SortedSet<Method> unknownMethods = new TreeSet<>(MethodComparator.INSTANCE);
-    unknownMethods.addAll(Sets.difference(Sets.newHashSet(klass.getMethods()), methods));
+    unknownMethods.addAll(
+        Sets.filter(
+            Sets.difference(Sets.newHashSet(klass.getMethods()), methods),
+            NOT_SYNTHETIC_PREDICATE));
     Preconditions.checkArgument(unknownMethods.isEmpty(),
         "Methods %s on [%s] do not conform to being bean properties.",
         FluentIterable.from(unknownMethods).transform(ReflectHelpers.METHOD_FORMATTER),
@@ -1391,7 +1412,10 @@ public class PipelineOptionsFactory {
    * split up each string on ','.
    *
    * <p>We special case the "runner" option. It is mapped to the class of the {@link PipelineRunner}
-   * based off of the {@link PipelineRunner}s simple class name or fully qualified class name.
+   * based off of the {@link PipelineRunner PipelineRunners} simple class name. If the provided
+   * runner name is not registered via a {@link PipelineRunnerRegistrar}, we attempt to obtain the
+   * class that the name represents using {@link Class#forName(String)} and use the result class if
+   * it subclasses {@link PipelineRunner}.
    *
    * <p>If strict parsing is enabled, unknown options or options that cannot be converted to
    * the expected java type using an {@link ObjectMapper} will be ignored.
@@ -1442,10 +1466,26 @@ public class PipelineOptionsFactory {
         JavaType type = MAPPER.getTypeFactory().constructType(method.getGenericReturnType());
         if ("runner".equals(entry.getKey())) {
           String runner = Iterables.getOnlyElement(entry.getValue());
-          Preconditions.checkArgument(SUPPORTED_PIPELINE_RUNNERS.containsKey(runner),
-              "Unknown 'runner' specified '%s', supported pipeline runners %s",
-              runner, Sets.newTreeSet(SUPPORTED_PIPELINE_RUNNERS.keySet()));
-          convertedOptions.put("runner", SUPPORTED_PIPELINE_RUNNERS.get(runner));
+          if (SUPPORTED_PIPELINE_RUNNERS.containsKey(runner)) {
+            convertedOptions.put("runner", SUPPORTED_PIPELINE_RUNNERS.get(runner));
+          } else {
+            try {
+              Class<?> runnerClass = Class.forName(runner);
+              checkArgument(
+                  PipelineRunner.class.isAssignableFrom(runnerClass),
+                  "Class '%s' does not implement PipelineRunner. Supported pipeline runners %s",
+                  runner,
+                  Sets.newTreeSet(SUPPORTED_PIPELINE_RUNNERS.keySet()));
+              convertedOptions.put("runner", runnerClass);
+            } catch (ClassNotFoundException e) {
+              String msg =
+                  String.format(
+                      "Unknown 'runner' specified '%s', supported pipeline runners %s",
+                      runner,
+                      Sets.newTreeSet(SUPPORTED_PIPELINE_RUNNERS.keySet()));
+                throw new IllegalArgumentException(msg, e);
+            }
+          }
         } else if ((returnType.isArray() && (SIMPLE_TYPES.contains(returnType.getComponentType())
                 || returnType.getComponentType().isEnum()))
             || Collection.class.isAssignableFrom(returnType)) {

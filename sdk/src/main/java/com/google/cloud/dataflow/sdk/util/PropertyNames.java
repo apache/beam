@@ -65,6 +65,7 @@ public class PropertyNames {
   public static final String INPUTS = "inputs";
   public static final String INPUT_CODER = "input_coder";
   public static final String IS_GENERATED = "is_generated";
+  public static final String IS_MERGING_WINDOW_FN = "is_merging_window_fn";
   public static final String IS_PAIR_LIKE = "is_pair_like";
   public static final String IS_STREAM_LIKE = "is_stream_like";
   public static final String IS_WRAPPER = "is_wrapper";
@@ -102,4 +103,5 @@ public class PropertyNames {
   public static final String VALIDATE_SINK = "validate_sink";
   public static final String VALIDATE_SOURCE = "validate_source";
   public static final String VALUE = "value";
+  public static final String DISPLAY_DATA = "display_data";
 }

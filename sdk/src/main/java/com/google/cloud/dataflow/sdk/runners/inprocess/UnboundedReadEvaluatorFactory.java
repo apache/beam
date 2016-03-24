@@ -21,7 +21,6 @@ import com.google.cloud.dataflow.sdk.io.UnboundedSource.CheckpointMark;
 import com.google.cloud.dataflow.sdk.io.UnboundedSource.UnboundedReader;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
-import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.InProcessEvaluationContext;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
@@ -100,6 +99,16 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     return evaluatorQueue;
   }
 
+  /**
+   * A {@link UnboundedReadEvaluator} produces elements from an underlying {@link UnboundedSource},
+   * discarding all input elements. Within the call to {@link #finishBundle()}, the evaluator
+   * creates the {@link UnboundedReader} and consumes some currently available input.
+   *
+   * <p>Calls to {@link UnboundedReadEvaluator} are not internally thread-safe, and should only be
+   * used by a single thread at a time. Each {@link UnboundedReadEvaluator} maintains its own
+   * checkpoint, and constructs its reader from the current checkpoint in each call to
+   * {@link #finishBundle()}.
+   */
   private static class UnboundedReadEvaluator<OutputT> implements TransformEvaluator<Object> {
     private static final int ARBITRARY_MAX_ELEMENTS = 10;
     private final AppliedPTransform<?, PCollection<OutputT>, Unbounded<OutputT>> transform;
@@ -123,28 +132,29 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     @Override
     public InProcessTransformResult finishBundle() throws IOException {
       UncommittedBundle<OutputT> output = evaluationContext.createRootBundle(transform.getOutput());
-      UnboundedReader<OutputT> reader =
-          createReader(
-              transform.getTransform().getSource(), evaluationContext.getPipelineOptions());
-      int numElements = 0;
-      if (reader.start()) {
-        do {
-          output.add(
-              WindowedValue.timestampedValueInGlobalWindow(
-                  reader.getCurrent(), reader.getCurrentTimestamp()));
-          numElements++;
-        } while (numElements < ARBITRARY_MAX_ELEMENTS && reader.advance());
+      try (UnboundedReader<OutputT> reader =
+              createReader(
+                  transform.getTransform().getSource(), evaluationContext.getPipelineOptions());) {
+        int numElements = 0;
+        if (reader.start()) {
+          do {
+            output.add(
+                WindowedValue.timestampedValueInGlobalWindow(
+                    reader.getCurrent(), reader.getCurrentTimestamp()));
+            numElements++;
+          } while (numElements < ARBITRARY_MAX_ELEMENTS && reader.advance());
+        }
+        checkpointMark = reader.getCheckpointMark();
+        checkpointMark.finalizeCheckpoint();
+        // TODO: When exercising create initial splits, make this the minimum watermark across all
+        // existing readers
+        StepTransformResult result =
+            StepTransformResult.withHold(transform, reader.getWatermark())
+                .addOutput(output)
+                .build();
+        evaluatorQueue.offer(this);
+        return result;
       }
-      checkpointMark = reader.getCheckpointMark();
-      checkpointMark.finalizeCheckpoint();
-      // TODO: When exercising create initial splits, make this the minimum watermark across all
-      // existing readers
-      StepTransformResult result =
-          StepTransformResult.withHold(transform, reader.getWatermark())
-              .addOutput(output)
-              .build();
-      evaluatorQueue.offer(this);
-      return result;
     }
 
     private <CheckpointMarkT extends CheckpointMark> UnboundedReader<OutputT> createReader(

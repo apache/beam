@@ -17,7 +17,6 @@ package com.google.cloud.dataflow.sdk.runners.inprocess;
 
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
-import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.InProcessEvaluationContext;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.PCollectionViewWriter;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
@@ -43,14 +42,15 @@ import java.util.List;
  * written.
  */
 class ViewEvaluatorFactory implements TransformEvaluatorFactory {
-  @SuppressWarnings({"rawtypes", "unchecked"})
   @Override
   public <T> TransformEvaluator<T> forApplication(
       AppliedPTransform<?, ?, ?> application,
       InProcessPipelineRunner.CommittedBundle<?> inputBundle,
       InProcessEvaluationContext evaluationContext) {
-    return createEvaluator(
-        (AppliedPTransform) application, evaluationContext);
+    @SuppressWarnings({"cast", "unchecked", "rawtypes"})
+    TransformEvaluator<T> evaluator = (TransformEvaluator<T>) createEvaluator(
+            (AppliedPTransform) application, evaluationContext);
+    return evaluator;
   }
 
   private <InT, OuT> TransformEvaluator<Iterable<InT>> createEvaluator(

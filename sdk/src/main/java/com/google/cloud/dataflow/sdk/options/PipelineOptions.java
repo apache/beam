@@ -137,7 +137,8 @@ import javax.annotation.concurrent.ThreadSafe;
  *
  * <p>{@link Default @Default} represents a set of annotations that can be used to annotate getter
  * properties on {@link PipelineOptions} with information representing the default value to be
- * returned if no value is specified.
+ * returned if no value is specified. Any default implementation (using the {@code default} keyword)
+ * is ignored.
  *
  * <p>{@link Hidden @Hidden} hides an option from being listed when {@code --help}
  * is invoked via {@link PipelineOptionsFactory#fromArgs(String[])}.

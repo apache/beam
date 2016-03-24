@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.options;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -25,8 +26,12 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
+import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.PipelineResult;
 import com.google.cloud.dataflow.sdk.runners.BlockingDataflowPipelineRunner;
+import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
+import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.testing.ExpectedLogs;
 import com.google.cloud.dataflow.sdk.testing.RestoreSystemProperties;
 import com.google.common.collect.ArrayListMultimap;
@@ -49,10 +54,14 @@ import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /** Tests for {@link PipelineOptionsFactory}. */
 @RunWith(JUnit4.class)
 public class PipelineOptionsFactoryTest {
+  private static final Class<? extends PipelineRunner<?>> DEFAULT_RUNNER_CLASS =
+      DirectPipelineRunner.class;
+
   @Rule public ExpectedException expectedException = ExpectedException.none();
   @Rule public TestRule restoreSystemProperties = new RestoreSystemProperties();
   @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(PipelineOptionsFactory.class);
@@ -64,8 +73,9 @@ public class PipelineOptionsFactoryTest {
 
   @Test
   public void testAutomaticRegistrationOfRunners() {
-    assertEquals(DirectPipelineRunner.class,
-        PipelineOptionsFactory.getRegisteredRunners().get("DirectPipelineRunner"));
+    assertEquals(
+        DEFAULT_RUNNER_CLASS,
+        PipelineOptionsFactory.getRegisteredRunners().get(DEFAULT_RUNNER_CLASS.getSimpleName()));
   }
 
   @Test
@@ -825,12 +835,49 @@ public class PipelineOptionsFactoryTest {
   }
 
   @Test
+  public void testSettingRunnerFullName() {
+    String[] args =
+        new String[] {String.format("--runner=%s", DataflowPipelineRunner.class.getName())};
+    PipelineOptions opts = PipelineOptionsFactory.fromArgs(args).create();
+    assertEquals(opts.getRunner(), DataflowPipelineRunner.class);
+  }
+
+  @Test
   public void testSettingUnknownRunner() {
     String[] args = new String[] {"--runner=UnknownRunner"};
     expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Unknown 'runner' specified 'UnknownRunner', supported "
-        + "pipeline runners [BlockingDataflowPipelineRunner, DataflowPipelineRunner, "
-        + "DirectPipelineRunner]");
+    expectedException.expectMessage(
+        "Unknown 'runner' specified 'UnknownRunner', supported " + "pipeline runners");
+    Set<String> registeredRunners = PipelineOptionsFactory.getRegisteredRunners().keySet();
+    assertThat(registeredRunners, hasItem(DEFAULT_RUNNER_CLASS.getSimpleName()));
+    for (String registeredRunner : registeredRunners) {
+      expectedException.expectMessage(registeredRunner);
+    }
+
+    PipelineOptionsFactory.fromArgs(args).create();
+  }
+
+  private static class ExampleTestRunner extends PipelineRunner<PipelineResult> {
+    @Override
+    public PipelineResult run(Pipeline pipeline) {
+      return null;
+    }
+  }
+
+  @Test
+  public void testSettingRunnerCanonicalClassNameNotInSupportedExists() {
+    String[] args = new String[] {String.format("--runner=%s", ExampleTestRunner.class.getName())};
+    PipelineOptions opts = PipelineOptionsFactory.fromArgs(args).create();
+    assertEquals(opts.getRunner(), ExampleTestRunner.class);
+  }
+
+  @Test
+  public void testSettingRunnerCanonicalClassNameNotInSupportedNotPipelineRunner() {
+    String[] args = new String[] {"--runner=java.lang.String"};
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("does not implement PipelineRunner");
+    expectedException.expectMessage("java.lang.String");
+
     PipelineOptionsFactory.fromArgs(args).create();
   }
 
@@ -891,13 +938,19 @@ public class PipelineOptionsFactoryTest {
 
   @Test
   public void testEmptyArgumentIsIgnored() {
-    String[] args = new String[] {"", "--diskSizeGb=100", "", "", "--runner=DirectPipelineRunner"};
+    String[] args =
+        new String[] {
+          "", "--diskSizeGb=100", "", "", "--runner=" + DEFAULT_RUNNER_CLASS.getSimpleName()
+        };
     PipelineOptionsFactory.fromArgs(args).create();
   }
 
   @Test
   public void testNullArgumentIsIgnored() {
-    String[] args = new String[] {"--diskSizeGb=100", null, null, "--runner=DirectPipelineRunner"};
+    String[] args =
+        new String[] {
+          "--diskSizeGb=100", null, null, "--runner=" + DEFAULT_RUNNER_CLASS.getSimpleName()
+        };
     PipelineOptionsFactory.fromArgs(args).create();
   }
 
@@ -949,7 +1002,7 @@ public class PipelineOptionsFactoryTest {
     String output = new String(baos.toByteArray());
     assertThat(output, containsString("com.google.cloud.dataflow.sdk.options.PipelineOptions"));
     assertThat(output, containsString("--runner"));
-    assertThat(output, containsString("Default: DirectPipelineRunner"));
+    assertThat(output, containsString("Default: " + DEFAULT_RUNNER_CLASS.getSimpleName()));
     assertThat(output,
         containsString("The pipeline runner that will be used to execute the pipeline."));
   }
@@ -964,7 +1017,7 @@ public class PipelineOptionsFactoryTest {
     String output = new String(baos.toByteArray());
     assertThat(output, containsString("com.google.cloud.dataflow.sdk.options.PipelineOptions"));
     assertThat(output, containsString("--runner"));
-    assertThat(output, containsString("Default: DirectPipelineRunner"));
+    assertThat(output, containsString("Default: " + DEFAULT_RUNNER_CLASS.getSimpleName()));
     assertThat(output,
         containsString("The pipeline runner that will be used to execute the pipeline."));
   }
@@ -979,7 +1032,7 @@ public class PipelineOptionsFactoryTest {
     String output = new String(baos.toByteArray());
     assertThat(output, containsString("com.google.cloud.dataflow.sdk.options.PipelineOptions"));
     assertThat(output, containsString("--runner"));
-    assertThat(output, containsString("Default: DirectPipelineRunner"));
+    assertThat(output, containsString("Default: " + DEFAULT_RUNNER_CLASS.getSimpleName()));
     assertThat(output,
         containsString("The pipeline runner that will be used to execute the pipeline."));
   }
@@ -1060,7 +1113,7 @@ public class PipelineOptionsFactoryTest {
     String output = new String(baos.toByteArray());
     assertThat(output, containsString("com.google.cloud.dataflow.sdk.options.PipelineOptions"));
     assertThat(output, containsString("--runner"));
-    assertThat(output, containsString("Default: DirectPipelineRunner"));
+    assertThat(output, containsString("Default: " + DEFAULT_RUNNER_CLASS.getSimpleName()));
     assertThat(output,
         containsString("The pipeline runner that will be used to execute the pipeline."));
   }

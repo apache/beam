@@ -72,7 +72,7 @@ import javax.annotation.Nullable;
  * <h3>Reading from Cloud Bigtable</h3>
  *
  * <p>The Bigtable source returns a set of rows from a single table, returning a
- * {@code PCollection&lt;Row&gt;}.
+ * {@code PCollection<Row>}.
  *
  * <p>To configure a Cloud Bigtable source, you must supply a table id and a {@link BigtableOptions}
  * or builder configured with the project and other information necessary to identify the
@@ -211,7 +211,7 @@ public class BigtableIO {
      *
      * <p>Does not modify this object.
      */
-    Read withRowFilter(RowFilter filter) {
+    public Read withRowFilter(RowFilter filter) {
       checkNotNull(filter, "filter");
       return new Read(options, tableId, filter, bigtableService);
     }

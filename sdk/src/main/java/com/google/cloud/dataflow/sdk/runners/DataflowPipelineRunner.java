@@ -211,9 +211,9 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
   // Default Docker container images that execute Dataflow worker harness, residing in Google
   // Container Registry, separately for Batch and Streaming.
   public static final String BATCH_WORKER_HARNESS_CONTAINER_IMAGE
-      = "dataflow.gcr.io/v1beta3/java-batch:github-20160225-00";
+      = "dataflow.gcr.io/v1beta3/java-batch:1.5.0";
   public static final String STREAMING_WORKER_HARNESS_CONTAINER_IMAGE
-      = "dataflow.gcr.io/v1beta3/java-streaming:github-20160225-00";
+      = "dataflow.gcr.io/v1beta3/java-streaming:1.5.0";
 
   // The limit of CreateJob request size.
   private static final int CREATE_JOB_REQUEST_LIMIT_BYTES = 10 * 1024 * 1024;
@@ -428,6 +428,12 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     return super.apply(new AssignWindows<>(transform), input);
   }
 
+  private String debuggerMessage(String projectId, String uniquifier) {
+    return String.format("To debug your job, visit Google Cloud Debugger at: "
+        + "https://console.developers.google.com/debug?project=%s&dbgee=%s",
+        projectId, uniquifier);
+  }
+
   private void maybeRegisterDebuggee(DataflowPipelineOptions options, String uniquifier) {
     if (!options.getEnableCloudDebugger()) {
       return;
@@ -440,6 +446,8 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     Clouddebugger debuggerClient = Transport.newClouddebuggerClient(options).build();
     Debuggee debuggee = registerDebuggee(debuggerClient, uniquifier);
     options.setDebuggee(debuggee);
+
+    System.out.println(debuggerMessage(options.getProject(), debuggee.getUniquifier()));
   }
 
   private Debuggee registerDebuggee(Clouddebugger debuggerClient, String uniquifier) {
@@ -870,12 +878,13 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
           input.getWindowingStrategy().getWindowFn().windowCoder();
 
       @SuppressWarnings({"rawtypes", "unchecked"})
-      PCollectionView<ViewT> view = PCollectionViews.singletonView(
-          input.getPipeline(),
-          (WindowingStrategy) input.getWindowingStrategy(),
-          hasDefault,
-          defaultValue,
-          defaultValueCoder);
+      PCollectionView<ViewT> view =
+          (PCollectionView<ViewT>) PCollectionViews.<FinalT, W>singletonView(
+              input.getPipeline(),
+              (WindowingStrategy) input.getWindowingStrategy(),
+              hasDefault,
+              defaultValue,
+              defaultValueCoder);
 
       IsmRecordCoder<WindowedValue<FinalT>> ismCoder =
           coderForSingleton(windowCoder, defaultValueCoder);
