@@ -35,8 +35,8 @@ from google.cloud.dataflow.utils.options import WorkerOptions
 
 from apitools.base.py import encoding
 from apitools.base.py import exceptions
-from apitools.clients import storage
-import apitools.clients.dataflow as dataflow
+from google.cloud.dataflow.internal.clients import storage
+import google.cloud.dataflow.internal.clients.dataflow as dataflow
 
 
 BIGQUERY_API_SERVICE = 'bigquery.googleapis.com'

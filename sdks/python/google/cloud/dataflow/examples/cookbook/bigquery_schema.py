@@ -41,7 +41,7 @@ def run(argv=None):
 
   p = df.Pipeline(argv=pipeline_args)
 
-  from apitools.clients import bigquery  # pylint: disable=g-import-not-at-top
+  from google.cloud.dataflow.internal.clients import bigquery  # pylint: disable=g-import-not-at-top
 
   table_schema = bigquery.TableSchema()
 

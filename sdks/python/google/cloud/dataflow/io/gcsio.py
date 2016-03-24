@@ -37,7 +37,7 @@ import apitools.base.py.transfer as transfer
 # TODO(silviuc): Remove this guard when storage is available everywhere.
 try:
   # pylint: disable=g-import-not-at-top
-  from apitools.clients import storage
+  from google.cloud.dataflow.internal.clients import storage
 except ImportError:
   raise RuntimeError(
       'Google Cloud Storage I/O not supported for this execution environment '

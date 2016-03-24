@@ -23,7 +23,7 @@ import unittest
 
 from google.cloud.dataflow.io import gcsio
 
-from apitools.clients import storage
+from google.cloud.dataflow.internal.clients import storage
 
 
 class FakeGcsClient(object):

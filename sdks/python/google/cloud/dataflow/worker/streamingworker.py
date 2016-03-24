@@ -33,7 +33,7 @@ from google.cloud.dataflow.worker import maptask
 from google.cloud.dataflow.worker import windmillio
 from google.cloud.dataflow.worker import windmillstate
 import apitools.base.py as apitools_base
-import apitools.clients.dataflow as dataflow
+import google.cloud.dataflow.internal.clients.dataflow as dataflow
 
 
 # pylint: disable=invalid-name

@@ -34,7 +34,7 @@ from google.cloud.dataflow.worker import inmemory
 from google.cloud.dataflow.worker import maptask
 from google.cloud.dataflow.worker import workitem
 
-import apitools.clients.dataflow as dataflow
+import google.cloud.dataflow.internal.clients.dataflow as dataflow
 
 
 # Sample specifications for various worker operations. Note that these samples

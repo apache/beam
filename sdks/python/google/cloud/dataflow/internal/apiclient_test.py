@@ -18,7 +18,7 @@ import unittest
 from google.cloud.dataflow.internal import apiclient
 from google.cloud.dataflow.io import iobase
 
-import apitools.clients.dataflow as dataflow
+import google.cloud.dataflow.internal.clients.dataflow as dataflow
 
 
 class UtilTest(unittest.TestCase):

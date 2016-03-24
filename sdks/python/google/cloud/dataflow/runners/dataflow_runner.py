@@ -38,7 +38,7 @@ from google.cloud.dataflow.utils.names import PropertyNames
 from google.cloud.dataflow.utils.names import TransformNames
 from google.cloud.dataflow.utils.options import StandardOptions
 
-from apitools.clients import dataflow as dataflow_api
+from google.cloud.dataflow.internal.clients import dataflow as dataflow_api
 
 
 class DataflowPipelineRunner(PipelineRunner):

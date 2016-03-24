@@ -120,7 +120,7 @@ from apitools.base.py.exceptions import HttpError
 # Protect against environments where bigquery library is not available.
 # pylint: disable=g-import-not-at-top
 try:
-  from apitools.clients import bigquery
+  from google.cloud.dataflow.internal.clients import bigquery
 except ImportError:
   pass
 # pylint: enable=g-import-not-at-top

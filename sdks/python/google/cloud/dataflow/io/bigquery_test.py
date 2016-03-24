@@ -27,7 +27,7 @@ from google.cloud.dataflow.io.bigquery import TableRowJsonCoder
 from google.cloud.dataflow.utils.options import PipelineOptions
 
 from apitools.base.py.exceptions import HttpError
-from apitools.clients import bigquery
+from google.cloud.dataflow.internal.clients import bigquery
 
 
 class TestRowAsDictJsonCoder(unittest.TestCase):
