@@ -53,6 +53,7 @@ import com.google.cloud.dataflow.sdk.transforms.join.CoGbkResultSchema;
 import com.google.cloud.dataflow.sdk.transforms.join.CoGroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.join.KeyedPCollectionTuple;
 import com.google.cloud.dataflow.sdk.transforms.join.RawUnionValue;
+import com.google.cloud.dataflow.sdk.util.GroupByKeyOnly;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
@@ -96,7 +97,7 @@ public class FlinkBatchTransformTranslators {
   // --------------------------------------------------------------------------------------------
   //  Transform Translator Registry
   // --------------------------------------------------------------------------------------------
-  
+
   @SuppressWarnings("rawtypes")
   private static final Map<Class<? extends PTransform>, FlinkBatchPipelineTranslator.BatchTransformTranslator> TRANSLATORS = new HashMap<>();
 
@@ -112,7 +113,7 @@ public class FlinkBatchTransformTranslators {
 
     TRANSLATORS.put(Flatten.FlattenPCollectionList.class, new FlattenPCollectionTranslatorBatch());
 
-    TRANSLATORS.put(GroupByKey.GroupByKeyOnly.class, new GroupByKeyOnlyTranslatorBatch());
+    TRANSLATORS.put(GroupByKeyOnly.class, new GroupByKeyOnlyTranslatorBatch());
     // TODO we're currently ignoring windows here but that has to change in the future
     TRANSLATORS.put(GroupByKey.class, new GroupByKeyTranslatorBatch());
 
@@ -302,10 +303,10 @@ public class FlinkBatchTransformTranslators {
     }
   }
 
-  private static class GroupByKeyOnlyTranslatorBatch<K, V> implements FlinkBatchPipelineTranslator.BatchTransformTranslator<GroupByKey.GroupByKeyOnly<K, V>> {
+  private static class GroupByKeyOnlyTranslatorBatch<K, V> implements FlinkBatchPipelineTranslator.BatchTransformTranslator<GroupByKeyOnly<K, V>> {
 
     @Override
-    public void translateNode(GroupByKey.GroupByKeyOnly<K, V> transform, FlinkBatchTranslationContext context) {
+    public void translateNode(GroupByKeyOnly<K, V> transform, FlinkBatchTranslationContext context) {
       DataSet<KV<K, V>> inputDataSet = context.getInputDataSet(context.getInput(transform));
       GroupReduceFunction<KV<K, V>, KV<K, Iterable<V>>> groupReduceFunction = new FlinkKeyedListAggregationFunction<>();
 
@@ -406,7 +407,7 @@ public class FlinkBatchTransformTranslators {
 //      context.setOutputDataSet(transform.getOutput(), outputDataSet);
 //    }
 //  }
-  
+
   private static class ParDoBoundTranslatorBatch<IN, OUT> implements FlinkBatchPipelineTranslator.BatchTransformTranslator<ParDo.Bound<IN, OUT>> {
     private static final Logger LOG = LoggerFactory.getLogger(ParDoBoundTranslatorBatch.class);
 
@@ -589,6 +590,6 @@ public class FlinkBatchTransformTranslators {
   // --------------------------------------------------------------------------------------------
   //  Miscellaneous
   // --------------------------------------------------------------------------------------------
-  
+
   private FlinkBatchTransformTranslators() {}
 }

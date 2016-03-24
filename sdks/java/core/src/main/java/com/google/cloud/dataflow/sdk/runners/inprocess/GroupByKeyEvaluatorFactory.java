@@ -27,7 +27,6 @@ import com.google.cloud.dataflow.sdk.runners.inprocess.StepTransformResult.Build
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
-import com.google.cloud.dataflow.sdk.transforms.GroupByKey.ReifyTimestampsAndWindows;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
@@ -35,6 +34,7 @@ import com.google.cloud.dataflow.sdk.util.GroupAlsoByWindowViaWindowSetDoFn;
 import com.google.cloud.dataflow.sdk.util.KeyedWorkItem;
 import com.google.cloud.dataflow.sdk.util.KeyedWorkItemCoder;
 import com.google.cloud.dataflow.sdk.util.KeyedWorkItems;
+import com.google.cloud.dataflow.sdk.util.ReifyTimestampsAndWindows;
 import com.google.cloud.dataflow.sdk.util.SystemReduceFn;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
