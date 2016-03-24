@@ -347,9 +347,13 @@ class BigQuerySink(iobase.NativeSink):
         reference is specified entirely by the table argument.
       project: The ID of the project containing this table or null if the table
         reference is specified entirely by the table argument.
-      schema: A bigquery.TableSchema instance or a dictionary associating field
-        names with types. Possible types are: STRING, INTEGER, FLOAT, BOOLEAN,
-        TIMESTAMP, RECORD (e.g., {'month': 'STRING', 'count': 'INTEGER'}).
+      schema: The schema to be used if the BigQuery table to write has to be
+        created. This can be either specified as a 'bigquery.TableSchema' object
+        or a single string  of the form 'field1:type1,field2:type2,field3:type3'
+        that defines a comma separated list of fields. Here 'type' should
+        specify the BigQuery type of the field. Single string based schemas do
+        not support nested fields, repeated fields, or specifying a BigQuery
+        mode for fields (mode will always be set to 'NULLABLE').
       create_disposition: A string describing what happens if the table does not
         exist. Possible values are:
         - BigQueryDisposition.CREATE_IF_NEEDED: create if does not exist.
@@ -417,7 +421,7 @@ class BigQuerySink(iobase.NativeSink):
           fs['description'] = f.description
         if f.mode is not None:
           fs['mode'] = f.mode
-        if f.type == 'RECORD':
+        if f.type.lower() == 'record':
           fs['fields'] = schema_list_as_object(f.fields)
         fields.append(fs)
       return fields
