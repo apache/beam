@@ -488,6 +488,9 @@ class DataflowPipelineRunner(PipelineRunner):
       if transform.source.subscription:
         step.add_property(PropertyNames.PUBSUB_SUBSCRIPTION,
                           transform.source.topic)
+      if transform.source.id_label:
+        step.add_property(PropertyNames.PUBSUB_ID_LABEL,
+                          transform.source.id_label)
     elif transform.source.format == 'custom':
       # TODO(silviuc): Implement custom sources.
       raise NotImplementedError

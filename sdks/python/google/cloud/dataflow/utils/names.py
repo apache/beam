@@ -58,6 +58,7 @@ class PropertyNames(object):
   PARALLEL_INPUT = 'parallel_input'
   PUBSUB_TOPIC = 'pubsub_topic'
   PUBSUB_SUBSCRIPTION = 'pubsub_subscription'
+  PUBSUB_ID_LABEL = 'pubsub_id_label'
   SERIALIZED_FN = 'serialized_fn'
   SHARD_NAME_TEMPLATE = 'shard_template'
   STEP_NAME = 'step_name'

@@ -24,11 +24,26 @@ from google.cloud.dataflow.io import iobase
 
 
 class PubSubSource(iobase.Source):
-  """Source for reading from a given Cloud Pub/Sub topic."""
+  """Source for reading from a given Cloud Pub/Sub topic.
 
-  def __init__(self, topic, subscription=None, coder=coders.StrUtf8Coder()):
+  Attributes:
+    topic: Cloud Pub/Sub topic in the form "/topics/<project>/<topic>".
+    subscription: Optional existing Cloud Pub/Sub subscription to use in the
+      form "projects/<project>/subscriptions/<subscription>".
+    id_label: The attribute on incoming Pub/Sub messages to use as a unique
+      record identifier.  When specified, the value of this attribute (which can
+      be any string that uniquely identifies the record) will be used for
+      deduplication of messages.  If not provided, Dataflow cannot guarantee
+      that no duplicate data will be delivered on the Pub/Sub stream. In this
+      case, deduplication of the stream will be strictly best effort.
+    coder: The Coder to use for decoding incoming Pub/Sub messages.
+  """
+
+  def __init__(self, topic, subscription=None, id_label=None,
+               coder=coders.StrUtf8Coder()):
     self.topic = topic
     self.subscription = subscription
+    self.id_label = id_label
     self.coder = coder
 
   @property
