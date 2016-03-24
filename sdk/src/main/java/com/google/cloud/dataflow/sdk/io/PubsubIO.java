@@ -105,6 +105,7 @@ public class PubsubIO {
 
   private static final Pattern PUBSUB_NAME_REGEXP = Pattern.compile("[a-zA-Z][-._~%+a-zA-Z0-9]+");
 
+  private static final int PUBSUB_NAME_MIN_LENGTH = 3;
   private static final int PUBSUB_NAME_MAX_LENGTH = 255;
 
   private static final String SUBSCRIPTION_RANDOM_TEST_PREFIX = "_random/";
@@ -120,6 +121,10 @@ public class PubsubIO {
   }
 
   private static void validatePubsubName(String name) {
+    if (name.length() < PUBSUB_NAME_MIN_LENGTH) {
+      throw new IllegalArgumentException(
+          "Pubsub object name is shorter than 3 characters: " + name);
+    }
     if (name.length() > PUBSUB_NAME_MAX_LENGTH) {
       throw new IllegalArgumentException(
           "Pubsub object name is longer than 255 characters: " + name);
