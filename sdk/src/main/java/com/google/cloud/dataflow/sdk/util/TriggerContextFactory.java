@@ -209,7 +209,6 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     }
 
     @Override
-    @Nullable
     public Instant currentEventTime() {
       return timers.currentEventTime();
     }
