@@ -32,10 +32,8 @@ import com.google.cloud.dataflow.sdk.coders.NullableCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
-import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.DirectPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
@@ -44,7 +42,6 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.InvalidWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
-import com.google.cloud.dataflow.sdk.util.NoopPathValidator;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PBegin;
@@ -1332,27 +1329,6 @@ public class ViewTest implements Serializable {
     assertEquals("View.AsMultimap", View.<String, Integer>asMultimap().getName());
   }
 
-  private Pipeline createTestBatchRunner() {
-    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    options.setRunner(DataflowPipelineRunner.class);
-    options.setProject("someproject");
-    options.setStagingLocation("gs://staging");
-    options.setPathValidatorClass(NoopPathValidator.class);
-    options.setDataflowClient(null);
-    return Pipeline.create(options);
-  }
-
-  private Pipeline createTestStreamingRunner() {
-    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    options.setRunner(DataflowPipelineRunner.class);
-    options.setStreaming(true);
-    options.setProject("someproject");
-    options.setStagingLocation("gs://staging");
-    options.setPathValidatorClass(NoopPathValidator.class);
-    options.setDataflowClient(null);
-    return Pipeline.create(options);
-  }
-
   private Pipeline createTestDirectRunner() {
     DirectPipelineOptions options = PipelineOptionsFactory.as(DirectPipelineOptions.class);
     options.setRunner(DirectPipelineRunner.class);
@@ -1395,28 +1371,8 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  public void testViewUnboundedAsSingletonBatch() {
-    testViewUnbounded(createTestBatchRunner(), View.<KV<String, Integer>>asSingleton());
-  }
-
-  @Test
-  public void testViewUnboundedAsSingletonStreaming() {
-    testViewUnbounded(createTestStreamingRunner(), View.<KV<String, Integer>>asSingleton());
-  }
-
-  @Test
   public void testViewUnboundedAsSingletonDirect() {
     testViewUnbounded(createTestDirectRunner(), View.<KV<String, Integer>>asSingleton());
-  }
-
-  @Test
-  public void testViewUnboundedAsIterableBatch() {
-    testViewUnbounded(createTestBatchRunner(), View.<KV<String, Integer>>asIterable());
-  }
-
-  @Test
-  public void testViewUnboundedAsIterableStreaming() {
-    testViewUnbounded(createTestStreamingRunner(), View.<KV<String, Integer>>asIterable());
   }
 
   @Test
@@ -1425,44 +1381,13 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  public void testViewUnboundedAsListBatch() {
-    testViewUnbounded(createTestBatchRunner(), View.<KV<String, Integer>>asList());
-  }
-
-  @Test
-  public void testViewUnboundedAsListStreaming() {
-    testViewUnbounded(createTestStreamingRunner(), View.<KV<String, Integer>>asList());
-  }
-
-  @Test
   public void testViewUnboundedAsListDirect() {
     testViewUnbounded(createTestDirectRunner(), View.<KV<String, Integer>>asList());
   }
 
   @Test
-  public void testViewUnboundedAsMapBatch() {
-    testViewUnbounded(createTestBatchRunner(), View.<String, Integer>asMap());
-  }
-
-  @Test
-  public void testViewUnboundedAsMapStreaming() {
-    testViewUnbounded(createTestStreamingRunner(), View.<String, Integer>asMap());
-  }
-
-  @Test
   public void testViewUnboundedAsMapDirect() {
     testViewUnbounded(createTestDirectRunner(), View.<String, Integer>asMap());
-  }
-
-
-  @Test
-  public void testViewUnboundedAsMultimapBatch() {
-    testViewUnbounded(createTestBatchRunner(), View.<String, Integer>asMultimap());
-  }
-
-  @Test
-  public void testViewUnboundedAsMultimapStreaming() {
-    testViewUnbounded(createTestStreamingRunner(), View.<String, Integer>asMultimap());
   }
 
   @Test
@@ -1471,28 +1396,8 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  public void testViewNonmergingAsSingletonBatch() {
-    testViewNonmerging(createTestBatchRunner(), View.<KV<String, Integer>>asSingleton());
-  }
-
-  @Test
-  public void testViewNonmergingAsSingletonStreaming() {
-    testViewNonmerging(createTestStreamingRunner(), View.<KV<String, Integer>>asSingleton());
-  }
-
-  @Test
   public void testViewNonmergingAsSingletonDirect() {
     testViewNonmerging(createTestDirectRunner(), View.<KV<String, Integer>>asSingleton());
-  }
-
-  @Test
-  public void testViewNonmergingAsIterableBatch() {
-    testViewNonmerging(createTestBatchRunner(), View.<KV<String, Integer>>asIterable());
-  }
-
-  @Test
-  public void testViewNonmergingAsIterableStreaming() {
-    testViewNonmerging(createTestStreamingRunner(), View.<KV<String, Integer>>asIterable());
   }
 
   @Test
@@ -1501,44 +1406,13 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  public void testViewNonmergingAsListBatch() {
-    testViewNonmerging(createTestBatchRunner(), View.<KV<String, Integer>>asList());
-  }
-
-  @Test
-  public void testViewNonmergingAsListStreaming() {
-    testViewNonmerging(createTestStreamingRunner(), View.<KV<String, Integer>>asList());
-  }
-
-  @Test
   public void testViewNonmergingAsListDirect() {
     testViewNonmerging(createTestDirectRunner(), View.<KV<String, Integer>>asList());
   }
 
   @Test
-  public void testViewNonmergingAsMapBatch() {
-    testViewNonmerging(createTestBatchRunner(), View.<String, Integer>asMap());
-  }
-
-  @Test
-  public void testViewNonmergingAsMapStreaming() {
-    testViewNonmerging(createTestStreamingRunner(), View.<String, Integer>asMap());
-  }
-
-  @Test
   public void testViewNonmergingAsMapDirect() {
     testViewNonmerging(createTestDirectRunner(), View.<String, Integer>asMap());
-  }
-
-
-  @Test
-  public void testViewNonmergingAsMultimapBatch() {
-    testViewNonmerging(createTestBatchRunner(), View.<String, Integer>asMultimap());
-  }
-
-  @Test
-  public void testViewNonmergingAsMultimapStreaming() {
-    testViewNonmerging(createTestStreamingRunner(), View.<String, Integer>asMultimap());
   }
 
   @Test
