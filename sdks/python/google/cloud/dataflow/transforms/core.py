@@ -61,6 +61,7 @@ class DoFnProcessContext(object):
       (in process method only; always None in start_bundle and finish_bundle)
     windows: windows of the element
       (in process method only; always None in start_bundle and finish_bundle)
+    pipeline_options: PipelineOptions object used for creating the pipeline.
     state: a DoFnState object, which holds the runner's internal state
       for this element.  For example, aggregator state is here.
       Not used by the pipeline code.
@@ -105,6 +106,10 @@ class DoFnProcessContext(object):
       input_value: the new value to input to the combine_fn of this aggregator.
     """
     self.state.counter_for(aggregator).update(input_value)
+
+  @property
+  def pipeline_options(self):
+    return self.state.pipeline_options
 
 
 class DoFn(WithTypeHints):

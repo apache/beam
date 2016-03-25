@@ -81,6 +81,26 @@ class PipelineOptions(object):
     # Override this in subclasses to provide options.
     pass
 
+  @classmethod
+  def from_dictionary(cls, options):
+    """Returns a PipelineOptions from a dictionary of arguments.
+
+    Args:
+      options: Dictinary of argument value pairs.
+
+    Returns:
+      A PipelineOptions object representing the given arguments.
+    """
+    flags = []
+    for k, v in options.iteritems():
+      if isinstance(v, bool):
+        if v:
+          flags.append('--%s' % k)
+      else:
+        flags.append('--%s=%s' % (k, v))
+
+    return cls(flags)
+
   def get_all_options(self):
     """Returns a dictionary of all defined arguments.
 
@@ -94,7 +114,14 @@ class PipelineOptions(object):
     for cls in PipelineOptions.__subclasses__():
       cls._add_argparse_args(parser)  # pylint: disable=protected-access
     known_args, _ = parser.parse_known_args(self._flags)
-    return vars(known_args)
+    result = vars(known_args)
+
+    # Apply the overrides if any
+    for k in result:
+      if k in self._all_options:
+        result[k] = self._all_options[k]
+
+    return result
 
   def view_as(self, cls):
     view = cls(self._flags)

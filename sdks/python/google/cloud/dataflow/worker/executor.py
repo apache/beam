@@ -383,9 +383,9 @@ class ShuffleWriteOperation(Operation):
 class DoOperation(Operation):
   """A Do operation that will execute a custom DoFn for each input element."""
 
-  def __init__(self, spec):
+  def __init__(self, spec, pipeline_options):
     super(DoOperation, self).__init__(spec)
-    self.state = common.DoFnState()
+    self.state = common.DoFnState(pipeline_options)
 
   def _read_side_inputs(self, tags_and_types):
     """Generator reading side inputs in the order prescribed by tags_and_types.
@@ -728,7 +728,8 @@ class MapTaskExecutor(object):
   multiple_read_instruction_error_msg = (
       'Found more than one \'read instruction\' in a single \'map task\'')
 
-  def __init__(self):
+  def __init__(self, pipeline_options=None):
+    self.pipeline_options = pipeline_options
     self._ops = []
     self._read_operation = None
 
@@ -775,7 +776,7 @@ class MapTaskExecutor(object):
       elif isinstance(spec, maptask.WorkerPartialGroupByKey):
         op = create_pgbk_op(spec)
       elif isinstance(spec, maptask.WorkerDoFn):
-        op = DoOperation(spec)
+        op = DoOperation(spec, self.pipeline_options)
       elif isinstance(spec, maptask.WorkerGroupingShuffleRead):
         op = GroupedShuffleReadOperation(
             spec, shuffle_source=test_shuffle_source)

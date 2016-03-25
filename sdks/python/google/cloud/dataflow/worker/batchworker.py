@@ -49,6 +49,7 @@ from google.cloud.dataflow.internal import apiclient
 from google.cloud.dataflow.internal import auth
 from google.cloud.dataflow.internal import pickler
 from google.cloud.dataflow.utils import names
+from google.cloud.dataflow.utils import options
 from google.cloud.dataflow.utils import profiler
 from google.cloud.dataflow.utils import retry
 from google.cloud.dataflow.worker import executor
@@ -76,6 +77,8 @@ class BatchWorker(object):
     self.job_id = properties['job_id']
     self.worker_id = properties['worker_id']
     self.service_path = properties['service_path']
+    self.pipeline_options = options.PipelineOptions.from_dictionary(
+        sdk_pipeline_options)
     self.capabilities = [self.worker_id, 'remote_source', 'custom_source']
     self.work_types = ['map_task', 'seq_map_task', 'remote_source_task']
     # The following properties are passed to the worker when its container
@@ -402,7 +405,8 @@ class BatchWorker(object):
         self.dynamic_split_result_to_report = None
 
         self.set_current_work_item_and_executor(work_item,
-                                                executor.MapTaskExecutor())
+                                                executor.MapTaskExecutor(
+                                                    self.pipeline_options))
       self.report_progress = True
       self.current_executor.execute(work_item.map_task)
     except Exception:  # pylint: disable=broad-except
