@@ -25,8 +25,12 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
+import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.PipelineResult;
 import com.google.cloud.dataflow.sdk.runners.BlockingDataflowPipelineRunner;
+import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
+import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.testing.ExpectedLogs;
 import com.google.cloud.dataflow.sdk.testing.RestoreSystemProperties;
 import com.google.common.collect.ArrayListMultimap;
@@ -825,12 +829,44 @@ public class PipelineOptionsFactoryTest {
   }
 
   @Test
+  public void testSettingRunnerFullName() {
+    String[] args =
+        new String[] {String.format("--runner=%s", DataflowPipelineRunner.class.getName())};
+    PipelineOptions opts = PipelineOptionsFactory.fromArgs(args).create();
+    assertEquals(opts.getRunner(), DataflowPipelineRunner.class);
+  }
+
+  @Test
   public void testSettingUnknownRunner() {
     String[] args = new String[] {"--runner=UnknownRunner"};
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("Unknown 'runner' specified 'UnknownRunner', supported "
         + "pipeline runners [BlockingDataflowPipelineRunner, DataflowPipelineRunner, "
         + "DirectPipelineRunner]");
+    PipelineOptionsFactory.fromArgs(args).create();
+  }
+
+  private static class ExampleTestRunner extends PipelineRunner<PipelineResult> {
+    @Override
+    public PipelineResult run(Pipeline pipeline) {
+      return null;
+    }
+  }
+
+  @Test
+  public void testSettingRunnerCanonicalClassNameNotInSupportedExists() {
+    String[] args = new String[] {String.format("--runner=%s", ExampleTestRunner.class.getName())};
+    PipelineOptions opts = PipelineOptionsFactory.fromArgs(args).create();
+    assertEquals(opts.getRunner(), ExampleTestRunner.class);
+  }
+
+  @Test
+  public void testSettingRunnerCanonicalClassNameNotInSupportedNotPipelineRunner() {
+    String[] args = new String[] {"--runner=java.lang.String"};
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("does not implement PipelineRunner");
+    expectedException.expectMessage("java.lang.String");
+
     PipelineOptionsFactory.fromArgs(args).create();
   }
 
