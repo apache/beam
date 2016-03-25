@@ -557,7 +557,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
         // We need to call onTrigger to emit the final pane if required.
         // The final pane *may* be ON_TIME if no prior ON_TIME pane has been emitted,
         // and the watermark has passed the end of the window.
-        onTrigger(directContext, renamedContext, true/* isFinished */, isEndOfWindow);
+        onTrigger(directContext, renamedContext, true/* isFinished */);
       }
 
       // Cleanup flavor B: Clear all the remaining state for this window since we'll never
@@ -677,7 +677,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     // Run onTrigger to produce the actual pane contents.
     // As a side effect it will clear all element holds, but not necessarily any
     // end-of-window or garbage collection holds.
-    onTrigger(directContext, renamedContext, isFinished, false /*isEndOfWindow*/);
+    onTrigger(directContext, renamedContext, isFinished);
 
     // Now that we've triggered, the pane is empty.
     nonEmptyPanes.clearPane(renamedContext.state());
@@ -723,8 +723,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
    */
   private void onTrigger(
       final ReduceFn<K, InputT, OutputT, W>.Context directContext,
-      ReduceFn<K, InputT, OutputT, W>.Context renamedContext,
-      boolean isFinished, boolean isEndOfWindow)
+      ReduceFn<K, InputT, OutputT, W>.Context renamedContext, boolean isFinished)
           throws Exception {
     Instant inputWM = timerInternals.currentInputWatermarkTime();
 
@@ -750,31 +749,32 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     if (newHold != null) {
       // We can't be finished yet.
       Preconditions.checkState(
-        !isFinished, "new hold at %s but finished %s", newHold, directContext.window());
+          !isFinished, "new hold at %s but finished %s", newHold, directContext.window());
       // The hold cannot be behind the input watermark.
       Preconditions.checkState(
-        !newHold.isBefore(inputWM), "new hold %s is before input watermark %s", newHold, inputWM);
+          !newHold.isBefore(inputWM), "new hold %s is before input watermark %s", newHold, inputWM);
       if (newHold.isAfter(directContext.window().maxTimestamp())) {
         // The hold must be for garbage collection, which can't have happened yet.
         Preconditions.checkState(
-          newHold.isEqual(
-            directContext.window().maxTimestamp().plus(windowingStrategy.getAllowedLateness())),
-          "new hold %s should be at garbage collection for window %s plus %s",
-          newHold,
-          directContext.window(),
-          windowingStrategy.getAllowedLateness());
+            newHold.isEqual(
+                directContext.window().maxTimestamp().plus(windowingStrategy.getAllowedLateness())),
+            "new hold %s should be at garbage collection for window %s plus %s",
+            newHold,
+            directContext.window(),
+            windowingStrategy.getAllowedLateness());
       } else {
         // The hold must be for the end-of-window, which can't have happened yet.
         Preconditions.checkState(
-          newHold.isEqual(directContext.window().maxTimestamp()),
-          "new hold %s should be at end of window %s",
-          newHold,
-          directContext.window());
+            newHold.isEqual(directContext.window().maxTimestamp()),
+            "new hold %s should be at end of window %s",
+            newHold,
+            directContext.window());
         Preconditions.checkState(
-          !isEndOfWindow,
-          "new hold at %s for %s but this is the watermark trigger",
-          newHold,
-          directContext.window());
+            !inputWM.isAfter(directContext.window().maxTimestamp()),
+            "new hold at %s for %s but input watermark %s already beyond end of window",
+            newHold,
+            directContext.window(),
+            inputWM);
       }
     }
 
