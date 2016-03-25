@@ -18,6 +18,7 @@ from __future__ import absolute_import
 
 import logging
 import random
+import sys
 import time
 import traceback
 
@@ -76,8 +77,12 @@ class StreamingWorker(object):
 
   # Maximum size of the result of a GetWork request.
   MAX_GET_WORK_FETCH_BYTES = 64 << 20  # 64m
+
   # Maximum number of items to return in a GetWork request.
   MAX_GET_WORK_ITEMS = 100
+
+  # Delay to use before retrying work items locally, in seconds.
+  RETRY_LOCALLY_DELAY = 10.0
 
   def __init__(self, properties):
     self.project_id = properties['project_id']
@@ -142,24 +147,62 @@ class StreamingWorker(object):
         backoff_seconds = min(1.0, backoff_seconds * 2)
 
       for computation_work in work_response.work:
-        computation_id = computation_work.computation_id
-        input_data_watermark = windmillio.windmill_to_harness_timestamp(
-            computation_work.input_data_watermark)
-        if computation_id not in self.instruction_map:
-          self.get_config(computation_id)
-        map_task_proto = self.instruction_map[computation_id]
-        for work_item in computation_work.work:
-          try:
-            self.process(computation_id, map_task_proto, input_data_watermark,
-                         work_item)
-          except:
-            logging.error(
-                'Exception while processing work item for computation %r: '
-                '%s, %s', computation_id, work_item, traceback.format_exc())
-            raise
+        self.process_computation(computation_work)
 
-  def process(self, computation_id, map_task_proto, input_data_watermark,
-              work_item):
+  def process_computation(self, computation_work):
+    computation_id = computation_work.computation_id
+    input_data_watermark = windmillio.windmill_to_harness_timestamp(
+        computation_work.input_data_watermark)
+    if computation_id not in self.instruction_map:
+      self.get_config(computation_id)
+    map_task_proto = self.instruction_map[computation_id]
+    for work_item in computation_work.work:
+      retry_locally = True
+      while retry_locally:
+        try:
+          self.process_work_item(computation_id, map_task_proto,
+                                 input_data_watermark, work_item)
+          break
+        except:  # pylint: disable=bare-except
+          logging.error(
+              'Exception while processing work item for computation %r: '
+              '%s, %s', computation_id, work_item, traceback.format_exc())
+
+          # Send exception details to Windmill, retry locally if possible.
+          retry_locally = self.report_failure(computation_id, work_item,
+                                              sys.exc_info())
+
+          # TODO(ccy): handle token expiration in retry logic.
+          # TODO(ccy): handle out-of-memory error in retry logic.
+          if retry_locally:
+            logging.error('Execution of work in computation %s for key %r '
+                          'failed; will retry locally.', computation_id,
+                          work_item.key)
+            time.sleep(StreamingWorker.RETRY_LOCALLY_DELAY)
+          else:
+            logging.error('Execution of work in computation %s for key %r '
+                          'failed; Windmill indicated to not retry '
+                          'locally.', computation_id, work_item.key)
+
+  def report_failure(self, computation_id, work_item, exc_info):
+    """Send exception details to Windmill; returns whether to retry locally."""
+    exc_type, exc_value, exc_traceback = exc_info
+    messages = list(line.strip() for line in
+                    (traceback.format_exception_only(exc_type,
+                                                     exc_value) +
+                     traceback.format_tb(exc_traceback)))
+    wm_exception = windmill_pb2.Exception(stack_frames=messages)
+    report_stats_request = windmill_pb2.ReportStatsRequest(
+        computation_id=computation_id,
+        key=work_item.key,
+        sharding_key=work_item.sharding_key,
+        work_token=work_item.work_token,
+        exceptions=[wm_exception])
+    response = self.windmill.ReportStats(report_stats_request)
+    return not response.failed
+
+  def process_work_item(self, computation_id, map_task_proto,
+                        input_data_watermark, work_item):
     """Process a work item."""
     workitem_commit_request = windmill_pb2.WorkItemCommitRequest(
         key=work_item.key,

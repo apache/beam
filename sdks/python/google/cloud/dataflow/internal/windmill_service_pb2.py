@@ -46,13 +46,13 @@ _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 DESCRIPTOR.has_options = True
 DESCRIPTOR._options = _descriptor._ParseOptions(descriptor_pb2.FileOptions(), _b('\n5com.google.cloud.dataflow.sdk.runners.worker.windmill'))
 import abc
+import six
 from grpc.beta import implementations as beta_implementations
 from grpc.framework.common import cardinality
 from grpc.framework.interfaces.face import utilities as face_utilities
 
-class BetaCloudWindmillServiceV1Alpha1Servicer(object):
+class BetaCloudWindmillServiceV1Alpha1Servicer(six.with_metaclass(abc.ABCMeta, object)):
   """<fill me in later!>"""
-  __metaclass__ = abc.ABCMeta
   @abc.abstractmethod
   def GetWork(self, request, context):
     raise NotImplementedError()
@@ -69,9 +69,8 @@ class BetaCloudWindmillServiceV1Alpha1Servicer(object):
   def ReportStats(self, request, context):
     raise NotImplementedError()
 
-class BetaCloudWindmillServiceV1Alpha1Stub(object):
+class BetaCloudWindmillServiceV1Alpha1Stub(six.with_metaclass(abc.ABCMeta, object)):
   """The interface to which stubs will conform."""
-  __metaclass__ = abc.ABCMeta
   @abc.abstractmethod
   def GetWork(self, request, timeout):
     raise NotImplementedError()
