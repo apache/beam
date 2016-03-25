@@ -59,8 +59,10 @@ class GroupByKeyEvaluatorFactory implements TransformEvaluatorFactory {
       AppliedPTransform<?, ?, ?> application,
       CommittedBundle<?> inputBundle,
       InProcessEvaluationContext evaluationContext) {
-    return createEvaluator(
-        (AppliedPTransform) application, (CommittedBundle) inputBundle, evaluationContext);
+    @SuppressWarnings({"cast", "unchecked", "rawtypes"})
+    TransformEvaluator<InputT> evaluator = createEvaluator(
+            (AppliedPTransform) application, (CommittedBundle) inputBundle, evaluationContext);
+    return evaluator;
   }
 
   private <K, V> TransformEvaluator<KV<K, WindowedValue<V>>> createEvaluator(
@@ -183,7 +185,7 @@ class GroupByKeyEvaluatorFactory implements TransformEvaluatorFactory {
       extends ForwardingPTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>> {
     private final GroupByKey<K, V> original;
 
-    public InProcessGroupByKey(GroupByKey<K, V> from) {
+    private InProcessGroupByKey(GroupByKey<K, V> from) {
       this.original = from;
     }
 
