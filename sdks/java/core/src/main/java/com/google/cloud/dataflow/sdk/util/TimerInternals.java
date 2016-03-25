@@ -79,10 +79,11 @@ public interface TimerInternals {
 
   /**
    * Return the current, local input watermark timestamp for this computation
-   * in the {@link TimeDomain#EVENT_TIME} time domain. Return {@code null} if unknown.
+   * in the {@link TimeDomain#EVENT_TIME} time domain.
    *
    * <p>This value:
    * <ol>
+   * <li>Is never {@literal null}, but may be {@link BoundedWindow#TIMESTAMP_MIN_VALUE}.
    * <li>Is monotonically increasing.
    * <li>May differ between workers due to network and other delays.
    * <li>Will never be ahead of the global input watermark for this computation. But it
@@ -95,7 +96,6 @@ public interface TimerInternals {
    * it is possible for an element to be considered locally on-time even though it is
    * globally late.
    */
-  @Nullable
   Instant currentInputWatermarkTime();
 
   /**

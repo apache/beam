@@ -599,7 +599,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
 
     /** Current input watermark. */
     @Nullable
-    private Instant inputWatermarkTime = null;
+    private Instant inputWatermarkTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
     /** Current output watermark. */
     @Nullable
@@ -666,9 +666,8 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     }
 
     @Override
-    @Nullable
     public Instant currentInputWatermarkTime() {
-      return inputWatermarkTime;
+      return Preconditions.checkNotNull(inputWatermarkTime);
     }
 
     @Override
@@ -692,7 +691,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
         ReduceFnRunner<?, ?, ?, ?> runner, Instant newInputWatermark) throws Exception {
       Preconditions.checkNotNull(newInputWatermark);
       Preconditions.checkState(
-          inputWatermarkTime == null || !newInputWatermark.isBefore(inputWatermarkTime),
+          !newInputWatermark.isBefore(inputWatermarkTime),
           "Cannot move input watermark time backwards from %s to %s", inputWatermarkTime,
           newInputWatermark);
       WindowTracing.trace("TestTimerInternals.advanceInputWatermark: from {} to {}",
@@ -713,7 +712,6 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
 
     public void advanceOutputWatermark(Instant newOutputWatermark) {
       Preconditions.checkNotNull(newOutputWatermark);
-      Preconditions.checkNotNull(inputWatermarkTime);
       if (newOutputWatermark.isAfter(inputWatermarkTime)) {
         WindowTracing.trace(
             "TestTimerInternals.advanceOutputWatermark: clipping output watermark from {} to {}",
