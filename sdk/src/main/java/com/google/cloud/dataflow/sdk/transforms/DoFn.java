@@ -24,6 +24,8 @@ import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.annotations.Experimental.Kind;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
+import com.google.cloud.dataflow.sdk.transforms.display.HasDisplayData;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.util.WindowingInternals;
@@ -69,7 +71,7 @@ import java.util.UUID;
  * @param <InputT> the type of the (main) input elements
  * @param <OutputT> the type of the (main) output elements
  */
-public abstract class DoFn<InputT, OutputT> implements Serializable {
+public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayData {
 
   /**
    * Information accessible to all methods in this {@code DoFn}.
@@ -366,6 +368,15 @@ public abstract class DoFn<InputT, OutputT> implements Serializable {
   public void finishBundle(Context c) throws Exception {
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * <p>By default, does not register any display data. Implementors may override this method
+   * to provide their own display metadata.
+   */
+  @Override
+  public void populateDisplayData(DisplayData.Builder builder) {
+  }
 
   /////////////////////////////////////////////////////////////////////////////
 

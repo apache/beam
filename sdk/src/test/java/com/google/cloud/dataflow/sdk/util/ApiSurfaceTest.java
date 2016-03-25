@@ -49,7 +49,8 @@ public class ApiSurfaceTest {
       .pruningClassName("com.google.cloud.dataflow.sdk.util.common.ReflectHelpers")
       .pruningClassName("com.google.cloud.dataflow.sdk.DataflowMatchers")
       .pruningClassName("com.google.cloud.dataflow.sdk.TestUtils")
-      .pruningClassName("com.google.cloud.dataflow.sdk.WindowMatchers");
+      .pruningClassName("com.google.cloud.dataflow.sdk.WindowMatchers")
+      .pruningClassName("com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers");
 
     checkedApiSurface.getExposedClasses();
 
