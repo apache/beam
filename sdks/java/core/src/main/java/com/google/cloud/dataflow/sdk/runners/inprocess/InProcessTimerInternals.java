@@ -70,7 +70,6 @@ public class InProcessTimerInternals implements TimerInternals {
   }
 
   @Override
-  @Nullable
   public Instant currentInputWatermarkTime() {
     return watermarks.getInputWatermark();
   }
