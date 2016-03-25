@@ -17,31 +17,22 @@ package com.google.cloud.dataflow.sdk.runners.inprocess;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
+import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.inprocess.GroupByKeyEvaluatorFactory.InProcessGroupByKey;
 import com.google.cloud.dataflow.sdk.runners.inprocess.ViewEvaluatorFactory.InProcessCreatePCollectionView;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
-import com.google.cloud.dataflow.sdk.transforms.GroupByKey.GroupByKeyOnly;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.View.CreatePCollectionView;
-import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
-import com.google.cloud.dataflow.sdk.util.ExecutionContext;
-import com.google.cloud.dataflow.sdk.util.SideInputReader;
 import com.google.cloud.dataflow.sdk.util.TimerInternals.TimerData;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
-import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
-import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
-import com.google.cloud.dataflow.sdk.values.PValue;
 import com.google.common.collect.ImmutableMap;
 
 import org.joda.time.Instant;
 
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -83,6 +74,11 @@ public class InProcessPipelineRunner {
    */
   public static interface UncommittedBundle<T> {
     /**
+     * Returns the PCollection that the elements of this bundle belong to.
+     */
+    PCollection<T> getPCollection();
+
+    /**
      * Outputs an element to this bundle.
      *
      * @param element the element to add to this bundle
@@ -110,7 +106,7 @@ public class InProcessPipelineRunner {
   public static interface CommittedBundle<T> {
 
     /**
-     * @return the PCollection that the elements of this bundle belong to
+     * Returns the PCollection that the elements of this bundle belong to.
      */
     PCollection<T> getPCollection();
 
@@ -154,84 +150,22 @@ public class InProcessPipelineRunner {
     void add(Iterable<WindowedValue<ElemT>> values);
   }
 
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  private final InProcessPipelineOptions options;
+
+  public static InProcessPipelineRunner fromOptions(PipelineOptions options) {
+    return new InProcessPipelineRunner(options.as(InProcessPipelineOptions.class));
+  }
+
+  private InProcessPipelineRunner(InProcessPipelineOptions options) {
+    this.options = options;
+  }
+
   /**
-   * The evaluation context for the {@link InProcessPipelineRunner}. Contains state shared within
-   * the current evaluation.
+   * Returns the {@link PipelineOptions} used to create this {@link InProcessPipelineRunner}.
    */
-  public static interface InProcessEvaluationContext {
-    /**
-     * Create a {@link UncommittedBundle} for use by a source.
-     */
-    <T> UncommittedBundle<T> createRootBundle(PCollection<T> output);
-
-    /**
-     * Create a {@link UncommittedBundle} whose elements belong to the specified {@link
-     * PCollection}.
-     */
-    <T> UncommittedBundle<T> createBundle(CommittedBundle<?> input, PCollection<T> output);
-
-    /**
-     * Create a {@link UncommittedBundle} with the specified keys at the specified step. For use by
-     * {@link GroupByKeyOnly} {@link PTransform PTransforms}.
-     */
-    <T> UncommittedBundle<T> createKeyedBundle(
-        CommittedBundle<?> input, Object key, PCollection<T> output);
-
-    /**
-     * Create a bundle whose elements will be used in a PCollectionView.
-     */
-    <ElemT, ViewT> PCollectionViewWriter<ElemT, ViewT> createPCollectionViewWriter(
-        PCollection<Iterable<ElemT>> input, PCollectionView<ViewT> output);
-
-    /**
-     * Get the options used by this {@link Pipeline}.
-     */
-    InProcessPipelineOptions getPipelineOptions();
-
-    /**
-     * Get an {@link ExecutionContext} for the provided application.
-     */
-    InProcessExecutionContext getExecutionContext(
-        AppliedPTransform<?, ?, ?> application, @Nullable Object key);
-
-    /**
-     * Get the Step Name for the provided application.
-     */
-    String getStepName(AppliedPTransform<?, ?, ?> application);
-
-    /**
-     * @param sideInputs the {@link PCollectionView PCollectionViews} the result should be able to
-     *                   read
-     * @return a {@link SideInputReader} that can read all of the provided
-     *         {@link PCollectionView PCollectionViews}
-     */
-    SideInputReader createSideInputReader(List<PCollectionView<?>> sideInputs);
-
-    /**
-     * Schedules a callback after the watermark for a {@link PValue} after the trigger for the
-     * specified window (with the specified windowing strategy) must have fired from the perspective
-     * of that {@link PValue}, as specified by the value of
-     * {@link Trigger#getWatermarkThatGuaranteesFiring(BoundedWindow)} for the trigger of the
-     * {@link WindowingStrategy}.
-     */
-    void callAfterOutputMustHaveBeenProduced(PValue value, BoundedWindow window,
-        WindowingStrategy<?, ?> windowingStrategy, Runnable runnable);
-
-    /**
-     * Create a {@link CounterSet} for this {@link Pipeline}. The {@link CounterSet} is independent
-     * of all other {@link CounterSet CounterSets} created by this call.
-     *
-     * The {@link InProcessEvaluationContext} is responsible for unifying the counters present in
-     * all created {@link CounterSet CounterSets} when the transforms that call this method
-     * complete.
-     */
-    CounterSet createCounterSet();
-
-    /**
-     * Returns all of the counters that have been merged into this context via calls to
-     * {@link CounterSet#merge(CounterSet)}.
-     */
-    CounterSet getCounters();
+  public InProcessPipelineOptions getPipelineOptions() {
+    return options;
   }
 
   /**
