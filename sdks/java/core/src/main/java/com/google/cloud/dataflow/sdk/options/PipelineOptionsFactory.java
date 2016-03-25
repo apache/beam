@@ -831,54 +831,6 @@ public class PipelineOptionsFactory {
   }
 
   /**
-   * Creates a set of Dataflow worker harness options based of a set of known system
-   * properties. This is meant to only be used from the Dataflow worker harness as a method to
-   * bootstrap the worker harness.
-   *
-   * <p>For internal use only.
-   *
-   * @return A {@link DataflowWorkerHarnessOptions} object configured for the
-   *         Dataflow worker harness.
-   */
-  public static DataflowWorkerHarnessOptions createFromSystemPropertiesInternal()
-      throws IOException {
-    return createFromSystemProperties();
-  }
-
-  /**
-   * Creates a set of {@link DataflowWorkerHarnessOptions} based of a set of known system
-   * properties. This is meant to only be used from the Dataflow worker harness as a method to
-   * bootstrap the worker harness.
-   *
-   * @return A {@link DataflowWorkerHarnessOptions} object configured for the
-   *         Dataflow worker harness.
-   * @deprecated for internal use only
-   */
-  @Deprecated
-  public static DataflowWorkerHarnessOptions createFromSystemProperties() throws IOException {
-    ObjectMapper objectMapper = new ObjectMapper();
-    DataflowWorkerHarnessOptions options;
-    if (System.getProperties().containsKey("sdk_pipeline_options")) {
-      String serializedOptions = System.getProperty("sdk_pipeline_options");
-      LOG.info("Worker harness starting with: " + serializedOptions);
-      options = objectMapper.readValue(serializedOptions, PipelineOptions.class)
-          .as(DataflowWorkerHarnessOptions.class);
-    } else {
-      options = PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
-    }
-
-    // These values will not be known at job submission time and must be provided.
-    if (System.getProperties().containsKey("worker_id")) {
-      options.setWorkerId(System.getProperty("worker_id"));
-    }
-    if (System.getProperties().containsKey("job_id")) {
-      options.setJobId(System.getProperty("job_id"));
-    }
-
-    return options;
-  }
-
-  /**
    * This method is meant to emulate the behavior of {@link Introspector#getBeanInfo(Class, int)}
    * to construct the list of {@link PropertyDescriptor}.
    *

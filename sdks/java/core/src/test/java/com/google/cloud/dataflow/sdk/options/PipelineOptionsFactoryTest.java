@@ -78,23 +78,6 @@ public class PipelineOptionsFactoryTest {
   }
 
   @Test
-  public void testCreationFromSystemProperties() throws Exception {
-    System.getProperties().putAll(ImmutableMap
-        .<String, String>builder()
-        .put("worker_id", "test_worker_id")
-        .put("job_id", "test_job_id")
-        // Set a non-default value for testing
-        .put("sdk_pipeline_options", "{\"options\":{\"numWorkers\":999}}")
-        .build());
-
-    @SuppressWarnings("deprecation")  // testing deprecated functionality
-    DataflowWorkerHarnessOptions options = PipelineOptionsFactory.createFromSystemProperties();
-    assertEquals("test_worker_id", options.getWorkerId());
-    assertEquals("test_job_id", options.getJobId());
-    assertEquals(999, options.getNumWorkers());
-  }
-
-  @Test
   public void testAppNameIsSet() {
     ApplicationNameOptions options = PipelineOptionsFactory.as(ApplicationNameOptions.class);
     assertEquals(PipelineOptionsFactoryTest.class.getSimpleName(), options.getAppName());
