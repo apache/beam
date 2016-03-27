@@ -178,7 +178,7 @@ we'll assume you use that one.  With a virtual environment active, paste the
 URL into a ``pip install`` shell command, executing something like this:
 
 ```sh
-pip install https://github.com/GoogleCloud/DataflowPythonSDK/va.b.c.tar.gz
+pip install https://github.com/GoogleCloudPlatform/DataflowPythonSDK/vX.Y.Z.tar.gz
 ```
 
 #### Notes on installing with ``setup.py install``
