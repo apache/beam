@@ -31,6 +31,7 @@ import com.google.cloud.dataflow.sdk.options.BigQueryOptions;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineDebugOptions;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.GcsOptions;
+import com.google.cloud.dataflow.sdk.options.PubsubOptions;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
 import com.google.common.collect.ImmutableList;
 
@@ -114,7 +115,7 @@ public class Transport {
    * {@link DataflowPipelineDebugOptions#getApiRootUrl()} option.
    */
   public static Pubsub.Builder
-      newPubsubClient(DataflowPipelineOptions options) {
+      newPubsubClient(PubsubOptions options) {
     return new Pubsub.Builder(getTransport(), getJsonFactory(),
         chainHttpRequestInitializer(
             options.getGcpCredential(),

@@ -163,14 +163,6 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
   }
 
   /**
-   * Root URL for use with the Pubsub API.
-   */
-  @Description("Root URL for use with the Pubsub API")
-  @Default.String("https://pubsub.googleapis.com")
-  String getPubsubRootUrl();
-  void setPubsubRootUrl(String value);
-
-  /**
    * Whether to update the currently running pipeline with the same name as this one.
    *
    * @deprecated This property is replaced by {@link DataflowPipelineOptions#getUpdate()}
