@@ -260,6 +260,7 @@
                     <configuration>
                         <excludes>
                             <exclude>.travis.yml</exclude>
+                            <exclude>**/*.checkstyle</exclude>
                             <exclude>**/*.conf</exclude>
                             <exclude>**/*.iml</exclude>
                             <exclude>**/*.md</exclude>
