@@ -1208,7 +1208,7 @@ public class DirectPipelineRunner
 
     Coder<K> keyCoder = GroupByKey.getKeyCoder(input.getCoder());
 
-    Map<DirectPipelineRunner.GroupingKey<K>, List<V>> groupingMap = new HashMap<>();
+    Map<GroupingKey<K>, List<V>> groupingMap = new HashMap<>();
 
     for (ValueWithMetadata<KV<K, V>> elem : inputElems) {
       K key = elem.getValue().getKey();
@@ -1224,7 +1224,7 @@ public class DirectPipelineRunner
             " using " + keyCoder,
             exn);
       }
-      DirectPipelineRunner.GroupingKey<K> groupingKey =
+      GroupingKey<K> groupingKey =
           new GroupingKey<>(key, encodedKey);
       List<V> values = groupingMap.get(groupingKey);
       if (values == null) {
@@ -1236,8 +1236,8 @@ public class DirectPipelineRunner
 
     List<ValueWithMetadata<KV<K, Iterable<V>>>> outputElems =
         new ArrayList<>();
-    for (Map.Entry<DirectPipelineRunner.GroupingKey<K>, List<V>> entry : groupingMap.entrySet()) {
-      DirectPipelineRunner.GroupingKey<K> groupingKey = entry.getKey();
+    for (Map.Entry<GroupingKey<K>, List<V>> entry : groupingMap.entrySet()) {
+      GroupingKey<K> groupingKey = entry.getKey();
       K key = groupingKey.getKey();
       List<V> values = entry.getValue();
       values = context.randomizeIfUnordered(values, true /* inPlaceAllowed */);
@@ -1266,7 +1266,7 @@ public class DirectPipelineRunner
   }
 
   static {
-    DirectPipelineRunner.registerGroupByKeyOnly();
+    registerGroupByKeyOnly();
   }
 
 }
