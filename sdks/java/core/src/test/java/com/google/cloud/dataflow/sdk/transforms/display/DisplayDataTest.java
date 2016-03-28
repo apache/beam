@@ -18,6 +18,9 @@ package com.google.cloud.dataflow.sdk.transforms.display;
 
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasKey;
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasType;
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasValue;
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.includes;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.everyItem;
@@ -91,7 +94,7 @@ public class DisplayDataTest {
                 .include(subComponent2)
                 .add("MinSproggles", 200)
                 .withLabel("Mimimum Required Sproggles")
-                .add("LazerOrientation", "NORTH")
+                .add("FireLazers", true)
                 .add("TimeBomb", Instant.now().plus(Duration.standardDays(1)))
                 .add("FilterLogic", subComponent1.getClass())
                 .add("ServiceUrl", "google.com/fizzbang")
@@ -126,12 +129,12 @@ public class DisplayDataTest {
         DisplayData.from(new HasDisplayData() {
               @Override
               public void populateDisplayData(DisplayData.Builder builder) {
-                builder.add("Foo", "bar");
+                builder.add("foo", "bar");
               }
             });
 
     assertThat(data.items(), hasSize(1));
-    assertThat(data, hasDisplayItem(hasKey("Foo")));
+    assertThat(data, hasDisplayItem("foo", "bar"));
   }
 
   @Test
@@ -147,7 +150,7 @@ public class DisplayDataTest {
 
     Map<DisplayData.Identifier, DisplayData.Item> map = data.asMap();
     assertEquals(map.size(), 1);
-    assertThat(data, hasDisplayItem(hasKey("foo")));
+    assertThat(data, hasDisplayItem("foo", "bar"));
     assertEquals(map.values(), data.items());
   }
 
@@ -163,8 +166,8 @@ public class DisplayDataTest {
         allOf(
             hasNamespace(Matchers.<Class<?>>is(ConcreteComponent.class)),
             hasKey("now"),
-            hasType(is(DisplayData.Type.TIMESTAMP)),
-            hasValue(is(ISO_FORMATTER.print(value))),
+            hasType(DisplayData.Type.TIMESTAMP),
+            hasValue(ISO_FORMATTER.print(value)),
             hasShortValue(nullValue(String.class)),
             hasLabel(is("the current instant")),
             hasUrl(is("http://time.gov"))));
@@ -218,13 +221,34 @@ public class DisplayDataTest {
               }
             });
 
-    assertThat(
-        data,
-        hasDisplayItem(
-            allOf(
-                hasKey("foo"),
-                hasNamespace(Matchers.<Class<?>>is(subComponent.getClass())))));
+    assertThat(data, includes(subComponent));
   }
+
+  @Test
+  public void testIncludesNamespaceOverride() {
+    final HasDisplayData subComponent = new HasDisplayData() {
+        @Override
+        public void populateDisplayData(DisplayData.Builder builder) {
+          builder.add("foo", "bar");
+        }
+    };
+
+    final HasDisplayData namespaceOverride = new HasDisplayData(){
+      @Override
+      public void populateDisplayData(Builder builder) {
+      }
+    };
+
+    DisplayData data = DisplayData.from(new HasDisplayData() {
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        builder.include(subComponent, namespaceOverride.getClass());
+      }
+    });
+
+    assertThat(data, includes(subComponent, namespaceOverride.getClass()));
+  }
+
 
   @Test
   public void testIdentifierEquality() {
@@ -234,6 +258,33 @@ public class DisplayDataTest {
             DisplayData.Identifier.of(DisplayDataTest.class, "1"))
         .addEqualityGroup(DisplayData.Identifier.of(Object.class, "1"))
         .addEqualityGroup(DisplayData.Identifier.of(DisplayDataTest.class, "2"))
+        .testEquals();
+  }
+
+  @Test
+  public void testItemEquality() {
+    HasDisplayData component1 = new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder.add("foo", "bar");
+      }
+    };
+    HasDisplayData component2 = new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder.add("foo", "bar");
+      }
+    };
+
+    DisplayData component1DisplayData1 = DisplayData.from(component1);
+    DisplayData component1DisplayData2 = DisplayData.from(component1);
+    DisplayData component2DisplayData = DisplayData.from(component2);
+
+    new EqualsTester()
+        .addEqualityGroup(
+            component1DisplayData1.items().toArray()[0],
+            component1DisplayData2.items().toArray()[0])
+        .addEqualityGroup(component2DisplayData.items().toArray()[0])
         .testEquals();
   }
 
@@ -403,6 +454,7 @@ public class DisplayDataTest {
                     .add("string", "foobar")
                     .add("integer", 123)
                     .add("float", 3.14)
+                    .add("boolean", true)
                     .add("java_class", DisplayDataTest.class)
                     .add("timestamp", Instant.now())
                     .add("duration", Duration.standardHours(1));
@@ -411,18 +463,19 @@ public class DisplayDataTest {
 
     Collection<Item> items = data.items();
     assertThat(
-        items, hasItem(allOf(hasKey("string"), hasType(is(DisplayData.Type.STRING)))));
+        items, hasItem(allOf(hasKey("string"), hasType(DisplayData.Type.STRING))));
     assertThat(
-        items, hasItem(allOf(hasKey("integer"), hasType(is(DisplayData.Type.INTEGER)))));
-    assertThat(items, hasItem(allOf(hasKey("float"), hasType(is(DisplayData.Type.FLOAT)))));
-    assertThat(
-        items,
-        hasItem(allOf(hasKey("java_class"), hasType(is(DisplayData.Type.JAVA_CLASS)))));
+        items, hasItem(allOf(hasKey("integer"), hasType(DisplayData.Type.INTEGER))));
+    assertThat(items, hasItem(allOf(hasKey("float"), hasType(DisplayData.Type.FLOAT))));
+    assertThat(items, hasItem(allOf(hasKey("boolean"), hasType(DisplayData.Type.BOOLEAN))));
     assertThat(
         items,
-        hasItem(allOf(hasKey("timestamp"), hasType(is(DisplayData.Type.TIMESTAMP)))));
+        hasItem(allOf(hasKey("java_class"), hasType(DisplayData.Type.JAVA_CLASS))));
     assertThat(
-        items, hasItem(allOf(hasKey("duration"), hasType(is(DisplayData.Type.DURATION)))));
+        items,
+        hasItem(allOf(hasKey("timestamp"), hasType(DisplayData.Type.TIMESTAMP))));
+    assertThat(
+        items, hasItem(allOf(hasKey("duration"), hasType(DisplayData.Type.DURATION))));
   }
 
   @Test
@@ -437,6 +490,7 @@ public class DisplayDataTest {
           .add("string", "foobar")
           .add("integer", 123)
           .add("float", 3.14)
+          .add("boolean", true)
           .add("java_class", DisplayDataTest.class)
           .add("timestamp", now)
           .add("duration", oneHour);
@@ -444,17 +498,13 @@ public class DisplayDataTest {
     };
     DisplayData data = DisplayData.from(component);
 
-    Collection<Item> items = data.items();
-    assertThat(items, hasItem(allOf(hasKey("string"), hasValue(is("foobar")))));
-    assertThat(items, hasItem(allOf(hasKey("integer"), hasValue(is("123")))));
-    assertThat(items, hasItem(allOf(hasKey("float"), hasValue(is("3.14")))));
-    assertThat(items, hasItem(allOf(hasKey("java_class"),
-            hasValue(is(DisplayDataTest.class.getName())),
-            hasShortValue(is(DisplayDataTest.class.getSimpleName())))));
-    assertThat(items, hasItem(allOf(hasKey("timestamp"),
-            hasValue(is(ISO_FORMATTER.print(now))))));
-    assertThat(items, hasItem(allOf(hasKey("duration"),
-            hasValue(is(Long.toString(oneHour.getMillis()))))));
+    assertThat(data, hasDisplayItem("string", "foobar"));
+    assertThat(data, hasDisplayItem("integer", 123));
+    assertThat(data, hasDisplayItem("float", 3.14));
+    assertThat(data, hasDisplayItem("boolean", true));
+    assertThat(data, hasDisplayItem("java_class", DisplayDataTest.class));
+    assertThat(data, hasDisplayItem("timestamp", now));
+    assertThat(data, hasDisplayItem("duration", oneHour));
   }
 
   @Test
@@ -581,16 +631,6 @@ public class DisplayDataTest {
     };
   }
 
-  private static Matcher<DisplayData.Item> hasType(Matcher<DisplayData.Type> typeMatcher) {
-    return new FeatureMatcher<DisplayData.Item, DisplayData.Type>(
-        typeMatcher, "display item with type", "type") {
-      @Override
-      protected DisplayData.Type featureValueOf(DisplayData.Item actual) {
-        return actual.getType();
-      }
-    };
-  }
-
   private static Matcher<DisplayData.Item> hasLabel(Matcher<String> labelMatcher) {
     return new FeatureMatcher<DisplayData.Item, String>(
         labelMatcher, "display item with label", "label") {
@@ -607,16 +647,6 @@ public class DisplayDataTest {
       @Override
       protected String featureValueOf(DisplayData.Item actual) {
         return actual.getLinkUrl();
-      }
-    };
-  }
-
-  private static Matcher<DisplayData.Item> hasValue(Matcher<String> valueMatcher) {
-    return new FeatureMatcher<DisplayData.Item, String>(
-        valueMatcher, "display item with value", "value") {
-      @Override
-      protected String featureValueOf(DisplayData.Item actual) {
-        return actual.getValue();
       }
     };
   }

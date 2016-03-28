@@ -87,7 +87,7 @@ public class DisplayData {
   public String toString() {
     StringBuilder builder = new StringBuilder();
     boolean isFirstLine = true;
-    for (Map.Entry<Identifier, Item> entry : entries.entrySet()) {
+    for (Item entry : entries.values()) {
       if (isFirstLine) {
         isFirstLine = false;
       } else {
@@ -106,12 +106,17 @@ public class DisplayData {
    */
   public interface Builder {
     /**
-     * Include display metadata from the specified subcomponent. For example, a {@link ParDo}
+     * Register display metadata from the specified subcomponent. For example, a {@link ParDo}
      * transform includes display metadata from the encapsulated {@link DoFn}.
-     *
-     * @return A builder instance to continue to build in a fluent-style.
      */
     Builder include(HasDisplayData subComponent);
+
+    /**
+     * Register display metadata from the specified subcomponent, using the specified namespace.
+     * For example, a {@link ParDo} transform includes display metadata from the encapsulated
+     * {@link DoFn}.
+     */
+    Builder include(HasDisplayData subComponent, Class<?> namespace);
 
     /**
      * Register the given string display metadata. The metadata item will be registered with type
@@ -133,6 +138,13 @@ public class DisplayData {
      * from the current transform or component.
      */
     ItemBuilder add(String key, double value);
+
+    /**
+     * Register the given floating point display metadata. The metadata item will be registered with
+     * type {@link DisplayData.Type#BOOLEAN}, and is identified by the specified key and namespace
+     * from the current transform or component.
+     */
+    ItemBuilder add(String key, boolean value);
 
     /**
      * Register the given timestamp display metadata. The metadata item will be registered with type
@@ -286,7 +298,35 @@ public class DisplayData {
 
     @Override
     public String toString() {
-      return getValue();
+      return String.format("%s:%s=%s", ns, key, value);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (obj instanceof Item) {
+        Item that = (Item) obj;
+        return Objects.equals(this.ns, that.ns)
+            && Objects.equals(this.key, that.key)
+            && Objects.equals(this.type, that.type)
+            && Objects.equals(this.value, that.value)
+            && Objects.equals(this.shortValue, that.shortValue)
+            && Objects.equals(this.label, that.label)
+            && Objects.equals(this.url, that.url);
+      }
+
+      return false;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(
+          this.ns,
+          this.key,
+          this.type,
+          this.value,
+          this.shortValue,
+          this.label,
+          this.url);
     }
 
     private Item withLabel(String label) {
@@ -312,8 +352,12 @@ public class DisplayData {
     private final String ns;
     private final String key;
 
-    static Identifier of(Class<?> namespace, String key) {
-      return new Identifier(namespace.getName(), key);
+    public static Identifier of(Class<?> namespace, String key) {
+      return of(namespace.getName(), key);
+    }
+
+    public static Identifier of(String namespace, String key) {
+      return new Identifier(namespace, key);
     }
 
     private Identifier(String ns, String key) {
@@ -354,7 +398,7 @@ public class DisplayData {
   /**
    * Display metadata type.
    */
-  enum Type {
+  public enum Type {
     STRING {
       @Override
       FormattedItemValue format(Object value) {
@@ -371,6 +415,12 @@ public class DisplayData {
       @Override
       FormattedItemValue format(Object value) {
         return new FormattedItemValue(Double.toString((Double) value));
+      }
+    },
+    BOOLEAN() {
+      @Override
+      FormattedItemValue format(Object value) {
+        return new FormattedItemValue(Boolean.toString((boolean) value));
       }
     },
     TIMESTAMP() {
@@ -402,7 +452,7 @@ public class DisplayData {
     abstract FormattedItemValue format(Object value);
   }
 
-  private static class FormattedItemValue {
+  static class FormattedItemValue {
     private final String shortValue;
     private final String longValue;
 
@@ -415,11 +465,11 @@ public class DisplayData {
       this.shortValue = shortValue;
     }
 
-    private String getLongValue () {
+    String getLongValue () {
       return this.longValue;
     }
 
-    private String getShortValue() {
+    String getShortValue() {
       return this.shortValue;
     }
   }
@@ -446,10 +496,16 @@ public class DisplayData {
     @Override
     public Builder include(HasDisplayData subComponent) {
       checkNotNull(subComponent);
+      return include(subComponent, subComponent.getClass());
+    }
+
+    @Override
+    public Builder include(HasDisplayData subComponent, Class<?> namespace) {
+      checkNotNull(subComponent);
       boolean newComponent = visited.add(subComponent);
       if (newComponent) {
         Class prevNs = this.latestNs;
-        this.latestNs = subComponent.getClass();
+        this.latestNs = namespace;
         subComponent.populateDisplayData(this);
         this.latestNs = prevNs;
       }
@@ -471,6 +527,11 @@ public class DisplayData {
     @Override
     public ItemBuilder add(String key, double value) {
       return addItem(key, Type.FLOAT, value);
+    }
+
+    @Override
+    public ItemBuilder add(String key, boolean value) {
+      return addItem(key, Type.BOOLEAN, value);
     }
 
     @Override
