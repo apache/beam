@@ -27,7 +27,6 @@ import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.pubsub.Pubsub;
 import com.google.api.services.storage.Storage;
 import com.google.cloud.dataflow.sdk.options.BigQueryOptions;
-import com.google.cloud.dataflow.sdk.options.DataflowPipelineDebugOptions;
 import com.google.cloud.dataflow.sdk.options.GcsOptions;
 import com.google.cloud.dataflow.sdk.options.PubsubOptions;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
@@ -90,10 +89,7 @@ public class Transport {
   }
 
   /**
-   * Returns a BigQuery client builder.
-   *
-   * <p>Note: this client's endpoint is <b>not</b> modified by the
-   * {@link DataflowPipelineDebugOptions#getApiRootUrl()} option.
+   * Returns a BigQuery client builder using the specified {@link BigQueryOptions}.
    */
   public static Bigquery.Builder
       newBigQueryClient(BigQueryOptions options) {
@@ -107,10 +103,7 @@ public class Transport {
   }
 
   /**
-   * Returns a Pubsub client builder.
-   *
-   * <p>Note: this client's endpoint is <b>not</b> modified by the
-   * {@link DataflowPipelineDebugOptions#getApiRootUrl()} option.
+   * Returns a Pubsub client builder using the specified {@link PubsubOptions}.
    */
   public static Pubsub.Builder
       newPubsubClient(PubsubOptions options) {
@@ -125,10 +118,7 @@ public class Transport {
   }
 
   /**
-   * Returns a Cloud Storage client builder.
-   *
-   * <p>Note: this client's endpoint is <b>not</b> modified by the
-   * {@link DataflowPipelineDebugOptions#getApiRootUrl()} option.
+   * Returns a Cloud Storage client builder using the specified {@link GcsOptions}.
    */
   public static Storage.Builder
       newStorageClient(GcsOptions options) {
