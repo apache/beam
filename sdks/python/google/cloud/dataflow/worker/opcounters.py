@@ -22,17 +22,28 @@ from google.cloud.dataflow.utils.counters import Counter
 class OperationCounters(object):
   """The set of basic counters to attach to an Operation."""
 
-  def __init__(self, step_name, output_index=0):
+  def __init__(self, step_name, coder, output_index):
     self.element_counter = Counter(
         '%s-out%d-ElementCount' % (step_name, output_index), Counter.SUM)
+    self.mean_byte_counter = Counter(
+        '%s-out%d-MeanByteCount' % (step_name, output_index), Counter.MEAN)
+    self.coder = coder
 
-  def update(self, windowed_value):  # pylint: disable=unused-argument
+  def update(self, windowed_value):
     """Add one value to this counter."""
     self.element_counter.update(1)
+    # TODO(gildea):
+    # Actually compute the encoded size of this value.
+    # In spirit, something like this:
+    #     size = len(self.coder.encode(windowed_value))
+    #     self.mean_byte_counter.update(size)
+    # but will need to handle streams and do sampling.
 
   def __iter__(self):
     """Iterator over all our counters."""
     yield self.element_counter
+    if self.mean_byte_counter.total > 0:
+      yield self.mean_byte_counter
 
   def __str__(self):
     return '<%s [%s]>' % (self.__class__.__name__,

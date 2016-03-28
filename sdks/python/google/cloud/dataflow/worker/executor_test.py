@@ -99,6 +99,7 @@ class ProgressRequestRecordingInMemorySource(inmemory.InMemorySource):
 class ExecutorTest(unittest.TestCase):
 
   SHUFFLE_CODER = coders.PickleCoder()
+  OUTPUT_CODER = coders.PickleCoder()
 
   def create_temp_file(self, content_text):
     """Creates a temporary file with content and returns the path to it."""
@@ -117,16 +118,19 @@ class ExecutorTest(unittest.TestCase):
                                   end_offset=15,
                                   strip_trailing_newlines=True,
                                   coder=coders.StrUtf8Coder()),
-            tag=None), maptask.WorkerDoFn(serialized_fn=pickle_with_side_inputs(
-                ptransform.CallableWrapperDoFn(lambda x: ['XYZ: %s' % x])),
-                                          output_tags=['out'],
-                                          input=(0, 0),
-                                          side_inputs=None),
+            output_coders=[self.OUTPUT_CODER]),
+        maptask.WorkerDoFn(serialized_fn=pickle_with_side_inputs(
+            ptransform.CallableWrapperDoFn(lambda x: ['XYZ: %s' % x])),
+                           output_tags=['out'],
+                           output_coders=[self.OUTPUT_CODER],
+                           input=(0, 0),
+                           side_inputs=None),
         maptask.WorkerWrite(
             fileio.TextFileSink(file_path_prefix=output_path,
                                 append_trailing_newlines=True,
                                 coder=coders.ToStringCoder()),
-            input=(1, 0))
+            input=(1, 0),
+            output_coders=(coders.ToStringCoder(),))
     ]))
     with open(output_path) as f:
       self.assertEqual('XYZ: 01234567890123456789\n', f.read())
@@ -142,16 +146,19 @@ class ExecutorTest(unittest.TestCase):
                                   end_offset=15,
                                   strip_trailing_newlines=True,
                                   coder=coders.StrUtf8Coder()),
-            tag=None), maptask.WorkerDoFn(serialized_fn=pickle_with_side_inputs(
-                DoFnUsingStartBundle(finish_path)),
-                                          output_tags=['out'],
-                                          input=(0, 0),
-                                          side_inputs=None),
+            output_coders=[self.OUTPUT_CODER]),
+        maptask.WorkerDoFn(serialized_fn=pickle_with_side_inputs(
+            DoFnUsingStartBundle(finish_path)),
+                           output_tags=['out'],
+                           output_coders=[self.OUTPUT_CODER],
+                           input=(0, 0),
+                           side_inputs=None),
         maptask.WorkerWrite(
             fileio.TextFileSink(file_path_prefix=output_path,
                                 append_trailing_newlines=True,
                                 coder=coders.ToStringCoder()),
-            input=(1, 0))
+            input=(1, 0),
+            output_coders=(coders.ToStringCoder(),))
     ]))
     with open(output_path) as f:
       self.assertEqual('XYZ: 01234567890123456789\n', f.read())
@@ -169,16 +176,17 @@ class ExecutorTest(unittest.TestCase):
                                   end_offset=8,
                                   strip_trailing_newlines=True,
                                   coder=coders.StrUtf8Coder()),
-            tag=None),
+            output_coders=[self.OUTPUT_CODER]),
         maptask.WorkerDoFn(serialized_fn=pickle_with_side_inputs(
             ptransform.CallableWrapperDoFn(lambda x: [(x, 1)])),
                            output_tags=['out'],
+                           output_coders=[self.OUTPUT_CODER],
                            input=(0, 0),
                            side_inputs=None),
         maptask.WorkerShuffleWrite(shuffle_kind='group_keys',
                                    shuffle_writer_config='none',
                                    input=(1, 0),
-                                   coder=self.SHUFFLE_CODER)
+                                   output_coders=(self.SHUFFLE_CODER,))
     ]
     shuffle_sink_mock = mock.MagicMock()
     executor.MapTaskExecutor().execute(
@@ -195,18 +203,21 @@ class ExecutorTest(unittest.TestCase):
         maptask.WorkerGroupingShuffleRead(shuffle_reader_config='none',
                                           start_shuffle_position='aaa',
                                           end_shuffle_position='zzz',
-                                          coder=self.SHUFFLE_CODER),
+                                          coder=self.SHUFFLE_CODER,
+                                          output_coders=[self.SHUFFLE_CODER]),
         maptask.WorkerDoFn(serialized_fn=pickle_with_side_inputs(
             ptransform.CallableWrapperDoFn(
                 lambda (k, vs): [str((k, v)) for v in vs])),
                            output_tags=['out'],
+                           output_coders=[self.OUTPUT_CODER],
                            input=(0, 0),
                            side_inputs=None),
         maptask.WorkerWrite(
             fileio.TextFileSink(file_path_prefix=output_path,
                                 append_trailing_newlines=True,
                                 coder=coders.ToStringCoder()),
-            input=(1, 0))
+            input=(1, 0),
+            output_coders=(coders.ToStringCoder(),))
     ]
     shuffle_source_mock = mock.MagicMock()
     shuffle_source_mock.reader().__enter__().__iter__.return_value = [
@@ -223,12 +234,14 @@ class ExecutorTest(unittest.TestCase):
         maptask.WorkerUngroupedShuffleRead(shuffle_reader_config='none',
                                            start_shuffle_position='aaa',
                                            end_shuffle_position='zzz',
-                                           coder=self.SHUFFLE_CODER),
+                                           coder=self.SHUFFLE_CODER,
+                                           output_coders=[self.SHUFFLE_CODER]),
         maptask.WorkerWrite(
             fileio.TextFileSink(file_path_prefix=output_path,
                                 append_trailing_newlines=True,
                                 coder=coders.ToStringCoder()),
-            input=(0, 0))
+            input=(0, 0),
+            output_coders=(coders.ToStringCoder(),))
     ]
     shuffle_source_mock = mock.MagicMock()
     shuffle_source_mock.reader().__enter__().__iter__.return_value = [1, 2, 3]
@@ -249,17 +262,19 @@ class ExecutorTest(unittest.TestCase):
                 start_index=2,
                 # Go beyond the end to test that case is handled.
                 end_index=15),
-            tag=None),
+            output_coders=[coders.ToStringCoder()]),
         maptask.WorkerDoFn(serialized_fn=pickle_with_side_inputs(
             ptransform.CallableWrapperDoFn(lambda x: ['XYZ: %s' % x])),
                            output_tags=['out'],
+                           output_coders=[self.OUTPUT_CODER],
                            input=(0, 0),
                            side_inputs=None),
         maptask.WorkerWrite(
             fileio.TextFileSink(file_path_prefix=output_path,
                                 append_trailing_newlines=True,
                                 coder=coders.ToStringCoder()),
-            input=(1, 0))
+            input=(1, 0),
+            output_coders=(coders.ToStringCoder(),))
     ]))
     with open(output_path) as f:
       self.assertEqual('XYZ: ghi\n', f.read())
@@ -273,15 +288,18 @@ class ExecutorTest(unittest.TestCase):
                 elements=[pickler.dumps(e) for e in elements],
                 start_index=2,  # Start at the last element.
                 end_index=3),
-            tag=None),
+            output_coders=[self.OUTPUT_CODER]),
         maptask.WorkerDoFn(
             serialized_fn=pickle_with_side_inputs(
                 ptransform.CallableWrapperDoFn(lambda x: ['XYZ: %s' % x])),
-            output_tags=['out'], input=(0, 0), side_inputs=None),
+            output_tags=['out'], input=(0, 0), side_inputs=None,
+            output_coders=[self.OUTPUT_CODER]),
         maptask.WorkerWrite(fileio.TextFileSink(
             file_path_prefix=output_path,
             append_trailing_newlines=True,
-            coder=coders.Base64PickleCoder()), input=(1, 0))]))
+            coder=coders.Base64PickleCoder()),
+                            input=(1, 0),
+                            output_coders=(self.OUTPUT_CODER,))]))
     with open(output_path) as f:
       self.assertEqual('XYZ: ghi', pickler.loads(f.read().strip()))
 
@@ -295,7 +313,7 @@ class ExecutorTest(unittest.TestCase):
                 elements=[pickler.dumps(e) for e in elements],
                 start_index=0,
                 end_index=3),
-            tag=None),
+            output_coders=[self.OUTPUT_CODER]),
         maptask.WorkerDoFn(
             serialized_fn=pickle_with_side_inputs(
                 ptransform.CallableWrapperDoFn(
@@ -303,14 +321,17 @@ class ExecutorTest(unittest.TestCase):
                 tag_and_type=('inmemory', True)),  # True => type is singleton.
             output_tags=['out'], input=(0, 0),
             side_inputs=[
-                maptask.WorkerRead(
+                maptask.WorkerSideInputSource(
                     inmemory.InMemorySource(
                         elements=[pickler.dumps(e) for e in side_elements],
                         start_index=None,
                         end_index=None),
-                    tag='inmemory')]),
+                    tag='inmemory')],
+            output_coders=[self.OUTPUT_CODER]),
         maptask.WorkerInMemoryWrite(
-            output_buffer=output_buffer, input=(1, 0))]))
+            output_buffer=output_buffer,
+            input=(1, 0),
+            output_coders=(self.OUTPUT_CODER,))]))
     # The side source was specified as singleton therefore we should see
     # only the first element appended.
     self.assertEqual(['abc:x', 'def:x', 'ghi:x'], output_buffer)
@@ -321,10 +342,10 @@ class ExecutorTest(unittest.TestCase):
     source = ProgressRequestRecordingInMemorySource(
         elements=[pickler.dumps(e) for e in elements])
     executor.MapTaskExecutor().execute(make_map_task([
-        maptask.WorkerRead(source,
-                           tag=None), maptask.WorkerInMemoryWrite(output_buffer=
-                                                                  output_buffer,
-                                                                  input=(0, 0))
+        maptask.WorkerRead(source, output_coders=[self.OUTPUT_CODER]),
+        maptask.WorkerInMemoryWrite(output_buffer=output_buffer,
+                                    input=(0, 0),
+                                    output_coders=(self.OUTPUT_CODER,))
     ]))
     self.assertEqual(elements, output_buffer)
 
@@ -346,7 +367,7 @@ class ExecutorTest(unittest.TestCase):
                 elements=[pickler.dumps(e) for e in elements],
                 start_index=0,
                 end_index=2),
-            tag=None),
+            output_coders=[self.OUTPUT_CODER]),
         maptask.WorkerDoFn(
             serialized_fn=pickle_with_side_inputs(
                 ptransform.CallableWrapperDoFn(
@@ -355,13 +376,15 @@ class ExecutorTest(unittest.TestCase):
                     'textfile', False)),  # False => type is collection.
             output_tags=['out'], input=(0, 0),
             side_inputs=[
-                maptask.WorkerRead(fileio.TextFileSource(
+                maptask.WorkerSideInputSource(fileio.TextFileSource(
                     file_path=input_path, start_offset=None, end_offset=None,
                     strip_trailing_newlines=True,
                     coder=coders.StrUtf8Coder()),
-                                   tag='textfile')]),
+                                              tag='textfile')],
+            output_coders=[self.OUTPUT_CODER]),
         maptask.WorkerInMemoryWrite(output_buffer=output_buffer,
-                                    input=(1, 0))]))
+                                    input=(1, 0),
+                                    output_coders=(self.OUTPUT_CODER,))]))
     # The side source was specified as collection therefore we should see
     # all elements of the side source.
     self.assertEqual([u'aa:x', u'aa:y', u'bb:x', u'bb:y'],
@@ -384,7 +407,7 @@ class ExecutorTest(unittest.TestCase):
               inmemory.InMemorySource(elements=pickled_elements,
                                       start_index=0,
                                       end_index=3),
-              tag=None),
+              output_coders=[self.OUTPUT_CODER]),
           maptask.WorkerDoFn(
               serialized_fn=pickle_with_side_inputs(
                   ptransform.CallableWrapperDoFn(
@@ -393,15 +416,18 @@ class ExecutorTest(unittest.TestCase):
                       'bigquery', True)),  # True => type is singleton.
               output_tags=['out'], input=(0, 0),
               side_inputs=[
-                  maptask.WorkerRead(
+                  maptask.WorkerSideInputSource(
                       bigquery.BigQuerySource(
                           project='project',
                           dataset='dataset',
                           table='table',
                           coder=get_bigquery_source_coder()),
-                      tag='bigquery')]),
+                      tag='bigquery')],
+              output_coders=[self.OUTPUT_CODER]),
           maptask.WorkerInMemoryWrite(
-              output_buffer=output_buffer, input=(1, 0))]))
+              output_buffer=output_buffer,
+              input=(1, 0),
+              output_coders=(self.OUTPUT_CODER,))]))
     # The side source was specified as singleton therefore we should see
     # only the first element appended.
     self.assertEqual(['abc:x', 'def:x', 'ghi:x'], output_buffer)
@@ -423,7 +449,7 @@ class ExecutorTest(unittest.TestCase):
                   elements=[pickler.dumps(e) for e in elements],
                   start_index=0,
                   end_index=3),
-              tag=None),
+              output_coders=[self.OUTPUT_CODER]),
           maptask.WorkerDoFn(
               serialized_fn=pickle_with_side_inputs(
                   ptransform.CallableWrapperDoFn(
@@ -432,15 +458,18 @@ class ExecutorTest(unittest.TestCase):
                       'bigquery', False)),  # False => type is collection.
               output_tags=['out'], input=(0, 0),
               side_inputs=[
-                  maptask.WorkerRead(
+                  maptask.WorkerSideInputSource(
                       bigquery.BigQuerySource(
                           project='project',
                           dataset='dataset',
                           table='table',
                           coder=get_bigquery_source_coder()),
-                      tag='bigquery')]),
+                      tag='bigquery')],
+              output_coders=[self.OUTPUT_CODER]),
           maptask.WorkerInMemoryWrite(
-              output_buffer=output_buffer, input=(1, 0))]))
+              output_buffer=output_buffer,
+              input=(1, 0),
+              output_coders=(self.OUTPUT_CODER,))]))
     # The side source was specified as collection therefore we should see
     # all elements of the side source.
     self.assertEqual(['aa:x', 'aa:y', 'bb:x', 'bb:y'],
@@ -457,7 +486,7 @@ class ExecutorTest(unittest.TestCase):
                 elements=[pickler.dumps(e) for e in elements],
                 start_index=0,
                 end_index=2),
-            tag=None),
+            output_coders=[self.OUTPUT_CODER]),
         maptask.WorkerDoFn(
             serialized_fn=pickle_with_side_inputs(
                 ptransform.CallableWrapperDoFn(
@@ -470,17 +499,20 @@ class ExecutorTest(unittest.TestCase):
             # are saved as AVRO files. The files will contain the sharded
             # PCollection.
             side_inputs=[
-                maptask.WorkerRead(
+                maptask.WorkerSideInputSource(
                     fileio.TextFileSource(
                         file_path=input_path1,
                         coder=coders.Base64PickleCoder()),
                     tag='sometag'),
-                maptask.WorkerRead(
+                maptask.WorkerSideInputSource(
                     fileio.TextFileSource(file_path=input_path2,
                                           coder=coders.Base64PickleCoder()),
-                    tag='sometag')]),
+                    tag='sometag')],
+            output_coders=[self.OUTPUT_CODER]),
         maptask.WorkerInMemoryWrite(
-            output_buffer=output_buffer, input=(1, 0))]))
+            output_buffer=output_buffer,
+            input=(1, 0),
+            output_coders=(self.OUTPUT_CODER,))]))
     # The side source was specified as collection therefore we should see
     # all three elements of the side source.
     self.assertEqual([u'aa:x', u'aa:y', u'bb:x', u'bb:y'],
@@ -495,13 +527,15 @@ class ExecutorTest(unittest.TestCase):
                 elements=[pickler.dumps(e) for e in elements],
                 start_index=0,
                 end_index=100),
-            tag=None),
+            output_coders=[self.OUTPUT_CODER]),
         maptask.WorkerCombineFn(serialized_fn=pickle_with_side_inputs(
             ptransform.CombineFn.from_callable(sum)),
                                 phase='all',
-                                input=(0, 0)), maptask.WorkerInMemoryWrite(
-                                    output_buffer=output_buffer,
-                                    input=(1, 0))
+                                input=(0, 0),
+                                output_coders=[self.OUTPUT_CODER]),
+        maptask.WorkerInMemoryWrite(output_buffer=output_buffer,
+                                    input=(1, 0),
+                                    output_coders=(self.OUTPUT_CODER,))
     ]))
     self.assertEqual([('a', 6), ('b', 10)], output_buffer)
 
@@ -514,9 +548,14 @@ class ExecutorTest(unittest.TestCase):
                                              ],
                                     start_index=0,
                                     end_index=100),
-            tag=None),
-        maptask.WorkerPartialGroupByKey(combine_fn=None, input=(0, 0)),
-        maptask.WorkerInMemoryWrite(output_buffer=output_buffer, input=(1, 0))
+            output_coders=[self.OUTPUT_CODER]),
+        maptask.WorkerPartialGroupByKey(
+            combine_fn=None,
+            input=(0, 0),
+            output_coders=[self.OUTPUT_CODER]),
+        maptask.WorkerInMemoryWrite(output_buffer=output_buffer,
+                                    input=(1, 0),
+                                    output_coders=(self.OUTPUT_CODER,))
     ]))
     self.assertEqual([('a', [1, 3, 4]), ('b', [2])], sorted(output_buffer))
 

@@ -60,7 +60,8 @@ def worker_printable_fields(workerproto):
           # want to output value 0 but not None nor []
           if (value or value == 0)
           and name not in
-          ('coder', 'coders', 'elements',
+          ('coder', 'coders', 'output_coders',
+           'elements',
            'combine_fn', 'serialized_fn', 'window_fn',
            'append_trailing_newlines', 'strip_trailing_newlines',
            'compression_type', 'context',
@@ -74,30 +75,35 @@ def worker_object_to_string(worker_object):
                      ', '.join(worker_printable_fields(worker_object)))
 
 
-# TODO(silviuc): Figure out what to do with the codec properties.
-# They appear in many places (e.g., InstructionOutput, Source, Sink, etc.).
-# For now they are ignored and not even parsed out of the response message.
-
 # All the following Worker* definitions will have these lint problems:
 # pylint: disable=invalid-name
 # pylint: disable=pointless-string-statement
 
 
 WorkerRead = build_worker_instruction(
-    'WorkerRead', ['source', 'tag']
-)
+    'WorkerRead', ['source', 'output_coders'])
 """Worker details needed to read from a source.
 
 Attributes:
   source: a source object.
-  tag: string tag used if source is used on a side input. None otherwise.
+  output_coders: 1-tuple of the coder for the output.
+"""
+
+
+WorkerSideInputSource = build_worker_instruction(
+    'WorkerSideInputSource', ['source', 'tag'])
+"""Worker details needed to read from a side input source.
+
+Attributes:
+  source: a source object.
+  tag: string tag for this side input.
 """
 
 
 WorkerGroupingShuffleRead = build_worker_instruction(
     'WorkerGroupingShuffleRead',
     ['start_shuffle_position', 'end_shuffle_position',
-     'shuffle_reader_config', 'coder'])
+     'shuffle_reader_config', 'coder', 'output_coders'])
 """Worker details needed to read from a grouping shuffle source.
 
 Attributes:
@@ -109,13 +115,14 @@ Attributes:
     reader. Contains things like connection endpoints for the shuffle
     server appliance and various options.
   coder: The KV coder used to decode shuffle entries.
+  output_coders: 1-tuple of the coder for the output.
 """
 
 
 WorkerUngroupedShuffleRead = build_worker_instruction(
     'WorkerUngroupedShuffleRead',
     ['start_shuffle_position', 'end_shuffle_position',
-     'shuffle_reader_config', 'coder'])
+     'shuffle_reader_config', 'coder', 'output_coders'])
 """Worker details needed to read from an ungrouped shuffle source.
 
 Attributes:
@@ -131,7 +138,7 @@ Attributes:
 
 
 WorkerWrite = build_worker_instruction(
-    'WorkerWrite', ['sink', 'input'])
+    'WorkerWrite', ['sink', 'input', 'output_coders'])
 """Worker details needed to write to a sink.
 
 Attributes:
@@ -139,12 +146,13 @@ Attributes:
   input: A (producer index, output index) tuple representing the
     ParallelInstruction operation whose output feeds into this operation.
     The output index is 0 except for multi-output operations (like ParDo).
+  output_coders: 1-tuple, coder to use to estimate bytes written.
 """
 
 
 WorkerInMemoryWrite = build_worker_instruction(
     'WorkerInMemoryWrite',
-    ['output_buffer', 'input'])
+    ['output_buffer', 'input', 'output_coders'])
 """Worker details needed to write to a in-memory sink.
 
 Used only for unit testing. It makes worker tests less cluttered with code like
@@ -155,12 +163,13 @@ Attributes:
   input: A (producer index, output index) tuple representing the
     ParallelInstruction operation whose output feeds into this operation.
     The output index is 0 except for multi-output operations (like ParDo).
+  output_coders: 1-tuple, coder to use to estimate bytes written.
 """
 
 
 WorkerShuffleWrite = build_worker_instruction(
     'WorkerShuffleWrite',
-    ['shuffle_kind', 'shuffle_writer_config', 'input', 'coder'])
+    ['shuffle_kind', 'shuffle_writer_config', 'input', 'output_coders'])
 """Worker details needed to write to a shuffle sink.
 
 Attributes:
@@ -173,20 +182,21 @@ Attributes:
   input: A (producer index, output index) tuple representing the
     ParallelInstruction operation whose output feeds into this operation.
     The output index is 0 except for multi-output operations (like ParDo).
-  coder: The coder for input elements. If the shuffle_kind is grouping, this is
-    expected to be a KV coder.
+  output_coders: 1-tuple of the coder for input elements. If the
+    shuffle_kind is grouping, this is expected to be a KV coder.
 """
 
 
 WorkerDoFn = build_worker_instruction(
     'WorkerDoFn',
-    ['serialized_fn', 'output_tags', 'input', 'side_inputs'])
+    ['serialized_fn', 'output_tags', 'input', 'side_inputs', 'output_coders'])
 """Worker details needed to run a DoFn.
 Attributes:
   serialized_fn: A serialized DoFn object to be run for each input element.
   output_tags: The string tags used to identify the outputs of a ParDo
     operation. The tag is present even if the ParDo has just one output
     (e.g., ['out'].
+  output_coders: array of coders, one for each output.
   input: A (producer index, output index) tuple representing the
     ParallelInstruction operation whose output feeds into this operation.
     The output index is 0 except for multi-output operations (like ParDo).
@@ -198,12 +208,13 @@ Attributes:
 
 WorkerReifyTimestampAndWindows = build_worker_instruction(
     'WorkerReifyTimestampAndWindows',
-    ['output_tags', 'input'])
+    ['output_tags', 'input', 'output_coders'])
 """Worker details needed to run a WindowInto.
 Attributes:
   output_tags: The string tags used to identify the outputs of a ParDo
     operation. The tag is present even if the ParDo has just one output
     (e.g., ['out'].
+  output_coders: array of coders, one for each output.
   input: A (producer index, output index) tuple representing the
     ParallelInstruction operation whose output feeds into this operation.
     The output index is 0 except for multi-output operations (like ParDo).
@@ -213,7 +224,7 @@ Attributes:
 WorkerMergeWindows = build_worker_instruction(
     'WorkerMergeWindows',
     ['window_fn', 'combine_fn', 'phase', 'output_tags', 'input', 'coders',
-     'context'])
+     'context', 'output_coders'])
 """Worker details needed to run a MergeWindows (aka. GroupAlsoByWindows).
 Attributes:
   window_fn: A serialized Windowing object representing the windowing strategy.
@@ -227,6 +238,7 @@ Attributes:
   output_tags: The string tags used to identify the outputs of a ParDo
     operation. The tag is present even if the ParDo has just one output
     (e.g., ['out'].
+  output_coders: array of coders, one for each output.
   input: A (producer index, output index) tuple representing the
     ParallelInstruction operation whose output feeds into this operation.
     The output index is 0 except for multi-output operations (like ParDo).
@@ -237,7 +249,7 @@ Attributes:
 
 WorkerCombineFn = build_worker_instruction(
     'WorkerCombineFn',
-    ['serialized_fn', 'phase', 'input'])
+    ['serialized_fn', 'phase', 'input', 'output_coders'])
 """Worker details needed to run a CombineFn.
 Attributes:
   serialized_fn: A serialized CombineFn object to be used.
@@ -249,30 +261,33 @@ Attributes:
   input: A (producer index, output index) tuple representing the
     ParallelInstruction operation whose output feeds into this operation.
     The output index is 0 except for multi-output operations (like ParDo).
+  output_coders: 1-tuple of the coder for the output.
 """
 
 
 WorkerPartialGroupByKey = build_worker_instruction(
     'WorkerPartialGroupByKey',
-    ['combine_fn', 'input'])
+    ['combine_fn', 'input', 'output_coders'])
 """Worker details needed to run a partial group-by-key.
 Attributes:
   combine_fn: A serialized CombineFn object to be used.
   input: A (producer index, output index) tuple representing the
     ParallelInstruction operation whose output feeds into this operation.
     The output index is 0 except for multi-output operations (like ParDo).
+  output_coders: 1-tuple of the coder for the output.
 """
 
 
 WorkerFlatten = build_worker_instruction(
     'WorkerFlatten',
-    ['inputs'])
+    ['inputs', 'output_coders'])
 """Worker details needed to run a Flatten.
 Attributes:
   inputs: A list of tuples, each (producer index, output index), representing
     the ParallelInstruction operations whose output feeds into this operation.
     The output index is 0 unless the input is from a multi-output
     operation (such as ParDo).
+  output_coders: 1-tuple of the coder for the output.
 """
 
 
@@ -355,6 +370,20 @@ def get_coder_from_spec(coder_spec, kv_pair=False):
     return coder
 
 
+def get_output_coders(work):
+  """Return a list of coder instances for the output(s) of this work item.
+
+  Args:
+    work: a ParallelInstruction protobuf
+
+  Returns:
+    A list of coders.
+  """
+  return [get_coder_from_spec({p.key: from_json_value(p.value)
+                               for p in output.codec.additionalProperties})
+          for output in work.outputs]
+
+
 def get_read_work_item(work, env, context):
   """Parses a read parallel instruction into the appropriate Worker* object."""
   specs = {p.key: from_json_value(p.value)
@@ -369,7 +398,7 @@ def get_read_work_item(work, env, context):
 
   source = env.parse_source(specs, codec_specs, context)
   if source:
-    return WorkerRead(source, tag=None)
+    return WorkerRead(source, output_coders=get_output_coders(work))
 
   coder = get_coder_from_spec(codec_specs)
   # TODO(ccy): Reconcile WindowedValueCoder wrappings for sources with custom
@@ -381,13 +410,15 @@ def get_read_work_item(work, env, context):
         start_shuffle_position=specs['start_shuffle_position']['value'],
         end_shuffle_position=specs['end_shuffle_position']['value'],
         shuffle_reader_config=specs['shuffle_reader_config']['value'],
-        coder=coder)
+        coder=coder,
+        output_coders=get_output_coders(work))
   elif specs['@type'] == 'UngroupedShuffleSource':
     return WorkerUngroupedShuffleRead(
         start_shuffle_position=specs['start_shuffle_position']['value'],
         end_shuffle_position=specs['end_shuffle_position']['value'],
         shuffle_reader_config=specs['shuffle_reader_config']['value'],
-        coder=coder)
+        coder=coder,
+        output_coders=get_output_coders(work))
   else:
     raise NotImplementedError('Unknown source type: %r' % specs)
 
@@ -434,7 +465,7 @@ def get_side_input_sources(side_inputs_spec, env, context):
 
       parsed_source = env.parse_source(source_spec, source_codec_spec, context)
       if parsed_source:
-        side_inputs.append(WorkerRead(parsed_source, side_spec.tag))
+        side_inputs.append(WorkerSideInputSource(parsed_source, side_spec.tag))
       else:
         raise NotImplementedError(
             'Unknown side input source type: %r' % source_spec)
@@ -455,7 +486,11 @@ def get_write_work_item(work, env, context):
 
   sink = env.parse_sink(specs, codec_specs, context)
   if sink:
-    return WorkerWrite(sink, input=get_input_spec(work.write.input))
+    write_coder = get_coder_from_spec(codec_specs)
+    # All Worker items have an "output_coders", even if they have no
+    # output, so that the executor can estimate bytes in a uniform way.
+    return WorkerWrite(sink, input=get_input_spec(work.write.input),
+                       output_coders=(write_coder,))
   if specs['@type'] == 'ShuffleSink':
     coder = get_coder_from_spec(codec_specs)
     # TODO(ccy): Reconcile WindowedValueCoder wrappings for sources with custom
@@ -466,7 +501,7 @@ def get_write_work_item(work, env, context):
         shuffle_kind=specs['shuffle_kind']['value'],
         shuffle_writer_config=specs['shuffle_writer_config']['value'],
         input=get_input_spec(work.write.input),
-        coder=coder)
+        output_coders=(coder,))
   else:
     raise NotImplementedError('Unknown sink type: %r' % specs)
 
@@ -483,6 +518,7 @@ def get_do_work_item(work, env, context):
     return WorkerDoFn(
         serialized_fn=specs['serialized_fn']['value'],
         output_tags=[o.tag for o in work.parDo.multiOutputInfos],
+        output_coders=get_output_coders(work),
         input=get_input_spec(work.parDo.input),
         side_inputs=side_inputs)
   elif specs['@type'] == 'CombineValuesFn':
@@ -490,10 +526,12 @@ def get_do_work_item(work, env, context):
     return WorkerCombineFn(
         serialized_fn=specs['serialized_fn']['value'],
         phase=specs['phase']['value'],  # 'add' is one possible value.
-        input=get_input_spec(work.parDo.input))
+        input=get_input_spec(work.parDo.input),
+        output_coders=get_output_coders(work))
   elif specs['@type'] == 'ReifyTimestampAndWindowsDoFn':
     return WorkerReifyTimestampAndWindows(
         output_tags=[o.tag for o in work.parDo.multiOutputInfos],
+        output_coders=get_output_coders(work),
         input=get_input_spec(work.parDo.input))
   elif specs['@type'] == 'MergeBucketsDoFn':
     return WorkerMergeWindows(
@@ -501,6 +539,7 @@ def get_do_work_item(work, env, context):
         combine_fn=specs.get('combine_fn', {}).get('value', None),
         phase=specs.get('phase', {}).get('value', None),
         output_tags=[o.tag for o in work.parDo.multiOutputInfos],
+        output_coders=get_output_coders(work),
         input=get_input_spec(work.parDo.input),
         coders=None,
         context=context)
@@ -520,7 +559,8 @@ def get_flatten_work_item(instruction, unused_env, unused_context):
     A WorkerFlatten object.
   """
   return WorkerFlatten(
-      inputs=[get_input_spec(inp) for inp in instruction.flatten.inputs])
+      inputs=[get_input_spec(inp) for inp in instruction.flatten.inputs],
+      output_coders=get_output_coders(instruction))
 
 
 def get_partial_gbk_work_item(instruction, unused_env, unused_context):
@@ -542,7 +582,8 @@ def get_partial_gbk_work_item(instruction, unused_env, unused_context):
     combine_fn = combine_fn_specs.get('serialized_fn', {}).get('value', None)
   return WorkerPartialGroupByKey(
       combine_fn=combine_fn,
-      input=get_input_spec(instruction.partialGroupByKey.input))
+      input=get_input_spec(instruction.partialGroupByKey.input),
+      output_coders=get_output_coders(instruction))
 
 
 class MapTask(object):

@@ -184,6 +184,19 @@ def add_sink_codec_spec(target):
             key=k, value=to_json_value(v)))
 
 
+def get_instruction_with_outputs(num_outputs=1, **kwargs):
+  pi = dataflow.ParallelInstruction(**kwargs)
+  for _ in xrange(num_outputs):
+    output = dataflow.InstructionOutput()
+    output.codec = dataflow.InstructionOutput.CodecValue()
+    for k, v in CODER_SPEC.iteritems():
+      output.codec.additionalProperties.append(
+          dataflow.InstructionOutput.CodecValue.AdditionalProperty(
+              key=k, value=to_json_value(v)))
+    pi.outputs.append(output)
+  return pi
+
+
 def get_concat_source_to_shuffle_sink_message():
   ri = dataflow.ReadInstruction()
   ri.source = dataflow.Source()
@@ -217,8 +230,8 @@ def get_concat_source_to_shuffle_sink_message():
   add_sink_codec_spec(wsi)
 
   mt = dataflow.MapTask()
-  mt.instructions.append(dataflow.ParallelInstruction(read=ri))
-  mt.instructions.append(dataflow.ParallelInstruction(parDo=di))
+  mt.instructions.append(get_instruction_with_outputs(read=ri))
+  mt.instructions.append(get_instruction_with_outputs(parDo=di))
   mt.instructions.append(dataflow.ParallelInstruction(write=wsi))
 
   wi = dataflow.WorkItem()
@@ -265,8 +278,8 @@ def get_text_source_to_shuffle_sink_message():
   add_sink_codec_spec(wsi)
 
   mt = dataflow.MapTask()
-  mt.instructions.append(dataflow.ParallelInstruction(read=ri))
-  mt.instructions.append(dataflow.ParallelInstruction(parDo=di))
+  mt.instructions.append(get_instruction_with_outputs(read=ri))
+  mt.instructions.append(get_instruction_with_outputs(parDo=di))
   mt.instructions.append(dataflow.ParallelInstruction(write=wsi))
 
   wi = dataflow.WorkItem()
@@ -301,7 +314,7 @@ def get_shuffle_source_to_text_sink_message(shuffle_source_spec):
   add_sink_codec_spec(wi)
 
   mt = dataflow.MapTask()
-  mt.instructions.append(dataflow.ParallelInstruction(read=rsi))
+  mt.instructions.append(get_instruction_with_outputs(read=rsi))
   mt.instructions.append(dataflow.ParallelInstruction(write=wi))
 
   wi = dataflow.WorkItem()
@@ -337,7 +350,7 @@ def get_in_memory_source_to_text_sink_message():
   add_sink_codec_spec(wi)
 
   mt = dataflow.MapTask()
-  mt.instructions.append(dataflow.ParallelInstruction(read=rsi))
+  mt.instructions.append(get_instruction_with_outputs(read=rsi))
   mt.instructions.append(dataflow.ParallelInstruction(write=wi))
 
   wi = dataflow.WorkItem()
@@ -354,6 +367,7 @@ def get_in_memory_source_to_text_sink_message():
 def get_in_memory_source_to_flatten_message():
   rsi = dataflow.ReadInstruction()
   rsi.source = dataflow.Source()
+  add_source_codec_spec(rsi)
   rsi.source.spec = dataflow.Source.SpecValue()
   for k, v in IN_MEMORY_SOURCE_SPEC.iteritems():
     rsi.source.spec.additionalProperties.append(
@@ -366,8 +380,8 @@ def get_in_memory_source_to_flatten_message():
   fi.inputs = [dataflow.InstructionInput()]
 
   mt = dataflow.MapTask()
-  mt.instructions.append(dataflow.ParallelInstruction(read=rsi))
-  mt.instructions.append(dataflow.ParallelInstruction(flatten=fi))
+  mt.instructions.append(get_instruction_with_outputs(read=rsi))
+  mt.instructions.append(get_instruction_with_outputs(flatten=fi))
 
   wi = dataflow.WorkItem()
   wi.id = 1234
@@ -405,15 +419,15 @@ class WorkItemTest(unittest.TestCase):
         (work.proto.id, work.map_task.operations),
         (1234, [
             maptask.WorkerRead(
-                expected_concat_source, tag=None),
+                expected_concat_source, output_coders=[CODER]),
             maptask.WorkerDoFn(
                 serialized_fn='code', output_tags=['out'], input=(1, 0),
-                side_inputs=[]),
+                side_inputs=[], output_coders=[CODER]),
             maptask.WorkerShuffleWrite(
                 shuffle_kind='group_keys',
                 shuffle_writer_config='opaque',
                 input=(1, 0),
-                coder=CODER)]))
+                output_coders=(CODER,))]))
 
   def test_text_source_to_shuffle_sink(self):
     work = workitem.get_work_items(get_text_source_to_shuffle_sink_message())
@@ -425,15 +439,15 @@ class WorkItemTest(unittest.TestCase):
                 start_offset=123,
                 end_offset=123123,
                 strip_trailing_newlines=True,
-                coder=CODER), tag=None),
+                coder=CODER), output_coders=[CODER]),
             maptask.WorkerDoFn(
                 serialized_fn='code', output_tags=['out'], input=(1, 0),
-                side_inputs=[]),
+                side_inputs=[], output_coders=[CODER]),
             maptask.WorkerShuffleWrite(
                 shuffle_kind='group_keys',
                 shuffle_writer_config='opaque',
                 input=(1, 0),
-                coder=CODER)]))
+                output_coders=(CODER,))]))
 
   def test_shuffle_source_to_text_sink(self):
     work = workitem.get_work_items(
@@ -445,11 +459,12 @@ class WorkItemTest(unittest.TestCase):
                 start_shuffle_position='opaque',
                 end_shuffle_position='opaque',
                 shuffle_reader_config='opaque',
-                coder=CODER),
+                coder=CODER,
+                output_coders=[CODER]),
             maptask.WorkerWrite(io.TextFileSink(
                 file_path_prefix='gs://somefile',
                 append_trailing_newlines=True,
-                coder=CODER), input=(0, 0))]))
+                coder=CODER), input=(0, 0), output_coders=(CODER,))]))
 
   def test_ungrouped_shuffle_source_to_text_sink(self):
     work = workitem.get_work_items(
@@ -461,11 +476,12 @@ class WorkItemTest(unittest.TestCase):
                 start_shuffle_position='opaque',
                 end_shuffle_position='opaque',
                 shuffle_reader_config='opaque',
-                coder=CODER),
+                coder=CODER,
+                output_coders=[CODER]),
             maptask.WorkerWrite(io.TextFileSink(
                 file_path_prefix='gs://somefile',
                 append_trailing_newlines=True,
-                coder=CODER), input=(0, 0))]))
+                coder=CODER), input=(0, 0), output_coders=(CODER,))]))
 
   def test_in_memory_source_to_text_sink(self):
     work = workitem.get_work_items(get_in_memory_source_to_text_sink_message())
@@ -479,11 +495,11 @@ class WorkItemTest(unittest.TestCase):
                     elements=[base64.b64decode(v['value'])
                               for v in IN_MEMORY_ELEMENTS],
                     coder=CODER),
-                tag=None),
+                output_coders=[CODER]),
             maptask.WorkerWrite(io.TextFileSink(
                 file_path_prefix='gs://somefile',
                 append_trailing_newlines=True,
-                coder=CODER), input=(0, 0))]))
+                coder=CODER), input=(0, 0), output_coders=(CODER,))]))
 
   def test_in_memory_source_to_flatten(self):
     work = workitem.get_work_items(get_in_memory_source_to_flatten_message())
@@ -497,9 +513,9 @@ class WorkItemTest(unittest.TestCase):
                     elements=[base64.b64decode(v['value'])
                               for v in IN_MEMORY_ELEMENTS],
                     coder=CODER),
-                tag=None),
+                output_coders=[CODER]),
             maptask.WorkerFlatten(
-                inputs=[(0, 0)])]))
+                inputs=[(0, 0)], output_coders=[CODER])]))
 
 
 if __name__ == '__main__':

@@ -64,7 +64,8 @@ class Counter(object):
     """
     self.name = name
     self.aggregation_kind = aggregation_kind
-    assert aggregation_kind == self.SUM  # update only handles sum
+    # optimized update doesn't handle all types
+    assert aggregation_kind == self.SUM or aggregation_kind == self.MEAN
     self.c_total = 0
     self.py_total = 0
     self.elements = 0

@@ -52,16 +52,18 @@ class ReceiverSet(object):
   ReceiverSets are attached to the outputting Operation.
   """
 
-  def __init__(self, output_index=0):
+  def __init__(self, coder, output_index=0):
     self.receivers = []
     self.opcounter = None
     self.output_index = output_index
-
-  def start(self, step_name):
-    self.opcounter = opcounters.OperationCounters(step_name, self.output_index)
+    self.coder = coder
 
   def add_receiver(self, receiving_operation):
     self.receivers.append(receiving_operation)
+
+  def start(self, step_name):
+    self.opcounter = opcounters.OperationCounters(
+        step_name, self.coder, self.output_index)
 
   def output(self, windowed_value):
     self.update_counters(windowed_value)
@@ -98,20 +100,20 @@ class Operation(object):
       spec: A maptask.Worker* instance.
     """
     self.spec = spec
-    # Create the ReceiverSet for the default output.
-    # We need this in several cases:
-    # A. There may be no receiver explicitly created for an output:
-    #  1. ParDo without anything following it, executed for side effect.
-    #  2. Partition, which generates a default output that isn't used.
-    # B. Write operations want opcounters, even though they have no outputs.
-    self.receivers = [ReceiverSet()]
+    self.receivers = []
+    # Everything except WorkerSideInputSource, which is not a
+    # top-level operation, should have output_coders
+    if getattr(self.spec, 'output_coders', None):
+      for i, coder in enumerate(self.spec.output_coders):
+        self.receivers.append(ReceiverSet(coder, i))
 
   def start(self):
     """Start operation."""
-    for receiver in self.receivers:
-      receiver.start(self.step_name)
     self.debug_logging_enabled = logging.getLogger().isEnabledFor(
         logging.DEBUG)
+    # Start our receivers, now that we know our step name.
+    for receiver in self.receivers:
+      receiver.start(self.step_name)
 
   def itercounters(self):
     for receiver in self.receivers:
@@ -131,8 +133,6 @@ class Operation(object):
 
   def add_receiver(self, operation, output_index=0):
     """Adds a receiver operation for the specified output."""
-    while len(self.receivers) <= output_index:
-      self.receivers.append(ReceiverSet(len(self.receivers)))
     self.receivers[output_index].add_receiver(operation)
 
   def __str__(self):
@@ -341,7 +341,7 @@ class ShuffleWriteOperation(Operation):
   def start(self):
     super(ShuffleWriteOperation, self).start()
     self.is_ungrouped = self.spec.shuffle_kind == 'ungrouped'
-    coder = self.spec.coder
+    coder = self.spec.output_coders[0]
     if self.is_ungrouped:
       coders = (BytesCoder(), coder)
     else:
@@ -418,7 +418,7 @@ class DoOperation(Operation):
       results = []
       for si in itertools.ifilter(
           lambda o: o.tag == side_tag, self.spec.side_inputs):
-        if isinstance(si, maptask.WorkerRead):
+        if isinstance(si, maptask.WorkerSideInputSource):
           op = ReadOperation(si)
         else:
           raise NotImplementedError('Unknown side input type: %r' % si)

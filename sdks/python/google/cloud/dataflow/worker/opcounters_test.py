@@ -17,8 +17,25 @@
 import logging
 import unittest
 
+from google.cloud.dataflow import coders
 from google.cloud.dataflow.transforms.window import GlobalWindows
 from google.cloud.dataflow.worker.opcounters import OperationCounters
+
+
+# Classes to test that we can handle a variety of objects.
+# These have to be at top level so the pickler can find them.
+
+
+class OldClassThatDoesNotImplementLen:  # pylint: disable=old-style-class
+
+  def __init__(self):
+    pass
+
+
+class ObjectThatDoesNotImplementLen(object):
+
+  def __init__(self):
+    pass
 
 
 class OperationCountersTest(unittest.TestCase):
@@ -28,36 +45,26 @@ class OperationCountersTest(unittest.TestCase):
     self.assertEqual(expected_elements, opcounts.element_counter.elements)
 
   def test_update_int(self):
-    opcounts = OperationCounters('some-name')
+    opcounts = OperationCounters('some-name', coders.PickleCoder(), 0)
     self.verify_counters(opcounts, 0)
     opcounts.update(GlobalWindows.WindowedValue(1))
     self.verify_counters(opcounts, 1)
 
   def test_update_str(self):
-    opcounts = OperationCounters('some-name')
+    opcounts = OperationCounters('some-name', coders.PickleCoder(), 0)
     self.verify_counters(opcounts, 0)
     opcounts.update(GlobalWindows.WindowedValue('abcde'))
     self.verify_counters(opcounts, 1)
 
   def test_update_old_object(self):
-    class OldClassThatDoesNotImplementLen:  # pylint: disable=old-style-class
-
-      def __init__(self):
-        pass
-
-    opcounts = OperationCounters('some-name')
+    opcounts = OperationCounters('some-name', coders.PickleCoder(), 0)
     self.verify_counters(opcounts, 0)
     obj = OldClassThatDoesNotImplementLen()
     opcounts.update(GlobalWindows.WindowedValue(obj))
     self.verify_counters(opcounts, 1)
 
   def test_update_new_object(self):
-    class ObjectThatDoesNotImplementLen(object):
-
-      def __init__(self):
-        pass
-
-    opcounts = OperationCounters('some-name')
+    opcounts = OperationCounters('some-name', coders.PickleCoder(), 0)
     self.verify_counters(opcounts, 0)
 
     obj = ObjectThatDoesNotImplementLen()
@@ -65,7 +72,7 @@ class OperationCountersTest(unittest.TestCase):
     self.verify_counters(opcounts, 1)
 
   def test_update_multiple(self):
-    opcounts = OperationCounters('some-name')
+    opcounts = OperationCounters('some-name', coders.PickleCoder(), 0)
     self.verify_counters(opcounts, 0)
     opcounts.update(GlobalWindows.WindowedValue('abcde'))
     opcounts.update(GlobalWindows.WindowedValue('defghij'))
