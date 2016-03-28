@@ -390,6 +390,20 @@
     </dependency>
 
     <dependency>
+      <groupId>com.google.api.grpc</groupId>
+      <artifactId>grpc-pubsub-v1</artifactId>
+      <version>0.0.1</version>
+      <exclusions>
+        <!-- Exclude an old version of guava that is being pulled
+             in by a transitive dependency of google-api-client -->
+        <exclusion>
+          <groupId>com.google.guava</groupId>
+          <artifactId>guava-jdk5</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
       <groupId>com.google.cloud.bigtable</groupId>
       <artifactId>bigtable-protos</artifactId>
       <version>${bigtable.version}</version>
