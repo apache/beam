@@ -44,7 +44,7 @@ public class Sample {
    * produces a new {@code PCollection<T>} containing up to limit
    * elements of the input {@code PCollection}.
    *
-   * <p>If limit is less than or equal to the size of the input
+   * <p>If limit is greater than or equal to the size of the input
    * {@code PCollection}, then all the input's elements will be selected.
    *
    * <p>All of the elements of the output {@code PCollection} should fit into
