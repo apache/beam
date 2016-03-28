@@ -37,16 +37,34 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * An implementation of {@link GroupByKey} built on top of a simpler {@link GroupByKeyOnly}
+ * An implementation of {@link GroupByKey} built on top of a lower-level {@link GroupByKeyOnly}
  * primitive.
  *
- * <p>This implementation of {@link GroupByKey} proceeds by reifying windows and timestamps (making
- * them part of the element rather than metadata), performing a {@link GroupByKeyOnly} primitive,
- * then using a {@link GroupAlsoByWindow} transform to further group the resulting elements by
- * window.
+ * <p>This implementation of {@link GroupByKey} proceeds via the following steps:
+ * <ol>
+ *   <li>{@link ReifyTimestampsAndWindowsDoFn ParDo(ReifyTimestampsAndWindows)}: This embeds
+ *       the previously-implicit timestamp and window into the elements themselves, so a
+ *       window-and-timestamp-unaware transform can operate on them.</li>
+ *   <li>{@link GroupByKeyOnly}: This lower-level primitive groups by keys, ignoring windows
+ *       and timestamps. Many window-unaware runners have such a primitive already.</li>
+ *   <li>{@code SortValuesByTimestamp ParDo(SortValuesByTimestamp)}: The values in the iterables
+ *       output by {@link GroupByKeyOnly} are sorted by timestamp.</li>
+ *   <li>{@code GroupAlsoByWindow}: This primitive processes the sorted values. Today it is
+ *       implemented as a {@link ParDo} that calls reserved internal methods.</li>
+ * </ol>
  *
- * <p>Today {@link GroupAlsoByWindow} is implemented as a {@link ParDo} that calls reserved
- * internal methods.
+ * <p>This implementation of {@link GroupByKey} has severe limitations unless its component
+ * transforms are replaced. As-is, it is only applicable for in-memory runners using a batch-style
+ * execution strategy. Specifically:
+ *
+ * <ul>
+ *   <li>Every iterable output by {@link GroupByKeyOnly} must be complete. Values for a key may not
+ *       be emitted in multiple key-value pairs.</li>
+ *   <li>Sorting of values by timestamp is performed on an in-memory list. It will not succeed
+ *       for large iterables.</li>
+ *   <li>The implementation of {@code GroupAlsoByWindow} does not support timers. This is only
+ *       appropriate for runners which also do not support timers.</li>
+ * </ul>
  */
 public class GroupByKeyViaGroupByKeyOnly<K, V>
     extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>> {
