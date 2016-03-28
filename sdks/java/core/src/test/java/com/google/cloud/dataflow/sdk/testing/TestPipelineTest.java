@@ -22,10 +22,9 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 
 import com.google.cloud.dataflow.sdk.options.ApplicationNameOptions;
-import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.GcpOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
+import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -49,31 +48,14 @@ public class TestPipelineTest {
   public void testCreationOfPipelineOptions() throws Exception {
     ObjectMapper mapper = new ObjectMapper();
     String stringOptions = mapper.writeValueAsString(new String[]{
-      "--runner=DataflowPipelineRunner",
-      "--project=testProject",
-      "--apiRootUrl=testApiRootUrl",
-      "--dataflowEndpoint=testDataflowEndpoint",
-      "--tempLocation=testTempLocation",
-      "--serviceAccountName=testServiceAccountName",
-      "--serviceAccountKeyfile=testServiceAccountKeyfile",
-      "--zone=testZone",
-      "--numWorkers=1",
-      "--diskSizeGb=2"
+      "--runner=DirectPipelineRunner",
+      "--project=testProject"
     });
     System.getProperties().put("dataflowOptions", stringOptions);
-    DataflowPipelineOptions options =
-        TestPipeline.testingPipelineOptions().as(DataflowPipelineOptions.class);
-    assertEquals(DataflowPipelineRunner.class, options.getRunner());
-    assertThat(options.getJobName(), startsWith("testpipelinetest0testcreationofpipelineoptions-"));
-    assertEquals("testProject", options.as(GcpOptions.class).getProject());
-    assertEquals("testApiRootUrl", options.getApiRootUrl());
-    assertEquals("testDataflowEndpoint", options.getDataflowEndpoint());
-    assertEquals("testTempLocation", options.getTempLocation());
-    assertEquals("testServiceAccountName", options.getServiceAccountName());
-    assertEquals(
-        "testServiceAccountKeyfile", options.as(GcpOptions.class).getServiceAccountKeyfile());
-    assertEquals("testZone", options.getZone());
-    assertEquals(2, options.getDiskSizeGb());
+    GcpOptions options =
+        TestPipeline.testingPipelineOptions().as(GcpOptions.class);
+    assertEquals(DirectPipelineRunner.class, options.getRunner());
+    assertEquals(options.getProject(), "testProject");
   }
 
   @Test
