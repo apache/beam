@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Google Inc.
+ * Copyright (C) 2016 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -136,11 +136,11 @@ class MovingFunction {
    * or from enough samples?
    */
   public boolean isSignificant() {
-    int totalSamples =0;
+    int totalSamples = 0;
     int activeBuckets = 0;
-    for (int i =0; i < buckets.length; i++) {
+    for (int i = 0; i < buckets.length; i++) {
       totalSamples += numSamples[i];
-      if (numSamples[i]> 0) {
+      if (numSamples[i] > 0) {
         activeBuckets++;
       }
     }

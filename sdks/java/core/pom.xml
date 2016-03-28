@@ -390,9 +390,29 @@
     </dependency>
 
     <dependency>
+      <groupId>com.google.auth</groupId>
+      <artifactId>google-auth-library-oauth2-http</artifactId>
+      <version>0.3.1</version>
+      <exclusions>
+        <!-- Exclude an old version of guava that is being pulled
+             in by a transitive dependency of google-api-client -->
+        <exclusion>
+          <groupId>com.google.guava</groupId>
+          <artifactId>guava-jdk5</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-handler</artifactId>
+      <version>4.1.0.Beta8</version>
+    </dependency>
+
+    <dependency>
       <groupId>com.google.api.grpc</groupId>
       <artifactId>grpc-pubsub-v1</artifactId>
-      <version>0.0.1</version>
+      <version>${pubsubgrpc.version}</version>
       <exclusions>
         <!-- Exclude an old version of guava that is being pulled
              in by a transitive dependency of google-api-client -->

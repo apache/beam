@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 Google Inc.
+ * Copyright (C) 2016 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -76,7 +76,7 @@ public class BucketingFunctionTest {
       f.add(i, 1);
       if (i >= 100) {
         f.remove(i - 100);
-        if (i % BUCKET_WIDTH == BUCKET_WIDTH -1) {
+        if (i % BUCKET_WIDTH == BUCKET_WIDTH - 1) {
           lost += BUCKET_WIDTH;
         }
       }

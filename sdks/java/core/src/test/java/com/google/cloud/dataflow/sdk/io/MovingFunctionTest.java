@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 Google Inc.
+ * Copyright (C) 2016 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -89,8 +89,8 @@ public class MovingFunctionTest {
   public void jumpingSum() {
     MovingFunction f = newFunc();
     f.add(0, 1);
-    f.add(SAMPLE_PERIOD -1, 1);
-    assertEquals(2, f.get(SAMPLE_PERIOD -1));
+    f.add(SAMPLE_PERIOD - 1, 1);
+    assertEquals(2, f.get(SAMPLE_PERIOD - 1));
     assertEquals(1, f.get(SAMPLE_PERIOD + 3 * SAMPLE_UPDATE));
     assertEquals(0, f.get(SAMPLE_PERIOD * 2));
   }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Google Inc.
+ * Copyright (C) 2016 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -42,7 +42,12 @@ import com.google.pubsub.v1.PubsubMessage;
 import com.google.pubsub.v1.PullRequest;
 import com.google.pubsub.v1.PullResponse;
 import com.google.pubsub.v1.ReceivedMessage;
-import com.google.pubsub.v1.SubscriberGrpc;
+
+import org.joda.time.Duration;
+import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -56,11 +61,8 @@ import java.util.NoSuchElementException;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
+
 import javax.annotation.Nullable;
-import org.joda.time.Duration;
-import org.joda.time.Instant;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A PTransform which streams messages from pub/sub.
@@ -82,7 +84,7 @@ import org.slf4j.LoggerFactory;
  * <li>We log vital stats every 30 seconds.
  * <li>Though some background threads are used by the underlying netty system all actual
  * pub/sub calls are blocking. We rely on the underlying runner to allow multiple
- * {@link UnboundedSource.Reader} instance to execute concurrently and thus hide latency.
+ * {@link UnboundedSource#UnboundedReader} instance to execute concurrently and thus hide latency.
  * </ul>
  */
 public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>> {
@@ -260,12 +262,12 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
             // Expected IllegalArgumentException if parsing fails; we use that to fall back
             // to RFC 3339.
             timestampMsSinceEpoch = Long.parseLong(timestampString);
-          } catch (IllegalArgumentException _1) {
+          } catch (IllegalArgumentException e1) {
             try {
               // Try parsing as RFC3339 string. DateTime.parseRfc3339 will throw an
               // IllegalArgumentException if parsing fails, and the caller should handle.
               timestampMsSinceEpoch = DateTime.parseRfc3339(timestampString).getValue();
-            } catch (IllegalArgumentException _2) {
+            } catch (IllegalArgumentException e2) {
               // Fallback to pub/sub processing time.
             }
           }
@@ -407,7 +409,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
    * The coder for our checkpoints.
    */
   private static class CheckpointCoder<T> extends AtomicCoder<Checkpoint<T>> {
-    Coder<List<String>> LIST_CODER = ListCoder.of(StringUtf8Coder.of());
+    private static final Coder<List<String>> LIST_CODER = ListCoder.of(StringUtf8Coder.of());
 
     @Override
     public void encode(Checkpoint<T> value, OutputStream outStream, Context context)

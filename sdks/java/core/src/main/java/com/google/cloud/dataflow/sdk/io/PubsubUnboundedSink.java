@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Google Inc.
+ * Copyright (C) 2016 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -45,20 +45,19 @@ import com.google.common.hash.Hashing;
 import com.google.protobuf.ByteString;
 import com.google.pubsub.v1.PublishRequest;
 import com.google.pubsub.v1.PublishResponse;
-import com.google.pubsub.v1.PublisherGrpc;
 import com.google.pubsub.v1.PubsubMessage;
+
+import org.joda.time.Duration;
+import org.joda.time.Instant;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
+
 import javax.annotation.Nullable;
-import org.joda.time.Duration;
-import org.joda.time.Instant;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A PTransform which streams messages to pub/sub.
@@ -73,8 +72,6 @@ import org.slf4j.LoggerFactory;
  * </ul>
  */
 public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
-  private static final Logger LOG = LoggerFactory.getLogger(PubsubUnboundedSink.class);
-
   /**
    * Maximum number of messages per publish.
    */
