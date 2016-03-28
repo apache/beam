@@ -126,12 +126,32 @@
   <packaging>pom</packaging>
 
   <modules>
-    <module>sdks</module>
+    <module>sdks/java/core</module>
     <module>runners</module>
-    <module>examples</module>
+    <module>examples/java</module>
+    <module>integration/java</module>
+    <module>sdks/java/maven-archetypes</module>
   </modules>
 
   <profiles>
+    <profile>
+      <id>java8-tests</id>
+      <activation>
+        <jdk>[1.8,)</jdk>
+      </activation>
+      <modules>
+        <module>sdks/java/java8tests</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>java8-examples</id>
+      <activation>
+        <jdk>[1.8,)</jdk>
+      </activation>
+      <modules>
+        <module>examples/java8</module>
+      </modules>
+    </profile>
     <profile>
       <id>doclint-java8-disable</id>
       <activation>
@@ -140,35 +160,6 @@
       <properties>
         <dataflow.javadoc_opts>-Xdoclint:-missing</dataflow.javadoc_opts>
       </properties>
-    </profile>
-    <profile>
-      <id>src</id>
-      <activation>
-        <activeByDefault>false</activeByDefault>
-      </activation>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-assembly-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>src</id>
-                <phase>package</phase>
-                <goals>
-                  <goal>single</goal>
-                </goals>
-                <configuration>
-                  <finalName>apache-beam-${project.version}</finalName>
-                  <descriptors>
-                    <descriptor>sdks/java/src.xml</descriptor>
-                  </descriptors>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
     </profile>
   </profiles>
 
@@ -270,13 +261,6 @@
           </executions>
         </plugin>
 
-        <!-- Report jacoco coverage to coveralls.io -->
-        <plugin>
-          <groupId>org.eluder.coveralls</groupId>
-          <artifactId>coveralls-maven-plugin</artifactId>
-          <version>4.1.0</version>
-        </plugin>
-
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
@@ -373,18 +357,6 @@
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>build-helper-maven-plugin</artifactId>
           <version>1.10</version>
-        </plugin>
-
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-release-plugin</artifactId>
-          <version>2.5.3</version>
-          <configuration>
-            <releaseProfiles>src</releaseProfiles>
-            <preparationGoals>clean install</preparationGoals>
-            <goals>deploy</goals>
-            <autoVersionSubmodules>true</autoVersionSubmodules>
-          </configuration>
         </plugin>
       </plugins>
     </pluginManagement>
