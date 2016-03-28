@@ -51,7 +51,7 @@ import com.google.api.services.datastore.client.DatastoreHelper;
 import com.google.api.services.datastore.client.QuerySplitter;
 import com.google.cloud.dataflow.sdk.io.DatastoreIO.DatastoreReader;
 import com.google.cloud.dataflow.sdk.io.DatastoreIO.DatastoreWriter;
-import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
+import com.google.cloud.dataflow.sdk.options.GcpOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.testing.ExpectedLogs;
@@ -69,13 +69,10 @@ import org.mockito.MockitoAnnotations;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
-
-import javax.annotation.Nullable;
 
 /**
  * Tests for {@link DatastoreIO}.
@@ -112,12 +109,9 @@ public class DatastoreIOTest {
   /**
    * Helper function to create a test {@code DataflowPipelineOptions}.
    */
-  static final DataflowPipelineOptions testPipelineOptions(@Nullable Integer numWorkers) {
-    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+  static final GcpOptions testPipelineOptions() {
+    GcpOptions options = PipelineOptionsFactory.as(GcpOptions.class);
     options.setGcpCredential(new TestCredential());
-    if (numWorkers != null) {
-      options.setNumWorkers(numWorkers);
-    }
     return options;
   }
 
@@ -217,13 +211,13 @@ public class DatastoreIOTest {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("Dataset");
 
-    sink.validate(testPipelineOptions(null));
+    sink.validate(testPipelineOptions());
   }
 
   @Test
   public void testSinkValidationSucceedsWithDataset() throws Exception {
     DatastoreIO.Sink sink = DatastoreIO.sink().withDataset(DATASET);
-    sink.validate(testPipelineOptions(null));
+    sink.validate(testPipelineOptions());
   }
 
   @Test
@@ -254,7 +248,7 @@ public class DatastoreIOTest {
         .withMockSplitter(splitter)
         .withMockEstimateSizeBytes(8 * 1024L);
 
-    List<DatastoreIO.Source> bundles = io.splitIntoBundles(1024, testPipelineOptions(null));
+    List<DatastoreIO.Source> bundles = io.splitIntoBundles(1024, testPipelineOptions());
     assertEquals(8, bundles.size());
     for (int i = 0; i < 8; ++i) {
       DatastoreIO.Source bundle = bundles.get(i);
@@ -274,7 +268,7 @@ public class DatastoreIOTest {
         .withMockSplitter(splitter)
         .withMockEstimateSizeBytes(8 * 1024L);
 
-    io.splitIntoBundles(1024, testPipelineOptions(null));
+    io.splitIntoBundles(1024, testPipelineOptions());
 
     PartitionId partition = PartitionId.newBuilder().setNamespace(NAMESPACE).build();
     verify(splitter).getSplits(eq(QUERY), eq(partition), eq(8), any(Datastore.class));
@@ -300,7 +294,7 @@ public class DatastoreIOTest {
         .withMockSplitter(splitter)
         .withMockEstimateSizeBytes(0L);
 
-    List<DatastoreIO.Source> bundles = io.splitIntoBundles(1024, testPipelineOptions(null));
+    List<DatastoreIO.Source> bundles = io.splitIntoBundles(1024, testPipelineOptions());
     assertEquals(1, bundles.size());
     verify(splitter, never())
         .getSplits(any(Query.class), any(PartitionId.class), eq(1), any(Datastore.class));
@@ -328,7 +322,7 @@ public class DatastoreIOTest {
         initialSource
             .withQuery(query)
             .withMockSplitter(splitter)
-            .splitIntoBundles(1024, testPipelineOptions(null));
+            .splitIntoBundles(1024, testPipelineOptions());
 
     assertEquals(1, bundles.size());
     assertEquals(query, bundles.get(0).getQuery());
@@ -356,7 +350,7 @@ public class DatastoreIOTest {
             .withQuery(query)
             .withMockSplitter(splitter)
             .withMockEstimateSizeBytes(10240L)
-            .splitIntoBundles(1024, testPipelineOptions(null));
+            .splitIntoBundles(1024, testPipelineOptions());
 
     assertEquals(1, bundles.size());
     assertEquals(query, bundles.get(0).getQuery());
@@ -368,44 +362,6 @@ public class DatastoreIOTest {
 
   @Test
   public void testQuerySplitSizeUnavailable() throws Exception {
-    KindExpression mykind = KindExpression.newBuilder().setName("mykind").build();
-    Query query = Query.newBuilder().addKind(mykind).build();
-
-    List<Query> mockSplits = new ArrayList<>();
-    for (int i = 0; i < 2; i++) {
-      mockSplits.add(
-          Query.newBuilder()
-              .addKind(mykind)
-              .setFilter(
-                  DatastoreHelper.makeFilter("foo", PropertyFilter.Operator.EQUAL,
-                      Value.newBuilder().setIntegerValue(i).build()))
-              .build());
-    }
-
-    QuerySplitter splitter = mock(QuerySplitter.class);
-    when(splitter.getSplits(any(Query.class), any(PartitionId.class), eq(2), any(Datastore.class)))
-        .thenReturn(mockSplits);
-
-    DatastoreIO.Source io = initialSource
-        .withQuery(query)
-        .withMockSplitter(splitter)
-        .withMockEstimateSizeBytes(8 * 1024L);
-
-    DatastoreIO.Source spiedIo = spy(io);
-    when(spiedIo.getEstimatedSizeBytes(any(PipelineOptions.class))).thenThrow(new IOException());
-
-    List<DatastoreIO.Source> bundles = spiedIo.splitIntoBundles(1024, testPipelineOptions(2));
-    assertEquals(2, bundles.size());
-    for (int i = 0; i < 2; ++i) {
-      DatastoreIO.Source bundle = bundles.get(i);
-      Query bundleQuery = bundle.getQuery();
-      assertEquals("mykind", bundleQuery.getKind(0).getName());
-      assertEquals(i, bundleQuery.getFilter().getPropertyFilter().getValue().getIntegerValue());
-    }
-  }
-
-  @Test
-  public void testQuerySplitNoWorkers() throws Exception {
     KindExpression mykind = KindExpression.newBuilder().setName("mykind").build();
     Query query = Query.newBuilder().addKind(mykind).build();
 
@@ -424,7 +380,7 @@ public class DatastoreIOTest {
     when(spiedIo.getEstimatedSizeBytes(any(PipelineOptions.class)))
         .thenThrow(new NoSuchElementException());
 
-    List<DatastoreIO.Source> bundles = spiedIo.splitIntoBundles(1024, testPipelineOptions(0));
+    List<DatastoreIO.Source> bundles = spiedIo.splitIntoBundles(1024, testPipelineOptions());
     assertEquals(1, bundles.size());
     verify(splitter, never())
         .getSplits(any(Query.class), any(PartitionId.class), eq(1), any(Datastore.class));
