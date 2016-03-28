@@ -18,6 +18,11 @@
 
 package org.apache.beam.runners.spark.translation;
 
+import static org.apache.beam.runners.spark.io.hadoop.ShardNameBuilder.getOutputDirectory;
+import static org.apache.beam.runners.spark.io.hadoop.ShardNameBuilder.getOutputFilePrefix;
+import static org.apache.beam.runners.spark.io.hadoop.ShardNameBuilder.getOutputFileTemplate;
+import static org.apache.beam.runners.spark.io.hadoop.ShardNameBuilder.replaceShardCount;
+
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.Arrays;
@@ -25,11 +30,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.beam.runners.spark.io.hadoop.ShardNameBuilder.getOutputDirectory;
-import static org.apache.beam.runners.spark.io.hadoop.ShardNameBuilder.getOutputFilePrefix;
-import static org.apache.beam.runners.spark.io.hadoop.ShardNameBuilder.getOutputFileTemplate;
-import static org.apache.beam.runners.spark.io.hadoop.ShardNameBuilder.replaceShardCount;
-
+import com.google.api.client.util.Lists;
 import com.google.api.client.util.Maps;
 import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
@@ -79,6 +80,7 @@ import org.apache.spark.api.java.JavaRDDLike;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.Function2;
+import org.apache.spark.api.java.function.PairFlatMapFunction;
 import org.apache.spark.api.java.function.PairFunction;
 
 import scala.Tuple2;
@@ -268,15 +270,21 @@ public final class TransformTranslator {
 
         // Key has to bw windowed in order to group by window as well
         JavaPairRDD<WindowedValue<K>, WindowedValue<KV<K, VI>>> inRddDuplicatedKeyPair =
-            inRdd.mapToPair(
-                new PairFunction<WindowedValue<KV<K, VI>>, WindowedValue<K>,
+            inRdd.flatMapToPair(
+                new PairFlatMapFunction<WindowedValue<KV<K, VI>>, WindowedValue<K>,
                     WindowedValue<KV<K, VI>>>() {
                   @Override
-                  public Tuple2<WindowedValue<K>,
-                      WindowedValue<KV<K, VI>>> call(WindowedValue<KV<K, VI>> kv) {
-                    WindowedValue<K> wk = WindowedValue.of(kv.getValue().getKey(),
-                        kv.getTimestamp(), kv.getWindows(), kv.getPane());
-                    return new Tuple2<>(wk, kv);
+                  public Iterable<Tuple2<WindowedValue<K>,
+                      WindowedValue<KV<K, VI>>>> call(WindowedValue<KV<K, VI>> kv) {
+                      List<Tuple2<WindowedValue<K>,
+                          WindowedValue<KV<K, VI>>>> tuple2s =
+                          Lists.newArrayListWithCapacity(kv.getWindows().size());
+                      for (BoundedWindow boundedWindow: kv.getWindows()) {
+                        WindowedValue<K> wk = WindowedValue.of(kv.getValue().getKey(),
+                            boundedWindow.maxTimestamp(), boundedWindow, kv.getPane());
+                        tuple2s.add(new Tuple2<>(wk, kv));
+                      }
+                    return tuple2s;
                   }
                 });
         //-- windowed coders

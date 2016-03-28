@@ -103,7 +103,7 @@ public class PaneInfoTracker {
     boolean onlyEarlyPanesSoFar = previousTiming == null || previousTiming == Timing.EARLY;
 
     // True is the input watermark hasn't passed the window's max timestamp.
-    boolean isEarlyForInput = inputWM == null || !inputWM.isAfter(windowMaxTimestamp);
+    boolean isEarlyForInput = !inputWM.isAfter(windowMaxTimestamp);
 
     Timing timing;
     if (isLateForOutput || !onlyEarlyPanesSoFar) {

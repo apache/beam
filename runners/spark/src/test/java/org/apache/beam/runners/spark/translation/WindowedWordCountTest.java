@@ -24,6 +24,7 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
+import com.google.cloud.dataflow.sdk.transforms.windowing.SlidingWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.collect.ImmutableList;
@@ -39,30 +40,66 @@ import org.junit.Test;
 
 public class WindowedWordCountTest {
   private static final String[] WORDS_ARRAY = {
-          "hi there", "hi", "hi sue bob",
-          "hi sue", "", "bob hi"};
+      "hi there", "hi", "hi sue bob", "hi sue", "", "bob hi"};
   private static final Long[] TIMESTAMPS_ARRAY = {
-          60000L, 60000L, 60000L,
-          120000L, 120000L, 120000L};
+      60000L, 60000L, 60000L, 179000L, 179000L, 179000L};
   private static final List<String> WORDS = Arrays.asList(WORDS_ARRAY);
   private static final List<Long> TIMESTAMPS = Arrays.asList(TIMESTAMPS_ARRAY);
-  private static final List<String> EXPECTED_COUNT_SET =
-          ImmutableList.of("hi: 3", "there: 1", "sue: 1", "bob: 1",
-                  "hi: 2", "sue: 1", "bob: 1");
+
+  private static final List<String> EXPECTED_FIXED_SEPARATE_COUNT_SET =
+      ImmutableList.of("hi: 3", "there: 1", "sue: 1", "bob: 1", "hi: 2", "sue: 1", "bob: 1");
 
   @Test
-  public void testRun() throws Exception {
-    SparkPipelineOptions options = SparkPipelineOptionsFactory.create();
-    options.setRunner(SparkPipelineRunner.class);
+  public void testFixed() throws Exception {
     Pipeline p = Pipeline.create(PipelineOptionsFactory.create());
-    PCollection<String> inputWords = p.apply(Create.timestamped(WORDS, TIMESTAMPS))
-            .setCoder(StringUtf8Coder.of());
-    PCollection<String> windowedWords = inputWords
-            .apply(Window.<String>into(FixedWindows.of(Duration.standardMinutes(1))));
+    PCollection<String> inputWords =
+        p.apply(Create.timestamped(WORDS, TIMESTAMPS)).setCoder(StringUtf8Coder.of());
+    PCollection<String> windowedWords =
+        inputWords.apply(Window.<String>into(FixedWindows.of(Duration.standardMinutes(1))));
 
     PCollection<String> output = windowedWords.apply(new SimpleWordCountTest.CountWords());
 
-    DataflowAssert.that(output).containsInAnyOrder(EXPECTED_COUNT_SET);
+    DataflowAssert.that(output).containsInAnyOrder(EXPECTED_FIXED_SEPARATE_COUNT_SET);
+
+    EvaluationResult res = SparkPipelineRunner.create().run(p);
+    res.close();
+  }
+
+  private static final List<String> EXPECTED_FIXED_SAME_COUNT_SET =
+      ImmutableList.of("hi: 5", "there: 1", "sue: 2", "bob: 2");
+
+  @Test
+  public void testFixed2() throws Exception {
+    Pipeline p = Pipeline.create(PipelineOptionsFactory.create());
+    PCollection<String> inputWords = p.apply(Create.timestamped(WORDS, TIMESTAMPS))
+        .setCoder(StringUtf8Coder.of());
+    PCollection<String> windowedWords = inputWords
+        .apply(Window.<String>into(FixedWindows.of(Duration.standardMinutes(5))));
+
+    PCollection<String> output = windowedWords.apply(new SimpleWordCountTest.CountWords());
+
+    DataflowAssert.that(output).containsInAnyOrder(EXPECTED_FIXED_SAME_COUNT_SET);
+
+    EvaluationResult res = SparkPipelineRunner.create().run(p);
+    res.close();
+  }
+
+  private static final List<String> EXPECTED_SLIDING_COUNT_SET =
+      ImmutableList.of("hi: 3", "there: 1", "sue: 1", "bob: 1", "hi: 5", "there: 1", "sue: 2",
+      "bob: 2", "hi: 2", "sue: 1", "bob: 1");
+
+  @Test
+  public void testSliding() throws Exception {
+    Pipeline p = Pipeline.create(PipelineOptionsFactory.create());
+    PCollection<String> inputWords = p.apply(Create.timestamped(WORDS, TIMESTAMPS))
+        .setCoder(StringUtf8Coder.of());
+    PCollection<String> windowedWords = inputWords
+        .apply(Window.<String>into(SlidingWindows.of(Duration.standardMinutes(2))
+        .every(Duration.standardMinutes(1))));
+
+    PCollection<String> output = windowedWords.apply(new SimpleWordCountTest.CountWords());
+
+    DataflowAssert.that(output).containsInAnyOrder(EXPECTED_SLIDING_COUNT_SET);
 
     EvaluationResult res = SparkPipelineRunner.create().run(p);
     res.close();

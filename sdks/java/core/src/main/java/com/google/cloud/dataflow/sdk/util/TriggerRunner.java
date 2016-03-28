@@ -172,6 +172,8 @@ public class TriggerRunner<W extends BoundedWindow> {
   }
 
   public void onFire(W window, Timers timers, StateAccessor<?> state) throws Exception {
+    // shouldFire should be false.
+    // However it is too expensive to assert.
     FinishedTriggersBitSet finishedSet =
         readFinishedBits(state.access(FINISHED_BITS_TAG)).copy();
     Trigger<W>.TriggerContext context = contextFactory.base(window, timers,
