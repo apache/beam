@@ -39,6 +39,7 @@ Typical usage:
 
 from __future__ import absolute_import
 
+import collections
 import logging
 import os
 import shutil
@@ -292,6 +293,7 @@ class Pipeline(object):
                            'output type-hint was found for the '
                            'PTransform %s' % ptransform_name)
 
+    child.update_input_refcounts()
     self.transforms_stack.pop()
     return pvalueish_result
 
@@ -356,6 +358,26 @@ class AppliedPTransform(object):
     self.side_inputs = () if transform is None else tuple(transform.side_inputs)
     self.outputs = []
     self.parts = []
+
+    # Per tag refcount dictionary for PValues for which this node is a
+    # root producer.
+    self.refcounts = collections.defaultdict(int)
+
+  def update_input_refcounts(self):
+    """Increment refcounts for all transforms providing inputs."""
+
+    def real_producer(pv):
+      real = pv.producer
+      while real.parts:
+        real = real.parts[-1]
+      return real
+
+    if not self.is_composite():
+      for main_input in self.inputs:
+        if not isinstance(main_input, pvalue.PBegin):
+          real_producer(main_input).refcounts[main_input.tag] += 1
+      for side_input in self.side_inputs:
+        real_producer(side_input.pvalue).refcounts[side_input.pvalue.tag] += 1
 
   def add_output(self, output):
     assert (isinstance(output, pvalue.PValue) or

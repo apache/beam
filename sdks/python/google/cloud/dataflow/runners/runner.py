@@ -184,21 +184,22 @@ class PValueCache(object):
     composite transform we need to find the output of its rightmost transform
     part.
     """
-    if not hasattr(pvalue, 'read_producer'):
+    if not hasattr(pvalue, 'real_producer'):
       real_producer = pvalue.producer
       while real_producer.parts:
         real_producer = real_producer.parts[-1]
       pvalue.real_producer = real_producer
 
   def is_cached(self, pobj):
-    # Import here to avoid circular dependencies.
     from google.cloud.dataflow.pipeline import AppliedPTransform
     if isinstance(pobj, AppliedPTransform):
       transform = pobj
+      tag = None
     else:
       self._ensure_pvalue_has_real_producer(pobj)
       transform = pobj.real_producer
-    return (id(transform), None) in self._cache
+      tag = pobj.tag
+    return (id(transform), tag) in self._cache
 
   def cache_output(self, transform, tag_or_value, value=None):
     if value is None:
@@ -206,13 +207,17 @@ class PValueCache(object):
       tag = None
     else:
       tag = tag_or_value
-    self._cache[id(transform), tag] = value
+    self._cache[id(transform), tag] = [value, transform.refcounts[tag]]
 
   def get_pvalue(self, pvalue):
     """Gets the value associated with a PValue from the cache."""
     self._ensure_pvalue_has_real_producer(pvalue)
     try:
-      return self._cache[self.key(pvalue)]
+      value_with_refcount = self._cache[self.key(pvalue)]
+      value_with_refcount[1] -= 1
+      if value_with_refcount[1] <= 0:
+        self.clear_pvalue(pvalue)
+      return value_with_refcount[0]
     except KeyError:
       if (pvalue.tag is not None
           and (id(pvalue.real_producer), None) in self._cache):

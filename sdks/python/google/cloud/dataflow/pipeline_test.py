@@ -14,15 +14,21 @@
 
 """Unit tests for the Pipeline class."""
 
+import gc
+import logging
 import unittest
 
 from google.cloud.dataflow.io.iobase import Source
 from google.cloud.dataflow.pipeline import Pipeline
 from google.cloud.dataflow.pipeline import PipelineOptions
 from google.cloud.dataflow.pipeline import PipelineVisitor
+from google.cloud.dataflow.pvalue import AsIter
+from google.cloud.dataflow.pvalue import SideOutputValue
 from google.cloud.dataflow.runners import DirectPipelineRunner
+from google.cloud.dataflow.transforms import CombinePerKey
 from google.cloud.dataflow.transforms import Create
 from google.cloud.dataflow.transforms import FlatMap
+from google.cloud.dataflow.transforms import Flatten
 from google.cloud.dataflow.transforms import Map
 from google.cloud.dataflow.transforms import PTransform
 from google.cloud.dataflow.transforms import Read
@@ -194,6 +200,47 @@ class PipelineTest(unittest.TestCase):
         ['a-x', 'b-x', 'c-x'],
         sorted(['a', 'b', 'c'] | AddSuffix('-x')))
 
+  def test_cached_pvalues_are_refcounted(self):
+    """Test that cached PValues are refcounted and deleted.
+
+    The intermediary PValues computed by the workflow below contain
+    one million elements so if the refcounting does not work the number of
+    objects tracked by the garbage collector will increase by a few millions
+    by the time we execute the final Map checking the objects tracked.
+    Anything that is much larger than what we started with will fail the test.
+    """
+    def check_memory(value, count_threshold):
+      gc.collect()
+      objects_count = len(gc.get_objects())
+      if objects_count > count_threshold:
+        raise RuntimeError(
+            'PValues are not refcounted: %s, %s' % (
+                objects_count, count_threshold))
+      return value
+
+    def create_dupes(o, _):
+      yield o
+      yield SideOutputValue('side', o)
+
+    pipeline = Pipeline('DirectPipelineRunner')
+
+    gc.collect()
+    count_threshold = len(gc.get_objects()) + 10000
+    biglist = pipeline | Create('oom:create', ['x'] * 1000000)
+    dupes = (
+        biglist
+        | Map('oom:addone', lambda x: (x, 1))
+        | FlatMap('oom:dupes', create_dupes,
+                  AsIter(biglist)).with_outputs('side', main='main'))
+    result = (
+        (dupes.side, dupes.main, dupes.side)
+        | Flatten('oom:flatten')
+        | CombinePerKey('oom:combine', sum)
+        | Map('oom:check', check_memory, count_threshold))
+
+    assert_that(result, equal_to([('x', 3000000)]))
+    pipeline.run()
+
 
 class Bacon(PipelineOptions):
 
@@ -264,4 +311,5 @@ class PipelineOptionsTest(unittest.TestCase):
 
 
 if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
   unittest.main()
