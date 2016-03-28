@@ -26,8 +26,6 @@ import com.google.cloud.dataflow.sdk.PipelineResult;
 import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
-import com.google.cloud.dataflow.sdk.coders.IterableCoder;
-import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.ListCoder;
 import com.google.cloud.dataflow.sdk.io.AvroIO;
 import com.google.cloud.dataflow.sdk.io.FileBasedSink;
@@ -49,19 +47,15 @@ import com.google.cloud.dataflow.sdk.transforms.Partition;
 import com.google.cloud.dataflow.sdk.transforms.Partition.PartitionFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.AppliedCombineFn;
-import com.google.cloud.dataflow.sdk.util.GroupAlsoByWindowsViaOutputBufferDoFn;
-import com.google.cloud.dataflow.sdk.util.GroupByKeyOnly;
+import com.google.cloud.dataflow.sdk.util.GroupByKeyViaGroupByKeyOnly;
+import com.google.cloud.dataflow.sdk.util.GroupByKeyViaGroupByKeyOnly.GroupByKeyOnly;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
 import com.google.cloud.dataflow.sdk.util.MapAggregatorValues;
 import com.google.cloud.dataflow.sdk.util.PerKeyCombineFnRunner;
 import com.google.cloud.dataflow.sdk.util.PerKeyCombineFnRunners;
-import com.google.cloud.dataflow.sdk.util.ReifyTimestampsAndWindows;
 import com.google.cloud.dataflow.sdk.util.SerializableUtils;
-import com.google.cloud.dataflow.sdk.util.SystemReduceFn;
 import com.google.cloud.dataflow.sdk.util.TestCredential;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
-import com.google.cloud.dataflow.sdk.util.WindowedValue.WindowedValueCoder;
-import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -85,7 +79,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -259,7 +252,8 @@ public class DirectPipelineRunner
     } else if (transform instanceof AvroIO.Write.Bound) {
       return (OutputT) applyAvroIOWrite((AvroIO.Write.Bound) transform, (PCollection<?>) input);
     } else if (transform instanceof GroupByKey) {
-      return (OutputT) ((PCollection) input).apply(new DirectGroupByKey((GroupByKey) transform));
+      return (OutputT)
+          ((PCollection) input).apply(new GroupByKeyViaGroupByKeyOnly((GroupByKey) transform));
     } else {
       return super.apply(transform, input);
     }
@@ -402,43 +396,6 @@ public class DirectPipelineRunner
             transform.withNumShards(1).withShardNameTemplate("").withSuffix("").to(outputFilename));
       }
       return PDone.in(input.getPipeline());
-    }
-  }
-
-  private static class DirectGroupByKey<K, V>
-      extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>> {
-
-    private GroupByKey<K, V> originalTransform;
-
-    public DirectGroupByKey(GroupByKey<K, V> originalTransform) {
-      this.originalTransform = originalTransform;
-    }
-
-    @Override
-    public PCollection<KV<K, Iterable<V>>> apply(PCollection<KV<K, V>> input) {
-      WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
-
-      return input
-          // Make each input element's timestamp and assigned windows
-          // explicit, in the value part.
-          .apply(new ReifyTimestampsAndWindows<K, V>())
-
-          // Group by just the key.
-          // Combiner lifting will not happen regardless of the disallowCombinerLifting value.
-          // There will be no combiners right after the GroupByKeyOnly because of the two ParDos
-          // introduced in here.
-          .apply(new GroupByKeyOnly<K, WindowedValue<V>>())
-
-          // Sort each key's values by timestamp. GroupAlsoByWindow requires
-          // its input to be sorted by timestamp.
-          .apply(new DirectPipelineRunner.SortValuesByTimestamp<K, V>())
-
-          // Group each key's values by window, merging windows as needed.
-          .apply(new DirectPipelineRunner.GroupAlsoByWindow<K, V>(windowingStrategy))
-
-          // And update the windowing strategy as appropriate.
-          .setWindowingStrategyInternal(
-              originalTransform.updateWindowingStrategy(windowingStrategy));
     }
   }
 
@@ -1170,95 +1127,6 @@ public class DirectPipelineRunner
   }
 
   /////////////////////////////////////////////////////////////////////////////
-
-  /**
-   * Helper transform that sorts the values associated with each key
-   * by timestamp.
-   */
-  private static class SortValuesByTimestamp<K, V>
-      extends PTransform<PCollection<KV<K, Iterable<WindowedValue<V>>>>,
-                         PCollection<KV<K, Iterable<WindowedValue<V>>>>> {
-    @Override
-    public PCollection<KV<K, Iterable<WindowedValue<V>>>> apply(
-        PCollection<KV<K, Iterable<WindowedValue<V>>>> input) {
-      return input.apply(ParDo.of(
-          new DoFn<KV<K, Iterable<WindowedValue<V>>>,
-                   KV<K, Iterable<WindowedValue<V>>>>() {
-            @Override
-            public void processElement(ProcessContext c) {
-              KV<K, Iterable<WindowedValue<V>>> kvs = c.element();
-              K key = kvs.getKey();
-              Iterable<WindowedValue<V>> unsortedValues = kvs.getValue();
-              List<WindowedValue<V>> sortedValues = new ArrayList<>();
-              for (WindowedValue<V> value : unsortedValues) {
-                sortedValues.add(value);
-              }
-              Collections.sort(sortedValues,
-                               new Comparator<WindowedValue<V>>() {
-                  @Override
-                  public int compare(WindowedValue<V> e1, WindowedValue<V> e2) {
-                    return e1.getTimestamp().compareTo(e2.getTimestamp());
-                  }
-                });
-              c.output(KV.<K, Iterable<WindowedValue<V>>>of(key, sortedValues));
-            }}))
-          .setCoder(input.getCoder());
-    }
-  }
-
-  /**
-   * Helper transform that takes a collection of timestamp-ordered
-   * values associated with each key, groups the values by window,
-   * combines windows as needed, and for each window in each key,
-   * outputs a collection of key/value-list pairs implicitly assigned
-   * to the window and with the timestamp derived from that window.
-   */
-  private static class GroupAlsoByWindow<K, V>
-      extends PTransform<PCollection<KV<K, Iterable<WindowedValue<V>>>>,
-                         PCollection<KV<K, Iterable<V>>>> {
-    private final WindowingStrategy<?, ?> windowingStrategy;
-
-    public GroupAlsoByWindow(WindowingStrategy<?, ?> windowingStrategy) {
-      this.windowingStrategy = windowingStrategy;
-    }
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public PCollection<KV<K, Iterable<V>>> apply(
-        PCollection<KV<K, Iterable<WindowedValue<V>>>> input) {
-      @SuppressWarnings("unchecked")
-      KvCoder<K, Iterable<WindowedValue<V>>> inputKvCoder =
-          (KvCoder<K, Iterable<WindowedValue<V>>>) input.getCoder();
-
-      Coder<K> keyCoder = inputKvCoder.getKeyCoder();
-      Coder<Iterable<WindowedValue<V>>> inputValueCoder =
-          inputKvCoder.getValueCoder();
-
-      IterableCoder<WindowedValue<V>> inputIterableValueCoder =
-          (IterableCoder<WindowedValue<V>>) inputValueCoder;
-      Coder<WindowedValue<V>> inputIterableElementCoder =
-          inputIterableValueCoder.getElemCoder();
-      WindowedValueCoder<V> inputIterableWindowedValueCoder =
-          (WindowedValueCoder<V>) inputIterableElementCoder;
-
-      Coder<V> inputIterableElementValueCoder =
-          inputIterableWindowedValueCoder.getValueCoder();
-      Coder<Iterable<V>> outputValueCoder =
-          IterableCoder.of(inputIterableElementValueCoder);
-      Coder<KV<K, Iterable<V>>> outputKvCoder = KvCoder.of(keyCoder, outputValueCoder);
-
-      return input
-          .apply(ParDo.of(groupAlsoByWindowsFn(windowingStrategy, inputIterableElementValueCoder)))
-          .setCoder(outputKvCoder);
-    }
-
-    private <W extends BoundedWindow> GroupAlsoByWindowsViaOutputBufferDoFn<K, V, Iterable<V>, W>
-        groupAlsoByWindowsFn(
-            WindowingStrategy<?, W> strategy, Coder<V> inputIterableElementValueCoder) {
-      return new GroupAlsoByWindowsViaOutputBufferDoFn<K, V, Iterable<V>, W>(
-          strategy, SystemReduceFn.<K, V, W>buffering(inputIterableElementValueCoder));
-    }
-  }
 
   /**
    * The key by which GBK groups inputs - elements are grouped by the encoded form of the key,
