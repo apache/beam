@@ -220,6 +220,7 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
   public void open() throws Exception {
     super.open();
     this.context = new ProcessContext(operator, new TimestampedCollector<>(output), this.timerInternals);
+    operator.startBundle(context);
   }
 
   /**
@@ -252,11 +253,7 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
 
   private void processKeyedWorkItem(KeyedWorkItem<K, VIN> workItem) throws Exception {
     context.setElement(workItem, getStateInternalsForKey(workItem.key()));
-
-    // TODO: Ideally startBundle/finishBundle would be called when the operator is first used / about to be discarded.
-    operator.startBundle(context);
     operator.processElement(context);
-    operator.finishBundle(context);
   }
 
   @Override
@@ -309,6 +306,7 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
 
   @Override
   public void close() throws Exception {
+    operator.finishBundle(context);
     super.close();
   }
 
