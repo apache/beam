@@ -54,7 +54,6 @@ import com.google.cloud.dataflow.sdk.coders.EntityCoder;
 import com.google.cloud.dataflow.sdk.coders.SerializableCoder;
 import com.google.cloud.dataflow.sdk.io.Sink.WriteOperation;
 import com.google.cloud.dataflow.sdk.io.Sink.Writer;
-import com.google.cloud.dataflow.sdk.options.DataflowPipelineWorkerPoolOptions;
 import com.google.cloud.dataflow.sdk.options.GcpOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.util.AttemptBoundedExponentialBackOff;
@@ -307,18 +306,7 @@ public class DatastoreIO {
         numSplits = Math.round(((double) getEstimatedSizeBytes(options)) / desiredBundleSizeBytes);
       } catch (Exception e) {
         // Fallback in case estimated size is unavailable. TODO: fix this, it's horrible.
-
-        // 1. Try Dataflow's numWorkers, which will be 0 for other workers.
-        DataflowPipelineWorkerPoolOptions poolOptions =
-            options.as(DataflowPipelineWorkerPoolOptions.class);
-        if (poolOptions.getNumWorkers() > 0) {
-          LOG.warn("Estimated size of unavailable, using the number of workers {}",
-              poolOptions.getNumWorkers(), e);
-          numSplits = poolOptions.getNumWorkers();
-        } else {
-          // 2. Default to 12 in the unknown case.
-          numSplits = 12;
-        }
+        numSplits = 12;
       }
 
       // If the desiredBundleSize or number of workers results in 1 split, simply return
