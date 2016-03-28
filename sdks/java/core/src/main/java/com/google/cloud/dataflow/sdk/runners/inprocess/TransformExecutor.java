@@ -22,6 +22,8 @@ import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.common.base.Throwables;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.concurrent.Callable;
 
 import javax.annotation.Nullable;
@@ -37,6 +39,7 @@ import javax.annotation.Nullable;
 class TransformExecutor<T> implements Callable<InProcessTransformResult> {
   public static <T> TransformExecutor<T> create(
       TransformEvaluatorFactory factory,
+      Iterable<? extends ModelEnforcementFactory> modelEnforcements,
       InProcessEvaluationContext evaluationContext,
       CommittedBundle<T> inputBundle,
       AppliedPTransform<?, ?, ?> transform,
@@ -44,6 +47,7 @@ class TransformExecutor<T> implements Callable<InProcessTransformResult> {
       TransformExecutorService transformEvaluationState) {
     return new TransformExecutor<>(
         factory,
+        modelEnforcements,
         evaluationContext,
         inputBundle,
         transform,
@@ -52,6 +56,8 @@ class TransformExecutor<T> implements Callable<InProcessTransformResult> {
   }
 
   private final TransformEvaluatorFactory evaluatorFactory;
+  private final Iterable<? extends ModelEnforcementFactory> modelEnforcements;
+
   private final InProcessEvaluationContext evaluationContext;
 
   /** The transform that will be evaluated. */
@@ -66,12 +72,14 @@ class TransformExecutor<T> implements Callable<InProcessTransformResult> {
 
   private TransformExecutor(
       TransformEvaluatorFactory factory,
+      Iterable<? extends ModelEnforcementFactory> modelEnforcements,
       InProcessEvaluationContext evaluationContext,
       CommittedBundle<T> inputBundle,
       AppliedPTransform<?, ?, ?> transform,
       CompletionCallback completionCallback,
       TransformExecutorService transformEvaluationState) {
     this.evaluatorFactory = factory;
+    this.modelEnforcements = modelEnforcements;
     this.evaluationContext = evaluationContext;
 
     this.inputBundle = inputBundle;
@@ -86,15 +94,17 @@ class TransformExecutor<T> implements Callable<InProcessTransformResult> {
   public InProcessTransformResult call() {
     this.thread = Thread.currentThread();
     try {
+      Collection<ModelEnforcement<T>> enforcements = new ArrayList<>();
+      for (ModelEnforcementFactory enforcementFactory : modelEnforcements) {
+        ModelEnforcement<T> enforcement = enforcementFactory.forBundle(inputBundle, transform);
+        enforcements.add(enforcement);
+      }
       TransformEvaluator<T> evaluator =
           evaluatorFactory.forApplication(transform, inputBundle, evaluationContext);
-      if (inputBundle != null) {
-        for (WindowedValue<T> value : inputBundle.getElements()) {
-          evaluator.processElement(value);
-        }
-      }
-      InProcessTransformResult result = evaluator.finishBundle();
-      onComplete.handleResult(inputBundle, result);
+
+      processElements(evaluator, enforcements);
+
+      InProcessTransformResult result = finishBundle(evaluator, enforcements);
       return result;
     } catch (Throwable t) {
       onComplete.handleThrowable(inputBundle, t);
@@ -103,6 +113,46 @@ class TransformExecutor<T> implements Callable<InProcessTransformResult> {
       this.thread = null;
       transformEvaluationState.complete(this);
     }
+  }
+
+  /**
+   * Processes all the elements in the input bundle using the transform evaluator, applying any
+   * necessary {@link ModelEnforcement ModelEnforcements}.
+   */
+  private void processElements(
+      TransformEvaluator<T> evaluator, Collection<ModelEnforcement<T>> enforcements)
+      throws Exception {
+    if (inputBundle != null) {
+      for (WindowedValue<T> value : inputBundle.getElements()) {
+        for (ModelEnforcement<T> enforcement : enforcements) {
+          enforcement.beforeElement(value);
+        }
+
+        evaluator.processElement(value);
+
+        for (ModelEnforcement<T> enforcement : enforcements) {
+          enforcement.afterElement(value);
+        }
+      }
+    }
+  }
+
+  /**
+   * Finishes processing the input bundle and commit the result using the
+   * {@link CompletionCallback}, applying any {@link ModelEnforcement} if necessary.
+   *
+   * @return the {@link InProcessTransformResult} produced by
+   *         {@link TransformEvaluator#finishBundle()}
+   */
+  private InProcessTransformResult finishBundle(
+      TransformEvaluator<T> evaluator, Collection<ModelEnforcement<T>> enforcements)
+      throws Exception {
+    InProcessTransformResult result = evaluator.finishBundle();
+    Iterable<? extends CommittedBundle<?>> outputs = onComplete.handleResult(inputBundle, result);
+    for (ModelEnforcement<T> enforcement : enforcements) {
+      enforcement.afterFinish(inputBundle, result, outputs);
+    }
+    return result;
   }
 
   /**

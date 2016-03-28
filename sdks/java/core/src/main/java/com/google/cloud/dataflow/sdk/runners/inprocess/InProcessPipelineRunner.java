@@ -54,6 +54,7 @@ import com.google.common.collect.ImmutableSet;
 import org.joda.time.Instant;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -245,6 +246,7 @@ public class InProcessPipelineRunner
             consumerTrackingVisitor.getValueToConsumers(),
             keyedPValueVisitor.getKeyedPValues(),
             TransformEvaluatorRegistry.defaultRegistry(),
+            defaultModelEnforcements(options),
             context);
     executor.start(consumerTrackingVisitor.getRootTransforms());
 
@@ -262,6 +264,11 @@ public class InProcessPipelineRunner
       }
     }
     return result;
+  }
+
+  private Map<Class<? extends PTransform>, Collection<ModelEnforcementFactory>>
+      defaultModelEnforcements(InProcessPipelineOptions options) {
+    return Collections.emptyMap();
   }
 
   /**
