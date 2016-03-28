@@ -77,10 +77,8 @@ class DirectPipelineRunner(PipelineRunner):
   @skip_if_cached
   def run_ParDo(self, transform_node):
     transform = transform_node.transform
-    options = transform_node.inputs[0].pipeline.options
     # TODO(gildea): what is the appropriate object to attach the state to?
-    context = DoFnProcessContext(label=transform.label,
-                                 state=DoFnState(options))
+    context = DoFnProcessContext(label=transform.label, state=DoFnState())
 
     # Construct the list of values from side-input PCollections that we'll
     # substitute into the arguments for DoFn methods.
@@ -107,6 +105,7 @@ class DirectPipelineRunner(PipelineRunner):
 
     # TODO(robertwb): Do this type checking inside DoFnRunner to get it on
     # remote workers as well?
+    options = transform_node.inputs[0].pipeline.options
     if options is not None and options.view_as(TypeOptions).runtime_type_check:
       transform.dofn = TypeCheckWrapperDoFn(
           transform.dofn, transform.get_type_hints())
