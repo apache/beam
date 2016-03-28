@@ -171,14 +171,9 @@ class NoContext(WindowFn.AssignContext):
 
 class DoFnState(object):
   """Keeps track of state that DoFns want, currently, user counters.
-
-  Attributes:
-    pipeline_options: a PipelineOptions object associated with this DoFn.
-    step_name: name of the step as a string.
   """
 
-  def __init__(self, pipeline_options):
-    self.pipeline_options = pipeline_options
+  def __init__(self):
     self.step_name = ''
     self._user_counters = {}
 

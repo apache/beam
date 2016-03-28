@@ -405,8 +405,7 @@ class BatchWorker(object):
         self.dynamic_split_result_to_report = None
 
         self.set_current_work_item_and_executor(work_item,
-                                                executor.MapTaskExecutor(
-                                                    self.pipeline_options))
+                                                executor.MapTaskExecutor())
       self.report_progress = True
       self.current_executor.execute(work_item.map_task)
     except Exception:  # pylint: disable=broad-except
