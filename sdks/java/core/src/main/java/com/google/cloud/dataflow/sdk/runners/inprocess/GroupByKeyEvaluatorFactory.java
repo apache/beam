@@ -42,6 +42,8 @@ import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.cloud.dataflow.sdk.values.PInput;
+import com.google.cloud.dataflow.sdk.values.POutput;
 import com.google.common.annotations.VisibleForTesting;
 
 import java.util.ArrayList;
@@ -179,10 +181,27 @@ class GroupByKeyEvaluatorFactory implements TransformEvaluatorFactory {
   }
 
   /**
+   * A {@link PTransformOverrideFactory} for {@link GroupByKey} PTransforms.
+   */
+  public static final class InProcessGroupByKeyOverrideFactory
+      implements PTransformOverrideFactory {
+    @Override
+    public <InputT extends PInput, OutputT extends POutput> PTransform<InputT, OutputT> override(
+        PTransform<InputT, OutputT> transform) {
+      if (transform instanceof GroupByKey) {
+        @SuppressWarnings({"rawtypes", "unchecked"})
+        PTransform<InputT, OutputT> override = new InProcessGroupByKey((GroupByKey) transform);
+        return override;
+      }
+      return transform;
+    }
+  }
+
+  /**
    * An in-memory implementation of the {@link GroupByKey} primitive as a composite
    * {@link PTransform}.
    */
-  public static final class InProcessGroupByKey<K, V>
+  private static final class InProcessGroupByKey<K, V>
       extends ForwardingPTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>> {
     private final GroupByKey<K, V> original;
 

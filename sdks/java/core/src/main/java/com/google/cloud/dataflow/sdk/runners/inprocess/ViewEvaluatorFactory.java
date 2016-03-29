@@ -29,6 +29,8 @@ import com.google.cloud.dataflow.sdk.transforms.WithKeys;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
+import com.google.cloud.dataflow.sdk.values.PInput;
+import com.google.cloud.dataflow.sdk.values.POutput;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -50,7 +52,7 @@ class ViewEvaluatorFactory implements TransformEvaluatorFactory {
       InProcessPipelineRunner.CommittedBundle<?> inputBundle,
       InProcessEvaluationContext evaluationContext) {
     @SuppressWarnings({"cast", "unchecked", "rawtypes"})
-    TransformEvaluator<T> evaluator = (TransformEvaluator<T>) createEvaluator(
+    TransformEvaluator<T> evaluator = createEvaluator(
             (AppliedPTransform) application, evaluationContext);
     return evaluator;
   }
@@ -80,11 +82,26 @@ class ViewEvaluatorFactory implements TransformEvaluatorFactory {
     };
   }
 
+  public static class InProcessViewOverrideFactory implements PTransformOverrideFactory {
+    @Override
+    public <InputT extends PInput, OutputT extends POutput>
+        PTransform<InputT, OutputT> override(PTransform<InputT, OutputT> transform) {
+      if (transform instanceof CreatePCollectionView) {
+
+      }
+      @SuppressWarnings({"rawtypes", "unchecked"})
+      PTransform<InputT, OutputT> createView =
+          (PTransform<InputT, OutputT>)
+              new InProcessCreatePCollectionView<>((CreatePCollectionView) transform);
+      return createView;
+    }
+  }
+
   /**
    * An in-process override for {@link CreatePCollectionView}.
    */
-  public static class InProcessCreatePCollectionView<ElemT, ViewT>
-      extends PTransform<PCollection<ElemT>, PCollectionView<ViewT>> {
+  private static class InProcessCreatePCollectionView<ElemT, ViewT>
+      extends ForwardingPTransform<PCollection<ElemT>, PCollectionView<ViewT>> {
     private final CreatePCollectionView<ElemT, ViewT> og;
 
     private InProcessCreatePCollectionView(CreatePCollectionView<ElemT, ViewT> og) {
@@ -98,6 +115,11 @@ class ViewEvaluatorFactory implements TransformEvaluatorFactory {
           .apply(GroupByKey.<Void, ElemT>create())
           .apply(Values.<Iterable<ElemT>>create())
           .apply(new WriteView<ElemT, ViewT>(og));
+    }
+
+    @Override
+    protected PTransform<PCollection<ElemT>, PCollectionView<ViewT>> delegate() {
+      return og;
     }
   }
 
