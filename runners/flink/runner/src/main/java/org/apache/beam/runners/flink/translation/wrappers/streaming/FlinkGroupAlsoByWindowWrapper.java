@@ -476,6 +476,15 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
           @Override
           public void setStableUniqueNames(CheckEnabled enabled) {
           }
+
+          @Override
+          public String getTempLocation() {
+            return null;
+          }
+
+          @Override
+          public void setTempLocation(String tempLocation) {
+          }
         };
       }
       return options;

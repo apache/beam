@@ -19,7 +19,7 @@ set -o pipefail
 
 PASS=1
 VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version | grep -v '\[')
-JAR_FILE=examples/target/google-cloud-dataflow-java-examples-all-bundled-${VERSION}.jar
+JAR_FILE=examples/java/target/java-examples-all-bundled-${VERSION}.jar
 
 function check_result_hash {
   local name=$1
@@ -52,7 +52,7 @@ function run_via_mvn {
   local expected_hash=$3
 
   local outfile_prefix="$(get_outfile_prefix "$name")" || exit 2
-  local cmd='mvn exec:java -f pom.xml -pl examples \
+  local cmd='mvn exec:java -f pom.xml -pl examples/java \
     -Dexec.mainClass=com.google.cloud.dataflow.examples.WordCount \
     -Dexec.args="--runner=DirectPipelineRunner --inputFile='"$input"' --output='"$outfile_prefix"'"'
   echo "$name: Running $cmd" >&2

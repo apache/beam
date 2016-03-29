@@ -22,13 +22,17 @@ import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.AggregatorValues;
+import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.transforms.*;
 import com.google.cloud.dataflow.sdk.values.*;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import org.apache.beam.runners.spark.EvaluationResult;
 import org.apache.beam.runners.spark.SparkPipelineRunner;
 import org.junit.Assert;
 import org.junit.Test;
+
+import java.util.Set;
 
 public class MultiOutputWordCountTest {
 
@@ -36,6 +40,10 @@ public class MultiOutputWordCountTest {
   private static final TupleTag<String> lower = new TupleTag<>();
   private static final TupleTag<KV<String, Long>> lowerCnts = new TupleTag<>();
   private static final TupleTag<KV<String, Long>> upperCnts = new TupleTag<>();
+
+  private static final Set<String> EXPECTED_LOWER_COUNTS =
+      ImmutableSet.of("are: 2", "some: 3", "words: 3", "more: 2", "to: 1", "count: 1", "and: 2",
+      "even: 1", "others: 1");
 
   @Test
   public void testRun() throws Exception {
@@ -53,8 +61,8 @@ public class MultiOutputWordCountTest {
         ApproximateUnique.<KV<String, Long>>globally(16));
 
     EvaluationResult res = SparkPipelineRunner.create().run(p);
-    Iterable<KV<String, Long>> actualLower = res.get(luc.get(lowerCnts));
-    Assert.assertEquals("are", actualLower.iterator().next().getKey());
+    DataflowAssert.that(luc.get(lowerCnts).apply(ParDo.of(new FormatCountsFn())))
+        .containsInAnyOrder(EXPECTED_LOWER_COUNTS);
     Iterable<KV<String, Long>> actualUpper = res.get(luc.get(upperCnts));
     Assert.assertEquals("Here", actualUpper.iterator().next().getKey());
     Iterable<Long> actualUniqCount = res.get(unique);
@@ -132,6 +140,13 @@ public class MultiOutputWordCountTest {
 
     Aggregator<Integer, Integer> getTotalWordsAggregator() {
       return extractWordsFn.totalWords;
+    }
+  }
+
+  private static class FormatCountsFn extends DoFn<KV<String, Long>, String> {
+    @Override
+    public void processElement(ProcessContext c) {
+      c.output(c.element().getKey() + ": " + c.element().getValue());
     }
   }
 }

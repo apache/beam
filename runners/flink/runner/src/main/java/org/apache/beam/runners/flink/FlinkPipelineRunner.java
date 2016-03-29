@@ -87,14 +87,6 @@ public class FlinkPipelineRunner extends PipelineRunner<FlinkRunnerResult> {
       LOG.debug("Classpath elements: {}", flinkOptions.getFilesToStage());
     }
 
-    // Verify jobName according to service requirements.
-    String jobName = flinkOptions.getJobName().toLowerCase();
-    Preconditions.checkArgument(jobName.matches("[a-z]([-a-z0-9]*[a-z0-9])?"), "JobName invalid; " +
-        "the name must consist of only the characters " + "[-a-z0-9], starting with a letter " +
-        "and ending with a letter " + "or number");
-    Preconditions.checkArgument(jobName.length() <= 40,
-        "JobName too long; must be no more than 40 characters in length");
-
     // Set Flink Master to [auto] if no option was specified.
     if (flinkOptions.getFlinkMaster() == null) {
       flinkOptions.setFlinkMaster("[auto]");
