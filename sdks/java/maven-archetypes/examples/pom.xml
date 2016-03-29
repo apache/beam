@@ -29,7 +29,7 @@
   </parent>
 
   <artifactId>maven-archetypes-examples</artifactId>
-  <name>Apache Beam :: Maven Archetypes :: Examples</name>
+  <name>Apache Beam :: SDKs :: Java :: Maven Archetypes :: Examples</name>
   <description>A Maven Archetype to create a project containing all the
     example pipelines from the Apache Beam Java SDK.</description>
 
