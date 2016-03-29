@@ -34,3 +34,6 @@ install:
 script:
   - travis_retry mvn -B $MAVEN_OVERRIDE install -U
   - travis_retry travis/test_wordcount.sh
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
