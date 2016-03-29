@@ -1,41 +1,42 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  ~ Copyright (C) 2015 Google Inc.
-  ~
-  ~ Licensed under the Apache License, Version 2.0 (the "License"); you may not
-  ~ use this file except in compliance with the License. You may obtain a copy of
-  ~ the License at
-  ~
-  ~ http://www.apache.org/licenses/LICENSE-2.0
-  ~
-  ~ Unless required by applicable law or agreed to in writing, software
-  ~ distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-  ~ WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-  ~ License for the specific language governing permissions and limitations under
-  ~ the License.
-  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+<!--
+    Licensed to the Apache Software Foundation (ASF) under one or more
+    contributor license agreements.  See the NOTICE file distributed with
+    this work for additional information regarding copyright ownership.
+    The ASF licenses this file to You under the Apache License, Version 2.0
+    (the "License"); you may not use this file except in compliance with
+    the License.  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+-->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>com.google</groupId>
-    <artifactId>google</artifactId>
-    <version>5</version>
+    <groupId>org.apache</groupId>
+    <artifactId>apache</artifactId>
+    <version>17</version>
   </parent>
 
-  <groupId>com.google.cloud.dataflow</groupId>
-  <artifactId>google-cloud-dataflow-java-sdk-parent</artifactId>
-  <name>Google Cloud Dataflow Java SDK - Parent</name>
-  <description>Google Cloud Dataflow Java SDK provides a simple, Java-based
-    interface for processing virtually any size data using Google cloud
-    resources. This artifact includes the parent POM for other Dataflow
-    artifacts.</description>
-  <url>http://cloud.google.com/dataflow</url>
-  <inceptionYear>2013</inceptionYear>
+  <groupId>org.apache.beam</groupId>
+  <artifactId>parent</artifactId>
+  <name>Apache Beam :: Parent</name>
+  <description>Apache Beam provides a simple, Java-based interface
+  for processing virtually any size data. This artifact includes the parent POM
+  for other Beam artifacts.</description>
+  <url>http://beam.incubator.apache.org</url>
+  <inceptionYear>2016</inceptionYear>
 
-  <version>1.5.0-SNAPSHOT</version>
+  <version>0.1.0-incubating-SNAPSHOT</version>
 
   <licenses>
     <license>
@@ -45,18 +46,50 @@
     </license>
   </licenses>
 
+  <scm>
+    <connection>scm:git:https://git-wip-us.apache.org/repos/asf/incubator-beam.git</connection>
+    <developerConnection>scm:git:https://git-wip-us.apache.org/repos/asf/incubator-beam.git</developerConnection>
+    <url>https://git-wip-us.apache.org/repos/asf?p=incubator-beam.git;a=summary</url>
+  </scm>
+
+  <issueManagement>
+    <system>jira</system>
+    <url>https://issues.apache.org/jira/browse/BEAM</url>
+  </issueManagement>
+
+  <mailingLists>
+    <mailingList>
+      <name>Beam Dev</name>
+      <subscribe>dev-subscribe@beam.incubator.apache.org</subscribe>
+      <unsubscribe>dev-unsubscribe@beam.incubator.apache.org</unsubscribe>
+      <post>dev@beam.incubator.apache.org</post>
+      <archive>http://www.mail-archive.com/dev%beam.incubator.apache.org</archive>
+    </mailingList>
+    <mailingList>
+      <name>Beam User</name>
+      <subscribe>user-subscribe@beam.incubator.apache.org</subscribe>
+      <unsubscribe>user-unsubscribe@beam.incubator.apache.org</unsubscribe>
+      <post>user@beam.incubator.apache.org</post>
+      <archive>http://www.mail-archive.com/user%beam.incubator.apache.org</archive>
+    </mailingList>
+    <mailingList>
+      <name>Beam Commits</name>
+      <subscribe>commits-subscribe@beam.incubator.apache.org</subscribe>
+      <unsubscribe>commits-unsubscribe@beam.incubator.apache.org</unsubscribe>
+      <post>commits@beam.incubator.apache.org</post>
+      <archive>http://www.mail-archive.com/commits%beam.incubator.apache.org</archive>
+    </mailingList>
+  </mailingLists>
+
   <developers>
     <developer>
-      <organization>Google Inc.</organization>
-      <organizationUrl>http://www.google.com</organizationUrl>
+      <name>The Apache Beam Team</name>
+      <email>dev@beam.incubator.apache.org</email>
+      <url>http://beam.incubator.apache.org</url>
+      <organization>Apache Software Foundation</organization>
+      <organizationUrl>http://www.apache.org</organizationUrl>
     </developer>
   </developers>
-
-  <scm>
-    <connection>scm:git:git@github.com:GoogleCloudPlatform/DataflowJavaSDK.git</connection>
-    <developerConnection>scm:git:git@github.com:GoogleCloudPlatform/DataflowJavaSDK.git</developerConnection>
-    <url>git@github.com:GoogleCloudPlatform/DataflowJavaSDK.git</url>
-  </scm>
 
   <prerequisites>
     <maven>3.0.3</maven>
@@ -90,15 +123,33 @@
   </properties>
 
   <packaging>pom</packaging>
+
   <modules>
-    <module>sdk</module>
+    <module>sdks/java/core</module>
     <module>runners</module>
-    <module>examples</module>
-    <module>maven-archetypes/starter</module>
-    <module>maven-archetypes/examples</module>
+    <module>examples/java</module>
+    <module>sdks/java/maven-archetypes</module>
   </modules>
 
   <profiles>
+    <profile>
+      <id>java8-tests</id>
+      <activation>
+        <jdk>[1.8,)</jdk>
+      </activation>
+      <modules>
+        <module>sdks/java/java8tests</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>java8-examples</id>
+      <activation>
+        <jdk>[1.8,)</jdk>
+      </activation>
+      <modules>
+        <module>examples/java8</module>
+      </modules>
+    </profile>
     <profile>
       <id>doclint-java8-disable</id>
       <activation>
@@ -215,10 +266,6 @@
           <configuration>
             <parallel>${testParallelValue}</parallel>
             <threadCount>4</threadCount>
-            <additionalClasspathElements>
-              <additionalClasspathElement>${project.build.directory}/${project.artifactId}-${project.version}.jar</additionalClasspathElement>
-              <additionalClasspathElement>${project.build.directory}/${project.artifactId}-${project.version}-tests.jar</additionalClasspathElement>
-            </additionalClasspathElements>
             <groups>${testGroups}</groups>
             <systemPropertyVariables>
               <runIntegrationTestOnService>${runIntegrationTestOnService}</runIntegrationTestOnService>

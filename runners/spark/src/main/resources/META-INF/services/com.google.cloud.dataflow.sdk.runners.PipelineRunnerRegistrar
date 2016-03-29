@@ -13,4 +13,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-com.cloudera.dataflow.spark.SparkPipelineRunnerRegistrar
+org.apache.beam.runners.spark.translation.SparkPipelineRunnerRegistrar
