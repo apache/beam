@@ -133,6 +133,8 @@ class WindmillStateInternals(object):
 class WindmillStateReader(object):
   """Reader of raw state from Windmill."""
 
+  # The size of Windmill list request responses is capped at this size (or at
+  # least one list element, if a single such element would exceed this size).
   MAX_LIST_BYTES = 8 << 20  # 8MB
 
   def __init__(self, computation_id, key, work_token, windmill):
@@ -156,11 +158,8 @@ class WindmillStateReader(object):
     request.requests.extend([computation_request])
     return self.windmill.GetData(request)
 
-  def fetch_list(self, state_key):
+  def fetch_list(self, state_key, request_token=None):
     """Get the list at given state tag."""
-    # TODO(ccy): refactor to support continuation tokens for paginated reading.
-    # The current implementation returns up to one page of values from the
-    # list from windmill.
     request = windmill_pb2.GetDataRequest()
     computation_request = windmill_pb2.ComputationGetDataRequest(
         computation_id=self.computation_id)
@@ -171,6 +170,7 @@ class WindmillStateReader(object):
         tag=state_key,
         state_family='',
         end_timestamp=MAX_TIMESTAMP,
+        request_token=request_token or '',
         fetch_max_bytes=WindmillStateReader.MAX_LIST_BYTES)
     computation_request.requests.extend([keyed_request])
     request.requests.extend([computation_request])
@@ -418,21 +418,26 @@ class WindmillBagAccessor(StateAccessor):
 
   def _fetch(self):
     """Fetch state from Windmill."""
-    # TODO(ccy): currently, we only look at the first page of the result
-    # since we do not support pagination.  We should support pagination.
     # TODO(ccy): the Java SDK caches the first page and at the start of each
     # page of values, fires off an asynchronous read for the next page.  We
     # should do this too once we have asynchronous Windmill state reading.
-    result = self.reader.fetch_list(self.state_key)
-    for wrapper in result.data:
-      for datum in wrapper.data:
-        for item in datum.lists:
-          for value in item.values:
-            try:
-              yield decode_value(value.data)
-            except Exception:  # pylint: disable=broad-except
-              logging.error('Could not decode value: %r.', value.data)
-              yield None
+    should_fetch_more = True
+    next_request_token = None
+    while should_fetch_more:
+      result = self.reader.fetch_list(self.state_key,
+                                      request_token=next_request_token)
+      next_request_token = None
+      for wrapper in result.data:
+        for datum in wrapper.data:
+          for item in datum.lists:
+            next_request_token = item.continuation_token
+            for value in item.values:
+              try:
+                yield decode_value(value.data)
+              except Exception:  # pylint: disable=broad-except
+                logging.error('Could not decode value: %r.', value.data)
+                yield None
+      should_fetch_more = next_request_token != ''  # pylint: disable=g-explicit-bool-comparison
 
   def add(self, value):
     # Encode the value here to ensure further mutations of the value don't
