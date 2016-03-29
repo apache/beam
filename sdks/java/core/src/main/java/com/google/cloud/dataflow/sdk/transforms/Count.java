@@ -119,6 +119,8 @@ public class Count {
    * A {@link CombineFn} that counts elements.
    */
   private static class CountFn<T> extends CombineFn<T, long[], Long> {
+    // Note that the long[] accumulator always has size 1, used as
+    // a box for a mutable long.
 
     @Override
     public long[] createAccumulator() {
