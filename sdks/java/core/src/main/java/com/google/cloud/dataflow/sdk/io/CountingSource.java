@@ -393,6 +393,9 @@ public class CountingSource {
     }
 
     private long expectedValue() {
+      if (source.period.getMillis() == 0L) {
+        return Long.MAX_VALUE;
+      }
       double periodsElapsed =
           (Instant.now().getMillis() - firstStarted.getMillis())
               / (double) source.period.getMillis();
