@@ -73,6 +73,8 @@ public class InProcessCreateTest {
     InProcessCreate<Integer> converted = InProcessCreate.from(og);
 
     DataflowAssert.that(p.apply(converted)).containsInAnyOrder(2, 1, 3);
+
+    p.run();
   }
 
   @Test
@@ -86,6 +88,8 @@ public class InProcessCreateTest {
 
     DataflowAssert.that(p.apply(converted))
         .containsInAnyOrder(null, "foo", null, "spam", "ham", "eggs");
+
+    p.run();
   }
 
   static class Record implements Serializable {}
