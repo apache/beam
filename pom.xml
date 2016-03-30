@@ -125,31 +125,12 @@
   <packaging>pom</packaging>
 
   <modules>
-    <module>sdks/java/core</module>
+    <module>sdks</module>
     <module>runners</module>
-    <module>examples/java</module>
-    <module>sdks/java/maven-archetypes</module>
+    <module>examples</module>
   </modules>
 
   <profiles>
-    <profile>
-      <id>java8-tests</id>
-      <activation>
-        <jdk>[1.8,)</jdk>
-      </activation>
-      <modules>
-        <module>sdks/java/java8tests</module>
-      </modules>
-    </profile>
-    <profile>
-      <id>java8-examples</id>
-      <activation>
-        <jdk>[1.8,)</jdk>
-      </activation>
-      <modules>
-        <module>examples/java8</module>
-      </modules>
-    </profile>
     <profile>
       <id>doclint-java8-disable</id>
       <activation>

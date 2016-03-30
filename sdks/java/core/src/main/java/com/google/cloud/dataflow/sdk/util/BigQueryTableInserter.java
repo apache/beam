@@ -248,6 +248,7 @@ public class BigQueryTableInserter {
           }
         }
       } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
         throw new IOException("Interrupted while inserting " + rowsToPublish);
       } catch (ExecutionException e) {
         Throwables.propagate(e.getCause());
@@ -257,6 +258,7 @@ public class BigQueryTableInserter {
         try {
           Thread.sleep(backoff.nextBackOffMillis());
         } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
           throw new IOException("Interrupted while waiting before retrying insert of " + retryRows);
         }
         LOG.info("Retrying failed inserts to BigQuery");

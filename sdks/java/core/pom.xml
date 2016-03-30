@@ -23,13 +23,13 @@
 
   <parent>
     <groupId>org.apache.beam</groupId>
-    <artifactId>parent</artifactId>
+    <artifactId>java-sdk-parent</artifactId>
     <version>0.1.0-incubating-SNAPSHOT</version>
-    <relativePath>../../../pom.xml</relativePath>
+    <relativePath>../pom.xml</relativePath>
   </parent>
 
   <artifactId>java-sdk-all</artifactId>
-  <name>Apache Beam :: SDK :: Java All</name>
+  <name>Apache Beam :: SDKs :: Java :: Core</name>
   <description>Beam SDK Java All provides a simple, Java-based
   interface for processing virtually any size data. This
   artifact includes entire Apache Beam Java SDK.</description>
@@ -98,7 +98,7 @@
           </dependency>
         </dependencies>
         <configuration>
-          <configLocation>../../../checkstyle.xml</configLocation>
+          <configLocation>../checkstyle.xml</configLocation>
           <consoleOutput>true</consoleOutput>
           <failOnViolation>true</failOnViolation>
           <includeResources>false</includeResources>

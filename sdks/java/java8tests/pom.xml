@@ -23,13 +23,13 @@
 
   <parent>
     <groupId>org.apache.beam</groupId>
-    <artifactId>parent</artifactId>
+    <artifactId>java-sdk-parent</artifactId>
     <version>0.1.0-incubating-SNAPSHOT</version>
-    <relativePath>../../../pom.xml</relativePath>
+    <relativePath>../pom.xml</relativePath>
   </parent>
 
   <artifactId>java8tests-all</artifactId>
-  <name>Apache Beam :: Tests :: Java 8 All</name>
+  <name>Apache Beam :: SDKs :: Java :: Tests</name>
   <description>Apache Beam Java SDK provides a simple, Java-based
     interface for processing virtually any size data.
     This artifact includes tests of the SDK from a Java 8
@@ -95,7 +95,7 @@
           </dependency>
         </dependencies>
         <configuration>
-          <configLocation>../../../checkstyle.xml</configLocation>
+          <configLocation>../checkstyle.xml</configLocation>
           <consoleOutput>true</consoleOutput>
           <failOnViolation>true</failOnViolation>
           <includeTestSourceDirectory>true</includeTestSourceDirectory>

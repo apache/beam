@@ -23,35 +23,19 @@
 
   <parent>
     <groupId>org.apache.beam</groupId>
-    <artifactId>maven-archetypes-parent</artifactId>
+    <artifactId>parent</artifactId>
     <version>0.1.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <groupId>org.apache.beam</groupId>
-  <artifactId>maven-archetypes-starter</artifactId>
-  <name>Apache Beam :: SDKs :: Java :: Maven Archetypes :: Starter</name>
-  <description>A Maven archetype to create a simple starter pipeline to
-    get started using the Apache Beam Java SDK. </description>
+  <artifactId>sdks-parent</artifactId>
 
-  <packaging>maven-archetype</packaging>
+  <packaging>pom</packaging>
 
-  <build>
-    <extensions>
-      <extension>
-        <groupId>org.apache.maven.archetype</groupId>
-        <artifactId>archetype-packaging</artifactId>
-        <version>2.4</version>
-      </extension>
-    </extensions>
+  <name>Apache Beam :: SDKs</name>
 
-    <pluginManagement>
-      <plugins>
-        <plugin>
-          <artifactId>maven-archetype-plugin</artifactId>
-          <version>2.4</version>
-        </plugin>
-      </plugins>
-    </pluginManagement>
-  </build>
+  <modules>
+    <module>java</module>
+  </modules>
+
 </project>

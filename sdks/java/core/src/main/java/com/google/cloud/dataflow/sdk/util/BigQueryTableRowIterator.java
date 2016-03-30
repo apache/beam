@@ -45,6 +45,7 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
+import com.google.common.util.concurrent.Uninterruptibles;
 
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -59,6 +60,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
 
@@ -412,11 +414,8 @@ public class BigQueryTableRowIterator implements AutoCloseable {
           throw new IOException("Executing query " + query + " failed: " + error.getMessage());
         }
       }
-      try {
-        Thread.sleep(QUERY_COMPLETION_POLL_TIME.getMillis());
-      } catch (InterruptedException e) {
-        e.printStackTrace();
-      }
+      Uninterruptibles.sleepUninterruptibly(
+          QUERY_COMPLETION_POLL_TIME.getMillis(), TimeUnit.MILLISECONDS);
     }
   }
 
@@ -462,6 +461,9 @@ public class BigQueryTableRowIterator implements AutoCloseable {
         deleteDataset(temporaryDatasetId);
       }
     } catch (IOException | InterruptedException e) {
+      if (e instanceof InterruptedException) {
+        Thread.currentThread().interrupt();
+      }
       throw new RuntimeException(e);
     }
 
