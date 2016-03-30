@@ -37,7 +37,9 @@ import org.junit.experimental.categories.Category;
 
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.Map;
 
 import javax.annotation.Nullable;
 
@@ -136,7 +138,7 @@ public class TestPipeline extends Pipeline {
               : PipelineOptionsFactory.fromArgs(
                       MAPPER.readValue(
                           System.getProperty(PROPERTY_BEAM_TEST_PIPELINE_OPTIONS), String[].class))
-                  .as(PipelineOptions.class);
+                  .as(TestPipelineOptions.class);
 
       options.as(ApplicationNameOptions.class).setAppName(getAppName());
       // If no options were specified, use a test credential object on all pipelines.
@@ -149,6 +151,22 @@ public class TestPipeline extends Pipeline {
       throw new RuntimeException("Unable to instantiate test options from system property "
           + PROPERTY_BEAM_TEST_PIPELINE_OPTIONS + ":"
           + System.getProperty(PROPERTY_BEAM_TEST_PIPELINE_OPTIONS), e);
+    }
+  }
+
+
+  public static String[] convertToArgs(PipelineOptions options) {
+    try {
+      Map<String, Object> stringOpts = (Map<String, Object>) MAPPER.readValue(
+          MAPPER.writeValueAsBytes(options), Map.class).get("options");
+
+      ArrayList<String> optArrayList = new ArrayList<>();
+      for (Map.Entry<String, Object> entry : stringOpts.entrySet()) {
+        optArrayList.add("--" + entry.getKey() + "=" + entry.getValue());
+      }
+      return optArrayList.toArray(new String[optArrayList.size()]);
+    } catch (Exception e) {
+      return null;
     }
   }
 

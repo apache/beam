@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.testing;
 
 import static org.hamcrest.CoreMatchers.startsWith;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
@@ -25,6 +26,7 @@ import static org.junit.Assert.assertThat;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.DirectPipelineRunner;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -34,6 +36,9 @@ import org.junit.Test;
 import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+
+import java.util.Arrays;
+import java.util.List;
 
 /** Tests for {@link TestPipeline}. */
 @RunWith(JUnit4.class)
@@ -83,6 +88,17 @@ public class TestPipelineTest {
 
   private TestPipeline nestedMethod() {
     return TestPipeline.create();
+  }
+
+  @Test
+  public void testConvertToArgs() {
+    String[] args = new String[]{"--tempLocation=Test_Location"};
+    PipelineOptions options = PipelineOptionsFactory.fromArgs(args).as(PipelineOptions.class);
+    String[] arr = TestPipeline.convertToArgs(options);
+    List<String> lst = Arrays.asList(arr);
+    assertEquals(lst.size(), 2);
+    assertThat(lst, containsInAnyOrder("--tempLocation=Test_Location",
+          "--appName=TestPipelineTest"));
   }
 
   @Test

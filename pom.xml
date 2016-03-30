@@ -308,6 +308,12 @@
           </dependencies>
         </plugin>
 
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-failsafe-plugin</artifactId>
+          <version>2.19.1</version>
+        </plugin>
+
         <!-- This plugin's configuration tells the m2e plugin how to import this
              Maven project into the Eclipse environment. -->
         <plugin>
