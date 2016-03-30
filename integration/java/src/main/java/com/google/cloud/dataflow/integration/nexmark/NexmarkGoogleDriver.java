@@ -18,7 +18,6 @@ package com.google.cloud.dataflow.integration.nexmark;
 
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.common.collect.Sets;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
