@@ -14,7 +14,7 @@
  * the License.
  */
 
-package com.google.cloud.dataflow.contrib.hadoop;
+package org.apache.beam.io.hdfs;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
@@ -31,7 +31,7 @@ import java.io.OutputStream;
 import java.util.List;
 
 /**
- * A {@code WritableCoder} is a {@link com.google.cloud.dataflow.sdk.coders.Coder} for a
+ * A {@code WritableCoder} is a {@link Coder} for a
  * Java class that implements {@link org.apache.hadoop.io.Writable}.
  *
  * <p> To use, specify the coder type on a PCollection:

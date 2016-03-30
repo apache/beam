@@ -14,7 +14,7 @@
  * the License.
  */
 
-package com.google.cloud.dataflow.contrib.hadoop;
+package org.apache.beam.io.hdfs;
 
 import com.google.cloud.dataflow.sdk.testing.CoderProperties;
 

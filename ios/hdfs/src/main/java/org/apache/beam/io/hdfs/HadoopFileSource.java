@@ -14,7 +14,7 @@
  * the License.
  */
 
-package com.google.cloud.dataflow.contrib.hadoop;
+package org.apache.beam.io.hdfs;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
@@ -56,13 +56,13 @@ import javax.annotation.Nullable;
  * Hadoop file-based input format.
  *
  * <p>To read a {@link com.google.cloud.dataflow.sdk.values.PCollection} of
- * {@link com.google.cloud.dataflow.sdk.values.KV} key-value pairs from one or more
+ * {@link KV} key-value pairs from one or more
  * Hadoop files, use {@link HadoopFileSource#from} to specify the path(s) of the files to
  * read, the Hadoop {@link org.apache.hadoop.mapreduce.lib.input.FileInputFormat}, the
  * key class and the value class.
  *
  * <p>A {@code HadoopFileSource} can be read from using the
- * {@link com.google.cloud.dataflow.sdk.io.Read} transform. For example:
+ * {@link Read} transform. For example:
  *
  * <pre>
  * {@code
@@ -268,7 +268,7 @@ public class HadoopFileSource<K, V> extends BoundedSource<KV<K, V>> {
     return false;
   }
 
-  static class HadoopFileReader<K, V> extends BoundedSource.BoundedReader<KV<K, V>> {
+  static class HadoopFileReader<K, V> extends BoundedReader<KV<K, V>> {
 
     private final BoundedSource<KV<K, V>> source;
     private final String filepattern;

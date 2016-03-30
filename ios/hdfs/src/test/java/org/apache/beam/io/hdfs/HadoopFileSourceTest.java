@@ -14,7 +14,7 @@
  * the License.
  */
 
-package com.google.cloud.dataflow.contrib.hadoop;
+package org.apache.beam.io.hdfs;
 
 import static com.google.cloud.dataflow.sdk.testing.SourceTestUtils.readFromSource;
 import static org.hamcrest.Matchers.containsInAnyOrder;
