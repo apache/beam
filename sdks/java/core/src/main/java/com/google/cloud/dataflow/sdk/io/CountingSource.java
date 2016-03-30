@@ -335,8 +335,7 @@ public class CountingSource {
     }
 
     @Override
-    public void validate() {
-    }
+    public void validate() {}
 
     @Override
     public Coder<Long> getDefaultOutputCoder() {
@@ -351,10 +350,8 @@ public class CountingSource {
    */
   private static class UnboundedCountingReader extends UnboundedReader<Long> {
     private UnboundedCountingSource source;
-
     private long current;
     private Instant currentTimestamp;
-
     private Instant firstStarted;
 
     public UnboundedCountingReader(UnboundedCountingSource source, CounterMark mark) {
