@@ -135,11 +135,15 @@ public class Count {
 
     @Override
     public long[] mergeAccumulators(Iterable<long[]> accumulators) {
-      long result = 0L;
-      for (long[] accum : accumulators) {
-        result += accum[0];
+      Iterator<long[]> iter = accumulators.iterator();
+      if (!iter.hasNext()) {
+        return createAccumulator();
       }
-      return new long[] {result};
+      long[] running = iter.next();
+      while (iter.hasNext()) {
+        running[0] += iter.next()[0];
+      }
+      return running;
     }
 
     @Override
