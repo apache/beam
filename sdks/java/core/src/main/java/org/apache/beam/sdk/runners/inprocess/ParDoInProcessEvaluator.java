@@ -18,15 +18,19 @@
 package org.apache.beam.sdk.runners.inprocess;
 
 import org.apache.beam.sdk.runners.inprocess.InProcessExecutionContext.InProcessStepContext;
+import org.apache.beam.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
 import org.apache.beam.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.util.DoFnRunner;
+import org.apache.beam.sdk.util.DoFnRunners;
 import org.apache.beam.sdk.util.DoFnRunners.OutputManager;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.CounterSet;
 import org.apache.beam.sdk.util.state.CopyOnAccessInMemoryStateInternals;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 
 import java.util.ArrayList;
@@ -36,13 +40,57 @@ import java.util.List;
 import java.util.Map;
 
 class ParDoInProcessEvaluator<T> implements TransformEvaluator<T> {
+  public static <InputT, OutputT> ParDoInProcessEvaluator<InputT> create(
+      InProcessEvaluationContext evaluationContext,
+      CommittedBundle<InputT> inputBundle,
+      AppliedPTransform<PCollection<InputT>, ?, ?> application,
+      DoFn<InputT, OutputT> fn,
+      List<PCollectionView<?>> sideInputs,
+      TupleTag<OutputT> mainOutputTag,
+      List<TupleTag<?>> sideOutputTags,
+      Map<TupleTag<?>, PCollection<?>> outputs) {
+    InProcessExecutionContext executionContext =
+        evaluationContext.getExecutionContext(application, inputBundle.getKey());
+    String stepName = evaluationContext.getStepName(application);
+    InProcessStepContext stepContext =
+        executionContext.getOrCreateStepContext(stepName, stepName, null);
+
+    CounterSet counters = evaluationContext.createCounterSet();
+
+    Map<TupleTag<?>, UncommittedBundle<?>> outputBundles = new HashMap<>();
+    for (Map.Entry<TupleTag<?>, PCollection<?>> outputEntry : outputs.entrySet()) {
+      outputBundles.put(
+          outputEntry.getKey(),
+          evaluationContext.createBundle(inputBundle, outputEntry.getValue()));
+    }
+
+    DoFnRunner<InputT, OutputT> runner =
+        DoFnRunners.createDefault(
+            evaluationContext.getPipelineOptions(),
+            fn,
+            evaluationContext.createSideInputReader(sideInputs),
+            BundleOutputManager.create(outputBundles),
+            mainOutputTag,
+            sideOutputTags,
+            stepContext,
+            counters.getAddCounterMutator(),
+            application.getInput().getWindowingStrategy());
+
+    runner.startBundle();
+
+    return new ParDoInProcessEvaluator<>(
+        runner, application, counters, outputBundles.values(), stepContext);
+  }
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+
   private final DoFnRunner<T, ?> fnRunner;
   private final AppliedPTransform<PCollection<T>, ?, ?> transform;
   private final CounterSet counters;
   private final Collection<UncommittedBundle<?>> outputBundles;
   private final InProcessStepContext stepContext;
 
-  public ParDoInProcessEvaluator(
+  private ParDoInProcessEvaluator(
       DoFnRunner<T, ?> fnRunner,
       AppliedPTransform<PCollection<T>, ?, ?> transform,
       CounterSet counters,
