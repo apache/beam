@@ -129,6 +129,7 @@
     <module>runners</module>
     <module>examples/java</module>
     <module>sdks/java/maven-archetypes</module>
+    <module>ios</module>
   </modules>
 
   <profiles>

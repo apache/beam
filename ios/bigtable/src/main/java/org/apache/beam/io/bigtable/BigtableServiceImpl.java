@@ -13,32 +13,24 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.google.cloud.dataflow.sdk.io.bigtable;
+package org.apache.beam.io.bigtable;
 
 import com.google.bigtable.admin.table.v1.GetTableRequest;
-import com.google.bigtable.v1.MutateRowRequest;
-import com.google.bigtable.v1.Mutation;
-import com.google.bigtable.v1.ReadRowsRequest;
-import com.google.bigtable.v1.Row;
-import com.google.bigtable.v1.RowRange;
-import com.google.bigtable.v1.SampleRowKeysRequest;
-import com.google.bigtable.v1.SampleRowKeysResponse;
+import com.google.bigtable.v1.*;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.grpc.BigtableSession;
 import com.google.cloud.bigtable.grpc.async.AsyncExecutor;
 import com.google.cloud.bigtable.grpc.async.HeapSizeManager;
 import com.google.cloud.bigtable.grpc.scanner.ResultScanner;
-import com.google.cloud.dataflow.sdk.io.bigtable.BigtableIO.BigtableSource;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.common.base.MoreObjects;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Empty;
-
 import io.grpc.Status.Code;
 import io.grpc.StatusRuntimeException;
-
+import org.apache.beam.io.bigtable.BigtableIO.BigtableSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

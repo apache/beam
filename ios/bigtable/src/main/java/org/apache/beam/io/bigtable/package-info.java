@@ -19,4 +19,4 @@
  *
  * @see com.google.cloud.dataflow.sdk.io.bigtable.BigtableIO
  */
-package com.google.cloud.dataflow.sdk.io.bigtable;
+package org.apache.beam.io.bigtable;

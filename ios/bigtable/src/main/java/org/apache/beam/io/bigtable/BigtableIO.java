@@ -14,11 +14,7 @@
  * the License.
  */
 
-package com.google.cloud.dataflow.sdk.io.bigtable;
-
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
+package org.apache.beam.io.bigtable;
 
 import com.google.bigtable.v1.Mutation;
 import com.google.bigtable.v1.Row;
@@ -50,10 +46,10 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Empty;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Iterator;
@@ -61,7 +57,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import javax.annotation.Nullable;
+import static com.google.common.base.Preconditions.*;
 
 /**
  * A bounded source and sink for Google Cloud Bigtable.
