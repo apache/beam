@@ -104,16 +104,16 @@ public class Generator implements Iterator<TimestampedValue<Event>>, Serializabl
               OutputStream outStream,
               com.google.cloud.dataflow.sdk.coders.Coder.Context context)
               throws CoderException, IOException {
-            LONG_CODER.encode(value.numEvents, outStream, context.nested());
-            LONG_CODER.encode(value.wallclockBaseTime, outStream, context.nested());
+            LONG_CODER.encode(value.numEvents, outStream, Context.NESTED);
+            LONG_CODER.encode(value.wallclockBaseTime, outStream, Context.NESTED);
           }
 
           @Override
           public Checkpoint decode(
               InputStream inStream, com.google.cloud.dataflow.sdk.coders.Coder.Context context)
               throws CoderException, IOException {
-            long numEvents = LONG_CODER.decode(inStream, context.nested());
-            long wallclockBaseTime = LONG_CODER.decode(inStream, context.nested());
+            long numEvents = LONG_CODER.decode(inStream, Context.NESTED);
+            long wallclockBaseTime = LONG_CODER.decode(inStream, Context.NESTED);
             return new Checkpoint(numEvents, wallclockBaseTime);
           }
         };

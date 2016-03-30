@@ -17,8 +17,6 @@
 package com.google.cloud.dataflow.integration.nexmark;
 
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
-import com.google.cloud.dataflow.sdk.options.DataflowPipelineWorkerPoolOptions;
-import com.google.cloud.dataflow.sdk.options.StreamingOptions;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -26,8 +24,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
 
 /**
@@ -38,27 +34,6 @@ import java.util.Objects;
  */
 class NexmarkConfiguration implements Serializable {
   public static final NexmarkConfiguration DEFAULT = new NexmarkConfiguration();
-
-  /** Worker machine type. */
-  @JsonProperty
-  public String workerMachineType = "n1-standard-4";
-
-  /** Same as {@link DataflowPipelineWorkerPoolOptions#setNumWorkers}. */
-  @JsonProperty
-  public int numWorkers = 1;
-
-  /** Same as {@link DataflowPipelineWorkerPoolOptions#setMaxNumWorkers}. */
-  @JsonProperty
-  public int maxNumWorkers = 1;
-
-  /** Same as {@link DataflowPipelineWorkerPoolOptions#setAutoscalingAlgorithm}. */
-  @JsonProperty
-  public DataflowPipelineWorkerPoolOptions.AutoscalingAlgorithmType autoscalingAlgorithm =
-      DataflowPipelineWorkerPoolOptions.AutoscalingAlgorithmType.NONE;
-
-  /** Same as {@link StreamingOptions#setStreaming}. */
-  @JsonProperty
-  public boolean streaming = false;
 
   /** Which query to run, in [0,9]. */
   @JsonProperty
@@ -237,12 +212,6 @@ class NexmarkConfiguration implements Serializable {
   public int fanout = 5;
 
   /**
-   * Experiments to enable.
-   */
-  @JsonProperty
-  public List<String> experiments = new ArrayList<>();
-
-  /**
    * Length of occasional delay to impose on events (in seconds).
    */
   @JsonProperty
@@ -279,37 +248,12 @@ class NexmarkConfiguration implements Serializable {
   @JsonProperty
   public boolean debug = true;
 
-  /** Return number of cores for configuration's machine type. */
-  public int coresPerWorker() {
-    String[] split = workerMachineType.split("-");
-    if (split.length != 3) {
-      return 1;
-    }
-    try {
-      return Integer.parseInt(split[2]);
-    } catch (NumberFormatException ex) {
-      return 1;
-    }
-  }
-
   /**
    * Replace any properties of this configuration which have been supplied by the command line.
    * However *never replace* isStreaming since we can't tell if it was supplied by the command line
    * or merely has its default false value.
    */
-  public void overrideFromOptions(NexmarkDriver.Options options) {
-    if (options.getWorkerMachineType() != null) {
-      workerMachineType = options.getWorkerMachineType();
-    }
-    if (options.getNumWorkers() > 0) {
-      numWorkers = options.getNumWorkers();
-    }
-    if (options.getMaxNumWorkers() > 0) {
-      maxNumWorkers = options.getMaxNumWorkers();
-    }
-    if (options.getAutoscalingAlgorithm() != null) {
-      autoscalingAlgorithm = options.getAutoscalingAlgorithm();
-    }
+  public void overrideFromOptions(Options options) {
     if (options.getQuery() != null) {
       query = options.getQuery();
     }
@@ -409,10 +353,6 @@ class NexmarkConfiguration implements Serializable {
     if (options.getFanout() != null) {
       fanout = options.getFanout();
     }
-    if (options.getExperiments() != null) {
-      experiments.clear();
-      experiments.addAll(options.getExperiments());
-    }
     if (options.getOccasionalDelaySec() != null) {
       occasionalDelaySec = options.getOccasionalDelaySec();
     }
@@ -439,11 +379,6 @@ class NexmarkConfiguration implements Serializable {
   @Override
   public NexmarkConfiguration clone() {
     NexmarkConfiguration result = new NexmarkConfiguration();
-    result.workerMachineType = workerMachineType;
-    result.numWorkers = numWorkers;
-    result.maxNumWorkers = maxNumWorkers;
-    result.autoscalingAlgorithm = autoscalingAlgorithm;
-    result.streaming = streaming;
     result.query = query;
     result.logResults = logResults;
     result.assertCorrectness = assertCorrectness;
@@ -477,7 +412,6 @@ class NexmarkConfiguration implements Serializable {
     result.diskBusyBytes = diskBusyBytes;
     result.auctionSkip = auctionSkip;
     result.fanout = fanout;
-    result.experiments.addAll(experiments);
     result.occasionalDelaySec = occasionalDelaySec;
     result.probDelayedEvent = probDelayedEvent;
     result.maxLogEvents = maxLogEvents;
@@ -493,19 +427,6 @@ class NexmarkConfiguration implements Serializable {
   public String toShortString() {
     StringBuilder sb = new StringBuilder();
     sb.append(String.format("query:%d", query));
-    sb.append(String.format("; streaming:%s", streaming));
-    if (!workerMachineType.equals(DEFAULT.workerMachineType)) {
-      sb.append(String.format("; workerMachineType:%s", workerMachineType));
-    }
-    if (numWorkers != DEFAULT.numWorkers) {
-      sb.append(String.format("; numWorkers:%d", numWorkers));
-    }
-    if (maxNumWorkers != DEFAULT.maxNumWorkers) {
-      sb.append(String.format("; maxNumWorkers:%d", maxNumWorkers));
-    }
-    if (autoscalingAlgorithm != DEFAULT.autoscalingAlgorithm) {
-      sb.append(String.format("; autosalingAlgorithms:%s", autoscalingAlgorithm));
-    }
     if (sourceType != DEFAULT.sourceType) {
       sb.append(String.format("; sourceType:%s", sourceType));
     }
@@ -594,9 +515,6 @@ class NexmarkConfiguration implements Serializable {
     if (fanout != DEFAULT.fanout) {
       sb.append(String.format("; fanout:%d", fanout));
     }
-    if (!experiments.equals(DEFAULT.experiments)) {
-      sb.append(String.format("; experiments:%s", experiments));
-    }
     if (occasionalDelaySec != DEFAULT.occasionalDelaySec) {
       sb.append(String.format("; occasionalDelaySec:%d", occasionalDelaySec));
     }
@@ -638,14 +556,13 @@ class NexmarkConfiguration implements Serializable {
 
   @Override
   public int hashCode() {
-    return Objects.hash(workerMachineType, numWorkers, maxNumWorkers, autoscalingAlgorithm,
-        streaming, query, logResults, assertCorrectness, sourceType, sinkType, pubSubMode,
+    return Objects.hash(query, logResults, assertCorrectness, sourceType, sinkType, pubSubMode,
         numEvents, numPreloadEvents, numEventGenerators, qpsShape, firstEventQps, nextEventQps,
         qpsPeriodSec, preloadEventQps, isRateLimited, useWallclockEventTime, avgPersonByteSize,
         avgAuctionByteSize, avgBidByteSize, hotAuctionRatio, hotSellersRatio, hotBiddersRatio,
         windowSizeSec, windowPeriodSec, watermarkHoldbackSec, numInFlightAuctions, numActivePeople,
         justModelResultRate, coderStrategy, cpuDelayMs, diskBusyBytes, auctionSkip, fanout,
-        experiments, occasionalDelaySec, probDelayedEvent, maxLogEvents, usePubsubPublishTime,
+        occasionalDelaySec, probDelayedEvent, maxLogEvents, usePubsubPublishTime,
         outOfOrderGroupSize);
   }
 
@@ -661,16 +578,10 @@ class NexmarkConfiguration implements Serializable {
       return false;
     }
     NexmarkConfiguration other = (NexmarkConfiguration) obj;
-    if (!workerMachineType.equals(other.workerMachineType)) {
-      return false;
-    }
     if (assertCorrectness != other.assertCorrectness) {
       return false;
     }
     if (auctionSkip != other.auctionSkip) {
-      return false;
-    }
-    if (autoscalingAlgorithm != other.autoscalingAlgorithm) {
       return false;
     }
     if (avgAuctionByteSize != other.avgAuctionByteSize) {
@@ -691,13 +602,6 @@ class NexmarkConfiguration implements Serializable {
     if (diskBusyBytes != other.diskBusyBytes) {
       return false;
     }
-    if (experiments == null) {
-      if (other.experiments != null) {
-        return false;
-      }
-    } else if (!experiments.equals(other.experiments)) {
-      return false;
-    }
     if (fanout != other.fanout) {
       return false;
     }
@@ -716,9 +620,6 @@ class NexmarkConfiguration implements Serializable {
     if (isRateLimited != other.isRateLimited) {
       return false;
     }
-    if (streaming != other.streaming) {
-      return false;
-    }
     if (justModelResultRate != other.justModelResultRate) {
       return false;
     }
@@ -726,9 +627,6 @@ class NexmarkConfiguration implements Serializable {
       return false;
     }
     if (maxLogEvents != other.maxLogEvents) {
-      return false;
-    }
-    if (maxNumWorkers != other.maxNumWorkers) {
       return false;
     }
     if (nextEventQps != other.nextEventQps) {
@@ -747,9 +645,6 @@ class NexmarkConfiguration implements Serializable {
       return false;
     }
     if (numPreloadEvents != other.numPreloadEvents) {
-      return false;
-    }
-    if (numWorkers != other.numWorkers) {
       return false;
     }
     if (occasionalDelaySec != other.occasionalDelaySec) {

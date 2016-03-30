@@ -42,18 +42,18 @@ public class IdNameReserve implements KnownSize, Serializable {
     public void encode(IdNameReserve value, OutputStream outStream,
         com.google.cloud.dataflow.sdk.coders.Coder.Context context)
         throws CoderException, IOException {
-      LONG_CODER.encode(value.id, outStream, context.nested());
-      STRING_CODER.encode(value.name, outStream, context.nested());
-      LONG_CODER.encode(value.reserve, outStream, context.nested());
+      LONG_CODER.encode(value.id, outStream, Context.NESTED);
+      STRING_CODER.encode(value.name, outStream, Context.NESTED);
+      LONG_CODER.encode(value.reserve, outStream, Context.NESTED);
     }
 
     @Override
     public IdNameReserve decode(
         InputStream inStream, com.google.cloud.dataflow.sdk.coders.Coder.Context context)
         throws CoderException, IOException {
-      long id = LONG_CODER.decode(inStream, context.nested());
-      String name = STRING_CODER.decode(inStream, context.nested());
-      long reserve = LONG_CODER.decode(inStream, context.nested());
+      long id = LONG_CODER.decode(inStream, Context.NESTED);
+      String name = STRING_CODER.decode(inStream, Context.NESTED);
+      long reserve = LONG_CODER.decode(inStream, Context.NESTED);
       return new IdNameReserve(id, name, reserve);
     }
   };

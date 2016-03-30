@@ -40,16 +40,16 @@ public class AuctionCount implements KnownSize, Serializable {
     public void encode(AuctionCount value, OutputStream outStream,
         com.google.cloud.dataflow.sdk.coders.Coder.Context context)
         throws CoderException, IOException {
-      LONG_CODER.encode(value.auction, outStream, context.nested());
-      LONG_CODER.encode(value.count, outStream, context.nested());
+      LONG_CODER.encode(value.auction, outStream, Context.NESTED);
+      LONG_CODER.encode(value.count, outStream, Context.NESTED);
     }
 
     @Override
     public AuctionCount decode(
         InputStream inStream, com.google.cloud.dataflow.sdk.coders.Coder.Context context)
         throws CoderException, IOException {
-      long auction = LONG_CODER.decode(inStream, context.nested());
-      long count = LONG_CODER.decode(inStream, context.nested());
+      long auction = LONG_CODER.decode(inStream, Context.NESTED);
+      long count = LONG_CODER.decode(inStream, Context.NESTED);
       return new AuctionCount(auction, count);
     }
   };

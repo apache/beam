@@ -42,20 +42,20 @@ public class NameCityStateId implements KnownSize, Serializable {
     public void encode(NameCityStateId value, OutputStream outStream,
         com.google.cloud.dataflow.sdk.coders.Coder.Context context)
         throws CoderException, IOException {
-      STRING_CODER.encode(value.name, outStream, context.nested());
-      STRING_CODER.encode(value.city, outStream, context.nested());
-      STRING_CODER.encode(value.state, outStream, context.nested());
-      LONG_CODER.encode(value.id, outStream, context.nested());
+      STRING_CODER.encode(value.name, outStream, Context.NESTED);
+      STRING_CODER.encode(value.city, outStream, Context.NESTED);
+      STRING_CODER.encode(value.state, outStream, Context.NESTED);
+      LONG_CODER.encode(value.id, outStream, Context.NESTED);
     }
 
     @Override
     public NameCityStateId decode(
         InputStream inStream, com.google.cloud.dataflow.sdk.coders.Coder.Context context)
         throws CoderException, IOException {
-      String name = STRING_CODER.decode(inStream, context.nested());
-      String city = STRING_CODER.decode(inStream, context.nested());
-      String state = STRING_CODER.decode(inStream, context.nested());
-      long id = LONG_CODER.decode(inStream, context.nested());
+      String name = STRING_CODER.decode(inStream, Context.NESTED);
+      String city = STRING_CODER.decode(inStream, Context.NESTED);
+      String state = STRING_CODER.decode(inStream, Context.NESTED);
+      long id = LONG_CODER.decode(inStream, Context.NESTED);
       return new NameCityStateId(name, city, state, id);
     }
   };

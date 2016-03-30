@@ -32,7 +32,7 @@ import java.io.Serializable;
  *
  * @param <T> Type of element we are monitoring.
  */
-class Monitor<T extends KnownSize> implements Serializable {
+public class Monitor<T extends KnownSize> implements Serializable {
   private class MonitorDoFn extends DoFn<T, T> {
     public final Aggregator<Long, Long> elementCounter =
         createAggregator(counterNamePrefix + "_elements", new SumLongFn());

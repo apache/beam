@@ -41,28 +41,28 @@ public class Person implements KnownSize, Serializable {
     public void encode(Person value, OutputStream outStream,
         com.google.cloud.dataflow.sdk.coders.Coder.Context context)
         throws CoderException, IOException {
-      LONG_CODER.encode(value.id, outStream, context.nested());
-      STRING_CODER.encode(value.name, outStream, context.nested());
-      STRING_CODER.encode(value.emailAddress, outStream, context.nested());
-      STRING_CODER.encode(value.creditCard, outStream, context.nested());
-      STRING_CODER.encode(value.city, outStream, context.nested());
-      STRING_CODER.encode(value.state, outStream, context.nested());
-      LONG_CODER.encode(value.dateTime, outStream, context.nested());
-      STRING_CODER.encode(value.extra, outStream, context.nested());
+      LONG_CODER.encode(value.id, outStream, Context.NESTED);
+      STRING_CODER.encode(value.name, outStream, Context.NESTED);
+      STRING_CODER.encode(value.emailAddress, outStream, Context.NESTED);
+      STRING_CODER.encode(value.creditCard, outStream, Context.NESTED);
+      STRING_CODER.encode(value.city, outStream, Context.NESTED);
+      STRING_CODER.encode(value.state, outStream, Context.NESTED);
+      LONG_CODER.encode(value.dateTime, outStream, Context.NESTED);
+      STRING_CODER.encode(value.extra, outStream, Context.NESTED);
     }
 
     @Override
     public Person decode(
         InputStream inStream, com.google.cloud.dataflow.sdk.coders.Coder.Context context)
         throws CoderException, IOException {
-      long id = LONG_CODER.decode(inStream, context.nested());
-      String name = STRING_CODER.decode(inStream, context.nested());
-      String emailAddress = STRING_CODER.decode(inStream, context.nested());
-      String creditCard = STRING_CODER.decode(inStream, context.nested());
-      String city = STRING_CODER.decode(inStream, context.nested());
-      String state = STRING_CODER.decode(inStream, context.nested());
-      long dateTime = LONG_CODER.decode(inStream, context.nested());
-      String extra = STRING_CODER.decode(inStream, context.nested());
+      long id = LONG_CODER.decode(inStream, Context.NESTED);
+      String name = STRING_CODER.decode(inStream, Context.NESTED);
+      String emailAddress = STRING_CODER.decode(inStream, Context.NESTED);
+      String creditCard = STRING_CODER.decode(inStream, Context.NESTED);
+      String city = STRING_CODER.decode(inStream, Context.NESTED);
+      String state = STRING_CODER.decode(inStream, Context.NESTED);
+      long dateTime = LONG_CODER.decode(inStream, Context.NESTED);
+      String extra = STRING_CODER.decode(inStream, Context.NESTED);
       return new Person(id, name, emailAddress, creditCard, city, state, dateTime, extra);
     }
   };

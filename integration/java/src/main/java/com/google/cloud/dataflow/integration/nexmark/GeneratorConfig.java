@@ -32,7 +32,6 @@ class GeneratorConfig implements Serializable {
    */
   public static final long FIRST_AUCTION_ID = 1000L;
   public static final long FIRST_PERSON_ID = 1000L;
-  public static final long FIRST_BID_ID = 0L;
   public static final long FIRST_CATEGORY_ID = 10L;
 
   /**

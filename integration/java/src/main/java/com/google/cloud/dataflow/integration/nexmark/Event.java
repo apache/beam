@@ -41,14 +41,14 @@ public class Event implements KnownSize, Serializable {
         com.google.cloud.dataflow.sdk.coders.Coder.Context context)
         throws CoderException, IOException {
       if (value.newPerson != null) {
-        INT_CODER.encode(0, outStream, context.nested());
-        Person.CODER.encode(value.newPerson, outStream, context.nested());
+        INT_CODER.encode(0, outStream, Context.NESTED);
+        Person.CODER.encode(value.newPerson, outStream, Context.NESTED);
       } else if (value.newAuction != null) {
-        INT_CODER.encode(1, outStream, context.nested());
-        Auction.CODER.encode(value.newAuction, outStream, context.nested());
+        INT_CODER.encode(1, outStream, Context.NESTED);
+        Auction.CODER.encode(value.newAuction, outStream, Context.NESTED);
       } else if (value.bid != null) {
-        INT_CODER.encode(2, outStream, context.nested());
-        Bid.CODER.encode(value.bid, outStream, context.nested());
+        INT_CODER.encode(2, outStream, Context.NESTED);
+        Bid.CODER.encode(value.bid, outStream, Context.NESTED);
       } else {
         throw new RuntimeException("invalid event");
       }
@@ -60,13 +60,13 @@ public class Event implements KnownSize, Serializable {
         throws CoderException, IOException {
       int tag = INT_CODER.decode(inStream, context);
       if (tag == 0) {
-        Person person = Person.CODER.decode(inStream, context.nested());
+        Person person = Person.CODER.decode(inStream, Context.NESTED);
         return new Event(person);
       } else if (tag == 1) {
-        Auction auction = Auction.CODER.decode(inStream, context.nested());
+        Auction auction = Auction.CODER.decode(inStream, Context.NESTED);
         return new Event(auction);
       } else if (tag == 2) {
-        Bid bid = Bid.CODER.decode(inStream, context.nested());
+        Bid bid = Bid.CODER.decode(inStream, Context.NESTED);
         return new Event(bid);
       } else {
         throw new RuntimeException("invalid event encoding");

@@ -43,22 +43,22 @@ public class Bid implements KnownSize, Serializable {
     public void encode(Bid value, OutputStream outStream,
         com.google.cloud.dataflow.sdk.coders.Coder.Context context)
         throws CoderException, IOException {
-      LONG_CODER.encode(value.auction, outStream, context.nested());
-      LONG_CODER.encode(value.bidder, outStream, context.nested());
-      LONG_CODER.encode(value.price, outStream, context.nested());
-      LONG_CODER.encode(value.dateTime, outStream, context.nested());
-      STRING_CODER.encode(value.extra, outStream, context.nested());
+      LONG_CODER.encode(value.auction, outStream, Context.NESTED);
+      LONG_CODER.encode(value.bidder, outStream, Context.NESTED);
+      LONG_CODER.encode(value.price, outStream, Context.NESTED);
+      LONG_CODER.encode(value.dateTime, outStream, Context.NESTED);
+      STRING_CODER.encode(value.extra, outStream, Context.NESTED);
     }
 
     @Override
     public Bid decode(
         InputStream inStream, com.google.cloud.dataflow.sdk.coders.Coder.Context context)
         throws CoderException, IOException {
-      long auction = LONG_CODER.decode(inStream, context.nested());
-      long bidder = LONG_CODER.decode(inStream, context.nested());
-      long price = LONG_CODER.decode(inStream, context.nested());
-      long dateTime = LONG_CODER.decode(inStream, context.nested());
-      String extra = STRING_CODER.decode(inStream, context.nested());
+      long auction = LONG_CODER.decode(inStream, Context.NESTED);
+      long bidder = LONG_CODER.decode(inStream, Context.NESTED);
+      long price = LONG_CODER.decode(inStream, Context.NESTED);
+      long dateTime = LONG_CODER.decode(inStream, Context.NESTED);
+      String extra = STRING_CODER.decode(inStream, Context.NESTED);
       return new Bid(auction, bidder, price, dateTime, extra);
     }
   };

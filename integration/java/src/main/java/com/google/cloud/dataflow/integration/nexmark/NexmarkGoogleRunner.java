@@ -28,6 +28,7 @@ import com.google.cloud.dataflow.sdk.io.AvroIO;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO;
 import com.google.cloud.dataflow.sdk.io.PubsubIO;
 import com.google.cloud.dataflow.sdk.io.TextIO;
+import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.AggregatorRetrievalException;
 import com.google.cloud.dataflow.sdk.runners.BlockingDataflowPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineJob;
@@ -62,9 +63,9 @@ import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 
 /**
- * Run a query according to specific set of options.
+ * Run a query according to specific set of options on Google Dataflow.
  */
-class NexmarkRunner {
+class NexmarkGoogleRunner {
   /**
    * How long to let streaming pipeline run after all events have been generated and we've
    * seen no activity.
@@ -99,7 +100,7 @@ class NexmarkRunner {
 
   // Following is valid over all runs.
 
-  private final NexmarkDriver.Options options;
+  private final NexmarkGoogleDriver.NexmarkGoogleOptions options;
 
   @Nullable
   private final String outputPath;
@@ -110,7 +111,9 @@ class NexmarkRunner {
 
   // Following is valid per-run only.
 
-  /** Which configuration should we run. */
+  /**
+   * Which configuration should we run.
+   */
   @Nullable
   private NexmarkConfiguration configuration;
 
@@ -120,33 +123,48 @@ class NexmarkRunner {
   @Nullable
   private PubsubHelper pubsub;
 
-  /** Pipeline 'result' for the publishing pipeline if in pub/sub COMBINED mode. */
+  /**
+   * Pipeline 'result' for the publishing pipeline if in pub/sub COMBINED mode.
+   */
   @Nullable
   private PipelineResult publisherResult;
 
-  /** Result for the main query pipeline. */
+  /**
+   * Result for the main query pipeline.
+   */
   @Nullable
   private PipelineResult mainResult;
 
-  /** Monitor for published events if in pub/sub COMBINED mode. */
+  /**
+   * Monitor for published events if in pub/sub COMBINED mode.
+   */
   @Nullable
   private Monitor<Event> publisherMonitor;
 
-  /** Query name. */
+  /**
+   * Query name.
+   */
   @Nullable
   private String queryName;
 
-  /** If sending events via pub/sub, the full topic name to use. */
+  /**
+   * If sending events via pub/sub, the full topic name to use.
+   */
   @Nullable
   private String inputTopic;
 
-  /** If true, make sure all topic, subscription and gcs file names are unique. */
+  /**
+   * If true, make sure all topic, subscription and gcs file names are unique.
+   */
   private final boolean uniqify;
 
-  /** If true, manage the creation and cleanup of topics, subscriptions and gcs files. */
+  /**
+   * If true, manage the creation and cleanup of topics, subscriptions and gcs files.
+   */
   private final boolean manageResources;
 
-  public NexmarkRunner(NexmarkDriver.Options options, @Nullable String outputPath,
+  public NexmarkGoogleRunner(
+      NexmarkGoogleDriver.NexmarkGoogleOptions options, @Nullable String outputPath,
       String pubsubTopic, boolean monitorJobs, boolean uniqify, boolean manageResources) {
     this.options = options;
     this.outputPath = outputPath != null && outputPath.isEmpty() ? null : outputPath;
@@ -163,7 +181,7 @@ class NexmarkRunner {
    */
   private PubsubHelper getPubsub() throws IOException {
     if (pubsub == null) {
-      pubsub = PubsubHelper.create(options);
+      pubsub = PubsubHelper.create(options, options.getProject());
     }
     return pubsub;
   }
@@ -185,10 +203,10 @@ class NexmarkRunner {
   private PubsubIO.Write.Bound<Event> pubsubEventSink() {
     PubsubIO.Write.Bound<Event> io =
         PubsubIO.Write.named(queryName + ".Write(" + inputTopic + ")")
-            .topic(inputTopic)
-            .idLabel(NexmarkUtils.PUBSUB_ID)
-            .withCoder(Event.CODER)
-            .named(queryName + ".PubsubSourceWrite");
+                      .topic(inputTopic)
+                      .idLabel(NexmarkUtils.PUBSUB_ID)
+                      .withCoder(Event.CODER)
+                      .named(queryName + ".PubsubSourceWrite");
     if (!configuration.usePubsubPublishTime) {
       io = io.timestampLabel(NexmarkUtils.PUBSUB_TIMESTAMP);
     }
@@ -201,10 +219,10 @@ class NexmarkRunner {
   private PubsubIO.Read.Bound<Event> pubsubEventSource(String subscription) {
     PubsubIO.Read.Bound<Event> io =
         PubsubIO.Read.named(queryName + ".Read(" + subscription + ")")
-            .subscription(subscription)
-            .idLabel(NexmarkUtils.PUBSUB_ID)
-            .withCoder(Event.CODER)
-            .named(queryName + ".PubsubSourceRead");
+                     .subscription(subscription)
+                     .idLabel(NexmarkUtils.PUBSUB_ID)
+                     .withCoder(Event.CODER)
+                     .named(queryName + ".PubsubSourceRead");
     if (!configuration.usePubsubPublishTime) {
       io = io.timestampLabel(NexmarkUtils.PUBSUB_TIMESTAMP);
     }
@@ -217,13 +235,32 @@ class NexmarkRunner {
   private PubsubIO.Write.Bound<String> pubsubResultSink(String topic) {
     PubsubIO.Write.Bound<String> io =
         PubsubIO.Write.named(queryName + ".Write(" + topic + ")")
-            .topic(topic)
-            .idLabel(NexmarkUtils.PUBSUB_ID)
-            .named(queryName + ".PubsubSinkWrite");
+                      .topic(topic)
+                      .idLabel(NexmarkUtils.PUBSUB_ID)
+                      .named(queryName + ".PubsubSinkWrite");
     if (!configuration.usePubsubPublishTime) {
       io = io.timestampLabel(NexmarkUtils.PUBSUB_TIMESTAMP);
     }
     return io;
+  }
+
+  /**
+   * Return number of cores for configuration's machine type.
+   */
+  private int coresPerWorker(DataflowPipelineOptions options) {
+    String machineType = options.getWorkerMachineType();
+    if (machineType == null || machineType.isEmpty()) {
+      return 1;
+    }
+    String[] split = machineType.split("-");
+    if (split.length != 3) {
+      return 1;
+    }
+    try {
+      return Integer.parseInt(split[2]);
+    } catch (NumberFormatException ex) {
+      return 1;
+    }
   }
 
   /**
@@ -246,10 +283,11 @@ class NexmarkRunner {
               "If sourceType is AVRO, --inputFilePrefix must be specified.");
         }
         PCollection<Event> preTimestamp = p.apply(AvroIO.Read.named("ReadFromAvro")
-            .from(options.getInputFilePrefix() + "*.avro")
-            .withSchema(Event.class));
+                                                             .from(options.getInputFilePrefix()
+                                                                   + "*.avro")
+                                                             .withSchema(Event.class));
         source = preTimestamp.apply("adjust timestamp",
-            ParDo.of(NexmarkQuery.EVENT_TIMESTAMP_FROM_DATA));
+                                    ParDo.of(NexmarkQuery.EVENT_TIMESTAMP_FROM_DATA));
         break;
       case PUBSUB:
         if (pubsubTopic == null) {
@@ -332,11 +370,12 @@ class NexmarkRunner {
             String appName = options.getAppName();
             options.setJobName("p-" + jobName);
             options.setAppName("p-" + appName);
+            int coresPerWorker = coresPerWorker(options);
             int eventGeneratorWorkers =
-                (configuration.numEventGenerators + configuration.coresPerWorker() - 1)
-                / configuration.coresPerWorker();
-            options.setMaxNumWorkers(Math.min(configuration.maxNumWorkers, eventGeneratorWorkers));
-            options.setNumWorkers(Math.min(configuration.numWorkers, eventGeneratorWorkers));
+                (configuration.numEventGenerators + coresPerWorker - 1)
+                / coresPerWorker;
+            options.setMaxNumWorkers(Math.min(options.getMaxNumWorkers(), eventGeneratorWorkers));
+            options.setNumWorkers(Math.min(options.getNumWorkers(), eventGeneratorWorkers));
             publisherMonitor = new Monitor<Event>(queryName, "publisher");
             Pipeline q = Pipeline.create(options);
             createSyntheticSource(q)
@@ -347,9 +386,10 @@ class NexmarkRunner {
               // Suppress output of publisher job; it makes the output of the command harder to
               // interpret.
               System.setOut(new PrintStream(new OutputStream() {
-                  @Override
-                  public void write(int b) {}
-                }));
+                @Override
+                public void write(int b) {
+                }
+              }));
               publisherResult = q.run();
             } finally {
               System.setOut(stdout);
@@ -358,8 +398,8 @@ class NexmarkRunner {
                 "Publisher job running as " + ((DataflowPipelineJob) publisherResult).getJobId());
             options.setJobName(jobName);
             options.setAppName(appName);
-            options.setMaxNumWorkers(configuration.maxNumWorkers);
-            options.setNumWorkers(configuration.numWorkers);
+            options.setMaxNumWorkers(options.getMaxNumWorkers());
+            options.setNumWorkers(options.getNumWorkers());
             waitForPublisherPreload();
             break;
         }
@@ -442,17 +482,22 @@ class NexmarkRunner {
         break;
       case AVRO:
         NexmarkUtils.console(null, "WARNING: with --sinkType=AVRO, actual query results will be "
-            + "discarded.", outputPath);
+                                   + "discarded.", outputPath);
         break;
       case BIGQUERY:
         NexmarkUtils.console(null, "Writing events to BigQuery table %s", outputPath);
-        formattedResults.apply(ParDo.of(new StringToTableRow()))
+        formattedResults
+            .apply(ParDo.of(new StringToTableRow()))
             .apply(BigQueryIO.Write.named("WriteBigQuery(Events)")
-                       .to(options.getProject() + ":nexmark.table_"
-                           + new Random().nextInt(Integer.MAX_VALUE))
-                       .withSchema(new TableSchema().setFields(new ArrayList<TableFieldSchema>() {
-                         { add(new TableFieldSchema().setName("event").setType("STRING")); }
-                       })));
+                                   .to(options.getProject() + ":nexmark.table_"
+                                       + new Random().nextInt(Integer.MAX_VALUE))
+                                   .withSchema(new TableSchema().setFields(
+                                       new ArrayList<TableFieldSchema>() {
+                                         {
+                                           add(new TableFieldSchema().setName("event")
+                                                                     .setType("STRING"));
+                                         }
+                                       })));
         break;
       case COUNT_ONLY:
         // Short-circuited above.
@@ -471,14 +516,14 @@ class NexmarkRunner {
 
   /**
    * Sink all raw Events in {@code source} to {@code this.outputPath}.
-   *
+   * <p>
    * This will configure the job to write the following files:
-   *
+   * <p>
    * <ul>
-   *   <li>{@code $outputPath/event*.avro} All Event entities.
-   *   <li>{@code $outputPath/auction*.avro} Auction entities.
-   *   <li>{@code $outputPath/bid*.avro} Bid entities.
-   *   <li>{@code $outputPath/person*.avro} Person entities.
+   * <li>{@code $outputPath/event*.avro} All Event entities.
+   * <li>{@code $outputPath/auction*.avro} Auction entities.
+   * <li>{@code $outputPath/bid*.avro} Bid entities.
+   * <li>{@code $outputPath/person*.avro} Person entities.
    * </ul>
    *
    * @param source A PCollection of events.
@@ -488,28 +533,28 @@ class NexmarkRunner {
       throw new RuntimeException("can only use Avro SinkType with --streaming=false");
     }
     if (outputPath == null) {
-          throw new RuntimeException("Must supply an --outputPath if using --sinkType=AVRO");
+      throw new RuntimeException("Must supply an --outputPath if using --sinkType=AVRO");
     }
     NexmarkUtils.console(null, "Writing events in Avro to %s", outputPath);
     source.apply(AvroIO.Write.named("WriteAvro(Events)")
-        .to(outputPath + "/event")
-        .withSuffix(".avro")
-        .withSchema(Event.class));
+                             .to(outputPath + "/event")
+                             .withSuffix(".avro")
+                             .withSchema(Event.class));
     source.apply(NexmarkQuery.JUST_BIDS)
-        .apply(AvroIO.Write.named("WriteAvro(Bids)")
-            .to(outputPath + "/bid")
-            .withSuffix(".avro")
-            .withSchema(Bid.class));
+          .apply(AvroIO.Write.named("WriteAvro(Bids)")
+                             .to(outputPath + "/bid")
+                             .withSuffix(".avro")
+                             .withSchema(Bid.class));
     source.apply(NexmarkQuery.JUST_NEW_AUCTIONS)
-        .apply(AvroIO.Write.named("WriteAvro(Auctions)")
-            .to(outputPath + "/auction")
-            .withSuffix(".avro")
-            .withSchema(Auction.class));
+          .apply(AvroIO.Write.named("WriteAvro(Auctions)")
+                             .to(outputPath + "/auction")
+                             .withSuffix(".avro")
+                             .withSchema(Auction.class));
     source.apply(NexmarkQuery.JUST_NEW_PERSONS)
-        .apply(AvroIO.Write.named("WriteAvro(People)")
-            .to(outputPath + "/person")
-            .withSuffix(".avro")
-            .withSchema(Person.class));
+          .apply(AvroIO.Write.named("WriteAvro(People)")
+                             .to(outputPath + "/person")
+                             .withSuffix(".avro")
+                             .withSchema(Person.class));
   }
 
   /**
@@ -543,20 +588,28 @@ class NexmarkRunner {
         return null;
       }
 
-      List<NexmarkQuery> queries = Arrays.asList(new NexmarkQuery[] {new Query0(configuration),
-          new Query1(configuration), new Query2(configuration), new Query3(configuration),
-          new Query4(configuration), new Query5(configuration), new Query6(configuration),
-          new Query7(configuration), new Query8(configuration), new Query9(configuration),
-          new Query10(configuration), new Query11(configuration)});
+      List<NexmarkQuery> queries = Arrays.asList(new Query0(configuration),
+                                                 new Query1(configuration),
+                                                 new Query2(configuration),
+                                                 new Query3(configuration),
+                                                 new Query4(configuration),
+                                                 new Query5(configuration),
+                                                 new Query6(configuration),
+                                                 new Query7(configuration),
+                                                 new Query8(configuration),
+                                                 new Query9(configuration),
+                                                 new Query10(configuration),
+                                                 new Query11(configuration));
       NexmarkQuery query = queries.get(configuration.query);
       queryName = query.getName();
 
       List<NexmarkQueryModel> models = Arrays.asList(
-          new NexmarkQueryModel[] {new Query0Model(configuration), new Query1Model(configuration),
-              new Query2Model(configuration), new Query3Model(configuration),
-              new Query4Model(configuration), new Query5Model(configuration),
-              new Query6Model(configuration), new Query7Model(configuration),
-              new Query8Model(configuration), new Query9Model(configuration), null, null});
+          new Query0Model(configuration), new Query1Model(configuration),
+          new Query2Model(configuration), new Query3Model(configuration),
+          new Query4Model(configuration), new Query5Model(configuration),
+          new Query6Model(configuration), new Query7Model(configuration),
+          new Query8Model(configuration), new Query9Model(configuration),
+          null, null);
       NexmarkQueryModel model = models.get(configuration.query);
       if (configuration.justModelResultRate) {
         if (model == null) {
@@ -566,15 +619,6 @@ class NexmarkRunner {
         return null;
       }
 
-      // Copy configuration into option for the few parameters which are shared.
-      // (If these have been set on the command line then those values will have
-      // been copied into the configuration, and so these assignments will have no effect.)
-      options.setWorkerMachineType(configuration.workerMachineType);
-      options.setNumWorkers(configuration.numWorkers);
-      options.setMaxNumWorkers(configuration.maxNumWorkers);
-      options.setAutoscalingAlgorithm(configuration.autoscalingAlgorithm);
-      options.setStreaming(configuration.streaming);
-      options.setExperiments(configuration.experiments);
       long now = System.currentTimeMillis();
       Pipeline p = Pipeline.create(options);
       NexmarkUtils.setupPipeline(configuration.coderStrategy, p);
@@ -587,7 +631,7 @@ class NexmarkRunner {
       if (source != null) {
         if (monitorJobs && options.getRunner() != DataflowPipelineRunner.class) {
           throw new RuntimeException("can only use --monitorJobs=true if also "
-              + "using --runner=DataflowPipelineRunner");
+                                     + "using --runner=DataflowPipelineRunner");
         }
 
         // Optionally sink events in Avro format
@@ -606,6 +650,8 @@ class NexmarkRunner {
             }
           }
           ((Query10) query).setOutputPath(path);
+          ((Query10) query).setMaxNumWorkers(
+              Math.max(options.getMaxNumWorkers(), options.getNumWorkers()));
           if (path != null && manageResources) {
             pathsToDelete.add(path + "/**");
           }
@@ -660,8 +706,9 @@ class NexmarkRunner {
       NexmarkUtils.console(null, "Query%d: only %d samples", model.configuration.query, n);
     } else {
       NexmarkUtils.console(null, "Query%d: N:%d; min:%d; 1st%%:%d; mean:%d; 3rd%%:%d; max:%d",
-          model.configuration.query, n, counts.get(0), counts.get(n / 4), counts.get(n / 2),
-          counts.get(n - 1 - n / 4), counts.get(n - 1));
+                           model.configuration.query, n, counts.get(0), counts.get(n / 4),
+                           counts.get(n / 2),
+                           counts.get(n - 1 - n / 4), counts.get(n - 1));
     }
   }
 
@@ -694,7 +741,7 @@ class NexmarkRunner {
       PipelineResult.State state = job.getState();
       long numEvents = getLong(job, publisherMonitor.getElementCounter());
       NexmarkUtils.console(null, "%s publisher (waiting for %d events, seen %d so far)", state,
-          configuration.numPreloadEvents, numEvents);
+                           configuration.numPreloadEvents, numEvents);
 
       if (numEvents >= 0 && numEvents >= configuration.numPreloadEvents) {
         NexmarkUtils.console(null, "publisher preload done");
@@ -753,8 +800,8 @@ class NexmarkRunner {
     Instant start = Instant.now();
     Instant end =
         options.getRunningTimeMinutes() != null
-            ? start.plus(Duration.standardMinutes(options.getRunningTimeMinutes()))
-            : new Instant(Long.MAX_VALUE);
+        ? start.plus(Duration.standardMinutes(options.getRunningTimeMinutes()))
+        : new Instant(Long.MAX_VALUE);
     Instant lastActivity = null;
     NexmarkPerf perf = null;
     boolean waitingForShutdown = false;
@@ -784,14 +831,14 @@ class NexmarkRunner {
         lastActivity = now;
       }
 
-      if (configuration.streaming && !waitingForShutdown) {
+      if (options.isStreaming() && !waitingForShutdown) {
         Duration quietFor = new Duration(lastActivity, now);
         if (query.getFatalCount() != null && getLong(job, query.getFatalCount()) > 0) {
           NexmarkUtils.console(now, "job has fatal errors, cancelling.");
           errors.add(String.format("Pipeline reported %s fatal errors", query.getFatalCount()));
           waitingForShutdown = true;
         } else if (configuration.numEvents > 0 && currPerf.numEvents == configuration.numEvents
-            && currPerf.numResults >= 0 && quietFor.isLongerThan(DONE_DELAY)) {
+                   && currPerf.numResults >= 0 && quietFor.isLongerThan(DONE_DELAY)) {
           NexmarkUtils.console(now, "streaming query appears to have finished, cancelling job.");
           waitingForShutdown = true;
         } else if (quietFor.isLongerThan(STUCK_TERMINATE_DELAY)) {
@@ -868,6 +915,7 @@ class NexmarkRunner {
 
     return perf;
   }
+
   enum MetricType {
     SYSTEM_WATERMARK,
     DATA_WATERMARK,
@@ -887,17 +935,17 @@ class NexmarkRunner {
 
   /**
    * Check that watermarks are not too far behind.
-   *
+   * <p>
    * <p>Returns a list of errors detected.
    */
   private List<String> checkWatermarks(DataflowPipelineJob job, boolean watermarksExpected) {
     List<String> errors = new ArrayList<>();
     try {
       JobMetrics metricResponse = job.getDataflowClient()
-          .projects()
-          .jobs()
-          .getMetrics(job.getProjectId(), job.getJobId())
-          .execute();
+                                     .projects()
+                                     .jobs()
+                                     .getMetrics(job.getProjectId(), job.getJobId())
+                                     .execute();
       List<MetricUpdate> metrics = metricResponse.getMetrics();
       if (metrics != null) {
         boolean foundWatermarks = false;
@@ -925,7 +973,7 @@ class NexmarkRunner {
 
           if (threshold != null && value.isBefore(updateTime.minus(threshold))) {
             String msg = String.format("High lag for %s: %s vs %s (allowed lag of %s)",
-                metric.getName().getName(), value, updateTime, threshold);
+                                       metric.getName().getName(), value, updateTime, threshold);
             errors.add(msg);
             NexmarkUtils.console(null, msg);
           }
@@ -947,7 +995,8 @@ class NexmarkRunner {
   /**
    * Return the current performance given {@code eventMonitor} and {@code resultMonitor}.
    */
-  private NexmarkPerf currentPerf(Instant start, Instant now, DataflowPipelineJob job,
+  private NexmarkPerf currentPerf(
+      Instant start, Instant now, DataflowPipelineJob job,
       List<NexmarkPerf.ProgressSnapshot> snapshots, Monitor<?> eventMonitor,
       Monitor<?> resultMonitor) {
     NexmarkPerf perf = new NexmarkPerf();
@@ -1045,7 +1094,7 @@ class NexmarkRunner {
    * store it in {@code perf} if found.
    */
   private void captureSteadyState(NexmarkPerf perf, List<NexmarkPerf.ProgressSnapshot> snapshots) {
-    if (!configuration.streaming) {
+    if (!options.isStreaming()) {
       return;
     }
 
@@ -1082,7 +1131,9 @@ class NexmarkRunner {
     if (sampleSec < MIN_WINDOW.getStandardSeconds()) {
       // Not sampled over enough time.
       NexmarkUtils.console(null,
-          "sample of %.1f sec not long enough to calculate steady-state event rate", sampleSec);
+                           "sample of %.1f sec not long enough to calculate steady-state event "
+                           + "rate",
+                           sampleSec);
       return;
     }
 

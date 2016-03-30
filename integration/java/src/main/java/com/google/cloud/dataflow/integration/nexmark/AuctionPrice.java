@@ -40,16 +40,16 @@ public class AuctionPrice implements KnownSize, Serializable {
     public void encode(AuctionPrice value, OutputStream outStream,
         com.google.cloud.dataflow.sdk.coders.Coder.Context context)
         throws CoderException, IOException {
-      LONG_CODER.encode(value.auction, outStream, context.nested());
-      LONG_CODER.encode(value.price, outStream, context.nested());
+      LONG_CODER.encode(value.auction, outStream, Context.NESTED);
+      LONG_CODER.encode(value.price, outStream, Context.NESTED);
     }
 
     @Override
     public AuctionPrice decode(
         InputStream inStream, com.google.cloud.dataflow.sdk.coders.Coder.Context context)
         throws CoderException, IOException {
-      long auction = LONG_CODER.decode(inStream, context.nested());
-      long price = LONG_CODER.decode(inStream, context.nested());
+      long auction = LONG_CODER.decode(inStream, Context.NESTED);
+      long price = LONG_CODER.decode(inStream, Context.NESTED);
       return new AuctionPrice(auction, price);
     }
   };

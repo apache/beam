@@ -40,14 +40,14 @@ public class Done implements KnownSize, Serializable {
     public void encode(Done value, OutputStream outStream,
         com.google.cloud.dataflow.sdk.coders.Coder.Context context)
         throws CoderException, IOException {
-      STRING_CODER.encode(value.message, outStream, context.nested());
+      STRING_CODER.encode(value.message, outStream, Context.NESTED);
     }
 
     @Override
     public Done decode(
         InputStream inStream, com.google.cloud.dataflow.sdk.coders.Coder.Context context)
         throws CoderException, IOException {
-      String message = STRING_CODER.decode(inStream, context.nested());
+      String message = STRING_CODER.decode(inStream, Context.NESTED);
       return new Done(message);
     }
   };

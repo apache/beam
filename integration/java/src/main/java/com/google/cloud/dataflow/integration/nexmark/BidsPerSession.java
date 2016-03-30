@@ -40,16 +40,16 @@ public class BidsPerSession implements KnownSize, Serializable {
     public void encode(BidsPerSession value, OutputStream outStream,
         com.google.cloud.dataflow.sdk.coders.Coder.Context context)
         throws CoderException, IOException {
-      LONG_CODER.encode(value.personId, outStream, context.nested());
-      LONG_CODER.encode(value.bidsPerSession, outStream, context.nested());
+      LONG_CODER.encode(value.personId, outStream, Context.NESTED);
+      LONG_CODER.encode(value.bidsPerSession, outStream, Context.NESTED);
     }
 
     @Override
     public BidsPerSession decode(
         InputStream inStream, com.google.cloud.dataflow.sdk.coders.Coder.Context context)
         throws CoderException, IOException {
-      long personId = LONG_CODER.decode(inStream, context.nested());
-      long bidsPerSession = LONG_CODER.decode(inStream, context.nested());
+      long personId = LONG_CODER.decode(inStream, Context.NESTED);
+      long bidsPerSession = LONG_CODER.decode(inStream, Context.NESTED);
       return new BidsPerSession(personId, bidsPerSession);
     }
   };

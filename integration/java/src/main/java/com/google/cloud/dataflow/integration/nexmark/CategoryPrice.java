@@ -42,17 +42,17 @@ public class CategoryPrice implements KnownSize, Serializable {
     public void encode(CategoryPrice value, OutputStream outStream,
         com.google.cloud.dataflow.sdk.coders.Coder.Context context)
         throws CoderException, IOException {
-      LONG_CODER.encode(value.category, outStream, context.nested());
-      LONG_CODER.encode(value.price, outStream, context.nested());
-      INT_CODER.encode(value.isLast ? 1 : 0, outStream, context.nested());
+      LONG_CODER.encode(value.category, outStream, Context.NESTED);
+      LONG_CODER.encode(value.price, outStream, Context.NESTED);
+      INT_CODER.encode(value.isLast ? 1 : 0, outStream, Context.NESTED);
     }
 
     @Override
     public CategoryPrice decode(
         InputStream inStream, com.google.cloud.dataflow.sdk.coders.Coder.Context context)
         throws CoderException, IOException {
-      long category = LONG_CODER.decode(inStream, context.nested());
-      long price = LONG_CODER.decode(inStream, context.nested());
+      long category = LONG_CODER.decode(inStream, Context.NESTED);
+      long price = LONG_CODER.decode(inStream, Context.NESTED);
       boolean isLast = INT_CODER.decode(inStream, context) != 0;
       return new CategoryPrice(category, price, isLast);
     }

@@ -17,7 +17,7 @@
 package com.google.cloud.dataflow.integration.nexmark;
 
 /**
- * Interface for elements which know their encoded byte size.
+ * Interface for elements which can quickly estimate their encoded byte size.
  */
 public interface KnownSize {
   long sizeInBytes();

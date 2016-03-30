@@ -40,16 +40,16 @@ public class SellerPrice implements KnownSize, Serializable {
     public void encode(SellerPrice value, OutputStream outStream,
         com.google.cloud.dataflow.sdk.coders.Coder.Context context)
         throws CoderException, IOException {
-      LONG_CODER.encode(value.seller, outStream, context.nested());
-      LONG_CODER.encode(value.price, outStream, context.nested());
+      LONG_CODER.encode(value.seller, outStream, Context.NESTED);
+      LONG_CODER.encode(value.price, outStream, Context.NESTED);
     }
 
     @Override
     public SellerPrice decode(
         InputStream inStream, com.google.cloud.dataflow.sdk.coders.Coder.Context context)
         throws CoderException, IOException {
-      long seller = LONG_CODER.decode(inStream, context.nested());
-      long price = LONG_CODER.decode(inStream, context.nested());
+      long seller = LONG_CODER.decode(inStream, Context.NESTED);
+      long price = LONG_CODER.decode(inStream, Context.NESTED);
       return new SellerPrice(seller, price);
     }
   };

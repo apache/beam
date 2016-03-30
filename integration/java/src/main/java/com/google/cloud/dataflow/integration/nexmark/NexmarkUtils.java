@@ -67,7 +67,7 @@ import javax.annotation.Nullable;
  * Odd's 'n Ends used throughout queries and driver.
  */
 public class NexmarkUtils {
-  private static final Logger LOG = LoggerFactory.getLogger(NexmarkDriver.class.getName());
+  private static final Logger LOG = LoggerFactory.getLogger(NexmarkGoogleDriver.class.getName());
 
   /** Mapper for (de)serializing JSON. */
   static final ObjectMapper MAPPER = new ObjectMapper();
