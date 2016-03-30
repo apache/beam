@@ -159,6 +159,9 @@ public class GcsUtil {
             IOException.class);
         return ImmutableList.of(gcsPattern);
       } catch (IOException | InterruptedException e) {
+        if (e instanceof InterruptedException) {
+          Thread.currentThread().interrupt();
+        }
         if (e instanceof IOException && errorExtractor.itemNotFound((IOException) e)) {
           // If the path was not found, return an empty list.
           return ImmutableList.of();
@@ -343,6 +346,7 @@ public class GcsUtil {
         }
         throw e;
       } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
         throw new IOException(
             String.format("Error while attempting to verify existence of bucket gs://%s",
                 path.getBucket()), e);
