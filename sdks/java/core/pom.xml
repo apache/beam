@@ -383,23 +383,6 @@
       </exclusions>
     </dependency>
 
-    <dependency>
-      <groupId>io.grpc</groupId>
-      <artifactId>grpc-all</artifactId>
-      <version>0.12.0</version>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.cloud.bigtable</groupId>
-      <artifactId>bigtable-protos</artifactId>
-      <version>${bigtable.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.cloud.bigtable</groupId>
-      <artifactId>bigtable-client-core</artifactId>
-      <version>${bigtable.version}</version>
-    </dependency>
 
     <dependency>
       <groupId>com.google.api-client</groupId>
