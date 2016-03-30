@@ -172,19 +172,21 @@ public class FlinkStreamingTransformTranslators {
 
       DataStream<WindowedValue<T>> source;
       if (transform.getSource().getClass().equals(UnboundedFlinkSource.class)) {
-        UnboundedFlinkSource flinkSource = (UnboundedFlinkSource) transform.getSource();
+        @SuppressWarnings("unchecked")
+        UnboundedFlinkSource<T> flinkSource = (UnboundedFlinkSource<T>) transform.getSource();
         source = context.getExecutionEnvironment()
             .addSource(flinkSource.getFlinkSource())
-            .flatMap(new FlatMapFunction<String, WindowedValue<String>>() {
+            .flatMap(new FlatMapFunction<T, WindowedValue<T>>() {
               @Override
-              public void flatMap(String s, Collector<WindowedValue<String>> collector) throws Exception {
-                collector.collect(WindowedValue.<String>of(s, Instant.now(), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
+              public void flatMap(T s, Collector<WindowedValue<T>> collector) throws Exception {
+                collector.collect(WindowedValue.of(s, Instant.now(), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
               }
-            }).assignTimestampsAndWatermarks(new IngestionTimeExtractor());
+            }).assignTimestampsAndWatermarks(new IngestionTimeExtractor<WindowedValue<T>>());
       } else {
         source = context.getExecutionEnvironment()
             .addSource(new UnboundedSourceWrapper<>(context.getPipelineOptions(), transform));
       }
+
       context.setOutputDataStream(output, source);
     }
   }
