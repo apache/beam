@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 Google Inc.
+ * Copyright (C) 2015 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -41,23 +41,19 @@ import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.common.base.Preconditions;
-import com.google.common.hash.Hashing;
-import com.google.protobuf.ByteString;
 import com.google.pubsub.v1.PublishRequest;
 import com.google.pubsub.v1.PublishResponse;
 import com.google.pubsub.v1.PubsubMessage;
-
-import org.joda.time.Duration;
-import org.joda.time.Instant;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
-
 import javax.annotation.Nullable;
+import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A PTransform which streams messages to pub/sub.
@@ -72,6 +68,8 @@ import javax.annotation.Nullable;
  * </ul>
  */
 public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
+  private static final Logger LOG = LoggerFactory.getLogger(PubsubUnboundedSink.class);
+
   /**
    * Maximum number of messages per publish.
    */
@@ -107,79 +105,24 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
    */
   private static final int SCALE_OUT = 4;
 
-  // ================================================================================
-  // Message
-  // ================================================================================
+  public static final Coder<PubsubGrpcClient.OutgoingMessage> CODER = new
+      AtomicCoder<PubsubGrpcClient.OutgoingMessage>() {
+        @Override
+        public void encode(
+            PubsubGrpcClient.OutgoingMessage value, OutputStream outStream, Context context)
+            throws CoderException, IOException {
+          ByteArrayCoder.of().encode(value.elementBytes, outStream, Context.NESTED);
+          BigEndianLongCoder.of().encode(value.timestampMsSinceEpoch, outStream, Context.NESTED);
+        }
 
-  /**
-   * A message to be sent to pub/sub.
-   */
-  private static class Message {
-    public static final Coder<Message> CODER = new AtomicCoder<Message>() {
-      @Override
-      public void encode(
-          Message value, OutputStream outStream, Context context)
-          throws CoderException, IOException {
-        ByteArrayCoder.of().encode(value.elementBytes, outStream, Context.NESTED);
-        BigEndianLongCoder.of().encode(value.timestampMsSinceEpoch, outStream, Context.NESTED);
-      }
-
-      @Override
-      public Message decode(
-          InputStream inStream, Context context) throws CoderException, IOException {
-        byte[] elementBytes = ByteArrayCoder.of().decode(inStream, Context.NESTED);
-        long timestampMsSinceEpoch = BigEndianLongCoder.of().decode(inStream, Context.NESTED);
-        return new Message(elementBytes, timestampMsSinceEpoch);
-      }
-    };
-
-    /**
-     * Underlying (encoded) element.
-     */
-    private final byte[] elementBytes;
-
-    /**
-     * Timestamp for element (ms since epoch).
-     */
-    private final long timestampMsSinceEpoch;
-
-    public Message(byte[] elementBytes, long timestampMsSinceEpoch) {
-      this.elementBytes = elementBytes;
-      this.timestampMsSinceEpoch = timestampMsSinceEpoch;
-    }
-
-    /**
-     * Return message for element.
-     */
-    public static <T> Message forElement(
-        PubsubUnboundedSink<T> outer, T element, Instant timestamp) throws CoderException {
-      byte[] elementBytes = CoderUtils.encodeToByteArray(outer.elementCoder, element);
-      long timestampMsSinceEpoch = timestamp.getMillis();
-      return new Message(elementBytes, timestampMsSinceEpoch);
-    }
-
-    /**
-     * Return pub/sub message representing this message.
-     */
-    public <T> PubsubMessage toMessage(PubsubUnboundedSink<T> outer) {
-      PubsubMessage.Builder message =
-          PubsubMessage.newBuilder().setData(ByteString.copyFrom(elementBytes));
-
-      if (outer.timestampLabel != null) {
-        message.getMutableAttributes().put(outer.timestampLabel, String.valueOf
-            (timestampMsSinceEpoch));
-      }
-
-      if (outer.idLabel != null) {
-        message.getMutableAttributes().put(outer.idLabel,
-                                           Hashing.murmur3_128()
-                                                  .hashBytes(elementBytes)
-                                                  .toString());
-      }
-
-      return message.build();
-    }
-  }
+        @Override
+        public PubsubGrpcClient.OutgoingMessage decode(
+            InputStream inStream, Context context) throws CoderException, IOException {
+          byte[] elementBytes = ByteArrayCoder.of().decode(inStream, Context.NESTED);
+          long timestampMsSinceEpoch = BigEndianLongCoder.of().decode(inStream, Context.NESTED);
+          return new PubsubGrpcClient.OutgoingMessage(elementBytes, timestampMsSinceEpoch);
+        }
+      };
 
   // ================================================================================
   // ShardFv
@@ -188,7 +131,7 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
   /**
    * Convert elements to messages and shard them.
    */
-  private class ShardFn extends DoFn<T, KV<Integer, Message>> {
+  private class ShardFn extends DoFn<T, KV<Integer, PubsubGrpcClient.OutgoingMessage>> {
     /**
      * Number of cores available for publishing.
      */
@@ -204,8 +147,10 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
     @Override
     public void processElement(ProcessContext c) throws Exception {
       elementCounter.addValue(1L);
+      byte[] elementBytes = CoderUtils.encodeToByteArray(elementCoder, c.element());
+      long timestampMsSinceEpoch = c.timestamp().getMillis();
       c.output(KV.of(ThreadLocalRandom.current().nextInt(numCores * SCALE_OUT),
-                     Message.forElement(PubsubUnboundedSink.this, c.element(), c.timestamp())));
+                     new PubsubGrpcClient.OutgoingMessage(elementBytes, timestampMsSinceEpoch)));
     }
   }
 
@@ -216,7 +161,8 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
   /**
    * Publish messages to pub/sub in batches.
    */
-  private class WriterFn extends DoFn<KV<Integer, Iterable<Message>>, Void> {
+  private class WriterFn
+      extends DoFn<KV<Integer, Iterable<PubsubGrpcClient.OutgoingMessage>>, Void> {
 
     /**
      * Client on which to talk to pub/sub. Null until created by {@link #startBundle}.
@@ -235,14 +181,11 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
      * BLOCKING
      * Send {@code messages} as a batch to pub/sub.
      */
-    private void publishBatch(List<PubsubMessage> messages, int bytes) throws IOException {
+    private void publishBatch(List<PubsubGrpcClient.OutgoingMessage> messages, int bytes)
+        throws IOException {
       long nowMsSinceEpoch = System.currentTimeMillis();
-
-      PublishRequest request = PublishRequest.newBuilder()
-                                             .setTopic(topic)
-                                             .addAllMessages(messages).build();
-      PublishResponse response = pubsubClient.publish(request);
-      Preconditions.checkState(response.getMessageIdsCount() == messages.size());
+      int n = pubsubClient.publish(topic, messages);
+      Preconditions.checkState(n == messages.size());
       batchCounter.addValue(1L);
       elementCounter.addValue((long) messages.size());
       byteCounter.addValue((long) bytes);
@@ -251,15 +194,16 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
     @Override
     public void startBundle(Context c) throws Exception {
       Preconditions.checkState(pubsubClient == null);
-      pubsubClient = PubsubGrpcClient.newClient(c.getPipelineOptions().as(GcpOptions.class));
+      pubsubClient = PubsubGrpcClient.newClient(timestampLabel, idLabel,
+                                                c.getPipelineOptions().as(GcpOptions.class));
       super.startBundle(c);
     }
 
     @Override
     public void processElement(ProcessContext c) throws Exception {
-      List<PubsubMessage> pubsubMessages = new ArrayList<>(PUBLISH_BATCH_SIZE);
+      List<PubsubGrpcClient.OutgoingMessage> pubsubMessages = new ArrayList<>(PUBLISH_BATCH_SIZE);
       int bytes = 0;
-      for (Message message : c.element().getValue()) {
+      for (PubsubGrpcClient.OutgoingMessage message : c.element().getValue()) {
         if (!pubsubMessages.isEmpty()
             && bytes + message.elementBytes.length > PUBLISH_BATCH_BYTES) {
           // Break large (in bytes) batches into smaller.
@@ -270,7 +214,7 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
           pubsubMessages.clear();
           bytes = 0;
         }
-        pubsubMessages.add(message.toMessage(PubsubUnboundedSink.this));
+        pubsubMessages.add(message);
         bytes += message.elementBytes.length;
       }
       if (!pubsubMessages.isEmpty()) {
@@ -286,6 +230,7 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
       super.finishBundle(c);
     }
   }
+
 
   // ================================================================================
   // PubsubUnboundedSink
@@ -348,8 +293,8 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
                     .discardingFiredPanes()
                     .withAllowedLateness(Duration.ZERO))
          .apply(ParDo.named(label + ".Shard").of(new ShardFn(numCores)))
-         .setCoder(KvCoder.of(VarIntCoder.of(), Message.CODER))
-         .apply(GroupByKey.<Integer, Message>create())
+         .setCoder(KvCoder.of(VarIntCoder.of(), CODER))
+         .apply(GroupByKey.<Integer, PubsubGrpcClient.OutgoingMessage>create())
          .apply(ParDo.named(label + ".Writer").of(new WriterFn()));
     return PDone.in(input.getPipeline());
   }

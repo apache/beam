@@ -16,7 +16,6 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
-import com.google.api.client.util.DateTime;
 import com.google.api.client.util.Preconditions;
 import com.google.cloud.dataflow.sdk.coders.AtomicCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
@@ -34,15 +33,6 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.values.PBegin;
 import com.google.cloud.dataflow.sdk.values.PCollection;
-import com.google.protobuf.Empty;
-import com.google.protobuf.Timestamp;
-import com.google.pubsub.v1.AcknowledgeRequest;
-import com.google.pubsub.v1.ModifyAckDeadlineRequest;
-import com.google.pubsub.v1.PubsubMessage;
-import com.google.pubsub.v1.PullRequest;
-import com.google.pubsub.v1.PullResponse;
-import com.google.pubsub.v1.ReceivedMessage;
-
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -54,6 +44,7 @@ import java.io.OutputStream;
 import java.security.GeneralSecurityException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -84,7 +75,7 @@ import javax.annotation.Nullable;
  * <li>We log vital stats every 30 seconds.
  * <li>Though some background threads are used by the underlying netty system all actual
  * pub/sub calls are blocking. We rely on the underlying runner to allow multiple
- * {@link UnboundedSource#UnboundedReader} instance to execute concurrently and thus hide latency.
+ * {@link UnboundedSource.UnboundedReader} instance to execute concurrently and thus hide latency.
  * </ul>
  */
 public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>> {
@@ -160,142 +151,6 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
    * Additional sharding so that we can hide read message latency.
    */
   private static final int SCALE_OUT = 4;
-
-  // ================================================================================
-  // Message
-  // ================================================================================
-
-  /**
-   * A message received from pub/sub.
-   */
-  private static class Message {
-    /**
-     * Underlying (encoded) element.
-     */
-    private final byte[] elementBytes;
-
-    /**
-     * Timestamp for element (ms since epoch). Either pub/sub's processing time,
-     * or the custom timestamp associated with the message.
-     */
-    private final long timestampMsSinceEpoch;
-
-    /**
-     * Timestamp (in system time) at which we requested the message (ms since epoch).
-     */
-    private final long requestTimeMsSinceEpoch;
-
-    /**
-     * Id to pass back to pub/sub to acknowledge receipt of this message.
-     */
-    private final String ackId;
-
-    /**
-     * Id to pass to the runner to distinguish this message from all others.
-     */
-    private final byte[] recordId;
-
-    public Message(
-        byte[] elementBytes,
-        long timestampMsSinceEpoch,
-        long requestTimeMsSinceEpoch,
-        String ackId,
-        byte[] recordId) {
-      this.elementBytes = elementBytes;
-      this.timestampMsSinceEpoch = timestampMsSinceEpoch;
-      this.requestTimeMsSinceEpoch = requestTimeMsSinceEpoch;
-      this.ackId = ackId;
-      this.recordId = recordId;
-    }
-
-    /*
-     * Return the size of (encoded) element, in bytes.
-     */
-    public long getElementByteSize() {
-      return elementBytes.length;
-    }
-
-    /**
-     * Decode and return the element.
-     */
-    public <T> T getElement(PubsubUnboundedSource<T> outer) throws CoderException {
-      return CoderUtils.decodeFromByteArray(outer.elementCoder, elementBytes);
-    }
-
-    /**
-     * Return the element's timestamp.
-     */
-    public Instant getTimestamp() {
-      return new Instant(timestampMsSinceEpoch);
-    }
-
-    /**
-     * Return the record id to use to distinguish this element from all others.
-     */
-    public byte[] getRecordId() {
-      return recordId;
-    }
-
-    /**
-     * Decode message from a pub/sub message.
-     */
-    public static <T> Message fromMessage(
-        long requestTimeMsSinceEpoch, PubsubUnboundedSource<T> outer,
-        ReceivedMessage receivedMessage)
-        throws CoderException {
-      PubsubMessage pubsubMessage = receivedMessage.getMessage();
-      Map<String, String> attributes = pubsubMessage.getAttributes();
-
-      // Payload.
-      byte[] elementBytes = pubsubMessage.getData().toByteArray();
-
-      // Timestamp.
-      // Start with pub/sub processing time.
-      Timestamp timestampProto = pubsubMessage.getPublishTime();
-      long timestampMsSinceEpoch = timestampProto.getSeconds() + timestampProto.getNanos() / 1000L;
-      if (outer.timestampLabel != null && attributes != null) {
-        String timestampString = attributes.get(outer.timestampLabel);
-        if (timestampString != null && !timestampString.isEmpty()) {
-          try {
-            // Try parsing as milliseconds since epoch. Note there is no way to parse a
-            // string in RFC 3339 format here.
-            // Expected IllegalArgumentException if parsing fails; we use that to fall back
-            // to RFC 3339.
-            timestampMsSinceEpoch = Long.parseLong(timestampString);
-          } catch (IllegalArgumentException e1) {
-            try {
-              // Try parsing as RFC3339 string. DateTime.parseRfc3339 will throw an
-              // IllegalArgumentException if parsing fails, and the caller should handle.
-              timestampMsSinceEpoch = DateTime.parseRfc3339(timestampString).getValue();
-            } catch (IllegalArgumentException e2) {
-              // Fallback to pub/sub processing time.
-            }
-          }
-        }
-        // else: fallback to pub/sub processing time.
-      }
-      // else: fallback to pub/sub processing time.
-
-      // Ack id.
-      String ackId = receivedMessage.getAckId();
-      Preconditions.checkState(ackId != null && !ackId.isEmpty());
-
-      // Record id, if any.
-      @Nullable byte[] recordId = null;
-      if (outer.idLabel != null && attributes != null) {
-        String recordIdString = attributes.get(outer.idLabel);
-        if (recordIdString != null && !recordIdString.isEmpty()) {
-          recordId = recordIdString.getBytes();
-        }
-      }
-      if (recordId == null) {
-        recordId = pubsubMessage.getMessageId().getBytes();
-      }
-
-      return new Message(elementBytes, timestampMsSinceEpoch, requestTimeMsSinceEpoch, ackId,
-                         recordId);
-    }
-  }
 
   // ================================================================================
   // Checkpoint
@@ -453,7 +308,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
      * Messages we have received from pub/sub and not yet delivered downstream.
      * We preserve their order.
      */
-    private final Queue<Message> notYetRead;
+    private final Queue<PubsubGrpcClient.IncomingMessage> notYetRead;
 
     /**
      * Map from ack ids of messages we have received from pub/sub but not yet acked to their
@@ -500,7 +355,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
      * The current message, or {@literal null} if none.
      */
     @Nullable
-    private Message current;
+    private PubsubGrpcClient.IncomingMessage current;
 
     /**
      * Stats only: System time (ms since epoch) we last logs stats, or -1 if never.
@@ -597,7 +452,9 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
     public Reader(GcpOptions options, Source<T> outer) throws IOException,
         GeneralSecurityException {
       this.outer = outer;
-      pubsubClient = PubsubGrpcClient.newClient(options);
+      pubsubClient = PubsubGrpcClient.newClient(outer.outer.timestampLabel,
+                                                outer.outer.idLabel,
+                                                options);
       safeToAckIds = new ArrayList<>();
       notYetRead = new ArrayDeque<>();
       inFlight = new LinkedHashMap<>();
@@ -635,11 +492,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
      * CAUTION: Retains {@code ackIds}.
      */
     public void ackBatch(List<String> ackIds) throws IOException {
-      AcknowledgeRequest request = AcknowledgeRequest.newBuilder()
-                                                     .setSubscription(outer.outer.subscription)
-                                                     .addAllAckIds(ackIds)
-                                                     .build();
-      Empty response = pubsubClient.acknowledge(request);
+      pubsubClient.acknowledge(outer.outer.subscription, ackIds);
       ackedIds.add(ackIds);
     }
 
@@ -649,13 +502,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
      * with the given {@code ockIds}. Does not retain {@code ackIds}.
      */
     public void nackBatch(long nowMsSinceEpoch, List<String> ackIds) throws IOException {
-      ModifyAckDeadlineRequest request =
-          ModifyAckDeadlineRequest.newBuilder()
-                                  .setSubscription(outer.outer.subscription)
-                                  .addAllAckIds(ackIds)
-                                  .setAckDeadlineSeconds(0)
-                                  .build();
-      Empty response = pubsubClient.modifyAckDeadline(request);
+      pubsubClient.modifyAckDeadline(outer.outer.subscription, ackIds, 0);
       numNacked.add(nowMsSinceEpoch, ackIds.size());
     }
 
@@ -665,13 +512,8 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
      * Does not retain {@code ackIds}.
      */
     private void extendBatch(long nowMsSinceEpoch, List<String> ackIds) throws IOException {
-      ModifyAckDeadlineRequest request =
-          ModifyAckDeadlineRequest.newBuilder()
-                                  .setSubscription(outer.outer.subscription)
-                                  .addAllAckIds(ackIds)
-                                  .setAckDeadlineSeconds((int) ACK_EXTENSION.getStandardSeconds())
-                                  .build();
-      Empty response = pubsubClient.modifyAckDeadline(request);
+      pubsubClient.modifyAckDeadline(outer.outer.subscription, ackIds,
+                                     (int) ACK_EXTENSION.getStandardSeconds());
       numExtendedDeadlines.add(nowMsSinceEpoch, ackIds.size());
     }
 
@@ -756,14 +598,11 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
 
       // Pull the next batch.
       // BLOCKs until received.
-      PullRequest request = PullRequest.newBuilder()
-                                       .setSubscription(outer.outer.subscription)
-                                       .setReturnImmediately(true)
-                                       .setMaxMessages(PULL_BATCH_SIZE)
-                                       .build();
-      PullResponse response = pubsubClient.pull(request);
-      List<ReceivedMessage> receivedMessages = response.getReceivedMessagesList();
-      if (receivedMessages == null || receivedMessages.isEmpty()) {
+      Collection<PubsubGrpcClient.IncomingMessage> receivedMessages =
+          pubsubClient.pull(requestTimeMsSinceEpoch,
+                            outer.outer.subscription,
+                            PULL_BATCH_SIZE);
+      if (receivedMessages.isEmpty()) {
         // Nothing available yet. Try again later.
         return;
       }
@@ -771,22 +610,18 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
       lastReceivedMsSinceEpoch = requestTimeMsSinceEpoch;
 
       // Capture the received messages.
-      for (ReceivedMessage receivedMessage : receivedMessages) {
-        Message message =
-            Message.fromMessage(requestTimeMsSinceEpoch, outer.outer, receivedMessage);
-        notYetRead.add(message);
-        notYetReadBytes += message.getElementByteSize();
-        inFlight.put(message.ackId, new Instant(deadlineMsSinceEpoch));
+      for (PubsubGrpcClient.IncomingMessage incomingMessage : receivedMessages) {
+        notYetRead.add(incomingMessage);
+        notYetReadBytes += incomingMessage.elementBytes.length;
+        inFlight.put(incomingMessage.ackId, new Instant(deadlineMsSinceEpoch));
         numReceived++;
         numReceivedRecently.add(requestTimeMsSinceEpoch, 1L);
         minReceivedTimestampMsSinceEpoch.add(requestTimeMsSinceEpoch,
-                                             message.timestampMsSinceEpoch);
+                                             incomingMessage.timestampMsSinceEpoch);
         maxReceivedTimestampMsSinceEpoch.add(requestTimeMsSinceEpoch,
-                                             message.timestampMsSinceEpoch);
-        minUnreadTimestampMsSinceEpoch.add(requestTimeMsSinceEpoch, message.timestampMsSinceEpoch);
-        if (message.timestampMsSinceEpoch < lastWatermarkMsSinceEpoch) {
-          numLateMessages.add(requestTimeMsSinceEpoch, 1L);
-        }
+                                             incomingMessage.timestampMsSinceEpoch);
+        minUnreadTimestampMsSinceEpoch.add(requestTimeMsSinceEpoch,
+                                           incomingMessage.timestampMsSinceEpoch);
       }
     }
 
@@ -901,11 +736,14 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
         // Try again later.
         return false;
       }
-      notYetReadBytes -= current.getElementByteSize();
+      notYetReadBytes -= current.elementBytes.length;
       Preconditions.checkState(notYetReadBytes >= 0);
       long nowMsSinceEpoch = System.currentTimeMillis();
-      numReadBytes.add(nowMsSinceEpoch, current.getElementByteSize());
+      numReadBytes.add(nowMsSinceEpoch, current.elementBytes.length);
       minReadTimestampMsSinceEpoch.add(nowMsSinceEpoch, current.timestampMsSinceEpoch);
+      if (current.timestampMsSinceEpoch < lastWatermarkMsSinceEpoch) {
+        numLateMessages.add(nowMsSinceEpoch, 1L);
+      }
 
       // Current message will be persisted by the next checkpoint so it is now safe to ack.
       safeToAckIds.add(current.ackId);
@@ -918,7 +756,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
         throw new NoSuchElementException();
       }
       try {
-        return current.getElement(outer.outer);
+        return CoderUtils.decodeFromByteArray(outer.outer.elementCoder, current.elementBytes);
       } catch (CoderException e) {
         throw new RuntimeException("Unable to decode element from pub/sub message: ", e);
       }
@@ -929,7 +767,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
       if (current == null) {
         throw new NoSuchElementException();
       }
-      return current.getTimestamp();
+      return new Instant(current.timestampMsSinceEpoch);
     }
 
     @Override
@@ -937,7 +775,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
       if (current == null) {
         throw new NoSuchElementException();
       }
-      return current.getRecordId();
+      return current.recordId;
     }
 
     @Override
@@ -991,8 +829,8 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
       List<String> snapshotSafeToAckIds = safeToAckIds;
       safeToAckIds = new ArrayList<>();
       List<String> snapshotNotYetReadIds = new ArrayList<>(notYetRead.size());
-      for (Message message : notYetRead) {
-        snapshotNotYetReadIds.add(message.ackId);
+      for (PubsubGrpcClient.IncomingMessage incomingMessage : notYetRead) {
+        snapshotNotYetReadIds.add(incomingMessage.ackId);
       }
       return new Checkpoint<>(this, snapshotSafeToAckIds, snapshotNotYetReadIds);
     }
