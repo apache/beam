@@ -18,14 +18,13 @@
 package org.apache.beam.runners.flink.translation.wrappers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.io.BoundedSource;
 import com.google.cloud.dataflow.sdk.io.Source;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,7 +46,7 @@ public class SourceInputFormat<T> implements InputFormat<T, SourceInputSplit<T>>
   private transient PipelineOptions options;
 
   private BoundedSource.BoundedReader<T> reader = null;
-  private boolean reachedEnd = true;
+  private boolean inputAvailable = true;
 
   public SourceInputFormat(BoundedSource<T> initialSource, PipelineOptions options) {
     this.initialSource = initialSource;
@@ -74,7 +73,7 @@ public class SourceInputFormat<T> implements InputFormat<T, SourceInputSplit<T>>
   @Override
   public void open(SourceInputSplit<T> sourceInputSplit) throws IOException {
     reader = ((BoundedSource<T>) sourceInputSplit.getSource()).createReader(options);
-    reachedEnd = false;
+    inputAvailable = reader.start();
   }
 
   @Override
@@ -86,7 +85,6 @@ public class SourceInputFormat<T> implements InputFormat<T, SourceInputSplit<T>>
         @Override
         public long getTotalInputSize() {
           return estimatedSize;
-
         }
 
         @Override
@@ -109,14 +107,12 @@ public class SourceInputFormat<T> implements InputFormat<T, SourceInputSplit<T>>
   @Override
   @SuppressWarnings("unchecked")
   public SourceInputSplit<T>[] createInputSplits(int numSplits) throws IOException {
-    long desiredSizeBytes;
     try {
-      desiredSizeBytes = initialSource.getEstimatedSizeBytes(options) / numSplits;
-      List<? extends Source<T>> shards = initialSource.splitIntoBundles(desiredSizeBytes,
-          options);
+      long desiredSizeBytes = initialSource.getEstimatedSizeBytes(options) / numSplits;
+      List<? extends Source<T>> shards = initialSource.splitIntoBundles(desiredSizeBytes, options);
       List<SourceInputSplit<T>> splits = new ArrayList<>();
       int splitCount = 0;
-      for (Source<T> shard: shards) {
+      for (Source<T> shard : shards) {
         splits.add(new SourceInputSplit<>(shard, splitCount++));
       }
       return splits.toArray(new SourceInputSplit[splits.size()]);
@@ -127,33 +123,24 @@ public class SourceInputFormat<T> implements InputFormat<T, SourceInputSplit<T>>
 
   @Override
   public InputSplitAssigner getInputSplitAssigner(final SourceInputSplit[] sourceInputSplits) {
-    return new InputSplitAssigner() {
-      private int index = 0;
-      private final SourceInputSplit[] splits = sourceInputSplits;
-      @Override
-      public InputSplit getNextInputSplit(String host, int taskId) {
-        if (index < splits.length) {
-          return splits[index++];
-        } else {
-          return null;
-        }
-      }
-    };
+    return new DefaultInputSplitAssigner(sourceInputSplits);
   }
 
 
   @Override
   public boolean reachedEnd() throws IOException {
-    return reachedEnd;
+    return !inputAvailable;
   }
 
   @Override
   public T nextRecord(T t) throws IOException {
-
-    reachedEnd = !reader.advance();
-    if (!reachedEnd) {
-      return reader.getCurrent();
+    if (inputAvailable) {
+      final T current = reader.getCurrent();
+      // advance reader to have a record ready next time
+      inputAvailable = reader.advance();
+      return current;
     }
+
     return null;
   }
 
