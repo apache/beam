@@ -90,14 +90,10 @@ public class CountingInput {
   public static UnboundedCountingInput unbounded() {
     return new UnboundedCountingInput(
         new NowTimestampFn(),
-        // Elements per period
-        1L,
-        // period length
-        Duration.ZERO,
-        // max num records
-        Optional.<Long>absent(),
-        // max read duration
-        Optional.<Duration>absent());
+        1L /* Elements per period */,
+        Duration.ZERO /* Period length */,
+        Optional.<Long>absent() /* Maximum number of records */,
+        Optional.<Duration>absent() /* Maximum read duration */);
   }
 
   /**
@@ -180,10 +176,11 @@ public class CountingInput {
      * Returns an {@link UnboundedCountingInput} like this one, but with output production limited
      * to an aggregate rate of no more than the number of elements per the period length.
      *
-     * <p>Note that this period is taken in aggregate across all instances of the
-     * {@link PTransform}, which may cause elements to be produced in bunches.
+     * <p>Note that when there are multiple splits, each split outputs independently. This may lead
+     * to elements not being produced evenly across time, though the aggregate rate will still
+     * approach the specified rate.
      *
-     * <p>A duration of {@link Duration#ZERO} will produce output as fast as possbile.
+     * <p>A duration of {@link Duration#ZERO} will produce output as fast as possible.
      */
     public UnboundedCountingInput withRate(long numElements, Duration periodLength) {
       return new UnboundedCountingInput(

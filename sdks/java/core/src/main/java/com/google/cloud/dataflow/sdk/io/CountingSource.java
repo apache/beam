@@ -29,7 +29,6 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.collect.ImmutableList;
-import com.google.common.math.LongMath;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -266,7 +265,13 @@ public class CountingSource {
         SerializableFunction<Long, Instant> timestampFn) {
       this.start = start;
       this.stride = stride;
+      checkArgument(
+          elementsPerPeriod > 0L,
+          "Must produce at least one element per period, got %s",
+          elementsPerPeriod);
       this.elementsPerPeriod = elementsPerPeriod;
+      checkArgument(
+          period.getMillis() >= 0L, "Must have a non-negative period length, got %s", period);
       this.period = period;
       this.timestampFn = timestampFn;
     }
@@ -276,14 +281,6 @@ public class CountingSource {
      * will be produced with an interval between them equal to the period.
      */
     public UnboundedCountingSource withRate(long elementsPerPeriod, Duration period) {
-      checkArgument(
-          elementsPerPeriod > 0,
-          "elements produced per period must be a positive value, got %s",
-          elementsPerPeriod);
-      checkArgument(
-          period.getMillis() >= 0,
-          "Period must be a non-negative value, got %s",
-          period.getMillis());
       return new UnboundedCountingSource(start, stride, elementsPerPeriod, period, timestampFn);
     }
 
@@ -314,7 +311,6 @@ public class CountingSource {
         int desiredNumSplits, PipelineOptions options) throws Exception {
       // Using Javadoc example, stride 2 with 3 splits becomes stride 6.
       long newStride = stride * desiredNumSplits;
-      Duration newPeriod = period.multipliedBy(desiredNumSplits);
 
       ImmutableList.Builder<UnboundedCountingSource> splits = ImmutableList.builder();
       for (int i = 0; i < desiredNumSplits; ++i) {
@@ -322,7 +318,7 @@ public class CountingSource {
         // 0, 2, and 4.
         splits.add(
             new UnboundedCountingSource(
-                start + i * stride, newStride, elementsPerPeriod, newPeriod, timestampFn));
+                start + i * stride, newStride, elementsPerPeriod, period, timestampFn));
       }
       return splits.build();
     }
@@ -340,7 +336,6 @@ public class CountingSource {
 
     @Override
     public void validate() {
-      checkArgument(period.getMillis() >= 0L);
     }
 
     @Override
@@ -360,8 +355,7 @@ public class CountingSource {
     private long current;
     private Instant currentTimestamp;
 
-    private Instant started;
-    private long totalProduced;
+    private Instant firstStarted;
 
     public UnboundedCountingReader(UnboundedCountingSource source, CounterMark mark) {
       this.source = source;
@@ -369,19 +363,17 @@ public class CountingSource {
         // Because we have not emitted an element yet, and start() calls advance, we need to
         // "un-advance" so that start() produces the correct output.
         this.current = source.start - source.stride;
-        // Do not produce an element immediately, to ensure that we do not exceed the requested
-        // period due to splits.
-        this.started = Instant.now();
-        this.totalProduced = 0L;
       } else {
         this.current = mark.getLastEmitted();
-        this.started = mark.getStartTime();
-        this.totalProduced = mark.getElementsProduced();
+        this.firstStarted = mark.getStartTime();
       }
     }
 
     @Override
     public boolean start() throws IOException {
+      if (firstStarted == null) {
+        this.firstStarted = Instant.now();
+      }
       return advance();
     }
 
@@ -391,41 +383,18 @@ public class CountingSource {
       if (Long.MAX_VALUE - source.stride < current) {
         return false;
       }
-      if (getSplitBacklogElements() <= 0) {
+      long nextValue = current + source.stride;
+      if (timeToEmit(nextValue).isAfter(Instant.now())) {
         return false;
       }
-      current += source.stride;
+      current = nextValue;
       currentTimestamp = source.timestampFn.apply(current);
-      totalProduced++;
       return true;
     }
 
-    /**
-     * Gets the size of the split backlog in number of elements.
-     */
-    private long getSplitBacklogElements() {
-      if (source.period.getMillis() == 0) {
-        return Long.MAX_VALUE;
-      }
-      long msElapsed = Instant.now().getMillis() - started.getMillis();
-      long expectedOutputs =
-          LongMath.checkedMultiply(source.elementsPerPeriod, msElapsed) / source.period.getMillis();
-      return expectedOutputs - totalProduced;
-    }
-
-    @Override
-    public long getSplitBacklogBytes() {
-      long backlogElems = getSplitBacklogElements();
-      if (backlogElems == Long.MAX_VALUE) {
-        return BACKLOG_UNKNOWN;
-      }
-      // 8 == Long.BYTES
-      long backlogBytes = backlogElems * 8;
-      // overflow protection
-      if (backlogBytes < backlogElems) {
-        return Long.MAX_VALUE;
-      }
-      return backlogBytes;
+    private Instant timeToEmit(long value) {
+      long periodForValue = value / source.elementsPerPeriod;
+      return firstStarted.plus(source.period.multipliedBy(periodForValue));
     }
 
     @Override
@@ -435,7 +404,7 @@ public class CountingSource {
 
     @Override
     public CounterMark getCheckpointMark() {
-      return new CounterMark(current, started, totalProduced);
+      return new CounterMark(current, firstStarted);
     }
 
     @Override
@@ -455,6 +424,13 @@ public class CountingSource {
 
     @Override
     public void close() throws IOException {}
+
+    @Override
+    public long getSplitBacklogBytes() {
+      long elapsedMillis = Instant.now().getMillis() - firstStarted.getMillis();
+      long expected = source.elementsPerPeriod * (elapsedMillis / source.period.getMillis());
+      return Math.max(0L, 8 * (expected - current) / source.stride);
+    }
   }
 
   /**
@@ -466,15 +442,13 @@ public class CountingSource {
     /** The last value emitted. */
     private final long lastEmitted;
     private final Instant startTime;
-    private final long totalProduced;
 
     /**
      * Creates a checkpoint mark reflecting the last emitted value.
      */
-    public CounterMark(long lastEmitted, Instant startTime, long totalProduced) {
+    public CounterMark(long lastEmitted, Instant startTime) {
       this.lastEmitted = lastEmitted;
       this.startTime = startTime;
-      this.totalProduced = totalProduced;
     }
 
     /**
@@ -485,12 +459,8 @@ public class CountingSource {
     }
 
     /**
-     * Returns the total number of elements already produced by this source.
+     * Returns the time the reader was started.
      */
-    public long getElementsProduced() {
-      return totalProduced;
-    }
-
     public Instant getStartTime() {
       return startTime;
     }
@@ -501,7 +471,6 @@ public class CountingSource {
     private CounterMark() {
       this.lastEmitted = 0L;
       this.startTime = Instant.now();
-      this.totalProduced = 0L;
     }
 
     @Override
