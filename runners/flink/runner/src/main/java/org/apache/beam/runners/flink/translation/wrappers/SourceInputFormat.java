@@ -23,19 +23,19 @@ import org.apache.beam.sdk.options.PipelineOptions;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.List;
+
 
 /**
  * A Flink {@link org.apache.flink.api.common.io.InputFormat} that wraps a
@@ -45,37 +45,40 @@ public class SourceInputFormat<T> implements InputFormat<T, SourceInputSplit<T>>
   private static final Logger LOG = LoggerFactory.getLogger(SourceInputFormat.class);
 
   private final BoundedSource<T> initialSource;
-  private transient PipelineOptions options;
 
-  private BoundedSource.BoundedReader<T> reader = null;
-  private boolean reachedEnd = true;
+  private transient PipelineOptions options;
+  private final byte[] serializedOptions;
+
+  private transient BoundedSource.BoundedReader<T> reader = null;
+  private boolean inputAvailable = true;
 
   public SourceInputFormat(BoundedSource<T> initialSource, PipelineOptions options) {
     this.initialSource = initialSource;
     this.options = options;
-  }
 
-  private void writeObject(ObjectOutputStream out)
-      throws IOException, ClassNotFoundException {
-    out.defaultWriteObject();
-    ObjectMapper mapper = new ObjectMapper();
-    mapper.writeValue(out, options);
-  }
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    try {
+      new ObjectMapper().writeValue(baos, options);
+      serializedOptions = baos.toByteArray();
+    } catch (Exception e) {
+      throw new RuntimeException("Couldn't serialize PipelineOptions.", e);
+    }
 
-  private void readObject(ObjectInputStream in)
-      throws IOException, ClassNotFoundException {
-    in.defaultReadObject();
-    ObjectMapper mapper = new ObjectMapper();
-    options = mapper.readValue(in, PipelineOptions.class);
   }
 
   @Override
-  public void configure(Configuration configuration) {}
+  public void configure(Configuration configuration) {
+    try {
+      options = new ObjectMapper().readValue(serializedOptions, PipelineOptions.class);
+    } catch (IOException e) {
+      throw new RuntimeException("Couldn't deserialize the PipelineOptions.", e);
+    }
+  }
 
   @Override
   public void open(SourceInputSplit<T> sourceInputSplit) throws IOException {
     reader = ((BoundedSource<T>) sourceInputSplit.getSource()).createReader(options);
-    reachedEnd = false;
+    inputAvailable = reader.start();
   }
 
   @Override
@@ -87,7 +90,6 @@ public class SourceInputFormat<T> implements InputFormat<T, SourceInputSplit<T>>
         @Override
         public long getTotalInputSize() {
           return estimatedSize;
-
         }
 
         @Override
@@ -110,17 +112,15 @@ public class SourceInputFormat<T> implements InputFormat<T, SourceInputSplit<T>>
   @Override
   @SuppressWarnings("unchecked")
   public SourceInputSplit<T>[] createInputSplits(int numSplits) throws IOException {
-    long desiredSizeBytes;
     try {
-      desiredSizeBytes = initialSource.getEstimatedSizeBytes(options) / numSplits;
-      List<? extends Source<T>> shards = initialSource.splitIntoBundles(desiredSizeBytes,
-          options);
-      List<SourceInputSplit<T>> splits = new ArrayList<>();
-      int splitCount = 0;
-      for (Source<T> shard: shards) {
-        splits.add(new SourceInputSplit<>(shard, splitCount++));
+      long desiredSizeBytes = initialSource.getEstimatedSizeBytes(options) / numSplits;
+      List<? extends Source<T>> shards = initialSource.splitIntoBundles(desiredSizeBytes, options);
+      int numShards = shards.size();
+      SourceInputSplit<T>[] sourceInputSplits = new SourceInputSplit[numShards];
+      for (int i = 0; i < numShards; i++) {
+        sourceInputSplits[i] = new SourceInputSplit<>(shards.get(i), i);
       }
-      return splits.toArray(new SourceInputSplit[splits.size()]);
+      return sourceInputSplits;
     } catch (Exception e) {
       throw new IOException("Could not create input splits from Source.", e);
     }
@@ -128,33 +128,24 @@ public class SourceInputFormat<T> implements InputFormat<T, SourceInputSplit<T>>
 
   @Override
   public InputSplitAssigner getInputSplitAssigner(final SourceInputSplit[] sourceInputSplits) {
-    return new InputSplitAssigner() {
-      private int index = 0;
-      private final SourceInputSplit[] splits = sourceInputSplits;
-      @Override
-      public InputSplit getNextInputSplit(String host, int taskId) {
-        if (index < splits.length) {
-          return splits[index++];
-        } else {
-          return null;
-        }
-      }
-    };
+    return new DefaultInputSplitAssigner(sourceInputSplits);
   }
 
 
   @Override
   public boolean reachedEnd() throws IOException {
-    return reachedEnd;
+    return !inputAvailable;
   }
 
   @Override
   public T nextRecord(T t) throws IOException {
-
-    reachedEnd = !reader.advance();
-    if (!reachedEnd) {
-      return reader.getCurrent();
+    if (inputAvailable) {
+      final T current = reader.getCurrent();
+      // advance reader to have a record ready next time
+      inputAvailable = reader.advance();
+      return current;
     }
+
     return null;
   }
 
