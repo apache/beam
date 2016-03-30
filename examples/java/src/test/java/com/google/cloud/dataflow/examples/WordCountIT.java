@@ -39,11 +39,13 @@ public class WordCountIT extends BatchE2ETest {
   @Test
   @Category(RunnableOnService.class)
   public void testE2EWordCount() throws Exception {
+    String jobName = "wordcount-" + generateTestIdentifier() + "-prod";
     String[] args = {
-        "--jobName=wordcount-" + generateTestIdentifier() + "-prod",
+        "--jobName=" + jobName,
         "--project=apache-beam-testing",
         "--runner=DataflowPipelineRunner",
-        "--stagingLocation=gs://apache-beam-testing-storage/staging",
+        "--stagingLocation=gs://apache-beam-testing-temp-storage/staging/" + jobName,
+        "--output=gs://apache-beam-testing-temp-storage/output/" + jobName + "/results",
         "--workerLogLevelOverrides="
         + "{\"com.google.cloud.dataflow.sdk.util.UploadIdResponseInterceptor\":\"DEBUG\"}"};
 
