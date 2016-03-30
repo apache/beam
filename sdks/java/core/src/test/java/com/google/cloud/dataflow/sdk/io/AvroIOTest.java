@@ -222,6 +222,37 @@ public class AvroIOTest {
     }
   }
 
-  // TODO: for Write only, test withSuffix, withNumShards,
+  @SuppressWarnings("deprecation") // using AvroCoder#createDatumReader for tests.
+  @Test
+  public void testAvroSinkShardedWrite() throws Exception {
+    String outputFilePrefix = new File(tmpFolder.getRoot(), "prefix").getAbsolutePath();
+    String[] expectedElements = new String[] {"first", "second", "third", "fourth", "fifth"};
+
+    TestPipeline p = TestPipeline.create();
+    int numShards = 4;
+    p.apply(Create.<String>of(expectedElements))
+        .apply(
+            AvroIO.Write.to(outputFilePrefix)
+                .withSchema(String.class)
+                .withNumShards(numShards)
+                .withShardNameTemplate(ShardNameTemplate.INDEX_OF_MAX));
+    p.run();
+
+    // Validate that the data written matches the expected elements in the expected order
+    List<String> actualElements = new ArrayList<>();
+    for (int i = 0; i < numShards; i++) {
+      String expectedName =
+          IOChannelUtils.constructName(
+              outputFilePrefix, ShardNameTemplate.INDEX_OF_MAX, "" /* no suffix */, i, numShards);
+      File outputFile = new File(expectedName);
+      assertTrue("Expected output file " + expectedName, outputFile.exists());
+      try (DataFileReader<String> reader =
+              new DataFileReader<>(outputFile, AvroCoder.of(String.class).createDatumReader())) {
+        Iterators.addAll(actualElements, reader);
+      }
+    }
+    assertThat(actualElements, containsInAnyOrder(expectedElements));
+  }
+  // TODO: for Write only, test withSuffix,
   // withShardNameTemplate and withoutSharding.
 }

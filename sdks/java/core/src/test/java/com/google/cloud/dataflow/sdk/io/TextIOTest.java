@@ -43,6 +43,7 @@ import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.GcsUtil;
+import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
 import com.google.cloud.dataflow.sdk.util.TestCredential;
 import com.google.cloud.dataflow.sdk.util.gcsfs.GcsPath;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -283,6 +284,49 @@ public class TextIOTest {
           TextIO.Write.to("/tmp/file.txt").named("HerWrite");
       assertEquals("HerWrite", transform3.getName());
     }
+  }
+
+  @Test
+  public void testShardedWrite() throws Exception {
+    File tmpFile = tmpFolder.newFile("file");
+    String filename = tmpFile.getPath();
+
+    Pipeline p = TestPipeline.create();
+
+    PCollection<String> input =
+        p.apply(Create.of(Arrays.asList(LINES_ARRAY)).withCoder(StringUtf8Coder.of()));
+
+    int numShards = 5;
+    String suffix = ".txt";
+    TextIO.Write.Bound<String> write =
+        TextIO.Write.to(filename)
+            .withNumShards(numShards)
+            .withShardNameTemplate(ShardNameTemplate.INDEX_OF_MAX)
+            .withSuffix(suffix);
+
+    input.apply(write);
+
+    p.run();
+
+    List<String> actual = new ArrayList<>();
+    for (int i = 0; i < numShards; i++) {
+      String shardName =
+          IOChannelUtils.constructName(
+              filename, ShardNameTemplate.INDEX_OF_MAX, suffix, i, numShards);
+      try (BufferedReader reader = new BufferedReader(new FileReader(shardName))) {
+        for (;;) {
+          String line = reader.readLine();
+          if (line == null) {
+            break;
+          }
+          actual.add(line);
+        }
+      }
+    }
+
+    String[] expected = LINES_ARRAY;
+
+    assertThat(actual, containsInAnyOrder(expected));
   }
 
   @Test
