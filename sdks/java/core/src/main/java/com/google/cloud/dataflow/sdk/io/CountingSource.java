@@ -384,7 +384,7 @@ public class CountingSource {
         return false;
       }
       long nextValue = current + source.stride;
-      if (timeToEmit(nextValue).isAfter(Instant.now())) {
+      if (expectedValue() < nextValue) {
         return false;
       }
       current = nextValue;
@@ -392,9 +392,11 @@ public class CountingSource {
       return true;
     }
 
-    private Instant timeToEmit(long value) {
-      long periodForValue = value / source.elementsPerPeriod;
-      return firstStarted.plus(source.period.multipliedBy(periodForValue));
+    private long expectedValue() {
+      double periodsElapsed =
+          (Instant.now().getMillis() - firstStarted.getMillis())
+              / (double) source.period.getMillis();
+      return (long) (source.elementsPerPeriod * periodsElapsed);
     }
 
     @Override
@@ -427,8 +429,7 @@ public class CountingSource {
 
     @Override
     public long getSplitBacklogBytes() {
-      long elapsedMillis = Instant.now().getMillis() - firstStarted.getMillis();
-      long expected = source.elementsPerPeriod * (elapsedMillis / source.period.getMillis());
+      long expected = expectedValue();
       return Math.max(0L, 8 * (expected - current) / source.stride);
     }
   }
