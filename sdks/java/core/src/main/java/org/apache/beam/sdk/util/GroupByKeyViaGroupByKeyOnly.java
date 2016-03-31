@@ -126,8 +126,8 @@ public class GroupByKeyViaGroupByKeyOnly<K, V>
   }
 
   /**
-   * Helper transform that makes timestamps and window assignments
-   * explicit in the value part of each key/value pair.
+   * Helper transform that makes timestamps and window assignments explicit in the value part of
+   * each key/value pair.
    */
   public static class ReifyTimestampsAndWindows<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, WindowedValue<V>>>> {
@@ -137,7 +137,8 @@ public class GroupByKeyViaGroupByKeyOnly<K, V>
 
       // The requirement to use a KvCoder *is* actually a model-level requirement, not specific
       // to this implementation of GBK. All runners need a way to get the key.
-      checkArgument(input.getCoder() instanceof KvCoder,
+      checkArgument(
+          input.getCoder() instanceof KvCoder,
           "%s requires its input to use a %s",
           GroupByKey.class.getSimpleName(),
           KvCoder.class.getSimpleName());
