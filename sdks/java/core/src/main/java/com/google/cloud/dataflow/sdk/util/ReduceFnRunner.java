@@ -438,8 +438,22 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     for (BoundedWindow untypedWindow : value.getWindows()) {
       @SuppressWarnings("unchecked")
       W window = (W) untypedWindow;
+
+      ReduceFn<K, InputT, OutputT, W>.Context directContext =
+          contextFactory.base(window, StateStyle.DIRECT);
+      if (triggerRunner.isClosed(directContext.state())) {
+        // This window has already been closed.
+        droppedDueToClosedWindow.addValue(1L);
+        WindowTracing.debug(
+            "ReduceFnRunner.processElement: Dropping element at {} for key:{}; window:{} "
+            + "since window is no longer active at inputWatermark:{}; outputWatermark:{}",
+            value.getTimestamp(), key, window, timerInternals.currentInputWatermarkTime(),
+            timerInternals.currentOutputWatermarkTime());
+        continue;
+      }
+
       W active = activeWindows.representative(window);
-      Preconditions.checkState(active != null, "Window %s should have been added", window);
+      Preconditions.checkState(active != null, "Window %s has no representative", window);
       windows.add(active);
     }
 
@@ -450,23 +464,12 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       triggerRunner.prefetchForValue(window, directContext.state());
     }
 
-    // Process the element for each (representative) window it belongs to.
+    // Process the element for each (representative, not closed) window it belongs to.
     for (W window : windows) {
       ReduceFn<K, InputT, OutputT, W>.ProcessValueContext directContext = contextFactory.forValue(
           window, value.getValue(), value.getTimestamp(), StateStyle.DIRECT);
       ReduceFn<K, InputT, OutputT, W>.ProcessValueContext renamedContext = contextFactory.forValue(
           window, value.getValue(), value.getTimestamp(), StateStyle.RENAMED);
-
-      // Check to see if the triggerRunner thinks the window is closed. If so, drop that window.
-      if (triggerRunner.isClosed(directContext.state())) {
-        droppedDueToClosedWindow.addValue(1L);
-        WindowTracing.debug(
-            "ReduceFnRunner.processElement: Dropping element at {} for key:{}; window:{} "
-            + "since window is no longer active at inputWatermark:{}; outputWatermark:{}",
-            value.getTimestamp(), key, window, timerInternals.currentInputWatermarkTime(),
-            timerInternals.currentOutputWatermarkTime());
-        continue;
-      }
 
       nonEmptyPanes.recordContent(renamedContext.state());
 
