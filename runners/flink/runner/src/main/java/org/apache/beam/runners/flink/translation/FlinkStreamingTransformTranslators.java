@@ -18,8 +18,10 @@
 
 package org.apache.beam.runners.flink.translation;
 
+import com.google.cloud.dataflow.sdk.io.BoundedSource;
 import org.apache.beam.runners.flink.translation.functions.UnionCoder;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
+import org.apache.beam.runners.flink.translation.wrappers.SourceInputFormat;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.*;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.FlinkStreamingCreateFunction;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.UnboundedFlinkSource;
@@ -72,6 +74,7 @@ public class FlinkStreamingTransformTranslators {
   // here you can find all the available translators.
   static {
     TRANSLATORS.put(Create.Values.class, new CreateStreamingTranslator());
+    TRANSLATORS.put(Read.Bounded.class, new BoundedReadSourceTranslator());
     TRANSLATORS.put(Read.Unbounded.class, new UnboundedReadSourceTranslator());
     TRANSLATORS.put(ParDo.Bound.class, new ParDoBoundStreamingTranslator());
     TRANSLATORS.put(TextIO.Write.Bound.class, new TextIOWriteBoundStreamingTranslator());
@@ -126,7 +129,7 @@ public class FlinkStreamingTransformTranslators {
       DataStream<WindowedValue<OUT>> outputDataStream = initDataSet.flatMap(createFunction)
           .returns(outputType);
 
-      context.setOutputDataStream(context.getOutput(transform), outputDataStream);
+      context.setOutputDataStream(output, outputDataStream);
     }
   }
 
@@ -161,6 +164,36 @@ public class FlinkStreamingTransformTranslators {
       if (numShards > 0) {
         output.setParallelism(numShards);
       }
+    }
+  }
+
+  private static class BoundedReadSourceTranslator<T>
+      implements FlinkStreamingPipelineTranslator.StreamTransformTranslator<Read.Bounded<T>> {
+
+    @Override
+    public void translateNode(Read.Bounded<T> transform, FlinkStreamingTranslationContext context) {
+
+      BoundedSource<T> boundedSource = transform.getSource();
+      PCollection<T> output = context.getOutput(transform);
+
+      Coder<T> defaultOutputCoder = boundedSource.getDefaultOutputCoder();
+      CoderTypeInformation<T> typeInfo = new CoderTypeInformation<>(defaultOutputCoder);
+
+      DataStream<T> source = context.getExecutionEnvironment().createInput(
+          new SourceInputFormat<>(
+              boundedSource,
+              context.getPipelineOptions()),
+          typeInfo);
+
+      DataStream<WindowedValue<T>> windowedStream = source.flatMap(
+          new FlatMapFunction<T, WindowedValue<T>>() {
+            @Override
+            public void flatMap(T value, Collector<WindowedValue<T>> out) throws Exception {
+              out.collect(WindowedValue.of(value, Instant.now(), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
+            }
+          }).assignTimestampsAndWatermarks(new IngestionTimeExtractor<WindowedValue<T>>());
+
+      context.setOutputDataStream(output, windowedStream);
     }
   }
 

@@ -29,11 +29,11 @@ import org.apache.flink.core.io.InputSplitAssigner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.List;
+
 
 /**
  * A Flink {@link org.apache.flink.api.common.io.InputFormat} that wraps a
@@ -43,28 +43,25 @@ public class SourceInputFormat<T> implements InputFormat<T, SourceInputSplit<T>>
   private static final Logger LOG = LoggerFactory.getLogger(SourceInputFormat.class);
 
   private final BoundedSource<T> initialSource;
-  private transient PipelineOptions options;
 
-  private BoundedSource.BoundedReader<T> reader = null;
+  private transient PipelineOptions options;
+  private final byte[] serializedOptions;
+
+  private transient BoundedSource.BoundedReader<T> reader = null;
   private boolean inputAvailable = true;
 
   public SourceInputFormat(BoundedSource<T> initialSource, PipelineOptions options) {
     this.initialSource = initialSource;
     this.options = options;
-  }
 
-  private void writeObject(ObjectOutputStream out)
-      throws IOException, ClassNotFoundException {
-    out.defaultWriteObject();
-    ObjectMapper mapper = new ObjectMapper();
-    mapper.writeValue(out, options);
-  }
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    try {
+      new ObjectMapper().writeValue(baos, options);
+      serializedOptions = baos.toByteArray();
+    } catch (Exception e) {
+      throw new RuntimeException("Couldn't serialize PipelineOptions.", e);
+    }
 
-  private void readObject(ObjectInputStream in)
-      throws IOException, ClassNotFoundException {
-    in.defaultReadObject();
-    ObjectMapper mapper = new ObjectMapper();
-    options = mapper.readValue(in, PipelineOptions.class);
   }
 
   @Override
@@ -72,6 +69,7 @@ public class SourceInputFormat<T> implements InputFormat<T, SourceInputSplit<T>>
 
   @Override
   public void open(SourceInputSplit<T> sourceInputSplit) throws IOException {
+    options = new ObjectMapper().readValue(serializedOptions, PipelineOptions.class);
     reader = ((BoundedSource<T>) sourceInputSplit.getSource()).createReader(options);
     inputAvailable = reader.start();
   }
