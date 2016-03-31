@@ -152,6 +152,7 @@ public class GcsUtilTest {
                   countDownLatches[currentLatch - 1].countDown();
                 }
               } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 throw new RuntimeException(e);
               }
             }
