@@ -159,7 +159,7 @@ public class DebuggingWordCount {
     PCollection<KV<String, Long>> filteredWords =
         p.apply(TextIO.Read.named("ReadLines").from(options.getInputFile()))
          .apply(new WordCount.CountWords())
-         .apply(ParDo.of(new FilterTextFn("Flourish|stomach")));
+         .apply(ParDo.of(new FilterTextFn(options.getFilterPattern())));
 
     /**
      * Concept #4: DataflowAssert is a set of convenient PTransforms in the style of

@@ -169,6 +169,12 @@ public class WordCount {
     @Default.InstanceFactory(OutputFactory.class)
     String getOutput();
     void setOutput(String value);
+    
+    @Description("Regex filter pattern to use in DebuggingWordCount. "
+        + "Only words matching this pattern will be counted.")
+    @Default.String("Flourish|stomach")
+    String getFilterPattern();
+    void setFilterPattern(String value);
 
     /**
      * Returns "gs://${YOUR_STAGING_DIRECTORY}/counts.txt" as the default destination.
