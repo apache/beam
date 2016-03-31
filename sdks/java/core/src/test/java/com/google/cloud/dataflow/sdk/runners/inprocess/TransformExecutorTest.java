@@ -343,12 +343,14 @@ public class TransformExecutorTest {
             transformEvaluationState);
 
     executor.call();
-    TestEnforcement<?> counter = enforcement.instance;
+    TestEnforcement<?> testEnforcement = enforcement.instance;
     assertThat(
-        counter.beforeElements, Matchers.<WindowedValue<?>>containsInAnyOrder(barElem, fooElem));
+        testEnforcement.beforeElements,
+        Matchers.<WindowedValue<?>>containsInAnyOrder(barElem, fooElem));
     assertThat(
-        counter.afterElements, Matchers.<WindowedValue<?>>containsInAnyOrder(barElem, fooElem));
-    assertThat(counter.finishedBundles, contains(result));
+        testEnforcement.afterElements,
+        Matchers.<WindowedValue<?>>containsInAnyOrder(barElem, fooElem));
+    assertThat(testEnforcement.finishedBundles, contains(result));
   }
 
   @Test
@@ -497,9 +499,9 @@ public class TransformExecutorTest {
     @Override
     public <T> TestEnforcement<T> forBundle(
         CommittedBundle<T> input, AppliedPTransform<?, ?, ?> consumer) {
-      TestEnforcement<T> newCounter = new TestEnforcement<>();
-      instance = newCounter;
-      return newCounter;
+      TestEnforcement<T> newEnforcement = new TestEnforcement<>();
+      instance = newEnforcement;
+      return newEnforcement;
     }
   }
 
