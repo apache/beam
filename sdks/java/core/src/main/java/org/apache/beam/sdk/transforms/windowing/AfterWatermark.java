@@ -24,7 +24,6 @@ import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
 import org.apache.beam.sdk.util.ExecutableTrigger;
 import org.apache.beam.sdk.util.TimeDomain;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
 import org.joda.time.Instant;
@@ -96,43 +95,6 @@ public class AfterWatermark {
     TriggerBuilder withEarlyFirings(OnceTrigger earlyTrigger);
   }
 
-  /**
-   * A trigger which never fires. Used for the "early" trigger when only a late trigger was
-   * specified.
-   */
-  private static class NeverTrigger extends OnceTrigger {
-
-    protected NeverTrigger() {
-      super(null);
-    }
-
-    @Override
-    public void onElement(OnElementContext c) throws Exception { }
-
-    @Override
-    public void onMerge(OnMergeContext c) throws Exception { }
-
-    @Override
-    protected Trigger getContinuationTrigger(List<Trigger> continuationTriggers) {
-      return this;
-    }
-
-    @Override
-    public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
-      return BoundedWindow.TIMESTAMP_MAX_VALUE;
-    }
-
-    @Override
-    public boolean shouldFire(Trigger.TriggerContext context) throws Exception {
-      return false;
-    }
-
-    @Override
-    protected void onOnlyFiring(Trigger.TriggerContext context) throws Exception {
-      throw new UnsupportedOperationException(
-          String.format("%s should never fire", getClass().getSimpleName()));
-    }
-  }
 
   private static class AfterWatermarkEarlyAndLate
       extends Trigger
@@ -146,9 +108,10 @@ public class AfterWatermark {
 
     @SuppressWarnings("unchecked")
     private AfterWatermarkEarlyAndLate(OnceTrigger earlyTrigger, OnceTrigger lateTrigger) {
-      super(lateTrigger == null
-          ? ImmutableList.<Trigger>of(earlyTrigger)
-          : ImmutableList.<Trigger>of(earlyTrigger, lateTrigger));
+      super(
+          lateTrigger == null
+              ? ImmutableList.<Trigger>of(earlyTrigger)
+              : ImmutableList.<Trigger>of(earlyTrigger, lateTrigger));
       this.earlyTrigger = checkNotNull(earlyTrigger, "earlyTrigger should not be null");
       this.lateTrigger = lateTrigger;
     }
@@ -314,8 +277,7 @@ public class AfterWatermark {
      * the given {@code Trigger} fires before the watermark has passed the end of the window.
      */
     public AfterWatermarkEarly withEarlyFirings(OnceTrigger earlyFirings) {
-      Preconditions.checkNotNull(earlyFirings,
-          "Must specify the trigger to use for early firings");
+      checkNotNull(earlyFirings, "Must specify the trigger to use for early firings");
       return new AfterWatermarkEarlyAndLate(earlyFirings, null);
     }
 
@@ -324,9 +286,8 @@ public class AfterWatermark {
      * the given {@code Trigger} fires after the watermark has passed the end of the window.
      */
     public AfterWatermarkLate withLateFirings(OnceTrigger lateFirings) {
-      Preconditions.checkNotNull(lateFirings,
-          "Must specify the trigger to use for late firings");
-      return new AfterWatermarkEarlyAndLate(new NeverTrigger(), lateFirings);
+      checkNotNull(lateFirings, "Must specify the trigger to use for late firings");
+      return new AfterWatermarkEarlyAndLate(Never.ever(), lateFirings);
     }
 
     @Override
