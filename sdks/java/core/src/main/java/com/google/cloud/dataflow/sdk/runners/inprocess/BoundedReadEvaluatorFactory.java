@@ -20,7 +20,6 @@ package com.google.cloud.dataflow.sdk.runners.inprocess;
 import com.google.cloud.dataflow.sdk.io.BoundedSource;
 import com.google.cloud.dataflow.sdk.io.BoundedSource.BoundedReader;
 import com.google.cloud.dataflow.sdk.io.Read.Bounded;
-import com.google.cloud.dataflow.sdk.io.Source.Reader;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
@@ -116,7 +115,6 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
   private static class BoundedReadEvaluator<OutputT> implements TransformEvaluator<Object> {
     private final AppliedPTransform<?, PCollection<OutputT>, Bounded<OutputT>> transform;
     private final InProcessEvaluationContext evaluationContext;
-    private boolean contentsRemaining;
     /**
      * The source being read from by this {@link BoundedReadEvaluator}. This may not be the same
      * as the source derived from {@link #transform} due to splitting.
@@ -137,9 +135,9 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
 
     @Override
     public InProcessTransformResult finishBundle() throws IOException {
-      try (final Reader<OutputT> reader =
+      try (final BoundedReader<OutputT> reader =
               source.createReader(evaluationContext.getPipelineOptions());) {
-        contentsRemaining = reader.start();
+        boolean contentsRemaining = reader.start();
         UncommittedBundle<OutputT> output =
             evaluationContext.createRootBundle(transform.getOutput());
         while (contentsRemaining) {
