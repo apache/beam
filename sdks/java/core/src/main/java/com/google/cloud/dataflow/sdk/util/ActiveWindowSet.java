@@ -20,6 +20,7 @@ package com.google.cloud.dataflow.sdk.util;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.util.Collection;
 import java.util.Set;
 
@@ -94,9 +95,10 @@ public interface ActiveWindowSet<W extends BoundedWindow> {
   }
 
   /**
-   * Remove EPHEMERAL windows since we only need to know about them while processing new elements.
+   * Remove EPHEMERAL windows and remaining NEW windows since we only need to know about them
+   * while processing new elements.
    */
-  void removeEphemeralWindows();
+  void garbageCollect();
 
   /**
    * Save any state changes needed.
@@ -109,7 +111,7 @@ public interface ActiveWindowSet<W extends BoundedWindow> {
    * yet been seen.
    */
   @Nullable
-  W representative(W window);
+  W mergeResultWindow(W window);
 
   /**
    * Return (a view of) the set of currently ACTIVE windows.
@@ -122,16 +124,23 @@ public interface ActiveWindowSet<W extends BoundedWindow> {
   boolean isActive(W window);
 
   /**
-   * If {@code window} is not already known to be ACTIVE, MERGED or EPHEMERAL then add it
-   * as NEW. All NEW windows will be accounted for as ACTIVE, MERGED or EPHEMERAL by a call
-   * to {@link #merge}.
+   * Called when an incoming element indicates it is a member of {@code window}, but before we
+   * have started processing that element. If {@code window} is not already known to be ACTIVE,
+   * MERGED or EPHEMERAL then add it as NEW.
    */
-  void addNew(W window);
+  void seenWindow(W window);
+
+  /**
+   * Called when a window is known to be ACTIVE. Ensure that if it is NEW then it becomes ACTIVE
+   * (with itself as its only state address window).
+   */
+  void usingActiveWindow(W window);
 
   /**
    * If {@code window} is not already known to be ACTIVE, MERGED or EPHEMERAL then add it
    * as ACTIVE.
    */
+  @VisibleForTesting
   void addActive(W window);
 
   /**

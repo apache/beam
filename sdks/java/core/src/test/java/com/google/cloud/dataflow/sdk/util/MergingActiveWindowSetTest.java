@@ -83,20 +83,23 @@ public class MergingActiveWindowSetTest {
     };
 
     for (IntervalWindow window : windowFn.assignWindows(context)) {
-      set.addNew(window);
+      set.seenWindow(window);
     }
   }
 
   private void merge(ActiveWindowSet.MergeCallback<IntervalWindow> callback) throws Exception {
     System.out.println("MERGE");
     set.merge(callback);
+    for (IntervalWindow window : set.getActiveWindows()) {
+      set.usingActiveWindow(window);
+    }
     set.checkInvariants();
     System.out.println(set);
   }
 
   private void pruneAndPersist() {
     System.out.println("PRUNE");
-    set.removeEphemeralWindows();
+    set.garbageCollect();
     set.checkInvariants();
     System.out.println(set);
     set.persist();
@@ -127,10 +130,10 @@ public class MergingActiveWindowSetTest {
     verify(callback).onMerge(ImmutableList.of(window(1, 10), window(2, 10)),
         ImmutableList.<IntervalWindow>of(), window(1, 11));
     assertEquals(ImmutableSet.of(window(1, 11), window(15, 10)), set.getActiveWindows());
-    assertEquals(window(1, 11), set.representative(window(1, 10)));
-    assertEquals(window(1, 11), set.representative(window(2, 10)));
-    assertEquals(window(1, 11), set.representative(window(1, 11)));
-    assertEquals(window(15, 10), set.representative(window(15, 10)));
+    assertEquals(window(1, 11), set.mergeResultWindow(window(1, 10)));
+    assertEquals(window(1, 11), set.mergeResultWindow(window(2, 10)));
+    assertEquals(window(1, 11), set.mergeResultWindow(window(1, 11)));
+    assertEquals(window(15, 10), set.mergeResultWindow(window(15, 10)));
     assertEquals(
         ImmutableSet.<IntervalWindow>of(window(1, 11)), set.readStateAddresses(window(1, 11)));
     assertEquals(
@@ -146,7 +149,7 @@ public class MergingActiveWindowSetTest {
     verify(callback).onMerge(ImmutableList.of(window(1, 11), window(3, 10)),
         ImmutableList.<IntervalWindow>of(window(1, 11)), window(1, 12));
     assertEquals(ImmutableSet.of(window(1, 12), window(15, 10)), set.getActiveWindows());
-    assertEquals(window(1, 12), set.representative(window(3, 10)));
+    assertEquals(window(1, 12), set.mergeResultWindow(window(3, 10)));
 
     // NEW 8+10
     // =>
@@ -159,9 +162,9 @@ public class MergingActiveWindowSetTest {
     verify(callback).onMerge(ImmutableList.of(window(1, 12), window(8, 10), window(15, 10)),
         ImmutableList.<IntervalWindow>of(window(1, 12), window(15, 10)), window(1, 24));
     assertEquals(ImmutableSet.of(window(1, 24)), set.getActiveWindows());
-    assertEquals(window(1, 24), set.representative(window(1, 12)));
-    assertEquals(window(1, 24), set.representative(window(1, 11)));
-    assertEquals(window(1, 24), set.representative(window(15, 10)));
+    assertEquals(window(1, 24), set.mergeResultWindow(window(1, 12)));
+    assertEquals(window(1, 24), set.mergeResultWindow(window(1, 11)));
+    assertEquals(window(1, 24), set.mergeResultWindow(window(15, 10)));
 
     // NEW 9+10
     // =>
