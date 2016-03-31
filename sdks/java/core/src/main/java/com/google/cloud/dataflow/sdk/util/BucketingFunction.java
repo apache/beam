@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package com.google.cloud.dataflow.sdk.io;
+package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.common.base.Preconditions;

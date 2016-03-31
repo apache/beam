@@ -16,9 +16,10 @@
  * limitations under the License.
  */
 
-package com.google.cloud.dataflow.sdk.io;
+package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.transforms.Combine;
+import com.google.cloud.dataflow.sdk.util.MovingFunction;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -27,12 +28,13 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests {@link BucketingFunction}.
+ * Tests {@link MovingFunction}.
  */
 @RunWith(JUnit4.class)
-public class BucketingFunctionTest {
+public class MovingFunctionTest {
 
-  private static final long BUCKET_WIDTH = 10;
+  private static final long SAMPLE_PERIOD = 100;
+  private static final long SAMPLE_UPDATE = 10;
   private static final int SIGNIFICANT_BUCKETS = 2;
   private static final int SIGNIFICANT_SAMPLES = 10;
 
@@ -49,15 +51,16 @@ public class BucketingFunctionTest {
         }
       };
 
-  private BucketingFunction newFunc() {
+  private MovingFunction newFunc() {
     return new
-        BucketingFunction(BUCKET_WIDTH, SIGNIFICANT_BUCKETS,
-                          SIGNIFICANT_SAMPLES, SUM);
+        MovingFunction(SAMPLE_PERIOD, SAMPLE_UPDATE, SIGNIFICANT_BUCKETS,
+                       SIGNIFICANT_SAMPLES, SUM);
+
   }
 
   @Test
   public void significantSamples() {
-    BucketingFunction f = newFunc();
+    MovingFunction f = newFunc();
     assertFalse(f.isSignificant());
     for (int i = 0; i < SIGNIFICANT_SAMPLES - 1; i++) {
       f.add(0, 0);
@@ -69,36 +72,45 @@ public class BucketingFunctionTest {
 
   @Test
   public void significantBuckets() {
-    BucketingFunction f = newFunc();
+    MovingFunction f = newFunc();
     assertFalse(f.isSignificant());
     f.add(0, 0);
     assertFalse(f.isSignificant());
-    f.add(BUCKET_WIDTH, 0);
+    f.add(SAMPLE_UPDATE, 0);
     assertTrue(f.isSignificant());
   }
 
   @Test
   public void sum() {
-    BucketingFunction f = newFunc();
-    for (int i = 0; i < 100; i++) {
+    MovingFunction f = newFunc();
+    for (int i = 0; i < SAMPLE_PERIOD; i++) {
       f.add(i, i);
-      assertEquals(((i + 1) * i) / 2, f.get());
+      assertEquals(((i + 1) * i) / 2, f.get(i));
     }
   }
 
   @Test
   public void movingSum() {
-    BucketingFunction f = newFunc();
+    MovingFunction f = newFunc();
     int lost = 0;
-    for (int i = 0; i < 200; i++) {
-      f.add(i, 1);
-      if (i >= 100) {
-        f.remove(i - 100);
-        if (i % BUCKET_WIDTH == BUCKET_WIDTH - 1) {
-          lost += BUCKET_WIDTH;
+    for (int i = 0; i < SAMPLE_PERIOD * 2; i++) {
+      f.add(i , 1);
+      if (i >= SAMPLE_PERIOD) {
+        if (i % SAMPLE_UPDATE == 0) {
+          lost += SAMPLE_UPDATE;
         }
       }
-      assertEquals(i + 1 - lost, f.get());
+      assertEquals(i + 1 - lost, f.get(i));
     }
+  }
+
+  @Test
+  public void jumpingSum() {
+    MovingFunction f = newFunc();
+    f.add(0, 1);
+    f.add(SAMPLE_PERIOD - 1, 1);
+    assertEquals(2, f.get(SAMPLE_PERIOD - 1));
+    assertEquals(1, f.get(SAMPLE_PERIOD + 3 * SAMPLE_UPDATE));
+    assertEquals(0, f.get(SAMPLE_PERIOD * 2));
   }
 }
