@@ -27,7 +27,7 @@ import java.util.Arrays;
  * is over at most the last {@link #samplePeriodMs}, and is updated every
  * {@link #sampleUpdateMs}.
  */
-class MovingFunction {
+public class MovingFunction {
   /**
    * How far back to retain samples, in ms.
    */
