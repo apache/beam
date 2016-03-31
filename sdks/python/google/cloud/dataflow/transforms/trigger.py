@@ -29,6 +29,7 @@ from google.cloud.dataflow.transforms.timeutil import MIN_TIMESTAMP
 from google.cloud.dataflow.transforms.timeutil import TimeDomain
 from google.cloud.dataflow.transforms.window import GlobalWindow
 from google.cloud.dataflow.transforms.window import OutputTimeFn
+from google.cloud.dataflow.transforms.window import WindowedValue
 from google.cloud.dataflow.transforms.window import WindowFn
 
 
@@ -711,6 +712,7 @@ class TriggerDriver(object):
 class DefaultGlobalBatchTriggerDriver(TriggerDriver):
   """Breaks a bundles into window (pane)s according to the default triggering.
   """
+  GLOBAL_WINDOW_TUPLE = (GlobalWindow(),)
 
   def __init__(self):
     pass
@@ -725,7 +727,7 @@ class DefaultGlobalBatchTriggerDriver(TriggerDriver):
         def __repr__(self):
           return '<UnwindowedValues of %s>' % windowed_values
       unwindowed = UnwindowedValues()
-    yield GlobalWindow(), unwindowed, MIN_TIMESTAMP
+    yield WindowedValue(unwindowed, MIN_TIMESTAMP, self.GLOBAL_WINDOW_TUPLE)
 
   def process_timer(self, window_id, name, time_domain, timestamp, state):
     raise TypeError('Triggers never set or called for batch default windowing.')
@@ -741,14 +743,14 @@ class CombiningTriggerDriver(TriggerDriver):
   def process_elements(self, state, windowed_values, output_watermark):
     uncombined = self.underlying.process_elements(state, windowed_values,
                                                   output_watermark)
-    for window, unwindowed, timestamp in uncombined:
-      yield window, self.phased_combine_fn.apply(unwindowed), timestamp
+    for output in uncombined:
+      yield output.with_value(self.phased_combine_fn.apply(output.value))
 
   def process_timer(self, window_id, name, time_domain, timestamp, state):
     uncombined = self.underlying.process_timer(window_id, name, time_domain,
                                                timestamp, state)
-    for window, unwindowed in uncombined:
-      yield window, self.phased_combine_fn.apply(unwindowed)
+    for output in uncombined:
+      yield output.with_value(self.phased_combine_fn.apply(output.value))
 
 
 class GeneralTriggerDriver(TriggerDriver):
@@ -870,7 +872,7 @@ class GeneralTriggerDriver(TriggerDriver):
     else:
       state.clear_state(window, self.WATERMARK_HOLD)
 
-    return window, values, timestamp
+    return WindowedValue(values, timestamp, (window,))
 
 
 class InMemoryUnmergedState(UnmergedState):

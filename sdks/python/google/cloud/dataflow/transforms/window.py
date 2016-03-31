@@ -210,6 +210,9 @@ class WindowedValue(object):
             and self.timestamp == other.timestamp
             and self.windows == other.windows)
 
+  def with_value(self, new_value):
+    return WindowedValue(new_value, self.timestamp, self.windows)
+
 
 class TimestampedValue(object):
   """A timestamped value having a value and a timestamp.

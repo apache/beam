@@ -972,16 +972,14 @@ class GroupByKey(PTransform):
       driver = create_trigger_driver(self.windowing, True)
       state = InMemoryUnmergedState()
       # TODO(robertwb): Conditionally process in smaller chunks.
-      for out_window, values, timestamp in (
-          driver.process_elements(state, vs, MIN_TIMESTAMP)):
-        yield window.WindowedValue((k, values), timestamp, [out_window])
+      for wvalue in driver.process_elements(state, vs, MIN_TIMESTAMP):
+        yield wvalue.with_value((k, wvalue.value))
       while state.timers:
         fired = state.get_and_clear_timers()
         for timer_window, (name, time_domain, fire_time) in fired:
-          for out_window, values, timestamp in driver.process_timer(
+          for wvalue in driver.process_timer(
               timer_window, name, time_domain, fire_time, state):
-            yield window.WindowedValue(
-                (k, values), out_window.end, [out_window])
+            yield wvalue.with_value((k, wvalue.value))
 
   def apply(self, pcoll):
     # This code path is only used in the local direct runner.  For Dataflow

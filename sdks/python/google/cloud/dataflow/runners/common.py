@@ -145,8 +145,7 @@ class DoFnRunner(object):
             result.value, result.timestamp,
             self.window_fn.assign(assign_context))
       else:
-        windowed_value = WindowedValue(
-            result, element.timestamp, element.windows)
+        windowed_value = element.with_value(result)
       if tag is None:
         self.main_receivers.output(windowed_value)
       else:

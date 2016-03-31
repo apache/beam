@@ -95,28 +95,30 @@ class TriggerTest(unittest.TestCase):
     state = InMemoryUnmergedState()
 
     for bundle in bundles:
-      output = driver.process_elements(state, bundle, MIN_TIMESTAMP)
-      for out_window, values, unused_timestamp in output:
-        actual_panes[out_window].append(set(values))
+      for wvalue in driver.process_elements(state, bundle, MIN_TIMESTAMP):
+        window, = wvalue.windows
+        actual_panes[window].append(set(wvalue.value))
 
     while state.timers:
       for timer_window, (name, time_domain, timestamp) in (
           state.get_and_clear_timers()):
-        for out_window, values, unused_timestamp in driver.process_timer(
+        for wvalue in driver.process_timer(
             timer_window, name, time_domain, timestamp, state):
-          actual_panes[out_window].append(set(values))
+          window, = wvalue.windows
+          actual_panes[window].append(set(wvalue.value))
 
     for bundle in late_bundles:
-      output = driver.process_elements(state, bundle, MIN_TIMESTAMP)
-      for out_window, values, unused_timestamp in output:
-        actual_panes[out_window].append(set(values))
+      for wvalue in driver.process_elements(state, bundle, MIN_TIMESTAMP):
+        window, = wvalue.windows
+        actual_panes[window].append(set(wvalue.value))
 
       while state.timers:
         for timer_window, (name, time_domain, timestamp) in (
             state.get_and_clear_timers()):
-          for out_window, values, unused_timestamp in driver.process_timer(
+          for wvalue in driver.process_timer(
               timer_window, name, time_domain, timestamp, state):
-            actual_panes[out_window].append(set(values))
+            window, = wvalue.windows
+            actual_panes[window].append(set(wvalue.value))
 
     self.assertEqual(expected_panes, actual_panes)
 
@@ -500,11 +502,12 @@ class TranscriptTest(unittest.TestCase):
       to_fire = state.get_and_clear_timers(watermark)
       while to_fire:
         for timer_window, (name, time_domain, t_timestamp) in to_fire:
-          for window, values, timestamp in driver.process_timer(
+          for wvalue in driver.process_timer(
               timer_window, name, time_domain, t_timestamp, state):
+            window, = wvalue.windows
             output.append({'window': [window.start, window.end - 1],
-                           'values': sorted(values),
-                           'timestamp': timestamp})
+                           'values': sorted(wvalue.value),
+                           'timestamp': wvalue.timestamp})
         to_fire = state.get_and_clear_timers(watermark)
 
     for line in spec['transcript']:
@@ -520,10 +523,11 @@ class TranscriptTest(unittest.TestCase):
         bundle = [
             WindowedValue(t, t, window_fn.assign(WindowFn.AssignContext(t, t)))
             for t in params]
-        output = [{'window': [window.start, window.end - 1],
-                   'values': sorted(values),
-                   'timestamp': timestamp}
-                  for window, values, timestamp
+        output = [{'window': [wvalue.windows[0].start,
+                              wvalue.windows[0].end - 1],
+                   'values': sorted(wvalue.value),
+                   'timestamp': wvalue.timestamp}
+                  for wvalue
                   in driver.process_elements(state, bundle, watermark)]
         fire_timers()
 

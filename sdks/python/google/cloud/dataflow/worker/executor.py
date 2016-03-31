@@ -29,7 +29,6 @@ from google.cloud.dataflow.runners import common
 import google.cloud.dataflow.transforms as ptransform
 from google.cloud.dataflow.transforms import combiners
 from google.cloud.dataflow.transforms import trigger
-from google.cloud.dataflow.transforms import window
 from google.cloud.dataflow.transforms.combiners import curry_combine_fn
 from google.cloud.dataflow.transforms.combiners import PhasedCombineFnExecutor
 from google.cloud.dataflow.transforms.trigger import InMemoryUnmergedState
@@ -501,9 +500,8 @@ class CombineOperation(Operation):
       logging.debug('Processing [%s] in %s', o, self)
     assert isinstance(o, WindowedValue)
     key, values = o.value
-    windowed_value = WindowedValue(
-        (key, self.phased_combine_fn.apply(values)), o.timestamp, o.windows)
-    self.output(windowed_value)
+    self.output(
+        o.with_value((key, self.phased_combine_fn.apply(values))))
 
 
 def create_pgbk_op(spec):
@@ -633,10 +631,7 @@ class ReifyTimestampAndWindowsOperation(Operation):
       logging.debug('Processing [%s] in %s', o, self)
     assert isinstance(o, WindowedValue)
     k, v = o.value
-    self.output(
-        window.WindowedValue(
-            (k, window.WindowedValue(v, o.timestamp, o.windows)),
-            o.timestamp, o.windows))
+    self.output(o.with_value((k, o.with_value(v))))
 
 
 class BatchGroupAlsoByWindowsOperation(Operation):
@@ -669,19 +664,15 @@ class BatchGroupAlsoByWindowsOperation(Operation):
     state = InMemoryUnmergedState()
 
     # TODO(robertwb): Process in smaller chunks.
-    for out_window, values, timestamp in (
-        driver.process_elements(state, vs, MIN_TIMESTAMP)):
-      self.output(
-          window.WindowedValue((k, values), timestamp, [out_window]))
+    for wvalue in driver.process_elements(state, vs, MIN_TIMESTAMP):
+      self.output(wvalue.with_value((k, wvalue.value)))
 
     while state.timers:
       timers = state.get_and_clear_timers()
       for timer_window, (name, time_domain, timestamp) in timers:
-        for out_window, values, timestamp in (
-            driver.process_timer(timer_window, name, time_domain, timestamp,
-                                 state)):
-          self.output(
-              window.WindowedValue((k, values), timestamp, [out_window]))
+        for wvalue in driver.process_timer(
+            timer_window, name, time_domain, timestamp, state):
+          self.output(wvalue.with_value((k, wvalue.value)))
 
 
 class StreamingGroupAlsoByWindowsOperation(Operation):
@@ -703,19 +694,16 @@ class StreamingGroupAlsoByWindowsOperation(Operation):
     state = self.spec.context.state
     output_watermark = self.spec.context.output_data_watermark
 
-    for out_window, values, timestamp in (
-        driver.process_elements(state, keyed_work.elements(),
-                                output_watermark)):
-      self.output(window.WindowedValue((keyed_work.key, values), timestamp,
-                                       [out_window]))
+    key = keyed_work.key
+    for wvalue in driver.process_elements(
+        state, keyed_work.elements(), output_watermark):
+      self.output(wvalue.with_value((key, wvalue.value)))
 
     for timer in keyed_work.timers():
       timer_window = int(timer.namespace)
-      for out_window, values, timestamp in (
-          driver.process_timer(timer_window, timer.name, timer.time_domain,
-                               timer.timestamp, state)):
-        self.output(window.WindowedValue((keyed_work.key, values), timestamp,
-                                         [out_window]))
+      for wvalue in driver.process_timer(
+          timer_window, timer.name, timer.time_domain, timer.timestamp, state):
+        self.output(wvalue.with_value((key, wvalue.value)))
 
 
 class MapTaskExecutor(object):
