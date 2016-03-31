@@ -725,8 +725,40 @@ public class ReduceFnRunnerTest {
   }
 
   /**
+   * Ensure a closed trigger has its state recorded in the merge result window.
+   */
+  @Test
+  public void testMergingWithCloseTrigger() throws Exception {
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
+        ReduceFnTester.nonCombining(Sessions.withGapDuration(Duration.millis(10)), mockTrigger,
+                                    AccumulationMode.DISCARDING_FIRED_PANES, Duration.millis(50),
+                                    ClosingBehavior.FIRE_IF_NON_EMPTY);
+
+    // Create a new merged session window.
+    tester.injectElements(TimestampedValue.of(1, new Instant(1)),
+                          TimestampedValue.of(2, new Instant(2)));
+
+    // Force the trigger to be closed for the merged window.
+    when(mockTrigger.shouldFire(anyTriggerContext())).thenReturn(true);
+    triggerShouldFinish(mockTrigger);
+    tester.advanceInputWatermark(new Instant(13));
+
+    // Trigger is now closed.
+    assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(1), new Instant(12))));
+
+    when(mockTrigger.shouldFire(anyTriggerContext())).thenReturn(false);
+
+    // Revisit the same session window.
+    tester.injectElements(TimestampedValue.of(1, new Instant(1)),
+                          TimestampedValue.of(2, new Instant(2)));
+
+    // Trigger is still closed.
+    assertTrue(tester.isMarkedFinished(new IntervalWindow(new Instant(1), new Instant(12))));
+  }
+
+  /**
    * If a later event tries to reuse an earlier session window which has been closed, we
-   * should reject that element and not fail due to the window no longer having a representative.
+   * should reject that element and not fail due to the window no longer being active.
    */
   @Test
   public void testMergingWithReusedWindow() throws Exception {
@@ -747,6 +779,9 @@ public class ReduceFnRunnerTest {
     // Should be discarded with 'window closed'.
     tester.injectElements(TimestampedValue.of(1, new Instant(1))); // in [1, 11), gc at 21.
 
+    // And nothing should be left in the active window state.
+    assertTrue(tester.hasNoActiveWindows());
+
     // Now the garbage collection timer will fire, finding the trigger already closed.
     tester.advanceInputWatermark(new Instant(100));
 
@@ -759,6 +794,91 @@ public class ReduceFnRunnerTest {
                                      11)); // window end
     assertThat(
         output.get(0).getPane(),
+        equalTo(PaneInfo.createPane(true, true, Timing.ON_TIME, 0, 0)));
+  }
+
+  /**
+   * When a merged window's trigger is closed we record that state using the merged window rather
+   * than the original windows.
+   */
+  @Test
+  public void testMergingWithClosedRepresentative() throws Exception {
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
+        ReduceFnTester.nonCombining(Sessions.withGapDuration(Duration.millis(10)), mockTrigger,
+                                    AccumulationMode.DISCARDING_FIRED_PANES, Duration.millis(50),
+                                    ClosingBehavior.FIRE_IF_NON_EMPTY);
+
+    // 2 elements into merged session window.
+    // Close the trigger, but the garbage collection timer is still pending.
+    when(mockTrigger.shouldFire(anyTriggerContext())).thenReturn(true);
+    triggerShouldFinish(mockTrigger);
+    tester.injectElements(TimestampedValue.of(1, new Instant(1)),       // in [1, 11), gc at 21.
+                          TimestampedValue.of(8, new Instant(8)));      // in [8, 18), gc at 28.
+
+    // More elements into the same merged session window.
+    // It has not yet been gced.
+    // Should be discarded with 'window closed'.
+    tester.injectElements(TimestampedValue.of(1, new Instant(1)),      // in [1, 11), gc at 21.
+                          TimestampedValue.of(2, new Instant(2)),      // in [2, 12), gc at 22.
+                          TimestampedValue.of(8, new Instant(8)));     // in [8, 18), gc at 28.
+
+    // Now the garbage collection timer will fire, finding the trigger already closed.
+    tester.advanceInputWatermark(new Instant(100));
+
+    List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
+
+    assertThat(output.size(), equalTo(1));
+    assertThat(output.get(0),
+               isSingleWindowedValue(containsInAnyOrder(1, 8),
+                                     1, // timestamp
+                                     1, // window start
+                                     18)); // window end
+    assertThat(
+        output.get(0).getPane(),
+        equalTo(PaneInfo.createPane(true, true, Timing.EARLY, 0, 0)));
+  }
+
+  /**
+   * If an element for a closed session window ends up being merged into other still-open
+   * session windows, the resulting session window is not 'poisoned'.
+   */
+  @Test
+  public void testMergingWithClosedDoesNotPoison() throws Exception {
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
+        ReduceFnTester.nonCombining(Sessions.withGapDuration(Duration.millis(10)), mockTrigger,
+            AccumulationMode.DISCARDING_FIRED_PANES, Duration.millis(50),
+            ClosingBehavior.FIRE_IF_NON_EMPTY);
+
+    // 1 element, force its trigger to close.
+    when(mockTrigger.shouldFire(anyTriggerContext())).thenReturn(true);
+    triggerShouldFinish(mockTrigger);
+    tester.injectElements(TimestampedValue.of(2, new Instant(2)));
+
+    // 3 elements, one already closed.
+    when(mockTrigger.shouldFire(anyTriggerContext())).thenReturn(false);
+    tester.injectElements(TimestampedValue.of(1, new Instant(1)),
+        TimestampedValue.of(2, new Instant(2)),
+        TimestampedValue.of(3, new Instant(3)));
+
+    tester.advanceInputWatermark(new Instant(100));
+
+    List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
+    assertThat(output.size(), equalTo(2));
+    assertThat(output.get(0),
+        isSingleWindowedValue(containsInAnyOrder(2),
+            2, // timestamp
+            2, // window start
+            12)); // window end
+    assertThat(
+        output.get(0).getPane(),
+        equalTo(PaneInfo.createPane(true, true, Timing.EARLY, 0, 0)));
+    assertThat(output.get(1),
+        isSingleWindowedValue(containsInAnyOrder(1, 2, 3),
+            1, // timestamp
+            1, // window start
+            13)); // window end
+    assertThat(
+        output.get(1).getPane(),
         equalTo(PaneInfo.createPane(true, true, Timing.ON_TIME, 0, 0)));
   }
 
