@@ -39,9 +39,6 @@ import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.PCollection;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.base.MoreObjects;
-import com.google.common.base.MoreObjects.ToStringHelper;
-import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.hash.HashFunction;
@@ -56,7 +53,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import javax.annotation.Nullable;
@@ -128,7 +124,7 @@ public class IsmFormat {
     @Nullable abstract V value();
     @Nullable abstract byte[] metadata();
 
-    IsmRecord() {}
+    IsmRecord() {} // Prevent public constructor
 
     /** Returns an IsmRecord with the specified key components and value. */
     public static <V> IsmRecord<V> of(List<?> keyComponents, V value) {
@@ -690,8 +686,6 @@ public class IsmFormat {
     public abstract int getSharedKeySize();
     public abstract int getUnsharedKeySize();
 
-    KeyPrefix() {}
-
     public static KeyPrefix of(int sharedKeySize, int unsharedKeySize) {
       return new AutoValue_IsmFormat_KeyPrefix(sharedKeySize, unsharedKeySize);
     }
@@ -756,24 +750,14 @@ public class IsmFormat {
     static final int FIXED_LENGTH = 3 * LONG_BYTES + 1;
     static final byte VERSION = 2;
 
+    public abstract byte getVersion();
     public abstract long getIndexPosition();
     public abstract long getBloomFilterPosition();
     public abstract long getNumberOfKeys();
 
-    Footer() {}
-
     public static Footer of(long indexPosition, long bloomFilterPosition, long numberOfKeys) {
-      return new AutoValue_IsmFormat_Footer(indexPosition, bloomFilterPosition, numberOfKeys);
-    }
-
-    @Override
-    public String toString() {
-      return MoreObjects.toStringHelper(this)
-          .add("version", Footer.VERSION)
-          .add("indexPosition", getIndexPosition())
-          .add("bloomFilterPosition", getBloomFilterPosition())
-          .add("numberOfKeys", getNumberOfKeys())
-          .toString();
+      return new AutoValue_IsmFormat_Footer(
+          VERSION, indexPosition, bloomFilterPosition, numberOfKeys);
     }
   }
 
