@@ -74,10 +74,9 @@ public class ApproximateQuantilesTest {
     PCollection<List<Integer>> quantiles =
         input.apply(ApproximateQuantiles.<Integer>globally(5));
 
-    p.run();
-
     DataflowAssert.that(quantiles)
         .containsInAnyOrder(Arrays.asList(0, 25, 50, 75, 100));
+    p.run();
   }
 
   @Test
@@ -89,10 +88,9 @@ public class ApproximateQuantilesTest {
         input.apply(
             ApproximateQuantiles.globally(5, new DescendingIntComparator()));
 
-    p.run();
-
     DataflowAssert.that(quantiles)
         .containsInAnyOrder(Arrays.asList(100, 75, 50, 25, 0));
+    p.run();
   }
 
   @Test
