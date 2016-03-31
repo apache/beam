@@ -143,7 +143,9 @@
     <profile>
       <id>dev</id>
       <activation>
-        <activeByDefault>true</activeByDefault>
+        <property>
+          <name>!skipDefault</name>
+        </property>
       </activation>
       <properties>
         <skipIntegrationTests>true</skipIntegrationTests>
