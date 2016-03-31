@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
+import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.common.base.Preconditions;
 import java.util.Arrays;
 
@@ -48,7 +49,7 @@ class MovingFunction {
   /**
    * Function for combining sample values.
    */
-  private final SimpleFunction function;
+  private final Combine.BinaryCombineLongFn function;
 
   /**
    * Minimum/maximum/sum of all values per bucket.
@@ -72,7 +73,7 @@ class MovingFunction {
 
   public MovingFunction(long samplePeriodMs, long sampleUpdateMs,
                         int numSignificantBuckets, int numSignificantSamples,
-                        SimpleFunction function) {
+                        Combine.BinaryCombineLongFn function) {
     this.samplePeriodMs = samplePeriodMs;
     this.sampleUpdateMs = sampleUpdateMs;
     this.numSignificantBuckets = numSignificantBuckets;
@@ -80,7 +81,7 @@ class MovingFunction {
     this.function = function;
     int n = (int) (samplePeriodMs / sampleUpdateMs);
     buckets = new long[n];
-    Arrays.fill(buckets, function.zero());
+    Arrays.fill(buckets, function.identity());
     numSamples = new int[n];
     Arrays.fill(numSamples, 0);
     currentMsSinceEpoch = -1;
@@ -102,7 +103,7 @@ class MovingFunction {
                  buckets.length);
     while (newBuckets > 0) {
       currentIndex = (currentIndex + 1) % buckets.length;
-      buckets[currentIndex] = function.zero();
+      buckets[currentIndex] = function.identity();
       numSamples[currentIndex] = 0;
       newBuckets--;
       currentMsSinceEpoch += sampleUpdateMs;
@@ -114,7 +115,7 @@ class MovingFunction {
    */
   public void add(long nowMsSinceEpoch, long value) {
     flush(nowMsSinceEpoch);
-    buckets[currentIndex] = function.f(buckets[currentIndex], value);
+    buckets[currentIndex] = function.apply(buckets[currentIndex], value);
     numSamples[currentIndex]++;
   }
 
@@ -124,9 +125,9 @@ class MovingFunction {
    */
   public long get(long nowMsSinceEpoch) {
     flush(nowMsSinceEpoch);
-    long result = function.zero();
+    long result = function.identity();
     for (int i = 0; i < buckets.length; i++) {
-      result = function.f(result, buckets[i]);
+      result = function.apply(result, buckets[i]);
     }
     return result;
   }

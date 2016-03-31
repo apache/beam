@@ -64,7 +64,7 @@ import javax.annotation.Nullable;
 /**
  * A helper class for talking to pub/sub via grpc.
  */
-public class PubsubGrpcClient implements AutoCloseable {
+public class PubsubGrpcClient implements PubsubClient {
   private static final String PUBSUB_ADDRESS = "pubsub.googleapis.com";
   private static final int PUBSUB_PORT = 443;
   private static final List<String> PUBSUB_SCOPES =
@@ -185,76 +185,7 @@ public class PubsubGrpcClient implements AutoCloseable {
     return cachedSubscriberStub.withDeadlineAfter(TIMEOUT_S, TimeUnit.SECONDS);
   }
 
-  /**
-   * A message to be sent to pub/sub.
-   */
-  public static class OutgoingMessage {
-    /**
-     * Underlying (encoded) element.
-     */
-    public final byte[] elementBytes;
-
-    /**
-     * Timestamp for element (ms since epoch).
-     */
-    public final long timestampMsSinceEpoch;
-
-    public OutgoingMessage(byte[] elementBytes, long timestampMsSinceEpoch) {
-      this.elementBytes = elementBytes;
-      this.timestampMsSinceEpoch = timestampMsSinceEpoch;
-    }
-  }
-
-  /**
-   * A message received from pub/sub.
-   */
-  public static class IncomingMessage {
-    /**
-     * Underlying (encoded) element.
-     */
-    public final byte[] elementBytes;
-
-    /**
-     * Timestamp for element (ms since epoch). Either pub/sub's processing time,
-     * or the custom timestamp associated with the message.
-     */
-    public final long timestampMsSinceEpoch;
-
-    /**
-     * Timestamp (in system time) at which we requested the message (ms since epoch).
-     */
-    public final long requestTimeMsSinceEpoch;
-
-    /**
-     * Id to pass back to pub/sub to acknowledge receipt of this message.
-     */
-    public final String ackId;
-
-    /**
-     * Id to pass to the runner to distinguish this message from all others.
-     */
-    public final byte[] recordId;
-
-    public IncomingMessage(
-        byte[] elementBytes,
-        long timestampMsSinceEpoch,
-        long requestTimeMsSinceEpoch,
-        String ackId,
-        byte[] recordId) {
-      this.elementBytes = elementBytes;
-      this.timestampMsSinceEpoch = timestampMsSinceEpoch;
-      this.requestTimeMsSinceEpoch = requestTimeMsSinceEpoch;
-      this.ackId = ackId;
-      this.recordId = recordId;
-    }
-  }
-
-  /**
-   * Publish {@code outgoingMessages} to pub/sub {@code topic}. Return number of messages
-   * published.
-   *
-   * @throws IOException
-   */
+  @Override
   public int publish(String topic, Iterable<OutgoingMessage> outgoingMessages) throws IOException {
     PublishRequest.Builder request = PublishRequest.newBuilder()
                                                    .setTopic(topic);
@@ -281,11 +212,7 @@ public class PubsubGrpcClient implements AutoCloseable {
     return response.getMessageIdsCount();
   }
 
-  /**
-   * Request the next batch of up to {@code batchSize} messages from {@code subscription}.
-   *
-   * @throws IOException
-   */
+  @Override
   public Collection<IncomingMessage> pull(
       long requestTimeMsSinceEpoch,
       String subscription,
@@ -356,11 +283,7 @@ public class PubsubGrpcClient implements AutoCloseable {
     return incomingMessages;
   }
 
-  /**
-   * Acknowldege messages from {@code subscription} with {@code ackIds}.
-   *
-   * @throws IOException
-   */
+  @Override
   public void acknowledge(String subscription, Iterable<String> ackIds) throws IOException {
     AcknowledgeRequest request = AcknowledgeRequest.newBuilder()
                                                    .setSubscription(subscription)
@@ -369,11 +292,7 @@ public class PubsubGrpcClient implements AutoCloseable {
     subscriberStub().acknowledge(request); // ignore Empty result.
   }
 
-  /**
-   * Modify the ack deadline for messages from {@code subscription} with {@code ackIds}.
-   *
-   * @throws IOException
-   */
+  @Override
   public void modifyAckDeadline(String subscription, Iterable<String> ackIds, int deadlineSeconds)
       throws IOException {
     ModifyAckDeadlineRequest request =
@@ -385,10 +304,7 @@ public class PubsubGrpcClient implements AutoCloseable {
     subscriberStub().modifyAckDeadline(request); // ignore Empty result.
   }
 
-
-  /**
-   * Create {@code topic}.
-   */
+  @Override
   public void createTopic(String topic) throws IOException {
     Topic request = Topic.newBuilder()
                          .setName(topic)
@@ -396,17 +312,13 @@ public class PubsubGrpcClient implements AutoCloseable {
     publisherStub().createTopic(request); // ignore Topic result.
   }
 
-  /*
-   * Delete {@code topic}.
-   */
+  @Override
   public void deleteTopic(String topic) throws IOException {
     DeleteTopicRequest request = DeleteTopicRequest.newBuilder().setTopic(topic).build();
     publisherStub().deleteTopic(request); // ignore Empty result.
   }
 
-  /**
-   * Return a list of topics for {@code project}.
-   */
+  @Override
   public Collection<String> listTopics(String project) throws IOException {
     ListTopicsRequest.Builder request =
         ListTopicsRequest.newBuilder()
@@ -430,11 +342,7 @@ public class PubsubGrpcClient implements AutoCloseable {
     return topics;
   }
 
-  /**
-   * Create {@code subscription} to {@code topic}.
-   *
-   * @throws IOException
-   */
+  @Override
   public void createSubscription(String topic, String subscription, int ackDeadlineSeconds)
       throws IOException {
     Subscription request = Subscription.newBuilder()
@@ -445,18 +353,14 @@ public class PubsubGrpcClient implements AutoCloseable {
     subscriberStub().createSubscription(request); // ignore Subscription result.
   }
 
-  /**
-   * Delete {@code subscription}.
-   */
+  @Override
   public void deleteSubscription(String subscription) throws IOException {
     DeleteSubscriptionRequest request =
         DeleteSubscriptionRequest.newBuilder().setSubscription(subscription).build();
     subscriberStub().deleteSubscription(request); // ignore Empty result.
   }
 
-  /**
-   * Return a list of subscriptions for {@code topic} in {@code project}.
-   */
+  @Override
   public Collection<String> listSubscriptions(String project, String topic) throws IOException {
     ListSubscriptionsRequest.Builder request =
         ListSubscriptionsRequest.newBuilder()

@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
+import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.common.base.Preconditions;
 import java.util.HashMap;
 import java.util.Map;
@@ -31,11 +32,11 @@ public class BucketingFunction {
 
     public Bucket(BucketingFunction outer) {
       numSamples = 0;
-      combinedValue = outer.function.zero();
+      combinedValue = outer.function.identity();
     }
 
     public void add(BucketingFunction outer, long value) {
-      combinedValue = outer.function.f(combinedValue, value);
+      combinedValue = outer.function.apply(combinedValue, value);
       numSamples++;
     }
 
@@ -68,7 +69,7 @@ public class BucketingFunction {
   /**
    * Function for combining sample values.
    */
-  private final SimpleFunction function;
+  private final Combine.BinaryCombineLongFn function;
 
   /**
    * Active buckets.
@@ -79,7 +80,7 @@ public class BucketingFunction {
       long bucketWidthMs,
       int numSignificantBuckets,
       int numSignificantSamples,
-      SimpleFunction function) {
+      Combine.BinaryCombineLongFn function) {
     this.bucketWidthMs = bucketWidthMs;
     this.numSignificantBuckets = numSignificantBuckets;
     this.numSignificantSamples = numSignificantSamples;
@@ -125,9 +126,9 @@ public class BucketingFunction {
    * Return the (bucketized) combined value of all samples.
    */
   public long get() {
-    long result = function.zero();
+    long result = function.identity();
     for (Bucket bucket : buckets.values()) {
-      result = function.f(result, bucket.get());
+      result = function.apply(result, bucket.get());
     }
     return result;
   }

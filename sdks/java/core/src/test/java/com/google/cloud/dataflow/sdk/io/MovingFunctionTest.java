@@ -14,6 +14,7 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
+import com.google.cloud.dataflow.sdk.transforms.Combine;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -32,10 +33,23 @@ public class MovingFunctionTest {
   private static final int SIGNIFICANT_BUCKETS = 2;
   private static final int SIGNIFICANT_SAMPLES = 10;
 
+  private static final Combine.BinaryCombineLongFn SUM =
+      new Combine.BinaryCombineLongFn() {
+        @Override
+        public long apply(long left, long right) {
+          return left + right;
+        }
+
+        @Override
+        public long identity() {
+          return 0;
+        }
+      };
+
   private MovingFunction newFunc() {
     return new
         MovingFunction(SAMPLE_PERIOD, SAMPLE_UPDATE, SIGNIFICANT_BUCKETS,
-                       SIGNIFICANT_SAMPLES, SimpleFunction.SUM);
+                       SIGNIFICANT_SAMPLES, SUM);
 
   }
 

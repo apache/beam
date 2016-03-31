@@ -25,6 +25,7 @@ import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.options.GcpOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
+import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
@@ -151,6 +152,46 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
    * Additional sharding so that we can hide read message latency.
    */
   private static final int SCALE_OUT = 4;
+
+  private static final Combine.BinaryCombineLongFn MIN =
+      new Combine.BinaryCombineLongFn() {
+        @Override
+        public long apply(long left, long right) {
+          return Math.min(left, right);
+        }
+
+        @Override
+        public long identity() {
+          return Long.MAX_VALUE;
+        }
+      };
+
+  private static final Combine.BinaryCombineLongFn MAX =
+      new Combine.BinaryCombineLongFn() {
+        @Override
+        public long apply(long left, long right) {
+          return Math.max(left, right);
+        }
+
+        @Override
+        public long identity() {
+          return Long.MIN_VALUE;
+        }
+      };
+
+  private static final Combine.BinaryCombineLongFn SUM =
+      new Combine.BinaryCombineLongFn() {
+        @Override
+        public long apply(long left, long right) {
+          return left + right;
+        }
+
+        @Override
+        public long identity() {
+          return 0;
+        }
+      };
+
 
   // ================================================================================
   // Checkpoint
@@ -308,7 +349,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
      * Messages we have received from pub/sub and not yet delivered downstream.
      * We preserve their order.
      */
-    private final Queue<PubsubGrpcClient.IncomingMessage> notYetRead;
+    private final Queue<PubsubClient.IncomingMessage> notYetRead;
 
     /**
      * Map from ack ids of messages we have received from pub/sub but not yet acked to their
@@ -355,7 +396,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
      * The current message, or {@literal null} if none.
      */
     @Nullable
-    private PubsubGrpcClient.IncomingMessage current;
+    private PubsubClient.IncomingMessage current;
 
     /**
      * Stats only: System time (ms since epoch) we last logs stats, or -1 if never.
@@ -438,7 +479,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
      */
     private int maxInFlightCheckpoints;
 
-    private static MovingFunction newFun(SimpleFunction function) {
+    private static MovingFunction newFun(Combine.BinaryCombineLongFn function) {
       return new MovingFunction(SAMPLE_PERIOD.getMillis(),
                                 SAMPLE_UPDATE.getMillis(),
                                 MIN_WATERMARK_SPREAD,
@@ -463,24 +504,24 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
       minUnreadTimestampMsSinceEpoch = new BucketingFunction(SAMPLE_UPDATE.getMillis(),
                                                              MIN_WATERMARK_SPREAD,
                                                              MIN_WATERMARK_MESSAGES,
-                                                             SimpleFunction.MIN);
-      minReadTimestampMsSinceEpoch = newFun(SimpleFunction.MIN);
+                                                             MIN);
+      minReadTimestampMsSinceEpoch = newFun(MIN);
       lastReceivedMsSinceEpoch = -1;
       lastWatermarkMsSinceEpoch = BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis();
       current = null;
       lastLogTimestampMsSinceEpoch = -1;
       numReceived = 0L;
-      numReceivedRecently = newFun(SimpleFunction.SUM);
-      numExtendedDeadlines = newFun(SimpleFunction.SUM);
-      numLateDeadlines = newFun(SimpleFunction.SUM);
-      numAcked = newFun(SimpleFunction.SUM);
-      numNacked = newFun(SimpleFunction.SUM);
-      numReadBytes = newFun(SimpleFunction.SUM);
-      minReceivedTimestampMsSinceEpoch = newFun(SimpleFunction.MIN);
-      maxReceivedTimestampMsSinceEpoch = newFun(SimpleFunction.MAX);
-      minWatermarkMsSinceEpoch = newFun(SimpleFunction.MIN);
-      maxWatermarkMsSinceEpoch = newFun(SimpleFunction.MAX);
-      numLateMessages = newFun(SimpleFunction.SUM);
+      numReceivedRecently = newFun(SUM);
+      numExtendedDeadlines = newFun(SUM);
+      numLateDeadlines = newFun(SUM);
+      numAcked = newFun(SUM);
+      numNacked = newFun(SUM);
+      numReadBytes = newFun(SUM);
+      minReceivedTimestampMsSinceEpoch = newFun(MIN);
+      maxReceivedTimestampMsSinceEpoch = newFun(MAX);
+      minWatermarkMsSinceEpoch = newFun(MIN);
+      maxWatermarkMsSinceEpoch = newFun(MAX);
+      numLateMessages = newFun(SUM);
       numInFlightCheckpoints = new AtomicInteger();
       maxInFlightCheckpoints = 0;
     }
@@ -598,7 +639,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
 
       // Pull the next batch.
       // BLOCKs until received.
-      Collection<PubsubGrpcClient.IncomingMessage> receivedMessages =
+      Collection<PubsubClient.IncomingMessage> receivedMessages =
           pubsubClient.pull(requestTimeMsSinceEpoch,
                             outer.outer.subscription,
                             PULL_BATCH_SIZE);
@@ -610,7 +651,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
       lastReceivedMsSinceEpoch = requestTimeMsSinceEpoch;
 
       // Capture the received messages.
-      for (PubsubGrpcClient.IncomingMessage incomingMessage : receivedMessages) {
+      for (PubsubClient.IncomingMessage incomingMessage : receivedMessages) {
         notYetRead.add(incomingMessage);
         notYetReadBytes += incomingMessage.elementBytes.length;
         inFlight.put(incomingMessage.ackId, new Instant(deadlineMsSinceEpoch));
@@ -829,7 +870,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
       List<String> snapshotSafeToAckIds = safeToAckIds;
       safeToAckIds = new ArrayList<>();
       List<String> snapshotNotYetReadIds = new ArrayList<>(notYetRead.size());
-      for (PubsubGrpcClient.IncomingMessage incomingMessage : notYetRead) {
+      for (PubsubClient.IncomingMessage incomingMessage : notYetRead) {
         snapshotNotYetReadIds.add(incomingMessage.ackId);
       }
       return new Checkpoint<>(this, snapshotSafeToAckIds, snapshotNotYetReadIds);
