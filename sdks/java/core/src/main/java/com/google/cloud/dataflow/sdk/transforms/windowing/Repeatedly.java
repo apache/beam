@@ -90,8 +90,8 @@ public class Repeatedly<W extends BoundedWindow> extends Trigger<W> {
     getRepeated(context).invokeOnFire(context);
 
     if (context.trigger().isFinished(REPEATED)) {
-      context.trigger().setFinished(false, REPEATED);
-      getRepeated(context).invokeClear(context);
+      // Reset tree will recursively clear the finished bits, and invoke clear.
+      context.forTrigger(getRepeated(context)).trigger().resetTree();
     }
   }
 
