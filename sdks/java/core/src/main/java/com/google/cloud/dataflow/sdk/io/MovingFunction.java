@@ -73,7 +73,7 @@ class MovingFunction {
    */
   private int currentIndex;
 
-  public MovingFunction(long samplePeriodMs, long sampleUpdateMs,
+  MovingFunction(long samplePeriodMs, long sampleUpdateMs,
                         int numSignificantBuckets, int numSignificantSamples,
                         Combine.BinaryCombineLongFn function) {
     this.samplePeriodMs = samplePeriodMs;
@@ -115,7 +115,7 @@ class MovingFunction {
   /**
    * Add {@code value} at {@code nowMsSinceEpoch}.
    */
-  public void add(long nowMsSinceEpoch, long value) {
+  void add(long nowMsSinceEpoch, long value) {
     flush(nowMsSinceEpoch);
     buckets[currentIndex] = function.apply(buckets[currentIndex], value);
     numSamples[currentIndex]++;
@@ -125,7 +125,7 @@ class MovingFunction {
    * Return the minimum/maximum/sum of all retained values within {@link #samplePeriodMs}
    * of {@code nowMsSinceEpoch}.
    */
-  public long get(long nowMsSinceEpoch) {
+  long get(long nowMsSinceEpoch) {
     flush(nowMsSinceEpoch);
     long result = function.identity();
     for (int i = 0; i < buckets.length; i++) {
@@ -138,7 +138,7 @@ class MovingFunction {
    * Is the current result 'significant'? Ie is it drawn from enough buckets
    * or from enough samples?
    */
-  public boolean isSignificant() {
+  boolean isSignificant() {
     int totalSamples = 0;
     int activeBuckets = 0;
     for (int i = 0; i < buckets.length; i++) {

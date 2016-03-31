@@ -27,28 +27,28 @@ import java.util.Map;
  * Keep track of the minimum/maximum/sum of a set of timestamped long values.
  * For efficiency, bucket values by their timestamp.
  */
-public class BucketingFunction {
+class BucketingFunction {
   private static class Bucket {
     private int numSamples;
     private long combinedValue;
 
-    public Bucket(BucketingFunction outer) {
+    Bucket(BucketingFunction outer) {
       numSamples = 0;
       combinedValue = outer.function.identity();
     }
 
-    public void add(BucketingFunction outer, long value) {
+    void add(BucketingFunction outer, long value) {
       combinedValue = outer.function.apply(combinedValue, value);
       numSamples++;
     }
 
-    public boolean remove() {
+    boolean remove() {
       numSamples--;
       Preconditions.checkState(numSamples >= 0);
       return numSamples == 0;
     }
 
-    public long get() {
+    long get() {
       return combinedValue;
     }
   }
@@ -78,7 +78,7 @@ public class BucketingFunction {
    */
   private final Map<Long, Bucket> buckets;
 
-  public BucketingFunction(
+  BucketingFunction(
       long bucketWidthMs,
       int numSignificantBuckets,
       int numSignificantSamples,
@@ -100,7 +100,7 @@ public class BucketingFunction {
   /**
    * Add one sample of {@code value} (to bucket) at {@code timeMsSinceEpoch}.
    */
-  public void add(long timeMsSinceEpoch, long value) {
+  void add(long timeMsSinceEpoch, long value) {
     long key = key(timeMsSinceEpoch);
     Bucket bucket = buckets.get(key);
     if (bucket == null) {
@@ -113,7 +113,7 @@ public class BucketingFunction {
   /**
    * Remove one sample (from bucket) at {@code timeMsSinceEpoch}.
    */
-  public void remove(long timeMsSinceEpoch) {
+  void remove(long timeMsSinceEpoch) {
     long key = key(timeMsSinceEpoch);
     Bucket bucket = buckets.get(key);
     if (bucket == null) {
@@ -127,7 +127,7 @@ public class BucketingFunction {
   /**
    * Return the (bucketized) combined value of all samples.
    */
-  public long get() {
+  long get() {
     long result = function.identity();
     for (Bucket bucket : buckets.values()) {
       result = function.apply(result, bucket.get());
@@ -139,7 +139,7 @@ public class BucketingFunction {
    * Is the current result 'significant'? Ie is it drawn from enough buckets
    * or from enough samples?
    */
-  public boolean isSignificant() {
+  boolean isSignificant() {
     if (buckets.size() >= numSignificantBuckets) {
       return true;
     }
