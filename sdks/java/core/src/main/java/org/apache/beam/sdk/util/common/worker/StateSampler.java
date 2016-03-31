@@ -262,7 +262,7 @@ public class StateSampler implements AutoCloseable {
    */
   public synchronized StateSamplerInfo getInfo() {
     return currentState == DO_NOT_SAMPLE ? null
-        : new StateSamplerInfo(countersByState.get(currentState).getName(),
+        : new StateSamplerInfo(countersByState.get(currentState).getFlatName(),
             stateTransitionCount, null);
   }
 
