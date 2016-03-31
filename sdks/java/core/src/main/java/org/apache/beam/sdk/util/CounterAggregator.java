@@ -87,7 +87,7 @@ public class CounterAggregator<InputT, AccumT, OutputT> implements Aggregator<In
 
   @Override
   public String getName() {
-    return counter.getName();
+    return counter.getFlatName();
   }
 
   @Override
