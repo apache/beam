@@ -220,6 +220,7 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
   public void open() throws Exception {
     super.open();
     this.context = new ProcessContext(operator, new TimestampedCollector<>(output), this.timerInternals);
+    operator.startBundle(context);
   }
 
   /**
@@ -252,19 +253,23 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
 
   private void processKeyedWorkItem(KeyedWorkItem<K, VIN> workItem) throws Exception {
     context.setElement(workItem, getStateInternalsForKey(workItem.key()));
-
-    // TODO: Ideally startBundle/finishBundle would be called when the operator is first used / about to be discarded.
-    operator.startBundle(context);
     operator.processElement(context);
-    operator.finishBundle(context);
   }
 
   @Override
   public void processElement(StreamRecord<WindowedValue<KV<K, VIN>>> element) throws Exception {
-    ArrayList<WindowedValue<VIN>> elements = new ArrayList<>();
-    elements.add(WindowedValue.of(element.getValue().getValue().getValue(), element.getValue().getTimestamp(),
-        element.getValue().getWindows(), element.getValue().getPane()));
-    processKeyedWorkItem(KeyedWorkItems.elementsWorkItem(element.getValue().getValue().getKey(), elements));
+    final WindowedValue<KV<K, VIN>> windowedValue = element.getValue();
+    final KV<K, VIN> kv = windowedValue.getValue();
+
+    final WindowedValue<VIN> updatedWindowedValue = WindowedValue.of(kv.getValue(),
+        windowedValue.getTimestamp(),
+        windowedValue.getWindows(),
+        windowedValue.getPane());
+
+    processKeyedWorkItem(
+        KeyedWorkItems.elementsWorkItem(
+            kv.getKey(),
+            Collections.singletonList(updatedWindowedValue)));
   }
 
   @Override
@@ -309,6 +314,7 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
 
   @Override
   public void close() throws Exception {
+    operator.finishBundle(context);
     super.close();
   }
 
