@@ -147,12 +147,12 @@ public class UnboundedSourceWrapper<T> extends RichSourceFunction<WindowedValue<
   private void setNextWatermarkTimer(StreamingRuntimeContext runtime) {
     if (this.isRunning) {
       long watermarkInterval =  runtime.getExecutionConfig().getAutoWatermarkInterval();
-      long timeToNextWatermark = getTimeToNextWaternark(watermarkInterval);
+      long timeToNextWatermark = getTimeToNextWatermark(watermarkInterval);
       runtime.registerTimer(timeToNextWatermark, this);
     }
   }
 
-  private long getTimeToNextWaternark(long watermarkInterval) {
+  private long getTimeToNextWatermark(long watermarkInterval) {
     return System.currentTimeMillis() + watermarkInterval;
   }
 

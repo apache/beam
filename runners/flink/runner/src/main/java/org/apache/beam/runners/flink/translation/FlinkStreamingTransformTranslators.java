@@ -20,6 +20,7 @@ package org.apache.beam.runners.flink.translation;
 
 import org.apache.beam.runners.flink.translation.functions.UnionCoder;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
+import org.apache.beam.runners.flink.translation.wrappers.SourceInputFormat;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.FlinkGroupAlsoByWindowWrapper;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.FlinkGroupByKeyWrapper;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.FlinkParDoBoundMultiWrapper;
@@ -29,6 +30,7 @@ import org.apache.beam.runners.flink.translation.wrappers.streaming.io.Unbounded
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.UnboundedSourceWrapper;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.transforms.Combine;
@@ -62,8 +64,12 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.IngestionTimeExtractor;
+import org.apache.flink.streaming.api.functions.TimestampAssigner;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.util.Collector;
+import org.apache.kafka.common.utils.Time;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -94,6 +100,7 @@ public class FlinkStreamingTransformTranslators {
   // here you can find all the available translators.
   static {
     TRANSLATORS.put(Create.Values.class, new CreateStreamingTranslator());
+    TRANSLATORS.put(Read.Bounded.class, new BoundedReadSourceTranslator());
     TRANSLATORS.put(Read.Unbounded.class, new UnboundedReadSourceTranslator());
     TRANSLATORS.put(ParDo.Bound.class, new ParDoBoundStreamingTranslator());
     TRANSLATORS.put(TextIO.Write.Bound.class, new TextIOWriteBoundStreamingTranslator());
@@ -125,7 +132,7 @@ public class FlinkStreamingTransformTranslators {
       // in the FlatMap function using the Coder.
 
       List<byte[]> serializedElements = Lists.newArrayList();
-      Coder<OUT> elementCoder = context.getOutput(transform).getCoder();
+      Coder<OUT> elementCoder = output.getCoder();
       for (OUT element: elements) {
         ByteArrayOutputStream bao = new ByteArrayOutputStream();
         try {
@@ -148,7 +155,7 @@ public class FlinkStreamingTransformTranslators {
       DataStream<WindowedValue<OUT>> outputDataStream = initDataSet.flatMap(createFunction)
           .returns(outputType);
 
-      context.setOutputDataStream(context.getOutput(transform), outputDataStream);
+      context.setOutputDataStream(output, outputDataStream);
     }
   }
 
@@ -183,6 +190,41 @@ public class FlinkStreamingTransformTranslators {
       if (numShards > 0) {
         output.setParallelism(numShards);
       }
+    }
+  }
+
+  private static class BoundedReadSourceTranslator<T>
+      implements FlinkStreamingPipelineTranslator.StreamTransformTranslator<Read.Bounded<T>> {
+
+    @Override
+    public void translateNode(Read.Bounded<T> transform, FlinkStreamingTranslationContext context) {
+
+      BoundedSource<T> boundedSource = transform.getSource();
+      PCollection<T> output = context.getOutput(transform);
+
+      Coder<T> defaultOutputCoder = boundedSource.getDefaultOutputCoder();
+      CoderTypeInformation<T> typeInfo = new CoderTypeInformation<>(defaultOutputCoder);
+
+      DataStream<T> source = context.getExecutionEnvironment().createInput(
+          new SourceInputFormat<>(
+              boundedSource,
+              context.getPipelineOptions()),
+          typeInfo);
+
+      DataStream<WindowedValue<T>> windowedStream = source.flatMap(
+          new FlatMapFunction<T, WindowedValue<T>>() {
+            @Override
+            public void flatMap(T value, Collector<WindowedValue<T>> out) throws Exception {
+              out.collect(
+                  WindowedValue.of(value,
+                    Instant.now(),
+                    GlobalWindow.INSTANCE,
+                    PaneInfo.NO_FIRING));
+            }
+          })
+          .assignTimestampsAndWatermarks(new IngestionTimeExtractor<WindowedValue<T>>());
+
+      context.setOutputDataStream(output, windowedStream);
     }
   }
 
