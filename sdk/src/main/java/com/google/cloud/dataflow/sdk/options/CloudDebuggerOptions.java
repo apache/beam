@@ -29,15 +29,23 @@ import javax.annotation.Nullable;
 @Hidden
 public interface CloudDebuggerOptions {
 
-  /**
-   * Whether to enable the Cloud Debugger snapshot agent for the current job.
-   */
+  /** Whether to enable the Cloud Debugger snapshot agent for the current job. */
   @Description("Whether to enable the Cloud Debugger snapshot agent for the current job.")
   boolean getEnableCloudDebugger();
   void setEnableCloudDebugger(boolean enabled);
 
-  @Description("The Cloud Debugger debugee to associate with. This should not be set directly.")
+  /** The Cloud Debugger debuggee to associate with. This should not be set directly. */
+  @Description("The Cloud Debugger debuggee to associate with. This should not be set directly.")
   @Hidden
   @Nullable Debuggee getDebuggee();
   void setDebuggee(Debuggee debuggee);
+
+  /** The maximum cost (as a ratio of CPU time) allowed for evaluating conditional snapshots. */
+  @Description(
+      "The maximum cost (as a ratio of CPU time) allowed for evaluating conditional snapshots. "
+      + "Should be a double between 0 and 1. "
+      + "Snapshots will be cancelled if evaluating conditions takes more than this ratio of time.")
+  @Default.Double(0.01)
+  double getMaxConditionCost();
+  void setMaxConditionCost(double maxConditionCost);
 }
