@@ -6,9 +6,44 @@
 </description>
     <link>http://beam.incubator.apache.org/</link>
     <atom:link href="http://beam.incubator.apache.org/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Fri, 01 Apr 2016 20:08:27 -0700</pubDate>
-    <lastBuildDate>Fri, 01 Apr 2016 20:08:27 -0700</lastBuildDate>
+    <pubDate>Mon, 04 Apr 2016 12:04:58 -0700</pubDate>
+    <lastBuildDate>Mon, 04 Apr 2016 12:04:58 -0700</lastBuildDate>
     <generator>Jekyll v3.1.2</generator>
+    
+      <item>
+        <title>Apache Beam Presentation Materials</title>
+        <description>&lt;p&gt;Are you interested in giving a presentation about Apache Beam? Perhaps you want to talk about Apache Beam at a local Meetup or a convention. Excellent!  The Apache Beam community is excited to expand and grow the community. To help kickstart this process, we are excited to announce an initial set of &lt;a href=&quot;/presentation-materials/&quot;&gt;Apache Beam presentation materials&lt;/a&gt; which anyone can use to give a presentation about Apache Beam.&lt;/p&gt;
+
+&lt;!--more--&gt;
+
+&lt;p&gt;As a community, we want to build a shared collection of high quality presentation materials. This initial set includes the following slide decks:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;The Apache Beam model
+    &lt;ul&gt;
+      &lt;li&gt;&lt;a href=&quot;https://goo.gl/r0nvWh&quot;&gt;Long version&lt;/a&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;https://goo.gl/h5D1yR&quot;&gt;Short version&lt;/a&gt;&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Using Apache Beam with runners
+    &lt;ul&gt;
+      &lt;li&gt;&lt;a href=&quot;https://goo.gl/2ay8mi&quot;&gt;Google Cloud Dataflow&lt;/a&gt;&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;As Apache Beam grows, so will this repository of presentation materials. We are excited to add new materials as the Apache Beam ecosystem grows with new runners, SDKs, and so on. If you are interested in contributing content or have a request, please see the &lt;a href=&quot;/presentation-materials/&quot;&gt;Apache Beam presentation materials&lt;/a&gt; page or email the &lt;a href=&quot;&amp;#109;&amp;#097;&amp;#105;&amp;#108;&amp;#116;&amp;#111;:&amp;#117;&amp;#115;&amp;#101;&amp;#114;&amp;#064;&amp;#098;&amp;#101;&amp;#097;&amp;#109;&amp;#046;&amp;#105;&amp;#110;&amp;#099;&amp;#117;&amp;#098;&amp;#097;&amp;#116;&amp;#111;&amp;#114;&amp;#046;&amp;#097;&amp;#112;&amp;#097;&amp;#099;&amp;#104;&amp;#101;&amp;#046;&amp;#111;&amp;#114;&amp;#103;&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;user@beam.incubator.apache.org&lt;/code&gt;&lt;/a&gt; mailing list with your ideas or questions.&lt;/p&gt;
+</description>
+        <pubDate>Sun, 03 Apr 2016 11:00:00 -0700</pubDate>
+        <link>http://beam.incubator.apache.org/beam/capability/2016/04/03/presentation-materials.html</link>
+        <guid isPermaLink="true">http://beam.incubator.apache.org/beam/capability/2016/04/03/presentation-materials.html</guid>
+        
+        
+        <category>beam</category>
+        
+        <category>capability</category>
+        
+      </item>
     
       <item>
         <title>Clarifying &amp; Formalizing Runner Capabilities</title>
