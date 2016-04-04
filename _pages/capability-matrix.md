@@ -4,7 +4,9 @@ title: "Apache Beam Capability Matrix"
 permalink: /capability-matrix/
 ---
 
+
 # Apache Beam Capability Matrix
+<span style='font-size:11px;float:none'>Last updated: {{ site.time | date: '%Y-%m-%d %H:%M %Z' }}</span>
 
 Apache Beam (incubating) provides a portable API layer for building sophisticated data-parallel processing engines that may be executed across a diversity of exeuction engines, or <i>runners</i>. The core concepts of this layer are based upon the Beam Model (formerly referred to as the [Dataflow Model](http://www.vldb.org/pvldb/vol8/p1792-Akidau.pdf)), and implemented to varying degrees in each Beam runner. To help clarify the capabilities of individual runners, we've created the capability matrix below.
 
@@ -22,12 +24,14 @@ Note that in the future, we intend to add additional tables beyond the current s
 {% include capability-matrix-common.md %}
 {% assign cap-data=site.data.capability-matrix %}
 
+<center>
+
 <!-- Summary table -->
 {% assign cap-style='cap-summary' %}
 {% assign cap-view='summary' %}
 {% assign cap-other-view='full' %}
 {% assign cap-toggle-details=1 %}
-{% assign cap-display='none' %}
+{% assign cap-display='block' %}
 
 {% include capability-matrix.md %}
 
@@ -36,6 +40,7 @@ Note that in the future, we intend to add additional tables beyond the current s
 {% assign cap-view='full' %}
 {% assign cap-other-view='summary' %}
 {% assign cap-toggle-details=0 %}
-{% assign cap-display='block' %}
+{% assign cap-display='none' %}
 
 {% include capability-matrix.md %}
+</center>
