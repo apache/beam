@@ -74,6 +74,10 @@ public class BigQueryTableInserter {
   // The initial backoff after a failure inserting rows into BigQuery.
   private static final long INITIAL_INSERT_BACKOFF_INTERVAL_MS = 200L;
 
+  // Backoff time bounds for rate limit exceeded errors.
+  private static final long INITIAL_RATE_LIMIT_EXCEEDED_BACKOFF_MS = TimeUnit.SECONDS.toMillis(1);
+  private static final long MAX_RATE_LIMIT_EXCEEDED_BACKOFF_MS = TimeUnit.MINUTES.toMillis(2);
+
   private final Bigquery client;
   private final TableReference defaultRef;
   private final long maxRowsPerBatch;
@@ -216,7 +220,25 @@ public class BigQueryTableInserter {
               executor.submit(new Callable<List<TableDataInsertAllResponse.InsertErrors>>() {
                 @Override
                 public List<TableDataInsertAllResponse.InsertErrors> call() throws IOException {
-                  return insert.execute().getInsertErrors();
+                  BackOff backoff = new IntervalBoundedExponentialBackOff(
+                      MAX_RATE_LIMIT_EXCEEDED_BACKOFF_MS, INITIAL_RATE_LIMIT_EXCEEDED_BACKOFF_MS);
+                  while (true) {
+                    try {
+                      return insert.execute().getInsertErrors();
+                    } catch (IOException e) {
+                      if (new ApiErrorExtractor().rateLimited(e)) {
+                        LOG.info("BigQuery insertAll exceeded rate limit, retrying");
+                        try {
+                          Thread.sleep(backoff.nextBackOffMillis());
+                        } catch (InterruptedException interrupted) {
+                          throw new IOException(
+                              "Interrupted while waiting before retrying insertAll");
+                        }
+                      } else {
+                        throw e;
+                      }
+                    }
+                  }
                 }
               }));
           strideIndices.add(strideIndex);
