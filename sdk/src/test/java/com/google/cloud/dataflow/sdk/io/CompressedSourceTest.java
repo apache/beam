@@ -115,6 +115,12 @@ public class CompressedSourceTest {
     return res;
   }
 
+  /**
+   * Test a concatenation of gzip files is correctly decompressed.
+   *
+   * <p>A concatenation of gzip files as one file is a valid gzip file and should decompress
+   * to be the concatenation of those individual files.
+   */
   @Test
   public void testReadConcatenatedGzip() throws IOException {
     byte[] header = "a,b,c\n".getBytes(StandardCharsets.UTF_8);
