@@ -1,19 +1,20 @@
 /*
- * Copyright (C) 2016 Google Inc.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy of
- * the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
- * the License.
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
-
 package com.google.cloud.dataflow.sdk.io;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -89,7 +90,11 @@ public class CountingInput {
    */
   public static UnboundedCountingInput unbounded() {
     return new UnboundedCountingInput(
-        new NowTimestampFn(), Optional.<Long>absent(), Optional.<Duration>absent());
+        new NowTimestampFn(),
+        1L /* Elements per period */,
+        Duration.ZERO /* Period length */,
+        Optional.<Long>absent() /* Maximum number of records */,
+        Optional.<Duration>absent() /* Maximum read duration */);
   }
 
   /**
@@ -125,14 +130,20 @@ public class CountingInput {
    */
   public static class UnboundedCountingInput extends PTransform<PBegin, PCollection<Long>> {
     private final SerializableFunction<Long, Instant> timestampFn;
+    private final long elementsPerPeriod;
+    private final Duration period;
     private final Optional<Long> maxNumRecords;
     private final Optional<Duration> maxReadTime;
 
     private UnboundedCountingInput(
         SerializableFunction<Long, Instant> timestampFn,
+        long elementsPerPeriod,
+        Duration period,
         Optional<Long> maxNumRecords,
         Optional<Duration> maxReadTime) {
       this.timestampFn = timestampFn;
+      this.elementsPerPeriod = elementsPerPeriod;
+      this.period = period;
       this.maxNumRecords = maxNumRecords;
       this.maxReadTime = maxReadTime;
     }
@@ -144,7 +155,8 @@ public class CountingInput {
      * <p>Note that the timestamps produced by {@code timestampFn} may not decrease.
      */
     public UnboundedCountingInput withTimestampFn(SerializableFunction<Long, Instant> timestampFn) {
-      return new UnboundedCountingInput(timestampFn, maxNumRecords, maxReadTime);
+      return new UnboundedCountingInput(
+          timestampFn, elementsPerPeriod, period, maxNumRecords, maxReadTime);
     }
 
     /**
@@ -157,7 +169,23 @@ public class CountingInput {
     public UnboundedCountingInput withMaxNumRecords(long maxRecords) {
       checkArgument(
           maxRecords > 0, "MaxRecords must be a positive (nonzero) value. Got %s", maxRecords);
-      return new UnboundedCountingInput(timestampFn, Optional.of(maxRecords), maxReadTime);
+      return new UnboundedCountingInput(
+          timestampFn, elementsPerPeriod, period, Optional.of(maxRecords), maxReadTime);
+    }
+
+    /**
+     * Returns an {@link UnboundedCountingInput} like this one, but with output production limited
+     * to an aggregate rate of no more than the number of elements per the period length.
+     *
+     * <p>Note that when there are multiple splits, each split outputs independently. This may lead
+     * to elements not being produced evenly across time, though the aggregate rate will still
+     * approach the specified rate.
+     *
+     * <p>A duration of {@link Duration#ZERO} will produce output as fast as possible.
+     */
+    public UnboundedCountingInput withRate(long numElements, Duration periodLength) {
+      return new UnboundedCountingInput(
+          timestampFn, numElements, periodLength, maxNumRecords, maxReadTime);
     }
 
     /**
@@ -169,13 +197,18 @@ public class CountingInput {
      */
     public UnboundedCountingInput withMaxReadTime(Duration readTime) {
       checkNotNull(readTime, "ReadTime cannot be null");
-      return new UnboundedCountingInput(timestampFn, maxNumRecords, Optional.of(readTime));
+      return new UnboundedCountingInput(
+          timestampFn, elementsPerPeriod, period, maxNumRecords, Optional.of(readTime));
     }
 
     @SuppressWarnings("deprecation")
     @Override
     public PCollection<Long> apply(PBegin begin) {
-      Unbounded<Long> read = Read.from(CountingSource.unboundedWithTimestampFn(timestampFn));
+      Unbounded<Long> read =
+          Read.from(
+              CountingSource.createUnbounded()
+                  .withTimestampFn(timestampFn)
+                  .withRate(elementsPerPeriod, period));
       if (!maxNumRecords.isPresent() && !maxReadTime.isPresent()) {
         return begin.apply(read);
       } else if (maxNumRecords.isPresent() && !maxReadTime.isPresent()) {

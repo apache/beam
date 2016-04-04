@@ -25,6 +25,7 @@
     <groupId>org.apache.beam</groupId>
     <artifactId>parent</artifactId>
     <version>0.1.0-incubating-SNAPSHOT</version>
+    <relativePath>../pom.xml</relativePath>
   </parent>
 
   <artifactId>runners-parent</artifactId>

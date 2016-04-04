@@ -30,7 +30,7 @@
 
   <groupId>org.apache.beam</groupId>
   <artifactId>maven-archetypes-starter</artifactId>
-  <name>Apache Beam :: Maven Archetypes :: Starter</name>
+  <name>Apache Beam :: SDKs :: Java :: Maven Archetypes :: Starter</name>
   <description>A Maven archetype to create a simple starter pipeline to
     get started using the Apache Beam Java SDK. </description>
 

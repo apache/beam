@@ -1,21 +1,25 @@
 
 /*
- * Copyright (C) 2016 Google Inc.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy of
- * the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
- * the License.
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
-
 package com.google.cloud.dataflow.sdk.io;
+
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertThat;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.io.CountingInput.UnboundedCountingInput;
@@ -31,6 +35,7 @@ import com.google.cloud.dataflow.sdk.transforms.RemoveDuplicates;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -80,6 +85,27 @@ public class CountingInputTest {
 
     addCountingAsserts(input, numElements);
     p.run();
+  }
+
+  @Test
+  public void testUnboundedInputRate() {
+    Pipeline p = TestPipeline.create();
+    long numElements = 5000;
+
+    long elemsPerPeriod = 10L;
+    Duration periodLength = Duration.millis(8);
+    PCollection<Long> input =
+        p.apply(
+            CountingInput.unbounded()
+                .withRate(elemsPerPeriod, periodLength)
+                .withMaxNumRecords(numElements));
+
+    addCountingAsserts(input, numElements);
+    long expectedRuntimeMillis = (periodLength.getMillis() * numElements) / elemsPerPeriod;
+    Instant startTime = Instant.now();
+    p.run();
+    Instant endTime = Instant.now();
+    assertThat(endTime.isAfter(startTime.plus(expectedRuntimeMillis)), is(true));
   }
 
   private static class ElementValueDiff extends DoFn<Long, Long> {

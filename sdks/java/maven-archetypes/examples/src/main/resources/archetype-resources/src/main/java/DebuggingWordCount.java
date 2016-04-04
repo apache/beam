@@ -1,24 +1,27 @@
 /*
- * Copyright (C) 2015 Google Inc.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy of
- * the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
- * the License.
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
-
 package ${package};
 
-import ${package}.WordCount.WordCountOptions;
+import ${package}.WordCount;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.io.TextIO;
+import com.google.cloud.dataflow.sdk.options.Default;
+import com.google.cloud.dataflow.sdk.options.Description;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
@@ -149,6 +152,21 @@ public class DebuggingWordCount {
       }
     }
   }
+  
+  /**
+   * Options supported by {@link DebuggingWordCount}.
+   *
+   * <p>Inherits standard configuration options and all options defined in
+   * {@link WordCount.WordCountOptions}.
+   */
+  public static interface WordCountOptions extends WordCount.WordCountOptions {
+
+    @Description("Regex filter pattern to use in DebuggingWordCount. "
+        + "Only words matching this pattern will be counted.")
+    @Default.String("Flourish|stomach")
+    String getFilterPattern();
+    void setFilterPattern(String value);
+  }
 
   public static void main(String[] args) {
     WordCountOptions options = PipelineOptionsFactory.fromArgs(args).withValidation()
@@ -158,7 +176,7 @@ public class DebuggingWordCount {
     PCollection<KV<String, Long>> filteredWords =
         p.apply(TextIO.Read.named("ReadLines").from(options.getInputFile()))
          .apply(new WordCount.CountWords())
-         .apply(ParDo.of(new FilterTextFn("Flourish|stomach")));
+         .apply(ParDo.of(new FilterTextFn(options.getFilterPattern())));
 
     /**
      * Concept #4: DataflowAssert is a set of convenient PTransforms in the style of

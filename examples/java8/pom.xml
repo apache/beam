@@ -85,7 +85,7 @@
           </dependency>
         </dependencies>
         <configuration>
-          <configLocation>../../checkstyle.xml</configLocation>
+          <configLocation>../../sdks/java/checkstyle.xml</configLocation>
           <consoleOutput>true</consoleOutput>
           <failOnViolation>true</failOnViolation>
           <includeTestSourceDirectory>true</includeTestSourceDirectory>

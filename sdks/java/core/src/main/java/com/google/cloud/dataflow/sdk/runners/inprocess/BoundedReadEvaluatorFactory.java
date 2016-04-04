@@ -1,24 +1,25 @@
 /*
- * Copyright (C) 2015 Google Inc.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy of
- * the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
- * the License.
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package com.google.cloud.dataflow.sdk.runners.inprocess;
 
 import com.google.cloud.dataflow.sdk.io.BoundedSource;
 import com.google.cloud.dataflow.sdk.io.BoundedSource.BoundedReader;
 import com.google.cloud.dataflow.sdk.io.Read.Bounded;
-import com.google.cloud.dataflow.sdk.io.Source.Reader;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
@@ -60,8 +61,7 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
 
   private <OutputT> TransformEvaluator<?> getTransformEvaluator(
       final AppliedPTransform<?, PCollection<OutputT>, Bounded<OutputT>> transform,
-      final InProcessEvaluationContext evaluationContext)
-      throws IOException {
+      final InProcessEvaluationContext evaluationContext) {
     BoundedReadEvaluator<?> evaluator =
         getTransformEvaluatorQueue(transform, evaluationContext).poll();
     if (evaluator == null) {
@@ -91,8 +91,9 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
       if (sourceEvaluators.putIfAbsent(key, evaluatorQueue) == null) {
         // If no queue existed in the evaluators, add an evaluator to initialize the evaluator
         // factory for this transform
+        BoundedSource<OutputT> source = transform.getTransform().getSource();
         BoundedReadEvaluator<OutputT> evaluator =
-            new BoundedReadEvaluator<OutputT>(transform, evaluationContext);
+            new BoundedReadEvaluator<OutputT>(transform, evaluationContext, source);
         evaluatorQueue.offer(evaluator);
       } else {
         // otherwise return the existing Queue that arrived before us
@@ -114,13 +115,19 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
   private static class BoundedReadEvaluator<OutputT> implements TransformEvaluator<Object> {
     private final AppliedPTransform<?, PCollection<OutputT>, Bounded<OutputT>> transform;
     private final InProcessEvaluationContext evaluationContext;
-    private boolean contentsRemaining;
+    /**
+     * The source being read from by this {@link BoundedReadEvaluator}. This may not be the same
+     * as the source derived from {@link #transform} due to splitting.
+     */
+    private BoundedSource<OutputT> source;
 
     public BoundedReadEvaluator(
         AppliedPTransform<?, PCollection<OutputT>, Bounded<OutputT>> transform,
-        InProcessEvaluationContext evaluationContext) {
+        InProcessEvaluationContext evaluationContext,
+        BoundedSource<OutputT> source) {
       this.transform = transform;
       this.evaluationContext = evaluationContext;
+      this.source = source;
     }
 
     @Override
@@ -128,12 +135,9 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
 
     @Override
     public InProcessTransformResult finishBundle() throws IOException {
-      try (final Reader<OutputT> reader =
-              transform
-                  .getTransform()
-                  .getSource()
-                  .createReader(evaluationContext.getPipelineOptions());) {
-        contentsRemaining = reader.start();
+      try (final BoundedReader<OutputT> reader =
+              source.createReader(evaluationContext.getPipelineOptions());) {
+        boolean contentsRemaining = reader.start();
         UncommittedBundle<OutputT> output =
             evaluationContext.createRootBundle(transform.getOutput());
         while (contentsRemaining) {
