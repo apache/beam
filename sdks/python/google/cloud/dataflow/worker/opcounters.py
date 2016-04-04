@@ -22,10 +22,10 @@ from google.cloud.dataflow.utils.counters import Counter
 class OperationCounters(object):
   """The set of basic counters to attach to an Operation."""
 
-  def __init__(self, step_name, coder, output_index):
-    self.element_counter = Counter(
+  def __init__(self, counter_factory, step_name, coder, output_index):
+    self.element_counter = counter_factory.get_counter(
         '%s-out%d-ElementCount' % (step_name, output_index), Counter.SUM)
-    self.mean_byte_counter = Counter(
+    self.mean_byte_counter = counter_factory.get_counter(
         '%s-out%d-MeanByteCount' % (step_name, output_index), Counter.MEAN)
     self.coder = coder
 
@@ -38,12 +38,6 @@ class OperationCounters(object):
     #     size = len(self.coder.encode(windowed_value))
     #     self.mean_byte_counter.update(size)
     # but will need to handle streams and do sampling.
-
-  def __iter__(self):
-    """Iterator over all our counters."""
-    yield self.element_counter
-    if self.mean_byte_counter.total > 0:
-      yield self.mean_byte_counter
 
   def __str__(self):
     return '<%s [%s]>' % (self.__class__.__name__,

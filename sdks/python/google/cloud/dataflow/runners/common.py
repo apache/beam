@@ -24,7 +24,6 @@ from google.cloud.dataflow.transforms import core
 from google.cloud.dataflow.transforms.window import TimestampedValue
 from google.cloud.dataflow.transforms.window import WindowedValue
 from google.cloud.dataflow.transforms.window import WindowFn
-from google.cloud.dataflow.utils import counters
 
 
 class FakeLogger(object):
@@ -172,17 +171,11 @@ class DoFnState(object):
   """Keeps track of state that DoFns want, currently, user counters.
   """
 
-  def __init__(self):
+  def __init__(self, counter_factory):
     self.step_name = ''
-    self._user_counters = {}
+    self._counter_factory = counter_factory
 
   def counter_for(self, aggregator):
     """Looks up the counter for this aggregator, creating one if necessary."""
-    if aggregator not in self._user_counters:
-      self._user_counters[aggregator] = counters.AggregatorCounter(
-          self.step_name, aggregator)
-    return self._user_counters[aggregator]
-
-  def itercounters(self):
-    """Returns an iterable of Counters (to be sent to the service)."""
-    return self._user_counters.values()
+    return self._counter_factory.get_aggregator_counter(
+        self.step_name, aggregator)

@@ -16,6 +16,7 @@ cimport cython
 
 cdef class Operation(object):
   cdef public spec
+  cdef public counter_factory
   cdef public list receivers
   cdef public list counters
   cdef readonly bint debug_logging_enabled

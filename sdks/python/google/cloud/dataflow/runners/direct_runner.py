@@ -39,6 +39,7 @@ from google.cloud.dataflow.transforms.window import WindowedValue
 from google.cloud.dataflow.typehints.typecheck import OutputCheckWrapperDoFn
 from google.cloud.dataflow.typehints.typecheck import TypeCheckError
 from google.cloud.dataflow.typehints.typecheck import TypeCheckWrapperDoFn
+from google.cloud.dataflow.utils import counters
 from google.cloud.dataflow.utils.options import TypeOptions
 
 
@@ -52,6 +53,7 @@ class DirectPipelineRunner(PipelineRunner):
   def __init__(self, cache=None):
     # Cache of values computed while the runner executes a pipeline.
     self._cache = cache if cache is not None else PValueCache()
+    self._counter_factory = counters.CounterFactory()
 
   def get_pvalue(self, pvalue):
     """Gets the PValue's computed value from the runner's cache."""
@@ -78,7 +80,8 @@ class DirectPipelineRunner(PipelineRunner):
   def run_ParDo(self, transform_node):
     transform = transform_node.transform
     # TODO(gildea): what is the appropriate object to attach the state to?
-    context = DoFnProcessContext(label=transform.label, state=DoFnState())
+    context = DoFnProcessContext(label=transform.label,
+                                 state=DoFnState(self._counter_factory))
 
     # Construct the list of values from side-input PCollections that we'll
     # substitute into the arguments for DoFn methods.

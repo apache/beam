@@ -738,9 +738,8 @@ class DataflowWorkerClient(object):
       work_item_status.errors.append(status)
 
     # Look through the work item for metrics to send.
-    for op in work_item.map_task.executed_operations:
-      for counter in op.itercounters():
-        append_counter(work_item_status, counter, tentative=not completed)
+    for counter in work_item.map_task.itercounters():
+      append_counter(work_item_status, counter, tentative=not completed)
 
     report_request = dataflow.ReportWorkItemStatusRequest()
     report_request.currentWorkerTime = worker.current_time

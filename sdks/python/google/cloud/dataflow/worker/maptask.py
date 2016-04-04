@@ -24,6 +24,7 @@ import collections
 from google.cloud.dataflow import coders
 from google.cloud.dataflow import io
 from google.cloud.dataflow.internal.json_value import from_json_value
+from google.cloud.dataflow.utils.counters import CounterFactory
 from google.cloud.dataflow.worker import concat_reader
 from google.cloud.dataflow.worker import inmemory
 from google.cloud.dataflow.worker import windmillio
@@ -600,7 +601,11 @@ class MapTask(object):
     self.operations = operations
     self.stage_name = stage_name
     self.step_names = step_names
-    self.executed_operations = []
+    self.counter_factory = CounterFactory()
+
+  def itercounters(self):
+    for counter in self.counter_factory.itercounters():
+      yield counter
 
   def __str__(self):
     return '<%s %s steps=%s>' % (self.__class__.__name__, self.stage_name,

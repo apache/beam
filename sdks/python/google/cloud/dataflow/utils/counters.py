@@ -97,9 +97,60 @@ class Counter(object):
 
 
 class AggregatorCounter(Counter):
-  """A Counter that represents a step-specific instance of an Aggregator."""
+  """A Counter that represents a step-specific instance of an Aggregator.
 
-  def __init__(self, step_name, aggregator):
-    super(AggregatorCounter, self).__init__(
-        'user-%s-%s' % (step_name, aggregator.name),
-        aggregator.aggregation_kind)
+  Do not create directly, call CounterFactory.get_aggregator_counter instead.
+  """
+
+
+class CounterFactory(object):
+  """Keeps track of unique counters."""
+
+  def __init__(self):
+    self.counters = {}
+
+  def get_counter(self, name, aggregation_kind):
+    """Returns a counter with the requested name.
+
+    Passing in the same name will return the same counter; the
+    aggregation_kind must agree.
+
+    Args:
+      name: the name of this counter.  Typically has three parts:
+        "step-output-counter".
+      aggregation_kind: one of the kinds defined by this class.
+    Returns:
+      A new or existing counter with the requested name.
+    """
+    counter = self.counters.get(name, None)
+    if counter:
+      assert counter.aggregation_kind == aggregation_kind
+    else:
+      counter = Counter(name, aggregation_kind)
+      self.counters[name] = counter
+    return counter
+
+  def get_aggregator_counter(self, step_name, aggregator):
+    """Returns an AggregationCounter for this step's aggregator.
+
+    Passing in the same values will return the same counter.
+
+    Args:
+      step_name: the name of this step.
+      aggregator: an Aggregator object.
+    Returns:
+      A new or existing counter.
+    """
+    name = 'user-%s-%s' % (step_name, aggregator.name)
+    aggregation_kind = aggregator.aggregation_kind
+    counter = self.counters.get(name, None)
+    if counter:
+      assert isinstance(counter, AggregatorCounter)
+      assert counter.aggregation_kind == aggregation_kind
+    else:
+      counter = AggregatorCounter(name, aggregation_kind)
+      self.counters[name] = counter
+    return counter
+
+  def itercounters(self):
+    return self.counters.itervalues()
