@@ -41,10 +41,11 @@ public interface CloudDebuggerOptions {
   @Nullable Debuggee getDebuggee();
   void setDebuggee(Debuggee debuggee);
 
-  /** The maximum cost (as a ratio of CPU time) allowed for evaluating conditional breakpoints. */
+  /** The maximum cost (as a ratio of CPU time) allowed for evaluating conditional snapshots. */
   @Description(
-      "The maximum cost (as a ratio of CPU time) allowed for evaluating conditional breakpoints."
-      + " If this is exceeded, breakpoints may be cancelled.")
+      "The maximum cost (as a ratio of CPU time) allowed for evaluating conditional snapshots. "
+      + "Should be a double between 0 and 1. "
+      + "Snapshots will be cancelled if evaluating conditions takes more than this ratio of time.")
   @Default.Double(0.01)
   double getMaxConditionCost();
   void setMaxConditionCost(double maxConditionCost);
