@@ -115,6 +115,7 @@ setuptools.setup(
     setup_requires=['nose>=1.0'],
     install_requires=REQUIRED_PACKAGES,
     test_suite='nose.collector',
+    zip_safe=False,
     # PyPI package information.
     classifiers=[
         'Intended Audience :: End Users/Desktop',
