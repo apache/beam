@@ -103,19 +103,14 @@ public class JAXBCoder<T> extends AtomicCoder<T> {
         jaxbUnmarshaller = jaxbContext.createUnmarshaller();
       }
 
-      if (context.isWholeStream) {
-        @SuppressWarnings("unchecked")
-        T obj = (T) jaxbUnmarshaller.unmarshal(new CloseIgnoringInputStream(inStream));
-        return obj;
-      } else {
+      InputStream stream = inStream;
+      if (!context.isWholeStream) {
         long limit = VarInt.decodeLong(inStream);
-        @SuppressWarnings("unchecked")
-        T obj =
-            (T)
-                jaxbUnmarshaller.unmarshal(
-                    new CloseIgnoringInputStream(ByteStreams.limit(inStream, limit)));
-        return obj;
+        stream = ByteStreams.limit(inStream, limit);
       }
+      @SuppressWarnings("unchecked")
+      T obj = (T) jaxbUnmarshaller.unmarshal(new CloseIgnoringInputStream(stream));
+      return obj;
     } catch (JAXBException e) {
       throw new CoderException(e);
     }
