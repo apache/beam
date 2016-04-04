@@ -80,16 +80,18 @@ public class JAXBCoder<T> extends AtomicCoder<T> {
           // value
           VarInt.encode(size, outStream);
         } catch (Exception e) {
-          throw new CoderException(e);
+          throw new CoderException(
+              "An Exception occured while trying to get the size of an encoded representation", e);
         }
       }
 
-      jaxbMarshaller.marshal(value, new FilterOutputStream(outStream) {
-        // JAXB closes the underyling stream so we must filter out those calls.
-        @Override
-        public void close() throws IOException {
-        }
-      });
+      jaxbMarshaller.marshal(
+          value,
+          new FilterOutputStream(outStream) {
+            // JAXB closes the underlying stream so we must filter out those calls.
+            @Override
+            public void close() throws IOException {}
+          });
     } catch (JAXBException e) {
       throw new CoderException(e);
     }
@@ -129,7 +131,7 @@ public class JAXBCoder<T> extends AtomicCoder<T> {
 
     @Override
     public void close() {
-      // Do nothing. JAXB closes the underyling stream so we must filter out those calls.
+      // Do nothing. JAXB closes the underlying stream so we must filter out those calls.
     }
   }
 
