@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.coders;
 
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.Structs;
+import com.google.common.io.CountingOutputStream;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -71,6 +72,20 @@ public class JAXBCoder<T> extends AtomicCoder<T> {
         JAXBContext jaxbContext = JAXBContext.newInstance(jaxbClass);
         jaxbMarshaller = jaxbContext.createMarshaller();
       }
+      if (context.equals(Context.NESTED)) {
+        CountingOutputStream countingStream =
+            new CountingOutputStream(
+                new OutputStream() {
+                  @Override
+                  public void write(int b) throws IOException {
+                    // Do nothing
+                  }
+                });
+        jaxbMarshaller.marshal(value, countingStream);
+        // record the number of bytes the XML consists of so when reading we only read the encoded
+        // value
+        VarLongCoder.of().encode(countingStream.getCount(), outStream, context);
+      }
 
       jaxbMarshaller.marshal(value, new FilterOutputStream(outStream) {
         // JAXB closes the underyling stream so we must filter out those calls.
@@ -92,15 +107,39 @@ public class JAXBCoder<T> extends AtomicCoder<T> {
       }
 
       @SuppressWarnings("unchecked")
-      T obj = (T) jaxbUnmarshaller.unmarshal(new FilterInputStream(inStream) {
-        // JAXB closes the underyling stream so we must filter out those calls.
-        @Override
-        public void close() throws IOException {
-        }
-      });
+      T obj = (T) jaxbUnmarshaller.unmarshal(getInputStream(inStream, context));
       return obj;
     } catch (JAXBException e) {
       throw new CoderException(e);
+    }
+  }
+
+  private InputStream getInputStream(final InputStream inStream, Context context)
+      throws CoderException, IOException {
+    if (Context.OUTER.equals(context)) {
+      return new FilterInputStream(inStream) {
+        // JAXB closes the underlying stream so we must filter out those calls.
+        @Override
+        public void close() throws IOException {}
+      };
+    } else {
+      final long bytes = VarLongCoder.of().decode(inStream, context);
+      return new InputStream() {
+        private long bytesRead = 0L;
+
+        @Override
+        public int read() throws IOException {
+          if (bytesRead < bytes) {
+            bytesRead++;
+            return inStream.read();
+          }
+          return -1;
+        }
+
+        // JAXB closes the underlying stream so we must filter out those calls.
+        @Override
+        public void close() throws IOException {}
+      };
     }
   }
 
