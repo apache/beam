@@ -127,6 +127,7 @@ public class JAXBCoder<T> extends AtomicCoder<T> {
   }
 
   private static class CloseIgnoringInputStream extends FilterInputStream {
+
     protected CloseIgnoringInputStream(InputStream in) {
       super(in);
     }
@@ -134,9 +135,9 @@ public class JAXBCoder<T> extends AtomicCoder<T> {
     @Override
     public void close() {
       // Do nothing. JAXB closes the underyling stream so we must filter out those calls.
-
     }
   }
+
   ////////////////////////////////////////////////////////////////////////////////////
   // JSON Serialization details below
 
