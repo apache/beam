@@ -26,6 +26,9 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
+import com.fasterxml.jackson.annotation.JsonGetter;
+import com.fasterxml.jackson.annotation.JsonInclude;
+
 import org.apache.avro.reflect.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -214,10 +217,12 @@ public class DisplayData {
       this.label = label;
     }
 
+    @JsonGetter("namespace")
     public String getNamespace() {
       return ns;
     }
 
+    @JsonGetter("key")
     public String getKey() {
       return key;
     }
@@ -226,6 +231,7 @@ public class DisplayData {
      * Retrieve the {@link DisplayData.Type} of display metadata. All metadata conforms to a
      * predefined set of allowed types.
      */
+    @JsonGetter("type")
     public Type getType() {
       return type;
     }
@@ -233,6 +239,7 @@ public class DisplayData {
     /**
      * Retrieve the value of the metadata item.
      */
+    @JsonGetter("value")
     public String getValue() {
       return value;
     }
@@ -244,6 +251,8 @@ public class DisplayData {
      * <p>Some display data types will not provide a short value, in which case the return value
      * will be null.
      */
+    @JsonGetter("shortValue")
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     @Nullable
     public String getShortValue() {
       return shortValue;
@@ -255,6 +264,8 @@ public class DisplayData {
      *
      * <p>If no label was specified, this will return {@code null}.
      */
+    @JsonGetter("label")
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     @Nullable
     public String getLabel() {
       return label;
@@ -266,8 +277,10 @@ public class DisplayData {
      *
      * <p>If no URL was specified, this will return {@code null}.
      */
+    @JsonGetter("linkUrl")
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     @Nullable
-    public String getUrl() {
+    public String getLinkUrl() {
       return url;
     }
 

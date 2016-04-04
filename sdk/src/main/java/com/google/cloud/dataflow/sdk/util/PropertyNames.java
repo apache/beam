@@ -103,4 +103,5 @@ public class PropertyNames {
   public static final String VALIDATE_SINK = "validate_sink";
   public static final String VALIDATE_SOURCE = "validate_source";
   public static final String VALUE = "value";
+  public static final String DISPLAY_DATA = "display_data";
 }
