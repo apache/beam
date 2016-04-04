@@ -88,8 +88,10 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
       if (sourceEvaluators.putIfAbsent(key, evaluatorQueue) == null) {
         // If no queue existed in the evaluators, add an evaluator to initialize the evaluator
         // factory for this transform
+        UnboundedSource<OutputT, ?> source = transform.getTransform().getSource();
         UnboundedReadEvaluator<OutputT> evaluator =
-            new UnboundedReadEvaluator<OutputT>(transform, evaluationContext, evaluatorQueue);
+            new UnboundedReadEvaluator<OutputT>(
+                transform, evaluationContext, source, evaluatorQueue);
         evaluatorQueue.offer(evaluator);
       } else {
         // otherwise return the existing Queue that arrived before us
@@ -114,15 +116,22 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     private final AppliedPTransform<?, PCollection<OutputT>, Unbounded<OutputT>> transform;
     private final InProcessEvaluationContext evaluationContext;
     private final Queue<UnboundedReadEvaluator<OutputT>> evaluatorQueue;
+    /**
+     * The source being read from by this {@link UnboundedReadEvaluator}. This may not be the same
+     * source as derived from {@link #transform} due to splitting.
+     */
+    private final UnboundedSource<OutputT, ?> source;
     private CheckpointMark checkpointMark;
 
     public UnboundedReadEvaluator(
         AppliedPTransform<?, PCollection<OutputT>, Unbounded<OutputT>> transform,
         InProcessEvaluationContext evaluationContext,
+        UnboundedSource<OutputT, ?> source,
         Queue<UnboundedReadEvaluator<OutputT>> evaluatorQueue) {
       this.transform = transform;
       this.evaluationContext = evaluationContext;
       this.evaluatorQueue = evaluatorQueue;
+      this.source = source;
       this.checkpointMark = null;
     }
 
@@ -133,8 +142,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     public InProcessTransformResult finishBundle() throws IOException {
       UncommittedBundle<OutputT> output = evaluationContext.createRootBundle(transform.getOutput());
       try (UnboundedReader<OutputT> reader =
-              createReader(
-                  transform.getTransform().getSource(), evaluationContext.getPipelineOptions());) {
+              createReader(source, evaluationContext.getPipelineOptions());) {
         int numElements = 0;
         if (reader.start()) {
           do {
