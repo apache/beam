@@ -177,6 +177,43 @@ public class ConsumerTrackingPipelineVisitorTest implements Serializable {
   }
 
   @Test
+  public void getStepNamesContainsAllTransforms() {
+    PCollection<String> created = p.apply(Create.of("1", "2", "3"));
+    PCollection<String> transformed =
+        created.apply(
+            ParDo.of(
+                new DoFn<String, String>() {
+                  @Override
+                  public void processElement(DoFn<String, String>.ProcessContext c)
+                      throws Exception {
+                    c.output(Integer.toString(c.element().length()));
+                  }
+                }));
+    PDone finished =
+        transformed.apply(
+            new PTransform<PInput, PDone>() {
+              @Override
+              public PDone apply(PInput input) {
+                return PDone.in(input.getPipeline());
+              }
+            });
+
+    p.traverseTopologically(visitor);
+    assertThat(
+        visitor.getStepNames(),
+        Matchers.<AppliedPTransform<?, ?, ?>, String>hasEntry(
+            created.getProducingTransformInternal(), "s0"));
+    assertThat(
+        visitor.getStepNames(),
+        Matchers.<AppliedPTransform<?, ?, ?>, String>hasEntry(
+            transformed.getProducingTransformInternal(), "s1"));
+    assertThat(
+        visitor.getStepNames(),
+        Matchers.<AppliedPTransform<?, ?, ?>, String>hasEntry(
+            finished.getProducingTransformInternal(), "s2"));
+  }
+
+  @Test
   public void traverseMultipleTimesThrows() {
     p.apply(Create.of(1, 2, 3));
 
