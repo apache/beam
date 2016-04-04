@@ -66,21 +66,27 @@ import java.io.Serializable;
  */
 @RunWith(JUnit4.class)
 public class ParDoSingleEvaluatorFactoryTest implements Serializable {
+  private transient BundleFactory bundleFactory = InProcessBundleFactory.create();
+
   @Test
   public void testParDoInMemoryTransformEvaluator() throws Exception {
     TestPipeline p = TestPipeline.create();
 
     PCollection<String> input = p.apply(Create.of("foo", "bara", "bazam"));
-    PCollection<Integer> collection = input.apply(ParDo.of(new DoFn<String, Integer>() {
-      @Override public void processElement(ProcessContext c) {
-        c.output(c.element().length());
-      }
-    }));
-    CommittedBundle<String> inputBundle = InProcessBundle.unkeyed(input).commit(Instant.now());
+    PCollection<Integer> collection =
+        input.apply(
+            ParDo.of(
+                new DoFn<String, Integer>() {
+                  @Override
+                  public void processElement(ProcessContext c) {
+                    c.output(c.element().length());
+                  }
+                }));
+    CommittedBundle<String> inputBundle =
+        bundleFactory.createRootBundle(input).commit(Instant.now());
 
     InProcessEvaluationContext evaluationContext = mock(InProcessEvaluationContext.class);
-    UncommittedBundle<Integer> outputBundle =
-        InProcessBundle.unkeyed(collection);
+    UncommittedBundle<Integer> outputBundle = bundleFactory.createRootBundle(collection);
     when(evaluationContext.createBundle(inputBundle, collection)).thenReturn(outputBundle);
     InProcessExecutionContext executionContext =
         new InProcessExecutionContext(null, null, null, null);
@@ -90,8 +96,9 @@ public class ParDoSingleEvaluatorFactoryTest implements Serializable {
     when(evaluationContext.createCounterSet()).thenReturn(counters);
 
     com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluator<String> evaluator =
-        new ParDoSingleEvaluatorFactory().forApplication(
-            collection.getProducingTransformInternal(), inputBundle, evaluationContext);
+        new ParDoSingleEvaluatorFactory()
+            .forApplication(
+                collection.getProducingTransformInternal(), inputBundle, evaluationContext);
 
     evaluator.processElement(WindowedValue.valueInGlobalWindow("foo"));
     evaluator.processElement(
@@ -118,16 +125,20 @@ public class ParDoSingleEvaluatorFactoryTest implements Serializable {
 
     PCollection<String> input = p.apply(Create.of("foo", "bara", "bazam"));
     final TupleTag<Integer> sideOutputTag = new TupleTag<Integer>() {};
-    PCollection<Integer> collection = input.apply(ParDo.of(new DoFn<String, Integer>() {
-      @Override public void processElement(ProcessContext c) {
-        c.sideOutput(sideOutputTag, c.element().length());
-      }
-    }));
-    CommittedBundle<String> inputBundle = InProcessBundle.unkeyed(input).commit(Instant.now());
+    PCollection<Integer> collection =
+        input.apply(
+            ParDo.of(
+                new DoFn<String, Integer>() {
+                  @Override
+                  public void processElement(ProcessContext c) {
+                    c.sideOutput(sideOutputTag, c.element().length());
+                  }
+                }));
+    CommittedBundle<String> inputBundle =
+        bundleFactory.createRootBundle(input).commit(Instant.now());
 
     InProcessEvaluationContext evaluationContext = mock(InProcessEvaluationContext.class);
-    UncommittedBundle<Integer> outputBundle =
-        InProcessBundle.unkeyed(collection);
+    UncommittedBundle<Integer> outputBundle = bundleFactory.createRootBundle(collection);
     when(evaluationContext.createBundle(inputBundle, collection)).thenReturn(outputBundle);
     InProcessExecutionContext executionContext =
         new InProcessExecutionContext(null, null, null, null);
@@ -137,8 +148,9 @@ public class ParDoSingleEvaluatorFactoryTest implements Serializable {
     when(evaluationContext.createCounterSet()).thenReturn(counters);
 
     TransformEvaluator<String> evaluator =
-        new ParDoSingleEvaluatorFactory().forApplication(
-            collection.getProducingTransformInternal(), inputBundle, evaluationContext);
+        new ParDoSingleEvaluatorFactory()
+            .forApplication(
+                collection.getProducingTransformInternal(), inputBundle, evaluationContext);
 
     evaluator.processElement(WindowedValue.valueInGlobalWindow("foo"));
     evaluator.processElement(
@@ -183,10 +195,12 @@ public class ParDoSingleEvaluatorFactoryTest implements Serializable {
             });
     PCollection<KV<String, Integer>> mainOutput = input.apply(pardo);
 
-    CommittedBundle<String> inputBundle = InProcessBundle.unkeyed(input).commit(Instant.now());
+    CommittedBundle<String> inputBundle =
+        bundleFactory.createRootBundle(input).commit(Instant.now());
 
     InProcessEvaluationContext evaluationContext = mock(InProcessEvaluationContext.class);
-    UncommittedBundle<KV<String, Integer>> mainOutputBundle = InProcessBundle.unkeyed(mainOutput);
+    UncommittedBundle<KV<String, Integer>> mainOutputBundle =
+        bundleFactory.createRootBundle(mainOutput);
 
     when(evaluationContext.createBundle(inputBundle, mainOutput)).thenReturn(mainOutputBundle);
 
@@ -246,42 +260,44 @@ public class ParDoSingleEvaluatorFactoryTest implements Serializable {
 
     ParDo.Bound<String, KV<String, Integer>> pardo =
         ParDo.of(
-                new DoFn<String, KV<String, Integer>>() {
-                  @Override
-                  public void processElement(ProcessContext c) {
-                    c.windowingInternals().stateInternals();
-                    c.windowingInternals()
-                        .timerInternals()
-                        .setTimer(
-                            TimerData.of(
-                                StateNamespaces.window(
-                                    IntervalWindow.getCoder(),
-                                    new IntervalWindow(
-                                        new Instant(0).plus(Duration.standardMinutes(5)),
-                                        new Instant(1)
-                                            .plus(Duration.standardMinutes(5))
-                                            .plus(Duration.standardHours(1)))),
-                                new Instant(54541L),
-                                TimeDomain.EVENT_TIME));
-                    c.windowingInternals()
-                        .timerInternals()
-                        .deleteTimer(
-                            TimerData.of(
-                                StateNamespaces.window(
-                                    IntervalWindow.getCoder(),
-                                    new IntervalWindow(
-                                        new Instant(0),
-                                        new Instant(0).plus(Duration.standardHours(1)))),
-                                new Instant(3400000),
-                                TimeDomain.SYNCHRONIZED_PROCESSING_TIME));
-                  }
-                });
+            new DoFn<String, KV<String, Integer>>() {
+              @Override
+              public void processElement(ProcessContext c) {
+                c.windowingInternals().stateInternals();
+                c.windowingInternals()
+                    .timerInternals()
+                    .setTimer(
+                        TimerData.of(
+                            StateNamespaces.window(
+                                IntervalWindow.getCoder(),
+                                new IntervalWindow(
+                                    new Instant(0).plus(Duration.standardMinutes(5)),
+                                    new Instant(1)
+                                        .plus(Duration.standardMinutes(5))
+                                        .plus(Duration.standardHours(1)))),
+                            new Instant(54541L),
+                            TimeDomain.EVENT_TIME));
+                c.windowingInternals()
+                    .timerInternals()
+                    .deleteTimer(
+                        TimerData.of(
+                            StateNamespaces.window(
+                                IntervalWindow.getCoder(),
+                                new IntervalWindow(
+                                    new Instant(0),
+                                    new Instant(0).plus(Duration.standardHours(1)))),
+                            new Instant(3400000),
+                            TimeDomain.SYNCHRONIZED_PROCESSING_TIME));
+              }
+            });
     PCollection<KV<String, Integer>> mainOutput = input.apply(pardo);
 
-    CommittedBundle<String> inputBundle = InProcessBundle.unkeyed(input).commit(Instant.now());
+    CommittedBundle<String> inputBundle =
+        bundleFactory.createRootBundle(input).commit(Instant.now());
 
     InProcessEvaluationContext evaluationContext = mock(InProcessEvaluationContext.class);
-    UncommittedBundle<KV<String, Integer>> mainOutputBundle = InProcessBundle.unkeyed(mainOutput);
+    UncommittedBundle<KV<String, Integer>> mainOutputBundle =
+        bundleFactory.createRootBundle(mainOutput);
 
     when(evaluationContext.createBundle(inputBundle, mainOutput)).thenReturn(mainOutputBundle);
 
@@ -303,10 +319,7 @@ public class ParDoSingleEvaluatorFactoryTest implements Serializable {
     assertThat(
         result.getTimerUpdate(),
         equalTo(
-            TimerUpdate.builder("myKey")
-                .setTimer(addedTimer)
-                .deletedTimer(deletedTimer)
-                .build()));
+            TimerUpdate.builder("myKey").setTimer(addedTimer).deletedTimer(deletedTimer).build()));
   }
 }
 
