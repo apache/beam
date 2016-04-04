@@ -76,12 +76,12 @@ public class ConsumerTrackingPipelineVisitor implements PipelineVisitor {
   public void visitTransform(TransformTreeNode node) {
     toFinalize.removeAll(node.getInput().expand());
     AppliedPTransform<?, ?, ?> appliedTransform = getAppliedTransform(node);
+    stepNames.put(appliedTransform, genStepName());
     if (node.getInput().expand().isEmpty()) {
       rootTransforms.add(appliedTransform);
     } else {
       for (PValue value : node.getInput().expand()) {
         valueToConsumers.get(value).add(appliedTransform);
-        stepNames.put(appliedTransform, genStepName());
       }
     }
   }
