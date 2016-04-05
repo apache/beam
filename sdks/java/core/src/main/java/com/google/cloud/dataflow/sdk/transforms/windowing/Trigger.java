@@ -281,7 +281,7 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
 
 
   /**
-   * Called immediately after an element is first incorporated into a window.
+   * Called every time an element is incorporated into a window.
    */
   public abstract void onElement(OnElementContext c) throws Exception;
 
