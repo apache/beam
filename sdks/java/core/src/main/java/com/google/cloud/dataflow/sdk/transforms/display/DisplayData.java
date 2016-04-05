@@ -76,6 +76,30 @@ public class DisplayData {
     return InternalBuilder.forRoot(component).build();
   }
 
+  /**
+   * Infer the {@link Type} for the given object.
+   *
+   * <p>Use this method if the type of metadata is not known at compile time. For example:
+   *
+   * <pre>
+   * {@code
+   * @Override
+   * public void populateDisplayData(DisplayData.Builder builder) {
+   *   Optional<DisplayData.Type> type = DisplayData.inferType(foo);
+   *   if (type.isPresent()) {
+   *     builder.add("foo", type.get(), foo);
+   *   }
+   * }
+   * }
+   * </pre>
+   *
+   * @return The inferred {@link Type}, or null if the type cannot be inferred,
+   */
+  @Nullable
+  public static Type inferType(@Nullable Object value) {
+    return Type.tryInferFrom(value);
+  }
+
   public Collection<Item> items() {
     return entries.values();
   }
@@ -99,6 +123,10 @@ public class DisplayData {
     }
 
     return builder.toString();
+  }
+
+  private static String namespaceOf(Class<?> clazz) {
+    return clazz.getName();
   }
 
   /**
@@ -127,11 +155,32 @@ public class DisplayData {
     ItemBuilder add(String key, String value);
 
     /**
+     * Register the given string display data if the value is not null.
+     *
+     * @see DisplayData.Builder#add(String, String)
+     */
+    ItemBuilder addIfNotNull(String key, @Nullable String value);
+
+    /**
+     * Register the given string display data if the value is different than the specified default.
+     *
+     * @see DisplayData.Builder#add(String, String)
+     */
+    ItemBuilder addIfNotDefault(String key, @Nullable String value, @Nullable String defaultValue);
+
+    /**
      * Register the given numeric display metadata. The metadata item will be registered with type
      * {@link DisplayData.Type#INTEGER}, and is identified by the specified key and namespace from
      * the current transform or component.
      */
     ItemBuilder add(String key, long value);
+
+    /**
+     * Register the given numeric display data if the value is different than the specified default.
+     *
+     * @see DisplayData.Builder#add(String, long)
+     */
+    ItemBuilder addIfNotDefault(String key, long value, long defaultValue);
 
     /**
      * Register the given floating point display metadata. The metadata item will be registered with
@@ -141,11 +190,26 @@ public class DisplayData {
     ItemBuilder add(String key, double value);
 
     /**
-     * Register the given floating point display metadata. The metadata item will be registered with
+     * Register the given floating point display data if the value is different than the specified
+     * default.
+     *
+     * @see DisplayData.Builder#add(String, double)
+     */
+    ItemBuilder addIfNotDefault(String key, double value, double defaultValue);
+
+    /**
+     * Register the given boolean display metadata. The metadata item will be registered with
      * type {@link DisplayData.Type#BOOLEAN}, and is identified by the specified key and namespace
      * from the current transform or component.
      */
     ItemBuilder add(String key, boolean value);
+
+    /**
+     * Register the given boolean display data if the value is different than the specified default.
+     *
+     * @see DisplayData.Builder#add(String, boolean)
+     */
+    ItemBuilder addIfNotDefault(String key, boolean value, boolean defaultValue);
 
     /**
      * Register the given timestamp display metadata. The metadata item will be registered with type
@@ -155,6 +219,22 @@ public class DisplayData {
     ItemBuilder add(String key, Instant value);
 
     /**
+     * Register the given timestamp display data if the value is not null.
+     *
+     * @see DisplayData.Builder#add(String, Instant)
+     */
+    ItemBuilder addIfNotNull(String key, @Nullable Instant value);
+
+    /**
+     * Register the given timestamp display data if the value is different than the specified
+     * default.
+     *
+     * @see DisplayData.Builder#add(String, Instant)
+     */
+    ItemBuilder addIfNotDefault(
+        String key, @Nullable Instant value, @Nullable Instant defaultValue);
+
+    /**
      * Register the given duration display metadata. The metadata item will be registered with type
      * {@link DisplayData.Type#DURATION}, and is identified by the specified key and namespace from
      * the current transform or component.
@@ -162,11 +242,53 @@ public class DisplayData {
     ItemBuilder add(String key, Duration value);
 
     /**
+     * Register the given duration display data if the value is not null.
+     *
+     * @see DisplayData.Builder#add(String, Duration)
+     */
+    ItemBuilder addIfNotNull(String key, @Nullable Duration value);
+
+    /**
+     * Register the given duration display data if the value is different than the specified
+     * default.
+     *
+     * @see DisplayData.Builder#add(String, Duration)
+     */
+    ItemBuilder addIfNotDefault(
+        String key, @Nullable Duration value, @Nullable Duration defaultValue);
+
+    /**
      * Register the given class display metadata. The metadata item will be registered with type
      * {@link DisplayData.Type#JAVA_CLASS}, and is identified by the specified key and namespace
      * from the current transform or component.
      */
     ItemBuilder add(String key, Class<?> value);
+
+    /**
+     * Register the given class display data if the value is not null.
+     *
+     * @see DisplayData.Builder#add(String, Class)
+     */
+    ItemBuilder addIfNotNull(String key, @Nullable Class<?> value);
+
+    /**
+     * Register the given class display data if the value is different than the specified default.
+     *
+     * @see DisplayData.Builder#add(String, Class)
+     */
+    ItemBuilder addIfNotDefault(
+        String key, @Nullable Class<?> value, @Nullable Class<?> defaultValue);
+
+  /**
+   * Register the given display metadata with the specified type.
+   *
+   * <p> The added display data is identified by the specified key and namespace from the current
+   * transform or component.
+   *
+   * @throws ClassCastException if the value cannot be safely cast to the specified type.
+   * @see DisplayData#inferType(Object)
+   */
+    ItemBuilder add(String key, Type type, Object value);
   }
 
   /**
@@ -190,6 +312,14 @@ public class DisplayData {
      * <p>Specifying a null value will clear the URL if it was previously defined.
      */
     ItemBuilder withLinkUrl(@Nullable String url);
+
+    /**
+     * Adds an explicit namespace to the most-recently added display metadata. The namespace
+     * and key uniquely identify the display metadata.
+     *
+     * <p>Leaving the namespace unspecified will default to the registering instance's class.
+     */
+    ItemBuilder withNamespace(Class<?> namespace);
   }
 
   /**
@@ -207,10 +337,11 @@ public class DisplayData {
     private final String label;
     private final String url;
 
-    private static <T> Item create(String namespace, String key, Type type, T value) {
+    private static Item create(Class<?> nsClass, String key, Type type, Object value) {
       FormattedItemValue formatted = type.format(value);
+      String namespace = namespaceOf(nsClass);
       return new Item(
-        namespace, key, type, formatted.getLongValue(), formatted.getShortValue(), null, null);
+          namespace, key, type, formatted.getLongValue(), formatted.getShortValue(), null, null);
     }
 
     private Item(
@@ -337,6 +468,12 @@ public class DisplayData {
     private Item withUrl(String url) {
       return new Item(this.ns, this.key, this.type, this.value, this.shortValue, url, this.label);
     }
+
+    private Item withNamespace(Class<?> nsClass) {
+      String namespace = namespaceOf(nsClass);
+      return new Item(
+          namespace, this.key, this.type, this.value, this.shortValue, this.url, this.label);
+    }
   }
 
   /**
@@ -354,7 +491,7 @@ public class DisplayData {
     private final String key;
 
     public static Identifier of(Class<?> namespace, String key) {
-      return of(namespace.getName(), key);
+      return of(namespaceOf(namespace), key);
     }
 
     public static Identifier of(String namespace, String key) {
@@ -403,13 +540,14 @@ public class DisplayData {
     STRING {
       @Override
       FormattedItemValue format(Object value) {
-        return new FormattedItemValue((String) value);
+        return new FormattedItemValue(value.toString());
       }
     },
     INTEGER {
       @Override
       FormattedItemValue format(Object value) {
-        return new FormattedItemValue(Long.toString((long) value));
+        Number number = (Number) value;
+        return new FormattedItemValue(Long.toString(number.longValue()));
       }
     },
     FLOAT {
@@ -451,6 +589,28 @@ public class DisplayData {
      * <p>Internal-only. Value objects can be safely cast to the expected Java type.
      */
     abstract FormattedItemValue format(Object value);
+
+    @Nullable
+    private static Type tryInferFrom(@Nullable Object value) {
+      Type type;
+      if (value instanceof Integer || value instanceof Long) {
+        return INTEGER;
+      } else if (value instanceof Double || value instanceof Float) {
+        return  FLOAT;
+      } else if (value instanceof Boolean) {
+        return  BOOLEAN;
+      } else if (value instanceof Instant) {
+        return  TIMESTAMP;
+      } else if (value instanceof Duration) {
+        return  DURATION;
+      } else if (value instanceof Class<?>) {
+        return  JAVA_CLASS;
+      } else if (value instanceof String) {
+        return  STRING;
+      } else {
+        return null;
+      }
+    }
   }
 
   static class FormattedItemValue {
@@ -480,8 +640,9 @@ public class DisplayData {
     private final Set<Object> visited;
 
     private Class<?> latestNs;
+
+    @Nullable
     private Item latestItem;
-    private Identifier latestIdentifier;
 
     private InternalBuilder() {
       this.entries = Maps.newHashMap();
@@ -503,6 +664,9 @@ public class DisplayData {
     @Override
     public Builder include(HasDisplayData subComponent, Class<?> namespace) {
       checkNotNull(subComponent);
+      checkNotNull(namespace);
+
+      commitLatest();
       boolean newComponent = visited.add(subComponent);
       if (newComponent) {
         Class prevNs = this.latestNs;
@@ -517,75 +681,165 @@ public class DisplayData {
     @Override
     public ItemBuilder add(String key, String value) {
       checkNotNull(value);
-      return addItem(key, Type.STRING, value);
+      return addItemIf(true, key, Type.STRING, value);
+    }
+
+    @Override
+    public ItemBuilder addIfNotNull(String key, @Nullable String value) {
+      return addItemIf(value != null, key, Type.STRING, value);
+    }
+
+    @Override
+    public ItemBuilder addIfNotDefault(
+        String key, @Nullable String value, @Nullable String defaultValue) {
+      return addItemIf(!Objects.equals(value, defaultValue), key, Type.STRING, value);
     }
 
     @Override
     public ItemBuilder add(String key, long value) {
-      return addItem(key, Type.INTEGER, value);
+      return addItemIf(true, key, Type.INTEGER, value);
+    }
+
+    @Override
+    public ItemBuilder addIfNotDefault(String key, long value, long defaultValue) {
+      return addItemIf(value != defaultValue, key, Type.INTEGER, value);
     }
 
     @Override
     public ItemBuilder add(String key, double value) {
-      return addItem(key, Type.FLOAT, value);
+      return addItemIf(true, key, Type.FLOAT, value);
+    }
+
+    @Override
+    public ItemBuilder addIfNotDefault(String key, double value, double defaultValue) {
+      return addItemIf(value != defaultValue, key, Type.FLOAT, value);
     }
 
     @Override
     public ItemBuilder add(String key, boolean value) {
-      return addItem(key, Type.BOOLEAN, value);
+      return addItemIf(true, key, Type.BOOLEAN, value);
+    }
+
+    @Override
+    public ItemBuilder addIfNotDefault(String key, boolean value, boolean defaultValue) {
+      return addItemIf(value != defaultValue, key, Type.BOOLEAN, value);
     }
 
     @Override
     public ItemBuilder add(String key, Instant value) {
       checkNotNull(value);
-      return addItem(key, Type.TIMESTAMP, value);
+      return addItemIf(true, key, Type.TIMESTAMP, value);
+    }
+
+    @Override
+    public ItemBuilder addIfNotNull(String key, @Nullable Instant value) {
+      return addItemIf(value != null, key, Type.TIMESTAMP, value);
+    }
+
+    @Override
+    public ItemBuilder addIfNotDefault(
+        String key, @Nullable Instant value, @Nullable Instant defaultValue) {
+      return addItemIf(!Objects.equals(value, defaultValue), key, Type.TIMESTAMP, value);
     }
 
     @Override
     public ItemBuilder add(String key, Duration value) {
       checkNotNull(value);
-      return addItem(key, Type.DURATION, value);
+      return addItemIf(true, key, Type.DURATION, value);
+    }
+
+    @Override
+    public ItemBuilder addIfNotNull(String key, @Nullable Duration value) {
+      return addItemIf(value != null, key, Type.DURATION, value);
+    }
+
+    @Override
+    public ItemBuilder addIfNotDefault(
+        String key, @Nullable Duration value, @Nullable Duration defaultValue) {
+      return addItemIf(!Objects.equals(value, defaultValue), key, Type.DURATION, value);
     }
 
     @Override
     public ItemBuilder add(String key, Class<?> value) {
       checkNotNull(value);
-      return addItem(key, Type.JAVA_CLASS, value);
+      return addItemIf(true, key, Type.JAVA_CLASS, value);
     }
 
-    private <T> ItemBuilder addItem(String key, Type type, T value) {
+    @Override
+    public ItemBuilder addIfNotNull(String key, @Nullable Class<?> value) {
+      return addItemIf(value != null, key, Type.JAVA_CLASS, value);
+    }
+
+    @Override
+    public ItemBuilder addIfNotDefault(
+        String key, @Nullable Class<?> value, @Nullable Class<?> defaultValue) {
+      return addItemIf(!Objects.equals(value, defaultValue), key, Type.JAVA_CLASS, value);
+    }
+
+    @Override
+    public ItemBuilder add(String key, Type type, Object value) {
+      checkNotNull(value);
+      checkNotNull(type);
+      return addItemIf(true, key, type, value);
+    }
+
+    private ItemBuilder addItemIf(boolean condition, String key, Type type, Object value) {
       checkNotNull(key);
       checkArgument(!key.isEmpty());
 
-      Identifier id = Identifier.of(latestNs, key);
+      commitLatest();
+      if (condition) {
+        latestItem = Item.create(latestNs, key, type, value);
+      }
+
+      return this;
+    }
+
+    private void commitLatest() {
+      if (latestItem == null) {
+        return;
+      }
+
+      Identifier id = Identifier.of(latestItem.getNamespace(), latestItem.getKey());
       if (entries.containsKey(id)) {
         throw new IllegalArgumentException("DisplayData key already exists. All display data "
           + "for a component must be registered with a unique key.\nKey: " + id);
       }
-      Item item = Item.create(id.getNamespace(), key, type, value);
-      entries.put(id, item);
 
-      latestItem = item;
-      latestIdentifier = id;
+      entries.put(id, latestItem);
+      latestItem = null;
+    }
+
+    @Override
+    public ItemBuilder withLabel(@Nullable String label) {
+      if (latestItem != null) {
+        latestItem = latestItem.withLabel(label);
+      }
 
       return this;
     }
 
     @Override
-    public ItemBuilder withLabel(String label) {
-      latestItem = latestItem.withLabel(label);
-      entries.put(latestIdentifier, latestItem);
+    public ItemBuilder withLinkUrl(@Nullable String url) {
+      if (latestItem != null) {
+        latestItem = latestItem.withUrl(url);
+      }
+
       return this;
     }
 
     @Override
-    public ItemBuilder withLinkUrl(String url) {
-      latestItem = latestItem.withUrl(url);
-      entries.put(latestIdentifier, latestItem);
+    public ItemBuilder withNamespace(Class<?> namespace) {
+      checkNotNull(namespace);
+      if (latestItem != null) {
+        latestItem = latestItem.withNamespace(namespace);
+      }
+
       return this;
     }
 
     private DisplayData build() {
+      commitLatest();
       return new DisplayData(this.entries);
     }
   }
