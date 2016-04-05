@@ -17,6 +17,7 @@
  */
 package com.google.cloud.dataflow.sdk.runners;
 
+import static com.google.cloud.dataflow.sdk.util.CoderUtils.encodeToByteArray;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
@@ -25,6 +26,7 @@ import com.google.cloud.dataflow.sdk.Pipeline.PipelineVisitor;
 import com.google.cloud.dataflow.sdk.PipelineResult;
 import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.coders.ListCoder;
 import com.google.cloud.dataflow.sdk.io.AvroIO;
 import com.google.cloud.dataflow.sdk.io.FileBasedSink;
@@ -39,12 +41,15 @@ import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.Partition;
 import com.google.cloud.dataflow.sdk.transforms.Partition.PartitionFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.AppliedCombineFn;
+import com.google.cloud.dataflow.sdk.util.GroupByKeyViaGroupByKeyOnly;
+import com.google.cloud.dataflow.sdk.util.GroupByKeyViaGroupByKeyOnly.GroupByKeyOnly;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
 import com.google.cloud.dataflow.sdk.util.MapAggregatorValues;
 import com.google.cloud.dataflow.sdk.util.PerKeyCombineFnRunner;
@@ -72,6 +77,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -138,6 +144,8 @@ public class DirectPipelineRunner
           "defining multiple evaluators for " + transformClass);
     }
   }
+
+  /////////////////////////////////////////////////////////////////////////////
 
   /**
    * Records that instances of the specified PTransform class
@@ -244,6 +252,9 @@ public class DirectPipelineRunner
       return (OutputT) applyTextIOWrite((TextIO.Write.Bound) transform, (PCollection<?>) input);
     } else if (transform instanceof AvroIO.Write.Bound) {
       return (OutputT) applyAvroIOWrite((AvroIO.Write.Bound) transform, (PCollection<?>) input);
+    } else if (transform instanceof GroupByKey) {
+      return (OutputT)
+          ((PCollection) input).apply(new GroupByKeyViaGroupByKeyOnly((GroupByKey) transform));
     } else {
       return super.apply(transform, input);
     }
@@ -1118,6 +1129,39 @@ public class DirectPipelineRunner
 
   /////////////////////////////////////////////////////////////////////////////
 
+  /**
+   * The key by which GBK groups inputs - elements are grouped by the encoded form of the key,
+   * but the original key may be accessed as well.
+   */
+  private static class GroupingKey<K> {
+    private K key;
+    private byte[] encodedKey;
+
+    public GroupingKey(K key, byte[] encodedKey) {
+      this.key = key;
+      this.encodedKey = encodedKey;
+    }
+
+    public K getKey() {
+      return key;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (o instanceof GroupingKey) {
+        GroupingKey<?> that = (GroupingKey<?>) o;
+        return Arrays.equals(this.encodedKey, that.encodedKey);
+      } else {
+        return false;
+      }
+    }
+
+    @Override
+    public int hashCode() {
+      return Arrays.hashCode(encodedKey);
+    }
+  }
+
   private final DirectPipelineOptions options;
   private boolean testSerializability;
   private boolean testEncodability;
@@ -1154,4 +1198,76 @@ public class DirectPipelineRunner
   public String toString() {
     return "DirectPipelineRunner#" + hashCode();
   }
+
+  public static <K, V> void evaluateGroupByKeyOnly(
+      GroupByKeyOnly<K, V> transform,
+      EvaluationContext context) {
+    PCollection<KV<K, V>> input = context.getInput(transform);
+
+    List<ValueWithMetadata<KV<K, V>>> inputElems =
+        context.getPCollectionValuesWithMetadata(input);
+
+    Coder<K> keyCoder = GroupByKey.getKeyCoder(input.getCoder());
+
+    Map<GroupingKey<K>, List<V>> groupingMap = new HashMap<>();
+
+    for (ValueWithMetadata<KV<K, V>> elem : inputElems) {
+      K key = elem.getValue().getKey();
+      V value = elem.getValue().getValue();
+      byte[] encodedKey;
+      try {
+        encodedKey = encodeToByteArray(keyCoder, key);
+      } catch (CoderException exn) {
+        // TODO: Put in better element printing:
+        // truncate if too long.
+        throw new IllegalArgumentException(
+            "unable to encode key " + key + " of input to " + transform +
+            " using " + keyCoder,
+            exn);
+      }
+      GroupingKey<K> groupingKey =
+          new GroupingKey<>(key, encodedKey);
+      List<V> values = groupingMap.get(groupingKey);
+      if (values == null) {
+        values = new ArrayList<V>();
+        groupingMap.put(groupingKey, values);
+      }
+      values.add(value);
+    }
+
+    List<ValueWithMetadata<KV<K, Iterable<V>>>> outputElems =
+        new ArrayList<>();
+    for (Map.Entry<GroupingKey<K>, List<V>> entry : groupingMap.entrySet()) {
+      GroupingKey<K> groupingKey = entry.getKey();
+      K key = groupingKey.getKey();
+      List<V> values = entry.getValue();
+      values = context.randomizeIfUnordered(values, true /* inPlaceAllowed */);
+      outputElems.add(ValueWithMetadata
+                      .of(WindowedValue.valueInEmptyWindows(KV.<K, Iterable<V>>of(key, values)))
+                      .withKey(key));
+    }
+
+    context.setPCollectionValuesWithMetadata(context.getOutput(transform),
+                                             outputElems);
+  }
+
+  @SuppressWarnings({"rawtypes", "unchecked"})
+  public
+  static <K, V> void registerGroupByKeyOnly() {
+    registerDefaultTransformEvaluator(
+        GroupByKeyOnly.class,
+        new TransformEvaluator<GroupByKeyOnly>() {
+          @Override
+          public void evaluate(
+              GroupByKeyOnly transform,
+              EvaluationContext context) {
+            evaluateGroupByKeyOnly(transform, context);
+          }
+        });
+  }
+
+  static {
+    registerGroupByKeyOnly();
+  }
+
 }
