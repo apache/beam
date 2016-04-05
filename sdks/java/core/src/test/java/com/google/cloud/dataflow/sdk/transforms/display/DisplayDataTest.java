@@ -346,6 +346,22 @@ public class DisplayDataTest {
   }
 
   @Test
+  public void testDuplicateKeyWithNamespaceOverrideDoesntThrow() {
+    DisplayData displayData = DisplayData.from(
+        new HasDisplayData() {
+          @Override
+          public void populateDisplayData(DisplayData.Builder builder) {
+            builder
+                .add("foo", "bar")
+                .add("foo", "baz")
+                  .withNamespace(DisplayDataTest.class);
+          }
+        });
+
+    assertThat(displayData.items(), hasSize(2));
+  }
+
+  @Test
   public void testToString() {
     HasDisplayData component = new HasDisplayData() {
       @Override

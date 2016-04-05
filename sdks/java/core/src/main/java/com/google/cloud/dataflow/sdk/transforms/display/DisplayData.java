@@ -101,6 +101,10 @@ public class DisplayData {
     return builder.toString();
   }
 
+  private static String convertNamespace(Class<?> nsClass) {
+    return nsClass.getName();
+  }
+
   /**
    * Utility to build up display metadata from a component and its included
    * subcomponents.
@@ -190,6 +194,15 @@ public class DisplayData {
      * <p>Specifying a null value will clear the URL if it was previously defined.
      */
     ItemBuilder withLinkUrl(@Nullable String url);
+
+    /**
+     * Adds an explicit namespace to the most-recently added display metadata. The namespace
+     * and key uniquely identify the display metadata.
+     *
+     * <p>Specifying a null value or leaving the namespace unspecified will default to
+     * the registering instance's class.
+     */
+    ItemBuilder withNamespace(@Nullable Class<?> namespace);
   }
 
   /**
@@ -207,10 +220,11 @@ public class DisplayData {
     private final String label;
     private final String url;
 
-    private static <T> Item create(String namespace, String key, Type type, T value) {
+    private static <T> Item create(Class<?> nsClass, String key, Type type, T value) {
       FormattedItemValue formatted = type.format(value);
+      String namespace = convertNamespace(nsClass);
       return new Item(
-        namespace, key, type, formatted.getLongValue(), formatted.getShortValue(), null, null);
+          namespace, key, type, formatted.getLongValue(), formatted.getShortValue(), null, null);
     }
 
     private Item(
@@ -337,6 +351,12 @@ public class DisplayData {
     private Item withUrl(String url) {
       return new Item(this.ns, this.key, this.type, this.value, this.shortValue, url, this.label);
     }
+
+    private Item withNamespace(Class<?> nsClass) {
+      String namespace = convertNamespace(nsClass);
+      return new Item(
+          namespace, this.key, this.type, this.value, this.shortValue, this.url, this.label);
+    }
   }
 
   /**
@@ -354,7 +374,7 @@ public class DisplayData {
     private final String key;
 
     public static Identifier of(Class<?> namespace, String key) {
-      return of(namespace.getName(), key);
+      return of(convertNamespace(namespace), key);
     }
 
     public static Identifier of(String namespace, String key) {
@@ -481,7 +501,6 @@ public class DisplayData {
 
     private Class<?> latestNs;
     private Item latestItem;
-    private Identifier latestIdentifier;
 
     private InternalBuilder() {
       this.entries = Maps.newHashMap();
@@ -503,6 +522,8 @@ public class DisplayData {
     @Override
     public Builder include(HasDisplayData subComponent, Class<?> namespace) {
       checkNotNull(subComponent);
+
+      commitLatest();
       boolean newComponent = visited.add(subComponent);
       if (newComponent) {
         Class prevNs = this.latestNs;
@@ -557,35 +578,47 @@ public class DisplayData {
       checkNotNull(key);
       checkArgument(!key.isEmpty());
 
-      Identifier id = Identifier.of(latestNs, key);
+      commitLatest();
+      latestItem = Item.create(latestNs, key, type, value);
+
+      return this;
+    }
+
+    private void commitLatest() {
+      if (latestItem == null) {
+        return;
+      }
+
+      Identifier id = Identifier.of(latestItem.getNamespace(), latestItem.getKey());
       if (entries.containsKey(id)) {
         throw new IllegalArgumentException("DisplayData key already exists. All display data "
           + "for a component must be registered with a unique key.\nKey: " + id);
       }
-      Item item = Item.create(id.getNamespace(), key, type, value);
-      entries.put(id, item);
 
-      latestItem = item;
-      latestIdentifier = id;
-
-      return this;
+      entries.put(id, latestItem);
+      latestItem = null;
     }
 
     @Override
     public ItemBuilder withLabel(String label) {
       latestItem = latestItem.withLabel(label);
-      entries.put(latestIdentifier, latestItem);
       return this;
     }
 
     @Override
     public ItemBuilder withLinkUrl(String url) {
       latestItem = latestItem.withUrl(url);
-      entries.put(latestIdentifier, latestItem);
+      return this;
+    }
+
+    @Override
+    public ItemBuilder withNamespace(@Nullable Class<?> namespace) {
+      latestItem = latestItem.withNamespace(namespace);
       return this;
     }
 
     private DisplayData build() {
+      commitLatest();
       return new DisplayData(this.entries);
     }
   }
