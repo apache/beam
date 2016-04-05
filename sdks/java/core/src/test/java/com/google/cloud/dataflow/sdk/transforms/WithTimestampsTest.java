@@ -85,7 +85,6 @@ public class WithTimestampsTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
   public void withTimestampsBackwardsInTimeShouldThrow() {
     TestPipeline p = TestPipeline.create();
 
