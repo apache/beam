@@ -384,6 +384,31 @@ public class DisplayDataTest {
   }
 
   @Test
+  public void testDisplayDataEquality() {
+    HasDisplayData component1 = new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder.add("foo", "bar");
+      }
+    };
+    HasDisplayData component2 = new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder.add("foo", "bar");
+      }
+    };
+
+    DisplayData component1DisplayData1 = DisplayData.from(component1);
+    DisplayData component1DisplayData2 = DisplayData.from(component1);
+    DisplayData component2DisplayData = DisplayData.from(component2);
+
+    new EqualsTester()
+        .addEqualityGroup(component1DisplayData1, component1DisplayData2)
+        .addEqualityGroup(component2DisplayData)
+        .testEquals();
+  }
+
+  @Test
   public void testAnonymousClassNamespace() {
     DisplayData data =
         DisplayData.from(

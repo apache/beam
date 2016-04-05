@@ -204,8 +204,9 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     settings.put("numberOfWorkerHarnessThreads", 0);
     settings.put("experiments", null);
 
-    assertEquals(ImmutableMap.of("options", settings),
-        job.getEnvironment().getSdkPipelineOptions());
+    Map<String, Object> sdkPipelineOptions = job.getEnvironment().getSdkPipelineOptions();
+    assertThat(sdkPipelineOptions, hasKey("options"));
+    assertEquals(settings, sdkPipelineOptions.get("options"));
   }
 
   @Test

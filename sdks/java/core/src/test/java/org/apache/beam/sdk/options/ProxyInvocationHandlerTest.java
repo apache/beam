@@ -17,11 +17,22 @@
  */
 package org.apache.beam.sdk.options;
 
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasNamespace;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasType;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+
+import org.apache.beam.sdk.transforms.display.DisplayData;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -33,12 +44,19 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import org.hamcrest.Matchers;
+import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.ExternalResource;
+import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -48,6 +66,14 @@ import java.util.Set;
 @RunWith(JUnit4.class)
 public class ProxyInvocationHandlerTest {
   @Rule public ExpectedException expectedException = ExpectedException.none();
+  @Rule public TestRule resetPipelineOptionsRegistry = new ExternalResource() {
+    @Override
+    protected void before() {
+      PipelineOptionsFactory.resetRegistry();
+    }
+  };
+
+  private static final ObjectMapper MAPPER = new ObjectMapper();
 
   /** A test interface with some primitives and objects. */
   public static interface Simple extends PipelineOptions {
@@ -433,6 +459,19 @@ public class ProxyInvocationHandlerTest {
   }
 
   @Test
+  public void testResetRegistry() {
+    Set<Class<? extends PipelineOptions>> defaultRegistry =
+        new HashSet<>(PipelineOptionsFactory.getRegisteredOptions());
+    assertThat(defaultRegistry, not(hasItem(FooOptions.class)));
+
+    PipelineOptionsFactory.register(FooOptions.class);
+    assertThat(PipelineOptionsFactory.getRegisteredOptions(), hasItem(FooOptions.class));
+
+    PipelineOptionsFactory.resetRegistry();
+    assertEquals(defaultRegistry, PipelineOptionsFactory.getRegisteredOptions());
+  }
+
+  @Test
   public void testJsonConversionForDefault() throws Exception {
     PipelineOptions options = PipelineOptionsFactory.create();
     assertNotNull(serializeDeserialize(PipelineOptions.class, options));
@@ -683,10 +722,233 @@ public class ProxyInvocationHandlerTest {
     assertEquals("TestString", options2.getValue().getValue());
   }
 
+  @Test
+  public void testDisplayDataItemProperties() {
+    PipelineOptions options = PipelineOptionsFactory.create();
+    options.setTempLocation("myTemp");
+    DisplayData displayData = DisplayData.from(options);
+
+    assertThat(displayData, hasDisplayItem(allOf(
+        hasKey("tempLocation"),
+        hasType(DisplayData.Type.STRING),
+        hasValue("myTemp"),
+        hasNamespace(PipelineOptions.class)
+    )));
+  }
+
+  @Test
+  public void testDisplayDataTypes() {
+    Instant now = Instant.now();
+
+    TypedOptions options = PipelineOptionsFactory.as(TypedOptions.class);
+    options.setInteger(1234);
+    options.setTimestamp(now);
+    options.setJavaClass(ProxyInvocationHandlerTest.class);
+    options.setObject(new Serializable() {
+      @Override
+      public String toString() {
+        return "foobar";
+      }
+    });
+
+    DisplayData displayData = DisplayData.from(options);
+
+    assertThat(displayData, hasDisplayItem("integer", 1234));
+    assertThat(displayData, hasDisplayItem("timestamp", now));
+    assertThat(displayData, hasDisplayItem("javaClass", ProxyInvocationHandlerTest.class));
+    assertThat(displayData, hasDisplayItem("object", "foobar"));
+  }
+
+  interface TypedOptions extends PipelineOptions {
+    int getInteger();
+    void setInteger(int value);
+
+    Instant getTimestamp();
+    void setTimestamp(Instant value);
+
+    Class<?> getJavaClass();
+    void setJavaClass(Class<?> value);
+
+    Object getObject();
+    void setObject(Object value);
+  }
+
+  @Test
+  public void testDisplayDataInheritanceNamespace() {
+    ExtendsBaseOptions options = PipelineOptionsFactory.as(ExtendsBaseOptions.class);
+    options.setFoo("bar");
+
+    DisplayData displayData = DisplayData.from(options);
+
+    assertThat(displayData, hasDisplayItem(allOf(
+        hasKey("foo"),
+        hasValue("bar"),
+        hasNamespace(ExtendsBaseOptions.class)
+    )));
+  }
+
+  interface BaseOptions extends PipelineOptions {
+    String getFoo();
+    void setFoo(String value);
+  }
+
+  interface ExtendsBaseOptions extends BaseOptions {
+    @Override String getFoo();
+    @Override void setFoo(String value);
+  }
+
+  @Test
+  public void testDisplayDataExcludedFromOverriddenBaseClass() {
+    ExtendsBaseOptions options = PipelineOptionsFactory.as(ExtendsBaseOptions.class);
+    options.setFoo("bar");
+
+    DisplayData displayData = DisplayData.from(options);
+    assertThat(displayData, not(hasDisplayItem(hasNamespace(BaseOptions.class))));
+  }
+
+  @Test
+  public void testDisplayDataIncludedForDisjointInterfaceHierarchies() {
+    FooOptions fooOptions = PipelineOptionsFactory.as(FooOptions.class);
+    fooOptions.setFoo("foo");
+
+    BarOptions barOptions = fooOptions.as(BarOptions.class);
+    barOptions.setBar("bar");
+
+    DisplayData data = DisplayData.from(barOptions);
+    assertThat(data, hasDisplayItem(allOf(hasKey("foo"), hasNamespace(FooOptions.class))));
+    assertThat(data, hasDisplayItem(allOf(hasKey("bar"), hasNamespace(BarOptions.class))));
+  }
+
+  interface FooOptions extends PipelineOptions {
+    String getFoo();
+    void setFoo(String value);
+  }
+
+  interface BarOptions extends PipelineOptions {
+    String getBar();
+    void setBar(String value);
+  }
+
+  @Test
+  public void testDisplayDataExcludesDefaultValues() {
+    PipelineOptions options = PipelineOptionsFactory.as(HasDefaults.class);
+    DisplayData data = DisplayData.from(options);
+
+    assertThat(data, not(hasDisplayItem(hasKey("foo"))));
+  }
+
+  interface HasDefaults extends PipelineOptions {
+    @Default.String("bar")
+    String getFoo();
+    void setFoo(String value);
+  }
+
+  @Test
+  public void testDisplayDataExcludesValuesAccessedButNeverSet() {
+    HasDefaults options = PipelineOptionsFactory.as(HasDefaults.class);
+    assertEquals("bar", options.getFoo());
+
+    DisplayData data = DisplayData.from(options);
+    assertThat(data, not(hasDisplayItem(hasKey("foo"))));
+  }
+
+  @Test
+  public void testDisplayDataIncludesExplicitlySetDefaults() {
+    HasDefaults options = PipelineOptionsFactory.as(HasDefaults.class);
+    String defaultValue = options.getFoo();
+    options.setFoo(defaultValue);
+
+    DisplayData data = DisplayData.from(options);
+    assertThat(data, hasDisplayItem("foo", defaultValue));
+  }
+
+  @Test
+  public void testDisplayDataNullValuesConvertedToEmptyString() {
+    FooOptions options = PipelineOptionsFactory.as(FooOptions.class);
+    options.setFoo(null);
+
+    DisplayData data = DisplayData.from(options);
+    assertThat(data, hasDisplayItem("foo", ""));
+  }
+
+  @Test
+  public void testDisplayDataJsonSerialization() throws IOException {
+    FooOptions options = PipelineOptionsFactory.as(FooOptions.class);
+    options.setFoo("bar");
+
+    @SuppressWarnings("unchecked")
+    Map<String, Object> map = MAPPER.readValue(MAPPER.writeValueAsBytes(options), Map.class);
+
+    assertThat("main pipeline options data keyed as 'options'", map, Matchers.hasKey("options"));
+    assertThat("display data keyed as 'display_data'", map, Matchers.hasKey("display_data"));
+
+    Map<?, ?> expectedDisplayItem = ImmutableMap.<String, String>builder()
+        .put("namespace", FooOptions.class.getName())
+        .put("key", "foo")
+        .put("value", "bar")
+        .put("type", "STRING")
+        .build();
+
+    @SuppressWarnings("unchecked")
+    List<Map<?, ?>> deserializedDisplayData = (List<Map<?, ?>>) map.get("display_data");
+    assertThat(deserializedDisplayData, hasItem(expectedDisplayItem));
+  }
+
+  @Test
+  public void testDisplayDataFromDeserializedJson() throws Exception {
+    FooOptions options = PipelineOptionsFactory.as(FooOptions.class);
+    options.setFoo("bar");
+    DisplayData data = DisplayData.from(options);
+    assertThat(data, hasDisplayItem("foo", "bar"));
+
+    FooOptions deserializedOptions = serializeDeserialize(FooOptions.class, options);
+    DisplayData dataAfterDeserialization = DisplayData.from(deserializedOptions);
+    assertEquals(data, dataAfterDeserialization);
+  }
+
+  @Test
+  public void testDisplayDataDeserializationWithRegistration() throws Exception {
+    PipelineOptionsFactory.register(HasClassOptions.class);
+    HasClassOptions options = PipelineOptionsFactory.as(HasClassOptions.class);
+    options.setClassOption(ProxyInvocationHandlerTest.class);
+
+    PipelineOptions deserializedOptions = serializeDeserialize(PipelineOptions.class, options);
+    DisplayData displayData = DisplayData.from(deserializedOptions);
+    assertThat(displayData, hasDisplayItem("classOption", ProxyInvocationHandlerTest.class));
+  }
+
+  @Test
+  public void testDisplayDataMissingPipelineOptionsRegistration() throws Exception {
+    HasClassOptions options = PipelineOptionsFactory.as(HasClassOptions.class);
+    options.setClassOption(ProxyInvocationHandlerTest.class);
+
+    PipelineOptions deserializedOptions = serializeDeserialize(PipelineOptions.class, options);
+    DisplayData displayData = DisplayData.from(deserializedOptions);
+    String expectedJsonValue = MAPPER.writeValueAsString(ProxyInvocationHandlerTest.class);
+    assertThat(displayData, hasDisplayItem("classOption", expectedJsonValue));
+  }
+
+  interface HasClassOptions extends PipelineOptions {
+    Class<?> getClassOption();
+    void setClassOption(Class<?> value);
+  }
+
+  @Test
+  public void testDisplayDataJsonValueSetAfterDeserialization() throws Exception {
+    FooOptions options = PipelineOptionsFactory.as(FooOptions.class);
+    options.setFoo("bar");
+    DisplayData data = DisplayData.from(options);
+    assertThat(data, hasDisplayItem("foo", "bar"));
+
+    FooOptions deserializedOptions = serializeDeserialize(FooOptions.class, options);
+    deserializedOptions.setFoo("baz");
+    DisplayData dataAfterDeserialization = DisplayData.from(deserializedOptions);
+    assertThat(dataAfterDeserialization, hasDisplayItem("foo", "baz"));
+  }
+
   private <T extends PipelineOptions> T serializeDeserialize(Class<T> kls, PipelineOptions options)
       throws Exception {
-    ObjectMapper mapper = new ObjectMapper();
-    String value = mapper.writeValueAsString(options);
-    return mapper.readValue(value, PipelineOptions.class).as(kls);
+    String value = MAPPER.writeValueAsString(options);
+    return MAPPER.readValue(value, PipelineOptions.class).as(kls);
   }
 }
