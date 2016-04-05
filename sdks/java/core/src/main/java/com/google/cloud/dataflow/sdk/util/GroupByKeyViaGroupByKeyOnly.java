@@ -42,10 +42,10 @@ import java.util.List;
  *
  * <p>This implementation of {@link GroupByKey} proceeds via the following steps:
  * <ol>
- *   <li>{@link ReifyTimestampsAndWindowsDoFn ParDo(ReifyTimestampsAndWindows)}: This embeds
+ *   <li>{@code ReifyTimestampsAndWindowsDoFn ParDo(ReifyTimestampsAndWindows)}: This embeds
  *       the previously-implicit timestamp and window into the elements themselves, so a
  *       window-and-timestamp-unaware transform can operate on them.</li>
- *   <li>{@link GroupByKeyOnly}: This lower-level primitive groups by keys, ignoring windows
+ *   <li>{@code GroupByKeyOnly}: This lower-level primitive groups by keys, ignoring windows
  *       and timestamps. Many window-unaware runners have such a primitive already.</li>
  *   <li>{@code SortValuesByTimestamp ParDo(SortValuesByTimestamp)}: The values in the iterables
  *       output by {@link GroupByKeyOnly} are sorted by timestamp.</li>
@@ -58,8 +58,9 @@ import java.util.List;
  * execution strategy. Specifically:
  *
  * <ul>
- *   <li>Every iterable output by {@link GroupByKeyOnly} must be complete. Values for a key may not
- *       be emitted in multiple key-value pairs.</li>
+ *   <li>Every iterable output by {@link GroupByKeyOnly} must contain all elements for that key.
+ *       A streaming-style partition, with multiple elements for the same key, will not yield
+ *       correct results.</li>
  *   <li>Sorting of values by timestamp is performed on an in-memory list. It will not succeed
  *       for large iterables.</li>
  *   <li>The implementation of {@code GroupAlsoByWindow} does not support timers. This is only
@@ -129,6 +130,7 @@ public class GroupByKeyViaGroupByKeyOnly<K, V>
    */
   public static class ReifyTimestampsAndWindows<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, WindowedValue<V>>>> {
+
     @Override
     public PCollection<KV<K, WindowedValue<V>>> apply(PCollection<KV<K, V>> input) {
 
@@ -154,8 +156,7 @@ public class GroupByKeyViaGroupByKeyOnly<K, V>
   }
 
   /**
-   * Helper transform that sorts the values associated with each key
-   * by timestamp.
+   * Helper transform that sorts the values associated with each key by timestamp.
    */
   private static class SortValuesByTimestamp<K, V>
       extends PTransform<
