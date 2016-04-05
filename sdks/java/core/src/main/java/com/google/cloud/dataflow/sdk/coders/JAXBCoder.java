@@ -85,13 +85,7 @@ public class JAXBCoder<T> extends AtomicCoder<T> {
         }
       }
 
-      jaxbMarshaller.marshal(
-          value,
-          new FilterOutputStream(outStream) {
-            // JAXB closes the underlying stream so we must filter out those calls.
-            @Override
-            public void close() throws IOException {}
-          });
+      jaxbMarshaller.marshal(value, new CloseIgnoringOutputStream(outStream));
     } catch (JAXBException e) {
       throw new CoderException(e);
     }
@@ -132,6 +126,19 @@ public class JAXBCoder<T> extends AtomicCoder<T> {
     @Override
     public void close() {
       // Do nothing. JAXB closes the underlying stream so we must filter out those calls.
+    }
+  }
+
+  private static class CloseIgnoringOutputStream extends FilterOutputStream {
+
+    protected CloseIgnoringOutputStream(OutputStream out) {
+      super(out);
+    }
+
+    @Override
+    public void close() throws IOException {
+      // JAXB closes the underlying stream so we must filter out those calls.
+      flush();
     }
   }
 
