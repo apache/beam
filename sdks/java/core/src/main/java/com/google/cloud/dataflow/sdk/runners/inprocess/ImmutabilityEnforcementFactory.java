@@ -71,25 +71,33 @@ class ImmutabilityEnforcementFactory implements ModelEnforcementFactory {
     }
 
     @Override
+    public void afterElement(WindowedValue<T> element) {
+      verifyUnmodified(mutationElements.get(element));
+    }
+
+    @Override
     public void afterFinish(
         CommittedBundle<T> input,
         InProcessTransformResult result,
         Iterable<? extends CommittedBundle<?>> outputs) {
       for (MutationDetector detector : mutationElements.values()) {
-        try {
-          detector.verifyUnmodified();
-        } catch (IllegalMutationException e) {
-          throw UserCodeException.wrap(
-              new IllegalMutationException(
-                  String.format(
-                      "PTransform %s illegaly mutated value %s of class %s."
-                          + " Input values must not be mutated in any way.",
-                      transform.getFullName(),
-                      e.getSavedValue(),
-                      e.getSavedValue().getClass()),
-                  e.getSavedValue(),
-                  e.getNewValue()));
-        }
+        verifyUnmodified(detector);
+      }
+    }
+
+    private void verifyUnmodified(MutationDetector detector) {
+      try {
+        detector.verifyUnmodified();
+      } catch (IllegalMutationException e) {
+        throw new IllegalMutationException(
+            String.format(
+                "PTransform %s illegaly mutated value %s of class %s."
+                    + " Input values must not be mutated in any way.",
+                transform.getFullName(),
+                e.getSavedValue(),
+                e.getSavedValue().getClass()),
+            e.getSavedValue(),
+            e.getNewValue());
       }
     }
   }

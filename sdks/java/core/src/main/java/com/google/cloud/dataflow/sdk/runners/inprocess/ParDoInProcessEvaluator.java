@@ -22,6 +22,7 @@ import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.U
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.util.DoFnRunner;
 import com.google.cloud.dataflow.sdk.util.DoFnRunners.OutputManager;
+import com.google.cloud.dataflow.sdk.util.UserCodeException;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.state.CopyOnAccessInMemoryStateInternals;
@@ -56,12 +57,20 @@ class ParDoInProcessEvaluator<T> implements TransformEvaluator<T> {
 
   @Override
   public void processElement(WindowedValue<T> element) {
-    fnRunner.processElement(element);
+    try {
+      fnRunner.processElement(element);
+    } catch (Exception e) {
+      throw UserCodeException.wrap(e);
+    }
   }
 
   @Override
   public InProcessTransformResult finishBundle() {
-    fnRunner.finishBundle();
+    try {
+      fnRunner.finishBundle();
+    } catch (Exception e) {
+      throw UserCodeException.wrap(e);
+    }
     StepTransformResult.Builder resultBuilder;
     CopyOnAccessInMemoryStateInternals<?> state = stepContext.commitState();
     if (state != null) {
