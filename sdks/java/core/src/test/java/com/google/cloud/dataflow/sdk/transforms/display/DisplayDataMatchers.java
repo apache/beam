@@ -248,10 +248,44 @@ public class DisplayDataMatchers {
     };
   }
 
+  /**
+   * Creates a matcher that matches if the examined {@link DisplayData.Item} contains the
+   * specified namespace.
+   */
+  public static Matcher<DisplayData.Item> hasNamespace(Class<?> namespace) {
+    return hasNamespace(Matchers.<Class<?>>is(namespace));
+  }
+
+  /**
+   * Creates a matcher that matches if the examined {@link DisplayData.Item} contains a namespace
+   * matching the specified namespace matcher.
+   */
+  public static Matcher<DisplayData.Item> hasNamespace(Matcher<Class<?>> namespaceMatcher) {
+    return new FeatureMatcher<DisplayData.Item, Class<?>>(
+        namespaceMatcher, "display item with namespace", "namespace") {
+      @Override
+      protected Class<?> featureValueOf(DisplayData.Item actual) {
+        try {
+          return Class.forName(actual.getNamespace());
+        } catch (ClassNotFoundException e) {
+          return null;
+        }
+      }
+    };
+  }
+
+  /**
+   * Creates a matcher that matches if the examined {@link DisplayData.Item} matches the
+   * specified type.
+   */
   public static Matcher<DisplayData.Item> hasType(DisplayData.Type type) {
     return hasType(Matchers.is(type));
   }
 
+  /**
+   * Creates a matcher that matches if the examined {@link DisplayData.Item} has a type
+   * matching the specified type matcher.
+   */
   public static Matcher<DisplayData.Item> hasType(Matcher<DisplayData.Type> typeMatcher) {
     return new FeatureMatcher<DisplayData.Item, DisplayData.Type>(
             typeMatcher, "with type", "type") {
@@ -262,10 +296,19 @@ public class DisplayDataMatchers {
     };
   }
 
+  /**
+   * Creates a matcher that matches if the examined {@link DisplayData.Item} has the specified
+   * value.
+   */
+
   public static Matcher<DisplayData.Item> hasValue(String value) {
     return hasValue(Matchers.is(value));
   }
 
+  /**
+   * Creates a matcher that matches if the examined {@link DisplayData.Item} contains a value
+   * matching the specified value matcher.
+   */
   public static Matcher<DisplayData.Item> hasValue(Matcher<String> valueMatcher) {
     return new FeatureMatcher<DisplayData.Item, String>(
             valueMatcher, "with value", "value") {
