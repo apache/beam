@@ -24,7 +24,6 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
 
 import com.google.cloud.dataflow.sdk.Pipeline.PipelineExecutionException;
-import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.transforms.Max.MaxIntegerFn;
@@ -32,7 +31,6 @@ import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -129,7 +127,6 @@ public class DoFnTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
   public void testCreateAggregatorInStartBundleThrows() {
     TestPipeline p = createTestPipeline(new DoFn<String, String>() {
       @Override
@@ -148,7 +145,6 @@ public class DoFnTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
   public void testCreateAggregatorInProcessElementThrows() {
     TestPipeline p = createTestPipeline(new DoFn<String, String>() {
       @Override
@@ -164,7 +160,6 @@ public class DoFnTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
   public void testCreateAggregatorInFinishBundleThrows() {
     TestPipeline p = createTestPipeline(new DoFn<String, String>() {
       @Override
