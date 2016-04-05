@@ -300,7 +300,11 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     }
 
     // We're all done with merging and emitting elements so can compress the activeWindow state.
-    activeWindows.garbageCollect();
+    // Any windows which are still NEW must have come in on a new element which was then discarded
+    // due to the window's trigger being closed. We can thus delete them.
+    // Any windows which are EPHEMERAL must have come in on a new element but been merged away
+    // into some other ACTIVE window. We can thus also delete them.
+    activeWindows.cleanupTemporaryWindows();
   }
 
   public void persist() {
@@ -341,7 +345,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
         // If we had already seen this window and closed its trigger, then the
         // window will not be ACTIVE or MERGED. It will then be added as NEW here,
         // and fall into the merging logic as usual.
-        activeWindows.seenWindow(window);
+        activeWindows.ensureWindowExists(window);
       }
     }
 
@@ -472,7 +476,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       }
 
       triggerableWindows.add(window);
-      activeWindows.usingActiveWindow(window);
+      activeWindows.ensureWindowIsActive(window);
 
       ReduceFn<K, InputT, OutputT, W>.ProcessValueContext renamedContext = contextFactory.forValue(
           window, value.getValue(), value.getTimestamp(), StateStyle.RENAMED);

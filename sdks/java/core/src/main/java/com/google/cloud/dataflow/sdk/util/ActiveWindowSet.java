@@ -98,7 +98,7 @@ public interface ActiveWindowSet<W extends BoundedWindow> {
    * Remove EPHEMERAL windows and remaining NEW windows since we only need to know about them
    * while processing new elements.
    */
-  void garbageCollect();
+  void cleanupTemporaryWindows();
 
   /**
    * Save any state changes needed.
@@ -128,13 +128,13 @@ public interface ActiveWindowSet<W extends BoundedWindow> {
    * have started processing that element. If {@code window} is not already known to be ACTIVE,
    * MERGED or EPHEMERAL then add it as NEW.
    */
-  void seenWindow(W window);
+  void ensureWindowExists(W window);
 
   /**
-   * Called when a window is known to be ACTIVE. Ensure that if it is NEW then it becomes ACTIVE
-   * (with itself as its only state address window).
+   * Called when a NEW or ACTIVE window is now known to be ACTIVE.
+   * Ensure that if it is NEW then it becomes ACTIVE (with itself as its only state address window).
    */
-  void usingActiveWindow(W window);
+  void ensureWindowIsActive(W window);
 
   /**
    * If {@code window} is not already known to be ACTIVE, MERGED or EPHEMERAL then add it

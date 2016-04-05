@@ -83,7 +83,7 @@ public class MergingActiveWindowSetTest {
     };
 
     for (IntervalWindow window : windowFn.assignWindows(context)) {
-      set.seenWindow(window);
+      set.ensureWindowExists(window);
     }
   }
 
@@ -91,7 +91,7 @@ public class MergingActiveWindowSetTest {
     System.out.println("MERGE");
     set.merge(callback);
     for (IntervalWindow window : set.getActiveWindows()) {
-      set.usingActiveWindow(window);
+      set.ensureWindowIsActive(window);
     }
     set.checkInvariants();
     System.out.println(set);
@@ -99,7 +99,7 @@ public class MergingActiveWindowSetTest {
 
   private void pruneAndPersist() {
     System.out.println("PRUNE");
-    set.garbageCollect();
+    set.cleanupTemporaryWindows();
     set.checkInvariants();
     System.out.println(set);
     set.persist();

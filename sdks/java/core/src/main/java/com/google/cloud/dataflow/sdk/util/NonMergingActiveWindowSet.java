@@ -33,7 +33,7 @@ import java.util.Set;
  */
 public class NonMergingActiveWindowSet<W extends BoundedWindow> implements ActiveWindowSet<W> {
   @Override
-  public void garbageCollect() {}
+  public void cleanupTemporaryWindows() {}
 
   @Override
   public void persist() {}
@@ -57,10 +57,10 @@ public class NonMergingActiveWindowSet<W extends BoundedWindow> implements Activ
   }
 
   @Override
-  public void seenWindow(W window) {}
+  public void ensureWindowExists(W window) {}
 
   @Override
-  public void usingActiveWindow(W window) {}
+  public void ensureWindowIsActive(W window) {}
 
   @Override
   @VisibleForTesting
