@@ -110,6 +110,21 @@ public class DisplayData {
   }
 
   @Override
+  public int hashCode() {
+    return entries.hashCode();
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (obj instanceof DisplayData) {
+      DisplayData that = (DisplayData) obj;
+      return Objects.equals(this.entries, that.entries);
+    }
+
+    return false;
+  }
+
+  @Override
   public String toString() {
     StringBuilder builder = new StringBuilder();
     boolean isFirstLine = true;
@@ -842,7 +857,6 @@ public class DisplayData {
 
     @Override
     public ItemBuilder add(String key, Instant value) {
-      checkNotNull(value);
       return addItemIf(true, key, Type.TIMESTAMP, value);
     }
 
@@ -859,7 +873,6 @@ public class DisplayData {
 
     @Override
     public ItemBuilder add(String key, Duration value) {
-      checkNotNull(value);
       return addItemIf(true, key, Type.DURATION, value);
     }
 
@@ -876,7 +889,6 @@ public class DisplayData {
 
     @Override
     public ItemBuilder add(String key, Class<?> value) {
-      checkNotNull(value);
       return addItemIf(true, key, Type.JAVA_CLASS, value);
     }
 
@@ -910,17 +922,17 @@ public class DisplayData {
 
     @Override
     public ItemBuilder add(String key, Type type, Object value) {
-      checkNotNull(value);
       checkNotNull(type);
       return addItemIf(true, key, type, value);
     }
 
     private ItemBuilder addItemIf(boolean condition, String key, Type type, Object value) {
-      checkNotNull(key);
-      checkArgument(!key.isEmpty());
-
+      checkNotNull(key, "Display data keys cannot be null or empty.");
+      checkArgument(!key.isEmpty(), "Display data keys cannot be null or empty.");
       commitLatest();
+
       if (condition) {
+        checkNotNull(value, "Display data values cannot be null. Key: [%s]", key);
         latestItem = Item.create(latestNs, key, type, value);
       }
 
