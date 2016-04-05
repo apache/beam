@@ -73,7 +73,6 @@ import org.junit.runners.JUnit4;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -90,7 +89,8 @@ public class InProcessEvaluationContextTest {
   private PCollection<KV<String, Integer>> downstream;
   private PCollectionView<Iterable<Integer>> view;
   private PCollection<Long> unbounded;
-
+  private Collection<AppliedPTransform<?, ?, ?>> rootTransforms;
+  private Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers;
 
   @Before
   public void setup() {
@@ -103,32 +103,20 @@ public class InProcessEvaluationContextTest {
     downstream = created.apply(WithKeys.<String, Integer>of("foo"));
     view = created.apply(View.<Integer>asIterable());
     unbounded = p.apply(CountingInput.unbounded());
-    Collection<AppliedPTransform<?, ?, ?>> rootTransforms =
-        ImmutableList.<AppliedPTransform<?, ?, ?>>of(
-            created.getProducingTransformInternal(), unbounded.getProducingTransformInternal());
-    Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers = new HashMap<>();
-    valueToConsumers.put(
-        created,
-        ImmutableList.<AppliedPTransform<?, ?, ?>>of(
-            downstream.getProducingTransformInternal(), view.getProducingTransformInternal()));
-    valueToConsumers.put(unbounded, ImmutableList.<AppliedPTransform<?, ?, ?>>of());
-    valueToConsumers.put(downstream, ImmutableList.<AppliedPTransform<?, ?, ?>>of());
-    valueToConsumers.put(view, ImmutableList.<AppliedPTransform<?, ?, ?>>of());
 
-    Map<AppliedPTransform<?, ?, ?>, String> stepNames = new HashMap<>();
-    stepNames.put(created.getProducingTransformInternal(), "s1");
-    stepNames.put(downstream.getProducingTransformInternal(), "s2");
-    stepNames.put(view.getProducingTransformInternal(), "s3");
-    stepNames.put(unbounded.getProducingTransformInternal(), "s4");
+    ConsumerTrackingPipelineVisitor cVis = new ConsumerTrackingPipelineVisitor();
+    p.traverseTopologically(cVis);
+    rootTransforms = cVis.getRootTransforms();
+    valueToConsumers = cVis.getValueToConsumers();
 
-    Collection<PCollectionView<?>> views = ImmutableList.<PCollectionView<?>>of(view);
-    context = InProcessEvaluationContext.create(
+    context =
+        InProcessEvaluationContext.create(
             runner.getPipelineOptions(),
             InProcessBundleFactory.create(),
             rootTransforms,
             valueToConsumers,
-            stepNames,
-            views);
+            cVis.getStepNames(),
+            cVis.getViews());
   }
 
   @Test
@@ -495,16 +483,14 @@ public class InProcessEvaluationContextTest {
         null,
         ImmutableList.<TimerData>of(),
         StepTransformResult.withoutHold(unbounded.getProducingTransformInternal()).build());
-    context.handleResult(
-        committedBundle,
-        ImmutableList.<TimerData>of(),
-        StepTransformResult.withoutHold(downstream.getProducingTransformInternal()).build());
     assertThat(context.isDone(), is(false));
 
-    context.handleResult(
-        committedBundle,
-        ImmutableList.<TimerData>of(),
-        StepTransformResult.withoutHold(view.getProducingTransformInternal()).build());
+    for (AppliedPTransform<?, ?, ?> consumers : valueToConsumers.get(created)) {
+      context.handleResult(
+          committedBundle,
+          ImmutableList.<TimerData>of(),
+          StepTransformResult.withoutHold(consumers).build());
+    }
     assertThat(context.isDone(), is(true));
   }
 
