@@ -44,16 +44,15 @@ import javax.annotation.Nullable;
 
 /**
  * An {@link ActiveWindowSet} for merging {@link WindowFn} implementations.
- * <p>
+ *
  * <p>The underlying notion of {@link MergingActiveWindowSet} is that of representing equivalence
  * classes of merged windows as a mapping from the merged "super-window" to a set of
  * <i>state address</i> windows in which some state has been persisted. The mapping need not
  * contain EPHEMERAL windows, because they are created and merged without any persistent state.
  * Each window must be a state address window for at most one window, so the mapping is
  * invertible.
- * <p>
+ *
  * <p>The states of a non-expired window are treated as follows:
- * <p>
  * <ul>
  * <li><b>NEW</b>: a NEW has an empty set of associated state address windows.</li>
  * <li><b>ACTIVE</b>: an ACTIVE window will be associated with some nonempty set of state
@@ -67,7 +66,7 @@ import javax.annotation.Nullable;
  * an EPHEMERAL window must be registered with this {@link ActiveWindowSet} by a call
  * to {@link #recordMerge} prior to any request for a {@link #mergeResultWindow}.</li>
  * </ul>
- * <p>
+ *
  * <p>To illustrate why an ACTIVE window need not be amongst its own state address windows,
  * consider two active windows W1 and W2 that are merged to form W12. Further writes may be
  * applied to either of W1 or W2, since a read of W12 implies reading both of W12 and merging
