@@ -39,7 +39,6 @@ public class ReadSourceITCase extends JavaProgramTestBase {
   @Override
   protected void preSubmit() throws Exception {
     resultPath = getTempDirPath("result");
-    System.out.println(resultPath);
   }
 
   @Override

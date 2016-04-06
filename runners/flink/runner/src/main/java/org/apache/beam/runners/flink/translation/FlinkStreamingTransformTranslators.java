@@ -106,7 +106,7 @@ public class FlinkStreamingTransformTranslators {
       // in the FlatMap function using the Coder.
 
       List<byte[]> serializedElements = Lists.newArrayList();
-      Coder<OUT> elementCoder = context.getOutput(transform).getCoder();
+      Coder<OUT> elementCoder = output.getCoder();
       for (OUT element: elements) {
         ByteArrayOutputStream bao = new ByteArrayOutputStream();
         try {
@@ -189,7 +189,11 @@ public class FlinkStreamingTransformTranslators {
           new FlatMapFunction<T, WindowedValue<T>>() {
             @Override
             public void flatMap(T value, Collector<WindowedValue<T>> out) throws Exception {
-              out.collect(WindowedValue.of(value, Instant.now(), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
+              out.collect(
+                  WindowedValue.of(value,
+                    BoundedWindow.TIMESTAMP_MIN_VALUE,
+                    GlobalWindow.INSTANCE,
+                    PaneInfo.NO_FIRING));
             }
           }).assignTimestampsAndWatermarks(new IngestionTimeExtractor<WindowedValue<T>>());
 
@@ -212,7 +216,12 @@ public class FlinkStreamingTransformTranslators {
             .flatMap(new FlatMapFunction<T, WindowedValue<T>>() {
               @Override
               public void flatMap(T s, Collector<WindowedValue<T>> collector) throws Exception {
-                collector.collect(WindowedValue.of(s, Instant.now(), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
+                collector.collect(
+                    WindowedValue.of(
+                        s,
+                        Instant.now(),
+                        GlobalWindow.INSTANCE,
+                        PaneInfo.NO_FIRING));
               }
             }).assignTimestampsAndWatermarks(new IngestionTimeExtractor<WindowedValue<T>>());
       } else {

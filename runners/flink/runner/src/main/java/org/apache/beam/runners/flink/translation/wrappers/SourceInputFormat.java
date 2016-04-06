@@ -65,11 +65,16 @@ public class SourceInputFormat<T> implements InputFormat<T, SourceInputSplit<T>>
   }
 
   @Override
-  public void configure(Configuration configuration) {}
+  public void configure(Configuration configuration) {
+    try {
+      options = new ObjectMapper().readValue(serializedOptions, PipelineOptions.class);
+    } catch (IOException e) {
+      throw new RuntimeException("Couldn't deserialize the PipelineOptions.", e);
+    }
+  }
 
   @Override
   public void open(SourceInputSplit<T> sourceInputSplit) throws IOException {
-    options = new ObjectMapper().readValue(serializedOptions, PipelineOptions.class);
     reader = ((BoundedSource<T>) sourceInputSplit.getSource()).createReader(options);
     inputAvailable = reader.start();
   }
@@ -108,12 +113,12 @@ public class SourceInputFormat<T> implements InputFormat<T, SourceInputSplit<T>>
     try {
       long desiredSizeBytes = initialSource.getEstimatedSizeBytes(options) / numSplits;
       List<? extends Source<T>> shards = initialSource.splitIntoBundles(desiredSizeBytes, options);
-      List<SourceInputSplit<T>> splits = new ArrayList<>();
-      int splitCount = 0;
-      for (Source<T> shard : shards) {
-        splits.add(new SourceInputSplit<>(shard, splitCount++));
+      int numShards = shards.size();
+      SourceInputSplit<T>[] sourceInputSplits = new SourceInputSplit[numShards];
+      for (int i = 0; i < numShards; i++) {
+        sourceInputSplits[i] = new SourceInputSplit<>(shards.get(i), i);
       }
-      return splits.toArray(new SourceInputSplit[splits.size()]);
+      return sourceInputSplits;
     } catch (Exception e) {
       throw new IOException("Could not create input splits from Source.", e);
     }
