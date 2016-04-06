@@ -17,11 +17,17 @@
  */
 package com.google.cloud.dataflow.sdk.util;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.withSettings;
 
+import com.google.cloud.dataflow.sdk.transforms.CombineWithContext.CombineFnWithContext;
+import com.google.cloud.dataflow.sdk.transforms.CombineWithContext.Context;
 import com.google.cloud.dataflow.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
+import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.util.state.StateContexts;
+import com.google.common.collect.ImmutableList;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -33,6 +39,7 @@ import org.junit.runners.JUnit4;
 import java.io.ByteArrayOutputStream;
 import java.io.NotSerializableException;
 import java.io.ObjectOutputStream;
+import java.util.List;
 
 /**
  * Unit tests for {@link CombineFnUtil}.
@@ -60,5 +67,38 @@ public class CombineFnUtilTest {
     ByteArrayOutputStream buffer = new ByteArrayOutputStream();
     ObjectOutputStream oos = new ObjectOutputStream(buffer);
     oos.writeObject(CombineFnUtil.bindContext(mockCombineFn, StateContexts.nullContext()));
+  }
+
+  @Test
+  public void testToFnWithContextIdempotent() throws Exception {
+    CombineFnWithContext<Integer, int[], Integer> fnWithContext =
+        CombineFnUtil.toFnWithContext(new Sum.SumIntegerFn());
+    assertTrue(fnWithContext == CombineFnUtil.toFnWithContext(fnWithContext));
+
+    KeyedCombineFnWithContext<Object, Integer, int[], Integer> keyedFnWithContext =
+        CombineFnUtil.toFnWithContext(new Sum.SumIntegerFn().asKeyedFn());
+    assertTrue(keyedFnWithContext == CombineFnUtil.toFnWithContext(keyedFnWithContext));
+  }
+
+  @Test
+  public void testToFnWithContext() throws Exception {
+    CombineFnWithContext<Integer, int[], Integer> fnWithContext =
+        CombineFnUtil.toFnWithContext(new Sum.SumIntegerFn());
+    List<Integer> inputs = ImmutableList.of(1, 2, 3, 4);
+    Context nullContext = CombineContextFactory.nullContext();
+    int[] accum = fnWithContext.createAccumulator(nullContext);
+    for (Integer i : inputs) {
+      accum = fnWithContext.addInput(accum, i, nullContext);
+    }
+    assertEquals(10, fnWithContext.extractOutput(accum, nullContext).intValue());
+
+    KeyedCombineFnWithContext<String, Integer, int[], Integer> keyedFnWithContext =
+        CombineFnUtil.toFnWithContext(new Sum.SumIntegerFn().<String>asKeyedFn());
+    String key = "key";
+    accum = keyedFnWithContext.createAccumulator(key, nullContext);
+    for (Integer i : inputs) {
+      accum = keyedFnWithContext.addInput(key, accum, i, nullContext);
+    }
+    assertEquals(10, keyedFnWithContext.extractOutput(key, accum, nullContext).intValue());
   }
 }
