@@ -197,10 +197,12 @@ public class TestPipeline extends Pipeline {
             if (method.getName().equals(next.getMethodName())) {
               if (method.isAnnotationPresent(org.junit.Test.class)) {
                 return Optional.of(next);
+              } else if (method.isAnnotationPresent(org.junit.Before.class)) {
+                break;
               }
             }
           }
-        } catch (ClassNotFoundException e) {
+        } catch (Throwable t) {
           break;
         }
       }
