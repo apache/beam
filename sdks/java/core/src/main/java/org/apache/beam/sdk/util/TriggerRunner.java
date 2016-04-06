@@ -226,9 +226,17 @@ public class TriggerRunner<W extends BoundedWindow> {
     rootTrigger.invokeClear(contextFactory.base(window, timers, rootTrigger, finishedSet));
   }
 
+  /**
+   * Return {@literal true} if trigger has any finished bits state.
+   */
+  public boolean hasFinishedBits(StateAccessor<?> state) {
+    return isFinishedSetNeeded() && state.access(FINISHED_BITS_TAG).read() != null;
+  }
+
   private boolean isFinishedSetNeeded() {
     // TODO: If we know that no trigger in the tree will ever finish, we don't need to do the
     // lookup. Right now, we special case this for the DefaultTrigger.
     return !(rootTrigger.getSpec() instanceof DefaultTrigger);
   }
+
 }

@@ -25,7 +25,8 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
-import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
+import org.apache.beam.sdk.transforms.windowing.Window.EmptyPaneBehavior;
+import org.apache.beam.sdk.transforms.windowing.Window.PaneIndexBehavior;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 
 import com.google.common.base.MoreObjects;
@@ -63,8 +64,10 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
   private final OutputTimeFn<? super W> outputTimeFn;
   private final ExecutableTrigger trigger;
   private final AccumulationMode mode;
+  private final PaneIndexBehavior paneIndexBehavior;
+  private final EmptyPaneBehavior onTimeBehavior;
   private final Duration allowedLateness;
-  private final ClosingBehavior closingBehavior;
+  private final EmptyPaneBehavior closingBehavior;
   private final boolean triggerSpecified;
   private final boolean modeSpecified;
   private final boolean allowedLatenessSpecified;
@@ -74,14 +77,18 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
       WindowFn<T, W> windowFn,
       ExecutableTrigger trigger, boolean triggerSpecified,
       AccumulationMode mode, boolean modeSpecified,
+      PaneIndexBehavior paneIndexBehavior,
+      EmptyPaneBehavior onTimeBehavior,
       Duration allowedLateness, boolean allowedLatenessSpecified,
       OutputTimeFn<? super W> outputTimeFn, boolean outputTimeFnSpecified,
-      ClosingBehavior closingBehavior) {
+      EmptyPaneBehavior closingBehavior) {
     this.windowFn = windowFn;
     this.trigger = trigger;
     this.triggerSpecified = triggerSpecified;
     this.mode = mode;
     this.modeSpecified = modeSpecified;
+    this.paneIndexBehavior = paneIndexBehavior;
+    this.onTimeBehavior = onTimeBehavior;
     this.allowedLateness = allowedLateness;
     this.allowedLatenessSpecified = allowedLatenessSpecified;
     this.closingBehavior = closingBehavior;
@@ -101,9 +108,11 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
     return new WindowingStrategy<>(windowFn,
         ExecutableTrigger.create(DefaultTrigger.<W>of()), false,
         AccumulationMode.DISCARDING_FIRED_PANES, false,
+        PaneIndexBehavior.SEQUENTIAL,
+        EmptyPaneBehavior.FIRE_ALWAYS,
         DEFAULT_ALLOWED_LATENESS, false,
         OutputTimeFns.outputAtEndOfWindow(), false,
-        ClosingBehavior.FIRE_IF_NON_EMPTY);
+        EmptyPaneBehavior.FIRE_IF_NON_EMPTY);
   }
 
   public WindowFn<T, W> getWindowFn() {
@@ -134,7 +143,15 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
     return modeSpecified;
   }
 
-  public ClosingBehavior getClosingBehavior() {
+  public PaneIndexBehavior getPaneIndexBehavior() {
+    return paneIndexBehavior;
+  }
+
+  public EmptyPaneBehavior getOnTimeBehavior() {
+    return onTimeBehavior;
+  }
+
+  public EmptyPaneBehavior getClosingBehavior() {
     return closingBehavior;
   }
 
@@ -155,6 +172,8 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         windowFn,
         ExecutableTrigger.create(trigger), true,
         mode, modeSpecified,
+        paneIndexBehavior,
+        onTimeBehavior,
         allowedLateness, allowedLatenessSpecified,
         outputTimeFn, outputTimeFnSpecified,
         closingBehavior);
@@ -169,6 +188,8 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         windowFn,
         trigger, triggerSpecified,
         mode, true,
+        paneIndexBehavior,
+        onTimeBehavior,
         allowedLateness, allowedLatenessSpecified,
         outputTimeFn, outputTimeFnSpecified,
         closingBehavior);
@@ -191,6 +212,8 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         typedWindowFn,
         trigger, triggerSpecified,
         mode, modeSpecified,
+        paneIndexBehavior,
+        onTimeBehavior,
         allowedLateness, allowedLatenessSpecified,
         newOutputTimeFn, outputTimeFnSpecified,
         closingBehavior);
@@ -205,16 +228,44 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         windowFn,
         trigger, triggerSpecified,
         mode, modeSpecified,
+        paneIndexBehavior,
+        onTimeBehavior,
         allowedLateness, true,
         outputTimeFn, outputTimeFnSpecified,
         closingBehavior);
   }
 
-  public WindowingStrategy<T, W> withClosingBehavior(ClosingBehavior closingBehavior) {
+  public WindowingStrategy<T, W> withPaneIndexBehavior(PaneIndexBehavior paneIndexBehavior) {
     return new WindowingStrategy<T, W>(
         windowFn,
         trigger, triggerSpecified,
         mode, modeSpecified,
+        paneIndexBehavior,
+        onTimeBehavior,
+        allowedLateness, true,
+        outputTimeFn, outputTimeFnSpecified,
+        closingBehavior);
+  }
+
+  public WindowingStrategy<T, W> withOnTimeBehavior(EmptyPaneBehavior onTimeBehavior) {
+    return new WindowingStrategy<T, W>(
+        windowFn,
+        trigger, triggerSpecified,
+        mode, modeSpecified,
+        paneIndexBehavior,
+        onTimeBehavior,
+        allowedLateness, allowedLatenessSpecified,
+        outputTimeFn, outputTimeFnSpecified,
+        closingBehavior);
+  }
+
+  public WindowingStrategy<T, W> withClosingBehavior(EmptyPaneBehavior closingBehavior) {
+    return new WindowingStrategy<T, W>(
+        windowFn,
+        trigger, triggerSpecified,
+        mode, modeSpecified,
+        paneIndexBehavior,
+        onTimeBehavior,
         allowedLateness, allowedLatenessSpecified,
         outputTimeFn, outputTimeFnSpecified,
         closingBehavior);
@@ -233,6 +284,8 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         windowFn,
         trigger, triggerSpecified,
         mode, modeSpecified,
+        paneIndexBehavior,
+        onTimeBehavior,
         allowedLateness, allowedLatenessSpecified,
         newOutputTimeFn, true,
         closingBehavior);
@@ -242,10 +295,13 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
   public String toString() {
     return MoreObjects.toStringHelper(this)
         .add("windowFn", windowFn)
-        .add("allowedLateness", allowedLateness)
         .add("trigger", trigger)
         .add("accumulationMode", mode)
+        .add("paneIndexBehavior", paneIndexBehavior)
+        .add("onTimeBehavior", onTimeBehavior)
+        .add("allowedLateness", allowedLateness)
         .add("outputTimeFn", outputTimeFn)
+        .add("closingBehavior", closingBehavior)
         .toString();
   }
 
@@ -260,6 +316,8 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         && isAllowedLatenessSpecified() == other.isAllowedLatenessSpecified()
         && isModeSpecified() == other.isModeSpecified()
         && getMode().equals(other.getMode())
+        && getPaneIndexBehavior().equals(other.getPaneIndexBehavior())
+        && getOnTimeBehavior().equals(other.getOnTimeBehavior())
         && getAllowedLateness().equals(other.getAllowedLateness())
         && getClosingBehavior().equals(other.getClosingBehavior())
         && getTrigger().equals(other.getTrigger())
@@ -268,8 +326,17 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
 
   @Override
   public int hashCode() {
-    return Objects.hash(triggerSpecified, allowedLatenessSpecified, modeSpecified,
-        windowFn, trigger, mode, allowedLateness, closingBehavior);
+    return Objects.hash(
+        triggerSpecified,
+        allowedLatenessSpecified,
+        modeSpecified,
+        windowFn,
+        trigger,
+        mode,
+        paneIndexBehavior,
+        onTimeBehavior,
+        allowedLateness,
+        closingBehavior);
   }
 
   /**

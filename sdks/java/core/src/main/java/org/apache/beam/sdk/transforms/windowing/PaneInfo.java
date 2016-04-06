@@ -23,6 +23,7 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.util.VarInt;
+import org.apache.beam.sdk.util.WindowingStrategy;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
@@ -245,10 +246,12 @@ public final class PaneInfo {
   /**
    * The zero-based index of this trigger firing that produced this pane.
    *
-   * <p>This will return 0 for the first time the timer fires, 1 for the next time, etc.
+   * <p>If the {@link WindowingStrategy#getPaneIndexBehavior} is
+   * {@link Window.PaneIndexBehavior#SEQUENTIAL} then this will return 0 for the first time the
+   * timer fires, 1 for the next time, etc. A given (key, window, pane-index) is thus guaranteed
+   * to be unique in the output of a group-by-key operation.
    *
-   * <p>A given (key, window, pane-index) is guaranteed to be unique in the
-   * output of a group-by-key operation.
+   * <p>Otherwise this value is always zero.
    */
   public long getIndex() {
     return index;
@@ -257,10 +260,12 @@ public final class PaneInfo {
   /**
    * The zero-based index of this trigger firing among non-speculative panes.
    *
-   * <p> This will return 0 for the first non-{@link Timing#EARLY} timer firing, 1 for the next one,
-   * etc.
+   * <p>If the {@link WindowingStrategy#getPaneIndexBehavior} is
+   * {@link Window.PaneIndexBehavior#SEQUENTIAL} then this will return -1 for all
+   * {@link Timing#EARLY} panes,  0 for the first non-{@link Timing#EARLY} pane, 1 for the next
+   * pane, etc.
    *
-   * <p>Always -1 for speculative data.
+   * <p>Otherwise this value is always zero.
    */
   public long getNonSpeculativeIndex() {
     return nonSpeculativeIndex;

@@ -18,9 +18,11 @@
 package org.apache.beam.sdk.util;
 
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
+import org.apache.beam.sdk.transforms.windowing.Window.PaneIndexBehavior;
 import org.apache.beam.sdk.util.state.ReadableState;
 import org.apache.beam.sdk.util.state.StateAccessor;
 import org.apache.beam.sdk.util.state.StateTag;
@@ -32,6 +34,8 @@ import com.google.common.base.Preconditions;
 
 import org.joda.time.Instant;
 
+import javax.annotation.Nullable;
+
 /**
  * Determine the timing and other properties of a new pane for a given computation, key and window.
  * Incorporates any previous pane, whether the pane has been produced because an
@@ -39,18 +43,32 @@ import org.joda.time.Instant;
  * and the current output watermark.
  */
 public class PaneInfoTracker {
-  private TimerInternals timerInternals;
-
-  public PaneInfoTracker(TimerInternals timerInternals) {
-    this.timerInternals = timerInternals;
-  }
-
   @VisibleForTesting
   static final StateTag<Object, ValueState<PaneInfo>> PANE_INFO_TAG =
       StateTags.makeSystemTagInternal(StateTags.value("pane", PaneInfoCoder.INSTANCE));
 
+  private WindowingStrategy windowingStrategy;
+  private TimerInternals timerInternals;
+
+  public PaneInfoTracker(WindowingStrategy windowingStrategy, TimerInternals timerInternals) {
+    this.windowingStrategy = windowingStrategy;
+    this.timerInternals = timerInternals;
+  }
+
+  /**
+   * Could we have any previous pane info stored?
+   */
+  public boolean hasState() {
+    return windowingStrategy.getPaneIndexBehavior() == PaneIndexBehavior.SEQUENTIAL;
+  }
+
+  /**
+   * Clear any pane info state.
+   */
   public void clear(StateAccessor<?> state) {
-    state.access(PANE_INFO_TAG).clear();
+    if (hasState()) {
+      state.access(PANE_INFO_TAG).clear();
+    }
   }
 
   /**
@@ -58,36 +76,67 @@ public class PaneInfoTracker {
    * info includes the timing for the pane, who's calculation is quite subtle.
    *
    * @param isFinal should be {@code true} only if the triggering machinery can guarantee
-   * no further firings for the
+   *                no further firings for the trigger.
    */
-  public ReadableState<PaneInfo> getNextPaneInfo(
-      ReduceFn<?, ?, ?, ?>.Context context, final boolean isFinal) {
-    final Object key = context.key();
-    final ReadableState<PaneInfo> previousPaneFuture =
-        context.state().access(PaneInfoTracker.PANE_INFO_TAG);
-    final Instant windowMaxTimestamp = context.window().maxTimestamp();
+  public <K, W extends BoundedWindow> ReadableState<PaneInfo> getNextPaneInfo(
+      final K key, W window, StateAccessor<K> state, final boolean isFinal) {
+    if (hasState()) {
+      // We'll need any previous pane info to derive the next pane's info.
+      final Instant windowMaxTimestamp = window.maxTimestamp();
+      final ReadableState<PaneInfo> previousPaneFuture =
+          state.access(PaneInfoTracker.PANE_INFO_TAG);
 
-    return new ReadableState<PaneInfo>() {
-      @Override
-      public ReadableState<PaneInfo> readLater() {
-        previousPaneFuture.readLater();
-        return this;
-      }
+      return new ReadableState<PaneInfo>() {
+        @Override
+        public ReadableState<PaneInfo> readLater() {
+          previousPaneFuture.readLater();
+          return this;
+        }
 
-      @Override
-      public PaneInfo read() {
-        PaneInfo previousPane = previousPaneFuture.read();
-        return describePane(key, windowMaxTimestamp, previousPane, isFinal);
-      }
-    };
+        @Override
+        public PaneInfo read() {
+          return describePane(key, windowMaxTimestamp, previousPaneFuture.read(), isFinal);
+        }
+      };
+    } else {
+      // Calculate the pane info without requiring access to any previous pane.
+      return new ReadableState<PaneInfo>() {
+        @Override
+        public ReadableState<PaneInfo> readLater() {
+          // Nothing to read.
+          return this;
+        }
+
+        @Override
+        public PaneInfo read() {
+          //  - never first.
+          //  - always early.
+          //  - zero for indexes.
+          return PaneInfo.createPane(
+              false,
+              isFinal,
+              isFinal ? Timing.ON_TIME : Timing.EARLY,
+              0L,
+              0L);
+        }
+      };
+    }
   }
 
-  public void storeCurrentPaneInfo(ReduceFn<?, ?, ?, ?>.Context context, PaneInfo currentPane) {
-    context.state().access(PANE_INFO_TAG).write(currentPane);
+  /**
+   * If required store {@code currentPane} so that any successor pane can build from it.
+   */
+  public void storeCurrentPaneInfo(StateAccessor<?> state, PaneInfo currentPane) {
+    if (hasState()) {
+      state.access(PANE_INFO_TAG).write(currentPane);
+    }
   }
 
-  private <W> PaneInfo describePane(
-      Object key, Instant windowMaxTimestamp, PaneInfo previousPane, boolean isFinal) {
+  /**
+   * Derive the current pane info by combining the previous pane info and state of trigger.
+   */
+  private <K> PaneInfo describePane(
+      K key, Instant windowMaxTimestamp, @Nullable PaneInfo previousPane, boolean isFinal) {
     boolean isFirst = previousPane == null;
     Timing previousTiming = isFirst ? null : previousPane.getTiming();
     long index = isFirst ? 0 : previousPane.getIndex() + 1;
@@ -125,7 +174,7 @@ public class PaneInfoTracker {
 
     WindowTracing.debug(
         "describePane: {} pane (prev was {}) for key:{}; windowMaxTimestamp:{}; "
-        + "inputWatermark:{}; outputWatermark:{}; isLateForOutput:{}",
+            + "inputWatermark:{}; outputWatermark:{}; isLateForOutput:{}",
         timing, previousTiming, key, windowMaxTimestamp, inputWM, outputWM, isLateForOutput);
 
     if (previousPane != null) {

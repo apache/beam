@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.util;
 
+import com.google.common.base.MoreObjects;
+
 import java.util.BitSet;
 
 /**
@@ -63,5 +65,10 @@ public class FinishedTriggersBitSet implements FinishedTriggers {
   @Override
   public FinishedTriggersBitSet copy() {
     return new FinishedTriggersBitSet((BitSet) bitSet.clone());
+  }
+
+  @Override
+  public String toString() {
+    return MoreObjects.toStringHelper(this).addValue(bitSet).toString();
   }
 }

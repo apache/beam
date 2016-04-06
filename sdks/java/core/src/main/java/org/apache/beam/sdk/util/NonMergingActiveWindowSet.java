@@ -90,4 +90,9 @@ public class NonMergingActiveWindowSet<W extends BoundedWindow> implements Activ
   public W mergedWriteStateAddress(Collection<W> toBeMerged, W mergeResult) {
     return mergeResult;
   }
+
+  @Override
+  public boolean hasState() {
+    return false;
+  }
 }
