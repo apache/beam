@@ -201,7 +201,7 @@ public class TestPipeline extends Pipeline {
             }
           }
         } catch (ClassNotFoundException e) {
-          continue;
+          break;
         }
       }
     }
