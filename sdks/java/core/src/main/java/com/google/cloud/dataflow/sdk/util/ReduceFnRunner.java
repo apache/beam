@@ -326,6 +326,15 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
         @SuppressWarnings("unchecked")
         W window = (W) untypedWindow;
 
+        ReduceFn<K, InputT, OutputT, W>.Context directContext =
+            contextFactory.base(window, StateStyle.DIRECT);
+        if (triggerRunner.isClosed(directContext.state())) {
+          // This window has already been closed. Ignore it now.
+          // We'll revisit it again in processElement, at which point will increment the
+          // accumulator.
+          continue;
+        }
+
         // For backwards compat with pre 1.4 only.
         if (activeWindows.isActive(window)) {
           Set<W> stateAddressWindows = activeWindows.readStateAddresses(window);
@@ -341,9 +350,6 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
         }
 
         // Add this window as NEW if it is not currently ACTIVE or MERGED.
-        // If we had already seen this window and closed its trigger, then the
-        // window will not be ACTIVE or MERGED. It will then be added as NEW here,
-        // and fall into the merging logic as usual.
         activeWindows.ensureWindowExists(window);
       }
     }
@@ -445,6 +451,17 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
 
       ReduceFn<K, InputT, OutputT, W>.Context directContext =
           contextFactory.base(window, StateStyle.DIRECT);
+      if (triggerRunner.isClosed(directContext.state())) {
+        // This window has already been closed. Reject it now.
+        droppedDueToClosedWindow.addValue(1L);
+        WindowTracing.debug(
+            "ReduceFnRunner.processElement: Dropping element at {} for key:{}; window:{} "
+            + "since original window is no longer active at inputWatermark:{}; outputWatermark:{}",
+            value.getTimestamp(), key, window, timerInternals.currentInputWatermarkTime(),
+            timerInternals.currentOutputWatermarkTime());
+        continue;
+      }
+
       W active = activeWindows.mergeResultWindow(window);
       Preconditions.checkState(active != null, "Window %s has no mergeResultWindow", window);
       windows.add(active);
@@ -462,13 +479,12 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     for (W window : windows) {
       ReduceFn<K, InputT, OutputT, W>.ProcessValueContext directContext = contextFactory.forValue(
           window, value.getValue(), value.getTimestamp(), StateStyle.DIRECT);
-
       if (triggerRunner.isClosed(directContext.state())) {
         // This window has already been closed.
         droppedDueToClosedWindow.addValue(1L);
         WindowTracing.debug(
             "ReduceFnRunner.processElement: Dropping element at {} for key:{}; window:{} "
-            + "since window is no longer active at inputWatermark:{}; outputWatermark:{}",
+            + "since merged window is no longer active at inputWatermark:{}; outputWatermark:{}",
             value.getTimestamp(), key, window, timerInternals.currentInputWatermarkTime(),
             timerInternals.currentOutputWatermarkTime());
         continue;

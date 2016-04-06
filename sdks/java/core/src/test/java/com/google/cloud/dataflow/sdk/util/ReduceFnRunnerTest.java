@@ -839,8 +839,7 @@ public class ReduceFnRunnerTest {
   }
 
   /**
-   * If an element for a closed session window ends up being merged into other still-open
-   * session windows, the resulting session window is not 'poisoned'.
+   * An element for a closed window does not contribute to merging of still open windows.
    */
   @Test
   public void testMergingWithClosedDoesNotPoison() throws Exception {
@@ -873,7 +872,7 @@ public class ReduceFnRunnerTest {
         output.get(0).getPane(),
         equalTo(PaneInfo.createPane(true, true, Timing.EARLY, 0, 0)));
     assertThat(output.get(1),
-        isSingleWindowedValue(containsInAnyOrder(1, 2, 3),
+        isSingleWindowedValue(containsInAnyOrder(1, 3),
             1, // timestamp
             1, // window start
             13)); // window end
