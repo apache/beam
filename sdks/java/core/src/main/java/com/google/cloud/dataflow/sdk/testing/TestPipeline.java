@@ -33,6 +33,7 @@ import com.google.common.collect.Iterators;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.util.Iterator;
 
 import javax.annotation.Nullable;
@@ -183,12 +184,29 @@ public class TestPipeline extends Pipeline {
       }
     }
     // Then find the first instance after that is not the TestPipeline
+    Optional<StackTraceElement> firstInstanceAfterTestPipeline = Optional.absent();
     while (elements.hasNext()) {
       StackTraceElement next = elements.next();
       if (!TestPipeline.class.getName().equals(next.getClassName())) {
-        return Optional.of(next);
+        if (!firstInstanceAfterTestPipeline.isPresent()) {
+          firstInstanceAfterTestPipeline = Optional.of(next);
+        }
+        try {
+          Class<?> nextClass = Class.forName(next.getClassName());
+          for (Method method : nextClass.getMethods()) {
+            if (method.getName().equals(next.getMethodName())) {
+              if (method.isAnnotationPresent(org.junit.Test.class)) {
+                return Optional.of(next);
+              } else if (method.isAnnotationPresent(org.junit.Before.class)) {
+                break;
+              }
+            }
+          }
+        } catch (Throwable t) {
+          break;
+        }
       }
     }
-    return Optional.absent();
+    return firstInstanceAfterTestPipeline;
   }
 }
