@@ -63,7 +63,6 @@ public class MergingActiveWindowSetTest {
   }
 
   private void add(final long instant) {
-    System.out.println("ADD " + instant);
     final Object element = new Long(instant);
     Sessions.AssignContext context = windowFn.new AssignContext() {
       @Override
@@ -88,20 +87,16 @@ public class MergingActiveWindowSetTest {
   }
 
   private void merge(ActiveWindowSet.MergeCallback<IntervalWindow> callback) throws Exception {
-    System.out.println("MERGE");
     set.merge(callback);
     for (IntervalWindow window : set.getActiveWindows()) {
       set.ensureWindowIsActive(window);
     }
     set.checkInvariants();
-    System.out.println(set);
   }
 
   private void pruneAndPersist() {
-    System.out.println("PRUNE");
     set.cleanupTemporaryWindows();
     set.checkInvariants();
-    System.out.println(set);
     set.persist();
   }
 
