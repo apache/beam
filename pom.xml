@@ -140,6 +140,35 @@
         <dataflow.javadoc_opts>-Xdoclint:-missing</dataflow.javadoc_opts>
       </properties>
     </profile>
+    <profile>
+      <id>src</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-assembly-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>src</id>
+                <phase>package</phase>
+                <goals>
+                  <goal>single</goal>
+                </goals>
+                <configuration>
+                  <finalName>apache-beam-${project.version}</finalName>
+                  <descriptors>
+                    <descriptor>sdks/java/src.xml</descriptor>
+                  </descriptors>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
   </profiles>
 
   <build>
@@ -343,6 +372,18 @@
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>build-helper-maven-plugin</artifactId>
           <version>1.10</version>
+        </plugin>
+
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-release-plugin</artifactId>
+          <version>2.5.3</version>
+          <configuration>
+            <releaseProfiles>src</releaseProfiles>
+            <preparationGoals>clean install</preparationGoals>
+            <goals>deploy</goals>
+            <autoVersionSubmodules>true</autoVersionSubmodules>
+          </configuration>
         </plugin>
       </plugins>
     </pluginManagement>
