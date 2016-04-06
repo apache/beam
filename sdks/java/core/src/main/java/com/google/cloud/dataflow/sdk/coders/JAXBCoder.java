@@ -138,7 +138,6 @@ public class JAXBCoder<T> extends AtomicCoder<T> {
     @Override
     public void close() throws IOException {
       // JAXB closes the underlying stream so we must filter out those calls.
-      flush();
     }
   }
 
