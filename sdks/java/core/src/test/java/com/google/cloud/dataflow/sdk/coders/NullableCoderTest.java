@@ -18,8 +18,10 @@
 package com.google.cloud.dataflow.sdk.coders;
 
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.theInstance;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.testing.CoderProperties;
@@ -130,4 +132,9 @@ public class NullableCoderTest {
     TEST_CODER.decode(input, Coder.Context.OUTER);
   }
 
+  @Test
+  public void testNestedNullableCoder() {
+    NullableCoder<Double> coder = NullableCoder.of(DoubleCoder.of());
+    assertThat(NullableCoder.of(coder), theInstance(coder));
+  }
 }
