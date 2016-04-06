@@ -19,6 +19,8 @@ package com.google.cloud.dataflow.sdk.coders;
 
 import com.google.cloud.dataflow.sdk.util.CloudObject;
 import com.google.cloud.dataflow.sdk.util.Structs;
+import com.google.cloud.dataflow.sdk.util.VarInt;
+import com.google.common.io.ByteStreams;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -71,13 +73,19 @@ public class JAXBCoder<T> extends AtomicCoder<T> {
         JAXBContext jaxbContext = JAXBContext.newInstance(jaxbClass);
         jaxbMarshaller = jaxbContext.createMarshaller();
       }
-
-      jaxbMarshaller.marshal(value, new FilterOutputStream(outStream) {
-        // JAXB closes the underyling stream so we must filter out those calls.
-        @Override
-        public void close() throws IOException {
+      if (!context.isWholeStream) {
+        try {
+          long size = getEncodedElementByteSize(value, Context.OUTER);
+          // record the number of bytes the XML consists of so when reading we only read the encoded
+          // value
+          VarInt.encode(size, outStream);
+        } catch (Exception e) {
+          throw new CoderException(
+              "An Exception occured while trying to get the size of an encoded representation", e);
         }
-      });
+      }
+
+      jaxbMarshaller.marshal(value, new CloseIgnoringOutputStream(outStream));
     } catch (JAXBException e) {
       throw new CoderException(e);
     }
@@ -91,13 +99,13 @@ public class JAXBCoder<T> extends AtomicCoder<T> {
         jaxbUnmarshaller = jaxbContext.createUnmarshaller();
       }
 
+      InputStream stream = inStream;
+      if (!context.isWholeStream) {
+        long limit = VarInt.decodeLong(inStream);
+        stream = ByteStreams.limit(inStream, limit);
+      }
       @SuppressWarnings("unchecked")
-      T obj = (T) jaxbUnmarshaller.unmarshal(new FilterInputStream(inStream) {
-        // JAXB closes the underyling stream so we must filter out those calls.
-        @Override
-        public void close() throws IOException {
-        }
-      });
+      T obj = (T) jaxbUnmarshaller.unmarshal(new CloseIgnoringInputStream(stream));
       return obj;
     } catch (JAXBException e) {
       throw new CoderException(e);
@@ -107,6 +115,30 @@ public class JAXBCoder<T> extends AtomicCoder<T> {
   @Override
   public String getEncodingId() {
     return getJAXBClass().getName();
+  }
+
+  private static class CloseIgnoringInputStream extends FilterInputStream {
+
+    protected CloseIgnoringInputStream(InputStream in) {
+      super(in);
+    }
+
+    @Override
+    public void close() {
+      // Do nothing. JAXB closes the underlying stream so we must filter out those calls.
+    }
+  }
+
+  private static class CloseIgnoringOutputStream extends FilterOutputStream {
+
+    protected CloseIgnoringOutputStream(OutputStream out) {
+      super(out);
+    }
+
+    @Override
+    public void close() throws IOException {
+      // JAXB closes the underlying stream so we must filter out those calls.
+    }
   }
 
   ////////////////////////////////////////////////////////////////////////////////////
