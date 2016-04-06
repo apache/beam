@@ -236,6 +236,10 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     return createRunner().isFinished(window);
   }
 
+  public boolean hasNoActiveWindows() {
+    return createRunner().hasNoActiveWindows();
+  }
+
   @SafeVarargs
   public final void assertHasOnlyGlobalAndFinishedSetsFor(W... expectedWindows) {
     assertHasOnlyGlobalAndAllowedTags(
