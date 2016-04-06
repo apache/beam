@@ -184,18 +184,18 @@ public class TestPipeline extends Pipeline {
       }
     }
     // Then find the first instance after that is not the TestPipeline
-    StackTraceElement candidate = null;
+    Optional<StackTraceElement> firstInstanceAfterTestPipeline = Optional.absent();
     while (elements.hasNext()) {
       StackTraceElement next = elements.next();
       if (!TestPipeline.class.getName().equals(next.getClassName())) {
-        if (candidate == null) {
-          candidate = next;
+        if (!firstInstanceAfterTestPipeline.isPresent()) {
+          firstInstanceAfterTestPipeline = Optional.of(next);
         }
         try {
           Class<?> nextClass = Class.forName(next.getClassName());
           for (Method method : nextClass.getMethods()) {
             if (method.getName().equals(next.getMethodName())) {
-              if (method.getAnnotation(org.junit.Test.class) != null) {
+              if (method.isAnnotationPresent(org.junit.Test.class)) {
                 return Optional.of(next);
               }
             }
@@ -205,6 +205,6 @@ public class TestPipeline extends Pipeline {
         }
       }
     }
-    return Optional.fromNullable(candidate);
+    return firstInstanceAfterTestPipeline;
   }
 }

@@ -98,11 +98,27 @@ public class TestPipelineTest {
 
     assertEquals("TestPipeline#TestPipelineTest-testToStringNestedMethod", p.toString());
     assertEquals(
-        p.getOptions().as(ApplicationNameOptions.class).getAppName(),
-        "TestPipelineTest-testToStringNestedMethod");
+        "TestPipelineTest-testToStringNestedMethod",
+        p.getOptions().as(ApplicationNameOptions.class).getAppName());
   }
 
   private TestPipeline nestedMethod() {
     return TestPipeline.create();
+  }
+
+  @Test
+  public void testToStringNestedClassMethod() {
+    TestPipeline p = new NestedTester().p();
+
+    assertEquals("TestPipeline#TestPipelineTest-testToStringNestedClassMethod", p.toString());
+    assertEquals(
+        "TestPipelineTest-testToStringNestedClassMethod",
+        p.getOptions().as(ApplicationNameOptions.class).getAppName());
+  }
+
+  private static class NestedTester {
+    public TestPipeline p() {
+      return TestPipeline.create();
+    }
   }
 }
