@@ -82,6 +82,13 @@ public class TriggerRunner<W extends BoundedWindow> {
             : FinishedTriggersBitSet.fromBitSet(bitSet);
   }
 
+  private void clearFinishedBits(ValueState<BitSet> state) {
+    if (!isFinishedSetNeeded()) {
+      // Nothing to clear.
+      return;
+    }
+    state.clear();
+  }
   /** Return true if the trigger is closed in the window corresponding to the specified state. */
   public boolean isClosed(StateAccessor<?> state) {
     return readFinishedBits(state.access(FINISHED_BITS_TAG)).isFinished(rootTrigger);
@@ -149,6 +156,8 @@ public class TriggerRunner<W extends BoundedWindow> {
         state.accessInEachMergingWindow(FINISHED_BITS_TAG).entrySet()) {
       // Don't need to clone these, since the trigger context doesn't allow modification
       builder.put(entry.getKey(), readFinishedBits(entry.getValue()));
+      // Clear the underlying finished bits.
+      clearFinishedBits(entry.getValue());
     }
     ImmutableMap<W, FinishedTriggers> mergingFinishedSets = builder.build();
 
@@ -160,8 +169,6 @@ public class TriggerRunner<W extends BoundedWindow> {
 
     persistFinishedSet(state, finishedSet);
 
-    // Clear the finished bits.
-    clearFinished(state);
   }
 
   public boolean shouldFire(W window, Timers timers, StateAccessor<?> state) throws Exception {
@@ -197,12 +204,10 @@ public class TriggerRunner<W extends BoundedWindow> {
   }
 
   /**
-   * Clear finished bits.
+   * Clear the finished bits.
    */
   public void clearFinished(StateAccessor<?> state) {
-    if (isFinishedSetNeeded()) {
-      state.access(FINISHED_BITS_TAG).clear();
-    }
+    clearFinishedBits(state.access(FINISHED_BITS_TAG));
   }
 
   /**
