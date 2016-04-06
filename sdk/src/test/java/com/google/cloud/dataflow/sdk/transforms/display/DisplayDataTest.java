@@ -553,6 +553,7 @@ public class DisplayDataTest {
       });
   }
 
+  @Test
   public void testAcceptsNullOptionalValues() {
     DisplayData.from(
       new HasDisplayData() {

@@ -69,6 +69,7 @@ import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 
 import org.hamcrest.Matchers;
@@ -817,10 +818,10 @@ public class DataflowPipelineTranslatorTest implements Serializable {
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
         builder
-                .add("foo", "bar")
-                .add("foo2", DataflowPipelineTranslatorTest.class)
-                .withLabel("Test Class")
-                .withLinkUrl("http://www.google.com");
+            .add("foo", "bar")
+            .add("foo2", 123)
+            .withLabel("Test Value")
+            .withLinkUrl("http://www.google.com");
       }
     };
 
@@ -836,10 +837,12 @@ public class DataflowPipelineTranslatorTest implements Serializable {
       }
     };
 
+    ParDo.Bound<Integer, Integer> parDo1 = ParDo.of(fn1);
+    ParDo.Bound<Integer, Integer> parDo2 = ParDo.of(fn2);
     pipeline
       .apply(Create.of(1, 2, 3))
-      .apply(ParDo.of(fn1))
-      .apply(ParDo.of(fn2));
+      .apply(parDo1)
+      .apply(parDo2);
 
     Job job = translator.translate(
         pipeline, pipeline.getRunner(), Collections.<DataflowPackage>emptyList()).getJob();
@@ -856,34 +859,33 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     Collection<Map<String, String>> fn2displayData =
             (Collection<Map<String, String>>) parDo2Properties.get("display_data");
 
-    ImmutableList expectedFn1DisplayData = ImmutableList.of(
-            ImmutableMap.<String, String>builder()
-              .put("namespace", fn1.getClass().getName())
-              .put("key", "foo")
-              .put("type", "STRING")
-              .put("value", "bar")
-              .build(),
-            ImmutableMap.<String, String>builder()
-              .put("namespace", fn1.getClass().getName())
-              .put("key", "foo2")
-              .put("type", "JAVA_CLASS")
-              .put("value", DataflowPipelineTranslatorTest.class.getName())
-              .put("shortValue", DataflowPipelineTranslatorTest.class.getSimpleName())
-              .put("label", "Test Class")
-              .put("linkUrl", "http://www.google.com")
-              .build()
+    ImmutableSet<ImmutableMap<String, String>> expectedFn1DisplayData = ImmutableSet.of(
+        ImmutableMap.<String, String>builder()
+            .put("key", "foo")
+            .put("type", "STRING")
+            .put("value", "bar")
+            .put("namespace", fn1.getClass().getName())
+            .build(),
+        ImmutableMap.<String, String>builder()
+            .put("key", "foo2")
+            .put("type", "INTEGER")
+            .put("value", "123")
+            .put("namespace", fn1.getClass().getName())
+            .put("label", "Test Value")
+            .put("linkUrl", "http://www.google.com")
+            .build()
     );
 
-    ImmutableList expectedFn2DisplayData = ImmutableList.of(
-            ImmutableMap.<String, String>builder()
-                    .put("namespace", fn2.getClass().getName())
-                    .put("key", "foo3")
-                    .put("type", "STRING")
-                    .put("value", "barge")
-                    .build()
+    ImmutableSet<ImmutableMap<String, String>> expectedFn2DisplayData = ImmutableSet.of(
+        ImmutableMap.<String, String>builder()
+            .put("key", "foo3")
+            .put("type", "STRING")
+            .put("value", "barge")
+            .put("namespace", fn2.getClass().getName())
+            .build()
     );
 
-    assertEquals(expectedFn1DisplayData, fn1displayData);
-    assertEquals(expectedFn2DisplayData, fn2displayData);
+    assertEquals(expectedFn1DisplayData, ImmutableSet.copyOf(fn1displayData));
+    assertEquals(expectedFn2DisplayData, ImmutableSet.copyOf(fn2displayData));
   }
 }
