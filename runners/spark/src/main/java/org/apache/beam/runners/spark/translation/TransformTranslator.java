@@ -18,11 +18,6 @@
 
 package org.apache.beam.runners.spark.translation;
 
-import static org.apache.beam.runners.spark.io.hadoop.ShardNameBuilder.getOutputDirectory;
-import static org.apache.beam.runners.spark.io.hadoop.ShardNameBuilder.getOutputFilePrefix;
-import static org.apache.beam.runners.spark.io.hadoop.ShardNameBuilder.getOutputFileTemplate;
-import static org.apache.beam.runners.spark.io.hadoop.ShardNameBuilder.replaceShardCount;
-
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.Arrays;
@@ -30,7 +25,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import com.google.api.client.util.Maps;
+import static org.apache.beam.runners.spark.io.hadoop.ShardNameBuilder.getOutputDirectory;
+import static org.apache.beam.runners.spark.io.hadoop.ShardNameBuilder.getOutputFilePrefix;
+import static org.apache.beam.runners.spark.io.hadoop.ShardNameBuilder.getOutputFileTemplate;
+import static org.apache.beam.runners.spark.io.hadoop.ShardNameBuilder.replaceShardCount;
+
 import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
@@ -40,7 +39,6 @@ import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.Flatten;
-import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.View;
@@ -49,6 +47,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.AssignWindowsDoFn;
+import com.google.cloud.dataflow.sdk.util.GroupByKeyViaGroupByKeyOnly.GroupByKeyOnly;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -57,6 +56,8 @@ import com.google.cloud.dataflow.sdk.values.PCollectionTuple;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
 import org.apache.avro.mapred.AvroKey;
 import org.apache.avro.mapreduce.AvroJob;
@@ -79,7 +80,9 @@ import org.apache.spark.api.java.JavaRDDLike;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.Function2;
+import org.apache.spark.api.java.function.PairFlatMapFunction;
 import org.apache.spark.api.java.function.PairFunction;
+
 import scala.Tuple2;
 
 /**
@@ -128,10 +131,10 @@ public final class TransformTranslator {
     };
   }
 
-  private static <K, V> TransformEvaluator<GroupByKey.GroupByKeyOnly<K, V>> gbk() {
-    return new TransformEvaluator<GroupByKey.GroupByKeyOnly<K, V>>() {
+  private static <K, V> TransformEvaluator<GroupByKeyOnly<K, V>> gbk() {
+    return new TransformEvaluator<GroupByKeyOnly<K, V>>() {
       @Override
-      public void evaluate(GroupByKey.GroupByKeyOnly<K, V> transform, EvaluationContext context) {
+      public void evaluate(GroupByKeyOnly<K, V> transform, EvaluationContext context) {
         @SuppressWarnings("unchecked")
         JavaRDDLike<WindowedValue<KV<K, V>>, ?> inRDD =
             (JavaRDDLike<WindowedValue<KV<K, V>>, ?>) context.getInputRDD(transform);
@@ -267,15 +270,21 @@ public final class TransformTranslator {
 
         // Key has to bw windowed in order to group by window as well
         JavaPairRDD<WindowedValue<K>, WindowedValue<KV<K, VI>>> inRddDuplicatedKeyPair =
-            inRdd.mapToPair(
-                new PairFunction<WindowedValue<KV<K, VI>>, WindowedValue<K>,
+            inRdd.flatMapToPair(
+                new PairFlatMapFunction<WindowedValue<KV<K, VI>>, WindowedValue<K>,
                     WindowedValue<KV<K, VI>>>() {
                   @Override
-                  public Tuple2<WindowedValue<K>,
-                      WindowedValue<KV<K, VI>>> call(WindowedValue<KV<K, VI>> kv) {
-                    WindowedValue<K> wk = WindowedValue.of(kv.getValue().getKey(),
-                        kv.getTimestamp(), kv.getWindows(), kv.getPane());
-                    return new Tuple2<>(wk, kv);
+                  public Iterable<Tuple2<WindowedValue<K>,
+                      WindowedValue<KV<K, VI>>>> call(WindowedValue<KV<K, VI>> kv) {
+                      List<Tuple2<WindowedValue<K>,
+                          WindowedValue<KV<K, VI>>>> tuple2s =
+                          Lists.newArrayListWithCapacity(kv.getWindows().size());
+                      for (BoundedWindow boundedWindow: kv.getWindows()) {
+                        WindowedValue<K> wk = WindowedValue.of(kv.getValue().getKey(),
+                            boundedWindow.maxTimestamp(), boundedWindow, kv.getPane());
+                        tuple2s.add(new Tuple2<>(wk, kv));
+                      }
+                    return tuple2s;
                   }
                 });
         //-- windowed coders
@@ -768,7 +777,7 @@ public final class TransformTranslator {
     EVALUATORS.put(HadoopIO.Write.Bound.class, writeHadoop());
     EVALUATORS.put(ParDo.Bound.class, parDo());
     EVALUATORS.put(ParDo.BoundMulti.class, multiDo());
-    EVALUATORS.put(GroupByKey.GroupByKeyOnly.class, gbk());
+    EVALUATORS.put(GroupByKeyOnly.class, gbk());
     EVALUATORS.put(Combine.GroupedValues.class, grouped());
     EVALUATORS.put(Combine.Globally.class, combineGlobally());
     EVALUATORS.put(Combine.PerKey.class, combinePerKey());
