@@ -21,7 +21,6 @@ package com.google.cloud.dataflow.examples;
 import com.google.cloud.dataflow.sdk.PipelineResult;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestDataflowPipelineRunner;
-import com.google.common.base.Splitter;
 
 import java.util.Map;
 
@@ -38,24 +37,21 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class WordCountIT extends BatchE2ETest {
-
   @Test
   @Category(RunnableOnService.class)
   public void testE2EWordCountOnDataflow() throws Exception {
-    String dataflowOptions = 
-        System.getProperty("dataflowOptions", "bucket=apache-beam-testing-temp-storage");
-    System.out.println("dataflowOptions = " + dataflowOptions);
-    Map<String, String> dataflowOptionsMap = 
-        Splitter.on(",").withKeyValueSeparator("=").split(dataflowOptions);
-    String bucket = dataflowOptionsMap.get("bucket");
-    System.out.println("bucket = " + bucket);
+    parseTestOptions("testFileLocation");
+    String testFileLocation = testOptionsMap.get("testFileLocation");
+    if (!testFileLocation.endsWith("/")) {
+      testFileLocation = testFileLocation + "/";
+    }
     
     String jobName = "wordcount-" + generateTestIdentifier() + "-prod";
     String[] args = {
         "--jobName=" + jobName,
         "--runner=com.google.cloud.dataflow.sdk.testing.TestDataflowPipelineRunner",
-        "--stagingLocation=" + bucket + "/staging/" + jobName,
-        "--output=" + bucket + "/output/" + jobName + "/results",
+        "--stagingLocation=" + testFileLocation + "staging/" + jobName,
+        "--output=" + testFileLocation + "output/" + jobName + "/results",
         "--workerLogLevelOverrides="
         + "{\"com.google.cloud.dataflow.sdk.util.UploadIdResponseInterceptor\":\"DEBUG\"}"};
 
