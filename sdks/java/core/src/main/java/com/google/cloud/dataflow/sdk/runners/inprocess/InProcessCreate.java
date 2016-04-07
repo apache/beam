@@ -17,8 +17,6 @@
  */
 package com.google.cloud.dataflow.sdk.runners.inprocess;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
 import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
@@ -60,18 +58,16 @@ class InProcessCreate<T> extends ForwardingPTransform<PInput, PCollection<T>> {
    * A {@link PTransformOverrideFactory} for {@link InProcessCreate}.
    */
   public static class InProcessCreateOverrideFactory implements PTransformOverrideFactory {
-    @SuppressWarnings("unchecked")
     @Override
-    public <InputT extends PInput, OutputT extends POutput>
-        PTransform<InputT, OutputT> override(PTransform<InputT, OutputT> transform) {
-      checkArgument(
-          transform instanceof Create.Values,
-          "%s can only be applied to instances of %s, got %s",
-          InProcessCreateOverrideFactory.class.getSimpleName(),
-          Create.Values.class.getSimpleName(),
-          transform.getClass().getSimpleName());
-      Create.Values<OutputT> create = (Create.Values<OutputT>) transform;
-      return (PTransform<InputT, OutputT>) from(create);
+    public <InputT extends PInput, OutputT extends POutput> PTransform<InputT, OutputT> override(
+        PTransform<InputT, OutputT> transform) {
+      if (transform instanceof Create.Values) {
+        @SuppressWarnings("unchecked")
+        PTransform<InputT, OutputT> override =
+            (PTransform<InputT, OutputT>) from((Create.Values<OutputT>) transform);
+        return override;
+      }
+      return transform;
     }
   }
 

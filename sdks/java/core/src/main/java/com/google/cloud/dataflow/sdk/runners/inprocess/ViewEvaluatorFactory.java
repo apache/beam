@@ -17,8 +17,6 @@
  */
 package com.google.cloud.dataflow.sdk.runners.inprocess;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.PCollectionViewWriter;
@@ -85,19 +83,17 @@ class ViewEvaluatorFactory implements TransformEvaluatorFactory {
   }
 
   public static class InProcessViewOverrideFactory implements PTransformOverrideFactory {
-    @SuppressWarnings("unchecked")
     @Override
     public <InputT extends PInput, OutputT extends POutput>
         PTransform<InputT, OutputT> override(PTransform<InputT, OutputT> transform) {
-      checkArgument(
-          transform instanceof CreatePCollectionView,
-          "%s can only be applied to instances of %s, got %s",
-          InProcessViewOverrideFactory.class.getSimpleName(),
-          CreatePCollectionView.class.getSimpleName(),
-          transform.getClass().getSimpleName());
-      @SuppressWarnings("rawtypes")
-      CreatePCollectionView createView = (CreatePCollectionView) transform;
-      return (PTransform<InputT, OutputT>) new InProcessCreatePCollectionView<>(createView);
+      if (transform instanceof CreatePCollectionView) {
+
+      }
+      @SuppressWarnings({"rawtypes", "unchecked"})
+      PTransform<InputT, OutputT> createView =
+          (PTransform<InputT, OutputT>)
+              new InProcessCreatePCollectionView<>((CreatePCollectionView) transform);
+      return createView;
     }
   }
 

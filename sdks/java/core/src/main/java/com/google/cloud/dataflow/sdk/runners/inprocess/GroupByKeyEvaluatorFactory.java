@@ -18,7 +18,6 @@
 package com.google.cloud.dataflow.sdk.runners.inprocess;
 
 import static com.google.cloud.dataflow.sdk.util.CoderUtils.encodeToByteArray;
-import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
@@ -186,19 +185,15 @@ class GroupByKeyEvaluatorFactory implements TransformEvaluatorFactory {
    */
   public static final class InProcessGroupByKeyOverrideFactory
       implements PTransformOverrideFactory {
-    @SuppressWarnings("unchecked")
     @Override
-    public <InputT extends PInput, OutputT extends POutput>
-        PTransform<InputT, OutputT> override(PTransform<InputT, OutputT> transform) {
-      checkArgument(
-          transform instanceof GroupByKey,
-          "%s can only produce overrides for %s, got %s",
-          InProcessGroupByKeyOverrideFactory.class.getSimpleName(),
-          GroupByKey.class.getSimpleName(),
-          transform.getClass().getSimpleName());
-      @SuppressWarnings("rawtypes")
-      InProcessGroupByKey override = new InProcessGroupByKey((GroupByKey) transform);
-      return override;
+    public <InputT extends PInput, OutputT extends POutput> PTransform<InputT, OutputT> override(
+        PTransform<InputT, OutputT> transform) {
+      if (transform instanceof GroupByKey) {
+        @SuppressWarnings({"rawtypes", "unchecked"})
+        PTransform<InputT, OutputT> override = new InProcessGroupByKey((GroupByKey) transform);
+        return override;
+      }
+      return transform;
     }
   }
 
