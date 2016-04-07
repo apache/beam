@@ -99,6 +99,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.DataflowReleaseInfo;
+import com.google.cloud.dataflow.sdk.util.DataflowTransport;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
 import com.google.cloud.dataflow.sdk.util.InstanceBuilder;
 import com.google.cloud.dataflow.sdk.util.MonitoringUtil;
@@ -107,7 +108,6 @@ import com.google.cloud.dataflow.sdk.util.PathValidator;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.Reshuffle;
 import com.google.cloud.dataflow.sdk.util.SystemDoFnInternal;
-import com.google.cloud.dataflow.sdk.util.Transport;
 import com.google.cloud.dataflow.sdk.util.ValueWithRecordId;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowedValue.FullWindowedValueCoder;
@@ -444,7 +444,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
       throw new RuntimeException("Should not specify the debuggee");
     }
 
-    Clouddebugger debuggerClient = Transport.newClouddebuggerClient(options).build();
+    Clouddebugger debuggerClient = DataflowTransport.newClouddebuggerClient(options).build();
     Debuggee debuggee = registerDebuggee(debuggerClient, uniquifier);
     options.setDebuggee(debuggee);
 
@@ -600,7 +600,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     // regularly and need not be retried automatically.
     DataflowPipelineJob dataflowPipelineJob =
         new DataflowPipelineJob(options.getProject(), jobResult.getId(),
-            Transport.newRawDataflowClient(options).build(), aggregatorTransforms);
+            DataflowTransport.newRawDataflowClient(options).build(), aggregatorTransforms);
 
     // If the service returned client request id, the SDK needs to compare it
     // with the original id generated in the request, if they are not the same

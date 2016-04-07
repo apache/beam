@@ -28,10 +28,8 @@ import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.MapCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
-import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.DirectPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
@@ -41,7 +39,6 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.InvalidWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFns;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Sessions;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
-import com.google.cloud.dataflow.sdk.util.NoopPathValidator;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PBegin;
@@ -241,21 +238,6 @@ public class GroupByKeyTest {
                     Duration.standardMinutes(1)))));
   }
 
-  /**
-   * Create a test pipeline that uses the {@link DataflowPipelineRunner} so that {@link GroupByKey}
-   * is not expanded. This is used for verifying that even without expansion the proper errors show
-   * up.
-   */
-  private Pipeline createTestServiceRunner() {
-    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    options.setRunner(DataflowPipelineRunner.class);
-    options.setProject("someproject");
-    options.setStagingLocation("gs://staging");
-    options.setPathValidatorClass(NoopPathValidator.class);
-    options.setDataflowClient(null);
-    return Pipeline.create(options);
-  }
-
   private Pipeline createTestDirectRunner() {
     DirectPipelineOptions options = PipelineOptionsFactory.as(DirectPipelineOptions.class);
     options.setRunner(DirectPipelineRunner.class);
@@ -265,25 +247,6 @@ public class GroupByKeyTest {
   @Test
   public void testInvalidWindowsDirect() {
     Pipeline p = createTestDirectRunner();
-
-    List<KV<String, Integer>> ungroupedPairs = Arrays.asList();
-
-    PCollection<KV<String, Integer>> input =
-        p.apply(Create.of(ungroupedPairs)
-            .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())))
-        .apply(Window.<KV<String, Integer>>into(
-            Sessions.withGapDuration(Duration.standardMinutes(1))));
-
-    thrown.expect(IllegalStateException.class);
-    thrown.expectMessage("GroupByKey must have a valid Window merge function");
-    input
-        .apply("GroupByKey", GroupByKey.<String, Integer>create())
-        .apply("GroupByKeyAgain", GroupByKey.<String, Iterable<Integer>>create());
-  }
-
-  @Test
-  public void testInvalidWindowsService() {
-    Pipeline p = createTestServiceRunner();
 
     List<KV<String, Integer>> ungroupedPairs = Arrays.asList();
 
@@ -346,31 +309,6 @@ public class GroupByKeyTest {
     thrown.expectMessage(
         "GroupByKey cannot be applied to non-bounded PCollection in the GlobalWindow without "
             + "a trigger. Use a Window.into or Window.triggering transform prior to GroupByKey.");
-
-    input.apply("GroupByKey", GroupByKey.<String, Integer>create());
-  }
-
-  @Test
-  public void testGroupByKeyServiceUnbounded() {
-    Pipeline p = createTestServiceRunner();
-
-    PCollection<KV<String, Integer>> input =
-        p.apply(
-            new PTransform<PBegin, PCollection<KV<String, Integer>>>() {
-              @Override
-              public PCollection<KV<String, Integer>> apply(PBegin input) {
-                return PCollection.<KV<String, Integer>>createPrimitiveOutputInternal(
-                        input.getPipeline(),
-                        WindowingStrategy.globalDefault(),
-                        PCollection.IsBounded.UNBOUNDED)
-                    .setTypeDescriptorInternal(new TypeDescriptor<KV<String, Integer>>() {});
-              }
-            });
-
-    thrown.expect(IllegalStateException.class);
-    thrown.expectMessage(
-        "GroupByKey cannot be applied to non-bounded PCollection in the GlobalWindow without "
-        + "a trigger. Use a Window.into or Window.triggering transform prior to GroupByKey.");
 
     input.apply("GroupByKey", GroupByKey.<String, Integer>create());
   }

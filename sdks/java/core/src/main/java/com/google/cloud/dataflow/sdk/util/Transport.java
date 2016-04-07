@@ -24,14 +24,11 @@ import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.bigquery.Bigquery;
-import com.google.api.services.clouddebugger.v2.Clouddebugger;
-import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.pubsub.Pubsub;
 import com.google.api.services.storage.Storage;
 import com.google.cloud.dataflow.sdk.options.BigQueryOptions;
-import com.google.cloud.dataflow.sdk.options.DataflowPipelineDebugOptions;
-import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.GcsOptions;
+import com.google.cloud.dataflow.sdk.options.PubsubOptions;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
 import com.google.common.collect.ImmutableList;
 
@@ -92,10 +89,7 @@ public class Transport {
   }
 
   /**
-   * Returns a BigQuery client builder.
-   *
-   * <p>Note: this client's endpoint is <b>not</b> modified by the
-   * {@link DataflowPipelineDebugOptions#getApiRootUrl()} option.
+   * Returns a BigQuery client builder using the specified {@link BigQueryOptions}.
    */
   public static Bigquery.Builder
       newBigQueryClient(BigQueryOptions options) {
@@ -109,13 +103,10 @@ public class Transport {
   }
 
   /**
-   * Returns a Pubsub client builder.
-   *
-   * <p>Note: this client's endpoint is <b>not</b> modified by the
-   * {@link DataflowPipelineDebugOptions#getApiRootUrl()} option.
+   * Returns a Pubsub client builder using the specified {@link PubsubOptions}.
    */
   public static Pubsub.Builder
-      newPubsubClient(DataflowPipelineOptions options) {
+      newPubsubClient(PubsubOptions options) {
     return new Pubsub.Builder(getTransport(), getJsonFactory(),
         chainHttpRequestInitializer(
             options.getGcpCredential(),
@@ -127,53 +118,7 @@ public class Transport {
   }
 
   /**
-   * Returns a Google Cloud Dataflow client builder.
-   */
-  public static Dataflow.Builder newDataflowClient(DataflowPipelineOptions options) {
-    String servicePath = options.getDataflowEndpoint();
-    ApiComponents components;
-    if (servicePath.contains("://")) {
-      components = apiComponentsFromUrl(servicePath);
-    } else {
-      components = new ApiComponents(options.getApiRootUrl(), servicePath);
-    }
-
-    return new Dataflow.Builder(getTransport(),
-        getJsonFactory(),
-        chainHttpRequestInitializer(
-            options.getGcpCredential(),
-            // Do not log 404. It clutters the output and is possibly even required by the caller.
-            new RetryHttpRequestInitializer(ImmutableList.of(404))))
-        .setApplicationName(options.getAppName())
-        .setRootUrl(components.rootUrl)
-        .setServicePath(components.servicePath)
-        .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
-  }
-
-  public static Clouddebugger.Builder newClouddebuggerClient(DataflowPipelineOptions options) {
-    return new Clouddebugger.Builder(getTransport(),
-        getJsonFactory(),
-        chainHttpRequestInitializer(options.getGcpCredential(), new RetryHttpRequestInitializer()))
-        .setApplicationName(options.getAppName())
-        .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
-  }
-
-  /**
-   * Returns a Dataflow client that does not automatically retry failed
-   * requests.
-   */
-  public static Dataflow.Builder
-      newRawDataflowClient(DataflowPipelineOptions options) {
-    return newDataflowClient(options)
-        .setHttpRequestInitializer(options.getGcpCredential())
-        .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
-  }
-
-  /**
-   * Returns a Cloud Storage client builder.
-   *
-   * <p>Note: this client's endpoint is <b>not</b> modified by the
-   * {@link DataflowPipelineDebugOptions#getApiRootUrl()} option.
+   * Returns a Cloud Storage client builder using the specified {@link GcsOptions}.
    */
   public static Storage.Builder
       newStorageClient(GcsOptions options) {
