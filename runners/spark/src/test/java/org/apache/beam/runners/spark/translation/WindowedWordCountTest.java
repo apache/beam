@@ -21,7 +21,7 @@ package org.apache.beam.runners.spark.translation;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.SlidingWindows;
@@ -59,7 +59,7 @@ public class WindowedWordCountTest {
 
     PCollection<String> output = windowedWords.apply(new SimpleWordCountTest.CountWords());
 
-    DataflowAssert.that(output).containsInAnyOrder(EXPECTED_FIXED_SEPARATE_COUNT_SET);
+    PAssert.that(output).containsInAnyOrder(EXPECTED_FIXED_SEPARATE_COUNT_SET);
 
     EvaluationResult res = SparkPipelineRunner.create().run(p);
     res.close();
@@ -78,7 +78,7 @@ public class WindowedWordCountTest {
 
     PCollection<String> output = windowedWords.apply(new SimpleWordCountTest.CountWords());
 
-    DataflowAssert.that(output).containsInAnyOrder(EXPECTED_FIXED_SAME_COUNT_SET);
+    PAssert.that(output).containsInAnyOrder(EXPECTED_FIXED_SAME_COUNT_SET);
 
     EvaluationResult res = SparkPipelineRunner.create().run(p);
     res.close();
@@ -99,7 +99,7 @@ public class WindowedWordCountTest {
 
     PCollection<String> output = windowedWords.apply(new SimpleWordCountTest.CountWords());
 
-    DataflowAssert.that(output).containsInAnyOrder(EXPECTED_SLIDING_COUNT_SET);
+    PAssert.that(output).containsInAnyOrder(EXPECTED_SLIDING_COUNT_SET);
 
     EvaluationResult res = SparkPipelineRunner.create().run(p);
     res.close();

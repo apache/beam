@@ -21,7 +21,7 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.dataflow.examples.cookbook.TriggerExample.ExtractFlowInfo;
 import com.google.cloud.dataflow.examples.cookbook.TriggerExample.TotalFlow;
 import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
@@ -114,7 +114,7 @@ public class TriggerExampleTest {
     PCollection<TableRow> results =  totalFlow.apply(ParDo.of(new FormatResults()));
 
 
-    DataflowAssert.that(results).containsInAnyOrder(OUT_ROW_1, OUT_ROW_2);
+    PAssert.that(results).containsInAnyOrder(OUT_ROW_1, OUT_ROW_2);
     pipeline.run();
 
   }

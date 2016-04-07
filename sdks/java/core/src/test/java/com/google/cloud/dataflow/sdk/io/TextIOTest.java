@@ -35,7 +35,7 @@ import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.io.TextIO.CompressionType;
 import com.google.cloud.dataflow.sdk.io.TextIO.TextSource;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.testing.SourceTestUtils;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
@@ -100,7 +100,7 @@ public class TextIOTest {
 
     PCollection<T> output = p.apply(read);
 
-    DataflowAssert.that(output).containsInAnyOrder(expected);
+    PAssert.that(output).containsInAnyOrder(expected);
     p.run();
   }
 
@@ -340,7 +340,7 @@ public class TextIOTest {
         TextIO.Read.from(filename).withCompressionType(CompressionType.GZIP);
     PCollection<String> output = p.apply(read);
 
-    DataflowAssert.that(output).containsInAnyOrder(expected);
+    PAssert.that(output).containsInAnyOrder(expected);
     p.run();
   }
 
@@ -363,7 +363,7 @@ public class TextIOTest {
         TextIO.Read.from(filename).withCompressionType(CompressionType.GZIP);
     PCollection<String> output = p.apply(read);
 
-    DataflowAssert.that(output).containsInAnyOrder(expected);
+    PAssert.that(output).containsInAnyOrder(expected);
     p.run();
   }
 

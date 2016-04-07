@@ -188,7 +188,7 @@
       <scope>runtime</scope>
     </dependency>
 
-    <!-- Hamcrest and JUnit are required dependencies of DataflowAssert,
+    <!-- Hamcrest and JUnit are required dependencies of PAssert,
          which is used in the main code of DebuggingWordCount example. -->
     <dependency>
       <groupId>org.hamcrest</groupId>

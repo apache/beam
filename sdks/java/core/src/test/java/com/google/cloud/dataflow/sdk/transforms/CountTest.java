@@ -22,7 +22,7 @@ import static org.junit.Assert.assertEquals;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -58,7 +58,7 @@ public class CountTest {
     PCollection<KV<String, Long>> output =
         input.apply(Count.<String>perElement());
 
-    DataflowAssert.that(output)
+    PAssert.that(output)
         .containsInAnyOrder(
             KV.of("hi", 4L),
             KV.of("there", 1L),
@@ -80,7 +80,7 @@ public class CountTest {
     PCollection<KV<String, Long>> output =
         input.apply(Count.<String>perElement());
 
-    DataflowAssert.that(output).empty();
+    PAssert.that(output).empty();
     p.run();
   }
 
@@ -94,7 +94,7 @@ public class CountTest {
     PCollection<Long> output =
         input.apply(Count.<String>globally());
 
-    DataflowAssert.that(output)
+    PAssert.that(output)
         .containsInAnyOrder(13L);
     p.run();
   }
@@ -109,7 +109,7 @@ public class CountTest {
     PCollection<Long> output =
         input.apply(Count.<String>globally());
 
-    DataflowAssert.that(output)
+    PAssert.that(output)
         .containsInAnyOrder(0L);
     p.run();
   }

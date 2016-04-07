@@ -23,7 +23,7 @@ import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -65,7 +65,7 @@ public class ValuesTest {
 
     PCollection<Integer> output = input.apply(Values.<Integer>create());
 
-    DataflowAssert.that(output)
+    PAssert.that(output)
         .containsInAnyOrder(1, 2, 3, 4, 4);
 
     p.run();
@@ -82,7 +82,7 @@ public class ValuesTest {
 
     PCollection<Integer> output = input.apply(Values.<Integer>create());
 
-    DataflowAssert.that(output).empty();
+    PAssert.that(output).empty();
 
     p.run();
   }

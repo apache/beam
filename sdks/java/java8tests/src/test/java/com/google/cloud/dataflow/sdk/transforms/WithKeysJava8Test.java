@@ -18,7 +18,7 @@
 package com.google.cloud.dataflow.sdk.transforms;
 
 import com.google.cloud.dataflow.sdk.Pipeline.PipelineExecutionException;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -51,7 +51,7 @@ public class WithKeysJava8Test {
         WithKeys.of((String s) -> Integer.valueOf(s))
                 .withKeyType(TypeDescriptor.of(Integer.class)));
 
-    DataflowAssert.that(kvs).containsInAnyOrder(
+    PAssert.that(kvs).containsInAnyOrder(
         KV.of(1234, "1234"), KV.of(0, "0"), KV.of(-12, "-12"), KV.of(3210, "3210"));
 
     p.run();

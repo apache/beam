@@ -21,7 +21,7 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.dataflow.examples.cookbook.JoinExamples.ExtractCountryInfoFn;
 import com.google.cloud.dataflow.examples.cookbook.JoinExamples.ExtractEventDataFn;
 import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
@@ -109,7 +109,7 @@ public class JoinExamplesTest {
     PCollection<TableRow> input2 = p.apply("CreateCC", Create.of(CC_ARRAY));
 
     PCollection<String> output = JoinExamples.joinEvents(input1, input2);
-    DataflowAssert.that(output).containsInAnyOrder(JOINED_EVENTS);
+    PAssert.that(output).containsInAnyOrder(JOINED_EVENTS);
     p.run();
   }
 }

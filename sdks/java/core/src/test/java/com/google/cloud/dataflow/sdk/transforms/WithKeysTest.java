@@ -21,7 +21,7 @@ import static org.junit.Assert.assertEquals;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -73,7 +73,7 @@ public class WithKeysTest {
 
     PCollection<KV<Integer, String>> output = input.apply(WithKeys.of(
         new LengthAsKey()));
-    DataflowAssert.that(output)
+    PAssert.that(output)
         .containsInAnyOrder(WITH_KEYS);
 
     p.run();
@@ -89,7 +89,7 @@ public class WithKeysTest {
 
     PCollection<KV<Integer, String>> output =
         input.apply(WithKeys.<Integer, String>of(100));
-    DataflowAssert.that(output)
+    PAssert.that(output)
         .containsInAnyOrder(WITH_CONST_KEYS);
 
     p.run();
@@ -110,7 +110,7 @@ public class WithKeysTest {
 
     PCollection<KV<Integer, String>> output =
         input.apply(WithKeys.of(new LengthAsKey()).withKeyType(TypeDescriptor.of(Integer.class)));
-    DataflowAssert.that(output).containsInAnyOrder(WITH_KEYS);
+    PAssert.that(output).containsInAnyOrder(WITH_KEYS);
 
     p.run();
   }

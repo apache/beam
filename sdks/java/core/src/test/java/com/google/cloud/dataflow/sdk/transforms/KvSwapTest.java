@@ -21,7 +21,7 @@ import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -64,7 +64,7 @@ public class KvSwapTest {
     PCollection<KV<Integer, String>> output = input.apply(
         KvSwap.<String, Integer>create());
 
-    DataflowAssert.that(output).containsInAnyOrder(
+    PAssert.that(output).containsInAnyOrder(
         KV.of(1, "one"),
         KV.of(2, "two"),
         KV.of(3, "three"),
@@ -86,7 +86,7 @@ public class KvSwapTest {
     PCollection<KV<Integer, String>> output = input.apply(
         KvSwap.<String, Integer>create());
 
-    DataflowAssert.that(output).empty();
+    PAssert.that(output).empty();
     p.run();
   }
 }

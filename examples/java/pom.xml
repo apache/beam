@@ -369,7 +369,7 @@
       <version>3.1.0</version>
     </dependency>
 
-    <!-- Hamcrest and JUnit are required dependencies of DataflowAssert,
+    <!-- Hamcrest and JUnit are required dependencies of PAssert,
          which is used in the main code of DebuggingWordCount example. -->
 
     <dependency>

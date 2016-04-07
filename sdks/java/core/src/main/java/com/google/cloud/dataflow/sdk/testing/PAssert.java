@@ -68,7 +68,7 @@ import java.util.NoSuchElementException;
  * can be checked no matter what kind of {@link PipelineRunner} is
  * used.
  *
- * <p>Note that the {@code DataflowAssert} call must precede the call
+ * <p>Note that the {@code PAssert} call must precede the call
  * to {@link Pipeline#run}.
  *
  * <p>Examples of use:
@@ -78,32 +78,32 @@ import java.util.NoSuchElementException;
  * PCollection<String> output =
  *      input
  *      .apply(ParDo.of(new TestDoFn()));
- * DataflowAssert.that(output)
+ * PAssert.that(output)
  *     .containsInAnyOrder("out1", "out2", "out3");
  * ...
  * PCollection<Integer> ints = ...
  * PCollection<Integer> sum =
  *     ints
  *     .apply(Combine.globally(new SumInts()));
- * DataflowAssert.that(sum)
+ * PAssert.that(sum)
  *     .is(42);
  * ...
  * p.run();
  * }</pre>
  *
- * <p>JUnit and Hamcrest must be linked in by any code that uses DataflowAssert.
+ * <p>JUnit and Hamcrest must be linked in by any code that uses PAssert.
  */
-public class DataflowAssert {
+public class PAssert {
 
-  private static final Logger LOG = LoggerFactory.getLogger(DataflowAssert.class);
+  private static final Logger LOG = LoggerFactory.getLogger(PAssert.class);
 
-  static final String SUCCESS_COUNTER = "DataflowAssertSuccess";
-  static final String FAILURE_COUNTER = "DataflowAssertFailure";
+  static final String SUCCESS_COUNTER = "PAssertSuccess";
+  static final String FAILURE_COUNTER = "PAssertFailure";
 
   private static int assertCount = 0;
 
   // Do not instantiate.
-  private DataflowAssert() {}
+  private PAssert() {}
 
   /**
    * Constructs an {@link IterableAssert} for the elements of the provided
@@ -132,9 +132,9 @@ public class DataflowAssert {
       tCoder = tCoderTmp;
     } catch (NoSuchElementException | IllegalArgumentException exc) {
       throw new IllegalArgumentException(
-        "DataflowAssert.<T>thatSingletonIterable requires a PCollection<Iterable<T>>"
-        + " with a Coder<Iterable<T>> where getCoderArguments() yields a"
-        + " single Coder<T> to apply to the elements.");
+          "PAssert.<T>thatSingletonIterable requires a PCollection<Iterable<T>>"
+              + " with a Coder<Iterable<T>> where getCoderArguments() yields a"
+              + " single Coder<T> to apply to the elements.");
     }
 
     @SuppressWarnings("unchecked") // Safe covariant cast
@@ -244,7 +244,7 @@ public class DataflowAssert {
      */
     public IterableAssert<T> satisfies(SerializableFunction<Iterable<T>, Void> checkerFn) {
       pipeline.apply(
-          "DataflowAssert$" + (assertCount++),
+          "PAssert$" + (assertCount++),
           new OneSideInputAssert<Iterable<T>>(createActual, checkerFn));
       return this;
     }
@@ -258,8 +258,9 @@ public class DataflowAssert {
         AssertRelation<Iterable<T>, Iterable<T>> relation,
         final Iterable<T> expectedElements) {
       pipeline.apply(
-          "DataflowAssert$" + (assertCount++),
-          new TwoSideInputAssert<Iterable<T>, Iterable<T>>(createActual,
+          "PAssert$" + (assertCount++),
+          new TwoSideInputAssert<Iterable<T>, Iterable<T>>(
+              createActual,
               new CreateExpected<T, Iterable<T>>(expectedElements, coder, View.<T>asIterable()),
               relation));
 
@@ -278,10 +279,8 @@ public class DataflowAssert {
       SerializableFunction<Iterable<T>, Void> checkerFn =
         (SerializableFunction) new MatcherCheckerFn<>(matcher);
       pipeline.apply(
-          "DataflowAssert$" + (assertCount++),
-          new OneSideInputAssert<Iterable<T>>(
-              createActual,
-              checkerFn));
+          "PAssert$" + (assertCount++),
+          new OneSideInputAssert<Iterable<T>>(createActual, checkerFn));
       return this;
     }
 
@@ -310,7 +309,7 @@ public class DataflowAssert {
 
     /**
      * @throws UnsupportedOperationException always
-     * @deprecated {@link Object#equals(Object)} is not supported on DataflowAssert objects.
+     * @deprecated {@link Object#equals(Object)} is not supported on PAssert objects.
      *    If you meant to test object equality, use a variant of {@link #containsInAnyOrder}
      *    instead.
      */
@@ -323,7 +322,7 @@ public class DataflowAssert {
 
     /**
      * @throws UnsupportedOperationException always.
-     * @deprecated {@link Object#hashCode()} is not supported on DataflowAssert objects.
+     * @deprecated {@link Object#hashCode()} is not supported on PAssert objects.
      */
     @Deprecated
     @Override
@@ -400,7 +399,7 @@ public class DataflowAssert {
 
     /**
      * @throws UnsupportedOperationException always.
-     * @deprecated {@link Object#hashCode()} is not supported on DataflowAssert objects.
+     * @deprecated {@link Object#hashCode()} is not supported on PAssert objects.
      */
     @Deprecated
     @Override
@@ -440,8 +439,7 @@ public class DataflowAssert {
      */
     public SingletonAssert<T> satisfies(SerializableFunction<T, Void> checkerFn) {
       pipeline.apply(
-          "DataflowAssert$" + (assertCount++),
-          new OneSideInputAssert<T>(createActual, checkerFn));
+          "PAssert$" + (assertCount++), new OneSideInputAssert<T>(createActual, checkerFn));
       return this;
     }
 
@@ -455,8 +453,9 @@ public class DataflowAssert {
         AssertRelation<T, T> relation,
         final T expectedValue) {
       pipeline.apply(
-          "DataflowAssert$" + (assertCount++),
-          new TwoSideInputAssert<T, T>(createActual,
+          "PAssert$" + (assertCount++),
+          new TwoSideInputAssert<T, T>(
+              createActual,
               new CreateExpected<T, T>(Arrays.asList(expectedValue), coder, View.<T>asSingleton()),
               relation));
 
@@ -627,7 +626,7 @@ public class DataflowAssert {
         checkerFn.apply(actualContents);
         success.addValue(1);
       } catch (Throwable t) {
-        LOG.error("DataflowAssert failed expectations.", t);
+        LOG.error("PAssert failed expectations.", t);
         failure.addValue(1);
         // TODO: allow for metrics to propagate on failure when running a streaming pipeline
         if (!c.getPipelineOptions().as(StreamingOptions.class).isStreaming()) {
@@ -700,7 +699,7 @@ public class DataflowAssert {
           relation.assertFor(expectedContents).apply(actualContents);
           success.addValue(1);
         } catch (Throwable t) {
-          LOG.error("DataflowAssert failed expectations.", t);
+          LOG.error("PAssert failed expectations.", t);
           failure.addValue(1);
           // TODO: allow for metrics to propagate on failure when running a streaming pipeline
           if (!c.getPipelineOptions().as(StreamingOptions.class).isStreaming()) {

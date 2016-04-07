@@ -22,7 +22,7 @@ import static org.junit.Assert.assertNull;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.testing.CoderProperties;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
@@ -139,7 +139,7 @@ public class SerializableCoderTest implements Serializable {
         .apply(ParDo.of(new StringToRecord()))
         .apply(ParDo.of(new RecordToString()));
 
-    DataflowAssert.that(output)
+    PAssert.that(output)
         .containsInAnyOrder("Hello", "World");
   }
 

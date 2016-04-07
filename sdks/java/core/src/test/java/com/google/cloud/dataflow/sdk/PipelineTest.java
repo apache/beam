@@ -30,8 +30,8 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions.CheckEnabled;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.ExpectedLogs;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
@@ -137,7 +137,7 @@ public class PipelineTest {
     PCollection<String> both = PCollectionList.of(left).and(right)
         .apply(Flatten.<String>pCollections());
 
-    DataflowAssert.that(both).containsInAnyOrder("a++", "b++", "a+", "b+");
+    PAssert.that(both).containsInAnyOrder("a++", "b++", "a+", "b+");
 
     p.run();
   }
@@ -205,7 +205,7 @@ public class PipelineTest {
         .apply(Create.<Integer>of(1, 2, 3, 4))
         .apply("IdentityTransform", new IdentityTransform<PCollection<Integer>>());
 
-    DataflowAssert.that(output).containsInAnyOrder(1, 2, 3, 4);
+    PAssert.that(output).containsInAnyOrder(1, 2, 3, 4);
     pipeline.run();
   }
 
@@ -234,7 +234,7 @@ public class PipelineTest {
     PCollection<Integer> output = tuple
         .apply("ProjectTag", new TupleProjectionTransform<Integer>(tag));
 
-    DataflowAssert.that(output).containsInAnyOrder(1, 2, 3, 4);
+    PAssert.that(output).containsInAnyOrder(1, 2, 3, 4);
     pipeline.run();
   }
 
@@ -268,7 +268,7 @@ public class PipelineTest {
     PCollectionTuple output = input
         .apply("ProjectTag", new TupleInjectionTransform<Integer>(tag));
 
-    DataflowAssert.that(output.get(tag)).containsInAnyOrder(1, 2, 3, 4);
+    PAssert.that(output.get(tag)).containsInAnyOrder(1, 2, 3, 4);
     pipeline.run();
   }
 
