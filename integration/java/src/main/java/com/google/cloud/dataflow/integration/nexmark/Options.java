@@ -86,12 +86,12 @@ public interface Options {
 
   void setNumEvents(Long numEvents);
 
-  @Description("Number of events to generate at the special pre-load rate. This is useful "
-               + "for generating a backlog of events on pub/sub before the main query begins.")
+  @Description("Time in seconds to preload the subscription with data, at the initial input rate "
+               + "of the pipeline.")
   @Nullable
-  Long getNumPreloadEvents();
+  Integer getPreloadSeconds();
 
-  void setNumPreloadEvents(Long numPreloadEvents);
+  void setPreloadSeconds(Integer preloadSeconds);
 
   @Description("Number of unbounded sources to create events.")
   @Nullable
@@ -122,13 +122,6 @@ public interface Options {
   Integer getQpsPeriodSec();
 
   void setQpsPeriodSec(Integer qpsPeriodSec);
-
-  @Description("Overall event qps while pre-loading. "
-               + "Typcially as large as possible for given pub/sub quota.")
-  @Nullable
-  Integer getPreloadEventQps();
-
-  void setPreloadEventQps(Integer preloadEventQps);
 
   @Description("If true, relay events in real time in streaming mode.")
   @Nullable
@@ -329,24 +322,6 @@ public interface Options {
   Long getOutOfOrderGroupSize();
 
   void setOutOfOrderGroupSize(Long outOfOrderGroupSize);
-
-
-  @Description("If set, cancel running pipelines after this long")
-  @Nullable
-  Long getRunningTimeMinutes();
-  void setRunningTimeMinutes(Long value);
-
-  @Description("If set and --monitorJobs is true, check that the system watermark is never more "
-               + "than this far behind real time")
-  @Nullable
-  Long getMaxSystemLagSeconds();
-  void setMaxSystemLagSeconds(Long value);
-
-  @Description("If set and --monitorJobs is true, check that the data watermark is never more "
-               + "than this far behind real time")
-  @Nullable
-  Long getMaxDataLagSeconds();
-  void setMaxDataLagSeconds(Long value);
 
   @Description("If false, do not add the Monitor and Snoop transforms.")
   @Nullable

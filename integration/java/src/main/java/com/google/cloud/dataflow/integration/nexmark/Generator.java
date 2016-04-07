@@ -243,12 +243,9 @@ public class Generator implements Iterator<TimestampedValue<Event>>, Serializabl
    */
   public GeneratorConfig splitAtEventId(long eventId) {
     long newMaxEvents = eventId - (config.firstEventId + config.firstEventNumber);
-    long newPreloadEvents = Math.min(config.numPreloadEvents, newMaxEvents);
-    GeneratorConfig remainConfig =
-        config.cloneWith(config.firstEventId, config.maxEvents - newMaxEvents,
-            config.numPreloadEvents - newPreloadEvents, config.firstEventNumber + newMaxEvents);
-    config = config.cloneWith(
-        config.firstEventId, newMaxEvents, newPreloadEvents, config.firstEventNumber);
+    GeneratorConfig remainConfig = config.cloneWith(config.firstEventId,
+        config.maxEvents - newMaxEvents, config.firstEventNumber + newMaxEvents);
+    config = config.cloneWith(config.firstEventId, newMaxEvents, config.firstEventNumber);
     return remainConfig;
   }
 
@@ -537,28 +534,8 @@ public class Generator implements Iterator<TimestampedValue<Event>>, Serializabl
     long watermark =
         config.timestampAndInterEventDelayUsForEvent(config.nextEventNumberForWatermark(numEvents))
             .getKey();
-    // In preload we'll emit each event at preload intervals instead of 'regular' intervals.
-    long preloadInterEventDelayUs = NexmarkUtils.QpsShape.SQUARE.interEventDelayUs(
-        config.configuration.preloadEventQps, config.configuration.numEventGenerators);
     // When, in wallclock time, we should emit the event.
-    long wallclockTimestamp;
-    if (numEvents < config.numPreloadEvents) {
-      // While preloading, emit as fast as the preload rate will allow us.
-      wallclockTimestamp = wallclockBaseTime + (numEvents * preloadInterEventDelayUs) / 1000L;
-    } else {
-      // Once preload is done, switch to true event time, but offset appropriately.
-      long wallclockOfFirstPostPreloadEvent =
-          wallclockBaseTime + (config.numPreloadEvents * preloadInterEventDelayUs) / 1000L;
-      // = wallclockBaseTime if numPreloadEvents = 0
-      long timestampOfFirstPostPreloadEvent =
-          config.timestampAndInterEventDelayUsForEvent(
-                    config.nextEventNumber(config.numPreloadEvents)).getKey();
-      // = getCurrentConfig().baseTime if numPreloadEvents = 0
-      wallclockTimestamp =
-          wallclockOfFirstPostPreloadEvent + (eventTimestamp - timestampOfFirstPostPreloadEvent);
-      // = wallclockBaseTime + (eventTimestamp - getCurrentConfig().baseTime)
-      //   if numPreloadEvents = 0
-    }
+    long wallclockTimestamp = wallclockBaseTime + (eventTimestamp - getCurrentConfig().baseTime);
 
     // Seed the random number generator with the next 'event id'.
     Random random = new Random(getNextEventId());

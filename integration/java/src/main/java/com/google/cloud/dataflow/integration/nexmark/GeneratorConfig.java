@@ -72,11 +72,6 @@ class GeneratorConfig implements Serializable {
   public final long maxEvents;
 
   /**
-   * How many events to pump without rate limiting when first start.
-   */
-  public final long numPreloadEvents;
-
-  /**
    * First event number. Generators running in parallel time may share the same event number,
    * and the event number is used to determine the event timestamp.
    */
@@ -95,7 +90,7 @@ class GeneratorConfig implements Serializable {
   public final long eventsPerEpoch;
 
   public GeneratorConfig(NexmarkConfiguration configuration, long baseTime, long firstEventId,
-      long maxEventsOrZero, long numPreloadEvents, long firstEventNumber) {
+      long maxEventsOrZero, long firstEventNumber) {
     this.configuration = configuration;
     this.interEventDelayUs = configuration.qpsShape.interEventDelayUs(
         configuration.firstEventQps, configuration.nextEventQps, configuration.numEventGenerators);
@@ -112,7 +107,6 @@ class GeneratorConfig implements Serializable {
     } else {
       this.maxEvents = maxEventsOrZero;
     }
-    this.numPreloadEvents = numPreloadEvents;
     this.firstEventNumber = firstEventNumber;
 
     long eventsPerEpoch = 0;
@@ -133,17 +127,14 @@ class GeneratorConfig implements Serializable {
    */
   @Override
   public GeneratorConfig clone() {
-    return new GeneratorConfig(
-        configuration, baseTime, firstEventId, maxEvents, numPreloadEvents, firstEventNumber);
+    return new GeneratorConfig(configuration, baseTime, firstEventId, maxEvents, firstEventNumber);
   }
 
   /**
    * Return clone of this config except with given parameters.
    */
-  public GeneratorConfig cloneWith(
-      long firstEventId, long maxEvents, long numPreloadEvents, long firstEventNumber) {
-    return new GeneratorConfig(
-        configuration, baseTime, firstEventId, maxEvents, numPreloadEvents, firstEventNumber);
+  public GeneratorConfig cloneWith(long firstEventId, long maxEvents, long firstEventNumber) {
+    return new GeneratorConfig(configuration, baseTime, firstEventId, maxEvents, firstEventNumber);
   }
 
   /**
@@ -159,15 +150,12 @@ class GeneratorConfig implements Serializable {
     } else {
       long subMaxEvents = maxEvents / n;
       long subFirstEventId = firstEventId;
-      long subNumPreloadEvents = numPreloadEvents / n;
       for (int i = 0; i < n; i++) {
         if (i == n - 1) {
           // Don't loose any events to round-down.
           subMaxEvents = maxEvents - subMaxEvents * (n - 1);
-          subNumPreloadEvents = numPreloadEvents - subNumPreloadEvents * (n - 1);
         }
-        results.add(
-            cloneWith(subFirstEventId, subMaxEvents, subNumPreloadEvents, firstEventNumber));
+        results.add(cloneWith(subFirstEventId, subMaxEvents, firstEventNumber));
         subFirstEventId += subMaxEvents;
       }
     }
@@ -266,11 +254,10 @@ class GeneratorConfig implements Serializable {
 
   @Override
   public String toString() {
-    return String.format(
-        "GeneratorConfig{configuration:%s, baseTime:%d, firstEventId:%d, "
-        + "maxEvents:%d, numPreloadEvents:%d, firstEventNumber:%d, epochPeriodMs:%d, "
-        + "eventsPerEpoch:%d}",
-        configuration, baseTime, firstEventId, maxEvents, numPreloadEvents, firstEventNumber,
-        epochPeriodMs, eventsPerEpoch);
+    return String.format("GeneratorConfig{configuration:%s, baseTime:%d, firstEventId:%d, "
+            + "maxEvents:%d, firstEventNumber:%d, epochPeriodMs:%d, "
+            + "eventsPerEpoch:%d}",
+        configuration, baseTime, firstEventId, maxEvents, firstEventNumber, epochPeriodMs,
+        eventsPerEpoch);
   }
 }

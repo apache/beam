@@ -20,6 +20,7 @@ import com.google.cloud.dataflow.sdk.transforms.Count;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.windowing.AfterPane;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Repeatedly;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Sessions;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -52,7 +53,7 @@ class Query11 extends NexmarkQuery {
                 }))
         .apply(Window.<KV<Long, Void>>into(
             Sessions.withGapDuration(Duration.standardSeconds(configuration.windowSizeSec)))
-        .triggering(AfterPane.elementCountAtLeast(configuration.maxLogEvents))
+        .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(configuration.maxLogEvents)))
         .discardingFiredPanes()
         .withAllowedLateness(Duration.standardSeconds(configuration.occasionalDelaySec / 2)))
         .apply(Count.<Long, Void>perKey())

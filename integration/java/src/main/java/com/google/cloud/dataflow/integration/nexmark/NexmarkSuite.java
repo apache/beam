@@ -59,7 +59,7 @@ public enum NexmarkSuite {
 
   private static List<NexmarkConfiguration> smoke() {
     List<NexmarkConfiguration> configurations = new ArrayList<>();
-    for (int query = 0; query <= 10; query++) {
+    for (int query = 0; query <= 12; query++) {
       NexmarkConfiguration configuration = NexmarkConfiguration.DEFAULT.clone();
       configuration.query = query;
       configuration.numEvents = 100_000;

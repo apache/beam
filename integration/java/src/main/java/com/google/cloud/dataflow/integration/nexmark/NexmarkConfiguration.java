@@ -73,13 +73,6 @@ class NexmarkConfiguration implements Serializable {
   public long numEvents = 100000;
 
   /**
-   * Number of events to generate at the special pre-load rate. This is useful for generating
-   * a backlog of events on pub/sub before the main query begins.
-   */
-  @JsonProperty
-  public long numPreloadEvents = 0;
-
-  /**
    * Number of event generators to use. Each generates events in its own timeline.
    */
   @JsonProperty
@@ -110,10 +103,11 @@ class NexmarkConfiguration implements Serializable {
   public int qpsPeriodSec = 600;
 
   /**
-   * Overall event qps while pre-loading. Typcially as large as possible for given pub/sub quota.
+   * Time in seconds to preload the subscription with data, at the initial input rate of the
+   * pipeline.
    */
   @JsonProperty
-  public int preloadEventQps = 10000;
+  public int preloadSeconds = 0;
 
   /**
    * If true, and in streaming mode, generate events only when they are due according to their
@@ -275,9 +269,6 @@ class NexmarkConfiguration implements Serializable {
     if (options.getNumEvents() != null) {
       numEvents = options.getNumEvents();
     }
-    if (options.getNumPreloadEvents() != null) {
-      numPreloadEvents = options.getNumPreloadEvents();
-    }
     if (options.getNumEventGenerators() != null) {
       numEventGenerators = options.getNumEventGenerators();
     }
@@ -293,8 +284,8 @@ class NexmarkConfiguration implements Serializable {
     if (options.getQpsPeriodSec() != null) {
       qpsPeriodSec = options.getQpsPeriodSec();
     }
-    if (options.getPreloadEventQps() != null) {
-      preloadEventQps = options.getPreloadEventQps();
+    if (options.getPreloadSeconds() != null) {
+      preloadSeconds = options.getPreloadSeconds();
     }
     if (options.getIsRateLimited() != null) {
       isRateLimited = options.getIsRateLimited();
@@ -386,13 +377,12 @@ class NexmarkConfiguration implements Serializable {
     result.sinkType = sinkType;
     result.pubSubMode = pubSubMode;
     result.numEvents = numEvents;
-    result.numPreloadEvents = numPreloadEvents;
     result.numEventGenerators = numEventGenerators;
     result.qpsShape = qpsShape;
     result.firstEventQps = firstEventQps;
     result.nextEventQps = nextEventQps;
     result.qpsPeriodSec = qpsPeriodSec;
-    result.preloadEventQps = preloadEventQps;
+    result.preloadSeconds = preloadSeconds;
     result.isRateLimited = isRateLimited;
     result.useWallclockEventTime = useWallclockEventTime;
     result.avgPersonByteSize = avgPersonByteSize;
@@ -439,9 +429,6 @@ class NexmarkConfiguration implements Serializable {
     if (numEvents != DEFAULT.numEvents) {
       sb.append(String.format("; numEvents:%d", numEvents));
     }
-    if (numPreloadEvents != DEFAULT.numPreloadEvents) {
-      sb.append(String.format("; numPreloadEvents:%d", numPreloadEvents));
-    }
     if (numEventGenerators != DEFAULT.numEventGenerators) {
       sb.append(String.format("; numEventGenerators:%d", numEventGenerators));
     }
@@ -455,8 +442,8 @@ class NexmarkConfiguration implements Serializable {
     if (qpsPeriodSec != DEFAULT.qpsPeriodSec) {
       sb.append(String.format("; qpsPeriodSec:%d", qpsPeriodSec));
     }
-    if (preloadEventQps != DEFAULT.preloadEventQps) {
-      sb.append(String.format("; preloadEventQps:%d", preloadEventQps));
+    if (preloadSeconds != DEFAULT.preloadSeconds) {
+      sb.append(String.format("; preloadSeconds:%d", preloadSeconds));
     }
     if (isRateLimited != DEFAULT.isRateLimited) {
       sb.append(String.format("; isRateLimited:%s", isRateLimited));
@@ -557,8 +544,8 @@ class NexmarkConfiguration implements Serializable {
   @Override
   public int hashCode() {
     return Objects.hash(query, logResults, assertCorrectness, sourceType, sinkType, pubSubMode,
-        numEvents, numPreloadEvents, numEventGenerators, qpsShape, firstEventQps, nextEventQps,
-        qpsPeriodSec, preloadEventQps, isRateLimited, useWallclockEventTime, avgPersonByteSize,
+        numEvents, numEventGenerators, qpsShape, firstEventQps, nextEventQps,
+        qpsPeriodSec, preloadSeconds, isRateLimited, useWallclockEventTime, avgPersonByteSize,
         avgAuctionByteSize, avgBidByteSize, hotAuctionRatio, hotSellersRatio, hotBiddersRatio,
         windowSizeSec, windowPeriodSec, watermarkHoldbackSec, numInFlightAuctions, numActivePeople,
         justModelResultRate, coderStrategy, cpuDelayMs, diskBusyBytes, auctionSkip, fanout,
@@ -644,13 +631,10 @@ class NexmarkConfiguration implements Serializable {
     if (numActivePeople != other.numActivePeople) {
       return false;
     }
-    if (numPreloadEvents != other.numPreloadEvents) {
-      return false;
-    }
     if (occasionalDelaySec != other.occasionalDelaySec) {
       return false;
     }
-    if (preloadEventQps != other.preloadEventQps) {
+    if (preloadSeconds != other.preloadSeconds) {
       return false;
     }
     if (Double.doubleToLongBits(probDelayedEvent)

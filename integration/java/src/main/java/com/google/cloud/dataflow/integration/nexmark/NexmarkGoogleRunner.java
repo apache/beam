@@ -599,7 +599,8 @@ class NexmarkGoogleRunner {
                                                  new Query8(configuration),
                                                  new Query9(configuration),
                                                  new Query10(configuration),
-                                                 new Query11(configuration));
+                                                 new Query11(configuration),
+                                                 new Query12(configuration));
       NexmarkQuery query = queries.get(configuration.query);
       queryName = query.getName();
 
@@ -609,7 +610,7 @@ class NexmarkGoogleRunner {
           new Query4Model(configuration), new Query5Model(configuration),
           new Query6Model(configuration), new Query7Model(configuration),
           new Query8Model(configuration), new Query9Model(configuration),
-          null, null);
+          null, null, null);
       NexmarkQueryModel model = models.get(configuration.query);
       if (configuration.justModelResultRate) {
         if (model == null) {
@@ -714,7 +715,7 @@ class NexmarkGoogleRunner {
 
   /**
    * Monitor the progress of the publisher job. Return when it has produced at
-   * least {@code configuration.numPreloadEvents}.
+   * least {@code configuration.preloadSeconds} worth of events.
    *
    * @throws IOException
    * @throws InterruptedException
@@ -729,7 +730,7 @@ class NexmarkGoogleRunner {
     if (!(publisherResult instanceof DataflowPipelineJob)) {
       return;
     }
-    if (configuration.numPreloadEvents <= 0) {
+    if (configuration.preloadSeconds <= 0) {
       return;
     }
 
@@ -740,11 +741,16 @@ class NexmarkGoogleRunner {
     while (true) {
       PipelineResult.State state = job.getState();
       long numEvents = getLong(job, publisherMonitor.getElementCounter());
-      NexmarkUtils.console(null, "%s publisher (waiting for %d events, seen %d so far)", state,
-                           configuration.numPreloadEvents, numEvents);
-
-      if (numEvents >= 0 && numEvents >= configuration.numPreloadEvents) {
-        NexmarkUtils.console(null, "publisher preload done");
+      if (numEvents > 0) {
+        int waitSeconds = configuration.preloadSeconds;
+        NexmarkUtils.console(null, "%s publisher (Saw first event, waiting %ds for preload)", state,
+            configuration.preloadSeconds);
+        while (waitSeconds > 0) {
+          NexmarkUtils.console(
+              null, "%s publisher (%ds until preload is done)", state, waitSeconds);
+          Thread.sleep(TimeUnit.SECONDS.toMillis(Math.min(60, waitSeconds)));
+          waitSeconds -= 60;
+        }
         return;
       }
 
@@ -788,11 +794,15 @@ class NexmarkGoogleRunner {
     if (!(mainResult instanceof DataflowPipelineJob)) {
       return null;
     }
-    if (!configuration.debug) {
-      return null;
+    // If we are not in debug mode, we have no event count or result count monitors.
+    boolean monitorsActive =  configuration.debug;
+
+    if (monitorsActive) {
+      NexmarkUtils.console(null, "waiting for main pipeline to 'finish'");
+    } else {
+      NexmarkUtils.console(null, "debug=false, so job will not self-cancel");
     }
 
-    NexmarkUtils.console(null, "waiting for main pipeline to 'finish'");
 
     DataflowPipelineJob job = (DataflowPipelineJob) mainResult;
     DataflowPipelineJob publisherJob = (DataflowPipelineJob) publisherResult;
@@ -800,8 +810,11 @@ class NexmarkGoogleRunner {
     Instant start = Instant.now();
     Instant end =
         options.getRunningTimeMinutes() != null
-        ? start.plus(Duration.standardMinutes(options.getRunningTimeMinutes()))
-        : new Instant(Long.MAX_VALUE);
+            ? start.plus(Duration.standardMinutes(options.getRunningTimeMinutes()))
+            : new Instant(Long.MAX_VALUE);
+    if (options.getPreloadSeconds() != null) {
+      end = end.minus(Duration.standardSeconds(options.getPreloadSeconds()));
+    }
     Instant lastActivity = null;
     NexmarkPerf perf = null;
     boolean waitingForShutdown = false;
@@ -824,8 +837,13 @@ class NexmarkGoogleRunner {
       NexmarkUtils.console(
           now, "%s %s%s", state, queryName, waitingForShutdown ? " (waiting for shutdown)" : "");
 
-      NexmarkPerf currPerf =
-          currentPerf(start, now, job, snapshots, query.eventMonitor, query.resultMonitor);
+      NexmarkPerf currPerf;
+      if (monitorsActive) {
+          currPerf = currentPerf(start, now, job, snapshots, query.eventMonitor,
+              query.resultMonitor);
+      } else {
+        currPerf = null;
+      }
 
       if (perf == null || perf.anyActivity(currPerf)) {
         lastActivity = now;
@@ -837,7 +855,8 @@ class NexmarkGoogleRunner {
           NexmarkUtils.console(now, "job has fatal errors, cancelling.");
           errors.add(String.format("Pipeline reported %s fatal errors", query.getFatalCount()));
           waitingForShutdown = true;
-        } else if (configuration.numEvents > 0 && currPerf.numEvents == configuration.numEvents
+        } else if (monitorsActive && configuration.numEvents > 0
+                   && currPerf.numEvents == configuration.numEvents
                    && currPerf.numResults >= 0 && quietFor.isLongerThan(DONE_DELAY)) {
           NexmarkUtils.console(now, "streaming query appears to have finished, cancelling job.");
           waitingForShutdown = true;
@@ -854,7 +873,7 @@ class NexmarkGoogleRunner {
               String.format("Streaming query was stuck for %d min", quietFor.getStandardMinutes()));
         }
 
-        errors.addAll(checkWatermarks(job, now.isAfter(start.plus(Duration.standardMinutes(5)))));
+        errors.addAll(checkWatermarks(job, start));
 
         if (waitingForShutdown) {
           job.cancel();
@@ -938,7 +957,8 @@ class NexmarkGoogleRunner {
    * <p>
    * <p>Returns a list of errors detected.
    */
-  private List<String> checkWatermarks(DataflowPipelineJob job, boolean watermarksExpected) {
+  private List<String> checkWatermarks(DataflowPipelineJob job, Instant start) {
+    Instant now = Instant.now();
     List<String> errors = new ArrayList<>();
     try {
       JobMetrics metricResponse = job.getDataflowClient()
@@ -964,24 +984,29 @@ class NexmarkGoogleRunner {
               new Instant(scalar.divideToIntegralValue(new BigDecimal(1000)).longValueExact());
           Instant updateTime = Instant.parse(metric.getUpdateTime());
 
-          Duration threshold = null;
-          if (type == MetricType.SYSTEM_WATERMARK && options.getMaxSystemLagSeconds() != null) {
-            threshold = Duration.standardSeconds(options.getMaxSystemLagSeconds());
-          } else if (type == MetricType.DATA_WATERMARK && options.getMaxDataLagSeconds() != null) {
-            threshold = Duration.standardSeconds(options.getMaxDataLagSeconds());
-          }
+          if (options.getWatermarkValidationDelaySeconds() == null
+              || now.isAfter(start.plus(
+              Duration.standardSeconds(options.getWatermarkValidationDelaySeconds())))) {
+            Duration threshold = null;
+            if (type == MetricType.SYSTEM_WATERMARK && options.getMaxSystemLagSeconds() != null) {
+              threshold = Duration.standardSeconds(options.getMaxSystemLagSeconds());
+            } else if (type == MetricType.DATA_WATERMARK
+                       && options.getMaxDataLagSeconds() != null) {
+              threshold = Duration.standardSeconds(options.getMaxDataLagSeconds());
+            }
 
-          if (threshold != null && value.isBefore(updateTime.minus(threshold))) {
-            String msg = String.format("High lag for %s: %s vs %s (allowed lag of %s)",
-                                       metric.getName().getName(), value, updateTime, threshold);
-            errors.add(msg);
-            NexmarkUtils.console(null, msg);
+            if (threshold != null && value.isBefore(updateTime.minus(threshold))) {
+              String msg = String.format("High lag for %s: %s vs %s (allowed lag of %s)",
+                  metric.getName().getName(), value, updateTime, threshold);
+              errors.add(msg);
+              NexmarkUtils.console(null, msg);
+            }
           }
-        }
-        if (!foundWatermarks) {
-          NexmarkUtils.console(null, "No known watermarks in update: " + metrics);
-          if (watermarksExpected) {
-            errors.add("No known watermarks found.  Metrics were " + metrics);
+          if (!foundWatermarks) {
+            NexmarkUtils.console(null, "No known watermarks in update: " + metrics);
+            if (now.isAfter(start.plus(Duration.standardMinutes(5)))) {
+              errors.add("No known watermarks found.  Metrics were " + metrics);
+            }
           }
         }
       }
