@@ -204,8 +204,7 @@ public class AvroIOTest {
     File baseOutputFile = new File(tmpFolder.getRoot(), "prefix");
     String outputFilePrefix = baseOutputFile.getAbsolutePath();
     TestPipeline p = TestPipeline.create();
-    Bound<String> write = AvroIO.Write.to(outputFilePrefix)
-        .withSchema(String.class);
+    Bound<String> write = AvroIO.Write.to(outputFilePrefix).withSchema(String.class);
     if (numShards > 1) {
       write = write.withNumShards(numShards).withShardNameTemplate(ShardNameTemplate.INDEX_OF_MAX);
     } else {
