@@ -39,7 +39,7 @@ All Apache Beam meetings are open to the public and we encourage anyone to atten
 ## I want to give a public talk about Apache Beam
 To get started, we recommend you review the Apache Beam [presentation materials]({{ site.baseurl }}/presentation-materials/) page to review the content the Apache Beam community has already created. These materials will possibly save you time and energy as you create content for your event.
 
-Once you have scheduled your event, we welcome you to announce it on the [dev@beam.incubator.apache.org](mailto:dev@beam.incubator.apache.org) mailing list. Additionally, please open a [JIRA item](https://issues.apache.org/jira/browse/BEAM) using the `website` component with details so we can update this page.
+Once you have scheduled your event, we welcome you to announce it on the [user@beam.incubator.apache.org](mailto:user@beam.incubator.apache.org) mailing list. Additionally, please open a [JIRA item](https://issues.apache.org/jira/browse/BEAM) using the `website` component with details so we can update this page.
 
 If you have any questions as you prepare for your event, we recommend you reach out to the Apache Beam community through the [dev@beam.incubator.apache.org](mailto:dev@beam.incubator.apache.org) mailing list. The Beam community can help provide feedback on your materials and promote your event.
 
