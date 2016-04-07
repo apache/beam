@@ -19,10 +19,17 @@ package com.google.cloud.dataflow.sdk.coders;
 
 import com.google.cloud.dataflow.sdk.testing.CoderProperties;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
+import com.google.common.collect.ImmutableList;
+
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.List;
 
 import javax.xml.bind.annotation.XmlRootElement;
 
@@ -79,11 +86,60 @@ public class JAXBCoderTest {
   }
 
   @Test
-  public void testEncodeDecode() throws Exception {
+  public void testEncodeDecodeOuter() throws Exception {
     JAXBCoder<TestType> coder = JAXBCoder.of(TestType.class);
 
     byte[] encoded = CoderUtils.encodeToByteArray(coder, new TestType("abc", 9999));
     Assert.assertEquals(new TestType("abc", 9999), CoderUtils.decodeFromByteArray(coder, encoded));
+  }
+
+  @Test
+  public void testEncodeDecodeNested() throws Exception {
+    JAXBCoder<TestType> jaxbCoder = JAXBCoder.of(TestType.class);
+    TestCoder nesting = new TestCoder(jaxbCoder);
+
+    byte[] encoded = CoderUtils.encodeToByteArray(nesting, new TestType("abc", 9999));
+    Assert.assertEquals(
+        new TestType("abc", 9999), CoderUtils.decodeFromByteArray(nesting, encoded));
+  }
+
+  /**
+   * A coder that surrounds the value with two values, to demonstrate nesting.
+   */
+  private static class TestCoder extends StandardCoder<TestType> {
+    private final JAXBCoder<TestType> jaxbCoder;
+    public TestCoder(JAXBCoder<TestType> jaxbCoder) {
+      this.jaxbCoder = jaxbCoder;
+    }
+
+    @Override
+    public void encode(TestType value, OutputStream outStream, Context context)
+        throws CoderException, IOException {
+      Context subContext = context.nested();
+      VarIntCoder.of().encode(3, outStream, subContext);
+      jaxbCoder.encode(value, outStream, subContext);
+      VarLongCoder.of().encode(22L, outStream, subContext);
+    }
+
+    @Override
+    public TestType decode(InputStream inStream, Context context)
+        throws CoderException, IOException {
+      Context subContext = context.nested();
+      VarIntCoder.of().decode(inStream, subContext);
+      TestType result = jaxbCoder.decode(inStream, subContext);
+      VarLongCoder.of().decode(inStream, subContext);
+      return result;
+    }
+
+    @Override
+    public List<? extends Coder<?>> getCoderArguments() {
+      return ImmutableList.of(jaxbCoder);
+    }
+
+    @Override
+    public void verifyDeterministic() throws NonDeterministicException {
+      jaxbCoder.verifyDeterministic();
+    }
   }
 
   @Test

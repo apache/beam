@@ -28,7 +28,7 @@ import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.C
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
-import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
+import com.google.cloud.dataflow.sdk.util.GroupByKeyViaGroupByKeyOnly.ReifyTimestampsAndWindows;
 import com.google.cloud.dataflow.sdk.util.KeyedWorkItem;
 import com.google.cloud.dataflow.sdk.util.KeyedWorkItems;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
@@ -50,6 +50,8 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class GroupByKeyEvaluatorFactoryTest {
+  private BundleFactory bundleFactory = InProcessBundleFactory.create();
+
   @Test
   public void testInMemoryEvaluator() throws Exception {
     TestPipeline p = TestPipeline.create();
@@ -62,20 +64,20 @@ public class GroupByKeyEvaluatorFactoryTest {
     PCollection<KV<String, Integer>> values =
         p.apply(Create.of(firstFoo, firstBar, secondFoo, firstBaz, secondBar, thirdFoo));
     PCollection<KV<String, WindowedValue<Integer>>> kvs =
-        values.apply(new GroupByKey.ReifyTimestampsAndWindows<String, Integer>());
+        values.apply(new ReifyTimestampsAndWindows<String, Integer>());
     PCollection<KeyedWorkItem<String, Integer>> groupedKvs =
         kvs.apply(new GroupByKeyEvaluatorFactory.InProcessGroupByKeyOnly<String, Integer>());
 
     CommittedBundle<KV<String, WindowedValue<Integer>>> inputBundle =
-        InProcessBundle.unkeyed(kvs).commit(Instant.now());
+        bundleFactory.createRootBundle(kvs).commit(Instant.now());
     InProcessEvaluationContext evaluationContext = mock(InProcessEvaluationContext.class);
 
     UncommittedBundle<KeyedWorkItem<String, Integer>> fooBundle =
-        InProcessBundle.keyed(groupedKvs, "foo");
+        bundleFactory.createKeyedBundle(null, "foo", groupedKvs);
     UncommittedBundle<KeyedWorkItem<String, Integer>> barBundle =
-        InProcessBundle.keyed(groupedKvs, "bar");
+        bundleFactory.createKeyedBundle(null, "bar", groupedKvs);
     UncommittedBundle<KeyedWorkItem<String, Integer>> bazBundle =
-        InProcessBundle.keyed(groupedKvs, "baz");
+        bundleFactory.createKeyedBundle(null, "baz", groupedKvs);
 
     when(evaluationContext.createKeyedBundle(inputBundle, "foo", groupedKvs)).thenReturn(fooBundle);
     when(evaluationContext.createKeyedBundle(inputBundle, "bar", groupedKvs)).thenReturn(barBundle);

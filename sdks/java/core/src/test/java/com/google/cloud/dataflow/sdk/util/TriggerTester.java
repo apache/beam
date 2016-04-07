@@ -263,7 +263,7 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
       for (BoundedWindow untypedWindow : windowedValue.getWindows()) {
         // SDK is responsible for type safety
         @SuppressWarnings("unchecked")
-        W window = activeWindows.representative((W) untypedWindow);
+        W window = activeWindows.mergeResultWindow((W) untypedWindow);
 
         Trigger<W>.OnElementContext context = contextFactory.createOnElementContext(window,
             new TestTimers(windowNamespace(window)), windowedValue.getTimestamp(),

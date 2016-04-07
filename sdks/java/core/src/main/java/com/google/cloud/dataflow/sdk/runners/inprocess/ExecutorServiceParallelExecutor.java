@@ -21,6 +21,7 @@ import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InMemoryWatermarkManager.FiredTimers;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
+import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.util.KeyedWorkItem;
 import com.google.cloud.dataflow.sdk.util.KeyedWorkItems;
 import com.google.cloud.dataflow.sdk.util.TimeDomain;
@@ -62,6 +63,10 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
   private final Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers;
   private final Set<PValue> keyedPValues;
   private final TransformEvaluatorRegistry registry;
+  @SuppressWarnings("rawtypes")
+  private final Map<Class<? extends PTransform>, Collection<ModelEnforcementFactory>>
+      transformEnforcements;
+
   private final InProcessEvaluationContext evaluationContext;
 
   private final ConcurrentMap<StepAndKey, TransformExecutorService> currentEvaluations;
@@ -80,9 +85,11 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
       Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers,
       Set<PValue> keyedPValues,
       TransformEvaluatorRegistry registry,
+      @SuppressWarnings("rawtypes")
+      Map<Class<? extends PTransform>, Collection<ModelEnforcementFactory>> transformEnforcements,
       InProcessEvaluationContext context) {
     return new ExecutorServiceParallelExecutor(
-        executorService, valueToConsumers, keyedPValues, registry, context);
+        executorService, valueToConsumers, keyedPValues, registry, transformEnforcements, context);
   }
 
   private ExecutorServiceParallelExecutor(
@@ -90,11 +97,14 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
       Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers,
       Set<PValue> keyedPValues,
       TransformEvaluatorRegistry registry,
+      @SuppressWarnings("rawtypes")
+      Map<Class<? extends PTransform>, Collection<ModelEnforcementFactory>> transformEnforcements,
       InProcessEvaluationContext context) {
     this.executorService = executorService;
     this.valueToConsumers = valueToConsumers;
     this.keyedPValues = keyedPValues;
     this.registry = registry;
+    this.transformEnforcements = transformEnforcements;
     this.evaluationContext = context;
 
     currentEvaluations = new ConcurrentHashMap<>();
@@ -128,6 +138,7 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
       @Nullable final CommittedBundle<T> bundle,
       final CompletionCallback onComplete) {
     TransformExecutorService transformExecutor;
+
     if (bundle != null && isKeyed(bundle.getPCollection())) {
       final StepAndKey stepAndKey =
           StepAndKey.of(transform, bundle == null ? null : bundle.getKey());
@@ -135,9 +146,21 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
     } else {
       transformExecutor = parallelExecutorService;
     }
+
+    Collection<ModelEnforcementFactory> enforcements =
+        MoreObjects.firstNonNull(
+            transformEnforcements.get(transform.getTransform().getClass()),
+            Collections.<ModelEnforcementFactory>emptyList());
+
     TransformExecutor<T> callable =
         TransformExecutor.create(
-            registry, evaluationContext, bundle, transform, onComplete, transformExecutor);
+            registry,
+            enforcements,
+            evaluationContext,
+            bundle,
+            transform,
+            onComplete,
+            transformExecutor);
     transformExecutor.schedule(callable);
   }
 
@@ -178,12 +201,14 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
    */
   private class DefaultCompletionCallback implements CompletionCallback {
     @Override
-    public void handleResult(CommittedBundle<?> inputBundle, InProcessTransformResult result) {
+    public Iterable<? extends CommittedBundle<?>> handleResult(
+        CommittedBundle<?> inputBundle, InProcessTransformResult result) {
       Iterable<? extends CommittedBundle<?>> resultBundles =
           evaluationContext.handleResult(inputBundle, Collections.<TimerData>emptyList(), result);
       for (CommittedBundle<?> outputBundle : resultBundles) {
         allUpdates.offer(ExecutorUpdate.fromBundle(outputBundle));
       }
+      return resultBundles;
     }
 
     @Override
@@ -206,12 +231,14 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
     }
 
     @Override
-    public void handleResult(CommittedBundle<?> inputBundle, InProcessTransformResult result) {
+    public Iterable<? extends CommittedBundle<?>> handleResult(
+        CommittedBundle<?> inputBundle, InProcessTransformResult result) {
       Iterable<? extends CommittedBundle<?>> resultBundles =
           evaluationContext.handleResult(inputBundle, timers, result);
       for (CommittedBundle<?> outputBundle : resultBundles) {
         allUpdates.offer(ExecutorUpdate.fromBundle(outputBundle));
       }
+      return resultBundles;
     }
 
     @Override
@@ -347,8 +374,9 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
                   KeyedWorkItems.timersWorkItem(keyTimers.getKey(), delivery);
               @SuppressWarnings({"unchecked", "rawtypes"})
               CommittedBundle<?> bundle =
-                  InProcessBundle.<KeyedWorkItem<Object, Object>>keyed(
-                          (PCollection) transform.getInput(), keyTimers.getKey())
+                  evaluationContext
+                      .createKeyedBundle(
+                          null, keyTimers.getKey(), (PCollection) transform.getInput())
                       .add(WindowedValue.valueInEmptyWindows(work))
                       .commit(Instant.now());
               scheduleConsumption(transform, bundle, new TimerCompletionCallback(delivery));

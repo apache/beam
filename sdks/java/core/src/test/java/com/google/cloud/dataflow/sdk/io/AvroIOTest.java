@@ -25,6 +25,7 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.coders.DefaultCoder;
+import com.google.cloud.dataflow.sdk.io.AvroIO.Write.Bound;
 import com.google.cloud.dataflow.sdk.runners.DirectPipeline;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
@@ -45,6 +46,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -198,30 +200,60 @@ public class AvroIOTest {
   }
 
   @SuppressWarnings("deprecation") // using AvroCoder#createDatumReader for tests.
-  @Test
-  public void testAvroSinkWrite() throws Exception {
-    String outputFilePrefix = new File(tmpFolder.getRoot(), "prefix").getAbsolutePath();
-    String[] expectedElements = new String[] {"first", "second", "third"};
-
+  private void runTestWrite(String[] expectedElements, int numShards) throws IOException {
+    File baseOutputFile = new File(tmpFolder.getRoot(), "prefix");
+    String outputFilePrefix = baseOutputFile.getAbsolutePath();
     TestPipeline p = TestPipeline.create();
-    p.apply(Create.<String>of(expectedElements))
-        .apply(AvroIO.Write.to(outputFilePrefix).withSchema(String.class));
+    Bound<String> write = AvroIO.Write.to(outputFilePrefix).withSchema(String.class);
+    if (numShards > 1) {
+      write = write.withNumShards(numShards).withShardNameTemplate(ShardNameTemplate.INDEX_OF_MAX);
+    } else {
+      write = write.withoutSharding();
+    }
+    p.apply(Create.<String>of(expectedElements)).apply(write);
     p.run();
 
     // Validate that the data written matches the expected elements in the expected order
-    String expectedName =
-        IOChannelUtils.constructName(
-            outputFilePrefix, ShardNameTemplate.INDEX_OF_MAX, "" /* no suffix */, 0, 1);
-    File outputFile = new File(expectedName);
-    assertTrue("Expected output file " + expectedName, outputFile.exists());
-    try (DataFileReader<String> reader =
-            new DataFileReader<>(outputFile, AvroCoder.of(String.class).createDatumReader())) {
-      List<String> actualElements = new ArrayList<>();
-      Iterators.addAll(actualElements, reader);
-      assertThat(actualElements, containsInAnyOrder(expectedElements));
+    List<File> expectedFiles = new ArrayList<>();
+    if (numShards == 1) {
+      expectedFiles.add(baseOutputFile);
+    } else {
+      for (int i = 0; i < numShards; i++) {
+        expectedFiles.add(
+            new File(
+                IOChannelUtils.constructName(
+                    outputFilePrefix,
+                    ShardNameTemplate.INDEX_OF_MAX,
+                    "" /* no suffix */,
+                    i,
+                    numShards)));
+      }
     }
+
+    List<String> actualElements = new ArrayList<>();
+    for (File outputFile : expectedFiles) {
+      assertTrue("Expected output file " + outputFile.getName(), outputFile.exists());
+      try (DataFileReader<String> reader =
+              new DataFileReader<>(outputFile, AvroCoder.of(String.class).createDatumReader())) {
+        Iterators.addAll(actualElements, reader);
+      }
+    }
+    assertThat(actualElements, containsInAnyOrder(expectedElements));
   }
 
-  // TODO: for Write only, test withSuffix, withNumShards,
+  @Test
+  public void testAvroSinkWrite() throws Exception {
+    String[] expectedElements = new String[] {"first", "second", "third"};
+
+    runTestWrite(expectedElements, 1);
+  }
+
+  @Test
+  public void testAvroSinkShardedWrite() throws Exception {
+    String[] expectedElements = new String[] {"first", "second", "third", "fourth", "fifth"};
+
+    runTestWrite(expectedElements, 4);
+  }
+  // TODO: for Write only, test withSuffix,
   // withShardNameTemplate and withoutSharding.
 }

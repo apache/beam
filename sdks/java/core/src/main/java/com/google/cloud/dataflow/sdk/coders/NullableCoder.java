@@ -43,6 +43,9 @@ import javax.annotation.Nullable;
  */
 public class NullableCoder<T> extends StandardCoder<T> {
   public static <T> NullableCoder<T> of(Coder<T> valueCoder) {
+    if (valueCoder instanceof NullableCoder) {
+      return (NullableCoder<T>) valueCoder;
+    }
     return new NullableCoder<>(valueCoder);
   }
 

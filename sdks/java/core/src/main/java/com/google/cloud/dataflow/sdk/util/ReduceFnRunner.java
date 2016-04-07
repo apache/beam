@@ -20,7 +20,6 @@ package com.google.cloud.dataflow.sdk.util;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.GroupByKey.GroupByKeyOnly;
 import com.google.cloud.dataflow.sdk.transforms.windowing.AfterWatermark;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFn;
@@ -248,6 +247,11 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     return triggerRunner.isClosed(contextFactory.base(window, StateStyle.DIRECT).state());
   }
 
+  @VisibleForTesting
+  boolean hasNoActiveWindows() {
+    return activeWindows.getActiveWindows().isEmpty();
+  }
+
   /**
    * Incorporate {@code values} into the underlying reduce function, and manage holds, timers,
    * triggers, and window merging.
@@ -295,7 +299,11 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     }
 
     // We're all done with merging and emitting elements so can compress the activeWindow state.
-    activeWindows.removeEphemeralWindows();
+    // Any windows which are still NEW must have come in on a new element which was then discarded
+    // due to the window's trigger being closed. We can thus delete them.
+    // Any windows which are EPHEMERAL must have come in on a new element but been merged away
+    // into some other ACTIVE window. We can thus also delete them.
+    activeWindows.cleanupTemporaryWindows();
   }
 
   public void persist() {
@@ -318,14 +326,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
         @SuppressWarnings("unchecked")
         W window = (W) untypedWindow;
 
-        ReduceFn<K, InputT, OutputT, W>.Context directContext =
-            contextFactory.base(window, StateStyle.DIRECT);
-        if (triggerRunner.isClosed(directContext.state())) {
-          // This window has already been closed.
-          // We will update the counter for this in the corresponding processElement call.
-          continue;
-        }
-
+        // For backwards compat with pre 1.4 only.
         if (activeWindows.isActive(window)) {
           Set<W> stateAddressWindows = activeWindows.readStateAddresses(window);
           if (stateAddressWindows.size() > 1) {
@@ -339,8 +340,11 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
           }
         }
 
-        // Add this window as NEW if we've not yet seen it.
-        activeWindows.addNew(window);
+        // Add this window as NEW if it is not currently ACTIVE or MERGED.
+        // If we had already seen this window and closed its trigger, then the
+        // window will not be ACTIVE or MERGED. It will then be added as NEW here,
+        // and fall into the merging logic as usual.
+        activeWindows.ensureWindowExists(window);
       }
     }
 
@@ -392,7 +396,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       // Merge non-empty pane state.
       nonEmptyPanes.onMerge(renamedMergeContext.state());
 
-      // Have the trigger merge state as needed
+      // Have the trigger merge state as needed.
       triggerRunner.onMerge(
           directMergeContext.window(), directMergeContext.timers(), directMergeContext.state());
 
@@ -438,8 +442,11 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     for (BoundedWindow untypedWindow : value.getWindows()) {
       @SuppressWarnings("unchecked")
       W window = (W) untypedWindow;
-      W active = activeWindows.representative(window);
-      Preconditions.checkState(active != null, "Window %s should have been added", window);
+
+      ReduceFn<K, InputT, OutputT, W>.Context directContext =
+          contextFactory.base(window, StateStyle.DIRECT);
+      W active = activeWindows.mergeResultWindow(window);
+      Preconditions.checkState(active != null, "Window %s has no mergeResultWindow", window);
       windows.add(active);
     }
 
@@ -450,15 +457,14 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       triggerRunner.prefetchForValue(window, directContext.state());
     }
 
-    // Process the element for each (representative) window it belongs to.
+    // Process the element for each (mergeResultWindow, not closed) window it belongs to.
+    List<W> triggerableWindows = new ArrayList<>(windows.size());
     for (W window : windows) {
       ReduceFn<K, InputT, OutputT, W>.ProcessValueContext directContext = contextFactory.forValue(
           window, value.getValue(), value.getTimestamp(), StateStyle.DIRECT);
-      ReduceFn<K, InputT, OutputT, W>.ProcessValueContext renamedContext = contextFactory.forValue(
-          window, value.getValue(), value.getTimestamp(), StateStyle.RENAMED);
 
-      // Check to see if the triggerRunner thinks the window is closed. If so, drop that window.
       if (triggerRunner.isClosed(directContext.state())) {
+        // This window has already been closed.
         droppedDueToClosedWindow.addValue(1L);
         WindowTracing.debug(
             "ReduceFnRunner.processElement: Dropping element at {} for key:{}; window:{} "
@@ -468,6 +474,11 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
         continue;
       }
 
+      triggerableWindows.add(window);
+      activeWindows.ensureWindowIsActive(window);
+
+      ReduceFn<K, InputT, OutputT, W>.ProcessValueContext renamedContext = contextFactory.forValue(
+          window, value.getValue(), value.getTimestamp(), StateStyle.RENAMED);
       nonEmptyPanes.recordContent(renamedContext.state());
 
       // Make sure we've scheduled the end-of-window or garbage collection timer for this window.
@@ -508,7 +519,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       // (We don't actually assert this since it is too slow.)
     }
 
-    return windows;
+    return triggerableWindows;
   }
 
   /**

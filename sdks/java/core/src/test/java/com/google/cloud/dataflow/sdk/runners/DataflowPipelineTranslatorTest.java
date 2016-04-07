@@ -238,7 +238,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
   @Test
   public void testSubnetworkConfig() throws IOException {
-    final String testSubnetwork = "zones/ZONE/subnetworks/SUBNETWORK";
+    final String testSubnetwork = "regions/REGION/subnetworks/SUBNETWORK";
 
     DataflowPipelineOptions options = buildPipelineOptions();
     options.setSubnetwork(testSubnetwork);

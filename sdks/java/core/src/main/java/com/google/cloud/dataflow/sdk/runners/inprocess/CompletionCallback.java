@@ -24,9 +24,10 @@ import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.C
  */
 interface CompletionCallback {
   /**
-   * Handle a successful result.
+   * Handle a successful result, returning the committed outputs of the result.
    */
-  void handleResult(CommittedBundle<?> inputBundle, InProcessTransformResult result);
+  Iterable<? extends CommittedBundle<?>> handleResult(
+      CommittedBundle<?> inputBundle, InProcessTransformResult result);
 
   /**
    * Handle a result that terminated abnormally due to the provided {@link Throwable}.

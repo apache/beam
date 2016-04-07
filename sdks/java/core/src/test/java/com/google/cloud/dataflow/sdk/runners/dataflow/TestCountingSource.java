@@ -56,6 +56,7 @@ public class TestCountingSource
   private final int shardNumber;
   private final boolean dedup;
   private final boolean throwOnFirstSnapshot;
+  private final boolean allowSplitting;
 
   /**
    * We only allow an exception to be thrown from getCheckpointMark
@@ -69,27 +70,36 @@ public class TestCountingSource
   }
 
   public TestCountingSource(int numMessagesPerShard) {
-    this(numMessagesPerShard, 0, false, false);
+    this(numMessagesPerShard, 0, false, false, true);
   }
 
   public TestCountingSource withDedup() {
-    return new TestCountingSource(numMessagesPerShard, shardNumber, true, throwOnFirstSnapshot);
+    return new TestCountingSource(
+        numMessagesPerShard, shardNumber, true, throwOnFirstSnapshot, true);
   }
 
   private TestCountingSource withShardNumber(int shardNumber) {
-    return new TestCountingSource(numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot);
+    return new TestCountingSource(
+        numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot, true);
   }
 
   public TestCountingSource withThrowOnFirstSnapshot(boolean throwOnFirstSnapshot) {
-    return new TestCountingSource(numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot);
+    return new TestCountingSource(
+        numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot, true);
   }
 
-  private TestCountingSource(
-      int numMessagesPerShard, int shardNumber, boolean dedup, boolean throwOnFirstSnapshot) {
+  public TestCountingSource withoutSplitting() {
+    return new TestCountingSource(
+        numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot, false);
+  }
+
+  private TestCountingSource(int numMessagesPerShard, int shardNumber, boolean dedup,
+      boolean throwOnFirstSnapshot, boolean allowSplitting) {
     this.numMessagesPerShard = numMessagesPerShard;
     this.shardNumber = shardNumber;
     this.dedup = dedup;
     this.throwOnFirstSnapshot = throwOnFirstSnapshot;
+    this.allowSplitting = allowSplitting;
   }
 
   public int getShardNumber() {
@@ -100,7 +110,8 @@ public class TestCountingSource
   public List<TestCountingSource> generateInitialSplits(
       int desiredNumSplits, PipelineOptions options) {
     List<TestCountingSource> splits = new ArrayList<>();
-    for (int i = 0; i < desiredNumSplits; i++) {
+    int numSplits = allowSplitting ? desiredNumSplits : 1;
+    for (int i = 0; i < numSplits; i++) {
       splits.add(withShardNumber(i));
     }
     return splits;

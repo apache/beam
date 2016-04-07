@@ -19,7 +19,6 @@ package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
-import com.google.common.base.Throwables;
 
 import java.util.Arrays;
 import java.util.Objects;
@@ -114,7 +113,7 @@ public class MutationDetectors {
       try {
         verifyUnmodifiedThrowingCheckedExceptions();
       } catch (CoderException exn) {
-        Throwables.propagate(exn);
+        throw new RuntimeException(exn);
       }
     }
 

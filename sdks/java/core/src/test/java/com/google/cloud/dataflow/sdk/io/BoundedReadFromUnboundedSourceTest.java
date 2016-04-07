@@ -95,7 +95,7 @@ public class BoundedReadFromUnboundedSourceTest {
       Collections.sort(values);
       for (int i = 0; i < values.size(); i++) {
         assertEquals(i, (int) values.get(i));
-              }
+      }
       if (finalizeTracker != null) {
         assertThat(finalizeTracker, containsInAnyOrder(values.size() - 1));
       }
@@ -110,7 +110,7 @@ public class BoundedReadFromUnboundedSourceTest {
       finalizeTracker = new ArrayList<>();
       TestCountingSource.setFinalizeTracker(finalizeTracker);
     }
-    TestCountingSource source = new TestCountingSource(Integer.MAX_VALUE);
+    TestCountingSource source = new TestCountingSource(Integer.MAX_VALUE).withoutSplitting();
     if (dedup) {
       source = source.withDedup();
     }

@@ -73,4 +73,34 @@ public class TestPipelineTest {
   public void testToString() {
     assertEquals("TestPipeline#TestPipelineTest-testToString", TestPipeline.create().toString());
   }
+
+  @Test
+  public void testToStringNestedMethod() {
+    TestPipeline p = nestedMethod();
+
+    assertEquals("TestPipeline#TestPipelineTest-testToStringNestedMethod", p.toString());
+    assertEquals(
+        "TestPipelineTest-testToStringNestedMethod",
+        p.getOptions().as(ApplicationNameOptions.class).getAppName());
+  }
+
+  private TestPipeline nestedMethod() {
+    return TestPipeline.create();
+  }
+
+  @Test
+  public void testToStringNestedClassMethod() {
+    TestPipeline p = new NestedTester().p();
+
+    assertEquals("TestPipeline#TestPipelineTest-testToStringNestedClassMethod", p.toString());
+    assertEquals(
+        "TestPipelineTest-testToStringNestedClassMethod",
+        p.getOptions().as(ApplicationNameOptions.class).getAppName());
+  }
+
+  private static class NestedTester {
+    public TestPipeline p() {
+      return TestPipeline.create();
+    }
+  }
 }
