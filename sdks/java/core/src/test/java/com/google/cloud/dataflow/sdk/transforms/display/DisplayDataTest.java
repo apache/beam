@@ -40,6 +40,7 @@ import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.display.DisplayData.Builder;
 import com.google.cloud.dataflow.sdk.transforms.display.DisplayData.Item;
 import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.common.base.Optional;
 import com.google.common.testing.EqualsTester;
 
 import org.hamcrest.CustomTypeSafeMatcher;
@@ -59,6 +60,7 @@ import org.junit.runners.JUnit4;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Pattern;
 
 /**
@@ -87,20 +89,25 @@ public class DisplayDataTest {
           }
         };
 
+
     PTransform<?, ?> transform =
         new PTransform<PCollection<String>, PCollection<String>>() {
+          final Instant defaultStartTime = new Instant(0);
+          Instant startTime = defaultStartTime;
+
           @Override
           public void populateDisplayData(DisplayData.Builder builder) {
             builder
                 .include(subComponent1)
                 .include(subComponent2)
-                .add("MinSproggles", 200)
-                .withLabel("Mimimum Required Sproggles")
-                .add("FireLazers", true)
-                .add("TimeBomb", Instant.now().plus(Duration.standardDays(1)))
-                .add("FilterLogic", subComponent1.getClass())
-                .add("ServiceUrl", "google.com/fizzbang")
-                .withLinkUrl("http://www.google.com/fizzbang");
+                .add("minSproggles", 200)
+                  .withLabel("Mimimum Required Sproggles")
+                .add("fireLazers", true)
+                .addIfNotDefault("startTime", startTime, defaultStartTime)
+                .add("timeBomb", Instant.now().plus(Duration.standardDays(1)))
+                .add("filterLogic", subComponent1.getClass())
+                .add("serviceUrl", "google.com/fizzbang")
+                  .withLinkUrl("http://www.google.com/fizzbang");
           }
         };
 
@@ -173,7 +180,7 @@ public class DisplayDataTest {
     DisplayData.Item item = (DisplayData.Item) data.items().toArray()[0];
     assertThat(
         item,
-        allOf(
+        Matchers.allOf(
             hasNamespace(DisplayDataTest.class),
             hasKey("now"),
             hasType(DisplayData.Type.TIMESTAMP),
@@ -198,6 +205,54 @@ public class DisplayDataTest {
         data,
         hasDisplayItem(allOf(hasLabel(nullValue(String.class)), hasUrl(nullValue(String.class)))));
   }
+
+  @Test
+  public void testAddIfNotDefault() {
+    final int defaultValue = 10;
+
+    DisplayData data = DisplayData.from(new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder
+            .addIfNotDefault("isDefault", defaultValue, defaultValue)
+            .addIfNotDefault("notDefault", defaultValue + 1, defaultValue);
+      }
+    });
+
+    assertThat(data, not(hasDisplayItem(hasKey("isDefault"))));
+    assertThat(data, hasDisplayItem("notDefault", defaultValue + 1));
+  }
+
+  @Test
+  public void testAddIfNotNull() {
+    DisplayData data = DisplayData.from(new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder
+            .addIfNotNull("isNull", (Class<?>) null)
+            .addIfNotNull("notNull", DisplayDataTest.class);
+      }
+    });
+
+    assertThat(data, not(hasDisplayItem(hasKey("isNull"))));
+    assertThat(data, hasDisplayItem(hasKey("notNull")));
+  }
+
+  @Test
+  public void testModifyingConditionalItemIsSafe() {
+    HasDisplayData component = new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder.addIfNotNull("nullItem", (Class<?>) null)
+            .withLinkUrl("http://abc")
+            .withNamespace(DisplayDataTest.class)
+            .withLabel("Null item shoudl be safe");
+      }
+    };
+
+    DisplayData.from(component); // should not throw
+  }
+
 
   @Test
   public void testIncludes() {
@@ -452,6 +507,7 @@ public class DisplayDataTest {
     }
 
     @Override
+    @SuppressWarnings("EqualsWhichDoesntCheckParameterClass")
     public boolean equals(Object obj) {
       return true;
     }
@@ -504,37 +560,49 @@ public class DisplayDataTest {
   }
 
   @Test
-  public void testObjectInputType() {
+  public void testExplicitItemType() {
     DisplayData data = DisplayData.from(new HasDisplayData() {
       @Override
       public void populateDisplayData(Builder builder) {
         builder
-            .add("castInteger", (Object) 1234)
-            .add("anonymousType", new Object() {
-              @Override
-              public String toString() {
-                return "foobar";
-              }
-            });
+            .add("integer", DisplayData.Type.INTEGER, 1234)
+            .add("string", DisplayData.Type.STRING, "foobar");
       }
     });
 
-    assertThat(data, hasDisplayItem("castInteger", 1234));
-    assertThat(data, hasDisplayItem("anonymousType", "foobar"));
+    assertThat(data, hasDisplayItem("integer", 1234));
+    assertThat(data, hasDisplayItem("string", "foobar"));
   }
 
   @Test
-  public void testKnownTypeInferrence() {
-    assertEquals(DisplayData.Type.INTEGER, DisplayData.Type.inferFrom(1234));
-    assertEquals(DisplayData.Type.INTEGER, DisplayData.Type.inferFrom(1234L));
-    assertEquals(DisplayData.Type.FLOAT, DisplayData.Type.inferFrom(12.3));
-    assertEquals(DisplayData.Type.FLOAT, DisplayData.Type.inferFrom(12.3f));
-    assertEquals(DisplayData.Type.BOOLEAN, DisplayData.Type.inferFrom(true));
-    assertEquals(DisplayData.Type.TIMESTAMP, DisplayData.Type.inferFrom(Instant.now()));
-    assertEquals(DisplayData.Type.DURATION, DisplayData.Type.inferFrom(Duration.millis(1234)));
-    assertEquals(DisplayData.Type.JAVA_CLASS, DisplayData.Type.inferFrom(DisplayDataTest.class));
-    assertEquals(DisplayData.Type.STRING, DisplayData.Type.inferFrom("hello world"));
-    assertEquals(DisplayData.Type.STRING, DisplayData.Type.inferFrom(new Object() {}));
+  public void testInvalidExplicitItemType() {
+    HasDisplayData component = new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder.add("integer", DisplayData.Type.INTEGER, "foobar");
+      }
+    };
+
+    thrown.expect(ClassCastException.class);
+    DisplayData.from(component);
+  }
+
+  @Test
+  public void testKnownTypeInference() {
+    assertThat(DisplayData.inferType(1234), hasOptionalValue(DisplayData.Type.INTEGER));
+    assertThat(DisplayData.inferType(1234L), hasOptionalValue(DisplayData.Type.INTEGER));
+    assertThat(DisplayData.inferType(12.3), hasOptionalValue(DisplayData.Type.FLOAT));
+    assertThat(DisplayData.inferType(12.3f), hasOptionalValue(DisplayData.Type.FLOAT));
+    assertThat(DisplayData.inferType(true), hasOptionalValue(DisplayData.Type.BOOLEAN));
+    assertThat(DisplayData.inferType(Instant.now()), hasOptionalValue(DisplayData.Type.TIMESTAMP));
+    assertThat(DisplayData.inferType(Duration.millis(1234)),
+        hasOptionalValue(DisplayData.Type.DURATION));
+    assertThat(DisplayData.inferType(DisplayDataTest.class),
+        hasOptionalValue(DisplayData.Type.JAVA_CLASS));
+    assertThat(DisplayData.inferType("hello world"), hasOptionalValue(DisplayData.Type.STRING));
+
+    assertEquals(Optional.absent(), DisplayData.inferType(null));
+    assertEquals(Optional.absent(), DisplayData.inferType(new Object() {}));
   }
 
   @Test
@@ -611,6 +679,23 @@ public class DisplayDataTest {
             builder.include(null);
           }
         });
+  }
+
+  @Test
+  public void testIncludeNullNamespace() {
+    final HasDisplayData subComponent = new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+      }
+    };
+
+    thrown.expect(NullPointerException.class);
+    DisplayData.from(new HasDisplayData() {
+        @Override
+        public void populateDisplayData(Builder builder) {
+          builder.include(subComponent, null);
+        }
+      });
   }
 
   @Test
@@ -703,6 +788,15 @@ public class DisplayDataTest {
       @Override
       protected String featureValueOf(DisplayData.Item actual) {
         return actual.getShortValue();
+      }
+    };
+  }
+
+  private static <T> Matcher<Optional<T>> hasOptionalValue(final T value) {
+    return new CustomTypeSafeMatcher<Optional<T>>("optional value") {
+      @Override
+      protected boolean matchesSafely(Optional<T> item) {
+        return item.isPresent() && Objects.equals(item.get(), value);
       }
     };
   }
