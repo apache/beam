@@ -19,7 +19,7 @@ package com.google.cloud.dataflow.examples.complete;
 
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
@@ -52,7 +52,7 @@ public class TopWikipediaSessionsTest {
             new TableRow().set("timestamp", 35 * 24 * 3600).set("contributor_username", "user3"))))
         .apply(new TopWikipediaSessions.ComputeTopSessions(1.0));
 
-    DataflowAssert.that(output).containsInAnyOrder(Arrays.asList(
+    PAssert.that(output).containsInAnyOrder(Arrays.asList(
         "user1 : [1970-01-01T00:00:00.000Z..1970-01-01T01:00:02.000Z)"
         + " : 3 : 1970-01-01T00:00:00.000Z",
         "user3 : [1970-02-05T00:00:00.000Z..1970-02-05T01:00:00.000Z)"

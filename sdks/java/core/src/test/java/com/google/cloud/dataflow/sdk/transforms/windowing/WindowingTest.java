@@ -20,7 +20,7 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.io.TextIO;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Count;
@@ -103,7 +103,7 @@ public class WindowingTest implements Serializable {
         input
         .apply(new WindowedCount(FixedWindows.of(new Duration(10))));
 
-    DataflowAssert.that(output).containsInAnyOrder(
+    PAssert.that(output).containsInAnyOrder(
         output("a", 1, 1, 0, 10),
         output("b", 2, 2, 0, 10),
         output("c", 1, 11, 10, 20),
@@ -128,7 +128,7 @@ public class WindowingTest implements Serializable {
         .apply(new WindowedCount(
             SlidingWindows.of(new Duration(10)).every(new Duration(5))));
 
-    DataflowAssert.that(output).containsInAnyOrder(
+    PAssert.that(output).containsInAnyOrder(
         output("a", 1, 1, -5, 5),
         output("a", 2, 5, 0, 10),
         output("a", 1, 10, 5, 15),
@@ -153,7 +153,7 @@ public class WindowingTest implements Serializable {
         input
         .apply(new WindowedCount(Sessions.withGapDuration(new Duration(10))));
 
-    DataflowAssert.that(output).containsInAnyOrder(
+    PAssert.that(output).containsInAnyOrder(
         output("a", 2, 1, 1, 15),
         output("a", 1, 20, 20, 30));
 
@@ -181,7 +181,7 @@ public class WindowingTest implements Serializable {
         .apply(Flatten.<String>pCollections())
         .apply(new WindowedCount(FixedWindows.of(new Duration(5))));
 
-    DataflowAssert.that(output).containsInAnyOrder(
+    PAssert.that(output).containsInAnyOrder(
         output("a", 2, 1, 0, 5),
         output("b", 2, 2, 0, 5));
 
@@ -199,7 +199,7 @@ public class WindowingTest implements Serializable {
         input
         .apply(new WindowedCount(FixedWindows.of(new Duration(10))));
 
-    DataflowAssert.that(output).empty();
+    PAssert.that(output).empty();
 
     p.run();
   }
@@ -223,7 +223,7 @@ public class WindowingTest implements Serializable {
         .apply(ParDo.of(new ExtractWordsWithTimestampsFn()))
         .apply(new WindowedCount(FixedWindows.of(Duration.millis(10))));
 
-    DataflowAssert.that(output).containsInAnyOrder(
+    PAssert.that(output).containsInAnyOrder(
         output("a", 1, 1, 0, 10),
         output("b", 2, 2, 0, 10),
         output("c", 1, 11, 10, 20),

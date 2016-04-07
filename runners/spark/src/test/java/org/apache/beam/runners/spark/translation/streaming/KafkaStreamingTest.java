@@ -20,7 +20,7 @@ package org.apache.beam.runners.spark.translation.streaming;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.View;
@@ -35,7 +35,7 @@ import org.apache.beam.runners.spark.SparkStreamingPipelineOptions;
 import org.apache.beam.runners.spark.io.KafkaIO;
 import org.apache.beam.runners.spark.EvaluationResult;
 import org.apache.beam.runners.spark.SparkPipelineRunner;
-import org.apache.beam.runners.spark.translation.streaming.utils.DataflowAssertStreaming;
+import org.apache.beam.runners.spark.translation.streaming.utils.PAssertStreaming;
 import org.apache.beam.runners.spark.translation.streaming.utils.EmbeddedKafkaCluster;
 
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -115,13 +115,13 @@ public class KafkaStreamingTest {
 
     PCollection<String> formattedKV = windowedWords.apply(ParDo.of(new FormatKVFn()));
 
-    DataflowAssert.thatIterable(formattedKV.apply(View.<String>asIterable()))
+    PAssert.thatIterable(formattedKV.apply(View.<String>asIterable()))
         .containsInAnyOrder(EXPECTED);
 
     EvaluationResult res = SparkPipelineRunner.create(options).run(p);
     res.close();
 
-    DataflowAssertStreaming.assertNoFailures(res);
+    PAssertStreaming.assertNoFailures(res);
   }
 
   @AfterClass

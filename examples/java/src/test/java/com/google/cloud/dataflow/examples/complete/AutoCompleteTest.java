@@ -20,7 +20,7 @@ package com.google.cloud.dataflow.examples.complete;
 import com.google.cloud.dataflow.examples.complete.AutoComplete.CompletionCandidate;
 import com.google.cloud.dataflow.examples.complete.AutoComplete.ComputeTopCompletions;
 import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
@@ -93,7 +93,7 @@ public class AutoCompleteTest implements Serializable {
                           }
                       }));
 
-    DataflowAssert.that(output).containsInAnyOrder(
+    PAssert.that(output).containsInAnyOrder(
         KV.of("a", parseList("apple:2", "apricot:1")),
         KV.of("ap", parseList("apple:2", "apricot:1")),
         KV.of("b", parseList("blackberry:3", "blueberry:2")),
@@ -115,7 +115,7 @@ public class AutoCompleteTest implements Serializable {
     PCollection<KV<String, List<CompletionCandidate>>> output =
       input.apply(new ComputeTopCompletions(2, recursive));
 
-    DataflowAssert.that(output).containsInAnyOrder(
+    PAssert.that(output).containsInAnyOrder(
         KV.of("x", parseList("x:3", "xy:2")),
         KV.of("xy", parseList("xy:2", "xyz:1")),
         KV.of("xyz", parseList("xyz:1")));
@@ -141,7 +141,7 @@ public class AutoCompleteTest implements Serializable {
       input.apply(Window.<String>into(SlidingWindows.of(new Duration(2))))
            .apply(new ComputeTopCompletions(2, recursive));
 
-    DataflowAssert.that(output).containsInAnyOrder(
+    PAssert.that(output).containsInAnyOrder(
         // Window [0, 2)
         KV.of("x", parseList("xA:2", "xB:1")),
         KV.of("xA", parseList("xA:2")),

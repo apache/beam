@@ -21,7 +21,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -59,7 +59,7 @@ public class MapElementsTest implements Serializable {
           }
         }));
 
-    DataflowAssert.that(output).containsInAnyOrder(-2, -1, -3);
+    PAssert.that(output).containsInAnyOrder(-2, -1, -3);
     pipeline.run();
   }
 
@@ -79,7 +79,7 @@ public class MapElementsTest implements Serializable {
           }
         }).withOutputType(new TypeDescriptor<Integer>() {}));
 
-    DataflowAssert.that(output).containsInAnyOrder(-2, -1, -3);
+    PAssert.that(output).containsInAnyOrder(-2, -1, -3);
     pipeline.run();
   }
 

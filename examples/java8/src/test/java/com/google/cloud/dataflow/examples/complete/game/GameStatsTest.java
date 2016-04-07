@@ -19,7 +19,7 @@ package com.google.cloud.dataflow.examples.complete.game;
 
 import com.google.cloud.dataflow.examples.complete.game.GameStats.CalculateSpammyUsers;
 import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
@@ -69,7 +69,7 @@ public class GameStatsTest implements Serializable {
     PCollection<KV<String, Integer>> output = input.apply(new CalculateSpammyUsers());
 
     // Check the set of spammers.
-    DataflowAssert.that(output).containsInAnyOrder(SPAMMERS);
+    PAssert.that(output).containsInAnyOrder(SPAMMERS);
 
     p.run();
   }

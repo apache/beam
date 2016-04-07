@@ -19,7 +19,7 @@
 package org.apache.beam.runners.spark.translation;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
@@ -56,7 +56,7 @@ public class DoFnOutputTest implements Serializable {
       }
     }));
 
-    DataflowAssert.that(output).containsInAnyOrder("start", "a", "finish");
+    PAssert.that(output).containsInAnyOrder("start", "a", "finish");
 
     EvaluationResult res = SparkPipelineRunner.create().run(pipeline);
     res.close();

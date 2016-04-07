@@ -19,7 +19,7 @@ package org.apache.beam.runners.spark.translation.streaming;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.transforms.View;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
@@ -31,7 +31,7 @@ import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.runners.spark.EvaluationResult;
 import org.apache.beam.runners.spark.SimpleWordCountTest;
 import org.apache.beam.runners.spark.SparkPipelineRunner;
-import org.apache.beam.runners.spark.translation.streaming.utils.DataflowAssertStreaming;
+import org.apache.beam.runners.spark.translation.streaming.utils.PAssertStreaming;
 
 import org.joda.time.Duration;
 import org.junit.Test;
@@ -66,12 +66,12 @@ public class SimpleStreamingWordCountTest {
 
     PCollection<String> output = windowedWords.apply(new SimpleWordCountTest.CountWords());
 
-    DataflowAssert.thatIterable(output.apply(View.<String>asIterable()))
+    PAssert.thatIterable(output.apply(View.<String>asIterable()))
         .containsInAnyOrder(EXPECTED_COUNT_SET);
 
     EvaluationResult res = SparkPipelineRunner.create(options).run(p);
     res.close();
 
-    DataflowAssertStreaming.assertNoFailures(res);
+    PAssertStreaming.assertNoFailures(res);
   }
 }

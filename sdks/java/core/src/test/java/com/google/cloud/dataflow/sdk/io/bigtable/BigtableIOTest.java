@@ -42,8 +42,8 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.io.bigtable.BigtableIO.BigtableSource;
 import com.google.cloud.dataflow.sdk.io.range.ByteKey;
 import com.google.cloud.dataflow.sdk.io.range.ByteKeyRange;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.ExpectedLogs;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -218,7 +218,7 @@ public class BigtableIOTest {
 
     TestPipeline p = TestPipeline.create();
     PCollection<Row> rows = p.apply(defaultRead.withTableId(table));
-    DataflowAssert.that(rows).empty();
+    PAssert.that(rows).empty();
 
     p.run();
     logged.verifyInfo(String.format("Closing reader after reading 0 records."));
@@ -233,7 +233,7 @@ public class BigtableIOTest {
 
     TestPipeline p = TestPipeline.create();
     PCollection<Row> rows = p.apply(defaultRead.withTableId(table));
-    DataflowAssert.that(rows).containsInAnyOrder(testRows);
+    PAssert.that(rows).containsInAnyOrder(testRows);
 
     p.run();
     logged.verifyInfo(String.format("Closing reader after reading %d records.", numRows));
@@ -278,7 +278,7 @@ public class BigtableIOTest {
 
     TestPipeline p = TestPipeline.create();
     PCollection<Row> rows = p.apply(defaultRead.withTableId(table).withRowFilter(filter));
-    DataflowAssert.that(rows).containsInAnyOrder(filteredRows);
+    PAssert.that(rows).containsInAnyOrder(filteredRows);
 
     p.run();
   }

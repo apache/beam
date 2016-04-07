@@ -23,7 +23,7 @@ import static org.junit.Assert.assertThat;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.io.CountingInput.UnboundedCountingInput;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Count;
@@ -49,18 +49,18 @@ import org.junit.runners.JUnit4;
 public class CountingInputTest {
   public static void addCountingAsserts(PCollection<Long> input, long numElements) {
     // Count == numElements
-    DataflowAssert.thatSingleton(input.apply("Count", Count.<Long>globally()))
+    PAssert.thatSingleton(input.apply("Count", Count.<Long>globally()))
         .isEqualTo(numElements);
     // Unique count == numElements
-    DataflowAssert.thatSingleton(
+    PAssert.thatSingleton(
             input
                 .apply(RemoveDuplicates.<Long>create())
                 .apply("UniqueCount", Count.<Long>globally()))
         .isEqualTo(numElements);
     // Min == 0
-    DataflowAssert.thatSingleton(input.apply("Min", Min.<Long>globally())).isEqualTo(0L);
+    PAssert.thatSingleton(input.apply("Min", Min.<Long>globally())).isEqualTo(0L);
     // Max == numElements-1
-    DataflowAssert.thatSingleton(input.apply("Max", Max.<Long>globally()))
+    PAssert.thatSingleton(input.apply("Max", Max.<Long>globally()))
         .isEqualTo(numElements - 1);
   }
 
@@ -133,7 +133,7 @@ public class CountingInputTest {
             .apply("TimestampDiff", ParDo.of(new ElementValueDiff()))
             .apply("RemoveDuplicateTimestamps", RemoveDuplicates.<Long>create());
     // This assert also confirms that diffs only has one unique value.
-    DataflowAssert.thatSingleton(diffs).isEqualTo(0L);
+    PAssert.thatSingleton(diffs).isEqualTo(0L);
 
     p.run();
   }

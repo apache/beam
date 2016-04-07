@@ -20,7 +20,7 @@ package org.apache.beam.runners.spark;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.RemoveDuplicates;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -52,7 +52,7 @@ public class DeDupTest {
     PCollection<String> input = p.apply(Create.of(LINES)).setCoder(StringUtf8Coder.of());
     PCollection<String> output = input.apply(RemoveDuplicates.<String>create());
 
-    DataflowAssert.that(output).containsInAnyOrder(EXPECTED_SET);
+    PAssert.that(output).containsInAnyOrder(EXPECTED_SET);
 
     EvaluationResult res = SparkPipelineRunner.create().run(p);
     res.close();

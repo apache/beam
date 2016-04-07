@@ -23,7 +23,7 @@ import static org.junit.Assert.fail;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.TestUtils;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -73,7 +73,7 @@ public class ApproximateUniqueTest implements Serializable {
     PCollection<Long> estimate = input
         .apply(ApproximateUnique.<Integer>globally(1000));
 
-    DataflowAssert.thatSingleton(estimate).isEqualTo(3L);
+    PAssert.thatSingleton(estimate).isEqualTo(3L);
 
     p.run();
   }
@@ -101,7 +101,7 @@ public class ApproximateUniqueTest implements Serializable {
     PCollection<Long> estimate =
         input.apply(ApproximateUnique.<Double>globally(sampleSize));
 
-    DataflowAssert.thatSingleton(estimate).satisfies(new VerifyEstimateFn(uniqueCount, sampleSize));
+    PAssert.thatSingleton(estimate).satisfies(new VerifyEstimateFn(uniqueCount, sampleSize));
 
     p.run();
   }
@@ -138,7 +138,7 @@ public class ApproximateUniqueTest implements Serializable {
     PCollection<Long> estimate =
         input.apply(ApproximateUnique.<Integer>globally(sampleSize));
 
-    DataflowAssert.thatSingleton(estimate).satisfies(new VerifyEstimateFn(uniqueCount, sampleSize));
+    PAssert.thatSingleton(estimate).satisfies(new VerifyEstimateFn(uniqueCount, sampleSize));
 
     p.run();
   }
@@ -161,7 +161,7 @@ public class ApproximateUniqueTest implements Serializable {
     PCollection<KV<Long, Long>> counts =
         input.apply(ApproximateUnique.<Long, Long>perKey(sampleSize));
 
-    DataflowAssert.that(counts).satisfies(new VerifyEstimatePerKeyFn(sampleSize));
+    PAssert.that(counts).satisfies(new VerifyEstimatePerKeyFn(sampleSize));
 
     p.run();
 
@@ -220,7 +220,7 @@ public class ApproximateUniqueTest implements Serializable {
             })
             .withSideInputs(exact));
 
-    DataflowAssert.that(approximateAndExact).satisfies(new VerifyEstimatePerKeyFn(sampleSize));
+    PAssert.that(approximateAndExact).satisfies(new VerifyEstimatePerKeyFn(sampleSize));
 
     p.run();
   }

@@ -27,7 +27,7 @@ import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.coders.DefaultCoder;
 import com.google.cloud.dataflow.sdk.io.AvroIO.Write.Bound;
 import com.google.cloud.dataflow.sdk.runners.DirectPipeline;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
@@ -130,7 +130,7 @@ public class AvroIOTest {
     PCollection<GenericClass> input = p
         .apply(AvroIO.Read.from(outputFile.getAbsolutePath()).withSchema(GenericClass.class));
 
-    DataflowAssert.that(input).containsInAnyOrder(values);
+    PAssert.that(input).containsInAnyOrder(values);
     p.run();
   }
 
@@ -195,7 +195,7 @@ public class AvroIOTest {
     PCollection<GenericClassV2> input = p
         .apply(AvroIO.Read.from(outputFile.getAbsolutePath()).withSchema(GenericClassV2.class));
 
-    DataflowAssert.that(input).containsInAnyOrder(expected);
+    PAssert.that(input).containsInAnyOrder(expected);
     p.run();
   }
 

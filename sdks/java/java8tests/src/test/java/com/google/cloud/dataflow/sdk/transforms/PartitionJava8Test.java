@@ -21,7 +21,7 @@ import static org.junit.Assert.assertEquals;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.values.PCollectionList;
 
@@ -51,9 +51,9 @@ public class PartitionJava8Test implements Serializable {
         .apply(Create.of(1, 2, 4, 5))
         .apply(Partition.of(3, (element, numPartitions) -> element % numPartitions));
     assertEquals(3, outputs.size());
-    DataflowAssert.that(outputs.get(0)).empty();
-    DataflowAssert.that(outputs.get(1)).containsInAnyOrder(1, 4);
-    DataflowAssert.that(outputs.get(2)).containsInAnyOrder(2, 5);
+    PAssert.that(outputs.get(0)).empty();
+    PAssert.that(outputs.get(1)).containsInAnyOrder(1, 4);
+    PAssert.that(outputs.get(2)).containsInAnyOrder(2, 5);
     pipeline.run();
   }
 

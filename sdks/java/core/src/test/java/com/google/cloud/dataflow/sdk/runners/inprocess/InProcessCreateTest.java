@@ -35,7 +35,7 @@ import com.google.cloud.dataflow.sdk.io.BoundedSource;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessCreate.InMemorySource;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.SourceTestUtils;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
@@ -76,7 +76,7 @@ public class InProcessCreateTest {
 
     InProcessCreate<Integer> converted = InProcessCreate.from(og);
 
-    DataflowAssert.that(p.apply(converted)).containsInAnyOrder(2, 1, 3);
+    PAssert.that(p.apply(converted)).containsInAnyOrder(2, 1, 3);
 
     p.run();
   }
@@ -91,7 +91,7 @@ public class InProcessCreateTest {
     InProcessCreate<String> converted = InProcessCreate.from(og);
     TestPipeline p = TestPipeline.create();
 
-    DataflowAssert.that(p.apply(converted))
+    PAssert.that(p.apply(converted))
         .containsInAnyOrder(null, "foo", null, "spam", "ham", "eggs");
 
     p.run();
@@ -172,7 +172,7 @@ public class InProcessCreateTest {
             Create.of(elements).withCoder(new UnserializableRecord.UnserializableRecordCoder()));
 
     TestPipeline p = TestPipeline.create();
-    DataflowAssert.that(p.apply(create))
+    PAssert.that(p.apply(create))
         .containsInAnyOrder(
             new UnserializableRecord("foo"),
             new UnserializableRecord("bar"),

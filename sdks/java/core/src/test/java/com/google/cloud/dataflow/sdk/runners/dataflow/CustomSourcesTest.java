@@ -33,8 +33,8 @@ import com.google.cloud.dataflow.sdk.io.Read;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.ExpectedLogs;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Sample;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
@@ -213,7 +213,7 @@ public class CustomSourcesTest {
         .apply(Sum.integersGlobally())
         .apply(Sample.<Integer>any(1));
 
-    DataflowAssert.thatSingleton(sum).isEqualTo(145);
+    PAssert.thatSingleton(sum).isEqualTo(145);
     p.run();
   }
 
@@ -225,7 +225,7 @@ public class CustomSourcesTest {
          .apply(Window.<Integer>into(FixedWindows.of(Duration.millis(3))))
          .apply(Sum.integersGlobally().withoutDefaults());
     // Should group into [10 11] [12 13 14] [15 16 17] [18 19].
-    DataflowAssert.that(sums).containsInAnyOrder(21, 37, 39, 48);
+    PAssert.that(sums).containsInAnyOrder(21, 37, 39, 48);
     p.run();
   }
 

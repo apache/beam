@@ -22,17 +22,17 @@ import org.apache.beam.runners.spark.EvaluationResult;
 import org.junit.Assert;
 
 /**
- * Since DataflowAssert doesn't propagate assert exceptions, use Aggregators to assert streaming
+ * Since PAssert doesn't propagate assert exceptions, use Aggregators to assert streaming
  * success/failure counters.
  */
-public final class DataflowAssertStreaming {
+public final class PAssertStreaming {
   /**
-   * Copied aggregator names from {@link com.google.cloud.dataflow.sdk.testing.DataflowAssert}
+   * Copied aggregator names from {@link com.google.cloud.dataflow.sdk.testing.PAssert}
    */
-  static final String SUCCESS_COUNTER = "DataflowAssertSuccess";
-  static final String FAILURE_COUNTER = "DataflowAssertFailure";
+  static final String SUCCESS_COUNTER = "PAssertSuccess";
+  static final String FAILURE_COUNTER = "PAssertFailure";
 
-  private DataflowAssertStreaming() {
+  private PAssertStreaming() {
   }
 
   public static void assertNoFailures(EvaluationResult res) {

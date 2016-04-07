@@ -19,7 +19,7 @@ package com.google.cloud.dataflow.sdk.transforms;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -52,7 +52,7 @@ public class FilterJava8Test implements Serializable {
         .apply(Create.of(591, 11789, 1257, 24578, 24799, 307))
         .apply(Filter.byPredicate(i -> true));
 
-    DataflowAssert.that(output).containsInAnyOrder(591, 11789, 1257, 24578, 24799, 307);
+    PAssert.that(output).containsInAnyOrder(591, 11789, 1257, 24578, 24799, 307);
     pipeline.run();
   }
 
@@ -64,7 +64,7 @@ public class FilterJava8Test implements Serializable {
         .apply(Create.of(1, 2, 4, 5))
         .apply(Filter.byPredicate(i -> false));
 
-    DataflowAssert.that(output).empty();
+    PAssert.that(output).empty();
     pipeline.run();
   }
 
@@ -77,7 +77,7 @@ public class FilterJava8Test implements Serializable {
         .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
         .apply(Filter.byPredicate(i -> i % 2 == 0));
 
-    DataflowAssert.that(output).containsInAnyOrder(2, 4, 6);
+    PAssert.that(output).containsInAnyOrder(2, 4, 6);
     pipeline.run();
   }
 
@@ -107,7 +107,7 @@ public class FilterJava8Test implements Serializable {
         .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
         .apply(Filter.byPredicate(new EvenFilter()::isEven));
 
-    DataflowAssert.that(output).containsInAnyOrder(2, 4, 6);
+    PAssert.that(output).containsInAnyOrder(2, 4, 6);
     pipeline.run();
   }
 

@@ -22,7 +22,7 @@ import com.google.cloud.dataflow.examples.WordCount.ExtractWordsFn;
 import com.google.cloud.dataflow.examples.WordCount.FormatAsTextFn;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
@@ -80,7 +80,7 @@ public class WordCountTest {
     PCollection<String> output = input.apply(new CountWords())
       .apply(MapElements.via(new FormatAsTextFn()));
 
-    DataflowAssert.that(output).containsInAnyOrder(COUNTS_ARRAY);
+    PAssert.that(output).containsInAnyOrder(COUNTS_ARRAY);
     p.run();
   }
 }

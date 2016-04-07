@@ -158,8 +158,8 @@ public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJ
   @Override
   public <OutputT extends POutput, InputT extends PInput> OutputT apply(
       PTransform<InputT, OutputT> transform, InputT input) {
-    if (transform instanceof DataflowAssert.OneSideInputAssert
-        || transform instanceof DataflowAssert.TwoSideInputAssert) {
+    if (transform instanceof PAssert.OneSideInputAssert
+        || transform instanceof PAssert.TwoSideInputAssert) {
       expectedNumberOfAssertions += 1;
     }
 
@@ -188,9 +188,9 @@ public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJ
           // Don't double count using the non-tentative version of the metric.
           continue;
         }
-        if (DataflowAssert.SUCCESS_COUNTER.equals(metric.getName().getName())) {
+        if (PAssert.SUCCESS_COUNTER.equals(metric.getName().getName())) {
           successes += ((BigDecimal) metric.getScalar()).intValue();
-        } else if (DataflowAssert.FAILURE_COUNTER.equals(metric.getName().getName())) {
+        } else if (PAssert.FAILURE_COUNTER.equals(metric.getName().getName())) {
           failures += ((BigDecimal) metric.getScalar()).intValue();
         }
       }

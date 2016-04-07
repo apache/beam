@@ -22,7 +22,7 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
@@ -62,7 +62,7 @@ public class RemoveDuplicatesJava8Test {
         dupes.apply(RemoveDuplicates.withRepresentativeValueFn((String s) -> s.length())
                                     .withRepresentativeType(TypeDescriptor.of(Integer.class)));
 
-    DataflowAssert.that(deduped).satisfies((Iterable<String> strs) -> {
+    PAssert.that(deduped).satisfies((Iterable<String> strs) -> {
       Set<Integer> seenLengths = new HashSet<>();
       for (String s : strs) {
         assertThat(predupedContents.values(), hasItem(s));
