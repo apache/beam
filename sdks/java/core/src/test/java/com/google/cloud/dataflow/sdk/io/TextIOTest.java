@@ -43,6 +43,7 @@ import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.GcsUtil;
+import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
 import com.google.cloud.dataflow.sdk.util.TestCredential;
 import com.google.cloud.dataflow.sdk.util.gcsfs.GcsPath;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -199,36 +200,57 @@ public class TextIOTest {
   }
 
   <T> void runTestWrite(T[] elems, Coder<T> coder) throws Exception {
-    File tmpFile = tmpFolder.newFile("file.txt");
-    String filename = tmpFile.getPath();
+    runTestWrite(elems, coder, 1);
+  }
+
+  <T> void runTestWrite(T[] elems, Coder<T> coder, int numShards) throws Exception {
+    String filename = tmpFolder.newFile("file.txt").getPath();
 
     Pipeline p = TestPipeline.create();
 
-    PCollection<T> input =
-        p.apply(Create.of(Arrays.asList(elems)).withCoder(coder));
+    PCollection<T> input = p.apply(Create.of(Arrays.asList(elems)).withCoder(coder));
 
     TextIO.Write.Bound<T> write;
     if (coder.equals(StringUtf8Coder.of())) {
-      TextIO.Write.Bound<String> writeStrings =
-          TextIO.Write.to(filename).withoutSharding();
+      TextIO.Write.Bound<String> writeStrings = TextIO.Write.to(filename);
       // T==String
       write = (TextIO.Write.Bound<T>) writeStrings;
     } else {
-      write = TextIO.Write.to(filename).withCoder(coder).withoutSharding();
+      write = TextIO.Write.to(filename).withCoder(coder);
+    }
+    if (numShards == 1) {
+      write = write.withoutSharding();
+    } else {
+      write = write.withNumShards(numShards).withShardNameTemplate(ShardNameTemplate.INDEX_OF_MAX);
     }
 
     input.apply(write);
 
     p.run();
 
+    List<File> expectedFiles = new ArrayList<>();
+    if (numShards == 1) {
+      expectedFiles.add(new File(filename));
+    } else {
+      for (int i = 0; i < numShards; i++) {
+        expectedFiles.add(
+            new File(
+                tmpFolder.getRoot(),
+                IOChannelUtils.constructName(
+                    "file.txt", ShardNameTemplate.INDEX_OF_MAX, "", i, numShards)));
+      }
+    }
+
     List<String> actual = new ArrayList<>();
-    try (BufferedReader reader = new BufferedReader(new FileReader(tmpFile))) {
-      for (;;) {
-        String line = reader.readLine();
-        if (line == null) {
-          break;
+    for (File tmpFile : expectedFiles) {
+      try (BufferedReader reader = new BufferedReader(new FileReader(tmpFile))) {
+        for (;;) {
+          String line = reader.readLine();
+          if (line == null) {
+            break;
+          }
+          actual.add(line);
         }
-        actual.add(line);
       }
     }
 
@@ -240,8 +262,7 @@ public class TextIOTest {
       expected[i] = line;
     }
 
-    assertThat(actual,
-               containsInAnyOrder(expected));
+    assertThat(actual, containsInAnyOrder(expected));
   }
 
   @Test
@@ -283,6 +304,11 @@ public class TextIOTest {
           TextIO.Write.to("/tmp/file.txt").named("HerWrite");
       assertEquals("HerWrite", transform3.getName());
     }
+  }
+
+  @Test
+  public void testShardedWrite() throws Exception {
+    runTestWrite(LINES_ARRAY, StringUtf8Coder.of(), 5);
   }
 
   @Test
