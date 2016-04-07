@@ -23,7 +23,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
-import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -94,9 +93,10 @@ public class DisplayData {
    * }
    * </pre>
    *
-   * @return The inferred {@link Type}, or {@link Optional#absent()} if the type cannot be inferred,
+   * @return The inferred {@link Type}, or null if the type cannot be inferred,
    */
-  public static Optional<Type> inferType(@Nullable Object value) {
+  @Nullable
+  public static Type inferType(@Nullable Object value) {
     return Type.tryInferFrom(value);
   }
 
@@ -590,27 +590,26 @@ public class DisplayData {
      */
     abstract FormattedItemValue format(Object value);
 
-    private static Optional<Type> tryInferFrom(@Nullable Object value) {
+    @Nullable
+    private static Type tryInferFrom(@Nullable Object value) {
       Type type;
       if (value instanceof Integer || value instanceof Long) {
-        type = INTEGER;
+        return INTEGER;
       } else if (value instanceof Double || value instanceof Float) {
-        type =  FLOAT;
+        return  FLOAT;
       } else if (value instanceof Boolean) {
-        type =  BOOLEAN;
+        return  BOOLEAN;
       } else if (value instanceof Instant) {
-        type =  TIMESTAMP;
+        return  TIMESTAMP;
       } else if (value instanceof Duration) {
-        type =  DURATION;
+        return  DURATION;
       } else if (value instanceof Class<?>) {
-        type =  JAVA_CLASS;
+        return  JAVA_CLASS;
       } else if (value instanceof String) {
-        type =  STRING;
+        return  STRING;
       } else {
-        type = null;
+        return null;
       }
-
-      return Optional.fromNullable(type);
     }
   }
 

@@ -40,7 +40,6 @@ import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.display.DisplayData.Builder;
 import com.google.cloud.dataflow.sdk.transforms.display.DisplayData.Item;
 import com.google.cloud.dataflow.sdk.values.PCollection;
-import com.google.common.base.Optional;
 import com.google.common.testing.EqualsTester;
 
 import org.hamcrest.CustomTypeSafeMatcher;
@@ -60,7 +59,6 @@ import org.junit.runners.JUnit4;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
-import java.util.Objects;
 import java.util.regex.Pattern;
 
 /**
@@ -589,20 +587,18 @@ public class DisplayDataTest {
 
   @Test
   public void testKnownTypeInference() {
-    assertThat(DisplayData.inferType(1234), hasOptionalValue(DisplayData.Type.INTEGER));
-    assertThat(DisplayData.inferType(1234L), hasOptionalValue(DisplayData.Type.INTEGER));
-    assertThat(DisplayData.inferType(12.3), hasOptionalValue(DisplayData.Type.FLOAT));
-    assertThat(DisplayData.inferType(12.3f), hasOptionalValue(DisplayData.Type.FLOAT));
-    assertThat(DisplayData.inferType(true), hasOptionalValue(DisplayData.Type.BOOLEAN));
-    assertThat(DisplayData.inferType(Instant.now()), hasOptionalValue(DisplayData.Type.TIMESTAMP));
-    assertThat(DisplayData.inferType(Duration.millis(1234)),
-        hasOptionalValue(DisplayData.Type.DURATION));
-    assertThat(DisplayData.inferType(DisplayDataTest.class),
-        hasOptionalValue(DisplayData.Type.JAVA_CLASS));
-    assertThat(DisplayData.inferType("hello world"), hasOptionalValue(DisplayData.Type.STRING));
+    assertEquals(DisplayData.Type.INTEGER, DisplayData.inferType(1234));
+    assertEquals(DisplayData.Type.INTEGER, DisplayData.inferType(1234L));
+    assertEquals(DisplayData.Type.FLOAT, DisplayData.inferType(12.3));
+    assertEquals(DisplayData.Type.FLOAT, DisplayData.inferType(12.3f));
+    assertEquals(DisplayData.Type.BOOLEAN, DisplayData.inferType(true));
+    assertEquals(DisplayData.Type.TIMESTAMP, DisplayData.inferType(Instant.now()));
+    assertEquals(DisplayData.Type.DURATION, DisplayData.inferType(Duration.millis(1234)));
+    assertEquals(DisplayData.Type.JAVA_CLASS, DisplayData.inferType(DisplayDataTest.class));
+    assertEquals(DisplayData.Type.STRING, DisplayData.inferType("hello world"));
 
-    assertEquals(Optional.absent(), DisplayData.inferType(null));
-    assertEquals(Optional.absent(), DisplayData.inferType(new Object() {}));
+    assertEquals(null, DisplayData.inferType(null));
+    assertEquals(null, DisplayData.inferType(new Object() {}));
   }
 
   @Test
@@ -788,15 +784,6 @@ public class DisplayDataTest {
       @Override
       protected String featureValueOf(DisplayData.Item actual) {
         return actual.getShortValue();
-      }
-    };
-  }
-
-  private static <T> Matcher<Optional<T>> hasOptionalValue(final T value) {
-    return new CustomTypeSafeMatcher<Optional<T>>("optional value") {
-      @Override
-      protected boolean matchesSafely(Optional<T> item) {
-        return item.isPresent() && Objects.equals(item.get(), value);
       }
     };
   }
