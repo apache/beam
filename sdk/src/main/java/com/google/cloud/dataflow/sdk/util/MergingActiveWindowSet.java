@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -72,6 +73,9 @@ import javax.annotation.Nullable;
  */
 public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWindowSet<W> {
   private final WindowFn<Object, W> windowFn;
+  /**
+   * Map ACTIVE and NEW windows to their state address windows. Persisted.
+   */
   private final Map<W, Set<W>> activeWindowToStateAddressWindows;
 
   /**
@@ -80,10 +84,8 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
   private final Map<W, Set<W>> activeWindowToEphemeralWindows;
 
   /**
-   * A map from window to the ACTIVE window it has been merged into.
-   *
-   * <p>Does not need to be persisted.
-   *
+   * A map from window to the ACTIVE window it has been merged into. Does not need to be persisted.
+   * <p>
    * <ul>
    * <li>Key window may be ACTIVE, MERGED or EPHEMERAL.
    * <li>ACTIVE windows map to themselves.
@@ -96,7 +98,7 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
 
   /**
    * Deep clone of {@link #activeWindowToStateAddressWindows} as of last commit.
-   *
+   * <p>
    * <p>Used to avoid writing to state if no changes have been made during the work unit.
    */
   private final Map<W, Set<W>> originalActiveWindowToStateAddressWindows;
@@ -122,7 +124,19 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
   }
 
   @Override
-  public void removeEphemeralWindows() {
+  public void cleanupTemporaryWindows() {
+    // All NEW windows can be forgotten.
+    Iterator<Map.Entry<W, Set<W>>> iter =
+        activeWindowToStateAddressWindows.entrySet().iterator();
+    while (iter.hasNext()) {
+      Map.Entry<W, Set<W>> entry = iter.next();
+      if (entry.getValue().isEmpty()) {
+        windowToActiveWindow.remove(entry.getKey());
+        iter.remove();
+      }
+    }
+
+    // All EPHEMERAL windows can be forgotten.
     for (Map.Entry<W, Set<W>> entry : activeWindowToEphemeralWindows.entrySet()) {
       for (W ephemeral : entry.getValue()) {
         windowToActiveWindow.remove(ephemeral);
@@ -158,7 +172,7 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
 
   @Override
   @Nullable
-  public W representative(W window) {
+  public W mergeResultWindow(W window) {
     return windowToActiveWindow.get(window);
   }
 
@@ -173,13 +187,30 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
   }
 
   @Override
-  public void addNew(W window) {
+  public void ensureWindowExists(W window) {
     if (!windowToActiveWindow.containsKey(window)) {
+      Preconditions.checkState(!activeWindowToStateAddressWindows.containsKey(window));
       activeWindowToStateAddressWindows.put(window, new LinkedHashSet<W>());
+      windowToActiveWindow.put(window, window);
     }
   }
 
   @Override
+  public void ensureWindowIsActive(W window) {
+    Set<W> stateAddressWindows = activeWindowToStateAddressWindows.get(window);
+    Preconditions.checkState(stateAddressWindows != null,
+        "Cannot ensure window %s is active since it is neither ACTIVE nor NEW",
+        window);
+    if (stateAddressWindows.isEmpty()) {
+      // Window was NEW, make it ACTIVE.
+      Preconditions.checkState(windowToActiveWindow.containsKey(window)
+                               && windowToActiveWindow.get(window).equals(window));
+      stateAddressWindows.add(window);
+    }
+  }
+
+  @Override
+  @VisibleForTesting
   public void addActive(W window) {
     if (!windowToActiveWindow.containsKey(window)) {
       Set<W> stateAddressWindows = new LinkedHashSet<>();
@@ -191,21 +222,17 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
 
   @Override
   public void remove(W window) {
-    Set<W> stateAddressWindows = activeWindowToStateAddressWindows.get(window);
-    if (stateAddressWindows == null) {
-      // Window is no longer active.
-      return;
+    Set<W> stateAddressWindows = activeWindowToStateAddressWindows.remove(window);
+    if (stateAddressWindows != null) {
+      for (W stateAddressWindow : stateAddressWindows) {
+        windowToActiveWindow.remove(stateAddressWindow);
+      }
     }
-    for (W stateAddressWindow : stateAddressWindows) {
-      windowToActiveWindow.remove(stateAddressWindow);
-    }
-    activeWindowToStateAddressWindows.remove(window);
-    Set<W> ephemeralWindows = activeWindowToEphemeralWindows.get(window);
+    Set<W> ephemeralWindows = activeWindowToEphemeralWindows.remove(window);
     if (ephemeralWindows != null) {
       for (W ephemeralWindow : ephemeralWindows) {
         windowToActiveWindow.remove(ephemeralWindow);
       }
-      activeWindowToEphemeralWindows.remove(window);
     }
     windowToActiveWindow.remove(window);
   }
@@ -291,15 +318,6 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
     // Actually do the merging and invoke the callbacks.
     context.recordMerges();
 
-    // Any remaining NEW windows should become implicitly ACTIVE.
-    for (Map.Entry<W, Set<W>> entry : activeWindowToStateAddressWindows.entrySet()) {
-      if (entry.getValue().isEmpty()) {
-        // This window was NEW but since it survived merging must now become ACTIVE.
-        W window = entry.getKey();
-        entry.getValue().add(window);
-        windowToActiveWindow.put(window, window);
-      }
-    }
   }
 
   /**
@@ -433,12 +451,15 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
     for (Map.Entry<W, Set<W>> entry : activeWindowToStateAddressWindows.entrySet()) {
       W active = entry.getKey();
       Preconditions.checkState(!entry.getValue().isEmpty(),
-          "Unexpected empty state address window set for ACTIVE window %s", active);
+          "Unexpected empty state address window set for ACTIVE window %s",
+          active);
       for (W stateAddressWindow : entry.getValue()) {
         Preconditions.checkState(knownStateAddressWindows.add(stateAddressWindow),
-            "%s is in more than one state address window set", stateAddressWindow);
+            "%s is in more than one state address window set",
+            stateAddressWindow);
         Preconditions.checkState(active.equals(windowToActiveWindow.get(stateAddressWindow)),
-            "%s should have %s as its ACTIVE window", stateAddressWindow, active);
+            "%s should have %s as its ACTIVE window", stateAddressWindow,
+            active);
       }
     }
     for (Map.Entry<W, Set<W>> entry : activeWindowToEphemeralWindows.entrySet()) {
@@ -449,14 +470,16 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
           !entry.getValue().isEmpty(), "Unexpected empty EPHEMERAL set for %s", active);
       for (W ephemeralWindow : entry.getValue()) {
         Preconditions.checkState(knownStateAddressWindows.add(ephemeralWindow),
-            "%s is EPHEMERAL/state address of more than one ACTIVE window", ephemeralWindow);
+            "%s is EPHEMERAL/state address of more than one ACTIVE window",
+            ephemeralWindow);
         Preconditions.checkState(active.equals(windowToActiveWindow.get(ephemeralWindow)),
             "%s should have %s as its ACTIVE window", ephemeralWindow, active);
       }
     }
     for (Map.Entry<W, W> entry : windowToActiveWindow.entrySet()) {
       Preconditions.checkState(activeWindowToStateAddressWindows.containsKey(entry.getValue()),
-          "%s should be ACTIVE since representative for %s", entry.getValue(), entry.getKey());
+          "%s should be ACTIVE since mergeResultWindow for %s",
+          entry.getValue(), entry.getKey());
     }
   }
 
@@ -519,7 +542,9 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
     }
   }
 
-  /** Return a deep copy of {@code multimap}. */
+  /**
+   * Return a deep copy of {@code multimap}.
+   */
   private static <W> Map<W, Set<W>> deepCopy(Map<W, Set<W>> multimap) {
     Map<W, Set<W>> newMultimap = new HashMap<>();
     for (Map.Entry<W, Set<W>> entry : multimap.entrySet()) {
@@ -528,15 +553,19 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
     return newMultimap;
   }
 
-  /** Return inversion of {@code multimap}, which must be invertible. */
+  /**
+   * Return inversion of {@code multimap}, which must be invertible.
+   */
   private static <W> Map<W, W> invert(Map<W, Set<W>> multimap) {
     Map<W, W> result = new HashMap<>();
     for (Map.Entry<W, Set<W>> entry : multimap.entrySet()) {
       W active = entry.getKey();
       for (W target : entry.getValue()) {
         W previous = result.put(target, active);
-        Preconditions.checkState(previous == null,
-            "Window %s has both %s and %s as representatives", target, previous, active);
+        Preconditions.checkState(
+            previous == null,
+            "Multimap is not invertible: Window %s has both %s and %s as representatives",
+            target, previous, active);
       }
     }
     return result;

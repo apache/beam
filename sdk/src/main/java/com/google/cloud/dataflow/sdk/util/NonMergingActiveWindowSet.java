@@ -17,6 +17,7 @@ package com.google.cloud.dataflow.sdk.util;
 
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableSet;
 
 import java.util.Collection;
@@ -30,13 +31,13 @@ import java.util.Set;
  */
 public class NonMergingActiveWindowSet<W extends BoundedWindow> implements ActiveWindowSet<W> {
   @Override
-  public void removeEphemeralWindows() {}
+  public void cleanupTemporaryWindows() {}
 
   @Override
   public void persist() {}
 
   @Override
-  public W representative(W window) {
+  public W mergeResultWindow(W window) {
     // Always represented by itself.
     return window;
   }
@@ -54,9 +55,13 @@ public class NonMergingActiveWindowSet<W extends BoundedWindow> implements Activ
   }
 
   @Override
-  public void addNew(W window) {}
+  public void ensureWindowExists(W window) {}
 
   @Override
+  public void ensureWindowIsActive(W window) {}
+
+  @Override
+  @VisibleForTesting
   public void addActive(W window) {}
 
   @Override
