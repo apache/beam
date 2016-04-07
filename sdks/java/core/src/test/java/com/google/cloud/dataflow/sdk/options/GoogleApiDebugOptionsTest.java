@@ -22,8 +22,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
 import com.google.api.services.bigquery.Bigquery.Datasets.Delete;
-import com.google.api.services.dataflow.Dataflow.Projects.Jobs.Create;
-import com.google.api.services.dataflow.Dataflow.Projects.Jobs.Get;
+import com.google.api.services.storage.Storage;
 import com.google.cloud.dataflow.sdk.options.GoogleApiDebugOptions.GoogleApiTracer;
 import com.google.cloud.dataflow.sdk.util.TestCredential;
 import com.google.cloud.dataflow.sdk.util.Transport;
@@ -37,104 +36,104 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link GoogleApiDebugOptions}. */
 @RunWith(JUnit4.class)
 public class GoogleApiDebugOptionsTest {
+  private static final String STORAGE_GET_TRACE =
+      "--googleApiTrace={\"Objects.Get\":\"GetTraceDestination\"}";
+  private static final String STORAGE_GET_AND_LIST_TRACE =
+      "--googleApiTrace={\"Objects.Get\":\"GetTraceDestination\","
+      + "\"Objects.List\":\"ListTraceDestination\"}";
+  private static final String STORAGE_TRACE = "--googleApiTrace={\"Storage\":\"TraceDestination\"}";
+
   @Test
   public void testWhenTracingMatches() throws Exception {
-    String[] args =
-        new String[] {"--googleApiTrace={\"Projects.Jobs.Get\":\"GetTraceDestination\"}"};
-    DataflowPipelineOptions options =
-        PipelineOptionsFactory.fromArgs(args).as(DataflowPipelineOptions.class);
+    String[] args = new String[] {STORAGE_GET_TRACE};
+    GcsOptions options = PipelineOptionsFactory.fromArgs(args).as(GcsOptions.class);
     options.setGcpCredential(new TestCredential());
-
     assertNotNull(options.getGoogleApiTrace());
 
-    Get request =
-        options.getDataflowClient().projects().jobs().get("testProjectId", "testJobId");
+    Storage.Objects.Get request =
+        Transport.newStorageClient(options).build().objects().get("testBucketId", "testObjectId");
     assertEquals("GetTraceDestination", request.get("$trace"));
   }
 
   @Test
   public void testWhenTracingDoesNotMatch() throws Exception {
-    String[] args = new String[] {"--googleApiTrace={\"Projects.Jobs.Create\":\"testToken\"}"};
-    DataflowPipelineOptions options =
-        PipelineOptionsFactory.fromArgs(args).as(DataflowPipelineOptions.class);
+    String[] args = new String[] {STORAGE_GET_TRACE};
+    GcsOptions options = PipelineOptionsFactory.fromArgs(args).as(GcsOptions.class);
     options.setGcpCredential(new TestCredential());
 
     assertNotNull(options.getGoogleApiTrace());
 
-    Get request =
-        options.getDataflowClient().projects().jobs().get("testProjectId", "testJobId");
+    Storage.Objects.List request =
+        Transport.newStorageClient(options).build().objects().list("testProjectId");
     assertNull(request.get("$trace"));
   }
 
   @Test
   public void testWithMultipleTraces() throws Exception {
-    String[] args = new String[] {
-        "--googleApiTrace={\"Projects.Jobs.Create\":\"CreateTraceDestination\","
-        + "\"Projects.Jobs.Get\":\"GetTraceDestination\"}"};
-    DataflowPipelineOptions options =
-        PipelineOptionsFactory.fromArgs(args).as(DataflowPipelineOptions.class);
+    String[] args = new String[] {STORAGE_GET_AND_LIST_TRACE};
+    GcsOptions options = PipelineOptionsFactory.fromArgs(args).as(GcsOptions.class);
     options.setGcpCredential(new TestCredential());
 
     assertNotNull(options.getGoogleApiTrace());
 
-    Get getRequest =
-        options.getDataflowClient().projects().jobs().get("testProjectId", "testJobId");
+    Storage.Objects.Get getRequest =
+        Transport.newStorageClient(options).build().objects().get("testBucketId", "testObjectId");
     assertEquals("GetTraceDestination", getRequest.get("$trace"));
 
-    Create createRequest =
-        options.getDataflowClient().projects().jobs().create("testProjectId", null);
-    assertEquals("CreateTraceDestination", createRequest.get("$trace"));
+    Storage.Objects.List listRequest =
+        Transport.newStorageClient(options).build().objects().list("testProjectId");
+    assertEquals("ListTraceDestination", listRequest.get("$trace"));
   }
 
   @Test
-  public void testMatchingAllDataflowCalls() throws Exception {
-    String[] args = new String[] {"--googleApiTrace={\"Dataflow\":\"TraceDestination\"}"};
-    DataflowPipelineOptions options =
-        PipelineOptionsFactory.fromArgs(args).as(DataflowPipelineOptions.class);
+  public void testMatchingAllCalls() throws Exception {
+    String[] args = new String[] {STORAGE_TRACE};
+    GcsOptions options =
+        PipelineOptionsFactory.fromArgs(args).as(GcsOptions.class);
     options.setGcpCredential(new TestCredential());
 
     assertNotNull(options.getGoogleApiTrace());
 
-    Get getRequest =
-        options.getDataflowClient().projects().jobs().get("testProjectId", "testJobId");
+    Storage.Objects.Get getRequest =
+        Transport.newStorageClient(options).build().objects().get("testBucketId", "testObjectId");
     assertEquals("TraceDestination", getRequest.get("$trace"));
 
-    Create createRequest =
-        options.getDataflowClient().projects().jobs().create("testProjectId", null);
-    assertEquals("TraceDestination", createRequest.get("$trace"));
+    Storage.Objects.List listRequest =
+        Transport.newStorageClient(options).build().objects().list("testProjectId");
+    assertEquals("TraceDestination", listRequest.get("$trace"));
   }
 
   @Test
   public void testMatchingAgainstClient() throws Exception {
-    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    GcsOptions options = PipelineOptionsFactory.as(GcsOptions.class);
     options.setGcpCredential(new TestCredential());
     options.setGoogleApiTrace(new GoogleApiTracer().addTraceFor(
-        Transport.newDataflowClient(options).build(), "TraceDestination"));
+        Transport.newStorageClient(options).build(), "TraceDestination"));
 
-    Get getRequest =
-        options.getDataflowClient().projects().jobs().get("testProjectId", "testJobId");
+    Storage.Objects.Get getRequest =
+        Transport.newStorageClient(options).build().objects().get("testBucketId", "testObjectId");
     assertEquals("TraceDestination", getRequest.get("$trace"));
 
-    Delete deleteRequest = Transport.newBigQueryClient(options).build().datasets()
-        .delete("testProjectId", "testDatasetId");
+    Delete deleteRequest = Transport.newBigQueryClient(options.as(BigQueryOptions.class))
+        .build().datasets().delete("testProjectId", "testDatasetId");
     assertNull(deleteRequest.get("$trace"));
   }
 
   @Test
   public void testMatchingAgainstRequestType() throws Exception {
-    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    GcsOptions options = PipelineOptionsFactory.as(GcsOptions.class);
     options.setGcpCredential(new TestCredential());
     options.setGoogleApiTrace(new GoogleApiTracer().addTraceFor(
-        Transport.newDataflowClient(options).build().projects().jobs()
-            .get("aProjectId", "aJobId"), "TraceDestination"));
+        Transport.newStorageClient(options).build().objects()
+            .get("aProjectId", "aObjectId"), "TraceDestination"));
 
-    Get getRequest =
-        options.getDataflowClient().projects().jobs().get("testProjectId", "testJobId");
+    Storage.Objects.Get getRequest =
+        Transport.newStorageClient(options).build().objects().get("testBucketId", "testObjectId");
     assertEquals("TraceDestination", getRequest.get("$trace"));
 
-    Create createRequest =
-        options.getDataflowClient().projects().jobs().create("testProjectId", null);
-    assertNull(createRequest.get("$trace"));
+    Storage.Objects.List listRequest =
+        Transport.newStorageClient(options).build().objects().list("testProjectId");
+    assertNull(listRequest.get("$trace"));
   }
 
   @Test

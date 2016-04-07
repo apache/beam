@@ -33,7 +33,7 @@ public interface DataflowPipelineOptions extends
     PipelineOptions, GcpOptions, ApplicationNameOptions, DataflowPipelineDebugOptions,
     DataflowPipelineWorkerPoolOptions, BigQueryOptions,
     GcsOptions, StreamingOptions, CloudDebuggerOptions, DataflowWorkerLoggingOptions,
-    DataflowProfilingOptions {
+    DataflowProfilingOptions, PubsubOptions {
 
   @Description("Project id. Required when running a Dataflow in the cloud. "
       + "See https://cloud.google.com/storage/docs/projects for further details.")

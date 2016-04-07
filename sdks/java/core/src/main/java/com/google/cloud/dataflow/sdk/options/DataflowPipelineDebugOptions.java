@@ -20,11 +20,11 @@ package com.google.cloud.dataflow.sdk.options;
 import com.google.api.services.dataflow.Dataflow;
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.util.DataflowPathValidator;
+import com.google.cloud.dataflow.sdk.util.DataflowTransport;
 import com.google.cloud.dataflow.sdk.util.GcsStager;
 import com.google.cloud.dataflow.sdk.util.InstanceBuilder;
 import com.google.cloud.dataflow.sdk.util.PathValidator;
 import com.google.cloud.dataflow.sdk.util.Stager;
-import com.google.cloud.dataflow.sdk.util.Transport;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
@@ -159,17 +159,10 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
   public static class DataflowClientFactory implements DefaultValueFactory<Dataflow> {
     @Override
     public Dataflow create(PipelineOptions options) {
-        return Transport.newDataflowClient(options.as(DataflowPipelineOptions.class)).build();
+        return DataflowTransport.newDataflowClient(
+            options.as(DataflowPipelineOptions.class)).build();
     }
   }
-
-  /**
-   * Root URL for use with the Pubsub API.
-   */
-  @Description("Root URL for use with the Pubsub API")
-  @Default.String("https://pubsub.googleapis.com")
-  String getPubsubRootUrl();
-  void setPubsubRootUrl(String value);
 
   /**
    * Whether to update the currently running pipeline with the same name as this one.

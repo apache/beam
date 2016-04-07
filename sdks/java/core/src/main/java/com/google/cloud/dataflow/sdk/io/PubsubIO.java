@@ -33,8 +33,7 @@ import com.google.api.services.pubsub.model.Subscription;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
-import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
-import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
+import com.google.cloud.dataflow.sdk.options.PubsubOptions;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.Create;
@@ -399,10 +398,9 @@ public class PubsubIO {
    * the stream.
    *
    * <p>When running with a {@link PipelineRunner} that only supports bounded
-   * {@link PCollection PCollections} (such as {@link DirectPipelineRunner} or
-   * {@link DataflowPipelineRunner} without {@code --streaming}), only a bounded portion of the
-   * input Pub/Sub stream can be processed. As such, either {@link Bound#maxNumRecords(int)} or
-   * {@link Bound#maxReadTime(Duration)} must be set.
+   * {@link PCollection PCollections} (such as {@link DirectPipelineRunner}),
+   * only a bounded portion of the input Pub/Sub stream can be processed. As such, either
+   * {@link Bound#maxNumRecords(int)} or {@link Bound#maxReadTime(Duration)} must be set.
    */
   public static class Read {
     /**
@@ -728,7 +726,7 @@ public class PubsubIO {
         @Override
         public void processElement(ProcessContext c) throws IOException {
           Pubsub pubsubClient =
-              Transport.newPubsubClient(c.getPipelineOptions().as(DataflowPipelineOptions.class))
+              Transport.newPubsubClient(c.getPipelineOptions().as(PubsubOptions.class))
                   .build();
 
           String subscription;
@@ -1004,7 +1002,7 @@ public class PubsubIO {
         public void startBundle(Context c) {
           this.output = new ArrayList<>();
           this.pubsubClient =
-              Transport.newPubsubClient(c.getPipelineOptions().as(DataflowPipelineOptions.class))
+              Transport.newPubsubClient(c.getPipelineOptions().as(PubsubOptions.class))
                   .build();
         }
 

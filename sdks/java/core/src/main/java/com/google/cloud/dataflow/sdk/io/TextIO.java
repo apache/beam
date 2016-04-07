@@ -25,7 +25,6 @@ import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.io.Read.Bounded;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
@@ -113,11 +112,10 @@ import javax.annotation.Nullable;
  * <h3>Permissions</h3>
  * <p>When run using the {@link DirectPipelineRunner}, your pipeline can read and write text files
  * on your local drive and remote text files on Google Cloud Storage that you have access to using
- * your {@code gcloud} credentials. When running in the Dataflow service using
- * {@link DataflowPipelineRunner}, the pipeline can only read and write files from GCS. For more
- * information about permissions, see the Cloud Dataflow documentation on
- * <a href="https://cloud.google.com/dataflow/security-and-permissions">Security and
- * Permissions</a>.
+ * your {@code gcloud} credentials. When running in the Dataflow service, the pipeline can only
+ * read and write files from GCS. For more information about permissions, see the Cloud Dataflow
+ * documentation on <a href="https://cloud.google.com/dataflow/security-and-permissions">Security
+ * and Permissions</a>.
  */
 public class TextIO {
   /** The default coder, which returns each line of the input file as a string. */

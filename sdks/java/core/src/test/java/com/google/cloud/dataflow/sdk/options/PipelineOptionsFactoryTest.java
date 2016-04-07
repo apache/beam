@@ -29,8 +29,6 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.PipelineResult;
-import com.google.cloud.dataflow.sdk.runners.BlockingDataflowPipelineRunner;
-import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.testing.ExpectedLogs;
@@ -829,19 +827,20 @@ public class PipelineOptionsFactoryTest {
 
   @Test
   public void testSettingRunner() {
-    String[] args = new String[] {"--runner=BlockingDataflowPipelineRunner"};
+    String[] args = new String[] {"--runner=DirectPipelineRunner"};
 
     PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
-    assertEquals(BlockingDataflowPipelineRunner.class, options.getRunner());
+    assertEquals(DirectPipelineRunner.class, options.getRunner());
   }
 
   @Test
   public void testSettingRunnerFullName() {
     String[] args =
-        new String[] {String.format("--runner=%s", DataflowPipelineRunner.class.getName())};
+        new String[] {String.format("--runner=%s", DirectPipelineRunner.class.getName())};
     PipelineOptions opts = PipelineOptionsFactory.fromArgs(args).create();
-    assertEquals(opts.getRunner(), DataflowPipelineRunner.class);
+    assertEquals(opts.getRunner(), DirectPipelineRunner.class);
   }
+
 
   @Test
   public void testSettingUnknownRunner() {
