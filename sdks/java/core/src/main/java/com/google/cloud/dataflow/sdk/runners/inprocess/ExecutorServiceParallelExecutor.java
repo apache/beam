@@ -31,6 +31,9 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PValue;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Optional;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableList;
 
 import org.joda.time.Instant;
@@ -69,7 +72,7 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
 
   private final InProcessEvaluationContext evaluationContext;
 
-  private final ConcurrentMap<StepAndKey, TransformExecutorService> currentEvaluations;
+  private final LoadingCache<StepAndKey, TransformExecutorService> executorServices;
   private final ConcurrentMap<TransformExecutor<?>, Boolean> scheduledExecutors;
 
   private final Queue<ExecutorUpdate> allUpdates;
@@ -107,8 +110,12 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
     this.transformEnforcements = transformEnforcements;
     this.evaluationContext = context;
 
-    currentEvaluations = new ConcurrentHashMap<>();
     scheduledExecutors = new ConcurrentHashMap<>();
+    // Weak Values allows TransformExecutorServices that are no longer in use to be reclaimed.
+    // Executing TransformExecutorServices have a strong reference to their TransformExecutorService
+    // which stops the TransformExecutorServices from being prematurely garbage collected
+    executorServices =
+        CacheBuilder.newBuilder().weakValues().build(serialTransformExecutorServiceCacheLoader());
 
     this.allUpdates = new ConcurrentLinkedQueue<>();
     this.visibleUpdates = new ArrayBlockingQueue<>(20);
@@ -116,6 +123,16 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
     parallelExecutorService =
         TransformExecutorServices.parallel(executorService, scheduledExecutors);
     defaultCompletionCallback = new DefaultCompletionCallback();
+  }
+
+  private CacheLoader<StepAndKey, TransformExecutorService>
+      serialTransformExecutorServiceCacheLoader() {
+    return new CacheLoader<StepAndKey, TransformExecutorService>() {
+      @Override
+      public TransformExecutorService load(StepAndKey stepAndKey) throws Exception {
+        return TransformExecutorServices.serial(executorService, scheduledExecutors);
+      }
+    };
   }
 
   @Override
@@ -142,7 +159,12 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
     if (bundle != null && isKeyed(bundle.getPCollection())) {
       final StepAndKey stepAndKey =
           StepAndKey.of(transform, bundle == null ? null : bundle.getKey());
-      transformExecutor = getSerialExecutorService(stepAndKey);
+      // This executor will remain reachable until it has executed all scheduled transforms.
+      // The TransformExecutors keep a strong reference to the Executor, the ExecutorService keeps
+      // a reference to the scheduled TransformExecutor callable. Follow-up TransformExecutors
+      // (scheduled due to the completion of another TransformExecutor) are provided to the
+      // ExecutorService before the Earlier TransformExecutor callable completes.
+      transformExecutor = executorServices.getUnchecked(stepAndKey);
     } else {
       transformExecutor = parallelExecutorService;
     }
@@ -172,14 +194,6 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
     for (AppliedPTransform<?, ?, ?> consumer : valueToConsumers.get(bundle.getPCollection())) {
       scheduleConsumption(consumer, bundle, defaultCompletionCallback);
     }
-  }
-
-  private TransformExecutorService getSerialExecutorService(StepAndKey stepAndKey) {
-    if (!currentEvaluations.containsKey(stepAndKey)) {
-      currentEvaluations.putIfAbsent(
-          stepAndKey, TransformExecutorServices.serial(executorService, scheduledExecutors));
-    }
-    return currentEvaluations.get(stepAndKey);
   }
 
   @Override
@@ -325,13 +339,15 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
       Thread.currentThread().setName(runnableName);
       try {
         ExecutorUpdate update = allUpdates.poll();
-        if (update != null) {
+        // pull all of the pending work off of the queue
+        while (update != null) {
           LOG.debug("Executor Update: {}", update);
           if (update.getBundle().isPresent()) {
             scheduleConsumers(update.getBundle().get());
           } else if (update.getException().isPresent()) {
             visibleUpdates.offer(VisibleExecutorUpdate.fromThrowable(update.getException().get()));
           }
+          update = allUpdates.poll();
         }
         boolean timersFired = fireTimers();
         addWorkIfNecessary(timersFired);
