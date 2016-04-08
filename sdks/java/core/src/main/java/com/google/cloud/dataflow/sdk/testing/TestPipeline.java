@@ -31,6 +31,8 @@ import com.google.common.collect.Iterators;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import org.junit.experimental.categories.Category;
+
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.Iterator;
@@ -39,24 +41,29 @@ import javax.annotation.Nullable;
 
 /**
  * A creator of test pipelines that can be used inside of tests that can be
- * configured to run locally or against the live service.
+ * configured to run locally or against a remote pipeline runner.
  *
  * <p>It is recommended to tag hand-selected tests for this purpose using the
- * RunnableOnService Category annotation, as each test run against the service
- * will spin up and tear down a single VM.
+ * {@link RunnableOnService} {@link Category} annotation, as each test run against a pipeline runner
+ * will utilize resources of that pipeline runner.
  *
- * <p>In order to run tests on the dataflow pipeline service, the following
- * conditions must be met:
+ * <p>In order to run tests on a pipeline runner, the following conditions must be met:
  * <ul>
- * <li> runIntegrationTestOnService System property must be set to true.
- * <li> System property "projectName" must be set to your Cloud project.
- * <li> System property "temp_gcs_directory" must be set to a valid GCS bucket.
- * <li> Jars containing the SDK and test classes must be added to the test classpath.
+ *   <li>System property "runIntegrationTestOnService" must be set to true.</li>
+ *   <li>System property "dataflowOptions" must contain a JSON delimited list of pipeline options.
+ *   For example:
+ *   <pre>{@code [
+ *     "--runner=com.google.cloud.dataflow.sdk.testing.TestDataflowPipelineRunner",
+ *     "--project=mygcpproject",
+ *     "--stagingLocation=gs://mygcsbucket/path"
+ *     ]}</pre>
+ *     Note that the set of pipeline options required is pipeline runner specific.
+ *   </li>
+ *   <li>Jars containing the SDK and test classes must be available on the classpath.</li>
  * </ul>
  *
- * <p>Use {@link PAssert} for tests, as it integrates with this test
- * harness in both direct and remote execution modes.  For example:
- *
+ * <p>Use {@link PAssert} for tests, as it integrates with this test harness in both direct and
+ * remote execution modes. For example:
  * <pre>{@code
  * Pipeline p = TestPipeline.create();
  * PCollection<Integer> output = ...
@@ -66,6 +73,8 @@ import javax.annotation.Nullable;
  * p.run();
  * }</pre>
  *
+ * <p>For pipeline runners, it is required that they must throw an {@link AssertionError}
+ * containing the message from the {@link PAssert} that failed.
  */
 public class TestPipeline extends Pipeline {
   private static final String PROPERTY_DATAFLOW_OPTIONS = "dataflowOptions";
