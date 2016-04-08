@@ -19,15 +19,12 @@ package com.google.cloud.dataflow.sdk.testing;
 
 import static com.google.cloud.dataflow.sdk.testing.SerializableMatchers.anything;
 import static com.google.cloud.dataflow.sdk.testing.SerializableMatchers.not;
-import static org.hamcrest.Matchers.containsString;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.AtomicCoder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
-import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
@@ -292,38 +289,23 @@ public class PAssertTest implements Serializable {
     Throwable exc = runExpectingAssertionFailure(pipeline);
     Pattern expectedPattern = Pattern.compile(
         "Expected: iterable over \\[((<4>|<7>|<3>|<2>|<1>)(, )?){5}\\] in any order");
-    if (exc != null) {
-      // A loose pattern, but should get the job done.
-      assertTrue(
-          "Expected error message from PAssert with substring matching "
-              + expectedPattern
-              + " but the message was \""
-              + exc.getMessage()
-              + "\"",
-          expectedPattern.matcher(exc.getMessage()).find());
-    }
+    // A loose pattern, but should get the job done.
+    assertTrue(
+        "Expected error message from PAssert with substring matching "
+            + expectedPattern
+            + " but the message was \""
+            + exc.getMessage()
+            + "\"",
+        expectedPattern.matcher(exc.getMessage()).find());
   }
 
   private static Throwable runExpectingAssertionFailure(Pipeline pipeline) {
-    // Even though this test will succeed or fail adequately whether local or on the service,
-    // it results in a different exception depending on the runner.
-    if (pipeline.getRunner() instanceof DirectPipelineRunner) {
-      // We cannot use thrown.expect(AssertionError.class) because the AssertionError
-      // is first caught by JUnit and causes a test failure.
-      try {
-        pipeline.run();
-      } catch (AssertionError exc) {
-        return exc;
-      }
-    } else if (pipeline.getRunner() instanceof TestDataflowPipelineRunner) {
-      // Separately, if this is run on the service, then the TestDataflowPipelineRunner throws
-      // an IllegalStateException with a basic message.
-      try {
-        pipeline.run();
-      } catch (IllegalStateException exc) {
-        assertThat(exc.getMessage(), containsString("The dataflow failed."));
-        return null;
-      }
+    // We cannot use thrown.expect(AssertionError.class) because the AssertionError
+    // is first caught by JUnit and causes a test failure.
+    try {
+      pipeline.run();
+    } catch (AssertionError exc) {
+      return exc;
     }
     fail("assertion should have failed");
     throw new RuntimeException("unreachable");
