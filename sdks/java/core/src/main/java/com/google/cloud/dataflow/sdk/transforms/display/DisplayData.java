@@ -125,8 +125,8 @@ public class DisplayData {
     return builder.toString();
   }
 
-  private static String convertNamespace(Class<?> nsClass) {
-    return nsClass.getName();
+  private static String namespaceOf(Class<?> clazz) {
+    return clazz.getName();
   }
 
   /**
@@ -339,7 +339,7 @@ public class DisplayData {
 
     private static Item create(Class<?> nsClass, String key, Type type, Object value) {
       FormattedItemValue formatted = type.format(value);
-      String namespace = convertNamespace(nsClass);
+      String namespace = namespaceOf(nsClass);
       return new Item(
           namespace, key, type, formatted.getLongValue(), formatted.getShortValue(), null, null);
     }
@@ -470,7 +470,7 @@ public class DisplayData {
     }
 
     private Item withNamespace(Class<?> nsClass) {
-      String namespace = convertNamespace(nsClass);
+      String namespace = namespaceOf(nsClass);
       return new Item(
           namespace, this.key, this.type, this.value, this.shortValue, this.url, this.label);
     }
@@ -491,7 +491,7 @@ public class DisplayData {
     private final String key;
 
     public static Identifier of(Class<?> namespace, String key) {
-      return of(convertNamespace(namespace), key);
+      return of(namespaceOf(namespace), key);
     }
 
     public static Identifier of(String namespace, String key) {
