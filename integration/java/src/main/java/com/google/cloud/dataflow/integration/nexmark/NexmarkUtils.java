@@ -290,28 +290,9 @@ public class NexmarkUtils {
    * Return a generator config to match the given {@code options}.
    */
   public static GeneratorConfig standardGeneratorConfig(NexmarkConfiguration configuration) {
-    GeneratorConfig config = new GeneratorConfig(
-        configuration, BASE_TIME, 0, configuration.numEvents, configuration.numPreloadEvents, 0);
-    if (configuration.useWallclockEventTime) {
-      // We want events to have a timestamp matching wallclock time.
-      long now = System.currentTimeMillis();
-      // How long, in wallclock time, do we expect it to take to pre-load events?
-      long preloadInterEventDelayUs = QpsShape.SQUARE.interEventDelayUs(
-          configuration.preloadEventQps, configuration.numEventGenerators);
-      long wallclockPreloadMs =
-          (configuration.numPreloadEvents * preloadInterEventDelayUs)
-          / (1000L * configuration.numEventGenerators);
-      // How long, in event time, does the event stream take to generate the pre-load events?
-      long firstPreloadEventTime = config.timestampAndInterEventDelayUsForEvent(0).getKey();
-      long firstPostloadEventTime =
-          config.timestampAndInterEventDelayUsForEvent(
-                    configuration.numPreloadEvents / configuration.numEventGenerators).getKey();
-      long eventPreloadMs = firstPostloadEventTime - firstPreloadEventTime;
-      // Shift base time s.t. firstPostloadEventTime = now + wallclockPreLoadMs
-      config = new GeneratorConfig(configuration, now + wallclockPreloadMs - eventPreloadMs, 0,
-          configuration.numEvents, configuration.numPreloadEvents, 0);
-    }
-    return config;
+    return new GeneratorConfig(configuration,
+        configuration.useWallclockEventTime ? System.currentTimeMillis() : BASE_TIME, 0,
+        configuration.numEvents, 0);
   }
 
   /**

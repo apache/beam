@@ -1,115 +1,13 @@
-/*
- * Copyright (C) 2015 Google Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy of
- * the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
- * the License.
- */
-
 package com.google.cloud.dataflow.integration.nexmark;
 
-import com.google.api.services.bigquery.model.TableFieldSchema;
-import com.google.api.services.bigquery.model.TableRow;
-import com.google.api.services.bigquery.model.TableSchema;
-import com.google.api.services.dataflow.model.JobMetrics;
-import com.google.api.services.dataflow.model.MetricUpdate;
-import com.google.cloud.dataflow.integration.nexmark.NexmarkUtils.PubSubMode;
-import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.PipelineResult;
-import com.google.cloud.dataflow.sdk.io.AvroIO;
-import com.google.cloud.dataflow.sdk.io.BigQueryIO;
-import com.google.cloud.dataflow.sdk.io.PubsubIO;
-import com.google.cloud.dataflow.sdk.io.TextIO;
-import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
-import com.google.cloud.dataflow.sdk.runners.AggregatorRetrievalException;
-import com.google.cloud.dataflow.sdk.runners.BlockingDataflowPipelineRunner;
-import com.google.cloud.dataflow.sdk.runners.DataflowPipelineJob;
-import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
-import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
-import com.google.cloud.dataflow.sdk.transforms.Aggregator;
-import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.ParDo;
-import com.google.cloud.dataflow.sdk.values.PCollection;
-import com.google.cloud.dataflow.sdk.values.PCollection.IsBounded;
-import com.google.cloud.dataflow.sdk.values.TimestampedValue;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-
-import org.joda.time.Duration;
-import org.joda.time.Instant;
-
 import java.io.IOException;
-import java.io.OutputStream;
-import java.io.PrintStream;
-import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Random;
-import java.util.concurrent.TimeUnit;
-
 import javax.annotation.Nullable;
 
 /**
- * Run a singe Nexmark query using a given configuration on Google Dataflow.
+ * Run a single Nexmark query using a given configuration.
  */
-class NexmarkGoogleRunner {
-  /**
-   * How long to let streaming pipeline run after all events have been generated and we've
-   * seen no activity.
-   */
-  private static final Duration DONE_DELAY = Duration.standardMinutes(1);
-
-  /**
-   * How long to allow no activity without warning.
-   */
-  private static final Duration STUCK_WARNING_DELAY = Duration.standardMinutes(10);
-
-  /**
-   * How long to let streaming pipeline run after we've
-   * seen no activity, even if all events have not been generated.
-   */
-  private static final Duration STUCK_TERMINATE_DELAY = Duration.standardDays(3);
-
-  /**
-   * Delay between perf samples.
-   */
-  private static final Duration PERF_DELAY = Duration.standardSeconds(15);
-
-  /**
-   * Minimum number of samples needed for 'stead-state' rate calculation.
-   */
-  private static final int MIN_SAMPLES = 9;
-
-  /**
-   * Minimum length of time over which to consider samples for 'steady-state' rate calculation.
-   */
-  private static final Duration MIN_WINDOW = Duration.standardMinutes(2);
-
-  // Following is valid over all runs.
-
-  private final NexmarkGoogleDriver.NexmarkGoogleOptions options;
-
-  @Nullable
-  private final String outputPath;
-
-  private final String pubsubTopic;
-
-  private final boolean monitorJobs;
-
-  // Following is valid per-run only.
+public class NexmarkRunner {
+  private final Options options;
 
   /**
    * Which configuration should we run.
@@ -122,18 +20,6 @@ class NexmarkGoogleRunner {
    */
   @Nullable
   private PubsubHelper pubsub;
-
-  /**
-   * Pipeline 'result' for the publishing pipeline if in pub/sub COMBINED mode.
-   */
-  @Nullable
-  private PipelineResult publisherResult;
-
-  /**
-   * Result for the main query pipeline.
-   */
-  @Nullable
-  private PipelineResult mainResult;
 
   /**
    * Monitor for published events if in pub/sub COMBINED mode.
@@ -153,25 +39,8 @@ class NexmarkGoogleRunner {
   @Nullable
   private String inputTopic;
 
-  /**
-   * If true, make sure all topic, subscription and gcs file names are unique.
-   */
-  private final boolean uniqify;
-
-  /**
-   * If true, manage the creation and cleanup of topics, subscriptions and gcs files.
-   */
-  private final boolean manageResources;
-
-  public NexmarkGoogleRunner(
-      NexmarkGoogleDriver.NexmarkGoogleOptions options, @Nullable String outputPath,
-      String pubsubTopic, boolean monitorJobs, boolean uniqify, boolean manageResources) {
+  public NexmarkRunner(Options options) {
     this.options = options;
-    this.outputPath = outputPath != null && outputPath.isEmpty() ? null : outputPath;
-    this.pubsubTopic = pubsubTopic != null && pubsubTopic.isEmpty() ? null : pubsubTopic;
-    this.monitorJobs = monitorJobs;
-    this.uniqify = uniqify;
-    this.manageResources = manageResources;
   }
 
   /**
@@ -287,7 +156,7 @@ class NexmarkGoogleRunner {
                                                                    + "*.avro")
                                                              .withSchema(Event.class));
         source = preTimestamp.apply("adjust timestamp",
-                                    ParDo.of(NexmarkQuery.EVENT_TIMESTAMP_FROM_DATA));
+            ParDo.of(NexmarkQuery.EVENT_TIMESTAMP_FROM_DATA));
         break;
       case PUBSUB:
         if (pubsubTopic == null) {
@@ -589,18 +458,18 @@ class NexmarkGoogleRunner {
       }
 
       List<NexmarkQuery> queries = Arrays.asList(new Query0(configuration),
-                                                 new Query1(configuration),
-                                                 new Query2(configuration),
-                                                 new Query3(configuration),
-                                                 new Query4(configuration),
-                                                 new Query5(configuration),
-                                                 new Query6(configuration),
-                                                 new Query7(configuration),
-                                                 new Query8(configuration),
-                                                 new Query9(configuration),
-                                                 new Query10(configuration),
-                                                 new Query11(configuration),
-                                                 new Query12(configuration));
+          new Query1(configuration),
+          new Query2(configuration),
+          new Query3(configuration),
+          new Query4(configuration),
+          new Query5(configuration),
+          new Query6(configuration),
+          new Query7(configuration),
+          new Query8(configuration),
+          new Query9(configuration),
+          new Query10(configuration),
+          new Query11(configuration),
+          new Query12(configuration));
       NexmarkQuery query = queries.get(configuration.query);
       queryName = query.getName();
 
@@ -707,9 +576,9 @@ class NexmarkGoogleRunner {
       NexmarkUtils.console(null, "Query%d: only %d samples", model.configuration.query, n);
     } else {
       NexmarkUtils.console(null, "Query%d: N:%d; min:%d; 1st%%:%d; mean:%d; 3rd%%:%d; max:%d",
-                           model.configuration.query, n, counts.get(0), counts.get(n / 4),
-                           counts.get(n / 2),
-                           counts.get(n - 1 - n / 4), counts.get(n - 1));
+          model.configuration.query, n, counts.get(0), counts.get(n / 4),
+          counts.get(n / 2),
+          counts.get(n - 1 - n / 4), counts.get(n - 1));
     }
   }
 
@@ -810,8 +679,8 @@ class NexmarkGoogleRunner {
     Instant start = Instant.now();
     Instant end =
         options.getRunningTimeMinutes() != null
-            ? start.plus(Duration.standardMinutes(options.getRunningTimeMinutes()))
-            : new Instant(Long.MAX_VALUE);
+        ? start.plus(Duration.standardMinutes(options.getRunningTimeMinutes()))
+        : new Instant(Long.MAX_VALUE);
     if (options.getPreloadSeconds() != null) {
       end = end.minus(Duration.standardSeconds(options.getPreloadSeconds()));
     }
@@ -839,8 +708,8 @@ class NexmarkGoogleRunner {
 
       NexmarkPerf currPerf;
       if (monitorsActive) {
-          currPerf = currentPerf(start, now, job, snapshots, query.eventMonitor,
-              query.resultMonitor);
+        currPerf = currentPerf(start, now, job, snapshots, query.eventMonitor,
+            query.resultMonitor);
       } else {
         currPerf = null;
       }
@@ -1156,9 +1025,9 @@ class NexmarkGoogleRunner {
     if (sampleSec < MIN_WINDOW.getStandardSeconds()) {
       // Not sampled over enough time.
       NexmarkUtils.console(null,
-                           "sample of %.1f sec not long enough to calculate steady-state event "
-                           + "rate",
-                           sampleSec);
+          "sample of %.1f sec not long enough to calculate steady-state event "
+          + "rate",
+          sampleSec);
       return;
     }
 
@@ -1219,4 +1088,5 @@ class NexmarkGoogleRunner {
       return -1;
     }
   }
+
 }
