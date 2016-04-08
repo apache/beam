@@ -45,8 +45,6 @@ import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.regex.Pattern;
 
-import javax.annotation.Nullable;
-
 /**
  * Test case for {@link PAssert}.
  */
@@ -284,8 +282,6 @@ public class PAssertTest implements Serializable {
 
     PAssert.that(pcollection).containsInAnyOrder(2, 1, 4, 3, 7);
 
-    // The service runner does not give an exception we can usefully inspect.
-    @Nullable
     Throwable exc = runExpectingAssertionFailure(pipeline);
     Pattern expectedPattern = Pattern.compile(
         "Expected: iterable over \\[((<4>|<7>|<3>|<2>|<1>)(, )?){5}\\] in any order");
