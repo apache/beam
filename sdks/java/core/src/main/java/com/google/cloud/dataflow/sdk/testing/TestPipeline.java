@@ -24,7 +24,6 @@ import com.google.cloud.dataflow.sdk.options.GcpOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions.CheckEnabled;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.util.TestCredential;
 import com.google.common.base.Optional;
@@ -86,14 +85,6 @@ public class TestPipeline extends Pipeline {
     return new TestPipeline(PipelineRunner.fromOptions(options), options);
   }
 
-  /**
-   * Returns whether a {@link TestPipeline} supports dynamic work rebalancing, and thus tests
-   * of dynamic work rebalancing are expected to pass.
-   */
-  public boolean supportsDynamicWorkRebalancing() {
-    return getRunner() instanceof DataflowPipelineRunner;
-  }
-
   private TestPipeline(PipelineRunner<? extends PipelineResult> runner, PipelineOptions options) {
     super(runner, options);
   }
@@ -136,11 +127,7 @@ public class TestPipeline extends Pipeline {
                   .as(PipelineOptions.class);
 
       options.as(ApplicationNameOptions.class).setAppName(getAppName());
-      if (isIntegrationTest()) {
-        // TODO: adjust everyone's integration test frameworks to set the runner class via the
-        // pipeline options via PROPERTY_DATAFLOW_OPTIONS
-        options.setRunner(TestDataflowPipelineRunner.class);
-      } else {
+      if (!isIntegrationTest()) {
         options.as(GcpOptions.class).setGcpCredential(new TestCredential());
       }
       options.setStableUniqueNames(CheckEnabled.ERROR);
