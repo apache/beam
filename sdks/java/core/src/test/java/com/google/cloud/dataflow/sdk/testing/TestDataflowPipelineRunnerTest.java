@@ -17,9 +17,13 @@
  */
 package com.google.cloud.dataflow.sdk.testing;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
@@ -128,9 +132,6 @@ public class TestDataflowPipelineRunnerTest {
 
   @Test
   public void testRunBatchJobThatFails() throws Exception {
-    expectedException.expect(IllegalStateException.class);
-    expectedException.expectMessage("The dataflow failed.");
-
     Pipeline p = TestPipeline.create(options);
     PCollection<Integer> pc = p.apply(Create.of(1, 2, 3));
     PAssert.that(pc).containsInAnyOrder(1, 2, 3);
@@ -145,7 +146,52 @@ public class TestDataflowPipelineRunnerTest {
     when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
 
     TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
-    runner.run(p, mockRunner);
+    try {
+      runner.run(p, mockRunner);
+      fail("AssertionError expected");
+    } catch (AssertionError expected) {
+    }
+  }
+
+  @Test
+  public void testBatchPipelineFailsIfException() throws Exception {
+    Pipeline p = TestPipeline.create(options);
+    PCollection<Integer> pc = p.apply(Create.of(1, 2, 3));
+    PAssert.that(pc).containsInAnyOrder(1, 2, 3);
+
+    DataflowPipelineJob mockJob = Mockito.mock(DataflowPipelineJob.class);
+    when(mockJob.getDataflowClient()).thenReturn(service);
+    when(mockJob.getState()).thenReturn(State.RUNNING);
+    when(mockJob.getProjectId()).thenReturn("test-project");
+    when(mockJob.getJobId()).thenReturn("test-job");
+    when(mockJob.waitToFinish(any(Long.class), any(TimeUnit.class), any(JobMessagesHandler.class)))
+        .thenAnswer(new Answer<State>() {
+          @Override
+          public State answer(InvocationOnMock invocation) {
+            JobMessage message = new JobMessage();
+            message.setMessageText("FooException");
+            message.setTime(TimeUtil.toCloudTime(Instant.now()));
+            message.setMessageImportance("JOB_MESSAGE_ERROR");
+            ((MonitoringUtil.JobMessagesHandler) invocation.getArguments()[2])
+                .process(Arrays.asList(message));
+            return State.CANCELLED;
+          }
+        });
+
+    DataflowPipelineRunner mockRunner = Mockito.mock(DataflowPipelineRunner.class);
+    when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
+
+    when(request.execute()).thenReturn(
+        generateMockMetricResponse(false /* success */, true /* tentative */));
+    TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
+    try {
+      runner.run(p, mockRunner);
+      fail("AssertionError expected");
+    } catch (AssertionError expected) {
+      assertThat(expected.getMessage(), containsString("FooException"));
+    }
+
+    verify(mockJob, atLeastOnce()).cancel();
   }
 
   @Test
@@ -172,9 +218,6 @@ public class TestDataflowPipelineRunnerTest {
 
   @Test
   public void testRunStreamingJobThatFails() throws Exception {
-    expectedException.expect(IllegalStateException.class);
-    expectedException.expectMessage("The dataflow failed.");
-
     options.setStreaming(true);
     Pipeline p = TestPipeline.create(options);
     PCollection<Integer> pc = p.apply(Create.of(1, 2, 3));
@@ -192,7 +235,11 @@ public class TestDataflowPipelineRunnerTest {
     when(request.execute()).thenReturn(
         generateMockMetricResponse(false /* success */, true /* tentative */));
     TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
-    runner.run(p, mockRunner);
+    try {
+      runner.run(p, mockRunner);
+      fail("AssertionError expected");
+    } catch (AssertionError expected) {
+    }
   }
 
   @Test
@@ -278,9 +325,6 @@ public class TestDataflowPipelineRunnerTest {
 
   @Test
   public void testStreamingPipelineFailsIfException() throws Exception {
-    expectedException.expect(IllegalStateException.class);
-    expectedException.expectMessage("The dataflow failed.");
-
     options.setStreaming(true);
     Pipeline p = TestPipeline.create(options);
     PCollection<Integer> pc = p.apply(Create.of(1, 2, 3));
@@ -311,8 +355,13 @@ public class TestDataflowPipelineRunnerTest {
     when(request.execute()).thenReturn(
         generateMockMetricResponse(false /* success */, true /* tentative */));
     TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
-    runner.run(p, mockRunner);
+    try {
+      runner.run(p, mockRunner);
+      fail("AssertionError expected");
+    } catch (AssertionError expected) {
+      assertThat(expected.getMessage(), containsString("FooException"));
+    }
 
-    verify(mockJob).cancel();
+    verify(mockJob, atLeastOnce()).cancel();
   }
 }

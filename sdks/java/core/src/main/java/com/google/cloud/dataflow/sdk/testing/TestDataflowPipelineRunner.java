@@ -241,8 +241,9 @@ public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJ
         LOG.info("Cancelling Dataflow job {}", job.getJobId());
         try {
           job.cancel();
-        } catch (Exception e) {
-          throw Throwables.propagate(e);
+        } catch (Exception ignore) {
+          // The TestDataflowPipelineRunner will thrown an AssertionError with the job failure
+          // messages.
         }
       }
     }
