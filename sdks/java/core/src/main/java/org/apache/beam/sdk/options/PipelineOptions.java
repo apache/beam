@@ -21,8 +21,8 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.GoogleApiDebugOptions.GoogleApiTracer;
 import org.apache.beam.sdk.options.ProxyInvocationHandler.Deserializer;
 import org.apache.beam.sdk.options.ProxyInvocationHandler.Serializer;
-import org.apache.beam.sdk.runners.DirectPipelineRunner;
 import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.runners.inprocess.InProcessPipelineRunner;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.Context;
 
@@ -225,7 +225,7 @@ public interface PipelineOptions {
   @Description("The pipeline runner that will be used to execute the pipeline. "
       + "For registered runners, the class name can be specified, otherwise the fully "
       + "qualified name needs to be specified.")
-  @Default.Class(DirectPipelineRunner.class)
+  @Default.Class(InProcessPipelineRunner.class)
   Class<? extends PipelineRunner<?>> getRunner();
   void setRunner(Class<? extends PipelineRunner<?>> kls);
 

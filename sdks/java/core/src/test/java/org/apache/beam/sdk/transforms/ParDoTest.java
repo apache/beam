@@ -26,7 +26,6 @@ import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
 import static org.apache.beam.sdk.util.StringUtils.jsonStringToByteArray;
 
 import static org.hamcrest.Matchers.allOf;
-import static org.hamcrest.Matchers.isA;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 import static org.hamcrest.core.AnyOf.anyOf;
@@ -36,7 +35,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.ListCoder;
@@ -1119,7 +1117,7 @@ public class ParDoTest implements Serializable {
     input.apply(ParDo.of(new SideOutputDummyFn(sideOutputTag))
         .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag)));
 
-    thrown.expect(PipelineExecutionException.class);
+    thrown.expect(IllegalStateException.class);
     thrown.expectMessage("Unable to return a default Coder");
     pipeline.run();
   }
@@ -1422,8 +1420,7 @@ public class ParDoTest implements Serializable {
           }
         }));
 
-    thrown.expect(PipelineExecutionException.class);
-    thrown.expectCause(isA(IllegalMutationException.class));
+    thrown.expect(IllegalMutationException.class);
     thrown.expectMessage("output");
     thrown.expectMessage("must not be mutated");
     pipeline.run();
@@ -1472,8 +1469,7 @@ public class ParDoTest implements Serializable {
           }
         }));
 
-    thrown.expect(PipelineExecutionException.class);
-    thrown.expectCause(isA(IllegalMutationException.class));
+    thrown.expect(IllegalMutationException.class);
     thrown.expectMessage("output");
     thrown.expectMessage("must not be mutated");
     pipeline.run();
@@ -1499,7 +1495,7 @@ public class ParDoTest implements Serializable {
         }));
 
     thrown.expect(IllegalMutationException.class);
-    thrown.expectMessage("input");
+    thrown.expectMessage("Input");
     thrown.expectMessage("must not be mutated");
     pipeline.run();
   }
@@ -1523,7 +1519,7 @@ public class ParDoTest implements Serializable {
         }));
 
     thrown.expect(IllegalMutationException.class);
-    thrown.expectMessage("input");
+    thrown.expectMessage("Input");
     thrown.expectMessage("must not be mutated");
     pipeline.run();
   }
