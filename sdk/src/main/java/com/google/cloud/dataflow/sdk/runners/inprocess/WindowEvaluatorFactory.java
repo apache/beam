@@ -59,23 +59,24 @@ class WindowEvaluatorFactory implements TransformEvaluatorFactory {
     if (fn == null) {
       return PassthroughTransformEvaluator.create(transform, outputBundle);
     }
-    return new WindowIntoEvaluator<>(fn, evaluationContext, outputBundle);
+    return new WindowIntoEvaluator<>(transform, fn, outputBundle);
   }
 
   private static class WindowIntoEvaluator<InputT> implements TransformEvaluator<InputT> {
+    private final AppliedPTransform<PCollection<InputT>, PCollection<InputT>, Window.Bound<InputT>>
+        transform;
     private final WindowFn<InputT, ?> windowFn;
-    private final InProcessEvaluationContext context;
     private final UncommittedBundle<InputT> outputBundle;
 
     @SuppressWarnings("unchecked")
     public WindowIntoEvaluator(
+        AppliedPTransform<PCollection<InputT>, PCollection<InputT>, Window.Bound<InputT>> transform,
         WindowFn<? super InputT, ?> windowFn,
-        InProcessEvaluationContext context,
         UncommittedBundle<InputT> outputBundle) {
+      this.outputBundle = outputBundle;
+      this.transform = transform;
       // Safe contravariant cast
       this.windowFn = (WindowFn<InputT, ?>) windowFn;
-      this.context = context;
-      this.outputBundle = outputBundle;
     }
 
     @Override
@@ -96,7 +97,7 @@ class WindowEvaluatorFactory implements TransformEvaluatorFactory {
 
     @Override
     public InProcessTransformResult finishBundle() throws Exception {
-      return StepTransformResult.withoutHold(null).addOutput(outputBundle).build();
+      return StepTransformResult.withoutHold(transform).addOutput(outputBundle).build();
     }
   }
 
