@@ -21,6 +21,7 @@ import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.Flatten.FlattenPCollectionList;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.common.collect.ImmutableMap;
 
 import java.util.Map;
@@ -45,6 +46,7 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
                 new GroupByKeyEvaluatorFactory())
             .put(FlattenPCollectionList.class, new FlattenEvaluatorFactory())
             .put(ViewEvaluatorFactory.WriteView.class, new ViewEvaluatorFactory())
+            .put(Window.Bound.class, new WindowEvaluatorFactory())
             .build();
     return new TransformEvaluatorRegistry(primitives);
   }
