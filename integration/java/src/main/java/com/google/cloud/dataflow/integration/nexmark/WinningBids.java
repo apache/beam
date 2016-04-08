@@ -306,7 +306,7 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
     // Adjust for number of in-flight auctions.
     longestDelayUs = longestDelayUs * configuration.numInFlightAuctions;
     long expectedAuctionDurationMs = (longestDelayUs + 999) / 1000;
-    NexmarkUtils.console(null, "Expected auction duration is %d ms", expectedAuctionDurationMs);
+    NexmarkUtils.console("Expected auction duration is %d ms", expectedAuctionDurationMs);
     auctionOrBidWindowFn = new AuctionOrBidWindowFn(expectedAuctionDurationMs);
   }
 

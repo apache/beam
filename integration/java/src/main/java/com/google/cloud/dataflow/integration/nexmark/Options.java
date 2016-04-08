@@ -18,12 +18,13 @@ package com.google.cloud.dataflow.integration.nexmark;
 
 import com.google.cloud.dataflow.sdk.options.Default;
 import com.google.cloud.dataflow.sdk.options.Description;
+import com.google.cloud.dataflow.sdk.options.GcpOptions;
 import javax.annotation.Nullable;
 
 /**
  * Command line flags.
  */
-public interface Options {
+public interface Options extends GcpOptions {
   @Description("Which suite to run. Default is to use command line arguments for one job.")
   @Default.Enum("DEFAULT")
   NexmarkSuite getSuite();

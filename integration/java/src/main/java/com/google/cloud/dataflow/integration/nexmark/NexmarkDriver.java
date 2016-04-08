@@ -1,24 +1,4 @@
-/*
- * Copyright (C) 2015 Google Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy of
- * the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
- * the License.
- */
-
 package com.google.cloud.dataflow.integration.nexmark;
-
-import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
-import com.google.cloud.dataflow.sdk.options.Description;
-import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -53,61 +33,51 @@ import javax.annotation.Nullable;
  * <a href="http://datalab.cs.pdx.edu/niagaraST/NEXMark/">
  * http://datalab.cs.pdx.edu/niagaraST/NEXMark/</a>
  */
-class NexmarkGoogleDriver extends NexmarkDriver<NexmarkGoogleDriver.NexmarkGoogleOptions> {
-  /**
-   * Command line flags.
-   */
-  public interface NexmarkGoogleOptions extends Options, DataflowPipelineOptions {
-    @Description("If set, cancel running pipelines after this long")
-    @Nullable
-    Long getRunningTimeMinutes();
-
-    void setRunningTimeMinutes(Long value);
-
-    @Description("If set and --monitorJobs is true, check that the system watermark is never more "
-                 + "than this far behind real time")
-    @Nullable
-    Long getMaxSystemLagSeconds();
-
-    void setMaxSystemLagSeconds(Long value);
-
-    @Description("If set and --monitorJobs is true, check that the data watermark is never more "
-                 + "than this far behind real time")
-    @Nullable
-    Long getMaxDataLagSeconds();
-
-    void setMaxDataLagSeconds(Long value);
-
-    @Description("Only start validating watermarks after this many seconds")
-    @Nullable
-    Long getWatermarkValidationDelaySeconds();
-
-    void setWatermarkValidationDelaySeconds(Long value);
-  }
+public class NexmarkDriver<O extends Options> {
 
   /**
    * Entry point.
-   *
-   * @throws IOException
-   * @throws InterruptedException
    */
-  public static void main(String[] args) throws IOException, InterruptedException {
-    // Gather command line args, baseline, configurations, etc.
-    NexmarkGoogleOptions options = PipelineOptionsFactory.fromArgs(args)
-                                                         .withValidation()
-                                                         .as(NexmarkGoogleOptions.class);
-    NexmarkGoogleRunner runner = new NexmarkGoogleRunner(options);
-    new NexmarkGoogleDriver().runAll(options, runner);
+  public void runAll(O options, NexmarkRunner runner) {
+    Instant start = Instant.now();
+    Map<NexmarkConfiguration, NexmarkPerf> baseline = loadBaseline(options.getBaselineFilename());
+    Map<NexmarkConfiguration, NexmarkPerf> actual = new LinkedHashMap<>();
+    Iterable<NexmarkConfiguration> configurations = options.getSuite().getConfigurations(options);
+
+    boolean successful = true;
+    try {
+      // Run all the configurations.
+      for (NexmarkConfiguration configuration : configurations) {
+        NexmarkPerf perf = runner.run(configuration);
+        if (perf != null) {
+          if (perf.errors == null || perf.errors.size() > 0) {
+            successful = false;
+          }
+          appendPerf(options.getPerfFilename(), configuration, perf);
+          actual.put(configuration, perf);
+          // Summarize what we've run so far.
+          saveSummary(null, configurations, actual, baseline, start);
+        }
+      }
+    } finally {
+      if (options.getMonitorJobs()) {
+        // Report overall performance.
+        saveSummary(options.getSummaryFilename(), configurations, actual, baseline, start);
+        saveJavascript(options.getJavascriptFilename(), configurations, actual, baseline, start);
+      }
+    }
+
+    if (!successful) {
+      System.exit(1);
+    }
   }
 
   /**
    * Append the pair of {@code configuration} and {@code perf} to perf file.
-   *
-   * @throws IOException
    */
-  private static void appendPerf(
+  private void appendPerf(
       @Nullable String perfFilename, NexmarkConfiguration configuration,
-      NexmarkPerf perf) throws IOException {
+      NexmarkPerf perf) {
     if (perfFilename == null) {
       return;
     }
@@ -117,24 +87,31 @@ class NexmarkGoogleDriver extends NexmarkDriver<NexmarkGoogleDriver.NexmarkGoogl
     lines.add(String.format("# %s", configuration.toShortString()));
     lines.add(configuration.toString());
     lines.add(perf.toString());
-    Files.write(Paths.get(perfFilename), lines, StandardCharsets.UTF_8, StandardOpenOption.CREATE,
-        StandardOpenOption.APPEND);
+    try {
+      Files.write(Paths.get(perfFilename), lines, StandardCharsets.UTF_8, StandardOpenOption.CREATE,
+          StandardOpenOption.APPEND);
+    } catch (IOException e) {
+      throw new RuntimeException("Unable to write perf file: ", e);
+    }
     NexmarkUtils.console("appended results to perf file %s.", perfFilename);
   }
 
   /**
    * Load the baseline perf.
-   *
-   * @throws IOException
    */
   @Nullable
   private static Map<NexmarkConfiguration, NexmarkPerf> loadBaseline(
-      @Nullable String baselineFilename) throws IOException {
+      @Nullable String baselineFilename) {
     if (baselineFilename == null) {
       return null;
     }
     Map<NexmarkConfiguration, NexmarkPerf> baseline = new LinkedHashMap<>();
-    List<String> lines = Files.readAllLines(Paths.get(baselineFilename), StandardCharsets.UTF_8);
+    List<String> lines;
+    try {
+      lines = Files.readAllLines(Paths.get(baselineFilename), StandardCharsets.UTF_8);
+    } catch (IOException e) {
+      throw new RuntimeException("Unable to read baseline perf file: ", e);
+    }
     for (int i = 0; i < lines.size(); i++) {
       if (lines.get(i).startsWith("#") || lines.get(i).trim().isEmpty()) {
         continue;
@@ -159,7 +136,7 @@ class NexmarkGoogleDriver extends NexmarkDriver<NexmarkGoogleDriver.NexmarkGoogl
   private static void saveSummary(
       @Nullable String summaryFilename,
       Iterable<NexmarkConfiguration> configurations, Map<NexmarkConfiguration, NexmarkPerf> actual,
-      @Nullable Map<NexmarkConfiguration, NexmarkPerf> baseline, Instant start) throws IOException {
+      @Nullable Map<NexmarkConfiguration, NexmarkPerf> baseline, Instant start) {
     List<String> lines = new ArrayList<>();
 
     lines.add("");
@@ -248,8 +225,12 @@ class NexmarkGoogleDriver extends NexmarkDriver<NexmarkGoogleDriver.NexmarkGoogl
     }
 
     if (summaryFilename != null) {
-      Files.write(Paths.get(summaryFilename), lines, StandardCharsets.UTF_8,
-          StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+      try {
+        Files.write(Paths.get(summaryFilename), lines, StandardCharsets.UTF_8,
+            StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+      } catch (IOException e) {
+        throw new RuntimeException("Unable to save summary file: ", e);
+      }
       NexmarkUtils.console("appended summary to summary file %s.", summaryFilename);
     }
   }
@@ -261,7 +242,7 @@ class NexmarkGoogleDriver extends NexmarkDriver<NexmarkGoogleDriver.NexmarkGoogl
   private static void saveJavascript(
       @Nullable String javascriptFilename,
       Iterable<NexmarkConfiguration> configurations, Map<NexmarkConfiguration, NexmarkPerf> actual,
-      @Nullable Map<NexmarkConfiguration, NexmarkPerf> baseline, Instant start) throws IOException {
+      @Nullable Map<NexmarkConfiguration, NexmarkPerf> baseline, Instant start) {
     if (javascriptFilename == null) {
       return;
     }
@@ -287,9 +268,12 @@ class NexmarkGoogleDriver extends NexmarkDriver<NexmarkGoogleDriver.NexmarkGoogl
 
     lines.add("];");
 
-    Files.write(Paths.get(javascriptFilename), lines, StandardCharsets.UTF_8,
-        StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+    try {
+      Files.write(Paths.get(javascriptFilename), lines, StandardCharsets.UTF_8,
+          StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+    } catch (IOException e) {
+      throw new RuntimeException("Unable to save javascript file: ", e);
+    }
     NexmarkUtils.console("saved javascript to file %s.", javascriptFilename);
   }
 }
-

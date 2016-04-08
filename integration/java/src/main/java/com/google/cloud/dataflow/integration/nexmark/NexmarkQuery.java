@@ -152,20 +152,22 @@ public abstract class NexmarkQuery
             }
           });
 
-  public static final DoFn<Event, Event> EVENT_TIMESTAMP_FROM_DATA = new DoFn<Event, Event> () {
-          @Override
-          public void processElement(ProcessContext c) {
-            Event e = c.element();
-            if (e.bid != null) {
-              c.outputWithTimestamp(e, new Instant(e.bid.dateTime));
-            } else if (e.newPerson != null) {
-              c.outputWithTimestamp(e, new Instant(e.newPerson.dateTime));
-            } else if (e.newAuction != null) {
-              c.outputWithTimestamp(e, new Instant(e.newAuction.dateTime));
-            }
-          }
-        };
-
+  /** Transform to emit each event with the timestamp embedded within it. */
+  public static final ParDo.Bound<Event, Event> EVENT_TIMESTAMP_FROM_DATA =
+      ParDo.named("OutputWithTimestamp")
+           .of(new DoFn<Event, Event>() {
+             @Override
+             public void processElement(ProcessContext c) {
+               Event e = c.element();
+               if (e.bid != null) {
+                 c.outputWithTimestamp(e, new Instant(e.bid.dateTime));
+               } else if (e.newPerson != null) {
+                 c.outputWithTimestamp(e, new Instant(e.newPerson.dateTime));
+               } else if (e.newAuction != null) {
+                 c.outputWithTimestamp(e, new Instant(e.newAuction.dateTime));
+               }
+             }
+           });
 
   /**
    * Transform to filter for just the new auction events.

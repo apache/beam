@@ -225,11 +225,8 @@ public class NexmarkUtils {
   }
 
   /** Log message to console. For client side only. */
-  public static void console(@Nullable Instant now, String format, Object... args) {
-    if (now == null) {
-      now = Instant.now();
-    }
-    System.out.printf("%s %s\n", now, String.format(format, args));
+  public static void console(String format, Object... args) {
+    System.out.printf("%s %s\n", Instant.now(), String.format(format, args));
   }
 
   /** Label to use for timestamps on pub/sub messages. */

@@ -180,8 +180,12 @@ class NexmarkPerf {
    *
    * @throws IOException
    */
-  public static NexmarkPerf fromString(String string) throws IOException {
-    return NexmarkUtils.MAPPER.readValue(string, NexmarkPerf.class);
+  public static NexmarkPerf fromString(String string) {
+    try {
+      return NexmarkUtils.MAPPER.readValue(string, NexmarkPerf.class);
+    } catch (IOException e) {
+      throw new RuntimeException("Unable to parse nexmark perf: ", e);
+    }
   }
 
   /**
