@@ -63,6 +63,7 @@ public interface InProcessTransformResult {
    *
    * If this evaluation did not access state, this may return null.
    */
+  @Nullable
   CopyOnAccessInMemoryStateInternals<?> getState();
 
   /**
@@ -73,5 +74,4 @@ public interface InProcessTransformResult {
    * <p>If this evaluation did not add or remove any timers, returns an empty TimerUpdate.
    */
   TimerUpdate getTimerUpdate();
-
 }
