@@ -131,8 +131,11 @@ public abstract class NexmarkRunner<OptionT extends Options> {
    */
   protected abstract boolean canMonitor();
 
-  protected interface PipelineBuilder<O extends Options> {
-    void build(O publishOnlyOptions);
+  /**
+   * Build and run a pipeline using specified options.
+   */
+  protected interface PipelineBuilder<OptionT extends Options> {
+    void build(OptionT publishOnlyOptions);
   }
 
   /**
