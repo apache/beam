@@ -47,7 +47,10 @@ import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.Partition;
 import com.google.cloud.dataflow.sdk.transforms.Partition.PartitionFn;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
+import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.AppliedCombineFn;
+import com.google.cloud.dataflow.sdk.util.AssignWindows;
 import com.google.cloud.dataflow.sdk.util.GroupByKeyViaGroupByKeyOnly;
 import com.google.cloud.dataflow.sdk.util.GroupByKeyViaGroupByKeyOnly.GroupByKeyOnly;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
@@ -57,6 +60,7 @@ import com.google.cloud.dataflow.sdk.util.PerKeyCombineFnRunners;
 import com.google.cloud.dataflow.sdk.util.SerializableUtils;
 import com.google.cloud.dataflow.sdk.util.TestCredential;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
+import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -255,6 +259,9 @@ public class DirectPipelineRunner
     } else if (transform instanceof GroupByKey) {
       return (OutputT)
           ((PCollection) input).apply(new GroupByKeyViaGroupByKeyOnly((GroupByKey) transform));
+    } else if (transform instanceof Window.Bound) {
+      return (OutputT)
+          ((PCollection) input).apply(new AssignWindowsAndSetStrategy((Window.Bound) transform));
     } else {
       return super.apply(transform, input);
     }
@@ -397,6 +404,46 @@ public class DirectPipelineRunner
             transform.withNumShards(1).withShardNameTemplate("").withSuffix("").to(outputFilename));
       }
       return PDone.in(input.getPipeline());
+    }
+  }
+
+  private static class AssignWindowsAndSetStrategy<T, W extends BoundedWindow>
+      extends PTransform<PCollection<T>, PCollection<T>> {
+
+    private final Window.Bound<T> wrapped;
+
+    public AssignWindowsAndSetStrategy(Window.Bound<T> wrapped) {
+      this.wrapped = wrapped;
+    }
+
+    @Override
+    public PCollection<T> apply(PCollection<T> input) {
+      WindowingStrategy<?, ?> outputStrategy =
+          wrapped.getOutputStrategyInternal(input.getWindowingStrategy());
+
+      WindowFn<T, BoundedWindow> windowFn =
+          (WindowFn<T, BoundedWindow>) outputStrategy.getWindowFn();
+
+      // If the Window.Bound transform only changed parts other than the WindowFn, then
+      // we skip AssignWindows even though it should be harmless in a perfect world.
+      // The world is not perfect, and a GBK may have set it to InvalidWindows to forcibly
+      // crash if another GBK is performed without explicitly setting the WindowFn. So we skip
+      // AssignWindows in this case.
+      if (wrapped.getWindowFn() == null) {
+        return input.apply("Identity", ParDo.of(new IdentityFn<T>()))
+            .setWindowingStrategyInternal(outputStrategy);
+      } else {
+        return input
+            .apply("AssignWindows", new AssignWindows<T, BoundedWindow>(windowFn))
+            .setWindowingStrategyInternal(outputStrategy);
+      }
+    }
+  }
+
+  private static class IdentityFn<T> extends DoFn<T, T> {
+    @Override
+    public void processElement(ProcessContext c) {
+      c.output(c.element());
     }
   }
 
