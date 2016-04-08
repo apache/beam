@@ -18,14 +18,13 @@
 
 package com.google.cloud.dataflow.examples;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+
 import com.google.cloud.dataflow.sdk.PipelineResult;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestDataflowPipelineRunner;
 
-import java.util.Map;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -45,7 +44,7 @@ public class WordCountIT extends BatchE2ETest {
     if (!testFileLocation.endsWith("/")) {
       testFileLocation = testFileLocation + "/";
     }
-    
+
     String jobName = "wordcount-" + generateTestIdentifier() + "-prod";
     String[] args = {
         "--jobName=" + jobName,
