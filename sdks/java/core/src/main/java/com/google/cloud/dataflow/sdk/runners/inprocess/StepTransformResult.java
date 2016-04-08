@@ -17,6 +17,8 @@
  */
 package com.google.cloud.dataflow.sdk.runners.inprocess;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.cloud.dataflow.sdk.runners.inprocess.InMemoryWatermarkManager.TimerUpdate;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
@@ -30,15 +32,17 @@ import org.joda.time.Instant;
 
 import java.util.Collection;
 
+import javax.annotation.Nullable;
+
 /**
  * An immutable {@link InProcessTransformResult}.
  */
 public class StepTransformResult implements InProcessTransformResult {
   private final AppliedPTransform<?, ?, ?> transform;
   private final Iterable<? extends UncommittedBundle<?>> bundles;
-  private final CopyOnAccessInMemoryStateInternals<?> state;
+  @Nullable private final CopyOnAccessInMemoryStateInternals<?> state;
   private final TimerUpdate timerUpdate;
-  private final CounterSet counters;
+  @Nullable private final CounterSet counters;
   private final Instant watermarkHold;
 
   private StepTransformResult(
@@ -48,12 +52,12 @@ public class StepTransformResult implements InProcessTransformResult {
       TimerUpdate timerUpdate,
       CounterSet counters,
       Instant watermarkHold) {
-    this.transform = transform;
-    this.bundles = outputBundles;
+    this.transform = checkNotNull(transform);
+    this.bundles = checkNotNull(outputBundles);
     this.state = state;
-    this.timerUpdate = timerUpdate;
+    this.timerUpdate = checkNotNull(timerUpdate);
     this.counters = counters;
-    this.watermarkHold = watermarkHold;
+    this.watermarkHold = checkNotNull(watermarkHold);
   }
 
   @Override
@@ -76,6 +80,7 @@ public class StepTransformResult implements InProcessTransformResult {
     return watermarkHold;
   }
 
+  @Nullable
   @Override
   public CopyOnAccessInMemoryStateInternals<?> getState() {
     return state;
