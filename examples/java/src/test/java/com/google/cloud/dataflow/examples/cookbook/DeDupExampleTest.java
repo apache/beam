@@ -19,7 +19,7 @@ package com.google.cloud.dataflow.examples.cookbook;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
@@ -59,7 +59,7 @@ public class DeDupExampleTest {
     PCollection<String> output =
         input.apply(RemoveDuplicates.<String>create());
 
-    DataflowAssert.that(output)
+    PAssert.that(output)
         .containsInAnyOrder("k1", "k5", "k2", "k3");
     p.run();
   }
@@ -78,7 +78,7 @@ public class DeDupExampleTest {
     PCollection<String> output =
         input.apply(RemoveDuplicates.<String>create());
 
-    DataflowAssert.that(output).empty();
+    PAssert.that(output).empty();
     p.run();
   }
 }

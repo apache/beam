@@ -27,7 +27,7 @@ import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.io.CountingSource.CounterMark;
 import com.google.cloud.dataflow.sdk.io.CountingSource.UnboundedCountingSource;
 import com.google.cloud.dataflow.sdk.io.UnboundedSource.UnboundedReader;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Count;
@@ -59,20 +59,20 @@ public class CountingSourceTest {
 
   public static void addCountingAsserts(PCollection<Long> input, long numElements) {
     // Count == numElements
-    DataflowAssert
+    PAssert
       .thatSingleton(input.apply("Count", Count.<Long>globally()))
       .isEqualTo(numElements);
     // Unique count == numElements
-    DataflowAssert
+    PAssert
       .thatSingleton(input.apply(RemoveDuplicates.<Long>create())
                           .apply("UniqueCount", Count.<Long>globally()))
       .isEqualTo(numElements);
     // Min == 0
-    DataflowAssert
+    PAssert
       .thatSingleton(input.apply("Min", Min.<Long>globally()))
       .isEqualTo(0L);
     // Max == numElements-1
-    DataflowAssert
+    PAssert
       .thatSingleton(input.apply("Max", Max.<Long>globally()))
       .isEqualTo(numElements - 1);
   }
@@ -150,7 +150,7 @@ public class CountingSourceTest {
         .apply("TimestampDiff", ParDo.of(new ElementValueDiff()))
         .apply("RemoveDuplicateTimestamps", RemoveDuplicates.<Long>create());
     // This assert also confirms that diffs only has one unique value.
-    DataflowAssert.thatSingleton(diffs).isEqualTo(0L);
+    PAssert.thatSingleton(diffs).isEqualTo(0L);
 
     p.run();
   }
@@ -176,7 +176,7 @@ public class CountingSourceTest {
             .apply("TimestampDiff", ParDo.of(new ElementValueDiff()))
             .apply("RemoveDuplicateTimestamps", RemoveDuplicates.<Long>create());
     // This assert also confirms that diffs only has one unique value.
-    DataflowAssert.thatSingleton(diffs).isEqualTo(0L);
+    PAssert.thatSingleton(diffs).isEqualTo(0L);
 
     Instant started = Instant.now();
     p.run();

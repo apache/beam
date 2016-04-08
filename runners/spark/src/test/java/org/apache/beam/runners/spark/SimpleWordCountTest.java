@@ -20,7 +20,7 @@ package org.apache.beam.runners.spark;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.transforms.*;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -50,7 +50,7 @@ public class SimpleWordCountTest {
         .of());
     PCollection<String> output = inputWords.apply(new CountWords());
 
-    DataflowAssert.that(output).containsInAnyOrder(EXPECTED_COUNT_SET);
+    PAssert.that(output).containsInAnyOrder(EXPECTED_COUNT_SET);
 
     EvaluationResult res = SparkPipelineRunner.create().run(p);
     res.close();

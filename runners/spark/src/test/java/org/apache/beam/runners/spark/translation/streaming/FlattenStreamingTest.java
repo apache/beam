@@ -19,7 +19,7 @@ package org.apache.beam.runners.spark.translation.streaming;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.transforms.Flatten;
 import com.google.cloud.dataflow.sdk.transforms.View;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
@@ -31,7 +31,7 @@ import org.apache.beam.runners.spark.SparkStreamingPipelineOptions;
 import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.runners.spark.EvaluationResult;
 import org.apache.beam.runners.spark.SparkPipelineRunner;
-import org.apache.beam.runners.spark.translation.streaming.utils.DataflowAssertStreaming;
+import org.apache.beam.runners.spark.translation.streaming.utils.PAssertStreaming;
 
 import org.joda.time.Duration;
 import org.junit.Test;
@@ -76,13 +76,13 @@ public class FlattenStreamingTest {
     PCollectionList<String> list = PCollectionList.of(windowedW1).and(windowedW2);
     PCollection<String> union = list.apply(Flatten.<String>pCollections());
 
-    DataflowAssert.thatIterable(union.apply(View.<String>asIterable()))
+    PAssert.thatIterable(union.apply(View.<String>asIterable()))
             .containsInAnyOrder(EXPECTED_UNION);
 
     EvaluationResult res = SparkPipelineRunner.create(options).run(p);
     res.close();
 
-    DataflowAssertStreaming.assertNoFailures(res);
+    PAssertStreaming.assertNoFailures(res);
   }
 
 }

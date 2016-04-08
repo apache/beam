@@ -21,7 +21,7 @@ import com.google.cloud.dataflow.examples.complete.game.UserScore.GameActionInfo
 import com.google.cloud.dataflow.examples.complete.game.UserScore.ParseEventFn;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
@@ -104,7 +104,7 @@ public class HourlyTeamScoreTest implements Serializable {
           .via((GameActionInfo gInfo) -> KV.of(gInfo.getUser(), gInfo.getScore()))
           .withOutputType(new TypeDescriptor<KV<String, Integer>>() {}));
 
-      DataflowAssert.that(output).containsInAnyOrder(FILTERED_EVENTS);
+      PAssert.that(output).containsInAnyOrder(FILTERED_EVENTS);
 
     p.run();
   }

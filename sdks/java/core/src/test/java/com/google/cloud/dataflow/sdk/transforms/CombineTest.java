@@ -36,7 +36,7 @@ import com.google.cloud.dataflow.sdk.coders.SerializableCoder;
 import com.google.cloud.dataflow.sdk.coders.StandardCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
@@ -130,8 +130,8 @@ public class CombineTest implements Serializable {
     PCollection<KV<String, String>> sumPerKey = input
         .apply(Combine.perKey(new TestKeyedCombineFn()));
 
-    DataflowAssert.that(sum).containsInAnyOrder(globalSum);
-    DataflowAssert.that(sumPerKey).containsInAnyOrder(perKeyCombines);
+    PAssert.that(sum).containsInAnyOrder(globalSum);
+    PAssert.that(sumPerKey).containsInAnyOrder(perKeyCombines);
 
     p.run();
   }
@@ -159,9 +159,9 @@ public class CombineTest implements Serializable {
             .withoutDefaults()
             .withSideInputs(Arrays.asList(globallySumView)));
 
-    DataflowAssert.that(sum).containsInAnyOrder(globalSum);
-    DataflowAssert.that(combinePerKey).containsInAnyOrder(perKeyCombines);
-    DataflowAssert.that(combineGlobally).containsInAnyOrder(globallyCombines);
+    PAssert.that(sum).containsInAnyOrder(globalSum);
+    PAssert.that(combinePerKey).containsInAnyOrder(perKeyCombines);
+    PAssert.that(combineGlobally).containsInAnyOrder(globallyCombines);
 
     p.run();
   }
@@ -213,8 +213,8 @@ public class CombineTest implements Serializable {
     PCollection<KV<String, Set<Integer>>> uniquePerKey = input
         .apply(Combine.<String, Integer, Set<Integer>>perKey(new UniqueInts()));
 
-    DataflowAssert.that(unique).containsInAnyOrder(globalUnique);
-    DataflowAssert.that(uniquePerKey).containsInAnyOrder(perKeyUnique);
+    PAssert.that(unique).containsInAnyOrder(globalUnique);
+    PAssert.that(uniquePerKey).containsInAnyOrder(perKeyUnique);
 
     p.run();
   }
@@ -249,8 +249,8 @@ public class CombineTest implements Serializable {
     PCollection<KV<String, Double>> meanPerKey = input.apply(
         Combine.<String, Integer, Double>perKey(new MeanInts()));
 
-    DataflowAssert.that(mean).containsInAnyOrder(globalMean);
-    DataflowAssert.that(meanPerKey).containsInAnyOrder(perKeyMeans);
+    PAssert.that(mean).containsInAnyOrder(globalMean);
+    PAssert.that(meanPerKey).containsInAnyOrder(perKeyMeans);
 
     p.run();
   }
@@ -273,8 +273,8 @@ public class CombineTest implements Serializable {
     PCollection<KV<String, String>> sumPerKey = input
         .apply(Combine.perKey(new TestKeyedCombineFn()));
 
-    DataflowAssert.that(sum).containsInAnyOrder(2, 5, 13);
-    DataflowAssert.that(sumPerKey).containsInAnyOrder(
+    PAssert.that(sum).containsInAnyOrder(2, 5, 13);
+    PAssert.that(sumPerKey).containsInAnyOrder(
         KV.of("a", "11a"),
         KV.of("a", "4a"),
         KV.of("b", "1b"),
@@ -310,13 +310,13 @@ public class CombineTest implements Serializable {
             .withoutDefaults()
             .withSideInputs(Arrays.asList(globallySumView)));
 
-    DataflowAssert.that(sum).containsInAnyOrder(2, 5, 13);
-    DataflowAssert.that(combinePerKeyWithContext).containsInAnyOrder(
+    PAssert.that(sum).containsInAnyOrder(2, 5, 13);
+    PAssert.that(combinePerKeyWithContext).containsInAnyOrder(
         KV.of("a", "112a"),
         KV.of("a", "45a"),
         KV.of("b", "15b"),
         KV.of("b", "1133b"));
-    DataflowAssert.that(combineGloballyWithContext).containsInAnyOrder("112G", "145G", "1133G");
+    PAssert.that(combineGloballyWithContext).containsInAnyOrder("112G", "145G", "1133G");
     p.run();
   }
 
@@ -348,8 +348,8 @@ public class CombineTest implements Serializable {
             .withoutDefaults()
             .withSideInputs(Arrays.asList(globallySumView)));
 
-    DataflowAssert.that(sum).containsInAnyOrder(1, 2, 1, 4, 5, 14, 13);
-    DataflowAssert.that(combinePerKeyWithContext).containsInAnyOrder(
+    PAssert.that(sum).containsInAnyOrder(1, 2, 1, 4, 5, 14, 13);
+    PAssert.that(combinePerKeyWithContext).containsInAnyOrder(
         KV.of("a", "11a"),
         KV.of("a", "112a"),
         KV.of("a", "11a"),
@@ -358,7 +358,7 @@ public class CombineTest implements Serializable {
         KV.of("b", "15b"),
         KV.of("b", "11134b"),
         KV.of("b", "1133b"));
-    DataflowAssert.that(combineGloballyWithContext).containsInAnyOrder(
+    PAssert.that(combineGloballyWithContext).containsInAnyOrder(
       "11G", "112G", "11G", "44G", "145G", "11134G", "1133G");
     p.run();
   }
@@ -384,7 +384,7 @@ public class CombineTest implements Serializable {
         .apply(Sum.integersGlobally())
         .apply(ParDo.of(new FormatPaneInfo()));
 
-    DataflowAssert.that(output).containsInAnyOrder("1: false", "2: true");
+    PAssert.that(output).containsInAnyOrder("1: false", "2: true");
   }
 
   @Test
@@ -405,8 +405,8 @@ public class CombineTest implements Serializable {
     PCollection<KV<String, String>> sumPerKey = input
         .apply(Combine.perKey(new TestKeyedCombineFn()));
 
-    DataflowAssert.that(sum).containsInAnyOrder(7, 13);
-    DataflowAssert.that(sumPerKey).containsInAnyOrder(
+    PAssert.that(sum).containsInAnyOrder(7, 13);
+    PAssert.that(sumPerKey).containsInAnyOrder(
         KV.of("a", "114a"),
         KV.of("b", "1b"),
         KV.of("b", "13b"));
@@ -447,12 +447,12 @@ public class CombineTest implements Serializable {
             .withoutDefaults()
             .withSideInputs(Arrays.asList(globallyFixedWindowsView)));
 
-    DataflowAssert.that(fixedWindowsSum).containsInAnyOrder(2, 4, 1, 13);
-    DataflowAssert.that(sessionsCombinePerKey).containsInAnyOrder(
+    PAssert.that(fixedWindowsSum).containsInAnyOrder(2, 4, 1, 13);
+    PAssert.that(sessionsCombinePerKey).containsInAnyOrder(
         KV.of("a", "1114a"),
         KV.of("b", "11b"),
         KV.of("b", "013b"));
-    DataflowAssert.that(sessionsCombineGlobally).containsInAnyOrder("11114G", "013G");
+    PAssert.that(sessionsCombineGlobally).containsInAnyOrder("11114G", "013G");
     p.run();
   }
 
@@ -466,7 +466,7 @@ public class CombineTest implements Serializable {
         .apply(Window.<Integer>into(FixedWindows.of(Duration.millis(1))))
         .apply(Combine.globally(new MeanInts()).withoutDefaults());
 
-    DataflowAssert.that(mean).empty();
+    PAssert.that(mean).empty();
 
     p.run();
   }
@@ -551,10 +551,10 @@ public class CombineTest implements Serializable {
         Combine.perKey(mean).withHotKeyFanout(splitHotKeyFanout));
 
     List<KV<String, Double>> expected = Arrays.asList(KV.of("a", 2.0), KV.of("b", 7.0));
-    DataflowAssert.that(coldMean).containsInAnyOrder(expected);
-    DataflowAssert.that(warmMean).containsInAnyOrder(expected);
-    DataflowAssert.that(hotMean).containsInAnyOrder(expected);
-    DataflowAssert.that(splitMean).containsInAnyOrder(expected);
+    PAssert.that(coldMean).containsInAnyOrder(expected);
+    PAssert.that(warmMean).containsInAnyOrder(expected);
+    PAssert.that(hotMean).containsInAnyOrder(expected);
+    PAssert.that(splitMean).containsInAnyOrder(expected);
 
     p.run();
   }
@@ -582,7 +582,7 @@ public class CombineTest implements Serializable {
         .apply(Sum.integersGlobally().withoutDefaults().withFanout(2))
         .apply(ParDo.of(new GetLast()));
 
-    DataflowAssert.that(output).containsInAnyOrder(15);
+    PAssert.that(output).containsInAnyOrder(15);
 
     p.run();
   }
@@ -597,8 +597,8 @@ public class CombineTest implements Serializable {
         .apply("ObjProduct", Combine.<String, Integer, Integer>perKey(new TestProdObj()));
 
     List<KV<String, Integer>> expected = Arrays.asList(KV.of("a", 16), KV.of("b", 169));
-    DataflowAssert.that(intProduct).containsInAnyOrder(expected);
-    DataflowAssert.that(objProduct).containsInAnyOrder(expected);
+    PAssert.that(intProduct).containsInAnyOrder(expected);
+    PAssert.that(objProduct).containsInAnyOrder(expected);
 
     p.run();
   }
@@ -658,7 +658,7 @@ public class CombineTest implements Serializable {
                   }
                 }).withSideInputs(view));
 
-    DataflowAssert.thatSingleton(output).isEqualTo(0);
+    PAssert.thatSingleton(output).isEqualTo(0);
     p.run();
   }
 

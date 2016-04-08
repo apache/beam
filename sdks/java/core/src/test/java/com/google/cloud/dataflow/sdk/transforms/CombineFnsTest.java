@@ -27,7 +27,7 @@ import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.NullableCoder;
 import com.google.cloud.dataflow.sdk.coders.StandardCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Combine.BinaryCombineFn;
@@ -166,9 +166,9 @@ public class CombineFnsTest {
                 new ConcatString().<String>asKeyedFn(),
                 concatStringTag)))
         .apply("ExtractPerKeyResult", ParDo.of(new ExtractResultDoFn(maxIntTag, concatStringTag)));
-    DataflowAssert.that(combineGlobally).containsInAnyOrder(
+    PAssert.that(combineGlobally).containsInAnyOrder(
         KV.of("global", KV.of(13, "111134")));
-    DataflowAssert.that(combinePerKey).containsInAnyOrder(
+    PAssert.that(combinePerKey).containsInAnyOrder(
         KV.of("a", KV.of(4, "114")),
         KV.of("b", KV.of(13, "113")));
     p.run();
@@ -228,9 +228,9 @@ public class CombineFnsTest {
                 concatStringTag))
             .withSideInputs(ImmutableList.of(view)))
         .apply("ExtractPerKeyResult", ParDo.of(new ExtractResultDoFn(maxIntTag, concatStringTag)));
-    DataflowAssert.that(combineGlobally).containsInAnyOrder(
+    PAssert.that(combineGlobally).containsInAnyOrder(
         KV.of("global", KV.of(13, "111134GI")));
-    DataflowAssert.that(combinePerKey).containsInAnyOrder(
+    PAssert.that(combinePerKey).containsInAnyOrder(
         KV.of("a", KV.of(4, "114Ia")),
         KV.of("b", KV.of(13, "113Ib")));
     p.run();
@@ -271,7 +271,7 @@ public class CombineFnsTest {
                 new OutputNullString().<String>asKeyedFn(),
                 concatStringTag)))
         .apply("ExtractPerKeyResult", ParDo.of(new ExtractResultDoFn(maxIntTag, concatStringTag)));
-    DataflowAssert.that(combinePerKey).containsInAnyOrder(
+    PAssert.that(combinePerKey).containsInAnyOrder(
         KV.of("a", KV.of(4, (String) null)),
         KV.of("b", KV.of(13, (String) null)));
     p.run();

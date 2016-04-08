@@ -25,7 +25,7 @@ import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.runners.DirectPipeline;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.ApproximateQuantiles.ApproximateQuantilesCombineFn;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -74,7 +74,7 @@ public class ApproximateQuantilesTest {
     PCollection<List<Integer>> quantiles =
         input.apply(ApproximateQuantiles.<Integer>globally(5));
 
-    DataflowAssert.that(quantiles)
+    PAssert.that(quantiles)
         .containsInAnyOrder(Arrays.asList(0, 25, 50, 75, 100));
     p.run();
   }
@@ -88,7 +88,7 @@ public class ApproximateQuantilesTest {
         input.apply(
             ApproximateQuantiles.globally(5, new DescendingIntComparator()));
 
-    DataflowAssert.that(quantiles)
+    PAssert.that(quantiles)
         .containsInAnyOrder(Arrays.asList(100, 75, 50, 25, 0));
     p.run();
   }
@@ -101,7 +101,7 @@ public class ApproximateQuantilesTest {
     PCollection<KV<String, List<Integer>>> quantiles = input.apply(
         ApproximateQuantiles.<String, Integer>perKey(2));
 
-    DataflowAssert.that(quantiles)
+    PAssert.that(quantiles)
         .containsInAnyOrder(
             KV.of("a", Arrays.asList(1, 3)),
             KV.of("b", Arrays.asList(1, 100)));
@@ -118,7 +118,7 @@ public class ApproximateQuantilesTest {
         ApproximateQuantiles.<String, Integer, DescendingIntComparator>perKey(
             2, new DescendingIntComparator()));
 
-    DataflowAssert.that(quantiles)
+    PAssert.that(quantiles)
         .containsInAnyOrder(
             KV.of("a", Arrays.asList(3, 1)),
             KV.of("b", Arrays.asList(100, 1)));

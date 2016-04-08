@@ -136,7 +136,7 @@ public final class StreamingTransformTranslator {
           // fake create as an input
           // creates a stream with a single batch containing a single null element
           // to invoke following transformations once
-          // to support DataflowAssert
+          // to support PAssert
           sec.setDStreamFromQueue(transform,
               Collections.<Iterable<Void>>singletonList(Collections.singletonList((Void) null)),
               (Coder<Void>) coder);
@@ -195,7 +195,7 @@ public final class StreamingTransformTranslator {
               .transform(new RDDTransform<>(sec, rddEvaluator, transform)));
         } else {
           // if the transformation requires direct access to RDD (not in stream)
-          // this is used for "fake" transformations like with DataflowAssert
+          // this is used for "fake" transformations like with PAssert
           rddEvaluator.evaluate(transform, context);
         }
       }

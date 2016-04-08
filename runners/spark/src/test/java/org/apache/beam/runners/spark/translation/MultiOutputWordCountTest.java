@@ -22,7 +22,7 @@ import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.AggregatorValues;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.transforms.*;
 import com.google.cloud.dataflow.sdk.values.*;
 import com.google.common.collect.ImmutableSet;
@@ -61,7 +61,7 @@ public class MultiOutputWordCountTest {
         ApproximateUnique.<KV<String, Long>>globally(16));
 
     EvaluationResult res = SparkPipelineRunner.create().run(p);
-    DataflowAssert.that(luc.get(lowerCnts).apply(ParDo.of(new FormatCountsFn())))
+    PAssert.that(luc.get(lowerCnts).apply(ParDo.of(new FormatCountsFn())))
         .containsInAnyOrder(EXPECTED_LOWER_COUNTS);
     Iterable<KV<String, Long>> actualUpper = res.get(luc.get(upperCnts));
     Assert.assertEquals("Here", actualUpper.iterator().next().getKey());

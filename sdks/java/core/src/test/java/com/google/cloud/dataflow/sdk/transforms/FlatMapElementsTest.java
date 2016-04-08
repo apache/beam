@@ -21,7 +21,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -68,7 +68,7 @@ public class FlatMapElementsTest implements Serializable {
           }
         }));
 
-    DataflowAssert.that(output).containsInAnyOrder(1, -2, -1, -3, 2, 3);
+    PAssert.that(output).containsInAnyOrder(1, -2, -1, -3, 2, 3);
     pipeline.run();
   }
 

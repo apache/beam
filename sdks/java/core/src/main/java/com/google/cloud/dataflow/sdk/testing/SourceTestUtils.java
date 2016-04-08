@@ -71,7 +71,7 @@ import java.util.concurrent.Future;
  * {@link com.google.cloud.dataflow.sdk.io.AvroSource} or
  * {@link com.google.cloud.dataflow.sdk.io.XmlSource}.
  *
- * <p>Like {@link DataflowAssert}, requires JUnit and Hamcrest to be present in the classpath.
+ * <p>Like {@link PAssert}, requires JUnit and Hamcrest to be present in the classpath.
  */
 public class SourceTestUtils {
   private static final Logger LOG = LoggerFactory.getLogger(SourceTestUtils.class);

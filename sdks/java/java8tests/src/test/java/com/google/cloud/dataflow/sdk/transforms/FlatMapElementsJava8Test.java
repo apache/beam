@@ -18,7 +18,7 @@
 package com.google.cloud.dataflow.sdk.transforms;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
@@ -56,7 +56,7 @@ public class FlatMapElementsJava8Test implements Serializable {
             .via((Integer i) -> ImmutableList.of(i, -i))
             .withOutputType(new TypeDescriptor<Integer>() {}));
 
-    DataflowAssert.that(output).containsInAnyOrder(1, 3, -1, -3, 2, -2);
+    PAssert.that(output).containsInAnyOrder(1, 3, -1, -3, 2, -2);
     pipeline.run();
   }
 
@@ -73,7 +73,7 @@ public class FlatMapElementsJava8Test implements Serializable {
             .via(new Negater()::numAndNegation)
             .withOutputType(new TypeDescriptor<Integer>() {}));
 
-    DataflowAssert.that(output).containsInAnyOrder(1, 3, -1, -3, 2, -2);
+    PAssert.that(output).containsInAnyOrder(1, 3, -1, -3, 2, -2);
     pipeline.run();
   }
 

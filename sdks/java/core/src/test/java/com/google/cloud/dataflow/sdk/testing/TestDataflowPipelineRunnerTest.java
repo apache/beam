@@ -109,7 +109,7 @@ public class TestDataflowPipelineRunnerTest {
   public void testRunBatchJobThatSucceeds() throws Exception {
     Pipeline p = TestPipeline.create(options);
     PCollection<Integer> pc = p.apply(Create.of(1, 2, 3));
-    DataflowAssert.that(pc).containsInAnyOrder(1, 2, 3);
+    PAssert.that(pc).containsInAnyOrder(1, 2, 3);
 
     DataflowPipelineJob mockJob = Mockito.mock(DataflowPipelineJob.class);
     when(mockJob.getDataflowClient()).thenReturn(service);
@@ -133,7 +133,7 @@ public class TestDataflowPipelineRunnerTest {
 
     Pipeline p = TestPipeline.create(options);
     PCollection<Integer> pc = p.apply(Create.of(1, 2, 3));
-    DataflowAssert.that(pc).containsInAnyOrder(1, 2, 3);
+    PAssert.that(pc).containsInAnyOrder(1, 2, 3);
 
     DataflowPipelineJob mockJob = Mockito.mock(DataflowPipelineJob.class);
     when(mockJob.getDataflowClient()).thenReturn(service);
@@ -153,7 +153,7 @@ public class TestDataflowPipelineRunnerTest {
     options.setStreaming(true);
     Pipeline p = TestPipeline.create(options);
     PCollection<Integer> pc = p.apply(Create.of(1, 2, 3));
-    DataflowAssert.that(pc).containsInAnyOrder(1, 2, 3);
+    PAssert.that(pc).containsInAnyOrder(1, 2, 3);
 
     DataflowPipelineJob mockJob = Mockito.mock(DataflowPipelineJob.class);
     when(mockJob.getDataflowClient()).thenReturn(service);
@@ -178,7 +178,7 @@ public class TestDataflowPipelineRunnerTest {
     options.setStreaming(true);
     Pipeline p = TestPipeline.create(options);
     PCollection<Integer> pc = p.apply(Create.of(1, 2, 3));
-    DataflowAssert.that(pc).containsInAnyOrder(1, 2, 3);
+    PAssert.that(pc).containsInAnyOrder(1, 2, 3);
 
     DataflowPipelineJob mockJob = Mockito.mock(DataflowPipelineJob.class);
     when(mockJob.getDataflowClient()).thenReturn(service);
@@ -196,12 +196,12 @@ public class TestDataflowPipelineRunnerTest {
   }
 
   @Test
-  public void testCheckingForSuccessWhenDataflowAssertSucceeds() throws Exception {
+  public void testCheckingForSuccessWhenPAssertSucceeds() throws Exception {
     DataflowPipelineJob job =
         spy(new DataflowPipelineJob("test-project", "test-job", service, null));
     Pipeline p = TestPipeline.create(options);
     PCollection<Integer> pc = p.apply(Create.of(1, 2, 3));
-    DataflowAssert.that(pc).containsInAnyOrder(1, 2, 3);
+    PAssert.that(pc).containsInAnyOrder(1, 2, 3);
 
     TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
     when(request.execute()).thenReturn(
@@ -211,12 +211,12 @@ public class TestDataflowPipelineRunnerTest {
   }
 
   @Test
-  public void testCheckingForSuccessWhenDataflowAssertFails() throws Exception {
+  public void testCheckingForSuccessWhenPAssertFails() throws Exception {
     DataflowPipelineJob job =
         spy(new DataflowPipelineJob("test-project", "test-job", service, null));
     Pipeline p = TestPipeline.create(options);
     PCollection<Integer> pc = p.apply(Create.of(1, 2, 3));
-    DataflowAssert.that(pc).containsInAnyOrder(1, 2, 3);
+    PAssert.that(pc).containsInAnyOrder(1, 2, 3);
 
     TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
     when(request.execute()).thenReturn(
@@ -231,7 +231,7 @@ public class TestDataflowPipelineRunnerTest {
         spy(new DataflowPipelineJob("test-project", "test-job", service, null));
     Pipeline p = TestPipeline.create(options);
     PCollection<Integer> pc = p.apply(Create.of(1, 2, 3));
-    DataflowAssert.that(pc).containsInAnyOrder(1, 2, 3);
+    PAssert.that(pc).containsInAnyOrder(1, 2, 3);
 
     TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
     when(request.execute()).thenReturn(
@@ -243,7 +243,7 @@ public class TestDataflowPipelineRunnerTest {
   private LowLevelHttpResponse generateMockMetricResponse(boolean success, boolean tentative)
       throws Exception {
     MetricStructuredName name = new MetricStructuredName();
-    name.setName(success ? "DataflowAssertSuccess" : "DataflowAssertFailure");
+    name.setName(success ? "PAssertSuccess" : "PAssertFailure");
     name.setContext(
         tentative ? ImmutableMap.of("tentative", "") : ImmutableMap.<String, String>of());
 
@@ -267,7 +267,7 @@ public class TestDataflowPipelineRunnerTest {
         spy(new DataflowPipelineJob("test-project", "test-job", service, null));
     Pipeline p = TestPipeline.create(options);
     PCollection<Integer> pc = p.apply(Create.of(1, 2, 3));
-    DataflowAssert.that(pc).containsInAnyOrder(1, 2, 3);
+    PAssert.that(pc).containsInAnyOrder(1, 2, 3);
 
     TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
     when(request.execute()).thenReturn(
@@ -284,7 +284,7 @@ public class TestDataflowPipelineRunnerTest {
     options.setStreaming(true);
     Pipeline p = TestPipeline.create(options);
     PCollection<Integer> pc = p.apply(Create.of(1, 2, 3));
-    DataflowAssert.that(pc).containsInAnyOrder(1, 2, 3);
+    PAssert.that(pc).containsInAnyOrder(1, 2, 3);
 
     DataflowPipelineJob mockJob = Mockito.mock(DataflowPipelineJob.class);
     when(mockJob.getDataflowClient()).thenReturn(service);

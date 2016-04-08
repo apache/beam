@@ -25,7 +25,7 @@ import static org.junit.Assert.assertTrue;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.dataflow.TestCountingSource;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
@@ -126,7 +126,7 @@ public class BoundedReadFromUnboundedSourceTest {
 
     // Because some of the NUM_RECORDS elements read are dupes, the final output
     // will only have output from 0 to n where n < NUM_RECORDS.
-    DataflowAssert.that(output).satisfies(new Checker(dedup, timeBound));
+    PAssert.that(output).satisfies(new Checker(dedup, timeBound));
 
     p.run();
   }

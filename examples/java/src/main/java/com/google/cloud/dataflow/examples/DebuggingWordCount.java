@@ -22,7 +22,7 @@ import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.options.Default;
 import com.google.cloud.dataflow.sdk.options.Description;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
@@ -55,7 +55,7 @@ import java.util.regex.Pattern;
  *   1. Logging to Cloud Logging
  *   2. Controlling Dataflow worker log levels
  *   3. Creating a custom aggregator
- *   4. Testing your Pipeline via DataflowAssert
+ *   4. Testing your Pipeline via PAssert
  * </pre>
  *
  * <p>To execute this pipeline locally, specify general pipeline configuration:
@@ -178,13 +178,13 @@ public class DebuggingWordCount {
          .apply(ParDo.of(new FilterTextFn(options.getFilterPattern())));
 
     /**
-     * Concept #4: DataflowAssert is a set of convenient PTransforms in the style of
+     * Concept #4: PAssert is a set of convenient PTransforms in the style of
      * Hamcrest's collection matchers that can be used when writing Pipeline level tests
-     * to validate the contents of PCollections. DataflowAssert is best used in unit tests
+     * to validate the contents of PCollections. PAssert is best used in unit tests
      * with small data sets but is demonstrated here as a teaching tool.
      *
      * <p>Below we verify that the set of filtered words matches our expected counts. Note
-     * that DataflowAssert does not provide any output and that successful completion of the
+     * that PAssert does not provide any output and that successful completion of the
      * Pipeline implies that the expectations were met. Learn more at
      * https://cloud.google.com/dataflow/pipelines/testing-your-pipeline on how to test
      * your Pipeline and see {@link DebuggingWordCountTest} for an example unit test.
@@ -192,7 +192,7 @@ public class DebuggingWordCount {
     List<KV<String, Long>> expectedResults = Arrays.asList(
         KV.of("Flourish", 3L),
         KV.of("stomach", 1L));
-    DataflowAssert.that(filteredWords).containsInAnyOrder(expectedResults);
+    PAssert.that(filteredWords).containsInAnyOrder(expectedResults);
 
     p.run();
   }

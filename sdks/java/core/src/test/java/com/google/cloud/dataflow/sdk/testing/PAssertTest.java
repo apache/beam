@@ -51,10 +51,10 @@ import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 
 /**
- * Test case for {@link DataflowAssert}.
+ * Test case for {@link PAssert}.
  */
 @RunWith(JUnit4.class)
-public class DataflowAssertTest implements Serializable {
+public class PAssertTest implements Serializable {
   @Rule
   public transient ExpectedException thrown = ExpectedException.none();
 
@@ -105,7 +105,7 @@ public class DataflowAssertTest implements Serializable {
   }
 
   /**
-   * A {@link DataflowAssert} about the contents of a {@link PCollection}
+   * A {@link PAssert} about the contents of a {@link PCollection}
    * must not require the contents of the {@link PCollection} to be
    * serializable.
    */
@@ -120,7 +120,7 @@ public class DataflowAssertTest implements Serializable {
           new NotSerializableObject())
             .withCoder(NotSerializableObjectCoder.of()));
 
-    DataflowAssert.that(pcollection).containsInAnyOrder(
+    PAssert.that(pcollection).containsInAnyOrder(
       new NotSerializableObject(),
       new NotSerializableObject());
 
@@ -128,7 +128,7 @@ public class DataflowAssertTest implements Serializable {
   }
 
   /**
-   * A {@link DataflowAssert} about the contents of a {@link PCollection}
+   * A {@link PAssert} about the contents of a {@link PCollection}
    * is allows to be verified by an arbitrary {@link SerializableFunction},
    * though.
    */
@@ -143,7 +143,7 @@ public class DataflowAssertTest implements Serializable {
           new NotSerializableObject())
             .withCoder(NotSerializableObjectCoder.of()));
 
-    DataflowAssert.that(pcollection).satisfies(
+    PAssert.that(pcollection).satisfies(
         new SerializableFunction<Iterable<NotSerializableObject>, Void>() {
           @Override
           public Void apply(Iterable<NotSerializableObject> contents) {
@@ -155,87 +155,87 @@ public class DataflowAssertTest implements Serializable {
   }
 
   /**
-   * Basic test of succeeding {@link DataflowAssert} using a {@link SerializableMatcher}.
+   * Basic test of succeeding {@link PAssert} using a {@link SerializableMatcher}.
    */
   @Test
   @Category(RunnableOnService.class)
   public void testBasicMatcherSuccess() throws Exception {
     Pipeline pipeline = TestPipeline.create();
     PCollection<Integer> pcollection = pipeline.apply(Create.of(42));
-    DataflowAssert.that(pcollection).containsInAnyOrder(anything());
+    PAssert.that(pcollection).containsInAnyOrder(anything());
     pipeline.run();
   }
 
   /**
-   * Basic test of failing {@link DataflowAssert} using a {@link SerializableMatcher}.
+   * Basic test of failing {@link PAssert} using a {@link SerializableMatcher}.
    */
   @Test
   @Category(RunnableOnService.class)
   public void testBasicMatcherFailure() throws Exception {
     Pipeline pipeline = TestPipeline.create();
     PCollection<Integer> pcollection = pipeline.apply(Create.of(42));
-    DataflowAssert.that(pcollection).containsInAnyOrder(not(anything()));
+    PAssert.that(pcollection).containsInAnyOrder(not(anything()));
     runExpectingAssertionFailure(pipeline);
   }
 
   /**
    * Test that we throw an error at pipeline construction time when the user mistakenly uses
-   * {@code DataflowAssert.thatSingleton().equals()} instead of the test method {@code .isEqualTo}.
+   * {@code PAssert.thatSingleton().equals()} instead of the test method {@code .isEqualTo}.
    */
   @SuppressWarnings("deprecation") // test of deprecated function
   @Test
-  public void testDataflowAssertEqualsSingletonUnsupported() throws Exception {
+  public void testPAssertEqualsSingletonUnsupported() throws Exception {
     thrown.expect(UnsupportedOperationException.class);
     thrown.expectMessage("isEqualTo");
 
     Pipeline pipeline = TestPipeline.create();
     PCollection<Integer> pcollection = pipeline.apply(Create.of(42));
-    DataflowAssert.thatSingleton(pcollection).equals(42);
+    PAssert.thatSingleton(pcollection).equals(42);
   }
 
   /**
    * Test that we throw an error at pipeline construction time when the user mistakenly uses
-   * {@code DataflowAssert.that().equals()} instead of the test method {@code .containsInAnyOrder}.
+   * {@code PAssert.that().equals()} instead of the test method {@code .containsInAnyOrder}.
    */
   @SuppressWarnings("deprecation") // test of deprecated function
   @Test
-  public void testDataflowAssertEqualsIterableUnsupported() throws Exception {
+  public void testPAssertEqualsIterableUnsupported() throws Exception {
     thrown.expect(UnsupportedOperationException.class);
     thrown.expectMessage("containsInAnyOrder");
 
     Pipeline pipeline = TestPipeline.create();
     PCollection<Integer> pcollection = pipeline.apply(Create.of(42));
-    DataflowAssert.that(pcollection).equals(42);
+    PAssert.that(pcollection).equals(42);
   }
 
   /**
-   * Test that {@code DataflowAssert.thatSingleton().hashCode()} is unsupported.
-   * See {@link #testDataflowAssertEqualsSingletonUnsupported}.
+   * Test that {@code PAssert.thatSingleton().hashCode()} is unsupported.
+   * See {@link #testPAssertEqualsSingletonUnsupported}.
    */
   @SuppressWarnings("deprecation") // test of deprecated function
   @Test
-  public void testDataflowAssertHashCodeSingletonUnsupported() throws Exception {
+  public void testPAssertHashCodeSingletonUnsupported() throws Exception {
     thrown.expect(UnsupportedOperationException.class);
     thrown.expectMessage(".hashCode() is not supported.");
 
     Pipeline pipeline = TestPipeline.create();
     PCollection<Integer> pcollection = pipeline.apply(Create.of(42));
-    DataflowAssert.thatSingleton(pcollection).hashCode();
+    PAssert.thatSingleton(pcollection).hashCode();
   }
 
   /**
-   * Test that {@code DataflowAssert.thatIterable().hashCode()} is unsupported.
-   * See {@link #testDataflowAssertEqualsIterableUnsupported}.
+   * Test that {@code PAssert.thatIterable().hashCode()} is unsupported.
+   * See {@link #testPAssertEqualsIterableUnsupported}.
    */
   @SuppressWarnings("deprecation") // test of deprecated function
   @Test
-  public void testDataflowAssertHashCodeIterableUnsupported() throws Exception {
+  public void testPAssertHashCodeIterableUnsupported() throws Exception {
     thrown.expect(UnsupportedOperationException.class);
     thrown.expectMessage(".hashCode() is not supported.");
 
     Pipeline pipeline = TestPipeline.create();
     PCollection<Integer> pcollection = pipeline.apply(Create.of(42));
-    DataflowAssert.that(pcollection).hashCode();
+    PAssert.that(pcollection).hashCode();
   }
 
   /**
@@ -246,7 +246,7 @@ public class DataflowAssertTest implements Serializable {
   public void testIsEqualTo() throws Exception {
     Pipeline pipeline = TestPipeline.create();
     PCollection<Integer> pcollection = pipeline.apply(Create.of(43));
-    DataflowAssert.thatSingleton(pcollection).isEqualTo(43);
+    PAssert.thatSingleton(pcollection).isEqualTo(43);
     pipeline.run();
   }
 
@@ -258,7 +258,7 @@ public class DataflowAssertTest implements Serializable {
   public void testNotEqualTo() throws Exception {
     Pipeline pipeline = TestPipeline.create();
     PCollection<Integer> pcollection = pipeline.apply(Create.of(43));
-    DataflowAssert.thatSingleton(pcollection).notEqualTo(42);
+    PAssert.thatSingleton(pcollection).notEqualTo(42);
     pipeline.run();
   }
 
@@ -270,7 +270,7 @@ public class DataflowAssertTest implements Serializable {
   public void testContainsInAnyOrder() throws Exception {
     Pipeline pipeline = TestPipeline.create();
     PCollection<Integer> pcollection = pipeline.apply(Create.of(1, 2, 3, 4));
-    DataflowAssert.that(pcollection).containsInAnyOrder(2, 1, 4, 3);
+    PAssert.that(pcollection).containsInAnyOrder(2, 1, 4, 3);
     pipeline.run();
   }
 
@@ -285,7 +285,7 @@ public class DataflowAssertTest implements Serializable {
     PCollection<Integer> pcollection = pipeline
         .apply(Create.of(1, 2, 3, 4));
 
-    DataflowAssert.that(pcollection).containsInAnyOrder(2, 1, 4, 3, 7);
+    PAssert.that(pcollection).containsInAnyOrder(2, 1, 4, 3, 7);
 
     // The service runner does not give an exception we can usefully inspect.
     @Nullable
@@ -294,8 +294,12 @@ public class DataflowAssertTest implements Serializable {
         "Expected: iterable over \\[((<4>|<7>|<3>|<2>|<1>)(, )?){5}\\] in any order");
     if (exc != null) {
       // A loose pattern, but should get the job done.
-      assertTrue("Expected error message from DataflowAssert with substring matching "
-          + expectedPattern + " but the message was \"" + exc.getMessage() + "\"",
+      assertTrue(
+          "Expected error message from PAssert with substring matching "
+              + expectedPattern
+              + " but the message was \""
+              + exc.getMessage()
+              + "\"",
           expectedPattern.matcher(exc.getMessage()).find());
     }
   }

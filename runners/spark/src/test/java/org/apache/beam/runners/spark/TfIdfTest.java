@@ -22,7 +22,7 @@ import com.google.cloud.dataflow.examples.complete.TfIdf;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.StringDelegateCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.Keys;
 import com.google.cloud.dataflow.sdk.transforms.RemoveDuplicates;
@@ -55,7 +55,7 @@ public class TfIdfTest {
         .apply(Keys.<String>create())
         .apply(RemoveDuplicates.<String>create());
 
-    DataflowAssert.that(words).containsInAnyOrder(Arrays.asList("a", "m", "n", "b", "c", "d"));
+    PAssert.that(words).containsInAnyOrder(Arrays.asList("a", "m", "n", "b", "c", "d"));
 
     EvaluationResult res = SparkPipelineRunner.create().run(pipeline);
     res.close();

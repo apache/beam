@@ -25,7 +25,7 @@ import static org.junit.Assert.assertTrue;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -110,7 +110,7 @@ public class SampleTest {
     PCollection<Iterable<Integer>> output = input.apply(
         Sample.<Integer>fixedSizeGlobally(3));
 
-    DataflowAssert.thatSingletonIterable(output)
+    PAssert.thatSingletonIterable(output)
         .satisfies(new VerifyCorrectSample<>(3, DATA));
     p.run();
   }
@@ -125,7 +125,7 @@ public class SampleTest {
     PCollection<Iterable<Integer>> output = input.apply(
         Sample.<Integer>fixedSizeGlobally(3));
 
-    DataflowAssert.thatSingletonIterable(output)
+    PAssert.thatSingletonIterable(output)
         .satisfies(new VerifyCorrectSample<>(0, EMPTY));
     p.run();
   }
@@ -140,7 +140,7 @@ public class SampleTest {
     PCollection<Iterable<Integer>> output = input.apply(
         Sample.<Integer>fixedSizeGlobally(0));
 
-    DataflowAssert.thatSingletonIterable(output)
+    PAssert.thatSingletonIterable(output)
         .satisfies(new VerifyCorrectSample<>(0, DATA));
     p.run();
   }
@@ -155,7 +155,7 @@ public class SampleTest {
     PCollection<Iterable<Integer>> output = input.apply(
         Sample.<Integer>fixedSizeGlobally(10));
 
-    DataflowAssert.thatSingletonIterable(output)
+    PAssert.thatSingletonIterable(output)
         .satisfies(new VerifyCorrectSample<>(5, DATA));
     p.run();
   }
@@ -180,7 +180,7 @@ public class SampleTest {
     PCollection<Iterable<Integer>> output = input.apply(
         Sample.<Integer>fixedSizeGlobally(6));
 
-    DataflowAssert.thatSingletonIterable(output)
+    PAssert.thatSingletonIterable(output)
         .satisfies(new VerifyCorrectSample<>(6, REPEATED_DATA));
     p.run();
   }
@@ -225,7 +225,7 @@ public class SampleTest {
         input.apply(Sample.<String>any(limit));
 
 
-    DataflowAssert.that(output)
+    PAssert.that(output)
         .satisfies(new VerifyAnySample(lines, limit));
 
     p.run();

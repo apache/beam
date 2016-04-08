@@ -35,7 +35,7 @@ import com.google.cloud.dataflow.sdk.io.FileBasedSource.FileBasedReader;
 import com.google.cloud.dataflow.sdk.io.Source.Reader;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.IOChannelFactory;
@@ -715,7 +715,7 @@ public class FileBasedSourceTest {
     TestFileBasedSource source = new TestFileBasedSource(file.getPath(), 64, null);
     PCollection<String> output = p.apply(Read.from(source).named("ReadFileData"));
 
-    DataflowAssert.that(output).containsInAnyOrder(data);
+    PAssert.that(output).containsInAnyOrder(data);
     p.run();
   }
 
@@ -745,7 +745,7 @@ public class FileBasedSourceTest {
     expectedResults.addAll(data2);
     expectedResults.addAll(data3);
 
-    DataflowAssert.that(output).containsInAnyOrder(expectedResults);
+    PAssert.that(output).containsInAnyOrder(expectedResults);
     p.run();
   }
 

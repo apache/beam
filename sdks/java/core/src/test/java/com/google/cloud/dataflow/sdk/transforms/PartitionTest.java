@@ -21,7 +21,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Partition.PartitionFn;
@@ -70,8 +70,8 @@ public class PartitionTest implements Serializable {
         .apply(Create.of(591, 11789, 1257, 24578, 24799, 307))
         .apply(Partition.of(2, new ModFn()));
     assertTrue(outputs.size() == 2);
-    DataflowAssert.that(outputs.get(0)).containsInAnyOrder(24578);
-    DataflowAssert.that(outputs.get(1)).containsInAnyOrder(591, 11789, 1257,
+    PAssert.that(outputs.get(0)).containsInAnyOrder(24578);
+    PAssert.that(outputs.get(1)).containsInAnyOrder(591, 11789, 1257,
         24799, 307);
     pipeline.run();
   }
@@ -84,9 +84,9 @@ public class PartitionTest implements Serializable {
         .apply(Create.of(1, 2, 4, 5))
         .apply(Partition.of(3, new ModFn()));
     assertTrue(outputs.size() == 3);
-    DataflowAssert.that(outputs.get(0)).empty();
-    DataflowAssert.that(outputs.get(1)).containsInAnyOrder(1, 4);
-    DataflowAssert.that(outputs.get(2)).containsInAnyOrder(2, 5);
+    PAssert.that(outputs.get(0)).empty();
+    PAssert.that(outputs.get(1)).containsInAnyOrder(1, 4);
+    PAssert.that(outputs.get(2)).containsInAnyOrder(2, 5);
     pipeline.run();
   }
 
@@ -130,7 +130,7 @@ public class PartitionTest implements Serializable {
     assertTrue(outputs.size() == 2);
 
     PCollection<Integer> output = outputs.apply(Flatten.<Integer>pCollections());
-    DataflowAssert.that(output).containsInAnyOrder(2, 4, 5, 7, 8, 10, 11);
+    PAssert.that(output).containsInAnyOrder(2, 4, 5, 7, 8, 10, 11);
     pipeline.run();
   }
 

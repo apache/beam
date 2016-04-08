@@ -18,7 +18,7 @@
 package com.google.cloud.dataflow.contrib.joinlibrary;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -67,7 +67,7 @@ public class InnerJoinTest {
 
     expectedResult.add(KV.of("Key1", KV.of(5L, "foo")));
     expectedResult.add(KV.of("Key2", KV.of(4L, "bar")));
-    DataflowAssert.that(output).containsInAnyOrder(expectedResult);
+    PAssert.that(output).containsInAnyOrder(expectedResult);
 
     p.run();
   }
@@ -88,7 +88,7 @@ public class InnerJoinTest {
 
     expectedResult.add(KV.of("Key2", KV.of(4L, "bar")));
     expectedResult.add(KV.of("Key2", KV.of(4L, "gazonk")));
-    DataflowAssert.that(output).containsInAnyOrder(expectedResult);
+    PAssert.that(output).containsInAnyOrder(expectedResult);
 
     p.run();
   }
@@ -109,7 +109,7 @@ public class InnerJoinTest {
 
     expectedResult.add(KV.of("Key2", KV.of(4L, "bar")));
     expectedResult.add(KV.of("Key2", KV.of(6L, "bar")));
-    DataflowAssert.that(output).containsInAnyOrder(expectedResult);
+    PAssert.that(output).containsInAnyOrder(expectedResult);
 
     p.run();
   }
@@ -127,7 +127,7 @@ public class InnerJoinTest {
     PCollection<KV<String, KV<Long, String>>> output = Join.innerJoin(
       leftCollection, rightCollection);
 
-    DataflowAssert.that(output).containsInAnyOrder(expectedResult);
+    PAssert.that(output).containsInAnyOrder(expectedResult);
     p.run();
   }
 

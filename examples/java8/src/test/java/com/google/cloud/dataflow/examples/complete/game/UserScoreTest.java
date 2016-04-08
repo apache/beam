@@ -22,7 +22,7 @@ import com.google.cloud.dataflow.examples.complete.game.UserScore.GameActionInfo
 import com.google.cloud.dataflow.examples.complete.game.UserScore.ParseEventFn;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
@@ -110,7 +110,7 @@ public class UserScoreTest implements Serializable {
       .apply("ExtractUserScore", new ExtractAndSumScore("user"));
 
     // Check the user score sums.
-    DataflowAssert.that(output).containsInAnyOrder(USER_SUMS);
+    PAssert.that(output).containsInAnyOrder(USER_SUMS);
 
     p.run();
   }
@@ -129,7 +129,7 @@ public class UserScoreTest implements Serializable {
       .apply("ExtractTeamScore", new ExtractAndSumScore("team"));
 
     // Check the team score sums.
-    DataflowAssert.that(output).containsInAnyOrder(TEAM_SUMS);
+    PAssert.that(output).containsInAnyOrder(TEAM_SUMS);
 
     p.run();
   }
@@ -148,7 +148,7 @@ public class UserScoreTest implements Serializable {
           MapElements.via((GameActionInfo gInfo) -> KV.of(gInfo.getUser(), gInfo.getScore()))
           .withOutputType(new TypeDescriptor<KV<String, Integer>>() {}));
 
-    DataflowAssert.that(extract).empty();
+    PAssert.that(extract).empty();
 
     p.run();
   }

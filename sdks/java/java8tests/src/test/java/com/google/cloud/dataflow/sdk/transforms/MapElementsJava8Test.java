@@ -18,7 +18,7 @@
 package com.google.cloud.dataflow.sdk.transforms;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
@@ -49,7 +49,7 @@ public class MapElementsJava8Test implements Serializable {
             .via((Integer i) -> i * 2)
             .withOutputType(new TypeDescriptor<Integer>() {}));
 
-    DataflowAssert.that(output).containsInAnyOrder(6, 2, 4);
+    PAssert.that(output).containsInAnyOrder(6, 2, 4);
     pipeline.run();
   }
 
@@ -66,7 +66,7 @@ public class MapElementsJava8Test implements Serializable {
             .via(new Doubler()::doubleIt)
             .withOutputType(new TypeDescriptor<Integer>() {}));
 
-    DataflowAssert.that(output).containsInAnyOrder(6, 2, 4);
+    PAssert.that(output).containsInAnyOrder(6, 2, 4);
     pipeline.run();
   }
 

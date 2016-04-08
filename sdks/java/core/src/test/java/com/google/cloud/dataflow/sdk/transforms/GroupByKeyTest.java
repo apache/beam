@@ -31,7 +31,7 @@ import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.options.DirectPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
-import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.PAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
@@ -91,7 +91,7 @@ public class GroupByKeyTest {
     PCollection<KV<String, Iterable<Integer>>> output =
         input.apply(GroupByKey.<String, Integer>create());
 
-    DataflowAssert.that(output)
+    PAssert.that(output)
         .satisfies(new AssertThatHasExpectedContentsForTestGroupByKey());
 
     p.run();
@@ -133,7 +133,7 @@ public class GroupByKeyTest {
         input.apply(Window.<KV<String, Integer>>into(FixedWindows.of(new Duration(5))))
              .apply(GroupByKey.<String, Integer>create());
 
-    DataflowAssert.that(output)
+    PAssert.that(output)
         .satisfies(new AssertThatHasExpectedContentsForTestGroupByKeyAndWindows());
 
     p.run();
@@ -170,7 +170,7 @@ public class GroupByKeyTest {
     PCollection<KV<String, Iterable<Integer>>> output =
         input.apply(GroupByKey.<String, Integer>create());
 
-    DataflowAssert.that(output).empty();
+    PAssert.that(output).empty();
 
     p.run();
   }
