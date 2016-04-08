@@ -31,6 +31,7 @@ import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PInput;
+import com.google.cloud.dataflow.sdk.values.POutput;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
@@ -50,6 +51,23 @@ import javax.annotation.Nullable;
  */
 class InProcessCreate<T> extends ForwardingPTransform<PInput, PCollection<T>> {
   private final Create.Values<T> original;
+
+  /**
+   * A {@link PTransformOverrideFactory} for {@link InProcessCreate}.
+   */
+  public static class InProcessCreateOverrideFactory implements PTransformOverrideFactory {
+    @Override
+    public <InputT extends PInput, OutputT extends POutput> PTransform<InputT, OutputT> override(
+        PTransform<InputT, OutputT> transform) {
+      if (transform instanceof Create.Values) {
+        @SuppressWarnings("unchecked")
+        PTransform<InputT, OutputT> override =
+            (PTransform<InputT, OutputT>) from((Create.Values<OutputT>) transform);
+        return override;
+      }
+      return transform;
+    }
+  }
 
   public static <T> InProcessCreate<T> from(Create.Values<T> original) {
     return new InProcessCreate<>(original);
