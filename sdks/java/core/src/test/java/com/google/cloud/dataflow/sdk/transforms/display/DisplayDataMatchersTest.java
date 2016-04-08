@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.transforms.display;
 
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasKey;
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasNamespace;
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasType;
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasValue;
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.includes;
@@ -97,6 +98,15 @@ public class DisplayDataMatchersTest {
   }
 
   @Test
+  public void testHasNamespace() {
+    Matcher<DisplayData> matcher = hasDisplayItem(hasNamespace(SampleTransform.class));
+
+    assertFalse(matcher.matches(DisplayData.from(
+        new PTransform<PCollection<String>, PCollection<String>>(){})));
+    assertThat(createDisplayDataWithItem("foo", "bar"), matcher);
+  }
+
+  @Test
   public void testIncludes() {
     final HasDisplayData subComponent = new HasDisplayData() {
       @Override
@@ -125,13 +135,23 @@ public class DisplayDataMatchersTest {
     assertThat(DisplayData.from(subComponent), matcher);
   }
 
+
   private DisplayData createDisplayDataWithItem(final String key, final String value) {
-    return DisplayData.from(
-        new PTransform<PCollection<String>, PCollection<String>>() {
-          @Override
-          public void populateDisplayData(Builder builder) {
-            builder.add(key, value);
-          }
-        });
+    return DisplayData.from(new SampleTransform(key, value));
+  }
+
+  static class SampleTransform extends PTransform<PCollection<String>, PCollection<String>> {
+    private final String key;
+    private final String value;
+
+    SampleTransform(String key, String value) {
+      this.key = key;
+      this.value = value;
+    }
+
+    @Override
+    public void populateDisplayData(Builder builder) {
+      builder.add(key, value);
+    }
   }
 }
