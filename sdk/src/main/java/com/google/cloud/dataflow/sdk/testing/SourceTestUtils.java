@@ -31,6 +31,8 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.values.KV;
 
 import org.junit.Assert;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -71,6 +73,8 @@ import java.util.concurrent.Future;
  * <p>Like {@link DataflowAssert}, requires JUnit and Hamcrest to be present in the classpath.
  */
 public class SourceTestUtils {
+  private static final Logger LOG = LoggerFactory.getLogger(SourceTestUtils.class);
+
   // A wrapper around a value of type T that compares according to the structural
   // value provided by a Coder<T>, but prints both the original and structural value,
   // to help get good error messages from JUnit equality assertion failures and such.
@@ -530,6 +534,9 @@ public class SourceTestUtils {
     }
   }
 
+  private static final int MAX_CONCURRENT_SPLITTING_TRIALS_PER_ITEM = 100;
+  private static final int MAX_CONCURRENT_SPLITTING_TRIALS_TOTAL = 1000;
+
   /**
    * Asserts that for each possible start position,
    * {@link BoundedSource.BoundedReader#splitAtFraction} at every interesting fraction (halfway
@@ -571,6 +578,7 @@ public class SourceTestUtils {
       // To ensure that the test is non-vacuous, make sure that the splitting succeeds
       // at least once and fails at least once.
       ExecutorService executor = Executors.newFixedThreadPool(2);
+      int numTotalTrials = 0;
       for (int i = 0; i < expectedItems.size(); i++) {
         double minNonTrivialFraction = 2.0;  // Greater than any possible fraction.
         for (double fraction : allNonTrivialFractions.get(i)) {
@@ -581,16 +589,41 @@ public class SourceTestUtils {
           // detect vacuousness.
           continue;
         }
+        int numTrials = 0;
         boolean haveSuccess = false, haveFailure = false;
-        while (!haveSuccess || !haveFailure) {
+        while (true) {
+          ++numTrials;
+          if (numTrials > MAX_CONCURRENT_SPLITTING_TRIALS_PER_ITEM) {
+            LOG.warn(
+                "After {} concurrent splitting trials at item #{}, observed only {}, "
+                + "giving up on this item",
+                numTrials, i, haveSuccess ? "success" : "failure");
+            break;
+          }
           if (assertSplitAtFractionConcurrent(
               executor, source, expectedItems, i, minNonTrivialFraction, options)) {
             haveSuccess = true;
           } else {
             haveFailure = true;
           }
+          if (haveSuccess && haveFailure) {
+            LOG.info(
+                "{} trials to observe both success and failure of concurrent splitting at item #{}",
+                numTrials, i);
+            break;
+          }
+        }
+        numTotalTrials += numTrials;
+        if (numTotalTrials > MAX_CONCURRENT_SPLITTING_TRIALS_TOTAL) {
+          LOG.warn(
+              "After {} total concurrent splitting trials, considered only {} items, giving up.",
+              numTotalTrials, i);
+          break;
         }
       }
+      LOG.info(
+          "{} total concurrent splitting trials for {} items",
+          numTotalTrials, expectedItems.size());
     }
   }
 
