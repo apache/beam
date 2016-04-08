@@ -604,7 +604,7 @@ class MapTask(object):
     self.counter_factory = CounterFactory()
 
   def itercounters(self):
-    for counter in self.counter_factory.itercounters():
+    for counter in self.counter_factory.get_counters():
       yield counter
 
   def __str__(self):

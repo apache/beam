@@ -632,20 +632,20 @@ class DataflowWorkerClient(object):
             get_credentials=(not skip_get_credentials)))
 
   @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py
-  def lease_work(self, worker):
+  def lease_work(self, worker_info, desired_lease_duration):
     """Leases a work item from the service."""
     work_request = dataflow.LeaseWorkItemRequest()
-    work_request.workerId = worker.worker_id
-    work_request.requestedLeaseDuration = worker.desired_lease_duration()
-    work_request.currentWorkerTime = worker.current_time
-    work_request.workerCapabilities.append(worker.worker_id)
-    for value in worker.capabilities:
+    work_request.workerId = worker_info.worker_id
+    work_request.requestedLeaseDuration = desired_lease_duration
+    work_request.currentWorkerTime = worker_info.formatted_current_time
+    work_request.workerCapabilities.append(worker_info.worker_id)
+    for value in worker_info.capabilities:
       work_request.workerCapabilities.append(value)
-    for value in worker.work_types:
+    for value in worker_info.work_types:
       work_request.workItemTypes.append(value)
     request = dataflow.DataflowProjectsJobsWorkItemsLeaseRequest()
-    request.jobId = worker.job_id
-    request.projectId = worker.project_id
+    request.jobId = worker_info.job_id
+    request.projectId = worker_info.project_id
     try:
       request.leaseWorkItemRequest = work_request
     except AttributeError:
@@ -656,7 +656,8 @@ class DataflowWorkerClient(object):
     return response
 
   def report_status(self,
-                    worker,
+                    worker_info,
+                    desired_lease_duration,
                     work_item,
                     completed,
                     progress,
@@ -670,7 +671,12 @@ class DataflowWorkerClient(object):
     work item.
 
     Args:
-      worker: The Worker instance executing the work item.
+      worker_info: A batchworker.BatchWorkerInfo that contains
+        information about the Worker instance executing the work
+        item.
+      desired_lease_duration: The duration for which the worker would like to
+        extend the lease of the work item. Should be in seconds formatted as a
+        string.
       work_item: The work item for which to report status.
       completed: True if there is no further work to be done on this work item
         either because it succeeded or because it failed. False if this is a
@@ -695,7 +701,7 @@ class DataflowWorkerClient(object):
     work_item_status.completed = completed
 
     if not completed:
-      work_item_status.requestedLeaseDuration = worker.desired_lease_duration()
+      work_item_status.requestedLeaseDuration = desired_lease_duration
 
     if progress is not None:
       work_item_progress = dataflow.ApproximateProgress()
@@ -742,13 +748,13 @@ class DataflowWorkerClient(object):
       append_counter(work_item_status, counter, tentative=not completed)
 
     report_request = dataflow.ReportWorkItemStatusRequest()
-    report_request.currentWorkerTime = worker.current_time
-    report_request.workerId = worker.worker_id
+    report_request.currentWorkerTime = worker_info.formatted_current_time
+    report_request.workerId = worker_info.worker_id
     report_request.workItemStatuses.append(work_item_status)
 
     request = dataflow.DataflowProjectsJobsWorkItemsReportStatusRequest()
-    request.jobId = worker.job_id
-    request.projectId = worker.project_id
+    request.jobId = worker_info.job_id
+    request.projectId = worker_info.project_id
     try:
       request.reportWorkItemStatusRequest = report_request
     except AttributeError:

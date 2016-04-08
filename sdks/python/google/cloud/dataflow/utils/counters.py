@@ -17,6 +17,8 @@
 
 """Counters collect the progress of the Worker for reporting to the service."""
 
+import threading
+
 
 class Counter(object):
   """A counter aggregates a series of values.
@@ -109,6 +111,9 @@ class CounterFactory(object):
   def __init__(self):
     self.counters = {}
 
+    # Lock to be acquired when accessing the counters map.
+    self._lock = threading.Lock()
+
   def get_counter(self, name, aggregation_kind):
     """Returns a counter with the requested name.
 
@@ -122,13 +127,14 @@ class CounterFactory(object):
     Returns:
       A new or existing counter with the requested name.
     """
-    counter = self.counters.get(name, None)
-    if counter:
-      assert counter.aggregation_kind == aggregation_kind
-    else:
-      counter = Counter(name, aggregation_kind)
-      self.counters[name] = counter
-    return counter
+    with self._lock:
+      counter = self.counters.get(name, None)
+      if counter:
+        assert counter.aggregation_kind == aggregation_kind
+      else:
+        counter = Counter(name, aggregation_kind)
+        self.counters[name] = counter
+      return counter
 
   def get_aggregator_counter(self, step_name, aggregator):
     """Returns an AggregationCounter for this step's aggregator.
@@ -141,16 +147,26 @@ class CounterFactory(object):
     Returns:
       A new or existing counter.
     """
-    name = 'user-%s-%s' % (step_name, aggregator.name)
-    aggregation_kind = aggregator.aggregation_kind
-    counter = self.counters.get(name, None)
-    if counter:
-      assert isinstance(counter, AggregatorCounter)
-      assert counter.aggregation_kind == aggregation_kind
-    else:
-      counter = AggregatorCounter(name, aggregation_kind)
-      self.counters[name] = counter
-    return counter
+    with self._lock:
+      name = 'user-%s-%s' % (step_name, aggregator.name)
+      aggregation_kind = aggregator.aggregation_kind
+      counter = self.counters.get(name, None)
+      if counter:
+        assert isinstance(counter, AggregatorCounter)
+        assert counter.aggregation_kind == aggregation_kind
+      else:
+        counter = AggregatorCounter(name, aggregation_kind)
+        self.counters[name] = counter
+      return counter
 
-  def itercounters(self):
-    return self.counters.itervalues()
+  def get_counters(self):
+    """Returns the current set of counters.
+
+    Returns:
+      An iterable that contains the current set of counters. To make sure that
+      multiple threads can iterate over the set of counters, we return a new
+      iterable here. Note that the actual set of counters may get modified after
+      this method returns hence the returned iterable may be stale.
+    """
+    with self._lock:
+      return self.counters.values()
