@@ -220,10 +220,11 @@ public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJ
   private static class CancelWorkflowOnError implements JobMessagesHandler {
     private final DataflowPipelineJob job;
     private final JobMessagesHandler messageHandler;
-    private volatile String errorMessage = "";
+    private final StringBuffer errorMessage;
     private CancelWorkflowOnError(DataflowPipelineJob job, JobMessagesHandler messageHandler) {
       this.job = job;
       this.messageHandler = messageHandler;
+      this.errorMessage = new StringBuffer();
     }
 
     @Override
@@ -234,10 +235,10 @@ public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJ
             && message.getMessageImportance().equals("JOB_MESSAGE_ERROR")) {
           LOG.info("Dataflow job {} threw exception. Failure message was: {}",
               job.getJobId(), message.getMessageText());
-          errorMessage += message.getMessageText();
+          errorMessage.append(message.getMessageText());
         }
       }
-      if (!errorMessage.isEmpty()) {
+      if (errorMessage.length() > 0) {
         LOG.info("Cancelling Dataflow job {}", job.getJobId());
         try {
           job.cancel();
@@ -249,7 +250,7 @@ public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJ
     }
 
     private String getErrorMessage() {
-      return errorMessage;
+      return errorMessage.toString();
     }
   }
 }
