@@ -234,7 +234,7 @@ class NexmarkGoogleRunner extends NexmarkRunner<NexmarkGoogleDriver.NexmarkGoogl
     boolean monitorsActive = configuration.debug;
 
     if (monitorsActive) {
-      NexmarkUtils.console("waiting for main pipeline to 'finish'");
+      NexmarkUtils.console("Waiting for main pipeline to 'finish'");
     } else {
       NexmarkUtils.console("--debug=false, so job will not self-cancel");
     }
@@ -257,7 +257,7 @@ class NexmarkGoogleRunner extends NexmarkRunner<NexmarkGoogleDriver.NexmarkGoogl
 
     while (true) {
       long now = System.currentTimeMillis();
-      if (now > endMsSinceEpoch && !waitingForShutdown) {
+      if (endMsSinceEpoch >= 0 && now > endMsSinceEpoch && !waitingForShutdown) {
         NexmarkUtils.console("Reached end of test, cancelling job");
         try {
           job.cancel();
@@ -371,15 +371,14 @@ class NexmarkGoogleRunner extends NexmarkRunner<NexmarkGoogleDriver.NexmarkGoogl
 
     perf.errors = errors;
     perf.snapshots = snapshots;
-    NexmarkUtils.console("final perf %s", perf);
 
     if (publisherResult != null) {
+      NexmarkUtils.console("Shutting down publisher pipeline.");
       try {
-        if (publisherCancelled) {
-          publisherJob.waitToFinish(5, TimeUnit.MINUTES, null);
-        } else {
+        if (!publisherCancelled) {
           publisherJob.cancel();
         }
+        publisherJob.waitToFinish(5, TimeUnit.MINUTES, null);
       } catch (IOException e) {
         throw new RuntimeException("Unable to cancel publisher job: ", e);
       } catch (InterruptedException e) {

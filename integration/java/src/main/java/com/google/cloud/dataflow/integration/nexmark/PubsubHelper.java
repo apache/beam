@@ -161,7 +161,7 @@ public class PubsubHelper implements AutoCloseable {
         pubsubClient.deleteSubscription(subscription);
       }
       NexmarkUtils.console("create subscription %s", subscription);
-      pubsubClient.createSubscription(subscription, topic, 60);
+      pubsubClient.createSubscription(topic, subscription, 60);
       createdSubscriptions.add(subscription);
     } catch (IOException e) {
       throw new RuntimeException("Unable to create Pubsub subscription " + subscription + ": ", e);

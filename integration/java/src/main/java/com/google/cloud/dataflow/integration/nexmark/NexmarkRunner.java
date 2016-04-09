@@ -164,11 +164,11 @@ public abstract class NexmarkRunner<OptionT extends Options> {
    */
   private PCollection<Event> sourceFromSynthetic(Pipeline p) {
     if (isStreaming()) {
-      NexmarkUtils.console("Generating %d events in batch mode", configuration.numEvents);
-      return p.apply(NexmarkUtils.batchEventsSource(queryName, configuration));
-    } else {
       NexmarkUtils.console("Generating %d events in streaming mode", configuration.numEvents);
       return p.apply(NexmarkUtils.streamEventsSource(queryName, configuration));
+    } else {
+      NexmarkUtils.console("Generating %d events in batch mode", configuration.numEvents);
+      return p.apply(NexmarkUtils.batchEventsSource(queryName, configuration));
     }
   }
 
@@ -198,7 +198,7 @@ public abstract class NexmarkRunner<OptionT extends Options> {
     }
     NexmarkUtils.console("Reading events from Pubsub %s", subscription);
     PubsubIO.Read.Bound<Event> io =
-        PubsubIO.Read.named(queryName + ".ReadPubsubEvents(" + subscription + ")")
+        PubsubIO.Read.named(queryName + ".ReadPubsubEvents(" + subscription.replace('/', '.') + ")")
                      .subscription(subscription)
                      .idLabel(NexmarkUtils.PUBSUB_ID)
                      .withCoder(Event.CODER);
@@ -218,7 +218,7 @@ public abstract class NexmarkRunner<OptionT extends Options> {
     }
     NexmarkUtils.console("Reading events from Avro files at %s", filename);
     return p
-        .apply(AvroIO.Read.named(queryName + ".ReadAvroEvents(" + filename + ")")
+        .apply(AvroIO.Read.named(queryName + ".ReadAvroEvents(" + filename.replace('/', '.') + ")")
                           .from(filename + "*.avro")
                           .withSchema(Event.class))
         .apply(NexmarkQuery.EVENT_TIMESTAMP_FROM_DATA);
@@ -253,7 +253,7 @@ public abstract class NexmarkRunner<OptionT extends Options> {
     }
     NexmarkUtils.console("Writing events to Pubsub %s", topic);
     PubsubIO.Write.Bound<Event> io =
-        PubsubIO.Write.named(queryName + ".WritePubsubEvents(" + topic + ")")
+        PubsubIO.Write.named(queryName + ".WritePubsubEvents(" + topic.replace('/', '.') + ")")
                       .topic(topic)
                       .idLabel(NexmarkUtils.PUBSUB_ID)
                       .withCoder(Event.CODER);
@@ -285,7 +285,7 @@ public abstract class NexmarkRunner<OptionT extends Options> {
     }
     NexmarkUtils.console("Writing results to Pubsub %s", topic);
     PubsubIO.Write.Bound<String> io =
-        PubsubIO.Write.named(queryName + ".WritePubsubResults(" + topic + ")")
+        PubsubIO.Write.named(queryName + ".WritePubsubResults(" + topic.replace('/', '.') + ")")
                       .topic(topic)
                       .idLabel(NexmarkUtils.PUBSUB_ID);
     if (!configuration.usePubsubPublishTime) {
@@ -312,25 +312,29 @@ public abstract class NexmarkRunner<OptionT extends Options> {
       throw new RuntimeException("Missing --outputPath");
     }
     NexmarkUtils.console("Writing events to Avro files at %s", filename);
-    source.apply(AvroIO.Write.named(queryName + ".WriteAvroEvents(" + filename + ")")
+    source.apply(AvroIO.Write.named(queryName + ".WriteAvroEvents(" + filename.replace('/', '.')
+                                    + ")")
                              .to(filename + "/event")
                              .withSuffix(".avro")
                              .withSchema(Event.class));
     source.apply(NexmarkQuery.JUST_BIDS)
-          .apply(AvroIO.Write.named(queryName + ".WriteAvroBids(" + filename + ")")
-                             .to(filename + "/bid")
-                             .withSuffix(".avro")
-                             .withSchema(Bid.class));
+          .apply(
+              AvroIO.Write.named(queryName + ".WriteAvroBids(" + filename.replace('/', '.') + ")")
+                          .to(filename + "/bid")
+                          .withSuffix(".avro")
+                          .withSchema(Bid.class));
     source.apply(NexmarkQuery.JUST_NEW_AUCTIONS)
-          .apply(AvroIO.Write.named(queryName + ".WriteAvroAuctions(" + filename + ")")
+          .apply(AvroIO.Write.named(
+              queryName + ".WriteAvroAuctions(" + filename.replace('/', '.') + ")")
                              .to(filename + "/auction")
                              .withSuffix(".avro")
                              .withSchema(Auction.class));
     source.apply(NexmarkQuery.JUST_NEW_PERSONS)
-          .apply(AvroIO.Write.named(queryName + ".WriteAvroPeople(" + filename + ")")
-                             .to(filename + "/person")
-                             .withSuffix(".avro")
-                             .withSchema(Person.class));
+          .apply(
+              AvroIO.Write.named(queryName + ".WriteAvroPeople(" + filename.replace('/', '.') + ")")
+                          .to(filename + "/person")
+                          .withSuffix(".avro")
+                          .withSchema(Person.class));
   }
 
   private static class StringToTableRow extends DoFn<String, TableRow> {
@@ -357,8 +361,9 @@ public abstract class NexmarkRunner<OptionT extends Options> {
       fullFilename = String.format("%s/nexmark_%s.txt", filename, queryName);
     }
     NexmarkUtils.console("Writing results to text files at %s", fullFilename);
-    formattedResults.apply(TextIO.Write.named(queryName + ".WriteTextResults(" + fullFilename + ")")
-                                       .to(fullFilename));
+    formattedResults.apply(
+        TextIO.Write.named(queryName + ".WriteTextResults(" + fullFilename.replace('/', '.') + ")")
+                    .to(fullFilename));
   }
 
   /**
@@ -377,7 +382,8 @@ public abstract class NexmarkRunner<OptionT extends Options> {
                                                               .setType("STRING")));
     NexmarkUtils.console("Writing results to BigQuery table %s", tableName);
     BigQueryIO.Write.Bound io =
-        BigQueryIO.Write.named(queryName + ".WriteBigQueryResults(" + tableName + ")")
+        BigQueryIO.Write.named(
+            queryName + ".WriteBigQueryResults(" + tableName.replace('/', '.') + ")")
                         .to(tableName)
                         .withSchema(schema);
     formattedResults
