@@ -251,6 +251,10 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     }
 
     PathValidator validator = dataflowOptions.getPathValidator();
+    Preconditions.checkArgument(!(Strings.isNullOrEmpty(dataflowOptions.getTempLocation())
+        && Strings.isNullOrEmpty(dataflowOptions.getStagingLocation())),
+        "Missing required value: at least one of tempLocation or stagingLocation must be set.");
+
     if (dataflowOptions.getStagingLocation() != null) {
       validator.validateOutputFilePrefixSupported(dataflowOptions.getStagingLocation());
     }

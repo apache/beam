@@ -246,4 +246,18 @@ public interface PipelineOptions {
   @Default.Enum("WARNING")
   CheckEnabled getStableUniqueNames();
   void setStableUniqueNames(CheckEnabled enabled);
+
+  /**
+   * A pipeline level default location for storing temporary files.
+   *
+   * <p>This can be a path of any file system.
+   *
+   * <p>{@link #getTempLocation()} can be used as a default location in other
+   * {@link PipelineOptions}.
+   *
+   * <p>If it is unset, {@link PipelineRunner} can override it.
+   */
+  @Description("A pipeline level default location for storing temporary files.")
+  String getTempLocation();
+  void setTempLocation(String value);
 }
