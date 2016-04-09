@@ -272,6 +272,8 @@ public class DataflowExampleUtils {
   public void runInjectorPipeline(String inputFile, String topic) {
     DataflowPipelineOptions copiedOptions = options.cloneAs(DataflowPipelineOptions.class);
     copiedOptions.setStreaming(false);
+    copiedOptions.setWorkerHarnessContainerImage(
+        DataflowPipelineRunner.BATCH_WORKER_HARNESS_CONTAINER_IMAGE);
     copiedOptions.setNumWorkers(
         options.as(ExamplePubsubTopicOptions.class).getInjectorNumWorkers());
     copiedOptions.setJobName(options.getJobName() + "-injector");
