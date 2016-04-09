@@ -19,7 +19,6 @@ package com.google.cloud.dataflow.sdk.runners;
 
 import static org.junit.Assert.assertTrue;
 
-import com.google.api.services.dataflow.Dataflow;
 import com.google.cloud.dataflow.sdk.options.ApplicationNameOptions;
 import com.google.cloud.dataflow.sdk.options.DirectPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
@@ -40,7 +39,6 @@ import org.mockito.MockitoAnnotations;
 @RunWith(JUnit4.class)
 public class PipelineRunnerTest {
 
-  @Mock private Dataflow mockDataflow;
   @Mock private GcsUtil mockGcsUtil;
 
   @Before

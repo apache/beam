@@ -42,6 +42,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
@@ -81,8 +82,6 @@ public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJ
 
   DataflowPipelineJob run(Pipeline pipeline, DataflowPipelineRunner runner) {
 
-    final JobMessagesHandler messageHandler =
-        new MonitoringUtil.PrintHandler(options.getJobMessageOutput());
     final DataflowPipelineJob job;
     try {
       job = runner.run(pipeline);
@@ -93,8 +92,12 @@ public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJ
     LOG.info("Running Dataflow job {} with {} expected assertions.",
         job.getJobId(), expectedNumberOfAssertions);
 
+    CancelWorkflowOnError messageHandler = new CancelWorkflowOnError(
+        job, new MonitoringUtil.PrintHandler(options.getJobMessageOutput()));
+
     try {
       final Optional<Boolean> result;
+
       if (options.isStreaming()) {
         Future<Optional<Boolean>> resultFuture = options.getExecutorService().submit(
             new Callable<Optional<Boolean>>() {
@@ -114,24 +117,7 @@ public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJ
             }
           }
         });
-        State finalState = job.waitToFinish(10L, TimeUnit.MINUTES, new JobMessagesHandler() {
-            @Override
-            public void process(List<JobMessage> messages) {
-              messageHandler.process(messages);
-              for (JobMessage message : messages) {
-                if (message.getMessageImportance() != null
-                    && message.getMessageImportance().equals("JOB_MESSAGE_ERROR")) {
-                  LOG.info("Dataflow job {} threw exception, cancelling. Exception was: {}",
-                      job.getJobId(), message.getMessageText());
-                  try {
-                    job.cancel();
-                  } catch (Exception e) {
-                    throw Throwables.propagate(e);
-                  }
-                }
-              }
-            }
-          });
+        State finalState = job.waitToFinish(10L, TimeUnit.MINUTES, messageHandler);
         if (finalState == null || finalState == State.RUNNING) {
           LOG.info("Dataflow job {} took longer than 10 minutes to complete, cancelling.",
               job.getJobId());
@@ -146,11 +132,18 @@ public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJ
         throw new IllegalStateException(
             "The dataflow did not output a success or failure metric.");
       } else if (!result.get()) {
-        throw new IllegalStateException("The dataflow failed.");
+        throw new AssertionError(messageHandler.getErrorMessage() == null ?
+            "The dataflow did not return a failure reason."
+            : messageHandler.getErrorMessage());
       }
-    } catch (Exception e) {
-      Throwables.propagateIfPossible(e);
-      throw Throwables.propagate(e);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new RuntimeException(e);
+    } catch (ExecutionException e) {
+      Throwables.propagateIfPossible(e.getCause());
+      throw new RuntimeException(e.getCause());
+    } catch (IOException e) {
+      throw new RuntimeException(e);
     }
     return job;
   }
@@ -217,5 +210,47 @@ public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJ
   @Override
   public String toString() {
     return "TestDataflowPipelineRunner#" + options.getAppName();
+  }
+
+  /**
+   * Cancels the workflow on the first error message it sees.
+   *
+   * <p>Creates an error message representing the concatenation of all error messages seen.
+   */
+  private static class CancelWorkflowOnError implements JobMessagesHandler {
+    private final DataflowPipelineJob job;
+    private final JobMessagesHandler messageHandler;
+    private final StringBuffer errorMessage;
+    private CancelWorkflowOnError(DataflowPipelineJob job, JobMessagesHandler messageHandler) {
+      this.job = job;
+      this.messageHandler = messageHandler;
+      this.errorMessage = new StringBuffer();
+    }
+
+    @Override
+    public void process(List<JobMessage> messages) {
+      messageHandler.process(messages);
+      for (JobMessage message : messages) {
+        if (message.getMessageImportance() != null
+            && message.getMessageImportance().equals("JOB_MESSAGE_ERROR")) {
+          LOG.info("Dataflow job {} threw exception. Failure message was: {}",
+              job.getJobId(), message.getMessageText());
+          errorMessage.append(message.getMessageText());
+        }
+      }
+      if (errorMessage.length() > 0) {
+        LOG.info("Cancelling Dataflow job {}", job.getJobId());
+        try {
+          job.cancel();
+        } catch (Exception ignore) {
+          // The TestDataflowPipelineRunner will thrown an AssertionError with the job failure
+          // messages.
+        }
+      }
+    }
+
+    private String getErrorMessage() {
+      return errorMessage.toString();
+    }
   }
 }
