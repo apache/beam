@@ -16,9 +16,10 @@
 
 package com.google.cloud.dataflow.examples;
 
-import com.google.cloud.dataflow.examples.WordCount.WordCountOptions;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.io.TextIO;
+import com.google.cloud.dataflow.sdk.options.Default;
+import com.google.cloud.dataflow.sdk.options.Description;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
@@ -150,6 +151,21 @@ public class DebuggingWordCount {
     }
   }
 
+  /**
+   * Options supported by {@link DebuggingWordCount}.
+   *
+   * <p>Inherits standard configuration options and all options defined in
+   * {@link WordCount.WordCountOptions}.
+   */
+  public static interface WordCountOptions extends WordCount.WordCountOptions {
+
+    @Description("Regex filter pattern to use in DebuggingWordCount. "
+        + "Only words matching this pattern will be counted.")
+    @Default.String("Flourish|stomach")
+    String getFilterPattern();
+    void setFilterPattern(String value);
+  }
+
   public static void main(String[] args) {
     WordCountOptions options = PipelineOptionsFactory.fromArgs(args).withValidation()
       .as(WordCountOptions.class);
@@ -158,7 +174,7 @@ public class DebuggingWordCount {
     PCollection<KV<String, Long>> filteredWords =
         p.apply(TextIO.Read.named("ReadLines").from(options.getInputFile()))
          .apply(new WordCount.CountWords())
-         .apply(ParDo.of(new FilterTextFn("Flourish|stomach")));
+         .apply(ParDo.of(new FilterTextFn(options.getFilterPattern())));
 
     /**
      * Concept #4: DataflowAssert is a set of convenient PTransforms in the style of
