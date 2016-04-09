@@ -148,9 +148,12 @@ public class TestDataflowPipelineRunnerTest {
     TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
     try {
       runner.run(p, mockRunner);
-      fail("AssertionError expected");
     } catch (AssertionError expected) {
+      return;
     }
+    // Note that fail throws an AssertionError which is why it is placed out here
+    // instead of inside the try-catch block.
+    fail("AssertionError expected");
   }
 
   @Test
@@ -186,12 +189,14 @@ public class TestDataflowPipelineRunnerTest {
     TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
     try {
       runner.run(p, mockRunner);
-      fail("AssertionError expected");
     } catch (AssertionError expected) {
       assertThat(expected.getMessage(), containsString("FooException"));
+      verify(mockJob, atLeastOnce()).cancel();
+      return;
     }
-
-    verify(mockJob, atLeastOnce()).cancel();
+    // Note that fail throws an AssertionError which is why it is placed out here
+    // instead of inside the try-catch block.
+    fail("AssertionError expected");
   }
 
   @Test
@@ -237,9 +242,12 @@ public class TestDataflowPipelineRunnerTest {
     TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
     try {
       runner.run(p, mockRunner);
-      fail("AssertionError expected");
     } catch (AssertionError expected) {
+      return;
     }
+    // Note that fail throws an AssertionError which is why it is placed out here
+    // instead of inside the try-catch block.
+    fail("AssertionError expected");
   }
 
   @Test
@@ -357,11 +365,13 @@ public class TestDataflowPipelineRunnerTest {
     TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
     try {
       runner.run(p, mockRunner);
-      fail("AssertionError expected");
     } catch (AssertionError expected) {
       assertThat(expected.getMessage(), containsString("FooException"));
+      verify(mockJob, atLeastOnce()).cancel();
+      return;
     }
-
-    verify(mockJob, atLeastOnce()).cancel();
+    // Note that fail throws an AssertionError which is why it is placed out here
+    // instead of inside the try-catch block.
+    fail("AssertionError expected");
   }
 }
