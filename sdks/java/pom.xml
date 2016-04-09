@@ -36,7 +36,6 @@
 
   <modules>
     <module>core</module>
-    <module>maven-archetypes</module>
   </modules>
 
   <profiles>
