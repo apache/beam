@@ -354,6 +354,8 @@ public class DataflowExampleUtils {
       copiedOptions.setServiceAccountKeyfile(options.getServiceAccountKeyfile());
     }
     copiedOptions.setStreaming(false);
+    copiedOptions.setWorkerHarnessContainerImage(
+        DataflowPipelineRunner.BATCH_WORKER_HARNESS_CONTAINER_IMAGE);
     copiedOptions.setNumWorkers(options.as(DataflowExampleOptions.class).getInjectorNumWorkers());
     copiedOptions.setJobName(options.getJobName() + "-injector");
     Pipeline injectorPipeline = Pipeline.create(copiedOptions);
