@@ -40,7 +40,7 @@ import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaRDDLike;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.api.java.function.Function;
+import org.apache.spark.api.java.function.VoidFunction;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaDStreamLike;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
@@ -150,12 +150,11 @@ public class StreamingEvaluationContext extends EvaluationContext {
   }
 
   private static <T> void computeOutput(DStreamHolder<T> streamHolder) {
-    streamHolder.getDStream().foreachRDD(new Function<JavaRDD<WindowedValue<T>>, Void>() {
+    streamHolder.getDStream().foreachRDD(new VoidFunction<JavaRDD<WindowedValue<T>>>() {
       @Override
-      public Void call(JavaRDD<WindowedValue<T>> rdd) throws Exception {
+      public void call(JavaRDD<WindowedValue<T>> rdd) throws Exception {
         rdd.rdd().cache();
         rdd.count();
-        return null;
       }
     }); // force a DStream action
   }

@@ -63,6 +63,7 @@ import org.apache.beam.runners.spark.translation.WindowingHelpers;
 
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.Function;
+import org.apache.spark.api.java.function.VoidFunction;
 import org.apache.spark.streaming.Duration;
 import org.apache.spark.streaming.Durations;
 import org.apache.spark.streaming.api.java.JavaDStream;
@@ -274,7 +275,7 @@ public final class StreamingTransformTranslator {
    * @param <PT> PTransform type
    */
   private static final class RDDOutputOperator<PT extends PTransform<?, ?>>
-      implements Function<JavaRDD<WindowedValue<Object>>, Void> {
+      implements VoidFunction<JavaRDD<WindowedValue<Object>>> {
 
     private final StreamingEvaluationContext context;
     private final AppliedPTransform<?, ?, ?> appliedPTransform;
@@ -292,13 +293,12 @@ public final class StreamingTransformTranslator {
 
     @Override
     @SuppressWarnings("unchecked")
-    public Void call(JavaRDD<WindowedValue<Object>> rdd) throws Exception {
+    public void call(JavaRDD<WindowedValue<Object>> rdd) throws Exception {
       AppliedPTransform<?, ?, ?> existingAPT = context.getCurrentTransform();
       context.setCurrentTransform(appliedPTransform);
       context.setInputRDD(transform, rdd);
       rddEvaluator.evaluate(transform, context);
       context.setCurrentTransform(existingAPT);
-      return null;
     }
   }
 
