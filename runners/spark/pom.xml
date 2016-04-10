@@ -36,7 +36,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <java.version>1.7</java.version>
-        <spark.version>1.5.2</spark.version>
+        <spark.version>1.6.1</spark.version>
         <beam.version>0.1.0-incubating-SNAPSHOT</beam.version>
     </properties>
 
