@@ -15,17 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.spark.translation.streaming;
 
-import org.apache.beam.runners.spark.SparkStreamingPipelineOptions;
+package org.apache.beam.runners.spark.translation;
+
+import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 
-public final class SparkStreamingPipelineOptionsFactory {
+import org.junit.Assert;
+import org.junit.Test;
 
-  private SparkStreamingPipelineOptionsFactory() {
+public class SparkPipelineOptionsTest {
+  @Test
+  public void testDefaultCreateMethod() {
+    SparkPipelineOptions actualOptions = PipelineOptionsFactory.as(SparkPipelineOptions.class);
+    Assert.assertEquals("local[1]", actualOptions.getSparkMaster());
   }
 
-  public static SparkStreamingPipelineOptions create() {
-    return PipelineOptionsFactory.as(SparkStreamingPipelineOptions.class);
+  @Test
+  public void testSettingCustomOptions() {
+    SparkPipelineOptions actualOptions = PipelineOptionsFactory.as(SparkPipelineOptions.class);
+    actualOptions.setSparkMaster("spark://207.184.161.138:7077");
+    Assert.assertEquals("spark://207.184.161.138:7077", actualOptions.getSparkMaster());
   }
 }

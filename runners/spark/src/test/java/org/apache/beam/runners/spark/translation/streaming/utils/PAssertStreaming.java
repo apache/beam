@@ -18,6 +18,7 @@
 package org.apache.beam.runners.spark.translation.streaming.utils;
 
 import org.apache.beam.runners.spark.EvaluationResult;
+
 import org.junit.Assert;
 
 /**
