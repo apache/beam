@@ -17,6 +17,8 @@
 package com.google.cloud.dataflow.sdk.transforms;
 
 import static com.google.cloud.dataflow.sdk.TestUtils.checkCombineFn;
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.includes;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -41,6 +43,7 @@ import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.CombineWithContext.Context;
 import com.google.cloud.dataflow.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.transforms.windowing.AfterPane;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
@@ -676,6 +679,24 @@ public class CombineTest implements Serializable {
     assertEquals(
         "Combine.PerKeyWithHotKeyFanout",
         Combine.perKey(new TestKeyedCombineFn()).withHotKeyFanout(10).getName());
+  }
+
+  @Test
+  public void testDisplayData() {
+    UniqueInts combineFn = new UniqueInts() {
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        builder.add("fnMetadata", "foobar");
+      }
+    };
+    Combine.Globally<?, ?> combine = Combine.globally(combineFn)
+        .withFanout(1234);
+    DisplayData displayData = DisplayData.from(combine);
+
+    assertThat(displayData, hasDisplayItem("combineFn", combineFn.getClass()));
+    assertThat(displayData, hasDisplayItem("emitDefaultOnEmptyInput", true));
+    assertThat(displayData, hasDisplayItem("fanout", 1234));
+    assertThat(displayData, includes(combineFn));
   }
 
   ////////////////////////////////////////////////////////////////////////////

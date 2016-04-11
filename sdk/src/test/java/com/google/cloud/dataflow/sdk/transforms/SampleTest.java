@@ -18,6 +18,9 @@ package com.google.cloud.dataflow.sdk.transforms;
 
 import static com.google.cloud.dataflow.sdk.TestUtils.LINES;
 import static com.google.cloud.dataflow.sdk.TestUtils.NO_LINES;
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -27,6 +30,7 @@ import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
@@ -256,5 +260,16 @@ public class SampleTest {
   @Test
   public void testSampleGetName() {
     assertEquals("Sample.SampleAny", Sample.<String>any(1).getName());
+  }
+
+  @Test
+  public void testDisplayData() {
+    PTransform<?, ?> sampleAny = Sample.any(1234);
+    DisplayData sampleAnyDisplayData = DisplayData.from(sampleAny);
+    assertThat(sampleAnyDisplayData, hasDisplayItem("sampleSize", 1234));
+
+    PTransform<?, ?> samplePerKey = Sample.fixedSizePerKey(2345);
+    DisplayData perKeyDisplayData = DisplayData.from(samplePerKey);
+    assertThat(perKeyDisplayData, hasDisplayItem("sampleSize", 2345));
   }
 }

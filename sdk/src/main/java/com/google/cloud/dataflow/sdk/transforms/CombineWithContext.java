@@ -21,6 +21,7 @@ import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 
 /**
@@ -164,6 +165,11 @@ public class CombineWithContext {
         @Override
         public CombineFnWithContext<InputT, AccumT, OutputT> forKey(K key, Coder<K> keyCoder) {
           return CombineFnWithContext.this;
+        }
+
+        @Override
+        public void populateDisplayData(DisplayData.Builder builder) {
+          CombineFnWithContext.this.populateDisplayData(builder);
         }
       };
     }

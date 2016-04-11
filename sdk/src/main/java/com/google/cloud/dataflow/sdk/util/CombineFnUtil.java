@@ -25,6 +25,7 @@ import com.google.cloud.dataflow.sdk.transforms.CombineFnBase.GlobalCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import com.google.cloud.dataflow.sdk.transforms.CombineWithContext.Context;
 import com.google.cloud.dataflow.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.util.state.StateContext;
 
 import java.io.IOException;
@@ -99,6 +100,10 @@ public class CombineFnUtil {
             CoderRegistry registry, Coder<InputT> inputCoder) throws CannotProvideCoderException {
           return combineFn.getDefaultOutputCoder(registry, inputCoder);
         }
+        @Override
+        public void populateDisplayData(DisplayData.Builder builder) {
+          combineFn.populateDisplayData(builder);
+        }
       };
     }
   }
@@ -143,6 +148,10 @@ public class CombineFnUtil {
     public Coder<OutputT> getDefaultOutputCoder(CoderRegistry registry, Coder<K> keyCoder,
         Coder<InputT> inputCoder) throws CannotProvideCoderException {
       return combineFn.getDefaultOutputCoder(registry, keyCoder, inputCoder);
+    }
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      combineFn.populateDisplayData(builder);
     }
 
     private void writeObject(@SuppressWarnings("unused") ObjectOutputStream out)

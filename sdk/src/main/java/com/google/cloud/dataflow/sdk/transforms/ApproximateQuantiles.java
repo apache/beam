@@ -24,6 +24,7 @@ import com.google.cloud.dataflow.sdk.coders.CustomCoder;
 import com.google.cloud.dataflow.sdk.coders.ListCoder;
 import com.google.cloud.dataflow.sdk.transforms.Combine.AccumulatingCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.Combine.AccumulatingCombineFn.Accumulator;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.util.WeightedValue;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -356,6 +357,13 @@ public class ApproximateQuantiles {
     public Coder<QuantileState<T, ComparatorT>> getAccumulatorCoder(
         CoderRegistry registry, Coder<T> elementCoder) {
       return new QuantileStateCoder<>(compareFn, elementCoder);
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      builder
+          .add("numQuantiles", numQuantiles)
+          .add("comparer", compareFn.getClass());
     }
   }
 

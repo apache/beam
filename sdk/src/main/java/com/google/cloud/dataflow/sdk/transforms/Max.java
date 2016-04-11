@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.transforms;
 
 import com.google.cloud.dataflow.sdk.transforms.Combine.BinaryCombineFn;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.util.common.Counter;
 import com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind;
 import com.google.cloud.dataflow.sdk.util.common.CounterProvider;
@@ -202,6 +203,11 @@ public class Max {
     @Override
     public T apply(T left, T right) {
       return comparator.compare(left, right) >= 0 ? left : right;
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      builder.add("comparer", comparator.getClass());
     }
   }
 

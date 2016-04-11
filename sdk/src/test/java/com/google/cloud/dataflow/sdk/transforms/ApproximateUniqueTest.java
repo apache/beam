@@ -16,6 +16,10 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasKey;
+
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -25,6 +29,7 @@ import com.google.cloud.dataflow.sdk.TestUtils;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
@@ -287,5 +292,18 @@ public class ApproximateUniqueTest implements Serializable {
       }
       return null;
     }
+  }
+
+  @Test
+  public void testDisplayData() {
+    ApproximateUnique.Globally<Integer> specifiedSampleSize = ApproximateUnique.globally(1234);
+    ApproximateUnique.PerKey<String, Integer> specifiedMaxError = ApproximateUnique.perKey(0.1234);
+
+    assertThat(DisplayData.from(specifiedSampleSize), hasDisplayItem("sampleSize", 1234));
+
+    DisplayData maxErrorDisplayData = DisplayData.from(specifiedMaxError);
+    assertThat(maxErrorDisplayData, hasDisplayItem("maximumEstimationError", 0.1234));
+    assertThat("calculated sampleSize should be included", maxErrorDisplayData,
+        hasDisplayItem(hasKey("sampleSize")));
   }
 }

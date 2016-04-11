@@ -17,6 +17,9 @@
 package com.google.cloud.dataflow.sdk.transforms;
 
 import static com.google.cloud.dataflow.sdk.TestUtils.checkCombineFn;
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
@@ -27,6 +30,7 @@ import com.google.cloud.dataflow.sdk.runners.DirectPipeline;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.ApproximateQuantiles.ApproximateQuantilesCombineFn;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 
@@ -231,6 +235,16 @@ public class ApproximateQuantilesTest {
         ApproximateQuantilesCombineFn.create(3, new OrderByLength()),
         inputs,
         Arrays.asList("b", "aaa", "ccccc"));
+  }
+
+  @Test
+  public void testDisplayData() {
+    Top.Largest<Integer> comparer = new Top.Largest<Integer>();
+    PTransform<?, ?> approxQuanitiles = ApproximateQuantiles.globally(20, comparer);
+    DisplayData displayData = DisplayData.from(approxQuanitiles);
+
+    assertThat(displayData, hasDisplayItem("numQuantiles", 20));
+    assertThat(displayData, hasDisplayItem("comparer", comparer.getClass()));
   }
 
   private Matcher<Iterable<? extends Integer>> quantileMatcher(
