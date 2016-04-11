@@ -15,6 +15,8 @@
  */
 package com.google.cloud.dataflow.sdk.runners.inprocess;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
@@ -23,6 +25,7 @@ import com.google.common.base.Throwables;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.Callable;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.annotation.Nullable;
 
@@ -66,7 +69,7 @@ class TransformExecutor<T> implements Callable<InProcessTransformResult> {
   private final CompletionCallback onComplete;
   private final TransformExecutorService transformEvaluationState;
 
-  private Thread thread;
+  private final AtomicReference<Thread> thread;
 
   private TransformExecutor(
       TransformEvaluatorFactory factory,
@@ -86,11 +89,18 @@ class TransformExecutor<T> implements Callable<InProcessTransformResult> {
     this.onComplete = completionCallback;
 
     this.transformEvaluationState = transformEvaluationState;
+    this.thread = new AtomicReference<>();
   }
 
   @Override
   public InProcessTransformResult call() {
-    this.thread = Thread.currentThread();
+    checkState(
+        thread.compareAndSet(null, Thread.currentThread()),
+        "Tried to execute %s for %s on thread %s, but is already executing on thread %s",
+        TransformExecutor.class.getSimpleName(),
+        transform.getFullName(),
+        Thread.currentThread(),
+        thread.get());
     try {
       Collection<ModelEnforcement<T>> enforcements = new ArrayList<>();
       for (ModelEnforcementFactory enforcementFactory : modelEnforcements) {
@@ -108,7 +118,6 @@ class TransformExecutor<T> implements Callable<InProcessTransformResult> {
       onComplete.handleThrowable(inputBundle, t);
       throw Throwables.propagate(t);
     } finally {
-      this.thread = null;
       transformEvaluationState.complete(this);
     }
   }
@@ -159,6 +168,6 @@ class TransformExecutor<T> implements Callable<InProcessTransformResult> {
    */
   @Nullable
   public Thread getThread() {
-    return this.thread;
+    return thread.get();
   }
 }
