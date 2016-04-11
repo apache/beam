@@ -59,6 +59,11 @@ public interface PubsubClient extends AutoCloseable {
       return path.hashCode();
     }
 
+    @Override
+    public String toString() {
+      return path;
+    }
+
     public static ProjectPath fromId(String projectId) {
       return new ProjectPath(String.format("projects/%s", projectId));
     }
@@ -93,6 +98,11 @@ public interface PubsubClient extends AutoCloseable {
     @Override
     public int hashCode() {
       return path.hashCode();
+    }
+
+    @Override
+    public String toString() {
+      return path;
     }
 
     public static SubscriptionPath fromName(String projectId, String subscriptionName) {
@@ -130,6 +140,11 @@ public interface PubsubClient extends AutoCloseable {
     @Override
     public int hashCode() {
       return path.hashCode();
+    }
+
+    @Override
+    public String toString() {
+      return path;
     }
 
     public static TopicPath fromName(String projectId, String topicName) {
