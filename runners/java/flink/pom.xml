@@ -23,7 +23,7 @@
 
   <parent>
     <groupId>org.apache.beam</groupId>
-    <artifactId>runners-parent</artifactId>
+    <artifactId>runners-java-parent</artifactId>
     <version>0.1.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
@@ -31,7 +31,7 @@
   <artifactId>flink-runner-parent</artifactId>
   <version>0.1.0-incubating-SNAPSHOT</version>
 
-  <name>Apache Beam :: Runners :: Flink</name>
+  <name>Apache Beam :: Runners :: Java :: Flink</name>
 
   <packaging>pom</packaging>
 

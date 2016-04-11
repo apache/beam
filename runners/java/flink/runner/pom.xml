@@ -30,7 +30,7 @@
 
   <artifactId>flink-runner_2.10</artifactId>
 
-  <name>Apache Beam :: Runners :: Flink :: Core</name>
+  <name>Apache Beam :: Runners :: Java :: Flink :: Core</name>
 
   <packaging>jar</packaging>
 
