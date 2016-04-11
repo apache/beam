@@ -63,6 +63,8 @@ import java.util.Objects;
 @Experimental(Experimental.Kind.TRIGGER)
 public class AfterWatermark {
 
+  private static final String TO_STRING = "AfterWatermark.pastEndOfWindow()";
+
   // Static factory class.
   private AfterWatermark() {}
 
@@ -220,6 +222,26 @@ public class AfterWatermark {
       }
     }
 
+    @Override
+    public String toString() {
+      StringBuilder builder = new StringBuilder(TO_STRING);
+
+      Trigger earlyTrigger = subTriggers.get(EARLY_INDEX);
+      if (!(earlyTrigger instanceof Never.NeverTrigger)) {
+        builder
+            .append(".withEarlyFirings(")
+            .append(earlyTrigger)
+            .append(")");
+      }
+
+      builder
+          .append(".withLateFirings(")
+          .append(subTriggers.get(LATE_INDEX))
+          .append(")");
+
+      return builder.toString();
+    }
+
     private void onNonLateFiring(Trigger.TriggerContext context) throws Exception {
       // We have not yet transitioned to late firings.
       ExecutableTrigger earlySubtrigger = context.trigger().subTrigger(EARLY_INDEX);
@@ -328,7 +350,7 @@ public class AfterWatermark {
 
     @Override
     public String toString() {
-      return "AfterWatermark.pastEndOfWindow()";
+      return TO_STRING;
     }
 
     @Override

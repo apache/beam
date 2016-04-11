@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms.windowing;
 
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -35,6 +36,8 @@ import org.joda.time.Years;
  */
 public class CalendarWindows {
 
+  private static final DateTime DEFAULT_START_DATE = new DateTime(0, DateTimeZone.UTC);
+
   /**
    * Returns a {@link WindowFn} that windows elements into periods measured by days.
    *
@@ -42,7 +45,7 @@ public class CalendarWindows {
    * separate windows for each day.
    */
   public static DaysWindows days(int number) {
-    return new DaysWindows(number, new DateTime(0, DateTimeZone.UTC), DateTimeZone.UTC);
+    return new DaysWindows(number, DEFAULT_START_DATE, DateTimeZone.UTC);
   }
 
   /**
@@ -54,7 +57,7 @@ public class CalendarWindows {
   public static DaysWindows weeks(int number, int startDayOfWeek) {
     return new DaysWindows(
         7 * number,
-        new DateTime(0, DateTimeZone.UTC).withDayOfWeek(startDayOfWeek),
+        DEFAULT_START_DATE.withDayOfWeek(startDayOfWeek),
         DateTimeZone.UTC);
   }
 
@@ -67,7 +70,7 @@ public class CalendarWindows {
    * and the first window begins in January 2014.
    */
   public static MonthsWindows months(int number) {
-    return new MonthsWindows(number, 1, new DateTime(0, DateTimeZone.UTC), DateTimeZone.UTC);
+    return new MonthsWindows(number, 1, DEFAULT_START_DATE, DateTimeZone.UTC);
   }
 
   /**
@@ -79,7 +82,7 @@ public class CalendarWindows {
    * America/Los_Angeles time zone.
    */
   public static YearsWindows years(int number) {
-    return new YearsWindows(number, 1, 1, new DateTime(0, DateTimeZone.UTC), DateTimeZone.UTC);
+    return new YearsWindows(number, 1, 1, DEFAULT_START_DATE, DateTimeZone.UTC);
   }
 
   /**
@@ -140,6 +143,14 @@ public class CalendarWindows {
       return number == that.number
           && startDate == that.startDate
           && timeZone == that.timeZone;
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      builder
+          .add("numDays", number)
+          .addIfNotDefault("startDate", new DateTime(startDate, timeZone).toInstant(),
+              new DateTime(DEFAULT_START_DATE, DateTimeZone.UTC).toInstant());
     }
 
     public int getNumber() {
@@ -227,6 +238,14 @@ public class CalendarWindows {
           && dayOfMonth == that.dayOfMonth
           && startDate == that.startDate
           && timeZone == that.timeZone;
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      builder
+          .add("numMonths", number)
+          .addIfNotDefault("startDate", new DateTime(startDate, timeZone).toInstant(),
+            new DateTime(DEFAULT_START_DATE, DateTimeZone.UTC).toInstant());
     }
 
     public int getNumber() {
@@ -323,6 +342,14 @@ public class CalendarWindows {
           && dayOfMonth == that.dayOfMonth
           && startDate == that.startDate
           && timeZone == that.timeZone;
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      builder
+          .add("numYears", number)
+          .addIfNotDefault("startDate", new DateTime(startDate, timeZone).toInstant(),
+              new DateTime(DEFAULT_START_DATE, DateTimeZone.UTC).toInstant());
     }
 
     public DateTimeZone getTimeZone() {

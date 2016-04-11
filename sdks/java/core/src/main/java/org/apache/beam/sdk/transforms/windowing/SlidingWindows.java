@@ -20,6 +20,7 @@ package org.apache.beam.sdk.transforms.windowing;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -137,6 +138,14 @@ public class SlidingWindows extends NonMergingWindowFn<Object, IntervalWindow> {
   @Override
   public boolean isCompatible(WindowFn<?, ?> other) {
     return equals(other);
+  }
+
+  @Override
+  public void populateDisplayData(DisplayData.Builder builder) {
+    builder
+        .add("size", size)
+        .add("period", period)
+        .add("offset", offset);
   }
 
   /**

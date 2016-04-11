@@ -21,6 +21,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
 import org.apache.beam.sdk.util.ExecutableTrigger;
 
+import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 
 import org.joda.time.Instant;
@@ -106,6 +107,15 @@ public class AfterFirst extends OnceTrigger {
         subtrigger.invokeClear(subContext);
       }
     }
+  }
+
+  @Override
+  public String toString() {
+    StringBuilder builder = new StringBuilder("AfterFirst.of(");
+    Joiner.on(", ").appendTo(builder, subTriggers);
+    builder.append(")");
+
+    return builder.toString();
   }
 
   private void updateFinishedStatus(TriggerContext c) {

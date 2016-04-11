@@ -19,8 +19,12 @@ package org.apache.beam.sdk.transforms.windowing;
 
 import static org.apache.beam.sdk.testing.WindowFnTestUtils.runWindowFn;
 import static org.apache.beam.sdk.testing.WindowFnTestUtils.set;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
+
+import org.apache.beam.sdk.transforms.display.DisplayData;
 
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeConstants;
@@ -258,5 +262,32 @@ public class CalendarWindowsTest {
     assertEquals(expected, runWindowFn(
         CalendarWindows.days(1).withTimeZone(timeZone),
         timestamps));
+  }
+
+  @Test
+  public void testDisplayData() {
+    DateTimeZone timeZone = DateTimeZone.forID("America/Los_Angeles");
+    Instant jan1 = new DateTime(1990, 1, 1, 0, 0, timeZone).toInstant();
+
+    CalendarWindows.DaysWindows daysWindow = CalendarWindows.days(5)
+        .withStartingDay(1990, 1, 1)
+        .withTimeZone(timeZone);
+    DisplayData daysDisplayData = DisplayData.from(daysWindow);
+    assertThat(daysDisplayData, hasDisplayItem("numDays", 5));
+    assertThat(daysDisplayData, hasDisplayItem("startDate", jan1));
+
+    CalendarWindows.MonthsWindows monthsWindow = CalendarWindows.months(2)
+        .withStartingMonth(1990, 1)
+        .withTimeZone(timeZone);
+    DisplayData monthsDisplayData = DisplayData.from(monthsWindow);
+    assertThat(monthsDisplayData, hasDisplayItem("numMonths", 2));
+    assertThat(monthsDisplayData, hasDisplayItem("startDate", jan1));
+
+    CalendarWindows.YearsWindows yearsWindow = CalendarWindows.years(4)
+        .withStartingYear(1990)
+        .withTimeZone(timeZone);
+    DisplayData yearsDisplayData = DisplayData.from(yearsWindow);
+    assertThat(yearsDisplayData, hasDisplayItem("numYears", 4));
+    assertThat(yearsDisplayData, hasDisplayItem("startDate", jan1));
   }
 }

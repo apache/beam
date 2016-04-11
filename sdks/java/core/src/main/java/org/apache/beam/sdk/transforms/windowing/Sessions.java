@@ -20,6 +20,7 @@ package org.apache.beam.sdk.transforms.windowing;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 
 import org.joda.time.Duration;
 
@@ -95,6 +96,11 @@ public class Sessions extends WindowFn<Object, IntervalWindow> {
 
   public Duration getGapDuration() {
     return gapDuration;
+  }
+
+  @Override
+  public void populateDisplayData(DisplayData.Builder builder) {
+    builder.add("gapDuration", gapDuration);
   }
 
   @Override

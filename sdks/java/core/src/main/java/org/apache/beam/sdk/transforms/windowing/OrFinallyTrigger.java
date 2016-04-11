@@ -93,6 +93,11 @@ class OrFinallyTrigger extends Trigger {
     updateFinishedState(context);
   }
 
+  @Override
+  public String toString() {
+    return String.format("%s.orFinally(%s)", subTriggers.get(ACTUAL), subTriggers.get(UNTIL));
+  }
+
   private void updateFinishedState(TriggerContext c) throws Exception {
     boolean anyStillFinished = false;
     for (ExecutableTrigger subTrigger : c.trigger().subTriggers()) {
