@@ -26,10 +26,68 @@ import java.util.Collection;
  */
 public interface PubsubClient extends AutoCloseable {
   /**
-   * Gracefully close the underlying transport.
+   * Path representing a Pubsub subscription.
    */
-  @Override
-  void close();
+  class SubscriptionPath {
+    private final String path;
+
+    public SubscriptionPath(String projectId, String subscriptionName) {
+      path = String.format("projects/%s/subscriptions/%s", projectId, subscriptionName);
+    }
+
+    public String getPath() {
+      return path;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      SubscriptionPath that = (SubscriptionPath) o;
+      return path.equals(that.path);
+    }
+
+    @Override
+    public int hashCode() {
+      return path.hashCode();
+    }
+  }
+
+  /**
+   * Path representing a Pubsub topic.
+   */
+  class TopicPath {
+    private final String path;
+
+    public TopicPath(String projectId, String topicName) {
+      path = String.format("projects/%s/topics/%s", projectId, topicName);
+    }
+
+    public String getPath() {
+      return path;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      TopicPath topicPath = (TopicPath) o;
+      return path.equals(topicPath.path);
+    }
+
+    @Override
+    public int hashCode() {
+      return path.hashCode();
+    }
+  }
 
   /**
    * A message to be sent to Pubsub.
@@ -96,12 +154,19 @@ public interface PubsubClient extends AutoCloseable {
   }
 
   /**
+   * Gracefully close the underlying transport.
+   */
+  @Override
+  void close();
+
+
+  /**
    * Publish {@code outgoingMessages} to Pubsub {@code topic}. Return number of messages
    * published.
    *
    * @throws IOException
    */
-  int publish(String topic, Iterable<OutgoingMessage> outgoingMessages) throws IOException;
+  int publish(TopicPath topic, Iterable<OutgoingMessage> outgoingMessages) throws IOException;
 
   /**
    * Request the next batch of up to {@code batchSize} messages from {@code subscription}.
@@ -112,15 +177,15 @@ public interface PubsubClient extends AutoCloseable {
    * @throws IOException
    */
   Collection<IncomingMessage> pull(
-      long requestTimeMsSinceEpoch, String subscription, int
-      batchSize) throws IOException;
+      long requestTimeMsSinceEpoch, SubscriptionPath subscription, int batchSize)
+      throws IOException;
 
   /**
    * Acknowldege messages from {@code subscription} with {@code ackIds}.
    *
    * @throws IOException
    */
-  void acknowledge(String subscription, Iterable<String> ackIds) throws IOException;
+  void acknowledge(SubscriptionPath subscription, Iterable<String> ackIds) throws IOException;
 
   /**
    * Modify the ack deadline for messages from {@code subscription} with {@code ackIds} to
@@ -128,7 +193,9 @@ public interface PubsubClient extends AutoCloseable {
    *
    * @throws IOException
    */
-  void modifyAckDeadline(String subscription, Iterable<String> ackIds, int deadlineSeconds)
+  void modifyAckDeadline(
+      SubscriptionPath subscription, Iterable<String> ackIds,
+      int deadlineSeconds)
       throws IOException;
 
   /**
@@ -136,41 +203,42 @@ public interface PubsubClient extends AutoCloseable {
    *
    * @throws IOException
    */
-  void createTopic(String topic) throws IOException;
+  void createTopic(TopicPath topic) throws IOException;
 
   /*
    * Delete {@code topic}.
    *
    * @throws IOException
    */
-  void deleteTopic(String topic) throws IOException;
+  void deleteTopic(TopicPath topic) throws IOException;
 
   /**
-   * Return a list of topics for {@code project}.
+   * Return a list of topics for {@code projectId}.
    *
    * @throws IOException
    */
-  Collection<String> listTopics(String project) throws IOException;
+  Collection<String> listTopics(String projectId) throws IOException;
 
   /**
    * Create {@code subscription} to {@code topic}.
    *
    * @throws IOException
    */
-  void createSubscription(String topic, String subscription, int ackDeadlineSeconds) throws
-      IOException;
+  void createSubscription(
+      TopicPath topic, SubscriptionPath subscription,
+      int ackDeadlineSeconds) throws IOException;
 
   /**
    * Delete {@code subscription}.
    *
    * @throws IOException
    */
-  void deleteSubscription(String subscription) throws IOException;
+  void deleteSubscription(SubscriptionPath subscription) throws IOException;
 
   /**
-   * Return a list of subscriptions for {@code topic} in {@code project}.
+   * Return a list of subscriptions for {@code topic} in {@code projectId}.
    *
    * @throws IOException
    */
-  Collection<String> listSubscriptions(String project, String topic) throws IOException;
+  Collection<String> listSubscriptions(String projectId, TopicPath topic) throws IOException;
 }

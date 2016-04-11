@@ -121,7 +121,7 @@ public class PubsubGrpcClient implements PubsubClient {
   /**
    * Construct a new Pubsub grpc client. It should be closed via {@link #close} in order
    * to ensure tidy cleanup of underlying netty resources. (Or use the try-with-resources
-   * construct since this class is {@link AutoCloseable}. If non-{@literal null}, use
+   * construct since this class is {@link AutoCloseable}). If non-{@literal null}, use
    * {@code timestampLabel} and {@code idLabel} to store custom timestamps/ids within
    * message metadata.
    */
@@ -189,9 +189,10 @@ public class PubsubGrpcClient implements PubsubClient {
   }
 
   @Override
-  public int publish(String topic, Iterable<OutgoingMessage> outgoingMessages) throws IOException {
+  public int publish(TopicPath topic, Iterable<OutgoingMessage> outgoingMessages)
+      throws IOException {
     PublishRequest.Builder request = PublishRequest.newBuilder()
-                                                   .setTopic(topic);
+                                                   .setTopic(topic.getPath());
     for (OutgoingMessage outgoingMessage : outgoingMessages) {
       PubsubMessage.Builder message =
           PubsubMessage.newBuilder()
@@ -205,7 +206,7 @@ public class PubsubGrpcClient implements PubsubClient {
       if (idLabel != null) {
         message.getMutableAttributes()
                .put(idLabel,
-                    Hashing.murmur3_128().hashBytes(outgoingMessage.elementBytes).toString());
+                   Hashing.murmur3_128().hashBytes(outgoingMessage.elementBytes).toString());
       }
 
       request.addMessages(message);
@@ -218,10 +219,10 @@ public class PubsubGrpcClient implements PubsubClient {
   @Override
   public Collection<IncomingMessage> pull(
       long requestTimeMsSinceEpoch,
-      String subscription,
+      SubscriptionPath subscription,
       int batchSize) throws IOException {
     PullRequest request = PullRequest.newBuilder()
-                                     .setSubscription(subscription)
+                                     .setSubscription(subscription.getPath())
                                      .setReturnImmediately(true)
                                      .setMaxMessages(batchSize)
                                      .build();
@@ -281,26 +282,29 @@ public class PubsubGrpcClient implements PubsubClient {
       }
 
       incomingMessages.add(new IncomingMessage(elementBytes, timestampMsSinceEpoch,
-                                               requestTimeMsSinceEpoch, ackId, recordId));
+          requestTimeMsSinceEpoch, ackId, recordId));
     }
     return incomingMessages;
   }
 
   @Override
-  public void acknowledge(String subscription, Iterable<String> ackIds) throws IOException {
+  public void acknowledge(SubscriptionPath subscription, Iterable<String> ackIds)
+      throws IOException {
     AcknowledgeRequest request = AcknowledgeRequest.newBuilder()
-                                                   .setSubscription(subscription)
+                                                   .setSubscription(subscription.getPath())
                                                    .addAllAckIds(ackIds)
                                                    .build();
     subscriberStub().acknowledge(request); // ignore Empty result.
   }
 
   @Override
-  public void modifyAckDeadline(String subscription, Iterable<String> ackIds, int deadlineSeconds)
+  public void modifyAckDeadline(
+      SubscriptionPath subscription, Iterable<String> ackIds, int
+      deadlineSeconds)
       throws IOException {
     ModifyAckDeadlineRequest request =
         ModifyAckDeadlineRequest.newBuilder()
-                                .setSubscription(subscription)
+                                .setSubscription(subscription.getPath())
                                 .addAllAckIds(ackIds)
                                 .setAckDeadlineSeconds(deadlineSeconds)
                                 .build();
@@ -308,24 +312,26 @@ public class PubsubGrpcClient implements PubsubClient {
   }
 
   @Override
-  public void createTopic(String topic) throws IOException {
+  public void createTopic(TopicPath topic) throws IOException {
     Topic request = Topic.newBuilder()
-                         .setName(topic)
+                         .setName(topic.getPath())
                          .build();
     publisherStub().createTopic(request); // ignore Topic result.
   }
 
   @Override
-  public void deleteTopic(String topic) throws IOException {
-    DeleteTopicRequest request = DeleteTopicRequest.newBuilder().setTopic(topic).build();
+  public void deleteTopic(TopicPath topic) throws IOException {
+    DeleteTopicRequest request = DeleteTopicRequest.newBuilder()
+                                                   .setTopic(topic.getPath())
+                                                   .build();
     publisherStub().deleteTopic(request); // ignore Empty result.
   }
 
   @Override
-  public Collection<String> listTopics(String project) throws IOException {
+  public Collection<String> listTopics(String projectId) throws IOException {
     ListTopicsRequest.Builder request =
         ListTopicsRequest.newBuilder()
-                         .setProject(project)
+                         .setProject(projectId)
                          .setPageSize(LIST_BATCH_SIZE);
     ListTopicsResponse response = publisherStub().listTopics(request.build());
     if (response.getTopicsCount() == 0) {
@@ -346,28 +352,32 @@ public class PubsubGrpcClient implements PubsubClient {
   }
 
   @Override
-  public void createSubscription(String topic, String subscription, int ackDeadlineSeconds)
-      throws IOException {
+  public void createSubscription(
+      TopicPath topic, SubscriptionPath subscription,
+      int ackDeadlineSeconds) throws IOException {
     Subscription request = Subscription.newBuilder()
-                                       .setTopic(topic)
-                                       .setName(subscription)
+                                       .setTopic(topic.getPath())
+                                       .setName(subscription.getPath())
                                        .setAckDeadlineSeconds(ackDeadlineSeconds)
                                        .build();
     subscriberStub().createSubscription(request); // ignore Subscription result.
   }
 
   @Override
-  public void deleteSubscription(String subscription) throws IOException {
+  public void deleteSubscription(SubscriptionPath subscription) throws IOException {
     DeleteSubscriptionRequest request =
-        DeleteSubscriptionRequest.newBuilder().setSubscription(subscription).build();
+        DeleteSubscriptionRequest.newBuilder()
+                                 .setSubscription(subscription.getPath())
+                                 .build();
     subscriberStub().deleteSubscription(request); // ignore Empty result.
   }
 
   @Override
-  public Collection<String> listSubscriptions(String project, String topic) throws IOException {
+  public Collection<String> listSubscriptions(String projectId, TopicPath topic)
+      throws IOException {
     ListSubscriptionsRequest.Builder request =
         ListSubscriptionsRequest.newBuilder()
-                                .setProject(project)
+                                .setProject(projectId)
                                 .setPageSize(LIST_BATCH_SIZE);
     ListSubscriptionsResponse response = subscriberStub().listSubscriptions(request.build());
     if (response.getSubscriptionsCount() == 0) {
@@ -376,7 +386,7 @@ public class PubsubGrpcClient implements PubsubClient {
     List<String> subscriptions = new ArrayList<>(response.getSubscriptionsCount());
     while (true) {
       for (Subscription subscription : response.getSubscriptionsList()) {
-        if (subscription.getTopic().equals(topic)) {
+        if (subscription.getTopic().equals(topic.getPath())) {
           subscriptions.add(subscription.getName());
         }
       }
