@@ -34,11 +34,8 @@ import java.util.List;
  *
  * <p>{@code Repeatedly.forever(someTrigger)} behaves like an infinite
  * {@code AfterEach.inOrder(someTrigger, someTrigger, someTrigger, ...)}.
- *
- * @param <W> {@link BoundedWindow} subclass used to represent the windows used by this
- *            {@code Trigger}
  */
-public class Repeatedly<W extends BoundedWindow> extends Trigger<W> {
+public class Repeatedly extends Trigger {
 
   private static final int REPEATED = 0;
 
@@ -50,11 +47,11 @@ public class Repeatedly<W extends BoundedWindow> extends Trigger<W> {
    *
    * @param repeated the trigger to execute repeatedly.
    */
-  public static <W extends BoundedWindow> Repeatedly<W> forever(Trigger<W> repeated) {
-    return new Repeatedly<W>(repeated);
+  public static <W extends BoundedWindow> Repeatedly forever(Trigger repeated) {
+    return new Repeatedly(repeated);
   }
 
-  private Repeatedly(Trigger<W> repeated) {
+  private Repeatedly(Trigger repeated) {
     super(Arrays.asList(repeated));
   }
 
@@ -70,18 +67,18 @@ public class Repeatedly<W extends BoundedWindow> extends Trigger<W> {
   }
 
   @Override
-  public Instant getWatermarkThatGuaranteesFiring(W window) {
+  public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
     // This trigger fires once the repeated trigger fires.
     return subTriggers.get(REPEATED).getWatermarkThatGuaranteesFiring(window);
   }
 
   @Override
-  public Trigger<W> getContinuationTrigger(List<Trigger<W>> continuationTriggers) {
-    return new Repeatedly<W>(continuationTriggers.get(REPEATED));
+  public Trigger getContinuationTrigger(List<Trigger> continuationTriggers) {
+    return new Repeatedly(continuationTriggers.get(REPEATED));
   }
 
   @Override
-  public boolean shouldFire(Trigger<W>.TriggerContext context) throws Exception {
+  public boolean shouldFire(Trigger.TriggerContext context) throws Exception {
     return getRepeated(context).invokeShouldFire(context);
   }
 
@@ -95,7 +92,7 @@ public class Repeatedly<W extends BoundedWindow> extends Trigger<W> {
     }
   }
 
-  private ExecutableTrigger<W> getRepeated(TriggerContext context) {
+  private ExecutableTrigger getRepeated(TriggerContext context) {
     return context.trigger().subTrigger(REPEATED);
   }
 }

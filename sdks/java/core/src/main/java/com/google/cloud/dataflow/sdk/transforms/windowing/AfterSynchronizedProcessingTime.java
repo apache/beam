@@ -28,12 +28,11 @@ import java.util.List;
 
 import javax.annotation.Nullable;
 
-class AfterSynchronizedProcessingTime<W extends BoundedWindow>
-    extends AfterDelayFromFirstElement<W> {
+class AfterSynchronizedProcessingTime extends AfterDelayFromFirstElement {
 
   @Override
   @Nullable
-  public Instant getCurrentTime(Trigger<W>.TriggerContext context) {
+  public Instant getCurrentTime(Trigger.TriggerContext context) {
     return context.currentSynchronizedProcessingTime();
   }
 
@@ -43,12 +42,12 @@ class AfterSynchronizedProcessingTime<W extends BoundedWindow>
   }
 
   @Override
-  public Instant getWatermarkThatGuaranteesFiring(W window) {
+  public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
     return BoundedWindow.TIMESTAMP_MAX_VALUE;
   }
 
   @Override
-  protected Trigger<W> getContinuationTrigger(List<Trigger<W>> continuationTriggers) {
+  protected Trigger getContinuationTrigger(List<Trigger> continuationTriggers) {
     return this;
   }
 
@@ -68,7 +67,7 @@ class AfterSynchronizedProcessingTime<W extends BoundedWindow>
   }
 
   @Override
-  protected AfterSynchronizedProcessingTime<W>
+  protected AfterSynchronizedProcessingTime
       newWith(List<SerializableFunction<Instant, Instant>> transforms) {
     // ignore transforms
     return this;

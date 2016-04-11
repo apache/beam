@@ -30,34 +30,34 @@ import java.util.List;
  *
  * @param <W> The kind of window that is being reshuffled.
  */
-public class ReshuffleTrigger<W extends BoundedWindow> extends Trigger<W> {
+public class ReshuffleTrigger<W extends BoundedWindow> extends Trigger {
 
   ReshuffleTrigger() {
     super(null);
   }
 
   @Override
-  public void onElement(Trigger<W>.OnElementContext c) { }
+  public void onElement(Trigger.OnElementContext c) { }
 
   @Override
-  public void onMerge(Trigger<W>.OnMergeContext c) { }
+  public void onMerge(Trigger.OnMergeContext c) { }
 
   @Override
-  protected Trigger<W> getContinuationTrigger(List<Trigger<W>> continuationTriggers) {
+  protected Trigger getContinuationTrigger(List<Trigger> continuationTriggers) {
     return this;
   }
 
   @Override
-  public Instant getWatermarkThatGuaranteesFiring(W window) {
+  public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
     throw new UnsupportedOperationException(
         "ReshuffleTrigger should not be used outside of Reshuffle");
   }
 
   @Override
-  public boolean shouldFire(Trigger<W>.TriggerContext context) throws Exception {
+  public boolean shouldFire(Trigger.TriggerContext context) throws Exception {
     return true;
   }
 
   @Override
-  public void onFire(Trigger<W>.TriggerContext context) throws Exception { }
+  public void onFire(Trigger.TriggerContext context) throws Exception { }
 }

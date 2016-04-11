@@ -137,10 +137,10 @@ public class AfterProcessingTimeTest {
 
   @Test
   public void testContinuation() throws Exception {
-    OnceTrigger<?> firstElementPlus1 =
+    OnceTrigger firstElementPlus1 =
         AfterProcessingTime.pastFirstElementInPane().plusDelayOf(Duration.standardHours(1));
     assertEquals(
-        new AfterSynchronizedProcessingTime<>(),
+        new AfterSynchronizedProcessingTime(),
         firstElementPlus1.getContinuationTrigger());
   }
 
@@ -149,9 +149,9 @@ public class AfterProcessingTimeTest {
    */
   @Test
   public void testCompatibilityIdentical() throws Exception {
-    Trigger<?> t1 = AfterProcessingTime.pastFirstElementInPane()
+    Trigger t1 = AfterProcessingTime.pastFirstElementInPane()
             .plusDelayOf(Duration.standardMinutes(1L));
-    Trigger<?> t2 = AfterProcessingTime.pastFirstElementInPane()
+    Trigger t2 = AfterProcessingTime.pastFirstElementInPane()
             .plusDelayOf(Duration.standardMinutes(1L));
     assertTrue(t1.isCompatible(t2));
   }

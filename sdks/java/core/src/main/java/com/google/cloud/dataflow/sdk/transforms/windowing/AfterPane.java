@@ -35,12 +35,9 @@ import java.util.Objects;
 
 /**
  * {@link Trigger}s that fire based on properties of the elements in the current pane.
- *
- * @param <W> {@link BoundedWindow} subclass used to represent the windows used by this
- *            {@link Trigger}
  */
 @Experimental(Experimental.Kind.TRIGGER)
-public class AfterPane<W extends BoundedWindow> extends OnceTrigger<W>{
+public class AfterPane extends OnceTrigger {
 
 private static final StateTag<Object, AccumulatorCombiningState<Long, long[], Long>>
       ELEMENTS_IN_PANE_TAG =
@@ -57,8 +54,8 @@ private static final StateTag<Object, AccumulatorCombiningState<Long, long[], Lo
   /**
    * Creates a trigger that fires when the pane contains at least {@code countElems} elements.
    */
-  public static <W extends BoundedWindow> AfterPane<W> elementCountAtLeast(int countElems) {
-    return new AfterPane<>(countElems);
+  public static AfterPane elementCountAtLeast(int countElems) {
+    return new AfterPane(countElems);
   }
 
   @Override
@@ -67,7 +64,7 @@ private static final StateTag<Object, AccumulatorCombiningState<Long, long[], Lo
   }
 
   @Override
-  public void prefetchOnMerge(MergingStateAccessor<?, W> state) {
+  public void prefetchOnMerge(MergingStateAccessor<?, ?> state) {
     super.prefetchOnMerge(state);
     StateMerging.prefetchCombiningValues(state, ELEMENTS_IN_PANE_TAG);
   }
@@ -92,7 +89,7 @@ private static final StateTag<Object, AccumulatorCombiningState<Long, long[], Lo
   }
 
   @Override
-  public boolean shouldFire(Trigger<W>.TriggerContext context) throws Exception {
+  public boolean shouldFire(Trigger.TriggerContext context) throws Exception {
     long count = context.state().access(ELEMENTS_IN_PANE_TAG).read();
     return count >= countElems;
   }
@@ -103,17 +100,17 @@ private static final StateTag<Object, AccumulatorCombiningState<Long, long[], Lo
   }
 
   @Override
-  public boolean isCompatible(Trigger<?> other) {
+  public boolean isCompatible(Trigger other) {
     return this.equals(other);
   }
 
   @Override
-  public Instant getWatermarkThatGuaranteesFiring(W window) {
+  public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
     return BoundedWindow.TIMESTAMP_MAX_VALUE;
   }
 
   @Override
-  public OnceTrigger<W> getContinuationTrigger(List<Trigger<W>> continuationTriggers) {
+  public OnceTrigger getContinuationTrigger(List<Trigger> continuationTriggers) {
     return AfterPane.elementCountAtLeast(1);
   }
 
@@ -130,7 +127,7 @@ private static final StateTag<Object, AccumulatorCombiningState<Long, long[], Lo
     if (!(obj instanceof AfterPane)) {
       return false;
     }
-    AfterPane<?> that = (AfterPane<?>) obj;
+    AfterPane that = (AfterPane) obj;
     return this.countElems == that.countElems;
   }
 
@@ -140,7 +137,7 @@ private static final StateTag<Object, AccumulatorCombiningState<Long, long[], Lo
   }
 
   @Override
-  protected void onOnlyFiring(Trigger<W>.TriggerContext context) throws Exception {
+  protected void onOnlyFiring(Trigger.TriggerContext context) throws Exception {
     clear(context);
   }
 }

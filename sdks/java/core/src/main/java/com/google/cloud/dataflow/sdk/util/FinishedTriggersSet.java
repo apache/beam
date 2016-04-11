@@ -26,30 +26,30 @@ import java.util.Set;
  */
 public class FinishedTriggersSet implements FinishedTriggers {
 
-  private final Set<ExecutableTrigger<?>> finishedTriggers;
+  private final Set<ExecutableTrigger> finishedTriggers;
 
-  private FinishedTriggersSet(Set<ExecutableTrigger<?>> finishedTriggers) {
+  private FinishedTriggersSet(Set<ExecutableTrigger> finishedTriggers) {
     this.finishedTriggers = finishedTriggers;
   }
 
-  public static FinishedTriggersSet fromSet(Set<ExecutableTrigger<?>> finishedTriggers) {
+  public static FinishedTriggersSet fromSet(Set<ExecutableTrigger> finishedTriggers) {
     return new FinishedTriggersSet(finishedTriggers);
   }
 
   /**
    * Returns a mutable {@link Set} of the underlying triggers that are finished.
    */
-  public Set<ExecutableTrigger<?>> getFinishedTriggers() {
+  public Set<ExecutableTrigger> getFinishedTriggers() {
     return finishedTriggers;
   }
 
   @Override
-  public boolean isFinished(ExecutableTrigger<?> trigger) {
+  public boolean isFinished(ExecutableTrigger trigger) {
     return finishedTriggers.contains(trigger);
   }
 
   @Override
-  public void setFinished(ExecutableTrigger<?> trigger, boolean value) {
+  public void setFinished(ExecutableTrigger trigger, boolean value) {
     if (value) {
       finishedTriggers.add(trigger);
     } else {
@@ -58,9 +58,9 @@ public class FinishedTriggersSet implements FinishedTriggers {
   }
 
   @Override
-  public void clearRecursively(ExecutableTrigger<?> trigger) {
+  public void clearRecursively(ExecutableTrigger trigger) {
     finishedTriggers.remove(trigger);
-    for (ExecutableTrigger<?> subTrigger : trigger.subTriggers()) {
+    for (ExecutableTrigger subTrigger : trigger.subTriggers()) {
       clearRecursively(subTrigger);
     }
   }

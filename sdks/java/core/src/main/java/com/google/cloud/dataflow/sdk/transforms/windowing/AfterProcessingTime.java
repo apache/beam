@@ -34,15 +34,13 @@ import javax.annotation.Nullable;
  *
  * <p>The time at which to fire the timer can be adjusted via the methods in {@link TimeTrigger},
  * such as {@link TimeTrigger#plusDelayOf} or {@link TimeTrigger#alignedTo}.
- *
- * @param <W> {@link BoundedWindow} subclass used to represent the windows used
  */
 @Experimental(Experimental.Kind.TRIGGER)
-public class AfterProcessingTime<W extends BoundedWindow> extends AfterDelayFromFirstElement<W> {
+public class AfterProcessingTime extends AfterDelayFromFirstElement {
 
   @Override
   @Nullable
-  public Instant getCurrentTime(Trigger<W>.TriggerContext context) {
+  public Instant getCurrentTime(Trigger.TriggerContext context) {
     return context.currentProcessingTime();
   }
 
@@ -54,24 +52,24 @@ public class AfterProcessingTime<W extends BoundedWindow> extends AfterDelayFrom
    * Creates a trigger that fires when the current processing time passes the processing time
    * at which this trigger saw the first element in a pane.
    */
-  public static <W extends BoundedWindow> AfterProcessingTime<W> pastFirstElementInPane() {
-    return new AfterProcessingTime<W>(IDENTITY);
+  public static <W extends BoundedWindow> AfterProcessingTime pastFirstElementInPane() {
+    return new AfterProcessingTime(IDENTITY);
   }
 
   @Override
-  protected AfterProcessingTime<W> newWith(
+  protected AfterProcessingTime newWith(
       List<SerializableFunction<Instant, Instant>> transforms) {
-    return new AfterProcessingTime<W>(transforms);
+    return new AfterProcessingTime(transforms);
   }
 
   @Override
-  public Instant getWatermarkThatGuaranteesFiring(W window) {
+  public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
     return BoundedWindow.TIMESTAMP_MAX_VALUE;
   }
 
   @Override
-  protected Trigger<W> getContinuationTrigger(List<Trigger<W>> continuationTriggers) {
-    return new AfterSynchronizedProcessingTime<W>();
+  protected Trigger getContinuationTrigger(List<Trigger> continuationTriggers) {
+    return new AfterSynchronizedProcessingTime();
   }
 
   @Override
@@ -87,7 +85,7 @@ public class AfterProcessingTime<W extends BoundedWindow> extends AfterDelayFrom
     if (!(obj instanceof AfterProcessingTime)) {
       return false;
     }
-    AfterProcessingTime<?> that = (AfterProcessingTime<?>) obj;
+    AfterProcessingTime that = (AfterProcessingTime) obj;
     return Objects.equals(this.timestampMappers, that.timestampMappers);
   }
 

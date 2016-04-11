@@ -48,7 +48,7 @@ import javax.annotation.Nullable;
  * <p>This class is for internal use only and may change at any time.
  */
 @Experimental(Experimental.Kind.TRIGGER)
-public abstract class AfterDelayFromFirstElement<W extends BoundedWindow> extends OnceTrigger<W> {
+public abstract class AfterDelayFromFirstElement extends OnceTrigger {
 
   protected static final List<SerializableFunction<Instant, Instant>> IDENTITY =
       ImmutableList.<SerializableFunction<Instant, Instant>>of();
@@ -62,14 +62,14 @@ public abstract class AfterDelayFromFirstElement<W extends BoundedWindow> extend
    * To complete an implementation, return the desired time from the TriggerContext.
    */
   @Nullable
-  public abstract Instant getCurrentTime(Trigger<W>.TriggerContext context);
+  public abstract Instant getCurrentTime(Trigger.TriggerContext context);
 
   /**
    * To complete an implementation, return a new instance like this one, but incorporating
    * the provided timestamp mapping functions. Generally should be used by calling the
    * constructor of this class from the constructor of the subclass.
    */
-  protected abstract AfterDelayFromFirstElement<W> newWith(
+  protected abstract AfterDelayFromFirstElement newWith(
       List<SerializableFunction<Instant, Instant>> transform);
 
   /**
@@ -100,7 +100,7 @@ public abstract class AfterDelayFromFirstElement<W extends BoundedWindow> extend
    * <p>TODO: Consider sharing this with FixedWindows, and bring over the equivalent of
    * CalendarWindows.
    */
-  public AfterDelayFromFirstElement<W> alignedTo(final Duration size, final Instant offset) {
+  public AfterDelayFromFirstElement alignedTo(final Duration size, final Instant offset) {
     return newWith(new AlignFn(size, offset));
   }
 
@@ -108,7 +108,7 @@ public abstract class AfterDelayFromFirstElement<W extends BoundedWindow> extend
    * Aligns the time to be the smallest multiple of {@code size} greater than the timestamp
    * since the epoch.
    */
-  public AfterDelayFromFirstElement<W> alignedTo(final Duration size) {
+  public AfterDelayFromFirstElement alignedTo(final Duration size) {
     return alignedTo(size, new Instant(0));
   }
 
@@ -118,7 +118,7 @@ public abstract class AfterDelayFromFirstElement<W extends BoundedWindow> extend
    * @param delay the delay to add
    * @return An updated time trigger that will wait the additional time before firing.
    */
-  public AfterDelayFromFirstElement<W> plusDelayOf(final Duration delay) {
+  public AfterDelayFromFirstElement plusDelayOf(final Duration delay) {
     return newWith(new DelayFn(delay));
   }
 
@@ -127,22 +127,22 @@ public abstract class AfterDelayFromFirstElement<W extends BoundedWindow> extend
    *             {@link #plusDelayOf} and {@link #alignedTo}.
    */
   @Deprecated
-  public OnceTrigger<W> mappedTo(SerializableFunction<Instant, Instant> timestampMapper) {
+  public OnceTrigger mappedTo(SerializableFunction<Instant, Instant> timestampMapper) {
     return newWith(timestampMapper);
   }
 
   @Override
-  public boolean isCompatible(Trigger<?> other) {
+  public boolean isCompatible(Trigger other) {
     if (!getClass().equals(other.getClass())) {
       return false;
     }
 
-    AfterDelayFromFirstElement<?> that = (AfterDelayFromFirstElement<?>) other;
+    AfterDelayFromFirstElement that = (AfterDelayFromFirstElement) other;
     return this.timestampMappers.equals(that.timestampMappers);
   }
 
 
-  private AfterDelayFromFirstElement<W> newWith(
+  private AfterDelayFromFirstElement newWith(
       SerializableFunction<Instant, Instant> timestampMapper) {
     return newWith(
         ImmutableList.<SerializableFunction<Instant, Instant>>builder()
@@ -173,7 +173,7 @@ public abstract class AfterDelayFromFirstElement<W extends BoundedWindow> extend
   }
 
   @Override
-  public void prefetchOnMerge(MergingStateAccessor<?, W> state) {
+  public void prefetchOnMerge(MergingStateAccessor<?, ?> state) {
     super.prefetchOnMerge(state);
     StateMerging.prefetchCombiningValues(state, DELAYED_UNTIL_TAG);
   }
@@ -218,12 +218,12 @@ public abstract class AfterDelayFromFirstElement<W extends BoundedWindow> extend
   }
 
   @Override
-  public Instant getWatermarkThatGuaranteesFiring(W window) {
+  public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
     return BoundedWindow.TIMESTAMP_MAX_VALUE;
   }
 
   @Override
-  public boolean shouldFire(Trigger<W>.TriggerContext context) throws Exception {
+  public boolean shouldFire(Trigger.TriggerContext context) throws Exception {
     Instant delayedUntil = context.state().access(DELAYED_UNTIL_TAG).read();
     return delayedUntil != null
         && getCurrentTime(context) != null
@@ -231,7 +231,7 @@ public abstract class AfterDelayFromFirstElement<W extends BoundedWindow> extend
   }
 
   @Override
-  protected void onOnlyFiring(Trigger<W>.TriggerContext context) throws Exception {
+  protected void onOnlyFiring(Trigger.TriggerContext context) throws Exception {
     clear(context);
   }
 

@@ -112,9 +112,9 @@ public class AfterEachTest {
 
   @Test
   public void testContinuation() throws Exception {
-    OnceTrigger<IntervalWindow> trigger1 = AfterProcessingTime.pastFirstElementInPane();
-    OnceTrigger<IntervalWindow> trigger2 = AfterWatermark.pastEndOfWindow();
-    Trigger<IntervalWindow> afterEach = AfterEach.inOrder(trigger1, trigger2);
+    OnceTrigger trigger1 = AfterProcessingTime.pastFirstElementInPane();
+    OnceTrigger trigger2 = AfterWatermark.pastEndOfWindow();
+    Trigger afterEach = AfterEach.inOrder(trigger1, trigger2);
     assertEquals(
         Repeatedly.forever(AfterFirst.of(
             trigger1.getContinuationTrigger(), trigger2.getContinuationTrigger())),

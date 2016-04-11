@@ -59,11 +59,9 @@ import java.util.Objects;
  * Additionaly firings before or after the watermark can be requested by calling
  * {@code AfterWatermark.pastEndOfWindow.withEarlyFirings(OnceTrigger)} or
  * {@code AfterWatermark.pastEndOfWindow.withEarlyFirings(OnceTrigger)}.
- *
- * @param <W> {@link BoundedWindow} subclass used to represent the windows used.
  */
 @Experimental(Experimental.Kind.TRIGGER)
-public class AfterWatermark<W extends BoundedWindow> {
+public class AfterWatermark {
 
   // Static factory class.
   private AfterWatermark() {}
@@ -71,37 +69,37 @@ public class AfterWatermark<W extends BoundedWindow> {
   /**
    * Creates a trigger that fires when the watermark passes the end of the window.
    */
-  public static <W extends BoundedWindow> FromEndOfWindow<W> pastEndOfWindow() {
-    return new FromEndOfWindow<W>();
+  public static FromEndOfWindow pastEndOfWindow() {
+    return new FromEndOfWindow();
   }
 
   /**
    * Interface for building an AfterWatermarkTrigger with early firings already filled in.
    */
-  public interface AfterWatermarkEarly<W extends BoundedWindow> extends TriggerBuilder<W> {
+  public interface AfterWatermarkEarly extends TriggerBuilder {
     /**
      * Creates a new {@code Trigger} like the this, except that it fires repeatedly whenever
      * the given {@code Trigger} fires after the watermark has passed the end of the window.
      */
-    TriggerBuilder<W> withLateFirings(OnceTrigger<W> lateTrigger);
+    TriggerBuilder withLateFirings(OnceTrigger lateTrigger);
   }
 
   /**
    * Interface for building an AfterWatermarkTrigger with late firings already filled in.
    */
-  public interface AfterWatermarkLate<W extends BoundedWindow> extends TriggerBuilder<W> {
+  public interface AfterWatermarkLate extends TriggerBuilder {
     /**
      * Creates a new {@code Trigger} like the this, except that it fires repeatedly whenever
      * the given {@code Trigger} fires before the watermark has passed the end of the window.
      */
-    TriggerBuilder<W> withEarlyFirings(OnceTrigger<W> earlyTrigger);
+    TriggerBuilder withEarlyFirings(OnceTrigger earlyTrigger);
   }
 
   /**
    * A trigger which never fires. Used for the "early" trigger when only a late trigger was
    * specified.
    */
-  private static class NeverTrigger<W extends BoundedWindow> extends OnceTrigger<W> {
+  private static class NeverTrigger extends OnceTrigger {
 
     protected NeverTrigger() {
       super(null);
@@ -114,54 +112,54 @@ public class AfterWatermark<W extends BoundedWindow> {
     public void onMerge(OnMergeContext c) throws Exception { }
 
     @Override
-    protected Trigger<W> getContinuationTrigger(List<Trigger<W>> continuationTriggers) {
+    protected Trigger getContinuationTrigger(List<Trigger> continuationTriggers) {
       return this;
     }
 
     @Override
-    public Instant getWatermarkThatGuaranteesFiring(W window) {
+    public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
       return BoundedWindow.TIMESTAMP_MAX_VALUE;
     }
 
     @Override
-    public boolean shouldFire(Trigger<W>.TriggerContext context) throws Exception {
+    public boolean shouldFire(Trigger.TriggerContext context) throws Exception {
       return false;
     }
 
     @Override
-    protected void onOnlyFiring(Trigger<W>.TriggerContext context) throws Exception {
+    protected void onOnlyFiring(Trigger.TriggerContext context) throws Exception {
       throw new UnsupportedOperationException(
           String.format("%s should never fire", getClass().getSimpleName()));
     }
   }
 
-  private static class AfterWatermarkEarlyAndLate<W extends BoundedWindow>
-      extends Trigger<W>
-      implements TriggerBuilder<W>, AfterWatermarkEarly<W>, AfterWatermarkLate<W> {
+  private static class AfterWatermarkEarlyAndLate
+      extends Trigger
+      implements TriggerBuilder, AfterWatermarkEarly, AfterWatermarkLate {
 
     private static final int EARLY_INDEX = 0;
     private static final int LATE_INDEX = 1;
 
-    private final OnceTrigger<W> earlyTrigger;
-    private final OnceTrigger<W> lateTrigger;
+    private final OnceTrigger earlyTrigger;
+    private final OnceTrigger lateTrigger;
 
     @SuppressWarnings("unchecked")
-    private AfterWatermarkEarlyAndLate(OnceTrigger<W> earlyTrigger, OnceTrigger<W> lateTrigger) {
+    private AfterWatermarkEarlyAndLate(OnceTrigger earlyTrigger, OnceTrigger lateTrigger) {
       super(lateTrigger == null
-          ? ImmutableList.<Trigger<W>>of(earlyTrigger)
-          : ImmutableList.<Trigger<W>>of(earlyTrigger, lateTrigger));
+          ? ImmutableList.<Trigger>of(earlyTrigger)
+          : ImmutableList.<Trigger>of(earlyTrigger, lateTrigger));
       this.earlyTrigger = checkNotNull(earlyTrigger, "earlyTrigger should not be null");
       this.lateTrigger = lateTrigger;
     }
 
     @Override
-    public TriggerBuilder<W> withEarlyFirings(OnceTrigger<W> earlyTrigger) {
-      return new AfterWatermarkEarlyAndLate<W>(earlyTrigger, lateTrigger);
+    public TriggerBuilder withEarlyFirings(OnceTrigger earlyTrigger) {
+      return new AfterWatermarkEarlyAndLate(earlyTrigger, lateTrigger);
     }
 
     @Override
-    public TriggerBuilder<W> withLateFirings(OnceTrigger<W> lateTrigger) {
-      return new AfterWatermarkEarlyAndLate<W>(earlyTrigger, lateTrigger);
+    public TriggerBuilder withLateFirings(OnceTrigger lateTrigger) {
+      return new AfterWatermarkEarlyAndLate(earlyTrigger, lateTrigger);
     }
 
     @Override
@@ -172,7 +170,7 @@ public class AfterWatermark<W extends BoundedWindow> {
       } else {
         // If merges can happen, we run for all subtriggers because they might be
         // de-activated or re-activated
-        for (ExecutableTrigger<W> subTrigger : c.trigger().subTriggers()) {
+        for (ExecutableTrigger subTrigger : c.trigger().subTriggers()) {
           subTrigger.invokeOnElement(c);
         }
       }
@@ -183,7 +181,7 @@ public class AfterWatermark<W extends BoundedWindow> {
       // NOTE that the ReduceFnRunner will delete all end-of-window timers for the
       // merged-away windows.
 
-      ExecutableTrigger<W> earlySubtrigger = c.trigger().subTrigger(EARLY_INDEX);
+      ExecutableTrigger earlySubtrigger = c.trigger().subTrigger(EARLY_INDEX);
       // We check the early trigger to determine if we are still processing it or
       // if the end of window has transitioned us to the late trigger
       OnMergeContext earlyContext = c.forTrigger(earlySubtrigger);
@@ -194,7 +192,7 @@ public class AfterWatermark<W extends BoundedWindow> {
       if (!earlyContext.trigger().finishedInAllMergingWindows() || !endOfWindowReached(c)) {
         earlyContext.trigger().setFinished(false);
         if (lateTrigger != null) {
-          ExecutableTrigger<W> lateSubtrigger = c.trigger().subTrigger(LATE_INDEX);
+          ExecutableTrigger lateSubtrigger = c.trigger().subTrigger(LATE_INDEX);
           OnMergeContext lateContext = c.forTrigger(lateSubtrigger);
           lateContext.trigger().setFinished(false);
           lateSubtrigger.invokeClear(lateContext);
@@ -209,31 +207,31 @@ public class AfterWatermark<W extends BoundedWindow> {
     }
 
     @Override
-    public Trigger<W> getContinuationTrigger() {
-      return new AfterWatermarkEarlyAndLate<W>(
+    public Trigger getContinuationTrigger() {
+      return new AfterWatermarkEarlyAndLate(
           earlyTrigger.getContinuationTrigger(),
           lateTrigger == null ? null : lateTrigger.getContinuationTrigger());
     }
 
     @Override
-    protected Trigger<W> getContinuationTrigger(List<Trigger<W>> continuationTriggers) {
+    protected Trigger getContinuationTrigger(List<Trigger> continuationTriggers) {
       throw new UnsupportedOperationException(
-          "Should not call getContinuationTrigger(List<Trigger<W>>)");
+          "Should not call getContinuationTrigger(List<Trigger>)");
     }
 
     @Override
-    public Instant getWatermarkThatGuaranteesFiring(W window) {
+    public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
       // Even without an early or late trigger, we'll still produce a firing at the watermark.
       return window.maxTimestamp();
     }
 
-    private boolean endOfWindowReached(Trigger<W>.TriggerContext context) {
+    private boolean endOfWindowReached(Trigger.TriggerContext context) {
       return context.currentEventTime() != null
           && context.currentEventTime().isAfter(context.window().maxTimestamp());
     }
 
     @Override
-    public boolean shouldFire(Trigger<W>.TriggerContext context) throws Exception {
+    public boolean shouldFire(Trigger.TriggerContext context) throws Exception {
       if (!context.trigger().isFinished(EARLY_INDEX)) {
         // We have not yet transitioned to late firings.
         // We should fire if either the trigger is ready or we reach the end of the window.
@@ -248,7 +246,7 @@ public class AfterWatermark<W extends BoundedWindow> {
     }
 
     @Override
-    public void onFire(Trigger<W>.TriggerContext context) throws Exception {
+    public void onFire(Trigger.TriggerContext context) throws Exception {
       if (!context.forTrigger(context.trigger().subTrigger(EARLY_INDEX)).trigger().isFinished()) {
         onNonLateFiring(context);
       } else if (lateTrigger != null) {
@@ -259,10 +257,10 @@ public class AfterWatermark<W extends BoundedWindow> {
       }
     }
 
-    private void onNonLateFiring(Trigger<W>.TriggerContext context) throws Exception {
+    private void onNonLateFiring(Trigger.TriggerContext context) throws Exception {
       // We have not yet transitioned to late firings.
-      ExecutableTrigger<W> earlySubtrigger = context.trigger().subTrigger(EARLY_INDEX);
-      Trigger<W>.TriggerContext earlyContext = context.forTrigger(earlySubtrigger);
+      ExecutableTrigger earlySubtrigger = context.trigger().subTrigger(EARLY_INDEX);
+      Trigger.TriggerContext earlyContext = context.forTrigger(earlySubtrigger);
 
       if (!endOfWindowReached(context)) {
         // This is an early firing, since we have not arrived at the end of the window
@@ -291,9 +289,9 @@ public class AfterWatermark<W extends BoundedWindow> {
 
     }
 
-    private void onLateFiring(Trigger<W>.TriggerContext context) throws Exception {
+    private void onLateFiring(Trigger.TriggerContext context) throws Exception {
       // We are firing the late trigger, with implicit repeat
-      ExecutableTrigger<W> lateSubtrigger = context.trigger().subTrigger(LATE_INDEX);
+      ExecutableTrigger lateSubtrigger = context.trigger().subTrigger(LATE_INDEX);
       lateSubtrigger.invokeOnFire(context);
       // It is a OnceTrigger, so it must have finished; unfinished it and clear it
       lateSubtrigger.invokeClear(context);
@@ -304,7 +302,7 @@ public class AfterWatermark<W extends BoundedWindow> {
   /**
    * A watermark trigger targeted relative to the end of the window.
    */
-  public static class FromEndOfWindow<W extends BoundedWindow> extends OnceTrigger<W> {
+  public static class FromEndOfWindow extends OnceTrigger {
 
     private FromEndOfWindow() {
       super(null);
@@ -314,20 +312,20 @@ public class AfterWatermark<W extends BoundedWindow> {
      * Creates a new {@code Trigger} like the this, except that it fires repeatedly whenever
      * the given {@code Trigger} fires before the watermark has passed the end of the window.
      */
-    public AfterWatermarkEarly<W> withEarlyFirings(OnceTrigger<W> earlyFirings) {
+    public AfterWatermarkEarly withEarlyFirings(OnceTrigger earlyFirings) {
       Preconditions.checkNotNull(earlyFirings,
           "Must specify the trigger to use for early firings");
-      return new AfterWatermarkEarlyAndLate<W>(earlyFirings, null);
+      return new AfterWatermarkEarlyAndLate(earlyFirings, null);
     }
 
     /**
      * Creates a new {@code Trigger} like the this, except that it fires repeatedly whenever
      * the given {@code Trigger} fires after the watermark has passed the end of the window.
      */
-    public AfterWatermarkLate<W> withLateFirings(OnceTrigger<W> lateFirings) {
+    public AfterWatermarkLate withLateFirings(OnceTrigger lateFirings) {
       Preconditions.checkNotNull(lateFirings,
           "Must specify the trigger to use for late firings");
-      return new AfterWatermarkEarlyAndLate<W>(new NeverTrigger<W>(), lateFirings);
+      return new AfterWatermarkEarlyAndLate(new NeverTrigger(), lateFirings);
     }
 
     @Override
@@ -358,12 +356,12 @@ public class AfterWatermark<W extends BoundedWindow> {
     }
 
     @Override
-    public Instant getWatermarkThatGuaranteesFiring(W window) {
+    public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
       return window.maxTimestamp();
     }
 
     @Override
-    public FromEndOfWindow<W> getContinuationTrigger(List<Trigger<W>> continuationTriggers) {
+    public FromEndOfWindow getContinuationTrigger(List<Trigger> continuationTriggers) {
       return this;
     }
 
@@ -383,16 +381,16 @@ public class AfterWatermark<W extends BoundedWindow> {
     }
 
     @Override
-    public boolean shouldFire(Trigger<W>.TriggerContext context) throws Exception {
+    public boolean shouldFire(Trigger.TriggerContext context) throws Exception {
       return endOfWindowReached(context);
     }
 
-    private boolean endOfWindowReached(Trigger<W>.TriggerContext context) {
+    private boolean endOfWindowReached(Trigger.TriggerContext context) {
       return context.currentEventTime() != null
           && context.currentEventTime().isAfter(context.window().maxTimestamp());
     }
 
     @Override
-    protected void onOnlyFiring(Trigger<W>.TriggerContext context) throws Exception { }
+    protected void onOnlyFiring(Trigger.TriggerContext context) throws Exception { }
   }
 }

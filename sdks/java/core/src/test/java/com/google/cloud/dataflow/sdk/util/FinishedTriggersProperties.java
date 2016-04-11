@@ -34,7 +34,7 @@ public class FinishedTriggersProperties {
    * Tests that for the provided trigger and {@link FinishedTriggers}, when the trigger is set
    * finished, it is correctly reported as finished.
    */
-  public static void verifyGetAfterSet(FinishedTriggers finishedSet, ExecutableTrigger<?> trigger) {
+  public static void verifyGetAfterSet(FinishedTriggers finishedSet, ExecutableTrigger trigger) {
     assertFalse(finishedSet.isFinished(trigger));
     finishedSet.setFinished(trigger, true);
     assertTrue(finishedSet.isFinished(trigger));
@@ -45,7 +45,7 @@ public class FinishedTriggersProperties {
    * reported as finished.
    */
   public static void verifyGetAfterSet(FinishedTriggers finishedSet) {
-    ExecutableTrigger<?> trigger = ExecutableTrigger.create(AfterAll.of(
+    ExecutableTrigger trigger = ExecutableTrigger.create(AfterAll.of(
         AfterFirst.of(AfterPane.elementCountAtLeast(3), AfterWatermark.pastEndOfWindow()),
         AfterAll.of(
             AfterPane.elementCountAtLeast(10), AfterProcessingTime.pastFirstElementInPane())));
@@ -63,7 +63,7 @@ public class FinishedTriggersProperties {
    * others.
    */
   public static void verifyClearRecursively(FinishedTriggers finishedSet) {
-    ExecutableTrigger<?> trigger = ExecutableTrigger.create(AfterAll.of(
+    ExecutableTrigger trigger = ExecutableTrigger.create(AfterAll.of(
         AfterFirst.of(AfterPane.elementCountAtLeast(3), AfterWatermark.pastEndOfWindow()),
         AfterAll.of(
             AfterPane.elementCountAtLeast(10), AfterProcessingTime.pastFirstElementInPane())));
@@ -85,25 +85,25 @@ public class FinishedTriggersProperties {
   }
 
   private static void setFinishedRecursively(
-      FinishedTriggers finishedSet, ExecutableTrigger<?> trigger) {
+      FinishedTriggers finishedSet, ExecutableTrigger trigger) {
     finishedSet.setFinished(trigger, true);
-    for (ExecutableTrigger<?> subTrigger : trigger.subTriggers()) {
+    for (ExecutableTrigger subTrigger : trigger.subTriggers()) {
       setFinishedRecursively(finishedSet, subTrigger);
     }
   }
 
   private static void verifyFinishedRecursively(
-      FinishedTriggers finishedSet, ExecutableTrigger<?> trigger) {
+      FinishedTriggers finishedSet, ExecutableTrigger trigger) {
     assertTrue(finishedSet.isFinished(trigger));
-    for (ExecutableTrigger<?> subTrigger : trigger.subTriggers()) {
+    for (ExecutableTrigger subTrigger : trigger.subTriggers()) {
       verifyFinishedRecursively(finishedSet, subTrigger);
     }
   }
 
   private static void verifyUnfinishedRecursively(
-      FinishedTriggers finishedSet, ExecutableTrigger<?> trigger) {
+      FinishedTriggers finishedSet, ExecutableTrigger trigger) {
     assertFalse(finishedSet.isFinished(trigger));
-    for (ExecutableTrigger<?> subTrigger : trigger.subTriggers()) {
+    for (ExecutableTrigger subTrigger : trigger.subTriggers()) {
       verifyUnfinishedRecursively(finishedSet, subTrigger);
     }
   }

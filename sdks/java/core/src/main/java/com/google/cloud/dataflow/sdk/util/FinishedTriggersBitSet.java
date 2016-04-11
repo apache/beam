@@ -46,17 +46,17 @@ public class FinishedTriggersBitSet implements FinishedTriggers {
   }
 
   @Override
-  public boolean isFinished(ExecutableTrigger<?> trigger) {
+  public boolean isFinished(ExecutableTrigger trigger) {
     return bitSet.get(trigger.getTriggerIndex());
   }
 
   @Override
-  public void setFinished(ExecutableTrigger<?> trigger, boolean value) {
+  public void setFinished(ExecutableTrigger trigger, boolean value) {
     bitSet.set(trigger.getTriggerIndex(), value);
   }
 
   @Override
-  public void clearRecursively(ExecutableTrigger<?> trigger) {
+  public void clearRecursively(ExecutableTrigger trigger) {
     bitSet.clear(trigger.getTriggerIndex(), trigger.getFirstIndexAfterSubtree());
   }
 

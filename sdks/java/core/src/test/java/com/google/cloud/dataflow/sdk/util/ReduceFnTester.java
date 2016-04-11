@@ -114,7 +114,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
    */
   private boolean autoAdvanceOutputWatermark;
 
-  private ExecutableTrigger<W> executableTrigger;
+  private ExecutableTrigger executableTrigger;
 
   private final InMemoryLongSumAggregator droppedDueToClosedWindow =
       new InMemoryLongSumAggregator(GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER);
@@ -130,7 +130,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   }
 
   public static <W extends BoundedWindow> ReduceFnTester<Integer, Iterable<Integer>, W>
-      nonCombining(WindowFn<?, W> windowFn, TriggerBuilder<W> trigger, AccumulationMode mode,
+      nonCombining(WindowFn<?, W> windowFn, TriggerBuilder trigger, AccumulationMode mode,
           Duration allowedDataLateness, ClosingBehavior closingBehavior) throws Exception {
     WindowingStrategy<?, W> strategy =
         WindowingStrategy.of(windowFn)
@@ -180,7 +180,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
         sideInputReader);
   }
   public static <W extends BoundedWindow, AccumT, OutputT> ReduceFnTester<Integer, OutputT, W>
-      combining(WindowFn<?, W> windowFn, Trigger<W> trigger, AccumulationMode mode,
+      combining(WindowFn<?, W> windowFn, Trigger trigger, AccumulationMode mode,
           KeyedCombineFn<String, Integer, AccumT, OutputT> combineFn, Coder<OutputT> outputCoder,
           Duration allowedDataLateness) throws Exception {
 
@@ -228,7 +228,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
         options);
   }
 
-  public ExecutableTrigger<W> getTrigger() {
+  public ExecutableTrigger getTrigger() {
     return executableTrigger;
   }
 

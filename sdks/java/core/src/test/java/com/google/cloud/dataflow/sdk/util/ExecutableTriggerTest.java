@@ -21,7 +21,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 
 import org.joda.time.Instant;
@@ -41,7 +40,7 @@ public class ExecutableTriggerTest {
   @Test
   public void testIndexAssignmentLeaf() throws Exception {
     StubTrigger t1 = new StubTrigger();
-    ExecutableTrigger<?> executable = ExecutableTrigger.create(t1);
+    ExecutableTrigger executable = ExecutableTrigger.create(t1);
     assertEquals(0, executable.getTriggerIndex());
   }
 
@@ -51,7 +50,7 @@ public class ExecutableTriggerTest {
     StubTrigger t2 = new StubTrigger();
     StubTrigger t = new StubTrigger(t1, t2);
 
-    ExecutableTrigger<?> executable = ExecutableTrigger.create(t);
+    ExecutableTrigger executable = ExecutableTrigger.create(t);
 
     assertEquals(0, executable.getTriggerIndex());
     assertEquals(1, executable.subTriggers().get(0).getTriggerIndex());
@@ -72,7 +71,7 @@ public class ExecutableTriggerTest {
     StubTrigger t2 = new StubTrigger(t21, t22);
     StubTrigger t = new StubTrigger(t1, t2);
 
-    ExecutableTrigger<?> executable = ExecutableTrigger.create(t);
+    ExecutableTrigger executable = ExecutableTrigger.create(t);
 
     assertEquals(0, executable.getTriggerIndex());
     assertEquals(1, executable.subTriggers().get(0).getTriggerIndex());
@@ -87,10 +86,10 @@ public class ExecutableTriggerTest {
     assertSame(t2, executable.getSubTriggerContaining(7).getSpec());
   }
 
-  private static class StubTrigger extends Trigger<IntervalWindow> {
+  private static class StubTrigger extends Trigger {
 
     @SafeVarargs
-    protected StubTrigger(Trigger<IntervalWindow>... subTriggers) {
+    protected StubTrigger(Trigger... subTriggers) {
       super(Arrays.asList(subTriggers));
     }
 
@@ -105,18 +104,17 @@ public class ExecutableTriggerTest {
     }
 
     @Override
-    public Instant getWatermarkThatGuaranteesFiring(IntervalWindow window) {
+    public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
       return BoundedWindow.TIMESTAMP_MAX_VALUE;
     }
 
     @Override
-    public boolean isCompatible(Trigger<?> other) {
+    public boolean isCompatible(Trigger other) {
       return false;
     }
 
     @Override
-    public Trigger<IntervalWindow> getContinuationTrigger(
-        List<Trigger<IntervalWindow>> continuationTriggers) {
+    public Trigger getContinuationTrigger(List<Trigger> continuationTriggers) {
       return this;
     }
 

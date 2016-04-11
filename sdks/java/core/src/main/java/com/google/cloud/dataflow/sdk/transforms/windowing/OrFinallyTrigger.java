@@ -28,12 +28,12 @@ import java.util.List;
 /**
  * Executes the {@code actual} trigger until it finishes or until the {@code until} trigger fires.
  */
-class OrFinallyTrigger<W extends BoundedWindow> extends Trigger<W> {
+class OrFinallyTrigger extends Trigger {
 
   private static final int ACTUAL = 0;
   private static final int UNTIL = 1;
 
-  @VisibleForTesting OrFinallyTrigger(Trigger<W> actual, Trigger.OnceTrigger<W> until) {
+  @VisibleForTesting OrFinallyTrigger(Trigger actual, Trigger.OnceTrigger until) {
     super(Arrays.asList(actual, until));
   }
 
@@ -45,14 +45,14 @@ class OrFinallyTrigger<W extends BoundedWindow> extends Trigger<W> {
 
   @Override
   public void onMerge(OnMergeContext c) throws Exception {
-    for (ExecutableTrigger<W> subTrigger : c.trigger().subTriggers()) {
+    for (ExecutableTrigger subTrigger : c.trigger().subTriggers()) {
       subTrigger.invokeOnMerge(c);
     }
     updateFinishedState(c);
   }
 
   @Override
-  public Instant getWatermarkThatGuaranteesFiring(W window) {
+  public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
     // This trigger fires once either the trigger or the until trigger fires.
     Instant actualDeadline = subTriggers.get(ACTUAL).getWatermarkThatGuaranteesFiring(window);
     Instant untilDeadline = subTriggers.get(UNTIL).getWatermarkThatGuaranteesFiring(window);
@@ -60,25 +60,25 @@ class OrFinallyTrigger<W extends BoundedWindow> extends Trigger<W> {
   }
 
   @Override
-  public Trigger<W> getContinuationTrigger(List<Trigger<W>> continuationTriggers) {
+  public Trigger getContinuationTrigger(List<Trigger> continuationTriggers) {
     // Use OrFinallyTrigger instead of AfterFirst because the continuation of ACTUAL
     // may not be a OnceTrigger.
     return Repeatedly.forever(
-        new OrFinallyTrigger<W>(
+        new OrFinallyTrigger(
             continuationTriggers.get(ACTUAL),
-            (Trigger.OnceTrigger<W>) continuationTriggers.get(UNTIL)));
+            (Trigger.OnceTrigger) continuationTriggers.get(UNTIL)));
   }
 
   @Override
-  public boolean shouldFire(Trigger<W>.TriggerContext context) throws Exception {
+  public boolean shouldFire(Trigger.TriggerContext context) throws Exception {
     return context.trigger().subTrigger(ACTUAL).invokeShouldFire(context)
         || context.trigger().subTrigger(UNTIL).invokeShouldFire(context);
   }
 
   @Override
-  public void onFire(Trigger<W>.TriggerContext context) throws Exception {
-    ExecutableTrigger<W> actualSubtrigger = context.trigger().subTrigger(ACTUAL);
-    ExecutableTrigger<W> untilSubtrigger = context.trigger().subTrigger(UNTIL);
+  public void onFire(Trigger.TriggerContext context) throws Exception {
+    ExecutableTrigger actualSubtrigger = context.trigger().subTrigger(ACTUAL);
+    ExecutableTrigger untilSubtrigger = context.trigger().subTrigger(UNTIL);
 
     if (untilSubtrigger.invokeShouldFire(context)) {
       untilSubtrigger.invokeOnFire(context);
@@ -94,7 +94,7 @@ class OrFinallyTrigger<W extends BoundedWindow> extends Trigger<W> {
 
   private void updateFinishedState(TriggerContext c) throws Exception {
     boolean anyStillFinished = false;
-    for (ExecutableTrigger<W> subTrigger : c.trigger().subTriggers()) {
+    for (ExecutableTrigger subTrigger : c.trigger().subTriggers()) {
       anyStillFinished |= c.forTrigger(subTrigger).trigger().isFinished();
     }
     c.trigger().setFinished(anyStillFinished);

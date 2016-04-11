@@ -194,7 +194,7 @@ public class Window {
    * mode using either {@link #discardingFiredPanes()} or {@link #accumulatingFiredPanes()}.
    */
   @Experimental(Kind.TRIGGER)
-  public static <T> Bound<T> triggering(TriggerBuilder<?> trigger) {
+  public static <T> Bound<T> triggering(TriggerBuilder trigger) {
     return new Unbound().triggering(trigger);
   }
 
@@ -289,7 +289,7 @@ public class Window {
      * mode using either {@link #discardingFiredPanes()} or {@link #accumulatingFiredPanes()}.
      */
     @Experimental(Kind.TRIGGER)
-    public <T> Bound<T> triggering(TriggerBuilder<?> trigger) {
+    public <T> Bound<T> triggering(TriggerBuilder trigger) {
       return new Bound<T>(name).triggering(trigger);
     }
 
@@ -361,16 +361,20 @@ public class Window {
 
 
     @Nullable private final WindowFn<? super T, ?> windowFn;
-    @Nullable private final Trigger<?> trigger;
+    @Nullable private final Trigger trigger;
     @Nullable private final AccumulationMode mode;
     @Nullable private final Duration allowedLateness;
     @Nullable private final ClosingBehavior closingBehavior;
     @Nullable private final OutputTimeFn<?> outputTimeFn;
 
-    private Bound(String name,
-        @Nullable WindowFn<? super T, ?> windowFn, @Nullable Trigger<?> trigger,
-        @Nullable AccumulationMode mode, @Nullable Duration allowedLateness,
-        ClosingBehavior behavior, @Nullable OutputTimeFn<?> outputTimeFn) {
+    private Bound(
+        String name,
+        @Nullable WindowFn<? super T, ?> windowFn,
+        @Nullable Trigger trigger,
+        @Nullable AccumulationMode mode,
+        @Nullable Duration allowedLateness,
+        ClosingBehavior behavior,
+        @Nullable OutputTimeFn<?> outputTimeFn) {
       super(name);
       this.windowFn = windowFn;
       this.trigger = trigger;
@@ -428,7 +432,7 @@ public class Window {
      * mode using either {@link #discardingFiredPanes()} or {@link #accumulatingFiredPanes()}.
      */
     @Experimental(Kind.TRIGGER)
-    public Bound<T> triggering(TriggerBuilder<?> trigger) {
+    public Bound<T> triggering(TriggerBuilder trigger) {
       return new Bound<T>(
           name,
           windowFn,
