@@ -19,6 +19,8 @@ package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.sdk.TestUtils.checkCombineFn;
 
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 
 import org.apache.beam.sdk.Pipeline;
@@ -29,6 +31,7 @@ import org.apache.beam.sdk.runners.DirectPipeline;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.ApproximateQuantiles.ApproximateQuantilesCombineFn;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -231,6 +234,16 @@ public class ApproximateQuantilesTest {
         ApproximateQuantilesCombineFn.create(3, new OrderByLength()),
         inputs,
         Arrays.asList("b", "aaa", "ccccc"));
+  }
+
+  @Test
+  public void testDisplayData() {
+    Top.Largest<Integer> comparer = new Top.Largest<Integer>();
+    PTransform<?, ?> approxQuanitiles = ApproximateQuantiles.globally(20, comparer);
+    DisplayData displayData = DisplayData.from(approxQuanitiles);
+
+    assertThat(displayData, hasDisplayItem("numQuantiles", 20));
+    assertThat(displayData, hasDisplayItem("comparer", comparer.getClass()));
   }
 
   private Matcher<Iterable<? extends Integer>> quantileMatcher(

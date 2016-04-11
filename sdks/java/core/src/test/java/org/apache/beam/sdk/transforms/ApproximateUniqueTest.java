@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -26,6 +29,7 @@ import org.apache.beam.sdk.TestUtils;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -289,5 +293,18 @@ public class ApproximateUniqueTest implements Serializable {
       }
       return null;
     }
+  }
+
+  @Test
+  public void testDisplayData() {
+    ApproximateUnique.Globally<Integer> specifiedSampleSize = ApproximateUnique.globally(1234);
+    ApproximateUnique.PerKey<String, Integer> specifiedMaxError = ApproximateUnique.perKey(0.1234);
+
+    assertThat(DisplayData.from(specifiedSampleSize), hasDisplayItem("sampleSize", 1234));
+
+    DisplayData maxErrorDisplayData = DisplayData.from(specifiedMaxError);
+    assertThat(maxErrorDisplayData, hasDisplayItem("maximumEstimationError", 0.1234));
+    assertThat("calculated sampleSize should be included", maxErrorDisplayData,
+        hasDisplayItem(hasKey("sampleSize")));
   }
 }

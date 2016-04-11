@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includes;
 import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.Pipeline;
@@ -35,6 +36,7 @@ import org.apache.beam.sdk.transforms.CombineFns.CoCombineResult;
 import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
 import org.apache.beam.sdk.transforms.Max.MaxIntegerFn;
 import org.apache.beam.sdk.transforms.Min.MinIntegerFn;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -61,7 +63,7 @@ import java.util.List;
  * Unit tests for {@link CombineFns}.
  */
 @RunWith(JUnit4.class)
-public class CombineFnsTest {
+public class  CombineFnsTest {
   @Rule public ExpectedException expectedException = ExpectedException.none();
 
   @Test
@@ -276,6 +278,63 @@ public class CombineFnsTest {
         KV.of("a", KV.of(4, (String) null)),
         KV.of("b", KV.of(13, (String) null)));
     p.run();
+  }
+
+  @Test
+  public void testComposedCombineDisplayData() {
+    SimpleFunction<String, String> extractFn = new SimpleFunction<String, String>() {
+      @Override
+      public String apply(String input) {
+        return input;
+      }
+    };
+
+    DisplayDataCombineFn combineFn1 = new DisplayDataCombineFn("combineFn1");
+    DisplayDataCombineFn combineFn2 = new DisplayDataCombineFn("combineFn2");
+
+    CombineFns.ComposedCombineFn<String> composedCombine = CombineFns.compose()
+        .with(extractFn, combineFn1, new TupleTag<String>())
+        .with(extractFn, combineFn2, new TupleTag<String>());
+
+    DisplayData displayData = DisplayData.from(composedCombine);
+    assertThat(displayData, includes(combineFn1));
+    assertThat(displayData, includes(combineFn2));
+  }
+
+  private static class DisplayDataCombineFn extends Combine.CombineFn<String, String, String> {
+    private final String value;
+    private final String key;
+    private static int i;
+
+    DisplayDataCombineFn(String value) {
+      this.key = "key" + (++i);
+      this.value = value;
+    }
+
+    @Override
+    public String createAccumulator() {
+      return null;
+    }
+
+    @Override
+    public String addInput(String accumulator, String input) {
+      return null;
+    }
+
+    @Override
+    public String mergeAccumulators(Iterable<String> accumulators) {
+      return null;
+    }
+
+    @Override
+    public String extractOutput(String accumulator) {
+      return null;
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      builder.add(key, value);
+    }
   }
 
   private static class UserString implements Serializable {

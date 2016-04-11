@@ -194,9 +194,10 @@ public class DisplayDataMatchers {
       private DisplayDataComparision checkSubset(
           DisplayData displayData, DisplayData included, Class<?> namespace) {
         DisplayDataComparision comparison = new DisplayDataComparision(displayData.items());
+        JavaClass javaClass = JavaClass.of(namespace);
         for (Item item : included.items()) {
           Item matchedItem = displayData.asMap().get(
-              DisplayData.Identifier.of(namespace, item.getKey()));
+              DisplayData.Identifier.of(javaClass, item.getKey()));
 
           if (matchedItem != null) {
             comparison.matched(matchedItem);

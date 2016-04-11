@@ -31,6 +31,8 @@ import org.apache.beam.sdk.transforms.CombineFnBase.PerKeyCombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.CombineWithContext.Context;
 import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
+import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.values.TupleTag;
@@ -455,6 +457,13 @@ public class CombineFns {
       }
       return new ComposedAccumulatorCoder(coders);
     }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      for (CombineFn combineFn : combineFns) {
+        builder.include(combineFn);
+      }
+    }
   }
 
   /**
@@ -587,6 +596,13 @@ public class CombineFns {
         coders.add(combineFnWithContexts.get(i).getAccumulatorCoder(registry, inputCoder));
       }
       return new ComposedAccumulatorCoder(coders);
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      for (CombineFnWithContext combineFn : combineFnWithContexts) {
+        builder.include(combineFn);
+      }
     }
   }
 
@@ -769,6 +785,13 @@ public class CombineFns {
       }
       return new ComposedAccumulatorCoder(coders);
     }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      for (HasDisplayData keyedCombineFn : keyedCombineFns) {
+        builder.include(keyedCombineFn);
+      }
+    }
   }
 
   /**
@@ -914,6 +937,13 @@ public class CombineFns {
             registry, keyCoder, inputCoder));
       }
       return new ComposedAccumulatorCoder(coders);
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      for (HasDisplayData keyedCombineFn : keyedCombineFns) {
+        builder.include(keyedCombineFn);
+      }
     }
   }
 

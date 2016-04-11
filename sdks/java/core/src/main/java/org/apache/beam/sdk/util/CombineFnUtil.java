@@ -27,6 +27,7 @@ import org.apache.beam.sdk.transforms.CombineFnBase.PerKeyCombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.CombineWithContext.Context;
 import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.state.StateContext;
 
 import java.io.IOException;
@@ -101,6 +102,10 @@ public class CombineFnUtil {
             CoderRegistry registry, Coder<InputT> inputCoder) throws CannotProvideCoderException {
           return combineFn.getDefaultOutputCoder(registry, inputCoder);
         }
+        @Override
+        public void populateDisplayData(DisplayData.Builder builder) {
+          combineFn.populateDisplayData(builder);
+        }
       };
     }
   }
@@ -150,6 +155,10 @@ public class CombineFnUtil {
             Coder<InputT> inputCoder) throws CannotProvideCoderException {
           return keyedCombineFn.getDefaultOutputCoder(registry, keyCoder, inputCoder);
         }
+        @Override
+        public void populateDisplayData(DisplayData.Builder builder) {
+          keyedCombineFn.populateDisplayData(builder);
+        }
       };
     }
   }
@@ -194,6 +203,10 @@ public class CombineFnUtil {
     public Coder<OutputT> getDefaultOutputCoder(CoderRegistry registry, Coder<K> keyCoder,
         Coder<InputT> inputCoder) throws CannotProvideCoderException {
       return combineFn.getDefaultOutputCoder(registry, keyCoder, inputCoder);
+    }
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      combineFn.populateDisplayData(builder);
     }
 
     private void writeObject(@SuppressWarnings("unused") ObjectOutputStream out)
