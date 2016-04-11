@@ -23,7 +23,7 @@
 
   <!-- We use the Beam parent to allow for runners/flink, examples/java and
        sdks/java/maven-archetypes to depend on the Dataflow runner. This is
-       until those package can migrate off of depending the Dataflow runner. -->
+       until those modules can migrate off of the Dataflow runner classes. -->
   <parent>
       <groupId>org.apache.beam</groupId>
       <artifactId>parent</artifactId>
