@@ -91,10 +91,17 @@
   </build>
 
   <dependencies>
-    <!-- Adds a dependency on a specific version of the Dataflow SDK. -->
+    <!-- Adds a dependency on a specific version of the Beam SDK. -->
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>java-sdk-all</artifactId>
+      <version>[0-incubating, 2-incubating)</version>
+    </dependency>
+
+    <!-- Adds a dependency on a specific version of the Dataflow runnner. -->
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>google-cloud-dataflow-java-runner</artifactId>
       <version>[0-incubating, 2-incubating)</version>
     </dependency>
 

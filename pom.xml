@@ -126,6 +126,7 @@
 
   <modules>
     <module>sdks</module>
+    <module>runners/google-cloud-dataflow-java</module>
     <module>runners</module>
     <!-- sdks/java/maven-archtypes has several dependencies on the
          DataflowPipelineRunner. Until these are refactored out or
