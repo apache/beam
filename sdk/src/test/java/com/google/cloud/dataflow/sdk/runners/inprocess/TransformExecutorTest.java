@@ -32,7 +32,7 @@ import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.WithKeys;
-import com.google.cloud.dataflow.sdk.util.UserCodeException;
+import com.google.cloud.dataflow.sdk.util.IllegalMutationException;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -411,7 +411,7 @@ public class TransformExecutorTest {
     fooBytes.getValue()[0] = 'b';
     evaluatorLatch.countDown();
 
-    thrown.expectCause(isA(UserCodeException.class));
+    thrown.expectCause(isA(IllegalMutationException.class));
     task.get();
   }
 
@@ -470,7 +470,7 @@ public class TransformExecutorTest {
     fooBytes.getValue()[0] = 'b';
     evaluatorLatch.countDown();
 
-    thrown.expectCause(isA(UserCodeException.class));
+    thrown.expectCause(isA(IllegalMutationException.class));
     task.get();
   }
 

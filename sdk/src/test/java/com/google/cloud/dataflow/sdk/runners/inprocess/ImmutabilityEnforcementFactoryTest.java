@@ -15,8 +15,6 @@
  */
 package com.google.cloud.dataflow.sdk.runners.inprocess;
 
-import static org.hamcrest.Matchers.isA;
-
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
@@ -25,7 +23,6 @@ import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.util.IllegalMutationException;
-import com.google.cloud.dataflow.sdk.util.UserCodeException;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 
@@ -92,8 +89,7 @@ public class ImmutabilityEnforcementFactoryTest implements Serializable {
     ModelEnforcement<byte[]> enforcement = factory.forBundle(elements, consumer);
     enforcement.beforeElement(element);
     element.getValue()[0] = 'f';
-    thrown.equals(UserCodeException.class);
-    thrown.expectCause(isA(IllegalMutationException.class));
+    thrown.expect(IllegalMutationException.class);
     thrown.expectMessage(consumer.getFullName());
     thrown.expectMessage("illegaly mutated");
     thrown.expectMessage("Input values must not be mutated");
@@ -116,8 +112,7 @@ public class ImmutabilityEnforcementFactoryTest implements Serializable {
     enforcement.afterElement(element);
 
     element.getValue()[0] = 'f';
-    thrown.equals(UserCodeException.class);
-    thrown.expectCause(isA(IllegalMutationException.class));
+    thrown.expect(IllegalMutationException.class);
     thrown.expectMessage(consumer.getFullName());
     thrown.expectMessage("illegaly mutated");
     thrown.expectMessage("Input values must not be mutated");
