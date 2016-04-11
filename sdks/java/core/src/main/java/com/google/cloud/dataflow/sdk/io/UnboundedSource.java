@@ -110,8 +110,21 @@ public abstract class UnboundedSource<
      * <p>For example, this could be sending acknowledgement requests to an external
      * data source such as Pub/Sub.
      *
-     * <p>This may be called from any thread, potentially at the same time as calls to the
-     * {@code UnboundedReader} that created it.
+     * <p>Note that:
+     * <ul>
+     * <li>This finalize method may be called from any thread, potentially at the same time as
+     * calls to the {@link UnboundedReader} it was created from.
+     * <li>Checkpoints will be finalized in the same order they are created from the
+     * {@link UnboundedReader}.
+     * <li>It is possible for multiple checkpoints created from the same {@link UnboundedReader}
+     * to be 'in-flight' (ie not yet finalized) simultaneously.
+     * <li>If this call throws an exception then the entire checkpoint will be abandoned and the
+     * reader restarted from an earlier, successfully-finalized checkpoint.
+     * <li>The system ensures that if a checkpoint fails for any reason then no later checkpoint
+     * is allowed to be finalized without the reader first being restarted.
+     * <li>It is not safe to assume the {@link UnboundedReader} from which this checkpoint was
+     * created still exists at the time this method is called.
+     * </ul>
      */
     void finalizeCheckpoint() throws IOException;
   }
@@ -205,10 +218,10 @@ public abstract class UnboundedSource<
     /**
      * Returns a {@link CheckpointMark} representing the progress of this {@code UnboundedReader}.
      *
-     * <p>The elements read up until this is called will be processed together as a bundle. Once
-     * the result of this processing has been durably committed,
-     * {@link CheckpointMark#finalizeCheckpoint} will be called on the {@link CheckpointMark}
-     * object.
+     * <p>All elements read up until this method is called will be processed together as a bundle.
+     * Once the result of processing those elements and the returned checkpoint have been durably
+     * committed, {@link CheckpointMark#finalizeCheckpoint} will be called on the
+     * returned {@link CheckpointMark} object.
      *
      * <p>The returned object should not be modified.
      *
