@@ -792,11 +792,11 @@ public class PipelineOptionsFactoryTest {
   @Test
   public void testSetASingularAttributeUsingAListThrowsAnError() {
     String[] args = new String[] {
-        "--diskSizeGb=100",
-        "--diskSizeGb=200"};
+        "--string=100",
+        "--string=200"};
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("expected one element but was");
-    PipelineOptionsFactory.fromArgs(args).create();
+    PipelineOptionsFactory.fromArgs(args).as(Objects.class);
   }
 
   @Test
@@ -923,18 +923,18 @@ public class PipelineOptionsFactoryTest {
   public void testEmptyArgumentIsIgnored() {
     String[] args =
         new String[] {
-          "", "--diskSizeGb=100", "", "", "--runner=" + DEFAULT_RUNNER_CLASS.getSimpleName()
+          "", "--string=100", "", "", "--runner=" + DEFAULT_RUNNER_CLASS.getSimpleName()
         };
-    PipelineOptionsFactory.fromArgs(args).create();
+    PipelineOptionsFactory.fromArgs(args).as(Objects.class);
   }
 
   @Test
   public void testNullArgumentIsIgnored() {
     String[] args =
         new String[] {
-          "--diskSizeGb=100", null, null, "--runner=" + DEFAULT_RUNNER_CLASS.getSimpleName()
+          "--string=100", null, null, "--runner=" + DEFAULT_RUNNER_CLASS.getSimpleName()
         };
-    PipelineOptionsFactory.fromArgs(args).create();
+    PipelineOptionsFactory.fromArgs(args).as(Objects.class);
   }
 
   @Test
@@ -1020,22 +1020,35 @@ public class PipelineOptionsFactoryTest {
         containsString("The pipeline runner that will be used to execute the pipeline."));
   }
 
-  /** Used for a name collision test with the other DataflowPipelineOptions. */
-  private interface DataflowPipelineOptions extends PipelineOptions {
+  /** Used for a name collision test with the other NameConflict interfaces. */
+  private static class NameConflictClassA {
+    /** Used for a name collision test with the other NameConflict interfaces. */
+    private interface NameConflict extends PipelineOptions {
+    }
+  }
+
+  /** Used for a name collision test with the other NameConflict interfaces. */
+  private static class NameConflictClassB {
+    /** Used for a name collision test with the other NameConflict interfaces. */
+    private interface NameConflict extends PipelineOptions {
+    }
   }
 
   @Test
   public void testShortnameSpecificHelpHasMultipleMatches() {
-    PipelineOptionsFactory.register(DataflowPipelineOptions.class);
+    PipelineOptionsFactory.register(NameConflictClassA.NameConflict.class);
+    PipelineOptionsFactory.register(NameConflictClassB.NameConflict.class);
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     ListMultimap<String, String> arguments = ArrayListMultimap.create();
-    arguments.put("help", "DataflowPipelineOptions");
+    arguments.put("help", "NameConflict");
     assertTrue(PipelineOptionsFactory.printHelpUsageAndExitIfNeeded(
         arguments, new PrintStream(baos), false /* exit */));
     String output = new String(baos.toByteArray());
-    assertThat(output, containsString("Multiple matches found for DataflowPipelineOptions"));
+    assertThat(output, containsString("Multiple matches found for NameConflict"));
     assertThat(output, containsString("com.google.cloud.dataflow.sdk.options."
-        + "PipelineOptionsFactoryTest$DataflowPipelineOptions"));
+        + "PipelineOptionsFactoryTest$NameConflictClassA$NameConflict"));
+    assertThat(output, containsString("com.google.cloud.dataflow.sdk.options."
+        + "PipelineOptionsFactoryTest$NameConflictClassB$NameConflict"));
     assertThat(output, containsString("The set of registered options are:"));
     assertThat(output, containsString("com.google.cloud.dataflow.sdk.options.PipelineOptions"));
   }
@@ -1044,11 +1057,11 @@ public class PipelineOptionsFactoryTest {
   public void testHelpWithOptionThatOutputsValidEnumTypes() {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     ListMultimap<String, String> arguments = ArrayListMultimap.create();
-    arguments.put("help", "com.google.cloud.dataflow.sdk.options.DataflowWorkerLoggingOptions");
+    arguments.put("help", Objects.class.getName());
     assertTrue(PipelineOptionsFactory.printHelpUsageAndExitIfNeeded(
         arguments, new PrintStream(baos), false /* exit */));
     String output = new String(baos.toByteArray());
-    assertThat(output, containsString("<DEBUG | ERROR | INFO | TRACE | WARN>"));
+    assertThat(output, containsString("<Value | Value2>"));
   }
 
   @Test
