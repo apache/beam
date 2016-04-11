@@ -21,6 +21,9 @@
 
   <modelVersion>4.0.0</modelVersion>
 
+  <!-- We use the Beam parent to allow for runners/flink, examples/java and
+       sdks/java/maven-archetypes to depend on the Dataflow runner. This is
+       until those package can migrate off of depending the Dataflow runner. -->
   <parent>
       <groupId>org.apache.beam</groupId>
       <artifactId>parent</artifactId>
@@ -30,7 +33,7 @@
 
   <artifactId>google-cloud-dataflow-java-runner</artifactId>
 
-  <name>Apache Beam :: Runners :: Google Cloud Dataflow for Java</name>
+  <name>Apache Beam :: Runners :: Google Cloud Dataflow</name>
 
   <packaging>jar</packaging>
 
@@ -330,14 +333,6 @@
     </dependency>
 
     <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>java-sdk-all</artifactId>
-      <version>${beam.version}</version>
-      <type>test-jar</type>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
       <groupId>com.google.api-client</groupId>
       <artifactId>google-api-client</artifactId>
       <version>${google-clients.version}</version>
@@ -544,6 +539,14 @@
       <groupId>org.mockito</groupId>
       <artifactId>mockito-all</artifactId>
       <version>1.10.19</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>java-sdk-all</artifactId>
+      <version>${beam.version}</version>
+      <type>test-jar</type>
       <scope>test</scope>
     </dependency>
 
