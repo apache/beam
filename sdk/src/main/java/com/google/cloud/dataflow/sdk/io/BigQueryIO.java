@@ -16,14 +16,19 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.api.client.json.JsonFactory;
 import com.google.api.services.bigquery.Bigquery;
+import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.QueryRequest;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.dataflow.sdk.coders.AtomicCoder;
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.coders.Coder.Context;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.StandardCoder;
@@ -31,10 +36,12 @@ import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.coders.TableRowJsonCoder;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
+import com.google.cloud.dataflow.sdk.io.BigQueryIO.BigQuerySink;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO.Write.CreateDisposition;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO.Write.WriteDisposition;
 import com.google.cloud.dataflow.sdk.options.BigQueryOptions;
 import com.google.cloud.dataflow.sdk.options.GcpOptions;
+import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
@@ -44,22 +51,29 @@ import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import com.google.cloud.dataflow.sdk.util.BigQueryServices;
+import com.google.cloud.dataflow.sdk.util.BigQueryServices.LoadService;
+import com.google.cloud.dataflow.sdk.util.BigQueryServicesImpl;
 import com.google.cloud.dataflow.sdk.util.BigQueryTableInserter;
 import com.google.cloud.dataflow.sdk.util.BigQueryTableRowIterator;
+import com.google.cloud.dataflow.sdk.util.MimeTypes;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.Reshuffle;
 import com.google.cloud.dataflow.sdk.util.SystemDoFnInternal;
 import com.google.cloud.dataflow.sdk.util.Transport;
-import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
+import com.google.cloud.dataflow.sdk.util.gcsfs.GcsPath;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollection.IsBounded;
 import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -70,6 +84,9 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.channels.Channels;
+import java.nio.channels.WritableByteChannel;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -724,12 +741,12 @@ public class BigQueryIO {
      * {@link PCollection} of {@link TableRow TableRows} to a BigQuery table.
      */
     public static class Bound extends PTransform<PCollection<TableRow>, PDone> {
-      final TableReference table;
+      @Nullable final String jsonTableRef;
 
-      final SerializableFunction<BoundedWindow, TableReference> tableRefFunction;
+      @Nullable final SerializableFunction<BoundedWindow, TableReference> tableRefFunction;
 
       // Table schema. The schema is required only if the table does not exist.
-      final TableSchema schema;
+      @Nullable final String jsonSchema;
 
       // Options for creating the table. Valid values are CREATE_IF_NEEDED and
       // CREATE_NEVER.
@@ -741,6 +758,9 @@ public class BigQueryIO {
 
       // An option to indicate if table validation is desired. Default is true.
       final boolean validate;
+
+      // A fake or mock BigQueryServices for tests.
+      @Nullable private BigQueryServices testBigQueryServices;
 
       private static class TranslateTableSpecFunction implements
           SerializableFunction<BoundedWindow, TableReference> {
@@ -764,20 +784,22 @@ public class BigQueryIO {
       @Deprecated
       public Bound() {
         this(null, null, null, null, CreateDisposition.CREATE_IF_NEEDED,
-            WriteDisposition.WRITE_EMPTY, true);
+            WriteDisposition.WRITE_EMPTY, true, null);
       }
 
-      private Bound(String name, TableReference ref,
-          SerializableFunction<BoundedWindow, TableReference> tableRefFunction, TableSchema schema,
-          CreateDisposition createDisposition, WriteDisposition writeDisposition,
-          boolean validate) {
+      private Bound(String name, @Nullable String jsonTableRef,
+          @Nullable SerializableFunction<BoundedWindow, TableReference> tableRefFunction,
+          @Nullable String jsonSchema,
+          CreateDisposition createDisposition, WriteDisposition writeDisposition, boolean validate,
+          @Nullable BigQueryServices testBigQueryServices) {
         super(name);
-        this.table = ref;
+        this.jsonTableRef = jsonTableRef;
         this.tableRefFunction = tableRefFunction;
-        this.schema = schema;
-        this.createDisposition = createDisposition;
-        this.writeDisposition = writeDisposition;
+        this.jsonSchema = jsonSchema;
+        this.createDisposition = checkNotNull(createDisposition, "createDisposition");
+        this.writeDisposition = checkNotNull(writeDisposition, "writeDisposition");
         this.validate = validate;
+        this.testBigQueryServices = testBigQueryServices;
       }
 
       /**
@@ -786,8 +808,8 @@ public class BigQueryIO {
        * <p>Does not modify this object.
        */
       public Bound named(String name) {
-        return new Bound(name, table, tableRefFunction, schema, createDisposition,
-            writeDisposition, validate);
+        return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema, createDisposition,
+            writeDisposition, validate, testBigQueryServices);
       }
 
       /**
@@ -806,8 +828,8 @@ public class BigQueryIO {
        * <p>Does not modify this object.
        */
       public Bound to(TableReference table) {
-        return new Bound(name, table, tableRefFunction, schema, createDisposition,
-            writeDisposition, validate);
+        return new Bound(name, toJsonString(table), tableRefFunction, jsonSchema, createDisposition,
+            writeDisposition, validate, testBigQueryServices);
       }
 
       /**
@@ -835,8 +857,8 @@ public class BigQueryIO {
        */
       public Bound toTableReference(
           SerializableFunction<BoundedWindow, TableReference> tableRefFunction) {
-        return new Bound(name, table, tableRefFunction, schema, createDisposition,
-            writeDisposition, validate);
+        return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema, createDisposition,
+            writeDisposition, validate, testBigQueryServices);
       }
 
       /**
@@ -846,8 +868,8 @@ public class BigQueryIO {
        * <p>Does not modify this object.
        */
       public Bound withSchema(TableSchema schema) {
-        return new Bound(name, table, tableRefFunction, schema, createDisposition,
-            writeDisposition, validate);
+        return new Bound(name, jsonTableRef, tableRefFunction, toJsonString(schema),
+            createDisposition, writeDisposition, validate, testBigQueryServices);
       }
 
       /**
@@ -856,8 +878,8 @@ public class BigQueryIO {
        * <p>Does not modify this object.
        */
       public Bound withCreateDisposition(CreateDisposition createDisposition) {
-        return new Bound(name, table, tableRefFunction, schema, createDisposition,
-            writeDisposition, validate);
+        return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema, createDisposition,
+            writeDisposition, validate, testBigQueryServices);
       }
 
       /**
@@ -866,8 +888,8 @@ public class BigQueryIO {
        * <p>Does not modify this object.
        */
       public Bound withWriteDisposition(WriteDisposition writeDisposition) {
-        return new Bound(name, table, tableRefFunction, schema, createDisposition,
-            writeDisposition, validate);
+        return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema, createDisposition,
+            writeDisposition, validate, testBigQueryServices);
       }
 
       /**
@@ -876,8 +898,14 @@ public class BigQueryIO {
        * <p>Does not modify this object.
        */
       public Bound withoutValidation() {
-        return new Bound(name, table, tableRefFunction, schema, createDisposition,
-            writeDisposition, false);
+        return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema, createDisposition,
+            writeDisposition, false, testBigQueryServices);
+      }
+
+      @VisibleForTesting
+      Bound withTestServices(BigQueryServices testServices) {
+        return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema, createDisposition,
+            writeDisposition, validate, testServices);
       }
 
       private static void verifyTableEmpty(
@@ -906,6 +934,7 @@ public class BigQueryIO {
       public PDone apply(PCollection<TableRow> input) {
         BigQueryOptions options = input.getPipeline().getOptions().as(BigQueryOptions.class);
 
+        TableReference table = getTable();
         if (table == null && tableRefFunction == null) {
           throw new IllegalStateException(
               "must set the table reference of a BigQueryIO.Write transform");
@@ -916,7 +945,7 @@ public class BigQueryIO {
                 + "transform");
         }
 
-        if (createDisposition == CreateDisposition.CREATE_IF_NEEDED && schema == null) {
+        if (createDisposition == CreateDisposition.CREATE_IF_NEEDED && jsonSchema == null) {
           throw new IllegalArgumentException("CreateDisposition is CREATE_IF_NEEDED, "
               + "however no schema was provided.");
         }
@@ -935,7 +964,7 @@ public class BigQueryIO {
         // of the pipeline. For these cases the withoutValidation method can be used to disable
         // the check.
         // Unfortunately we can't validate anything early in case tableRefFunction is specified.
-        if (table != null && validate) {
+        if (jsonTableRef != null && validate) {
           verifyDatasetPresence(options, table);
           if (getCreateDisposition() == BigQueryIO.Write.CreateDisposition.CREATE_NEVER) {
             verifyTablePresence(options, table);
@@ -958,26 +987,39 @@ public class BigQueryIO {
                 + "supported for unbounded PCollections or when using tablespec functions.");
           }
 
-          return input.apply(new StreamWithDeDup(table, tableRefFunction, schema));
+          return input.apply(new StreamWithDeDup(table, tableRefFunction, getSchema()));
         }
 
-        return PDone.in(input.getPipeline());
+        String tempLocation = options.getTempLocation();
+        checkArgument(!Strings.isNullOrEmpty(tempLocation),
+            "BigQueryIO.Write needs a GCS temp location to store temp files.");
+        if (testBigQueryServices == null) {
+          try {
+            GcsPath.fromUri(tempLocation);
+          } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException(String.format(
+                "BigQuery temp location expected a valid 'gs://' path, but was given '%s'",
+                tempLocation), e);
+          }
+        }
+        String jobIdToken = UUID.randomUUID().toString();
+        String tempFilePrefix = tempLocation + "/BigQuerySinkTemp/" + jobIdToken;
+        BigQueryServices bqServices = getBigQueryServices();
+        return input.apply("Write", com.google.cloud.dataflow.sdk.io.Write.to(
+            new BigQuerySink(
+                jobIdToken,
+                toJsonString(table),
+                jsonSchema,
+                getWriteDisposition(),
+                getCreateDisposition(),
+                tempFilePrefix,
+                input.getCoder(),
+                bqServices)));
       }
 
       @Override
       protected Coder<Void> getDefaultOutputCoder() {
         return VoidCoder.of();
-      }
-
-      static {
-        DirectPipelineRunner.registerDefaultTransformEvaluator(
-            Bound.class, new DirectPipelineRunner.TransformEvaluator<Bound>() {
-              @Override
-              public void evaluate(
-                  Bound transform, DirectPipelineRunner.EvaluationContext context) {
-                evaluateWriteHelper(transform, context);
-              }
-            });
       }
 
       /** Returns the create disposition. */
@@ -992,22 +1034,189 @@ public class BigQueryIO {
 
       /** Returns the table schema. */
       public TableSchema getSchema() {
-        return schema;
+        return fromJsonString(jsonSchema, TableSchema.class);
       }
 
       /** Returns the table reference, or {@code null} if a . */
       public TableReference getTable() {
-        return table;
+        return fromJsonString(jsonTableRef, TableReference.class);
       }
 
       /** Returns {@code true} if table validation is enabled. */
       public boolean getValidate() {
         return validate;
       }
+
+      private BigQueryServices getBigQueryServices() {
+        if (testBigQueryServices != null) {
+          return testBigQueryServices;
+        } else {
+          return new BigQueryServicesImpl();
+        }
+      }
     }
 
     /** Disallow construction of utility class. */
     private Write() {}
+  }
+
+  /**
+   * {@link BigQuerySink} is implemented as a {@link FileBasedSink}.
+   *
+   * <p>It uses BigQuery load job to import files into BigQuery.
+   */
+  static class BigQuerySink extends FileBasedSink<TableRow> {
+    private final String jobIdToken;
+    @Nullable private final String jsonTable;
+    @Nullable private final String jsonSchema;
+    private final WriteDisposition writeDisposition;
+    private final CreateDisposition createDisposition;
+    private final Coder<TableRow> coder;
+    private final BigQueryServices bqServices;
+
+    public BigQuerySink(
+        String jobIdToken,
+        @Nullable String jsonTable,
+        @Nullable String jsonSchema,
+        WriteDisposition writeDisposition,
+        CreateDisposition createDisposition,
+        String tempFile,
+        Coder<TableRow> coder,
+        BigQueryServices bqServices) {
+      super(tempFile, ".json");
+      this.jobIdToken = checkNotNull(jobIdToken, "jobIdToken");
+      this.jsonTable = jsonTable;
+      this.jsonSchema = jsonSchema;
+      this.writeDisposition = checkNotNull(writeDisposition, "writeDisposition");
+      this.createDisposition = checkNotNull(createDisposition, "createDisposition");
+      this.coder = checkNotNull(coder, "coder");
+      this.bqServices = checkNotNull(bqServices, "bqServices");
+     }
+
+    @Override
+    public FileBasedSink.FileBasedWriteOperation<TableRow> createWriteOperation(
+        PipelineOptions options) {
+      return new BigQueryWriteOperation(this);
+    }
+
+    private static class BigQueryWriteOperation extends FileBasedWriteOperation<TableRow> {
+      // The maximum number of retry load jobs.
+      private static final int MAX_RETRY_LOAD_JOBS = 3;
+
+      private final BigQuerySink bigQuerySink;
+
+      private BigQueryWriteOperation(BigQuerySink sink) {
+        super(checkNotNull(sink, "sink"));
+        this.bigQuerySink = sink;
+      }
+
+      @Override
+      public FileBasedWriter<TableRow> createWriter(PipelineOptions options) throws Exception {
+        return new TableRowWriter(this, bigQuerySink.coder);
+      }
+
+      @Override
+      public void finalize(Iterable<FileResult> writerResults, PipelineOptions options)
+          throws IOException, InterruptedException {
+        try {
+          BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
+          List<String> tempFiles = Lists.newArrayList();
+          for (FileResult result : writerResults) {
+            tempFiles.add(result.getFilename());
+          }
+          if (!tempFiles.isEmpty()) {
+              load(
+                  bigQuerySink.bqServices.getLoadService(bqOptions),
+                  bigQuerySink.jobIdToken,
+                  fromJsonString(bigQuerySink.jsonTable, TableReference.class),
+                  tempFiles,
+                  fromJsonString(bigQuerySink.jsonSchema, TableSchema.class),
+                  bigQuerySink.writeDisposition,
+                  bigQuerySink.createDisposition);
+          }
+        } finally {
+          removeTemporaryFiles(options);
+        }
+      }
+
+      /**
+       * Import files into BigQuery with load jobs.
+       *
+       * <p>Returns if files are successfully loaded into BigQuery.
+       * Throws a RuntimeException if:
+       *     1. The status of one load job is UNKNOWN. This is to avoid duplicating data.
+       *     2. It exceeds {@code MAX_RETRY_LOAD_JOBS}.
+       *
+       * <p>If a load job failed, it will try another load job with a different job id.
+       */
+      private void load(
+          LoadService loadService,
+          String jobIdPrefix,
+          TableReference ref,
+          List<String> gcsUris,
+          @Nullable TableSchema schema,
+          WriteDisposition writeDisposition,
+          CreateDisposition createDisposition) throws InterruptedException, IOException {
+        JobConfigurationLoad loadConfig = new JobConfigurationLoad();
+        loadConfig.setSourceUris(gcsUris);
+        loadConfig.setDestinationTable(ref);
+        loadConfig.setSchema(schema);
+        loadConfig.setWriteDisposition(writeDisposition.name());
+        loadConfig.setCreateDisposition(createDisposition.name());
+        loadConfig.setSourceFormat("NEWLINE_DELIMITED_JSON");
+
+        boolean retrying = false;
+        String projectId = ref.getProjectId();
+        for (int i = 0; i < MAX_RETRY_LOAD_JOBS; ++i) {
+          String jobId = jobIdPrefix + "-" + i;
+          if (retrying) {
+            LOG.info("Previous load jobs failed, retrying.");
+          }
+          LOG.info("Starting BigQuery load job: {}", jobId);
+          loadService.startLoadJob(jobId, loadConfig);
+          BigQueryServices.Status jobStatus = loadService.pollJobStatus(projectId, jobId);
+          switch (jobStatus) {
+            case SUCCEEDED:
+              return;
+            case UNKNOWN:
+              throw new RuntimeException("Failed to poll the load job status.");
+            case FAILED:
+              LOG.info("BigQuery load job failed: {}", jobId);
+              retrying = true;
+              continue;
+            default:
+              throw new IllegalStateException("Unexpected job status: " + jobStatus);
+          }
+        }
+        throw new RuntimeException(
+            "Failed to create the load job, reached max retries: " + MAX_RETRY_LOAD_JOBS);
+      }
+    }
+
+    private static class TableRowWriter extends FileBasedWriter<TableRow> {
+      private static final byte[] NEWLINE = "\n".getBytes(StandardCharsets.UTF_8);
+      private final Coder<TableRow> coder;
+      private OutputStream out;
+
+      public TableRowWriter(
+          FileBasedWriteOperation<TableRow> writeOperation, Coder<TableRow> coder) {
+        super(writeOperation);
+        this.mimeType = MimeTypes.TEXT;
+        this.coder = coder;
+      }
+
+      @Override
+      protected void prepareWrite(WritableByteChannel channel) throws Exception {
+        out = Channels.newOutputStream(channel);
+      }
+
+      @Override
+      public void write(TableRow value) throws Exception {
+        // Use Context.OUTER to encode and NEWLINE as the delimeter.
+        coder.encode(value, out, Context.OUTER);
+        out.write(NEWLINE);
+      }
+    }
   }
 
   private static void verifyDatasetPresence(BigQueryOptions options, TableReference table) {
@@ -1400,6 +1609,32 @@ public class BigQueryIO {
     }
   }
 
+  private static String toJsonString(Object item) {
+    if (item == null) {
+      return null;
+    }
+    try {
+      return JSON_FACTORY.toString(item);
+    } catch (IOException e) {
+      throw new RuntimeException(
+          String.format("Cannot serialize %s to a JSON string.", item.getClass().getSimpleName()),
+          e);
+    }
+  }
+
+  private static <T> T fromJsonString(String json, Class<T> clazz) {
+    if (json == null) {
+      return null;
+    }
+    try {
+      return JSON_FACTORY.fromString(json, clazz);
+    } catch (IOException e) {
+      throw new RuntimeException(
+          String.format("Cannot deserialize %s from a JSON string: %s.", clazz, json),
+          e);
+    }
+  }
+
   /////////////////////////////////////////////////////////////////////////////
 
   /** Disallow construction of utility class. */
@@ -1449,51 +1684,5 @@ public class BigQueryIO {
       map.put(key, value);
     }
     return value;
-  }
-
-  /**
-   * Direct mode write evaluator.
-   *
-   * <p>This writes the entire table in a single BigQuery request.
-   * The table will be created if necessary.
-   */
-  private static void evaluateWriteHelper(
-      Write.Bound transform, DirectPipelineRunner.EvaluationContext context) {
-    BigQueryOptions options = context.getPipelineOptions();
-    Bigquery client = Transport.newBigQueryClient(options).build();
-    BigQueryTableInserter inserter = new BigQueryTableInserter(client);
-
-    try {
-      Map<TableReference, List<TableRow>> tableRows = new HashMap<>();
-      for (WindowedValue<TableRow> windowedValue : context.getPCollectionWindowedValues(
-          context.getInput(transform))) {
-        for (BoundedWindow window : windowedValue.getWindows()) {
-          TableReference ref;
-          if (transform.tableRefFunction != null) {
-            ref = transform.tableRefFunction.apply(window);
-          } else {
-            ref = transform.table;
-          }
-          if (ref.getProjectId() == null) {
-            ref.setProjectId(options.getProject());
-          }
-
-          List<TableRow> rows = getOrCreateMapListValue(tableRows, ref);
-          rows.add(windowedValue.getValue());
-        }
-      }
-
-      for (TableReference ref : tableRows.keySet()) {
-        LOG.info("Writing to BigQuery table {}", toTableSpec(ref));
-        // {@link BigQueryTableInserter#getOrCreateTable} validates {@link CreateDisposition}
-        // and {@link WriteDisposition}.
-        // For each {@link TableReference}, it can only be called before rows are written.
-        inserter.getOrCreateTable(
-            ref, transform.writeDisposition, transform.createDisposition, transform.schema);
-        inserter.insertAll(ref, tableRows.get(ref));
-      }
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
   }
 }
