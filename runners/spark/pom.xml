@@ -260,11 +260,14 @@
                     <configuration>
                         <excludes>
                             <exclude>.travis.yml</exclude>
-                            <exclude>**/*.checkstyle</exclude>
                             <exclude>**/*.conf</exclude>
                             <exclude>**/*.iml</exclude>
                             <exclude>**/*.md</exclude>
                             <exclude>**/*.txt</exclude>
+                            <exclude>**/.project</exclude>
+                            <exclude>**/.checkstyle</exclude>
+                            <exclude>**/.classpath</exclude>
+                            <exclude>**/.settings/</exclude>
                             <exclude>**/gen/**</exclude>
                             <exclude>**/resources/**</exclude>
                             <exclude>**/target/**</exclude>
