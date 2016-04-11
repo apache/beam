@@ -120,4 +120,27 @@ public class AfterEachTest {
             trigger1.getContinuationTrigger(), trigger2.getContinuationTrigger())),
         afterEach.getContinuationTrigger());
   }
+
+  @Test
+  public void testToString() {
+    Trigger trigger = AfterEach.inOrder(
+        new NamedTrigger("t1"),
+        new NamedTrigger("t2"),
+        new NamedTrigger("t3"));
+
+    assertEquals("AfterEach.inOrder(t1, t2, t3)", trigger.toString());
+  }
+
+  private static class NamedTrigger extends StubTrigger {
+    private final String name;
+
+    NamedTrigger(String name) {
+      this.name = name;
+    }
+
+    @Override
+    public String toString() {
+      return name;
+    }
+  }
 }

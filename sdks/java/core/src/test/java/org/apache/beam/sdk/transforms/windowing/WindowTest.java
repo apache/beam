@@ -17,7 +17,13 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includes;
+
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.isOneOf;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -33,6 +39,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.WindowingStrategy.AccumulationMode;
 import org.apache.beam.sdk.values.KV;
@@ -223,5 +230,48 @@ public class WindowTest implements Serializable {
         }));
 
     pipeline.run();
+  }
+
+  @Test
+  public void testDisplayData() {
+    FixedWindows windowFn = FixedWindows.of(Duration.standardHours(5));
+    AfterWatermark.FromEndOfWindow triggerBuilder = AfterWatermark.pastEndOfWindow();
+    Duration allowedLateness = Duration.standardMinutes(10);
+    Window.ClosingBehavior closingBehavior = Window.ClosingBehavior.FIRE_IF_NON_EMPTY;
+    OutputTimeFn<BoundedWindow> outputTimeFn = OutputTimeFns.outputAtEndOfWindow();
+
+    Window.Bound<?> window = Window
+        .into(windowFn)
+        .triggering(triggerBuilder)
+        .accumulatingFiredPanes()
+        .withAllowedLateness(allowedLateness, closingBehavior)
+        .withOutputTimeFn(outputTimeFn);
+
+    DisplayData displayData = DisplayData.from(window);
+
+    assertThat(displayData, hasDisplayItem("windowFn", windowFn.getClass()));
+    assertThat(displayData, includes(windowFn));
+
+    assertThat(displayData, hasDisplayItem("trigger", triggerBuilder.toString()));
+    assertThat(displayData,
+        hasDisplayItem("accumulationMode", AccumulationMode.ACCUMULATING_FIRED_PANES.toString()));
+    assertThat(displayData,
+        hasDisplayItem("allowedLateness", allowedLateness));
+    assertThat(displayData, hasDisplayItem("closingBehavior", closingBehavior.toString()));
+    assertThat(displayData, hasDisplayItem("outputTimeFn", outputTimeFn.getClass()));
+  }
+
+  @Test
+  public void testDisplayDataExcludesUnspecifiedProperties() {
+    Window.Bound<?> window = Window.into(new GlobalWindows());
+
+    DisplayData displayData = DisplayData.from(window);
+    assertThat(displayData, not(hasDisplayItem(hasKey(isOneOf(
+        "trigger",
+        "outputTimeFn",
+        "accumulationMode",
+        "allowedLateness",
+        "closingBehavior")))));
+
   }
 }

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.doNothing;
@@ -335,5 +336,44 @@ public class AfterWatermarkTest {
     // And confirm that advancing the watermark fires again
     tester.advanceInputWatermark(new Instant(15));
     assertTrue(tester.shouldFire(mergedWindow));
+  }
+
+  @Test
+  public void testFromEndOfWindowToString() {
+    Trigger trigger = AfterWatermark.pastEndOfWindow();
+    assertEquals("AfterWatermark.pastEndOfWindow()", trigger.toString());
+  }
+
+  @Test
+  public void testLateFiringsToString() {
+    Trigger trigger = AfterWatermark.pastEndOfWindow()
+        .withLateFirings(new NamedTrigger("t1"))
+        .buildTrigger();
+
+    assertEquals("AfterWatermark.pastEndOfWindow().withLateFirings(t1)", trigger.toString());
+  }
+
+  @Test
+  public void testEarlyAndLateFiringsToString() {
+    Trigger trigger = AfterWatermark.pastEndOfWindow()
+        .withEarlyFirings(new NamedTrigger("t1"))
+        .withLateFirings(new NamedTrigger("t2"))
+        .buildTrigger();
+
+    assertEquals("AfterWatermark.pastEndOfWindow().withEarlyFirings(t1).withLateFirings(t2)",
+        trigger.toString());
+  }
+
+  private static class NamedTrigger extends StubTrigger {
+    private final String name;
+
+    NamedTrigger(String name) {
+      this.name = name;
+    }
+
+    @Override
+    public String toString() {
+      return name;
+    }
   }
 }

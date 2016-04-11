@@ -207,4 +207,23 @@ public class OrFinallyTriggerTest {
             triggerB.getContinuationTrigger().orFinally(triggerA.getContinuationTrigger())),
         bOrFinallyA.getContinuationTrigger());
   }
+
+  @Test
+  public void testToString() {
+    Trigger trigger = new NamedTrigger("t1").orFinally(new NamedTrigger("t2"));
+    assertEquals("t1.orFinally(t2)", trigger.toString());
+  }
+
+  private static class NamedTrigger extends StubTrigger {
+    private final String name;
+
+    NamedTrigger(String name) {
+      this.name = name;
+    }
+
+    @Override
+    public String toString() {
+      return name;
+    }
+  }
 }

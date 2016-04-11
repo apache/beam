@@ -20,6 +20,8 @@ package org.apache.beam.sdk.transforms.windowing;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.util.WindowingStrategy;
 
 import com.google.common.collect.Ordering;
@@ -50,7 +52,7 @@ import java.util.Collection;
  *            windows used by this {@code WindowFn}
  */
 public abstract class WindowFn<T, W extends BoundedWindow>
-    implements Serializable {
+    implements Serializable, HasDisplayData {
   /**
    * Information available when running {@link #assignWindows}.
    */
@@ -176,6 +178,16 @@ public abstract class WindowFn<T, W extends BoundedWindow>
    */
   public boolean assignsToSingleWindow() {
     return false;
+  }
+
+  /**
+   * {@inheritDoc}
+   *
+   * <p>By default, does not register any display data. Implementors may override this method
+   * to provide their own display metadata.
+   */
+  @Override
+  public void populateDisplayData(DisplayData.Builder builder) {
   }
 
   /**

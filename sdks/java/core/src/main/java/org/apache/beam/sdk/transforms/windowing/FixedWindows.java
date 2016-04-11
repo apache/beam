@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms.windowing;
 
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -80,6 +81,13 @@ public class FixedWindows extends PartitioningWindowFn<Object, IntervalWindow> {
     long start = timestamp.getMillis()
         - timestamp.plus(size).minus(offset).getMillis() % size.getMillis();
     return new IntervalWindow(new Instant(start), size);
+  }
+
+  @Override
+  public void populateDisplayData(DisplayData.Builder builder) {
+    builder
+        .add("size", size)
+        .addIfNotDefault("offset", offset, Duration.ZERO);
   }
 
   @Override

@@ -25,6 +25,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.WindowingStrategy.AccumulationMode;
 import org.apache.beam.sdk.values.PCollection;
@@ -593,6 +594,30 @@ public class Window {
           getOutputStrategyInternal(input.getWindowingStrategy());
       return PCollection.createPrimitiveOutputInternal(
           input.getPipeline(), outputStrategy, input.isBounded());
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      builder
+          .add("windowFn", windowFn.getClass())
+          .include(windowFn)
+          .addIfNotNull("allowedLateness", allowedLateness);
+
+      if (trigger != null) {
+        builder.add("trigger", trigger.toString());
+      }
+
+      if (mode != null) {
+        builder.add("accumulationMode", mode.toString());
+      }
+
+      if (closingBehavior != null) {
+        builder.add("closingBehavior", closingBehavior.toString());
+      }
+
+      if (outputTimeFn != null) {
+        builder.add("outputTimeFn", outputTimeFn.getClass());
+      }
     }
 
     @Override

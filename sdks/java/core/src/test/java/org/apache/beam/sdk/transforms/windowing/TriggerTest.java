@@ -38,7 +38,7 @@ public class TriggerTest {
   @Test
   public void testTriggerToString() throws Exception {
     assertEquals("AfterWatermark.pastEndOfWindow()", AfterWatermark.pastEndOfWindow().toString());
-    assertEquals("Repeatedly(AfterWatermark.pastEndOfWindow())",
+    assertEquals("Repeatedly.forever(AfterWatermark.pastEndOfWindow())",
         Repeatedly.forever(AfterWatermark.pastEndOfWindow()).toString());
   }
 
