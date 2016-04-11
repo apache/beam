@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
 import com.google.cloud.dataflow.sdk.util.ExecutableTrigger;
+import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 
 import org.joda.time.Instant;
@@ -113,5 +114,14 @@ public class AfterAll<W extends BoundedWindow> extends OnceTrigger<W> {
     for (ExecutableTrigger<W> subtrigger : context.trigger().subTriggers()) {
       subtrigger.invokeOnFire(context);
     }
+  }
+
+  @Override
+  public String toString() {
+    StringBuilder builder = new StringBuilder("AfterAll.of(");
+    Joiner.on(", ").appendTo(builder, subTriggers);
+    builder.append(")");
+
+    return builder.toString();
   }
 }

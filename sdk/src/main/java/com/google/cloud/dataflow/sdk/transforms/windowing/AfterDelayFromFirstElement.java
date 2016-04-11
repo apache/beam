@@ -34,10 +34,12 @@ import com.google.common.collect.ImmutableList;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.joda.time.format.PeriodFormat;
+import org.joda.time.format.PeriodFormatter;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
-
 import javax.annotation.Nullable;
 
 /**
@@ -56,6 +58,8 @@ public abstract class AfterDelayFromFirstElement<W extends BoundedWindow> extend
                                               Combine.Holder<Instant>, Instant>> DELAYED_UNTIL_TAG =
       StateTags.makeSystemTagInternal(StateTags.combiningValueFromInputInternal(
           "delayed", InstantCoder.of(), Min.MinFn.<Instant>naturalOrder()));
+
+  private static final PeriodFormatter PERIOD_FORMATTER = PeriodFormat.wordBased(Locale.ENGLISH);
 
   /**
    * To complete an implementation, return the desired time from the TriggerContext.
@@ -273,6 +277,11 @@ public abstract class AfterDelayFromFirstElement<W extends BoundedWindow> extend
     @Override
     public int hashCode() {
       return Objects.hash(delay);
+    }
+
+    @Override
+    public String toString() {
+      return PERIOD_FORMATTER.print(delay.toPeriod());
     }
   }
 

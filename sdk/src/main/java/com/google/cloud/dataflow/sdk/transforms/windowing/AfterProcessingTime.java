@@ -24,7 +24,6 @@ import org.joda.time.Instant;
 
 import java.util.List;
 import java.util.Objects;
-
 import javax.annotation.Nullable;
 
 /**
@@ -75,7 +74,15 @@ public class AfterProcessingTime<W extends BoundedWindow> extends AfterDelayFrom
 
   @Override
   public String toString() {
-    return "AfterProcessingTime.pastFirstElementInPane(" + timestampMappers + ")";
+    StringBuilder builder = new StringBuilder("AfterProcessingTime.pastFirstElementInPane()");
+    for (SerializableFunction<Instant, Instant> delayFn : timestampMappers) {
+      builder
+          .append(".plusDelayOf(")
+          .append(delayFn)
+          .append(")");
+    }
+
+    return builder.toString();
   }
 
   @Override

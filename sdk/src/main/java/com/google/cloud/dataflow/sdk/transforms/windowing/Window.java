@@ -24,6 +24,7 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.util.AssignWindowsDoFn;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
@@ -601,6 +602,30 @@ public class Window {
     private <T, W extends BoundedWindow> PCollection<T> assignWindows(
         PCollection<T> input, WindowFn<? super T, W> windowFn) {
       return input.apply("AssignWindows", ParDo.of(new AssignWindowsDoFn<T, W>(windowFn)));
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      builder
+          .add("windowFn", windowFn.getClass())
+          .include(windowFn)
+          .addIfNotNull("allowedLateness", allowedLateness);
+
+      if (trigger != null && !(trigger instanceof DefaultTrigger)) {
+        builder.add("trigger", trigger.toString());
+      }
+
+      if (mode != null) {
+        builder.add("accumulationMode", mode.toString());
+      }
+
+      if (closingBehavior != null) {
+        builder.add("closingBehavior", closingBehavior.toString());
+      }
+
+      if (outputTimeFn != null) {
+        builder.add("outputTimeFn", outputTimeFn.getClass());
+      }
     }
 
     @Override

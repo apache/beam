@@ -172,4 +172,10 @@ public class AfterFirstTest {
         AfterFirst.of(trigger1.getContinuationTrigger(), trigger2.getContinuationTrigger()),
         afterFirst.getContinuationTrigger());
   }
+
+  @Test
+  public void testToString() {
+    Trigger trigger = AfterFirst.of(StubTrigger.named("t1"), StubTrigger.named("t2"));
+    assertEquals("AfterFirst.of(t1, t2)", trigger.toString());
+  }
 }

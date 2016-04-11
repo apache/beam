@@ -148,4 +148,9 @@ public class AfterAllTest {
         afterAll.getContinuationTrigger());
   }
 
+  @Test
+  public void testToString() {
+    Trigger trigger = AfterAll.of(StubTrigger.named("t1"), StubTrigger.named("t2"));
+    assertEquals("AfterAll.of(t1, t2)", trigger.toString());
+  }
 }

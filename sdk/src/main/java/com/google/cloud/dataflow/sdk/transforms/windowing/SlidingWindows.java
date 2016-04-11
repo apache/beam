@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.annotations.Experimental.Kind;
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -136,6 +137,14 @@ public class SlidingWindows extends NonMergingWindowFn<Object, IntervalWindow> {
   @Override
   public boolean isCompatible(WindowFn<?, ?> other) {
     return equals(other);
+  }
+
+  @Override
+  public void populateDisplayData(DisplayData.Builder builder) {
+    builder
+        .add("size", size)
+        .add("period", period)
+        .add("offset", offset);
   }
 
   /**

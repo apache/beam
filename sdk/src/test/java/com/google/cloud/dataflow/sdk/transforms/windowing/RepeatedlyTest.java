@@ -208,4 +208,17 @@ public class RepeatedlyTest {
     assertFalse(tester.shouldFire(window));
   }
 
+
+  @Test
+  public void testToString() {
+    Trigger trigger = Repeatedly.forever(new StubTrigger() {
+        @Override
+        public String toString() {
+          return "innerTrigger";
+        }
+      });
+
+    assertEquals("Repeatedly.forever(innerTrigger)", trigger.toString());
+  }
+
 }

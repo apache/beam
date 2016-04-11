@@ -19,6 +19,8 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.annotations.Experimental.Kind;
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
+import com.google.cloud.dataflow.sdk.transforms.display.HasDisplayData;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.common.collect.Ordering;
 
@@ -48,7 +50,7 @@ import java.util.Collection;
  *            windows used by this {@code WindowFn}
  */
 public abstract class WindowFn<T, W extends BoundedWindow>
-    implements Serializable {
+    implements Serializable, HasDisplayData {
   /**
    * Information available when running {@link #assignWindows}.
    */
@@ -174,6 +176,16 @@ public abstract class WindowFn<T, W extends BoundedWindow>
    */
   public boolean assignsToSingleWindow() {
     return false;
+  }
+
+  /**
+   * {@inheritDoc}
+   *
+   * <p>By default, does not register any display data. Implementors may override this method
+   * to provide their own display metadata.
+   */
+  @Override
+  public void populateDisplayData(DisplayData.Builder builder) {
   }
 
   /**

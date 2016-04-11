@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.annotations.Experimental.Kind;
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 
 import org.joda.time.Duration;
 
@@ -94,6 +95,11 @@ public class Sessions extends WindowFn<Object, IntervalWindow> {
 
   public Duration getGapDuration() {
     return gapDuration;
+  }
+
+  @Override
+  public void populateDisplayData(DisplayData.Builder builder) {
+    builder.add("gapDuration", gapDuration);
   }
 
   @Override

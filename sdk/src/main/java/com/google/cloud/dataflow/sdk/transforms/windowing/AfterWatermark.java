@@ -64,6 +64,8 @@ import java.util.Objects;
 @Experimental(Experimental.Kind.TRIGGER)
 public class AfterWatermark<W extends BoundedWindow> {
 
+  private static final String TO_STRING = "AfterWatermark.pastEndOfWindow()";
+
   // Static factory class.
   private AfterWatermark() {}
 
@@ -100,7 +102,7 @@ public class AfterWatermark<W extends BoundedWindow> {
    * A trigger which never fires. Used for the "early" trigger when only a late trigger was
    * specified.
    */
-  private static class NeverTrigger<W extends BoundedWindow> extends OnceTrigger<W> {
+  static class NeverTrigger<W extends BoundedWindow> extends OnceTrigger<W> {
 
     protected NeverTrigger() {
       super(null);
@@ -258,6 +260,26 @@ public class AfterWatermark<W extends BoundedWindow> {
       }
     }
 
+    @Override
+    public String toString() {
+      StringBuilder builder = new StringBuilder(TO_STRING);
+
+      Trigger earlyTrigger = subTriggers.get(EARLY_INDEX);
+      if (!(earlyTrigger instanceof NeverTrigger)) {
+        builder
+            .append(".withEarlyFirings(")
+            .append(earlyTrigger)
+            .append(")");
+      }
+
+      builder
+          .append(".withLateFirings(")
+          .append(subTriggers.get(LATE_INDEX))
+          .append(")");
+
+      return builder.toString();
+    }
+
     private void onNonLateFiring(Trigger<W>.TriggerContext context) throws Exception {
       // We have not yet transitioned to late firings.
       ExecutableTrigger<W> earlySubtrigger = context.trigger().subTrigger(EARLY_INDEX);
@@ -368,7 +390,7 @@ public class AfterWatermark<W extends BoundedWindow> {
 
     @Override
     public String toString() {
-      return "AfterWatermark.pastEndOfWindow()";
+      return TO_STRING;
     }
 
     @Override
