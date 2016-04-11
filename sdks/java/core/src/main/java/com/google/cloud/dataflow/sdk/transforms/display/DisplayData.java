@@ -29,6 +29,7 @@ import com.google.common.collect.Sets;
 
 import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonValue;
 
 import org.apache.avro.reflect.Nullable;
 import org.joda.time.Duration;
@@ -100,6 +101,7 @@ public class DisplayData {
     return Type.tryInferFrom(value);
   }
 
+  @JsonValue
   public Collection<Item> items() {
     return entries.values();
   }
@@ -354,8 +356,8 @@ public class DisplayData {
     private final String key;
     private final String ns;
     private final Type type;
-    private final String value;
-    private final String shortValue;
+    private final Object value;
+    private final Object shortValue;
     private final String label;
     private final String url;
 
@@ -370,8 +372,8 @@ public class DisplayData {
         String namespace,
         String key,
         Type type,
-        String value,
-        String shortValue,
+        Object value,
+        Object shortValue,
         String url,
         String label) {
       this.ns = namespace;
@@ -406,7 +408,7 @@ public class DisplayData {
      * Retrieve the value of the metadata item.
      */
     @JsonGetter("value")
-    public String getValue() {
+    public Object getValue() {
       return value;
     }
 
@@ -420,7 +422,7 @@ public class DisplayData {
     @JsonGetter("shortValue")
     @JsonInclude(JsonInclude.Include.NON_NULL)
     @Nullable
-    public String getShortValue() {
+    public Object getShortValue() {
       return shortValue;
     }
 
@@ -562,47 +564,64 @@ public class DisplayData {
     STRING {
       @Override
       FormattedItemValue format(Object value) {
-        return new FormattedItemValue(value.toString());
+        return new FormattedItemValue(checkType(value, String.class, STRING));
       }
     },
     INTEGER {
       @Override
       FormattedItemValue format(Object value) {
-        Number number = (Number) value;
-        return new FormattedItemValue(Long.toString(number.longValue()));
+        if (value instanceof Integer) {
+          long l = ((Integer) value).longValue();
+          return format(l);
+        }
+
+        return new FormattedItemValue(checkType(value, Long.class, INTEGER));
       }
     },
     FLOAT {
       @Override
       FormattedItemValue format(Object value) {
-        return new FormattedItemValue(Double.toString((Double) value));
+        return new FormattedItemValue(checkType(value, Number.class, FLOAT));
       }
     },
     BOOLEAN() {
       @Override
       FormattedItemValue format(Object value) {
-        return new FormattedItemValue(Boolean.toString((boolean) value));
+        return new FormattedItemValue(checkType(value, Boolean.class, BOOLEAN));
       }
     },
     TIMESTAMP() {
       @Override
       FormattedItemValue format(Object value) {
-        return new FormattedItemValue((TIMESTAMP_FORMATTER.print((Instant) value)));
+        Instant instant = checkType(value, Instant.class, TIMESTAMP);
+        return new FormattedItemValue((TIMESTAMP_FORMATTER.print(instant)));
       }
     },
     DURATION {
       @Override
       FormattedItemValue format(Object value) {
-        return new FormattedItemValue(Long.toString(((Duration) value).getMillis()));
+        Duration duration = checkType(value, Duration.class, DURATION);
+        return new FormattedItemValue(duration.getMillis());
       }
     },
     JAVA_CLASS {
       @Override
       FormattedItemValue format(Object value) {
-        Class<?> clazz = (Class<?>) value;
+        Class<?> clazz = checkType(value, Class.class, JAVA_CLASS);
         return new FormattedItemValue(clazz.getName(), clazz.getSimpleName());
       }
     };
+
+    private static <T> T checkType(Object value, Class<T> clazz, DisplayData.Type expectedType) {
+      if (!clazz.isAssignableFrom(value.getClass())) {
+        throw new ClassCastException(String.format(
+            "Value is not valid for DisplayData type %s: %s", expectedType, value));
+      }
+
+      @SuppressWarnings("unchecked") // type checked above.
+      T typedValue = (T) value;
+      return typedValue;
+    }
 
     /**
      * Format the display metadata value into a long string representation, and optionally
@@ -614,7 +633,6 @@ public class DisplayData {
 
     @Nullable
     private static Type tryInferFrom(@Nullable Object value) {
-      Type type;
       if (value instanceof Integer || value instanceof Long) {
         return INTEGER;
       } else if (value instanceof Double || value instanceof Float) {
@@ -636,23 +654,23 @@ public class DisplayData {
   }
 
   static class FormattedItemValue {
-    private final String shortValue;
-    private final String longValue;
+    private final Object shortValue;
+    private final Object longValue;
 
-    private FormattedItemValue(String longValue) {
+    private FormattedItemValue(Object longValue) {
       this(longValue, null);
     }
 
-    private FormattedItemValue(String longValue, String shortValue) {
+    private FormattedItemValue(Object longValue, Object shortValue) {
       this.longValue = longValue;
       this.shortValue = shortValue;
     }
 
-    String getLongValue() {
+    Object getLongValue() {
       return this.longValue;
     }
 
-    String getShortValue() {
+    Object getShortValue() {
       return this.shortValue;
     }
   }

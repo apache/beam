@@ -730,12 +730,8 @@ public class DataflowPipelineTranslator {
     }
 
     private void addDisplayData(String name, DisplayData displayData) {
-      List<Map<String, Object>> serializedItems = Lists.newArrayList();
-      for (DisplayData.Item item : displayData.items()) {
-        serializedItems.add(MAPPER.convertValue(item, Map.class));
-      }
-
-      addList(getProperties(), name, serializedItems);
+      List list = MAPPER.convertValue(displayData, List.class);
+      addList(getProperties(), name, list);
     }
 
     @Override

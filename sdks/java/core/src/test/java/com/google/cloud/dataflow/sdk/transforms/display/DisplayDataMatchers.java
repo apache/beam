@@ -301,7 +301,7 @@ public class DisplayDataMatchers {
    * value.
    */
 
-  public static Matcher<DisplayData.Item> hasValue(String value) {
+  public static Matcher<DisplayData.Item> hasValue(Object value) {
     return hasValue(Matchers.is(value));
   }
 
@@ -309,12 +309,12 @@ public class DisplayDataMatchers {
    * Creates a matcher that matches if the examined {@link DisplayData.Item} contains a value
    * matching the specified value matcher.
    */
-  public static Matcher<DisplayData.Item> hasValue(Matcher<String> valueMatcher) {
-    return new FeatureMatcher<DisplayData.Item, String>(
+  public static <T> Matcher<DisplayData.Item> hasValue(Matcher<T> valueMatcher) {
+    return new FeatureMatcher<DisplayData.Item, T>(
             valueMatcher, "with value", "value") {
       @Override
-      protected String featureValueOf(DisplayData.Item actual) {
-        return actual.getValue();
+      protected T featureValueOf(DisplayData.Item actual) {
+        return (T) actual.getValue();
       }
     };
   }

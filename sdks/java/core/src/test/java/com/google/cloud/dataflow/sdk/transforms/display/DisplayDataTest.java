@@ -35,12 +35,18 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.display.DisplayData.Builder;
 import com.google.cloud.dataflow.sdk.transforms.display.DisplayData.Item;
 import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableMultimap;
+import com.google.common.collect.Multimap;
 import com.google.common.testing.EqualsTester;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.hamcrest.CustomTypeSafeMatcher;
 import org.hamcrest.FeatureMatcher;
@@ -68,6 +74,7 @@ import java.util.regex.Pattern;
 public class DisplayDataTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
   private static final DateTimeFormatter ISO_FORMATTER = ISODateTimeFormat.dateTime();
+  private static final ObjectMapper MAPPER = new ObjectMapper();
 
   @Test
   public void testTypicalUsage() {
@@ -563,13 +570,64 @@ public class DisplayDataTest {
       @Override
       public void populateDisplayData(Builder builder) {
         builder
-            .add("integer", DisplayData.Type.INTEGER, 1234)
+            .add("integer", DisplayData.Type.INTEGER, 1234L)
             .add("string", DisplayData.Type.STRING, "foobar");
       }
     });
 
-    assertThat(data, hasDisplayItem("integer", 1234));
+    assertThat(data, hasDisplayItem("integer", 1234L));
     assertThat(data, hasDisplayItem("string", "foobar"));
+  }
+
+  @Test
+  public void testFormatIncompatibleTypes() {
+    Map<DisplayData.Type, Object> invalidPairs = ImmutableMap.<DisplayData.Type, Object>builder()
+        .put(DisplayData.Type.STRING, 1234)
+        .put(DisplayData.Type.INTEGER, "string value")
+        .put(DisplayData.Type.FLOAT, "string value")
+        .put(DisplayData.Type.BOOLEAN, "string value")
+        .put(DisplayData.Type.TIMESTAMP, "string value")
+        .put(DisplayData.Type.DURATION, "string value")
+        .put(DisplayData.Type.JAVA_CLASS, "string value")
+        .build();
+
+    for (Map.Entry<DisplayData.Type, Object> pair : invalidPairs.entrySet()) {
+      try {
+        DisplayData.Type type = pair.getKey();
+        Object invalidValue = pair.getValue();
+
+        type.format(invalidValue);
+        fail(String.format(
+            "Expected exception not thrown for invalid %s value: %s", type, invalidValue));
+      } catch (ClassCastException e) {
+        // Expected
+      }
+    }
+  }
+
+  @Test
+  public void testFormatCompatibleTypes() {
+    Multimap<DisplayData.Type, Object> validPairs = ImmutableMultimap
+        .<DisplayData.Type, Object>builder()
+        .put(DisplayData.Type.INTEGER, 1234)
+        .put(DisplayData.Type.INTEGER, 1234L)
+        .put(DisplayData.Type.FLOAT, 123.4f)
+        .put(DisplayData.Type.FLOAT, 123.4)
+        .put(DisplayData.Type.FLOAT, 1234)
+        .put(DisplayData.Type.FLOAT, 1234L)
+        .build();
+
+    for (Map.Entry<DisplayData.Type, Object> pair : validPairs.entries()) {
+      DisplayData.Type type = pair.getKey();
+      Object value = pair.getValue();
+
+      try {
+        type.format(value);
+      } catch (ClassCastException e) {
+        fail(String.format("Failed to format %s for DisplayData.%s",
+            value.getClass().getSimpleName(), type));
+      }
+    }
   }
 
   @Test
@@ -743,6 +801,7 @@ public class DisplayDataTest {
       });
   }
 
+  @Test
   public void testAcceptsNullOptionalValues() {
     DisplayData.from(
       new HasDisplayData() {
@@ -750,12 +809,80 @@ public class DisplayDataTest {
         public void populateDisplayData(Builder builder) {
           builder.add("key", "value")
               .withLabel(null)
-              .withLinkUrl(null)
-              .withNamespace(null);
+              .withLinkUrl(null);
         }
       });
 
     // Should not throw
+  }
+
+  @Test
+  public void testJsonSerialization() throws IOException {
+    HasDisplayData component = new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder
+            .add("string", "foobar")
+            .add("long", 1234)
+            .add("double", 123.4)
+            .add("boolean", true)
+            .add("instant", new Instant(0))
+            .add("duration", Duration.millis(1234))
+            .add("class", DisplayDataTest.class)
+              .withLinkUrl("http://abc")
+              .withLabel("baz")
+        ;
+      }
+    };
+    DisplayData data = DisplayData.from(component);
+
+    JsonNode json = MAPPER.readTree(MAPPER.writeValueAsBytes(data));
+    assertThat(json, hasItem(expectedJson(component.getClass(), "STRING", "string", "\"foobar\"")));
+    assertThat(json, hasItem(expectedJson(component.getClass(), "INTEGER", "long", "1234")));
+    assertThat(json, hasItem(expectedJson(component.getClass(), "FLOAT", "double", "123.4")));
+    assertThat(json, hasItem(expectedJson(component.getClass(), "BOOLEAN", "boolean", "true")));
+    assertThat(json, hasItem(expectedJson(
+        component.getClass(), "TIMESTAMP", "instant", "\"1970-01-01T00:00:00.000Z\"")));
+    assertThat(json, hasItem(expectedJson(
+        component.getClass(), "DURATION", "duration", "1234")));
+    assertThat(json, hasItem(expectedJson(
+        component.getClass(), "JAVA_CLASS", "class", "\"" + DisplayDataTest.class.getName() + "\"",
+        "\"DisplayDataTest\"", "baz", "http://abc")));
+
+  }
+
+  private JsonNode expectedJson(Class<?> nsClass, String type, String key, String value)
+      throws IOException {
+    return expectedJson(nsClass, type, key, value, null, null, null);
+  }
+
+  private JsonNode expectedJson(
+      Class<?> nsClass,
+      String type,
+      String key,
+      String value,
+      String shortValue,
+      String label,
+      String linkUrl) throws IOException {
+    StringBuilder builder = new StringBuilder();
+    builder.append("{");
+    builder.append(String.format("\"namespace\":\"%s\",", nsClass.getName()));
+    builder.append(String.format("\"type\":\"%s\",", type));
+    builder.append(String.format("\"key\":\"%s\",", key));
+    builder.append(String.format("\"value\":%s", value));
+
+    if (shortValue != null) {
+      builder.append(String.format(",\"shortValue\":%s", shortValue));
+    }
+    if (label != null) {
+      builder.append(String.format(",\"label\":\"%s\"", label));
+    }
+    if (linkUrl != null) {
+      builder.append(String.format(",\"linkUrl\":\"%s\"", linkUrl));
+    }
+
+    builder.append("}");
+    return MAPPER.readTree(builder.toString());
   }
 
   private static Matcher<DisplayData.Item> hasLabel(Matcher<String> labelMatcher) {
@@ -778,12 +905,14 @@ public class DisplayDataTest {
     };
   }
 
-  private static Matcher<DisplayData.Item> hasShortValue(Matcher<String> valueStringMatcher) {
-    return new FeatureMatcher<DisplayData.Item, String>(
+  private static  <T> Matcher<DisplayData.Item> hasShortValue(Matcher<T> valueStringMatcher) {
+    return new FeatureMatcher<DisplayData.Item, T>(
         valueStringMatcher, "display item with short value", "short value") {
       @Override
-      protected String featureValueOf(DisplayData.Item actual) {
-        return actual.getShortValue();
+      protected T featureValueOf(DisplayData.Item actual) {
+        @SuppressWarnings("unchecked")
+        T shortValue = (T) actual.getShortValue();
+        return shortValue;
       }
     };
   }
