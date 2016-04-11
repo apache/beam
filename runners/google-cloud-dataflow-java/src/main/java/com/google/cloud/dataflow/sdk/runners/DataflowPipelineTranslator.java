@@ -81,7 +81,6 @@ import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.cloud.dataflow.sdk.values.TypedPValue;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -730,12 +729,8 @@ public class DataflowPipelineTranslator {
     }
 
     private void addDisplayData(String name, DisplayData displayData) {
-      List<Map<String, Object>> serializedItems = Lists.newArrayList();
-      for (DisplayData.Item item : displayData.items()) {
-        serializedItems.add(MAPPER.convertValue(item, Map.class));
-      }
-
-      addList(getProperties(), name, serializedItems);
+      List<Map<String, Object>> list = MAPPER.convertValue(displayData, List.class);
+      addList(getProperties(), name, list);
     }
 
     @Override

@@ -818,8 +818,8 @@ public class DataflowPipelineTranslatorTest implements Serializable {
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
         builder
-                .add("foo", "bar")
-                .add("foo2", DataflowPipelineTranslatorTest.class)
+            .add("foo", "bar")
+            .add("foo2", DataflowPipelineTranslatorTest.class)
                 .withLabel("Test Class")
                 .withLinkUrl("http://www.google.com");
       }
@@ -833,7 +833,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
-        builder.add("foo3", "barge");
+        builder.add("foo3", 1234);
       }
     };
 
@@ -876,11 +876,11 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     );
 
     ImmutableList expectedFn2DisplayData = ImmutableList.of(
-            ImmutableMap.<String, String>builder()
+            ImmutableMap.<String, Object>builder()
                     .put("namespace", fn2.getClass().getName())
                     .put("key", "foo3")
-                    .put("type", "STRING")
-                    .put("value", "barge")
+                    .put("type", "INTEGER")
+                    .put("value", 1234L)
                     .build()
     );
 
