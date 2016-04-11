@@ -176,6 +176,13 @@ public class DisplayData {
     ItemBuilder add(String key, long value);
 
     /**
+     * Register the given numeric display data if the value is not null.
+     *
+     * @see DisplayData.Builder#add(String, long)
+     */
+    ItemBuilder addIfNotNull(String key, @Nullable Long value);
+
+    /**
      * Register the given numeric display data if the value is different than the specified default.
      *
      * @see DisplayData.Builder#add(String, long)
@@ -188,6 +195,13 @@ public class DisplayData {
      * from the current transform or component.
      */
     ItemBuilder add(String key, double value);
+
+    /**
+     * Register the given floating point display data if the value is not null.
+     *
+     * @see DisplayData.Builder#add(String, double)
+     */
+    ItemBuilder addIfNotNull(String key, @Nullable Double value);
 
     /**
      * Register the given floating point display data if the value is different than the specified
@@ -203,6 +217,13 @@ public class DisplayData {
      * from the current transform or component.
      */
     ItemBuilder add(String key, boolean value);
+
+    /**
+     * Register the given boolean display data if the value is not null.
+     *
+     * @see DisplayData.Builder#add(String, boolean)
+     */
+    ItemBuilder addIfNotNull(String key, @Nullable Boolean value);
 
     /**
      * Register the given boolean display data if the value is different than the specified default.
@@ -286,6 +307,7 @@ public class DisplayData {
    * transform or component.
    *
    * @throws ClassCastException if the value cannot be safely cast to the specified type.
+   *
    * @see DisplayData#inferType(Object)
    */
     ItemBuilder add(String key, Type type, Object value);
@@ -701,8 +723,13 @@ public class DisplayData {
     }
 
     @Override
+    public ItemBuilder addIfNotNull(String key, @Nullable Long value) {
+      return addItemIf(value != null, key, Type.INTEGER, value);
+    }
+
+    @Override
     public ItemBuilder addIfNotDefault(String key, long value, long defaultValue) {
-      return addItemIf(value != defaultValue, key, Type.INTEGER, value);
+      return addItemIf(!Objects.equals(value, defaultValue), key, Type.INTEGER, value);
     }
 
     @Override
@@ -711,8 +738,13 @@ public class DisplayData {
     }
 
     @Override
+    public ItemBuilder addIfNotNull(String key, @Nullable Double value) {
+      return addItemIf(value != null, key, Type.INTEGER, value);
+    }
+
+    @Override
     public ItemBuilder addIfNotDefault(String key, double value, double defaultValue) {
-      return addItemIf(value != defaultValue, key, Type.FLOAT, value);
+      return addItemIf(!Objects.equals(value, defaultValue), key, Type.FLOAT, value);
     }
 
     @Override
@@ -721,8 +753,13 @@ public class DisplayData {
     }
 
     @Override
+    public ItemBuilder addIfNotNull(String key, @Nullable Boolean value) {
+      return addItemIf(value != null, key, Type.BOOLEAN, value);
+    }
+
+    @Override
     public ItemBuilder addIfNotDefault(String key, boolean value, boolean defaultValue) {
-      return addItemIf(value != defaultValue, key, Type.BOOLEAN, value);
+      return addItemIf(!Objects.equals(value, defaultValue), key, Type.BOOLEAN, value);
     }
 
     @Override
