@@ -18,7 +18,8 @@
 package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.sdk.TestUtils.checkCombineFn;
-
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includes;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import static org.junit.Assert.assertEquals;
@@ -44,6 +45,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine.KeyedCombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.Context;
 import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
@@ -680,6 +682,24 @@ public class CombineTest implements Serializable {
     assertEquals(
         "Combine.PerKeyWithHotKeyFanout",
         Combine.perKey(new TestKeyedCombineFn()).withHotKeyFanout(10).getName());
+  }
+
+  @Test
+  public void testDisplayData() {
+    UniqueInts combineFn = new UniqueInts() {
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        builder.add("fnMetadata", "foobar");
+      }
+    };
+    Combine.Globally<?, ?> combine = Combine.globally(combineFn)
+        .withFanout(1234);
+    DisplayData displayData = DisplayData.from(combine);
+
+    assertThat(displayData, hasDisplayItem("combineFn", combineFn.getClass()));
+    assertThat(displayData, hasDisplayItem("emitDefaultOnEmptyInput", true));
+    assertThat(displayData, hasDisplayItem("fanout", 1234));
+    assertThat(displayData, includes(combineFn));
   }
 
   ////////////////////////////////////////////////////////////////////////////

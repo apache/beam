@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms;
 
 import org.apache.beam.sdk.transforms.Combine.BinaryCombineFn;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.common.Counter;
 import org.apache.beam.sdk.util.common.Counter.AggregationKind;
 import org.apache.beam.sdk.util.common.CounterProvider;
@@ -203,6 +204,11 @@ public class Max {
     @Override
     public T apply(T left, T right) {
       return comparator.compare(left, right) >= 0 ? left : right;
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      builder.add("comparer", comparator.getClass());
     }
   }
 

@@ -23,6 +23,7 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Combine.KeyedCombineFn;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollectionView;
 
 /**
@@ -166,6 +167,11 @@ public class CombineWithContext {
         @Override
         public CombineFnWithContext<InputT, AccumT, OutputT> forKey(K key, Coder<K> keyCoder) {
           return CombineFnWithContext.this;
+        }
+
+        @Override
+        public void populateDisplayData(DisplayData.Builder builder) {
+          CombineFnWithContext.this.populateDisplayData(builder);
         }
       };
     }
