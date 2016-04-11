@@ -206,35 +206,35 @@ public class AvroIOTest {
     TestPipeline p = TestPipeline.create();
     Bound<String> write = AvroIO.Write.to(outputFilePrefix).withSchema(String.class);
     if (numShards > 1) {
-      write = write.withNumShards(numShards).withShardNameTemplate(ShardNameTemplate.INDEX_OF_MAX);
+      write = write.withNumShards(numShards);
     } else {
       write = write.withoutSharding();
     }
     p.apply(Create.<String>of(expectedElements)).apply(write);
     p.run();
 
+    String shardNameTemplate = write.getShardNameTemplate();
+
+    assertTestOutputs(expectedElements, numShards, outputFilePrefix, shardNameTemplate);
+  }
+
+  public static void assertTestOutputs(
+      String[] expectedElements, int numShards, String outputFilePrefix, String shardNameTemplate)
+      throws IOException {
     // Validate that the data written matches the expected elements in the expected order
     List<File> expectedFiles = new ArrayList<>();
-    if (numShards == 1) {
-      expectedFiles.add(baseOutputFile);
-    } else {
-      for (int i = 0; i < numShards; i++) {
-        expectedFiles.add(
-            new File(
-                IOChannelUtils.constructName(
-                    outputFilePrefix,
-                    ShardNameTemplate.INDEX_OF_MAX,
-                    "" /* no suffix */,
-                    i,
-                    numShards)));
-      }
+    for (int i = 0; i < numShards; i++) {
+      expectedFiles.add(
+          new File(
+              IOChannelUtils.constructName(
+                  outputFilePrefix, shardNameTemplate, "" /* no suffix */, i, numShards)));
     }
 
     List<String> actualElements = new ArrayList<>();
     for (File outputFile : expectedFiles) {
       assertTrue("Expected output file " + outputFile.getName(), outputFile.exists());
       try (DataFileReader<String> reader =
-              new DataFileReader<>(outputFile, AvroCoder.of(String.class).createDatumReader())) {
+          new DataFileReader<>(outputFile, AvroCoder.of(String.class).createDatumReader())) {
         Iterators.addAll(actualElements, reader);
       }
     }

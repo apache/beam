@@ -158,7 +158,8 @@ public class TextIOTest {
   }
 
   <T> void runTestWrite(T[] elems, Coder<T> coder, int numShards) throws Exception {
-    String filename = tmpFolder.newFile("file.txt").getPath();
+    String outputName = "file.txt";
+    String baseFilename = tmpFolder.newFile(outputName).getPath();
 
     Pipeline p = TestPipeline.create();
 
@@ -166,11 +167,11 @@ public class TextIOTest {
 
     TextIO.Write.Bound<T> write;
     if (coder.equals(StringUtf8Coder.of())) {
-      TextIO.Write.Bound<String> writeStrings = TextIO.Write.to(filename);
+      TextIO.Write.Bound<String> writeStrings = TextIO.Write.to(baseFilename);
       // T==String
       write = (TextIO.Write.Bound<T>) writeStrings;
     } else {
-      write = TextIO.Write.to(filename).withCoder(coder);
+      write = TextIO.Write.to(baseFilename).withCoder(coder);
     }
     if (numShards == 1) {
       write = write.withoutSharding();
@@ -182,17 +183,23 @@ public class TextIOTest {
 
     p.run();
 
+    assertOutputFiles(elems, coder, numShards, tmpFolder, outputName, write.getShardNameTemplate());
+  }
+
+  public static <T> void assertOutputFiles(
+      T[] elems,
+      Coder<T> coder,
+      int numShards,
+      TemporaryFolder rootLocation,
+      String outputName,
+      String shardNameTemplate)
+      throws Exception {
     List<File> expectedFiles = new ArrayList<>();
-    if (numShards == 1) {
-      expectedFiles.add(new File(filename));
-    } else {
-      for (int i = 0; i < numShards; i++) {
-        expectedFiles.add(
-            new File(
-                tmpFolder.getRoot(),
-                IOChannelUtils.constructName(
-                    "file.txt", ShardNameTemplate.INDEX_OF_MAX, "", i, numShards)));
-      }
+    for (int i = 0; i < numShards; i++) {
+      expectedFiles.add(
+          new File(
+              rootLocation.getRoot(),
+              IOChannelUtils.constructName(outputName, shardNameTemplate, "", i, numShards)));
     }
 
     List<String> actual = new ArrayList<>();

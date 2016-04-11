@@ -21,6 +21,8 @@ import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.Pipeline.PipelineExecutionException;
 import com.google.cloud.dataflow.sdk.PipelineResult;
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
+import com.google.cloud.dataflow.sdk.io.AvroIO;
+import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.AggregatorPipelineExtractor;
 import com.google.cloud.dataflow.sdk.runners.AggregatorRetrievalException;
@@ -83,6 +85,8 @@ public class InProcessPipelineRunner
               .put(Create.Values.class, new InProcessCreateOverrideFactory())
               .put(GroupByKey.class, new InProcessGroupByKeyOverrideFactory())
               .put(CreatePCollectionView.class, new InProcessViewOverrideFactory())
+              .put(AvroIO.Write.Bound.class, new AvroIOShardedWriteFactory())
+              .put(TextIO.Write.Bound.class, new TextIOShardedWriteFactory())
               .build();
 
   /**
