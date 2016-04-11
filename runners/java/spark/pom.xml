@@ -23,13 +23,14 @@
 
     <parent>
         <groupId>org.apache.beam</groupId>
-        <artifactId>runners-parent</artifactId>
+        <artifactId>runners-java-parent</artifactId>
         <version>0.1.0-incubating-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
 
     <artifactId>spark-runner</artifactId>
 
-    <name>Apache Beam :: Runners :: Spark</name>
+    <name>Apache Beam :: Runners :: Java :: Spark</name>
     <packaging>jar</packaging>
 
     <properties>

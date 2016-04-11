@@ -30,7 +30,7 @@
 
   <artifactId>flink-runner-examples_2.10</artifactId>
 
-  <name>Apache Beam :: Runners :: Flink :: Examples</name>
+  <name>Apache Beam :: Runners :: Java :: Flink :: Examples</name>
 
   <packaging>jar</packaging>
 

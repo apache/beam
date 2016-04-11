@@ -23,19 +23,18 @@
 
   <parent>
     <groupId>org.apache.beam</groupId>
-    <artifactId>parent</artifactId>
+    <artifactId>runners-parent</artifactId>
     <version>0.1.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>runners-parent</artifactId>
-
+  <artifactId>runners-java-parent</artifactId>
   <packaging>pom</packaging>
-
-  <name>Apache Beam :: Runners</name>
+  <name>Apache Beam :: Runners :: Java</name>
 
   <modules>
-    <module>java</module>
+    <module>spark</module>
+    <module>flink</module>
   </modules>
 
 </project>
