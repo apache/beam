@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.runners;
 import static com.google.cloud.dataflow.sdk.util.Structs.addObject;
 import static com.google.cloud.dataflow.sdk.util.Structs.getDictionary;
 import static com.google.cloud.dataflow.sdk.util.Structs.getString;
+
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.core.IsInstanceOf.instanceOf;
@@ -819,8 +820,8 @@ public class DataflowPipelineTranslatorTest implements Serializable {
       public void populateDisplayData(DisplayData.Builder builder) {
         builder
             .add("foo", "bar")
-            .add("foo2", 123)
-            .withLabel("Test Value")
+            .add("foo2", DataflowPipelineTranslatorTest.class)
+            .withLabel("Test Class")
             .withLinkUrl("http://www.google.com");
       }
     };
@@ -833,7 +834,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
-        builder.add("foo3", "barge");
+        builder.add("foo3", 1234);
       }
     };
 
@@ -868,19 +869,20 @@ public class DataflowPipelineTranslatorTest implements Serializable {
             .build(),
         ImmutableMap.<String, String>builder()
             .put("key", "foo2")
-            .put("type", "INTEGER")
-            .put("value", "123")
+            .put("type", "JAVA_CLASS")
+            .put("value", DataflowPipelineTranslatorTest.class.getName())
+            .put("shortValue", DataflowPipelineTranslatorTest.class.getSimpleName())
             .put("namespace", fn1.getClass().getName())
-            .put("label", "Test Value")
+            .put("label", "Test Class")
             .put("linkUrl", "http://www.google.com")
             .build()
     );
 
-    ImmutableSet<ImmutableMap<String, String>> expectedFn2DisplayData = ImmutableSet.of(
-        ImmutableMap.<String, String>builder()
+    ImmutableSet<ImmutableMap<String, Object>> expectedFn2DisplayData = ImmutableSet.of(
+        ImmutableMap.<String, Object>builder()
             .put("key", "foo3")
-            .put("type", "STRING")
-            .put("value", "barge")
+            .put("type", "INTEGER")
+            .put("value", 1234L)
             .put("namespace", fn2.getClass().getName())
             .build()
     );
