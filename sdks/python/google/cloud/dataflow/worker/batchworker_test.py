@@ -108,15 +108,10 @@ class BatchWorkerTest(unittest.TestCase):
     assert not mock_start.called
     assert not mock_execute.called
 
-  @patch.object(executor.MapTaskExecutor, 'execute')
-  @patch.object(batchworker.ProgressReporter, 'start_reporting_progress')
-  @patch.object(batchworker.ProgressReporter, 'stop_reporting_progress')
-  @patch.object(batchworker.ProgressReporter, 'report_status')
-  def test_worker_sends_completion_in_case_of_a_failure(
-      self, mock_report_status, mock_stop, mock_start, mock_execute):
+  def _run_send_completion_test(self, mock_report_status, mock_stop, mock_start,
+                                mock_execute, expected_exception):
     worker = batchworker.BatchWorker(self.dummy_properties(), {})
     mock_work_item = mock.MagicMock()
-    mock_execute.side_effect = Exception('test_exception')
     worker.do_work(mock_work_item)
 
     class AnyStringWith(str):
@@ -125,11 +120,45 @@ class BatchWorkerTest(unittest.TestCase):
         return self in other
 
     mock_report_status.assert_called_with(
-        completed=True, exception_details=AnyStringWith('test_exception'))
+        completed=True,
+        exception_details=AnyStringWith(expected_exception))
 
     mock_start.assert_called_once_with()
     mock_execute.assert_called_once_with(mock.ANY)
     mock_stop.assert_called_once_with()
+
+  @patch.object(executor.MapTaskExecutor, 'execute')
+  @patch.object(batchworker.ProgressReporter, 'start_reporting_progress')
+  @patch.object(batchworker.ProgressReporter, 'stop_reporting_progress')
+  @patch.object(batchworker.ProgressReporter, 'report_status')
+  def test_send_completion_execute_failure(self, mock_report_status, mock_stop,
+                                           mock_start, mock_execute):
+    mock_execute.side_effect = Exception('test_exception')
+    self._run_send_completion_test(mock_report_status, mock_stop, mock_start,
+                                   mock_execute, 'test_exception')
+
+  @patch.object(executor.MapTaskExecutor, 'execute')
+  @patch.object(batchworker.ProgressReporter, 'start_reporting_progress')
+  @patch.object(batchworker.ProgressReporter, 'stop_reporting_progress')
+  @patch.object(batchworker.ProgressReporter, 'report_status')
+  def test_send_completion_stop_progress_reporter_failure(self,
+                                                          mock_report_status,
+                                                          mock_stop, mock_start,
+                                                          mock_execute):
+    mock_stop.side_effect = Exception('test_exception')
+    self._run_send_completion_test(mock_report_status, mock_stop, mock_start,
+                                   mock_execute, 'test_exception')
+
+  @patch.object(executor.MapTaskExecutor, 'execute')
+  @patch.object(batchworker.ProgressReporter, 'start_reporting_progress')
+  @patch.object(batchworker.ProgressReporter, 'stop_reporting_progress')
+  @patch.object(batchworker.ProgressReporter, 'report_status')
+  def test_send_completion_execute_and_stop_progress_reporter_failure(
+      self, mock_report_status, mock_stop, mock_start, mock_execute):
+    mock_execute.side_effect = Exception('test_exception_1')
+    mock_stop.side_effect = Exception('test_exception_2')
+    self._run_send_completion_test(mock_report_status, mock_stop, mock_start,
+                                   mock_execute, 'test_exception_1')
 
 
 class ProgressReporterTest(unittest.TestCase):

@@ -435,23 +435,34 @@ class BatchWorker(object):
                       'was found: %s', work_item, deferred_exception_details)
         return
 
+    exception_details = None
     try:
       progress_reporter.start_reporting_progress()
       work_executor.execute(work_item.map_task)
     except Exception:  # pylint: disable=broad-except
-      progress_reporter.stop_reporting_progress()
       exception_details = traceback.format_exc()
-      logging.error('Exception: %s', exception_details, exc_info=True)
-      # Completed with errors means failed.
+      logging.error('An exception was raised when trying to execute the '
+                    'work item %s : %s',
+                    work_item,
+                    exception_details, exc_info=True)
+    finally:
+      try:
+        progress_reporter.stop_reporting_progress()
+      except Exception:  # pylint: disable=broad-except
+        logging.error('An exception was raised when trying to stop the '
+                      'progress reporter : %s',
+                      traceback.format_exc(), exc_info=True)
+        # If 'exception_details' was already set, we were already going to
+        # mark this work item as failed. Hence only logging this error and
+        # reporting the original error.
+        if exception_details is None:
+          # This will be reported to the service and work item will be marked as
+          # failed.
+          exception_details = traceback.format_exc()
+
       with work_item.lock:
-        self.report_completion_status(work_item,
-                                      progress_reporter,
+        self.report_completion_status(work_item, progress_reporter,
                                       exception_details=exception_details)
-        work_item.done = True
-    else:
-      progress_reporter.stop_reporting_progress()
-      with work_item.lock:
-        self.report_completion_status(work_item, progress_reporter)
         work_item.done = True
 
   def status_server(self):
