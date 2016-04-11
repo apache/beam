@@ -26,13 +26,52 @@ import java.util.Collection;
  */
 public interface PubsubClient extends AutoCloseable {
   /**
+   * Path representing a cloud project id.
+   */
+  class ProjectPath {
+    private final String path;
+
+    public ProjectPath(String path) {
+      this.path = path;
+    }
+
+    public String getPath() {
+      return path;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+
+      ProjectPath that = (ProjectPath) o;
+
+      return path.equals(that.path);
+
+    }
+
+    @Override
+    public int hashCode() {
+      return path.hashCode();
+    }
+
+    public static ProjectPath fromId(String projectId) {
+      return new ProjectPath(String.format("projects/%s", projectId));
+    }
+  }
+
+  /**
    * Path representing a Pubsub subscription.
    */
   class SubscriptionPath {
     private final String path;
 
-    public SubscriptionPath(String projectId, String subscriptionName) {
-      path = String.format("projects/%s/subscriptions/%s", projectId, subscriptionName);
+    public SubscriptionPath(String path) {
+      this.path = path;
     }
 
     public String getPath() {
@@ -55,6 +94,11 @@ public interface PubsubClient extends AutoCloseable {
     public int hashCode() {
       return path.hashCode();
     }
+
+    public static SubscriptionPath fromName(String projectId, String subscriptionName) {
+      return new SubscriptionPath(String.format("projects/%s/subscriptions/%s",
+          projectId, subscriptionName));
+    }
   }
 
   /**
@@ -63,8 +107,8 @@ public interface PubsubClient extends AutoCloseable {
   class TopicPath {
     private final String path;
 
-    public TopicPath(String projectId, String topicName) {
-      path = String.format("projects/%s/topics/%s", projectId, topicName);
+    public TopicPath(String path) {
+      this.path = path;
     }
 
     public String getPath() {
@@ -86,6 +130,10 @@ public interface PubsubClient extends AutoCloseable {
     @Override
     public int hashCode() {
       return path.hashCode();
+    }
+
+    public static TopicPath fromName(String projectId, String topicName) {
+      return new TopicPath(String.format("projects/%s/topics/%s", projectId, topicName));
     }
   }
 
@@ -213,11 +261,11 @@ public interface PubsubClient extends AutoCloseable {
   void deleteTopic(TopicPath topic) throws IOException;
 
   /**
-   * Return a list of topics for {@code projectId}.
+   * Return a list of topics for {@code project}.
    *
    * @throws IOException
    */
-  Collection<String> listTopics(String projectId) throws IOException;
+  Collection<TopicPath> listTopics(ProjectPath project) throws IOException;
 
   /**
    * Create {@code subscription} to {@code topic}.
@@ -236,9 +284,10 @@ public interface PubsubClient extends AutoCloseable {
   void deleteSubscription(SubscriptionPath subscription) throws IOException;
 
   /**
-   * Return a list of subscriptions for {@code topic} in {@code projectId}.
+   * Return a list of subscriptions for {@code topic} in {@code project}.
    *
    * @throws IOException
    */
-  Collection<String> listSubscriptions(String projectId, TopicPath topic) throws IOException;
+  Collection<SubscriptionPath> listSubscriptions(ProjectPath project, TopicPath topic)
+      throws IOException;
 }

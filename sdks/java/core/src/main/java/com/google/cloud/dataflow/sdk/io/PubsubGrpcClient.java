@@ -328,19 +328,19 @@ public class PubsubGrpcClient implements PubsubClient {
   }
 
   @Override
-  public Collection<String> listTopics(String projectId) throws IOException {
+  public Collection<TopicPath> listTopics(ProjectPath project) throws IOException {
     ListTopicsRequest.Builder request =
         ListTopicsRequest.newBuilder()
-                         .setProject(projectId)
+                         .setProject(project.getPath())
                          .setPageSize(LIST_BATCH_SIZE);
     ListTopicsResponse response = publisherStub().listTopics(request.build());
     if (response.getTopicsCount() == 0) {
       return ImmutableList.of();
     }
-    List<String> topics = new ArrayList<>(response.getTopicsCount());
+    List<TopicPath> topics = new ArrayList<>(response.getTopicsCount());
     while (true) {
       for (Topic topic : response.getTopicsList()) {
-        topics.add(topic.getName());
+        topics.add(new TopicPath(topic.getName()));
       }
       if (response.getNextPageToken().isEmpty()) {
         break;
@@ -373,21 +373,21 @@ public class PubsubGrpcClient implements PubsubClient {
   }
 
   @Override
-  public Collection<String> listSubscriptions(String projectId, TopicPath topic)
+  public Collection<SubscriptionPath> listSubscriptions(ProjectPath project, TopicPath topic)
       throws IOException {
     ListSubscriptionsRequest.Builder request =
         ListSubscriptionsRequest.newBuilder()
-                                .setProject(projectId)
+                                .setProject(project.getPath())
                                 .setPageSize(LIST_BATCH_SIZE);
     ListSubscriptionsResponse response = subscriberStub().listSubscriptions(request.build());
     if (response.getSubscriptionsCount() == 0) {
       return ImmutableList.of();
     }
-    List<String> subscriptions = new ArrayList<>(response.getSubscriptionsCount());
+    List<SubscriptionPath> subscriptions = new ArrayList<>(response.getSubscriptionsCount());
     while (true) {
       for (Subscription subscription : response.getSubscriptionsList()) {
         if (subscription.getTopic().equals(topic.getPath())) {
-          subscriptions.add(subscription.getName());
+          subscriptions.add(new SubscriptionPath(subscription.getName()));
         }
       }
       if (response.getNextPageToken().isEmpty()) {
