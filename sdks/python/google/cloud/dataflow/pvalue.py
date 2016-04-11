@@ -30,38 +30,26 @@ from google.cloud.dataflow import typehints
 class PValue(object):
   """Base class for PCollection.
 
+  Dataflow users should not construct PValue objects directly in their
+  pipelines.
+
   A PValue has the following main characteristics:
     (1) Belongs to a pipeline. Added during object initialization.
     (2) Has a transform that can compute the value if executed.
     (3) Has a value which is meaningful if the transform was executed.
   """
 
-  def __init__(self, **kwargs):
+  def __init__(self, pipeline, tag=None, element_type=None):
     """Initializes a PValue with all arguments hidden behind keyword arguments.
 
     Args:
-      **kwargs: keyword arguments.
-
-    Raises:
-      ValueError: if the expected keyword arguments (pipeline, transform,
-        and optionally tag) are not present.
-
-    The method expects a pipeline and a transform keyword argument. However in
-    order to give a signal to users that they should not create these PValues
-    directly we obfuscate the arguments.
+      pipeline: Pipeline object for this PValue.
+      tag: Tag of this PValue.
+      element_type: The type of this PValue.
     """
-    if 'pipeline' not in kwargs or 'transform' not in kwargs:
-      raise ValueError(
-          'Missing required arguments (pipeline and transform): %s'
-          % kwargs.keys)
-    self.pipeline = kwargs.pop('pipeline')
-    # TODO(silviuc): Remove usage of the transform argument from all call sites.
-    # It is not used anymore and has been replaced with the producer attribute.
-    kwargs.pop('transform')
-    self.tag = kwargs.pop('tag', None)
-    self.element_type = kwargs.pop('element_type', None)
-    if kwargs:
-      raise ValueError('Unexpected keyword arguments: %s' % kwargs.keys())
+    self.pipeline = pipeline
+    self.tag = tag
+    self.element_type = element_type
     self.pipeline._add_pvalue(self)
     # The AppliedPTransform instance for the application of the PTransform
     # generating this PValue. The field gets initialized when a transform
@@ -103,11 +91,15 @@ class PValue(object):
 
 
 class PCollection(PValue):
-  """A multiple values (potentially huge) container."""
+  """A multiple values (potentially huge) container.
 
-  def __init__(self, **kwargs):
+  Dataflow users should not construct PCollection objects directly in their
+  pipelines.
+  """
+
+  def __init__(self, pipeline, **kwargs):
     """Initializes a PCollection. Do not call directly."""
-    super(PCollection, self).__init__(**kwargs)
+    super(PCollection, self).__init__(pipeline, **kwargs)
 
   @property
   def windowing(self):
@@ -216,10 +208,7 @@ class DoOutputsTuple(object):
       return self._pcolls[tag]
     if tag is not None:
       self._transform.side_output_tags.add(tag)
-    pcoll = PCollection(
-        pipeline=self._pipeline,
-        transform=self._transform,
-        tag=tag)
+    pcoll = PCollection(self._pipeline, tag=tag)
     # Transfer the producer from the DoOutputsTuple to the resulting
     # PCollection.
     pcoll.producer = self.producer

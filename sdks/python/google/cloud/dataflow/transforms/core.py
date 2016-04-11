@@ -537,7 +537,7 @@ class ParDo(PTransformWithSideInputs):
     self.side_output_tags = set()
     # TODO(robertwb): Change all uses of the dofn attribute to use fn instead.
     self.dofn = self.fn
-    return pvalue.PCollection(pipeline=pcoll.pipeline, transform=self)
+    return pvalue.PCollection(pcoll.pipeline)
 
   def with_outputs(self, *tags, **main_kw):
     """Returns a tagged tuple allowing access to the outputs of a ParDo.
@@ -1032,7 +1032,7 @@ class GroupByKeyOnly(PTransform):
 
   def apply(self, pcoll):
     self._check_pcollection(pcoll)
-    return pvalue.PCollection(pipeline=pcoll.pipeline, transform=self)
+    return pvalue.PCollection(pcoll.pipeline)
 
 
 class Partition(PTransformWithSideInputs):
@@ -1207,7 +1207,7 @@ class Flatten(PTransform):
   def apply(self, pcolls):
     for pcoll in pcolls:
       self._check_pcollection(pcoll)
-    return pvalue.PCollection(pipeline=self.pipeline, transform=self)
+    return pvalue.PCollection(self.pipeline)
 
 
 class Create(PTransform):
@@ -1240,7 +1240,7 @@ class Create(PTransform):
   def apply(self, pbegin):
     assert isinstance(pbegin, pvalue.PBegin)
     self.pipeline = pbegin.pipeline
-    return pvalue.PCollection(pipeline=self.pipeline, transform=self)
+    return pvalue.PCollection(self.pipeline)
 
   def get_windowing(self, unused_inputs):
     return Windowing(window.GlobalWindows())

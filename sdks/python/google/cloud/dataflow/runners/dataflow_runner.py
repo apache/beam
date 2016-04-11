@@ -322,7 +322,7 @@ class DataflowPipelineRunner(PipelineRunner):
     coders.registry.verify_deterministic(
         coder.key_coder(), 'GroupByKey operation "%s"' % transform.label)
 
-    return pvalue.PCollection(pipeline=pcoll.pipeline, transform=transform)
+    return pvalue.PCollection(pcoll.pipeline)
 
   def run_GroupByKey(self, transform_node):
     input_tag = transform_node.inputs[0].tag
@@ -413,7 +413,7 @@ class DataflowPipelineRunner(PipelineRunner):
     step.add_property(PropertyNames.OUTPUT_INFO, outputs)
 
   def apply_CombineValues(self, transform, pcoll):
-    return pvalue.PCollection(pipeline=pcoll.pipeline, transform=transform)
+    return pvalue.PCollection(pcoll.pipeline)
 
   def run_CombineValues(self, transform_node):
     transform = transform_node.transform

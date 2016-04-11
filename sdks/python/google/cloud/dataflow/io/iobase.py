@@ -731,7 +731,7 @@ class _NativeWrite(ptransform.PTransform):
 
   def apply(self, pcoll):
     self._check_pcollection(pcoll)
-    return pvalue.PValue(pipeline=pcoll.pipeline, transform=self)
+    return pvalue.PValue(pcoll.pipeline)
 
 
 class Read(ptransform.PTransform):
@@ -753,7 +753,7 @@ class Read(ptransform.PTransform):
   def apply(self, pbegin):
     assert isinstance(pbegin, pvalue.PBegin)
     self.pipeline = pbegin.pipeline
-    return pvalue.PCollection(pipeline=self.pipeline, transform=self)
+    return pvalue.PCollection(self.pipeline)
 
   def get_windowing(self, unused_inputs):
     return core.Windowing(window.GlobalWindows())

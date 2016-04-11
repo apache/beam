@@ -410,7 +410,7 @@ class PTransform(WithTypeHints):
     from google.cloud.dataflow import pipeline
     # pylint: enable=g-import-not-at-top
     if isinstance(pvalueish, pipeline.Pipeline):
-      pvalueish = pvalue.PBegin(pipeline=pvalueish, transform=None)
+      pvalueish = pvalue.PBegin(pvalueish)
 
     return pvalueish, (pvalueish,)
 

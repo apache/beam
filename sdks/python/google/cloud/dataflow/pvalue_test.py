@@ -18,7 +18,6 @@ import unittest
 
 from google.cloud.dataflow.pipeline import Pipeline
 from google.cloud.dataflow.pvalue import PValue
-from google.cloud.dataflow.transforms import PTransform
 
 
 class FakePipeline(Pipeline):
@@ -33,14 +32,8 @@ class PValueTest(unittest.TestCase):
 
   def test_pvalue_expected_arguments(self):
     pipeline = Pipeline('DirectPipelineRunner')
-    transform = PTransform()
-    value = PValue(pipeline=pipeline, transform=transform)
+    value = PValue(pipeline)
     self.assertEqual(pipeline, value.pipeline)
-
-  def test_pvalue_missing_arguments(self):
-    self.assertRaises(ValueError, PValue,
-                      pipeline=Pipeline('DirectPipelineRunner'))
-    self.assertRaises(ValueError, PValue, transform=PTransform())
 
 
 if __name__ == '__main__':
