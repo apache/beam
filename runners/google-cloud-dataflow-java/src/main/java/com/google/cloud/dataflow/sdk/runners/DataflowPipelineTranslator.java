@@ -729,7 +729,7 @@ public class DataflowPipelineTranslator {
     }
 
     private void addDisplayData(String name, DisplayData displayData) {
-      List list = MAPPER.convertValue(displayData, List.class);
+      List<Map<String, Object>> list = MAPPER.convertValue(displayData, List.class);
       addList(getProperties(), name, list);
     }
 
