@@ -20,6 +20,7 @@ package org.apache.beam.sdk.runners.inprocess;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.TypedPValue;
@@ -52,5 +53,10 @@ public abstract class ForwardingPTransform<InputT extends PInput, OutputT extend
   public <T> Coder<T> getDefaultOutputCoder(InputT input, @SuppressWarnings("unused")
       TypedPValue<T> output) throws CannotProvideCoderException {
     return delegate().getDefaultOutputCoder(input, output);
+  }
+
+  @Override
+  public void populateDisplayData(DisplayData.Builder builder) {
+    delegate().populateDisplayData(builder);
   }
 }
