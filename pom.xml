@@ -118,6 +118,8 @@
     <protobuf.version>3.0.0-beta-1</protobuf.version>
     <pubsub.version>v1-rev7-1.21.0</pubsub.version>
     <slf4j.version>1.7.14</slf4j.version>
+    <surefire.dependencyToScan>${project.groupId}:${project.versionId}</surefire.dependencyToScan>
+    <surefire.testPipelineOptions>[]</surefire.testPipelineOptions>
     <stax2.version>3.1.4</stax2.version>
     <storage.version>v1-rev53-1.21.0</storage.version>
     <woodstox.version>4.4.1</woodstox.version>
@@ -294,9 +296,13 @@
             <threadCount>4</threadCount>
             <groups>${testGroups}</groups>
             <systemPropertyVariables>
+              <dataflowOptions>${surefire.testPipelineOptions}</dataflowOptions>
               <runIntegrationTestOnService>${runIntegrationTestOnService}</runIntegrationTestOnService>
               <projectName>${dataflowProjectName}</projectName>
             </systemPropertyVariables>
+            <dependenciesToScan>
+                <dependency>${surefire.dependencyToScan}</dependency>
+            </dependenciesToScan>
             <useManifestOnlyJar>false</useManifestOnlyJar>
             <trimStackTrace>false</trimStackTrace>
             <redirectTestOutputToFile>true</redirectTestOutputToFile>

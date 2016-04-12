@@ -46,17 +46,6 @@
     <dataflowProjectName></dataflowProjectName>
   </properties>
 
-  <profiles>
-    <profile>
-      <id>DataflowPipelineTests</id>
-      <properties>
-        <runIntegrationTestOnService>true</runIntegrationTestOnService>
-        <testGroups>com.google.cloud.dataflow.sdk.testing.RunnableOnService</testGroups>
-        <testParallelValue>both</testParallelValue>
-      </properties>
-    </profile>
-  </profiles>
-
   <build>
     <resources>
       <resource>
