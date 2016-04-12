@@ -29,11 +29,12 @@ import com.google.common.collect.ImmutableList;
  * {@link InProcessPipelineRunner}.
  */
 public class InProcessRegistrar {
+  private InProcessRegistrar() {}
   /**
    * Registers the {@link InProcessPipelineRunner}.
    */
   @AutoService(PipelineRunnerRegistrar.class)
-  public static class InProcessPipelineRegistrar implements PipelineRunnerRegistrar {
+  public static class InProcessRunner implements PipelineRunnerRegistrar {
     @Override
     public Iterable<Class<? extends PipelineRunner<?>>> getPipelineRunners() {
       return ImmutableList.<Class<? extends PipelineRunner<?>>>of(InProcessPipelineRunner.class);
@@ -44,7 +45,7 @@ public class InProcessRegistrar {
    * Registers the {@link InProcessPipelineOptions}.
    */
   @AutoService(PipelineOptionsRegistrar.class)
-  public static class InProcessPipelineOptionsRegistrar implements PipelineOptionsRegistrar {
+  public static class InProcessOptions implements PipelineOptionsRegistrar {
     @Override
     public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
       return ImmutableList.<Class<? extends PipelineOptions>>of(InProcessPipelineOptions.class);
