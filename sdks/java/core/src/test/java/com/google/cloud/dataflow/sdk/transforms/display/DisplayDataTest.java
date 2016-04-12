@@ -33,6 +33,7 @@ import static org.hamcrest.Matchers.isEmptyOrNullString;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
+import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
@@ -213,19 +214,29 @@ public class DisplayDataTest {
 
   @Test
   public void testAddIfNotDefault() {
-    final int defaultValue = 10;
-
     DisplayData data = DisplayData.from(new HasDisplayData() {
       @Override
       public void populateDisplayData(Builder builder) {
         builder
-            .addIfNotDefault("isDefault", defaultValue, defaultValue)
-            .addIfNotDefault("notDefault", defaultValue + 1, defaultValue);
+            .addIfNotDefault("defaultString", "foo", "foo")
+            .addIfNotDefault("notDefaultString", "foo", "notFoo")
+            .addIfNotDefault("defaultInteger", 1, 1)
+            .addIfNotDefault("notDefaultInteger", 1, 2)
+            .addIfNotDefault("defaultDouble", 123.4, 123.4)
+            .addIfNotDefault("notDefaultDouble", 123.4, 234.5)
+            .addIfNotDefault("defaultBoolean", true, true)
+            .addIfNotDefault("notDefaultBoolean", true, false)
+            .addIfNotDefault("defaultInstant", new Instant(0), new Instant(0))
+            .addIfNotDefault("notDefaultInstant", new Instant(0), Instant.now())
+            .addIfNotDefault("defaultDuration", Duration.ZERO, Duration.ZERO)
+            .addIfNotDefault("notDefaultDuration", Duration.millis(1234), Duration.ZERO)
+            .addIfNotDefault("defaultClass", DisplayDataTest.class, DisplayDataTest.class)
+            .addIfNotDefault("notDefaultClass", DisplayDataTest.class, null);
       }
     });
 
-    assertThat(data, not(hasDisplayItem(hasKey("isDefault"))));
-    assertThat(data, hasDisplayItem("notDefault", defaultValue + 1));
+    assertThat(data.items(), hasSize(7));
+    assertThat(data.items(), everyItem(hasKey(startsWith("notDefault"))));
   }
 
   @Test
@@ -234,13 +245,25 @@ public class DisplayDataTest {
       @Override
       public void populateDisplayData(Builder builder) {
         builder
-            .addIfNotNull("isNull", (Class<?>) null)
-            .addIfNotNull("notNull", DisplayDataTest.class);
+            .addIfNotNull("nullString", (String) null)
+            .addIfNotNull("notNullString", "foo")
+            .addIfNotNull("nullLong", (Long) null)
+            .addIfNotNull("notNullLong", 1234L)
+            .addIfNotNull("nullDouble", (Double) null)
+            .addIfNotNull("notNullDouble", 123.4)
+            .addIfNotNull("nullBoolean", (Boolean) null)
+            .addIfNotNull("notNullBoolean", true)
+            .addIfNotNull("nullInstant", (Instant) null)
+            .addIfNotNull("notNullInstant", Instant.now())
+            .addIfNotNull("nullDuration", (Duration) null)
+            .addIfNotNull("notNullDuration", Duration.ZERO)
+            .addIfNotNull("nullClass", (Class<?>) null)
+            .addIfNotNull("notNullClass", DisplayDataTest.class);
       }
     });
 
-    assertThat(data, not(hasDisplayItem(hasKey("isNull"))));
-    assertThat(data, hasDisplayItem(hasKey("notNull")));
+    assertThat(data.items(), hasSize(7));
+    assertThat(data.items(), everyItem(hasKey(startsWith("notNull"))));
   }
 
   @Test

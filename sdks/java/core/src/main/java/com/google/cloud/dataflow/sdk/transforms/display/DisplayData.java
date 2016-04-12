@@ -757,7 +757,7 @@ public class DisplayData {
 
     @Override
     public ItemBuilder addIfNotNull(String key, @Nullable Double value) {
-      return addItemIf(value != null, key, Type.INTEGER, value);
+      return addItemIf(value != null, key, Type.FLOAT, value);
     }
 
     @Override
