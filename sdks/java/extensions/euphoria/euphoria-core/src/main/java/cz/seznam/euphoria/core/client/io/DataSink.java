@@ -14,7 +14,7 @@ public abstract class DataSink<T> {
   /** Commit all partitions. */
   public abstract void commit() throws IOException;
 
-  /** Rollbak all partitions. */
+  /** Rollback all partitions. */
   public abstract void rollback();
 
 }

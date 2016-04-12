@@ -71,7 +71,7 @@ public class Repartition<IN, TYPE extends Dataset<IN>>
   @Override
   @SuppressWarnings("unchecked")
   public TYPE output() {
-    return (TYPE) super.output();
+    return super.output();
   }
 
   @Override

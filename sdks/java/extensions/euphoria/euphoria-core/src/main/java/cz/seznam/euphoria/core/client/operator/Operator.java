@@ -21,7 +21,7 @@ public abstract class Operator<IN, OUT, TYPE extends Dataset<OUT>>
   
   /** Name of the operator. */
   private final String name;
-  /** Asssociated Flow. */
+  /** Associated Flow. */
   private final Flow flow;
 
   protected Operator(String name, Flow flow) {

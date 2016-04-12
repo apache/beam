@@ -37,7 +37,7 @@ public final class BatchWindowing<T>
   }
 
   @Override
-  public Set<BatchWindow> allocateWindows(T what, Triggering trigerring,
+  public Set<BatchWindow> allocateWindows(T what, Triggering triggering,
       UnaryFunction<BatchWindow, Void> evict) {
     // batch windowing has only single window
     return getActive(null);

@@ -8,7 +8,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import static java.util.Objects.requireNonNull;
 
 /**
- * General utility class to store key/value pairs as strings providing convertor
+ * General utility class to store key/value pairs as strings providing converter
  * methods for primitives and frequently used types. Aims to help with presenting
  * a set of configuration/setting values.
  */
