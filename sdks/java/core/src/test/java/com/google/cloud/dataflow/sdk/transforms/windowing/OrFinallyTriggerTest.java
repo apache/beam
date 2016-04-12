@@ -46,7 +46,7 @@ public class OrFinallyTriggerTest {
   @Test
   public void testActualFiresAndFinishes() throws Exception {
     tester = TriggerTester.forTrigger(
-        new OrFinallyTrigger<>(
+        new OrFinallyTrigger(
             AfterPane.<IntervalWindow>elementCountAtLeast(2),
             AfterPane.<IntervalWindow>elementCountAtLeast(100)),
         FixedWindows.of(Duration.millis(100)));
@@ -73,7 +73,7 @@ public class OrFinallyTriggerTest {
   @Test
   public void testActualFiresOnly() throws Exception {
     tester = TriggerTester.forTrigger(
-        new OrFinallyTrigger<>(
+        new OrFinallyTrigger(
             Repeatedly.forever(AfterPane.<IntervalWindow>elementCountAtLeast(2)),
             AfterPane.<IntervalWindow>elementCountAtLeast(100)),
         FixedWindows.of(Duration.millis(100)));
@@ -143,7 +143,7 @@ public class OrFinallyTriggerTest {
   @Test
   public void testActualFiresButUntilFinishes() throws Exception {
     tester = TriggerTester.forTrigger(
-        new OrFinallyTrigger<IntervalWindow>(
+        new OrFinallyTrigger(
             Repeatedly.forever(AfterPane.<IntervalWindow>elementCountAtLeast(2)),
                 AfterPane.<IntervalWindow>elementCountAtLeast(3)),
         FixedWindows.of(Duration.millis(10)));
@@ -194,10 +194,10 @@ public class OrFinallyTriggerTest {
 
   @Test
   public void testContinuation() throws Exception {
-    OnceTrigger<IntervalWindow> triggerA = AfterProcessingTime.pastFirstElementInPane();
-    OnceTrigger<IntervalWindow> triggerB = AfterWatermark.pastEndOfWindow();
-    Trigger<IntervalWindow> aOrFinallyB = triggerA.orFinally(triggerB);
-    Trigger<IntervalWindow> bOrFinallyA = triggerB.orFinally(triggerA);
+    OnceTrigger triggerA = AfterProcessingTime.pastFirstElementInPane();
+    OnceTrigger triggerB = AfterWatermark.pastEndOfWindow();
+    Trigger aOrFinallyB = triggerA.orFinally(triggerB);
+    Trigger bOrFinallyA = triggerB.orFinally(triggerA);
     assertEquals(
         Repeatedly.forever(
             triggerA.getContinuationTrigger().orFinally(triggerB.getContinuationTrigger())),

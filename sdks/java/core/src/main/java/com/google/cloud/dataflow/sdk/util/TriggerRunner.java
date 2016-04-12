@@ -61,10 +61,10 @@ public class TriggerRunner<W extends BoundedWindow> {
   static final StateTag<Object, ValueState<BitSet>> FINISHED_BITS_TAG =
       StateTags.makeSystemTagInternal(StateTags.value("closed", BitSetCoder.of()));
 
-  private final ExecutableTrigger<W> rootTrigger;
+  private final ExecutableTrigger rootTrigger;
   private final TriggerContextFactory<W> contextFactory;
 
-  public TriggerRunner(ExecutableTrigger<W> rootTrigger, TriggerContextFactory<W> contextFactory) {
+  public TriggerRunner(ExecutableTrigger rootTrigger, TriggerContextFactory<W> contextFactory) {
     Preconditions.checkState(rootTrigger.getTriggerIndex() == 0);
     this.rootTrigger = rootTrigger;
     this.contextFactory = contextFactory;
@@ -129,7 +129,7 @@ public class TriggerRunner<W extends BoundedWindow> {
     // Clone so that we can detect changes and so that changes here don't pollute merging.
     FinishedTriggersBitSet finishedSet =
         readFinishedBits(state.access(FINISHED_BITS_TAG)).copy();
-    Trigger<W>.OnElementContext triggerContext = contextFactory.createOnElementContext(
+    Trigger.OnElementContext triggerContext = contextFactory.createOnElementContext(
         window, timers, timestamp, rootTrigger, finishedSet);
     rootTrigger.invokeOnElement(triggerContext);
     persistFinishedSet(state, finishedSet);
@@ -165,7 +165,7 @@ public class TriggerRunner<W extends BoundedWindow> {
     }
     ImmutableMap<W, FinishedTriggers> mergingFinishedSets = builder.build();
 
-    Trigger<W>.OnMergeContext mergeContext = contextFactory.createOnMergeContext(
+    Trigger.OnMergeContext mergeContext = contextFactory.createOnMergeContext(
         window, timers, rootTrigger, finishedSet, mergingFinishedSets);
 
     // Run the merge from the trigger
@@ -176,7 +176,7 @@ public class TriggerRunner<W extends BoundedWindow> {
 
   public boolean shouldFire(W window, Timers timers, StateAccessor<?> state) throws Exception {
     FinishedTriggers finishedSet = readFinishedBits(state.access(FINISHED_BITS_TAG)).copy();
-    Trigger<W>.TriggerContext context = contextFactory.base(window, timers,
+    Trigger.TriggerContext context = contextFactory.base(window, timers,
         rootTrigger, finishedSet);
     return rootTrigger.invokeShouldFire(context);
   }
@@ -186,7 +186,7 @@ public class TriggerRunner<W extends BoundedWindow> {
     // However it is too expensive to assert.
     FinishedTriggersBitSet finishedSet =
         readFinishedBits(state.access(FINISHED_BITS_TAG)).copy();
-    Trigger<W>.TriggerContext context = contextFactory.base(window, timers,
+    Trigger.TriggerContext context = contextFactory.base(window, timers,
         rootTrigger, finishedSet);
     rootTrigger.invokeOnFire(context);
     persistFinishedSet(state, finishedSet);

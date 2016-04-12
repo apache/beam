@@ -57,7 +57,7 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
 
   private final WindowFn<T, W> windowFn;
   private final OutputTimeFn<? super W> outputTimeFn;
-  private final ExecutableTrigger<W> trigger;
+  private final ExecutableTrigger trigger;
   private final AccumulationMode mode;
   private final Duration allowedLateness;
   private final ClosingBehavior closingBehavior;
@@ -68,7 +68,7 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
 
   private WindowingStrategy(
       WindowFn<T, W> windowFn,
-      ExecutableTrigger<W> trigger, boolean triggerSpecified,
+      ExecutableTrigger trigger, boolean triggerSpecified,
       AccumulationMode mode, boolean modeSpecified,
       Duration allowedLateness, boolean allowedLatenessSpecified,
       OutputTimeFn<? super W> outputTimeFn, boolean outputTimeFnSpecified,
@@ -106,7 +106,7 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
     return windowFn;
   }
 
-  public ExecutableTrigger<W> getTrigger() {
+  public ExecutableTrigger getTrigger() {
     return trigger;
   }
 
@@ -146,12 +146,10 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
    * Returns a {@link WindowingStrategy} identical to {@code this} but with the trigger set to
    * {@code wildcardTrigger}.
    */
-  public WindowingStrategy<T, W> withTrigger(Trigger<?> wildcardTrigger) {
-    @SuppressWarnings("unchecked")
-    Trigger<W> typedTrigger = (Trigger<W>) wildcardTrigger;
+  public WindowingStrategy<T, W> withTrigger(Trigger trigger) {
     return new WindowingStrategy<T, W>(
         windowFn,
-        ExecutableTrigger.create(typedTrigger), true,
+        ExecutableTrigger.create(trigger), true,
         mode, modeSpecified,
         allowedLateness, allowedLatenessSpecified,
         outputTimeFn, outputTimeFnSpecified,

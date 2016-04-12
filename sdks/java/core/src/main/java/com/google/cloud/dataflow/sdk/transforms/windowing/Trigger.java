@@ -90,18 +90,15 @@ import javax.annotation.Nullable;
  * <p>Triggers should not build up any state internally since they may be recreated
  * between invocations of the callbacks. All important values should be persisted using
  * state before the callback returns.
- *
- * @param <W> {@link BoundedWindow} subclass used to represent the windows used by this
- *            {@code Trigger}
  */
 @Experimental(Experimental.Kind.TRIGGER)
-public abstract class Trigger<W extends BoundedWindow> implements Serializable, TriggerBuilder<W> {
+public abstract class Trigger implements Serializable, TriggerBuilder {
 
   /**
    * Interface for accessing information about the trigger being executed and other triggers in the
    * same tree.
    */
-  public interface TriggerInfo<W extends BoundedWindow> {
+  public interface TriggerInfo {
 
     /**
      * Returns true if the windowing strategy of the current {@code PCollection} is a merging
@@ -114,12 +111,12 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
     /**
      * Access the executable versions of the sub-triggers of the current trigger.
      */
-    Iterable<ExecutableTrigger<W>> subTriggers();
+    Iterable<ExecutableTrigger> subTriggers();
 
     /**
      * Access the executable version of the specified sub-trigger.
      */
-    ExecutableTrigger<W> subTrigger(int subtriggerIndex);
+    ExecutableTrigger subTrigger(int subtriggerIndex);
 
     /**
      * Returns true if the current trigger is marked finished.
@@ -139,12 +136,12 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
     /**
      * Returns an iterable over the unfinished sub-triggers of the current trigger.
      */
-    Iterable<ExecutableTrigger<W>> unfinishedSubTriggers();
+    Iterable<ExecutableTrigger> unfinishedSubTriggers();
 
     /**
      * Returns the first unfinished sub-trigger.
      */
-    ExecutableTrigger<W> firstUnfinishedSubTrigger();
+    ExecutableTrigger firstUnfinishedSubTrigger();
 
     /**
      * Clears all keyed state for triggers in the current sub-tree and unsets all the associated
@@ -167,7 +164,7 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
    * Interact with properties of the trigger being executed, with extensions to deal with the
    * merging windows.
    */
-  public interface MergingTriggerInfo<W extends BoundedWindow> extends TriggerInfo<W> {
+  public interface MergingTriggerInfo extends TriggerInfo {
 
     /** Return true if the trigger is finished in any window being merged. */
     public abstract boolean finishedInAnyMergingWindow();
@@ -176,7 +173,7 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
     public abstract boolean finishedInAllMergingWindows();
 
     /** Return the merging windows in which the trigger is finished. */
-    public abstract Iterable<W> getFinishedMergingWindows();
+    public abstract Iterable<? extends BoundedWindow> getFinishedMergingWindows();
   }
 
   /**
@@ -188,16 +185,16 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
   public abstract class TriggerContext {
 
     /** Returns the interface for accessing trigger info. */
-    public abstract TriggerInfo<W> trigger();
+    public abstract TriggerInfo trigger();
 
     /** Returns the interface for accessing persistent state. */
     public abstract StateAccessor<?> state();
 
     /** The window that the current context is executing in. */
-    public abstract W window();
+    public abstract BoundedWindow window();
 
     /** Create a sub-context for the given sub-trigger. */
-    public abstract TriggerContext forTrigger(ExecutableTrigger<W> trigger);
+    public abstract TriggerContext forTrigger(ExecutableTrigger trigger);
 
     /**
      * Removes the timer set in this trigger context for the given {@link Instant}
@@ -240,7 +237,7 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
 
     /** Create an {@code OnElementContext} for executing the given trigger. */
     @Override
-    public abstract OnElementContext forTrigger(ExecutableTrigger<W> trigger);
+    public abstract OnElementContext forTrigger(ExecutableTrigger trigger);
   }
 
   /**
@@ -263,19 +260,19 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
 
     /** Create an {@code OnMergeContext} for executing the given trigger. */
     @Override
-    public abstract OnMergeContext forTrigger(ExecutableTrigger<W> trigger);
+    public abstract OnMergeContext forTrigger(ExecutableTrigger trigger);
 
     @Override
-    public abstract MergingStateAccessor<?, W> state();
+    public abstract MergingStateAccessor<?, ?> state();
 
     @Override
-    public abstract MergingTriggerInfo<W> trigger();
+    public abstract MergingTriggerInfo trigger();
   }
 
   @Nullable
-  protected final List<Trigger<W>> subTriggers;
+  protected final List<Trigger> subTriggers;
 
-  protected Trigger(@Nullable List<Trigger<W>> subTriggers) {
+  protected Trigger(@Nullable List<Trigger> subTriggers) {
     this.subTriggers = subTriggers;
   }
 
@@ -322,7 +319,7 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
    */
   public void prefetchOnElement(StateAccessor<?> state) {
     if (subTriggers != null) {
-      for (Trigger<W> trigger : subTriggers) {
+      for (Trigger trigger : subTriggers) {
         trigger.prefetchOnElement(state);
       }
     }
@@ -332,9 +329,9 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
    * Called to allow the trigger to prefetch any state it will likely need to read from during
    * an {@link #onMerge} call.
    */
-  public void prefetchOnMerge(MergingStateAccessor<?, W> state) {
+  public void prefetchOnMerge(MergingStateAccessor<?, ?> state) {
     if (subTriggers != null) {
-      for (Trigger<W> trigger : subTriggers) {
+      for (Trigger trigger : subTriggers) {
         trigger.prefetchOnMerge(state);
       }
     }
@@ -346,7 +343,7 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
    */
   public void prefetchShouldFire(StateAccessor<?> state) {
     if (subTriggers != null) {
-      for (Trigger<W> trigger : subTriggers) {
+      for (Trigger trigger : subTriggers) {
         trigger.prefetchShouldFire(state);
       }
     }
@@ -358,7 +355,7 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
    */
   public void prefetchOnFire(StateAccessor<?> state) {
     if (subTriggers != null) {
-      for (Trigger<W> trigger : subTriggers) {
+      for (Trigger trigger : subTriggers) {
         trigger.prefetchOnFire(state);
       }
     }
@@ -373,13 +370,13 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
    */
   public void clear(TriggerContext c) throws Exception {
     if (subTriggers != null) {
-      for (ExecutableTrigger<W> trigger : c.trigger().subTriggers()) {
+      for (ExecutableTrigger trigger : c.trigger().subTriggers()) {
         trigger.invokeClear(c);
       }
     }
   }
 
-  public Iterable<Trigger<W>> subTriggers() {
+  public Iterable<Trigger> subTriggers() {
     return subTriggers;
   }
 
@@ -390,13 +387,13 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
    * speculative results. Triggers that fire once (or multiple times) should
    * continue firing once (or multiple times).
    */
-  public Trigger<W> getContinuationTrigger() {
+  public Trigger getContinuationTrigger() {
     if (subTriggers == null) {
       return getContinuationTrigger(null);
     }
 
-    List<Trigger<W>> subTriggerContinuations = new ArrayList<>();
-    for (Trigger<W> subTrigger : subTriggers) {
+    List<Trigger> subTriggerContinuations = new ArrayList<>();
+    for (Trigger subTrigger : subTriggers) {
       subTriggerContinuations.add(subTrigger.getContinuationTrigger());
     }
     return getContinuationTrigger(subTriggerContinuations);
@@ -406,7 +403,7 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
    * Return the {@link #getContinuationTrigger} of this {@code Trigger}. For convenience, this
    * is provided the continuation trigger of each of the sub-triggers.
    */
-  protected abstract Trigger<W> getContinuationTrigger(List<Trigger<W>> continuationTriggers);
+  protected abstract Trigger getContinuationTrigger(List<Trigger> continuationTriggers);
 
   /**
    * Returns a bound in watermark time by which this trigger would have fired at least once
@@ -419,12 +416,12 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
    * <p>This estimate is used to determine that there are no elements in a side-input window, which
    * causes the default value to be used instead.
    */
-  public abstract Instant getWatermarkThatGuaranteesFiring(W window);
+  public abstract Instant getWatermarkThatGuaranteesFiring(BoundedWindow window);
 
   /**
    * Returns whether this performs the same triggering as the given {@code Trigger}.
    */
-  public boolean isCompatible(Trigger<?> other) {
+  public boolean isCompatible(Trigger other) {
     if (!getClass().equals(other.getClass())) {
       return false;
     }
@@ -467,8 +464,7 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
     if (!(obj instanceof Trigger)) {
       return false;
     }
-    @SuppressWarnings("unchecked")
-    Trigger<W> that = (Trigger<W>) obj;
+    Trigger that = (Trigger) obj;
     return Objects.equals(getClass(), that.getClass())
         && Objects.equals(subTriggers, that.subTriggers);
   }
@@ -497,34 +493,31 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
    * <p>Note that if {@code t1} is {@link OnceTrigger}, then {@code t1.orFinally(t2)} is the same
    * as {@code AfterFirst.of(t1, t2)}.
    */
-  public Trigger<W> orFinally(OnceTrigger<W> until) {
-    return new OrFinallyTrigger<W>(this, until);
+  public Trigger orFinally(OnceTrigger until) {
+    return new OrFinallyTrigger(this, until);
   }
 
   @Override
-  public Trigger<W> buildTrigger() {
+  public Trigger buildTrigger() {
     return this;
   }
 
   /**
    * {@link Trigger}s that are guaranteed to fire at most once should extend from this, rather
    * than the general {@link Trigger} class to indicate that behavior.
-   *
-   * @param <W> {@link BoundedWindow} subclass used to represent the windows used by this
-   *            {@code AtMostOnceTrigger}
    */
-  public abstract static class OnceTrigger<W extends BoundedWindow> extends Trigger<W> {
-    protected OnceTrigger(List<Trigger<W>> subTriggers) {
+  public abstract static class OnceTrigger extends Trigger {
+    protected OnceTrigger(List<Trigger> subTriggers) {
       super(subTriggers);
     }
 
     @Override
-    public final OnceTrigger<W> getContinuationTrigger() {
-      Trigger<W> continuation = super.getContinuationTrigger();
+    public final OnceTrigger getContinuationTrigger() {
+      Trigger continuation = super.getContinuationTrigger();
       if (!(continuation instanceof OnceTrigger)) {
         throw new IllegalStateException("Continuation of a OnceTrigger must be a OnceTrigger");
       }
-      return (OnceTrigger<W>) continuation;
+      return (OnceTrigger) continuation;
     }
 
     /**

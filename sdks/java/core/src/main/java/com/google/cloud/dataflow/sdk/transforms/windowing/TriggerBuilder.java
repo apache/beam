@@ -22,10 +22,8 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
  *
  * <p>This includes {@code Trigger}s (which can return themselves) and any "enhanced" syntax for
  * constructing a trigger.
- *
- * @param <W> The type of windows the built trigger will operate on.
  */
-public interface TriggerBuilder<W extends BoundedWindow> {
+public interface TriggerBuilder {
   /** Return the {@code Trigger} built by this builder. */
-  Trigger<W> buildTrigger();
+  Trigger buildTrigger();
 }

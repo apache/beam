@@ -109,7 +109,7 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
    * An {@link ExecutableTrigger} built from the {@link Trigger} or {@link TriggerBuilder}
    * under test.
    */
-  private final ExecutableTrigger<W> executableTrigger;
+  private final ExecutableTrigger executableTrigger;
 
   /**
    * A map from a window and trigger to whether that trigger is finished for the window.
@@ -117,7 +117,7 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
   private final Map<W, FinishedTriggers> finishedSets;
 
   public static <W extends BoundedWindow> SimpleTriggerTester<W> forTrigger(
-      TriggerBuilder<W> trigger, WindowFn<Object, W> windowFn)
+      TriggerBuilder trigger, WindowFn<Object, W> windowFn)
           throws Exception {
     WindowingStrategy<Object, W> windowingStrategy =
         WindowingStrategy.of(windowFn).withTrigger(trigger.buildTrigger())
@@ -132,7 +132,7 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
   }
 
   public static <InputT, W extends BoundedWindow> TriggerTester<InputT, W> forAdvancedTrigger(
-      TriggerBuilder<W> trigger, WindowFn<Object, W> windowFn) throws Exception {
+      TriggerBuilder trigger, WindowFn<Object, W> windowFn) throws Exception {
     WindowingStrategy<Object, W> strategy =
         WindowingStrategy.of(windowFn).withTrigger(trigger.buildTrigger())
         // Merging requires accumulation mode or early firings can break up a session.
@@ -265,7 +265,7 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
         @SuppressWarnings("unchecked")
         W window = activeWindows.mergeResultWindow((W) untypedWindow);
 
-        Trigger<W>.OnElementContext context = contextFactory.createOnElementContext(window,
+        Trigger.OnElementContext context = contextFactory.createOnElementContext(window,
             new TestTimers(windowNamespace(window)), windowedValue.getTimestamp(),
             executableTrigger, getFinishedSet(window));
 
@@ -277,7 +277,7 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
   }
 
   public boolean shouldFire(W window) throws Exception {
-    Trigger<W>.TriggerContext context = contextFactory.base(
+    Trigger.TriggerContext context = contextFactory.base(
         window,
         new TestTimers(windowNamespace(window)),
         executableTrigger, getFinishedSet(window));
@@ -286,7 +286,7 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
   }
 
   public void fireIfShouldFire(W window) throws Exception {
-    Trigger<W>.TriggerContext context = contextFactory.base(
+    Trigger.TriggerContext context = contextFactory.base(
         window,
         new TestTimers(windowNamespace(window)),
         executableTrigger, getFinishedSet(window));
@@ -296,7 +296,7 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
       executableTrigger.getSpec().prefetchOnFire(context.state());
       executableTrigger.invokeOnFire(context);
       if (context.trigger().isFinished()) {
-        activeWindows.remove(context.window());
+        activeWindows.remove(window);
         executableTrigger.invokeClear(context);
       }
     }
@@ -337,7 +337,7 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
   private FinishedTriggers getFinishedSet(W window) {
     FinishedTriggers finishedSet = finishedSets.get(window);
     if (finishedSet == null) {
-      finishedSet = FinishedTriggersSet.fromSet(new HashSet<ExecutableTrigger<?>>());
+      finishedSet = FinishedTriggersSet.fromSet(new HashSet<ExecutableTrigger>());
       finishedSets.put(window, finishedSet);
     }
     return finishedSet;

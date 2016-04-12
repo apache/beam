@@ -42,14 +42,11 @@ import java.util.List;
  *   <li> {@code AfterEach.inOrder(Repeatedly.forever(a), b)} behaves the same as
  *   {@code Repeatedly.forever(a)}, since the repeated trigger never finishes.
  * </ul>
- *
- * @param <W> {@link BoundedWindow} subclass used to represent the windows used by this
- *            {@code Trigger}
  */
 @Experimental(Experimental.Kind.TRIGGER)
-public class AfterEach<W extends BoundedWindow> extends Trigger<W> {
+public class AfterEach extends Trigger {
 
-  private AfterEach(List<Trigger<W>> subTriggers) {
+  private AfterEach(List<Trigger> subTriggers) {
     super(subTriggers);
     checkArgument(subTriggers.size() > 1);
   }
@@ -58,8 +55,8 @@ public class AfterEach<W extends BoundedWindow> extends Trigger<W> {
    * Returns an {@code AfterEach} {@code Trigger} with the given subtriggers.
    */
   @SafeVarargs
-  public static <W extends BoundedWindow> Trigger<W> inOrder(Trigger<W>... triggers) {
-    return new AfterEach<W>(Arrays.<Trigger<W>>asList(triggers));
+  public static <W extends BoundedWindow> Trigger inOrder(Trigger... triggers) {
+    return new AfterEach(Arrays.<Trigger>asList(triggers));
   }
 
   @Override
@@ -69,7 +66,7 @@ public class AfterEach<W extends BoundedWindow> extends Trigger<W> {
       c.trigger().firstUnfinishedSubTrigger().invokeOnElement(c);
     } else {
       // If merges are possible, we need to run all subtriggers in parallel
-      for (ExecutableTrigger<W> subTrigger :  c.trigger().subTriggers()) {
+      for (ExecutableTrigger subTrigger :  c.trigger().subTriggers()) {
         // Even if the subTrigger is done, it may be revived via merging and must have
         // adequate state.
         subTrigger.invokeOnElement(c);
@@ -86,7 +83,7 @@ public class AfterEach<W extends BoundedWindow> extends Trigger<W> {
     // also automatic because they are cleared whenever this trigger
     // fires.
     boolean priorTriggersAllFinished = true;
-    for (ExecutableTrigger<W> subTrigger : context.trigger().subTriggers()) {
+    for (ExecutableTrigger subTrigger : context.trigger().subTriggers()) {
       if (priorTriggersAllFinished) {
         subTrigger.invokeOnMerge(context);
         priorTriggersAllFinished &= context.forTrigger(subTrigger).trigger().isFinished();
@@ -98,31 +95,31 @@ public class AfterEach<W extends BoundedWindow> extends Trigger<W> {
   }
 
   @Override
-  public Instant getWatermarkThatGuaranteesFiring(W window) {
+  public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
     // This trigger will fire at least once when the first trigger in the sequence
     // fires at least once.
     return subTriggers.get(0).getWatermarkThatGuaranteesFiring(window);
   }
 
   @Override
-  public Trigger<W> getContinuationTrigger(List<Trigger<W>> continuationTriggers) {
-    return Repeatedly.forever(new AfterFirst<W>(continuationTriggers));
+  public Trigger getContinuationTrigger(List<Trigger> continuationTriggers) {
+    return Repeatedly.forever(new AfterFirst(continuationTriggers));
   }
 
   @Override
-  public boolean shouldFire(Trigger<W>.TriggerContext context) throws Exception {
-    ExecutableTrigger<W> firstUnfinished = context.trigger().firstUnfinishedSubTrigger();
+  public boolean shouldFire(Trigger.TriggerContext context) throws Exception {
+    ExecutableTrigger firstUnfinished = context.trigger().firstUnfinishedSubTrigger();
     return firstUnfinished.invokeShouldFire(context);
   }
 
   @Override
-  public void onFire(Trigger<W>.TriggerContext context) throws Exception {
+  public void onFire(Trigger.TriggerContext context) throws Exception {
     context.trigger().firstUnfinishedSubTrigger().invokeOnFire(context);
 
     // Reset all subtriggers if in a merging context; any may be revived by merging so they are
     // all run in parallel for each pending pane.
     if (context.trigger().isMerging()) {
-      for (ExecutableTrigger<W> subTrigger : context.trigger().subTriggers()) {
+      for (ExecutableTrigger subTrigger : context.trigger().subTriggers()) {
         subTrigger.invokeClear(context);
       }
     }

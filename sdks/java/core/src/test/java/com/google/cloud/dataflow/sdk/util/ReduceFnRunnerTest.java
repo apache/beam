@@ -85,26 +85,23 @@ import java.util.List;
 @RunWith(JUnit4.class)
 public class ReduceFnRunnerTest {
   @Mock private SideInputReader mockSideInputReader;
-  private Trigger<IntervalWindow> mockTrigger;
+  private Trigger mockTrigger;
   private PCollectionView<Integer> mockView;
 
   private IntervalWindow firstWindow;
 
-  private static Trigger<IntervalWindow>.TriggerContext anyTriggerContext() {
-    return Mockito.<Trigger<IntervalWindow>.TriggerContext>any();
+  private static Trigger.TriggerContext anyTriggerContext() {
+    return Mockito.<Trigger.TriggerContext>any();
   }
-  private static Trigger<IntervalWindow>.OnElementContext anyElementContext() {
-    return Mockito.<Trigger<IntervalWindow>.OnElementContext>any();
+  private static Trigger.OnElementContext anyElementContext() {
+    return Mockito.<Trigger.OnElementContext>any();
   }
 
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
 
-    @SuppressWarnings("unchecked")
-    Trigger<IntervalWindow> mockTriggerUnchecked =
-        mock(Trigger.class, withSettings().serializable());
-    mockTrigger = mockTriggerUnchecked;
+    mockTrigger = mock(Trigger.class, withSettings().serializable());
     when(mockTrigger.buildTrigger()).thenReturn(mockTrigger);
 
     @SuppressWarnings("unchecked")
@@ -120,13 +117,13 @@ public class ReduceFnRunnerTest {
     tester.injectElements(TimestampedValue.of(element, new Instant(element)));
   }
 
-  private void triggerShouldFinish(Trigger<IntervalWindow> mockTrigger) throws Exception {
+  private void triggerShouldFinish(Trigger mockTrigger) throws Exception {
     doAnswer(new Answer<Void>() {
       @Override
       public Void answer(InvocationOnMock invocation) throws Exception {
         @SuppressWarnings("unchecked")
-        Trigger<IntervalWindow>.TriggerContext context =
-            (Trigger<IntervalWindow>.TriggerContext) invocation.getArguments()[0];
+        Trigger.TriggerContext context =
+            (Trigger.TriggerContext) invocation.getArguments()[0];
         context.trigger().setFinished(true);
         return null;
       }

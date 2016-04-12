@@ -45,75 +45,75 @@ public class TriggerTest {
   @Test
   public void testIsCompatible() throws Exception {
     assertTrue(new Trigger1(null).isCompatible(new Trigger1(null)));
-    assertTrue(new Trigger1(Arrays.<Trigger<IntervalWindow>>asList(new Trigger2(null)))
-        .isCompatible(new Trigger1(Arrays.<Trigger<IntervalWindow>>asList(new Trigger2(null)))));
+    assertTrue(new Trigger1(Arrays.<Trigger>asList(new Trigger2(null)))
+        .isCompatible(new Trigger1(Arrays.<Trigger>asList(new Trigger2(null)))));
 
     assertFalse(new Trigger1(null).isCompatible(new Trigger2(null)));
-    assertFalse(new Trigger1(Arrays.<Trigger<IntervalWindow>>asList(new Trigger1(null)))
-        .isCompatible(new Trigger1(Arrays.<Trigger<IntervalWindow>>asList(new Trigger2(null)))));
+    assertFalse(new Trigger1(Arrays.<Trigger>asList(new Trigger1(null)))
+        .isCompatible(new Trigger1(Arrays.<Trigger>asList(new Trigger2(null)))));
   }
 
-  private static class Trigger1 extends Trigger<IntervalWindow> {
+  private static class Trigger1 extends Trigger {
 
-    private Trigger1(List<Trigger<IntervalWindow>> subTriggers) {
+    private Trigger1(List<Trigger> subTriggers) {
       super(subTriggers);
     }
 
     @Override
-    public void onElement(Trigger<IntervalWindow>.OnElementContext c) { }
+    public void onElement(Trigger.OnElementContext c) { }
 
     @Override
-    public void onMerge(Trigger<IntervalWindow>.OnMergeContext c) { }
+    public void onMerge(Trigger.OnMergeContext c) { }
 
     @Override
-    protected Trigger<IntervalWindow> getContinuationTrigger(
-        List<Trigger<IntervalWindow>> continuationTriggers) {
+    protected Trigger getContinuationTrigger(
+        List<Trigger> continuationTriggers) {
       return null;
     }
 
     @Override
-    public Instant getWatermarkThatGuaranteesFiring(IntervalWindow window) {
+    public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
       return null;
     }
 
     @Override
-    public boolean shouldFire(Trigger<IntervalWindow>.TriggerContext context) throws Exception {
+    public boolean shouldFire(Trigger.TriggerContext context) throws Exception {
       return false;
     }
 
     @Override
-    public void onFire(Trigger<IntervalWindow>.TriggerContext context) throws Exception { }
+    public void onFire(Trigger.TriggerContext context) throws Exception { }
   }
 
-  private static class Trigger2 extends Trigger<IntervalWindow> {
+  private static class Trigger2 extends Trigger {
 
-    private Trigger2(List<Trigger<IntervalWindow>> subTriggers) {
+    private Trigger2(List<Trigger> subTriggers) {
       super(subTriggers);
     }
 
     @Override
-    public void onElement(Trigger<IntervalWindow>.OnElementContext c) { }
+    public void onElement(Trigger.OnElementContext c) { }
 
     @Override
-    public void onMerge(Trigger<IntervalWindow>.OnMergeContext c) { }
+    public void onMerge(Trigger.OnMergeContext c) { }
 
     @Override
-    protected Trigger<IntervalWindow> getContinuationTrigger(
-        List<Trigger<IntervalWindow>> continuationTriggers) {
+    protected Trigger getContinuationTrigger(
+        List<Trigger> continuationTriggers) {
       return null;
     }
 
     @Override
-    public Instant getWatermarkThatGuaranteesFiring(IntervalWindow window) {
+    public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
       return null;
     }
 
     @Override
-    public boolean shouldFire(Trigger<IntervalWindow>.TriggerContext context) throws Exception {
+    public boolean shouldFire(Trigger.TriggerContext context) throws Exception {
       return false;
     }
 
     @Override
-    public void onFire(Trigger<IntervalWindow>.TriggerContext context) throws Exception { }
+    public void onFire(Trigger.TriggerContext context) throws Exception { }
   }
 }

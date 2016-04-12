@@ -42,11 +42,11 @@ import org.mockito.MockitoAnnotations;
 @RunWith(JUnit4.class)
 public class AfterFirstTest {
 
-  @Mock private OnceTrigger<IntervalWindow> mockTrigger1;
-  @Mock private OnceTrigger<IntervalWindow> mockTrigger2;
+  @Mock private OnceTrigger mockTrigger1;
+  @Mock private OnceTrigger mockTrigger2;
   private SimpleTriggerTester<IntervalWindow> tester;
-  private static Trigger<IntervalWindow>.TriggerContext anyTriggerContext() {
-    return Mockito.<Trigger<IntervalWindow>.TriggerContext>any();
+  private static Trigger.TriggerContext anyTriggerContext() {
+    return Mockito.<Trigger.TriggerContext>any();
   }
 
   @Before
@@ -166,9 +166,9 @@ public class AfterFirstTest {
 
   @Test
   public void testContinuation() throws Exception {
-    OnceTrigger<IntervalWindow> trigger1 = AfterProcessingTime.pastFirstElementInPane();
-    OnceTrigger<IntervalWindow> trigger2 = AfterWatermark.pastEndOfWindow();
-    Trigger<IntervalWindow> afterFirst = AfterFirst.of(trigger1, trigger2);
+    OnceTrigger trigger1 = AfterProcessingTime.pastFirstElementInPane();
+    OnceTrigger trigger2 = AfterWatermark.pastEndOfWindow();
+    Trigger afterFirst = AfterFirst.of(trigger1, trigger2);
     assertEquals(
         AfterFirst.of(trigger1.getContinuationTrigger(), trigger2.getContinuationTrigger()),
         afterFirst.getContinuationTrigger());

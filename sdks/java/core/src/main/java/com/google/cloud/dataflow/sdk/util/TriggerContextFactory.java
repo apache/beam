@@ -65,40 +65,40 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     this.windowCoder = windowingStrategy.getWindowFn().windowCoder();
   }
 
-  public Trigger<W>.TriggerContext base(W window, Timers timers,
-      ExecutableTrigger<W> rootTrigger, FinishedTriggers finishedSet) {
+  public Trigger.TriggerContext base(W window, Timers timers,
+      ExecutableTrigger rootTrigger, FinishedTriggers finishedSet) {
     return new TriggerContextImpl(window, timers, rootTrigger, finishedSet);
   }
 
-  public Trigger<W>.OnElementContext createOnElementContext(
+  public Trigger.OnElementContext createOnElementContext(
       W window, Timers timers, Instant elementTimestamp,
-      ExecutableTrigger<W> rootTrigger, FinishedTriggers finishedSet) {
+      ExecutableTrigger rootTrigger, FinishedTriggers finishedSet) {
     return new OnElementContextImpl(window, timers, rootTrigger, finishedSet, elementTimestamp);
   }
 
-  public Trigger<W>.OnMergeContext createOnMergeContext(W window, Timers timers,
-      ExecutableTrigger<W> rootTrigger, FinishedTriggers finishedSet,
+  public Trigger.OnMergeContext createOnMergeContext(W window, Timers timers,
+      ExecutableTrigger rootTrigger, FinishedTriggers finishedSet,
       Map<W, FinishedTriggers> finishedSets) {
     return new OnMergeContextImpl(window, timers, rootTrigger, finishedSet, finishedSets);
   }
 
-  public StateAccessor<?> createStateAccessor(W window, ExecutableTrigger<W> trigger) {
+  public StateAccessor<?> createStateAccessor(W window, ExecutableTrigger trigger) {
     return new StateAccessorImpl(window, trigger);
   }
 
   public MergingStateAccessor<?, W> createMergingStateAccessor(
-      W mergeResult, Collection<W> mergingWindows, ExecutableTrigger<W> trigger) {
+      W mergeResult, Collection<W> mergingWindows, ExecutableTrigger trigger) {
     return new MergingStateAccessorImpl(trigger, mergingWindows, mergeResult);
   }
 
-  private class TriggerInfoImpl implements Trigger.TriggerInfo<W> {
+  private class TriggerInfoImpl implements Trigger.TriggerInfo {
 
-    protected final ExecutableTrigger<W> trigger;
+    protected final ExecutableTrigger trigger;
     protected final FinishedTriggers finishedSet;
-    private final Trigger<W>.TriggerContext context;
+    private final Trigger.TriggerContext context;
 
-    public TriggerInfoImpl(ExecutableTrigger<W> trigger, FinishedTriggers finishedSet,
-        Trigger<W>.TriggerContext context) {
+    public TriggerInfoImpl(ExecutableTrigger trigger, FinishedTriggers finishedSet,
+        Trigger.TriggerContext context) {
       this.trigger = trigger;
       this.finishedSet = finishedSet;
       this.context = context;
@@ -110,12 +110,12 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     }
 
     @Override
-    public Iterable<ExecutableTrigger<W>> subTriggers() {
+    public Iterable<ExecutableTrigger> subTriggers() {
       return trigger.subTriggers();
     }
 
     @Override
-    public ExecutableTrigger<W> subTrigger(int subtriggerIndex) {
+    public ExecutableTrigger subTrigger(int subtriggerIndex) {
       return trigger.subTriggers().get(subtriggerIndex);
     }
 
@@ -135,20 +135,20 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     }
 
     @Override
-    public Iterable<ExecutableTrigger<W>> unfinishedSubTriggers() {
+    public Iterable<ExecutableTrigger> unfinishedSubTriggers() {
       return FluentIterable
           .from(trigger.subTriggers())
-          .filter(new Predicate<ExecutableTrigger<W>>() {
+          .filter(new Predicate<ExecutableTrigger>() {
             @Override
-            public boolean apply(ExecutableTrigger<W> trigger) {
+            public boolean apply(ExecutableTrigger trigger) {
               return !finishedSet.isFinished(trigger);
             }
           });
     }
 
     @Override
-    public ExecutableTrigger<W> firstUnfinishedSubTrigger() {
-      for (ExecutableTrigger<W> subTrigger : trigger.subTriggers()) {
+    public ExecutableTrigger firstUnfinishedSubTrigger() {
+      for (ExecutableTrigger subTrigger : trigger.subTriggers()) {
         if (!finishedSet.isFinished(subTrigger)) {
           return subTrigger;
         }
@@ -217,14 +217,14 @@ public class TriggerContextFactory<W extends BoundedWindow> {
   }
 
   private class MergingTriggerInfoImpl
-      extends TriggerInfoImpl implements Trigger.MergingTriggerInfo<W> {
+      extends TriggerInfoImpl implements Trigger.MergingTriggerInfo {
 
     private final Map<W, FinishedTriggers> finishedSets;
 
     public MergingTriggerInfoImpl(
-        ExecutableTrigger<W> trigger,
+        ExecutableTrigger trigger,
         FinishedTriggers finishedSet,
-        Trigger<W>.TriggerContext context,
+        Trigger.TriggerContext context,
         Map<W, FinishedTriggers> finishedSets) {
       super(trigger, finishedSet, context);
       this.finishedSets = finishedSets;
@@ -251,7 +251,7 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     }
 
     @Override
-    public Iterable<W> getFinishedMergingWindows() {
+    public Iterable<? extends BoundedWindow> getFinishedMergingWindows() {
       return Maps.filterValues(finishedSets, new Predicate<FinishedTriggers>() {
         @Override
         public boolean apply(FinishedTriggers finishedSet) {
@@ -267,7 +267,7 @@ public class TriggerContextFactory<W extends BoundedWindow> {
 
     public StateAccessorImpl(
         W window,
-        ExecutableTrigger<W> trigger) {
+        ExecutableTrigger trigger) {
       this.triggerIndex = trigger.getTriggerIndex();
       this.windowNamespace = namespaceFor(window);
     }
@@ -286,7 +286,7 @@ public class TriggerContextFactory<W extends BoundedWindow> {
   implements MergingStateAccessor<Object, W> {
     private final Collection<W> activeToBeMerged;
 
-    public MergingStateAccessorImpl(ExecutableTrigger<W> trigger, Collection<W> activeToBeMerged,
+    public MergingStateAccessorImpl(ExecutableTrigger trigger, Collection<W> activeToBeMerged,
         W mergeResult) {
       super(mergeResult, trigger);
       this.activeToBeMerged = activeToBeMerged;
@@ -310,7 +310,7 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     }
   }
 
-  private class TriggerContextImpl extends Trigger<W>.TriggerContext {
+  private class TriggerContextImpl extends Trigger.TriggerContext {
 
     private final W window;
     private final StateAccessorImpl state;
@@ -320,7 +320,7 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     private TriggerContextImpl(
         W window,
         Timers timers,
-        ExecutableTrigger<W> trigger,
+        ExecutableTrigger trigger,
         FinishedTriggers finishedSet) {
       trigger.getSpec().super();
       this.window = window;
@@ -330,17 +330,17 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     }
 
     @Override
-    public Trigger<W>.TriggerContext forTrigger(ExecutableTrigger<W> trigger) {
+    public Trigger.TriggerContext forTrigger(ExecutableTrigger trigger) {
       return new TriggerContextImpl(window, timers, trigger, triggerInfo.finishedSet);
     }
 
     @Override
-    public TriggerInfo<W> trigger() {
+    public TriggerInfo trigger() {
       return triggerInfo;
     }
 
     @Override
-    public StateAccessor state() {
+    public StateAccessor<?> state() {
       return state;
     }
 
@@ -372,7 +372,7 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     }
   }
 
-  private class OnElementContextImpl extends Trigger<W>.OnElementContext {
+  private class OnElementContextImpl extends Trigger.OnElementContext {
 
     private final W window;
     private final StateAccessorImpl state;
@@ -383,7 +383,7 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     private OnElementContextImpl(
         W window,
         Timers timers,
-        ExecutableTrigger<W> trigger,
+        ExecutableTrigger trigger,
         FinishedTriggers finishedSet,
         Instant eventTimestamp) {
       trigger.getSpec().super();
@@ -401,18 +401,18 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     }
 
     @Override
-    public Trigger<W>.OnElementContext forTrigger(ExecutableTrigger<W> trigger) {
+    public Trigger.OnElementContext forTrigger(ExecutableTrigger trigger) {
       return new OnElementContextImpl(
           window, timers, trigger, triggerInfo.finishedSet, eventTimestamp);
     }
 
     @Override
-    public TriggerInfo<W> trigger() {
+    public TriggerInfo trigger() {
       return triggerInfo;
     }
 
     @Override
-    public StateAccessor state() {
+    public StateAccessor<?> state() {
       return state;
     }
 
@@ -450,7 +450,7 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     }
   }
 
-  private class OnMergeContextImpl extends Trigger<W>.OnMergeContext {
+  private class OnMergeContextImpl extends Trigger.OnMergeContext {
     private final MergingStateAccessor<?, W> state;
     private final W window;
     private final Collection<W> mergingWindows;
@@ -460,7 +460,7 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     private OnMergeContextImpl(
         W window,
         Timers timers,
-        ExecutableTrigger<W> trigger,
+        ExecutableTrigger trigger,
         FinishedTriggers finishedSet,
         Map<W, FinishedTriggers> finishedSets) {
       trigger.getSpec().super();
@@ -472,7 +472,7 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     }
 
     @Override
-    public Trigger<W>.OnMergeContext forTrigger(ExecutableTrigger<W> trigger) {
+    public Trigger.OnMergeContext forTrigger(ExecutableTrigger trigger) {
       return new OnMergeContextImpl(
           window, timers, trigger, triggerInfo.finishedSet, triggerInfo.finishedSets);
     }
@@ -483,7 +483,7 @@ public class TriggerContextFactory<W extends BoundedWindow> {
     }
 
     @Override
-    public MergingTriggerInfo<W> trigger() {
+    public MergingTriggerInfo trigger() {
       return triggerInfo;
     }
 

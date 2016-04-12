@@ -30,14 +30,11 @@ import java.util.List;
 /**
  * Create a composite {@link Trigger} that fires once after at least one of its sub-triggers have
  * fired.
- *
- * @param <W> {@link BoundedWindow} subclass used to represent the windows used by this
- *            {@code Trigger}
  */
 @Experimental(Experimental.Kind.TRIGGER)
-public class AfterFirst<W extends BoundedWindow> extends OnceTrigger<W> {
+public class AfterFirst extends OnceTrigger {
 
-  AfterFirst(List<Trigger<W>> subTriggers) {
+  AfterFirst(List<Trigger> subTriggers) {
     super(subTriggers);
     Preconditions.checkArgument(subTriggers.size() > 1);
   }
@@ -46,31 +43,31 @@ public class AfterFirst<W extends BoundedWindow> extends OnceTrigger<W> {
    * Returns an {@code AfterFirst} {@code Trigger} with the given subtriggers.
    */
   @SafeVarargs
-  public static <W extends BoundedWindow> OnceTrigger<W> of(
-      OnceTrigger<W>... triggers) {
-    return new AfterFirst<W>(Arrays.<Trigger<W>>asList(triggers));
+  public static <W extends BoundedWindow> OnceTrigger of(
+      OnceTrigger... triggers) {
+    return new AfterFirst(Arrays.<Trigger>asList(triggers));
   }
 
   @Override
   public void onElement(OnElementContext c) throws Exception {
-    for (ExecutableTrigger<W> subTrigger : c.trigger().subTriggers()) {
+    for (ExecutableTrigger subTrigger : c.trigger().subTriggers()) {
       subTrigger.invokeOnElement(c);
     }
   }
 
   @Override
   public void onMerge(OnMergeContext c) throws Exception {
-    for (ExecutableTrigger<W> subTrigger : c.trigger().subTriggers()) {
+    for (ExecutableTrigger subTrigger : c.trigger().subTriggers()) {
       subTrigger.invokeOnMerge(c);
     }
     updateFinishedStatus(c);
   }
 
   @Override
-  public Instant getWatermarkThatGuaranteesFiring(W window) {
+  public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
     // This trigger will fire after the earliest of its sub-triggers.
     Instant deadline = BoundedWindow.TIMESTAMP_MAX_VALUE;
-    for (Trigger<W> subTrigger : subTriggers) {
+    for (Trigger subTrigger : subTriggers) {
       Instant subDeadline = subTrigger.getWatermarkThatGuaranteesFiring(window);
       if (deadline.isAfter(subDeadline)) {
         deadline = subDeadline;
@@ -80,13 +77,13 @@ public class AfterFirst<W extends BoundedWindow> extends OnceTrigger<W> {
   }
 
   @Override
-  public OnceTrigger<W> getContinuationTrigger(List<Trigger<W>> continuationTriggers) {
-    return new AfterFirst<W>(continuationTriggers);
+  public OnceTrigger getContinuationTrigger(List<Trigger> continuationTriggers) {
+    return new AfterFirst(continuationTriggers);
   }
 
   @Override
-  public boolean shouldFire(Trigger<W>.TriggerContext context) throws Exception {
-    for (ExecutableTrigger<W> subtrigger : context.trigger().subTriggers()) {
+  public boolean shouldFire(Trigger.TriggerContext context) throws Exception {
+    for (ExecutableTrigger subtrigger : context.trigger().subTriggers()) {
       if (context.forTrigger(subtrigger).trigger().isFinished()
           || subtrigger.invokeShouldFire(context)) {
         return true;
@@ -97,7 +94,7 @@ public class AfterFirst<W extends BoundedWindow> extends OnceTrigger<W> {
 
   @Override
   protected void onOnlyFiring(TriggerContext context) throws Exception {
-    for (ExecutableTrigger<W> subtrigger : context.trigger().subTriggers()) {
+    for (ExecutableTrigger subtrigger : context.trigger().subTriggers()) {
       TriggerContext subContext = context.forTrigger(subtrigger);
       if (subtrigger.invokeShouldFire(subContext)) {
         // If the trigger is ready to fire, then do whatever it needs to do.
@@ -112,7 +109,7 @@ public class AfterFirst<W extends BoundedWindow> extends OnceTrigger<W> {
 
   private void updateFinishedStatus(TriggerContext c) {
     boolean anyFinished = false;
-    for (ExecutableTrigger<W> subTrigger : c.trigger().subTriggers()) {
+    for (ExecutableTrigger subTrigger : c.trigger().subTriggers()) {
       anyFinished |= c.forTrigger(subTrigger).trigger().isFinished();
     }
     c.trigger().setFinished(anyFinished);

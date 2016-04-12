@@ -74,7 +74,7 @@ public class WindowTest implements Serializable {
   @Test
   public void testWindowIntoTriggersAndAccumulating() {
     FixedWindows fixed10 = FixedWindows.of(Duration.standardMinutes(10));
-    Repeatedly<BoundedWindow> trigger = Repeatedly.forever(AfterPane.elementCountAtLeast(5));
+    Repeatedly trigger = Repeatedly.forever(AfterPane.elementCountAtLeast(5));
     WindowingStrategy<?, ?> strategy = TestPipeline.create()
       .apply(Create.of("hello", "world").withCoder(StringUtf8Coder.of()))
       .apply(Window.<String>into(fixed10)
@@ -91,7 +91,7 @@ public class WindowTest implements Serializable {
   @Test
   public void testWindowPropagatesEachPart() {
     FixedWindows fixed10 = FixedWindows.of(Duration.standardMinutes(10));
-    Repeatedly<BoundedWindow> trigger = Repeatedly.forever(AfterPane.elementCountAtLeast(5));
+    Repeatedly trigger = Repeatedly.forever(AfterPane.elementCountAtLeast(5));
     WindowingStrategy<?, ?> strategy = TestPipeline.create()
       .apply(Create.of("hello", "world").withCoder(StringUtf8Coder.of()))
       .apply("Mode", Window.<String>accumulatingFiredPanes())
@@ -149,7 +149,7 @@ public class WindowTest implements Serializable {
   @Test
   public void testMissingMode() {
     FixedWindows fixed10 = FixedWindows.of(Duration.standardMinutes(10));
-    Repeatedly<BoundedWindow> trigger = Repeatedly.forever(AfterPane.elementCountAtLeast(5));
+    Repeatedly trigger = Repeatedly.forever(AfterPane.elementCountAtLeast(5));
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("requires that the accumulation mode");
@@ -163,7 +163,7 @@ public class WindowTest implements Serializable {
   @Test
   public void testMissingLateness() {
     FixedWindows fixed10 = FixedWindows.of(Duration.standardMinutes(10));
-    Repeatedly<BoundedWindow> trigger = Repeatedly.forever(AfterPane.elementCountAtLeast(5));
+    Repeatedly trigger = Repeatedly.forever(AfterPane.elementCountAtLeast(5));
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("requires that the allowed lateness");

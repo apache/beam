@@ -27,11 +27,9 @@ import java.util.List;
 /**
  * A trigger that is equivalent to {@code Repeatedly.forever(AfterWatermark.pastEndOfWindow())}.
  * See {@link Repeatedly#forever} and {@link AfterWatermark#pastEndOfWindow} for more details.
- *
- * @param <W> The type of windows being triggered/encoded.
  */
 @Experimental(Experimental.Kind.TRIGGER)
-public class DefaultTrigger<W extends BoundedWindow> extends Trigger<W>{
+public class DefaultTrigger extends Trigger{
 
   private DefaultTrigger() {
     super(null);
@@ -40,8 +38,8 @@ public class DefaultTrigger<W extends BoundedWindow> extends Trigger<W>{
   /**
    * Returns the default trigger.
    */
-  public static <W extends BoundedWindow> DefaultTrigger<W> of() {
-    return new DefaultTrigger<W>();
+  public static <W extends BoundedWindow> DefaultTrigger of() {
+    return new DefaultTrigger();
   }
 
   @Override
@@ -66,31 +64,31 @@ public class DefaultTrigger<W extends BoundedWindow> extends Trigger<W>{
   public void clear(TriggerContext c) throws Exception { }
 
   @Override
-  public Instant getWatermarkThatGuaranteesFiring(W window) {
+  public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
     return window.maxTimestamp();
   }
 
   @Override
-  public boolean isCompatible(Trigger<?> other) {
+  public boolean isCompatible(Trigger other) {
     // Semantically, all default triggers are identical
     return other instanceof DefaultTrigger;
   }
 
   @Override
-  public Trigger<W> getContinuationTrigger(List<Trigger<W>> continuationTriggers) {
+  public Trigger getContinuationTrigger(List<Trigger> continuationTriggers) {
     return this;
   }
 
   @Override
-  public boolean shouldFire(Trigger<W>.TriggerContext context) throws Exception {
+  public boolean shouldFire(Trigger.TriggerContext context) throws Exception {
     return endOfWindowReached(context);
   }
 
-  private boolean endOfWindowReached(Trigger<W>.TriggerContext context) {
+  private boolean endOfWindowReached(Trigger.TriggerContext context) {
     return context.currentEventTime() != null
         && context.currentEventTime().isAfter(context.window().maxTimestamp());
   }
 
   @Override
-  public void onFire(Trigger<W>.TriggerContext context) throws Exception { }
+  public void onFire(Trigger.TriggerContext context) throws Exception { }
 }

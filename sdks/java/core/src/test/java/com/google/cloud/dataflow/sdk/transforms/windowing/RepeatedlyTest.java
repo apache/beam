@@ -43,10 +43,10 @@ import org.mockito.MockitoAnnotations;
 @RunWith(JUnit4.class)
 public class RepeatedlyTest {
 
-  @Mock private Trigger<IntervalWindow> mockTrigger;
+  @Mock private Trigger mockTrigger;
   private SimpleTriggerTester<IntervalWindow> tester;
-  private static Trigger<IntervalWindow>.TriggerContext anyTriggerContext() {
-    return Mockito.<Trigger<IntervalWindow>.TriggerContext>any();
+  private static Trigger.TriggerContext anyTriggerContext() {
+    return Mockito.<Trigger.TriggerContext>any();
   }
 
   public void setUp(WindowFn<Object, IntervalWindow> windowFn) throws Exception {
@@ -61,7 +61,7 @@ public class RepeatedlyTest {
   public void testOnElement() throws Exception {
     setUp(FixedWindows.of(Duration.millis(10)));
     tester.injectElements(37);
-    verify(mockTrigger).onElement(Mockito.<Trigger<IntervalWindow>.OnElementContext>any());
+    verify(mockTrigger).onElement(Mockito.<Trigger.OnElementContext>any());
   }
 
   /**
@@ -74,7 +74,7 @@ public class RepeatedlyTest {
     when(mockTrigger.shouldFire(anyTriggerContext())).thenReturn(true);
     assertTrue(tester.shouldFire(new IntervalWindow(new Instant(0), new Instant(10))));
 
-    when(mockTrigger.shouldFire(Mockito.<Trigger<IntervalWindow>.TriggerContext>any()))
+    when(mockTrigger.shouldFire(Mockito.<Trigger.TriggerContext>any()))
         .thenReturn(false);
     assertFalse(tester.shouldFire(new IntervalWindow(new Instant(0), new Instant(10))));
   }
@@ -98,8 +98,8 @@ public class RepeatedlyTest {
 
   @Test
   public void testContinuation() throws Exception {
-    Trigger<IntervalWindow> trigger = AfterProcessingTime.pastFirstElementInPane();
-    Trigger<IntervalWindow> repeatedly = Repeatedly.forever(trigger);
+    Trigger trigger = AfterProcessingTime.pastFirstElementInPane();
+    Trigger repeatedly = Repeatedly.forever(trigger);
     assertEquals(
         Repeatedly.forever(trigger.getContinuationTrigger()), repeatedly.getContinuationTrigger());
     assertEquals(

@@ -42,15 +42,15 @@ import org.mockito.MockitoAnnotations;
 @RunWith(JUnit4.class)
 public class AfterWatermarkTest {
 
-  @Mock private OnceTrigger<IntervalWindow> mockEarly;
-  @Mock private OnceTrigger<IntervalWindow> mockLate;
+  @Mock private OnceTrigger mockEarly;
+  @Mock private OnceTrigger mockLate;
 
   private SimpleTriggerTester<IntervalWindow> tester;
-  private static Trigger<IntervalWindow>.TriggerContext anyTriggerContext() {
-    return Mockito.<Trigger<IntervalWindow>.TriggerContext>any();
+  private static Trigger.TriggerContext anyTriggerContext() {
+    return Mockito.<Trigger.TriggerContext>any();
   }
-  private static Trigger<IntervalWindow>.OnElementContext anyElementContext() {
-    return Mockito.<Trigger<IntervalWindow>.OnElementContext>any();
+  private static Trigger.OnElementContext anyElementContext() {
+    return Mockito.<Trigger.OnElementContext>any();
   }
 
   private void injectElements(int... elements) throws Exception {
@@ -66,7 +66,7 @@ public class AfterWatermarkTest {
     MockitoAnnotations.initMocks(this);
   }
 
-  public void testRunningAsTrigger(OnceTrigger<IntervalWindow> mockTrigger, IntervalWindow window)
+  public void testRunningAsTrigger(OnceTrigger mockTrigger, IntervalWindow window)
       throws Exception {
 
     // Don't fire due to mock saying no
