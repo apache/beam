@@ -855,19 +855,28 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     Map<String, Object> parDo2Properties = steps.get(2).getProperties();
     assertThat(parDo1Properties, hasKey("display_data"));
 
+    @SuppressWarnings("unchecked")
     Collection<Map<String, String>> fn1displayData =
             (Collection<Map<String, String>>) parDo1Properties.get("display_data");
+    @SuppressWarnings("unchecked")
     Collection<Map<String, String>> fn2displayData =
             (Collection<Map<String, String>>) parDo2Properties.get("display_data");
 
-    ImmutableSet<ImmutableMap<String, String>> expectedFn1DisplayData = ImmutableSet.of(
-        ImmutableMap.<String, String>builder()
+    ImmutableSet<ImmutableMap<String, Object>> expectedFn1DisplayData = ImmutableSet.of(
+        ImmutableMap.<String, Object>builder()
             .put("key", "foo")
             .put("type", "STRING")
             .put("value", "bar")
             .put("namespace", fn1.getClass().getName())
             .build(),
-        ImmutableMap.<String, String>builder()
+        ImmutableMap.<String, Object>builder()
+            .put("key", "fn")
+            .put("type", "JAVA_CLASS")
+            .put("value", fn1.getClass().getName())
+            .put("shortValue", fn1.getClass().getSimpleName())
+            .put("namespace", parDo1.getClass().getName())
+            .build(),
+        ImmutableMap.<String, Object>builder()
             .put("key", "foo2")
             .put("type", "JAVA_CLASS")
             .put("value", DataflowPipelineTranslatorTest.class.getName())
@@ -879,6 +888,13 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     );
 
     ImmutableSet<ImmutableMap<String, Object>> expectedFn2DisplayData = ImmutableSet.of(
+        ImmutableMap.<String, Object>builder()
+            .put("key", "fn")
+            .put("type", "JAVA_CLASS")
+            .put("value", fn2.getClass().getName())
+            .put("shortValue", fn2.getClass().getSimpleName())
+            .put("namespace", parDo2.getClass().getName())
+            .build(),
         ImmutableMap.<String, Object>builder()
             .put("key", "foo3")
             .put("type", "INTEGER")

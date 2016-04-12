@@ -17,8 +17,10 @@
 package com.google.cloud.dataflow.sdk.transforms;
 
 import static org.hamcrest.CoreMatchers.isA;
+import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
@@ -29,6 +31,7 @@ import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
 import com.google.cloud.dataflow.sdk.transforms.Max.MaxIntegerFn;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -159,7 +162,15 @@ public class DoFnWithContextTest implements Serializable {
   }
 
   @Test
+  public void testDefaultPopulateDisplayDataImplementation() {
+    DoFnWithContext<String, String> fn = new DoFnWithContext<String, String>() {
+    };
+    DisplayData displayData = DisplayData.from(fn);
+    assertThat(displayData.items(), empty());
+  }
+
   @Category(RunnableOnService.class)
+  @Test
   public void testCreateAggregatorInStartBundleThrows() {
     TestPipeline p = createTestPipeline(new DoFnWithContext<String, String>() {
       @StartBundle

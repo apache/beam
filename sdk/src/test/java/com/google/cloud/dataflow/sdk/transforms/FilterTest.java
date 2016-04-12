@@ -16,9 +16,14 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+
+import static org.hamcrest.MatcherAssert.assertThat;
+
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 
 import org.junit.Test;
@@ -156,5 +161,20 @@ public class FilterTest implements Serializable {
 
     DataflowAssert.that(output).containsInAnyOrder(5, 6, 7);
     p.run();
+  }
+
+  @Test
+  public void testDisplayData() {
+    ParDo.Bound<Integer, Integer> lessThan = Filter.lessThan(123);
+    assertThat(DisplayData.from(lessThan), hasDisplayItem("predicate", "x < 123"));
+
+    ParDo.Bound<Integer, Integer> lessThanOrEqual = Filter.lessThanEq(234);
+    assertThat(DisplayData.from(lessThanOrEqual), hasDisplayItem("predicate", "x ≤ 234"));
+
+    ParDo.Bound<Integer, Integer> greaterThan = Filter.greaterThan(345);
+    assertThat(DisplayData.from(greaterThan), hasDisplayItem("predicate", "x > 345"));
+
+    ParDo.Bound<Integer, Integer> greaterThanOrEqual = Filter.greaterThanEq(456);
+    assertThat(DisplayData.from(greaterThanOrEqual), hasDisplayItem("predicate", "x ≥ 456"));
   }
 }

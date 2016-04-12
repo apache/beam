@@ -17,6 +17,9 @@
 package com.google.cloud.dataflow.sdk.transforms;
 
 import static com.google.cloud.dataflow.sdk.TestUtils.KvMatcher.isKv;
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.hamcrest.core.Is.is;
@@ -35,6 +38,7 @@ import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.InvalidWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFns;
@@ -434,5 +438,17 @@ public class GroupByKeyTest {
   @Test
   public void testGroupByKeyGetName() {
     Assert.assertEquals("GroupByKey", GroupByKey.<String, Integer>create().getName());
+  }
+
+  @Test
+  public void testDisplayData() {
+    GroupByKey<String, String> groupByKey = GroupByKey.create();
+    GroupByKey<String, String> groupByFewKeys = GroupByKey.create(true);
+
+    DisplayData gbkDisplayData = DisplayData.from(groupByKey);
+    DisplayData fewKeysDisplayData = DisplayData.from(groupByFewKeys);
+
+    assertThat(gbkDisplayData.items(), empty());
+    assertThat(fewKeysDisplayData, hasDisplayItem("fewKeys", true));
   }
 }
