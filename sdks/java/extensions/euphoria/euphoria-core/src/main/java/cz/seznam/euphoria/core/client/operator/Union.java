@@ -5,11 +5,19 @@ import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.PCollection;
 import cz.seznam.euphoria.core.client.flow.Flow;
 
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Objects;
+
 /**
  * Union of two datasets of same type.
  */
+// TODO: Should extend some kind of DoubleInputOperator?
 public class Union<IN, TYPE extends Dataset<IN>>
-    extends TwoInputOperator<IN, IN, TYPE> implements Output<IN, TYPE> {
+        extends Operator<IN, IN, TYPE> {
+
+  final Dataset<IN> left;
+  final Dataset<IN> right;
 
 
   public static <IN> Union<IN, Dataset<IN>> of(
@@ -26,11 +34,14 @@ public class Union<IN, TYPE extends Dataset<IN>>
 
   @SuppressWarnings("unchecked")
   public Union(Flow flow, TYPE left, TYPE right) {
-    super("Union", flow, left, right);
+    super("Union", flow);
+    this.left = Objects.requireNonNull(left);
+    this.right = Objects.requireNonNull(right);
+
     if (left.getFlow() != right.getFlow()) {
       throw new IllegalArgumentException("Pass two datasets from the same flow.");
     }
-    output = (TYPE) createOutput(left);
+    this.output = createOutput(left);
   }
 
   @Override
@@ -38,4 +49,8 @@ public class Union<IN, TYPE extends Dataset<IN>>
     return output;
   }
 
+  @Override
+  public Collection<Dataset<IN>> listInputs() {
+    return Arrays.asList(left, right);
+  }
 }

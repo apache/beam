@@ -203,7 +203,7 @@ public class Flow implements Serializable {
   }
 
 
-  /** Retreieve settings of this flow. */
+  /** Retrieve settings of this flow. */
   public Settings getSettings() {
     return settings;
   }

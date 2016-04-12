@@ -9,7 +9,7 @@ import cz.seznam.euphoria.core.client.io.Collector;
 import java.io.Closeable;
 
 /**
- * A state for statefull operations.
+ * A state for stateful operations.
  */
 public abstract class State<IN, OUT> implements Closeable {
 

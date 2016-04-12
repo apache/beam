@@ -10,6 +10,7 @@ import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 
 /**
  * Operator operating on window level with state information.
@@ -41,7 +42,7 @@ public class StateAwareWindowWiseSingleInputOperator<
 
   @Override
   public Collection<Dataset<IN>> listInputs() {
-    return Arrays.asList(input);
+    return Collections.singletonList(input);
   }
 
   public Dataset<IN> input() {

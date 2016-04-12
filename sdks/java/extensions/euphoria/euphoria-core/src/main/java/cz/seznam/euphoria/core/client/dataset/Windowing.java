@@ -41,7 +41,7 @@ public interface Windowing<T, KEY, W extends Window<KEY, W>> extends Serializabl
         triggering.scheduleOnce(duration, () -> {
           TimeWindow newWindow = windowing.createNew(triggering, evict);
           if (windowing.aggregating) {
-            TimeWindow.this.getStates().stream().forEach(s -> newWindow.addState(s));
+            TimeWindow.this.getStates().stream().forEach(newWindow::addState);
           }
           evict.apply(TimeWindow.this);
         });
@@ -91,7 +91,7 @@ public interface Windowing<T, KEY, W extends Window<KEY, W>> extends Serializabl
     }
 
     @Override
-    public boolean isAggegating() {
+    public boolean isAggregating() {
       return aggregating;
     }
 
@@ -155,7 +155,7 @@ public interface Windowing<T, KEY, W extends Window<KEY, W>> extends Serializabl
 
 
     @Override
-    public boolean isAggegating() {
+    public boolean isAggregating() {
       return aggregating;
     }
     
@@ -186,7 +186,7 @@ public interface Windowing<T, KEY, W extends Window<KEY, W>> extends Serializabl
   /** Evict given window. */
   void close(W window);
 
-  default boolean isAggegating() {
+  default boolean isAggregating() {
     return false;
   }
   
