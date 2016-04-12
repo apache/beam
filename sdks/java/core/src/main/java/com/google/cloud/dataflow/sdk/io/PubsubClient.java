@@ -20,6 +20,7 @@ package com.google.cloud.dataflow.sdk.io;
 
 import com.google.api.client.repackaged.com.google.common.base.Preconditions;
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.Collection;
 
 /**
@@ -29,7 +30,7 @@ public interface PubsubClient extends AutoCloseable {
   /**
    * Path representing a cloud project id.
    */
-  class ProjectPath {
+  class ProjectPath implements Serializable {
     private final String path;
 
     public ProjectPath(String path) {
@@ -73,7 +74,7 @@ public interface PubsubClient extends AutoCloseable {
   /**
    * Path representing a Pubsub subscription.
    */
-  class SubscriptionPath {
+  class SubscriptionPath implements Serializable {
     private final String path;
 
     public SubscriptionPath(String path) {
@@ -121,7 +122,7 @@ public interface PubsubClient extends AutoCloseable {
   /**
    * Path representing a Pubsub topic.
    */
-  class TopicPath {
+  class TopicPath implements Serializable {
     private final String path;
 
     public TopicPath(String path) {
