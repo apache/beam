@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms;
 
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -121,6 +122,11 @@ public class Partition<T> extends PTransform<PCollection<T>, PCollectionList<T>>
     return pcs;
   }
 
+  @Override
+  public void populateDisplayData(DisplayData.Builder builder) {
+    builder.include(partitionDoFn);
+  }
+
   private final transient PartitionDoFn<T> partitionDoFn;
 
   private Partition(PartitionDoFn<T> partitionDoFn) {
@@ -169,6 +175,13 @@ public class Partition<T> extends PTransform<PCollection<T>, PCollectionList<T>>
             "Partition function returned out of bounds index: " +
             partition + " not in [0.." + numPartitions + ")");
       }
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      builder
+          .add("numPartitions", numPartitions)
+          .add("partitionFn", partitionFn.getClass());
     }
   }
 }

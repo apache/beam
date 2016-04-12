@@ -22,6 +22,7 @@ import org.apache.beam.sdk.transforms.DoFnWithContext.ExtraContextFactory;
 import org.apache.beam.sdk.transforms.DoFnWithContext.FinishBundle;
 import org.apache.beam.sdk.transforms.DoFnWithContext.ProcessElement;
 import org.apache.beam.sdk.transforms.DoFnWithContext.StartBundle;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.UserCodeException;
@@ -651,6 +652,11 @@ public abstract class DoFnReflector {
     @Override
     protected TypeDescriptor<OutputT> getOutputTypeDescriptor() {
       return fn.getOutputTypeDescriptor();
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      fn.populateDisplayData(builder);
     }
 
     private void readObject(java.io.ObjectInputStream in)

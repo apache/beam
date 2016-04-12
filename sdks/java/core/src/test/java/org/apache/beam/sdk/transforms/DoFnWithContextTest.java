@@ -18,8 +18,10 @@
 package org.apache.beam.sdk.transforms;
 
 import static org.hamcrest.CoreMatchers.isA;
+import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
@@ -29,6 +31,7 @@ import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Max.MaxIntegerFn;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -155,6 +158,14 @@ public class DoFnWithContextTest implements Serializable {
     delegateAggregator.addValue(1L);
 
     verify(agg).addValue(1L);
+  }
+
+  @Test
+  public void testDefaultPopulateDisplayDataImplementation() {
+    DoFnWithContext<String, String> fn = new DoFnWithContext<String, String>() {
+    };
+    DisplayData displayData = DisplayData.from(fn);
+    assertThat(displayData.items(), empty());
   }
 
   @Test
