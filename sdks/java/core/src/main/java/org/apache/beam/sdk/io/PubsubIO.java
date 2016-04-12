@@ -37,9 +37,7 @@ import org.apache.beam.sdk.util.PubsubClient;
 import org.apache.beam.sdk.util.PubsubClient.IncomingMessage;
 import org.apache.beam.sdk.util.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.util.PubsubClient.TopicPath;
-import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
 
@@ -649,9 +647,18 @@ public class PubsubIO {
                       .apply(Create.of((Void) null)).setCoder(VoidCoder.of())
                       .apply(ParDo.of(new PubsubBoundedReader())).setCoder(coder);
         } else {
-          return PCollection.<T>createPrimitiveOutputInternal(
-                  input.getPipeline(), WindowingStrategy.globalDefault(), IsBounded.UNBOUNDED)
-              .setCoder(coder);
+          if (subscription == null) {
+            throw new IllegalStateException("Must provide an existing subscription for "
+                                            + "PubsubIO.Read transform in streaming mode");
+          }
+          return input.getPipeline().begin()
+                      .apply(new PubsubUnboundedSource<T>(
+                          FACTORY,
+                          PubsubClient.subscriptionPathFromName(subscription.project,
+                                                                subscription.subscription),
+                          coder,
+                          timestampLabel,
+                          idLabel));
         }
       }
 
@@ -961,8 +968,20 @@ public class PubsubIO {
         if (topic == null) {
           throw new IllegalStateException("need to set the topic of a PubsubIO.Write transform");
         }
-        input.apply(ParDo.of(new PubsubWriter()));
-        return PDone.in(input.getPipeline());
+        switch (input.isBounded()) {
+          case BOUNDED:
+            input.apply(ParDo.of(new PubsubBoundedWriter()));
+            return PDone.in(input.getPipeline());
+          case UNBOUNDED:
+            return input.apply(new PubsubUnboundedSink<T>(
+                FACTORY,
+                PubsubClient.topicPathFromName(topic.project, topic.topic),
+                coder,
+                timestampLabel,
+                idLabel,
+                100 /* numShards */));
+        }
+        throw new RuntimeException(); // cases are exhaustive.
       }
 
       @Override
@@ -993,11 +1012,11 @@ public class PubsubIO {
       }
 
       /**
-       * Writer to Pubsub which batches messages.
+       * Writer to Pubsub which batches messages from bounded collections.
        * <p>NOTE: This is not the implementation used when running on the Google Dataflow hosted
        * service.
        */
-      private class PubsubWriter extends DoFn<T, Void> {
+      private class PubsubBoundedWriter extends DoFn<T, Void> {
         private static final int MAX_PUBLISH_BATCH_SIZE = 100;
         private transient List<OutgoingMessage> output;
         private transient PubsubClient pubsubClient;

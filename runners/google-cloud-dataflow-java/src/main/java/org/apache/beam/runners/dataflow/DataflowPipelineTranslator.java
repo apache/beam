@@ -41,7 +41,9 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
-import org.apache.beam.sdk.io.PubsubIO;
+import org.apache.beam.sdk.io.BigQueryIO;
+import org.apache.beam.sdk.io.PubsubUnboundedSink;
+import org.apache.beam.sdk.io.PubsubUnboundedSource;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.runners.TransformTreeNode;
@@ -1010,11 +1012,12 @@ public class DataflowPipelineTranslator {
     // IO Translation.
 
     registerTransformTranslator(
-        PubsubIO.Read.Bound.class, new PubsubIOTranslator.ReadTranslator());
-    registerTransformTranslator(
-        DataflowPipelineRunner.StreamingPubsubIOWrite.class,
-        new PubsubIOTranslator.WriteTranslator());
+        BigQueryIO.Read.Bound.class, new BigQueryIOTranslator.ReadTranslator());
 
+    registerTransformTranslator(
+        PubsubUnboundedSource.class, new PubsubIOTranslator.ReadTranslator());
+    registerTransformTranslator(
+        PubsubUnboundedSink.class, new PubsubIOTranslator.WriteTranslator());
     registerTransformTranslator(Read.Bounded.class, new ReadTranslator());
   }
 

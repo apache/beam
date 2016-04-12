@@ -17,12 +17,14 @@
  */
 package org.apache.beam.runners.dataflow.internal;
 
-import org.apache.beam.runners.dataflow.DataflowPipelineRunner;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.TransformTranslator;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.TranslationContext;
-import org.apache.beam.sdk.io.PubsubIO;
+import org.apache.beam.sdk.io.PubsubUnboundedSink;
+import org.apache.beam.sdk.io.PubsubUnboundedSource;
 import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.WindowedValue;
+
+import com.google.common.base.Preconditions;
 
 /**
  * Pubsub transform support code for the Dataflow backend.
@@ -32,32 +34,25 @@ public class PubsubIOTranslator {
   /**
    * Implements PubsubIO Read translation for the Dataflow backend.
    */
-  public static class ReadTranslator<T> implements TransformTranslator<PubsubIO.Read.Bound<T>> {
+  public static class ReadTranslator<T> implements TransformTranslator<PubsubUnboundedSource<T>> {
     @Override
     @SuppressWarnings({"rawtypes", "unchecked"})
     public void translate(
-        PubsubIO.Read.Bound transform,
+        PubsubUnboundedSource<T> transform,
         TranslationContext context) {
       translateReadHelper(transform, context);
     }
 
     private <T> void translateReadHelper(
-        PubsubIO.Read.Bound<T> transform,
+        PubsubUnboundedSource<T> transform,
         TranslationContext context) {
-      if (!context.getPipelineOptions().isStreaming()) {
-        throw new IllegalArgumentException(
-            "PubsubIO.Read can only be used with the Dataflow streaming runner.");
-      }
+      Preconditions.checkState(context.getPipelineOptions().isStreaming(),
+          "PubsubIOTranslator.ReadTranslator is only for streaming pipelines.");
 
       context.addStep(transform, "ParallelRead");
       context.addInput(PropertyNames.FORMAT, "pubsub");
-      if (transform.getTopic() != null) {
-        context.addInput(PropertyNames.PUBSUB_TOPIC, transform.getTopic().asV1Beta1Path());
-      }
-      if (transform.getSubscription() != null) {
-        context.addInput(
-            PropertyNames.PUBSUB_SUBSCRIPTION, transform.getSubscription().asV1Beta1Path());
-      }
+      context.addInput(
+          PropertyNames.PUBSUB_SUBSCRIPTION, transform.getSubscription().getV1Beta1Path());
       if (transform.getTimestampLabel() != null) {
         context.addInput(PropertyNames.PUBSUB_TIMESTAMP_LABEL, transform.getTimestampLabel());
       }
@@ -71,38 +66,33 @@ public class PubsubIOTranslator {
   /**
    * Implements PubsubIO Write translation for the Dataflow backend.
    */
-  public static class WriteTranslator<T>
-      implements TransformTranslator<DataflowPipelineRunner.StreamingPubsubIOWrite<T>> {
+  public static class WriteTranslator<T> implements TransformTranslator<PubsubUnboundedSink<T>> {
 
     @Override
     @SuppressWarnings({"rawtypes", "unchecked"})
     public void translate(
-        DataflowPipelineRunner.StreamingPubsubIOWrite transform,
+        PubsubUnboundedSink<T> transform,
         TranslationContext context) {
       translateWriteHelper(transform, context);
     }
 
     private <T> void translateWriteHelper(
-        DataflowPipelineRunner.StreamingPubsubIOWrite<T> customTransform,
+        PubsubUnboundedSink<T> transform,
         TranslationContext context) {
-      if (!context.getPipelineOptions().isStreaming()) {
-        throw new IllegalArgumentException(
-            "PubsubIO.Write is non-primitive for the Dataflow batch runner.");
-      }
+      Preconditions.checkState(context.getPipelineOptions().isStreaming(),
+          "PubsubIOTranslator.WriteTranslator is only for streaming pipelines.");
 
-      PubsubIO.Write.Bound<T> transform = customTransform.getOverriddenTransform();
-
-      context.addStep(customTransform, "ParallelWrite");
+      context.addStep(transform, "ParallelWrite");
       context.addInput(PropertyNames.FORMAT, "pubsub");
-      context.addInput(PropertyNames.PUBSUB_TOPIC, transform.getTopic().asV1Beta1Path());
+      context.addInput(PropertyNames.PUBSUB_TOPIC, transform.getTopic().getV1Beta1Path());
       if (transform.getTimestampLabel() != null) {
         context.addInput(PropertyNames.PUBSUB_TIMESTAMP_LABEL, transform.getTimestampLabel());
       }
       if (transform.getIdLabel() != null) {
         context.addInput(PropertyNames.PUBSUB_ID_LABEL, transform.getIdLabel());
       }
-      context.addEncodingInput(WindowedValue.getValueOnlyCoder(transform.getCoder()));
-      context.addInput(PropertyNames.PARALLEL_INPUT, context.getInput(customTransform));
+      context.addEncodingInput(WindowedValue.getValueOnlyCoder(transform.getElementCoder()));
+      context.addInput(PropertyNames.PARALLEL_INPUT, context.getInput(transform));
     }
   }
 }

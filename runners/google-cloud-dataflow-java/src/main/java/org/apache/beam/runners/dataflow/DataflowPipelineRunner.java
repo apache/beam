@@ -33,7 +33,6 @@ import org.apache.beam.runners.dataflow.internal.IsmFormat;
 import org.apache.beam.runners.dataflow.internal.IsmFormat.IsmRecord;
 import org.apache.beam.runners.dataflow.internal.IsmFormat.IsmRecordCoder;
 import org.apache.beam.runners.dataflow.internal.IsmFormat.MetadataKeyCoder;
-import org.apache.beam.runners.dataflow.internal.PubsubIOTranslator;
 import org.apache.beam.runners.dataflow.internal.ReadTranslator;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
@@ -348,7 +347,6 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
           .put(View.AsList.class, StreamingViewAsList.class)
           .put(View.AsIterable.class, StreamingViewAsIterable.class)
           .put(Write.Bound.class, StreamingWrite.class)
-          .put(PubsubIO.Write.Bound.class, StreamingPubsubIOWrite.class)
           .put(Read.Unbounded.class, StreamingUnboundedRead.class)
           .put(Read.Bounded.class, UnsupportedIO.class)
           .put(AvroIO.Read.Bound.class, UnsupportedIO.class)
@@ -2338,42 +2336,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
 
   /**
    * Specialized implementation for
-   * {@link org.apache.beam.sdk.io.PubsubIO.Write PubsubIO.Write} for the
-   * Dataflow runner in streaming mode.
-   *
-   * <p>For internal use only. Subject to change at any time.
-   *
-   * <p>Public so the {@link PubsubIOTranslator} can access.
-   */
-  public static class StreamingPubsubIOWrite<T> extends PTransform<PCollection<T>, PDone> {
-    private final PubsubIO.Write.Bound<T> transform;
-
-    /**
-     * Builds an instance of this class from the overridden transform.
-     */
-    public StreamingPubsubIOWrite(
-        DataflowPipelineRunner runner, PubsubIO.Write.Bound<T> transform) {
-      this.transform = transform;
-    }
-
-    public PubsubIO.Write.Bound<T> getOverriddenTransform() {
-      return transform;
-    }
-
-    @Override
-    public PDone apply(PCollection<T> input) {
-      return PDone.in(input.getPipeline());
-    }
-
-    @Override
-    protected String getKindString() {
-      return "StreamingPubsubIOWrite";
-    }
-  }
-
-  /**
-   * Specialized implementation for
-   * {@link org.apache.beam.sdk.io.Read.Unbounded Read.Unbounded} for the
+   * {@link com.google.cloud.dataflow.sdk.io.Read.Unbounded Read.Unbounded} for the
    * Dataflow runner in streaming mode.
    *
    * <p>In particular, if an UnboundedSource requires deduplication, then features of WindmillSink
