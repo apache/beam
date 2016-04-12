@@ -841,16 +841,22 @@ public class DisplayDataTest {
 
   @Test
   public void testJsonSerialization() throws IOException {
+    final String stringValue = "foobar";
+    final int intValue = 1234;
+    final double floatValue = 123.4;
+    final boolean boolValue = true;
+    final int durationMillis = 1234;
+
     HasDisplayData component = new HasDisplayData() {
       @Override
       public void populateDisplayData(Builder builder) {
         builder
-            .add("string", "foobar")
-            .add("long", 1234)
-            .add("double", 123.4)
-            .add("boolean", true)
+            .add("string", stringValue)
+            .add("long", intValue)
+            .add("double", floatValue)
+            .add("boolean", boolValue)
             .add("instant", new Instant(0))
-            .add("duration", Duration.millis(1234))
+            .add("duration", Duration.millis(durationMillis))
             .add("class", DisplayDataTest.class)
               .withLinkUrl("http://abc")
               .withLabel("baz")
@@ -860,33 +866,38 @@ public class DisplayDataTest {
     DisplayData data = DisplayData.from(component);
 
     JsonNode json = MAPPER.readTree(MAPPER.writeValueAsBytes(data));
-    assertThat(json, hasItem(expectedJson(component.getClass(), "STRING", "string", "\"foobar\"")));
-    assertThat(json, hasItem(expectedJson(component.getClass(), "INTEGER", "long", "1234")));
-    assertThat(json, hasItem(expectedJson(component.getClass(), "FLOAT", "double", "123.4")));
-    assertThat(json, hasItem(expectedJson(component.getClass(), "BOOLEAN", "boolean", "true")));
-    assertThat(json, hasItem(expectedJson(
-        component.getClass(), "TIMESTAMP", "instant", "\"1970-01-01T00:00:00.000Z\"")));
-    assertThat(json, hasItem(expectedJson(
-        component.getClass(), "DURATION", "duration", "1234")));
-    assertThat(json, hasItem(expectedJson(
-        component.getClass(), "JAVA_CLASS", "class", "\"" + DisplayDataTest.class.getName() + "\"",
-        "\"DisplayDataTest\"", "baz", "http://abc")));
-
+    assertThat(json, hasExpectedJson(component, "STRING", "string", quoted(stringValue)));
+    assertThat(json, hasExpectedJson(component, "INTEGER", "long", intValue));
+    assertThat(json, hasExpectedJson(component, "FLOAT", "double", floatValue));
+    assertThat(json, hasExpectedJson(component, "BOOLEAN", "boolean", boolValue));
+    assertThat(json, hasExpectedJson(component, "DURATION", "duration", durationMillis));
+    assertThat(json, hasExpectedJson(
+        component, "TIMESTAMP", "instant", quoted("1970-01-01T00:00:00.000Z")));
+    assertThat(json, hasExpectedJson(
+        component, "JAVA_CLASS", "class", quoted(DisplayDataTest.class.getName()),
+        quoted("DisplayDataTest"), "baz", "http://abc"));
   }
 
-  private JsonNode expectedJson(Class<?> nsClass, String type, String key, String value)
+  private String quoted(Object obj) {
+    return String.format("\"%s\"", obj);
+  }
+
+  private Matcher<Iterable<? super JsonNode>> hasExpectedJson(
+      HasDisplayData component, String type, String key, Object value)
       throws IOException {
-    return expectedJson(nsClass, type, key, value, null, null, null);
+    return hasExpectedJson(component, type, key, value, null, null, null);
   }
 
-  private JsonNode expectedJson(
-      Class<?> nsClass,
+  private Matcher<Iterable<? super JsonNode>> hasExpectedJson(
+      HasDisplayData component,
       String type,
       String key,
-      String value,
-      String shortValue,
+      Object value,
+      Object shortValue,
       String label,
       String linkUrl) throws IOException {
+    Class<?> nsClass = component.getClass();
+
     StringBuilder builder = new StringBuilder();
     builder.append("{");
     builder.append(String.format("\"namespace\":\"%s\",", nsClass.getName()));
@@ -905,7 +916,9 @@ public class DisplayDataTest {
     }
 
     builder.append("}");
-    return MAPPER.readTree(builder.toString());
+
+    JsonNode jsonNode = MAPPER.readTree(builder.toString());
+    return hasItem(jsonNode);
   }
 
   private static Matcher<DisplayData.Item> hasLabel(Matcher<String> labelMatcher) {
