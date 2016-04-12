@@ -55,7 +55,7 @@ public class Filter<IN, TYPE extends Dataset<IN>>
   @Override
   @SuppressWarnings("unchecked")
   public TYPE output() {
-    return (TYPE) super.output();
+    return super.output();
   }
 
   /** This operator can be implemented using FlatMap. */

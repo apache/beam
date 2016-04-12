@@ -277,7 +277,7 @@ public class InMemExecutor implements Executor {
             .map(DAG.Node::get)
             .allMatch(o -> o.listInputs()
                 .stream()
-                .allMatch(d -> context.containsKey(d)));
+                .allMatch(context::containsKey));
     
     if (!haveAllInputs) {
       throw new IllegalStateException("Cannot execute DAG "
@@ -485,7 +485,7 @@ public class InMemExecutor implements Executor {
       final Map<Window, Map<Object, State>> windowStates = new HashMap<>();
       final BlockingQueue output = new ArrayBlockingQueue(10);
       final Map<Object, State> aggregatingStates = new HashMap<>();
-      final boolean isAggregating = windowing.isAggegating();
+      final boolean isAggregating = windowing.isAggregating();
       final LocalTriggering triggering = new LocalTriggering();
 
       outputSuppliers.add(QueueSupplier.wrap(output));
