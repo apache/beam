@@ -205,7 +205,7 @@ public class ReduceByKey<
   @Override
   @SuppressWarnings("unchecked")
   public TYPE output() {
-    return (TYPE) super.output();
+    return super.output();
   }
 
 

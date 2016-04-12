@@ -58,7 +58,7 @@ public class FlatMap<IN, OUT, TYPE extends Dataset<OUT>>
   @Override
   @SuppressWarnings("unchecked")
   public TYPE output() {
-    return (TYPE) super.output();
+    return super.output();
   }
 
 
