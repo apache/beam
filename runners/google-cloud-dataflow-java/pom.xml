@@ -55,6 +55,8 @@
         <runIntegrationTestOnService>true</runIntegrationTestOnService>
         <testGroups>com.google.cloud.dataflow.sdk.testing.RunnableOnService</testGroups>
         <testParallelValue>both</testParallelValue>
+        <surefire.dependency>org.apache.beam:java-sdk-all</surefire.dependency>
+        <surefire.testPipelineOptions>${dataflow.testPipelineOptions}</surefire.testPipelineOptions>
       </properties>
     </profile>
   </profiles>
