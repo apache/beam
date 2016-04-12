@@ -1,7 +1,6 @@
 
 package cz.seznam.euphoria.core.executor;
 
-import cz.seznam.euphoria.core.client.operator.Pair;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioner;
@@ -20,9 +19,11 @@ import cz.seznam.euphoria.core.client.io.Partition;
 import cz.seznam.euphoria.core.client.io.Writer;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.Operator;
+import cz.seznam.euphoria.core.client.operator.Pair;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.Repartition;
 import cz.seznam.euphoria.core.client.operator.State;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -38,7 +39,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.LinkedTransferQueue;
+import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -154,10 +155,9 @@ public class InMemExecutor implements Executor {
     }
   }
 
-  private final BlockingQueue<Runnable> queue = new LinkedTransferQueue<>();
+  private final BlockingQueue<Runnable> queue = new SynchronousQueue<>(false);
   private final ThreadPoolExecutor executor = new ThreadPoolExecutor(
-      Runtime.getRuntime().availableProcessors(),
-      10 * Runtime.getRuntime().availableProcessors(),
+      0, Integer.MAX_VALUE,
       60,
       TimeUnit.SECONDS,
       queue,
