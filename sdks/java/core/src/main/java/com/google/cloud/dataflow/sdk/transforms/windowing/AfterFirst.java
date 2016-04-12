@@ -17,7 +17,7 @@
  */
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
-import com.google.cloud.dataflow.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
 import com.google.cloud.dataflow.sdk.util.ExecutableTrigger;
 import com.google.common.base.Preconditions;

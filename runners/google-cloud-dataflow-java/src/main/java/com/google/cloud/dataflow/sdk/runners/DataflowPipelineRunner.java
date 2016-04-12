@@ -23,6 +23,8 @@ import static com.google.cloud.dataflow.sdk.util.WindowedValue.valueInEmptyWindo
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
+import org.apache.beam.sdk.annotations.Experimental;
+
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.services.clouddebugger.v2.Clouddebugger;
 import com.google.api.services.clouddebugger.v2.model.Debuggee;
@@ -36,7 +38,6 @@ import com.google.api.services.dataflow.model.WorkerPool;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.Pipeline.PipelineVisitor;
 import com.google.cloud.dataflow.sdk.PipelineResult.State;
-import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.AvroCoder;
 import com.google.cloud.dataflow.sdk.coders.BigEndianLongCoder;
 import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;

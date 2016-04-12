@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.annotations;
+package org.apache.beam.sdk.annotations;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;

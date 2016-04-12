@@ -17,7 +17,7 @@
  */
 package com.google.cloud.dataflow.sdk.util;
 
-import com.google.cloud.dataflow.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental;
 
 import org.joda.time.Instant;
 

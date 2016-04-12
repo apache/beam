@@ -1,5 +1,5 @@
 com.google.cloud.dataflow.sdk
-com.google.cloud.dataflow.sdk.annotations
+org.apache.beam.sdk.annotations
 com.google.cloud.dataflow.sdk.coders
 com.google.cloud.dataflow.sdk.io
 com.google.cloud.dataflow.sdk.options
