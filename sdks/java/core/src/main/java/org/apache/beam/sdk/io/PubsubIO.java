@@ -36,10 +36,10 @@ import org.apache.beam.sdk.util.PubsubApiaryClient;
 import org.apache.beam.sdk.util.PubsubClient;
 import org.apache.beam.sdk.util.PubsubClient.IncomingMessage;
 import org.apache.beam.sdk.util.PubsubClient.OutgoingMessage;
+import org.apache.beam.sdk.util.PubsubClient.ProjectPath;
+import org.apache.beam.sdk.util.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.util.PubsubClient.TopicPath;
-import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
 
@@ -54,7 +54,6 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
@@ -634,12 +633,12 @@ public class PubsubIO {
       @Override
       public PCollection<T> apply(PInput input) {
         if (topic == null && subscription == null) {
-          throw new IllegalStateException("need to set either the topic or the subscription for "
+          throw new IllegalStateException("Need to set either the topic or the subscription for "
               + "a PubsubIO.Read transform");
         }
         if (topic != null && subscription != null) {
-          throw new IllegalStateException("Can't set both the topic and the subscription for a "
-              + "PubsubIO.Read transform");
+          throw new IllegalStateException("Can't set both the topic and the subscription for "
+              + "a PubsubIO.Read transform");
         }
 
         boolean boundedOutput = getMaxNumRecords() > 0 || getMaxReadTime() != null;
@@ -649,9 +648,19 @@ public class PubsubIO {
                       .apply(Create.of((Void) null)).setCoder(VoidCoder.of())
                       .apply(ParDo.of(new PubsubBoundedReader())).setCoder(coder);
         } else {
-          return PCollection.<T>createPrimitiveOutputInternal(
-                  input.getPipeline(), WindowingStrategy.globalDefault(), IsBounded.UNBOUNDED)
-              .setCoder(coder);
+          @Nullable ProjectPath projectPath =
+              topic == null ? null : PubsubClient.projectPathFromId(topic.project);
+          @Nullable TopicPath topicPath =
+              topic == null ? null : PubsubClient.topicPathFromName(topic.project, topic.topic);
+          @Nullable SubscriptionPath subscriptionPath =
+              subscription == null
+                  ? null
+                  : PubsubClient
+                      .subscriptionPathFromName(subscription.project, subscription.subscription);
+          return input.getPipeline().begin()
+                      .apply(new PubsubUnboundedSource<T>(
+                          FACTORY, projectPath, topicPath, subscriptionPath,
+                          coder, timestampLabel, idLabel));
         }
       }
 
@@ -707,12 +716,16 @@ public class PubsubIO {
 
       /**
        * Default reader when Pubsub subscription has some form of upper bound.
-       * <p>TODO: Consider replacing with BoundedReadFromUnboundedSource on top of upcoming
-       * PubsubUnboundedSource.
-       * <p>NOTE: This is not the implementation used when running on the Google Dataflow hosted
-       * service.
+       *
+       * <p>TODO: Consider replacing with BoundedReadFromUnboundedSource on top
+       * of PubsubUnboundedSource.
+       *
+       * <p>NOTE: This is not the implementation used when running on the Google Cloud Dataflow
+       * service in streaming mode.
+       *
+       * <p>Public so can be suppressed by runners.
        */
-      private class PubsubBoundedReader extends DoFn<Void, T> {
+      public class PubsubBoundedReader extends DoFn<Void, T> {
         private static final int DEFAULT_PULL_SIZE = 100;
         private static final int ACK_TIMEOUT_SEC = 60;
 
@@ -724,20 +737,20 @@ public class PubsubIO {
 
             PubsubClient.SubscriptionPath subscriptionPath;
             if (getSubscription() == null) {
-              // Create a randomized subscription derived from the topic name.
-              String subscription = getTopic().topic + "_dataflow_" + new Random().nextLong();
+              TopicPath topicPath =
+                  PubsubClient.topicPathFromName(getTopic().project, getTopic().topic);
               // The subscription will be registered under this pipeline's project if we know it.
               // Otherwise we'll fall back to the topic's project.
               // Note that they don't need to be the same.
-              String project = c.getPipelineOptions().as(PubsubOptions.class).getProject();
-              if (Strings.isNullOrEmpty(project)) {
-                project = getTopic().project;
+              String projectId =
+                  c.getPipelineOptions().as(PubsubOptions.class).getProject();
+              if (Strings.isNullOrEmpty(projectId)) {
+                projectId = getTopic().project;
               }
-              subscriptionPath = PubsubClient.subscriptionPathFromName(project, subscription);
-              TopicPath topicPath =
-                  PubsubClient.topicPathFromName(getTopic().project, getTopic().topic);
+              ProjectPath projectPath = PubsubClient.projectPathFromId(projectId);
               try {
-                pubsubClient.createSubscription(topicPath, subscriptionPath, ACK_TIMEOUT_SEC);
+                subscriptionPath =
+                    pubsubClient.createRandomSubscription(projectPath, topicPath, ACK_TIMEOUT_SEC);
               } catch (Exception e) {
                 throw new RuntimeException("Failed to create subscription: ", e);
               }
@@ -794,6 +807,12 @@ public class PubsubIO {
                   new Instant(message.timestampMsSinceEpoch));
             }
           }
+        }
+
+        @Override
+        public void populateDisplayData(DisplayData.Builder builder) {
+          super.populateDisplayData(builder);
+          Bound.this.populateDisplayData(builder);
         }
       }
     }
@@ -961,8 +980,20 @@ public class PubsubIO {
         if (topic == null) {
           throw new IllegalStateException("need to set the topic of a PubsubIO.Write transform");
         }
-        input.apply(ParDo.of(new PubsubWriter()));
-        return PDone.in(input.getPipeline());
+        switch (input.isBounded()) {
+          case BOUNDED:
+            input.apply(ParDo.of(new PubsubBoundedWriter()));
+            return PDone.in(input.getPipeline());
+          case UNBOUNDED:
+            return input.apply(new PubsubUnboundedSink<T>(
+                FACTORY,
+                PubsubClient.topicPathFromName(topic.project, topic.topic),
+                coder,
+                timestampLabel,
+                idLabel,
+                100 /* numShards */));
+        }
+        throw new RuntimeException(); // cases are exhaustive.
       }
 
       @Override
@@ -993,11 +1024,14 @@ public class PubsubIO {
       }
 
       /**
-       * Writer to Pubsub which batches messages.
-       * <p>NOTE: This is not the implementation used when running on the Google Dataflow hosted
-       * service.
+       * Writer to Pubsub which batches messages from bounded collections.
+       *
+       * <p>NOTE: This is not the implementation used when running on the Google Cloud Dataflow
+       * service in streaming mode.
+       *
+       * <p>Public so can be suppressed by runners.
        */
-      private class PubsubWriter extends DoFn<T, Void> {
+      public class PubsubBoundedWriter extends DoFn<T, Void> {
         private static final int MAX_PUBLISH_BATCH_SIZE = 100;
         private transient List<OutgoingMessage> output;
         private transient PubsubClient pubsubClient;
@@ -1005,15 +1039,18 @@ public class PubsubIO {
         @Override
         public void startBundle(Context c) throws IOException {
           this.output = new ArrayList<>();
-          this.pubsubClient = FACTORY.newClient(timestampLabel, idLabel,
-                                                c.getPipelineOptions().as(PubsubOptions.class));
+          // NOTE: idLabel is ignored.
+          this.pubsubClient =
+              FACTORY.newClient(timestampLabel, null,
+                                c.getPipelineOptions().as(PubsubOptions.class));
         }
 
         @Override
         public void processElement(ProcessContext c) throws IOException {
+          // NOTE: The record id is always null.
           OutgoingMessage message =
               new OutgoingMessage(CoderUtils.encodeToByteArray(getCoder(), c.element()),
-                  c.timestamp().getMillis());
+                                  c.timestamp().getMillis(), null);
           output.add(message);
 
           if (output.size() >= MAX_PUBLISH_BATCH_SIZE) {
@@ -1041,6 +1078,7 @@ public class PubsubIO {
 
         @Override
         public void populateDisplayData(DisplayData.Builder builder) {
+          super.populateDisplayData(builder);
           Bound.this.populateDisplayData(builder);
         }
       }
