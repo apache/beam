@@ -40,13 +40,15 @@
     <maven.build.timestamp.format>yyyy-MM-dd HH:mm</maven.build.timestamp.format>
   </properties>
 
-  <!-- Disable integration tests unless told explicitly a set of test flags. -->
+  <!-- Disable integration tests unless told configured by a test flag.
+       This allows users by default to opt-out of running Dataflow integration
+       tests because of the requirements to have a valid GCP project and so forth. -->
   <profiles>
     <profile>
-      <id>disable-integration-tests</id>
+      <id>disable-runnable-on-service-tests</id>
       <activation>
         <property>
-          <name>!integrationTestPipelineOptions</name>
+          <name>!runnableOnServicePipelineOptions</name>
         </property>
       </activation>
       <build>
@@ -56,11 +58,7 @@
             <artifactId>maven-surefire-plugin</artifactId>
             <executions>
               <execution>
-                <id>disable-integration-test</id>
-                <phase>integration-test</phase>
-                <goals>
-                  <goal>test</goal>
-                </goals>
+                <id>runnable-on-service-tests</id>
                 <configuration>
                   <skip>true</skip>
                 </configuration>

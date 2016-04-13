@@ -48,7 +48,7 @@
           <version>2.18.1</version>
           <executions>
             <execution>
-              <id>execute-integration-tests</id>
+              <id>runnable-on-service-tests</id>
               <phase>integration-test</phase>
               <goals>
                 <goal>test</goal>
@@ -61,18 +61,11 @@
                   <dependency>org.apache.beam:java-sdk-all</dependency>
                 </dependenciesToScan>
                 <systemPropertyVariables>
-                  <beamTestPipelineOptions>${integrationTestPipelineOptions}</beamTestPipelineOptions>
+                  <beamTestPipelineOptions>${runnableOnServicePipelineOptions}</beamTestPipelineOptions>
                 </systemPropertyVariables>
               </configuration>
             </execution>
           </executions>
-          <dependencies>
-          <dependency>
-            <groupId>org.apache.maven.surefire</groupId>
-            <artifactId>surefire-junit47</artifactId>
-            <version>2.18.1</version>
-          </dependency>
-        </dependencies>
         </plugin>
       </plugins>
     </pluginManagement>
