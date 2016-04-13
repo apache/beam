@@ -37,22 +37,9 @@
 
   <packaging>jar</packaging>
 
-  <profiles>
-    <profile>
-      <id>DataflowPipelineTests</id>
-      <properties>
-        <runIntegrationTestOnService>true</runIntegrationTestOnService>
-        <testGroups>com.google.cloud.dataflow.sdk.testing.RunnableOnService</testGroups>
-        <testParallelValue>both</testParallelValue>
-      </properties>
-    </profile>
-  </profiles>
-
   <build>
-
     <pluginManagement>
       <plugins>
-
         <plugin>
           <artifactId>maven-compiler-plugin</artifactId>
           <configuration>
@@ -60,12 +47,10 @@
              <target>1.8</target>
           </configuration>
         </plugin>
-
       </plugins>
     </pluginManagement>
 
     <plugins>
-
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
       </plugin>

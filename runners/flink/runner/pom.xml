@@ -34,6 +34,30 @@
 
   <packaging>jar</packaging>
 
+  <profiles>
+    <profile>
+      <id>disable-runnable-on-service-tests</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>runnable-on-service-tests</id>
+                <configuration>
+                  <skip>true</skip>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 
   <dependencies>
     <!-- Flink dependencies -->

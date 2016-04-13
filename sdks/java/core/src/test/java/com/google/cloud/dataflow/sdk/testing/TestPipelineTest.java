@@ -52,7 +52,7 @@ public class TestPipelineTest {
       "--runner=DirectPipelineRunner",
       "--project=testProject"
     });
-    System.getProperties().put("dataflowOptions", stringOptions);
+    System.getProperties().put("beamTestPipelineOptions", stringOptions);
     GcpOptions options =
         TestPipeline.testingPipelineOptions().as(GcpOptions.class);
     assertEquals(DirectPipelineRunner.class, options.getRunner());
@@ -61,9 +61,6 @@ public class TestPipelineTest {
 
   @Test
   public void testCreationOfPipelineOptionsFromReallyVerboselyNamedTestCase() throws Exception {
-        ObjectMapper mapper = new ObjectMapper();
-    String stringOptions = mapper.writeValueAsString(new String[]{});
-    System.getProperties().put("dataflowOptions", stringOptions);
     PipelineOptions options = TestPipeline.testingPipelineOptions();
     assertThat(options.as(ApplicationNameOptions.class).getAppName(), startsWith(
         "TestPipelineTest-testCreationOfPipelineOptionsFromReallyVerboselyNamedTestCase"));
