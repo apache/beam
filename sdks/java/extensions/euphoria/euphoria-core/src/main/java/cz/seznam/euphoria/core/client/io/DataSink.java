@@ -9,7 +9,7 @@ import java.io.IOException;
 public abstract class DataSink<T> {
 
   /** Open Writer for given partition id (zero based). */
-  public abstract Writer<T> openWriter(int partId);
+  public abstract Writer<T> openWriter(int partitionId);
 
   /** Commit all partitions. */
   public abstract void commit() throws IOException;

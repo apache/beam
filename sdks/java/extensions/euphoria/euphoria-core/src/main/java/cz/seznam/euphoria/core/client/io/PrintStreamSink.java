@@ -68,9 +68,9 @@ public class PrintStreamSink<T> extends DataSink<T> {
   }
 
   @Override
-  public Writer<T> openWriter(int partId) {
+  public Writer<T> openWriter(int partitionId) {
     return dumpPartitionId
-        ? new PartitionIdWriter<>(out, partId)
+        ? new PartitionIdWriter<>(out, partitionId)
         : new PlainWriter<>(out);
   }
 

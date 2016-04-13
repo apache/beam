@@ -176,7 +176,7 @@ public class BasicOperatorTest {
   private <T> DataSink<T> getSink() {
     return new DataSink<T>() {
       @Override
-      public Writer<T> openWriter(int partId) {
+      public Writer<T> openWriter(int partitionId) {
         return new Writer<T>() {
           @Override
           public void write(T elem) {
