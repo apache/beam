@@ -148,8 +148,8 @@
           <doctitle>Google Cloud Dataflow SDK for Java, version ${project.version}</doctitle>
           <overview>../javadoc/overview.html</overview>
 
-          <subpackages>com.google.cloud.dataflow.sdk</subpackages>
-          <additionalparam>-exclude com.google.cloud.dataflow.sdk.runners.worker:com.google.cloud.dataflow.sdk.runners.dataflow:com.google.cloud.dataflow.sdk.util:com.google.cloud.dataflow.sdk.runners.inprocess ${dataflow.javadoc_opts}</additionalparam>
+          <subpackages>org.apache.beam.sdk</subpackages>
+          <additionalparam>-exclude org.apache.beam.sdk.runners.worker:org.apache.beam.sdk.runners.dataflow:org.apache.beam.sdk.util:org.apache.beam.sdk.runners.inprocess ${dataflow.javadoc_opts}</additionalparam>
           <use>false</use>
           <quiet>true</quiet>
           <bottom><![CDATA[<br>]]></bottom>
@@ -243,19 +243,19 @@
               </filters>
               <relocations>
                 <!-- TODO: Once ready, change the following pattern to 'com'
-                     only, exclude 'com.google.cloud.dataflow.**', and remove
+                     only, exclude 'org.apache.beam.**', and remove
                      the second relocation. -->
                 <relocation>
                   <pattern>com.google.common</pattern>
-                  <shadedPattern>com.google.cloud.dataflow.sdk.repackaged.com.google.common</shadedPattern>
+                  <shadedPattern>org.apache.beam.sdk.repackaged.com.google.common</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>com.google.thirdparty</pattern>
-                  <shadedPattern>com.google.cloud.dataflow.sdk.repackaged.com.google.thirdparty</shadedPattern>
+                  <shadedPattern>org.apache.beam.sdk.repackaged.com.google.thirdparty</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>com.google.cloud.bigtable</pattern>
-                  <shadedPattern>com.google.cloud.dataflow.sdk.repackaged.com.google.cloud.bigtable</shadedPattern>
+                  <shadedPattern>org.apache.beam.sdk.repackaged.com.google.cloud.bigtable</shadedPattern>
                   <excludes>
                     <exclude>com.google.cloud.bigtable.config.BigtableOptions*</exclude>
                     <exclude>com.google.cloud.bigtable.config.CredentialOptions*</exclude>
@@ -674,7 +674,7 @@
     </dependency>
 
     <!--
-    To use com.google.cloud.dataflow.io.XmlSource:
+    To use org.apache.beam.io.XmlSource:
 
     1. Explicitly declare the following dependency for the stax2 API.
     2. Include a stax2 implementation on the classpath. One example
@@ -703,7 +703,7 @@
     </dependency>
 
     <!--
-    To use com.google.cloud.dataflow.io.AvroSource with XZ-encoded files,
+    To use org.apache.beam.io.AvroSource with XZ-encoded files,
     please explicitly declare this dependency to include org.tukaani:xz on
     the classpath at runtime.
     -->
