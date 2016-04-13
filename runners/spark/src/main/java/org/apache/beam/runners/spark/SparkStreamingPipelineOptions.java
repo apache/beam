@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.spark;
 
-import com.google.cloud.dataflow.sdk.options.Default;
-import com.google.cloud.dataflow.sdk.options.Description;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.Description;
 
 /**
  * Options used to configure Spark streaming.

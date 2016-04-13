@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.util;
+package org.apache.beam.sdk.util;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Supplier;
@@ -611,10 +611,10 @@ public class ApiSurface {
   ////////////////////////////////////////////////////////////////////////////
 
   public static ApiSurface getSdkApiSurface() throws IOException {
-    return ApiSurface.ofPackage("com.google.cloud.dataflow")
-        .pruningPattern("com[.]google[.]cloud[.]dataflow.*Test")
-        .pruningPattern("com[.]google[.]cloud[.]dataflow.*Benchmark")
-        .pruningPrefix("com.google.cloud.dataflow.integration")
+    return ApiSurface.ofPackage("org.apache.beam")
+        .pruningPattern("org[.]apache[.]beam.*Test")
+        .pruningPattern("org[.]apache[.]beam.*Benchmark")
+        .pruningPrefix("org.apache.beam.integration")
         .pruningPrefix("java")
         .pruningPrefix("com.google.api")
         .pruningPrefix("com.google.auth")

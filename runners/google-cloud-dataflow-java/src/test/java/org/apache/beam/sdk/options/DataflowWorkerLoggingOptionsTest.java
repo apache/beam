@@ -15,12 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.options;
+package org.apache.beam.sdk.options;
 
-import static com.google.cloud.dataflow.sdk.options.DataflowWorkerLoggingOptions.Level.WARN;
+import static org.apache.beam.sdk.options.DataflowWorkerLoggingOptions.Level.WARN;
+
 import static org.junit.Assert.assertEquals;
 
-import com.google.cloud.dataflow.sdk.options.DataflowWorkerLoggingOptions.WorkerLogLevelOverrides;
+import org.apache.beam.sdk.options.DataflowWorkerLoggingOptions.WorkerLogLevelOverrides;
+
 import com.google.common.collect.ImmutableMap;
 
 import com.fasterxml.jackson.databind.ObjectMapper;

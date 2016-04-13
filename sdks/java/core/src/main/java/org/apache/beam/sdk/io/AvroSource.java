@@ -15,15 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.io;
+package org.apache.beam.sdk.io;
 
 import org.apache.beam.sdk.annotations.Experimental;
-import com.google.cloud.dataflow.sdk.coders.AvroCoder;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
-import com.google.cloud.dataflow.sdk.util.AvroUtils;
-import com.google.cloud.dataflow.sdk.util.AvroUtils.AvroMetadata;
-import com.google.cloud.dataflow.sdk.values.PCollection;
+import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.util.AvroUtils;
+import org.apache.beam.sdk.util.AvroUtils.AvroMetadata;
+import org.apache.beam.sdk.values.PCollection;
+
 import com.google.common.base.Preconditions;
 
 import org.apache.avro.Schema;

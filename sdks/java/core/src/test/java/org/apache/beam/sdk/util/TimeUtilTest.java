@@ -15,12 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.util;
+package org.apache.beam.sdk.util;
 
-import static com.google.cloud.dataflow.sdk.util.TimeUtil.fromCloudDuration;
-import static com.google.cloud.dataflow.sdk.util.TimeUtil.fromCloudTime;
-import static com.google.cloud.dataflow.sdk.util.TimeUtil.toCloudDuration;
-import static com.google.cloud.dataflow.sdk.util.TimeUtil.toCloudTime;
+import static org.apache.beam.sdk.util.TimeUtil.fromCloudDuration;
+import static org.apache.beam.sdk.util.TimeUtil.fromCloudTime;
+import static org.apache.beam.sdk.util.TimeUtil.toCloudDuration;
+import static org.apache.beam.sdk.util.TimeUtil.toCloudTime;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 

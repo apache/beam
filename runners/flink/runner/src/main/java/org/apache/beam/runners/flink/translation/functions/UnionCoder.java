@@ -18,14 +18,15 @@
 package org.apache.beam.runners.flink.translation.functions;
 
 
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.StandardCoder;
+import org.apache.beam.sdk.transforms.join.RawUnionValue;
+import org.apache.beam.sdk.util.PropertyNames;
+import org.apache.beam.sdk.util.VarInt;
+import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.coders.StandardCoder;
-import com.google.cloud.dataflow.sdk.transforms.join.RawUnionValue;
-import com.google.cloud.dataflow.sdk.util.PropertyNames;
-import com.google.cloud.dataflow.sdk.util.VarInt;
-import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -35,7 +36,7 @@ import java.util.List;
 /**
  * A UnionCoder encodes RawUnionValues.
  *
- * This file copied from {@link com.google.cloud.dataflow.sdk.transforms.join.UnionCoder}
+ * This file copied from {@link org.apache.beam.sdk.transforms.join.UnionCoder}
  */
 @SuppressWarnings("serial")
 public class UnionCoder extends StandardCoder<RawUnionValue> {

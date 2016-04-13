@@ -16,4 +16,4 @@
  * limitations under the License.
  */
 /** Defines utilities shared by multiple PipelineRunner implementations. **/
-package com.google.cloud.dataflow.sdk.util.common;
+package org.apache.beam.sdk.util.common;

@@ -15,11 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.io;
+package org.apache.beam.sdk.io;
 
 import org.apache.beam.sdk.annotations.Experimental;
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.options.PipelineOptions;
 
 import org.joda.time.Instant;
 
@@ -41,8 +41,8 @@ import javax.annotation.Nullable;
  *   do not guarantee that a given record will only be read a single time.
  * </ul>
  *
- * <p>See {@link com.google.cloud.dataflow.sdk.transforms.windowing.Window} and
- * {@link com.google.cloud.dataflow.sdk.transforms.windowing.Trigger} for more information on
+ * <p>See {@link org.apache.beam.sdk.transforms.windowing.Window} and
+ * {@link org.apache.beam.sdk.transforms.windowing.Trigger} for more information on
  * timestamps and watermarks.
  *
  * @param <OutputT> Type of records output by this source.
@@ -98,7 +98,7 @@ public abstract class UnboundedSource<
 
   /**
    * A marker representing the progress and state of an
-   * {@link com.google.cloud.dataflow.sdk.io.UnboundedSource.UnboundedReader}.
+   * {@link org.apache.beam.sdk.io.UnboundedSource.UnboundedReader}.
    *
    * <p>For example, this could be offsets in a set of files being read.
    */
@@ -182,7 +182,7 @@ public abstract class UnboundedSource<
      *
      * <p>This can be approximate.  If records are read that violate this guarantee, they will be
      * considered late, which will affect how they will be processed.  See
-     * {@link com.google.cloud.dataflow.sdk.transforms.windowing.Window} for more information on
+     * {@link org.apache.beam.sdk.transforms.windowing.Window} for more information on
      * late data and how to handle it.
      *
      * <p>However, this value should be as late as possible. Downstream windows may not be able
@@ -193,8 +193,8 @@ public abstract class UnboundedSource<
      * source that does not have natural timestamps, timestamps can be set to the time of
      * reading, in which case the watermark is the current clock time.
      *
-     * <p>See {@link com.google.cloud.dataflow.sdk.transforms.windowing.Window} and
-     * {@link com.google.cloud.dataflow.sdk.transforms.windowing.Trigger} for more
+     * <p>See {@link org.apache.beam.sdk.transforms.windowing.Window} and
+     * {@link org.apache.beam.sdk.transforms.windowing.Trigger} for more
      * information on timestamps and watermarks.
      *
      * <p>May be called after {@link #advance} or {@link #start} has returned false, but not before

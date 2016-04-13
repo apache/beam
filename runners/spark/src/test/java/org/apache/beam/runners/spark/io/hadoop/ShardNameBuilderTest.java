@@ -18,14 +18,14 @@
 
 package org.apache.beam.runners.spark.io.hadoop;
 
-import org.junit.Test;
-
 import static org.apache.beam.runners.spark.io.hadoop.ShardNameBuilder.getOutputDirectory;
 import static org.apache.beam.runners.spark.io.hadoop.ShardNameBuilder.getOutputFilePrefix;
 import static org.apache.beam.runners.spark.io.hadoop.ShardNameBuilder.getOutputFileTemplate;
 import static org.apache.beam.runners.spark.io.hadoop.ShardNameBuilder.replaceShardCount;
 import static org.apache.beam.runners.spark.io.hadoop.ShardNameBuilder.replaceShardNumber;
 import static org.junit.Assert.assertEquals;
+
+import org.junit.Test;
 
 public class ShardNameBuilderTest {
 

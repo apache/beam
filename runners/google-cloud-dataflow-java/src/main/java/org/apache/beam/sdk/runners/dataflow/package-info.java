@@ -16,6 +16,6 @@
  * limitations under the License.
  */
 /**
- * Implementation of the {@link com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner}.
+ * Implementation of the {@link org.apache.beam.sdk.runners.DataflowPipelineRunner}.
  */
-package com.google.cloud.dataflow.sdk.runners.dataflow;
+package org.apache.beam.sdk.runners.dataflow;

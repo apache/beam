@@ -15,15 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.util;
+package org.apache.beam.sdk.util;
+
+import org.apache.beam.sdk.testing.ExpectedLogs;
 
 import com.google.api.client.http.GenericUrl;
 import com.google.api.client.http.HttpResponse;
-
 import com.google.api.client.testing.http.HttpTesting;
 import com.google.api.client.testing.http.MockHttpTransport;
 import com.google.api.client.testing.http.MockLowLevelHttpResponse;
-import com.google.cloud.dataflow.sdk.testing.ExpectedLogs;
 
 import org.junit.Rule;
 import org.junit.Test;

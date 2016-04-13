@@ -15,17 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.options;
+package org.apache.beam.sdk.options;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
+import org.apache.beam.sdk.options.GoogleApiDebugOptions.GoogleApiTracer;
+import org.apache.beam.sdk.util.TestCredential;
+import org.apache.beam.sdk.util.Transport;
+
 import com.google.api.services.bigquery.Bigquery.Datasets.Delete;
 import com.google.api.services.storage.Storage;
-import com.google.cloud.dataflow.sdk.options.GoogleApiDebugOptions.GoogleApiTracer;
-import com.google.cloud.dataflow.sdk.util.TestCredential;
-import com.google.cloud.dataflow.sdk.util.Transport;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 

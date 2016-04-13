@@ -15,22 +15,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.io;
+package org.apache.beam.sdk.io;
 
 import static com.google.common.base.Preconditions.checkState;
 
-import com.google.cloud.dataflow.sdk.coders.AvroCoder;
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.coders.VoidCoder;
-import com.google.cloud.dataflow.sdk.io.Read.Bounded;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
-import com.google.cloud.dataflow.sdk.transforms.PTransform;
-import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
-import com.google.cloud.dataflow.sdk.util.MimeTypes;
-import com.google.cloud.dataflow.sdk.values.PCollection;
-import com.google.cloud.dataflow.sdk.values.PDone;
-import com.google.cloud.dataflow.sdk.values.PInput;
+import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.io.Read.Bounded;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.IOChannelUtils;
+import org.apache.beam.sdk.util.MimeTypes;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.PInput;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
@@ -314,9 +315,9 @@ public class AvroIO {
         @SuppressWarnings("unchecked")
         Bounded<T> read =
             type == GenericRecord.class
-                ? (Bounded<T>) com.google.cloud.dataflow.sdk.io.Read.from(
+                ? (Bounded<T>) org.apache.beam.sdk.io.Read.from(
                     AvroSource.from(filepattern).withSchema(schema))
-                : com.google.cloud.dataflow.sdk.io.Read.from(
+                : org.apache.beam.sdk.io.Read.from(
                     AvroSource.from(filepattern).withSchema(type));
 
         PCollection<T> pcol = input.getPipeline().apply("Read", read);
@@ -673,7 +674,7 @@ public class AvroIO {
         // apply user requested sharding limits.
         return input.apply(
             "Write",
-            com.google.cloud.dataflow.sdk.io.Write.to(
+            org.apache.beam.sdk.io.Write.to(
                 new AvroSink<>(
                     filenamePrefix, filenameSuffix, shardTemplate, AvroCoder.of(type, schema))));
       }
@@ -759,7 +760,7 @@ public class AvroIO {
     }
 
     /**
-     * A {@link com.google.cloud.dataflow.sdk.io.FileBasedSink.FileBasedWriteOperation
+     * A {@link org.apache.beam.sdk.io.FileBasedSink.FileBasedWriteOperation
      * FileBasedWriteOperation} for Avro files.
      */
     private static class AvroWriteOperation<T> extends FileBasedWriteOperation<T> {
@@ -777,7 +778,7 @@ public class AvroIO {
     }
 
     /**
-     * A {@link com.google.cloud.dataflow.sdk.io.FileBasedSink.FileBasedWriter FileBasedWriter}
+     * A {@link org.apache.beam.sdk.io.FileBasedSink.FileBasedWriter FileBasedWriter}
      * for Avro files.
      */
     private static class AvroWriter<T> extends FileBasedWriter<T> {

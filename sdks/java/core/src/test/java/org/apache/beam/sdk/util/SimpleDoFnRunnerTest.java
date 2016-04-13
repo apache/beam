@@ -15,14 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.util;
+package org.apache.beam.sdk.util;
 
 import static org.hamcrest.Matchers.is;
 import static org.mockito.Mockito.mock;
 
-import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.util.BaseExecutionContext.StepContext;
-import com.google.cloud.dataflow.sdk.values.TupleTag;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.util.BaseExecutionContext.StepContext;
+import org.apache.beam.sdk.values.TupleTag;
 
 import org.junit.Rule;
 import org.junit.Test;

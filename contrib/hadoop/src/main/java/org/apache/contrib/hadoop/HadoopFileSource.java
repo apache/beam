@@ -15,15 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.contrib.hadoop;
+package org.apache.beam.contrib.hadoop;
 
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.coders.KvCoder;
-import com.google.cloud.dataflow.sdk.coders.VoidCoder;
-import com.google.cloud.dataflow.sdk.io.BoundedSource;
-import com.google.cloud.dataflow.sdk.io.Read;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.values.KV;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.values.KV;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -56,14 +56,14 @@ import javax.annotation.Nullable;
  * A {@code BoundedSource} for reading files resident in a Hadoop filesystem using a
  * Hadoop file-based input format.
  *
- * <p>To read a {@link com.google.cloud.dataflow.sdk.values.PCollection} of
- * {@link com.google.cloud.dataflow.sdk.values.KV} key-value pairs from one or more
+ * <p>To read a {@link org.apache.beam.sdk.values.PCollection} of
+ * {@link org.apache.beam.sdk.values.KV} key-value pairs from one or more
  * Hadoop files, use {@link HadoopFileSource#from} to specify the path(s) of the files to
  * read, the Hadoop {@link org.apache.hadoop.mapreduce.lib.input.FileInputFormat}, the
  * key class and the value class.
  *
  * <p>A {@code HadoopFileSource} can be read from using the
- * {@link com.google.cloud.dataflow.sdk.io.Read} transform. For example:
+ * {@link org.apache.beam.sdk.io.Read} transform. For example:
  *
  * <pre>
  * {@code
@@ -85,7 +85,7 @@ import javax.annotation.Nullable;
  *
  * Implementation note: Since Hadoop's {@link org.apache.hadoop.mapreduce.lib.input.FileInputFormat}
  * determines the input splits, this class extends {@link BoundedSource} rather than
- * {@link com.google.cloud.dataflow.sdk.io.OffsetBasedSource}, since the latter
+ * {@link org.apache.beam.sdk.io.OffsetBasedSource}, since the latter
  * dictates input splits.
 
  * @param <K> The type of keys to be read from the source.

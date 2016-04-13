@@ -15,22 +15,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.transforms.display;
+package org.apache.beam.sdk.transforms.display;
 
-import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasKey;
-import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasNamespace;
-import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasType;
-import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasValue;
-import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.includes;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasNamespace;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasType;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includes;
+
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.core.StringStartsWith.startsWith;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 
-import com.google.cloud.dataflow.sdk.transforms.PTransform;
-import com.google.cloud.dataflow.sdk.transforms.display.DisplayData.Builder;
-import com.google.cloud.dataflow.sdk.values.PCollection;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
+import org.apache.beam.sdk.values.PCollection;
 
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;

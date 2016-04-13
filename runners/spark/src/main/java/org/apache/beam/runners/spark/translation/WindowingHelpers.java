@@ -18,7 +18,7 @@
 
 package org.apache.beam.runners.spark.translation;
 
-import com.google.cloud.dataflow.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.spark.api.java.function.Function;
 
 /**

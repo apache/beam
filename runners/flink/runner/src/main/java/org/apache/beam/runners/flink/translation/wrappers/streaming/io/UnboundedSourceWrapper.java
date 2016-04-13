@@ -17,14 +17,16 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming.io;
 
+import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.WindowedValue;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.cloud.dataflow.sdk.io.Read;
-import com.google.cloud.dataflow.sdk.io.UnboundedSource;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
-import com.google.cloud.dataflow.sdk.util.WindowedValue;
+
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
@@ -38,7 +40,7 @@ import java.io.ObjectOutputStream;
 
 /**
  * A wrapper for Beam's unbounded sources. This class wraps around a source implementing the
- * {@link com.google.cloud.dataflow.sdk.io.Read.Unbounded}  interface.
+ * {@link org.apache.beam.sdk.io.Read.Unbounded}  interface.
  *
  * For now we support non-parallel sources, checkpointing is WIP.
  * */

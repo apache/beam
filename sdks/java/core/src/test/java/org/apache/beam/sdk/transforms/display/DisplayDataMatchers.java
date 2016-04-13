@@ -15,13 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.transforms.display;
+package org.apache.beam.sdk.transforms.display;
 
 import static org.hamcrest.Matchers.allOf;
 
-import com.google.cloud.dataflow.sdk.transforms.display.DisplayData.Item;
+import org.apache.beam.sdk.transforms.display.DisplayData.Item;
 
 import com.google.common.collect.Sets;
+
 import org.hamcrest.CustomTypeSafeMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.FeatureMatcher;

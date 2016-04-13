@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.options;
+package org.apache.beam.sdk.options;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
@@ -27,12 +27,13 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.PipelineResult;
-import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
-import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
-import com.google.cloud.dataflow.sdk.testing.ExpectedLogs;
-import com.google.cloud.dataflow.sdk.testing.RestoreSystemProperties;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.runners.DirectPipelineRunner;
+import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.testing.ExpectedLogs;
+import org.apache.beam.sdk.testing.RestoreSystemProperties;
+
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -118,7 +119,7 @@ public class PipelineOptionsFactoryTest {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
         "Expected getter for property [object] of type [java.lang.Object] on "
-        + "[com.google.cloud.dataflow.sdk.options.PipelineOptionsFactoryTest$MissingGetter].");
+        + "[org.apache.beam.sdk.options.PipelineOptionsFactoryTest$MissingGetter].");
 
     PipelineOptionsFactory.as(MissingGetter.class);
   }
@@ -132,7 +133,7 @@ public class PipelineOptionsFactoryTest {
   public void testMultipleMissingGettersThrows() {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
-        "missing property methods on [com.google.cloud.dataflow.sdk.options."
+        "missing property methods on [org.apache.beam.sdk.options."
         + "PipelineOptionsFactoryTest$MissingMultipleGetters]");
     expectedException.expectMessage("getter for property [object] of type [java.lang.Object]");
     expectedException.expectMessage("getter for property [otherObject] of type [java.lang.Object]");
@@ -150,7 +151,7 @@ public class PipelineOptionsFactoryTest {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
         "Expected setter for property [object] of type [java.lang.Object] on "
-        + "[com.google.cloud.dataflow.sdk.options.PipelineOptionsFactoryTest$MissingSetter].");
+        + "[org.apache.beam.sdk.options.PipelineOptionsFactoryTest$MissingSetter].");
 
     PipelineOptionsFactory.as(MissingSetter.class);
   }
@@ -164,7 +165,7 @@ public class PipelineOptionsFactoryTest {
   public void testMissingMultipleSettersThrows() {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
-        "missing property methods on [com.google.cloud.dataflow.sdk.options."
+        "missing property methods on [org.apache.beam.sdk.options."
         + "PipelineOptionsFactoryTest$MissingMultipleSetters]");
     expectedException.expectMessage("setter for property [object] of type [java.lang.Object]");
     expectedException.expectMessage("setter for property [otherObject] of type [java.lang.Object]");
@@ -181,7 +182,7 @@ public class PipelineOptionsFactoryTest {
   public void testMissingGettersAndSettersThrows() {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
-        "missing property methods on [com.google.cloud.dataflow.sdk.options."
+        "missing property methods on [org.apache.beam.sdk.options."
         + "PipelineOptionsFactoryTest$MissingGettersAndSetters]");
     expectedException.expectMessage("getter for property [object] of type [java.lang.Object]");
     expectedException.expectMessage("setter for property [otherObject] of type [java.lang.Object]");
@@ -242,7 +243,7 @@ public class PipelineOptionsFactoryTest {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
         "Methods [extraneousMethod(int, String)] on "
-        + "[com.google.cloud.dataflow.sdk.options.PipelineOptionsFactoryTest$ExtraneousMethod] "
+        + "[org.apache.beam.sdk.options.PipelineOptionsFactoryTest$ExtraneousMethod] "
         + "do not conform to being bean properties.");
 
     PipelineOptionsFactory.as(ExtraneousMethod.class);
@@ -260,11 +261,11 @@ public class PipelineOptionsFactoryTest {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
         "Method [getObject] has multiple definitions [public abstract java.lang.Object "
-        + "com.google.cloud.dataflow.sdk.options.PipelineOptionsFactoryTest$MissingSetter"
+        + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$MissingSetter"
         + ".getObject(), public abstract java.lang.String "
-        + "com.google.cloud.dataflow.sdk.options.PipelineOptionsFactoryTest$ReturnTypeConflict"
+        + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$ReturnTypeConflict"
         + ".getObject()] with different return types for ["
-        + "com.google.cloud.dataflow.sdk.options.PipelineOptionsFactoryTest$ReturnTypeConflict].");
+        + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$ReturnTypeConflict].");
     PipelineOptionsFactory.as(ReturnTypeConflict.class);
   }
 
@@ -288,23 +289,23 @@ public class PipelineOptionsFactoryTest {
   @Test
   public void testMultipleReturnTypeConflictsThrows() throws Exception {
     expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("[com.google.cloud.dataflow.sdk.options."
+    expectedException.expectMessage("[org.apache.beam.sdk.options."
         + "PipelineOptionsFactoryTest$MultiReturnTypeConflict]");
     expectedException.expectMessage(
         "Methods with multiple definitions with different return types");
     expectedException.expectMessage("Method [getObject] has multiple definitions");
     expectedException.expectMessage("public abstract java.lang.Object "
-        + "com.google.cloud.dataflow.sdk.options.PipelineOptionsFactoryTest$"
+        + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$"
         + "MissingSetter.getObject()");
     expectedException.expectMessage(
-        "public abstract java.lang.String com.google.cloud.dataflow.sdk.options."
+        "public abstract java.lang.String org.apache.beam.sdk.options."
         + "PipelineOptionsFactoryTest$MultiReturnTypeConflict.getObject()");
     expectedException.expectMessage("Method [getOther] has multiple definitions");
     expectedException.expectMessage("public abstract java.lang.Object "
-        + "com.google.cloud.dataflow.sdk.options.PipelineOptionsFactoryTest$"
+        + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$"
         + "MultiReturnTypeConflictBase.getOther()");
     expectedException.expectMessage(
-        "public abstract java.lang.Long com.google.cloud.dataflow.sdk.options."
+        "public abstract java.lang.Long org.apache.beam.sdk.options."
         + "PipelineOptionsFactoryTest$MultiReturnTypeConflict.getOther()");
 
     PipelineOptionsFactory.as(MultiReturnTypeConflict.class);
@@ -321,8 +322,8 @@ public class PipelineOptionsFactoryTest {
   public void testSetterAnnotatedWithJsonIgnore() throws Exception {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
-        "Expected setter for property [value] to not be marked with @JsonIgnore on [com."
-        + "google.cloud.dataflow.sdk.options.PipelineOptionsFactoryTest$SetterWithJsonIgnore]");
+        "Expected setter for property [value] to not be marked with @JsonIgnore on ["
+        + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$SetterWithJsonIgnore]");
     PipelineOptionsFactory.as(SetterWithJsonIgnore.class);
   }
 
@@ -338,12 +339,11 @@ public class PipelineOptionsFactoryTest {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("Found setters marked with @JsonIgnore:");
     expectedException.expectMessage(
-        "property [other] should not be marked with @JsonIgnore on [com"
-        + ".google.cloud.dataflow.sdk.options."
-        + "PipelineOptionsFactoryTest$MultiSetterWithJsonIgnore]");
+        "property [other] should not be marked with @JsonIgnore on ["
+        + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$MultiSetterWithJsonIgnore]");
     expectedException.expectMessage(
-        "property [value] should not be marked with @JsonIgnore on [com."
-        + "google.cloud.dataflow.sdk.options.PipelineOptionsFactoryTest$SetterWithJsonIgnore]");
+        "property [value] should not be marked with @JsonIgnore on ["
+        + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$SetterWithJsonIgnore]");
     PipelineOptionsFactory.as(MultiSetterWithJsonIgnore.class);
   }
 
@@ -365,9 +365,9 @@ public class PipelineOptionsFactoryTest {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
         "Expected getter for property [object] to be marked with @JsonIgnore on all ["
-        + "com.google.cloud.dataflow.sdk.options.PipelineOptionsFactoryTest$GetterWithJsonIgnore, "
-        + "com.google.cloud.dataflow.sdk.options.PipelineOptionsFactoryTest$MissingSetter], "
-        + "found only on [com.google.cloud.dataflow.sdk.options."
+        + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$GetterWithJsonIgnore, "
+        + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$MissingSetter], "
+        + "found only on [org.apache.beam.sdk.options."
         + "PipelineOptionsFactoryTest$GetterWithJsonIgnore]");
 
     // When we attempt to convert, we should error at this moment.
@@ -407,21 +407,21 @@ public class PipelineOptionsFactoryTest {
     expectedException.expectMessage("Property getters are inconsistently marked with @JsonIgnore:");
     expectedException.expectMessage(
         "property [object] to be marked on all");
-    expectedException.expectMessage("found only on [com.google.cloud.dataflow.sdk.options."
+    expectedException.expectMessage("found only on [org.apache.beam.sdk.options."
         + "PipelineOptionsFactoryTest$MultiGetters]");
     expectedException.expectMessage(
         "property [other] to be marked on all");
-    expectedException.expectMessage("found only on [com.google.cloud.dataflow.sdk.options."
+    expectedException.expectMessage("found only on [org.apache.beam.sdk.options."
         + "PipelineOptionsFactoryTest$MultipleGettersWithInconsistentJsonIgnore]");
 
     expectedException.expectMessage(Matchers.anyOf(
         containsString(java.util.Arrays.toString(new String[]
-            {"com.google.cloud.dataflow.sdk.options."
+            {"org.apache.beam.sdk.options."
                 + "PipelineOptionsFactoryTest$MultipleGettersWithInconsistentJsonIgnore",
-                "com.google.cloud.dataflow.sdk.options.PipelineOptionsFactoryTest$MultiGetters"})),
+                "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$MultiGetters"})),
         containsString(java.util.Arrays.toString(new String[]
-            {"com.google.cloud.dataflow.sdk.options.PipelineOptionsFactoryTest$MultiGetters",
-                "com.google.cloud.dataflow.sdk.options."
+            {"org.apache.beam.sdk.options.PipelineOptionsFactoryTest$MultiGetters",
+                "org.apache.beam.sdk.options."
                 + "PipelineOptionsFactoryTest$MultipleGettersWithInconsistentJsonIgnore"}))));
     expectedException.expectMessage(not(containsString("property [consistent]")));
 
@@ -971,7 +971,7 @@ public class PipelineOptionsFactoryTest {
         arguments, new PrintStream(baos), false /* exit */));
     String output = new String(baos.toByteArray());
     assertThat(output, containsString("The set of registered options are:"));
-    assertThat(output, containsString("com.google.cloud.dataflow.sdk.options.PipelineOptions"));
+    assertThat(output, containsString("org.apache.beam.sdk.options.PipelineOptions"));
     assertThat(output, containsString("Use --help=<OptionsName> for detailed help."));
   }
 
@@ -979,11 +979,11 @@ public class PipelineOptionsFactoryTest {
   public void testSpecificHelpAsArgument() {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     ListMultimap<String, String> arguments = ArrayListMultimap.create();
-    arguments.put("help", "com.google.cloud.dataflow.sdk.options.PipelineOptions");
+    arguments.put("help", "org.apache.beam.sdk.options.PipelineOptions");
     assertTrue(PipelineOptionsFactory.printHelpUsageAndExitIfNeeded(
         arguments, new PrintStream(baos), false /* exit */));
     String output = new String(baos.toByteArray());
-    assertThat(output, containsString("com.google.cloud.dataflow.sdk.options.PipelineOptions"));
+    assertThat(output, containsString("org.apache.beam.sdk.options.PipelineOptions"));
     assertThat(output, containsString("--runner"));
     assertThat(output, containsString("Default: " + DEFAULT_RUNNER_CLASS.getSimpleName()));
     assertThat(output,
@@ -998,7 +998,7 @@ public class PipelineOptionsFactoryTest {
     assertTrue(PipelineOptionsFactory.printHelpUsageAndExitIfNeeded(
         arguments, new PrintStream(baos), false /* exit */));
     String output = new String(baos.toByteArray());
-    assertThat(output, containsString("com.google.cloud.dataflow.sdk.options.PipelineOptions"));
+    assertThat(output, containsString("org.apache.beam.sdk.options.PipelineOptions"));
     assertThat(output, containsString("--runner"));
     assertThat(output, containsString("Default: " + DEFAULT_RUNNER_CLASS.getSimpleName()));
     assertThat(output,
@@ -1013,7 +1013,7 @@ public class PipelineOptionsFactoryTest {
     assertTrue(PipelineOptionsFactory.printHelpUsageAndExitIfNeeded(
         arguments, new PrintStream(baos), false /* exit */));
     String output = new String(baos.toByteArray());
-    assertThat(output, containsString("com.google.cloud.dataflow.sdk.options.PipelineOptions"));
+    assertThat(output, containsString("org.apache.beam.sdk.options.PipelineOptions"));
     assertThat(output, containsString("--runner"));
     assertThat(output, containsString("Default: " + DEFAULT_RUNNER_CLASS.getSimpleName()));
     assertThat(output,
@@ -1045,12 +1045,12 @@ public class PipelineOptionsFactoryTest {
         arguments, new PrintStream(baos), false /* exit */));
     String output = new String(baos.toByteArray());
     assertThat(output, containsString("Multiple matches found for NameConflict"));
-    assertThat(output, containsString("com.google.cloud.dataflow.sdk.options."
+    assertThat(output, containsString("org.apache.beam.sdk.options."
         + "PipelineOptionsFactoryTest$NameConflictClassA$NameConflict"));
-    assertThat(output, containsString("com.google.cloud.dataflow.sdk.options."
+    assertThat(output, containsString("org.apache.beam.sdk.options."
         + "PipelineOptionsFactoryTest$NameConflictClassB$NameConflict"));
     assertThat(output, containsString("The set of registered options are:"));
-    assertThat(output, containsString("com.google.cloud.dataflow.sdk.options.PipelineOptions"));
+    assertThat(output, containsString("org.apache.beam.sdk.options.PipelineOptions"));
   }
 
   @Test
@@ -1068,27 +1068,27 @@ public class PipelineOptionsFactoryTest {
   public void testHelpWithBadOptionNameAsArgument() {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     ListMultimap<String, String> arguments = ArrayListMultimap.create();
-    arguments.put("help", "com.google.cloud.dataflow.sdk.Pipeline");
+    arguments.put("help", "org.apache.beam.sdk.Pipeline");
     assertTrue(PipelineOptionsFactory.printHelpUsageAndExitIfNeeded(
         arguments, new PrintStream(baos), false /* exit */));
     String output = new String(baos.toByteArray());
     assertThat(output,
-        containsString("Unable to find option com.google.cloud.dataflow.sdk.Pipeline"));
+        containsString("Unable to find option org.apache.beam.sdk.Pipeline"));
     assertThat(output, containsString("The set of registered options are:"));
-    assertThat(output, containsString("com.google.cloud.dataflow.sdk.options.PipelineOptions"));
+    assertThat(output, containsString("org.apache.beam.sdk.options.PipelineOptions"));
   }
 
   @Test
   public void testHelpWithHiddenMethodAndInterface() {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     ListMultimap<String, String> arguments = ArrayListMultimap.create();
-    arguments.put("help", "com.google.cloud.dataflow.sdk.option.DataflowPipelineOptions");
+    arguments.put("help", "org.apache.beam.sdk.option.DataflowPipelineOptions");
     assertTrue(PipelineOptionsFactory.printHelpUsageAndExitIfNeeded(
         arguments, new PrintStream(baos), false /* exit */));
     String output = new String(baos.toByteArray());
     // A hidden interface.
     assertThat(output, not(
-        containsString("com.google.cloud.dataflow.sdk.options.DataflowPipelineDebugOptions")));
+        containsString("org.apache.beam.sdk.options.DataflowPipelineDebugOptions")));
     // A hidden option.
     assertThat(output, not(containsString("--gcpCredential")));
   }
@@ -1099,7 +1099,7 @@ public class PipelineOptionsFactoryTest {
     PipelineOptionsFactory.printHelp(new PrintStream(baos));
     String output = new String(baos.toByteArray());
     assertThat(output, containsString("The set of registered options are:"));
-    assertThat(output, containsString("com.google.cloud.dataflow.sdk.options.PipelineOptions"));
+    assertThat(output, containsString("org.apache.beam.sdk.options.PipelineOptions"));
   }
 
   @Test
@@ -1107,7 +1107,7 @@ public class PipelineOptionsFactoryTest {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     PipelineOptionsFactory.printHelp(new PrintStream(baos), PipelineOptions.class);
     String output = new String(baos.toByteArray());
-    assertThat(output, containsString("com.google.cloud.dataflow.sdk.options.PipelineOptions"));
+    assertThat(output, containsString("org.apache.beam.sdk.options.PipelineOptions"));
     assertThat(output, containsString("--runner"));
     assertThat(output, containsString("Default: " + DEFAULT_RUNNER_CLASS.getSimpleName()));
     assertThat(output,

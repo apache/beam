@@ -15,11 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.util.common;
+package org.apache.beam.sdk.util.common;
 
 import static org.junit.Assert.assertEquals;
 
-import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;

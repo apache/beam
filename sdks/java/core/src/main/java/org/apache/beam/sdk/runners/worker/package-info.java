@@ -20,6 +20,6 @@
  * execution of Pipeline code.
  */
 @ParametersAreNonnullByDefault
-package com.google.cloud.dataflow.sdk.runners.worker;
+package org.apache.beam.sdk.runners.worker;
 
 import javax.annotation.ParametersAreNonnullByDefault;

@@ -15,15 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.transforms;
+package org.apache.beam.sdk.transforms;
 
-import static com.google.cloud.dataflow.sdk.TestUtils.checkCombineFn;
+import static org.apache.beam.sdk.TestUtils.checkCombineFn;
+
 import static org.junit.Assert.assertEquals;
 
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.testing.CoderProperties;
-import com.google.cloud.dataflow.sdk.transforms.Mean.CountSum;
-import com.google.cloud.dataflow.sdk.transforms.Mean.CountSumCoder;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.transforms.Mean.CountSum;
+import org.apache.beam.sdk.transforms.Mean.CountSumCoder;
+
 import com.google.common.collect.Lists;
 
 import org.junit.Test;

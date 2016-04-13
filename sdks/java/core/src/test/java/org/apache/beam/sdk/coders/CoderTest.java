@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.coders;
+package org.apache.beam.sdk.coders;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
@@ -23,8 +23,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
 
-import com.google.cloud.dataflow.sdk.coders.Coder.Context;
-import com.google.cloud.dataflow.sdk.coders.Coder.NonDeterministicException;
+import org.apache.beam.sdk.coders.Coder.Context;
+import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 
 import org.junit.Rule;
 import org.junit.Test;

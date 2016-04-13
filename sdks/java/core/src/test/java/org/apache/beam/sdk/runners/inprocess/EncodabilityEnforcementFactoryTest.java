@@ -15,21 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.runners.inprocess;
+package org.apache.beam.sdk.runners.inprocess;
 
 import static org.hamcrest.Matchers.isA;
 
-import com.google.cloud.dataflow.sdk.coders.AtomicCoder;
-import com.google.cloud.dataflow.sdk.coders.CoderException;
-import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
-import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
-import com.google.cloud.dataflow.sdk.testing.TestPipeline;
-import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
-import com.google.cloud.dataflow.sdk.transforms.Count;
-import com.google.cloud.dataflow.sdk.transforms.Create;
-import com.google.cloud.dataflow.sdk.util.UserCodeException;
-import com.google.cloud.dataflow.sdk.util.WindowedValue;
-import com.google.cloud.dataflow.sdk.values.PCollection;
+import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.transforms.Count;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.util.UserCodeException;
+import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.PCollection;
 
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -167,14 +167,14 @@ public class EncodabilityEnforcementFactoryTest {
     public void encode(
         Record value,
         OutputStream outStream,
-        com.google.cloud.dataflow.sdk.coders.Coder.Context context)
+        org.apache.beam.sdk.coders.Coder.Context context)
         throws CoderException, IOException {
       throw new CoderException("Encode not allowed");
     }
 
     @Override
     public Record decode(
-        InputStream inStream, com.google.cloud.dataflow.sdk.coders.Coder.Context context)
+        InputStream inStream, org.apache.beam.sdk.coders.Coder.Context context)
         throws CoderException, IOException {
       return null;
     }
@@ -185,12 +185,12 @@ public class EncodabilityEnforcementFactoryTest {
     public void encode(
         Record value,
         OutputStream outStream,
-        com.google.cloud.dataflow.sdk.coders.Coder.Context context)
+        org.apache.beam.sdk.coders.Coder.Context context)
         throws CoderException, IOException {}
 
     @Override
     public Record decode(
-        InputStream inStream, com.google.cloud.dataflow.sdk.coders.Coder.Context context)
+        InputStream inStream, org.apache.beam.sdk.coders.Coder.Context context)
         throws CoderException, IOException {
       throw new CoderException("Decode not allowed");
     }
@@ -201,12 +201,12 @@ public class EncodabilityEnforcementFactoryTest {
     public void encode(
         Record value,
         OutputStream outStream,
-        com.google.cloud.dataflow.sdk.coders.Coder.Context context)
+        org.apache.beam.sdk.coders.Coder.Context context)
         throws CoderException, IOException {}
 
     @Override
     public Record decode(
-        InputStream inStream, com.google.cloud.dataflow.sdk.coders.Coder.Context context)
+        InputStream inStream, org.apache.beam.sdk.coders.Coder.Context context)
         throws CoderException, IOException {
       return new Record() {
         @Override
@@ -233,12 +233,12 @@ public class EncodabilityEnforcementFactoryTest {
     public void encode(
         Record value,
         OutputStream outStream,
-        com.google.cloud.dataflow.sdk.coders.Coder.Context context)
+        org.apache.beam.sdk.coders.Coder.Context context)
         throws CoderException, IOException {}
 
     @Override
     public Record decode(
-        InputStream inStream, com.google.cloud.dataflow.sdk.coders.Coder.Context context)
+        InputStream inStream, org.apache.beam.sdk.coders.Coder.Context context)
         throws CoderException, IOException {
       return new Record() {
         @Override

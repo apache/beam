@@ -15,9 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.runners;
+package org.apache.beam.sdk.runners;
 
 import com.google.auto.service.AutoService;
+
 import java.util.ServiceLoader;
 
 /**
@@ -26,7 +27,7 @@ import java.util.ServiceLoader;
  * and a concrete implementation of this interface.
  *
  * <p>Note that automatic registration of any
- * {@link com.google.cloud.dataflow.sdk.options.PipelineOptions} requires users
+ * {@link org.apache.beam.sdk.options.PipelineOptions} requires users
  * conform to the limit that each {@link PipelineRunner}'s
  * {@link Class#getSimpleName() simple name} must be unique.
  *

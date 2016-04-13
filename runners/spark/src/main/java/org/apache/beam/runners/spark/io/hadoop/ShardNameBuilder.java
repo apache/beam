@@ -31,7 +31,7 @@ public final class ShardNameBuilder {
   /**
    * Replace occurrences of uppercase letters 'N' with the given {code}shardCount{code},
    * left-padded with zeros if necessary.
-   * @see com.google.cloud.dataflow.sdk.io.ShardNameTemplate
+   * @see org.apache.beam.sdk.io.ShardNameTemplate
    * @param template the string template containing uppercase letters 'N'
    * @param shardCount the total number of shards
    * @return a string template with 'N' replaced by the shard count
@@ -43,7 +43,7 @@ public final class ShardNameBuilder {
   /**
    * Replace occurrences of uppercase letters 'S' with the given {code}shardNumber{code},
    * left-padded with zeros if necessary.
-   * @see com.google.cloud.dataflow.sdk.io.ShardNameTemplate
+   * @see org.apache.beam.sdk.io.ShardNameTemplate
    * @param template the string template containing uppercase letters 'S'
    * @param shardNumber the number of a particular shard
    * @return a string template with 'S' replaced by the shard number

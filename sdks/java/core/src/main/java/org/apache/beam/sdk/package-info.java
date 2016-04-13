@@ -18,17 +18,17 @@
 /**
  * Provides a simple, powerful model for building both batch and
  * streaming parallel data processing
- * {@link com.google.cloud.dataflow.sdk.Pipeline}s.
+ * {@link org.apache.beam.sdk.Pipeline}s.
  *
  * <p>To use the Google Cloud Dataflow SDK, you build a
- * {@link com.google.cloud.dataflow.sdk.Pipeline}, which manages a graph of
- * {@link com.google.cloud.dataflow.sdk.transforms.PTransform}s
- * and the {@link com.google.cloud.dataflow.sdk.values.PCollection}s that
+ * {@link org.apache.beam.sdk.Pipeline}, which manages a graph of
+ * {@link org.apache.beam.sdk.transforms.PTransform}s
+ * and the {@link org.apache.beam.sdk.values.PCollection}s that
  * the PTransforms consume and produce.
  *
  * <p>Each Pipeline has a
- * {@link com.google.cloud.dataflow.sdk.runners.PipelineRunner} to specify
+ * {@link org.apache.beam.sdk.runners.PipelineRunner} to specify
  * where and how it should run after pipeline construction is complete.
  *
  */
-package com.google.cloud.dataflow.sdk;
+package org.apache.beam.sdk;

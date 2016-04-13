@@ -16,4 +16,4 @@
  * limitations under the License.
  */
 /** Defines utilities used to implement the harness that runs user code. **/
-package com.google.cloud.dataflow.sdk.util.common.worker;
+package org.apache.beam.sdk.util.common.worker;

@@ -15,16 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.util;
+package org.apache.beam.sdk.util;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import com.google.cloud.dataflow.sdk.transforms.windowing.AfterAll;
-import com.google.cloud.dataflow.sdk.transforms.windowing.AfterFirst;
-import com.google.cloud.dataflow.sdk.transforms.windowing.AfterPane;
-import com.google.cloud.dataflow.sdk.transforms.windowing.AfterProcessingTime;
-import com.google.cloud.dataflow.sdk.transforms.windowing.AfterWatermark;
+import org.apache.beam.sdk.transforms.windowing.AfterAll;
+import org.apache.beam.sdk.transforms.windowing.AfterFirst;
+import org.apache.beam.sdk.transforms.windowing.AfterPane;
+import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
+import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 
 /**
  * Generalized tests for {@link FinishedTriggers} implementations.

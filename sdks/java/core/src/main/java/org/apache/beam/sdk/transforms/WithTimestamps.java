@@ -15,15 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.transforms;
+package org.apache.beam.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.cloud.dataflow.sdk.io.Source;
-import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
-import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
-import com.google.cloud.dataflow.sdk.values.PCollection;
+import org.apache.beam.sdk.io.Source;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.values.PCollection;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -32,10 +32,10 @@ import org.joda.time.Instant;
  * A {@link PTransform} for assigning timestamps to all the elements of a {@link PCollection}.
  *
  * <p>Timestamps are used to assign {@link BoundedWindow Windows} to elements within the
- * {@link Window#into(com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn)}
+ * {@link Window#into(org.apache.beam.sdk.transforms.windowing.WindowFn)}
  * {@link PTransform}. Assigning timestamps is useful when the input data set comes from a
  * {@link Source} without implicit timestamps (such as
- * {@link com.google.cloud.dataflow.sdk.io.TextIO.Read TextIO}).
+ * {@link org.apache.beam.sdk.io.TextIO.Read TextIO}).
  *
  */
 public class WithTimestamps<T> extends PTransform<PCollection<T>, PCollection<T>> {

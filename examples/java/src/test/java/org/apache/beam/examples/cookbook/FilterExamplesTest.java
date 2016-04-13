@@ -15,12 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.examples.cookbook;
+package org.apache.beam.examples.cookbook;
+
+import org.apache.beam.examples.cookbook.FilterExamples.FilterSingleMonthDataFn;
+import org.apache.beam.examples.cookbook.FilterExamples.ProjectionFn;
+import org.apache.beam.sdk.transforms.DoFnTester;
 
 import com.google.api.services.bigquery.model.TableRow;
-import com.google.cloud.dataflow.examples.cookbook.FilterExamples.FilterSingleMonthDataFn;
-import com.google.cloud.dataflow.examples.cookbook.FilterExamples.ProjectionFn;
-import com.google.cloud.dataflow.sdk.transforms.DoFnTester;
 
 import org.hamcrest.CoreMatchers;
 import org.junit.Assert;

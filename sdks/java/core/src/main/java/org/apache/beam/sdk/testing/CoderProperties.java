@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.testing;
+package org.apache.beam.sdk.testing;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -26,16 +26,17 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.coders.Coder.NonDeterministicException;
-import com.google.cloud.dataflow.sdk.coders.CoderException;
-import com.google.cloud.dataflow.sdk.util.CoderUtils;
-import com.google.cloud.dataflow.sdk.util.PropertyNames;
-import com.google.cloud.dataflow.sdk.util.SerializableUtils;
-import com.google.cloud.dataflow.sdk.util.Serializer;
-import com.google.cloud.dataflow.sdk.util.Structs;
-import com.google.cloud.dataflow.sdk.util.UnownedInputStream;
-import com.google.cloud.dataflow.sdk.util.UnownedOutputStream;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.PropertyNames;
+import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.sdk.util.Serializer;
+import org.apache.beam.sdk.util.Structs;
+import org.apache.beam.sdk.util.UnownedInputStream;
+import org.apache.beam.sdk.util.UnownedOutputStream;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
 
@@ -277,7 +278,7 @@ public class CoderProperties {
       + " If you truly intend to change the wire format for this Coder "
       + " then you must update getEncodingId() to a new value and add any supported"
       + " prior formats to getAllowedEncodings()."
-      + " See com.google.cloud.dataflow.sdk.coders.PrintBase64Encoding for how to generate"
+      + " See org.apache.beam.sdk.coders.PrintBase64Encoding for how to generate"
       + " new test data.";
 
   public static <T> void coderEncodesBase64(Coder<T> coder, T value, String base64Encoding)

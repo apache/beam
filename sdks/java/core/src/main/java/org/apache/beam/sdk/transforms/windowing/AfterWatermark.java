@@ -15,14 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.transforms.windowing;
+package org.apache.beam.sdk.transforms.windowing;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import org.apache.beam.sdk.annotations.Experimental;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
-import com.google.cloud.dataflow.sdk.util.ExecutableTrigger;
-import com.google.cloud.dataflow.sdk.util.TimeDomain;
+import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
+import org.apache.beam.sdk.util.ExecutableTrigger;
+import org.apache.beam.sdk.util.TimeDomain;
+
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
@@ -37,14 +38,14 @@ import java.util.Objects;
  * by the pipeline.
  *
  * <p>For sources that provide non-heuristic watermarks (e.g.
- * {@link com.google.cloud.dataflow.sdk.io.PubsubIO} when using arrival times as event times), the
+ * {@link org.apache.beam.sdk.io.PubsubIO} when using arrival times as event times), the
  * watermark is a strict guarantee that no data with an event time earlier than
  * that watermark will ever be observed in the pipeline. In this case, it's safe to assume that any
  * pane triggered by an {@code AfterWatermark} trigger with a reference point at or beyond the end
  * of the window will be the last pane ever for that window.
  *
  * <p>For sources that provide heuristic watermarks (e.g.
- * {@link com.google.cloud.dataflow.sdk.io.PubsubIO} when using user-supplied event times), the
+ * {@link org.apache.beam.sdk.io.PubsubIO} when using user-supplied event times), the
  * watermark itself becomes an <i>estimate</i> that no data with an event time earlier than that
  * watermark (i.e. "late data") will ever be observed in the pipeline. These heuristics can
  * often be quite accurate, but the chance of seeing late data for any given window is non-zero.

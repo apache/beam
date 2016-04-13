@@ -15,10 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.options;
+package org.apache.beam.sdk.options;
 
-import com.google.cloud.dataflow.sdk.options.Validation.Required;
-import com.google.cloud.dataflow.sdk.util.common.ReflectHelpers;
+import org.apache.beam.sdk.options.Validation.Required;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
+
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.Ordering;

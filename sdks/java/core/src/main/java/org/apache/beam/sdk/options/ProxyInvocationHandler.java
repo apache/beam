@@ -15,12 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.options;
+package org.apache.beam.sdk.options;
 
-import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory.JsonIgnorePredicate;
-import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory.Registration;
-import com.google.cloud.dataflow.sdk.util.InstanceBuilder;
-import com.google.cloud.dataflow.sdk.util.common.ReflectHelpers;
+import org.apache.beam.sdk.options.PipelineOptionsFactory.JsonIgnorePredicate;
+import org.apache.beam.sdk.options.PipelineOptionsFactory.Registration;
+import org.apache.beam.sdk.util.InstanceBuilder;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
+
 import com.google.common.base.Defaults;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;

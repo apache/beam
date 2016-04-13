@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.transforms.windowing;
+package org.apache.beam.sdk.transforms.windowing;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
@@ -25,8 +25,8 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.google.cloud.dataflow.sdk.util.TriggerTester;
-import com.google.cloud.dataflow.sdk.util.TriggerTester.SimpleTriggerTester;
+import org.apache.beam.sdk.util.TriggerTester;
+import org.apache.beam.sdk.util.TriggerTester.SimpleTriggerTester;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;

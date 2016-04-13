@@ -16,11 +16,12 @@
  * limitations under the License.
  */
 
-package com.google.cloud.dataflow.sdk.io;
+package org.apache.beam.sdk.io;
+
+import org.apache.beam.sdk.options.GcpOptions;
 
 import com.google.api.client.util.DateTime;
 import com.google.auth.oauth2.GoogleCredentials;
-import com.google.cloud.dataflow.sdk.options.GcpOptions;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.hash.Hashing;
@@ -44,6 +45,7 @@ import com.google.pubsub.v1.ReceivedMessage;
 import com.google.pubsub.v1.SubscriberGrpc;
 import com.google.pubsub.v1.Subscription;
 import com.google.pubsub.v1.Topic;
+
 import io.grpc.Channel;
 import io.grpc.ClientInterceptors;
 import io.grpc.ManagedChannel;

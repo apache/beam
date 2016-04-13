@@ -25,7 +25,7 @@ import java.io.IOException;
 
 /**
  * Special Flink {@link org.apache.flink.api.common.typeutils.TypeSerializer} for
- * {@link com.google.cloud.dataflow.sdk.coders.VoidCoder}. We need this because Flink does not
+ * {@link org.apache.beam.sdk.coders.VoidCoder}. We need this because Flink does not
  * allow returning {@code null} from an input reader. We return a {@link VoidValue} instead
  * that behaves like a {@code null}, hopefully.
  */

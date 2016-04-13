@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.runners.inprocess;
+package org.apache.beam.sdk.runners.inprocess;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
@@ -25,35 +25,35 @@ import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
-import com.google.cloud.dataflow.sdk.runners.inprocess.InMemoryWatermarkManager.TimerUpdate;
-import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
-import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
-import com.google.cloud.dataflow.sdk.testing.TestPipeline;
-import com.google.cloud.dataflow.sdk.transforms.Create;
-import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.ParDo;
-import com.google.cloud.dataflow.sdk.transforms.ParDo.BoundMulti;
-import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFns;
-import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
-import com.google.cloud.dataflow.sdk.util.TimeDomain;
-import com.google.cloud.dataflow.sdk.util.TimerInternals.TimerData;
-import com.google.cloud.dataflow.sdk.util.WindowedValue;
-import com.google.cloud.dataflow.sdk.util.common.CounterSet;
-import com.google.cloud.dataflow.sdk.util.state.BagState;
-import com.google.cloud.dataflow.sdk.util.state.StateNamespace;
-import com.google.cloud.dataflow.sdk.util.state.StateNamespaces;
-import com.google.cloud.dataflow.sdk.util.state.StateTag;
-import com.google.cloud.dataflow.sdk.util.state.StateTags;
-import com.google.cloud.dataflow.sdk.util.state.WatermarkHoldState;
-import com.google.cloud.dataflow.sdk.values.KV;
-import com.google.cloud.dataflow.sdk.values.PCollection;
-import com.google.cloud.dataflow.sdk.values.PCollectionTuple;
-import com.google.cloud.dataflow.sdk.values.TupleTag;
-import com.google.cloud.dataflow.sdk.values.TupleTagList;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.runners.inprocess.InMemoryWatermarkManager.TimerUpdate;
+import org.apache.beam.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
+import org.apache.beam.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.ParDo.BoundMulti;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.TimeDomain;
+import org.apache.beam.sdk.util.TimerInternals.TimerData;
+import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.common.CounterSet;
+import org.apache.beam.sdk.util.state.BagState;
+import org.apache.beam.sdk.util.state.StateNamespace;
+import org.apache.beam.sdk.util.state.StateNamespaces;
+import org.apache.beam.sdk.util.state.StateTag;
+import org.apache.beam.sdk.util.state.StateTags;
+import org.apache.beam.sdk.util.state.WatermarkHoldState;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -119,7 +119,7 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
     CounterSet counters = new CounterSet();
     when(evaluationContext.createCounterSet()).thenReturn(counters);
 
-    com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluator<String> evaluator =
+    org.apache.beam.sdk.runners.inprocess.TransformEvaluator<String> evaluator =
         new ParDoMultiEvaluatorFactory()
             .forApplication(
                 mainOutput.getProducingTransformInternal(), inputBundle, evaluationContext);
@@ -204,7 +204,7 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
     CounterSet counters = new CounterSet();
     when(evaluationContext.createCounterSet()).thenReturn(counters);
 
-    com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluator<String> evaluator =
+    org.apache.beam.sdk.runners.inprocess.TransformEvaluator<String> evaluator =
         new ParDoMultiEvaluatorFactory()
             .forApplication(
                 mainOutput.getProducingTransformInternal(), inputBundle, evaluationContext);
@@ -294,7 +294,7 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
     CounterSet counters = new CounterSet();
     when(evaluationContext.createCounterSet()).thenReturn(counters);
 
-    com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluator<String> evaluator =
+    org.apache.beam.sdk.runners.inprocess.TransformEvaluator<String> evaluator =
         new ParDoMultiEvaluatorFactory()
             .forApplication(
                 mainOutput.getProducingTransformInternal(), inputBundle, evaluationContext);
@@ -404,7 +404,7 @@ public class ParDoMultiEvaluatorFactoryTest implements Serializable {
     CounterSet counters = new CounterSet();
     when(evaluationContext.createCounterSet()).thenReturn(counters);
 
-    com.google.cloud.dataflow.sdk.runners.inprocess.TransformEvaluator<String> evaluator =
+    org.apache.beam.sdk.runners.inprocess.TransformEvaluator<String> evaluator =
         new ParDoMultiEvaluatorFactory()
             .forApplication(
                 mainOutput.getProducingTransformInternal(), inputBundle, evaluationContext);

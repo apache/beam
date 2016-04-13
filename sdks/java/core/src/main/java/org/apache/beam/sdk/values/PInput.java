@@ -15,15 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.values;
+package org.apache.beam.sdk.values;
 
-import com.google.cloud.dataflow.sdk.Pipeline;
+import org.apache.beam.sdk.Pipeline;
 
 import java.util.Collection;
 
 /**
  * The interface for things that might be input to a
- * {@link com.google.cloud.dataflow.sdk.transforms.PTransform}.
+ * {@link org.apache.beam.sdk.transforms.PTransform}.
  */
 public interface PInput {
   /**
@@ -48,7 +48,7 @@ public interface PInput {
 
   /**
    * <p>After building, finalizes this {@code PInput} to make it ready for
-   * being used as an input to a {@link com.google.cloud.dataflow.sdk.transforms.PTransform}.
+   * being used as an input to a {@link org.apache.beam.sdk.transforms.PTransform}.
    *
    * <p>Automatically invoked whenever {@code apply()} is invoked on
    * this {@code PInput}, so users do not normally call this explicitly.

@@ -15,9 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.transforms.display;
+package org.apache.beam.sdk.transforms.display;
 
-import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.PTransform;
 
 /**
  * Marker interface for {@link PTransform PTransforms} and components used within

@@ -15,9 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.values;
+package org.apache.beam.sdk.values;
 
-import com.google.cloud.dataflow.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.ParDo;
+
 import com.google.common.collect.ImmutableList;
 
 import java.io.Serializable;

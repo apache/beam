@@ -15,9 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.util;
+package org.apache.beam.sdk.util;
 
-import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.PTransform;
+
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 

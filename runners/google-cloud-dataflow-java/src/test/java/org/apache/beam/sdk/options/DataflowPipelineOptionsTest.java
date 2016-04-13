@@ -15,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.options;
+package org.apache.beam.sdk.options;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import com.google.cloud.dataflow.sdk.testing.ResetDateTimeProvider;
-import com.google.cloud.dataflow.sdk.testing.RestoreSystemProperties;
+import org.apache.beam.sdk.testing.ResetDateTimeProvider;
+import org.apache.beam.sdk.testing.RestoreSystemProperties;
 
 import org.junit.Rule;
 import org.junit.Test;

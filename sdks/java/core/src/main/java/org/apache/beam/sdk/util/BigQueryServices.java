@@ -15,10 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.util;
+package org.apache.beam.sdk.util;
+
+import org.apache.beam.sdk.options.BigQueryOptions;
 
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
-import com.google.cloud.dataflow.sdk.options.BigQueryOptions;
 
 import java.io.IOException;
 import java.io.Serializable;

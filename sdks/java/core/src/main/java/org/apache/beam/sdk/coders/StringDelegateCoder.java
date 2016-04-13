@@ -15,9 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.coders;
+package org.apache.beam.sdk.coders;
 
-import com.google.cloud.dataflow.sdk.coders.protobuf.ProtoCoder;
+import org.apache.beam.sdk.coders.protobuf.ProtoCoder;
 
 import java.lang.reflect.InvocationTargetException;
 

@@ -15,15 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.transforms;
+package org.apache.beam.sdk.transforms;
 
 /**
  * A backwards-compatible {@code Write} class that simply inherits from the
- * {@link com.google.cloud.dataflow.sdk.io.Write} class that should be used instead.
+ * {@link org.apache.beam.sdk.io.Write} class that should be used instead.
  *
- * @deprecated: use {@link com.google.cloud.dataflow.sdk.io.Write} from the
- * {@code com.google.cloud.dataflow.sdk.io} package instead.
+ * @deprecated: use {@link org.apache.beam.sdk.io.Write} from the
+ * {@code org.apache.beam.sdk.io} package instead.
  */
 @Deprecated
-public class Write extends com.google.cloud.dataflow.sdk.io.Write {
+public class Write extends org.apache.beam.sdk.io.Write {
 }

@@ -18,9 +18,9 @@
 
 package org.apache.beam.runners.spark;
 
-import com.google.cloud.dataflow.sdk.PipelineResult;
-import com.google.cloud.dataflow.sdk.values.PCollection;
-import com.google.cloud.dataflow.sdk.values.PValue;
+import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PValue;
 
 /**
  * Interface for retrieving the result(s) of running a pipeline. Allows us to translate between

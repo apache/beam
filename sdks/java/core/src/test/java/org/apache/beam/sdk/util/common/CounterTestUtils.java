@@ -15,12 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.util.common;
+package org.apache.beam.sdk.util.common;
 
-import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.MEAN;
+import static org.apache.beam.sdk.util.common.Counter.AggregationKind.MEAN;
 
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.util.common.Counter.CounterMean;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.util.common.Counter.CounterMean;
 
 import org.junit.Assert;
 

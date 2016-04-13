@@ -15,23 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.io;
+package org.apache.beam.sdk.io;
 
 import static com.google.common.base.Preconditions.checkState;
 
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.coders.Coder.Context;
-import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
-import com.google.cloud.dataflow.sdk.coders.VoidCoder;
-import com.google.cloud.dataflow.sdk.io.Read.Bounded;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
-import com.google.cloud.dataflow.sdk.transforms.PTransform;
-import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
-import com.google.cloud.dataflow.sdk.util.MimeTypes;
-import com.google.cloud.dataflow.sdk.values.PCollection;
-import com.google.cloud.dataflow.sdk.values.PDone;
-import com.google.cloud.dataflow.sdk.values.PInput;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.Coder.Context;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.io.Read.Bounded;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.runners.DirectPipelineRunner;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.IOChannelUtils;
+import org.apache.beam.sdk.util.MimeTypes;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.PInput;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.protobuf.ByteString;
@@ -310,20 +311,20 @@ public class TextIO {
         final Bounded<T> read;
         switch(compressionType) {
           case UNCOMPRESSED:
-            read = com.google.cloud.dataflow.sdk.io.Read.from(
+            read = org.apache.beam.sdk.io.Read.from(
                 new TextSource<T>(filepattern, coder));
             break;
           case AUTO:
-            read = com.google.cloud.dataflow.sdk.io.Read.from(
+            read = org.apache.beam.sdk.io.Read.from(
                 CompressedSource.from(new TextSource<T>(filepattern, coder)));
             break;
           case BZIP2:
-            read = com.google.cloud.dataflow.sdk.io.Read.from(
+            read = org.apache.beam.sdk.io.Read.from(
                 CompressedSource.from(new TextSource<T>(filepattern, coder))
                                 .withDecompression(CompressedSource.CompressionMode.BZIP2));
             break;
           case GZIP:
-            read = com.google.cloud.dataflow.sdk.io.Read.from(
+            read = org.apache.beam.sdk.io.Read.from(
                 CompressedSource.from(new TextSource<T>(filepattern, coder))
                                 .withDecompression(CompressedSource.CompressionMode.GZIP));
             break;
@@ -625,7 +626,7 @@ public class TextIO {
         // Note that custom sinks currently do not expose sharding controls.
         // Thus pipeline runner writers need to individually add support internally to
         // apply user requested sharding limits.
-        return input.apply("Write", com.google.cloud.dataflow.sdk.io.Write.to(
+        return input.apply("Write", org.apache.beam.sdk.io.Write.to(
             new TextSink<>(
                 filenamePrefix, filenameSuffix, shardTemplate, coder)));
       }
@@ -769,7 +770,7 @@ public class TextIO {
     }
 
     /**
-     * A {@link com.google.cloud.dataflow.sdk.io.FileBasedSource.FileBasedReader FileBasedReader}
+     * A {@link org.apache.beam.sdk.io.FileBasedSource.FileBasedReader FileBasedReader}
      * which can decode records delimited by new line characters.
      *
      * See {@link TextSource} for further details.
@@ -944,7 +945,7 @@ public class TextIO {
     }
 
     /**
-     * A {@link com.google.cloud.dataflow.sdk.io.FileBasedSink.FileBasedWriteOperation
+     * A {@link org.apache.beam.sdk.io.FileBasedSink.FileBasedWriteOperation
      * FileBasedWriteOperation} for text files.
      */
     private static class TextWriteOperation<T> extends FileBasedWriteOperation<T> {
@@ -962,7 +963,7 @@ public class TextIO {
     }
 
     /**
-     * A {@link com.google.cloud.dataflow.sdk.io.FileBasedSink.FileBasedWriter FileBasedWriter}
+     * A {@link org.apache.beam.sdk.io.FileBasedSink.FileBasedWriter FileBasedWriter}
      * for text files.
      */
     private static class TextWriter<T> extends FileBasedWriter<T> {

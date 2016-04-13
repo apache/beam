@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.examples.complete.game.injector;
+package org.apache.beam.examples.complete.game.injector;
 
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
@@ -28,7 +28,6 @@ import com.google.api.client.json.JsonFactory;
 import com.google.api.services.pubsub.Pubsub;
 import com.google.api.services.pubsub.PubsubScopes;
 import com.google.api.services.pubsub.model.Topic;
-
 import com.google.common.base.Preconditions;
 
 import java.io.IOException;

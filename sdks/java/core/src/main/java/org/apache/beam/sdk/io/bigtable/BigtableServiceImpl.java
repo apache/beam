@@ -15,7 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.io.bigtable;
+package org.apache.beam.sdk.io.bigtable;
+
+import org.apache.beam.sdk.io.bigtable.BigtableIO.BigtableSource;
+import org.apache.beam.sdk.values.KV;
 
 import com.google.bigtable.admin.table.v1.GetTableRequest;
 import com.google.bigtable.v1.MutateRowRequest;
@@ -30,8 +33,6 @@ import com.google.cloud.bigtable.grpc.BigtableSession;
 import com.google.cloud.bigtable.grpc.async.AsyncExecutor;
 import com.google.cloud.bigtable.grpc.async.HeapSizeManager;
 import com.google.cloud.bigtable.grpc.scanner.ResultScanner;
-import com.google.cloud.dataflow.sdk.io.bigtable.BigtableIO.BigtableSource;
-import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.common.base.MoreObjects;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.ListenableFuture;

@@ -18,12 +18,12 @@
 package org.apache.beam.runners.flink.translation.wrappers.streaming.io;
 
 import org.apache.beam.runners.flink.translation.types.VoidCoderTypeSerializer;
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
-import com.google.cloud.dataflow.sdk.util.WindowedValue;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.WindowedValue;
+
 import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.util.Collector;
 import org.joda.time.Instant;
 

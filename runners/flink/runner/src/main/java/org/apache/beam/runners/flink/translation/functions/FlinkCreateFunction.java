@@ -18,7 +18,8 @@
 package org.apache.beam.runners.flink.translation.functions;
 
 import org.apache.beam.runners.flink.translation.types.VoidCoderTypeSerializer;
-import com.google.cloud.dataflow.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.Coder;
+
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.util.Collector;
 
@@ -26,7 +27,7 @@ import java.io.ByteArrayInputStream;
 import java.util.List;
 
 /**
- * This is a hack for transforming a {@link com.google.cloud.dataflow.sdk.transforms.Create}
+ * This is a hack for transforming a {@link org.apache.beam.sdk.transforms.Create}
  * operation. Flink does not allow {@code null} in it's equivalent operation:
  * {@link org.apache.flink.api.java.ExecutionEnvironment#fromElements(Object[])}. Therefore
  * we use a DataSource with one dummy element and output the elements of the Create operation

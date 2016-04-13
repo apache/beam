@@ -15,11 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.coders;
+package org.apache.beam.sdk.coders;
 
-import com.google.cloud.dataflow.sdk.testing.CoderProperties;
-import com.google.cloud.dataflow.sdk.util.CoderUtils;
-import com.google.cloud.dataflow.sdk.values.KV;
+import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.values.KV;
+
 import com.google.common.collect.ImmutableMap;
 
 import org.junit.Rule;
@@ -94,7 +95,7 @@ public class KvCoderTest {
 
   /**
    * Generated data to check that the wire format has not changed. To regenerate, see
-   * {@link com.google.cloud.dataflow.sdk.coders.PrintBase64Encodings}.
+   * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
    */
   private static final List<String> TEST_ENCODINGS = Arrays.asList(
       "AP____8P",

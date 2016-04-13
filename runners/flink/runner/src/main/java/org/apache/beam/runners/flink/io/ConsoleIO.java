@@ -17,12 +17,12 @@
  */
 package org.apache.beam.runners.flink.io;
 
-import com.google.cloud.dataflow.sdk.transforms.PTransform;
-import com.google.cloud.dataflow.sdk.values.PCollection;
-import com.google.cloud.dataflow.sdk.values.PDone;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PDone;
 
 /**
- * Transform for printing the contents of a {@link com.google.cloud.dataflow.sdk.values.PCollection}.
+ * Transform for printing the contents of a {@link org.apache.beam.sdk.values.PCollection}.
  * to standard output.
  *
  * This is Flink-specific and will only work when executed using the

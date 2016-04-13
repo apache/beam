@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.options;
+package org.apache.beam.sdk.options;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -272,8 +272,8 @@ public class ProxyInvocationHandlerTest {
   @Test
   public void testInvokeWithUnknownMethod() throws Exception {
     expectedException.expect(RuntimeException.class);
-    expectedException.expectMessage("Unknown method [public abstract void com.google.cloud."
-        + "dataflow.sdk.options.ProxyInvocationHandlerTest$UnknownMethod.unknownMethod()] "
+    expectedException.expectMessage("Unknown method [public abstract void "
+        + "org.apache.beam.sdk.options.ProxyInvocationHandlerTest$UnknownMethod.unknownMethod()] "
         + "invoked with args [null].");
 
     ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());

@@ -15,11 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.io;
+package org.apache.beam.sdk.io;
 
-import com.google.cloud.dataflow.sdk.io.range.OffsetRangeTracker;
-import com.google.cloud.dataflow.sdk.io.range.RangeTracker;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.io.range.OffsetRangeTracker;
+import org.apache.beam.sdk.io.range.RangeTracker;
+import org.apache.beam.sdk.options.PipelineOptions;
+
 import com.google.common.base.Preconditions;
 
 import org.slf4j.Logger;

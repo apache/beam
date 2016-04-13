@@ -15,9 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.contrib.hadoop;
+package org.apache.beam.contrib.hadoop;
 
-import com.google.cloud.dataflow.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.testing.CoderProperties;
 
 import org.apache.hadoop.io.IntWritable;
 import org.junit.Test;

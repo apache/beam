@@ -15,9 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.testing;
+package org.apache.beam.sdk.testing;
 
-import static com.google.cloud.dataflow.sdk.testing.SystemNanoTimeSleeper.sleepMillis;
+import static org.apache.beam.sdk.testing.SystemNanoTimeSleeper.sleepMillis;
 
 import org.junit.Rule;
 import org.junit.Test;

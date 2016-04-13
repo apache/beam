@@ -17,13 +17,13 @@
  */
 package org.apache.beam.runners.flink;
 
-import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.PipelineResult;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.runners.PipelineRunner;
 
 /**
- * {@link com.google.cloud.dataflow.sdk.Pipeline} for testing Dataflow programs on the
+ * {@link org.apache.beam.sdk.Pipeline} for testing Dataflow programs on the
  * {@link org.apache.beam.runners.flink.FlinkPipelineRunner}.
  */
 public class FlinkTestPipeline extends Pipeline {
@@ -31,7 +31,7 @@ public class FlinkTestPipeline extends Pipeline {
   /**
    * Creates and returns a new test pipeline for batch execution.
    *
-   * <p> Use {@link com.google.cloud.dataflow.sdk.testing.PAssert} to add tests, then call
+   * <p> Use {@link org.apache.beam.sdk.testing.PAssert} to add tests, then call
    * {@link Pipeline#run} to execute the pipeline and check the tests.
    */
   public static FlinkTestPipeline createForBatch() {
@@ -41,7 +41,7 @@ public class FlinkTestPipeline extends Pipeline {
   /**
    * Creates and returns a new test pipeline for streaming execution.
    *
-   * <p> Use {@link com.google.cloud.dataflow.sdk.testing.PAssert} to add tests, then call
+   * <p> Use {@link org.apache.beam.sdk.testing.PAssert} to add tests, then call
    * {@link Pipeline#run} to execute the pipeline and check the tests.
    *
    * @return The Test Pipeline
@@ -53,7 +53,7 @@ public class FlinkTestPipeline extends Pipeline {
   /**
    * Creates and returns a new test pipeline for streaming or batch execution.
    *
-   * <p> Use {@link com.google.cloud.dataflow.sdk.testing.PAssert} to add tests, then call
+   * <p> Use {@link org.apache.beam.sdk.testing.PAssert} to add tests, then call
    * {@link Pipeline#run} to execute the pipeline and check the tests.
    *
    * @param streaming <code>True</code> for streaming mode, <code>False</code> for batch.

@@ -1,5 +1,5 @@
 {
-  "namespace": "com.google.cloud.dataflow.sdk.io",
+  "namespace": "org.apache.beam.sdk.io",
   "type": "record",
   "name": "AvroGeneratedUser",
   "fields": [

@@ -15,13 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.examples.cookbook;
+package org.apache.beam.examples.cookbook;
+
+import org.apache.beam.examples.cookbook.BigQueryTornadoes.ExtractTornadoesFn;
+import org.apache.beam.examples.cookbook.BigQueryTornadoes.FormatCountsFn;
+import org.apache.beam.sdk.transforms.DoFnTester;
+import org.apache.beam.sdk.values.KV;
 
 import com.google.api.services.bigquery.model.TableRow;
-import com.google.cloud.dataflow.examples.cookbook.BigQueryTornadoes.ExtractTornadoesFn;
-import com.google.cloud.dataflow.examples.cookbook.BigQueryTornadoes.FormatCountsFn;
-import com.google.cloud.dataflow.sdk.transforms.DoFnTester;
-import com.google.cloud.dataflow.sdk.values.KV;
 
 import org.hamcrest.CoreMatchers;
 import org.junit.Assert;

@@ -16,4 +16,4 @@
  * limitations under the License.
  */
 /** Defines utilities used by the Dataflow SDK. **/
-package com.google.cloud.dataflow.sdk.util;
+package org.apache.beam.sdk.util;

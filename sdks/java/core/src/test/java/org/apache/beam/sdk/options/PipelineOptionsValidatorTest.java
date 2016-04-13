@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.options;
+package org.apache.beam.sdk.options;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -48,7 +48,7 @@ public class PipelineOptionsValidatorTest {
   public void testWhenRequiredOptionIsSetAndCleared() {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("Missing required value for "
-        + "[public abstract java.lang.String com.google.cloud.dataflow."
+        + "[public abstract java.lang.String org.apache.beam."
         + "sdk.options.PipelineOptionsValidatorTest$Required.getObject(), \"Fake Description\"].");
 
     Required required = PipelineOptionsFactory.as(Required.class);
@@ -61,7 +61,7 @@ public class PipelineOptionsValidatorTest {
   public void testWhenRequiredOptionIsNeverSet() {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("Missing required value for "
-        + "[public abstract java.lang.String com.google.cloud.dataflow."
+        + "[public abstract java.lang.String org.apache.beam."
         + "sdk.options.PipelineOptionsValidatorTest$Required.getObject(), \"Fake Description\"].");
 
     Required required = PipelineOptionsFactory.as(Required.class);
@@ -72,7 +72,7 @@ public class PipelineOptionsValidatorTest {
   public void testWhenRequiredOptionIsNeverSetOnSuperInterface() {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("Missing required value for "
-        + "[public abstract java.lang.String com.google.cloud.dataflow."
+        + "[public abstract java.lang.String org.apache.beam."
         + "sdk.options.PipelineOptionsValidatorTest$Required.getObject(), \"Fake Description\"].");
 
     PipelineOptions options = PipelineOptionsFactory.create();
@@ -91,7 +91,7 @@ public class PipelineOptionsValidatorTest {
   public void testValidationOnOverriddenMethods() throws Exception {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("Missing required value for "
-        + "[public abstract java.lang.String com.google.cloud.dataflow."
+        + "[public abstract java.lang.String org.apache.beam."
         + "sdk.options.PipelineOptionsValidatorTest$Required.getObject(), \"Fake Description\"].");
 
     SubClassValidation required = PipelineOptionsFactory.as(SubClassValidation.class);

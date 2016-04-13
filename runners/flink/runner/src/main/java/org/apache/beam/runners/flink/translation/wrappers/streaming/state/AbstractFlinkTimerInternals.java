@@ -17,19 +17,18 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming.state;
 
-import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.coders.KvCoder;
-import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.util.TimerInternals;
-import com.google.cloud.dataflow.sdk.util.WindowedValue;
-import com.google.cloud.dataflow.sdk.values.KV;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.TimerInternals;
+
 import org.joda.time.Instant;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.Serializable;
+
+import javax.annotation.Nullable;
 
 /**
  * An implementation of Beam's {@link TimerInternals}, that also provides serialization functionality.

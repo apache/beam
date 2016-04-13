@@ -15,15 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.runners;
+package org.apache.beam.sdk.runners;
 
-import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.options.DirectPipelineOptions;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.options.DirectPipelineOptions;
 
 /**
  * A {@link DirectPipeline} is a {@link Pipeline} that returns
  * {@link DirectPipelineRunner.EvaluationResults} when it is
- * {@link com.google.cloud.dataflow.sdk.Pipeline#run()}.
+ * {@link org.apache.beam.sdk.Pipeline#run()}.
  */
 public class DirectPipeline extends Pipeline {
 

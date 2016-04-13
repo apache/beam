@@ -15,17 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.runners;
+package org.apache.beam.sdk.runners;
 
-import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.transforms.PTransform;
-import com.google.cloud.dataflow.sdk.values.PValue;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.PValue;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Provides a simple {@link com.google.cloud.dataflow.sdk.Pipeline.PipelineVisitor}
+ * Provides a simple {@link org.apache.beam.sdk.Pipeline.PipelineVisitor}
  * that records the transformation tree.
  *
  * <p>Provided for internal unit tests.

@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.testing;
+package org.apache.beam.sdk.testing;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
@@ -25,11 +25,11 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.io.BoundedSource;
-import com.google.cloud.dataflow.sdk.io.Source;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.values.KV;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.Source;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.values.KV;
 
 import org.junit.Assert;
 import org.slf4j.Logger;
@@ -68,8 +68,8 @@ import java.util.concurrent.Future;
  *   use both.
  * </ul>
  * For example usages, see the unit tests of classes such as
- * {@link com.google.cloud.dataflow.sdk.io.AvroSource} or
- * {@link com.google.cloud.dataflow.sdk.io.XmlSource}.
+ * {@link org.apache.beam.sdk.io.AvroSource} or
+ * {@link org.apache.beam.sdk.io.XmlSource}.
  *
  * <p>Like {@link PAssert}, requires JUnit and Hamcrest to be present in the classpath.
  */
@@ -245,7 +245,7 @@ public class SourceTestUtils {
 
   /**
    * Expected outcome of
-   * {@link com.google.cloud.dataflow.sdk.io.BoundedSource.BoundedReader#splitAtFraction}.
+   * {@link org.apache.beam.sdk.io.BoundedSource.BoundedReader#splitAtFraction}.
    */
   public enum ExpectedSplitOutcome {
     /**

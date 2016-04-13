@@ -15,15 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.coders;
+package org.apache.beam.sdk.coders;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
-import com.google.cloud.dataflow.sdk.testing.CoderProperties;
-import com.google.cloud.dataflow.sdk.util.CoderUtils;
-import com.google.cloud.dataflow.sdk.util.common.CounterTestUtils;
+import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.common.CounterTestUtils;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -119,7 +119,7 @@ public class ByteArrayCoderTest {
 
   /**
    * Generated data to check that the wire format has not changed. To regenerate, see
-   * {@link com.google.cloud.dataflow.sdk.coders.PrintBase64Encodings}.
+   * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
    */
   private static final List<String> TEST_ENCODINGS = Arrays.asList(
       "CgsM",

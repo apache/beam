@@ -15,14 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.transforms.windowing;
+package org.apache.beam.sdk.transforms.windowing;
 
-import com.google.cloud.dataflow.sdk.coders.AtomicCoder;
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.coders.CoderException;
-import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
-import com.google.cloud.dataflow.sdk.util.VarInt;
+import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.util.VarInt;
+
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
@@ -35,7 +36,7 @@ import java.util.Objects;
 /**
  * Provides information about the pane an element belongs to. Every pane is implicitly associated
  * with a window. Panes are observable only via the
- * {@link com.google.cloud.dataflow.sdk.transforms.DoFn.ProcessContext#pane} method of the context
+ * {@link org.apache.beam.sdk.transforms.DoFn.ProcessContext#pane} method of the context
  * passed to a {@link DoFn#processElement} overridden method.
  *
  * <p>Note: This does not uniquely identify a pane, and should not be used for comparisons.
@@ -64,16 +65,16 @@ public final class PaneInfo {
    * produces a final pane, it will not be merged into any new windows.
    *
    * <p>The predictions above are made using the mechanism of watermarks.
-   * See {@link com.google.cloud.dataflow.sdk.util.TimerInternals} for more information
+   * See {@link org.apache.beam.sdk.util.TimerInternals} for more information
    * about watermarks.
    *
    * <p>We can state some properties of {@code LATE} and {@code ON_TIME} panes, but first need some
    * definitions:
    * <ol>
    * <li>We'll call a pipeline 'simple' if it does not use
-   * {@link com.google.cloud.dataflow.sdk.transforms.DoFn.Context#outputWithTimestamp} in
+   * {@link org.apache.beam.sdk.transforms.DoFn.Context#outputWithTimestamp} in
    * any {@code DoFn}, and it uses the same
-   * {@link com.google.cloud.dataflow.sdk.transforms.windowing.Window.Bound#withAllowedLateness}
+   * {@link org.apache.beam.sdk.transforms.windowing.Window.Bound#withAllowedLateness}
    * argument value on all windows (or uses the default of {@link org.joda.time.Duration#ZERO}).
    * <li>We'll call an element 'locally late', from the point of view of a computation on a
    * worker, if the element's timestamp is before the input watermark for that computation

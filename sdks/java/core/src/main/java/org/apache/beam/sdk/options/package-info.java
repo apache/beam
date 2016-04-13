@@ -16,11 +16,11 @@
  * limitations under the License.
  */
 /**
- * Defines {@link com.google.cloud.dataflow.sdk.options.PipelineOptions} for
+ * Defines {@link org.apache.beam.sdk.options.PipelineOptions} for
  * configuring pipeline execution.
  *
- * <p>{@link com.google.cloud.dataflow.sdk.options.PipelineOptions} encapsulates the various
+ * <p>{@link org.apache.beam.sdk.options.PipelineOptions} encapsulates the various
  * parameters that describe how a pipeline should be run. {@code PipelineOptions} are created
- * using a {@link com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory}.
+ * using a {@link org.apache.beam.sdk.options.PipelineOptionsFactory}.
  */
-package com.google.cloud.dataflow.sdk.options;
+package org.apache.beam.sdk.options;

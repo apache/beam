@@ -15,9 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.transforms;
+package org.apache.beam.sdk.transforms;
 
-import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.transforms.Combine.CombineFn;
 
 /**
  * An {@code Aggregator<InputT>} enables monitoring of values of type {@code InputT},

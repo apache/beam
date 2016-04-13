@@ -15,13 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.io.bigtable;
+package org.apache.beam.sdk.io.bigtable;
+
+import org.apache.beam.sdk.io.bigtable.BigtableIO.BigtableSource;
+import org.apache.beam.sdk.values.KV;
 
 import com.google.bigtable.v1.Mutation;
 import com.google.bigtable.v1.Row;
 import com.google.bigtable.v1.SampleRowKeysResponse;
-import com.google.cloud.dataflow.sdk.io.bigtable.BigtableIO.BigtableSource;
-import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Empty;

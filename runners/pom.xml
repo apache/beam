@@ -53,7 +53,7 @@
                 <goal>test</goal>
               </goals>
               <configuration>
-                <groups>com.google.cloud.dataflow.sdk.testing.RunnableOnService</groups>
+                <groups>org.apache.beam.sdk.testing.RunnableOnService</groups>
                 <parallel>all</parallel>
                 <threadCount>4</threadCount>
                 <dependenciesToScan>

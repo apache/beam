@@ -15,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.values;
+package org.apache.beam.sdk.values;
 
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.transforms.ParDo;
-import com.google.cloud.dataflow.sdk.transforms.View;
-import com.google.cloud.dataflow.sdk.util.WindowedValue;
-import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowingStrategy;
 
 import java.io.Serializable;
 
@@ -31,8 +31,8 @@ import java.io.Serializable;
  * as a side input to a {@link ParDo} transform.
  *
  * <p>A {@link PCollectionView} should always be the output of a
- * {@link com.google.cloud.dataflow.sdk.transforms.PTransform}. It is the joint responsibility of
- * this transform and each {@link com.google.cloud.dataflow.sdk.runners.PipelineRunner} to implement
+ * {@link org.apache.beam.sdk.transforms.PTransform}. It is the joint responsibility of
+ * this transform and each {@link org.apache.beam.sdk.runners.PipelineRunner} to implement
  * the view in a runner-specific manner.
  *
  * <p>The most common case is using the {@link View} transforms to prepare a {@link PCollection}

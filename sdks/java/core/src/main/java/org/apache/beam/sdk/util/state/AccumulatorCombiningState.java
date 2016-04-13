@@ -15,9 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.util.state;
+package org.apache.beam.sdk.util.state;
 
-import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.transforms.Combine.CombineFn;
 
 /**
  * State for a single value that is managed by a {@link CombineFn}. This is an internal extension

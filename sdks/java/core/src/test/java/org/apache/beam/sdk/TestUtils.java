@@ -15,12 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk;
+package org.apache.beam.sdk;
 
 import static org.junit.Assert.assertThat;
 
-import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
-import com.google.cloud.dataflow.sdk.values.KV;
+import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.values.KV;
 
 import org.hamcrest.CoreMatchers;
 import org.hamcrest.Description;

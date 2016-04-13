@@ -15,10 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.coders;
+package org.apache.beam.sdk.coders;
+
+import org.apache.beam.sdk.testing.CoderProperties;
 
 import com.google.api.services.bigquery.model.TableRow;
-import com.google.cloud.dataflow.sdk.testing.CoderProperties;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -72,7 +73,7 @@ public class TableRowJsonCoderTest {
 
   /**
    * Generated data to check that the wire format has not changed. To regenerate, see
-   * {@link com.google.cloud.dataflow.sdk.coders.PrintBase64Encodings}.
+   * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
    */
   private static final List<String> TEST_ENCODINGS = Arrays.asList(
       "e30",

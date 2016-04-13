@@ -15,20 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.testing;
+package org.apache.beam.sdk.testing;
 
-import static com.google.cloud.dataflow.sdk.testing.SerializableMatchers.allOf;
-import static com.google.cloud.dataflow.sdk.testing.SerializableMatchers.anything;
-import static com.google.cloud.dataflow.sdk.testing.SerializableMatchers.containsInAnyOrder;
-import static com.google.cloud.dataflow.sdk.testing.SerializableMatchers.kvWithKey;
-import static com.google.cloud.dataflow.sdk.testing.SerializableMatchers.not;
+import static org.apache.beam.sdk.testing.SerializableMatchers.allOf;
+import static org.apache.beam.sdk.testing.SerializableMatchers.anything;
+import static org.apache.beam.sdk.testing.SerializableMatchers.containsInAnyOrder;
+import static org.apache.beam.sdk.testing.SerializableMatchers.kvWithKey;
+import static org.apache.beam.sdk.testing.SerializableMatchers.not;
+
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-import com.google.cloud.dataflow.sdk.coders.AtomicCoder;
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.util.SerializableUtils;
-import com.google.cloud.dataflow.sdk.values.KV;
+import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.sdk.values.KV;
+
 import com.google.common.collect.ImmutableList;
 
 import org.hamcrest.Matchers;

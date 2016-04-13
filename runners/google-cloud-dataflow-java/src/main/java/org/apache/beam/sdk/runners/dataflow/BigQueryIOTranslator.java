@@ -15,16 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.runners.dataflow;
+package org.apache.beam.sdk.runners.dataflow;
+
+import org.apache.beam.sdk.coders.TableRowJsonCoder;
+import org.apache.beam.sdk.io.BigQueryIO;
+import org.apache.beam.sdk.runners.DataflowPipelineTranslator;
+import org.apache.beam.sdk.util.PropertyNames;
+import org.apache.beam.sdk.util.Transport;
+import org.apache.beam.sdk.util.WindowedValue;
 
 import com.google.api.client.json.JsonFactory;
 import com.google.api.services.bigquery.model.TableReference;
-import com.google.cloud.dataflow.sdk.coders.TableRowJsonCoder;
-import com.google.cloud.dataflow.sdk.io.BigQueryIO;
-import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator;
-import com.google.cloud.dataflow.sdk.util.PropertyNames;
-import com.google.cloud.dataflow.sdk.util.Transport;
-import com.google.cloud.dataflow.sdk.util.WindowedValue;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

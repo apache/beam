@@ -15,24 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.util;
+package org.apache.beam.sdk.util;
 
-import static com.google.cloud.dataflow.sdk.util.Structs.addBoolean;
-import static com.google.cloud.dataflow.sdk.util.Structs.addDouble;
-import static com.google.cloud.dataflow.sdk.util.Structs.addList;
-import static com.google.cloud.dataflow.sdk.util.Structs.addLong;
-import static com.google.cloud.dataflow.sdk.util.Structs.addLongs;
-import static com.google.cloud.dataflow.sdk.util.Structs.addNull;
-import static com.google.cloud.dataflow.sdk.util.Structs.addString;
-import static com.google.cloud.dataflow.sdk.util.Structs.addStringList;
-import static com.google.cloud.dataflow.sdk.util.Structs.getBoolean;
-import static com.google.cloud.dataflow.sdk.util.Structs.getDictionary;
-import static com.google.cloud.dataflow.sdk.util.Structs.getInt;
-import static com.google.cloud.dataflow.sdk.util.Structs.getListOfMaps;
-import static com.google.cloud.dataflow.sdk.util.Structs.getLong;
-import static com.google.cloud.dataflow.sdk.util.Structs.getObject;
-import static com.google.cloud.dataflow.sdk.util.Structs.getString;
-import static com.google.cloud.dataflow.sdk.util.Structs.getStrings;
+import static org.apache.beam.sdk.util.Structs.addBoolean;
+import static org.apache.beam.sdk.util.Structs.addDouble;
+import static org.apache.beam.sdk.util.Structs.addList;
+import static org.apache.beam.sdk.util.Structs.addLong;
+import static org.apache.beam.sdk.util.Structs.addLongs;
+import static org.apache.beam.sdk.util.Structs.addNull;
+import static org.apache.beam.sdk.util.Structs.addString;
+import static org.apache.beam.sdk.util.Structs.addStringList;
+import static org.apache.beam.sdk.util.Structs.getBoolean;
+import static org.apache.beam.sdk.util.Structs.getDictionary;
+import static org.apache.beam.sdk.util.Structs.getInt;
+import static org.apache.beam.sdk.util.Structs.getListOfMaps;
+import static org.apache.beam.sdk.util.Structs.getLong;
+import static org.apache.beam.sdk.util.Structs.getObject;
+import static org.apache.beam.sdk.util.Structs.getString;
+import static org.apache.beam.sdk.util.Structs.getStrings;
 
 import org.hamcrest.Matchers;
 import org.junit.Assert;

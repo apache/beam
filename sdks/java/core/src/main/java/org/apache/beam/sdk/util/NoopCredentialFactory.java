@@ -15,10 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.util;
+package org.apache.beam.sdk.util;
+
+import org.apache.beam.sdk.options.PipelineOptions;
 
 import com.google.api.client.auth.oauth2.Credential;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;

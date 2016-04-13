@@ -15,9 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.coders;
+package org.apache.beam.sdk.coders;
 
-import com.google.cloud.dataflow.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.testing.CoderProperties;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -60,7 +60,7 @@ public class StandardCoderTest {
     @Override
     @Nullable
     public Boolean decode(
-        InputStream inStream, com.google.cloud.dataflow.sdk.coders.Coder.Context context)
+        InputStream inStream, org.apache.beam.sdk.coders.Coder.Context context)
         throws CoderException, IOException {
       int value = inStream.read();
       if (value == 0) {
@@ -123,7 +123,7 @@ public class StandardCoderTest {
     @Override
     @Nullable
     public ObjectIdentityBoolean decode(
-        InputStream inStream, com.google.cloud.dataflow.sdk.coders.Coder.Context context)
+        InputStream inStream, org.apache.beam.sdk.coders.Coder.Context context)
         throws CoderException, IOException {
       int value = inStream.read();
       if (value == 0) {

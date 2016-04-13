@@ -15,10 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.util;
+package org.apache.beam.sdk.util;
 
-import com.google.cloud.dataflow.sdk.options.GcsOptions;
-import com.google.cloud.dataflow.sdk.util.gcsfs.GcsPath;
+import org.apache.beam.sdk.options.GcsOptions;
+import org.apache.beam.sdk.util.gcsfs.GcsPath;
 
 import java.io.IOException;
 import java.nio.channels.ReadableByteChannel;

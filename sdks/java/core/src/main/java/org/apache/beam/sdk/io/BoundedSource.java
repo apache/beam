@@ -15,11 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.io;
+package org.apache.beam.sdk.io;
 
 import org.apache.beam.sdk.annotations.Experimental;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 
 import org.joda.time.Instant;
 
@@ -103,7 +103,7 @@ public abstract class BoundedSource<T> extends Source<T> {
    * their interaction is implemented in a thread-safe way, otherwise data loss is possible.
    *
    * <p>Sources which support dynamic work rebalancing should use
-   * {@link com.google.cloud.dataflow.sdk.io.range.RangeTracker} to manage the (source-specific)
+   * {@link org.apache.beam.sdk.io.range.RangeTracker} to manage the (source-specific)
    * range of positions that is being split. If your source supports dynamic work rebalancing,
    * please use that class to implement it if possible; if not possible, please contact the team
    * at <i>dataflow-feedback@google.com</i>.
@@ -258,7 +258,7 @@ public abstract class BoundedSource<T> extends Source<T> {
      * {@code synchronized}, because those methods can perform blocking operations, and then
      * this method would have to wait for those calls to complete.
      *
-     * <p>{@link com.google.cloud.dataflow.sdk.io.range.RangeTracker} makes it easy to implement
+     * <p>{@link org.apache.beam.sdk.io.range.RangeTracker} makes it easy to implement
      * this method safely and correctly.
      *
      * <p>By default, returns null to indicate that splitting is not possible.

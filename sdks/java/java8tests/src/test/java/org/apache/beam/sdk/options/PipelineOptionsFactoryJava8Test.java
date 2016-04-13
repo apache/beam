@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.options;
+package org.apache.beam.sdk.options;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.nullValue;
@@ -81,11 +81,11 @@ public class PipelineOptionsFactoryJava8Test {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
         "Method [getValue] has multiple definitions [public abstract java.lang.Integer "
-            + "com.google.cloud.dataflow.sdk.options.PipelineOptionsFactoryJava8Test$"
+            + "org.apache.beam.sdk.options.PipelineOptionsFactoryJava8Test$"
             + "SubtypeReturingOptions.getValue(), public abstract java.lang.Number "
-            + "com.google.cloud.dataflow.sdk.options.PipelineOptionsFactoryJava8Test$Options"
+            + "org.apache.beam.sdk.options.PipelineOptionsFactoryJava8Test$Options"
             + ".getValue()] with different return types for ["
-            + "com.google.cloud.dataflow.sdk.options.PipelineOptionsFactoryJava8Test$"
+            + "org.apache.beam.sdk.options.PipelineOptionsFactoryJava8Test$"
             + "SubtypeReturingOptions].");
     PipelineOptionsFactory.as(SubtypeReturingOptions.class);
   }

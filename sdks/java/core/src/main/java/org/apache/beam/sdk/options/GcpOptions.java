@@ -15,13 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.options;
+package org.apache.beam.sdk.options;
+
+import org.apache.beam.sdk.util.CredentialFactory;
+import org.apache.beam.sdk.util.GcpCredentialFactory;
+import org.apache.beam.sdk.util.InstanceBuilder;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.googleapis.auth.oauth2.GoogleOAuthConstants;
-import com.google.cloud.dataflow.sdk.util.CredentialFactory;
-import com.google.cloud.dataflow.sdk.util.GcpCredentialFactory;
-import com.google.cloud.dataflow.sdk.util.InstanceBuilder;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.io.Files;
 

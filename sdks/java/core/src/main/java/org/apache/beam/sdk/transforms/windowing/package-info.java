@@ -16,17 +16,17 @@
  * limitations under the License.
  */
 /**
- * Defines the {@link com.google.cloud.dataflow.sdk.transforms.windowing.Window} transform
+ * Defines the {@link org.apache.beam.sdk.transforms.windowing.Window} transform
  * for dividing the elements in a PCollection into windows, and the
- * {@link com.google.cloud.dataflow.sdk.transforms.windowing.Trigger} for controlling when those
+ * {@link org.apache.beam.sdk.transforms.windowing.Trigger} for controlling when those
  * elements are output.
  *
  * <p>{@code Window} logically divides up or groups the elements of a
- * {@link com.google.cloud.dataflow.sdk.values.PCollection} into finite windows according to a
- * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}.
+ * {@link org.apache.beam.sdk.values.PCollection} into finite windows according to a
+ * {@link org.apache.beam.sdk.transforms.windowing.WindowFn}.
  * The output of {@code Window} contains the same elements as input, but they
  * have been logically assigned to windows. The next
- * {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey}s, including one
+ * {@link org.apache.beam.sdk.transforms.GroupByKey}s, including one
  * within composite transforms, will group by the combination of keys and
  * windows.
  *
@@ -42,9 +42,9 @@
  * <p>As elements are assigned to a window, they are are placed into a pane. When the trigger fires
  * all of the elements in the current pane are output.
  *
- * <p>The {@link com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger} will output a
+ * <p>The {@link org.apache.beam.sdk.transforms.windowing.DefaultTrigger} will output a
  * window when the system watermark passes the end of the window.  See
- * {@link com.google.cloud.dataflow.sdk.transforms.windowing.AfterWatermark} for details on the
+ * {@link org.apache.beam.sdk.transforms.windowing.AfterWatermark} for details on the
  * watermark.
  */
-package com.google.cloud.dataflow.sdk.transforms.windowing;
+package org.apache.beam.sdk.transforms.windowing;

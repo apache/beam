@@ -17,18 +17,20 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers;
 
-import com.google.cloud.dataflow.sdk.transforms.Aggregator;
-import com.google.cloud.dataflow.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.Aggregator;
+import org.apache.beam.sdk.transforms.Combine;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+
 import org.apache.flink.api.common.accumulators.Accumulator;
 
 import java.io.Serializable;
 
 /**
- * Wrapper that wraps a {@link com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn}
+ * Wrapper that wraps a {@link org.apache.beam.sdk.transforms.Combine.CombineFn}
  * in a Flink {@link org.apache.flink.api.common.accumulators.Accumulator} for using
- * the function as an aggregator in a {@link com.google.cloud.dataflow.sdk.transforms.ParDo}
+ * the function as an aggregator in a {@link org.apache.beam.sdk.transforms.ParDo}
  * operation.
  */
 public class SerializableFnAggregatorWrapper<AI, AO> implements Aggregator<AI, AO>, Accumulator<AI, Serializable> {

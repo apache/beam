@@ -15,10 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.transforms;
+package org.apache.beam.sdk.transforms;
 
-import com.google.cloud.dataflow.sdk.values.KV;
-import com.google.cloud.dataflow.sdk.values.PCollection;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 
 /**
  * {@code KvSwap<K, V>} takes a {@code PCollection<KV<K, V>>} and
@@ -35,7 +35,7 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
  * <p>Each output element has the same timestamp and is in the same windows
  * as its corresponding input element, and the output {@code PCollection}
  * has the same
- * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
+ * {@link org.apache.beam.sdk.transforms.windowing.WindowFn}
  * associated with it as the input.
  *
  * @param <K> the type of the keys in the input {@code PCollection}

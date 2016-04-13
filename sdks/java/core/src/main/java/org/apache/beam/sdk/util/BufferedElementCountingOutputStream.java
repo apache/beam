@@ -15,9 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.util;
+package org.apache.beam.sdk.util;
 
-import com.google.cloud.dataflow.sdk.coders.Coder.Context;
+import org.apache.beam.sdk.coders.Coder.Context;
 
 import java.io.IOException;
 import java.io.OutputStream;
