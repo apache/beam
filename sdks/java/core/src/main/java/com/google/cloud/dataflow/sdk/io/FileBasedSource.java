@@ -236,7 +236,7 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
       Thread.currentThread().interrupt();
       throw new IOException(e);
     } catch (ExecutionException e) {
-      throw new IOException(e);
+      throw new IOException(e.getCause());
     }  finally {
       service.shutdown();
     }
