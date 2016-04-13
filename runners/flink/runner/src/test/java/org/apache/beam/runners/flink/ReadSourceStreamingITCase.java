@@ -24,13 +24,19 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.base.Joiner;
+import org.apache.flink.streaming.util.StreamingProgramTestBase;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
-public class ReadSourceITCase extends JavaProgramTestBase {
+import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMemory;
+
+/**
+ * Reads from a bounded source in streaming
+ */
+public class ReadSourceStreamingITCase extends StreamingProgramTestBase {
 
   protected String resultPath;
 
-  public ReadSourceITCase(){
+  public ReadSourceStreamingITCase(){
   }
 
   private static final String[] EXPECTED_RESULT = new String[] {
@@ -53,18 +59,17 @@ public class ReadSourceITCase extends JavaProgramTestBase {
 
   private static void runProgram(String resultPath) {
 
-    Pipeline p = FlinkTestPipeline.createForBatch();
+    Pipeline p = FlinkTestPipeline.createForStreaming();
 
-    PCollection<String> result = p
-        .apply(CountingInput.upTo(10))
-        .apply(ParDo.of(new DoFn<Long, String>() {
+    p
+      .apply(CountingInput.upTo(10))
+      .apply(ParDo.of(new DoFn<Long, String>() {
           @Override
           public void processElement(ProcessContext c) throws Exception {
             c.output(c.element().toString());
           }
-        }));
-
-    result.apply(TextIO.Write.to(resultPath));
+        }))
+      .apply(TextIO.Write.to(resultPath));
 
     p.run();
   }
