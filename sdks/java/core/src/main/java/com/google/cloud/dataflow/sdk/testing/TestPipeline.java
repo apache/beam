@@ -27,6 +27,7 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.util.TestCredential;
 import com.google.common.base.Optional;
+import com.google.common.base.Strings;
 import com.google.common.collect.Iterators;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -49,9 +50,8 @@ import javax.annotation.Nullable;
  *
  * <p>In order to run tests on a pipeline runner, the following conditions must be met:
  * <ul>
- *   <li>System property "runIntegrationTestOnService" must be set to true.</li>
- *   <li>System property "dataflowOptions" must contain a JSON delimited list of pipeline options.
- *   For example:
+ *   <li>System property "beamTestPipelineOptions" must contain a JSON delimited list of pipeline
+ *   options. For example:
  *   <pre>{@code [
  *     "--runner=com.google.cloud.dataflow.sdk.testing.TestDataflowPipelineRunner",
  *     "--project=mygcpproject",
@@ -77,7 +77,7 @@ import javax.annotation.Nullable;
  * containing the message from the {@link PAssert} that failed.
  */
 public class TestPipeline extends Pipeline {
-  private static final String PROPERTY_DATAFLOW_OPTIONS = "dataflowOptions";
+  private static final String PROPERTY_BEAM_TEST_PIPELINE_OPTIONS = "beamTestPipelineOptions";
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
   /**
@@ -126,32 +126,29 @@ public class TestPipeline extends Pipeline {
    */
   public static PipelineOptions testingPipelineOptions() {
     try {
-      @Nullable String systemDataflowOptions = System.getProperty(PROPERTY_DATAFLOW_OPTIONS);
+      @Nullable String beamTestPipelineOptions =
+          System.getProperty(PROPERTY_BEAM_TEST_PIPELINE_OPTIONS);
+
       PipelineOptions options =
-          systemDataflowOptions == null
+          Strings.isNullOrEmpty(beamTestPipelineOptions)
               ? PipelineOptionsFactory.create()
               : PipelineOptionsFactory.fromArgs(
                       MAPPER.readValue(
-                          System.getProperty(PROPERTY_DATAFLOW_OPTIONS), String[].class))
+                          System.getProperty(PROPERTY_BEAM_TEST_PIPELINE_OPTIONS), String[].class))
                   .as(PipelineOptions.class);
 
       options.as(ApplicationNameOptions.class).setAppName(getAppName());
-      if (!isIntegrationTest()) {
+      // If no options were specified, use a test credential object on all pipelines.
+      if (Strings.isNullOrEmpty(beamTestPipelineOptions)) {
         options.as(GcpOptions.class).setGcpCredential(new TestCredential());
       }
       options.setStableUniqueNames(CheckEnabled.ERROR);
       return options;
     } catch (IOException e) {
       throw new RuntimeException("Unable to instantiate test options from system property "
-          + PROPERTY_DATAFLOW_OPTIONS + ":" + System.getProperty(PROPERTY_DATAFLOW_OPTIONS), e);
+          + PROPERTY_BEAM_TEST_PIPELINE_OPTIONS + ":"
+          + System.getProperty(PROPERTY_BEAM_TEST_PIPELINE_OPTIONS), e);
     }
-  }
-
-  /**
-   * Returns whether a {@link TestPipeline} should be treated as an integration test.
-   */
-  private static boolean isIntegrationTest() {
-    return Boolean.parseBoolean(System.getProperty("runIntegrationTestOnService"));
   }
 
   /** Returns the class + method name of the test, or a default name. */

@@ -94,9 +94,8 @@ public class DataflowJUnitTestRunner {
 
     // Set system properties required by TestPipeline so that it is able to execute tests
     // on the service.
-    String dataflowPipelineOptions = new ObjectMapper().writeValueAsString(args);
-    System.setProperty("runIntegrationTestOnService", "true");
-    System.setProperty("dataflowOptions", dataflowPipelineOptions);
+    String beamTestPipelineOptions = new ObjectMapper().writeValueAsString(args);
+    System.setProperty("beamTestPipelineOptions", beamTestPipelineOptions);
 
     // Run the set of tests
     boolean success = true;

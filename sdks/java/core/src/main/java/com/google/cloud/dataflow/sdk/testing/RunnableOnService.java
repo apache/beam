@@ -18,14 +18,17 @@
 package com.google.cloud.dataflow.sdk.testing;
 
 /**
- * Category tag for tests that can be run on the
- * {@link com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner} if the
- * {@code runIntegrationTestOnService} System property is set to true.
- * Example usage:
+ * Category tag for validation tests which utilize {@link TestPipeline} for execution and
+ * {@link PAssert} for validation. Example usage:
  * <pre><code>
  *     {@literal @}Test
  *     {@literal @}Category(RunnableOnService.class)
- *     public void testParDo() {...
+ *     public void testParDo() {
+ *       Pipeline p = TestPipeline.create();
+ *       p.apply(...);
+ *       PAssert.that(p);
+ *       p.run();
+ *     }
  * </code></pre>
  */
 public interface RunnableOnService {}
