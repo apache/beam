@@ -388,7 +388,7 @@ public class CoderRegistryTest {
     thrown.expectMessage(allOf(
         containsString("TestGenericT"),
         containsString("erasure"),
-        containsString("com.google.cloud.dataflow.sdk.coders.CoderRegistryTest$TestGenericClass")));
+        containsString("org.apache.beam.sdk.coders.CoderRegistryTest$TestGenericClass")));
     registry.getDefaultCoder(TypeDescriptor.of(
         TestGenericClass.class.getTypeParameters()[0]));
   }

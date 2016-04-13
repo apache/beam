@@ -322,8 +322,8 @@ public class PipelineOptionsFactoryTest {
   public void testSetterAnnotatedWithJsonIgnore() throws Exception {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
-        "Expected setter for property [value] to not be marked with @JsonIgnore on [com."
-        + "google.cloud.dataflow.sdk.options.PipelineOptionsFactoryTest$SetterWithJsonIgnore]");
+        "Expected setter for property [value] to not be marked with @JsonIgnore on ["
+        + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$SetterWithJsonIgnore]");
     PipelineOptionsFactory.as(SetterWithJsonIgnore.class);
   }
 
@@ -339,12 +339,11 @@ public class PipelineOptionsFactoryTest {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("Found setters marked with @JsonIgnore:");
     expectedException.expectMessage(
-        "property [other] should not be marked with @JsonIgnore on [com"
-        + ".google.cloud.dataflow.sdk.options."
-        + "PipelineOptionsFactoryTest$MultiSetterWithJsonIgnore]");
+        "property [other] should not be marked with @JsonIgnore on ["
+        + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$MultiSetterWithJsonIgnore]");
     expectedException.expectMessage(
-        "property [value] should not be marked with @JsonIgnore on [com."
-        + "google.cloud.dataflow.sdk.options.PipelineOptionsFactoryTest$SetterWithJsonIgnore]");
+        "property [value] should not be marked with @JsonIgnore on ["
+        + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$SetterWithJsonIgnore]");
     PipelineOptionsFactory.as(MultiSetterWithJsonIgnore.class);
   }
 
