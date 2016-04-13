@@ -16,6 +16,7 @@ import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.Partition;
+import cz.seznam.euphoria.core.client.io.Reader;
 import cz.seznam.euphoria.core.client.io.Writer;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.Operator;
@@ -29,7 +30,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -63,23 +63,23 @@ public class InMemExecutor implements Executor {
     }
   }
 
-  private static class EndOfStreamException extends Exception {
-    
-  }
+  private static class EndOfStreamException extends Exception {}
 
-  
   private static final class PartitionSupplierStream<T> implements Supplier<T> {
-    final Iterator<T> it;
+    final Reader<T> r;
     PartitionSupplierStream(Partition<T> partition) {
-      this.it = partition.iterator();
+      try {
+        this.r = partition.openReader();
+      } catch (IOException e) {
+        throw new RuntimeException("Failed to open reader for partition: " + partition);
+      }
     }
     @Override
     public T get() throws EndOfStreamException {
-      T next = it.next();
-      if (next == null) {
+      if (!this.r.hasNext()) {
         throw new EndOfStreamException();
       }
-      return next;
+      return this.r.next();
     }
   }
 
