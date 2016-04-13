@@ -50,8 +50,8 @@ import javax.annotation.Nullable;
  *
  * <p>In order to run tests on a pipeline runner, the following conditions must be met:
  * <ul>
- *   <li>System property "dataflowOptions" must contain a JSON delimited list of pipeline options.
- *   For example:
+ *   <li>System property "beamTestPipelineOptions" must contain a JSON delimited list of pipeline
+ *   options. For example:
  *   <pre>{@code [
  *     "--runner=com.google.cloud.dataflow.sdk.testing.TestDataflowPipelineRunner",
  *     "--project=mygcpproject",
