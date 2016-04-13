@@ -66,20 +66,28 @@ public class InMemExecutor implements Executor {
   private static class EndOfStreamException extends Exception {}
 
   private static final class PartitionSupplierStream<T> implements Supplier<T> {
-    final Reader<T> r;
+    final Reader<T> reader;
+    final Partition partition;
     PartitionSupplierStream(Partition<T> partition) {
+      this.partition = partition;
       try {
-        this.r = partition.openReader();
+        this.reader = partition.openReader();
       } catch (IOException e) {
         throw new RuntimeException("Failed to open reader for partition: " + partition);
       }
     }
     @Override
     public T get() throws EndOfStreamException {
-      if (!this.r.hasNext()) {
+      if (!this.reader.hasNext()) {
+        try {
+          this.reader.close();
+        } catch (IOException e) {
+          throw new RuntimeException(
+              "Failed to close reader for partition: " + this.partition);
+        }
         throw new EndOfStreamException();
       }
-      return this.r.next();
+      return this.reader.next();
     }
   }
 
