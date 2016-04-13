@@ -17,7 +17,7 @@
  */
 package com.google.cloud.dataflow.sdk.options;
 
-import com.google.cloud.dataflow.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;

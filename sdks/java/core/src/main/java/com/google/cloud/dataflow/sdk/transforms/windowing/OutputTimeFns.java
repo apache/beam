@@ -19,7 +19,7 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import com.google.cloud.dataflow.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Ordering;
 

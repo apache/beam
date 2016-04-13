@@ -18,4 +18,4 @@
 /**
  * Defines annotations used across the SDK.
  */
-package com.google.cloud.dataflow.sdk.annotations;
+package org.apache.beam.sdk.annotations;
