@@ -25,16 +25,16 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * {@link TestPipleineArgs} is a set of args/utilities for use by Beam End-to-End tests.
+ * {@link E2EArgs} is a set of args/utilities for use by Beam End-to-End tests.
  */
-public class TestPipelineArgs {
+public class E2EArgs {
   private Map<String, String> args;
   private static Map<String, String> testOptionsMap;
 
   /**
    * Constructs a set of args from the provided map.
    */
-  public TestPipelineArgs(Map<String, String> args) {
+  public E2EArgs(Map<String, String> args) {
     this.args = args;
   }
 
@@ -50,8 +50,8 @@ public class TestPipelineArgs {
    *
    * @return Name of the job to be run.
    */
-  public String getJobName() {
-    return args.get("jobName");
+  public String getArg(String key) {
+    return args.get(key);
   }
 
   /**
@@ -60,7 +60,7 @@ public class TestPipelineArgs {
    * @return Test args for an end-to-end test.
    */
   public String[] build() {
-    ArrayList<String> optArrayList = new ArrayList<String>();
+    ArrayList<String> optArrayList = new ArrayList<>();
     for (Map.Entry<String, String> entry : args.entrySet()) {
       optArrayList.add("--" + entry.getKey() + "=" + entry.getValue());
     }
@@ -112,3 +112,4 @@ public class TestPipelineArgs {
     return testFileLocation;
   }
 }
+

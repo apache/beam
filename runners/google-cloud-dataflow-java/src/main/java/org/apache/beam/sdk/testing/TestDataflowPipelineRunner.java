@@ -42,9 +42,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -64,7 +62,7 @@ import java.util.concurrent.TimeUnit;
 public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> {
   private static final String TENTATIVE_COUNTER = "tentative";
   private static final Logger LOG = LoggerFactory.getLogger(TestDataflowPipelineRunner.class);
-  private static final Map<String, PipelineResult> RESULT_MAP =
+  private static final Map<String, PipelineResult> EXECUTION_RESULTS =
       new ConcurrentHashMap<String, PipelineResult>();
 
   private final TestDataflowPipelineOptions options;
@@ -90,31 +88,34 @@ public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJ
    * @return String with a unique test identifier based on the current date, time, and a random int.
    */
   private static String generateTestIdentifier() {
-    int random =  new Random().nextInt(10000);
-    DateFormat dateFormat = new SimpleDateFormat("MMddHHmmss");
-    Calendar cal = Calendar.getInstance();
-    String now = dateFormat.format(cal.getTime());
-    return now + random;
+    return String.format("%tm%<td%<tH%<tM%<tS-%d", new Date(), new Random().nextInt(10000));
   }
 
   /**
-   * @return TestPipelineArgs for a Dataflow pipeline.
+   * @return String job name based on class running the test and a unique test identifier.
    */
-  public static TestPipelineArgs createPipelineArgs() {
-    HashMap<String, String> opts = new HashMap<String, String>();
-    TestPipelineArgs.parseTestOptions("testFileLocation");
-    String fullClassName = new Exception().getStackTrace()[1].getClassName().toLowerCase();
+  private static String generateJobName() {
+    String fullClassName = new Exception().getStackTrace()[2].getClassName().toLowerCase();
     String[] classList = fullClassName.split("\\.");
     String className = classList[classList.length - 1];
-    String jobName = className + "-" + generateTestIdentifier() + "-prod";
+    return className + "-" + generateTestIdentifier() + "-prod";
+  }
+
+  /**
+   * @return E2EArgs for a Dataflow pipeline.
+   */
+  public static E2EArgs createPipelineArgs() {
+    HashMap<String, String> opts = new HashMap<String, String>();
+    E2EArgs.parseTestOptions("testFileLocation");
+    String jobName = generateJobName();
     opts.put("jobName", jobName);
     opts.put("runner", "com.google.cloud.dataflow.sdk.testing.TestDataflowPipelineRunner");
-    opts.put("stagingLocation", TestPipelineArgs.getTestFileLocation() + "staging/" + jobName);
-    return new TestPipelineArgs(opts);
+    opts.put("stagingLocation", E2EArgs.getTestFileLocation() + "staging/" + jobName);
+    return new E2EArgs(opts);
   }
 
   public static PipelineResult getPipelineResultByJobName(String jobName) {
-    return RESULT_MAP.get(jobName);
+    return EXECUTION_RESULTS.get(jobName);
   }
 
   @Override
@@ -187,7 +188,7 @@ public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJ
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
-    RESULT_MAP.put(options.getJobName(), job);
+    EXECUTION_RESULTS.put(options.getJobName(), job);
     return job;
   }
 

@@ -22,15 +22,13 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 import com.google.cloud.dataflow.sdk.PipelineResult;
+import com.google.cloud.dataflow.sdk.testing.E2EArgs;
 import com.google.cloud.dataflow.sdk.testing.TestDataflowPipelineRunner;
-import com.google.cloud.dataflow.sdk.testing.TestPipelineArgs;
+import com.google.common.base.Joiner;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.nio.file.Path;
-import java.nio.file.Paths;
 
 
 /**
@@ -40,17 +38,13 @@ import java.nio.file.Paths;
 public class WordCountIT {
   @Test
   public void testE2EWordCount() throws Exception {
-    TestPipelineArgs args = TestDataflowPipelineRunner.createPipelineArgs();
-    Path outputLoc = Paths.get(TestPipelineArgs.getTestFileLocation(),
-        "output", args.getJobName(), "results");
-    //args.add("output", outputLoc.toString());
-    args.add("output",
-        TestPipelineArgs.getTestFileLocation() + "output/" + args.getJobName() + "/results");
-    args.add("workerLogLevelOverrides",
-        "{\"com.google.cloud.dataflow.sdk.util.UploadIdResponseInterceptor\":\"DEBUG\"}");
+    E2EArgs args = TestDataflowPipelineRunner.createPipelineArgs();
+    args.add("output", Joiner.on("/").join(new String[]{E2EArgs.getTestFileLocation(),
+        "output", args.getArg("jobName"), "results"}));
+
     WordCount.main(args.build());
     PipelineResult result =
-        TestDataflowPipelineRunner.getPipelineResultByJobName(args.getJobName());
+        TestDataflowPipelineRunner.getPipelineResultByJobName(args.getArg("jobName"));
 
     assertNotNull(result);
     assertEquals(PipelineResult.State.DONE, result.getState());
