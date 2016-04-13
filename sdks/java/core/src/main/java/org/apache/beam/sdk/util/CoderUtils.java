@@ -19,7 +19,6 @@ package org.apache.beam.sdk.util;
 
 import static org.apache.beam.sdk.util.Structs.addList;
 
-import com.google.api.client.util.Base64;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -28,6 +27,8 @@ import org.apache.beam.sdk.coders.KvCoderBase;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.MapCoderBase;
 import org.apache.beam.sdk.values.TypeDescriptor;
+
+import com.google.api.client.util.Base64;
 import com.google.common.base.Throwables;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;

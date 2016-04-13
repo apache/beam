@@ -38,6 +38,7 @@ import org.apache.beam.sdk.util.IllegalMutationException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+
 import com.google.common.util.concurrent.MoreExecutors;
 
 import org.hamcrest.Matchers;

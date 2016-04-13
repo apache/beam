@@ -17,7 +17,6 @@
  */
 package org.apache.beam.examples.cookbook;
 
-import com.google.api.services.bigquery.model.TableRow;
 import org.apache.beam.examples.cookbook.TriggerExample.ExtractFlowInfo;
 import org.apache.beam.examples.cookbook.TriggerExample.TotalFlow;
 import org.apache.beam.sdk.Pipeline;
@@ -33,6 +32,8 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
+
+import com.google.api.services.bigquery.model.TableRow;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;

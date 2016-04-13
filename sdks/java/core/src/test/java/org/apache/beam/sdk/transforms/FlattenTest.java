@@ -40,6 +40,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionView;
+
 import com.google.common.collect.ImmutableSet;
 
 import org.joda.time.Duration;

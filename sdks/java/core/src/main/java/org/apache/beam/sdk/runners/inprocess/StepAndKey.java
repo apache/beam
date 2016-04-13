@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.runners.inprocess;
 
 import org.apache.beam.sdk.transforms.AppliedPTransform;
+
 import com.google.common.base.MoreObjects;
 
 import java.util.Objects;

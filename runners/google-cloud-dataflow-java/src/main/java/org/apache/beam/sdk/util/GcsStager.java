@@ -17,10 +17,11 @@
  */
 package org.apache.beam.sdk.util;
 
-import com.google.api.services.dataflow.model.DataflowPackage;
 import org.apache.beam.sdk.options.DataflowPipelineDebugOptions;
 import org.apache.beam.sdk.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+
+import com.google.api.services.dataflow.model.DataflowPackage;
 import com.google.common.base.Preconditions;
 
 import java.util.List;

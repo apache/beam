@@ -39,6 +39,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.IOChannelUtils;
+
 import com.google.common.collect.Iterables;
 import com.google.common.io.Files;
 

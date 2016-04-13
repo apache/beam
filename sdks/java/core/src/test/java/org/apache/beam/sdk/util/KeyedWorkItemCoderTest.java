@@ -23,6 +23,7 @@ import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.TimerInternals.TimerData;
 import org.apache.beam.sdk.util.state.StateNamespaces;
+
 import com.google.common.collect.ImmutableList;
 
 import org.joda.time.Instant;

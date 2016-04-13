@@ -22,6 +22,7 @@ import static org.junit.Assert.assertNull;
 
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.util.CoderUtils;
+
 import com.google.common.collect.ImmutableMap;
 
 import org.junit.Rule;

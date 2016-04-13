@@ -20,6 +20,7 @@ package org.apache.beam.sdk.coders;
 import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.Structs;
 import org.apache.beam.sdk.util.VarInt;
+
 import com.google.common.io.ByteStreams;
 
 import com.fasterxml.jackson.annotation.JsonCreator;

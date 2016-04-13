@@ -23,6 +23,7 @@ import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
+
 import com.google.common.base.Preconditions;
 
 import com.fasterxml.jackson.annotation.JsonCreator;

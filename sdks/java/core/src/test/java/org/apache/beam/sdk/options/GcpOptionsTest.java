@@ -24,6 +24,7 @@ import static org.mockito.Mockito.when;
 
 import org.apache.beam.sdk.options.GcpOptions.DefaultProjectFactory;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
+
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Files;
 

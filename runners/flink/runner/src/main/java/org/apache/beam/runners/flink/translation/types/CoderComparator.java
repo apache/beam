@@ -18,6 +18,7 @@
 package org.apache.beam.runners.flink.translation.types;
 
 import org.apache.beam.sdk.coders.Coder;
+
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;

@@ -33,6 +33,7 @@ import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
+
 import com.google.common.base.MoreObjects;
 
 import org.joda.time.Duration;

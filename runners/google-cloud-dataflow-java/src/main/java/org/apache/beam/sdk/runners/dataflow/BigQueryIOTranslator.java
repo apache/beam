@@ -17,14 +17,15 @@
  */
 package org.apache.beam.sdk.runners.dataflow;
 
-import com.google.api.client.json.JsonFactory;
-import com.google.api.services.bigquery.model.TableReference;
 import org.apache.beam.sdk.coders.TableRowJsonCoder;
 import org.apache.beam.sdk.io.BigQueryIO;
 import org.apache.beam.sdk.runners.DataflowPipelineTranslator;
 import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.Transport;
 import org.apache.beam.sdk.util.WindowedValue;
+
+import com.google.api.client.json.JsonFactory;
+import com.google.api.services.bigquery.model.TableReference;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

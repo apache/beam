@@ -28,15 +28,9 @@ import static org.apache.beam.sdk.util.Structs.addLong;
 import static org.apache.beam.sdk.util.Structs.addObject;
 import static org.apache.beam.sdk.util.Structs.addString;
 import static org.apache.beam.sdk.util.Structs.getString;
+
 import static com.google.common.base.Preconditions.checkArgument;
 
-import com.google.api.services.dataflow.model.AutoscalingSettings;
-import com.google.api.services.dataflow.model.DataflowPackage;
-import com.google.api.services.dataflow.model.Disk;
-import com.google.api.services.dataflow.model.Environment;
-import com.google.api.services.dataflow.model.Job;
-import com.google.api.services.dataflow.model.Step;
-import com.google.api.services.dataflow.model.WorkerPool;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.Coder;
@@ -79,6 +73,14 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypedPValue;
+
+import com.google.api.services.dataflow.model.AutoscalingSettings;
+import com.google.api.services.dataflow.model.DataflowPackage;
+import com.google.api.services.dataflow.model.Disk;
+import com.google.api.services.dataflow.model.Environment;
+import com.google.api.services.dataflow.model.Job;
+import com.google.api.services.dataflow.model.Step;
+import com.google.api.services.dataflow.model.WorkerPool;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 

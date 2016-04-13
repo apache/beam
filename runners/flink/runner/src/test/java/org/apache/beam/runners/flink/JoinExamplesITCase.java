@@ -18,13 +18,14 @@
 package org.apache.beam.runners.flink;
 
 import org.apache.beam.runners.flink.util.JoinExamples;
-import com.google.api.services.bigquery.model.TableRow;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+
+import com.google.api.services.bigquery.model.TableRow;
 import com.google.common.base.Joiner;
+
 import org.apache.flink.test.util.JavaProgramTestBase;
 
 import java.util.Arrays;

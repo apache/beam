@@ -19,6 +19,7 @@ package org.apache.beam.sdk.transforms.windowing;
 
 import static org.apache.beam.sdk.testing.WindowFnTestUtils.runWindowFn;
 import static org.apache.beam.sdk.testing.WindowFnTestUtils.set;
+
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;

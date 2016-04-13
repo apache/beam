@@ -22,6 +22,7 @@ import static org.junit.Assert.fail;
 
 import org.apache.beam.sdk.options.DirectPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 

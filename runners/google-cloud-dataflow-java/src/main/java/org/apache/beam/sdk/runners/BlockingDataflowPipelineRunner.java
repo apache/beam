@@ -17,10 +17,9 @@
  */
 package org.apache.beam.sdk.runners;
 
-import org.apache.beam.sdk.annotations.Experimental;
-
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult.State;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.BlockingDataflowPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;

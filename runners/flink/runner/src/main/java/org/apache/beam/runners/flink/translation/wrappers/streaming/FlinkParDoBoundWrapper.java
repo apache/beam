@@ -22,15 +22,19 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.*;
+import org.apache.beam.sdk.util.TimerInternals;
+import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowingInternals;
+import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+
 import org.apache.flink.util.Collector;
 import org.joda.time.Instant;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.Collection;
 
 /**
  * A wrapper for the {@link org.apache.beam.sdk.transforms.ParDo.Bound} Beam transformation.

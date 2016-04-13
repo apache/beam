@@ -25,6 +25,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.sdk.runners.DirectPipelineRunner;
+
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 

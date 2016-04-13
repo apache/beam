@@ -17,13 +17,13 @@
  */
 package org.apache.beam.sdk.util;
 
+import org.apache.beam.sdk.testing.ExpectedLogs;
+
 import com.google.api.client.http.GenericUrl;
 import com.google.api.client.http.HttpResponse;
-
 import com.google.api.client.testing.http.HttpTesting;
 import com.google.api.client.testing.http.MockHttpTransport;
 import com.google.api.client.testing.http.MockLowLevelHttpResponse;
-import org.apache.beam.sdk.testing.ExpectedLogs;
 
 import org.junit.Rule;
 import org.junit.Test;

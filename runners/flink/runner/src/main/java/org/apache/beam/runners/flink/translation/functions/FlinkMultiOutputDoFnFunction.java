@@ -18,7 +18,6 @@
 package org.apache.beam.runners.flink.translation.functions;
 
 import org.apache.beam.runners.flink.translation.wrappers.SerializableFnAggregatorWrapper;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine;
@@ -31,7 +30,11 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+
 import com.google.common.collect.ImmutableList;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.util.Collector;
 import org.joda.time.Instant;

@@ -26,6 +26,9 @@ import java.util.Map;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableList;
+import org.apache.beam.runners.spark.aggregators.AggAccumParam;
+import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -38,11 +41,6 @@ import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.Min;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import com.google.common.collect.ImmutableList;
-
-import org.apache.beam.runners.spark.aggregators.AggAccumParam;
-import org.apache.beam.runners.spark.aggregators.NamedAggregators;
-
 import org.apache.spark.Accumulator;
 import org.apache.spark.api.java.JavaSparkContext;
 

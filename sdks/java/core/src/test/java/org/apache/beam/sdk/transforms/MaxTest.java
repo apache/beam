@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.sdk.TestUtils.checkCombineFn;
+
 import static org.junit.Assert.assertEquals;
 
 import com.google.common.collect.Lists;

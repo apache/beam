@@ -20,6 +20,7 @@ package org.apache.beam.sdk.util;
 import static org.apache.beam.sdk.util.common.Counter.AggregationKind.MAX;
 import static org.apache.beam.sdk.util.common.Counter.AggregationKind.MIN;
 import static org.apache.beam.sdk.util.common.Counter.AggregationKind.SUM;
+
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -38,6 +39,7 @@ import org.apache.beam.sdk.util.common.Counter;
 import org.apache.beam.sdk.util.common.CounterProvider;
 import org.apache.beam.sdk.util.common.CounterSet;
 import org.apache.beam.sdk.util.common.CounterSet.AddCounterMutator;
+
 import com.google.common.collect.Iterables;
 
 import org.hamcrest.Matchers;

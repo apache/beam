@@ -38,6 +38,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
+
 import com.google.common.base.MoreObjects;
 
 import org.joda.time.Duration;

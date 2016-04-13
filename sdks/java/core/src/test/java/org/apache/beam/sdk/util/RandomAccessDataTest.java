@@ -27,6 +27,7 @@ import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.util.RandomAccessData.RandomAccessDataCoder;
+
 import com.google.common.primitives.UnsignedBytes;
 
 import org.junit.Rule;

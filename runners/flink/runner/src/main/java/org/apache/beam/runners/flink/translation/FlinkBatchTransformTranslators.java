@@ -31,7 +31,6 @@ import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.types.KvCoderTypeInformation;
 import org.apache.beam.runners.flink.translation.wrappers.SinkOutputFormat;
 import org.apache.beam.runners.flink.translation.wrappers.SourceInputFormat;
-import com.google.api.client.util.Maps;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -58,10 +57,13 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+
+import com.google.api.client.util.Maps;
 import com.google.common.collect.Lists;
+
 import org.apache.flink.api.common.functions.GroupReduceFunction;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.operators.Keys;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.io.AvroInputFormat;
 import org.apache.flink.api.java.io.AvroOutputFormat;

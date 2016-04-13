@@ -29,8 +29,9 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+
 import com.google.common.base.Joiner;
-import org.apache.flink.api.java.tuple.Tuple2;
+
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 import org.joda.time.Duration;
 import org.joda.time.Instant;

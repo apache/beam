@@ -27,6 +27,7 @@ import org.apache.beam.sdk.transforms.CombineWithContext.Context;
 import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.util.state.StateContexts;
+
 import com.google.common.collect.ImmutableList;
 
 import org.junit.Before;

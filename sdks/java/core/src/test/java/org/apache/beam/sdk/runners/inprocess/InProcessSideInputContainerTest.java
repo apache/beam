@@ -42,6 +42,7 @@ import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+
 import com.google.common.collect.ImmutableList;
 
 import org.joda.time.Instant;

@@ -28,7 +28,6 @@ import com.google.api.client.json.JsonFactory;
 import com.google.api.services.pubsub.Pubsub;
 import com.google.api.services.pubsub.PubsubScopes;
 import com.google.api.services.pubsub.model.Topic;
-
 import com.google.common.base.Preconditions;
 
 import java.io.IOException;

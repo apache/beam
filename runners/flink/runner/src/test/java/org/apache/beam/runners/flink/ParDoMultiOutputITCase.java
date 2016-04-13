@@ -26,7 +26,9 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+
 import com.google.common.base.Joiner;
+
 import org.apache.flink.test.util.JavaProgramTestBase;
 
 import java.io.Serializable;

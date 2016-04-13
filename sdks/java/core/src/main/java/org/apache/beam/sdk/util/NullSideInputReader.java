@@ -19,6 +19,7 @@ package org.apache.beam.sdk.util;
 
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
+
 import com.google.common.collect.Sets;
 
 import java.util.Collections;

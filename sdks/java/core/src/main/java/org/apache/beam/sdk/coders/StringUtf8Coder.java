@@ -20,6 +20,7 @@ package org.apache.beam.sdk.coders;
 import org.apache.beam.sdk.util.ExposedByteArrayOutputStream;
 import org.apache.beam.sdk.util.StreamUtils;
 import org.apache.beam.sdk.util.VarInt;
+
 import com.google.common.base.Utf8;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.CountingOutputStream;

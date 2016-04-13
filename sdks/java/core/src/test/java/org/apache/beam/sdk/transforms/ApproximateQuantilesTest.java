@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.sdk.TestUtils.checkCombineFn;
+
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 
 import org.apache.beam.sdk.Pipeline;

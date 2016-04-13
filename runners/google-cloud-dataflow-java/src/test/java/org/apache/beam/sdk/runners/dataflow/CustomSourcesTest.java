@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.runners.dataflow;
 import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
+
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertEquals;
@@ -42,6 +43,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
+
 import com.google.common.base.Preconditions;
 
 import org.joda.time.Duration;

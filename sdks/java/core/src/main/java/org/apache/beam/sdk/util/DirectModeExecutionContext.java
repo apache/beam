@@ -24,6 +24,7 @@ import org.apache.beam.sdk.util.common.worker.StateSampler;
 import org.apache.beam.sdk.util.state.InMemoryStateInternals;
 import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.values.TupleTag;
+
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 

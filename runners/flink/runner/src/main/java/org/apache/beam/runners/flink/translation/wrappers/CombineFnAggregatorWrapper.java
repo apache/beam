@@ -19,7 +19,9 @@ package org.apache.beam.runners.flink.translation.wrappers;
 
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine;
+
 import com.google.common.collect.Lists;
+
 import org.apache.flink.api.common.accumulators.Accumulator;
 
 import java.io.Serializable;

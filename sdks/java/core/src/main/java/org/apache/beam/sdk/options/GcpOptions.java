@@ -17,11 +17,12 @@
  */
 package org.apache.beam.sdk.options;
 
-import com.google.api.client.auth.oauth2.Credential;
-import com.google.api.client.googleapis.auth.oauth2.GoogleOAuthConstants;
 import org.apache.beam.sdk.util.CredentialFactory;
 import org.apache.beam.sdk.util.GcpCredentialFactory;
 import org.apache.beam.sdk.util.InstanceBuilder;
+
+import com.google.api.client.auth.oauth2.Credential;
+import com.google.api.client.googleapis.auth.oauth2.GoogleOAuthConstants;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.io.Files;
 

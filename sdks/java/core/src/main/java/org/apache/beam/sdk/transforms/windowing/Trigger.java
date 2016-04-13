@@ -22,6 +22,7 @@ import org.apache.beam.sdk.util.ExecutableTrigger;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.state.MergingStateAccessor;
 import org.apache.beam.sdk.util.state.StateAccessor;
+
 import com.google.common.base.Joiner;
 
 import org.joda.time.Instant;

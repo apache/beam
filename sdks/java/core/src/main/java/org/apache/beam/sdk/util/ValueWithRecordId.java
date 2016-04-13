@@ -24,6 +24,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
+
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 

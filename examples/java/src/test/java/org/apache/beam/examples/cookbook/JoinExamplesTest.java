@@ -17,7 +17,6 @@
  */
 package org.apache.beam.examples.cookbook;
 
-import com.google.api.services.bigquery.model.TableRow;
 import org.apache.beam.examples.cookbook.JoinExamples.ExtractCountryInfoFn;
 import org.apache.beam.examples.cookbook.JoinExamples.ExtractEventDataFn;
 import org.apache.beam.sdk.Pipeline;
@@ -28,6 +27,8 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+
+import com.google.api.services.bigquery.model.TableRow;
 
 import org.hamcrest.CoreMatchers;
 import org.junit.Assert;

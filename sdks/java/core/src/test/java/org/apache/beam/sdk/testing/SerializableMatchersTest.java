@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.testing.SerializableMatchers.anything;
 import static org.apache.beam.sdk.testing.SerializableMatchers.containsInAnyOrder;
 import static org.apache.beam.sdk.testing.SerializableMatchers.kvWithKey;
 import static org.apache.beam.sdk.testing.SerializableMatchers.not;
+
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
@@ -29,6 +30,7 @@ import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
+
 import com.google.common.collect.ImmutableList;
 
 import org.hamcrest.Matchers;

@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.coders;
 
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
+
 import com.google.common.base.Converter;
 
 import com.fasterxml.jackson.annotation.JsonCreator;

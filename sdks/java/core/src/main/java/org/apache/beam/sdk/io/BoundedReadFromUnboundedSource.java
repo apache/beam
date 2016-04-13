@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.util.StringUtils.approximateSimpleName;
 
-import com.google.api.client.util.BackOff;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -30,6 +29,8 @@ import org.apache.beam.sdk.util.IntervalBoundedExponentialBackOff;
 import org.apache.beam.sdk.util.ValueWithRecordId;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
+
+import com.google.api.client.util.BackOff;
 import com.google.common.util.concurrent.Uninterruptibles;
 
 import org.joda.time.Duration;

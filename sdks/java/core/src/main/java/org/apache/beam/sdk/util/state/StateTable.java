@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.util.state;
 
 import org.apache.beam.sdk.util.state.StateTag.StateBinder;
+
 import com.google.common.base.Supplier;
 import com.google.common.collect.Table;
 import com.google.common.collect.Tables;

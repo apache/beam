@@ -49,6 +49,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TimestampedValue;
+
 import com.google.common.collect.ImmutableList;
 
 import org.hamcrest.BaseMatcher;

@@ -27,8 +27,10 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
+
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
+
 import org.apache.flink.test.util.JavaProgramTestBase;
 
 import java.io.IOException;

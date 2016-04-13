@@ -20,11 +20,12 @@ package org.apache.beam.sdk.util;
 import static org.apache.beam.sdk.util.Transport.getJsonFactory;
 import static org.apache.beam.sdk.util.Transport.getTransport;
 
+import org.apache.beam.sdk.options.DataflowPipelineOptions;
+
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.services.clouddebugger.v2.Clouddebugger;
 import com.google.api.services.dataflow.Dataflow;
-import org.apache.beam.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
 import com.google.common.collect.ImmutableList;
 

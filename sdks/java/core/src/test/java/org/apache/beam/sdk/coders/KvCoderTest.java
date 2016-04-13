@@ -20,6 +20,7 @@ package org.apache.beam.sdk.coders;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
+
 import com.google.common.collect.ImmutableMap;
 
 import org.junit.Rule;

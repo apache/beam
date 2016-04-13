@@ -22,6 +22,7 @@ import static org.junit.Assert.assertEquals;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.DeterministicStandardCoder;
+
 import com.google.common.collect.ImmutableList;
 
 import com.fasterxml.jackson.annotation.JsonCreator;

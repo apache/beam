@@ -20,6 +20,7 @@ package org.apache.beam.sdk.coders.protobuf;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
+
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.Descriptors.FileDescriptor.Syntax;

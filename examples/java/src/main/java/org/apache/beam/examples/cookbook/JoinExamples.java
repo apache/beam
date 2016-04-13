@@ -17,7 +17,6 @@
  */
 package org.apache.beam.examples.cookbook;
 
-import com.google.api.services.bigquery.model.TableRow;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.BigQueryIO;
 import org.apache.beam.sdk.io.TextIO;
@@ -33,6 +32,8 @@ import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
+
+import com.google.api.services.bigquery.model.TableRow;
 
 /**
  * This example shows how to do a join on two collections.

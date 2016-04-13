@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.testing;
 
 import static org.apache.beam.sdk.testing.SystemNanoTimeSleeper.sleepMillis;
+
 import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;

@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms.windowing;
 
 import org.apache.beam.sdk.util.ExecutableTrigger;
+
 import com.google.common.annotations.VisibleForTesting;
 
 import org.joda.time.Instant;

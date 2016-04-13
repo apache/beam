@@ -29,6 +29,7 @@ import org.apache.beam.sdk.io.AvroSource.AvroReader.Seeker;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.SourceTestUtils;
+
 import com.google.common.base.MoreObjects;
 
 import org.apache.avro.Schema;

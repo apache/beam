@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io;
 
 import static com.google.api.services.datastore.client.DatastoreHelper.makeKey;
+
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
@@ -35,6 +36,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import org.apache.beam.sdk.io.DatastoreIO.DatastoreReader;
+import org.apache.beam.sdk.io.DatastoreIO.DatastoreWriter;
+import org.apache.beam.sdk.options.GcpOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.ExpectedLogs;
+import org.apache.beam.sdk.util.TestCredential;
+
 import com.google.api.services.datastore.DatastoreV1.Entity;
 import com.google.api.services.datastore.DatastoreV1.EntityResult;
 import com.google.api.services.datastore.DatastoreV1.Key;
@@ -49,13 +58,6 @@ import com.google.api.services.datastore.DatastoreV1.Value;
 import com.google.api.services.datastore.client.Datastore;
 import com.google.api.services.datastore.client.DatastoreHelper;
 import com.google.api.services.datastore.client.QuerySplitter;
-import org.apache.beam.sdk.io.DatastoreIO.DatastoreReader;
-import org.apache.beam.sdk.io.DatastoreIO.DatastoreWriter;
-import org.apache.beam.sdk.options.GcpOptions;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testing.ExpectedLogs;
-import org.apache.beam.sdk.util.TestCredential;
 import com.google.common.collect.Lists;
 
 import org.junit.Before;

@@ -18,6 +18,7 @@
 package org.apache.beam.runners.flink.translation.functions;
 
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
+
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.util.Collector;
 

@@ -24,6 +24,7 @@ import static org.apache.beam.sdk.util.common.Counter.AggregationKind.MEAN;
 import static org.apache.beam.sdk.util.common.Counter.AggregationKind.MIN;
 import static org.apache.beam.sdk.util.common.Counter.AggregationKind.OR;
 import static org.apache.beam.sdk.util.common.Counter.AggregationKind.SUM;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;

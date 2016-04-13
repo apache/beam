@@ -23,12 +23,6 @@ import static com.google.api.services.datastore.client.DatastoreHelper.makeFilte
 import static com.google.api.services.datastore.client.DatastoreHelper.makeKey;
 import static com.google.api.services.datastore.client.DatastoreHelper.makeValue;
 
-import com.google.api.services.datastore.DatastoreV1.Entity;
-import com.google.api.services.datastore.DatastoreV1.Key;
-import com.google.api.services.datastore.DatastoreV1.Property;
-import com.google.api.services.datastore.DatastoreV1.PropertyFilter;
-import com.google.api.services.datastore.DatastoreV1.Query;
-import com.google.api.services.datastore.DatastoreV1.Value;
 import org.apache.beam.examples.WordCount;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.DatastoreIO;
@@ -42,6 +36,13 @@ import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
+
+import com.google.api.services.datastore.DatastoreV1.Entity;
+import com.google.api.services.datastore.DatastoreV1.Key;
+import com.google.api.services.datastore.DatastoreV1.Property;
+import com.google.api.services.datastore.DatastoreV1.PropertyFilter;
+import com.google.api.services.datastore.DatastoreV1.Query;
+import com.google.api.services.datastore.DatastoreV1.Value;
 
 import java.util.Map;
 import java.util.UUID;

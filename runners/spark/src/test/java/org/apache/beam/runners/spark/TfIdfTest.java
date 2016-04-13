@@ -18,6 +18,9 @@
 
 package org.apache.beam.runners.spark;
 
+import java.net.URI;
+import java.util.Arrays;
+
 import org.apache.beam.examples.complete.TfIdf;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringDelegateCoder;
@@ -29,9 +32,6 @@ import org.apache.beam.sdk.transforms.RemoveDuplicates;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Test;
-
-import java.net.URI;
-import java.util.Arrays;
 
 /**
  * A test based on {@code TfIdf} from the SDK.

@@ -22,6 +22,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
+
 import com.google.common.collect.ImmutableList;
 
 import org.junit.Rule;

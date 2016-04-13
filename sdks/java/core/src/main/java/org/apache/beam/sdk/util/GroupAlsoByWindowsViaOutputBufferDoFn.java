@@ -21,6 +21,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.values.KV;
+
 import com.google.common.collect.Iterables;
 
 import org.joda.time.Instant;

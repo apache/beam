@@ -23,6 +23,7 @@ import static org.junit.Assert.assertTrue;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.util.CoderUtils;
+
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.ByteString;
 

@@ -29,6 +29,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 

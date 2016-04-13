@@ -23,7 +23,6 @@ import static org.junit.Assert.assertEquals;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CoderRegistry.IncompatibleCoderException;
-import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageA;
 import org.apache.beam.sdk.coders.protobuf.ProtoCoder;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -35,6 +34,8 @@ import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
+
+import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageA;
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.Duration;
 

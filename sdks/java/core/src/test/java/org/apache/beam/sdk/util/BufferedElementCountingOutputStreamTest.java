@@ -23,6 +23,7 @@ import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder.Context;
+
 import com.google.common.collect.ImmutableList;
 
 import org.hamcrest.collection.IsIterableContainingInOrder;

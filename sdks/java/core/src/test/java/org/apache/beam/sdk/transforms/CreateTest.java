@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.TestUtils.LINES;
 import static org.apache.beam.sdk.TestUtils.LINES_ARRAY;
 import static org.apache.beam.sdk.TestUtils.NO_LINES;
 import static org.apache.beam.sdk.TestUtils.NO_LINES_ARRAY;
+
 import static org.junit.Assert.assertEquals;
 
 import org.apache.beam.sdk.Pipeline;

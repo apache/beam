@@ -34,6 +34,7 @@ import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithConte
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.values.TupleTag;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;

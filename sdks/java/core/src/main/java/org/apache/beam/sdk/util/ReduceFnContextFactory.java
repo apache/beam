@@ -35,6 +35,7 @@ import org.apache.beam.sdk.util.state.StateNamespace;
 import org.apache.beam.sdk.util.state.StateNamespaces;
 import org.apache.beam.sdk.util.state.StateNamespaces.WindowNamespace;
 import org.apache.beam.sdk.util.state.StateTag;
+
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 

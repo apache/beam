@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.util;
 
 import org.apache.beam.sdk.util.TimerInternals.TimerData;
+
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.Iterables;
 

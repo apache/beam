@@ -17,11 +17,12 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.options.PipelineOptions;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.Configuration;

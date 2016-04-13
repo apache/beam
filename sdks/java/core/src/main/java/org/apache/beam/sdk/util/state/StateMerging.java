@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.util.state;
 
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+
 import com.google.common.base.Preconditions;
 
 import org.joda.time.Instant;

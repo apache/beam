@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.spark.translation.streaming;
 
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.runners.spark.SparkStreamingPipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 
 public final class SparkStreamingPipelineOptionsFactory {
 

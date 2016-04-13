@@ -21,6 +21,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.JAXBCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PipelineRunner;
+
 import com.google.common.base.Preconditions;
 
 import org.codehaus.stax2.XMLInputFactory2;

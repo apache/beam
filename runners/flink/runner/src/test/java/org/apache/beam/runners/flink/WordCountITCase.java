@@ -24,7 +24,9 @@ import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollection;
+
 import com.google.common.base.Joiner;
+
 import org.apache.flink.test.util.JavaProgramTestBase;
 
 import java.util.Arrays;

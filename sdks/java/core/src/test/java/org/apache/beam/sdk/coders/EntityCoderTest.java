@@ -21,9 +21,10 @@ import static com.google.api.services.datastore.client.DatastoreHelper.makeKey;
 import static com.google.api.services.datastore.client.DatastoreHelper.makeProperty;
 import static com.google.api.services.datastore.client.DatastoreHelper.makeValue;
 
-import com.google.api.services.datastore.DatastoreV1.Entity;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.util.CoderUtils;
+
+import com.google.api.services.datastore.DatastoreV1.Entity;
 
 import org.junit.Rule;
 import org.junit.Test;

@@ -23,7 +23,9 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
+
 import com.google.common.base.Joiner;
+
 import org.apache.flink.test.util.JavaProgramTestBase;
 
 public class FlattenizeITCase extends JavaProgramTestBase {

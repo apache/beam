@@ -37,6 +37,7 @@ import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.util.common.CounterSet;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 

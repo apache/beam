@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.runners.worker;
 
 import static org.apache.beam.sdk.util.Structs.addLong;
+
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
@@ -36,6 +37,7 @@ import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.RandomAccessData;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.PCollection;
+
 import com.google.common.base.MoreObjects;
 import com.google.common.base.MoreObjects.ToStringHelper;
 import com.google.common.base.Objects;

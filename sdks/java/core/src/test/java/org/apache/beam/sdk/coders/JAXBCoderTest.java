@@ -19,6 +19,7 @@ package org.apache.beam.sdk.coders;
 
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.util.CoderUtils;
+
 import com.google.common.collect.ImmutableList;
 
 import org.junit.Assert;

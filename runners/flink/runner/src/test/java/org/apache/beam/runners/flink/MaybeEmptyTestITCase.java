@@ -23,6 +23,7 @@ import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+
 import org.apache.flink.test.util.JavaProgramTestBase;
 
 import java.io.Serializable;

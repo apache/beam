@@ -27,6 +27,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
+
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 

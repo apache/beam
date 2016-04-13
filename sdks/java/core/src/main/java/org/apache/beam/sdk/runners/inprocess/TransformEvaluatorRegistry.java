@@ -24,6 +24,7 @@ import org.apache.beam.sdk.transforms.Flatten.FlattenPCollectionList;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.Window;
+
 import com.google.common.collect.ImmutableMap;
 
 import java.util.Map;

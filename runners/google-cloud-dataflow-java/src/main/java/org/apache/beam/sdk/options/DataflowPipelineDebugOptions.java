@@ -18,14 +18,14 @@
 package org.apache.beam.sdk.options;
 
 import org.apache.beam.sdk.annotations.Experimental;
-
-import com.google.api.services.dataflow.Dataflow;
 import org.apache.beam.sdk.util.DataflowPathValidator;
 import org.apache.beam.sdk.util.DataflowTransport;
 import org.apache.beam.sdk.util.GcsStager;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.util.PathValidator;
 import org.apache.beam.sdk.util.Stager;
+
+import com.google.api.services.dataflow.Dataflow;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 

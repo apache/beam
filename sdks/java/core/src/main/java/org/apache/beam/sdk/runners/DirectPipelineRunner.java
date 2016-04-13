@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.runners;
 
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
+
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
@@ -72,6 +73,7 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TypedPValue;
+
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 

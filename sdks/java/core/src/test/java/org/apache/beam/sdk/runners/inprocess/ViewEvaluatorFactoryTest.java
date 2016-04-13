@@ -38,6 +38,7 @@ import org.apache.beam.sdk.util.PCollectionViews;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+
 import com.google.common.collect.ImmutableList;
 
 import org.joda.time.Instant;

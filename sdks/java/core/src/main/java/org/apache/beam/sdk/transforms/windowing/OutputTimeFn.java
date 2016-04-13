@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms.windowing;
 
 import org.apache.beam.sdk.annotations.Experimental;
+
 import com.google.common.collect.Ordering;
 
 import org.joda.time.Instant;

@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io;
 import org.apache.beam.sdk.io.range.OffsetRangeTracker;
 import org.apache.beam.sdk.io.range.RangeTracker;
 import org.apache.beam.sdk.options.PipelineOptions;
+
 import com.google.common.base.Preconditions;
 
 import org.slf4j.Logger;

@@ -17,9 +17,6 @@
  */
 package org.apache.beam.sdk.testing;
 
-import com.google.api.services.dataflow.model.JobMessage;
-import com.google.api.services.dataflow.model.JobMetrics;
-import com.google.api.services.dataflow.model.MetricUpdate;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -32,6 +29,10 @@ import org.apache.beam.sdk.util.MonitoringUtil;
 import org.apache.beam.sdk.util.MonitoringUtil.JobMessagesHandler;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
+
+import com.google.api.services.dataflow.model.JobMessage;
+import com.google.api.services.dataflow.model.JobMetrics;
+import com.google.api.services.dataflow.model.MetricUpdate;
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 

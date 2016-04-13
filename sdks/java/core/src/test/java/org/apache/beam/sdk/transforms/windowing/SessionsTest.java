@@ -27,6 +27,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.sdk.testing.WindowFnTestUtils;
+
 import com.google.common.collect.ImmutableList;
 
 import org.joda.time.Duration;

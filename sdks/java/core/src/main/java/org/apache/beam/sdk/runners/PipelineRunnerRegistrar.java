@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.runners;
 
 import com.google.auto.service.AutoService;
+
 import java.util.ServiceLoader;
 
 /**

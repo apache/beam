@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.io.bigtable;
 
+import org.apache.beam.sdk.io.bigtable.BigtableIO.BigtableSource;
+import org.apache.beam.sdk.values.KV;
+
 import com.google.bigtable.admin.table.v1.GetTableRequest;
 import com.google.bigtable.v1.MutateRowRequest;
 import com.google.bigtable.v1.Mutation;
@@ -30,8 +33,6 @@ import com.google.cloud.bigtable.grpc.BigtableSession;
 import com.google.cloud.bigtable.grpc.async.AsyncExecutor;
 import com.google.cloud.bigtable.grpc.async.HeapSizeManager;
 import com.google.cloud.bigtable.grpc.scanner.ResultScanner;
-import org.apache.beam.sdk.io.bigtable.BigtableIO.BigtableSource;
-import org.apache.beam.sdk.values.KV;
 import com.google.common.base.MoreObjects;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.ListenableFuture;

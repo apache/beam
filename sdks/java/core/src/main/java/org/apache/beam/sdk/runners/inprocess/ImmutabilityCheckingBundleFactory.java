@@ -19,7 +19,6 @@ package org.apache.beam.sdk.runners.inprocess;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.api.client.util.Throwables;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
@@ -32,6 +31,8 @@ import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
+
+import com.google.api.client.util.Throwables;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.SetMultimap;
 

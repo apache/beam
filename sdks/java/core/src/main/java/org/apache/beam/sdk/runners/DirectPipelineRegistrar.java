@@ -17,10 +17,11 @@
  */
 package org.apache.beam.sdk.runners;
 
-import com.google.auto.service.AutoService;
 import org.apache.beam.sdk.options.DirectPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
+
+import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableList;
 
 /**

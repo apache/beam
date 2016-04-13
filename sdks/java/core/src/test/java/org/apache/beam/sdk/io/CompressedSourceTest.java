@@ -33,6 +33,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
+
 import com.google.common.io.Files;
 import com.google.common.primitives.Bytes;
 

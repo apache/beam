@@ -17,8 +17,9 @@
  */
 package org.apache.beam.sdk.util;
 
-import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import org.apache.beam.sdk.options.BigQueryOptions;
+
+import com.google.api.services.bigquery.model.JobConfigurationLoad;
 
 import java.io.IOException;
 import java.io.Serializable;

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.util.common.worker;
 
 import org.apache.beam.sdk.util.common.Counter;
 import org.apache.beam.sdk.util.common.CounterSet;
+
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import java.util.ArrayList;

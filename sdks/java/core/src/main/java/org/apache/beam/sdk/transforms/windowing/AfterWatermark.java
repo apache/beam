@@ -23,6 +23,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
 import org.apache.beam.sdk.util.ExecutableTrigger;
 import org.apache.beam.sdk.util.TimeDomain;
+
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 

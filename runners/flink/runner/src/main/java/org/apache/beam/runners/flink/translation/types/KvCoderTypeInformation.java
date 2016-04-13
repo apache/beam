@@ -19,12 +19,14 @@ package org.apache.beam.runners.flink.translation.types;
 
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.values.KV;
+
+import com.google.common.base.Preconditions;
+
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import com.google.common.base.Preconditions;
 
 import java.util.List;
 

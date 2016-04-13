@@ -23,6 +23,7 @@ import org.apache.beam.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBu
 import org.apache.beam.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
+
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 

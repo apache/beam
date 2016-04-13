@@ -44,6 +44,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
+
 import com.google.common.annotations.VisibleForTesting;
 
 import java.util.ArrayList;

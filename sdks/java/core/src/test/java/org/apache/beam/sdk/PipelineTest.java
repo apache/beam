@@ -46,6 +46,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.TupleTag;
+
 import com.google.common.collect.ImmutableList;
 
 import org.junit.Assert;

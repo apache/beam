@@ -17,11 +17,13 @@
  */
 package org.apache.beam.runners.flink;
 
-import org.apache.beam.runners.flink.translation.FlinkPipelineTranslator;
 import org.apache.beam.runners.flink.translation.FlinkBatchPipelineTranslator;
+import org.apache.beam.runners.flink.translation.FlinkPipelineTranslator;
 import org.apache.beam.runners.flink.translation.FlinkStreamingPipelineTranslator;
 import org.apache.beam.sdk.Pipeline;
+
 import com.google.common.base.Preconditions;
+
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.CollectionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironment;

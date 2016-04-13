@@ -25,8 +25,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import com.google.api.client.util.BackOff;
 import org.apache.beam.sdk.testing.FastNanoClockAndSleeper;
+
+import com.google.api.client.util.BackOff;
 
 import org.junit.Rule;
 import org.junit.Test;

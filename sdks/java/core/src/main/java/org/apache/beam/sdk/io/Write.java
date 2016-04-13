@@ -17,9 +17,8 @@
  */
 package org.apache.beam.sdk.io;
 
-import org.apache.beam.sdk.annotations.Experimental;
-
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.Sink.WriteOperation;

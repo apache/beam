@@ -22,6 +22,7 @@ import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.Partition;
+
 import com.google.common.collect.ImmutableList;
 
 import java.util.ArrayList;

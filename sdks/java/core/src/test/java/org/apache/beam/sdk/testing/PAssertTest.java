@@ -19,6 +19,7 @@ package org.apache.beam.sdk.testing;
 
 import static org.apache.beam.sdk.testing.SerializableMatchers.anything;
 import static org.apache.beam.sdk.testing.SerializableMatchers.not;
+
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 

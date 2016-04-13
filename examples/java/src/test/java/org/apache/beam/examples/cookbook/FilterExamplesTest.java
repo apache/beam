@@ -17,10 +17,11 @@
  */
 package org.apache.beam.examples.cookbook;
 
-import com.google.api.services.bigquery.model.TableRow;
 import org.apache.beam.examples.cookbook.FilterExamples.FilterSingleMonthDataFn;
 import org.apache.beam.examples.cookbook.FilterExamples.ProjectionFn;
 import org.apache.beam.sdk.transforms.DoFnTester;
+
+import com.google.api.services.bigquery.model.TableRow;
 
 import org.hamcrest.CoreMatchers;
 import org.junit.Assert;

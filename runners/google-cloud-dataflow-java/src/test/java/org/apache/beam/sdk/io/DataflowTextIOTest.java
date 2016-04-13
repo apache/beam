@@ -24,6 +24,7 @@ import org.apache.beam.sdk.testing.TestDataflowPipelineOptions;
 import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.TestCredential;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
+
 import com.google.common.collect.ImmutableList;
 
 import org.junit.Test;

@@ -24,6 +24,7 @@ import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+
 import com.google.common.base.MoreObjects;
 import com.google.common.io.ByteStreams;
 import com.google.common.primitives.UnsignedBytes;

@@ -24,6 +24,7 @@ import org.apache.beam.sdk.io.XmlSink.XmlWriteOperation;
 import org.apache.beam.sdk.io.XmlSink.XmlWriter;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+
 import com.google.common.collect.Lists;
 
 import org.junit.Rule;

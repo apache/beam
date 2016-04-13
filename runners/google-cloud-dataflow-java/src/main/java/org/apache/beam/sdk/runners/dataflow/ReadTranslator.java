@@ -21,7 +21,6 @@ import static org.apache.beam.sdk.util.Structs.addBoolean;
 import static org.apache.beam.sdk.util.Structs.addDictionary;
 import static org.apache.beam.sdk.util.Structs.addLong;
 
-import com.google.api.services.dataflow.model.SourceMetadata;
 import org.apache.beam.sdk.io.FileBasedSource;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.Source;
@@ -31,6 +30,8 @@ import org.apache.beam.sdk.runners.DataflowPipelineTranslator.TranslationContext
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.values.PValue;
+
+import com.google.api.services.dataflow.model.SourceMetadata;
 
 import java.util.HashMap;
 import java.util.Map;

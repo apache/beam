@@ -18,7 +18,6 @@
 package org.apache.beam.examples.complete.game;
 
 import org.apache.beam.examples.complete.game.utils.WriteWindowedToBigQuery;
-
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.Default;

@@ -18,11 +18,14 @@
 
 package org.apache.beam.runners.flink.translation.wrappers;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.beam.sdk.io.Sink;
 import org.apache.beam.sdk.options.PipelineOptions;
-import com.google.common.base.Preconditions;
 import org.apache.beam.sdk.transforms.Write;
+
+import com.google.common.base.Preconditions;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.AbstractID;

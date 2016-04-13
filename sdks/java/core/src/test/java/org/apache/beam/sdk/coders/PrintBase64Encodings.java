@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.coders;
 
 import org.apache.beam.sdk.util.CoderUtils;
+
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 

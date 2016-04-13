@@ -21,6 +21,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory.JsonIgnorePredicate;
 import org.apache.beam.sdk.options.PipelineOptionsFactory.Registration;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
+
 import com.google.common.base.Defaults;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;

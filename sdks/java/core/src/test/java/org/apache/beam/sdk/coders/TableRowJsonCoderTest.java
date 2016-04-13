@@ -17,8 +17,9 @@
  */
 package org.apache.beam.sdk.coders;
 
-import com.google.api.services.bigquery.model.TableRow;
 import org.apache.beam.sdk.testing.CoderProperties;
+
+import com.google.api.services.bigquery.model.TableRow;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;

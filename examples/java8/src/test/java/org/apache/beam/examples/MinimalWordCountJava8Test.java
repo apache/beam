@@ -29,6 +29,7 @@ import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
+
 import com.google.common.collect.ImmutableList;
 
 import org.junit.Test;

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.transforms;
 
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
+
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
 

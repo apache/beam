@@ -37,6 +37,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.Window.Bound;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
+
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 

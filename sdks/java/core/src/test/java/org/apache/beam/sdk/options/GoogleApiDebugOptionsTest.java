@@ -21,11 +21,12 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
-import com.google.api.services.bigquery.Bigquery.Datasets.Delete;
-import com.google.api.services.storage.Storage;
 import org.apache.beam.sdk.options.GoogleApiDebugOptions.GoogleApiTracer;
 import org.apache.beam.sdk.util.TestCredential;
 import org.apache.beam.sdk.util.Transport;
+
+import com.google.api.services.bigquery.Bigquery.Datasets.Delete;
+import com.google.api.services.storage.Storage;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 

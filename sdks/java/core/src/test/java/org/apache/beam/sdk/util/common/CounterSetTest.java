@@ -19,6 +19,7 @@ package org.apache.beam.sdk.util.common;
 
 import static org.apache.beam.sdk.util.common.Counter.AggregationKind.MAX;
 import static org.apache.beam.sdk.util.common.Counter.AggregationKind.SUM;
+
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertFalse;

@@ -18,6 +18,7 @@
 package org.apache.beam.runners.flink.translation.wrappers;
 
 import org.apache.beam.sdk.io.Source;
+
 import org.apache.flink.core.io.InputSplit;
 
 /**

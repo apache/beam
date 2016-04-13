@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.sdk.TestUtils.NO_LINES;
+
 import static org.junit.Assert.assertEquals;
 
 import org.apache.beam.sdk.Pipeline;

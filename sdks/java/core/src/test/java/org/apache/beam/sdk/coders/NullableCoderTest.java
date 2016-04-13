@@ -25,6 +25,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.sdk.testing.CoderProperties;
+
 import com.google.common.collect.ImmutableList;
 
 import org.junit.Rule;

@@ -18,8 +18,8 @@
 
 package org.apache.beam.runners.spark.translation;
 
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 
 public final class SparkPipelineOptionsFactory {
   private SparkPipelineOptionsFactory() {

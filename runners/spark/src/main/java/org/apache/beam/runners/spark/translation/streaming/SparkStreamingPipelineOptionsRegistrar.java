@@ -17,10 +17,10 @@
  */
 package org.apache.beam.runners.spark.translation.streaming;
 
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 import com.google.common.collect.ImmutableList;
 import org.apache.beam.runners.spark.SparkStreamingPipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 
 public class SparkStreamingPipelineOptionsRegistrar implements PipelineOptionsRegistrar {
 

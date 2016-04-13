@@ -17,7 +17,6 @@
  */
 package org.apache.beam.examples.complete.game.utils;
 
-import com.google.api.services.bigquery.model.TableRow;
 import org.apache.beam.sdk.io.BigQueryIO;
 import org.apache.beam.sdk.io.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.BigQueryIO.Write.WriteDisposition;
@@ -27,6 +26,8 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+
+import com.google.api.services.bigquery.model.TableRow;
 
 import java.util.Map;
 

@@ -28,6 +28,7 @@ import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.util.state.InMemoryStateInternals.InMemoryState;
 import org.apache.beam.sdk.util.state.StateTag.StateBinder;
+
 import com.google.common.base.Optional;
 import com.google.common.collect.Iterables;
 

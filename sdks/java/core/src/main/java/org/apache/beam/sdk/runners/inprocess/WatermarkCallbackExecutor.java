@@ -20,6 +20,7 @@ package org.apache.beam.sdk.runners.inprocess;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowingStrategy;
+
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Ordering;
 

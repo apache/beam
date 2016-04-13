@@ -23,6 +23,7 @@ import org.apache.beam.sdk.io.FileBasedSink.FileBasedWriter;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PCollection;
+
 import com.google.common.base.Preconditions;
 
 import java.io.OutputStream;

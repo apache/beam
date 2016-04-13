@@ -17,9 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import org.apache.beam.sdk.annotations.Experimental;
-
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -47,6 +46,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypedPValue;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 

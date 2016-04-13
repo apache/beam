@@ -28,6 +28,7 @@ import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.LateDataDroppingDoFnRunner.LateDataFilter;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 

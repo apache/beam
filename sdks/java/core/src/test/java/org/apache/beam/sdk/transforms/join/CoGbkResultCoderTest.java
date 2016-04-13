@@ -28,6 +28,7 @@ import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.join.CoGbkResult.CoGbkResultCoder;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+
 import com.google.common.collect.ImmutableList;
 
 import org.junit.Test;

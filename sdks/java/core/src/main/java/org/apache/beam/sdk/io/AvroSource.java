@@ -24,6 +24,7 @@ import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.util.AvroUtils;
 import org.apache.beam.sdk.util.AvroUtils.AvroMetadata;
 import org.apache.beam.sdk.values.PCollection;
+
 import com.google.common.base.Preconditions;
 
 import org.apache.avro.Schema;

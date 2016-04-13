@@ -20,6 +20,7 @@ package org.apache.beam.sdk.transforms.windowing;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
 import org.apache.beam.sdk.util.ExecutableTrigger;
+
 import com.google.common.base.Preconditions;
 
 import org.joda.time.Instant;

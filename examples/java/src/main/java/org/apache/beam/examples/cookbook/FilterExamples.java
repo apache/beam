@@ -17,9 +17,6 @@
  */
 package org.apache.beam.examples.cookbook;
 
-import com.google.api.services.bigquery.model.TableFieldSchema;
-import com.google.api.services.bigquery.model.TableRow;
-import com.google.api.services.bigquery.model.TableSchema;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.BigQueryIO;
 import org.apache.beam.sdk.options.Default;
@@ -34,6 +31,10 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+
+import com.google.api.services.bigquery.model.TableFieldSchema;
+import com.google.api.services.bigquery.model.TableRow;
+import com.google.api.services.bigquery.model.TableSchema;
 
 import java.util.ArrayList;
 import java.util.List;

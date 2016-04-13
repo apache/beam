@@ -20,12 +20,6 @@ package org.apache.beam.sdk.io;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
-import com.google.api.client.util.Data;
-import com.google.api.services.bigquery.model.JobConfigurationLoad;
-import com.google.api.services.bigquery.model.TableFieldSchema;
-import com.google.api.services.bigquery.model.TableReference;
-import com.google.api.services.bigquery.model.TableRow;
-import com.google.api.services.bigquery.model.TableSchema;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.TableRowJsonCoder;
@@ -40,6 +34,13 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.util.BigQueryServices;
 import org.apache.beam.sdk.util.BigQueryServices.Status;
 import org.apache.beam.sdk.util.CoderUtils;
+
+import com.google.api.client.util.Data;
+import com.google.api.services.bigquery.model.JobConfigurationLoad;
+import com.google.api.services.bigquery.model.TableFieldSchema;
+import com.google.api.services.bigquery.model.TableReference;
+import com.google.api.services.bigquery.model.TableRow;
+import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.collect.ImmutableList;
 
 import org.hamcrest.Matchers;

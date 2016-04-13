@@ -19,6 +19,7 @@
 package org.apache.beam.sdk.io;
 
 import com.google.api.client.repackaged.com.google.common.base.Preconditions;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collection;

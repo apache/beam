@@ -20,8 +20,10 @@ package org.apache.beam.sdk.values;
 import static org.apache.beam.sdk.util.Structs.addBoolean;
 import static org.apache.beam.sdk.util.Structs.addString;
 
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.PropertyNames;
+
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
 

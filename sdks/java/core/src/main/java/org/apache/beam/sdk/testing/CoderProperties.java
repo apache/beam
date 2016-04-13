@@ -36,6 +36,7 @@ import org.apache.beam.sdk.util.Serializer;
 import org.apache.beam.sdk.util.Structs;
 import org.apache.beam.sdk.util.UnownedInputStream;
 import org.apache.beam.sdk.util.UnownedOutputStream;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
 

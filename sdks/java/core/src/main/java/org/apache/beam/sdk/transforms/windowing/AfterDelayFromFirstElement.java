@@ -31,6 +31,7 @@ import org.apache.beam.sdk.util.state.StateAccessor;
 import org.apache.beam.sdk.util.state.StateMerging;
 import org.apache.beam.sdk.util.state.StateTag;
 import org.apache.beam.sdk.util.state.StateTags;
+
 import com.google.common.collect.ImmutableList;
 
 import org.joda.time.Duration;

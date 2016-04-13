@@ -23,6 +23,7 @@ import org.apache.beam.sdk.coders.protobuf.ProtoCoder;
 import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.Structs;
 import org.apache.beam.sdk.values.TypeDescriptor;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;

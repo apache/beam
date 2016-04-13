@@ -21,6 +21,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.WindowingStrategy;
+
 import com.google.common.collect.Ordering;
 
 import org.joda.time.Instant;
