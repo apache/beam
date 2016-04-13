@@ -1,19 +1,21 @@
-package cz.seznam.euphoria.kafka;
-
-import cz.seznam.euphoria.core.client.io.DataSink;
-import cz.seznam.euphoria.core.client.io.Writer;
+package cz.seznam.euphoria.core.client.io;
 
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.Objects;
 
+/**
+ * A sink to write to a specified print stream (typically
+ * {@link java.lang.System#out}) using the produce element's
+ * {@link Object#toString()} implementation.
+ */
 public class PrintStreamSink<T> extends DataSink<T> {
 
   static abstract class AbstractWriter<T> extends Writer<T> {
     final PrintStream out;
 
     AbstractWriter(PrintStream out) {
-      this.out = Objects.requireNonNull(out);
+      this.out = out;
     }
 
     @Override
@@ -44,6 +46,9 @@ public class PrintStreamSink<T> extends DataSink<T> {
 
     @Override
     public void write(T elem) throws IOException {
+      // ~ make sure to issue only _one_ `out.println()` call to
+      // avoid messing up the output with concurrent threads trying
+      // to do the same
       buf.setLength(0);
       buf.append('[').append(partitionId).append("]: ").append(elem);
       out.println(buf);
@@ -58,7 +63,7 @@ public class PrintStreamSink<T> extends DataSink<T> {
   }
 
   public PrintStreamSink(PrintStream out, boolean dumpPartitionId) {
-    this.out = out;
+    this.out = Objects.requireNonNull(out);
     this.dumpPartitionId = dumpPartitionId;
   }
 
