@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.coders;
 
-import com.google.cloud.dataflow.sdk.coders.Coder.NonDeterministicException;
-import com.google.cloud.dataflow.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
+import org.apache.beam.sdk.testing.CoderProperties;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;

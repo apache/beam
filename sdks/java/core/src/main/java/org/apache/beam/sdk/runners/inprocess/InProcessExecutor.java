@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.runners.inprocess;
 
-import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
-import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
-import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import org.apache.beam.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.transforms.PTransform;
 
 import java.util.Collection;
 

@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.coders;
 
-import com.google.cloud.dataflow.sdk.testing.CoderProperties;
-import com.google.cloud.dataflow.sdk.util.CoderUtils;
+import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.util.CoderUtils;
 import com.google.common.collect.ImmutableList;
 
 import org.junit.Assert;

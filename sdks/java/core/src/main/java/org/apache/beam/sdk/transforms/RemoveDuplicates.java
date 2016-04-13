@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import com.google.cloud.dataflow.sdk.values.KV;
-import com.google.cloud.dataflow.sdk.values.PCollection;
-import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * {@code RemoveDuplicates<T>} takes a {@code PCollection<T>} and
@@ -43,7 +43,7 @@ import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
  * <p>Each output element is in the same window as its corresponding input
  * element, and has the timestamp of the end of that window.  The output
  * {@code PCollection} has the same
- * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
+ * {@link org.apache.beam.sdk.transforms.windowing.WindowFn}
  * as the input.
  *
  * <p>Does not preserve any order the input PCollection might have had.

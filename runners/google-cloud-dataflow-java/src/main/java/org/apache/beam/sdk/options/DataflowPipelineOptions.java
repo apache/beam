@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.options;
 
-import com.google.cloud.dataflow.sdk.runners.DataflowPipeline;
+import org.apache.beam.sdk.runners.DataflowPipeline;
 import com.google.common.base.MoreObjects;
 
 import org.joda.time.DateTimeUtils;

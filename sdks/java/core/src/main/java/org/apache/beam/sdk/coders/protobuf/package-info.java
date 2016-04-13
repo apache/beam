@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 /**
- * Defines a {@link com.google.cloud.dataflow.sdk.coders.Coder}
+ * Defines a {@link org.apache.beam.sdk.coders.Coder}
  * for Protocol Buffers messages, {@code ProtoCoder}.
  *
- * @see com.google.cloud.dataflow.sdk.coders.protobuf.ProtoCoder
+ * @see org.apache.beam.sdk.coders.protobuf.ProtoCoder
  */
 package org.apache.beam.sdk.coders.protobuf;

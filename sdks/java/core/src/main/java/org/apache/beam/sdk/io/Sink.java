@@ -18,9 +18,9 @@
 package org.apache.beam.sdk.io;
 
 import org.apache.beam.sdk.annotations.Experimental;
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.values.PCollection;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.values.PCollection;
 
 import java.io.Serializable;
 

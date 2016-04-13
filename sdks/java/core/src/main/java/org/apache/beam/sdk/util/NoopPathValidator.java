@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.util;
 
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
  * Noop implementation of {@link PathValidator}. All paths are allowed and returned unchanged.

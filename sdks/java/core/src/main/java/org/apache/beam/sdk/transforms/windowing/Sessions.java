@@ -19,7 +19,7 @@ package org.apache.beam.sdk.transforms.windowing;
 
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import com.google.cloud.dataflow.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.Coder;
 
 import org.joda.time.Duration;
 

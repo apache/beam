@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static com.google.cloud.dataflow.sdk.testing.SystemNanoTimeSleeper.sleepMillis;
+import static org.apache.beam.sdk.testing.SystemNanoTimeSleeper.sleepMillis;
 import static org.hamcrest.Matchers.both;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
@@ -28,8 +28,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.testing.TestPipeline;
 
 import org.junit.Before;
 import org.junit.Test;

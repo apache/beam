@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.util;
 
-import com.google.cloud.dataflow.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTag;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;

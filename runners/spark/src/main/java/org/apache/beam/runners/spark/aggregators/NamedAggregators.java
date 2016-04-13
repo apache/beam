@@ -25,9 +25,9 @@ import java.io.Serializable;
 import java.util.Map;
 import java.util.TreeMap;
 
-import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.transforms.Combine;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.transforms.Combine;
 import com.google.common.collect.ImmutableList;
 
 import org.apache.beam.runners.spark.translation.SparkRuntimeContext;

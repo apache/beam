@@ -23,7 +23,7 @@ import com.google.api.client.http.HttpResponse;
 import com.google.api.client.testing.http.HttpTesting;
 import com.google.api.client.testing.http.MockHttpTransport;
 import com.google.api.client.testing.http.MockLowLevelHttpResponse;
-import com.google.cloud.dataflow.sdk.testing.ExpectedLogs;
+import org.apache.beam.sdk.testing.ExpectedLogs;
 
 import org.junit.Rule;
 import org.junit.Test;

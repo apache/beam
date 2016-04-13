@@ -34,7 +34,7 @@ public final class DataflowReleaseInfo extends GenericJson {
   private static final Logger LOG = LoggerFactory.getLogger(DataflowReleaseInfo.class);
 
   private static final String DATAFLOW_PROPERTIES_PATH =
-      "/com/google/cloud/dataflow/sdk/sdk.properties";
+      "/org.apache.beam/sdk/sdk.properties";
 
   private static class LazyInit {
     private static final DataflowReleaseInfo INSTANCE =

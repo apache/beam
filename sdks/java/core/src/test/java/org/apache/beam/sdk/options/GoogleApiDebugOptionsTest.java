@@ -23,9 +23,9 @@ import static org.junit.Assert.assertNull;
 
 import com.google.api.services.bigquery.Bigquery.Datasets.Delete;
 import com.google.api.services.storage.Storage;
-import com.google.cloud.dataflow.sdk.options.GoogleApiDebugOptions.GoogleApiTracer;
-import com.google.cloud.dataflow.sdk.util.TestCredential;
-import com.google.cloud.dataflow.sdk.util.Transport;
+import org.apache.beam.sdk.options.GoogleApiDebugOptions.GoogleApiTracer;
+import org.apache.beam.sdk.util.TestCredential;
+import org.apache.beam.sdk.util.Transport;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 

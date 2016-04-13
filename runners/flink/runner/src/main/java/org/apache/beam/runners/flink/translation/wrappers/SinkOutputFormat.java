@@ -19,10 +19,10 @@
 package org.apache.beam.runners.flink.translation.wrappers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.cloud.dataflow.sdk.io.Sink;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.io.Sink;
+import org.apache.beam.sdk.options.PipelineOptions;
 import com.google.common.base.Preconditions;
-import com.google.cloud.dataflow.sdk.transforms.Write;
+import org.apache.beam.sdk.transforms.Write;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.AbstractID;

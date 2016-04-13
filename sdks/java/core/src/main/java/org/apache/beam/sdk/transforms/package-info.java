@@ -16,24 +16,24 @@
  * limitations under the License.
  */
 /**
- * Defines {@link com.google.cloud.dataflow.sdk.transforms.PTransform}s for transforming
+ * Defines {@link org.apache.beam.sdk.transforms.PTransform}s for transforming
  * data in a pipeline.
  *
- * <p>A {@link com.google.cloud.dataflow.sdk.transforms.PTransform} is an operation that takes an
- * {@code InputT} (some subtype of {@link com.google.cloud.dataflow.sdk.values.PInput})
+ * <p>A {@link org.apache.beam.sdk.transforms.PTransform} is an operation that takes an
+ * {@code InputT} (some subtype of {@link org.apache.beam.sdk.values.PInput})
  * and produces an
- * {@code OutputT} (some subtype of {@link com.google.cloud.dataflow.sdk.values.POutput}).
+ * {@code OutputT} (some subtype of {@link org.apache.beam.sdk.values.POutput}).
  *
  * <p>Common PTransforms include root PTransforms like
- * {@link com.google.cloud.dataflow.sdk.io.TextIO.Read} and
- * {@link com.google.cloud.dataflow.sdk.transforms.Create}, processing and
- * conversion operations like {@link com.google.cloud.dataflow.sdk.transforms.ParDo},
- * {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey},
- * {@link com.google.cloud.dataflow.sdk.transforms.join.CoGroupByKey},
- * {@link com.google.cloud.dataflow.sdk.transforms.Combine}, and
- * {@link com.google.cloud.dataflow.sdk.transforms.Count}, and outputting
+ * {@link org.apache.beam.sdk.io.TextIO.Read} and
+ * {@link org.apache.beam.sdk.transforms.Create}, processing and
+ * conversion operations like {@link org.apache.beam.sdk.transforms.ParDo},
+ * {@link org.apache.beam.sdk.transforms.GroupByKey},
+ * {@link org.apache.beam.sdk.transforms.join.CoGroupByKey},
+ * {@link org.apache.beam.sdk.transforms.Combine}, and
+ * {@link org.apache.beam.sdk.transforms.Count}, and outputting
  * PTransforms like
- * {@link com.google.cloud.dataflow.sdk.io.TextIO.Write}.
+ * {@link org.apache.beam.sdk.io.TextIO.Write}.
  *
  * <p>New PTransforms can be created by composing existing PTransforms.
  * Most PTransforms in this package are composites, and users can also create composite PTransforms

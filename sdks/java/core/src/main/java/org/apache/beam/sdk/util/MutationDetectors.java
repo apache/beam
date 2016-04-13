@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.util;
 
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
 
 import java.util.Arrays;
 import java.util.Objects;

@@ -18,10 +18,10 @@
 package org.apache.beam.examples.cookbook;
 
 import com.google.api.services.bigquery.model.TableRow;
-import com.google.cloud.dataflow.examples.cookbook.CombinePerKeyExamples.ExtractLargeWordsFn;
-import com.google.cloud.dataflow.examples.cookbook.CombinePerKeyExamples.FormatShakespeareOutputFn;
-import com.google.cloud.dataflow.sdk.transforms.DoFnTester;
-import com.google.cloud.dataflow.sdk.values.KV;
+import org.apache.beam.examples.cookbook.CombinePerKeyExamples.ExtractLargeWordsFn;
+import org.apache.beam.examples.cookbook.CombinePerKeyExamples.FormatShakespeareOutputFn;
+import org.apache.beam.sdk.transforms.DoFnTester;
+import org.apache.beam.sdk.values.KV;
 
 import org.hamcrest.CoreMatchers;
 import org.junit.Assert;

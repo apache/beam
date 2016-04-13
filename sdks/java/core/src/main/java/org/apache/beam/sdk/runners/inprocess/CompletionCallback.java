@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.runners.inprocess;
 
-import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
+import org.apache.beam.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
 
 /**
  * A callback for completing a bundle of input.

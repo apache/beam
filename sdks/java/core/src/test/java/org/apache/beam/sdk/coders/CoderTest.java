@@ -23,8 +23,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
 
-import com.google.cloud.dataflow.sdk.coders.Coder.Context;
-import com.google.cloud.dataflow.sdk.coders.Coder.NonDeterministicException;
+import org.apache.beam.sdk.coders.Coder.Context;
+import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 
 import org.junit.Rule;
 import org.junit.Test;

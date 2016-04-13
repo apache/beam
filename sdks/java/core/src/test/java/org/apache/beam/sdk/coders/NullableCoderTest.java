@@ -24,7 +24,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import com.google.cloud.dataflow.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.testing.CoderProperties;
 import com.google.common.collect.ImmutableList;
 
 import org.junit.Rule;
@@ -75,7 +75,7 @@ public class NullableCoderTest {
    * Generated data to check that the wire format has not changed. To regenerate, see
    * {@code PrintBase64Encodings}.
    *
-   * @see com.google.cloud.dataflow.sdk.coders.PrintBase64Encodings
+   * @see org.apache.beam.sdk.coders.PrintBase64Encodings
    */
   private static final List<String> TEST_ENCODINGS = Arrays.asList(
       "AQA",

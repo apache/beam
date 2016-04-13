@@ -21,12 +21,12 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
-import com.google.cloud.dataflow.sdk.transforms.DoFnWithContext.Context;
-import com.google.cloud.dataflow.sdk.transforms.DoFnWithContext.ExtraContextFactory;
-import com.google.cloud.dataflow.sdk.transforms.DoFnWithContext.ProcessContext;
-import com.google.cloud.dataflow.sdk.transforms.DoFnWithContext.ProcessElement;
-import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.util.WindowingInternals;
+import org.apache.beam.sdk.transforms.DoFnWithContext.Context;
+import org.apache.beam.sdk.transforms.DoFnWithContext.ExtraContextFactory;
+import org.apache.beam.sdk.transforms.DoFnWithContext.ProcessContext;
+import org.apache.beam.sdk.transforms.DoFnWithContext.ProcessElement;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.WindowingInternals;
 
 import org.junit.Before;
 import org.junit.Rule;

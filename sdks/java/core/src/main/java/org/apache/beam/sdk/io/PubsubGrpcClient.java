@@ -20,7 +20,7 @@ package org.apache.beam.sdk.io;
 
 import com.google.api.client.util.DateTime;
 import com.google.auth.oauth2.GoogleCredentials;
-import com.google.cloud.dataflow.sdk.options.GcpOptions;
+import org.apache.beam.sdk.options.GcpOptions;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.hash.Hashing;

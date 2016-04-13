@@ -19,9 +19,9 @@ package org.apache.beam.sdk.util;
 
 import static org.junit.Assert.assertEquals;
 
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.coders.CoderException;
-import com.google.cloud.dataflow.sdk.coders.DeterministicStandardCoder;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.DeterministicStandardCoder;
 import com.google.common.collect.ImmutableList;
 
 import com.fasterxml.jackson.annotation.JsonCreator;

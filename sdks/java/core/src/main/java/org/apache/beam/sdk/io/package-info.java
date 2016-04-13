@@ -17,9 +17,9 @@
  */
 /**
  * Defines transforms for reading and writing common storage formats, including
- * {@link com.google.cloud.dataflow.sdk.io.AvroIO},
- * {@link com.google.cloud.dataflow.sdk.io.BigQueryIO}, and
- * {@link com.google.cloud.dataflow.sdk.io.TextIO}.
+ * {@link org.apache.beam.sdk.io.AvroIO},
+ * {@link org.apache.beam.sdk.io.BigQueryIO}, and
+ * {@link org.apache.beam.sdk.io.TextIO}.
  *
  * <p>The classes in this package provide {@code Read} transforms that create PCollections
  * from existing storage:

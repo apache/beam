@@ -22,7 +22,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertThat;
 
-import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 import org.junit.Before;
 import org.junit.Rule;

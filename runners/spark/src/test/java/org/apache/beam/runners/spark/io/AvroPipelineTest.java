@@ -18,10 +18,10 @@
 
 package org.apache.beam.runners.spark.io;
 
-import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.io.AvroIO;
-import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.values.PCollection;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.AvroIO;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.values.PCollection;
 import com.google.common.collect.Lists;
 import com.google.common.io.Resources;
 import java.io.File;

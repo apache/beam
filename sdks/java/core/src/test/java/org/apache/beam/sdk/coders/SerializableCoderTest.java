@@ -20,17 +20,17 @@ package org.apache.beam.sdk.coders;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
-import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.testing.CoderProperties;
-import com.google.cloud.dataflow.sdk.testing.PAssert;
-import com.google.cloud.dataflow.sdk.testing.TestPipeline;
-import com.google.cloud.dataflow.sdk.transforms.Create;
-import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.ParDo;
-import com.google.cloud.dataflow.sdk.util.CloudObject;
-import com.google.cloud.dataflow.sdk.util.CoderUtils;
-import com.google.cloud.dataflow.sdk.util.Serializer;
-import com.google.cloud.dataflow.sdk.values.PCollection;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.util.CloudObject;
+import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.Serializer;
+import org.apache.beam.sdk.values.PCollection;
 
 import org.hamcrest.Matchers;
 import org.junit.Assert;

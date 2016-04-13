@@ -19,11 +19,11 @@ package org.apache.beam.sdk.transforms.join;
 
 import static org.junit.Assert.assertEquals;
 
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.coders.DoubleCoder;
-import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
-import com.google.cloud.dataflow.sdk.util.CloudObject;
-import com.google.cloud.dataflow.sdk.util.Serializer;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.DoubleCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.util.CloudObject;
+import org.apache.beam.sdk.util.Serializer;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;

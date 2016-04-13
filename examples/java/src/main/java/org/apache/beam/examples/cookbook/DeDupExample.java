@@ -17,24 +17,24 @@
  */
 package org.apache.beam.examples.cookbook;
 
-import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.io.TextIO;
-import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
-import com.google.cloud.dataflow.sdk.options.Default;
-import com.google.cloud.dataflow.sdk.options.DefaultValueFactory;
-import com.google.cloud.dataflow.sdk.options.Description;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.transforms.RemoveDuplicates;
-import com.google.cloud.dataflow.sdk.util.gcsfs.GcsPath;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.options.DataflowPipelineOptions;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.DefaultValueFactory;
+import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.RemoveDuplicates;
+import org.apache.beam.sdk.util.gcsfs.GcsPath;
 
 /**
  * This example uses as input Shakespeare's plays as plaintext files, and will remove any
  * duplicate lines across all the files. (The output does not preserve any input order).
  *
  * <p>Concepts: the RemoveDuplicates transform, and how to wire transforms together.
- * Demonstrates {@link com.google.cloud.dataflow.sdk.io.TextIO.Read}/
- * {@link RemoveDuplicates}/{@link com.google.cloud.dataflow.sdk.io.TextIO.Write}.
+ * Demonstrates {@link org.apache.beam.sdk.io.TextIO.Read}/
+ * {@link RemoveDuplicates}/{@link org.apache.beam.sdk.io.TextIO.Write}.
  *
  * <p>To execute this pipeline locally, specify general pipeline configuration:
  *   --project=YOUR_PROJECT_ID

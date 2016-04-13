@@ -19,8 +19,8 @@ package org.apache.beam.sdk.coders;
 
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import com.google.cloud.dataflow.sdk.util.CloudObject;
-import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
+import org.apache.beam.sdk.util.CloudObject;
+import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import com.google.common.base.Joiner;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
@@ -207,7 +207,7 @@ public interface Coder<T> extends Serializable {
    * constant time (or lazily).
    *
    * <p>Not intended to be called by user code, but instead by
-   * {@link com.google.cloud.dataflow.sdk.runners.PipelineRunner}
+   * {@link org.apache.beam.sdk.runners.PipelineRunner}
    * implementations.
    */
   public boolean isRegisterByteSizeObserverCheap(T value, Context context);
@@ -217,7 +217,7 @@ public interface Coder<T> extends Serializable {
    * of the encoded value using this {@code Coder}.
    *
    * <p>Not intended to be called by user code, but instead by
-   * {@link com.google.cloud.dataflow.sdk.runners.PipelineRunner}
+   * {@link org.apache.beam.sdk.runners.PipelineRunner}
    * implementations.
    */
   public void registerByteSizeObserver(

@@ -24,7 +24,7 @@ import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
+import org.apache.beam.sdk.runners.DirectPipelineRunner;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 

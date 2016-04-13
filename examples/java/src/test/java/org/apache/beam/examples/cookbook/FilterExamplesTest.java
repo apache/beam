@@ -18,9 +18,9 @@
 package org.apache.beam.examples.cookbook;
 
 import com.google.api.services.bigquery.model.TableRow;
-import com.google.cloud.dataflow.examples.cookbook.FilterExamples.FilterSingleMonthDataFn;
-import com.google.cloud.dataflow.examples.cookbook.FilterExamples.ProjectionFn;
-import com.google.cloud.dataflow.sdk.transforms.DoFnTester;
+import org.apache.beam.examples.cookbook.FilterExamples.FilterSingleMonthDataFn;
+import org.apache.beam.examples.cookbook.FilterExamples.ProjectionFn;
+import org.apache.beam.sdk.transforms.DoFnTester;
 
 import org.hamcrest.CoreMatchers;
 import org.junit.Assert;

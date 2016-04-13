@@ -17,22 +17,22 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static com.google.cloud.dataflow.sdk.TestUtils.LINES;
-import static com.google.cloud.dataflow.sdk.TestUtils.LINES_ARRAY;
-import static com.google.cloud.dataflow.sdk.TestUtils.NO_LINES;
-import static com.google.cloud.dataflow.sdk.TestUtils.NO_LINES_ARRAY;
+import static org.apache.beam.sdk.TestUtils.LINES;
+import static org.apache.beam.sdk.TestUtils.LINES_ARRAY;
+import static org.apache.beam.sdk.TestUtils.NO_LINES;
+import static org.apache.beam.sdk.TestUtils.NO_LINES_ARRAY;
 import static org.junit.Assert.assertEquals;
 
-import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.coders.SerializableCoder;
-import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
-import com.google.cloud.dataflow.sdk.coders.VoidCoder;
-import com.google.cloud.dataflow.sdk.testing.PAssert;
-import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
-import com.google.cloud.dataflow.sdk.testing.TestPipeline;
-import com.google.cloud.dataflow.sdk.values.KV;
-import com.google.cloud.dataflow.sdk.values.PCollection;
-import com.google.cloud.dataflow.sdk.values.TimestampedValue;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.RunnableOnService;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TimestampedValue;
 
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;

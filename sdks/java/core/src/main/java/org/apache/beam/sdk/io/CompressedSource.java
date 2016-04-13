@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.io;
 
 import org.apache.beam.sdk.annotations.Experimental;
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import com.google.common.base.Preconditions;
 import com.google.common.io.ByteStreams;
 import com.google.common.primitives.Ints;

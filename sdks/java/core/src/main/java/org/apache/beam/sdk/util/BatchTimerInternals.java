@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.util;
 
-import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 

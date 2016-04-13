@@ -611,10 +611,10 @@ public class ApiSurface {
   ////////////////////////////////////////////////////////////////////////////
 
   public static ApiSurface getSdkApiSurface() throws IOException {
-    return ApiSurface.ofPackage("com.google.cloud.dataflow")
+    return ApiSurface.ofPackage("org.apache.beam")
         .pruningPattern("com[.]google[.]cloud[.]dataflow.*Test")
         .pruningPattern("com[.]google[.]cloud[.]dataflow.*Benchmark")
-        .pruningPrefix("com.google.cloud.dataflow.integration")
+        .pruningPrefix("org.apache.beam.integration")
         .pruningPrefix("java")
         .pruningPrefix("com.google.api")
         .pruningPrefix("com.google.auth")

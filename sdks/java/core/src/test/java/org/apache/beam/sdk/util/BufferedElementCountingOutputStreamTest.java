@@ -21,8 +21,8 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import com.google.cloud.dataflow.sdk.coders.ByteArrayCoder;
-import com.google.cloud.dataflow.sdk.coders.Coder.Context;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.coders.Coder.Context;
 import com.google.common.collect.ImmutableList;
 
 import org.hamcrest.collection.IsIterableContainingInOrder;

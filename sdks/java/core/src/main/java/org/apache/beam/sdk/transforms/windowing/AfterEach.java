@@ -20,7 +20,7 @@ package org.apache.beam.sdk.transforms.windowing;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import org.apache.beam.sdk.annotations.Experimental;
-import com.google.cloud.dataflow.sdk.util.ExecutableTrigger;
+import org.apache.beam.sdk.util.ExecutableTrigger;
 
 import org.joda.time.Instant;
 

@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.options;
 
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.runners.DirectPipeline;
-import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
-import com.google.cloud.dataflow.sdk.values.PCollection;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.runners.DirectPipeline;
+import org.apache.beam.sdk.runners.DirectPipelineRunner;
+import org.apache.beam.sdk.values.PCollection;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 

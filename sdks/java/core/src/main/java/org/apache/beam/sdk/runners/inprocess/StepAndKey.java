@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.runners.inprocess;
 
-import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
 import com.google.common.base.MoreObjects;
 
 import java.util.Objects;

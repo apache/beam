@@ -17,18 +17,18 @@
  */
 package org.apache.beam.examples;
 
-import com.google.cloud.dataflow.examples.WordCount.CountWords;
-import com.google.cloud.dataflow.examples.WordCount.ExtractWordsFn;
-import com.google.cloud.dataflow.examples.WordCount.FormatAsTextFn;
-import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
-import com.google.cloud.dataflow.sdk.testing.PAssert;
-import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
-import com.google.cloud.dataflow.sdk.testing.TestPipeline;
-import com.google.cloud.dataflow.sdk.transforms.Create;
-import com.google.cloud.dataflow.sdk.transforms.DoFnTester;
-import com.google.cloud.dataflow.sdk.transforms.MapElements;
-import com.google.cloud.dataflow.sdk.values.PCollection;
+import org.apache.beam.examples.WordCount.CountWords;
+import org.apache.beam.examples.WordCount.ExtractWordsFn;
+import org.apache.beam.examples.WordCount.FormatAsTextFn;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.RunnableOnService;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFnTester;
+import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.values.PCollection;
 
 import org.hamcrest.CoreMatchers;
 import org.junit.Assert;

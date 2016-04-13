@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.runners.inprocess;
 
-import com.google.cloud.dataflow.sdk.runners.inprocess.InMemoryWatermarkManager.TimerUpdate;
-import com.google.cloud.dataflow.sdk.runners.inprocess.InMemoryWatermarkManager.TimerUpdate.TimerUpdateBuilder;
-import com.google.cloud.dataflow.sdk.runners.inprocess.InMemoryWatermarkManager.TransformWatermarks;
-import com.google.cloud.dataflow.sdk.util.TimerInternals;
+import org.apache.beam.sdk.runners.inprocess.InMemoryWatermarkManager.TimerUpdate;
+import org.apache.beam.sdk.runners.inprocess.InMemoryWatermarkManager.TimerUpdate.TimerUpdateBuilder;
+import org.apache.beam.sdk.runners.inprocess.InMemoryWatermarkManager.TransformWatermarks;
+import org.apache.beam.sdk.util.TimerInternals;
 
 import org.joda.time.Instant;
 

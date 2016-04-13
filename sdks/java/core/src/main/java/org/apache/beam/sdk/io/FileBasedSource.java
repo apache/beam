@@ -20,9 +20,10 @@ package org.apache.beam.sdk.io;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.util.IOChannelFactory;
-import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.util.IOChannelFactory;
+import org.apache.beam.sdk.util.IOChannelUtils;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.Futures;
@@ -53,7 +54,7 @@ import java.util.concurrent.Executors;
  *
  * <p>A file-based {@code Source} is a {@code Source} backed by a file pattern defined as a Java
  * glob, a single file, or a offset range for a single file. See {@link OffsetBasedSource} and
- * {@link com.google.cloud.dataflow.sdk.io.range.RangeTracker} for semantics of offset ranges.
+ * {@link org.apache.beam.sdk.io.range.RangeTracker} for semantics of offset ranges.
  *
  * <p>This source stores a {@code String} that is an {@link IOChannelFactory} specification for a
  * file or file pattern. There should be an {@code IOChannelFactory} defined for the file

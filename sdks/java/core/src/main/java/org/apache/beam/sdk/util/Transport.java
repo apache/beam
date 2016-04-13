@@ -26,9 +26,9 @@ import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.pubsub.Pubsub;
 import com.google.api.services.storage.Storage;
-import com.google.cloud.dataflow.sdk.options.BigQueryOptions;
-import com.google.cloud.dataflow.sdk.options.GcsOptions;
-import com.google.cloud.dataflow.sdk.options.PubsubOptions;
+import org.apache.beam.sdk.options.BigQueryOptions;
+import org.apache.beam.sdk.options.GcsOptions;
+import org.apache.beam.sdk.options.PubsubOptions;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
 import com.google.common.collect.ImmutableList;
 

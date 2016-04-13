@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.values.PCollection;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.values.PCollection;
 
 /**
  * {@code PTransform}s for filtering from a {@code PCollection} the

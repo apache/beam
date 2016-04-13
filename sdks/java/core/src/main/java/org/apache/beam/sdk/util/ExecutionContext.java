@@ -17,11 +17,11 @@
  */
 package org.apache.beam.sdk.util;
 
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
-import com.google.cloud.dataflow.sdk.util.state.StateInternals;
-import com.google.cloud.dataflow.sdk.values.TupleTag;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.common.worker.StateSampler;
+import org.apache.beam.sdk.util.state.StateInternals;
+import org.apache.beam.sdk.values.TupleTag;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -44,14 +44,14 @@ public interface ExecutionContext {
 
   /**
    * Hook for subclasses to implement that will be called whenever
-   * {@link com.google.cloud.dataflow.sdk.transforms.DoFn.Context#output}
+   * {@link org.apache.beam.sdk.transforms.DoFn.Context#output}
    * is called.
    */
   void noteOutput(WindowedValue<?> output);
 
   /**
    * Hook for subclasses to implement that will be called whenever
-   * {@link com.google.cloud.dataflow.sdk.transforms.DoFn.Context#sideOutput}
+   * {@link org.apache.beam.sdk.transforms.DoFn.Context#sideOutput}
    * is called.
    */
   void noteSideOutput(TupleTag<?> tag, WindowedValue<?> output);
@@ -73,14 +73,14 @@ public interface ExecutionContext {
 
     /**
      * Hook for subclasses to implement that will be called whenever
-     * {@link com.google.cloud.dataflow.sdk.transforms.DoFn.Context#output}
+     * {@link org.apache.beam.sdk.transforms.DoFn.Context#output}
      * is called.
      */
     void noteOutput(WindowedValue<?> output);
 
     /**
      * Hook for subclasses to implement that will be called whenever
-     * {@link com.google.cloud.dataflow.sdk.transforms.DoFn.Context#sideOutput}
+     * {@link org.apache.beam.sdk.transforms.DoFn.Context#sideOutput}
      * is called.
      */
     void noteSideOutput(TupleTag<?> tag, WindowedValue<?> output);

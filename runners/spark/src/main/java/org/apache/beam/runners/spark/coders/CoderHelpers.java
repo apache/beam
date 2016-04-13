@@ -24,7 +24,7 @@ import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 
-import com.google.cloud.dataflow.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.Coder;
 import com.google.common.collect.Iterables;
 import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.spark.api.java.function.Function;

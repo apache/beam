@@ -20,8 +20,8 @@ package org.apache.beam.sdk.transforms;
 import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertThat;
 
-import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
-import com.google.cloud.dataflow.sdk.values.PCollection;
+import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.values.PCollection;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;

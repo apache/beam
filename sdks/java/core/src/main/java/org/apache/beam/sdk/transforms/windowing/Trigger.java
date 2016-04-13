@@ -18,10 +18,10 @@
 package org.apache.beam.sdk.transforms.windowing;
 
 import org.apache.beam.sdk.annotations.Experimental;
-import com.google.cloud.dataflow.sdk.util.ExecutableTrigger;
-import com.google.cloud.dataflow.sdk.util.TimeDomain;
-import com.google.cloud.dataflow.sdk.util.state.MergingStateAccessor;
-import com.google.cloud.dataflow.sdk.util.state.StateAccessor;
+import org.apache.beam.sdk.util.ExecutableTrigger;
+import org.apache.beam.sdk.util.TimeDomain;
+import org.apache.beam.sdk.util.state.MergingStateAccessor;
+import org.apache.beam.sdk.util.state.StateAccessor;
 import com.google.common.base.Joiner;
 
 import org.joda.time.Instant;
@@ -39,7 +39,7 @@ import javax.annotation.Nullable;
  * {@link WindowFn}, and then passed to the associated {@code Trigger} to determine if the
  * {@code Window}s contents should be output.
  *
- * <p>See {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey} and {@link Window}
+ * <p>See {@link org.apache.beam.sdk.transforms.GroupByKey} and {@link Window}
  * for more information about how grouping with windows works.
  *
  * <p>The elements that are assigned to a window since the last time it was fired (or since the

@@ -19,6 +19,6 @@
  * Provides thread-safe helpers for implementing dynamic work rebalancing in position-based
  * bounded sources.
  *
- * <p>See {@link com.google.cloud.dataflow.sdk.io.range.RangeTracker} to get started.
+ * <p>See {@link org.apache.beam.sdk.io.range.RangeTracker} to get started.
  */
 package org.apache.beam.sdk.io.range;

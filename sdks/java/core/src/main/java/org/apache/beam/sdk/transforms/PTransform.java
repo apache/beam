@@ -17,15 +17,15 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.transforms.display.DisplayData.Builder;
-import com.google.cloud.dataflow.sdk.transforms.display.HasDisplayData;
-import com.google.cloud.dataflow.sdk.util.StringUtils;
-import com.google.cloud.dataflow.sdk.values.PInput;
-import com.google.cloud.dataflow.sdk.values.POutput;
-import com.google.cloud.dataflow.sdk.values.TypedPValue;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
+import org.apache.beam.sdk.transforms.display.HasDisplayData;
+import org.apache.beam.sdk.util.StringUtils;
+import org.apache.beam.sdk.values.PInput;
+import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.sdk.values.TypedPValue;
 
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -37,14 +37,14 @@ import java.io.Serializable;
  * {@code OutputT} (some subtype of {@link POutput}).
  *
  * <p>Common PTransforms include root PTransforms like
- * {@link com.google.cloud.dataflow.sdk.io.TextIO.Read},
+ * {@link org.apache.beam.sdk.io.TextIO.Read},
  * {@link Create}, processing and
  * conversion operations like {@link ParDo},
  * {@link GroupByKey},
- * {@link com.google.cloud.dataflow.sdk.transforms.join.CoGroupByKey},
+ * {@link org.apache.beam.sdk.transforms.join.CoGroupByKey},
  * {@link Combine}, and {@link Count}, and outputting
  * PTransforms like
- * {@link com.google.cloud.dataflow.sdk.io.TextIO.Write}.  Users also
+ * {@link org.apache.beam.sdk.io.TextIO.Write}.  Users also
  * define their own application-specific composite PTransforms.
  *
  * <p>Each {@code PTransform<InputT, OutputT>} has a single
@@ -52,18 +52,18 @@ import java.io.Serializable;
  * PTransforms conceptually transform one input value to one output
  * value, and in this case {@code InputT} and {@code Output} are
  * typically instances of
- * {@link com.google.cloud.dataflow.sdk.values.PCollection}.
+ * {@link org.apache.beam.sdk.values.PCollection}.
  * A root
  * PTransform conceptually has no input; in this case, conventionally
- * a {@link com.google.cloud.dataflow.sdk.values.PBegin} object
+ * a {@link org.apache.beam.sdk.values.PBegin} object
  * produced by calling {@link Pipeline#begin} is used as the input.
  * An outputting PTransform conceptually has no output; in this case,
- * conventionally {@link com.google.cloud.dataflow.sdk.values.PDone}
+ * conventionally {@link org.apache.beam.sdk.values.PDone}
  * is used as its output type.  Some PTransforms conceptually have
  * multiple inputs and/or outputs; in these cases special "bundling"
  * classes like
- * {@link com.google.cloud.dataflow.sdk.values.PCollectionList},
- * {@link com.google.cloud.dataflow.sdk.values.PCollectionTuple}
+ * {@link org.apache.beam.sdk.values.PCollectionList},
+ * {@link org.apache.beam.sdk.values.PCollectionTuple}
  * are used
  * to combine multiple values into a single bundle for passing into or
  * returning from the PTransform.
@@ -100,7 +100,7 @@ import java.io.Serializable;
  * its own name derived from the name of its producing PTransform.
  *
  * <p>Each PCollection output produced by a PTransform
- * also records a {@link com.google.cloud.dataflow.sdk.coders.Coder}
+ * also records a {@link org.apache.beam.sdk.coders.Coder}
  * that specifies how the elements of that PCollection
  * are to be encoded as a byte string, if necessary.  The
  * PTransform may provide a default Coder for any of its outputs, for
@@ -109,17 +109,17 @@ import java.io.Serializable;
  * the system will attempt to infer a Coder for it, based on
  * what's known at run-time about the Java type of the output's
  * elements.  The enclosing {@link Pipeline}'s
- * {@link com.google.cloud.dataflow.sdk.coders.CoderRegistry}
+ * {@link org.apache.beam.sdk.coders.CoderRegistry}
  * (accessible via {@link Pipeline#getCoderRegistry}) defines the
  * mapping from Java types to the default Coder to use, for a standard
  * set of Java types; users can extend this mapping for additional
  * types, via
- * {@link com.google.cloud.dataflow.sdk.coders.CoderRegistry#registerCoder}.
+ * {@link org.apache.beam.sdk.coders.CoderRegistry#registerCoder}.
  * If this inference process fails, either because the Java type was
  * not known at run-time (e.g., due to Java's "erasure" of generic
  * types) or there was no default Coder registered, then the Coder
  * should be specified manually by calling
- * {@link com.google.cloud.dataflow.sdk.values.TypedPValue#setCoder}
+ * {@link org.apache.beam.sdk.values.TypedPValue#setCoder}
  * on the output PCollection.  The Coder of every output
  * PCollection must be determined one way or another
  * before that output is used as an input to another PTransform, or
@@ -185,7 +185,7 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    * <p>The default implementation throws an exception.  A derived class must
    * either implement apply, or else each runner must supply a custom
    * implementation via
-   * {@link com.google.cloud.dataflow.sdk.runners.PipelineRunner#apply}.
+   * {@link org.apache.beam.sdk.runners.PipelineRunner#apply}.
    */
   public OutputT apply(InputT input) {
     throw new IllegalArgumentException(

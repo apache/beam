@@ -17,17 +17,17 @@
  */
 package org.apache.beam.sdk.util;
 
-import static com.google.cloud.dataflow.sdk.util.Structs.addList;
+import static org.apache.beam.sdk.util.Structs.addList;
 
 import com.google.api.client.util.Base64;
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.coders.CoderException;
-import com.google.cloud.dataflow.sdk.coders.IterableCoder;
-import com.google.cloud.dataflow.sdk.coders.KvCoder;
-import com.google.cloud.dataflow.sdk.coders.KvCoderBase;
-import com.google.cloud.dataflow.sdk.coders.MapCoder;
-import com.google.cloud.dataflow.sdk.coders.MapCoderBase;
-import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.IterableCoder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.KvCoderBase;
+import org.apache.beam.sdk.coders.MapCoder;
+import org.apache.beam.sdk.coders.MapCoderBase;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import com.google.common.base.Throwables;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
@@ -284,7 +284,7 @@ public final class CoderUtils {
           }
 
           // Otherwise, see if the ID is the name of a class in
-          // com.google.cloud.dataflow.sdk.coders.  We do this via creating
+          // org.apache.beam.sdk.coders.  We do this via creating
           // the class object so that class loaders have a chance to get
           // involved -- and since we need the class object anyway.
           return Class.forName(Coder.class.getPackage().getName() + "." + id);

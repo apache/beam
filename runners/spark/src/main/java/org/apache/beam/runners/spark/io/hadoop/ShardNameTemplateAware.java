@@ -25,7 +25,7 @@ package org.apache.beam.runners.spark.io.hadoop;
  * {@link HadoopIO.Write}.
  *
  * Some common shard names are defined in
- * {@link com.google.cloud.dataflow.sdk.io.ShardNameTemplate}.
+ * {@link org.apache.beam.sdk.io.ShardNameTemplate}.
  */
 public interface ShardNameTemplateAware {
 }

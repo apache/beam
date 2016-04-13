@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.flink.translation.types;
 
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.AtomicType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -28,7 +28,7 @@ import com.google.common.base.Preconditions;
 
 /**
  * Flink {@link org.apache.flink.api.common.typeinfo.TypeInformation} for
- * Dataflow {@link com.google.cloud.dataflow.sdk.coders.Coder}s.
+ * Dataflow {@link org.apache.beam.sdk.coders.Coder}s.
  */
 public class CoderTypeInformation<T> extends TypeInformation<T> implements AtomicType<T> {
 

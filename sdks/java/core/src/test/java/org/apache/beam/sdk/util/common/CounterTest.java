@@ -17,18 +17,18 @@
  */
 package org.apache.beam.sdk.util.common;
 
-import static com.google.cloud.dataflow.sdk.util.Values.asDouble;
-import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.AND;
-import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.MAX;
-import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.MEAN;
-import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.MIN;
-import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.OR;
-import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.SUM;
+import static org.apache.beam.sdk.util.Values.asDouble;
+import static org.apache.beam.sdk.util.common.Counter.AggregationKind.AND;
+import static org.apache.beam.sdk.util.common.Counter.AggregationKind.MAX;
+import static org.apache.beam.sdk.util.common.Counter.AggregationKind.MEAN;
+import static org.apache.beam.sdk.util.common.Counter.AggregationKind.MIN;
+import static org.apache.beam.sdk.util.common.Counter.AggregationKind.OR;
+import static org.apache.beam.sdk.util.common.Counter.AggregationKind.SUM;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import com.google.cloud.dataflow.sdk.util.common.Counter.CounterMean;
+import org.apache.beam.sdk.util.common.Counter.CounterMean;
 
 import org.junit.Rule;
 import org.junit.Test;

@@ -17,14 +17,14 @@
  */
 package org.apache.beam.sdk.runners;
 
-import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.options.DataflowPipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
  * A {@link DataflowPipeline} is a {@link Pipeline} that returns a
  * {@link DataflowPipelineJob} when it is
- * {@link com.google.cloud.dataflow.sdk.Pipeline#run()}.
+ * {@link org.apache.beam.sdk.Pipeline#run()}.
  *
  * <p>This is not intended for use by users of Cloud Dataflow.
  * Instead, use {@link Pipeline#create(PipelineOptions)} to initialize a

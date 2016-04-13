@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.coders;
 
-import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;

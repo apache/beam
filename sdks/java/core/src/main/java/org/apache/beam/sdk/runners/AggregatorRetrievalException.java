@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.runners;
 
-import com.google.cloud.dataflow.sdk.transforms.Aggregator;
+import org.apache.beam.sdk.transforms.Aggregator;
 
 /**
  * Signals that an exception has occurred while retrieving {@link Aggregator}s.

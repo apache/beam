@@ -20,7 +20,7 @@ package org.apache.beam.sdk.coders;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertThat;
 
-import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 import org.junit.Rule;
 import org.junit.Test;

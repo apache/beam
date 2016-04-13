@@ -22,8 +22,8 @@ import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
-import com.google.cloud.dataflow.sdk.options.GcpOptions.DefaultProjectFactory;
-import com.google.cloud.dataflow.sdk.testing.RestoreSystemProperties;
+import org.apache.beam.sdk.options.GcpOptions.DefaultProjectFactory;
+import org.apache.beam.sdk.testing.RestoreSystemProperties;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Files;
 

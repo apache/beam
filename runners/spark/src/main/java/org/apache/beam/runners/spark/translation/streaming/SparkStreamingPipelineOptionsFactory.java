@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.spark.translation.streaming;
 
-import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.runners.spark.SparkStreamingPipelineOptions;
 
 public final class SparkStreamingPipelineOptionsFactory {

@@ -17,19 +17,19 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.transforms.DoFnWithContext.ExtraContextFactory;
-import com.google.cloud.dataflow.sdk.transforms.DoFnWithContext.FinishBundle;
-import com.google.cloud.dataflow.sdk.transforms.DoFnWithContext.ProcessElement;
-import com.google.cloud.dataflow.sdk.transforms.DoFnWithContext.StartBundle;
-import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
-import com.google.cloud.dataflow.sdk.util.UserCodeException;
-import com.google.cloud.dataflow.sdk.util.WindowingInternals;
-import com.google.cloud.dataflow.sdk.util.common.ReflectHelpers;
-import com.google.cloud.dataflow.sdk.values.PCollectionView;
-import com.google.cloud.dataflow.sdk.values.TupleTag;
-import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.DoFnWithContext.ExtraContextFactory;
+import org.apache.beam.sdk.transforms.DoFnWithContext.FinishBundle;
+import org.apache.beam.sdk.transforms.DoFnWithContext.ProcessElement;
+import org.apache.beam.sdk.transforms.DoFnWithContext.StartBundle;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.UserCodeException;
+import org.apache.beam.sdk.util.WindowingInternals;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
@@ -119,7 +119,7 @@ public abstract class DoFnReflector {
    * Invoke the reflected {@link ProcessElement} method on the given instance.
    *
    * @param fn an instance of the {@link DoFnWithContext} to invoke {@link ProcessElement} on.
-   * @param c the {@link com.google.cloud.dataflow.sdk.transforms.DoFnWithContext.ProcessContext}
+   * @param c the {@link org.apache.beam.sdk.transforms.DoFnWithContext.ProcessContext}
    *     to pass to {@link ProcessElement}.
    */
   abstract <InputT, OutputT> void invokeProcessElement(
@@ -131,7 +131,7 @@ public abstract class DoFnReflector {
    * Invoke the reflected {@link StartBundle} method on the given instance.
    *
    * @param fn an instance of the {@link DoFnWithContext} to invoke {@link StartBundle} on.
-   * @param c the {@link com.google.cloud.dataflow.sdk.transforms.DoFnWithContext.Context}
+   * @param c the {@link org.apache.beam.sdk.transforms.DoFnWithContext.Context}
    *     to pass to {@link StartBundle}.
    */
   <InputT, OutputT> void invokeStartBundle(
@@ -145,7 +145,7 @@ public abstract class DoFnReflector {
    * Invoke the reflected {@link FinishBundle} method on the given instance.
    *
    * @param fn an instance of the {@link DoFnWithContext} to invoke {@link FinishBundle} on.
-   * @param c the {@link com.google.cloud.dataflow.sdk.transforms.DoFnWithContext.Context}
+   * @param c the {@link org.apache.beam.sdk.transforms.DoFnWithContext.Context}
    *     to pass to {@link FinishBundle}.
    */
   abstract <InputT, OutputT> void invokeFinishBundle(

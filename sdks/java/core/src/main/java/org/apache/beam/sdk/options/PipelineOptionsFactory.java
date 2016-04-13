@@ -19,11 +19,11 @@ package org.apache.beam.sdk.options;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import com.google.cloud.dataflow.sdk.options.Validation.Required;
-import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
-import com.google.cloud.dataflow.sdk.runners.PipelineRunnerRegistrar;
-import com.google.cloud.dataflow.sdk.util.StringUtils;
-import com.google.cloud.dataflow.sdk.util.common.ReflectHelpers;
+import org.apache.beam.sdk.options.Validation.Required;
+import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
+import org.apache.beam.sdk.util.StringUtils;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
@@ -647,7 +647,7 @@ public class PipelineOptionsFactory {
     }
     out.format("%nUse --help=<OptionsName> for detailed help. For example:%n"
         + "  --help=DataflowPipelineOptions <short names valid for registered options>%n"
-        + "  --help=com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions%n");
+        + "  --help=org.apache.beam.sdk.options.DataflowPipelineOptions%n");
   }
 
   /**

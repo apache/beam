@@ -20,7 +20,7 @@ package org.apache.beam.runners.spark.translation;
 
 import java.io.Serializable;
 
-import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.PTransform;
 
 public interface TransformEvaluator<PT extends PTransform<?, ?>> extends Serializable {
   void evaluate(PT transform, EvaluationContext context);

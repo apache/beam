@@ -17,13 +17,13 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
-import static com.google.cloud.dataflow.sdk.testing.WindowFnTestUtils.runWindowFn;
-import static com.google.cloud.dataflow.sdk.testing.WindowFnTestUtils.set;
+import static org.apache.beam.sdk.testing.WindowFnTestUtils.runWindowFn;
+import static org.apache.beam.sdk.testing.WindowFnTestUtils.set;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import com.google.cloud.dataflow.sdk.testing.WindowFnTestUtils;
+import org.apache.beam.sdk.testing.WindowFnTestUtils;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;

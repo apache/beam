@@ -17,15 +17,15 @@
  */
 package org.apache.beam.sdk.testing;
 
-import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.PipelineResult;
-import com.google.cloud.dataflow.sdk.options.ApplicationNameOptions;
-import com.google.cloud.dataflow.sdk.options.GcpOptions;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions.CheckEnabled;
-import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
-import com.google.cloud.dataflow.sdk.util.TestCredential;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.options.ApplicationNameOptions;
+import org.apache.beam.sdk.options.GcpOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.util.TestCredential;
 import com.google.common.base.Optional;
 import com.google.common.base.Strings;
 import com.google.common.collect.Iterators;
@@ -53,7 +53,7 @@ import javax.annotation.Nullable;
  *   <li>System property "beamTestPipelineOptions" must contain a JSON delimited list of pipeline
  *   options. For example:
  *   <pre>{@code [
- *     "--runner=com.google.cloud.dataflow.sdk.testing.TestDataflowPipelineRunner",
+ *     "--runner=org.apache.beam.sdk.testing.TestDataflowPipelineRunner",
  *     "--project=mygcpproject",
  *     "--stagingLocation=gs://mygcsbucket/path"
  *     ]}</pre>

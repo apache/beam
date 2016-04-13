@@ -30,7 +30,7 @@ import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.client.util.store.FileDataStoreFactory;
-import com.google.cloud.dataflow.sdk.options.GcpOptions;
+import org.apache.beam.sdk.options.GcpOptions;
 import com.google.common.base.Preconditions;
 
 import org.slf4j.Logger;

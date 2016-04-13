@@ -17,19 +17,19 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.coders.Coder.NonDeterministicException;
-import com.google.cloud.dataflow.sdk.coders.IterableCoder;
-import com.google.cloud.dataflow.sdk.coders.KvCoder;
-import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
-import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
-import com.google.cloud.dataflow.sdk.transforms.windowing.InvalidWindows;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
-import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
-import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
-import com.google.cloud.dataflow.sdk.values.KV;
-import com.google.cloud.dataflow.sdk.values.PCollection;
-import com.google.cloud.dataflow.sdk.values.PCollection.IsBounded;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
+import org.apache.beam.sdk.coders.IterableCoder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.InvalidWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.util.WindowingStrategy;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 
 /**
  * {@code GroupByKey<K, V>} takes a {@code PCollection<KV<K, V>>},
@@ -80,7 +80,7 @@ import com.google.cloud.dataflow.sdk.values.PCollection.IsBounded;
  * associated data together into one location.  It is also a key
  * determiner of the performance of a data-parallel pipeline.
  *
- * <p>See {@link com.google.cloud.dataflow.sdk.transforms.join.CoGroupByKey}
+ * <p>See {@link org.apache.beam.sdk.transforms.join.CoGroupByKey}
  * for a way to group multiple input PCollections by a common key at once.
  *
  * <p>See {@link Combine.PerKey} for a common pattern of
@@ -91,7 +91,7 @@ import com.google.cloud.dataflow.sdk.values.PCollection.IsBounded;
  * corresponding to the new, merged window will be created. The items in this pane
  * will be emitted when a trigger fires. By default this will be when the input
  * sources estimate there will be no more data for the window. See
- * {@link com.google.cloud.dataflow.sdk.transforms.windowing.AfterWatermark}
+ * {@link org.apache.beam.sdk.transforms.windowing.AfterWatermark}
  * for details on the estimation.
  *
  * <p>The timestamp for each emitted pane is determined by the
@@ -100,7 +100,7 @@ import com.google.cloud.dataflow.sdk.values.PCollection.IsBounded;
  * as the input.
  *
  * <p>If the input {@code PCollection} contains late data (see
- * {@link com.google.cloud.dataflow.sdk.io.PubsubIO.Read.Bound#timestampLabel}
+ * {@link org.apache.beam.sdk.io.PubsubIO.Read.Bound#timestampLabel}
  * for an example of how this can occur) or the
  * {@link Window#triggering requested TriggerFn} can fire before
  * the watermark, then there may be multiple elements

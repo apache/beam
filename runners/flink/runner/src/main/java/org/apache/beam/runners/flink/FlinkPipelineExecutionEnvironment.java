@@ -20,7 +20,7 @@ package org.apache.beam.runners.flink;
 import org.apache.beam.runners.flink.translation.FlinkPipelineTranslator;
 import org.apache.beam.runners.flink.translation.FlinkBatchPipelineTranslator;
 import org.apache.beam.runners.flink.translation.FlinkStreamingPipelineTranslator;
-import com.google.cloud.dataflow.sdk.Pipeline;
+import org.apache.beam.sdk.Pipeline;
 import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.CollectionEnvironment;
@@ -115,7 +115,7 @@ public class FlinkPipelineExecutionEnvironment {
   /**
    * Depending on if the job is a Streaming or a Batch one, this method creates
    * the necessary execution environment and pipeline translator, and translates
-   * the {@link com.google.cloud.dataflow.sdk.values.PCollection} program into
+   * the {@link org.apache.beam.sdk.values.PCollection} program into
    * a {@link org.apache.flink.api.java.DataSet} or {@link org.apache.flink.streaming.api.datastream.DataStream}
    * one.
    * */

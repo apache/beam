@@ -46,12 +46,12 @@ public class ApiSurfaceTest {
   @Test
   public void testOurApiSurface() throws Exception {
     ApiSurface checkedApiSurface = ApiSurface.getSdkApiSurface()
-      .pruningClassName("com.google.cloud.dataflow.sdk.runners.worker.StateFetcher")
-      .pruningClassName("com.google.cloud.dataflow.sdk.util.common.ReflectHelpers")
-      .pruningClassName("com.google.cloud.dataflow.sdk.DataflowMatchers")
-      .pruningClassName("com.google.cloud.dataflow.sdk.TestUtils")
-      .pruningClassName("com.google.cloud.dataflow.sdk.WindowMatchers")
-      .pruningClassName("com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers");
+      .pruningClassName("org.apache.beam.sdk.runners.worker.StateFetcher")
+      .pruningClassName("org.apache.beam.sdk.util.common.ReflectHelpers")
+      .pruningClassName("org.apache.beam.sdk.DataflowMatchers")
+      .pruningClassName("org.apache.beam.sdk.TestUtils")
+      .pruningClassName("org.apache.beam.sdk.WindowMatchers")
+      .pruningClassName("org.apache.beam.sdk.transforms.display.DisplayDataMatchers");
 
     checkedApiSurface.getExposedClasses();
 
@@ -76,7 +76,7 @@ public class ApiSurfaceTest {
   }
 
   private boolean classIsAllowed(Class<?> clazz) {
-    return  clazz.getName().startsWith("com.google.cloud.dataflow");
+    return  clazz.getName().startsWith("org.apache.beam");
   }
 
   //////////////////////////////////////////////////////////////////////////////////

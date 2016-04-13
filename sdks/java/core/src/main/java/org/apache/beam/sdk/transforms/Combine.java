@@ -17,43 +17,43 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.coders.CoderException;
-import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
-import com.google.cloud.dataflow.sdk.coders.CustomCoder;
-import com.google.cloud.dataflow.sdk.coders.DelegateCoder;
-import com.google.cloud.dataflow.sdk.coders.IterableCoder;
-import com.google.cloud.dataflow.sdk.coders.KvCoder;
-import com.google.cloud.dataflow.sdk.coders.StandardCoder;
-import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
-import com.google.cloud.dataflow.sdk.coders.VoidCoder;
-import com.google.cloud.dataflow.sdk.transforms.CombineFnBase.AbstractGlobalCombineFn;
-import com.google.cloud.dataflow.sdk.transforms.CombineFnBase.AbstractPerKeyCombineFn;
-import com.google.cloud.dataflow.sdk.transforms.CombineFnBase.GlobalCombineFn;
-import com.google.cloud.dataflow.sdk.transforms.CombineFnBase.PerKeyCombineFn;
-import com.google.cloud.dataflow.sdk.transforms.CombineWithContext.CombineFnWithContext;
-import com.google.cloud.dataflow.sdk.transforms.CombineWithContext.Context;
-import com.google.cloud.dataflow.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
-import com.google.cloud.dataflow.sdk.transforms.CombineWithContext.RequiresContextInternal;
-import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
-import com.google.cloud.dataflow.sdk.util.AppliedCombineFn;
-import com.google.cloud.dataflow.sdk.util.PerKeyCombineFnRunner;
-import com.google.cloud.dataflow.sdk.util.PerKeyCombineFnRunners;
-import com.google.cloud.dataflow.sdk.util.PropertyNames;
-import com.google.cloud.dataflow.sdk.util.SerializableUtils;
-import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
-import com.google.cloud.dataflow.sdk.util.common.Counter;
-import com.google.cloud.dataflow.sdk.values.KV;
-import com.google.cloud.dataflow.sdk.values.PCollection;
-import com.google.cloud.dataflow.sdk.values.PCollectionList;
-import com.google.cloud.dataflow.sdk.values.PCollectionTuple;
-import com.google.cloud.dataflow.sdk.values.PCollectionView;
-import com.google.cloud.dataflow.sdk.values.TupleTag;
-import com.google.cloud.dataflow.sdk.values.TupleTagList;
-import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.DelegateCoder;
+import org.apache.beam.sdk.coders.IterableCoder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StandardCoder;
+import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.transforms.CombineFnBase.AbstractGlobalCombineFn;
+import org.apache.beam.sdk.transforms.CombineFnBase.AbstractPerKeyCombineFn;
+import org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn;
+import org.apache.beam.sdk.transforms.CombineFnBase.PerKeyCombineFn;
+import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
+import org.apache.beam.sdk.transforms.CombineWithContext.Context;
+import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
+import org.apache.beam.sdk.transforms.CombineWithContext.RequiresContextInternal;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.AppliedCombineFn;
+import org.apache.beam.sdk.util.PerKeyCombineFnRunner;
+import org.apache.beam.sdk.util.PerKeyCombineFnRunners;
+import org.apache.beam.sdk.util.PropertyNames;
+import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.sdk.util.WindowingStrategy;
+import org.apache.beam.sdk.util.common.Counter;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -133,7 +133,7 @@ public class Combine {
    * <p>Each output element is in the window by which its corresponding input
    * was grouped, and has the timestamp of the end of that window.  The output
    * {@code PCollection} has the same
-   * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
+   * {@link org.apache.beam.sdk.transforms.windowing.WindowFn}
    * as the input.
    *
    * <p>See {@link PerKey Combine.PerKey} for more information.
@@ -154,7 +154,7 @@ public class Combine {
    * <p>Each output element is in the window by which its corresponding input
    * was grouped, and has the timestamp of the end of that window.  The output
    * {@code PCollection} has the same
-   * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
+   * {@link org.apache.beam.sdk.transforms.windowing.WindowFn}
    * as the input.
    *
    * <p>See {@link PerKey Combine.PerKey} for more information.
@@ -175,7 +175,7 @@ public class Combine {
    * <p>Each output element is in the window by which its corresponding input
    * was grouped, and has the timestamp of the end of that window.  The output
    * {@code PCollection} has the same
-   * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
+   * {@link org.apache.beam.sdk.transforms.windowing.WindowFn}
    * as the input.
    *
    * <p>See {@link PerKey Combine.PerKey} for more information.
@@ -206,7 +206,7 @@ public class Combine {
    * <p>Each output element has the same timestamp and is in the same window
    * as its corresponding input element, and the output
    * {@code PCollection} has the same
-   * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
+   * {@link org.apache.beam.sdk.transforms.windowing.WindowFn}
    * associated with it as the input.
    *
    * <p>See {@link GroupedValues Combine.GroupedValues} for more information.
@@ -232,7 +232,7 @@ public class Combine {
    * <p>Each output element has the same timestamp and is in the same window
    * as its corresponding input element, and the output
    * {@code PCollection} has the same
-   * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
+   * {@link org.apache.beam.sdk.transforms.windowing.WindowFn}
    * associated with it as the input.
    *
    * <p>See {@link GroupedValues Combine.GroupedValues} for more information.
@@ -258,7 +258,7 @@ public class Combine {
    * <p>Each output element has the same timestamp and is in the same window
    * as its corresponding input element, and the output
    * {@code PCollection} has the same
-   * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
+   * {@link org.apache.beam.sdk.transforms.windowing.WindowFn}
    * associated with it as the input.
    *
    * <p>See {@link GroupedValues Combine.GroupedValues} for more information.
@@ -1587,7 +1587,7 @@ public class Combine {
    * <p>Each output element is in the window by which its corresponding input
    * was grouped, and has the timestamp of the end of that window.  The output
    * {@code PCollection} has the same
-   * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
+   * {@link org.apache.beam.sdk.transforms.windowing.WindowFn}
    * as the input.
    *
    * @param <K> the type of the keys of the input and output
@@ -2118,7 +2118,7 @@ public class Combine {
    * <p>Each output element has the same timestamp and is in the same window
    * as its corresponding input element, and the output
    * {@code PCollection} has the same
-   * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
+   * {@link org.apache.beam.sdk.transforms.windowing.WindowFn}
    * associated with it as the input.
    *
    * <p>See also {@link #globally}/{@link Globally Combine.Globally}, which

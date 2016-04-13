@@ -22,15 +22,15 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import org.apache.beam.sdk.annotations.Experimental;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
-import com.google.cloud.dataflow.sdk.transforms.DoFn.DelegatingAggregator;
-import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
-import com.google.cloud.dataflow.sdk.util.WindowingInternals;
-import com.google.cloud.dataflow.sdk.values.PCollectionView;
-import com.google.cloud.dataflow.sdk.values.TupleTag;
-import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.transforms.DoFn.DelegatingAggregator;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.WindowingInternals;
+import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -47,7 +47,7 @@ import java.util.Map;
 /**
  * The argument to {@link ParDo} providing the code to use to process
  * elements of the input
- * {@link com.google.cloud.dataflow.sdk.values.PCollection}.
+ * {@link org.apache.beam.sdk.values.PCollection}.
  *
  * <p>See {@link ParDo} for more explanation, examples of use, and
  * discussion of constraints on {@code DoFnWithContext}s, including their
@@ -89,7 +89,7 @@ public abstract class DoFnWithContext<InputT, OutputT> implements Serializable {
 
     /**
      * Returns the {@code PipelineOptions} specified with the
-     * {@link com.google.cloud.dataflow.sdk.runners.PipelineRunner}
+     * {@link org.apache.beam.sdk.runners.PipelineRunner}
      * invoking this {@code DoFnWithContext}.  The {@code PipelineOptions} will
      * be the default running via {@link DoFnTester}.
      */
@@ -108,7 +108,7 @@ public abstract class DoFnWithContext<InputT, OutputT> implements Serializable {
      *
      * <p>If invoked from {@link StartBundle} or {@link FinishBundle},
      * this will attempt to use the
-     * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
+     * {@link org.apache.beam.sdk.transforms.windowing.WindowFn}
      * of the input {@code PCollection} to determine what windows the element
      * should be in, throwing an exception if the {@code WindowFn} attempts
      * to access any information about the input element. The output element
@@ -130,7 +130,7 @@ public abstract class DoFnWithContext<InputT, OutputT> implements Serializable {
      *
      * <p>If invoked from {@link StartBundle} or {@link FinishBundle},
      * this will attempt to use the
-     * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
+     * {@link org.apache.beam.sdk.transforms.windowing.WindowFn}
      * of the input {@code PCollection} to determine what windows the element
      * should be in, throwing an exception if the {@code WindowFn} attempts
      * to access any information about the input element except for the
@@ -155,7 +155,7 @@ public abstract class DoFnWithContext<InputT, OutputT> implements Serializable {
      *
      * <p>If invoked from {@link StartBundle} or {@link FinishBundle},
      * this will attempt to use the
-     * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
+     * {@link org.apache.beam.sdk.transforms.windowing.WindowFn}
      * of the input {@code PCollection} to determine what windows the element
      * should be in, throwing an exception if the {@code WindowFn} attempts
      * to access any information about the input element. The output element
@@ -179,7 +179,7 @@ public abstract class DoFnWithContext<InputT, OutputT> implements Serializable {
      *
      * <p>If invoked from {@link StartBundle} or {@link FinishBundle},
      * this will attempt to use the
-     * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
+     * {@link org.apache.beam.sdk.transforms.windowing.WindowFn}
      * of the input {@code PCollection} to determine what windows the element
      * should be in, throwing an exception if the {@code WindowFn} attempts
      * to access any information about the input element except for the
@@ -216,7 +216,7 @@ public abstract class DoFnWithContext<InputT, OutputT> implements Serializable {
     /**
      * Returns the timestamp of the input element.
      *
-     * <p>See {@link com.google.cloud.dataflow.sdk.transforms.windowing.Window}
+     * <p>See {@link org.apache.beam.sdk.transforms.windowing.Window}
      * for more information.
      */
     public abstract Instant timestamp();
@@ -227,7 +227,7 @@ public abstract class DoFnWithContext<InputT, OutputT> implements Serializable {
      *
      * <p>Generally all data is in a single, uninteresting pane unless custom
      * triggering and/or late data has been explicitly requested.
-     * See {@link com.google.cloud.dataflow.sdk.transforms.windowing.Window}
+     * See {@link org.apache.beam.sdk.transforms.windowing.Window}
      * for more information.
      */
     public abstract PaneInfo pane();

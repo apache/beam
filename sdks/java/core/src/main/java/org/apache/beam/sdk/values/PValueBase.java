@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.values;
 
-import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
-import com.google.cloud.dataflow.sdk.util.StringUtils;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.util.StringUtils;
 
 import java.util.Collection;
 import java.util.Collections;

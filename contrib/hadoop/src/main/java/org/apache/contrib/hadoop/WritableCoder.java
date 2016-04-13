@@ -17,10 +17,10 @@
  */
 package org.apache.beam.contrib.hadoop;
 
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.coders.CoderException;
-import com.google.cloud.dataflow.sdk.coders.StandardCoder;
-import com.google.cloud.dataflow.sdk.util.CloudObject;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.StandardCoder;
+import org.apache.beam.sdk.util.CloudObject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.hadoop.io.Writable;
@@ -32,7 +32,7 @@ import java.io.OutputStream;
 import java.util.List;
 
 /**
- * A {@code WritableCoder} is a {@link com.google.cloud.dataflow.sdk.coders.Coder} for a
+ * A {@code WritableCoder} is a {@link org.apache.beam.sdk.coders.Coder} for a
  * Java class that implements {@link org.apache.hadoop.io.Writable}.
  *
  * <p> To use, specify the coder type on a PCollection:

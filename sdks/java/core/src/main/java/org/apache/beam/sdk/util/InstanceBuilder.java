@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.util;
 
-import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 

@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.options;
 
 import org.apache.beam.sdk.annotations.Experimental;
-import com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner;
+import org.apache.beam.sdk.runners.DataflowPipelineRunner;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 

@@ -19,7 +19,7 @@ package org.apache.beam.sdk.io.range;
 
 /**
  * A {@code RangeTracker} is a thread-safe helper object for implementing dynamic work rebalancing
- * in position-based {@link com.google.cloud.dataflow.sdk.io.BoundedSource.BoundedReader}
+ * in position-based {@link org.apache.beam.sdk.io.BoundedSource.BoundedReader}
  * subclasses.
  *
  * <h3>Usage of the RangeTracker class hierarchy</h3>
@@ -156,7 +156,7 @@ package org.apache.beam.sdk.io.range;
  *
  * <h3>Usage with different models of iteration</h3>
  * When using this class to protect a
- * {@link com.google.cloud.dataflow.sdk.io.BoundedSource.BoundedReader}, follow the pattern
+ * {@link org.apache.beam.sdk.io.BoundedSource.BoundedReader}, follow the pattern
  * described above.
  *
  * <p>When using this class to protect iteration in the {@code hasNext()/next()}

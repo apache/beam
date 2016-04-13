@@ -44,7 +44,7 @@ import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableDataInsertAllResponse;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
-import com.google.cloud.dataflow.sdk.testing.ExpectedLogs;
+import org.apache.beam.sdk.testing.ExpectedLogs;
 import com.google.cloud.hadoop.util.RetryBoundedBackOff;
 import com.google.common.collect.ImmutableList;
 

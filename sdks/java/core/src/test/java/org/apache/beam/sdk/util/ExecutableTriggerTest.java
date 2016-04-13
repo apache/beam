@@ -20,8 +20,8 @@ package org.apache.beam.sdk.util;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 
-import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.Trigger;
 
 import org.joda.time.Instant;
 import org.junit.Test;

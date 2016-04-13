@@ -17,18 +17,18 @@
  */
 /**
  * Defines runners for executing Pipelines in different modes, including
- * {@link com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner} and
- * {@link com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner}.
+ * {@link org.apache.beam.sdk.runners.DirectPipelineRunner} and
+ * {@link org.apache.beam.sdk.runners.DataflowPipelineRunner}.
  *
- * <p>{@link com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner} executes a {@code Pipeline}
+ * <p>{@link org.apache.beam.sdk.runners.DirectPipelineRunner} executes a {@code Pipeline}
  * locally, without contacting the Dataflow service.
- * {@link com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner} submits a
+ * {@link org.apache.beam.sdk.runners.DataflowPipelineRunner} submits a
  * {@code Pipeline} to the Dataflow service, which executes it on Dataflow-managed Compute Engine
  * instances. {@code DataflowPipelineRunner} returns
  * as soon as the {@code Pipeline} has been submitted. Use
- * {@link com.google.cloud.dataflow.sdk.runners.BlockingDataflowPipelineRunner} to have execution
+ * {@link org.apache.beam.sdk.runners.BlockingDataflowPipelineRunner} to have execution
  * updates printed to the console.
  *
- * <p>The runner is specified as part {@link com.google.cloud.dataflow.sdk.options.PipelineOptions}.
+ * <p>The runner is specified as part {@link org.apache.beam.sdk.options.PipelineOptions}.
  */
 package org.apache.beam.sdk.runners;

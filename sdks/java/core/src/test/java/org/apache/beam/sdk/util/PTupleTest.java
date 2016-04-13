@@ -22,7 +22,7 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import com.google.cloud.dataflow.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTag;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;

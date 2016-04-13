@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.coders;
 
-import com.google.cloud.dataflow.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.testing.CoderProperties;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 

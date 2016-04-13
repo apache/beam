@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.options;
 
-import com.google.cloud.dataflow.sdk.util.AppEngineEnvironment;
-import com.google.cloud.dataflow.sdk.util.GcsUtil;
+import org.apache.beam.sdk.util.AppEngineEnvironment;
+import org.apache.beam.sdk.util.GcsUtil;
 import com.google.cloud.hadoop.util.AbstractGoogleAsyncWriteChannel;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;

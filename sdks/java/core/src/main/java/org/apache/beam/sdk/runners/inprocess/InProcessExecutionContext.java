@@ -17,13 +17,13 @@
  */
 package org.apache.beam.sdk.runners.inprocess;
 
-import com.google.cloud.dataflow.sdk.runners.inprocess.InMemoryWatermarkManager.TimerUpdate;
-import com.google.cloud.dataflow.sdk.runners.inprocess.InMemoryWatermarkManager.TransformWatermarks;
-import com.google.cloud.dataflow.sdk.util.BaseExecutionContext;
-import com.google.cloud.dataflow.sdk.util.ExecutionContext;
-import com.google.cloud.dataflow.sdk.util.TimerInternals;
-import com.google.cloud.dataflow.sdk.util.common.worker.StateSampler;
-import com.google.cloud.dataflow.sdk.util.state.CopyOnAccessInMemoryStateInternals;
+import org.apache.beam.sdk.runners.inprocess.InMemoryWatermarkManager.TimerUpdate;
+import org.apache.beam.sdk.runners.inprocess.InMemoryWatermarkManager.TransformWatermarks;
+import org.apache.beam.sdk.util.BaseExecutionContext;
+import org.apache.beam.sdk.util.ExecutionContext;
+import org.apache.beam.sdk.util.TimerInternals;
+import org.apache.beam.sdk.util.common.worker.StateSampler;
+import org.apache.beam.sdk.util.state.CopyOnAccessInMemoryStateInternals;
 
 /**
  * Execution Context for the {@link InProcessPipelineRunner}.
@@ -56,7 +56,7 @@ class InProcessExecutionContext
    * Step Context for the {@link InProcessPipelineRunner}.
    */
   public class InProcessStepContext
-      extends com.google.cloud.dataflow.sdk.util.BaseExecutionContext.StepContext {
+      extends org.apache.beam.sdk.util.BaseExecutionContext.StepContext {
     private CopyOnAccessInMemoryStateInternals<Object> stateInternals;
     private InProcessTimerInternals timerInternals;
 

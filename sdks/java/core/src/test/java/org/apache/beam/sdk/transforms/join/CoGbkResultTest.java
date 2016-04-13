@@ -22,10 +22,10 @@ import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
-import com.google.cloud.dataflow.sdk.util.common.Reiterable;
-import com.google.cloud.dataflow.sdk.util.common.Reiterator;
-import com.google.cloud.dataflow.sdk.values.TupleTag;
-import com.google.cloud.dataflow.sdk.values.TupleTagList;
+import org.apache.beam.sdk.util.common.Reiterable;
+import org.apache.beam.sdk.util.common.Reiterator;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;

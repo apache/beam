@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.util.state;
 
-import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.transforms.Combine.CombineFn;
 
 /**
  * State that combines multiple {@code InputT} values using a {@link CombineFn} to produce a single

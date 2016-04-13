@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.io;
 
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.coders.JAXBCoder;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.JAXBCoder;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.runners.PipelineRunner;
 import com.google.common.base.Preconditions;
 
 import org.codehaus.stax2.XMLInputFactory2;
@@ -110,7 +110,7 @@ import javax.xml.stream.XMLStreamReader;
  *
  * <p><h3>Permissions</h3>
  * Permission requirements depend on the
- * {@link com.google.cloud.dataflow.sdk.runners.PipelineRunner PipelineRunner} that is
+ * {@link org.apache.beam.sdk.runners.PipelineRunner PipelineRunner} that is
  * used to execute the Dataflow job. Please refer to the documentation of corresponding
  * {@link PipelineRunner PipelineRunners} for more details.
  *

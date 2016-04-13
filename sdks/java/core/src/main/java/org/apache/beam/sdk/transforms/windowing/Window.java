@@ -19,15 +19,15 @@ package org.apache.beam.sdk.transforms.windowing;
 
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.coders.Coder.NonDeterministicException;
-import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
-import com.google.cloud.dataflow.sdk.transforms.PTransform;
-import com.google.cloud.dataflow.sdk.transforms.ParDo;
-import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
-import com.google.cloud.dataflow.sdk.util.WindowingStrategy.AccumulationMode;
-import com.google.cloud.dataflow.sdk.values.PCollection;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.util.WindowingStrategy;
+import org.apache.beam.sdk.util.WindowingStrategy.AccumulationMode;
+import org.apache.beam.sdk.values.PCollection;
 
 import org.joda.time.Duration;
 
@@ -38,11 +38,11 @@ import javax.annotation.Nullable;
  * {@link PCollection} into finite windows according to a {@link WindowFn}.
  * The output of {@code Window} contains the same elements as input, but they
  * have been logically assigned to windows. The next
- * {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey GroupByKeys},
+ * {@link org.apache.beam.sdk.transforms.GroupByKey GroupByKeys},
  * including one within composite transforms, will group by the combination of
  * keys and windows.
 
- * <p>See {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey}
+ * <p>See {@link org.apache.beam.sdk.transforms.GroupByKey}
  * for more information about how grouping with windows works.
  *
  * <h2> Windowing </h2>
@@ -131,7 +131,7 @@ import javax.annotation.Nullable;
  *      .withAllowedLateness(Duration.ZERO));
  * } </pre>
  *
- * <p>After a {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey} the trigger is set to
+ * <p>After a {@link org.apache.beam.sdk.transforms.GroupByKey} the trigger is set to
  * a trigger that will preserve the intent of the upstream trigger.  See
  * {@link Trigger#getContinuationTrigger} for more information.
  *
@@ -161,7 +161,7 @@ public class Window {
    * Creates a {@code Window} {@code PTransform} with the given name.
    *
    * <p>See the discussion of Naming in
-   * {@link com.google.cloud.dataflow.sdk.transforms.ParDo} for more explanation.
+   * {@link org.apache.beam.sdk.transforms.ParDo} for more explanation.
    *
    * <p>The resulting {@code PTransform} is incomplete, and its input/output
    * type is not yet bound.  Use {@link Window.Unbound#into} to specify the
@@ -259,7 +259,7 @@ public class Window {
      * transform.  The resulting transform is still incomplete.
      *
      * <p>See the discussion of Naming in
-     * {@link com.google.cloud.dataflow.sdk.transforms.ParDo} for more
+     * {@link org.apache.beam.sdk.transforms.ParDo} for more
      * explanation.
      */
     public Unbound named(String name) {
@@ -282,7 +282,7 @@ public class Window {
      * Elements that are assigned to a specific window will be output when
      * the trigger fires.
      *
-     * <p>{@link com.google.cloud.dataflow.sdk.transforms.windowing.Trigger}
+     * <p>{@link org.apache.beam.sdk.transforms.windowing.Trigger}
      * has more details on the available triggers.
      *
      * <p>Must also specify allowed lateness using {@link #withAllowedLateness} and accumulation
@@ -412,7 +412,7 @@ public class Window {
      * modify this {@code PTransform}.
      *
      * <p>See the discussion of Naming in
-     * {@link com.google.cloud.dataflow.sdk.transforms.ParDo} for more
+     * {@link org.apache.beam.sdk.transforms.ParDo} for more
      * explanation.
      */
     public Bound<T> named(String name) {
@@ -425,7 +425,7 @@ public class Window {
      * Elements that are assigned to a specific window will be output when
      * the trigger fires.
      *
-     * <p>{@link com.google.cloud.dataflow.sdk.transforms.windowing.Trigger}
+     * <p>{@link org.apache.beam.sdk.transforms.windowing.Trigger}
      * has more details on the available triggers.
      *
      * <p>Must also specify allowed lateness using {@link #withAllowedLateness} and accumulation
@@ -619,7 +619,7 @@ public class Window {
   /**
    * Creates a {@code Window} {@code PTransform} that does not change assigned
    * windows, but will cause windows to be merged again as part of the next
-   * {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey}.
+   * {@link org.apache.beam.sdk.transforms.GroupByKey}.
    */
   public static <T> Remerge<T> remerge() {
     return new Remerge<T>();
@@ -628,7 +628,7 @@ public class Window {
   /**
    * {@code PTransform} that does not change assigned windows, but will cause
    *  windows to be merged again as part of the next
-   * {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey}.
+   * {@link org.apache.beam.sdk.transforms.GroupByKey}.
    */
   private static class Remerge<T> extends PTransform<PCollection<T>, PCollection<T>> {
     @Override

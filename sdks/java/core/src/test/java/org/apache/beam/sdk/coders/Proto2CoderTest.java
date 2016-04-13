@@ -22,9 +22,9 @@ import static org.junit.Assert.assertEquals;
 import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageA;
 import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageB;
 import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageC;
-import com.google.cloud.dataflow.sdk.testing.CoderProperties;
-import com.google.cloud.dataflow.sdk.util.CoderUtils;
-import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import com.google.common.collect.ImmutableList;
 
 import org.junit.Rule;

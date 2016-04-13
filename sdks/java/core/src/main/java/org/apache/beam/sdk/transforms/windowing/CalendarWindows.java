@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
-import com.google.cloud.dataflow.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.Coder;
 
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;

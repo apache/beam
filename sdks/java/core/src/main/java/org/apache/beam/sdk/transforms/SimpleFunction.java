@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * A {@link SerializableFunction} which is not a <i>functional interface</i>.

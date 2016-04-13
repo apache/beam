@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.options;
 
-import com.google.cloud.dataflow.sdk.runners.BlockingDataflowPipelineRunner;
+import org.apache.beam.sdk.runners.BlockingDataflowPipelineRunner;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 

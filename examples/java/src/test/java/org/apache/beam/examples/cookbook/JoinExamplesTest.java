@@ -18,16 +18,16 @@
 package org.apache.beam.examples.cookbook;
 
 import com.google.api.services.bigquery.model.TableRow;
-import com.google.cloud.dataflow.examples.cookbook.JoinExamples.ExtractCountryInfoFn;
-import com.google.cloud.dataflow.examples.cookbook.JoinExamples.ExtractEventDataFn;
-import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.testing.PAssert;
-import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
-import com.google.cloud.dataflow.sdk.testing.TestPipeline;
-import com.google.cloud.dataflow.sdk.transforms.Create;
-import com.google.cloud.dataflow.sdk.transforms.DoFnTester;
-import com.google.cloud.dataflow.sdk.values.KV;
-import com.google.cloud.dataflow.sdk.values.PCollection;
+import org.apache.beam.examples.cookbook.JoinExamples.ExtractCountryInfoFn;
+import org.apache.beam.examples.cookbook.JoinExamples.ExtractEventDataFn;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.RunnableOnService;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFnTester;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 
 import org.hamcrest.CoreMatchers;
 import org.junit.Assert;

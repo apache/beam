@@ -17,7 +17,7 @@
  */
 package org.apache.beam.contrib.hadoop;
 
-import com.google.cloud.dataflow.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.testing.CoderProperties;
 
 import org.apache.hadoop.io.IntWritable;
 import org.junit.Test;

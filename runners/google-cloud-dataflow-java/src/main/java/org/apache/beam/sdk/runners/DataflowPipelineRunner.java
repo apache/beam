@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.runners;
 
-import static com.google.cloud.dataflow.sdk.util.StringUtils.approximatePTransformName;
-import static com.google.cloud.dataflow.sdk.util.StringUtils.approximateSimpleName;
-import static com.google.cloud.dataflow.sdk.util.WindowedValue.valueInEmptyWindows;
+import static org.apache.beam.sdk.util.StringUtils.approximatePTransformName;
+import static org.apache.beam.sdk.util.StringUtils.approximateSimpleName;
+import static org.apache.beam.sdk.util.WindowedValue.valueInEmptyWindows;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
@@ -35,96 +35,96 @@ import com.google.api.services.dataflow.model.DataflowPackage;
 import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.ListJobsResponse;
 import com.google.api.services.dataflow.model.WorkerPool;
-import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.Pipeline.PipelineVisitor;
-import com.google.cloud.dataflow.sdk.PipelineResult.State;
-import com.google.cloud.dataflow.sdk.coders.AvroCoder;
-import com.google.cloud.dataflow.sdk.coders.BigEndianLongCoder;
-import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.coders.Coder.NonDeterministicException;
-import com.google.cloud.dataflow.sdk.coders.CoderException;
-import com.google.cloud.dataflow.sdk.coders.CoderRegistry;
-import com.google.cloud.dataflow.sdk.coders.IterableCoder;
-import com.google.cloud.dataflow.sdk.coders.KvCoder;
-import com.google.cloud.dataflow.sdk.coders.ListCoder;
-import com.google.cloud.dataflow.sdk.coders.MapCoder;
-import com.google.cloud.dataflow.sdk.coders.SerializableCoder;
-import com.google.cloud.dataflow.sdk.coders.StandardCoder;
-import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
-import com.google.cloud.dataflow.sdk.coders.VarLongCoder;
-import com.google.cloud.dataflow.sdk.io.AvroIO;
-import com.google.cloud.dataflow.sdk.io.BigQueryIO;
-import com.google.cloud.dataflow.sdk.io.FileBasedSink;
-import com.google.cloud.dataflow.sdk.io.PubsubIO;
-import com.google.cloud.dataflow.sdk.io.Read;
-import com.google.cloud.dataflow.sdk.io.ShardNameTemplate;
-import com.google.cloud.dataflow.sdk.io.TextIO;
-import com.google.cloud.dataflow.sdk.io.UnboundedSource;
-import com.google.cloud.dataflow.sdk.io.Write;
-import com.google.cloud.dataflow.sdk.options.DataflowPipelineDebugOptions;
-import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
-import com.google.cloud.dataflow.sdk.options.DataflowPipelineWorkerPoolOptions;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.options.PipelineOptionsValidator;
-import com.google.cloud.dataflow.sdk.options.StreamingOptions;
-import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator.JobSpecification;
-import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator.TransformTranslator;
-import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator.TranslationContext;
-import com.google.cloud.dataflow.sdk.runners.dataflow.AssignWindows;
-import com.google.cloud.dataflow.sdk.runners.dataflow.DataflowAggregatorTransforms;
-import com.google.cloud.dataflow.sdk.runners.dataflow.PubsubIOTranslator;
-import com.google.cloud.dataflow.sdk.runners.dataflow.ReadTranslator;
-import com.google.cloud.dataflow.sdk.runners.worker.IsmFormat;
-import com.google.cloud.dataflow.sdk.runners.worker.IsmFormat.IsmRecord;
-import com.google.cloud.dataflow.sdk.runners.worker.IsmFormat.IsmRecordCoder;
-import com.google.cloud.dataflow.sdk.runners.worker.IsmFormat.MetadataKeyCoder;
-import com.google.cloud.dataflow.sdk.transforms.Aggregator;
-import com.google.cloud.dataflow.sdk.transforms.Combine;
-import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
-import com.google.cloud.dataflow.sdk.transforms.Create;
-import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.Flatten;
-import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
-import com.google.cloud.dataflow.sdk.transforms.PTransform;
-import com.google.cloud.dataflow.sdk.transforms.ParDo;
-import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
-import com.google.cloud.dataflow.sdk.transforms.View;
-import com.google.cloud.dataflow.sdk.transforms.View.CreatePCollectionView;
-import com.google.cloud.dataflow.sdk.transforms.WithKeys;
-import com.google.cloud.dataflow.sdk.transforms.windowing.AfterPane;
-import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
-import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
-import com.google.cloud.dataflow.sdk.util.CoderUtils;
-import com.google.cloud.dataflow.sdk.util.DataflowReleaseInfo;
-import com.google.cloud.dataflow.sdk.util.DataflowTransport;
-import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
-import com.google.cloud.dataflow.sdk.util.InstanceBuilder;
-import com.google.cloud.dataflow.sdk.util.MonitoringUtil;
-import com.google.cloud.dataflow.sdk.util.PCollectionViews;
-import com.google.cloud.dataflow.sdk.util.PathValidator;
-import com.google.cloud.dataflow.sdk.util.PropertyNames;
-import com.google.cloud.dataflow.sdk.util.Reshuffle;
-import com.google.cloud.dataflow.sdk.util.SystemDoFnInternal;
-import com.google.cloud.dataflow.sdk.util.ValueWithRecordId;
-import com.google.cloud.dataflow.sdk.util.WindowedValue;
-import com.google.cloud.dataflow.sdk.util.WindowedValue.FullWindowedValueCoder;
-import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
-import com.google.cloud.dataflow.sdk.values.KV;
-import com.google.cloud.dataflow.sdk.values.PCollection;
-import com.google.cloud.dataflow.sdk.values.PCollection.IsBounded;
-import com.google.cloud.dataflow.sdk.values.PCollectionList;
-import com.google.cloud.dataflow.sdk.values.PCollectionTuple;
-import com.google.cloud.dataflow.sdk.values.PCollectionView;
-import com.google.cloud.dataflow.sdk.values.PDone;
-import com.google.cloud.dataflow.sdk.values.PInput;
-import com.google.cloud.dataflow.sdk.values.POutput;
-import com.google.cloud.dataflow.sdk.values.PValue;
-import com.google.cloud.dataflow.sdk.values.TupleTag;
-import com.google.cloud.dataflow.sdk.values.TupleTagList;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.Pipeline.PipelineVisitor;
+import org.apache.beam.sdk.PipelineResult.State;
+import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.BigEndianLongCoder;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.coders.IterableCoder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.ListCoder;
+import org.apache.beam.sdk.coders.MapCoder;
+import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.coders.StandardCoder;
+import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.io.AvroIO;
+import org.apache.beam.sdk.io.BigQueryIO;
+import org.apache.beam.sdk.io.FileBasedSink;
+import org.apache.beam.sdk.io.PubsubIO;
+import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.io.ShardNameTemplate;
+import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.io.Write;
+import org.apache.beam.sdk.options.DataflowPipelineDebugOptions;
+import org.apache.beam.sdk.options.DataflowPipelineOptions;
+import org.apache.beam.sdk.options.DataflowPipelineWorkerPoolOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsValidator;
+import org.apache.beam.sdk.options.StreamingOptions;
+import org.apache.beam.sdk.runners.DataflowPipelineTranslator.JobSpecification;
+import org.apache.beam.sdk.runners.DataflowPipelineTranslator.TransformTranslator;
+import org.apache.beam.sdk.runners.DataflowPipelineTranslator.TranslationContext;
+import org.apache.beam.sdk.runners.dataflow.AssignWindows;
+import org.apache.beam.sdk.runners.dataflow.DataflowAggregatorTransforms;
+import org.apache.beam.sdk.runners.dataflow.PubsubIOTranslator;
+import org.apache.beam.sdk.runners.dataflow.ReadTranslator;
+import org.apache.beam.sdk.runners.worker.IsmFormat;
+import org.apache.beam.sdk.runners.worker.IsmFormat.IsmRecord;
+import org.apache.beam.sdk.runners.worker.IsmFormat.IsmRecordCoder;
+import org.apache.beam.sdk.runners.worker.IsmFormat.MetadataKeyCoder;
+import org.apache.beam.sdk.transforms.Aggregator;
+import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
+import org.apache.beam.sdk.transforms.WithKeys;
+import org.apache.beam.sdk.transforms.windowing.AfterPane;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.DataflowReleaseInfo;
+import org.apache.beam.sdk.util.DataflowTransport;
+import org.apache.beam.sdk.util.IOChannelUtils;
+import org.apache.beam.sdk.util.InstanceBuilder;
+import org.apache.beam.sdk.util.MonitoringUtil;
+import org.apache.beam.sdk.util.PCollectionViews;
+import org.apache.beam.sdk.util.PathValidator;
+import org.apache.beam.sdk.util.PropertyNames;
+import org.apache.beam.sdk.util.Reshuffle;
+import org.apache.beam.sdk.util.SystemDoFnInternal;
+import org.apache.beam.sdk.util.ValueWithRecordId;
+import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
+import org.apache.beam.sdk.util.WindowingStrategy;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
+import org.apache.beam.sdk.values.PCollectionList;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.PInput;
+import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
@@ -807,7 +807,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
 
   /**
    * Specialized implementation for
-   * {@link com.google.cloud.dataflow.sdk.transforms.View.AsSingleton View.AsSingleton} for the
+   * {@link org.apache.beam.sdk.transforms.View.AsSingleton View.AsSingleton} for the
    * Dataflow runner in batch mode.
    *
    * <p>Creates a set of files in the {@link IsmFormat} sharded by the hash of the windows
@@ -918,7 +918,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
 
   /**
    * Specialized implementation for
-   * {@link com.google.cloud.dataflow.sdk.transforms.View.AsIterable View.AsIterable} for the
+   * {@link org.apache.beam.sdk.transforms.View.AsIterable View.AsIterable} for the
    * Dataflow runner in batch mode.
    *
    * <p>Creates a set of {@code Ism} files sharded by the hash of the windows byte representation
@@ -951,7 +951,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
 
   /**
    * Specialized implementation for
-   * {@link com.google.cloud.dataflow.sdk.transforms.View.AsList View.AsList} for the
+   * {@link org.apache.beam.sdk.transforms.View.AsList View.AsList} for the
    * Dataflow runner in batch mode.
    *
    * <p>Creates a set of {@code Ism} files sharded by the hash of the window's byte representation
@@ -1107,7 +1107,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
 
   /**
    * Specialized implementation for
-   * {@link com.google.cloud.dataflow.sdk.transforms.View.AsMap View.AsMap} for the
+   * {@link org.apache.beam.sdk.transforms.View.AsMap View.AsMap} for the
    * Dataflow runner in batch mode.
    *
    * <p>Creates a set of {@code Ism} files sharded by the hash of the key's byte
@@ -1134,7 +1134,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
    * {@code [1, size of map]}.
    *
    * <p>Note that in the case of a non-deterministic key coder, we fallback to using
-   * {@link com.google.cloud.dataflow.sdk.transforms.View.AsSingleton View.AsSingleton} printing
+   * {@link org.apache.beam.sdk.transforms.View.AsSingleton View.AsSingleton} printing
    * a warning to users to specify a deterministic key coder.
    */
   static class BatchViewAsMap<K, V>
@@ -1281,7 +1281,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
 
   /**
    * Specialized implementation for
-   * {@link com.google.cloud.dataflow.sdk.transforms.View.AsMultimap View.AsMultimap} for the
+   * {@link org.apache.beam.sdk.transforms.View.AsMultimap View.AsMultimap} for the
    * Dataflow runner in batch mode.
    *
    * <p>Creates a set of {@code Ism} files sharded by the hash of the key's byte
@@ -1308,7 +1308,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
    * {@code [1, size of map]}.
    *
    * <p>Note that in the case of a non-deterministic key coder, we fallback to using
-   * {@link com.google.cloud.dataflow.sdk.transforms.View.AsSingleton View.AsSingleton} printing
+   * {@link org.apache.beam.sdk.transforms.View.AsSingleton View.AsSingleton} printing
    * a warning to users to specify a deterministic key coder.
    */
   static class BatchViewAsMultimap<K, V>
@@ -1945,7 +1945,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
 
     @Override
     public void verifyDeterministic()
-        throws com.google.cloud.dataflow.sdk.coders.Coder.NonDeterministicException {
+        throws org.apache.beam.sdk.coders.Coder.NonDeterministicException {
       verifyDeterministic("Expected transform coder to be deterministic.", transformCoder);
       verifyDeterministic("Expected map coder to be deterministic.", originalMapCoder);
     }
@@ -2036,7 +2036,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
 
   /**
    * Specialized implementation which overrides
-   * {@link com.google.cloud.dataflow.sdk.io.Write.Bound Write.Bound} to provide Google
+   * {@link org.apache.beam.sdk.io.Write.Bound Write.Bound} to provide Google
    * Cloud Dataflow specific path validation of {@link FileBasedSink}s.
    */
   private static class BatchWrite<T> extends PTransform<PCollection<T>, PDone> {
@@ -2064,7 +2064,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
 
   /**
    * Specialized implementation which overrides
-   * {@link com.google.cloud.dataflow.sdk.io.TextIO.Write.Bound TextIO.Write.Bound} with
+   * {@link org.apache.beam.sdk.io.TextIO.Write.Bound TextIO.Write.Bound} with
    * a native sink instead of a custom sink as workaround until custom sinks
    * have support for sharding controls.
    */
@@ -2169,7 +2169,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
 
   /**
    * Specialized implementation which overrides
-   * {@link com.google.cloud.dataflow.sdk.io.AvroIO.Write.Bound AvroIO.Write.Bound} with
+   * {@link org.apache.beam.sdk.io.AvroIO.Write.Bound AvroIO.Write.Bound} with
    * a native sink instead of a custom sink as workaround until custom sinks
    * have support for sharding controls.
    */
@@ -2271,7 +2271,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
 
   /**
    * Specialized (non-)implementation for
-   * {@link com.google.cloud.dataflow.sdk.io.Write.Bound Write.Bound}
+   * {@link org.apache.beam.sdk.io.Write.Bound Write.Bound}
    * for the Dataflow runner in streaming mode.
    */
   private static class StreamingWrite<T> extends PTransform<PCollection<T>, PDone> {
@@ -2295,7 +2295,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
 
   /**
    * Specialized implementation for
-   * {@link com.google.cloud.dataflow.sdk.io.PubsubIO.Write PubsubIO.Write} for the
+   * {@link org.apache.beam.sdk.io.PubsubIO.Write PubsubIO.Write} for the
    * Dataflow runner in streaming mode.
    *
    * <p>For internal use only. Subject to change at any time.
@@ -2330,7 +2330,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
 
   /**
    * Specialized implementation for
-   * {@link com.google.cloud.dataflow.sdk.io.Read.Unbounded Read.Unbounded} for the
+   * {@link org.apache.beam.sdk.io.Read.Unbounded Read.Unbounded} for the
    * Dataflow runner in streaming mode.
    *
    * <p>In particular, if an UnboundedSource requires deduplication, then features of WindmillSink
@@ -2446,7 +2446,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
 
   /**
    * Specialized implementation for
-   * {@link com.google.cloud.dataflow.sdk.transforms.Create.Values Create.Values} for the
+   * {@link org.apache.beam.sdk.transforms.Create.Values Create.Values} for the
    * Dataflow runner in streaming mode.
    */
   private static class StreamingCreate<T> extends PTransform<PInput, PCollection<T>> {
@@ -2564,7 +2564,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
 
   /**
    * Specialized implementation for
-   * {@link com.google.cloud.dataflow.sdk.transforms.View.AsMap View.AsMap}
+   * {@link org.apache.beam.sdk.transforms.View.AsMap View.AsMap}
    * for the Dataflow runner in streaming mode.
    */
   private static class StreamingViewAsMap<K, V>
@@ -2606,7 +2606,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
 
   /**
    * Specialized expansion for {@link
-   * com.google.cloud.dataflow.sdk.transforms.View.AsMultimap View.AsMultimap} for the
+   * org.apache.beam.sdk.transforms.View.AsMultimap View.AsMultimap} for the
    * Dataflow runner in streaming mode.
    */
   private static class StreamingViewAsMultimap<K, V>
@@ -2651,7 +2651,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
 
   /**
    * Specialized implementation for
-   * {@link com.google.cloud.dataflow.sdk.transforms.View.AsList View.AsList} for the
+   * {@link org.apache.beam.sdk.transforms.View.AsList View.AsList} for the
    * Dataflow runner in streaming mode.
    */
   private static class StreamingViewAsList<T>
@@ -2683,7 +2683,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
 
   /**
    * Specialized implementation for
-   * {@link com.google.cloud.dataflow.sdk.transforms.View.AsIterable View.AsIterable} for the
+   * {@link org.apache.beam.sdk.transforms.View.AsIterable View.AsIterable} for the
    * Dataflow runner in streaming mode.
    */
   private static class StreamingViewAsIterable<T>
@@ -2722,7 +2722,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
 
   /**
    * Specialized expansion for
-   * {@link com.google.cloud.dataflow.sdk.transforms.View.AsSingleton View.AsSingleton} for the
+   * {@link org.apache.beam.sdk.transforms.View.AsSingleton View.AsSingleton} for the
    * Dataflow runner in streaming mode.
    */
   private static class StreamingViewAsSingleton<T>

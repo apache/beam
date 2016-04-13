@@ -21,12 +21,12 @@ import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInA
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
-import com.google.cloud.dataflow.sdk.coders.AvroCoder;
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.runners.DirectPipeline;
-import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner.EvaluationResults;
-import com.google.cloud.dataflow.sdk.transforms.Create;
-import com.google.cloud.dataflow.sdk.values.PCollection;
+import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.runners.DirectPipeline;
+import org.apache.beam.sdk.runners.DirectPipelineRunner.EvaluationResults;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.values.PCollection;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileReader;

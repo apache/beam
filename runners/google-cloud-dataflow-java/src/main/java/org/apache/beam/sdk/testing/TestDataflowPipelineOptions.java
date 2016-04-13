@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.testing;
 
-import com.google.cloud.dataflow.sdk.options.BlockingDataflowPipelineOptions;
+import org.apache.beam.sdk.options.BlockingDataflowPipelineOptions;
 
 /**
  * A set of options used to configure the {@link TestPipeline}.

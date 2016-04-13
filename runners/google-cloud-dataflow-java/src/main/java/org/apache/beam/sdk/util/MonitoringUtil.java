@@ -17,14 +17,14 @@
  */
 package org.apache.beam.sdk.util;
 
-import static com.google.cloud.dataflow.sdk.util.TimeUtil.fromCloudTime;
+import static org.apache.beam.sdk.util.TimeUtil.fromCloudTime;
 
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.Dataflow.Projects.Jobs.Messages;
 import com.google.api.services.dataflow.model.JobMessage;
 import com.google.api.services.dataflow.model.ListJobMessagesResponse;
-import com.google.cloud.dataflow.sdk.PipelineResult.State;
-import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
+import org.apache.beam.sdk.PipelineResult.State;
+import org.apache.beam.sdk.options.DataflowPipelineOptions;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableMap;
 

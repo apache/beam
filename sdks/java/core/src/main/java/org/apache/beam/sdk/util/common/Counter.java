@@ -17,12 +17,12 @@
  */
 package org.apache.beam.sdk.util.common;
 
-import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.AND;
-import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.MEAN;
-import static com.google.cloud.dataflow.sdk.util.common.Counter.AggregationKind.OR;
+import static org.apache.beam.sdk.util.common.Counter.AggregationKind.AND;
+import static org.apache.beam.sdk.util.common.Counter.AggregationKind.MEAN;
+import static org.apache.beam.sdk.util.common.Counter.AggregationKind.OR;
 import static com.google.common.base.Preconditions.checkArgument;
 
-import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import com.google.common.util.concurrent.AtomicDouble;
 
 import java.util.Objects;

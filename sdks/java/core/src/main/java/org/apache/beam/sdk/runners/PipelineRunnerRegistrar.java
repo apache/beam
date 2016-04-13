@@ -26,7 +26,7 @@ import java.util.ServiceLoader;
  * and a concrete implementation of this interface.
  *
  * <p>Note that automatic registration of any
- * {@link com.google.cloud.dataflow.sdk.options.PipelineOptions} requires users
+ * {@link org.apache.beam.sdk.options.PipelineOptions} requires users
  * conform to the limit that each {@link PipelineRunner}'s
  * {@link Class#getSimpleName() simple name} must be unique.
  *

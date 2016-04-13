@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.util.state;
 
-import com.google.cloud.dataflow.sdk.util.state.StateTag.StateBinder;
+import org.apache.beam.sdk.util.state.StateTag.StateBinder;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Table;
 import com.google.common.collect.Tables;

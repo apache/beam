@@ -23,7 +23,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import com.google.cloud.dataflow.sdk.transforms.DoFnTester.OutputElementWithTimestamp;
+import org.apache.beam.sdk.transforms.DoFnTester.OutputElementWithTimestamp;
 
 import org.joda.time.Instant;
 import org.junit.Test;

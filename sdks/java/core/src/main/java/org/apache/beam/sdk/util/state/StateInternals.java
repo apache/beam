@@ -19,7 +19,7 @@ package org.apache.beam.sdk.util.state;
 
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.GroupByKey;
 
 /**
  * {@code StateInternals} describes the functionality a runner needs to provide for the

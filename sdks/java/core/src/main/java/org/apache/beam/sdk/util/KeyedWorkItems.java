@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.util;
 
-import com.google.cloud.dataflow.sdk.util.TimerInternals.TimerData;
+import org.apache.beam.sdk.util.TimerInternals.TimerData;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.Iterables;
 

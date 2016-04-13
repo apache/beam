@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.coders;
 
-import com.google.cloud.dataflow.sdk.util.PropertyNames;
-import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
+import org.apache.beam.sdk.util.PropertyNames;
+import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 

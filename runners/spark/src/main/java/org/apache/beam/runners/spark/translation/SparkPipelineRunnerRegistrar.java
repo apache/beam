@@ -18,8 +18,8 @@
 
 package org.apache.beam.runners.spark.translation;
 
-import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
-import com.google.cloud.dataflow.sdk.runners.PipelineRunnerRegistrar;
+import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
 import com.google.common.collect.ImmutableList;
 import org.apache.beam.runners.spark.SparkPipelineRunner;
 

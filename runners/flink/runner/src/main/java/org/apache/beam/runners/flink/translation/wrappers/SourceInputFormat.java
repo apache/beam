@@ -18,10 +18,10 @@
 package org.apache.beam.runners.flink.translation.wrappers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.io.BoundedSource;
-import com.google.cloud.dataflow.sdk.io.Source;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.Source;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.Configuration;
@@ -38,7 +38,7 @@ import java.util.List;
 
 /**
  * A Flink {@link org.apache.flink.api.common.io.InputFormat} that wraps a
- * Dataflow {@link com.google.cloud.dataflow.sdk.io.Source}.
+ * Dataflow {@link org.apache.beam.sdk.io.Source}.
  */
 public class SourceInputFormat<T> implements InputFormat<T, SourceInputSplit<T>> {
   private static final Logger LOG = LoggerFactory.getLogger(SourceInputFormat.class);

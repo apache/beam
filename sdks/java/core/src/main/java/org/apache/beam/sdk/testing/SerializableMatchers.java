@@ -17,12 +17,12 @@
  */
 package org.apache.beam.sdk.testing;
 
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.coders.CoderException;
-import com.google.cloud.dataflow.sdk.coders.ListCoder;
-import com.google.cloud.dataflow.sdk.util.CoderUtils;
-import com.google.cloud.dataflow.sdk.util.UserCodeException;
-import com.google.cloud.dataflow.sdk.values.KV;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.ListCoder;
+import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.UserCodeException;
+import org.apache.beam.sdk.values.KV;
 import com.google.common.base.MoreObjects;
 
 import org.hamcrest.BaseMatcher;
@@ -52,7 +52,7 @@ import javax.annotation.Nullable;
  * </ul>
  *
  * <p>For example, to match a group from
- * {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey}, which has type
+ * {@link org.apache.beam.sdk.transforms.GroupByKey}, which has type
  * {@code KV<K, Iterable<V>>} for some {@code K} and {@code V} and where the order of the iterable
  * is undefined, use a matcher like
  * {@code kv(equalTo("some key"), containsInAnyOrder(1, 2, 3))}.

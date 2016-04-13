@@ -20,8 +20,8 @@ package org.apache.beam.sdk.options;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import com.google.cloud.dataflow.sdk.testing.ResetDateTimeProvider;
-import com.google.cloud.dataflow.sdk.testing.RestoreSystemProperties;
+import org.apache.beam.sdk.testing.ResetDateTimeProvider;
+import org.apache.beam.sdk.testing.RestoreSystemProperties;
 
 import org.junit.Rule;
 import org.junit.Test;

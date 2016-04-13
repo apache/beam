@@ -17,20 +17,22 @@
  */
 package org.apache.beam.sdk.coders.protobuf;
 
-import static com.google.cloud.dataflow.sdk.coders.protobuf.ProtobufUtil.checkProto2Syntax;
-import static com.google.cloud.dataflow.sdk.coders.protobuf.ProtobufUtil.getRecursiveDescriptorsForClass;
-import static com.google.cloud.dataflow.sdk.coders.protobuf.ProtobufUtil.verifyDeterministic;
+import static org.apache.beam.sdk.coders.protobuf.ProtobufUtil.checkProto2Syntax;
+import static org.apache.beam.sdk.coders.protobuf.ProtobufUtil.getRecursiveDescriptorsForClass;
+import static org.apache.beam.sdk.coders.protobuf.ProtobufUtil.verifyDeterministic;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
 import com.google.api.services.datastore.DatastoreV1.Entity;
-import com.google.cloud.dataflow.sdk.coders.Coder.NonDeterministicException;
+import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages;
 import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageA;
 import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageB;
 import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageC;
 import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageWithMap;
 import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.ReferencesMessageWithMap;
+
+import com.google.api.services.datastore.DatastoreV1.Entity;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import com.google.protobuf.Any;

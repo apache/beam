@@ -19,9 +19,9 @@ package org.apache.beam.sdk.runners.inprocess;
 
 import static com.google.common.base.Preconditions.checkState;
 
-import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
-import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
-import com.google.cloud.dataflow.sdk.util.WindowedValue;
+import org.apache.beam.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.util.WindowedValue;
 import com.google.common.base.Throwables;
 
 import java.util.ArrayList;

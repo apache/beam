@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.transforms.display;
 
-import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.PTransform;
 
 /**
  * Marker interface for {@link PTransform PTransforms} and components used within

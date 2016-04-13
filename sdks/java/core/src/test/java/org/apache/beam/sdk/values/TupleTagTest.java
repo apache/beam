@@ -55,12 +55,12 @@ public class TupleTagTest {
 
   @Test
   public void testStaticTupleTag() {
-    assertEquals("com.google.cloud.dataflow.sdk.values.TupleTagTest#0", staticTag.getId());
-    assertEquals("com.google.cloud.dataflow.sdk.values.TupleTagTest#3", staticBlockTag.getId());
-    assertEquals("com.google.cloud.dataflow.sdk.values.TupleTagTest#1", staticMethodTag.getId());
-    assertEquals("com.google.cloud.dataflow.sdk.values.TupleTagTest#2", instanceMethodTag.getId());
+    assertEquals("org.apache.beam.sdk.values.TupleTagTest#0", staticTag.getId());
+    assertEquals("org.apache.beam.sdk.values.TupleTagTest#3", staticBlockTag.getId());
+    assertEquals("org.apache.beam.sdk.values.TupleTagTest#1", staticMethodTag.getId());
+    assertEquals("org.apache.beam.sdk.values.TupleTagTest#2", instanceMethodTag.getId());
     assertEquals(
-        "com.google.cloud.dataflow.sdk.values.TupleTagTest$AnotherClass#0",
+        "org.apache.beam.sdk.values.TupleTagTest$AnotherClass#0",
         AnotherClass.anotherTag.getId());
   }
 
@@ -77,7 +77,7 @@ public class TupleTagTest {
 
     // Check that the name is derived from the method it is created in.
     assertThat(tag.getId().split("#")[0],
-        startsWith("com.google.cloud.dataflow.sdk.values.TupleTagTest.createNonstaticTupleTag"));
+        startsWith("org.apache.beam.sdk.values.TupleTagTest.createNonstaticTupleTag"));
 
     // Check that after the name there is a ':' followed by a line number, and just make
     // sure the line number is big enough to be reasonable, so superficial changes don't break

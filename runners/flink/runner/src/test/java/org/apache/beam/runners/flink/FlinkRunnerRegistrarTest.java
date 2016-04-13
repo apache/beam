@@ -18,8 +18,8 @@
 
 package org.apache.beam.runners.flink;
 
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;

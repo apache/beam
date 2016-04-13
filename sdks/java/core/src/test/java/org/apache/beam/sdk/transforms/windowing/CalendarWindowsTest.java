@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
-import static com.google.cloud.dataflow.sdk.testing.WindowFnTestUtils.runWindowFn;
-import static com.google.cloud.dataflow.sdk.testing.WindowFnTestUtils.set;
+import static org.apache.beam.sdk.testing.WindowFnTestUtils.runWindowFn;
+import static org.apache.beam.sdk.testing.WindowFnTestUtils.set;
 import static org.junit.Assert.assertEquals;
 
 import org.joda.time.DateTime;

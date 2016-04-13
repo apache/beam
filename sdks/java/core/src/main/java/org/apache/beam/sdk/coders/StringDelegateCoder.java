@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.coders;
 
-import com.google.cloud.dataflow.sdk.coders.protobuf.ProtoCoder;
+import org.apache.beam.sdk.coders.protobuf.ProtoCoder;
 
 import java.lang.reflect.InvocationTargetException;
 

@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.coders;
 
-import static com.google.cloud.dataflow.sdk.util.Structs.addBoolean;
+import static org.apache.beam.sdk.util.Structs.addBoolean;
 
-import com.google.cloud.dataflow.sdk.util.CloudObject;
-import com.google.cloud.dataflow.sdk.util.PropertyNames;
+import org.apache.beam.sdk.util.CloudObject;
+import org.apache.beam.sdk.util.PropertyNames;
 import com.google.common.base.Preconditions;
 
 import com.fasterxml.jackson.annotation.JsonCreator;

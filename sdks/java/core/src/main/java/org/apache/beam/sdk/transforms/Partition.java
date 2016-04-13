@@ -17,12 +17,12 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.values.PCollection;
-import com.google.cloud.dataflow.sdk.values.PCollectionList;
-import com.google.cloud.dataflow.sdk.values.PCollectionTuple;
-import com.google.cloud.dataflow.sdk.values.TupleTag;
-import com.google.cloud.dataflow.sdk.values.TupleTagList;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 
 import java.io.Serializable;
 
@@ -56,7 +56,7 @@ import java.io.Serializable;
  * <p>Each output element has the same timestamp and is in the same windows
  * as its corresponding input element, and each output {@code PCollection}
  * has the same
- * {@link com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn}
+ * {@link org.apache.beam.sdk.transforms.windowing.WindowFn}
  * associated with it as the input.
  *
  * @param <T> the type of the elements of the input and output

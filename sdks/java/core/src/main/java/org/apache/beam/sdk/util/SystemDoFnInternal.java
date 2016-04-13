@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.util;
 
-import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;

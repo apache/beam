@@ -18,10 +18,10 @@
 package org.apache.beam.examples.cookbook;
 
 import com.google.api.services.bigquery.model.TableRow;
-import com.google.cloud.dataflow.examples.cookbook.MaxPerKeyExamples.ExtractTempFn;
-import com.google.cloud.dataflow.examples.cookbook.MaxPerKeyExamples.FormatMaxesFn;
-import com.google.cloud.dataflow.sdk.transforms.DoFnTester;
-import com.google.cloud.dataflow.sdk.values.KV;
+import org.apache.beam.examples.cookbook.MaxPerKeyExamples.ExtractTempFn;
+import org.apache.beam.examples.cookbook.MaxPerKeyExamples.FormatMaxesFn;
+import org.apache.beam.sdk.transforms.DoFnTester;
+import org.apache.beam.sdk.values.KV;
 import com.google.common.collect.ImmutableList;
 
 import org.hamcrest.CoreMatchers;

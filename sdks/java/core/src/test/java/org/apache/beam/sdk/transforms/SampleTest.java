@@ -17,18 +17,18 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static com.google.cloud.dataflow.sdk.TestUtils.LINES;
-import static com.google.cloud.dataflow.sdk.TestUtils.NO_LINES;
+import static org.apache.beam.sdk.TestUtils.LINES;
+import static org.apache.beam.sdk.TestUtils.NO_LINES;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.coders.BigEndianIntegerCoder;
-import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
-import com.google.cloud.dataflow.sdk.testing.PAssert;
-import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
-import com.google.cloud.dataflow.sdk.testing.TestPipeline;
-import com.google.cloud.dataflow.sdk.values.PCollection;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.RunnableOnService;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.values.PCollection;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.coders;
 
-import com.google.cloud.dataflow.sdk.util.PropertyNames;
+import org.apache.beam.sdk.util.PropertyNames;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;

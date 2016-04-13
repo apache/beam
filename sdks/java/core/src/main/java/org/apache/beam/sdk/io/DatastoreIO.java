@@ -50,16 +50,16 @@ import com.google.api.services.datastore.client.DatastoreFactory;
 import com.google.api.services.datastore.client.DatastoreHelper;
 import com.google.api.services.datastore.client.DatastoreOptions;
 import com.google.api.services.datastore.client.QuerySplitter;
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.coders.EntityCoder;
-import com.google.cloud.dataflow.sdk.coders.SerializableCoder;
-import com.google.cloud.dataflow.sdk.io.Sink.WriteOperation;
-import com.google.cloud.dataflow.sdk.io.Sink.Writer;
-import com.google.cloud.dataflow.sdk.options.GcpOptions;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.util.AttemptBoundedExponentialBackOff;
-import com.google.cloud.dataflow.sdk.util.RetryHttpRequestInitializer;
-import com.google.cloud.dataflow.sdk.values.PCollection;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.EntityCoder;
+import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.io.Sink.WriteOperation;
+import org.apache.beam.sdk.io.Sink.Writer;
+import org.apache.beam.sdk.options.GcpOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.util.AttemptBoundedExponentialBackOff;
+import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
+import org.apache.beam.sdk.values.PCollection;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -172,7 +172,7 @@ import javax.annotation.Nullable;
  * <p>Please see <a href="https://cloud.google.com/datastore/docs/activate">Cloud Datastore Sign Up
  * </a>for security and permission related information specific to Datastore.
  *
- * @see com.google.cloud.dataflow.sdk.runners.PipelineRunner
+ * @see org.apache.beam.sdk.runners.PipelineRunner
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class DatastoreIO {
@@ -542,7 +542,7 @@ public class DatastoreIO {
    * {@link Entity Entities} to a Datastore kind.
    *
    */
-  public static class Sink extends com.google.cloud.dataflow.sdk.io.Sink<Entity> {
+  public static class Sink extends org.apache.beam.sdk.io.Sink<Entity> {
     final String host;
     final String datasetId;
 

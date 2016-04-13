@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.values;
 
-import com.google.cloud.dataflow.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.ParDo;
 import com.google.common.collect.ImmutableList;
 
 import java.io.Serializable;

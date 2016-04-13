@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
-import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
-import com.google.cloud.dataflow.sdk.util.TimeDomain;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.util.TimeDomain;
 import com.google.common.base.Objects;
 
 import org.joda.time.Instant;

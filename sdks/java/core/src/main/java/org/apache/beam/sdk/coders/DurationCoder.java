@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.coders;
 
-import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
+import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 

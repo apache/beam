@@ -20,9 +20,9 @@ package org.apache.beam.sdk.coders;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import com.google.cloud.dataflow.sdk.coders.Coder.Context;
-import com.google.cloud.dataflow.sdk.testing.CoderProperties;
-import com.google.cloud.dataflow.sdk.util.CoderUtils;
+import org.apache.beam.sdk.coders.Coder.Context;
+import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.util.CoderUtils;
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.ByteString;
 
@@ -59,7 +59,7 @@ public class ByteStringCoderTest {
 
   /**
    * Generated data to check that the wire format has not changed. To regenerate, see
-   * {@link com.google.cloud.dataflow.sdk.coders.PrintBase64Encodings}.
+   * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
    */
   private static final List<String> TEST_ENCODINGS = Arrays.asList(
       "",

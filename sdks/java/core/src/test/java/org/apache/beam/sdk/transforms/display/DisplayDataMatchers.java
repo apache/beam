@@ -19,7 +19,7 @@ package org.apache.beam.sdk.transforms.display;
 
 import static org.hamcrest.Matchers.allOf;
 
-import com.google.cloud.dataflow.sdk.transforms.display.DisplayData.Item;
+import org.apache.beam.sdk.transforms.display.DisplayData.Item;
 
 import com.google.common.collect.Sets;
 import org.hamcrest.CustomTypeSafeMatcher;

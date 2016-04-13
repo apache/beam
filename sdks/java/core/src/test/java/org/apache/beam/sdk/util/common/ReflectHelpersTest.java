@@ -19,7 +19,7 @@ package org.apache.beam.sdk.util.common;
 
 import static org.junit.Assert.assertEquals;
 
-import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;

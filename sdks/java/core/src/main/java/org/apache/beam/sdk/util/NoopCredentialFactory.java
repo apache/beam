@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.util;
 
 import com.google.api.client.auth.oauth2.Credential;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;

@@ -18,14 +18,14 @@
 package org.apache.beam.sdk.options;
 
 import com.google.auto.service.AutoService;
-import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.options.GoogleApiDebugOptions.GoogleApiTracer;
-import com.google.cloud.dataflow.sdk.options.ProxyInvocationHandler.Deserializer;
-import com.google.cloud.dataflow.sdk.options.ProxyInvocationHandler.Serializer;
-import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
-import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
-import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.DoFn.Context;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.options.GoogleApiDebugOptions.GoogleApiTracer;
+import org.apache.beam.sdk.options.ProxyInvocationHandler.Deserializer;
+import org.apache.beam.sdk.options.ProxyInvocationHandler.Serializer;
+import org.apache.beam.sdk.runners.DirectPipelineRunner;
+import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.Context;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.ObjectMapper;

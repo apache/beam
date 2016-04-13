@@ -19,8 +19,8 @@ package org.apache.beam.sdk.transforms.windowing;
 
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.util.WindowingStrategy;
 import com.google.common.collect.Ordering;
 
 import org.joda.time.Instant;

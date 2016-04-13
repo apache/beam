@@ -20,10 +20,10 @@ package org.apache.beam.sdk.io;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-import com.google.cloud.dataflow.sdk.io.XmlSink.XmlWriteOperation;
-import com.google.cloud.dataflow.sdk.io.XmlSink.XmlWriter;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.io.XmlSink.XmlWriteOperation;
+import org.apache.beam.sdk.io.XmlSink.XmlWriter;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import com.google.common.collect.Lists;
 
 import org.junit.Rule;

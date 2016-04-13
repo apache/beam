@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
-import com.google.cloud.dataflow.sdk.util.ExecutableTrigger;
+import org.apache.beam.sdk.util.ExecutableTrigger;
 
 import org.joda.time.Instant;
 

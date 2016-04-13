@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.coders;
 
-import com.google.cloud.dataflow.sdk.util.VarInt;
+import org.apache.beam.sdk.util.VarInt;
 import com.google.common.io.ByteStreams;
 import com.google.protobuf.ByteString;
 
