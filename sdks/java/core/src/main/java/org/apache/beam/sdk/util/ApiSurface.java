@@ -612,8 +612,8 @@ public class ApiSurface {
 
   public static ApiSurface getSdkApiSurface() throws IOException {
     return ApiSurface.ofPackage("org.apache.beam")
-        .pruningPattern("com[.]google[.]cloud[.]dataflow.*Test")
-        .pruningPattern("com[.]google[.]cloud[.]dataflow.*Benchmark")
+        .pruningPattern("org[.]apache[.]beam.*Test")
+        .pruningPattern("org[.]apache[.]beam.*Benchmark")
         .pruningPrefix("org.apache.beam.integration")
         .pruningPrefix("java")
         .pruningPrefix("com.google.api")
