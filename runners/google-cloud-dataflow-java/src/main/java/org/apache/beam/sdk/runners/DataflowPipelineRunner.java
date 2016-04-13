@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.runners;
+package org.apache.beam.sdk.runners;
 
 import static com.google.cloud.dataflow.sdk.util.StringUtils.approximatePTransformName;
 import static com.google.cloud.dataflow.sdk.util.StringUtils.approximateSimpleName;

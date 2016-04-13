@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.options;
+package org.apache.beam.sdk.options;
 
 import com.google.cloud.dataflow.sdk.runners.DataflowPipeline;
 import com.google.common.base.MoreObjects;

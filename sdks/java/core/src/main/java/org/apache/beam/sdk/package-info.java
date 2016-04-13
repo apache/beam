@@ -31,4 +31,4 @@
  * where and how it should run after pipeline construction is complete.
  *
  */
-package com.google.cloud.dataflow.sdk;
+package org.apache.beam.sdk;

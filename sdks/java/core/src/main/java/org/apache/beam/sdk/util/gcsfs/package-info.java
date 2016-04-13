@@ -16,4 +16,4 @@
  * limitations under the License.
  */
 /** Defines utilities used to interact with Google Cloud Storage. **/
-package com.google.cloud.dataflow.sdk.util.gcsfs;
+package org.apache.beam.sdk.util.gcsfs;

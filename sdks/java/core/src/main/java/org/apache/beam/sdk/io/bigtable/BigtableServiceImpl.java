@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.io.bigtable;
+package org.apache.beam.sdk.io.bigtable;
 
 import com.google.bigtable.admin.table.v1.GetTableRequest;
 import com.google.bigtable.v1.MutateRowRequest;

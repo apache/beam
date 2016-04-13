@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.util.gcsfs;
+package org.apache.beam.sdk.util.gcsfs;
 
 import com.google.api.services.storage.model.StorageObject;
 import com.google.common.base.Preconditions;

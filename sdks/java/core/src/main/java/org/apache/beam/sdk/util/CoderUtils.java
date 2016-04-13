@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.util;
+package org.apache.beam.sdk.util;
 
 import static com.google.cloud.dataflow.sdk.util.Structs.addList;
 
@@ -237,7 +237,7 @@ public final class CoderUtils {
      * <p>This resolver resolves coders.  If the Coder ID is a particular
      * well-known identifier supplied by the Dataflow service, it's replaced
      * with the corresponding class.  All other Coder instances are resolved
-     * by class name, using the package com.google.cloud.dataflow.sdk.coders
+     * by class name, using the package org.apache.beam.sdk.coders
      * if there are no "."s in the ID.
      */
     private static final class Resolver extends TypeIdResolverBase {

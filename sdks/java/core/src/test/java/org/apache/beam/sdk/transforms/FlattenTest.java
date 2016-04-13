@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.transforms;
+package org.apache.beam.sdk.transforms;
 
 import static com.google.cloud.dataflow.sdk.TestUtils.LINES;
 import static com.google.cloud.dataflow.sdk.TestUtils.LINES2;

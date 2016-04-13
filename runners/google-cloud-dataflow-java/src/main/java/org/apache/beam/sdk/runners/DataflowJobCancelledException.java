@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.runners;
+package org.apache.beam.sdk.runners;
 
 /**
  * Signals that a job run by a {@link BlockingDataflowPipelineRunner} was updated during execution.

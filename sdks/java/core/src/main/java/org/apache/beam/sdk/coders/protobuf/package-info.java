@@ -21,4 +21,4 @@
  *
  * @see com.google.cloud.dataflow.sdk.coders.protobuf.ProtoCoder
  */
-package com.google.cloud.dataflow.sdk.coders.protobuf;
+package org.apache.beam.sdk.coders.protobuf;

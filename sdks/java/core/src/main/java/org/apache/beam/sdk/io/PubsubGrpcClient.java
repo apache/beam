@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package com.google.cloud.dataflow.sdk.io;
+package org.apache.beam.sdk.io;
 
 import com.google.api.client.util.DateTime;
 import com.google.auth.oauth2.GoogleCredentials;

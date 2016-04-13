@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.runners.worker;
+package org.apache.beam.sdk.runners.worker;
 
 import static com.google.cloud.dataflow.sdk.util.Structs.addLong;
 import static com.google.common.base.Preconditions.checkArgument;

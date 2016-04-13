@@ -23,4 +23,4 @@
  * parameters that describe how a pipeline should be run. {@code PipelineOptions} are created
  * using a {@link com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory}.
  */
-package com.google.cloud.dataflow.sdk.options;
+package org.apache.beam.sdk.options;

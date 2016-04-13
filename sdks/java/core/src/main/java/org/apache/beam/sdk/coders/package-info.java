@@ -42,4 +42,4 @@
  * types.
  *
  */
-package com.google.cloud.dataflow.sdk.coders;
+package org.apache.beam.sdk.coders;

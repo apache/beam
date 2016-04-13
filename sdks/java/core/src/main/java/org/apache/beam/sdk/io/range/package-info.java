@@ -21,4 +21,4 @@
  *
  * <p>See {@link com.google.cloud.dataflow.sdk.io.range.RangeTracker} to get started.
  */
-package com.google.cloud.dataflow.sdk.io.range;
+package org.apache.beam.sdk.io.range;

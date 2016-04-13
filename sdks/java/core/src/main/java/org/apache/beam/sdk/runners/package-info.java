@@ -31,4 +31,4 @@
  *
  * <p>The runner is specified as part {@link com.google.cloud.dataflow.sdk.options.PipelineOptions}.
  */
-package com.google.cloud.dataflow.sdk.runners;
+package org.apache.beam.sdk.runners;

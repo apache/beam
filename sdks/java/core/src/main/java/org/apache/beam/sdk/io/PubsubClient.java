@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package com.google.cloud.dataflow.sdk.io;
+package org.apache.beam.sdk.io;
 
 import com.google.api.client.repackaged.com.google.common.base.Preconditions;
 import java.io.IOException;

@@ -47,4 +47,4 @@
  * {@link com.google.cloud.dataflow.sdk.transforms.windowing.AfterWatermark} for details on the
  * watermark.
  */
-package com.google.cloud.dataflow.sdk.transforms.windowing;
+package org.apache.beam.sdk.transforms.windowing;

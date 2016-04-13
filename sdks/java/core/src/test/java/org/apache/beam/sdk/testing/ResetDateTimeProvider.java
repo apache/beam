@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.testing;
+package org.apache.beam.sdk.testing;
 
 import org.joda.time.DateTimeUtils;
 import org.joda.time.format.ISODateTimeFormat;

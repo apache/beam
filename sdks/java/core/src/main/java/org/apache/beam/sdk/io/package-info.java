@@ -35,4 +35,4 @@
  *                           .to("gs://my_bucket/path/to/numbers"));
  * } </pre>
  */
-package com.google.cloud.dataflow.sdk.io;
+package org.apache.beam.sdk.io;

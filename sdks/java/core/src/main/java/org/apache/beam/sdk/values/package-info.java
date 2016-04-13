@@ -50,4 +50,4 @@
  *
  * <p>For further details, see the documentation for each class in this package.
  */
-package com.google.cloud.dataflow.sdk.values;
+package org.apache.beam.sdk.values;

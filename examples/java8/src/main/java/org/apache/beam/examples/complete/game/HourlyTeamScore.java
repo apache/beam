@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.examples.complete.game;
+package org.apache.beam.examples.complete.game;
 
 import com.google.cloud.dataflow.examples.complete.game.utils.WriteWindowedToBigQuery;
 

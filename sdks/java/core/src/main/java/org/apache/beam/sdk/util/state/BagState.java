@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.util.state;
+package org.apache.beam.sdk.util.state;
 
 /**
  * State containing a bag values. Items can be added to the bag and the contents read out.

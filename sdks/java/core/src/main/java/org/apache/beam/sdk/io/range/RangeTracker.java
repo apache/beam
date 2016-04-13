@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.io.range;
+package org.apache.beam.sdk.io.range;
 
 /**
  * A {@code RangeTracker} is a thread-safe helper object for implementing dynamic work rebalancing
