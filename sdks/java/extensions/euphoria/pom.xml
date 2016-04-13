@@ -71,6 +71,7 @@
 
   <modules>
     <module>euphoria-core</module>
+    <module>euphoria-kafka</module>
   </modules>
 
   <!-- make a few things differently when building under jdk8 -->
@@ -333,7 +334,17 @@
 
       <!-- our own dependencies -->
 
+      <dependency>
+        <groupId>cz.seznam.euphoria</groupId>
+        <artifactId>euphoria-core</artifactId>
+        <version>${project.version}</version>
+      </dependency>
 
+      <dependency>
+        <groupId>cz.seznam.euphoria</groupId>
+        <artifactId>euphoria-kafka</artifactId>
+        <version>${project.version}</version>
+      </dependency>
 
 
       <!-- other dependencies -->
