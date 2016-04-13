@@ -23,7 +23,7 @@ import java.io.Reader;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 
-public class ExersiceKafkaStreamSource {
+public class ExerciseKafkaStreamSource {
 
   public static void main(String[] args) throws Exception {
     Settings settings = new Settings();
