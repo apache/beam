@@ -4,14 +4,13 @@ package cz.seznam.euphoria.core.client.io;
 
 import com.google.common.collect.Sets;
 import cz.seznam.euphoria.core.util.Settings;
+
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.Socket;
 import java.net.URI;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
@@ -21,15 +20,13 @@ import java.util.Set;
  */
 public class TCPLineStreamSource implements DataSource<String> {
 
-  private static class TCPLineIterator implements Iterator<String> {
+  private static class TCPLineReader implements Reader<String> {
 
-    private final InputStream input;
     private final BufferedReader reader;
 
-    public TCPLineIterator(String host, int port) throws IOException {
+    public TCPLineReader(String host, int port) throws IOException {
       Socket s = new Socket(host, port);
-      input = s.getInputStream();
-      reader = new BufferedReader(new InputStreamReader(input));
+      reader = new BufferedReader(new InputStreamReader(s.getInputStream()));
     }
 
     @Override
@@ -46,6 +43,10 @@ public class TCPLineStreamSource implements DataSource<String> {
       }
     }
 
+    @Override
+    public void close() throws IOException {
+      reader.close();
+    }
   }
 
   final String host;
@@ -69,12 +70,8 @@ public class TCPLineStreamSource implements DataSource<String> {
       }
 
       @Override
-      public Iterator<String> iterator() {
-        try {
-          return new TCPLineIterator(host, port);
-        } catch (IOException ex) {
-          throw new RuntimeException(ex);
-        }
+      public Reader<String> openReader() throws IOException {
+        return new TCPLineReader(host, port);
       }
     });
   }
