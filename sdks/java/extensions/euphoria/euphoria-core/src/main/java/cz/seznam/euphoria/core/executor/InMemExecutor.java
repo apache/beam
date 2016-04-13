@@ -396,7 +396,7 @@ public class InMemExecutor implements Executor {
         }
       });
     }
-    return (List<Supplier<?>>) outputQueues.stream()
+    return (List) outputQueues.stream()
         .map(QueueSupplier::new)
         .collect(Collectors.toList());
   }
