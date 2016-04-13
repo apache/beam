@@ -39,23 +39,7 @@
   <properties>
     <timestamp>${maven.build.timestamp}</timestamp>
     <maven.build.timestamp.format>yyyy-MM-dd HH:mm</maven.build.timestamp.format>
-    <dataflow>com.google.cloud.dataflow</dataflow>
-    <runIntegrationTestOnService>false</runIntegrationTestOnService>
-    <testParallelValue>none</testParallelValue>
-    <testGroups></testGroups>
-    <dataflowProjectName></dataflowProjectName>
   </properties>
-
-  <profiles>
-    <profile>
-      <id>DataflowPipelineTests</id>
-      <properties>
-        <runIntegrationTestOnService>true</runIntegrationTestOnService>
-        <testGroups>com.google.cloud.dataflow.sdk.testing.RunnableOnService</testGroups>
-        <testParallelValue>both</testParallelValue>
-      </properties>
-    </profile>
-  </profiles>
 
   <build>
     <resources>

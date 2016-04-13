@@ -289,13 +289,6 @@
           <artifactId>maven-surefire-plugin</artifactId>
           <version>2.18.1</version>
           <configuration>
-            <parallel>${testParallelValue}</parallel>
-            <threadCount>4</threadCount>
-            <groups>${testGroups}</groups>
-            <systemPropertyVariables>
-              <runIntegrationTestOnService>${runIntegrationTestOnService}</runIntegrationTestOnService>
-              <projectName>${dataflowProjectName}</projectName>
-            </systemPropertyVariables>
             <useManifestOnlyJar>false</useManifestOnlyJar>
             <trimStackTrace>false</trimStackTrace>
             <redirectTestOutputToFile>true</redirectTestOutputToFile>
