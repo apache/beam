@@ -35,7 +35,7 @@ public class ExerciseKafkaStreamSource {
 
     // set-up our input source (a stream)
     Dataset<Pair<byte[], byte[]>> lines = flow.createInput(
-        URI.create("kafka://ginkafka1.dev:9092/fulltext_robot_logs?groupId=quux?offset=latest"));
+        URI.create("kafka://ginkafka1.dev:9092/fulltext_robot_logs?group=quux"));
 
     // extract interesting words from the source
     Dataset<Pair<String, Long>> words = FlatMap.of(lines)
