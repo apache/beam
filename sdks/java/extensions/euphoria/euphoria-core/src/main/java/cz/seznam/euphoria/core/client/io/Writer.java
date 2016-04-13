@@ -7,7 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Writer for data in a given partition.
+ * Writer for data to a particular partition.
  */
 public abstract class Writer<T> implements Closeable {
   
