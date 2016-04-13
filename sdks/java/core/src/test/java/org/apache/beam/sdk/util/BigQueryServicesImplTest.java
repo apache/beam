@@ -43,6 +43,7 @@ import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatus;
+import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.common.collect.ImmutableList;
@@ -117,6 +118,7 @@ public class BigQueryServicesImplTest {
     BackOff backoff = new AttemptBoundedExponentialBackOff(
         5 /* attempts */, 1000 /* initialIntervalMillis */);
     JobServiceImpl.startJob(testJob, new ApiErrorExtractor(), bigquery, sleeper, backoff);
+
     verify(response, times(1)).getStatusCode();
     verify(response, times(1)).getContent();
     verify(response, times(1)).getContentType();
@@ -248,6 +250,24 @@ public class BigQueryServicesImplTest {
         jobService.pollJob("projectId", "jobId", Sleeper.DEFAULT, BackOff.STOP_BACKOFF);
 
     assertEquals(null, job);
+    verify(response, times(1)).getStatusCode();
+    verify(response, times(1)).getContent();
+    verify(response, times(1)).getContentType();
+  }
+
+  @Test
+  public void testGetTable() throws IOException, InterruptedException {
+    Table testTable = new Table();
+
+    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+    when(response.getStatusCode()).thenReturn(200);
+    when(response.getContent()).thenReturn(toStream(testTable));
+
+    BigQueryServicesImpl.TableServiceImpl tableService =
+        new BigQueryServicesImpl.TableServiceImpl(bigquery);
+    Table table = tableService.getTable("projectId", "datasetId", "tableId");
+
+    assertEquals(testTable, table);
     verify(response, times(1)).getStatusCode();
     verify(response, times(1)).getContent();
     verify(response, times(1)).getContentType();

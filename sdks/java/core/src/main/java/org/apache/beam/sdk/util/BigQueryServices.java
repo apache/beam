@@ -19,13 +19,20 @@ package org.apache.beam.sdk.util;
 
 import org.apache.beam.sdk.options.BigQueryOptions;
 
+import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationExtract;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobConfigurationQuery;
+import com.google.api.services.bigquery.model.Table;
+import com.google.api.services.bigquery.model.TableReference;
+import com.google.api.services.bigquery.model.TableRow;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.NoSuchElementException;
+
+import javax.annotation.Nullable;
 
 /**
  * An interface for real, mock, or fake implementations of Cloud BigQuery services.
@@ -38,15 +45,24 @@ public interface BigQueryServices extends Serializable {
   public JobService getJobService(BigQueryOptions bqOptions);
 
   /**
+   * Returns a real, mock, or fake {@link TableService}.
+   */
+  public TableService getTableService(BigQueryOptions bqOptions);
+
+  public BigQueryJsonReader getReaderFromTable(BigQueryOptions bqOptions, TableReference tableRef);
+
+  public BigQueryJsonReader getReaderFromQuery(
+      BigQueryOptions bqOptions, String query, String projectId, @Nullable Boolean flatten);
+
+  /**
    * An interface for the Cloud BigQuery load service.
    */
   public interface JobService {
     /**
-     * Starts a BigQuery load job.
+     * Start a BigQuery load job.
      */
     void startLoadJob(String jobId, JobConfigurationLoad loadConfig)
         throws InterruptedException, IOException;
-
     /**
      * Start a BigQuery extract job.
      */
@@ -54,7 +70,7 @@ public interface BigQueryServices extends Serializable {
         throws InterruptedException, IOException;
 
     /**
-     * Start a BigQuery extract job.
+     * Start a BigQuery query job.
      */
     void startQueryJob(String jobId, JobConfigurationQuery query, boolean dryRun)
         throws IOException, InterruptedException;
@@ -66,5 +82,52 @@ public interface BigQueryServices extends Serializable {
      */
     Job pollJob(String projectId, String jobId, int maxAttempts)
         throws InterruptedException, IOException;
+  }
+
+  /**
+   * An interface for the Cloud BigQuery table service.
+   */
+  public interface TableService {
+    /**
+     * Gets the specified table resource by table ID.
+     */
+    Table getTable(String projectId, String datasetId, String tableId)
+        throws InterruptedException, IOException;
+
+    Dataset createDataset(String projectId, String datasetId, String location, String description)
+        throws IOException, InterruptedException;
+  }
+
+  /**
+   * An interface to read the Cloud BigQuery directly.
+   */
+  public interface BigQueryJsonReader {
+    /**
+     * Initializes the reader and advances the reader to the first record.
+     */
+    boolean start() throws IOException;
+
+    /**
+     * Advances the reader to the next valid record.
+     */
+    boolean advance() throws IOException;
+
+    /**
+     * Returns the value of the data item that was read by the last {@link #start} or
+     * {@link #advance} call. The returned value must be effectively immutable and remain valid
+     * indefinitely.
+     *
+     * <p>Multiple calls to this method without an intervening call to {@link #advance} should
+     * return the same result.
+     *
+     * @throws java.util.NoSuchElementException if {@link #start} was never called, or if
+     *         the last {@link #start} or {@link #advance} returned {@code false}.
+     */
+    TableRow getCurrent() throws NoSuchElementException;
+
+    /**
+     * Closes the reader. The reader cannot be used after this method is called.
+     */
+    void close() throws IOException;
   }
 }
