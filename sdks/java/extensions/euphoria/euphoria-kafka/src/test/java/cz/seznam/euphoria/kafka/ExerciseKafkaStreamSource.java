@@ -32,14 +32,15 @@ public class ExerciseKafkaStreamSource {
         KafkaStreamSource.Factory.class);
 
     Flow flow = Flow.create("Test", settings);
-    // let's pretend we have this, this dataset might be stream or batch
-    // (don't know and don't care)
+
+    // set-up our input source (a stream)
     Dataset<Pair<byte[], byte[]>> lines = flow.createInput(
         URI.create("kafka://ginkafka1.dev:9092/fulltext_robot_logs?groupId=quux?offset=latest"));
 
-    // expand it to words
+    // extract interesting words from the source
     Dataset<Pair<String, Long>> words = FlatMap.of(lines)
         .by((Pair<byte[], byte[]> p, Collector<Pair<String, Long>> c) -> {
+          // ~ we're interested onlly
           Reader data = new InputStreamReader(
               new ByteArrayInputStream(p.getValue()),
               StandardCharsets.UTF_8);
@@ -62,8 +63,7 @@ public class ExerciseKafkaStreamSource {
         })
         .output();
 
-    // reduce it to counts, use windowing, so the output is batch or stream
-    // depending on the type of input
+    // reduce it to counts, use windowing
     Dataset<Pair<String, Long>> streamOutput = ReduceByKey
         .of(words)
         .keyBy(Pair::getFirst)
@@ -77,6 +77,8 @@ public class ExerciseKafkaStreamSource {
         })
         .windowBy(Windowing.Time.seconds(10).aggregating())
         .output();
+
+    // produce the output
     streamOutput.persist(new PrintStreamSink<>(System.out, true));
 
     Executor executor = new InMemExecutor();
