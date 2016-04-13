@@ -33,7 +33,6 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Maps;
 
 import org.joda.time.Instant;
 
@@ -248,16 +247,6 @@ public class TriggerContextFactory<W extends BoundedWindow> {
         }
       }
       return true;
-    }
-
-    @Override
-    public Iterable<? extends BoundedWindow> getFinishedMergingWindows() {
-      return Maps.filterValues(finishedSets, new Predicate<FinishedTriggers>() {
-        @Override
-        public boolean apply(FinishedTriggers finishedSet) {
-          return finishedSet.isFinished(trigger);
-        }
-      }).keySet();
     }
   }
 

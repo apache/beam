@@ -171,9 +171,6 @@ public abstract class Trigger implements Serializable, TriggerBuilder {
 
     /** Return true if the trigger is finished in all windows being merged. */
     public abstract boolean finishedInAllMergingWindows();
-
-    /** Return the merging windows in which the trigger is finished. */
-    public abstract Iterable<? extends BoundedWindow> getFinishedMergingWindows();
   }
 
   /**
