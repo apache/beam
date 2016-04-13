@@ -3,9 +3,10 @@ package cz.seznam.euphoria.core.client.io;
 
 import com.google.common.collect.Sets;
 import cz.seznam.euphoria.core.util.Settings;
+
+import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
@@ -28,21 +29,9 @@ public class MockBatchDataSourceFactory implements DataSourceFactory {
         }
 
         @Override
-        public Iterator<T> iterator() {
-          return new Iterator<T>() {
-
-            @Override
-            public boolean hasNext() {
-              return true;
-            }
-
-            @Override
-            public T next() {
-              return null;
-            }
-          };
+        public Reader<T> openReader() throws IOException {
+          return new EmptyReader<>();
         }
-
       });
     }
     return new DataSource<T>() {
