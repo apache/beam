@@ -176,20 +176,7 @@ public class AfterFirstTest {
 
   @Test
   public void testToString() {
-    Trigger trigger = AfterFirst.of(new NamedTrigger("t1"), new NamedTrigger("t2"));
+    Trigger trigger = AfterFirst.of(StubTrigger.named("t1"), StubTrigger.named("t2"));
     assertEquals("AfterFirst.of(t1, t2)", trigger.toString());
-  }
-
-  private static class NamedTrigger extends StubTrigger {
-    private final String name;
-
-    NamedTrigger(String name) {
-      this.name = name;
-    }
-
-    @Override
-    public String toString() {
-      return name;
-    }
   }
 }

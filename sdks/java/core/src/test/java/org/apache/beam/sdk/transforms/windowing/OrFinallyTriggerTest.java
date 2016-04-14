@@ -210,20 +210,7 @@ public class OrFinallyTriggerTest {
 
   @Test
   public void testToString() {
-    Trigger trigger = new NamedTrigger("t1").orFinally(new NamedTrigger("t2"));
+    Trigger trigger = StubTrigger.named("t1").orFinally(StubTrigger.named("t2"));
     assertEquals("t1.orFinally(t2)", trigger.toString());
-  }
-
-  private static class NamedTrigger extends StubTrigger {
-    private final String name;
-
-    NamedTrigger(String name) {
-      this.name = name;
-    }
-
-    @Override
-    public String toString() {
-      return name;
-    }
   }
 }

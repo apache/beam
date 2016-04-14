@@ -26,6 +26,18 @@ import java.util.List;
  * No-op {@link OnceTrigger} implementation for testing.
  */
 abstract class StubTrigger extends Trigger.OnceTrigger {
+  /**
+   * Create a stub {@link Trigger} instance which returns the specified name on {@link #toString()}.
+   */
+  static StubTrigger named(final String name) {
+    return new StubTrigger() {
+      @Override
+      public String toString() {
+        return name;
+      }
+    };
+  }
+
   protected StubTrigger() {
     super(Lists.<Trigger>newArrayList());
   }
