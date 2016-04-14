@@ -262,7 +262,8 @@ public class EvaluationContext implements EvaluationResult {
 
   @Override
   public <T> Iterable<T> get(PCollection<T> pcollection) {
-    @SuppressWarnings("unchecked") RDDHolder<T> rddHolder = (RDDHolder<T>) pcollections.get(pcollection);
+    @SuppressWarnings("unchecked")
+    RDDHolder<T> rddHolder = (RDDHolder<T>) pcollections.get(pcollection);
     Iterable<WindowedValue<T>> windowedValues = rddHolder.getValues(pcollection);
     return Iterables.transform(windowedValues, WindowingHelpers.<T>unwindowValueFunction());
   }
