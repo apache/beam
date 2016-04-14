@@ -17,7 +17,8 @@
  */
 package org.apache.beam.runners.flink.translation.types;
 
-import com.google.cloud.dataflow.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.Coder;
+
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -28,7 +29,7 @@ import java.io.ObjectInputStream;
 
 /**
  * Flink {@link org.apache.flink.api.common.typeutils.TypeComparator} for
- * {@link com.google.cloud.dataflow.sdk.coders.Coder}.
+ * {@link org.apache.beam.sdk.coders.Coder}.
  */
 public class CoderComparator<T> extends TypeComparator<T> {
 

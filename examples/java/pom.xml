@@ -104,8 +104,8 @@
           <windowtitle>Apache Beam Examples</windowtitle>
           <doctitle>Apache Beam Examples</doctitle>
 
-          <subpackages>com.google.cloud.dataflow.examples</subpackages>
-          <additionalparam>-exclude com.google.cloud.dataflow.sdk.runners.worker:com.google.cloud.dataflow.sdk.runners.dataflow:com.google.cloud.dataflow.sdk.util ${dataflow.javadoc_opts}</additionalparam>
+          <subpackages>org.apache.beam.examples</subpackages>
+          <additionalparam>-exclude org.apache.beam.sdk.runners.worker:org.apache.beam.sdk.runners.dataflow:org.apache.beam.sdk.util ${dataflow.javadoc_opts}</additionalparam>
           <use>false</use>
           <quiet>true</quiet>
           <bottom><![CDATA[<br>]]></bottom>

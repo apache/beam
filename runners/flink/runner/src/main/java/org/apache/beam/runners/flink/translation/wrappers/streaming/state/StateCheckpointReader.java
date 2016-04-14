@@ -18,7 +18,9 @@
 package org.apache.beam.runners.flink.translation.wrappers.streaming.state;
 
 import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
+
 import com.google.protobuf.ByteString;
+
 import org.apache.flink.core.memory.DataInputView;
 import org.joda.time.Instant;
 

@@ -18,9 +18,10 @@
 package org.apache.beam.runners.flink.translation.types;
 
 import org.apache.beam.runners.flink.translation.wrappers.DataInputViewWrapper;
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.coders.KvCoder;
-import com.google.cloud.dataflow.sdk.values.KV;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.values.KV;
+
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -31,7 +32,7 @@ import java.io.ObjectInputStream;
 
 /**
  * Flink {@link org.apache.flink.api.common.typeutils.TypeComparator} for
- * {@link com.google.cloud.dataflow.sdk.coders.KvCoder}. We have a special comparator
+ * {@link org.apache.beam.sdk.coders.KvCoder}. We have a special comparator
  * for {@link KV} that always compares on the key only.
  */
 public class KvCoderComperator <K, V> extends TypeComparator<KV<K, V>> {

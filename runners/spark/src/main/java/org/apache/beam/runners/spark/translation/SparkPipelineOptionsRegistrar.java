@@ -18,10 +18,10 @@
 
 package org.apache.beam.runners.spark.translation;
 
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.options.PipelineOptionsRegistrar;
 import com.google.common.collect.ImmutableList;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 
 public class SparkPipelineOptionsRegistrar implements PipelineOptionsRegistrar {
   @Override

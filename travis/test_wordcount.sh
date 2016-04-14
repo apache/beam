@@ -53,7 +53,7 @@ function run_via_mvn {
 
   local outfile_prefix="$(get_outfile_prefix "$name")" || exit 2
   local cmd='mvn exec:java -f pom.xml -pl examples/java \
-    -Dexec.mainClass=com.google.cloud.dataflow.examples.WordCount \
+    -Dexec.mainClass=org.apache.beam.examples.WordCount \
     -Dexec.args="--runner=DirectPipelineRunner --inputFile='"$input"' --output='"$outfile_prefix"'"'
   echo "$name: Running $cmd" >&2
   sh -c "$cmd"
@@ -67,7 +67,7 @@ function run_bundled {
 
   local outfile_prefix="$(get_outfile_prefix "$name")" || exit 2
   local cmd='java -cp '"$JAR_FILE"' \
-    com.google.cloud.dataflow.examples.WordCount \
+    org.apache.beam.examples.WordCount \
     --runner=DirectPipelineRunner \
     --inputFile='"'$input'"' \
     --output='"$outfile_prefix"

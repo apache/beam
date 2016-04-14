@@ -50,7 +50,7 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <google-cloud-dataflow-version>[1.0.0, 2.0.0)</google-cloud-dataflow-version>
+    <beam-version>[0.1.0, 1.0.0)</beam-version>
   </properties>
 
   <build>
@@ -155,9 +155,9 @@
 
   <dependencies>
     <dependency>
-      <groupId>com.google.cloud.dataflow</groupId>
-      <artifactId>google-cloud-dataflow-java-sdk-all</artifactId>
-      <version>${google-cloud-dataflow-version}</version>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>java-sdk-all</artifactId>
+      <version>${beam-version}</version>
     </dependency>
 
     <dependency>

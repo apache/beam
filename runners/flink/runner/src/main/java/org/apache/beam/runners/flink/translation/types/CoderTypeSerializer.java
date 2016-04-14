@@ -19,8 +19,9 @@ package org.apache.beam.runners.flink.translation.types;
 
 import org.apache.beam.runners.flink.translation.wrappers.DataInputViewWrapper;
 import org.apache.beam.runners.flink.translation.wrappers.DataOutputViewWrapper;
-import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
+
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -32,7 +33,7 @@ import java.io.ObjectInputStream;
 
 /**
  * Flink {@link org.apache.flink.api.common.typeutils.TypeSerializer} for
- * Dataflow {@link com.google.cloud.dataflow.sdk.coders.Coder}s
+ * Dataflow {@link org.apache.beam.sdk.coders.Coder}s
  */
 public class CoderTypeSerializer<T> extends TypeSerializer<T> {
   

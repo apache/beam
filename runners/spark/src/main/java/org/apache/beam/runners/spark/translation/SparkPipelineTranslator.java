@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.spark.translation;
 
-import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.PTransform;
 
 /**
  * Translator to support translation between Dataflow transformations and Spark transformations.

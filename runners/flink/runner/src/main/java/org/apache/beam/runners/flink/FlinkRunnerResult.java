@@ -17,18 +17,18 @@
  */
 package org.apache.beam.runners.flink;
 
-import com.google.cloud.dataflow.sdk.PipelineResult;
-import com.google.cloud.dataflow.sdk.runners.AggregatorRetrievalException;
-import com.google.cloud.dataflow.sdk.runners.AggregatorValues;
-import com.google.cloud.dataflow.sdk.transforms.Aggregator;
+import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.runners.AggregatorRetrievalException;
+import org.apache.beam.sdk.runners.AggregatorValues;
+import org.apache.beam.sdk.transforms.Aggregator;
 
 import java.util.Collections;
 import java.util.Map;
 
 /**
- * Result of executing a {@link com.google.cloud.dataflow.sdk.Pipeline} with Flink. This
+ * Result of executing a {@link org.apache.beam.sdk.Pipeline} with Flink. This
  * has methods to query to job runtime and the final values of
- * {@link com.google.cloud.dataflow.sdk.transforms.Aggregator}s.
+ * {@link org.apache.beam.sdk.transforms.Aggregator}s.
  */
 public class FlinkRunnerResult implements PipelineResult {
   

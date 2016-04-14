@@ -17,7 +17,8 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers;
 
-import com.google.cloud.dataflow.sdk.io.Source;
+import org.apache.beam.sdk.io.Source;
+
 import org.apache.flink.core.io.InputSplit;
 
 /**

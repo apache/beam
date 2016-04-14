@@ -19,21 +19,41 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.wrappers.SerializableFnAggregatorWrapper;
-import org.apache.beam.runners.flink.translation.wrappers.streaming.state.*;
-import com.google.cloud.dataflow.sdk.coders.*;
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
-import com.google.cloud.dataflow.sdk.transforms.Aggregator;
-import com.google.cloud.dataflow.sdk.transforms.Combine;
-import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
-import com.google.cloud.dataflow.sdk.transforms.windowing.OutputTimeFn;
-import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
-import com.google.cloud.dataflow.sdk.util.*;
-import com.google.cloud.dataflow.sdk.values.*;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.state.AbstractFlinkTimerInternals;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkStateInternals;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.state.StateCheckpointReader;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.state.StateCheckpointUtils;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.state.StateCheckpointWriter;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.coders.IterableCoder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.transforms.Aggregator;
+import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.AppliedCombineFn;
+import org.apache.beam.sdk.util.GroupAlsoByWindowViaWindowSetDoFn;
+import org.apache.beam.sdk.util.KeyedWorkItem;
+import org.apache.beam.sdk.util.KeyedWorkItems;
+import org.apache.beam.sdk.util.SystemReduceFn;
+import org.apache.beam.sdk.util.TimerInternals;
+import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowingInternals;
+import org.apache.beam.sdk.util.WindowingStrategy;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TupleTag;
+
 import com.google.common.base.Preconditions;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
+
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.core.memory.DataInputView;
@@ -41,20 +61,29 @@ import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
-import org.apache.flink.streaming.api.operators.*;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
 import org.joda.time.Instant;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * This class is the key class implementing all the windowing/triggering logic of Apache Beam.
  * To provide full compatibility and support for all the windowing/triggering combinations offered by
  * Beam, we opted for a strategy that uses the SDK's code for doing these operations. See the code in
- * ({@link com.google.cloud.dataflow.sdk.util.GroupAlsoByWindowsDoFn}.
+ * ({@link org.apache.beam.sdk.util.GroupAlsoByWindowsDoFn}.
  * <p/>
  * In a nutshell, when the execution arrives to this operator, we expect to have a stream <b>already
  * grouped by key</b>. Each of the elements that enter here, registers a timer
@@ -66,7 +95,7 @@ import java.util.*;
  * When a watermark arrives, all the registered timers are checked to see which ones are ready to
  * fire (see {@link FlinkGroupAlsoByWindowWrapper#processWatermark(Watermark)}). These are deregistered from
  * the {@link FlinkGroupAlsoByWindowWrapper#activeTimers}
- * list, and are fed into the {@link com.google.cloud.dataflow.sdk.util.GroupAlsoByWindowsDoFn}
+ * list, and are fed into the {@link org.apache.beam.sdk.util.GroupAlsoByWindowsDoFn}
  * for furhter processing.
  */
 public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
@@ -108,11 +137,11 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
    * <p/>
    * The difference with {@link #createForIterable(PipelineOptions, PCollection, KeyedStream)}
    * is that this method assumes that a combiner function is provided
-   * (see {@link com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn}).
+   * (see {@link org.apache.beam.sdk.transforms.Combine.KeyedCombineFn}).
    * A combiner helps at increasing the speed and, in most of the cases, reduce the per-window state.
    *
    * @param options            the general job configuration options.
-   * @param input              the input Dataflow {@link com.google.cloud.dataflow.sdk.values.PCollection}.
+   * @param input              the input Dataflow {@link org.apache.beam.sdk.values.PCollection}.
    * @param groupedStreamByKey the input stream, it is assumed to already be grouped by key.
    * @param combiner           the combiner to be used.
    * @param outputKvCoder      the type of the output values.
@@ -151,10 +180,10 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
    * <p/>
    * The difference with {@link #create(PipelineOptions, PCollection, KeyedStream, Combine.KeyedCombineFn, KvCoder)}
    * is that this method assumes no combiner function
-   * (see {@link com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn}).
+   * (see {@link org.apache.beam.sdk.transforms.Combine.KeyedCombineFn}).
    *
    * @param options            the general job configuration options.
-   * @param input              the input Dataflow {@link com.google.cloud.dataflow.sdk.values.PCollection}.
+   * @param input              the input Dataflow {@link org.apache.beam.sdk.values.PCollection}.
    * @param groupedStreamByKey the input stream, it is assumed to already be grouped by key.
    */
   public static <K, VIN> DataStream<WindowedValue<KV<K, Iterable<VIN>>>> createForIterable(
@@ -224,9 +253,9 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
   }
 
   /**
-   * Create the adequate {@link com.google.cloud.dataflow.sdk.util.GroupAlsoByWindowsDoFn},
+   * Create the adequate {@link org.apache.beam.sdk.util.GroupAlsoByWindowsDoFn},
    * <b> if not already created</b>.
-   * If a {@link com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn} was provided, then
+   * If a {@link org.apache.beam.sdk.transforms.Combine.KeyedCombineFn} was provided, then
    * a function with that combiner is created, so that elements are combined as they arrive. This is
    * done for speed and (in most of the cases) for reduction of the per-window state.
    */
@@ -524,7 +553,7 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
       return new WindowingInternals<KeyedWorkItem<K, VIN>, KV<K, VOUT>>() {
 
         @Override
-        public com.google.cloud.dataflow.sdk.util.state.StateInternals stateInternals() {
+        public org.apache.beam.sdk.util.state.StateInternals stateInternals() {
           return stateInternals;
         }
 

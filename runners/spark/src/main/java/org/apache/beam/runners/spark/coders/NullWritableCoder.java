@@ -22,7 +22,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.google.cloud.dataflow.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.hadoop.io.NullWritable;
 
 public final class NullWritableCoder extends WritableCoder<NullWritable> {

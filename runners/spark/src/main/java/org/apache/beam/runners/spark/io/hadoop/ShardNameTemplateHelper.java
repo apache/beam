@@ -18,9 +18,9 @@
 
 package org.apache.beam.runners.spark.io.hadoop;
 
-import java.io.IOException;
-
 import static org.apache.beam.runners.spark.io.hadoop.ShardNameBuilder.replaceShardNumber;
+
+import java.io.IOException;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
