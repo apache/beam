@@ -74,6 +74,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 
+import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -854,39 +855,43 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     Map<String, Object> parDo2Properties = steps.get(2).getProperties();
     assertThat(parDo1Properties, hasKey("display_data"));
 
-    Collection<Map<String, String>> fn1displayData =
-            (Collection<Map<String, String>>) parDo1Properties.get("display_data");
-    Collection<Map<String, String>> fn2displayData =
-            (Collection<Map<String, String>>) parDo2Properties.get("display_data");
 
-    ImmutableList expectedFn1DisplayData = ImmutableList.of(
-            ImmutableMap.<String, String>builder()
-              .put("namespace", fn1.getClass().getName())
-              .put("key", "foo")
-              .put("type", "STRING")
-              .put("value", "bar")
-              .build(),
-            ImmutableMap.<String, String>builder()
-              .put("namespace", fn1.getClass().getName())
-              .put("key", "foo2")
-              .put("type", "JAVA_CLASS")
-              .put("value", DataflowPipelineTranslatorTest.class.getName())
-              .put("shortValue", DataflowPipelineTranslatorTest.class.getSimpleName())
-              .put("label", "Test Class")
-              .put("linkUrl", "http://www.google.com")
-              .build()
-    );
+    @SuppressWarnings("unchecked")
+    Collection<Map<String, Object>> fn1displayData =
+            (Collection<Map<String, Object>>) parDo1Properties.get("display_data");
+    @SuppressWarnings("unchecked")
+    Collection<Map<String, Object>> fn2displayData =
+            (Collection<Map<String, Object>>) parDo2Properties.get("display_data");
 
-    ImmutableList expectedFn2DisplayData = ImmutableList.of(
+    @SuppressWarnings("unchecked")
+    Matcher<Iterable<? extends Map<String, Object>>> fn1expectedData =
+        Matchers.<Map<String, Object>>containsInAnyOrder(
             ImmutableMap.<String, Object>builder()
-                    .put("namespace", fn2.getClass().getName())
-                    .put("key", "foo3")
-                    .put("type", "INTEGER")
-                    .put("value", 1234L)
-                    .build()
-    );
+                .put("namespace", fn1.getClass().getName())
+                .put("key", "foo")
+                .put("type", "STRING")
+                .put("value", "bar")
+                .build(),
+            ImmutableMap.<String, Object>builder()
+                .put("namespace", fn1.getClass().getName())
+                .put("key", "foo2")
+                .put("type", "JAVA_CLASS")
+                .put("value", DataflowPipelineTranslatorTest.class.getName())
+                .put("shortValue", DataflowPipelineTranslatorTest.class.getSimpleName())
+                .put("label", "Test Class")
+                .put("linkUrl", "http://www.google.com")
+                .build());
 
-    assertEquals(expectedFn1DisplayData, fn1displayData);
-    assertEquals(expectedFn2DisplayData, fn2displayData);
+    @SuppressWarnings("unchecked")
+    Matcher<Iterable<? extends Map<String, Object>>> fn2expectedData =
+        Matchers.<Map<String, Object>>contains(
+            ImmutableMap.<String, Object>builder()
+                .put("namespace", fn2.getClass().getName())
+                .put("key", "foo3")
+                .put("type", "INTEGER")
+                .put("value", 1234L)
+                .build());
+    assertThat(fn1displayData, fn1expectedData);
+    assertThat(fn2displayData, fn2expectedData);
   }
 }
