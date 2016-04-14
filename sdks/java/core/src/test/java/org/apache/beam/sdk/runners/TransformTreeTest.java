@@ -159,7 +159,9 @@ public class TransformTreeTest {
         assertThat(transform, not(instanceOf(Sample.SampleAny.class)));
         assertThat(transform, not(instanceOf(Write.Bound.class)));
         if (transform instanceof Read.Bounded) {
-          assertTrue(visited.add(TransformsSeen.READ));
+          assertTrue(
+            node.getEnclosingNode().getTransform() instanceof TextIO.Read.Bound
+                == visited.add(TransformsSeen.READ));
         }
       }
 

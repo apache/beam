@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.runners;
 
-import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
 import static org.apache.beam.sdk.util.StringUtils.jsonStringToByteArray;
@@ -34,7 +33,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.io.BigQueryIO;
 import org.apache.beam.sdk.io.PubsubIO;
@@ -47,7 +45,6 @@ import org.apache.beam.sdk.runners.dataflow.PubsubIOTranslator;
 import org.apache.beam.sdk.runners.dataflow.ReadTranslator;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -841,45 +838,6 @@ public class DataflowPipelineTranslator {
                 PropertyNames.SERIALIZED_FN,
                 byteArrayToJsonString(serializeToByteArray(fn)));
             context.addOutput(PropertyNames.OUTPUT, context.getOutput(transform));
-          }
-        });
-
-    registerTransformTranslator(
-        Create.Values.class,
-        new TransformTranslator<Create.Values>() {
-          @Override
-          public void translate(
-              Create.Values transform,
-              TranslationContext context) {
-            createHelper(transform, context);
-          }
-
-          private <T> void createHelper(
-              Create.Values<T> transform,
-              TranslationContext context) {
-            context.addStep(transform, "CreateCollection");
-
-            Coder<T> coder = context.getOutput(transform).getCoder();
-            List<CloudObject> elements = new LinkedList<>();
-            for (T elem : transform.getElements()) {
-              byte[] encodedBytes;
-              try {
-                encodedBytes = encodeToByteArray(coder, elem);
-              } catch (CoderException exn) {
-                // TODO: Put in better element printing:
-                // truncate if too long.
-                throw new IllegalArgumentException(
-                    "Unable to encode element '" + elem + "' of transform '" + transform
-                    + "' using coder '" + coder + "'.",
-                    exn);
-              }
-              String encodedJson = byteArrayToJsonString(encodedBytes);
-              assert Arrays.equals(encodedBytes,
-                                   jsonStringToByteArray(encodedJson));
-              elements.add(CloudObject.forString(encodedJson));
-            }
-            context.addInput(PropertyNames.ELEMENT, elements);
-            context.addValueOnlyOutput(PropertyNames.OUTPUT, context.getOutput(transform));
           }
         });
 

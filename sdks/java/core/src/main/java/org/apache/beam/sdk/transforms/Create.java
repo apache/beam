@@ -20,32 +20,41 @@ package org.apache.beam.sdk.transforms;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.runners.DirectPipelineRunner;
-import org.apache.beam.sdk.util.WindowingStrategy;
+import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.OffsetBasedSource;
+import org.apache.beam.sdk.io.OffsetBasedSource.OffsetBasedReader;
+import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TimestampedValue.TimestampedValueCoder;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 
 import org.joda.time.Instant;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Objects;
+
+import javax.annotation.Nullable;
 
 /**
  * {@code Create<T>} takes a collection of elements of type {@code T}
@@ -237,12 +246,13 @@ public class Create<T> {
     public PCollection<T> apply(PInput input) {
       try {
         Coder<T> coder = getDefaultOutputCoder(input);
-        return PCollection
-            .<T>createPrimitiveOutputInternal(
-                input.getPipeline(),
-                WindowingStrategy.globalDefault(),
-                IsBounded.BOUNDED)
-            .setCoder(coder);
+        try {
+          CreateSource<T> source = CreateSource.fromIterable(elems, coder);
+          return input.getPipeline().apply(Read.from(source));
+        } catch (IOException e) {
+          throw new RuntimeException(
+              String.format("Unable to apply Create %s using Coder %s.", this, coder), e);
+        }
       } catch (CannotProvideCoderException e) {
         throw new IllegalArgumentException("Unable to infer a coder and no Coder was specified. "
             + "Please set a coder by invoking Create.withCoder() explicitly.", e);
@@ -320,6 +330,135 @@ public class Create<T> {
       this.elems = elems;
       this.coder = coder;
     }
+
+    @VisibleForTesting
+    static class CreateSource<T> extends OffsetBasedSource<T> {
+      private final List<byte[]> allElementsBytes;
+      private final long totalSize;
+      private final Coder<T> coder;
+
+      public static <T> CreateSource<T> fromIterable(Iterable<T> elements, Coder<T> elemCoder)
+          throws CoderException, IOException {
+        ImmutableList.Builder<byte[]> allElementsBytes = ImmutableList.builder();
+        long totalSize = 0L;
+        for (T element : elements) {
+          byte[] bytes = CoderUtils.encodeToByteArray(elemCoder, element);
+          allElementsBytes.add(bytes);
+          totalSize += bytes.length;
+        }
+        return new CreateSource<>(allElementsBytes.build(), totalSize, elemCoder);
+      }
+
+      /**
+       * Create a new source with the specified bytes. The new source owns the input element bytes,
+       * which must not be modified after this constructor is called.
+       */
+      private CreateSource(List<byte[]> elementBytes, long totalSize, Coder<T> coder) {
+        super(0, elementBytes.size(), 1);
+        this.allElementsBytes = ImmutableList.copyOf(elementBytes);
+        this.totalSize = totalSize;
+        this.coder = coder;
+      }
+
+      @Override
+      public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
+        return totalSize;
+      }
+
+      @Override
+      public boolean producesSortedKeys(PipelineOptions options) throws Exception {
+        return false;
+      }
+
+      @Override
+      public BoundedSource.BoundedReader<T> createReader(PipelineOptions options)
+          throws IOException {
+        return new BytesReader<>(this);
+      }
+
+      @Override
+      public void validate() {}
+
+      @Override
+      public Coder<T> getDefaultOutputCoder() {
+        return coder;
+      }
+
+      @Override
+      public long getMaxEndOffset(PipelineOptions options) throws Exception {
+        return allElementsBytes.size();
+      }
+
+      @Override
+      public OffsetBasedSource<T> createSourceForSubrange(long start, long end) {
+        List<byte[]> primaryElems = allElementsBytes.subList((int) start, (int) end);
+        long primarySizeEstimate =
+            (long) (totalSize * primaryElems.size() / (double) allElementsBytes.size());
+        return new CreateSource<>(primaryElems, primarySizeEstimate, coder);
+      }
+
+      @Override
+      public long getBytesPerOffset() {
+        if (allElementsBytes.size() == 0) {
+          return 0L;
+        }
+        return totalSize / allElementsBytes.size();
+      }
+    }
+
+    private static class BytesReader<T> extends OffsetBasedReader<T> {
+      private int index;
+      /**
+       * Use an optional to distinguish between null next element (as Optional.absent()) and no next
+       * element (next is null).
+       */
+      @Nullable private Optional<T> next;
+
+      public BytesReader(CreateSource<T> source) {
+        super(source);
+        index = -1;
+      }
+
+      @Override
+      @Nullable
+      public T getCurrent() throws NoSuchElementException {
+        if (next == null) {
+          throw new NoSuchElementException();
+        }
+        return next.orNull();
+      }
+
+      @Override
+      public void close() throws IOException {}
+
+      @Override
+      protected long getCurrentOffset() {
+        return index;
+      }
+
+      @Override
+      protected boolean startImpl() throws IOException {
+        return advanceImpl();
+      }
+
+      @Override
+      public synchronized CreateSource<T> getCurrentSource() {
+        return (CreateSource<T>) super.getCurrentSource();
+      }
+
+      @Override
+      protected boolean advanceImpl() throws IOException {
+        CreateSource<T> source = getCurrentSource();
+        index++;
+        if (index >= source.allElementsBytes.size()) {
+          return false;
+        }
+        next =
+            Optional.fromNullable(
+                CoderUtils.decodeFromByteArray(source.coder, source.allElementsBytes.get(index)));
+        return true;
+      }
+    }
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -386,43 +525,5 @@ public class Create<T> {
         c.outputWithTimestamp(c.element().getValue(), c.element().getTimestamp());
       }
     }
-  }
-
-  /////////////////////////////////////////////////////////////////////////////
-
-  static {
-    registerDefaultTransformEvaluator();
-  }
-
-  @SuppressWarnings({"rawtypes", "unchecked"})
-  private static void registerDefaultTransformEvaluator() {
-    DirectPipelineRunner.registerDefaultTransformEvaluator(
-        Create.Values.class,
-        new DirectPipelineRunner.TransformEvaluator<Create.Values>() {
-          @Override
-          public void evaluate(
-              Create.Values transform,
-              DirectPipelineRunner.EvaluationContext context) {
-            evaluateHelper(transform, context);
-          }
-        });
-  }
-
-  private static <T> void evaluateHelper(
-      Create.Values<T> transform,
-      DirectPipelineRunner.EvaluationContext context) {
-    // Convert the Iterable of elems into a List of elems.
-    List<T> listElems;
-    if (transform.elems instanceof Collection) {
-      Collection<T> collectionElems = (Collection<T>) transform.elems;
-      listElems = new ArrayList<>(collectionElems.size());
-    } else {
-      listElems = new ArrayList<>();
-    }
-    for (T elem : transform.elems) {
-      listElems.add(
-          context.ensureElementEncodable(context.getOutput(transform), elem));
-    }
-    context.setPCollection(context.getOutput(transform), listElems);
   }
 }

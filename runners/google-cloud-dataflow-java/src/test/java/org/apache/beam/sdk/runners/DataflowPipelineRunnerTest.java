@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.startsWith;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
@@ -840,9 +841,16 @@ public class DataflowPipelineRunnerTest {
     CompositeTransformRecorder recorder = new CompositeTransformRecorder();
     p.traverseTopologically(recorder);
 
-    assertThat("Expected to have seen CreateTimestamped composite transform.",
+    // The recorder will also have seen a Create.Values composite as well, but we can't obtain that
+    // transform.
+    assertThat(
+        "Expected to have seen CreateTimestamped composite transform.",
         recorder.getCompositeTransforms(),
-        Matchers.<PTransform<?, ?>>contains(transform));
+        hasItem(transform));
+    assertThat(
+        "Expected to have two composites, CreateTimestamped and Create.Values",
+        recorder.getCompositeTransforms(),
+        hasItem(Matchers.<PTransform<?, ?>>isA((Class) Create.Values.class)));
   }
 
   @Test
