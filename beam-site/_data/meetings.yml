@@ -11,11 +11,11 @@ events:
       link: "https://docs.google.com/document/d/1SXSLj7FMIgKqj43nTcczFpJzqASeUMUCpbyklk2fBkg/edit?usp=sharing"
   notes:
 
-- date: 2016/05/11
+- date: 2016/05/04
   time: "8:00 - 11:00 Pacific"
   location: Virtual
   type: Technical Deep Dive
   materials:
-  notes: This is a proposed meeting. Virtual attendance<br>options will be announced soon.
+  notes: Virtual attendance options will<br>be announced prior to the meeting.
 
-last_updated: 2016/04/07
+last_updated: 2016/04/14
