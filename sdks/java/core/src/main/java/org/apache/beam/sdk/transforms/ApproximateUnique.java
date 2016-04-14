@@ -32,6 +32,8 @@ import com.google.common.hash.Hashing;
 import com.google.common.hash.HashingOutputStream;
 import com.google.common.io.ByteStreams;
 
+import org.apache.avro.reflect.Nullable;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
@@ -171,6 +173,7 @@ public class ApproximateUnique {
     /**
      * The desired maximum estimation error or null if not specified.
      */
+    @Nullable
     private final Double maximumEstimationError;
 
     /**
@@ -235,8 +238,9 @@ public class ApproximateUnique {
     private final long sampleSize;
 
     /**
-     * The the desired maximum estimation error, if specified.
+     * The the desired maximum estimation error or null if not specified.
      */
+    @Nullable
     private final Double maximumEstimationError;
 
     /**
