@@ -215,6 +215,9 @@ class PValueCache(object):
     try:
       value_with_refcount = self._cache[self.key(pvalue)]
       value_with_refcount[1] -= 1
+      logging.debug('PValue computed by %s (tag %s): refcount: %d => %d',
+                    pvalue.real_producer.full_label, self.key(pvalue)[1],
+                    value_with_refcount[1] + 1, value_with_refcount[1])
       if value_with_refcount[1] <= 0:
         self.clear_pvalue(pvalue)
       return value_with_refcount[0]

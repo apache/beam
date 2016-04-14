@@ -23,6 +23,7 @@ from __future__ import absolute_import
 
 import collections
 import itertools
+import logging
 
 from google.cloud.dataflow import coders
 from google.cloud.dataflow import error
@@ -54,6 +55,14 @@ class DirectPipelineRunner(PipelineRunner):
     # Cache of values computed while the runner executes a pipeline.
     self._cache = cache if cache is not None else PValueCache()
     self._counter_factory = counters.CounterFactory()
+    # Element counts used for debugging footprint issues in the direct runner.
+    # The values computed are used only for logging and do not take part in
+    # any decision making logic. The key for the counter dictionary is either
+    # the full label for the transform producing the elements or a tuple
+    # (full label, output tag) for ParDo transforms since they can output values
+    # on multiple outputs.
+    self.debug_counters = {}
+    self.debug_counters['element_counts'] = collections.Counter()
 
   def get_pvalue(self, pvalue):
     """Gets the PValue's computed value from the runner's cache."""
@@ -70,11 +79,16 @@ class DirectPipelineRunner(PipelineRunner):
     """Decorator to skip execution of a transform if value is cached."""
 
     def func_wrapper(self, pvalue, *args, **kwargs):
+      logging.debug('Current: Debug counters: %s', self.debug_counters)
       if self._cache.is_cached(pvalue):  # pylint: disable=protected-access
         return
       else:
         func(self, pvalue, *args, **kwargs)
     return func_wrapper
+
+  def run(self, pipeline, node=None):
+    super(DirectPipelineRunner, self).run(pipeline, node)
+    logging.info('Final: Debug counters: %s', self.debug_counters)
 
   @skip_if_cached
   def run_ParDo(self, transform_node):
@@ -143,6 +157,8 @@ class DirectPipelineRunner(PipelineRunner):
 
     self._cache.cache_output(transform_node, [])
     for tag, value in results.items():
+      self.debug_counters['element_counts'][
+          (transform_node.full_label, tag)] += len(value)
       self._cache.cache_output(transform_node, tag, value)
 
   @skip_if_cached
@@ -166,24 +182,29 @@ class DirectPipelineRunner(PipelineRunner):
                              'windowed key-value pairs. Instead received: %r.'
                              % wv)
 
-    self._cache.cache_output(
-        transform_node,
-        map(GlobalWindows.WindowedValue,
-            ((key_coder.decode(k), v) for k, v in result_dict.iteritems())))
+    gbk_result = map(
+        GlobalWindows.WindowedValue,
+        ((key_coder.decode(k), v) for k, v in result_dict.iteritems()))
+    self.debug_counters['element_counts'][
+        transform_node.full_label] += len(gbk_result)
+    self._cache.cache_output(transform_node, gbk_result)
 
   @skip_if_cached
   def run_Create(self, transform_node):
     transform = transform_node.transform
-    self._cache.cache_output(
-        transform_node,
-        [GlobalWindows.WindowedValue(v) for v in transform.value])
+    create_result = [GlobalWindows.WindowedValue(v) for v in transform.value]
+    self.debug_counters['element_counts'][
+        transform_node.full_label] += len(create_result)
+    self._cache.cache_output(transform_node, create_result)
 
   @skip_if_cached
   def run_Flatten(self, transform_node):
-    self._cache.cache_output(
-        transform_node,
-        list(itertools.chain.from_iterable(
-            self._cache.get_pvalue(pc) for pc in transform_node.inputs)))
+    flatten_result = list(
+        itertools.chain.from_iterable(
+            self._cache.get_pvalue(pc) for pc in transform_node.inputs))
+    self.debug_counters['element_counts'][
+        transform_node.full_label] += len(flatten_result)
+    self._cache.cache_output(transform_node, flatten_result)
 
   @skip_if_cached
   def run_Read(self, transform_node):
@@ -192,8 +213,10 @@ class DirectPipelineRunner(PipelineRunner):
     source = transform_node.transform.source
     source.pipeline_options = transform_node.inputs[0].pipeline.options
     with source.reader() as reader:
-      self._cache.cache_output(
-          transform_node, [GlobalWindows.WindowedValue(e) for e in reader])
+      read_result = [GlobalWindows.WindowedValue(e) for e in reader]
+      self.debug_counters['element_counts'][
+          transform_node.full_label] += len(read_result)
+      self._cache.cache_output(transform_node, read_result)
 
   @skip_if_cached
   def run__NativeWrite(self, transform_node):
@@ -201,4 +224,5 @@ class DirectPipelineRunner(PipelineRunner):
     sink.pipeline_options = transform_node.inputs[0].pipeline.options
     with sink.writer() as writer:
       for v in self._cache.get_pvalue(transform_node.inputs[0]):
+        self.debug_counters['element_counts'][transform_node.full_label] += 1
         writer.Write(v.value)
