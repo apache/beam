@@ -45,7 +45,7 @@ import java.util.Collection;
  * <p>This {@link WindowFn} is an internal implementation detail of sdk-provided utilities, and
  * should not be used by {@link Pipeline} writers.
  */
-class PassThroughWindowFn<T> extends NonMergingWindowFn<T, BoundedWindow> {
+class IdentityWindowFn<T> extends NonMergingWindowFn<T, BoundedWindow> {
 
   /**
    * The coder of the type of windows of the input {@link PCollection}. This is not an arbitrary
@@ -56,7 +56,7 @@ class PassThroughWindowFn<T> extends NonMergingWindowFn<T, BoundedWindow> {
   private final Coder<BoundedWindow> coder;
   private final boolean assignsToSingleWindow;
 
-  public PassThroughWindowFn(Coder<? extends BoundedWindow> coder, boolean assignsToSingleWindow) {
+  public IdentityWindowFn(Coder<? extends BoundedWindow> coder, boolean assignsToSingleWindow) {
     // Safe because it is only used privately here.
     // At every point where a window is returned or accepted, it has been provided
     // by priorWindowFn, so it is of the expected type.

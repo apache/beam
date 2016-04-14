@@ -57,7 +57,7 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
     // here to fail. Instead, we install a valid WindowFn that leaves all windows unchanged.
     Window.Bound<KV<K, V>> rewindow =
         Window.<KV<K, V>>into(
-                new PassThroughWindowFn<>(
+                new IdentityWindowFn<>(
                     originalStrategy.getWindowFn().windowCoder(),
                     originalStrategy.getWindowFn().assignsToSingleWindow()))
             .triggering(new ReshuffleTrigger<>())
