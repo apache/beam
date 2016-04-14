@@ -31,7 +31,7 @@ import org.apache.beam.sdk.values.PCollection;
 
 import com.google.common.collect.Iterables;
 
-import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -150,13 +150,18 @@ public class CombineJava8Test implements Serializable {
   public void testLambdaSerialization() {
     SerializableFunction<Iterable<Object>, Object> combiner = xs -> Iterables.getFirst(xs, 0);
 
+    boolean lambdaClassSerializationThrows;
     try {
       SerializableUtils.clone(combiner.getClass());
-      Assert.fail("Expected lambda class serialization to fail. "
-          + "If it's fixed, we can remove special behavior in Combine.");
+      lambdaClassSerializationThrows = false;
     } catch (IllegalArgumentException e) {
       // Expected
+      lambdaClassSerializationThrows = true;
     }
+    Assume.assumeTrue("Expected lambda class serialization to fail. "
+        + "If it's fixed, we can remove special behavior in Combine.",
+        lambdaClassSerializationThrows);
+
 
     Combine.Globally<?, ?> combine = Combine.globally(combiner);
     SerializableUtils.clone(combine); // should not throw.
