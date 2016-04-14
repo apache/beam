@@ -33,6 +33,8 @@ import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -42,6 +44,7 @@ import java.util.Collections;
 /**
  * Tests for {@link EncodabilityEnforcementFactory}.
  */
+@RunWith(JUnit4.class)
 public class EncodabilityEnforcementFactoryTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
   private EncodabilityEnforcementFactory factory = EncodabilityEnforcementFactory.create();
