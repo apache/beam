@@ -227,7 +227,7 @@ public class AfterWatermark {
       StringBuilder builder = new StringBuilder(TO_STRING);
 
       Trigger earlyTrigger = subTriggers.get(EARLY_INDEX);
-      if (!(earlyTrigger instanceof NeverTrigger)) {
+      if (!(earlyTrigger instanceof Never.NeverTrigger)) {
         builder
             .append(".withEarlyFirings(")
             .append(earlyTrigger)
