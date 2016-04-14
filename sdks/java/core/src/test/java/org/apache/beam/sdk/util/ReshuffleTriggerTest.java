@@ -38,7 +38,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class ReshuffleTriggerTest {
 
-  /** Public so that other tests can instantiate ReshuffleTrigger. */
+  /** Public so that other tests can instantiate {@link ReshuffleTrigger}. */
   public static <W extends BoundedWindow> ReshuffleTrigger<W> forTest() {
     return new ReshuffleTrigger<>();
   }
