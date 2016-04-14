@@ -25,7 +25,6 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.runners.DirectPipeline;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.ApproximateQuantiles.ApproximateQuantilesCombineFn;
@@ -69,7 +68,7 @@ public class ApproximateQuantilesTest {
 
   @Test
   public void testQuantilesGlobally() {
-    DirectPipeline p = DirectPipeline.createForTest();
+    TestPipeline p = TestPipeline.create();
 
     PCollection<Integer> input = intRangeCollection(p, 101);
     PCollection<List<Integer>> quantiles =
@@ -82,7 +81,7 @@ public class ApproximateQuantilesTest {
 
   @Test
   public void testQuantilesGobally_comparable() {
-    DirectPipeline p = DirectPipeline.createForTest();
+    TestPipeline p = TestPipeline.create();
 
     PCollection<Integer> input = intRangeCollection(p, 101);
     PCollection<List<Integer>> quantiles =

@@ -34,8 +34,6 @@ import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.DirectPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -59,7 +57,6 @@ import org.apache.beam.sdk.util.MapAggregatorValues;
 import org.apache.beam.sdk.util.PerKeyCombineFnRunner;
 import org.apache.beam.sdk.util.PerKeyCombineFnRunners;
 import org.apache.beam.sdk.util.SerializableUtils;
-import org.apache.beam.sdk.util.TestCredential;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.common.Counter;
@@ -192,18 +189,6 @@ public class DirectPipelineRunner
         PipelineOptionsValidator.validate(DirectPipelineOptions.class, options);
     LOG.debug("Creating DirectPipelineRunner");
     return new DirectPipelineRunner(directOptions);
-  }
-
-  /**
-   * Constructs a runner with default properties for testing.
-   *
-   * @return The newly created runner.
-   */
-  public static DirectPipelineRunner createForTest() {
-    DirectPipelineOptions options = PipelineOptionsFactory.as(DirectPipelineOptions.class);
-    options.setStableUniqueNames(CheckEnabled.ERROR);
-    options.setGcpCredential(new TestCredential());
-    return new DirectPipelineRunner(options);
   }
 
   /**

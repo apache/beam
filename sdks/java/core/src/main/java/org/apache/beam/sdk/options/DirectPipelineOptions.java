@@ -18,18 +18,17 @@
 package org.apache.beam.sdk.options;
 
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.runners.DirectPipeline;
 import org.apache.beam.sdk.runners.DirectPipelineRunner;
 import org.apache.beam.sdk.values.PCollection;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 /**
- * Options that can be used to configure the {@link DirectPipeline}.
+ * Options that can be used to configure the {@link DirectPipelineRunner}.
  */
-public interface DirectPipelineOptions extends
-    ApplicationNameOptions, BigQueryOptions, GcsOptions, GcpOptions,
-    PipelineOptions, StreamingOptions {
+public interface DirectPipelineOptions
+    extends ApplicationNameOptions, BigQueryOptions, GcsOptions, GcpOptions, PipelineOptions,
+        StreamingOptions {
 
   /**
    * The random seed to use for pseudorandom behaviors in the {@link DirectPipelineRunner}.
