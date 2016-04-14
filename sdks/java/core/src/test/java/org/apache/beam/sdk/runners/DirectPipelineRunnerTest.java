@@ -98,16 +98,17 @@ public class DirectPipelineRunnerTest implements Serializable {
 
   @Test
   public void testCoderException() {
-    DirectPipeline pipeline = DirectPipeline.createForTest();
+    PipelineOptions options = PipelineOptionsFactory.create();
+    options.setRunner(DirectPipelineRunner.class);
+    Pipeline p = Pipeline.create(options);
 
-    pipeline
-        .apply("CreateTestData", Create.of(42))
+    p.apply("CreateTestData", Create.of(42))
         .apply("CrashDuringCoding", ParDo.of(new HelloDoFn()))
         .setCoder(new CrashingCoder<String>());
 
-      expectedException.expect(RuntimeException.class);
-      expectedException.expectCause(isA(CoderException.class));
-      pipeline.run();
+    expectedException.expect(RuntimeException.class);
+    expectedException.expectCause(isA(CoderException.class));
+    p.run();
   }
 
   @Test
@@ -119,7 +120,9 @@ public class DirectPipelineRunnerTest implements Serializable {
   @Test
   public void testTextIOWriteWithDefaultShardingStrategy() throws Exception {
     String prefix = IOChannelUtils.resolve(Files.createTempDir().toString(), "output");
-    Pipeline p = DirectPipeline.createForTest();
+    PipelineOptions options = PipelineOptionsFactory.create();
+    options.setRunner(DirectPipelineRunner.class);
+    Pipeline p = Pipeline.create(options);
     String[] expectedElements = new String[]{ "a", "b", "c", "d", "e", "f", "g", "h", "i" };
     p.apply(Create.of(expectedElements))
      .apply(TextIO.Write.to(prefix).withSuffix("txt"));
@@ -139,7 +142,9 @@ public class DirectPipelineRunnerTest implements Serializable {
   public void testTextIOWriteWithLimitedNumberOfShards() throws Exception {
     final int numShards = 3;
     String prefix = IOChannelUtils.resolve(Files.createTempDir().toString(), "shardedOutput");
-    Pipeline p = DirectPipeline.createForTest();
+    PipelineOptions options = PipelineOptionsFactory.create();
+    options.setRunner(DirectPipelineRunner.class);
+    Pipeline p = Pipeline.create(options);
     String[] expectedElements = new String[]{ "a", "b", "c", "d", "e", "f", "g", "h", "i" };
     p.apply(Create.of(expectedElements))
      .apply(TextIO.Write.to(prefix).withNumShards(numShards).withSuffix("txt"));
@@ -164,7 +169,9 @@ public class DirectPipelineRunnerTest implements Serializable {
   @Test
   public void testAvroIOWriteWithDefaultShardingStrategy() throws Exception {
     String prefix = IOChannelUtils.resolve(Files.createTempDir().toString(), "output");
-    Pipeline p = DirectPipeline.createForTest();
+    PipelineOptions options = PipelineOptionsFactory.create();
+    options.setRunner(DirectPipelineRunner.class);
+    Pipeline p = Pipeline.create(options);
     String[] expectedElements = new String[]{ "a", "b", "c", "d", "e", "f", "g", "h", "i" };
     p.apply(Create.of(expectedElements))
      .apply(AvroIO.Write.withSchema(String.class).to(prefix).withSuffix(".avro"));
@@ -186,7 +193,9 @@ public class DirectPipelineRunnerTest implements Serializable {
   public void testAvroIOWriteWithLimitedNumberOfShards() throws Exception {
     final int numShards = 3;
     String prefix = IOChannelUtils.resolve(Files.createTempDir().toString(), "shardedOutput");
-    Pipeline p = DirectPipeline.createForTest();
+    PipelineOptions options = PipelineOptionsFactory.create();
+    options.setRunner(DirectPipelineRunner.class);
+    Pipeline p = Pipeline.create(options);
     String[] expectedElements = new String[]{ "a", "b", "c", "d", "e", "f", "g", "h", "i" };
     p.apply(Create.of(expectedElements))
      .apply(AvroIO.Write.withSchema(String.class).to(prefix)

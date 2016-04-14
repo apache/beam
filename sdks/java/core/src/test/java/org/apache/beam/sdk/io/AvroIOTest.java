@@ -26,7 +26,6 @@ import static org.junit.Assert.assertTrue;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.AvroIO.Write.Bound;
-import org.apache.beam.sdk.runners.DirectPipeline;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -116,7 +115,7 @@ public class AvroIOTest {
 
   @Test
   public void testAvroIOWriteAndReadASingleFile() throws Throwable {
-    DirectPipeline p = DirectPipeline.createForTest();
+    TestPipeline p = TestPipeline.create();
     List<GenericClass> values = ImmutableList.of(new GenericClass(3, "hi"),
         new GenericClass(5, "bar"));
     File outputFile = tmpFolder.newFile("output.avro");
@@ -127,7 +126,7 @@ public class AvroIOTest {
           .withSchema(GenericClass.class));
     p.run();
 
-    p = DirectPipeline.createForTest();
+    p = TestPipeline.create();
     PCollection<GenericClass> input = p
         .apply(AvroIO.Read.from(outputFile.getAbsolutePath()).withSchema(GenericClass.class));
 
@@ -179,7 +178,7 @@ public class AvroIOTest {
    */
   @Test
   public void testAvroIOWriteAndReadSchemaUpgrade() throws Throwable {
-    DirectPipeline p = DirectPipeline.createForTest();
+    TestPipeline p = TestPipeline.create();
     List<GenericClass> values = ImmutableList.of(new GenericClass(3, "hi"),
         new GenericClass(5, "bar"));
     File outputFile = tmpFolder.newFile("output.avro");
@@ -192,7 +191,7 @@ public class AvroIOTest {
 
     List<GenericClassV2> expected = ImmutableList.of(new GenericClassV2(3, "hi", null),
         new GenericClassV2(5, "bar", null));
-    p = DirectPipeline.createForTest();
+    p = TestPipeline.create();
     PCollection<GenericClassV2> input = p
         .apply(AvroIO.Read.from(outputFile.getAbsolutePath()).withSchema(GenericClassV2.class));
 
