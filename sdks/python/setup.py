@@ -102,6 +102,7 @@ setuptools.setup(
     download_url=get_download_url(),
     author='Google, Inc.',
     packages=setuptools.find_packages(),
+    namespace_packages=['google', 'google.cloud'],
     entry_points={
         'console_scripts': CONSOLE_SCRIPTS,
         },
