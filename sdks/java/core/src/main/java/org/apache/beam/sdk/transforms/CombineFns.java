@@ -37,10 +37,13 @@ import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.values.TupleTag;
 
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Multimap;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -49,6 +52,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -460,9 +464,7 @@ public class CombineFns {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
-      for (CombineFn combineFn : combineFns) {
-        builder.include(combineFn);
-      }
+      CombineFns.populateDisplayData(builder, combineFns);
     }
   }
 
@@ -600,9 +602,7 @@ public class CombineFns {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
-      for (CombineFnWithContext combineFn : combineFnWithContexts) {
-        builder.include(combineFn);
-      }
+      CombineFns.populateDisplayData(builder, combineFnWithContexts);
     }
   }
 
@@ -788,9 +788,7 @@ public class CombineFns {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
-      for (HasDisplayData keyedCombineFn : keyedCombineFns) {
-        builder.include(keyedCombineFn);
-      }
+      CombineFns.populateDisplayData(builder, keyedCombineFns);
     }
   }
 
@@ -941,9 +939,7 @@ public class CombineFns {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
-      for (HasDisplayData keyedCombineFn : keyedCombineFns) {
-        builder.include(keyedCombineFn);
-      }
+      CombineFns.populateDisplayData(builder, keyedCombineFns);
     }
   }
 
@@ -1037,5 +1033,44 @@ public class CombineFns {
         !registeredTags.contains(outputTag),
         "Cannot compose with tuple tag %s because it is already present in the composition.",
         outputTag);
+  }
+
+  /**
+   * Populate display data for the {@code combineFns} that make up a composed combine transform.
+   *
+   * <p>The same combineFn class may be used multiple times, in which case we must take special care
+   * to register display data with unique namespaces.
+   */
+  private static void populateDisplayData(
+      DisplayData.Builder builder, List<? extends HasDisplayData> combineFns) {
+
+    // NB: ArrayListMultimap necessary to maintain ordering of combineFns of the same type.
+    Multimap<Class<?>, HasDisplayData> combineFnMap = ArrayListMultimap.create();
+
+    for (int i = 0; i < combineFns.size(); i++) {
+      HasDisplayData combineFn = combineFns.get(i);
+      builder.add("combineFn" + (i + 1), combineFn.getClass());
+      combineFnMap.put(combineFn.getClass(), combineFn);
+    }
+
+    for (Map.Entry<Class<?>, Collection<HasDisplayData>> combineFnEntries :
+        combineFnMap.asMap().entrySet()) {
+
+      Collection<HasDisplayData> classCombineFns = combineFnEntries.getValue();
+      if (classCombineFns.size() == 1) {
+        // Only one combineFn of this type, include it directly.
+        builder.include(Iterables.getOnlyElement(classCombineFns));
+
+      } else {
+        // Multiple combineFns of same type, add a namespace suffix so display data is
+        // unique and ordered.
+        String baseNamespace = combineFnEntries.getKey().getName();
+        for (int i = 0; i < combineFns.size(); i++) {
+          HasDisplayData combineFn = combineFns.get(i);
+          String namespace = String.format("%s$%d", baseNamespace, i + 1);
+          builder.include(combineFn, namespace);
+        }
+      }
+    }
   }
 }

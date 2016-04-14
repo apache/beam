@@ -17,7 +17,10 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includes;
+
+import static org.hamcrest.Matchers.anyOf;
 import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.Pipeline;
@@ -289,25 +292,29 @@ public class  CombineFnsTest {
       }
     };
 
-    DisplayDataCombineFn combineFn1 = new DisplayDataCombineFn("combineFn1");
-    DisplayDataCombineFn combineFn2 = new DisplayDataCombineFn("combineFn2");
+    DisplayDataCombineFn combineFn1 = new DisplayDataCombineFn("value1");
+    DisplayDataCombineFn combineFn2 = new DisplayDataCombineFn("value2");
 
     CombineFns.ComposedCombineFn<String> composedCombine = CombineFns.compose()
         .with(extractFn, combineFn1, new TupleTag<String>())
         .with(extractFn, combineFn2, new TupleTag<String>());
 
     DisplayData displayData = DisplayData.from(composedCombine);
-    assertThat(displayData, includes(combineFn1));
-    assertThat(displayData, includes(combineFn2));
+    assertThat(displayData, hasDisplayItem("combineFn1", combineFn1.getClass()));
+    assertThat(displayData, hasDisplayItem("combineFn2", combineFn2.getClass()));
+
+    String nsBase = DisplayDataCombineFn.class.getName();
+    assertThat(displayData, includes(combineFn1, nsBase + "$1"));
+    assertThat(displayData, includes(combineFn2, nsBase + "$2"));
   }
 
   private static class DisplayDataCombineFn extends Combine.CombineFn<String, String, String> {
     private final String value;
-    private final String key;
     private static int i;
+    private final int id;
 
     DisplayDataCombineFn(String value) {
-      this.key = "key" + (++i);
+      id = ++i;
       this.value = value;
     }
 
@@ -333,7 +340,9 @@ public class  CombineFnsTest {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
-      builder.add(key, value);
+      builder
+          .add("uniqueKey" + id, value)
+          .add("sharedKey", value);
     }
   }
 

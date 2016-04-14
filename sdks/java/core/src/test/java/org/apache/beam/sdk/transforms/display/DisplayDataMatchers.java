@@ -149,12 +149,15 @@ public class DisplayDataMatchers {
     }
   }
 
-  /**
-   * Create a matcher that matches if the examined {@link DisplayData} contains all display data
-   * registered from the specified subcomponent.
-   */
-  public static Matcher<DisplayData> includes(final HasDisplayData subComponent) {
+  /** @see #includes(HasDisplayData, String) */
+  public static Matcher<DisplayData> includes(HasDisplayData subComponent) {
     return includes(subComponent, subComponent.getClass());
+  }
+
+  /** @see #includes(HasDisplayData, String) */
+  public static Matcher<DisplayData> includes(
+      HasDisplayData subComponent, Class<? extends HasDisplayData> namespace) {
+    return includes(subComponent, namespace.getClass().getName());
   }
 
   /**
@@ -162,27 +165,26 @@ public class DisplayDataMatchers {
    * registered from the specified subcomponent and namespace.
    */
   public static Matcher<DisplayData> includes(
-      final HasDisplayData subComponent, final Class<? extends HasDisplayData> namespace) {
+      final HasDisplayData subComponent, final String namespace) {
     return new CustomTypeSafeMatcher<DisplayData>("includes subcomponent") {
       @Override
       protected boolean matchesSafely(DisplayData displayData) {
-        DisplayData subComponentData = DisplayData.from(subComponent);
+        DisplayData subComponentData = subComponentData();
         if (subComponentData.items().size() == 0) {
           throw new UnsupportedOperationException("subComponent contains no display data; " +
               "cannot verify whether it is included");
         }
 
-        DisplayDataComparision comparison = checkSubset(displayData, subComponentData, namespace);
+        DisplayDataComparison comparison = checkSubset(displayData, subComponentData);
         return comparison.missingItems.isEmpty();
       }
-
 
       @Override
       protected void describeMismatchSafely(
           DisplayData displayData, Description mismatchDescription) {
-        DisplayData subComponentDisplayData = DisplayData.from(subComponent);
-        DisplayDataComparision comparison = checkSubset(
-            displayData, subComponentDisplayData, subComponent.getClass());
+        DisplayData subComponentDisplayData = subComponentData();
+        DisplayDataComparison comparison = checkSubset(
+            displayData, subComponentDisplayData);
 
         mismatchDescription
             .appendText("did not include:\n")
@@ -191,13 +193,21 @@ public class DisplayDataMatchers {
             .appendValue(comparison.unmatchedItems);
       }
 
-      private DisplayDataComparision checkSubset(
-          DisplayData displayData, DisplayData included, Class<?> namespace) {
-        DisplayDataComparision comparison = new DisplayDataComparision(displayData.items());
-        JavaClass javaClass = JavaClass.of(namespace);
+      private DisplayData subComponentData() {
+        return DisplayData.from(new HasDisplayData() {
+          @Override
+          public void populateDisplayData(DisplayData.Builder builder) {
+            builder.include(subComponent, namespace);
+          }
+        });
+      }
+
+      private DisplayDataComparison checkSubset(
+          DisplayData displayData, DisplayData included) {
+        DisplayDataComparison comparison = new DisplayDataComparison(displayData.items());
         for (Item item : included.items()) {
           Item matchedItem = displayData.asMap().get(
-              DisplayData.Identifier.of(javaClass, item.getKey()));
+              DisplayData.Identifier.of(item.getNamespace(), item.getKey()));
 
           if (matchedItem != null) {
             comparison.matched(matchedItem);
@@ -209,11 +219,11 @@ public class DisplayDataMatchers {
         return comparison;
       }
 
-      class DisplayDataComparision {
+      class DisplayDataComparison {
         Collection<DisplayData.Item> missingItems;
         Collection<DisplayData.Item> unmatchedItems;
 
-        DisplayDataComparision(Collection<Item> superset) {
+        DisplayDataComparison(Collection<Item> superset) {
           missingItems = Sets.newHashSet();
           unmatchedItems = Sets.newHashSet(superset);
         }
@@ -316,7 +326,9 @@ public class DisplayDataMatchers {
             valueMatcher, "with value", "value") {
       @Override
       protected T featureValueOf(DisplayData.Item actual) {
-        return (T) actual.getValue();
+        @SuppressWarnings("unchecked")
+        T value = (T) actual.getValue();
+        return value;
       }
     };
   }

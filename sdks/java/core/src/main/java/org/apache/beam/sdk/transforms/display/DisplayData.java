@@ -138,24 +138,33 @@ public class DisplayData {
    */
   public interface Builder {
     /**
-     * Register display metadata from the specified subcomponent. For example, a {@link ParDo}
-     * transform includes display metadata from the encapsulated {@link DoFn}.
+     * Register display metadata from the specified subcomponent.
+     *
+     * @see #include(HasDisplayData, String)
      */
     Builder include(HasDisplayData subComponent);
 
     /**
      * Register display metadata from the specified subcomponent, using the specified namespace.
-     * For example, a {@link ParDo} transform includes display metadata from the encapsulated
-     * {@link DoFn}.
+     *
+     * @see #include(HasDisplayData, String)
      */
     Builder include(HasDisplayData subComponent, Class<?> namespace);
 
     /**
      * Register display metadata from the specified subcomponent, using the specified namespace.
-     * For example, a {@link ParDo} transform includes display metadata from the encapsulated
-     * {@link DoFn}.
+     *
+     * @see #include(HasDisplayData, String)
      */
     Builder include(HasDisplayData subComponent, JavaClass namespace);
+
+    /**
+     * Register display metadata from the specified subcomponent, using the specified namespace.
+     *
+     * <p></p>For example, a {@link ParDo} transform includes display metadata from the encapsulated
+     * {@link DoFn}.
+     */
+    Builder include(HasDisplayData subComponent, String namespace);
 
     /**
      * Register the given string display metadata. The metadata item will be registered with type
@@ -398,11 +407,10 @@ public class DisplayData {
     private final String label;
     private final String url;
 
-    private static Item create(JavaClass nsClass, String key, Type type, Object value) {
+    private static Item create(String nsClass, String key, Type type, Object value) {
       FormattedItemValue formatted = type.format(value);
-      String namespace = namespaceOf(nsClass);
       return new Item(
-          namespace, key, type, formatted.getLongValue(), formatted.getShortValue(), null, null);
+          nsClass, key, type, formatted.getLongValue(), formatted.getShortValue(), null, null);
     }
 
     private Item(
@@ -721,7 +729,7 @@ public class DisplayData {
     private final Map<Identifier, Item> entries;
     private final Set<Object> visited;
 
-    private JavaClass latestNs;
+    private String latestNs;
 
     @Nullable
     private Item latestItem;
@@ -746,19 +754,24 @@ public class DisplayData {
     @Override
     public Builder include(HasDisplayData subComponent, Class<?> namespace) {
       checkNotNull(namespace);
-
       return include(subComponent, JavaClass.of(namespace));
     }
 
     @Override
     public Builder include(HasDisplayData subComponent, JavaClass namespace) {
+      checkNotNull(namespace);
+      return include(subComponent, namespaceOf(namespace));
+    }
+
+    @Override
+    public Builder include(HasDisplayData subComponent, String namespace) {
       checkNotNull(subComponent);
       checkNotNull(namespace);
 
       commitLatest();
       boolean newComponent = visited.add(subComponent);
       if (newComponent) {
-        JavaClass prevNs = this.latestNs;
+        String prevNs = this.latestNs;
         this.latestNs = namespace;
         subComponent.populateDisplayData(this);
         this.latestNs = prevNs;
