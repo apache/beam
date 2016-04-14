@@ -10,10 +10,10 @@
 	<artifactId>google-cloud-dataflow-cassandra-connector</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>cassandra-connector</name>
-	
+
 	<description>source and sink connector for cassandra</description>
-      <!-- to avoid build failure due to failed test cases -->
-	 <build>
+	<!-- to avoid build failure due to failed test cases -->
+	<build>
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -139,6 +139,12 @@
 			<groupId>org.mockito</groupId>
 			<artifactId>mockito-all</artifactId>
 			<version>1.10.19</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.cassandra</groupId>
+			<artifactId>cassandra-all</artifactId>
+			<version>3.2.1</version>
 		</dependency>
 	</dependencies>
 </project>

@@ -36,7 +36,7 @@ public class CassandraReadIOWithoutMockTest {
 	private static String query;
 	private static String tableName;
 	private static String rowKey;
-	private static int desiredNoOfSplits;
+	private long desiredBundleSizeBytes = 64 * (1 << 20);
 
 	private static Cluster cluster;
 	private static Session session;
@@ -61,7 +61,6 @@ public class CassandraReadIOWithoutMockTest {
 		entityName = CassandraReadIOWithoutMockTest.EmployeeDetails.class;
 		query = QueryBuilder.select().all().from(keyspace, tableName)
 				.toString();
-
 	}
 
 	/**
@@ -76,19 +75,21 @@ public class CassandraReadIOWithoutMockTest {
 	/**
 	 * Test for checking single source split and PCollection object
 	 */
+
 	@Test
 	public void testToGetSingleSource() {
 		try {
-			desiredNoOfSplits = 1;
+			
 			List<BoundedSource> splitedSourceList = (List) new CassandraReadIO.Source(
 					new CassandraReadConfiguration(hosts, keyspace, 9042,
-							tableName, query, rowKey, entityName))
-					.splitIntoBundles(desiredNoOfSplits, options);
+							tableName, query, rowKey, entityName, 7199))
+					.splitIntoBundles(desiredBundleSizeBytes, options);
 			Assert.assertEquals(1, splitedSourceList.size());
-			
+
 			Iterator itr = splitedSourceList.iterator();
 			CassandraReadIO.Source cs = (Source) itr.next();
-			PCollection pCollection = (PCollection) p.apply(Read.from((Source) cs));
+			PCollection pCollection = (PCollection) p.apply(Read
+					.from((Source) cs));
 			p.run();
 			Assert.assertNotNull(pCollection);
 
@@ -98,26 +99,39 @@ public class CassandraReadIOWithoutMockTest {
 	}
 
 	/**
-	 * Test for checking multiple source splits and PCollection Object
+	 * Test for checking multiple source splits and PCollection
+	 * Object.desiredBundleSizeBytes value is assigned low so that more than one
+	 * source can be built
 	 */
 	@Test
 	public void testToGetMultipleSplitedSource() {
 		try {
-			desiredNoOfSplits = 4;
+			desiredBundleSizeBytes = 1024;
 			List<BoundedSource> splitedSourceList = (List) new CassandraReadIO.Source(
 					new CassandraReadConfiguration(hosts, keyspace, port,
-							tableName, "", rowKey, entityName))
-					.splitIntoBundles(desiredNoOfSplits, options);
-			Assert.assertEquals(4, splitedSourceList.size());
-			
+							tableName, "", rowKey, entityName, 7199))
+					.splitIntoBundles(desiredBundleSizeBytes, options);
+			Assert.assertNotNull(splitedSourceList.size());
+
 			Iterator itr = splitedSourceList.iterator();
-			List<PCollection> pcoll = new ArrayList<PCollection>();
+			List<PCollection> sourceList = new ArrayList<PCollection>();
 			while (itr.hasNext()) {
 				CassandraReadIO.Source cs = (Source) itr.next();
-				pcoll.add((PCollection)p.apply(Read.from((Source) cs)));
+				sourceList.add((PCollection) p.apply(Read.from((Source) cs)));
 			}
-			PCollectionList pCollectionList = PCollectionList.of(pcoll.get(0))
-					.and(pcoll.get(1)).and(pcoll.get(2)).and(pcoll.get(3));
+			PCollectionList pCollectionList = null;
+			Iterator sListItrerator = sourceList.iterator();
+
+			int pcollCount = 0;
+			while (sListItrerator.hasNext()) {
+				PCollection pCollection = (PCollection) sListItrerator.next();
+				if (pcollCount == 0) {
+					pCollectionList = PCollectionList.of(pCollection);
+				} else {
+					pCollectionList = pCollectionList.and(pCollection);
+				}
+				pcollCount++;
+			}
 			PCollection merged = (PCollection) pCollectionList.apply(Flatten
 					.pCollections());
 			p.run();
@@ -133,7 +147,7 @@ public class CassandraReadIOWithoutMockTest {
 
 	@Table(name = "emp_info1", keyspace = "demo1")
 	public static class EmployeeDetails implements Serializable {
-		
+
 		private static final long serialVersionUID = 1L;
 		private int emp_id;
 		private String emp_first;
