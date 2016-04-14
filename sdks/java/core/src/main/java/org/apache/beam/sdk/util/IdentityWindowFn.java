@@ -26,6 +26,7 @@ import org.apache.beam.sdk.transforms.windowing.NonMergingWindowFn;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.PCollection;
+
 import org.joda.time.Instant;
 
 import java.util.Collection;
@@ -81,7 +82,7 @@ class IdentityWindowFn<T> extends NonMergingWindowFn<T, BoundedWindow> {
         String.format(
             "%s.isCompatible() should never be called."
                 + " It is a private implementation detail of sdk utilities."
-                + " This message indicates a bug in the Dataflow SDK.",
+                + " This message indicates a bug in the Beam SDK.",
             getClass().getCanonicalName()));
   }
 
@@ -102,8 +103,8 @@ class IdentityWindowFn<T> extends NonMergingWindowFn<T, BoundedWindow> {
     throw new UnsupportedOperationException(
         String.format(
             "%s.getSideInputWindow() should never be called."
-                + " It is a private implementation detail sdk utilities."
-                + " This message indicates a bug in the Dataflow SDK.",
+                + " It is a private implementation detail of sdk utilities."
+                + " This message indicates a bug in the Beam SDK.",
             getClass().getCanonicalName()));
   }
 
