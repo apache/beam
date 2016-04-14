@@ -91,9 +91,4 @@ public class DefaultTrigger extends Trigger{
 
   @Override
   public void onFire(Trigger.TriggerContext context) throws Exception { }
-
-  @Override
-  public String toString() {
-    return "Repeatedly.forever(AfterWatermark.pastEndOfWindow)";
-  }
 }

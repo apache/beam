@@ -603,7 +603,7 @@ public class Window {
           .include(windowFn)
           .addIfNotNull("allowedLateness", allowedLateness);
 
-      if (trigger != null) {
+      if (trigger != null && !(trigger instanceof DefaultTrigger)) {
         builder.add("trigger", trigger.toString());
       }
 

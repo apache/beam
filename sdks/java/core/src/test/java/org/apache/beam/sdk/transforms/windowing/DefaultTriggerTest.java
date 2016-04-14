@@ -174,10 +174,4 @@ public class DefaultTriggerTest {
   public void testContinuation() throws Exception {
     assertEquals(DefaultTrigger.of(), DefaultTrigger.of().getContinuationTrigger());
   }
-
-  @Test
-  public void testToString() {
-    Trigger trigger = DefaultTrigger.of();
-    assertEquals("Repeatedly.forever(AfterWatermark.pastEndOfWindow)", trigger.toString());
-  }
 }

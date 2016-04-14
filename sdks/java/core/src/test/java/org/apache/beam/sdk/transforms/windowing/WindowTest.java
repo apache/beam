@@ -274,4 +274,13 @@ public class WindowTest implements Serializable {
         "closingBehavior")))));
 
   }
+
+  @Test
+  public void testDisplayDataExcludesDefaultTrigger() {
+    Window.Bound<?> window = Window.into(new GlobalWindows())
+        .triggering(DefaultTrigger.of());
+
+    DisplayData data = DisplayData.from(window);
+    assertThat(data, not(hasDisplayItem(hasKey("trigger"))));
+  }
 }
