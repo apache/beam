@@ -43,7 +43,6 @@ import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
-import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -66,8 +65,9 @@ import java.util.concurrent.TimeUnit;
  * trigger definitions to produce partial (speculative) results before all the data is processed and
  * to control when updated results are produced for late data. The example performs a streaming
  * analysis of the data coming in from PubSub and writes the results to BigQuery. It divides the
- * data into {@link Window windows} to be processed, and demonstrates using various kinds of {@link
- * Trigger triggers} to control when the results for each window are emitted.
+ * data into {@link Window windows} to be processed, and demonstrates using various kinds of
+ * {@link org.apache.beam.sdk.transforms.windowing.Trigger triggers} to control when the results for
+ * each window are emitted.
  *
  * <p> This example uses a portion of real traffic data from San Diego freeways. It contains
  * readings from sensor stations set up along each freeway. Each sensor reading includes a
