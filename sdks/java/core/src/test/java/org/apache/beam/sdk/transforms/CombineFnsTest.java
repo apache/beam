@@ -20,7 +20,6 @@ package org.apache.beam.sdk.transforms;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includes;
 
-import static org.hamcrest.Matchers.anyOf;
 import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.Pipeline;

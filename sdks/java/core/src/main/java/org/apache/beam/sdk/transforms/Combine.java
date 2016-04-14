@@ -36,9 +36,9 @@ import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.CombineWithContext.Context;
 import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
 import org.apache.beam.sdk.transforms.CombineWithContext.RequiresContextInternal;
+import org.apache.beam.sdk.transforms.display.ClassForDisplay;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
-import org.apache.beam.sdk.transforms.display.JavaClass;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -103,7 +103,7 @@ public class Combine {
    */
   public static <V> Globally<V, V> globally(
       SerializableFunction<Iterable<V>, V> combiner) {
-    return globally(IterableCombineFn.of(combiner), JavaClass.fromInstance(combiner));
+    return globally(IterableCombineFn.of(combiner), ClassForDisplay.fromInstance(combiner));
   }
 
 
@@ -124,11 +124,11 @@ public class Combine {
    */
   public static <InputT, OutputT> Globally<InputT, OutputT> globally(
       GlobalCombineFn<? super InputT, ?, OutputT> fn) {
-    return globally(fn, JavaClass.fromInstance(fn));
+    return globally(fn, ClassForDisplay.fromInstance(fn));
   }
 
   private static <InputT, OutputT> Globally<InputT, OutputT> globally(
-          GlobalCombineFn<? super InputT, ?, OutputT> fn, JavaClass fnClass) {
+          GlobalCombineFn<? super InputT, ?, OutputT> fn, ClassForDisplay fnClass) {
     return new Globally<>(fn, fnClass, true, 0);
   }
 
@@ -150,7 +150,7 @@ public class Combine {
    */
   public static <K, V> PerKey<K, V, V> perKey(
       SerializableFunction<Iterable<V>, V> fn) {
-    return perKey(IterableCombineFn.of(fn).<K>asKeyedFn(), JavaClass.fromInstance(fn));
+    return perKey(IterableCombineFn.of(fn).<K>asKeyedFn(), ClassForDisplay.fromInstance(fn));
   }
 
   /**
@@ -171,7 +171,7 @@ public class Combine {
    */
   public static <K, InputT, OutputT> PerKey<K, InputT, OutputT> perKey(
       GlobalCombineFn<? super InputT, ?, OutputT> fn) {
-    return perKey(fn.<K>asKeyedFn(), JavaClass.fromInstance(fn));
+    return perKey(fn.<K>asKeyedFn(), ClassForDisplay.fromInstance(fn));
   }
 
   /**
@@ -192,11 +192,11 @@ public class Combine {
    */
   public static <K, InputT, OutputT> PerKey<K, InputT, OutputT> perKey(
       PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn) {
-    return perKey(fn, JavaClass.fromInstance(fn));
+    return perKey(fn, ClassForDisplay.fromInstance(fn));
   }
 
   private static <K, InputT, OutputT> PerKey<K, InputT, OutputT> perKey(
-          PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn, JavaClass fnClass) {
+          PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn, ClassForDisplay fnClass) {
     return new PerKey<>(fn, fnClass, false /*fewKeys*/);
   }
 
@@ -205,7 +205,7 @@ public class Combine {
    * in {@link GroupByKey}.
    */
   private static <K, InputT, OutputT> PerKey<K, InputT, OutputT> fewKeys(
-      PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn, JavaClass fnClass) {
+      PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn, ClassForDisplay fnClass) {
     return new PerKey<>(fn, fnClass, true /*fewKeys*/);
   }
 
@@ -232,7 +232,7 @@ public class Combine {
    */
   public static <K, V> GroupedValues<K, V, V> groupedValues(
       SerializableFunction<Iterable<V>, V> fn) {
-    return groupedValues(IterableCombineFn.of(fn).<K>asKeyedFn(), JavaClass.fromInstance(fn));
+    return groupedValues(IterableCombineFn.of(fn).<K>asKeyedFn(), ClassForDisplay.fromInstance(fn));
   }
 
   /**
@@ -258,7 +258,7 @@ public class Combine {
    */
   public static <K, InputT, OutputT> GroupedValues<K, InputT, OutputT> groupedValues(
       GlobalCombineFn<? super InputT, ?, OutputT> fn) {
-    return groupedValues(fn.<K>asKeyedFn(), JavaClass.fromInstance(fn));
+    return groupedValues(fn.<K>asKeyedFn(), ClassForDisplay.fromInstance(fn));
   }
 
   /**
@@ -284,11 +284,11 @@ public class Combine {
    */
   public static <K, InputT, OutputT> GroupedValues<K, InputT, OutputT> groupedValues(
       PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn) {
-    return groupedValues(fn, JavaClass.fromInstance(fn));
+    return groupedValues(fn, ClassForDisplay.fromInstance(fn));
   }
 
   private static <K, InputT, OutputT> GroupedValues<K, InputT, OutputT> groupedValues(
-          PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn, JavaClass fnClass) {
+          PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn, ClassForDisplay fnClass) {
     return new GroupedValues<>(fn, fnClass);
   }
 
@@ -1260,12 +1260,12 @@ public class Combine {
       extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
 
     private final GlobalCombineFn<? super InputT, ?, OutputT> fn;
-    private final JavaClass fnClass;
+    private final ClassForDisplay fnClass;
     private final boolean insertDefault;
     private final int fanout;
     private final List<PCollectionView<?>> sideInputs;
 
-    private Globally(GlobalCombineFn<? super InputT, ?, OutputT> fn, JavaClass fnClass,
+    private Globally(GlobalCombineFn<? super InputT, ?, OutputT> fn, ClassForDisplay fnClass,
         boolean insertDefault, int fanout) {
       this.fn = fn;
       this.fnClass = fnClass;
@@ -1275,7 +1275,7 @@ public class Combine {
     }
 
     private Globally(String name, GlobalCombineFn<? super InputT, ?, OutputT> fn,
-        JavaClass fnClass, boolean insertDefault, int fanout) {
+        ClassForDisplay fnClass, boolean insertDefault, int fanout) {
       super(name);
       this.fn = fn;
       this.fnClass = fnClass;
@@ -1285,7 +1285,8 @@ public class Combine {
     }
 
     private Globally(String name, GlobalCombineFn<? super InputT, ?, OutputT> fn,
-        JavaClass fnClass, boolean insertDefault, int fanout, List<PCollectionView<?>> sideInputs) {
+        ClassForDisplay fnClass, boolean insertDefault, int fanout,
+        List<PCollectionView<?>> sideInputs) {
       super(name);
       this.fn = fn;
       this.fnClass = fnClass;
@@ -1408,7 +1409,7 @@ public class Combine {
   }
 
   private static void populateDisplayData(
-      DisplayData.Builder builder, HasDisplayData fn, JavaClass fnClass) {
+      DisplayData.Builder builder, HasDisplayData fn, ClassForDisplay fnClass) {
     builder
         .include(fn, fnClass)
         .add("combineFn", fnClass);
@@ -1464,12 +1465,12 @@ public class Combine {
       extends PTransform<PCollection<InputT>, PCollectionView<OutputT>> {
 
     private final GlobalCombineFn<? super InputT, ?, OutputT> fn;
-    private final JavaClass fnClass;
+    private final ClassForDisplay fnClass;
     private final boolean insertDefault;
     private final int fanout;
 
     private GloballyAsSingletonView(
-        GlobalCombineFn<? super InputT, ?, OutputT> fn, JavaClass fnClass,
+        GlobalCombineFn<? super InputT, ?, OutputT> fn, ClassForDisplay fnClass,
         boolean insertDefault, int fanout) {
       this.fn = fn;
       this.fnClass = fnClass;
@@ -1666,12 +1667,12 @@ public class Combine {
     extends PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> {
 
     private final transient PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn;
-    private final JavaClass fnClass;
+    private final ClassForDisplay fnClass;
     private final boolean fewKeys;
     private final List<PCollectionView<?>> sideInputs;
 
     private PerKey(
-        PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn, JavaClass fnClass,
+        PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn, ClassForDisplay fnClass,
         boolean fewKeys) {
       this.fn = fn;
       this.fnClass = fnClass;
@@ -1680,7 +1681,7 @@ public class Combine {
     }
 
     private PerKey(String name,
-        PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn, JavaClass fnClass,
+        PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn, ClassForDisplay fnClass,
         boolean fewKeys, List<PCollectionView<?>> sideInputs) {
       super(name);
       this.fn = fn;
@@ -1690,8 +1691,8 @@ public class Combine {
     }
 
     private PerKey(
-        String name, PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn, JavaClass fnClass,
-        boolean fewKeys) {
+        String name, PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn,
+        ClassForDisplay fnClass, boolean fewKeys) {
       super(name);
       this.fn = fn;
       this.fnClass = fnClass;
@@ -1782,12 +1783,12 @@ public class Combine {
       extends PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> {
 
     private final transient PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn;
-    private final JavaClass fnClass;
+    private final ClassForDisplay fnClass;
     private final SerializableFunction<? super K, Integer> hotKeyFanout;
 
     private PerKeyWithHotKeyFanout(String name,
         PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn,
-        JavaClass fnClass,
+        ClassForDisplay fnClass,
         SerializableFunction<? super K, Integer> hotKeyFanout) {
       super(name);
       this.fn = fn;
@@ -2221,11 +2222,11 @@ public class Combine {
                          PCollection<KV<K, OutputT>>> {
 
     private final PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn;
-    private final JavaClass fnClass;
+    private final ClassForDisplay fnClass;
     private final List<PCollectionView<?>> sideInputs;
 
     private GroupedValues(
-        PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn, JavaClass fnClass) {
+        PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn, ClassForDisplay fnClass) {
       this.fn = SerializableUtils.clone(fn);
       this.fnClass = fnClass;
       this.sideInputs = ImmutableList.<PCollectionView<?>>of();
@@ -2233,7 +2234,7 @@ public class Combine {
 
     private GroupedValues(
         PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn,
-        JavaClass fnClass,
+        ClassForDisplay fnClass,
         List<PCollectionView<?>> sideInputs) {
       this.fn = SerializableUtils.clone(fn);
       this.fnClass = fnClass;

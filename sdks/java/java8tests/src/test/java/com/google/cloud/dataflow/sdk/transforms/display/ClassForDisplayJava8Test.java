@@ -18,7 +18,7 @@
 package com.google.cloud.dataflow.sdk.transforms.display;
 
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.display.JavaClass;
+import org.apache.beam.sdk.transforms.display.ClassForDisplay;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -27,17 +27,17 @@ import org.junit.runners.JUnit4;
 import java.io.Serializable;
 
 /**
- * Java 8 tests for {@link JavaClass}.
+ * Java 8 tests for {@link ClassForDisplay}.
  */
 @RunWith(JUnit4.class)
-public class JavaClassJava8Test implements Serializable {
+public class ClassForDisplayJava8Test implements Serializable {
   @Test
   public void testLambdaClassSerialization() {
     final SerializableFunction<Object, Object> f = x -> x;
     Serializable myClass = new Serializable() {
-      // Class references for lambdas do not serialize, which is why we support JavaClass
+      // Class references for lambdas do not serialize, which is why we support ClassForDisplay
       // Class<?> clazz = f.getClass();
-      JavaClass javaClass = JavaClass.fromInstance(f);
+      ClassForDisplay javaClass = ClassForDisplay.fromInstance(f);
     };
 
     SerializableUtils.ensureSerializable(myClass);

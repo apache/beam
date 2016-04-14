@@ -29,37 +29,38 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Unit tests for {@link JavaClass}.
+ * Unit tests for {@link ClassForDisplay}.
  */
 @RunWith(JUnit4.class)
-public class JavaClassTest {
+public class ClassForDisplayTest {
   @Rule
   public final ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testProperties() {
-    JavaClass thisClass = JavaClass.of(JavaClassTest.class);
-    assertEquals(JavaClassTest.class.getName(), thisClass.getName());
-    assertEquals(JavaClassTest.class.getSimpleName(), thisClass.getSimpleName());
+    ClassForDisplay thisClass = ClassForDisplay.of(ClassForDisplayTest.class);
+    assertEquals(ClassForDisplayTest.class.getName(), thisClass.getName());
+    assertEquals(ClassForDisplayTest.class.getSimpleName(), thisClass.getSimpleName());
   }
 
   @Test
   public void testInputValidation() {
     thrown.expect(NullPointerException.class);
-    JavaClass.of(null);
+    ClassForDisplay.of(null);
   }
 
   @Test
   public void testEquality() {
     new EqualsTester()
-        .addEqualityGroup(JavaClass.of(JavaClassTest.class), JavaClass.fromInstance(this))
-        .addEqualityGroup(JavaClass.of(JavaClass.class))
-        .addEqualityGroup(JavaClass.of(Class.class))
+        .addEqualityGroup(
+            ClassForDisplay.of(ClassForDisplayTest.class), ClassForDisplay.fromInstance(this))
+        .addEqualityGroup(ClassForDisplay.of(ClassForDisplay.class))
+        .addEqualityGroup(ClassForDisplay.of(Class.class))
         .testEquals();
   }
 
   @Test
   public void testSerialization() {
-    SerializableUtils.ensureSerializable(JavaClass.of(JavaClassTest.class));
+    SerializableUtils.ensureSerializable(ClassForDisplay.of(ClassForDisplayTest.class));
   }
 }

@@ -22,36 +22,35 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import java.io.Serializable;
 import java.util.Objects;
 
-
 /**
  * Display metadata representing a Java class.
  *
  * <p>Java classes can be registered as display metadata via
- * {@link DisplayData.Builder#add(String, JavaClass)}. {@link JavaClass} is serializable, unlike
- * {@link Class} which can fail to serialize for Java 8 lambda functions.
+ * {@link DisplayData.Builder#add(String, ClassForDisplay)}. {@link ClassForDisplay} is
+ * serializable, unlike {@link Class} which can fail to serialize for Java 8 lambda functions.
  */
-public class JavaClass implements Serializable {
+public class ClassForDisplay implements Serializable {
   private final String simpleName;
   private final String name;
 
-  private JavaClass(Class<?> clazz) {
+  private ClassForDisplay(Class<?> clazz) {
     name = clazz.getName();
     simpleName = clazz.getSimpleName();
   }
 
   /**
-   * Create a {@link JavaClass} instance representing the specified class.
+   * Create a {@link ClassForDisplay} instance representing the specified class.
    */
-  public static JavaClass of(Class<?> clazz) {
-    return new JavaClass(checkNotNull(clazz));
+  public static ClassForDisplay of(Class<?> clazz) {
+    return new ClassForDisplay(checkNotNull(clazz));
   }
 
   /**
-   * Create a {@link JavaClass} from the class of the specified object instance.
+   * Create a {@link ClassForDisplay} from the class of the specified object instance.
    */
-  public static JavaClass fromInstance(Object obj) {
+  public static ClassForDisplay fromInstance(Object obj) {
     checkNotNull(obj);
-    return new JavaClass(obj.getClass());
+    return new ClassForDisplay(obj.getClass());
   }
 
   /**
@@ -84,8 +83,8 @@ public class JavaClass implements Serializable {
 
   @Override
   public boolean equals(Object obj) {
-    if (obj instanceof JavaClass) {
-      JavaClass that = (JavaClass) obj;
+    if (obj instanceof ClassForDisplay) {
+      ClassForDisplay that = (ClassForDisplay) obj;
       return Objects.equals(this.name, that.name);
     }
 

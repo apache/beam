@@ -349,10 +349,10 @@ public class DisplayDataTest {
   public void testIdentifierEquality() {
     new EqualsTester()
         .addEqualityGroup(
-            DisplayData.Identifier.of(JavaClass.of(DisplayDataTest.class), "1"),
-            DisplayData.Identifier.of(JavaClass.of(DisplayDataTest.class), "1"))
-        .addEqualityGroup(DisplayData.Identifier.of(JavaClass.of(Object.class), "1"))
-        .addEqualityGroup(DisplayData.Identifier.of(JavaClass.of(DisplayDataTest.class), "2"))
+            DisplayData.Identifier.of(ClassForDisplay.of(DisplayDataTest.class), "1"),
+            DisplayData.Identifier.of(ClassForDisplay.of(DisplayDataTest.class), "1"))
+        .addEqualityGroup(DisplayData.Identifier.of(ClassForDisplay.of(Object.class), "1"))
+        .addEqualityGroup(DisplayData.Identifier.of(ClassForDisplay.of(DisplayDataTest.class), "2"))
         .testEquals();
   }
 
@@ -568,7 +568,7 @@ public class DisplayDataTest {
                     .add("float", 3.14)
                     .add("boolean", true)
                     .add("java_class", DisplayDataTest.class)
-                    .add("java_class2", JavaClass.of(DisplayDataTest.class))
+                    .add("java_class2", ClassForDisplay.of(DisplayDataTest.class))
                     .add("timestamp", Instant.now())
                     .add("duration", Duration.standardHours(1));
               }
@@ -683,7 +683,7 @@ public class DisplayDataTest {
     assertEquals(DisplayData.Type.TIMESTAMP, DisplayData.inferType(Instant.now()));
     assertEquals(DisplayData.Type.DURATION, DisplayData.inferType(Duration.millis(1234)));
     assertEquals(DisplayData.Type.JAVA_CLASS,
-        DisplayData.inferType(JavaClass.of(DisplayDataTest.class)));
+        DisplayData.inferType(ClassForDisplay.of(DisplayDataTest.class)));
     assertEquals(DisplayData.Type.JAVA_CLASS, DisplayData.inferType(DisplayDataTest.class));
     assertEquals(DisplayData.Type.STRING, DisplayData.inferType("hello world"));
 
@@ -779,7 +779,7 @@ public class DisplayDataTest {
     DisplayData.from(new HasDisplayData() {
         @Override
         public void populateDisplayData(Builder builder) {
-          builder.include(subComponent, (JavaClass) null);
+          builder.include(subComponent, (ClassForDisplay) null);
         }
       });
   }
