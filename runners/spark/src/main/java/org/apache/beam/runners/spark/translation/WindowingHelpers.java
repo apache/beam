@@ -29,8 +29,8 @@ public final class WindowingHelpers {
   }
 
   /**
-   * A function for converting a value to a {@link WindowedValue}. The resulting
-   * {@link WindowedValue} will be in no windows, and will have the default timestamp
+   * A Spark function for converting a value to a {@link WindowedValue}. The resulting
+   * {@link WindowedValue} will be in a global windows, and will have the default timestamp == MIN
    * and pane.
    *
    * @param <T>   The type of the object.
@@ -40,13 +40,13 @@ public final class WindowingHelpers {
     return new Function<T, WindowedValue<T>>() {
       @Override
       public WindowedValue<T> call(T t) {
-        return WindowedValue.valueInEmptyWindows(t);
+        return WindowedValue.valueInGlobalWindow(t);
       }
     };
   }
 
   /**
-   * A function for extracting the value from a {@link WindowedValue}.
+   * A Spark function for extracting the value from a {@link WindowedValue}.
    *
    * @param <T>   The type of the object.
    * @return A function that accepts a {@link WindowedValue} and returns its value.
@@ -55,6 +55,36 @@ public final class WindowingHelpers {
     return new Function<WindowedValue<T>, T>() {
       @Override
       public T call(WindowedValue<T> t) {
+        return t.getValue();
+      }
+    };
+  }
+
+  /**
+   * Same as windowFunction but for non-RDD values - not an RDD transformation!
+   *
+   * @param <T>   The type of the object.
+   * @return A function that accepts an object and returns its {@link WindowedValue}.
+   */
+  public static <T> com.google.common.base.Function<T, WindowedValue<T>> windowValueFunction() {
+    return new com.google.common.base.Function<T, WindowedValue<T>>() {
+      @Override
+      public WindowedValue<T> apply(T t) {
+        return WindowedValue.valueInGlobalWindow(t);
+      }
+    };
+  }
+
+  /**
+   * Same as unwindowFunction but for non-RDD values - not an RDD transformation!
+   *
+   * @param <T>   The type of the object.
+   * @return A function that accepts an object and returns its {@link WindowedValue}.
+   */
+  public static <T> com.google.common.base.Function<WindowedValue<T>, T> unwindowValueFunction() {
+    return new com.google.common.base.Function<WindowedValue<T>, T>() {
+      @Override
+      public T apply(WindowedValue<T> t) {
         return t.getValue();
       }
     };
