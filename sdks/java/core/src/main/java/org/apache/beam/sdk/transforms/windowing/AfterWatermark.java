@@ -63,7 +63,7 @@ import java.util.Objects;
 @Experimental(Experimental.Kind.TRIGGER)
 public class AfterWatermark {
 
-  static final String TO_STRING = "AfterWatermark.pastEndOfWindow()";
+  private static final String TO_STRING = "AfterWatermark.pastEndOfWindow()";
 
   // Static factory class.
   private AfterWatermark() {}
