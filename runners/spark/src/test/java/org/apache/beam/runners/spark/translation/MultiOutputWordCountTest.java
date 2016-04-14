@@ -18,10 +18,6 @@
 
 package org.apache.beam.runners.spark.translation;
 
-import java.util.Set;
-
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
 import org.apache.beam.runners.spark.EvaluationResult;
 import org.apache.beam.runners.spark.SparkPipelineRunner;
 import org.apache.beam.sdk.Pipeline;
@@ -47,8 +43,14 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
+
 import org.junit.Assert;
 import org.junit.Test;
+
+import java.util.Set;
 
 public class MultiOutputWordCountTest {
 

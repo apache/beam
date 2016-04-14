@@ -17,15 +17,6 @@
  */
 package org.apache.beam.runners.spark.translation.streaming;
 
-import java.io.IOException;
-import java.util.Collections;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
-
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
-import kafka.serializer.StringDecoder;
 import org.apache.beam.runners.spark.EvaluationResult;
 import org.apache.beam.runners.spark.SparkPipelineRunner;
 import org.apache.beam.runners.spark.SparkStreamingPipelineOptions;
@@ -35,6 +26,7 @@ import org.apache.beam.runners.spark.translation.streaming.utils.PAssertStreamin
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -43,6 +35,10 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
+
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.Serializer;
@@ -52,6 +48,13 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.io.IOException;
+import java.util.Collections;
+import java.util.Map;
+import java.util.Properties;
+import java.util.Set;
+
+import kafka.serializer.StringDecoder;
 /**
  * Test Kafka as input.
  */
@@ -92,7 +95,8 @@ public class KafkaStreamingTest {
   @Test
   public void testRun() throws Exception {
     // test read from Kafka
-    SparkStreamingPipelineOptions options = SparkStreamingPipelineOptionsFactory.create();
+    SparkStreamingPipelineOptions options =
+        PipelineOptionsFactory.as(SparkStreamingPipelineOptions.class);
     options.setAppName(this.getClass().getSimpleName());
     options.setRunner(SparkPipelineRunner.class);
     options.setTimeout(TEST_TIMEOUT_MSEC);// run for one interval

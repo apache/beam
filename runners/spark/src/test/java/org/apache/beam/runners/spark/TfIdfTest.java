@@ -18,9 +18,6 @@
 
 package org.apache.beam.runners.spark;
 
-import java.net.URI;
-import java.util.Arrays;
-
 import org.apache.beam.examples.complete.TfIdf;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringDelegateCoder;
@@ -31,7 +28,11 @@ import org.apache.beam.sdk.transforms.Keys;
 import org.apache.beam.sdk.transforms.RemoveDuplicates;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+
 import org.junit.Test;
+
+import java.net.URI;
+import java.util.Arrays;
 
 /**
  * A test based on {@code TfIdf} from the SDK.
@@ -40,7 +41,9 @@ public class TfIdfTest {
 
   @Test
   public void testTfIdf() throws Exception {
-    Pipeline pipeline = Pipeline.create(PipelineOptionsFactory.create());
+    SparkPipelineOptions opts = PipelineOptionsFactory.as(SparkPipelineOptions.class);
+    opts.setRunner(SparkPipelineRunner.class);
+    Pipeline pipeline = Pipeline.create(opts);
 
     pipeline.getCoderRegistry().registerCoder(URI.class, StringDelegateCoder.of(URI.class));
 

@@ -20,24 +20,27 @@ package org.apache.beam.runners.spark;
 
 import static org.junit.Assert.assertEquals;
 
-import java.util.Collections;
-import java.util.List;
-
-import com.google.common.collect.Iterables;
-import org.apache.beam.runners.spark.translation.SparkPipelineOptionsFactory;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
+
+import com.google.common.collect.Iterables;
+
 import org.junit.Test;
+
+import java.util.Collections;
+import java.util.List;
 
 public class EmptyInputTest {
 
   @Test
   public void test() throws Exception {
-    SparkPipelineOptions options = SparkPipelineOptionsFactory.create();
+    SparkPipelineOptions options = PipelineOptionsFactory.as(SparkPipelineOptions.class);
+    options.setRunner(SparkPipelineRunner.class);
     Pipeline p = Pipeline.create(options);
     List<String> empty = Collections.emptyList();
     PCollection<String> inputWords = p.apply(Create.of(empty)).setCoder(StringUtf8Coder.of());

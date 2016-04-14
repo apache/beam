@@ -20,19 +20,22 @@ package org.apache.beam.runners.spark.translation;
 
 import static org.junit.Assert.assertEquals;
 
-import java.util.Arrays;
-import java.util.List;
-
-import com.google.common.collect.Iterables;
 import org.apache.beam.runners.spark.EvaluationResult;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.SparkPipelineRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
+
+import com.google.common.collect.Iterables;
+
 import org.junit.Test;
+
+import java.util.Arrays;
+import java.util.List;
 
 public class CombineGloballyTest {
 
@@ -43,7 +46,8 @@ public class CombineGloballyTest {
 
   @Test
   public void test() throws Exception {
-    SparkPipelineOptions options = SparkPipelineOptionsFactory.create();
+    SparkPipelineOptions options = PipelineOptionsFactory.as(SparkPipelineOptions.class);
+    options.setRunner(SparkPipelineRunner.class);
     Pipeline p = Pipeline.create(options);
     PCollection<String> inputWords = p.apply(Create.of(WORDS)).setCoder(StringUtf8Coder.of());
     PCollection<String> output = inputWords.apply(Combine.globally(new WordMerger()));
