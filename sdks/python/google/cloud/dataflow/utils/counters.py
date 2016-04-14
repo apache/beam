@@ -29,6 +29,8 @@ class Counter(object):
 
   (The aggregated value will be reported to the Dataflow service.)
 
+  Do not create directly; call CounterFactory.get_counter instead.
+
   Attributes:
     name: the name of the counter, a string
     aggregation_kind: one of the aggregation kinds defined by this class.
@@ -101,8 +103,26 @@ class Counter(object):
 class AggregatorCounter(Counter):
   """A Counter that represents a step-specific instance of an Aggregator.
 
-  Do not create directly, call CounterFactory.get_aggregator_counter instead.
+  Do not create directly; call CounterFactory.get_aggregator_counter instead.
   """
+
+
+class Accumulator(Counter):
+  """An internal Counter that sums.
+
+  Because this class is used only internally (not reported to the
+  Dataflow service), its name is not important.  It is not necessary
+  to supply a name when creating one.
+  """
+
+  def __init__(self, name='unnamed'):
+    """Creates an Accumulator object.
+
+    Args:
+      name: a suggested name-part.  Optional.
+    """
+    super(Accumulator, self).__init__('internal-%s-%x' % (name, id(self)),
+                                      Counter.SUM)
 
 
 class CounterFactory(object):
