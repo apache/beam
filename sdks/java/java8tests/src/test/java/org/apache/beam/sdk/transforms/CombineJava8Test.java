@@ -142,8 +142,9 @@ public class CombineJava8Test implements Serializable {
   }
 
   /**
-   * Tests that we can serialize Combine fns constructed from a lambda. Lambdas can be problematic
-   * because the {@link Class} object is synthetic and cannot be deserialized.
+   * Tests that we can serialize {@link Combine.CombineFn CombineFns} constructed from a lambda.
+   * Lambdas can be problematic because the {@link Class} object is synthetic and cannot be
+   * deserialized.
    */
   @Test
   public void testLambdaSerialization() {
