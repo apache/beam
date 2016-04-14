@@ -22,18 +22,35 @@ import static org.apache.beam.sdk.TestUtils.LINES_ARRAY;
 import static org.apache.beam.sdk.TestUtils.NO_LINES;
 import static org.apache.beam.sdk.TestUtils.NO_LINES_ARRAY;
 
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
+import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Create.Values.CreateSource;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
+
+import com.google.common.collect.ImmutableList;
 
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
@@ -44,11 +61,15 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Random;
 
 /**
  * Tests for Create.
@@ -142,6 +163,67 @@ public class CreateTest {
             TimestampedValue.of("a", new Instant(0)),
             TimestampedValue.of("b", new Instant(0)));
   }
+  /**
+   * An unserializable class to demonstrate encoding of elements.
+   */
+  private static class UnserializableRecord {
+    private final String myString;
+
+    private UnserializableRecord(String myString) {
+      this.myString = myString;
+    }
+
+    @Override
+    public int hashCode() {
+      return myString.hashCode();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      return myString.equals(((UnserializableRecord) o).myString);
+    }
+
+    static class UnserializableRecordCoder extends AtomicCoder<UnserializableRecord> {
+      private final Coder<String> stringCoder = StringUtf8Coder.of();
+
+      @Override
+      public void encode(
+          UnserializableRecord value,
+          OutputStream outStream,
+          org.apache.beam.sdk.coders.Coder.Context context)
+          throws CoderException, IOException {
+        stringCoder.encode(value.myString, outStream, context.nested());
+      }
+
+      @Override
+      public UnserializableRecord decode(
+          InputStream inStream, org.apache.beam.sdk.coders.Coder.Context context)
+          throws CoderException, IOException {
+        return new UnserializableRecord(stringCoder.decode(inStream, context.nested()));
+      }
+    }
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testCreateWithUnserializableElements() throws Exception {
+    List<UnserializableRecord> elements =
+        ImmutableList.of(
+            new UnserializableRecord("foo"),
+            new UnserializableRecord("bar"),
+            new UnserializableRecord("baz"));
+    Create.Values<UnserializableRecord> create =
+        Create.of(elements).withCoder(new UnserializableRecord.UnserializableRecordCoder());
+
+    TestPipeline p = TestPipeline.create();
+    PAssert.that(p.apply(create))
+        .containsInAnyOrder(
+            new UnserializableRecord("foo"),
+            new UnserializableRecord("bar"),
+            new UnserializableRecord("baz"));
+    p.run();
+  }
+
   private static class PrintTimestamps extends DoFn<String, String> {
     @Override
       public void processElement(ProcessContext c) {
@@ -238,5 +320,57 @@ public class CreateTest {
   public void testCreateGetName() {
     assertEquals("Create.Values", Create.of(1, 2, 3).getName());
     assertEquals("Create.TimestampedValues", Create.timestamped(Collections.EMPTY_LIST).getName());
+  }
+
+  @Test
+  public void testSourceIsSerializableWithUnserializableElements() throws Exception {
+    List<UnserializableRecord> elements =
+        ImmutableList.of(
+            new UnserializableRecord("foo"),
+            new UnserializableRecord("bar"),
+            new UnserializableRecord("baz"));
+    CreateSource<UnserializableRecord> source =
+        CreateSource.fromIterable(elements, new UnserializableRecord.UnserializableRecordCoder());
+    SerializableUtils.ensureSerializable(source);
+  }
+
+  @Test
+  public void testSourceSplitIntoBundles() throws Exception {
+    CreateSource<Integer> source =
+        CreateSource.fromIterable(
+            ImmutableList.of(1, 2, 3, 4, 5, 6, 7, 8), BigEndianIntegerCoder.of());
+    PipelineOptions options = PipelineOptionsFactory.create();
+    List<? extends BoundedSource<Integer>> splitSources = source.splitIntoBundles(12, options);
+    assertThat(splitSources, hasSize(3));
+    SourceTestUtils.assertSourcesEqualReferenceSource(source, splitSources, options);
+  }
+
+  @Test
+  public void testSourceDoesNotProduceSortedKeys() throws Exception {
+    CreateSource<String> source =
+        CreateSource.fromIterable(ImmutableList.of("spam", "ham", "eggs"), StringUtf8Coder.of());
+    assertThat(source.producesSortedKeys(PipelineOptionsFactory.create()), is(false));
+  }
+
+  @Test
+  public void testSourceGetDefaultOutputCoderReturnsConstructorCoder() throws Exception {
+    Coder<Integer> coder = VarIntCoder.of();
+    CreateSource<Integer> source =
+        CreateSource.fromIterable(ImmutableList.of(1, 2, 3, 4, 5, 6, 7, 8), coder);
+
+    Coder<Integer> defaultCoder = source.getDefaultOutputCoder();
+    assertThat(defaultCoder, equalTo(coder));
+  }
+
+  @Test
+  public void testSourceSplitAtFraction() throws Exception {
+    List<Integer> elements = new ArrayList<>();
+    Random random = new Random();
+    for (int i = 0; i < 25; i++) {
+      elements.add(random.nextInt());
+    }
+    CreateSource<Integer> source = CreateSource.fromIterable(elements, VarIntCoder.of());
+
+    SourceTestUtils.assertSplitAtFractionExhaustive(source, PipelineOptionsFactory.create());
   }
 }
