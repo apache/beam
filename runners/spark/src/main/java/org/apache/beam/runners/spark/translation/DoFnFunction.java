@@ -75,7 +75,7 @@ public class DoFnFunction<I, O> implements FlatMapFunction<Iterator<WindowedValu
     @Override
     public synchronized void output(O o) {
       outputs.add(windowedValue != null ? windowedValue.withValue(o) :
-          WindowedValue.valueInEmptyWindows(o));
+          WindowedValue.valueInGlobalWindow(o));
     }
 
     @Override

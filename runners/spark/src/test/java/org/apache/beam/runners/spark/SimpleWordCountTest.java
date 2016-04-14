@@ -18,15 +18,18 @@
 
 package org.apache.beam.runners.spark;
 
+import java.io.File;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Sets;
 import org.apache.beam.runners.spark.translation.SparkPipelineOptionsFactory;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Count;
@@ -37,7 +40,13 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.commons.io.FileUtils;
+import org.junit.rules.TemporaryFolder;
+import org.junit.Rule;
 import org.junit.Test;
+
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.junit.Assert.assertThat;
 
 public class SimpleWordCountTest {
   private static final String[] WORDS_ARRAY = {
@@ -48,7 +57,7 @@ public class SimpleWordCountTest {
       ImmutableSet.of("hi: 5", "there: 1", "sue: 2", "bob: 2");
 
   @Test
-  public void testRun() throws Exception {
+  public void testInMem() throws Exception {
     SparkPipelineOptions options = SparkPipelineOptionsFactory.create();
     options.setRunner(SparkPipelineRunner.class);
     Pipeline p = Pipeline.create(options);
@@ -60,6 +69,29 @@ public class SimpleWordCountTest {
 
     EvaluationResult res = SparkPipelineRunner.create().run(p);
     res.close();
+  }
+
+  @Rule
+  public TemporaryFolder testFolder = new TemporaryFolder();
+
+  @Test
+  public void testOutputFile() throws Exception {
+    SparkPipelineOptions options = SparkPipelineOptionsFactory.create();
+    options.setRunner(SparkPipelineRunner.class);
+    Pipeline p = Pipeline.create(options);
+    PCollection<String> inputWords = p.apply(Create.of(WORDS)).setCoder(StringUtf8Coder
+        .of());
+    PCollection<String> output = inputWords.apply(new CountWords());
+
+    File outputFile = testFolder.newFile();
+    output.apply(
+        TextIO.Write.named("WriteCounts").to(outputFile.getAbsolutePath()).withoutSharding());
+
+    EvaluationResult res = SparkPipelineRunner.create().run(p);
+    res.close();
+
+    assertThat(Sets.newHashSet(FileUtils.readLines(outputFile)),
+        containsInAnyOrder(EXPECTED_COUNT_SET.toArray()));
   }
 
   /**
