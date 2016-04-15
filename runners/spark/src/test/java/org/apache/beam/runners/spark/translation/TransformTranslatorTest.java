@@ -21,6 +21,7 @@ package org.apache.beam.runners.spark.translation;
 import org.apache.beam.runners.spark.SparkPipelineRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.DirectPipelineRunner;
 import org.apache.beam.sdk.runners.PipelineRunner;
@@ -91,11 +92,13 @@ public class TransformTranslatorTest {
   }
 
   private String runPipeline(String name, PipelineRunner<?> runner) {
-    Pipeline p = Pipeline.create(PipelineOptionsFactory.create());
+    PipelineOptions options = PipelineOptionsFactory.create();
+    options.setRunner((Class<? extends PipelineRunner<?>>) runner.getClass());
+    Pipeline p = Pipeline.create(options);
     String outFile = Joiner.on(File.separator).join(testDataDirName, "test_text_out_" + name);
     PCollection<String> lines =  p.apply(TextIO.Read.from("src/test/resources/test_text.txt"));
     lines.apply(TextIO.Write.to(outFile));
-    runner.run(p);
+    p.run();
     return outFile;
   }
 }
