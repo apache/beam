@@ -49,14 +49,16 @@ class OperationCountersTest(unittest.TestCase):
     opcounts = OperationCounters(CounterFactory(), 'some-name',
                                  coders.PickleCoder(), 0)
     self.verify_counters(opcounts, 0)
-    opcounts.update(GlobalWindows.WindowedValue(1))
+    opcounts.update_from(GlobalWindows.WindowedValue(1))
+    opcounts.update_collect()
     self.verify_counters(opcounts, 1)
 
   def test_update_str(self):
     opcounts = OperationCounters(CounterFactory(), 'some-name',
                                  coders.PickleCoder(), 0)
     self.verify_counters(opcounts, 0)
-    opcounts.update(GlobalWindows.WindowedValue('abcde'))
+    opcounts.update_from(GlobalWindows.WindowedValue('abcde'))
+    opcounts.update_collect()
     self.verify_counters(opcounts, 1)
 
   def test_update_old_object(self):
@@ -64,7 +66,8 @@ class OperationCountersTest(unittest.TestCase):
                                  coders.PickleCoder(), 0)
     self.verify_counters(opcounts, 0)
     obj = OldClassThatDoesNotImplementLen()
-    opcounts.update(GlobalWindows.WindowedValue(obj))
+    opcounts.update_from(GlobalWindows.WindowedValue(obj))
+    opcounts.update_collect()
     self.verify_counters(opcounts, 1)
 
   def test_update_new_object(self):
@@ -73,16 +76,21 @@ class OperationCountersTest(unittest.TestCase):
     self.verify_counters(opcounts, 0)
 
     obj = ObjectThatDoesNotImplementLen()
-    opcounts.update(GlobalWindows.WindowedValue(obj))
+    opcounts.update_from(GlobalWindows.WindowedValue(obj))
+    opcounts.update_collect()
     self.verify_counters(opcounts, 1)
 
   def test_update_multiple(self):
     opcounts = OperationCounters(CounterFactory(), 'some-name',
                                  coders.PickleCoder(), 0)
     self.verify_counters(opcounts, 0)
-    opcounts.update(GlobalWindows.WindowedValue('abcde'))
-    opcounts.update(GlobalWindows.WindowedValue('defghij'))
+    opcounts.update_from(GlobalWindows.WindowedValue('abcde'))
+    opcounts.update_from(GlobalWindows.WindowedValue('defghij'))
+    opcounts.update_collect()
     self.verify_counters(opcounts, 2)
+    opcounts.update_from(GlobalWindows.WindowedValue('klmnop'))
+    opcounts.update_collect()
+    self.verify_counters(opcounts, 3)
 
 
 if __name__ == '__main__':

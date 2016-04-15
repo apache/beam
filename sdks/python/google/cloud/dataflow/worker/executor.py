@@ -66,17 +66,29 @@ class ReceiverSet(object):
         self.counter_factory, step_name, self.coder, self.output_index)
 
   def output(self, windowed_value):
-    self.update_counters(windowed_value)
+    self.update_counters_start(windowed_value)
     for receiver in self.receivers:
       receiver.process(windowed_value)
+    self.update_counters_finish()
 
-  def update_counters(self, windowed_value):
+  def update_counters_start(self, windowed_value):
     if self.opcounter:
-      self.opcounter.update(windowed_value)
+      self.opcounter.update_from(windowed_value)
+
+  def update_counters_finish(self):
+    if self.opcounter:
+      self.opcounter.update_collect()
 
   def __str__(self):
     return '[%s]' % ' '.join([r.str_internal(is_recursive=True)
                               for r in self.receivers])
+
+  def __repr__(self):
+    return '<%s %d %s [%s]>' % (
+        self.__class__.__name__,
+        self.output_index,
+        self.coder,
+        ' '.join([r.str_internal(is_recursive=True) for r in self.receivers]))
 
 
 class Operation(object):
@@ -84,8 +96,6 @@ class Operation(object):
 
   An operation can have one or more outputs and for each output it can have
   one or more receiver operations that will take that as input.
-  TODO(gildea): Refactor "receivers[OUTPUT][RECEIVER]" as
-  "outputs[INDEX][RECEIVER]"
   """
 
   def __init__(self, spec, counter_factory):
@@ -238,11 +248,12 @@ class WriteOperation(Operation):
     if self.debug_logging_enabled:
       logging.debug('Processing [%s] in %s', o, self)
     assert isinstance(o, WindowedValue)
-    self.receivers[0].update_counters(o)
+    self.receivers[0].update_counters_start(o)
     if self.use_windowed_value:
       self.writer.Write(o)
     else:
       self.writer.Write(o.value)
+    self.receivers[0].update_counters_finish()
 
 
 class InMemoryWriteOperation(Operation):
@@ -256,8 +267,9 @@ class InMemoryWriteOperation(Operation):
     if self.debug_logging_enabled:
       logging.debug('Processing [%s] in %s', o, self)
     assert isinstance(o, WindowedValue)
-    self.receivers[0].update_counters(o)
+    self.receivers[0].update_counters_start(o)
     self.spec.output_buffer.append(o.value)
+    self.receivers[0].update_counters_finish()
 
 
 class GroupedShuffleReadOperation(Operation):
@@ -352,7 +364,7 @@ class ShuffleWriteOperation(Operation):
     if self.debug_logging_enabled:
       logging.debug('Processing [%s] in %s', o, self)
     assert isinstance(o, WindowedValue)
-    self.receivers[0].update_counters(o)
+    self.receivers[0].update_counters_start(o)
     # We typically write into shuffle key/value pairs. This is the reason why
     # the else branch below expects the value attribute of the WindowedValue
     # argument to be a KV pair. However the service may write to shuffle in
@@ -370,6 +382,7 @@ class ShuffleWriteOperation(Operation):
     # TODO(silviuc): Use timestamps for the secondary key to get values in
     # times-sorted order.
     self.writer.Write(k, '', v)
+    self.receivers[0].update_counters_finish()
 
 
 class DoOperation(Operation):
