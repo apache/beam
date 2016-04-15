@@ -18,19 +18,17 @@
 
 package com.google.cloud.dataflow.examples;
 
-import com.google.cloud.dataflow.examples.WordCount.CountWords;
-import com.google.cloud.dataflow.examples.WordCount.FormatAsTextFn;
 import com.google.cloud.dataflow.examples.WordCount.WordCountOptions;
-import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.io.TextIO;
+import com.google.cloud.dataflow.sdk.PipelineResult;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
-import com.google.cloud.dataflow.sdk.transforms.MapElements;
 
+import static org.junit.Assert.assertEquals;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+
 
 /**
  * End-to-end tests of WordCount.
@@ -40,12 +38,12 @@ public class WordCountIT extends BatchE2ETest {
 
   @Test
   @Category(RunnableOnService.class)
-  public void testE2EWordCount() throws Exception {
+  public void testE2EWordCountOnDataflow() throws Exception {
     String jobName = "wordcount-" + generateTestIdentifier() + "-prod";
     String[] args = {
         "--jobName=" + jobName,
         "--project=apache-beam-testing",
-        "--runner=DataflowPipelineRunner",
+        "--runner=BlockingDataflowPipelineRunner",
         "--stagingLocation=gs://apache-beam-testing-temp-storage/staging/" + jobName,
         "--output=gs://apache-beam-testing-temp-storage/output/" + jobName + "/results",
         "--workerLogLevelOverrides="
@@ -53,13 +51,8 @@ public class WordCountIT extends BatchE2ETest {
 
     WordCountOptions options = PipelineOptionsFactory.fromArgs(args).withValidation()
         .as(WordCountOptions.class);
-    Pipeline p = Pipeline.create(options);
 
-    p.apply(TextIO.Read.named("ReadLines").from(options.getInputFile()))
-     .apply(new CountWords())
-     .apply(MapElements.via(new FormatAsTextFn()))
-     .apply(TextIO.Write.named("WriteCounts").to(options.getOutput()));
-
-    p.run();
+    PipelineResult result = WordCount.runWorkflow(options);
+    assertEquals(PipelineResult.State.DONE, result.getState());
   }
 }
