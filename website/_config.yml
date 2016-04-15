@@ -39,3 +39,6 @@ collections:
 
 # Things to ignore in the build
 exclude: ['README.md', 'Gemfile.lock', 'Gemfile']
+
+# Downloads directory
+downloads: downloads
