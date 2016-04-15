@@ -35,8 +35,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 
-import org.joda.time.Instant;
-
 import java.util.UUID;
 
 /**
