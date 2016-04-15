@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.contrib.hadoop;
+package org.apache.beam.sdk.io.hdfs;
 
 import org.apache.beam.sdk.testing.CoderProperties;
 
