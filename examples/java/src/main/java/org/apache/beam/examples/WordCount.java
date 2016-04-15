@@ -18,7 +18,6 @@
 package org.apache.beam.examples;
 
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.options.Default;
@@ -191,13 +190,9 @@ public class WordCount {
 
   }
 
-  /**
-   * Runs WordCount according to the {@link WordCountOptions}.
-   *
-   * @param options WordCountOptions
-   * @return PipelineResult of the pipeline
-   */
-  public static PipelineResult runWorkflow(WordCountOptions options) {
+  public static void main(String[] args) {
+    WordCountOptions options = PipelineOptionsFactory.fromArgs(args).withValidation()
+      .as(WordCountOptions.class);
     Pipeline p = Pipeline.create(options);
 
     // Concepts #2 and #3: Our pipeline applies the composite CountWords transform, and passes the
@@ -207,12 +202,6 @@ public class WordCount {
      .apply(MapElements.via(new FormatAsTextFn()))
      .apply(TextIO.Write.named("WriteCounts").to(options.getOutput()));
 
-    return p.run();
-  }
-
-  public static void main(String[] args) {
-    WordCountOptions options = PipelineOptionsFactory.fromArgs(args).withValidation()
-      .as(WordCountOptions.class);
-    runWorkflow(options);
+    p.run();
   }
 }
