@@ -22,40 +22,35 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 import com.google.cloud.dataflow.sdk.PipelineResult;
-import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestDataflowPipelineRunner;
+import com.google.cloud.dataflow.sdk.testing.TestPipelineArgs;
 
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 
 /**
  * End-to-end tests of WordCount.
  */
 @RunWith(JUnit4.class)
-public class WordCountIT extends BatchE2ETest {
+public class WordCountIT {
   @Test
-  @Category(RunnableOnService.class)
-  public void testE2EWordCountOnDataflow() throws Exception {
-    parseTestOptions("testFileLocation");
-    String testFileLocation = testOptionsMap.get("testFileLocation");
-    if (!testFileLocation.endsWith("/")) {
-      testFileLocation = testFileLocation + "/";
-    }
-
-    String jobName = "wordcount-" + generateTestIdentifier() + "-prod";
-    String[] args = {
-        "--jobName=" + jobName,
-        "--runner=com.google.cloud.dataflow.sdk.testing.TestDataflowPipelineRunner",
-        "--stagingLocation=" + testFileLocation + "staging/" + jobName,
-        "--output=" + testFileLocation + "output/" + jobName + "/results",
-        "--workerLogLevelOverrides="
-        + "{\"com.google.cloud.dataflow.sdk.util.UploadIdResponseInterceptor\":\"DEBUG\"}"};
-
-    WordCount.main(args);
-    PipelineResult result = TestDataflowPipelineRunner.getPipelineResultByJobName(jobName);
+  public void testE2EWordCount() throws Exception {
+    TestPipelineArgs args = TestDataflowPipelineRunner.createPipelineArgs();
+    Path outputLoc = Paths.get(TestPipelineArgs.getTestFileLocation(),
+        "output", args.getJobName(), "results");
+    //args.add("output", outputLoc.toString());
+    args.add("output",
+        TestPipelineArgs.getTestFileLocation() + "output/" + args.getJobName() + "/results");
+    args.add("workerLogLevelOverrides",
+        "{\"com.google.cloud.dataflow.sdk.util.UploadIdResponseInterceptor\":\"DEBUG\"}");
+    WordCount.main(args.build());
+    PipelineResult result =
+        TestDataflowPipelineRunner.getPipelineResultByJobName(args.getJobName());
 
     assertNotNull(result);
     assertEquals(PipelineResult.State.DONE, result.getState());

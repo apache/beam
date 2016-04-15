@@ -15,26 +15,57 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-package com.google.cloud.dataflow.examples;
+package com.google.cloud.dataflow.sdk.testing;
 
 import com.google.common.base.Splitter;
 
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Random;
 import java.util.Set;
 
-
 /**
- * Base class for all end-to-end tests for Apache Beam.
+ * {@link TestPipleineArgs} is a set of args/utilities for use by Beam End-to-End tests.
  */
-public abstract class E2ETest {
+public class TestPipelineArgs {
+  private Map<String, String> args;
+  private static Map<String, String> testOptionsMap;
 
-  protected Map<String, String> testOptionsMap;
+  /**
+   * Constructs a set of args from the provided map.
+   */
+  public TestPipelineArgs(Map<String, String> args) {
+    this.args = args;
+  }
+
+  /**
+   * Adds a key/value pair to the map of args.
+   */
+  public void add(String key, String val) {
+    args.put(key, val);
+  }
+
+  /**
+   * Gets the job name argument.
+   *
+   * @return Name of the job to be run.
+   */
+  public String getJobName() {
+    return args.get("jobName");
+  }
+
+  /**
+   * Builds a string array of args which can be used by an end-to-end test.
+   *
+   * @return Test args for an end-to-end test.
+   */
+  public String[] build() {
+    ArrayList<String> optArrayList = new ArrayList<String>();
+    for (Map.Entry<String, String> entry : args.entrySet()) {
+      optArrayList.add("--" + entry.getKey() + "=" + entry.getValue());
+    }
+    return optArrayList.toArray(new String[optArrayList.size()]);
+  }
 
   /**
    * Parses the test options, populates testOptionsMap with them, and validates that required test
@@ -44,7 +75,7 @@ public abstract class E2ETest {
    * @throws IllegalArgumentException if the test is missing testOptions entirely or any required
    *     test options.
    */
-  protected void parseTestOptions(String ... required) throws IllegalArgumentException {
+  public static void parseTestOptions(String ... required) throws IllegalArgumentException {
     String testOptions = System.getProperty("testOptions");
 
     if ((testOptions == null) || testOptions.isEmpty()) {
@@ -73,15 +104,11 @@ public abstract class E2ETest {
     }
   }
 
-  /**
-   * @return String with a unique test identifier based on the current date, time, and a random int.
-   */
-  protected String generateTestIdentifier() {
-    int random = new Random().nextInt(10000);
-    DateFormat dateFormat = new SimpleDateFormat("MMddHHmmss");
-    Calendar cal = Calendar.getInstance();
-    String now = dateFormat.format(cal.getTime());
-    return now + random;
+  public static String getTestFileLocation() {
+    String testFileLocation = testOptionsMap.get("testFileLocation");
+    if (!testFileLocation.endsWith("/")) {
+      testFileLocation = testFileLocation + "/";
+    }
+    return testFileLocation;
   }
 }
-
