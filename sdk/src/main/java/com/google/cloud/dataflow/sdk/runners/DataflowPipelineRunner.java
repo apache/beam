@@ -23,6 +23,9 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import com.google.api.client.json.JsonFactory;
+import com.google.api.services.bigquery.model.TableReference;
+import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.clouddebugger.v2.Clouddebugger;
 import com.google.api.services.clouddebugger.v2.model.Debuggee;
 import com.google.api.services.clouddebugger.v2.model.RegisterDebuggeeRequest;
@@ -49,6 +52,7 @@ import com.google.cloud.dataflow.sdk.coders.ListCoder;
 import com.google.cloud.dataflow.sdk.coders.MapCoder;
 import com.google.cloud.dataflow.sdk.coders.SerializableCoder;
 import com.google.cloud.dataflow.sdk.coders.StandardCoder;
+import com.google.cloud.dataflow.sdk.coders.TableRowJsonCoder;
 import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.coders.VarLongCoder;
 import com.google.cloud.dataflow.sdk.io.AvroIO;
@@ -228,6 +232,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
    */
   public static final String PROJECT_ID_REGEXP = "[a-z][-a-z0-9:.]+[a-z0-9]";
 
+  private static final JsonFactory JSON_FACTORY = Transport.getJsonFactory();
   /**
    * Construct a runner from the provided options.
    *
@@ -354,6 +359,10 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
         builder.put(View.AsSingleton.class, BatchViewAsSingleton.class);
         builder.put(View.AsList.class, BatchViewAsList.class);
         builder.put(View.AsIterable.class, BatchViewAsIterable.class);
+      }
+      if (options.getExperiments() == null
+          || !options.getExperiments().contains("enable_custom_bigquery_sink")) {
+        builder.put(BigQueryIO.Write.Bound.class, BatchBigQueryIOWrite.class);
       }
       overrides = builder.build();
     }
@@ -2056,6 +2065,104 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
         validator.validateOutputFilePrefixSupported(sink.getBaseOutputFilename());
       }
       return transform.apply(input);
+    }
+  }
+
+  private static class BatchBigQueryIOWrite extends PTransform<PCollection<TableRow>, PDone> {
+    private final BigQueryIO.Write.Bound transform;
+    /**
+     * Builds an instance of this class from the overridden transform.
+     */
+    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
+    public BatchBigQueryIOWrite(DataflowPipelineRunner runner, BigQueryIO.Write.Bound transform) {
+      this.transform = transform;
+    }
+
+    @Override
+    public PDone apply(PCollection<TableRow> input) {
+      if (transform.getTable() == null) {
+        // BigQueryIO.Write is using tableRefFunction with StreamWithDeDup.
+        return transform.apply(input);
+      } else {
+        return input
+            .apply(new BatchBigQueryIONativeWrite(transform));
+      }
+    }
+  }
+
+  /**
+   * This {@link PTransform} is used by the {@link DataflowPipelineTranslator} as a way
+   * to provide the native definition of the BigQuery sink.
+   */
+  private static class BatchBigQueryIONativeWrite extends PTransform<PCollection<TableRow>, PDone> {
+    private final BigQueryIO.Write.Bound transform;
+    public BatchBigQueryIONativeWrite(BigQueryIO.Write.Bound transform) {
+      this.transform = transform;
+    }
+
+    @Override
+    public PDone apply(PCollection<TableRow> input) {
+      return PDone.in(input.getPipeline());
+    }
+
+    static {
+      DataflowPipelineTranslator.registerTransformTranslator(
+          BatchBigQueryIONativeWrite.class, new BatchBigQueryIONativeWriteTranslator());
+    }
+  }
+
+  /**
+   * {@code BigQueryIO.Write.Bound} support code for the Dataflow backend.
+   */
+  private static class BatchBigQueryIONativeWriteTranslator
+      implements TransformTranslator<BatchBigQueryIONativeWrite> {
+    @SuppressWarnings("unchecked")
+    @Override
+    public void translate(BatchBigQueryIONativeWrite transform,
+        TranslationContext context) {
+      translateWriteHelper(transform, transform.transform, context);
+    }
+
+    private void translateWriteHelper(
+        BatchBigQueryIONativeWrite transform,
+        BigQueryIO.Write.Bound originalTransform,
+        TranslationContext context) {
+      if (context.getPipelineOptions().isStreaming()) {
+        // Streaming is handled by the streaming runner.
+        throw new AssertionError(
+            "BigQueryIO is specified to use streaming write in batch mode.");
+      }
+
+      TableReference table = originalTransform.getTable();
+
+      // Actual translation.
+      context.addStep(transform, "ParallelWrite");
+      context.addInput(PropertyNames.FORMAT, "bigquery");
+      context.addInput(PropertyNames.BIGQUERY_TABLE,
+                       table.getTableId());
+      context.addInput(PropertyNames.BIGQUERY_DATASET,
+                       table.getDatasetId());
+      if (table.getProjectId() != null) {
+        context.addInput(PropertyNames.BIGQUERY_PROJECT, table.getProjectId());
+      }
+      if (originalTransform.getSchema() != null) {
+        try {
+          context.addInput(PropertyNames.BIGQUERY_SCHEMA,
+                           JSON_FACTORY.toString(originalTransform.getSchema()));
+        } catch (IOException exn) {
+          throw new IllegalArgumentException("Invalid table schema.", exn);
+        }
+      }
+      context.addInput(
+          PropertyNames.BIGQUERY_CREATE_DISPOSITION,
+          originalTransform.getCreateDisposition().name());
+      context.addInput(
+          PropertyNames.BIGQUERY_WRITE_DISPOSITION,
+          originalTransform.getWriteDisposition().name());
+      // Set sink encoding to TableRowJsonCoder.
+      context.addEncodingInput(
+          WindowedValue.getValueOnlyCoder(TableRowJsonCoder.of()));
+      context.addInput(PropertyNames.PARALLEL_INPUT, context.getInput(transform));
     }
   }
 
