@@ -72,6 +72,7 @@
   <modules>
     <module>euphoria-core</module>
     <module>euphoria-kafka</module>
+    <module>euphoria-hadoop</module>
   </modules>
 
   <!-- make a few things differently when building under jdk8 -->
