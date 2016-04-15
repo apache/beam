@@ -43,7 +43,7 @@ import java.util.Map.Entry;
  * @param <K> the type of the keys of the KVs being transcoded
  * @param <V> the type of the values of the KVs being transcoded
  */
-public class MapCoder<K, V> extends MapCoderBase<Map<K, V>> {
+public class MapCoder<K, V> extends StandardCoder<Map<K, V>> {
   /**
    * Produces a MapCoder with the given keyCoder and valueCoder.
    */
