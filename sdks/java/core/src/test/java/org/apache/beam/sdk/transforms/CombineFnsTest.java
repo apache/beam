@@ -303,8 +303,8 @@ public class  CombineFnsTest {
     assertThat(displayData, hasDisplayItem("combineFn2", combineFn2.getClass()));
 
     String nsBase = DisplayDataCombineFn.class.getName();
-    assertThat(displayData, includes(combineFn1, nsBase + "$1"));
-    assertThat(displayData, includes(combineFn2, nsBase + "$2"));
+    assertThat(displayData, includes(combineFn1, nsBase + "#1"));
+    assertThat(displayData, includes(combineFn2, nsBase + "#2"));
   }
 
   private static class DisplayDataCombineFn extends Combine.CombineFn<String, String, String> {

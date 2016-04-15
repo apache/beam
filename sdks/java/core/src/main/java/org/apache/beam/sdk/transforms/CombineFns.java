@@ -1067,7 +1067,7 @@ public class CombineFns {
         String baseNamespace = combineFnEntries.getKey().getName();
         for (int i = 0; i < combineFns.size(); i++) {
           HasDisplayData combineFn = combineFns.get(i);
-          String namespace = String.format("%s$%d", baseNamespace, i + 1);
+          String namespace = String.format("%s#%d", baseNamespace, i + 1);
           builder.include(combineFn, namespace);
         }
       }
