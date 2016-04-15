@@ -17,10 +17,11 @@
  */
 package org.apache.beam.sdk.util;
 
-import com.google.common.annotations.VisibleForTesting;
-
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
+
+import com.google.common.annotations.VisibleForTesting;
+
 import org.joda.time.Instant;
 
 import java.util.List;
