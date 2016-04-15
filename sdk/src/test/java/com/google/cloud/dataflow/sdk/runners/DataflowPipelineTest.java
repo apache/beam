@@ -38,7 +38,7 @@ public class DataflowPipelineTest {
     options.setTempLocation("gs://test/temp/location");
     options.setGcpCredential(new TestCredential());
     options.setPathValidatorClass(NoopPathValidator.class);
-    assertEquals("DataflowPipeline#TestJobName",
+    assertEquals("DataflowPipeline#testjobname" /* lowercased for service requirements */,
         DataflowPipeline.create(options).toString());
   }
 }
