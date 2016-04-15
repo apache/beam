@@ -23,6 +23,7 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.util.DoFnRunner;
 import com.google.cloud.dataflow.sdk.util.DoFnRunners;
 import com.google.cloud.dataflow.sdk.util.DoFnRunners.OutputManager;
+import com.google.cloud.dataflow.sdk.util.SerializableUtils;
 import com.google.cloud.dataflow.sdk.util.UserCodeException;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
@@ -65,7 +66,7 @@ class ParDoInProcessEvaluator<T> implements TransformEvaluator<T> {
     DoFnRunner<InputT, OutputT> runner =
         DoFnRunners.createDefault(
             evaluationContext.getPipelineOptions(),
-            fn,
+            SerializableUtils.clone(fn),
             evaluationContext.createSideInputReader(sideInputs),
             BundleOutputManager.create(outputBundles),
             mainOutputTag,
