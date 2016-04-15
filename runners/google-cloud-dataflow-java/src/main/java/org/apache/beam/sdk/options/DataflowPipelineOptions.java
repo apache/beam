@@ -67,8 +67,11 @@ public interface DataflowPipelineOptions
    * name will not be able to be created. Defaults to using the ApplicationName-UserName-Date.
    */
   @Description("The Dataflow job name is used as an idempotence key within the Dataflow service. "
-      + "If there is an existing job that is currently active, another active job with the same "
-      + "name will not be able to be created. Defaults to using the ApplicationName-UserName-Date.")
+      + "For each running job in the same GCP project, jobs with the same name cannot be created "
+      + "unless the new job is an explicit update of the previous one. Defaults to using "
+      + "ApplicationName-UserName-Date. The job name must match the regular expression "
+      + "'[a-z]([-a-z0-9]{0,38}[a-z0-9])?'. The runner will automatically truncate the name of the "
+      + "job and convert to lower case.")
   @Default.InstanceFactory(JobNameFactory.class)
   String getJobName();
   void setJobName(String value);

@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.startsWith;
@@ -124,6 +125,7 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 /**
  * Tests for the {@link DataflowPipelineRunner}.
@@ -142,6 +144,7 @@ public class DataflowPipelineRunnerTest {
   private static void assertValidJob(Job job) {
     assertNull(job.getId());
     assertNull(job.getCurrentState());
+    assertTrue(Pattern.matches("[a-z]([-a-z0-9]{0,38}[a-z0-9])?", job.getName()));
   }
 
   private Pipeline buildDataflowPipeline(DataflowPipelineOptions options) {
@@ -171,11 +174,14 @@ public class DataflowPipelineRunnerTest {
     when(mockJobs.list(eq(PROJECT_ID))).thenReturn(mockList);
     when(mockList.setPageToken(anyString())).thenReturn(mockList);
     when(mockList.execute())
-        .thenReturn(new ListJobsResponse().setJobs(
-            Arrays.asList(new Job()
-                              .setName("oldJobName")
-                              .setId("oldJobId")
-                              .setCurrentState("JOB_STATE_RUNNING"))));
+        .thenReturn(
+            new ListJobsResponse()
+                .setJobs(
+                    Arrays.asList(
+                        new Job()
+                            .setName("oldjobname")
+                            .setId("oldJobId")
+                            .setCurrentState("JOB_STATE_RUNNING"))));
 
     Job resultJob = new Job();
     resultJob.setId("newid");
@@ -223,6 +229,28 @@ public class DataflowPipelineRunnerTest {
     options.setGcsUtil(buildMockGcsUtil(true /* bucket exists */));
     options.setGcpCredential(new TestCredential());
     return options;
+  }
+
+  @Test
+  public void testFromOptionsWithLongNameTruncates() throws Exception {
+    String longName = "thisnameisreallyquitelonganddoneinordertoforcetruncation";
+    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
+    DataflowPipelineOptions options = buildPipelineOptions(jobCaptor);
+    options.setJobName(longName);
+
+    DataflowPipelineRunner runner = DataflowPipelineRunner.fromOptions(options);
+    assertThat(options.getJobName(), equalTo(longName.substring(0, 40)));
+  }
+
+  @Test
+  public void testFromOptionsWithUppercaseConvertsToLowercase() throws Exception {
+    String mixedCase = "ThisJobNameHasMixedCase";
+    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
+    DataflowPipelineOptions options = buildPipelineOptions(jobCaptor);
+    options.setJobName(mixedCase);
+
+    DataflowPipelineRunner runner = DataflowPipelineRunner.fromOptions(options);
+    assertThat(options.getJobName(), equalTo(mixedCase.toLowerCase()));
   }
 
   @Test
@@ -277,7 +305,7 @@ public class DataflowPipelineRunnerTest {
   @Test
   public void testUpdateNonExistentPipeline() throws IOException {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Could not find running job named badJobName");
+    thrown.expectMessage("Could not find running job named badjobname");
 
     DataflowPipelineOptions options = buildPipelineOptions();
     options.setUpdate(true);
@@ -861,7 +889,8 @@ public class DataflowPipelineRunnerTest {
     options.setTempLocation("gs://test/temp/location");
     options.setGcpCredential(new TestCredential());
     options.setPathValidatorClass(NoopPathValidator.class);
-    assertEquals("DataflowPipelineRunner#TestJobName",
+    assertEquals(
+        "DataflowPipelineRunner#testjobname",
         DataflowPipelineRunner.fromOptions(options).toString());
   }
 

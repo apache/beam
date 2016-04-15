@@ -286,13 +286,26 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
       LOG.debug("Classpath elements: {}", dataflowOptions.getFilesToStage());
     }
 
-    // Verify jobName according to service requirements.
-    String jobName = dataflowOptions.getJobName().toLowerCase();
-    Preconditions.checkArgument(
+    // Verify jobName according to service requirements, truncating converting to lowercase if
+    // necessary.
+    String jobName =
+        dataflowOptions
+            .getJobName()
+            .substring(0, Math.min(dataflowOptions.getJobName().length(), 40))
+            .toLowerCase();
+    checkArgument(
         jobName.matches("[a-z]([-a-z0-9]*[a-z0-9])?"),
         "JobName invalid; the name must consist of only the characters "
             + "[-a-z0-9], starting with a letter and ending with a letter "
             + "or number");
+    if (!jobName.equals(dataflowOptions.getJobName())) {
+      LOG.info(
+          "PipelineOptions.jobName did not match the service requirements. "
+              + "Using {} instead of {}.",
+          jobName,
+          dataflowOptions.getJobName());
+    }
+    dataflowOptions.setJobName(jobName);
 
     // Verify project
     String project = dataflowOptions.getProject();
