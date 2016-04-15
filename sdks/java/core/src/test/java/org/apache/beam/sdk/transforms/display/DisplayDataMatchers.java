@@ -157,7 +157,7 @@ public class DisplayDataMatchers {
   /** @see #includes(HasDisplayData, String) */
   public static Matcher<DisplayData> includes(
       HasDisplayData subComponent, Class<? extends HasDisplayData> namespace) {
-    return includes(subComponent, namespace.getClass().getName());
+    return includes(subComponent, namespace.getName());
   }
 
   /**
