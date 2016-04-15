@@ -32,7 +32,7 @@ import java.util.List;
  */
 public class ReshuffleTrigger<W extends BoundedWindow> extends Trigger {
 
-  ReshuffleTrigger() {
+  public ReshuffleTrigger() {
     super(null);
   }
 
