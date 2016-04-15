@@ -70,7 +70,7 @@ public class GatherAllPanesTest implements Serializable {
             .apply(WithKeys.<Void, Long>of((Void) null).withKeyType(new TypeDescriptor<Void>() {}))
             .apply(GroupByKey.<Void, Long>create())
             .apply(Values.<Iterable<Long>>create())
-            .apply(GatherAllPanes.<Iterable<Long>>create());
+            .apply(GatherAllPanes.<Iterable<Long>>globally());
 
     PAssert.that(accumulatedPanes)
         .satisfies(
@@ -112,7 +112,7 @@ public class GatherAllPanesTest implements Serializable {
             .apply(WithKeys.<Void, Long>of((Void) null).withKeyType(new TypeDescriptor<Void>() {}))
             .apply(GroupByKey.<Void, Long>create())
             .apply(Values.<Iterable<Long>>create())
-            .apply(GatherAllPanes.<Iterable<Long>>create());
+            .apply(GatherAllPanes.<Iterable<Long>>globally());
 
     PAssert.that(accumulatedPanes)
         .satisfies(

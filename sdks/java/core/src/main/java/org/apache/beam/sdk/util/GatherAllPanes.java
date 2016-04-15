@@ -17,74 +17,58 @@
  */
 package org.apache.beam.sdk.util;
 
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.RequiresWindowAccess;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.Never;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
+import org.apache.beam.sdk.util.GroupByKeyViaGroupByKeyOnly.ReifyTimestampsAndWindows;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
- * Accumulates all panes that are output to the input {@link PCollection}, reifying the contents of
- * those panes and emitting exactly one output pane.
+ * Gathers all panes of each window into exactly one output.
+ *
+ * <p>
+ * Note that this will delay the output of a window until the garbage collection time (when the
+ * watermark passes the end of the window plus allowed lateness) even if the upstream triggers
+ * closed the window earlier.
  */
 public class GatherAllPanes<T>
     extends PTransform<PCollection<T>, PCollection<Iterable<WindowedValue<T>>>> {
-  public static <T> GatherAllPanes<T> create() {
+  /**
+   * Gathers all panes of each window into a single output element.
+   *
+   * <p>
+   * This will gather all output panes into a single element, which causes them to be colocated on a
+   * single worker. As a result, this is only suitable for {@link PCollection PCollections} where
+   * all of the output elements for each pane fit in memory, such as in tests.
+   */
+  public static <T> GatherAllPanes<T> globally() {
     return new GatherAllPanes<>();
   }
 
   private GatherAllPanes() {}
 
-  private static class ReifiyWindowAndPaneDoFn<ElemT> extends DoFn<ElemT, WindowedValue<ElemT>>
-      implements RequiresWindowAccess {
-    @Override
-    public void processElement(DoFn<ElemT, WindowedValue<ElemT>>.ProcessContext c)
-        throws Exception {
-      c.output(WindowedValue.of(c.element(), c.timestamp(), c.window(), c.pane()));
-    }
-  }
-
   @Override
   public PCollection<Iterable<WindowedValue<T>>> apply(PCollection<T> input) {
     WindowFn<?, ?> originalWindowFn = input.getWindowingStrategy().getWindowFn();
 
-    PCollection<WindowedValue<T>> reifiedWindows = input.apply(new ReifiyWindowedValue<T>());
-    return reifiedWindows
-        .apply(
-            WithKeys.<Void, WindowedValue<T>>of((Void) null)
-                .withKeyType(new TypeDescriptor<Void>() {}))
+    return input
+        .apply(WithKeys.<Void, T>of((Void) null).withKeyType(new TypeDescriptor<Void>() {}))
+        .apply(new ReifyTimestampsAndWindows<Void, T>())
         .apply(
             Window.into(
                     new IdentityWindowFn<KV<Void, WindowedValue<T>>>(
                         originalWindowFn.windowCoder(),
                         input.getWindowingStrategy().getWindowFn().assignsToSingleWindow()))
                 .triggering(Never.ever()))
+        // all values have the same key so they all appear as a single output element
         .apply(GroupByKey.<Void, WindowedValue<T>>create())
         .apply(Values.<Iterable<WindowedValue<T>>>create())
         .setWindowingStrategyInternal(input.getWindowingStrategy());
-  }
-
-  private static class ReifiyWindowedValue<ElemT>
-      extends PTransform<PCollection<ElemT>, PCollection<WindowedValue<ElemT>>> {
-    @Override
-    public PCollection<WindowedValue<ElemT>> apply(PCollection<ElemT> input) {
-      Coder<WindowedValue<ElemT>> windowedValueCoder =
-          FullWindowedValueCoder.of(
-              input.getCoder(), input.getWindowingStrategy().getWindowFn().windowCoder());
-
-      return input
-          .apply("ReifiyWindowedValues", ParDo.of(new ReifiyWindowAndPaneDoFn<ElemT>()))
-          .setCoder(windowedValueCoder);
-    }
   }
 }
