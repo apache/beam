@@ -3,6 +3,7 @@ package com.google.cloud.cassandra.dataflow.io;
 import static com.google.common.base.Strings.isNullOrEmpty;
 
 import java.io.IOException;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -29,9 +30,9 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.common.base.Preconditions;
 
 public class CassandraReadIO {
-	//A Bounded source to read from cassandra
+	//A Bounded source to read from Cassandra
 	static class Source extends BoundedSource {
-		CassandraReadConfiguration configuration;
+		private CassandraReadConfiguration configuration;
 		private static final String SSTABLE_DISK_SPACE = "LiveDiskSpaceUsed";
 		private static final String MEMTABLE_SPACE = "MemtableLiveDataSize";
 		private static final int DEFAULT_JMX_PORT = 7199;
@@ -148,10 +149,9 @@ public class CassandraReadIO {
 		@Override
 		public List<BoundedSource> splitIntoBundles(long desiredBundleSizeBytes,
 				PipelineOptions options) throws Exception {
-			int max_exponent = 63;
+			int exponent = 63;
 			long numSplits=10;
-			long min_start_token = -(long) Math.pow(2, max_exponent);
-			long start_token = 0L, end_token = 0;
+			long startToken,endToken = 0l;
 			List<BoundedSource> sourceList = new ArrayList<BoundedSource>();
 			try{
 				if(desiredBundleSizeBytes >0){
@@ -168,41 +168,31 @@ public class CassandraReadIO {
 					numSplits = 10;
 				}
 			}
-			
+
 			if(numSplits <=0){
 				numSplits =1;			
 			}
-			if(numSplits>63){  //restrict numSplits to max token range exponent
-				numSplits = 63;
-			}
-			long split_exponent = max_exponent / numSplits;
-			long token_split_range = (long) Math.pow(2, (split_exponent));
-
 			// If the desiredBundleSize or number of workers results in 1 split, simply return current source		    
 			if (numSplits == 1) {
 				sourceList.add(this);
 				return sourceList;
 			}
+
+			BigInteger startRange = new BigInteger(String.valueOf(-(long) Math.pow(2, exponent)));
+			BigInteger endRange= new BigInteger(String.valueOf((long) Math.pow(2, exponent)));
+			endToken = startRange.longValue();
+			BigInteger incrmentValue = (endRange.subtract(startRange)).divide(new BigInteger(String.valueOf(numSplits)));
 			String splitQuery = null;
-			for (int split = 1; split <= numSplits; split++) {
-				if (split == 1) { // for first split will query token range
-					// starting from -2**(63)
-					start_token = min_start_token;
-					end_token = token_split_range;
-					splitQuery = queryBuilder(start_token, end_token);
-					configuration.setQuery(splitQuery);
-					sourceList.add(new CassandraReadIO.Source(configuration));
-					System.out.println("first split query "+ configuration.getQuery());
-				} else {
-					token_split_range = (long) Math.pow(2, (split_exponent));
-					start_token = end_token;
-					end_token = token_split_range;
-					splitQuery = queryBuilder(start_token, end_token);
-					configuration.setQuery(splitQuery);
-					sourceList.add(new CassandraReadIO.Source(configuration));
-					System.out.println(split + " split query "+ configuration.getQuery());
+			for (int splitCount=1; splitCount <=numSplits; splitCount++) {			
+				startToken = endToken;
+				endToken = startToken+incrmentValue.longValue();						
+				if(splitCount == numSplits){					 
+					endToken = (long) Math.pow(2, exponent);  //set end token to max token value;
 				}
-				split_exponent = split_exponent * 2;
+				splitQuery = queryBuilder(startToken, endToken);
+				configuration.setQuery(splitQuery);
+				sourceList.add(new CassandraReadIO.Source(configuration));
+
 			}
 			return sourceList;
 		}
@@ -250,7 +240,7 @@ public class CassandraReadIO {
 						SSTABLE_DISK_SPACE) + (Long) probe.getColumnFamilyMetric(
 								configuration.getKeypace(), configuration.getTable(),
 								MEMTABLE_SPACE) ;
-			
+
 				// start
 				if (configuration.getQuery() != null
 						&& !configuration.getQuery().isEmpty()
