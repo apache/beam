@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.testing;
 
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.DataflowJobExecutionException;
@@ -43,6 +44,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -56,6 +58,7 @@ import java.util.concurrent.TimeUnit;
 public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> {
   private static final String TENTATIVE_COUNTER = "tentative";
   private static final Logger LOG = LoggerFactory.getLogger(TestDataflowPipelineRunner.class);
+  private static final Map<string, PipelineResult> RESULT_MAP = new ConcurrentHashMap<string, PipelineResult>();
 
   private final TestDataflowPipelineOptions options;
   private final DataflowPipelineRunner runner;
@@ -74,6 +77,10 @@ public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJ
     TestDataflowPipelineOptions dataflowOptions = options.as(TestDataflowPipelineOptions.class);
 
     return new TestDataflowPipelineRunner(dataflowOptions);
+  }
+
+  public static PipelineResult getPipelineResultById(string id) {
+    return RESULT_MAP.get(id);
   }
 
   @Override
@@ -146,6 +153,7 @@ public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJ
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
+    RESULT_MAP[job.getJobID()] = job;
     return job;
   }
 
