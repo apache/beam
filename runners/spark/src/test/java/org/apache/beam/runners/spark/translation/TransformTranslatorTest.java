@@ -18,29 +18,28 @@
 
 package org.apache.beam.runners.spark.translation;
 
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.junit.Assert.assertThat;
+
 import org.apache.beam.runners.spark.SparkPipelineRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.DirectPipelineRunner;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.values.PCollection;
 
-import com.google.api.client.repackaged.com.google.common.base.Joiner;
 import com.google.common.base.Charsets;
 
-import org.apache.commons.io.FileUtils;
-import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TestName;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -50,22 +49,7 @@ import java.util.List;
  * executed in Spark.
  */
 public class TransformTranslatorTest {
-
-  @Rule
-  public TestName name = new TestName();
-
-  private DirectPipelineRunner directRunner;
-  private SparkPipelineRunner sparkRunner;
-  private String testDataDirName;
-
-  @Before public void init() throws IOException {
-    sparkRunner = SparkPipelineRunner.create();
-    directRunner = DirectPipelineRunner.createForTest();
-    testDataDirName = Joiner.on(File.separator).join("target", "test-data", name.getMethodName())
-        + File.separator;
-    FileUtils.deleteDirectory(new File(testDataDirName));
-    new File(testDataDirName).mkdirs();
-  }
+  @Rule public TemporaryFolder tmp = new TemporaryFolder();
 
   /**
    * Builds a simple pipeline with TextIO.Read and TextIO.Write, runs the pipeline
@@ -74,8 +58,8 @@ public class TransformTranslatorTest {
    */
   @Test
   public void testTextIOReadAndWriteTransforms() throws IOException {
-    String directOut = runPipeline("direct", directRunner);
-    String sparkOut = runPipeline("spark", sparkRunner);
+    String directOut = runPipeline(DirectPipelineRunner.class);
+    String sparkOut = runPipeline(SparkPipelineRunner.class);
 
     List<String> directOutput =
         Files.readAllLines(Paths.get(directOut + "-00000-of-00001"), Charsets.UTF_8);
@@ -84,18 +68,17 @@ public class TransformTranslatorTest {
         Files.readAllLines(Paths.get(sparkOut + "-00000-of-00001"), Charsets.UTF_8);
 
     // sort output to get a stable result (PCollections are not ordered)
-    Collections.sort(directOutput);
-    Collections.sort(sparkOutput);
-
-    Assert.assertArrayEquals(directOutput.toArray(), sparkOutput.toArray());
+    assertThat(sparkOutput, containsInAnyOrder(directOutput.toArray()));
   }
 
-  private String runPipeline(String name, PipelineRunner<?> runner) {
-    Pipeline p = Pipeline.create(PipelineOptionsFactory.create());
-    String outFile = Joiner.on(File.separator).join(testDataDirName, "test_text_out_" + name);
+  private String runPipeline(Class<? extends PipelineRunner<?>> runner) throws IOException {
+    PipelineOptions options = PipelineOptionsFactory.create();
+    options.setRunner(runner);
+    Pipeline p = Pipeline.create(options);
+    File outFile = tmp.newFile();
     PCollection<String> lines =  p.apply(TextIO.Read.from("src/test/resources/test_text.txt"));
-    lines.apply(TextIO.Write.to(outFile));
-    runner.run(p);
-    return outFile;
+    lines.apply(TextIO.Write.to(outFile.getAbsolutePath()));
+    p.run();
+    return outFile.getAbsolutePath();
   }
 }
