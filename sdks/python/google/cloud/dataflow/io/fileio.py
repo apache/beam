@@ -313,8 +313,8 @@ class TextFileReader(iobase.SourceReader):
       yield self.source.coder.decode(line)
 
   def get_progress(self):
-    return iobase.ReaderProgress(
-        position=iobase.ReaderPosition(byte_offset=self.current_offset))
+    return iobase.ReaderProgress(position=iobase.ReaderPosition(
+        byte_offset=self.range_tracker.last_record_start))
 
   def request_dynamic_split(self, dynamic_split_request):
     assert dynamic_split_request is not None

@@ -49,10 +49,7 @@ class TestTextFileSource(unittest.TestCase):
         start_offset=start_offset, end_offset=end_offset)
     progress_record = []
     with source.reader() as reader:
-      # Starting value of percent_complete might be larger than zero since we
-      # will ignore the first line of a record if the starting position of the
-      # line is smaller than the start offset of the source.
-      self.assertGreaterEqual(reader.get_progress().position.byte_offset, 0)
+      self.assertEqual(reader.get_progress().position.byte_offset, -1)
       for line in reader:
         self.assertIsNotNone(line)
         progress_record.append(reader.get_progress().position.byte_offset)
@@ -78,14 +75,14 @@ class TestTextFileSource(unittest.TestCase):
         file_path=self.create_temp_file('\n'.join(lines)))
     progress_record = []
     with source.reader() as reader:
-      self.assertEqual(0, reader.get_progress().position.byte_offset)
+      self.assertEqual(-1, reader.get_progress().position.byte_offset)
       for line in reader:
         self.assertIsNotNone(line)
         progress_record.append(reader.get_progress().position.byte_offset)
-      self.assertEqual(18, reader.get_progress().position.byte_offset)
+      self.assertEqual(13, reader.get_progress().position.byte_offset)
 
     self.assertEqual(len(progress_record), 3)
-    self.assertEqual(progress_record, [6, 13, 18])
+    self.assertEqual(progress_record, [0, 6, 13])
 
   def try_splitting_reader_at(self, reader, split_request, expected_response):
     actual_response = reader.request_dynamic_split(split_request)

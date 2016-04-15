@@ -1292,7 +1292,7 @@ _COUNTER = _descriptor.Descriptor(
     _descriptor.FieldDescriptor(
       name='double_scalar', full_name='windmill.Counter.double_scalar', index=2,
       number=3, type=1, cpp_type=5, label=1,
-      has_default_value=False, default_value=0,
+      has_default_value=False, default_value=float(0),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
