@@ -15,14 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.testing;
+package com.google.cloud.dataflow.sdk.testing;
 
-import org.apache.beam.sdk.options.BlockingDataflowPipelineOptions;
+import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 
 /**
- * A set of options used to configure the {@link TestPipeline}.
+ * {@link TestPipelineOptions} is a set of options for test pipelines.
+ *
+ * @see TestPipeline
  */
-public interface TestDataflowPipelineOptions extends TestPipelineOptions,
-       BlockingDataflowPipelineOptions {
-
+public interface TestPipelineOptions extends PipelineOptions {
+  String getTempRoot();
+  void setTempRoot(String value);
 }

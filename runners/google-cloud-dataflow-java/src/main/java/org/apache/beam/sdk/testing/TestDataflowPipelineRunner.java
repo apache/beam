@@ -34,6 +34,7 @@ import org.apache.beam.sdk.values.POutput;
 import com.google.api.services.dataflow.model.JobMessage;
 import com.google.api.services.dataflow.model.JobMetrics;
 import com.google.api.services.dataflow.model.MetricUpdate;
+import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 
@@ -42,11 +43,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
@@ -80,38 +78,11 @@ public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJ
   public static TestDataflowPipelineRunner fromOptions(
       PipelineOptions options) {
     TestDataflowPipelineOptions dataflowOptions = options.as(TestDataflowPipelineOptions.class);
+    dataflowOptions.setStagingLocation(Joiner.on("/").join(
+        new String[]{dataflowOptions.getTempRoot(),
+          dataflowOptions.getJobName(), "output", "results"}));
 
     return new TestDataflowPipelineRunner(dataflowOptions);
-  }
-
-  /**
-   * @return String with a unique test identifier based on the current date, time, and a random int.
-   */
-  private static String generateTestIdentifier() {
-    return String.format("%tm%<td%<tH%<tM%<tS-%d", new Date(), new Random().nextInt(10000));
-  }
-
-  /**
-   * @return String job name based on class running the test and a unique test identifier.
-   */
-  private static String generateJobName() {
-    String fullClassName = new Exception().getStackTrace()[2].getClassName().toLowerCase();
-    String[] classList = fullClassName.split("\\.");
-    String className = classList[classList.length - 1];
-    return className + "-" + generateTestIdentifier() + "-prod";
-  }
-
-  /**
-   * @return E2EArgs for a Dataflow pipeline.
-   */
-  public static E2EArgs createPipelineArgs() {
-    HashMap<String, String> opts = new HashMap<String, String>();
-    E2EArgs.parseTestOptions("testFileLocation");
-    String jobName = generateJobName();
-    opts.put("jobName", jobName);
-    opts.put("runner", "com.google.cloud.dataflow.sdk.testing.TestDataflowPipelineRunner");
-    opts.put("stagingLocation", E2EArgs.getTestFileLocation() + "staging/" + jobName);
-    return new E2EArgs(opts);
   }
 
   public static PipelineResult getPipelineResultByJobName(String jobName) {
