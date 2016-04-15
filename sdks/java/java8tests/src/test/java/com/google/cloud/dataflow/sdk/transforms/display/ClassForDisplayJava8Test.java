@@ -36,7 +36,7 @@ public class ClassForDisplayJava8Test implements Serializable {
     final SerializableFunction<Object, Object> f = x -> x;
     Serializable myClass = new Serializable() {
       // Class references for lambdas do not serialize, which is why we support ClassForDisplay
-      // Specifically, the following would not work: 
+      // Specifically, the following would not work:
       // Class<?> clazz = f.getClass();
       ClassForDisplay javaClass = ClassForDisplay.fromInstance(f);
     };
