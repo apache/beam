@@ -25,6 +25,7 @@ import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.transforms.Combine.AccumulatingCombineFn;
 import org.apache.beam.sdk.transforms.Combine.AccumulatingCombineFn.Accumulator;
 import org.apache.beam.sdk.transforms.Combine.PerKey;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
@@ -390,6 +391,13 @@ new TopCombineFn<>(count, new Largest<V>()).<K>asKeyedFn())
     public Coder<BoundedHeap<T, ComparatorT>> getAccumulatorCoder(
         CoderRegistry registry, Coder<T> inputCoder) {
       return new BoundedHeapCoder<>(count, compareFn, inputCoder);
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      builder
+          .add("count", count)
+          .add("comparer", compareFn.getClass());
     }
 
     @Override

@@ -128,7 +128,7 @@ public class DisplayData {
     return builder.toString();
   }
 
-  private static String namespaceOf(Class<?> clazz) {
+  private static String namespaceOf(ClassForDisplay clazz) {
     return clazz.getName();
   }
 
@@ -138,17 +138,33 @@ public class DisplayData {
    */
   public interface Builder {
     /**
-     * Register display metadata from the specified subcomponent. For example, a {@link ParDo}
-     * transform includes display metadata from the encapsulated {@link DoFn}.
+     * Register display metadata from the specified subcomponent.
+     *
+     * @see #include(HasDisplayData, String)
      */
     Builder include(HasDisplayData subComponent);
 
     /**
      * Register display metadata from the specified subcomponent, using the specified namespace.
-     * For example, a {@link ParDo} transform includes display metadata from the encapsulated
-     * {@link DoFn}.
+     *
+     * @see #include(HasDisplayData, String)
      */
     Builder include(HasDisplayData subComponent, Class<?> namespace);
+
+    /**
+     * Register display metadata from the specified subcomponent, using the specified namespace.
+     *
+     * @see #include(HasDisplayData, String)
+     */
+    Builder include(HasDisplayData subComponent, ClassForDisplay namespace);
+
+    /**
+     * Register display metadata from the specified subcomponent, using the specified namespace.
+     *
+     * <p>For example, a {@link ParDo} transform includes display metadata from the encapsulated
+     * {@link DoFn}.
+     */
+    Builder include(HasDisplayData subComponent, String namespace);
 
     /**
      * Register the given string display metadata. The metadata item will be registered with type
@@ -289,11 +305,25 @@ public class DisplayData {
     ItemBuilder add(String key, Class<?> value);
 
     /**
+     * Register the given class display metadata. The metadata item will be registered with type
+     * {@link DisplayData.Type#JAVA_CLASS}, and is identified by the specified key and namespace
+     * from the current transform or component.
+     */
+    ItemBuilder add(String key, ClassForDisplay value);
+
+    /**
      * Register the given class display data if the value is not null.
      *
      * @see DisplayData.Builder#add(String, Class)
      */
     ItemBuilder addIfNotNull(String key, @Nullable Class<?> value);
+
+    /**
+     * Register the given class display data if the value is not null.
+     *
+     * @see DisplayData.Builder#add(String, ClassForDisplay)
+     */
+    ItemBuilder addIfNotNull(String key, @Nullable ClassForDisplay value);
 
     /**
      * Register the given class display data if the value is different than the specified default.
@@ -303,6 +333,13 @@ public class DisplayData {
     ItemBuilder addIfNotDefault(
         String key, @Nullable Class<?> value, @Nullable Class<?> defaultValue);
 
+    /**
+     * Register the given class display data if the value is different than the specified default.
+     *
+     * @see DisplayData.Builder#add(String, ClassForDisplay)
+     */
+    ItemBuilder addIfNotDefault(
+        String key, @Nullable ClassForDisplay value, @Nullable ClassForDisplay defaultValue);
   /**
    * Register the given display metadata with the specified type.
    *
@@ -345,6 +382,14 @@ public class DisplayData {
      * <p>Leaving the namespace unspecified will default to the registering instance's class.
      */
     ItemBuilder withNamespace(Class<?> namespace);
+
+    /**
+     * Adds an explicit namespace to the most-recently added display metadata. The namespace
+     * and key uniquely identify the display metadata.
+     *
+     * <p>Leaving the namespace unspecified will default to the registering instance's class.
+     */
+    ItemBuilder withNamespace(ClassForDisplay namespace);
   }
 
   /**
@@ -362,11 +407,10 @@ public class DisplayData {
     private final String label;
     private final String url;
 
-    private static Item create(Class<?> nsClass, String key, Type type, Object value) {
+    private static Item create(String nsClass, String key, Type type, Object value) {
       FormattedItemValue formatted = type.format(value);
-      String namespace = namespaceOf(nsClass);
       return new Item(
-          namespace, key, type, formatted.getLongValue(), formatted.getShortValue(), null, null);
+          nsClass, key, type, formatted.getLongValue(), formatted.getShortValue(), null, null);
     }
 
     private Item(
@@ -494,7 +538,7 @@ public class DisplayData {
       return new Item(this.ns, this.key, this.type, this.value, this.shortValue, url, this.label);
     }
 
-    private Item withNamespace(Class<?> nsClass) {
+    private Item withNamespace(ClassForDisplay nsClass) {
       String namespace = namespaceOf(nsClass);
       return new Item(
           namespace, this.key, this.type, this.value, this.shortValue, this.url, this.label);
@@ -515,7 +559,7 @@ public class DisplayData {
     private final String ns;
     private final String key;
 
-    public static Identifier of(Class<?> namespace, String key) {
+    public static Identifier of(ClassForDisplay namespace, String key) {
       return of(namespaceOf(namespace), key);
     }
 
@@ -608,7 +652,12 @@ public class DisplayData {
     JAVA_CLASS {
       @Override
       FormattedItemValue format(Object value) {
-        Class<?> clazz = checkType(value, Class.class, JAVA_CLASS);
+        if (value instanceof Class<?>) {
+          ClassForDisplay classForDisplay = ClassForDisplay.of((Class<?>) value);
+          return format(classForDisplay);
+        }
+
+        ClassForDisplay clazz = checkType(value, ClassForDisplay.class, JAVA_CLASS);
         return new FormattedItemValue(clazz.getName(), clazz.getSimpleName());
       }
     };
@@ -644,7 +693,7 @@ public class DisplayData {
         return  TIMESTAMP;
       } else if (value instanceof Duration) {
         return  DURATION;
-      } else if (value instanceof Class<?>) {
+      } else if (value instanceof Class<?> || value instanceof ClassForDisplay) {
         return  JAVA_CLASS;
       } else if (value instanceof String) {
         return  STRING;
@@ -680,7 +729,7 @@ public class DisplayData {
     private final Map<Identifier, Item> entries;
     private final Set<Object> visited;
 
-    private Class<?> latestNs;
+    private String latestNs;
 
     @Nullable
     private Item latestItem;
@@ -704,13 +753,25 @@ public class DisplayData {
 
     @Override
     public Builder include(HasDisplayData subComponent, Class<?> namespace) {
+      checkNotNull(namespace);
+      return include(subComponent, ClassForDisplay.of(namespace));
+    }
+
+    @Override
+    public Builder include(HasDisplayData subComponent, ClassForDisplay namespace) {
+      checkNotNull(namespace);
+      return include(subComponent, namespaceOf(namespace));
+    }
+
+    @Override
+    public Builder include(HasDisplayData subComponent, String namespace) {
       checkNotNull(subComponent);
       checkNotNull(namespace);
 
       commitLatest();
       boolean newComponent = visited.add(subComponent);
       if (newComponent) {
-        Class prevNs = this.latestNs;
+        String prevNs = this.latestNs;
         this.latestNs = namespace;
         subComponent.populateDisplayData(this);
         this.latestNs = prevNs;
@@ -822,13 +883,30 @@ public class DisplayData {
     }
 
     @Override
+    public ItemBuilder add(String key, ClassForDisplay value) {
+      checkNotNull(value);
+      return addItemIf(true, key, Type.JAVA_CLASS, value);
+    }
+
+    @Override
     public ItemBuilder addIfNotNull(String key, @Nullable Class<?> value) {
+      return addItemIf(value != null, key, Type.JAVA_CLASS, value);
+    }
+
+    @Override
+    public ItemBuilder addIfNotNull(String key, @Nullable ClassForDisplay value) {
       return addItemIf(value != null, key, Type.JAVA_CLASS, value);
     }
 
     @Override
     public ItemBuilder addIfNotDefault(
         String key, @Nullable Class<?> value, @Nullable Class<?> defaultValue) {
+      return addItemIf(!Objects.equals(value, defaultValue), key, Type.JAVA_CLASS, value);
+    }
+
+    @Override
+    public ItemBuilder addIfNotDefault(
+        String key, @Nullable ClassForDisplay value, @Nullable ClassForDisplay defaultValue) {
       return addItemIf(!Objects.equals(value, defaultValue), key, Type.JAVA_CLASS, value);
     }
 
@@ -887,6 +965,11 @@ public class DisplayData {
     @Override
     public ItemBuilder withNamespace(Class<?> namespace) {
       checkNotNull(namespace);
+      return withNamespace(ClassForDisplay.of(namespace));
+    }
+
+    @Override
+    public ItemBuilder withNamespace(ClassForDisplay namespace) {
       if (latestItem != null) {
         latestItem = latestItem.withNamespace(namespace);
       }

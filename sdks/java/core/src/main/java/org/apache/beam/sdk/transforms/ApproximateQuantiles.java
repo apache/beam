@@ -25,6 +25,7 @@ import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.transforms.Combine.AccumulatingCombineFn;
 import org.apache.beam.sdk.transforms.Combine.AccumulatingCombineFn.Accumulator;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.WeightedValue;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
@@ -358,6 +359,13 @@ public class ApproximateQuantiles {
     public Coder<QuantileState<T, ComparatorT>> getAccumulatorCoder(
         CoderRegistry registry, Coder<T> elementCoder) {
       return new QuantileStateCoder<>(compareFn, elementCoder);
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      builder
+          .add("numQuantiles", numQuantiles)
+          .add("comparer", compareFn.getClass());
     }
   }
 

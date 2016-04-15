@@ -24,6 +24,7 @@ import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -153,6 +154,11 @@ public class Sample {
                  .of(new SampleAnyDoFn<>(limit, iterableView)))
           .setCoder(in.getCoder());
     }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      builder.add("sampleSize", limit);
+    }
   }
 
   /**
@@ -188,6 +194,7 @@ public class Sample {
       extends CombineFn<T,
           Top.BoundedHeap<KV<Integer, T>, SerializableComparator<KV<Integer, T>>>,
           Iterable<T>> {
+    private final int sampleSize;
     private final Top.TopCombineFn<KV<Integer, T>, SerializableComparator<KV<Integer, T>>>
         topCombineFn;
     private final Random rand = new Random();
@@ -196,6 +203,8 @@ public class Sample {
       if (sampleSize < 0) {
         throw new IllegalArgumentException("sample size must be >= 0");
       }
+
+      this.sampleSize = sampleSize;
       topCombineFn = new Top.TopCombineFn<KV<Integer, T>, SerializableComparator<KV<Integer, T>>>(
           sampleSize, new KV.OrderByKey<Integer, T>());
     }
@@ -243,6 +252,11 @@ public class Sample {
     public Coder<Iterable<T>> getDefaultOutputCoder(
         CoderRegistry registry, Coder<T> inputCoder) {
       return IterableCoder.of(inputCoder);
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      builder.add("sampleSize", sampleSize);
     }
   }
 }

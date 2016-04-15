@@ -20,6 +20,8 @@ package org.apache.beam.sdk.transforms;
 import static org.apache.beam.sdk.TestUtils.LINES;
 import static org.apache.beam.sdk.TestUtils.NO_LINES;
 
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -29,6 +31,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 
 import com.google.common.base.Joiner;
@@ -259,5 +262,16 @@ public class SampleTest {
   @Test
   public void testSampleGetName() {
     assertEquals("Sample.SampleAny", Sample.<String>any(1).getName());
+  }
+
+  @Test
+  public void testDisplayData() {
+    PTransform<?, ?> sampleAny = Sample.any(1234);
+    DisplayData sampleAnyDisplayData = DisplayData.from(sampleAny);
+    assertThat(sampleAnyDisplayData, hasDisplayItem("sampleSize", 1234));
+
+    PTransform<?, ?> samplePerKey = Sample.fixedSizePerKey(2345);
+    DisplayData perKeyDisplayData = DisplayData.from(samplePerKey);
+    assertThat(perKeyDisplayData, hasDisplayItem("sampleSize", 2345));
   }
 }

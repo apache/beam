@@ -24,12 +24,15 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
 import com.google.common.hash.Hashing;
 import com.google.common.hash.HashingOutputStream;
 import com.google.common.io.ByteStreams;
+
+import org.apache.avro.reflect.Nullable;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -168,6 +171,12 @@ public class ApproximateUnique {
     private final long sampleSize;
 
     /**
+     * The desired maximum estimation error or null if not specified.
+     */
+    @Nullable
+    private final Double maximumEstimationError;
+
+    /**
      * @see ApproximateUnique#globally(int)
      */
     public Globally(int sampleSize) {
@@ -178,7 +187,9 @@ public class ApproximateUnique {
             + "In general, the estimation "
             + "error is about 2 / sqrt(sampleSize).");
       }
+
       this.sampleSize = sampleSize;
+      this.maximumEstimationError = null;
     }
 
     /**
@@ -190,7 +201,9 @@ public class ApproximateUnique {
             "ApproximateUnique needs an "
             + "estimation error between 1% (0.01) and 50% (0.5).");
       }
+
       this.sampleSize = sampleSizeFromEstimationError(maximumEstimationError);
+      this.maximumEstimationError = maximumEstimationError;
     }
 
     @Override
@@ -199,6 +212,11 @@ public class ApproximateUnique {
       return input.apply(
           Combine.globally(
               new ApproximateUniqueCombineFn<>(sampleSize, coder)));
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      ApproximateUnique.populateDisplayData(builder, sampleSize, maximumEstimationError);
     }
   }
 
@@ -213,7 +231,17 @@ public class ApproximateUnique {
   static class PerKey<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Long>>> {
 
+    /**
+     * The number of entries in the statistical sample; the higher this number,
+     * the more accurate the estimate will be.
+     */
     private final long sampleSize;
+
+    /**
+     * The the desired maximum estimation error or null if not specified.
+     */
+    @Nullable
+    private final Double maximumEstimationError;
 
     /**
      * @see ApproximateUnique#perKey(int)
@@ -225,7 +253,9 @@ public class ApproximateUnique {
             + "sampleSize >= 16 for an estimation error <= 50%.  In general, "
             + "the estimation error is about 2 / sqrt(sampleSize).");
       }
+
       this.sampleSize = sampleSize;
+      this.maximumEstimationError = null;
     }
 
     /**
@@ -237,7 +267,9 @@ public class ApproximateUnique {
             "ApproximateUnique.PerKey needs an "
             + "estimation error between 1% (0.01) and 50% (0.5).");
       }
+
       this.sampleSize = sampleSizeFromEstimationError(estimationError);
+      this.maximumEstimationError = estimationError;
     }
 
     @Override
@@ -253,6 +285,11 @@ public class ApproximateUnique {
       return input.apply(
           Combine.perKey(new ApproximateUniqueCombineFn<>(
               sampleSize, coder).<K>asKeyedFn()));
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      ApproximateUnique.populateDisplayData(builder, sampleSize, maximumEstimationError);
     }
   }
 
@@ -417,5 +454,12 @@ public class ApproximateUnique {
    */
   static long sampleSizeFromEstimationError(double estimationError) {
     return Math.round(Math.ceil(4.0 / Math.pow(estimationError, 2.0)));
+  }
+
+  private static void populateDisplayData(
+      DisplayData.Builder builder, long sampleSize, Double maxEstimationError) {
+    builder
+        .add("sampleSize", sampleSize)
+        .addIfNotNull("maximumEstimationError", maxEstimationError);
   }
 }

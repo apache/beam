@@ -24,6 +24,8 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Combine.KeyedCombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
+import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 import com.google.common.collect.ImmutableMap;
@@ -52,7 +54,7 @@ public class CombineFnBase {
    * @param <AccumT> type of mutable accumulator values
    * @param <OutputT> type of output values
    */
-  public interface GlobalCombineFn<InputT, AccumT, OutputT> extends Serializable {
+  public interface GlobalCombineFn<InputT, AccumT, OutputT> extends Serializable, HasDisplayData {
 
     /**
      * Returns the {@code Coder} to use for accumulator {@code AccumT}
@@ -117,7 +119,8 @@ public class CombineFnBase {
    * @param <AccumT> type of mutable accumulator values
    * @param <OutputT> type of output values
    */
-  public interface PerKeyCombineFn<K, InputT, AccumT, OutputT> extends Serializable {
+  public interface PerKeyCombineFn<K, InputT, AccumT, OutputT>
+  extends Serializable, HasDisplayData {
     /**
      * Returns the {@code Coder} to use for accumulator {@code AccumT}
      * values, or null if it is not able to be inferred.
@@ -217,6 +220,16 @@ public class CombineFnBase {
       return (TypeVariable<?>)
           new TypeDescriptor<OutputT>(AbstractGlobalCombineFn.class) {}.getType();
     }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>By default, does not register any display data. Implementors may override this method
+     * to provide their own display metadata.
+     */
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+    }
   }
 
   /**
@@ -281,6 +294,16 @@ public class CombineFnBase {
     public TypeVariable<?> getOutputTVariable() {
       return (TypeVariable<?>)
           new TypeDescriptor<OutputT>(AbstractPerKeyCombineFn.class) {}.getType();
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>By default, does not register any display data. Implementors may override this method
+     * to provide their own display metadata.
+     */
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
     }
   }
 }
