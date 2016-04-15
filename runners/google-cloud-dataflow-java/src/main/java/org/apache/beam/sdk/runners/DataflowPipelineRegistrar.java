@@ -26,8 +26,8 @@ import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableList;
 
 /**
- * Contains the {@link PipelineOptionsRegistrar} and {@link PipelineRunnerRegistrar} for
- * the {@link DataflowPipeline}.
+ * Contains the {@link PipelineOptionsRegistrar} and {@link PipelineRunnerRegistrar} for the
+ * {@link DataflowPipelineRunner}.
  */
 public class DataflowPipelineRegistrar {
   private DataflowPipelineRegistrar() { }
