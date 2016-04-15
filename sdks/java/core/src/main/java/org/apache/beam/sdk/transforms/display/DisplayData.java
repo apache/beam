@@ -161,7 +161,7 @@ public class DisplayData {
     /**
      * Register display metadata from the specified subcomponent, using the specified namespace.
      *
-     * <p></p>For example, a {@link ParDo} transform includes display metadata from the encapsulated
+     * <p>For example, a {@link ParDo} transform includes display metadata from the encapsulated
      * {@link DoFn}.
      */
     Builder include(HasDisplayData subComponent, String namespace);
