@@ -79,14 +79,14 @@ class DoFnRunner(object):
     try:
       self._process_outputs(None, self.dofn.start_bundle(self.context))
     except BaseException as exn:
-      raise self.augment_exception(exn)
+      self.reraise_augmented(exn)
 
   def finish(self):
     self.context.set_element(None)
     try:
       self._process_outputs(None, self.dofn.finish_bundle(self.context))
     except BaseException as exn:
-      raise self.augment_exception(exn)
+      self.reraise_augmented(exn)
 
   def process(self, element):
     try:
