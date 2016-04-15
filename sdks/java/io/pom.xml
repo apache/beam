@@ -23,36 +23,19 @@
 
   <parent>
     <groupId>org.apache.beam</groupId>
-    <artifactId>sdks-parent</artifactId>
+    <artifactId>java-sdk-parent</artifactId>
     <version>0.1.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>java-sdk-parent</artifactId>
-
+  <artifactId>io-parent</artifactId>
   <packaging>pom</packaging>
-
-  <name>Apache Beam :: SDKs :: Java</name>
+  <name>Apache Beam :: SDKs :: Java :: IO</name>
+  <description>Beam SDK Java IO provides different connectivity components
+  (sources and sinks) to consume and produce data from systems.</description>
 
   <modules>
-    <module>core</module>
-    <module>io</module>
-    <!-- sdks/java/maven-archtypes has several dependencies on the
-         DataflowPipelineRunner. Until these are refactored out or
-         a released artifact exists, we need to modify the build order.
-    <module>maven-archetypes</module> -->
+    <module>hdfs</module>
   </modules>
-
-  <profiles>
-    <profile>
-      <id>java8-tests</id>
-      <activation>
-        <jdk>[1.8,)</jdk>
-      </activation>
-      <modules>
-        <module>java8tests</module>
-      </modules>
-    </profile>
-  </profiles>
 
 </project>
