@@ -110,7 +110,7 @@ import javax.annotation.Nullable;
 public class IsmFormat {
   private static final int HASH_SEED = 1225801234;
   private static final HashFunction HASH_FUNCTION = Hashing.murmur3_32(HASH_SEED);
-  static final int SHARD_BITS = 0x7F; // [0-127] shards + [128-255] metadata shards
+  public static final int SHARD_BITS = 0x7F; // [0-127] shards + [128-255] metadata shards
 
   /**
    * A record containing a composite key and either a value or metadata. The composite key
@@ -325,7 +325,7 @@ public class IsmFormat {
       }
     }
 
-    int getNumberOfShardKeyCoders(List<?> keyComponents) {
+    public int getNumberOfShardKeyCoders(List<?> keyComponents) {
       if (isMetadataKey(keyComponents)) {
         return numberOfMetadataShardKeyCoders;
       } else {
@@ -352,7 +352,7 @@ public class IsmFormat {
      * Mutates {@code keyBytes} such that when returned, contains the encoded
      * version of the key components.
      */
-    <V, T> int encodeAndHash(List<?> keyComponents, RandomAccessData keyBytesToMutate) {
+    public <V, T> int encodeAndHash(List<?> keyComponents, RandomAccessData keyBytesToMutate) {
       return encodeAndHash(keyComponents, keyBytesToMutate, new ArrayList<Integer>());
     }
 
@@ -364,7 +364,7 @@ public class IsmFormat {
      * store the location where each key component's encoded byte representation ends within
      * {@code keyBytes}.
      */
-    <V, T> int encodeAndHash(
+    public <V, T> int encodeAndHash(
         List<?> keyComponents,
         RandomAccessData keyBytesToMutate,
         List<Integer> keyComponentByteOffsetsToMutate) {
@@ -470,7 +470,7 @@ public class IsmFormat {
   /**
    * Validates that the key portion of the given coder is deterministic.
    */
-  static void validateCoderIsCompatible(IsmRecordCoder<?> coder) {
+  public static void validateCoderIsCompatible(IsmRecordCoder<?> coder) {
     for (Coder<?> keyComponentCoder : coder.getKeyComponentCoders()) {
       try {
           keyComponentCoder.verifyDeterministic();
@@ -746,11 +746,11 @@ public class IsmFormat {
    *   <li>number of unshared key bytes (variable length integer coding)</li>
    * </ul>
    */
-  static class KeyPrefix {
+  public static class KeyPrefix {
     private final int sharedKeySize;
     private final int unsharedKeySize;
 
-    KeyPrefix(int sharedBytes, int unsharedBytes) {
+    public KeyPrefix(int sharedBytes, int unsharedBytes) {
       this.sharedKeySize = sharedBytes;
       this.unsharedKeySize = unsharedBytes;
     }
@@ -791,7 +791,7 @@ public class IsmFormat {
   }
 
   /** A {@link Coder} for {@link KeyPrefix}. */
-  static final class KeyPrefixCoder extends AtomicCoder<KeyPrefix> {
+  public static final class KeyPrefixCoder extends AtomicCoder<KeyPrefix> {
     private static final KeyPrefixCoder INSTANCE = new KeyPrefixCoder();
 
     @JsonCreator
@@ -823,7 +823,7 @@ public class IsmFormat {
     }
 
     @Override
-    protected long getEncodedElementByteSize(KeyPrefix value, Coder.Context context)
+    public long getEncodedElementByteSize(KeyPrefix value, Coder.Context context)
         throws Exception {
       Preconditions.checkNotNull(value);
       return VarInt.getLength(value.sharedKeySize) + VarInt.getLength(value.unsharedKeySize);
@@ -842,16 +842,16 @@ public class IsmFormat {
    *   <li>0x01 (version key as a single byte)</li>
    * </ul>
    */
-  static class Footer {
-    static final int LONG_BYTES = 8;
-    static final int FIXED_LENGTH = 3 * LONG_BYTES + 1;
-    static final byte VERSION = 2;
+  public static class Footer {
+    public static final int LONG_BYTES = 8;
+    public static final int FIXED_LENGTH = 3 * LONG_BYTES + 1;
+    public static final byte VERSION = 2;
 
     private final long indexPosition;
     private final long bloomFilterPosition;
     private final long numberOfKeys;
 
-    Footer(long indexPosition, long bloomFilterPosition, long numberOfKeys) {
+    public Footer(long indexPosition, long bloomFilterPosition, long numberOfKeys) {
       this.indexPosition = indexPosition;
       this.bloomFilterPosition = bloomFilterPosition;
       this.numberOfKeys = numberOfKeys;
@@ -900,7 +900,7 @@ public class IsmFormat {
   }
 
   /** A {@link Coder} for {@link Footer}. */
-  static final class FooterCoder extends AtomicCoder<Footer> {
+  public static final class FooterCoder extends AtomicCoder<Footer> {
     private static final FooterCoder INSTANCE = new FooterCoder();
 
     @JsonCreator
@@ -942,7 +942,7 @@ public class IsmFormat {
     }
 
     @Override
-    protected long getEncodedElementByteSize(Footer value, Coder.Context context)
+    public long getEncodedElementByteSize(Footer value, Coder.Context context)
         throws Exception {
       return Footer.FIXED_LENGTH;
     }
