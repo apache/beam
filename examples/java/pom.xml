@@ -227,6 +227,7 @@
         <artifactId>maven-failsafe-plugin</artifactId>
         <version>2.19.1</version>
         <configuration>
+          <skipTests>${skipIntegrationTests}</skipTests>
           <useManifestOnlyJar>false</useManifestOnlyJar>
           <redirectTestOutputToFile>true</redirectTestOutputToFile>
         </configuration>

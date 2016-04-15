@@ -141,6 +141,23 @@
 
   <profiles>
     <profile>
+      <id>dev</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <properties>
+        <skipIntegrationTests>true</skipIntegrationTests>
+        <skipUnitTests>false</skipUnitTests>
+      </properties>
+    </profile>
+    <profile>
+      <id>IntegrationTests</id>
+      <properties>
+        <skipIntegrationTests>false</skipIntegrationTests>
+        <skipUnitTests>true</skipUnitTests>
+      </properties>
+    </profile>
+    <profile>
       <id>doclint-java8-disable</id>
       <activation>
         <jdk>[1.8,)</jdk>
