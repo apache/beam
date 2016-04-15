@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.options;
 
-import org.apache.beam.sdk.runners.DataflowPipeline;
+import org.apache.beam.sdk.runners.DataflowPipelineRunner;
 
 import com.google.common.base.MoreObjects;
 
@@ -27,14 +27,14 @@ import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
 /**
- * Options that can be used to configure the {@link DataflowPipeline}.
+ * Options that can be used to configure the {@link DataflowPipelineRunner}.
  */
 @Description("Options that configure the Dataflow pipeline.")
-public interface DataflowPipelineOptions extends
-    PipelineOptions, GcpOptions, ApplicationNameOptions, DataflowPipelineDebugOptions,
-    DataflowPipelineWorkerPoolOptions, BigQueryOptions,
-    GcsOptions, StreamingOptions, CloudDebuggerOptions, DataflowWorkerLoggingOptions,
-    DataflowProfilingOptions, PubsubOptions {
+public interface DataflowPipelineOptions
+    extends PipelineOptions, GcpOptions, ApplicationNameOptions, DataflowPipelineDebugOptions,
+        DataflowPipelineWorkerPoolOptions, BigQueryOptions, GcsOptions, StreamingOptions,
+        CloudDebuggerOptions, DataflowWorkerLoggingOptions, DataflowProfilingOptions,
+        PubsubOptions {
 
   @Description("Project id. Required when running a Dataflow in the cloud. "
       + "See https://cloud.google.com/storage/docs/projects for further details.")
