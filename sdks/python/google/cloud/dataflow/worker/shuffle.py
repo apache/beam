@@ -38,6 +38,7 @@ import cStringIO as StringIO
 import logging
 import struct
 
+from google.cloud.dataflow.coders import observable
 from google.cloud.dataflow.io import iobase
 from google.cloud.dataflow.io import range_trackers
 
@@ -246,7 +247,7 @@ class ShuffleEntriesIterator(object):
             self.iterable.reader, start_position, end_position, key))
 
 
-class ShuffleKeyValuesIterable(object):
+class ShuffleKeyValuesIterable(observable.ObservableMixin):
   """An iterable over all values associated with a key.
 
   The class supports reiteration over the values by cloning the underlying
@@ -257,6 +258,7 @@ class ShuffleKeyValuesIterable(object):
 
   def __init__(self, entries_iterator, key, value_coder,
                start_position, end_position=''):
+    super(ShuffleKeyValuesIterable, self).__init__()
     self.key = key
     self.value_coder = value_coder
     self.start_position = start_position
@@ -290,7 +292,9 @@ class ShuffleKeyValuesIterable(object):
         self.end_position = entry.position
         self.entries_iterator.push_back(entry)
         break
-      yield self.value_coder.decode(entry.value)
+      decoded_value = self.value_coder.decode(entry.value)
+      self.notify_observers(entry.value, is_encoded=True)
+      yield decoded_value
 
   def __str__(self):
     return '<%s>' % self._str_internal()

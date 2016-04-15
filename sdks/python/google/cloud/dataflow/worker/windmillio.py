@@ -18,6 +18,7 @@ Windmill sources and sinks are used internally in streaming pipelines.
 
 from __future__ import absolute_import
 
+from google.cloud.dataflow.coders import observable
 from google.cloud.dataflow.io import coders
 from google.cloud.dataflow.io import iobase
 from google.cloud.dataflow.io import pubsub
@@ -216,10 +217,11 @@ class WindmillTimer(object):
                                                  self.state_family)
 
 
-class KeyedWorkItem(object):
+class KeyedWorkItem(observable.ObservableMixin):
   """Keyed work item used by a StreamingGroupAlsoByWindowsOperation."""
 
   def __init__(self, work_item, coder):
+    super(KeyedWorkItem, self).__init__()
     self.work_item = work_item
     self.coder = coder
     self.key_coder = coder.key_coder()
@@ -236,7 +238,9 @@ class KeyedWorkItem(object):
   def elements(self):
     for bundle in self.work_item.message_bundles:
       for message in bundle.messages:
-        yield self.wv_coder.decode(message.data)
+        element = self.wv_coder.decode(message.data)
+        self.notify_observers(message.data, is_encoded=True)
+        yield element
 
   def timers(self):
     if self.work_item.timers:
@@ -252,7 +256,7 @@ class KeyedWorkItem(object):
             state_family=timer_item.state_family)
 
   def __repr__(self):
-    return 'KeyedWorkItem(%r)' % self.key
+    return '<%s %s>' % (self.__class__.__name__, self.key)
 
 
 class WindowingWindmillSource(iobase.Source):

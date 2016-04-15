@@ -22,6 +22,7 @@ from abc import abstractmethod
 import collections
 import copy
 
+from google.cloud.dataflow.coders import observable
 from google.cloud.dataflow.transforms import combiners
 from google.cloud.dataflow.transforms import core
 from google.cloud.dataflow.transforms.timeutil import MAX_TIMESTAMP
@@ -721,9 +722,12 @@ class DefaultGlobalBatchTriggerDriver(TriggerDriver):
     if isinstance(windowed_values, list):
       unwindowed = [wv.value for wv in windowed_values]
     else:
-      class UnwindowedValues(object):
+      class UnwindowedValues(observable.ObservableMixin):
         def __iter__(self):
-          return (wv.value for wv in windowed_values)
+          for wv in windowed_values:
+            unwindowed_value = wv.value
+            self.notify_observers(unwindowed_value)
+            yield unwindowed_value
         def __repr__(self):
           return '<UnwindowedValues of %s>' % windowed_values
       unwindowed = UnwindowedValues()
