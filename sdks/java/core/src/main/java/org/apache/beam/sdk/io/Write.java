@@ -35,8 +35,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 
-import org.joda.time.Instant;
-
 import java.util.UUID;
 
 /**
@@ -154,6 +152,7 @@ public class Write {
       // There is a dependency between this ParDo and the first (the WriteOperation PCollection
       // as a side input), so this will happen after the initial ParDo.
       PCollection<WriteT> results = input
+          .apply(Window.<T>into(new GlobalWindows()))
           .apply("WriteBundles", ParDo.of(new DoFn<T, WriteT>() {
             // Writer that will write the records in this bundle. Lazily
             // initialized in processElement.
@@ -184,13 +183,11 @@ public class Write {
             public void finishBundle(Context c) throws Exception {
               if (writer != null) {
                 WriteT result = writer.close();
-                // Output the result of the write.
-                c.outputWithTimestamp(result, Instant.now());
+                c.output(result);
               }
             }
           }).withSideInputs(writeOperationView))
-          .setCoder(writeOperation.getWriterResultCoder())
-          .apply(Window.<WriteT>into(new GlobalWindows()));
+          .setCoder(writeOperation.getWriterResultCoder());
 
       final PCollectionView<Iterable<WriteT>> resultsView =
           results.apply(View.<WriteT>asIterable());
