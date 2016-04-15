@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.contrib.hadoop;
+package org.apache.beam.sdk.io.hdfs;
 
 import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -49,9 +49,9 @@ import java.util.List;
 import java.util.Random;
 
 /**
- * Tests for HadoopFileSource.
+ * Tests for HDFSFileSource.
  */
-public class HadoopFileSourceTest {
+public class HDFSFileSourceTest {
 
   Random random = new Random(0L);
 
@@ -64,8 +64,8 @@ public class HadoopFileSourceTest {
     List<KV<IntWritable, Text>> expectedResults = createRandomRecords(3, 10, 0);
     File file = createFileWithData("tmp.seq", expectedResults);
 
-    HadoopFileSource<IntWritable, Text> source =
-        HadoopFileSource.from(file.toString(), SequenceFileInputFormat.class,
+    HDFSFileSource<IntWritable, Text> source =
+        HDFSFileSource.from(file.toString(), SequenceFileInputFormat.class,
             IntWritable.class, Text.class);
 
     assertEquals(file.length(), source.getEstimatedSizeBytes(null));
@@ -88,8 +88,8 @@ public class HadoopFileSourceTest {
     List<KV<IntWritable, Text>> data4 = createRandomRecords(3, 10, 30);
     createFileWithData("otherfile", data4);
 
-    HadoopFileSource<IntWritable, Text> source =
-        HadoopFileSource.from(new File(file1.getParent(), "file*").toString(),
+    HDFSFileSource<IntWritable, Text> source =
+        HDFSFileSource.from(new File(file1.getParent(), "file*").toString(),
             SequenceFileInputFormat.class, IntWritable.class, Text.class);
     List<KV<IntWritable, Text>> expectedResults = new ArrayList<>();
     expectedResults.addAll(data1);
@@ -113,8 +113,8 @@ public class HadoopFileSourceTest {
     List<KV<IntWritable, Text>> data4 = createRandomRecords(3, 10, 30);
     createFileWithData("otherfile", data4);
 
-    HadoopFileSource<IntWritable, Text> source =
-        HadoopFileSource.from(new File(file1.getParent(), "file*").toString(),
+    HDFSFileSource<IntWritable, Text> source =
+        HDFSFileSource.from(new File(file1.getParent(), "file*").toString(),
             SequenceFileInputFormat.class, IntWritable.class, Text.class);
     Source.Reader<KV<IntWritable, Text>> reader = source.createReader(options);
     // Closing an unstarted FilePatternReader should not throw an exception.
@@ -132,8 +132,8 @@ public class HadoopFileSourceTest {
     List<KV<IntWritable, Text>> expectedResults = createRandomRecords(3, 10000, 0);
     File file = createFileWithData("tmp.avro", expectedResults);
 
-    HadoopFileSource<IntWritable, Text> source =
-        HadoopFileSource.from(file.toString(), SequenceFileInputFormat.class,
+    HDFSFileSource<IntWritable, Text> source =
+        HDFSFileSource.from(file.toString(), SequenceFileInputFormat.class,
             IntWritable.class, Text.class);
 
     // Assert that the source produces the expected records
