@@ -124,4 +124,10 @@ public class AfterPaneTest {
         AfterPane.elementCountAtLeast(1),
         AfterPane.elementCountAtLeast(100).getContinuationTrigger().getContinuationTrigger());
   }
+
+  @Test
+  public void testToString() {
+    Trigger trigger = AfterPane.elementCountAtLeast(5);
+    assertEquals("AfterPane.elementCountAtLeast(5)", trigger.toString());
+  }
 }

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.transforms.windowing;
 
 import static org.apache.beam.sdk.testing.WindowFnTestUtils.runWindowFn;
 import static org.apache.beam.sdk.testing.WindowFnTestUtils.set;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.junit.Assert.assertEquals;
@@ -28,6 +29,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import org.apache.beam.sdk.testing.WindowFnTestUtils;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -122,5 +124,17 @@ public class FixedWindowsTest {
       WindowFnTestUtils.validateGetOutputTimestamp(
           FixedWindows.of(new Duration(500)), timestamp);
     }
+  }
+
+  @Test
+  public void testDisplayData() {
+    Duration offset = Duration.standardSeconds(1234);
+    Duration size = Duration.standardSeconds(2345);
+
+    FixedWindows fixedWindows = FixedWindows.of(size).withOffset(offset);
+    DisplayData displayData = DisplayData.from(fixedWindows);
+
+    assertThat(displayData, hasDisplayItem("size", size));
+    assertThat(displayData, hasDisplayItem("offset", offset));
   }
 }

@@ -155,4 +155,35 @@ public class AfterProcessingTimeTest {
             .plusDelayOf(Duration.standardMinutes(1L));
     assertTrue(t1.isCompatible(t2));
   }
+
+  @Test
+  public void testToString() {
+    Trigger trigger = AfterProcessingTime.pastFirstElementInPane();
+    assertEquals("AfterProcessingTime.pastFirstElementInPane()", trigger.toString());
+  }
+
+  @Test
+  public void testWithDelayToString() {
+    Trigger trigger = AfterProcessingTime.pastFirstElementInPane()
+        .plusDelayOf(Duration.standardMinutes(5));
+
+    assertEquals("AfterProcessingTime.pastFirstElementInPane().plusDelayOf(5 minutes)",
+        trigger.toString());
+  }
+
+  @Test
+  public void testBuiltUpToString() {
+    Trigger trigger = AfterWatermark.pastEndOfWindow()
+        .withLateFirings(AfterProcessingTime
+            .pastFirstElementInPane()
+            .plusDelayOf(Duration.standardMinutes(10)))
+        .buildTrigger();
+
+    String expected = "AfterWatermark.pastEndOfWindow()" +
+        ".withLateFirings(AfterProcessingTime" +
+          ".pastFirstElementInPane()" +
+          ".plusDelayOf(10 minutes))";
+
+    assertEquals(expected, trigger.toString());
+  }
 }

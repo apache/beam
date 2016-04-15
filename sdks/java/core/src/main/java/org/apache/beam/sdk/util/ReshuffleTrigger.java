@@ -60,4 +60,9 @@ public class ReshuffleTrigger<W extends BoundedWindow> extends Trigger {
 
   @Override
   public void onFire(Trigger.TriggerContext context) throws Exception { }
+
+  @Override
+  public String toString() {
+    return "ReshuffleTrigger()";
+  }
 }
