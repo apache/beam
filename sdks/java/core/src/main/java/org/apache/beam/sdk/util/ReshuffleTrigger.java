@@ -17,9 +17,10 @@
  */
 package org.apache.beam.sdk.util;
 
+import com.google.common.annotations.VisibleForTesting;
+
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
-
 import org.joda.time.Instant;
 
 import java.util.List;
@@ -32,7 +33,8 @@ import java.util.List;
  */
 public class ReshuffleTrigger<W extends BoundedWindow> extends Trigger {
 
-  ReshuffleTrigger() {
+  @VisibleForTesting
+  public ReshuffleTrigger() {
     super(null);
   }
 
