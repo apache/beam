@@ -25,6 +25,8 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.DoFn.DelegatingAggregator;
+import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowingInternals;
@@ -82,7 +84,7 @@ import java.util.Map;
  * @param <OutputT> the type of the (main) output elements
  */
 @Experimental
-public abstract class DoFnWithContext<InputT, OutputT> implements Serializable {
+public abstract class DoFnWithContext<InputT, OutputT> implements Serializable, HasDisplayData {
 
   /** Information accessible to all methods in this {@code DoFnWithContext}. */
   public abstract class Context {
@@ -413,5 +415,15 @@ public abstract class DoFnWithContext<InputT, OutputT> implements Serializable {
    */
   void prepareForProcessing() {
     aggregatorsAreFinal = true;
+  }
+
+  /**
+   * {@inheritDoc}
+   *
+   * <p>By default, does not register any display data. Implementors may override this method
+   * to provide their own display metadata.
+   */
+  @Override
+  public void populateDisplayData(DisplayData.Builder builder) {
   }
 }

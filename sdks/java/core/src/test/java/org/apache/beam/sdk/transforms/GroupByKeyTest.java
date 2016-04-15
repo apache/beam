@@ -18,7 +18,9 @@
 package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.sdk.TestUtils.KvMatcher.isKv;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.hamcrest.core.Is.is;
@@ -35,6 +37,7 @@ import org.apache.beam.sdk.runners.DirectPipelineRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.InvalidWindows;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
@@ -374,5 +377,17 @@ public class GroupByKeyTest {
   @Test
   public void testGroupByKeyGetName() {
     Assert.assertEquals("GroupByKey", GroupByKey.<String, Integer>create().getName());
+  }
+
+  @Test
+  public void testDisplayData() {
+    GroupByKey<String, String> groupByKey = GroupByKey.create();
+    GroupByKey<String, String> groupByFewKeys = GroupByKey.create(true);
+
+    DisplayData gbkDisplayData = DisplayData.from(groupByKey);
+    DisplayData fewKeysDisplayData = DisplayData.from(groupByFewKeys);
+
+    assertThat(gbkDisplayData.items(), empty());
+    assertThat(fewKeysDisplayData, hasDisplayItem("fewKeys", true));
   }
 }

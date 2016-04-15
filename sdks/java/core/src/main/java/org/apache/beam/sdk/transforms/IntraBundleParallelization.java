@@ -20,6 +20,7 @@ package org.apache.beam.sdk.transforms;
 import org.apache.beam.sdk.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowingInternals;
@@ -171,6 +172,14 @@ public class IntraBundleParallelization {
     public PCollection<OutputT> apply(PCollection<? extends InputT> input) {
       return input.apply(
           ParDo.of(new MultiThreadedIntraBundleProcessingDoFn<>(doFn, maxParallelism)));
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      builder
+          .add("maxParallelism", maxParallelism)
+          .add("fn", doFn.getClass())
+          .include(doFn);
     }
   }
 

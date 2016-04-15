@@ -25,6 +25,7 @@ import static org.mockito.Mockito.when;
 
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 
 import org.junit.Before;
@@ -98,5 +99,14 @@ public class ForwardingPTransformTest {
 
     when(delegate.getDefaultOutputCoder(input, output)).thenReturn(outputCoder);
     assertThat(forwarding.getDefaultOutputCoder(input, output), equalTo(outputCoder));
+  }
+
+  @Test
+  public void populateDisplayDataDelegates() {
+    DisplayData.Builder builder = mock(DisplayData.Builder.class);
+    doThrow(RuntimeException.class).when(delegate).populateDisplayData(builder);
+
+    thrown.expect(RuntimeException.class);
+    forwarding.populateDisplayData(builder);
   }
 }

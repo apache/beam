@@ -17,9 +17,14 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+
+import static org.hamcrest.MatcherAssert.assertThat;
+
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 
 import org.junit.Test;
@@ -157,5 +162,20 @@ public class FilterTest implements Serializable {
 
     PAssert.that(output).containsInAnyOrder(5, 6, 7);
     p.run();
+  }
+
+  @Test
+  public void testDisplayData() {
+    ParDo.Bound<Integer, Integer> lessThan = Filter.lessThan(123);
+    assertThat(DisplayData.from(lessThan), hasDisplayItem("predicate", "x < 123"));
+
+    ParDo.Bound<Integer, Integer> lessThanOrEqual = Filter.lessThanEq(234);
+    assertThat(DisplayData.from(lessThanOrEqual), hasDisplayItem("predicate", "x ≤ 234"));
+
+    ParDo.Bound<Integer, Integer> greaterThan = Filter.greaterThan(345);
+    assertThat(DisplayData.from(greaterThan), hasDisplayItem("predicate", "x > 345"));
+
+    ParDo.Bound<Integer, Integer> greaterThanOrEqual = Filter.greaterThanEq(456);
+    assertThat(DisplayData.from(greaterThanOrEqual), hasDisplayItem("predicate", "x ≥ 456"));
   }
 }

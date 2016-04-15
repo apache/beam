@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -25,6 +28,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Partition.PartitionFn;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 
@@ -137,5 +141,14 @@ public class PartitionTest implements Serializable {
   @Test
   public void testPartitionGetName() {
     assertEquals("Partition", Partition.of(3, new ModFn()).getName());
+  }
+
+  @Test
+  public void testDisplayData() {
+    Partition<?> partition = Partition.of(123, new IdentityFn());
+    DisplayData displayData = DisplayData.from(partition);
+
+    assertThat(displayData, hasDisplayItem("numPartitions", 123));
+    assertThat(displayData, hasDisplayItem("partitionFn", IdentityFn.class));
   }
 }
