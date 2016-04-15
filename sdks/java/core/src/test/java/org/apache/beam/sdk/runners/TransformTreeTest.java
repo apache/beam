@@ -30,6 +30,7 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.Write;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -116,7 +117,7 @@ public class TransformTreeTest {
     File inputFile = tmpFolder.newFile();
     File outputFile = tmpFolder.newFile();
 
-    Pipeline p = DirectPipeline.createForTest();
+    Pipeline p = TestPipeline.create();
 
     p.apply(TextIO.Read.named("ReadMyFile").from(inputFile.getPath()))
         .apply(Sample.<String>any(10))
@@ -173,7 +174,7 @@ public class TransformTreeTest {
 
   @Test(expected = IllegalStateException.class)
   public void testOutputChecking() throws Exception {
-    Pipeline p = DirectPipeline.createForTest();
+    Pipeline p = TestPipeline.create();
 
     p.apply(new InvalidCompositeTransform());
 
@@ -183,7 +184,7 @@ public class TransformTreeTest {
 
   @Test
   public void testMultiGraphSetup() {
-    Pipeline p = DirectPipeline.createForTest();
+    Pipeline p = TestPipeline.create();
 
     PCollection<Integer> input = p.begin()
         .apply(Create.of(1, 2, 3));

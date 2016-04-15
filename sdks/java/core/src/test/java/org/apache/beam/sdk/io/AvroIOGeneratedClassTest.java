@@ -23,8 +23,8 @@ import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.runners.DirectPipeline;
-import org.apache.beam.sdk.runners.DirectPipelineRunner.EvaluationResults;
+import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -137,12 +137,11 @@ public class AvroIOGeneratedClassTest {
       throws Exception {
     generateAvroFile(generateAvroObjects());
 
-    DirectPipeline p = DirectPipeline.createForTest();
+    TestPipeline p = TestPipeline.create();
     PCollection<T> output = p.apply(read);
-    EvaluationResults results = p.run();
+    PAssert.that(output).containsInAnyOrder(expectedOutput);
+    p.run();
     assertEquals(expectedName, output.getName());
-    assertThat(results.getPCollection(output),
-               containsInAnyOrder(expectedOutput));
   }
 
   @Test
@@ -257,7 +256,7 @@ public class AvroIOGeneratedClassTest {
       throws Exception {
     AvroGeneratedUser[] users = generateAvroObjects();
 
-    DirectPipeline p = DirectPipeline.createForTest();
+    TestPipeline p = TestPipeline.create();
     @SuppressWarnings("unchecked")
     PCollection<T> input = p.apply(Create.of(Arrays.asList((T[]) users))
                             .withCoder((Coder<T>) AvroCoder.of(AvroGeneratedUser.class)));

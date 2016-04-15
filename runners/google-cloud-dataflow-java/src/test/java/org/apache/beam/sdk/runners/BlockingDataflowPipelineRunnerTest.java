@@ -31,6 +31,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.TestDataflowPipelineOptions;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.util.MonitoringUtil;
 import org.apache.beam.sdk.util.NoopPathValidator;
 import org.apache.beam.sdk.util.TestCredential;
@@ -209,7 +210,7 @@ public class BlockingDataflowPipelineRunnerTest {
   @Test
   public void testJobDoneComplete() throws Exception {
     createMockRunner(createMockJob("testJobDone-projectId", "testJobDone-jobId", State.DONE))
-        .run(DirectPipeline.createForTest());
+        .run(TestPipeline.create());
     expectedLogs.verifyInfo("Job finished with status DONE");
   }
 
@@ -223,7 +224,7 @@ public class BlockingDataflowPipelineRunnerTest {
     expectedThrown.expect(DataflowJobExceptionMatcher.expectJob(
         JobIdMatcher.expectJobId("testFailedJob-jobId")));
     createMockRunner(createMockJob("testFailedJob-projectId", "testFailedJob-jobId", State.FAILED))
-        .run(DirectPipeline.createForTest());
+        .run(TestPipeline.create());
   }
 
   /**
@@ -236,8 +237,8 @@ public class BlockingDataflowPipelineRunnerTest {
     expectedThrown.expect(DataflowJobExceptionMatcher.expectJob(
         JobIdMatcher.expectJobId("testCancelledJob-jobId")));
     createMockRunner(
-        createMockJob("testCancelledJob-projectId", "testCancelledJob-jobId", State.CANCELLED))
-        .run(DirectPipeline.createForTest());
+            createMockJob("testCancelledJob-projectId", "testCancelledJob-jobId", State.CANCELLED))
+        .run(TestPipeline.create());
   }
 
   /**
@@ -256,7 +257,7 @@ public class BlockingDataflowPipelineRunnerTest {
     DataflowPipelineJob replacedByJob =
         createMockJob("testUpdatedJob-projectId", "testUpdatedJob-replacedByJobId", State.DONE);
     when(job.getReplacedByJob()).thenReturn(replacedByJob);
-    createMockRunner(job).run(DirectPipeline.createForTest());
+    createMockRunner(job).run(TestPipeline.create());
   }
 
   /**
@@ -269,8 +270,8 @@ public class BlockingDataflowPipelineRunnerTest {
   public void testUnknownJobThrowsException() throws Exception {
     expectedThrown.expect(IllegalStateException.class);
     createMockRunner(
-        createMockJob("testUnknownJob-projectId", "testUnknownJob-jobId", State.UNKNOWN))
-        .run(DirectPipeline.createForTest());
+            createMockJob("testUnknownJob-projectId", "testUnknownJob-jobId", State.UNKNOWN))
+        .run(TestPipeline.create());
   }
 
   /**
@@ -283,9 +284,8 @@ public class BlockingDataflowPipelineRunnerTest {
     expectedThrown.expect(DataflowServiceException.class);
     expectedThrown.expect(DataflowJobExceptionMatcher.expectJob(
         JobIdMatcher.expectJobId("testNullJob-jobId")));
-    createMockRunner(
-        createMockJob("testNullJob-projectId", "testNullJob-jobId", null))
-        .run(DirectPipeline.createForTest());
+    createMockRunner(createMockJob("testNullJob-projectId", "testNullJob-jobId", null))
+        .run(TestPipeline.create());
   }
 
   @Test

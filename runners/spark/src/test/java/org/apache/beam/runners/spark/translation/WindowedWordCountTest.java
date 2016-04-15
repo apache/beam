@@ -18,10 +18,6 @@
 
 package org.apache.beam.runners.spark.translation;
 
-import java.util.Arrays;
-import java.util.List;
-
-import com.google.common.collect.ImmutableList;
 import org.apache.beam.runners.spark.EvaluationResult;
 import org.apache.beam.runners.spark.SimpleWordCountTest;
 import org.apache.beam.runners.spark.SparkPipelineRunner;
@@ -34,8 +30,14 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
+
+import com.google.common.collect.ImmutableList;
+
 import org.joda.time.Duration;
 import org.junit.Test;
+
+import java.util.Arrays;
+import java.util.List;
 
 public class WindowedWordCountTest {
   private static final String[] WORDS_ARRAY = {
