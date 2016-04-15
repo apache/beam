@@ -1043,8 +1043,6 @@ public class DataflowPipelineTranslator {
 
     registerTransformTranslator(
         BigQueryIO.Read.Bound.class, new BigQueryIOTranslator.ReadTranslator());
-    registerTransformTranslator(
-        BigQueryIO.Write.Bound.class, new BigQueryIOTranslator.WriteTranslator());
 
     registerTransformTranslator(
         PubsubIO.Read.Bound.class, new PubsubIOTranslator.ReadTranslator());

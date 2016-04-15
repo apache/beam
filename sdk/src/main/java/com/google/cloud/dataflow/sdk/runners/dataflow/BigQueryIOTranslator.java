@@ -16,25 +16,18 @@
 
 package com.google.cloud.dataflow.sdk.runners.dataflow;
 
-import com.google.api.client.json.JsonFactory;
 import com.google.api.services.bigquery.model.TableReference;
-import com.google.cloud.dataflow.sdk.coders.TableRowJsonCoder;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
-import com.google.cloud.dataflow.sdk.util.Transport;
-import com.google.cloud.dataflow.sdk.util.WindowedValue;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
 
 /**
  * BigQuery transform support code for the Dataflow backend.
  */
 public class BigQueryIOTranslator {
-  private static final JsonFactory JSON_FACTORY = Transport.getJsonFactory();
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryIOTranslator.class);
 
   /**
@@ -72,54 +65,6 @@ public class BigQueryIOTranslator {
         }
       }
       context.addValueOnlyOutput(PropertyNames.OUTPUT, context.getOutput(transform));
-    }
-  }
-
-  /**
-   * Implements BigQueryIO Write translation for the Dataflow backend.
-   */
-  public static class WriteTranslator
-      implements DataflowPipelineTranslator.TransformTranslator<BigQueryIO.Write.Bound> {
-
-    @Override
-    public void translate(BigQueryIO.Write.Bound transform,
-                          DataflowPipelineTranslator.TranslationContext context) {
-      if (context.getPipelineOptions().isStreaming()) {
-        // Streaming is handled by the streaming runner.
-        throw new AssertionError(
-            "BigQueryIO is specified to use streaming write in batch mode.");
-      }
-
-      TableReference table = transform.getTable();
-
-      // Actual translation.
-      context.addStep(transform, "ParallelWrite");
-      context.addInput(PropertyNames.FORMAT, "bigquery");
-      context.addInput(PropertyNames.BIGQUERY_TABLE,
-                       table.getTableId());
-      context.addInput(PropertyNames.BIGQUERY_DATASET,
-                       table.getDatasetId());
-      if (table.getProjectId() != null) {
-        context.addInput(PropertyNames.BIGQUERY_PROJECT, table.getProjectId());
-      }
-      if (transform.getSchema() != null) {
-        try {
-          context.addInput(PropertyNames.BIGQUERY_SCHEMA,
-                           JSON_FACTORY.toString(transform.getSchema()));
-        } catch (IOException exn) {
-          throw new IllegalArgumentException("Invalid table schema.", exn);
-        }
-      }
-      context.addInput(
-          PropertyNames.BIGQUERY_CREATE_DISPOSITION,
-          transform.getCreateDisposition().name());
-      context.addInput(
-          PropertyNames.BIGQUERY_WRITE_DISPOSITION,
-          transform.getWriteDisposition().name());
-      // Set sink encoding to TableRowJsonCoder.
-      context.addEncodingInput(
-          WindowedValue.getValueOnlyCoder(TableRowJsonCoder.of()));
-      context.addInput(PropertyNames.PARALLEL_INPUT, context.getInput(transform));
     }
   }
 }
