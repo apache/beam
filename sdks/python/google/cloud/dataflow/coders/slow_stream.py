@@ -59,6 +59,33 @@ class OutputStream(object):
     return ''.join(self.data)
 
 
+class ByteCountingOutputStream(OutputStream):
+  """A pure Python implementation of stream.ByteCountingOutputStream."""
+
+  def __init__(self):
+    # Note that we don't actually use any of the data initialized by our super.
+    super(ByteCountingOutputStream, self).__init__()
+    self.count = 0
+
+  def write(self, byte_array, nested=False):
+    blen = len(byte_array)
+    if nested:
+      self.write_var_int64(blen)
+    self.count += blen
+
+  def write_byte(self, _):
+    self.count += 1
+
+  def get_count(self):
+    return self.count
+
+  def get(self):
+    raise NotImplementedError
+
+  def __str__(self):
+    return '<%s %s>' % (self.__class__.__name__, self.count)
+
+
 class InputStream(object):
   """A pure Python implementation of stream.InputStream."""
 

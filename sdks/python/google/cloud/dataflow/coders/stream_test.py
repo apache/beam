@@ -14,6 +14,7 @@
 
 """Tests for the stream implementations."""
 
+import logging
 import math
 import unittest
 
@@ -22,8 +23,11 @@ from google.cloud.dataflow.coders import slow_stream
 
 
 class StreamTest(unittest.TestCase):
+  # pylint: disable=invalid-name
   InputStream = slow_stream.InputStream
   OutputStream = slow_stream.OutputStream
+  ByteCountingOutputStream = slow_stream.ByteCountingOutputStream
+  # pylint: enable=invalid-name
 
   def test_read_write(self):
     out_s = self.OutputStream()
@@ -99,6 +103,28 @@ class StreamTest(unittest.TestCase):
     for v in values:
       self.assertEquals(v, in_s.read_bigendian_int32())
 
+  def test_byte_counting(self):
+    bc_s = self.ByteCountingOutputStream()
+    self.assertEquals(0, bc_s.get_count())
+    bc_s.write('def')
+    self.assertEquals(3, bc_s.get_count())
+    bc_s.write('')
+    self.assertEquals(3, bc_s.get_count())
+    bc_s.write_byte(10)
+    self.assertEquals(4, bc_s.get_count())
+    # "nested" also writes the length of the string, which should
+    # cause 1 extra byte to be counted.
+    bc_s.write('2345', nested=True)
+    self.assertEquals(9, bc_s.get_count())
+    bc_s.write_var_int64(63)
+    self.assertEquals(10, bc_s.get_count())
+    bc_s.write_bigendian_int64(42)
+    self.assertEquals(18, bc_s.get_count())
+    bc_s.write_bigendian_int32(36)
+    self.assertEquals(22, bc_s.get_count())
+    bc_s.write_bigendian_double(6.25)
+    self.assertEquals(30, bc_s.get_count())
+
 
 try:
   # pylint: disable=g-import-not-at-top
@@ -108,22 +134,26 @@ try:
     """Runs the test with the compiled stream classes."""
     InputStream = stream.InputStream
     OutputStream = stream.OutputStream
+    ByteCountingOutputStream = stream.ByteCountingOutputStream
 
 
   class SlowFastStreamTest(StreamTest):
     """Runs the test with compiled and uncompiled stream classes."""
     InputStream = stream.InputStream
     OutputStream = slow_stream.OutputStream
+    ByteCountingOutputStream = slow_stream.ByteCountingOutputStream
 
 
   class FastSlowStreamTest(StreamTest):
     """Runs the test with uncompiled and compiled stream classes."""
     InputStream = slow_stream.InputStream
     OutputStream = stream.OutputStream
+    ByteCountingOutputStream = stream.ByteCountingOutputStream
 
 except ImportError:
   pass
 
 
 if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
   unittest.main()

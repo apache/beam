@@ -94,6 +94,44 @@ cdef class OutputStream(object):
     self.data = <char*>libc.stdlib.realloc(self.data, self.size)
 
 
+cdef class ByteCountingOutputStream(OutputStream):
+  """An output string stream implementation that only counts the bytes.
+
+  This implementation counts the number of bytes it "writes" but
+  doesn't actually write them anyway.  Thus it has write() but not
+  get().  get_count() returns how many bytes were written.
+
+  This is useful for sizing an encoding.
+  """
+
+  def __cinit__(self):
+    self.count = 0
+
+  cpdef write(self, bytes b, bint nested=False):
+    cdef size_t blen = len(b)
+    if nested:
+      self.write_var_int64(blen)
+    self.count += blen
+
+  cpdef write_byte(self, unsigned char _):
+    self.count += 1
+
+  cpdef write_bigendian_int64(self, libc.stdint.int64_t _):
+    self.count += 8
+
+  cpdef write_bigendian_int32(self, libc.stdint.int32_t _):
+    self.count += 4
+
+  cpdef size_t get_count(self):
+    return self.count
+
+  cpdef bytes get(self):
+    raise NotImplementedError
+
+  def __str__(self):
+    return '<%s %s>' % (self.__class__.__name__, self.count)
+
+
 cdef class InputStream(object):
   """An input string stream implementation supporting read() and size()."""
 

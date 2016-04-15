@@ -32,6 +32,17 @@ cdef class OutputStream(object):
   cdef extend(self, size_t missing)
 
 
+cdef class ByteCountingOutputStream(OutputStream):
+  cdef size_t count
+
+  cpdef write(self, bytes b, bint nested=*)
+  cpdef write_byte(self, unsigned char val)
+  cpdef write_bigendian_int64(self, libc.stdint.int64_t val)
+  cpdef write_bigendian_int32(self, libc.stdint.int32_t val)
+  cpdef size_t get_count(self)
+  cpdef bytes get(self)
+
+
 cdef class InputStream(object):
   cdef size_t pos
   cdef bytes all
