@@ -19,8 +19,8 @@
 package org.apache.beam.runners.flink.translation.wrappers;
 
 import org.apache.beam.sdk.io.Sink;
+import org.apache.beam.sdk.io.Write;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.Write;
 
 import com.google.common.base.Preconditions;
 
