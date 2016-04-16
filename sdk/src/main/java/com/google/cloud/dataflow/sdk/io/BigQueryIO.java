@@ -440,9 +440,6 @@ public class BigQueryIO {
         return new Bound(name, query, table, validate, false);
       }
 
-      /**
-       * Validates the current {@link PTransform}.
-       */
       @Override
       public void validate(PInput input) {
         if (table == null && query == null) {
@@ -930,7 +927,7 @@ public class BigQueryIO {
       }
 
       @Override
-      public PDone apply(PCollection<TableRow> input) {
+      public void validate(PCollection<TableRow> input) {
         BigQueryOptions options = input.getPipeline().getOptions().as(BigQueryOptions.class);
 
         TableReference table = getTable();
@@ -962,8 +959,8 @@ public class BigQueryIO {
         // Note that a presence check can fail if the table or dataset are created by earlier stages
         // of the pipeline. For these cases the withoutValidation method can be used to disable
         // the check.
-        // Unfortunately we can't validate anything early in case tableRefFunction is specified.
-        if (jsonTableRef != null && validate) {
+        // Unfortunately we can't validate anything early if tableRefFunction is specified.
+        if (table != null && validate) {
           verifyDatasetPresence(options, table);
           if (getCreateDisposition() == BigQueryIO.Write.CreateDisposition.CREATE_NEVER) {
             verifyTablePresence(options, table);
@@ -973,9 +970,8 @@ public class BigQueryIO {
           }
         }
 
-        // In streaming, BigQuery write is taken care of by StreamWithDeDup transform.
-        // We also currently do this if a tablespec function is specified.
         if (options.isStreaming() || tableRefFunction != null) {
+          // We will use BigQuery's streaming write API -- validate support dispositions.
           if (createDisposition == CreateDisposition.CREATE_NEVER) {
             throw new IllegalArgumentException("CreateDispostion.CREATE_NEVER is not "
                 + "supported for unbounded PCollections or when using tablespec functions.");
@@ -985,29 +981,43 @@ public class BigQueryIO {
             throw new IllegalArgumentException("WriteDisposition.WRITE_TRUNCATE is not "
                 + "supported for unbounded PCollections or when using tablespec functions.");
           }
-
-          return input.apply(new StreamWithDeDup(table, tableRefFunction, getSchema()));
-        }
-
-        String tempLocation = options.getTempLocation();
-        checkArgument(!Strings.isNullOrEmpty(tempLocation),
-            "BigQueryIO.Write needs a GCS temp location to store temp files.");
-        if (testBigQueryServices == null) {
-          try {
-            GcsPath.fromUri(tempLocation);
-          } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException(String.format(
-                "BigQuery temp location expected a valid 'gs://' path, but was given '%s'",
-                tempLocation), e);
+        } else {
+          // We will use a BigQuery load job -- validate the temp location.
+          String tempLocation = options.getTempLocation();
+          checkArgument(
+              !Strings.isNullOrEmpty(tempLocation),
+              "BigQueryIO.Write needs a GCS temp location to store temp files.");
+          if (testBigQueryServices == null) {
+            try {
+              GcsPath.fromUri(tempLocation);
+            } catch (IllegalArgumentException e) {
+              throw new IllegalArgumentException(
+                  String.format(
+                      "BigQuery temp location expected a valid 'gs://' path, but was given '%s'",
+                      tempLocation),
+                  e);
+            }
           }
         }
+      }
+
+      @Override
+      public PDone apply(PCollection<TableRow> input) {
+        BigQueryOptions options = input.getPipeline().getOptions().as(BigQueryOptions.class);
+
+        // In a streaming job, or when a tablespec function is defined, we use StreamWithDeDup
+        // and BigQuery's streaming import API.
+        if (options.isStreaming() || tableRefFunction != null) {
+          return input.apply(new StreamWithDeDup(getTable(), tableRefFunction, getSchema()));
+        }
+
         String jobIdToken = UUID.randomUUID().toString();
-        String tempFilePrefix = tempLocation + "/BigQuerySinkTemp/" + jobIdToken;
+        String tempFilePrefix = options.getTempLocation() + "/BigQuerySinkTemp/" + jobIdToken;
         BigQueryServices bqServices = getBigQueryServices();
         return input.apply("Write", com.google.cloud.dataflow.sdk.io.Write.to(
             new BigQuerySink(
                 jobIdToken,
-                toJsonString(table),
+                jsonTableRef,
                 jsonSchema,
                 getWriteDisposition(),
                 getCreateDisposition(),
