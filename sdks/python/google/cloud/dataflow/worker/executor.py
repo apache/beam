@@ -23,6 +23,8 @@ import random
 
 
 from google.cloud.dataflow.coders import BytesCoder
+from google.cloud.dataflow.coders import TupleCoder
+from google.cloud.dataflow.coders import WindowedValueCoder
 from google.cloud.dataflow.internal import pickler
 from google.cloud.dataflow.pvalue import EmptySideInput
 from google.cloud.dataflow.runners import common
@@ -65,15 +67,15 @@ class ReceiverSet(object):
     self.opcounter = opcounters.OperationCounters(
         self.counter_factory, step_name, self.coder, self.output_index)
 
-  def output(self, windowed_value):
-    self.update_counters_start(windowed_value)
+  def output(self, windowed_value, coder=None):
+    self.update_counters_start(windowed_value, coder)
     for receiver in self.receivers:
       receiver.process(windowed_value)
     self.update_counters_finish()
 
-  def update_counters_start(self, windowed_value):
+  def update_counters_start(self, windowed_value, coder=None):
     if self.opcounter:
-      self.opcounter.update_from(windowed_value)
+      self.opcounter.update_from(windowed_value, coder)
 
   def update_counters_finish(self):
     if self.opcounter:
@@ -130,8 +132,8 @@ class Operation(object):
     """Process element in operation."""
     pass
 
-  def output(self, windowed_value, output_index=0):
-    self.receivers[output_index].output(windowed_value)
+  def output(self, windowed_value, coder=None, output_index=0):
+    self.receivers[output_index].output(windowed_value, coder)
 
   def add_receiver(self, operation, output_index=0):
     """Adds a receiver operation for the specified output."""
@@ -282,8 +284,10 @@ class GroupedShuffleReadOperation(Operation):
 
   def start(self):
     super(GroupedShuffleReadOperation, self).start()
+    write_coder = None
     if self.shuffle_source is None:
       coders = (self.spec.coder.key_coder(), self.spec.coder.value_coder())
+      write_coder = WindowedValueCoder(TupleCoder(coders))
       self.shuffle_source = shuffle.GroupedShuffleSource(
           self.spec.shuffle_reader_config, coder=coders,
           start_position=self.spec.start_shuffle_position,
@@ -292,7 +296,7 @@ class GroupedShuffleReadOperation(Operation):
       for key, key_values in reader:
         self._reader = reader
         windowed_value = GlobalWindows.WindowedValue((key, key_values))
-        self.output(windowed_value)
+        self.output(windowed_value, coder=write_coder)
 
   def get_progress(self):
     if self._reader is not None:
@@ -313,8 +317,10 @@ class UngroupedShuffleReadOperation(Operation):
 
   def start(self):
     super(UngroupedShuffleReadOperation, self).start()
+    write_coder = None
     if self.shuffle_source is None:
       coders = (BytesCoder(), self.spec.coder)
+      write_coder = WindowedValueCoder(TupleCoder(coders))
       self.shuffle_source = shuffle.UngroupedShuffleSource(
           self.spec.shuffle_reader_config, coder=coders,
           start_position=self.spec.start_shuffle_position,
@@ -323,7 +329,7 @@ class UngroupedShuffleReadOperation(Operation):
       for value in reader:
         self._reader = reader
         windowed_value = GlobalWindows.WindowedValue(value)
-        self.output(windowed_value)
+        self.output(windowed_value, coder=write_coder)
 
   def get_progress(self):
     # 'UngroupedShuffleReader' does not support progress reporting.
@@ -350,6 +356,7 @@ class ShuffleWriteOperation(Operation):
       coders = (BytesCoder(), coder)
     else:
       coders = (coder.key_coder(), coder.value_coder())
+    self._write_coder = WindowedValueCoder(TupleCoder(coders))
     if self.shuffle_sink is None:
       self.shuffle_sink = shuffle.ShuffleSink(
           self.spec.shuffle_writer_config, coder=coders)
@@ -364,7 +371,7 @@ class ShuffleWriteOperation(Operation):
     if self.debug_logging_enabled:
       logging.debug('Processing [%s] in %s', o, self)
     assert isinstance(o, WindowedValue)
-    self.receivers[0].update_counters_start(o)
+    self.receivers[0].update_counters_start(o, coder=self._write_coder)
     # We typically write into shuffle key/value pairs. This is the reason why
     # the else branch below expects the value attribute of the WindowedValue
     # argument to be a KV pair. However the service may write to shuffle in

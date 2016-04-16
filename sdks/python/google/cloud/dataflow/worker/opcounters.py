@@ -31,7 +31,7 @@ class OperationCounters(object):
     self.coder = coder
     self._active_accumulators = []
 
-  def update_from(self, windowed_value):
+  def update_from(self, windowed_value, coder=None):
     """Add one value to this counter."""
     self.element_counter.update(1)
     byte_size_accumulator = Accumulator(self.mean_byte_counter.name)
@@ -39,7 +39,9 @@ class OperationCounters(object):
     # TODO(gildea):
     # Actually compute the encoded size of this value.
     # In spirit, something like this:
-    #     self.coder.store_estimated_size(windowed_value, byte_size_accumulator)
+    #     if coder is None:
+    #       coder = self.coder
+    #     coder.store_estimated_size(windowed_value, byte_size_accumulator)
     # but will need to do sampling.
 
   def update_collect(self):
