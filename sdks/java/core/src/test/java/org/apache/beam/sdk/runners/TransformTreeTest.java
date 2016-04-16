@@ -128,45 +128,46 @@ public class TransformTreeTest {
     final EnumSet<TransformsSeen> left =
         EnumSet.noneOf(TransformsSeen.class);
 
-    p.traverseTopologically(new Pipeline.PipelineVisitor() {
-      @Override
-      public void enterCompositeTransform(TransformTreeNode node) {
-        PTransform<?, ?> transform = node.getTransform();
-        if (transform instanceof Sample.SampleAny) {
-          assertTrue(visited.add(TransformsSeen.SAMPLE_ANY));
-          assertNotNull(node.getEnclosingNode());
-          assertTrue(node.isCompositeNode());
-        } else if (transform instanceof Write.Bound) {
-          assertTrue(visited.add(TransformsSeen.WRITE));
-          assertNotNull(node.getEnclosingNode());
-          assertTrue(node.isCompositeNode());
-        }
-        assertThat(transform, not(instanceOf(Read.Bounded.class)));
-      }
+    p.traverseTopologically(
+        new Pipeline.PipelineVisitor() {
+          @Override
+          public void enterCompositeTransform(TransformTreeNode node) {
+            PTransform<?, ?> transform = node.getTransform();
+            if (transform instanceof Sample.SampleAny) {
+              assertTrue(visited.add(TransformsSeen.SAMPLE_ANY));
+              assertNotNull(node.getEnclosingNode());
+              assertTrue(node.isCompositeNode());
+            } else if (transform instanceof Write.Bound) {
+              assertTrue(visited.add(TransformsSeen.WRITE));
+              assertNotNull(node.getEnclosingNode());
+              assertTrue(node.isCompositeNode());
+            }
+            assertThat(transform, not(instanceOf(Read.Bounded.class)));
+          }
 
-      @Override
-      public void leaveCompositeTransform(TransformTreeNode node) {
-        PTransform<?, ?> transform = node.getTransform();
-        if (transform instanceof Sample.SampleAny) {
-          assertTrue(left.add(TransformsSeen.SAMPLE_ANY));
-        }
-      }
+          @Override
+          public void leaveCompositeTransform(TransformTreeNode node) {
+            PTransform<?, ?> transform = node.getTransform();
+            if (transform instanceof Sample.SampleAny) {
+              assertTrue(left.add(TransformsSeen.SAMPLE_ANY));
+            }
+          }
 
-      @Override
-      public void visitTransform(TransformTreeNode node) {
-        PTransform<?, ?> transform = node.getTransform();
-        // Pick is a composite, should not be visited here.
-        assertThat(transform, not(instanceOf(Sample.SampleAny.class)));
-        assertThat(transform, not(instanceOf(Write.Bound.class)));
-        if (transform instanceof Read.Bounded) {
-          assertTrue(visited.add(TransformsSeen.READ));
-        }
-      }
+          @Override
+          public void visitTransform(TransformTreeNode node) {
+            PTransform<?, ?> transform = node.getTransform();
+            // Pick is a composite, should not be visited here.
+            assertThat(transform, not(instanceOf(Sample.SampleAny.class)));
+            assertThat(transform, not(instanceOf(Write.Bound.class)));
+            if (transform instanceof Read.Bounded
+                && node.getEnclosingNode().getTransform() instanceof TextIO.Read.Bound) {
+              assertTrue(visited.add(TransformsSeen.READ));
+            }
+          }
 
-      @Override
-      public void visitValue(PValue value, TransformTreeNode producer) {
-      }
-    });
+          @Override
+          public void visitValue(PValue value, TransformTreeNode producer) {}
+        });
 
     assertTrue(visited.equals(EnumSet.allOf(TransformsSeen.class)));
     assertTrue(left.equals(EnumSet.of(TransformsSeen.SAMPLE_ANY)));

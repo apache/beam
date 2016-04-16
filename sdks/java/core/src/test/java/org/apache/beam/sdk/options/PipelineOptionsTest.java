@@ -24,7 +24,7 @@ import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import org.apache.beam.sdk.runners.DirectPipelineRunner;
+import org.apache.beam.sdk.runners.inprocess.InProcessPipelineRunner;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -87,7 +87,7 @@ public class PipelineOptionsTest {
 
   @Test
   public void testDefaultRunnerIsSet() {
-    assertEquals(DirectPipelineRunner.class, PipelineOptionsFactory.create().getRunner());
+    assertEquals(InProcessPipelineRunner.class, PipelineOptionsFactory.create().getRunner());
   }
 
   @Test
