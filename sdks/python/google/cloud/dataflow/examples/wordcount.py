@@ -24,6 +24,8 @@ import google.cloud.dataflow as df
 
 
 empty_line_aggregator = df.Aggregator('emptyLines')
+average_word_size_aggregator = df.Aggregator('averageWordLength',
+                                             df.combiners.Mean())
 
 
 class WordExtractingDoFn(df.DoFn):
@@ -43,7 +45,10 @@ class WordExtractingDoFn(df.DoFn):
     text_line = context.element.strip()
     if not text_line:
       context.aggregate_to(empty_line_aggregator, 1)
-    return re.findall(r'[A-Za-z\']+', text_line)
+    words = re.findall(r'[A-Za-z\']+', text_line)
+    for w in words:
+      context.aggregate_to(average_word_size_aggregator, float(len(w)))
+    return words
 
 
 def run(argv=None):
@@ -81,7 +86,11 @@ def run(argv=None):
   output | df.io.Write('write', df.io.TextFileSink(known_args.output))
 
   # Actually run the pipeline (all operations above are deferred).
-  p.run()
+  result = p.run()
+  empty_line_values = result.aggregated_values(empty_line_aggregator)
+  logging.info('number of empty lines: %d', sum(empty_line_values.values()))
+  word_length_values = result.aggregated_values(average_word_size_aggregator)
+  logging.info('average word lengths: %s', word_length_values.values())
 
 
 if __name__ == '__main__':

@@ -89,6 +89,15 @@ class Counter(object):
   def total(self):
     return self.c_total + self.py_total
 
+  def value(self):
+    if self.aggregation_kind == self.SUM:
+      return self.total
+    elif self.aggregation_kind == self.MEAN:
+      return float(self.total)/self.elements
+    else:
+      # This can't happen, because we check in __init__
+      raise TypeError('%s.value(): unsupported aggregation_kind' % self)
+
   def __str__(self):
     return '<%s>' % self._str_internal()
 
@@ -123,6 +132,10 @@ class Accumulator(Counter):
     """
     super(Accumulator, self).__init__('internal-%s-%x' % (name, id(self)),
                                       Counter.SUM)
+
+
+# Counters that represent Accumulators have names starting with this
+USER_COUNTER_PREFIX = 'user-'
 
 
 class CounterFactory(object):
@@ -168,7 +181,7 @@ class CounterFactory(object):
       A new or existing counter.
     """
     with self._lock:
-      name = 'user-%s-%s' % (step_name, aggregator.name)
+      name = '%s%s-%s' % (USER_COUNTER_PREFIX, step_name, aggregator.name)
       aggregation_kind = aggregator.aggregation_kind
       counter = self.counters.get(name, None)
       if counter:
@@ -190,3 +203,32 @@ class CounterFactory(object):
     """
     with self._lock:
       return self.counters.values()
+
+  def get_aggregator_values(self, aggregator_or_name):
+    """Returns dict of step names to values of the aggregator."""
+    with self._lock:
+      return get_aggregator_values(
+          aggregator_or_name, self.counters, lambda counter: counter.value())
+
+
+def get_aggregator_values(aggregator_or_name, counter_dict,
+                          value_extractor=None):
+  """Extracts the named aggregator value from a set of counters.
+
+  Args:
+    aggregator_or_name: an Aggregator object or the name of one.
+    counter_dict: a dict object of {name: value_wrapper}
+    value_extractor: a function to convert the value_wrapper into a value.
+      If None, no extraction is done and the value is return unchanged.
+
+  Returns:
+    dict of step names to values of the aggregator.
+  """
+  name = aggregator_or_name
+  if value_extractor is None:
+    value_extractor = lambda x: x
+  if not isinstance(aggregator_or_name, basestring):
+    name = aggregator_or_name.name
+    return {n: value_extractor(c) for n, c in counter_dict.iteritems()
+            if n.startswith(USER_COUNTER_PREFIX)
+            and n.endswith('-%s' % name)}

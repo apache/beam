@@ -32,7 +32,9 @@ from google.cloud.dataflow.pvalue import AsSingleton
 from google.cloud.dataflow.pvalue import EmptySideInput
 from google.cloud.dataflow.runners.common import DoFnRunner
 from google.cloud.dataflow.runners.common import DoFnState
+from google.cloud.dataflow.runners.runner import PipelineResult
 from google.cloud.dataflow.runners.runner import PipelineRunner
+from google.cloud.dataflow.runners.runner import PipelineState
 from google.cloud.dataflow.runners.runner import PValueCache
 from google.cloud.dataflow.transforms import DoFnProcessContext
 from google.cloud.dataflow.transforms.window import GlobalWindows
@@ -89,6 +91,8 @@ class DirectPipelineRunner(PipelineRunner):
   def run(self, pipeline, node=None):
     super(DirectPipelineRunner, self).run(pipeline, node)
     logging.info('Final: Debug counters: %s', self.debug_counters)
+    return DirectPipelineResult(state=PipelineState.DONE,
+                                counter_factory=self._counter_factory)
 
   @skip_if_cached
   def run_ParDo(self, transform_node):
@@ -226,3 +230,14 @@ class DirectPipelineRunner(PipelineRunner):
       for v in self._cache.get_pvalue(transform_node.inputs[0]):
         self.debug_counters['element_counts'][transform_node.full_label] += 1
         writer.Write(v.value)
+
+
+class DirectPipelineResult(PipelineResult):
+  """A DirectPipelineResult provides access to info about a pipeline."""
+
+  def __init__(self, state, counter_factory=None):
+    super(DirectPipelineResult, self).__init__(state)
+    self._counter_factory = counter_factory
+
+  def aggregated_values(self, aggregator_or_name):
+    return self._counter_factory.get_aggregator_values(aggregator_or_name)

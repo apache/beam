@@ -83,7 +83,6 @@ class PipelineRunner(object):
           raise
 
     pipeline.visit(RunVisitor(self), node=node)
-    return PipelineResult(state=PipelineState.DONE)
 
   def clear(self, pipeline, node=None):
     """Clear all nodes or nodes reachable from node of materialized values.
@@ -267,3 +266,10 @@ class PipelineResult(object):
   def current_state(self):
     """Return the current state of running the pipeline."""
     return self._state
+
+  # pylint: disable=unused-argument
+  def aggregated_values(self, aggregator_or_name):
+    """Return a dict of step names to values of the Aggregator."""
+    logging.warn('%s does not implement aggregated_values',
+                 self.__class__.__name__)
+    return {}
