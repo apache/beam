@@ -28,6 +28,7 @@ import org.apache.beam.sdk.util.IllegalMutationException;
 import org.apache.beam.sdk.util.MutationDetector;
 import org.apache.beam.sdk.util.MutationDetectors;
 import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -112,16 +113,17 @@ class ImmutabilityCheckingBundleFactory implements BundleFactory {
         try {
           detector.verifyUnmodified();
         } catch (IllegalMutationException exn) {
-          throw new IllegalMutationException(
-              String.format(
-                  "PTransform %s mutated value %s after it was output (new value was %s)."
-                      + " Values must not be mutated in any way after being output.",
-                  underlying.getPCollection().getProducingTransformInternal().getFullName(),
+          throw UserCodeException.wrap(
+              new IllegalMutationException(
+                  String.format(
+                      "PTransform %s mutated value %s after it was output (new value was %s)."
+                          + " Values must not be mutated in any way after being output.",
+                      underlying.getPCollection().getProducingTransformInternal().getFullName(),
+                      exn.getSavedValue(),
+                      exn.getNewValue()),
                   exn.getSavedValue(),
-                  exn.getNewValue()),
-              exn.getSavedValue(),
-              exn.getNewValue(),
-              exn);
+                  exn.getNewValue(),
+                  exn));
         }
       }
       return underlying.commit(synchronizedProcessingTime);

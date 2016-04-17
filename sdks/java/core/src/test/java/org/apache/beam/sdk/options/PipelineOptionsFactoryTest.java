@@ -31,7 +31,6 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.runners.DirectPipelineRunner;
 import org.apache.beam.sdk.runners.PipelineRunner;
-import org.apache.beam.sdk.runners.inprocess.InProcessPipelineRunner;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
 
@@ -61,7 +60,7 @@ import java.util.Set;
 @RunWith(JUnit4.class)
 public class PipelineOptionsFactoryTest {
   private static final Class<? extends PipelineRunner<?>> DEFAULT_RUNNER_CLASS =
-      InProcessPipelineRunner.class;
+      DirectPipelineRunner.class;
 
   @Rule public ExpectedException expectedException = ExpectedException.none();
   @Rule public TestRule restoreSystemProperties = new RestoreSystemProperties();

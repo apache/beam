@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.runners.inprocess;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -30,6 +31,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.IllegalMutationException;
+import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -161,9 +163,10 @@ public class ImmutabilityCheckingBundleFactoryTest {
     root.add(WindowedValue.valueInGlobalWindow(array));
 
     array[1] = 2;
-    thrown.expect(IllegalMutationException.class);
+    thrown.expect(UserCodeException.class);
+    thrown.expectCause(isA(IllegalMutationException.class));
     thrown.expectMessage("Values must not be mutated in any way after being output");
-    root.commit(Instant.now());
+    CommittedBundle<byte[]> committed = root.commit(Instant.now());
   }
 
   @Test
@@ -181,9 +184,10 @@ public class ImmutabilityCheckingBundleFactoryTest {
     keyed.add(windowedArray);
 
     array[0] = Byte.MAX_VALUE;
-    thrown.expect(IllegalMutationException.class);
+    thrown.expect(UserCodeException.class);
+    thrown.expectCause(isA(IllegalMutationException.class));
     thrown.expectMessage("Values must not be mutated in any way after being output");
-    keyed.commit(Instant.now());
+    CommittedBundle<byte[]> committed = keyed.commit(Instant.now());
   }
 
   @Test
@@ -201,9 +205,10 @@ public class ImmutabilityCheckingBundleFactoryTest {
     intermediate.add(windowedArray);
 
     array[2] = -3;
-    thrown.expect(IllegalMutationException.class);
+    thrown.expect(UserCodeException.class);
+    thrown.expectCause(isA(IllegalMutationException.class));
     thrown.expectMessage("Values must not be mutated in any way after being output");
-    intermediate.commit(Instant.now());
+    CommittedBundle<byte[]> committed = intermediate.commit(Instant.now());
   }
 
   private static class IdentityDoFn<T> extends DoFn<T, T> {
