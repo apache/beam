@@ -23,8 +23,8 @@ import static com.google.common.base.Preconditions.checkState;
 
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.Proto2Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.coders.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.Sink.WriteOperation;
@@ -660,7 +660,7 @@ public class BigtableIO {
 
     @Override
     public Coder<Row> getDefaultOutputCoder() {
-      return Proto2Coder.of(Row.class);
+      return ProtoCoder.of(Row.class);
     }
 
     /** Helper that splits the specified range in this source into bundles. */
