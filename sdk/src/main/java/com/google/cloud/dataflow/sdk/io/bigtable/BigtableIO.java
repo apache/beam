@@ -27,8 +27,8 @@ import com.google.bigtable.v1.SampleRowKeysResponse;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.Coder;
-import com.google.cloud.dataflow.sdk.coders.Proto2Coder;
 import com.google.cloud.dataflow.sdk.coders.VarLongCoder;
+import com.google.cloud.dataflow.sdk.coders.protobuf.ProtoCoder;
 import com.google.cloud.dataflow.sdk.io.BoundedSource;
 import com.google.cloud.dataflow.sdk.io.BoundedSource.BoundedReader;
 import com.google.cloud.dataflow.sdk.io.Sink.WriteOperation;
@@ -658,7 +658,7 @@ public class BigtableIO {
 
     @Override
     public Coder<Row> getDefaultOutputCoder() {
-      return Proto2Coder.of(Row.class);
+      return ProtoCoder.of(Row.class);
     }
 
     /** Helper that splits the specified range in this source into bundles. */
