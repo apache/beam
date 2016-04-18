@@ -19,6 +19,7 @@ package org.apache.beam.sdk.runners.inprocess;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import org.apache.beam.sdk.runners.inprocess.InProcessEvaluationContext.ReadyCheckingSideInputReader;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.PCollectionViewWindow;
@@ -44,6 +45,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 
 import javax.annotation.Nullable;
 
@@ -88,11 +90,12 @@ class InProcessSideInputContainer {
   }
 
   /**
-   * Return a view of this {@link InProcessSideInputContainer} that contains only the views in
-   * the provided argument. The returned {@link InProcessSideInputContainer} is unmodifiable without
+   * Return a view of this {@link InProcessSideInputContainer} that contains only the views in the
+   * provided argument. The returned {@link InProcessSideInputContainer} is unmodifiable without
    * casting, but will change as this {@link InProcessSideInputContainer} is modified.
    */
-  public SideInputReader createReaderForViews(Collection<PCollectionView<?>> newContainedViews) {
+  public ReadyCheckingSideInputReader createReaderForViews(
+      Collection<PCollectionView<?>> newContainedViews) {
     if (!containedViews.containsAll(newContainedViews)) {
       Set<PCollectionView<?>> currentlyContained = ImmutableSet.copyOf(containedViews);
       Set<PCollectionView<?>> newRequested = ImmutableSet.copyOf(newContainedViews);
@@ -173,7 +176,7 @@ class InProcessSideInputContainer {
     }
   }
 
-  private final class SideInputContainerSideInputReader implements SideInputReader {
+  private final class SideInputContainerSideInputReader implements ReadyCheckingSideInputReader {
     private final Collection<PCollectionView<?>> readerViews;
 
     private SideInputContainerSideInputReader(Collection<PCollectionView<?>> readerViews) {
@@ -181,33 +184,23 @@ class InProcessSideInputContainer {
     }
 
     @Override
+    public boolean isReady(final PCollectionView<?> view, final BoundedWindow window) {
+      checkArgument(
+          readerViews.contains(view),
+          "Tried to check if view %s was ready in a SideInputReader that does not contain it. "
+              + "Contained views; %s",
+          view,
+          readerViews);
+      return getViewFuture(view, window).isDone();
+    }
+
+    @Override
     @Nullable
     public <T> T get(final PCollectionView<T> view, final BoundedWindow window) {
       checkArgument(
           readerViews.contains(view), "calling get(PCollectionView) with unknown view: " + view);
-      PCollectionViewWindow<T> windowedView = PCollectionViewWindow.of(view, window);
       try {
-        final SettableFuture<Iterable<? extends WindowedValue<?>>> future =
-            viewByWindows.get(windowedView);
-
-        WindowingStrategy<?, ?> windowingStrategy = view.getWindowingStrategyInternal();
-        evaluationContext.scheduleAfterOutputWouldBeProduced(
-            view, window, windowingStrategy, new Runnable() {
-              @Override
-              public void run() {
-                // The requested window has closed without producing elements, so reflect that in
-                // the PCollectionView. If set has already been called, will do nothing.
-                future.set(Collections.<WindowedValue<?>>emptyList());
-          }
-
-          @Override
-          public String toString() {
-            return MoreObjects.toStringHelper("InProcessSideInputContainerEmptyCallback")
-                .add("view", view)
-                .add("window", window)
-                .toString();
-          }
-        });
+        final Future<Iterable<? extends WindowedValue<?>>> future = getViewFuture(view, window);
         // Safe covariant cast
         @SuppressWarnings("unchecked")
         Iterable<WindowedValue<?>> values = (Iterable<WindowedValue<?>>) future.get();
@@ -220,6 +213,23 @@ class InProcessSideInputContainer {
       }
     }
 
+    /**
+     * Gets the future containing the contents of the provided {@link PCollectionView} in the
+     * provided {@link BoundedWindow}, setting up a callback to populate the future with empty
+     * contents if necessary.
+     */
+    private <T> Future<Iterable<? extends WindowedValue<?>>> getViewFuture(
+        final PCollectionView<T> view, final BoundedWindow window)  {
+      PCollectionViewWindow<T> windowedView = PCollectionViewWindow.of(view, window);
+      final SettableFuture<Iterable<? extends WindowedValue<?>>> future =
+          viewByWindows.getUnchecked(windowedView);
+
+      WindowingStrategy<?, ?> windowingStrategy = view.getWindowingStrategyInternal();
+      evaluationContext.scheduleAfterOutputWouldBeProduced(
+          view, window, windowingStrategy, new WriteEmptyViewContents(view, window, future));
+      return future;
+    }
+
     @Override
     public <T> boolean contains(PCollectionView<T> view) {
       return readerViews.contains(view);
@@ -228,6 +238,34 @@ class InProcessSideInputContainer {
     @Override
     public boolean isEmpty() {
       return readerViews.isEmpty();
+    }
+  }
+
+  private static class WriteEmptyViewContents implements Runnable {
+    private final PCollectionView<?> view;
+    private final BoundedWindow window;
+    private final SettableFuture<Iterable<? extends WindowedValue<?>>> future;
+
+    private WriteEmptyViewContents(PCollectionView<?> view, BoundedWindow window,
+        SettableFuture<Iterable<? extends WindowedValue<?>>> future) {
+      this.future = future;
+      this.view = view;
+      this.window = window;
+    }
+
+    @Override
+    public void run() {
+      // The requested window has closed without producing elements, so reflect that in
+      // the PCollectionView. If set has already been called, will do nothing.
+      future.set(Collections.<WindowedValue<?>>emptyList());
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+          .add("view", view)
+          .add("window", window)
+          .toString();
     }
   }
 }
