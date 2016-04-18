@@ -33,17 +33,18 @@ public class ExerciseKafkaStreamSource {
     settings.setClass("euphoria.io.datasink.factory.stdout",
         StdoutSink.Factory.class);
     settings.setBoolean("stdout.params.dump-partition-id", true);
+    settings.setString("kafka.params.fetch.min.bytes", "1024");
+    settings.setString("kafka.params.check.crcs", "false");
 
     Flow flow = Flow.create("Test", settings);
 
     // set-up our input source (a stream)
     Dataset<Pair<byte[], byte[]>> lines = flow.createInput(
-        URI.create("kafka://ginkafka1.dev:9092/fulltext_robot_logs?group=quux"));
+        URI.create("kafka://ginkafka1.dev:9092/fulltext_robot_logs?cfg=kafka.params"));
 
     // extract interesting words from the source
     Dataset<Pair<String, Long>> words = FlatMap.of(lines)
         .by((Pair<byte[], byte[]> p, Collector<Pair<String, Long>> c) -> {
-          // ~ we're interested onlly
           Reader data = new InputStreamReader(
               new ByteArrayInputStream(p.getValue()),
               StandardCharsets.UTF_8);
