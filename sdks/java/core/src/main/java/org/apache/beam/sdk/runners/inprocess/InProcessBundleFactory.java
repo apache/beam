@@ -48,9 +48,7 @@ class InProcessBundleFactory implements BundleFactory {
 
   @Override
   public <T> UncommittedBundle<T> createBundle(CommittedBundle<?> input, PCollection<T> output) {
-    return input.isKeyed()
-        ? InProcessBundle.keyed(output, input.getKey())
-        : InProcessBundle.unkeyed(output);
+    return InProcessBundle.keyed(output, input.getKey());
   }
 
   @Override
@@ -64,7 +62,6 @@ class InProcessBundleFactory implements BundleFactory {
    */
   private static final class InProcessBundle<T> implements UncommittedBundle<T> {
     private final PCollection<T> pcollection;
-    private final boolean keyed;
     private final Object key;
     private boolean committed = false;
     private ImmutableList.Builder<WindowedValue<T>> elements;
@@ -73,23 +70,19 @@ class InProcessBundleFactory implements BundleFactory {
      * Create a new {@link InProcessBundle} for the specified {@link PCollection} without a key.
      */
     public static <T> InProcessBundle<T> unkeyed(PCollection<T> pcollection) {
-      return new InProcessBundle<T>(pcollection, false, null);
+      return new InProcessBundle<T>(pcollection, null);
     }
 
     /**
      * Create a new {@link InProcessBundle} for the specified {@link PCollection} with the specified
      * key.
-     *
-     * <p>See {@link CommittedBundle#getKey()} and {@link CommittedBundle#isKeyed()} for more
-     * information.
      */
     public static <T> InProcessBundle<T> keyed(PCollection<T> pcollection, Object key) {
-      return new InProcessBundle<T>(pcollection, true, key);
+      return new InProcessBundle<T>(pcollection, key);
     }
 
-    private InProcessBundle(PCollection<T> pcollection, boolean keyed, Object key) {
+    private InProcessBundle(PCollection<T> pcollection, Object key) {
       this.pcollection = pcollection;
-      this.keyed = keyed;
       this.key = key;
       this.elements = ImmutableList.builder();
     }
@@ -120,11 +113,6 @@ class InProcessBundleFactory implements BundleFactory {
         @Nullable
         public Object getKey() {
           return key;
-        }
-
-        @Override
-        public boolean isKeyed() {
-          return keyed;
         }
 
         @Override
