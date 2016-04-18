@@ -329,7 +329,7 @@ public class TransformExecutorTest {
     WindowedValue<String> fooElem = WindowedValue.valueInGlobalWindow("foo");
     WindowedValue<String> barElem = WindowedValue.valueInGlobalWindow("bar");
     CommittedBundle<String> inputBundle =
-        InProcessBundle.unkeyed(created).add(fooElem).add(barElem).commit(Instant.now());
+        bundleFactory.createRootBundle(created).add(fooElem).add(barElem).commit(Instant.now());
     when(
             registry.forApplication(
                 downstream.getProducingTransformInternal(), inputBundle, evaluationContext))
@@ -390,7 +390,7 @@ public class TransformExecutorTest {
 
     WindowedValue<byte[]> fooBytes = WindowedValue.valueInGlobalWindow("foo".getBytes());
     CommittedBundle<byte[]> inputBundle =
-        InProcessBundle.unkeyed(pcBytes).add(fooBytes).commit(Instant.now());
+        bundleFactory.createRootBundle(pcBytes).add(fooBytes).commit(Instant.now());
     when(
             registry.forApplication(
                 pcBytes.getProducingTransformInternal(), inputBundle, evaluationContext))
@@ -449,7 +449,7 @@ public class TransformExecutorTest {
 
     WindowedValue<byte[]> fooBytes = WindowedValue.valueInGlobalWindow("foo".getBytes());
     CommittedBundle<byte[]> inputBundle =
-        InProcessBundle.unkeyed(pcBytes).add(fooBytes).commit(Instant.now());
+        bundleFactory.createRootBundle(pcBytes).add(fooBytes).commit(Instant.now());
     when(
             registry.forApplication(
                 pcBytes.getProducingTransformInternal(), inputBundle, evaluationContext))
