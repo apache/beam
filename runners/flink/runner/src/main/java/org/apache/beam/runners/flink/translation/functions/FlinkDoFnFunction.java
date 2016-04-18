@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
+import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.runners.flink.translation.wrappers.SerializableFnAggregatorWrapper;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -35,15 +36,11 @@ import org.apache.beam.sdk.values.TupleTag;
 
 import com.google.common.collect.ImmutableList;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.util.Collector;
 import org.joda.time.Instant;
 
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -55,25 +52,11 @@ import java.util.List;
 public class FlinkDoFnFunction<IN, OUT> extends RichMapPartitionFunction<IN, OUT> {
 
   private final DoFn<IN, OUT> doFn;
-  private transient PipelineOptions options;
+  private final SerializedPipelineOptions serializedOptions;
 
   public FlinkDoFnFunction(DoFn<IN, OUT> doFn, PipelineOptions options) {
     this.doFn = doFn;
-    this.options = options;
-  }
-
-  private void writeObject(ObjectOutputStream out)
-      throws IOException, ClassNotFoundException {
-    out.defaultWriteObject();
-    ObjectMapper mapper = new ObjectMapper();
-    mapper.writeValue(out, options);
-  }
-
-  private void readObject(ObjectInputStream in)
-      throws IOException, ClassNotFoundException {
-    in.defaultReadObject();
-    ObjectMapper mapper = new ObjectMapper();
-    options = mapper.readValue(in, PipelineOptions.class);
+    this.serializedOptions = new SerializedPipelineOptions(options);
   }
 
   @Override
@@ -160,7 +143,7 @@ public class FlinkDoFnFunction<IN, OUT> extends RichMapPartitionFunction<IN, OUT
 
     @Override
     public PipelineOptions getPipelineOptions() {
-      return options;
+      return serializedOptions.getPipelineOptions();
     }
 
     @Override

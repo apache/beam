@@ -18,21 +18,16 @@
 
 package org.apache.beam.runners.flink.translation.wrappers;
 
+import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.sdk.io.Sink;
 import org.apache.beam.sdk.io.Write;
 import org.apache.beam.sdk.options.PipelineOptions;
-
-import com.google.common.base.Preconditions;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.AbstractID;
 
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.lang.reflect.Field;
 
 /**
@@ -43,7 +38,7 @@ public class SinkOutputFormat<T> implements OutputFormat<T> {
 
   private final Sink<T> sink;
 
-  private transient PipelineOptions pipelineOptions;
+  private final SerializedPipelineOptions serializedOptions;
 
   private Sink.WriteOperation<T, ?> writeOperation;
   private Sink.Writer<T, ?> writer;
@@ -52,7 +47,7 @@ public class SinkOutputFormat<T> implements OutputFormat<T> {
 
   public SinkOutputFormat(Write.Bound<T> transform, PipelineOptions pipelineOptions) {
     this.sink = extractSink(transform);
-    this.pipelineOptions = Preconditions.checkNotNull(pipelineOptions);
+    this.serializedOptions = new SerializedPipelineOptions(pipelineOptions);
   }
 
   private Sink<T> extractSink(Write.Bound<T> transform) {
@@ -70,9 +65,9 @@ public class SinkOutputFormat<T> implements OutputFormat<T> {
 
   @Override
   public void configure(Configuration configuration) {
-    writeOperation = sink.createWriteOperation(pipelineOptions);
+    writeOperation = sink.createWriteOperation(serializedOptions.getPipelineOptions());
     try {
-      writeOperation.initialize(pipelineOptions);
+      writeOperation.initialize(serializedOptions.getPipelineOptions());
     } catch (Exception e) {
       throw new RuntimeException("Failed to initialize the write operation.", e);
     }
@@ -81,7 +76,7 @@ public class SinkOutputFormat<T> implements OutputFormat<T> {
   @Override
   public void open(int taskNumber, int numTasks) throws IOException {
     try {
-      writer = writeOperation.createWriter(pipelineOptions);
+      writer = writeOperation.createWriter(serializedOptions.getPipelineOptions());
     } catch (Exception e) {
       throw new IOException("Couldn't create writer.", e);
     }
@@ -110,15 +105,4 @@ public class SinkOutputFormat<T> implements OutputFormat<T> {
     }
   }
 
-  private void writeObject(ObjectOutputStream out) throws IOException, ClassNotFoundException {
-    out.defaultWriteObject();
-    ObjectMapper mapper = new ObjectMapper();
-    mapper.writeValue(out, pipelineOptions);
-  }
-
-  private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-    in.defaultReadObject();
-    ObjectMapper mapper = new ObjectMapper();
-    pipelineOptions = mapper.readValue(in, PipelineOptions.class);
-  }
 }
