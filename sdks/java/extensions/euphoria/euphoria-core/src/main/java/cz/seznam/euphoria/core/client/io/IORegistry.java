@@ -2,6 +2,7 @@
 package cz.seznam.euphoria.core.client.io;
 
 import cz.seznam.euphoria.core.util.Settings;
+
 import java.net.URI;
 
 /**
@@ -24,6 +25,7 @@ public abstract class IORegistry {
    */
   public abstract <T> DataSource<T> openSource(URI uri, Settings settings) throws Exception;
 
+  public abstract <T> DataSink<T> openSink(URI uri, Settings settings) throws Exception;
 
   /**
    * Create new instance from config value.

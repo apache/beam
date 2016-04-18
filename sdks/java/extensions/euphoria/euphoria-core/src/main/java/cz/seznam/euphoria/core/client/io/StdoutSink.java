@@ -1,15 +1,29 @@
 package cz.seznam.euphoria.core.client.io;
 
+import cz.seznam.euphoria.core.util.Settings;
+import cz.seznam.euphoria.core.util.URIParams;
+
 import java.io.IOException;
 import java.io.PrintStream;
-import java.util.Objects;
+import java.net.URI;
 
 /**
  * A sink to write to a specified print stream (typically
  * {@link java.lang.System#out}) using the produce element's
  * {@link Object#toString()} implementation.
  */
-public class PrintStreamSink<T> extends DataSink<T> {
+public class StdoutSink<T> extends DataSink<T> {
+
+  public static class Factory implements DataSinkFactory {
+    @Override
+    public <T> DataSink<T> get(URI uri, Settings settings) {
+      String cfg = URIParams.of(uri).getStringParam("cfg", null);
+      boolean dumpPartitionId = settings.getBoolean(
+          (cfg != null && !cfg.isEmpty() ? (cfg + ".") : "") + "dump-partition-id",
+          false);
+      return new StdoutSink<>(dumpPartitionId);
+    }
+  }
 
   static abstract class AbstractWriter<T> extends Writer<T> {
     final PrintStream out;
@@ -55,20 +69,15 @@ public class PrintStreamSink<T> extends DataSink<T> {
     }
   }
 
-  private final PrintStream out;
   private final boolean dumpPartitionId;
 
-  public PrintStreamSink(PrintStream out) {
-    this(out, false);
-  }
-
-  public PrintStreamSink(PrintStream out, boolean dumpPartitionId) {
-    this.out = Objects.requireNonNull(out);
+  StdoutSink(boolean dumpPartitionId) {
     this.dumpPartitionId = dumpPartitionId;
   }
 
   @Override
   public Writer<T> openWriter(int partitionId) {
+    PrintStream out = System.out;
     return dumpPartitionId
         ? new PartitionIdWriter<>(out, partitionId)
         : new PlainWriter<>(out);

@@ -5,7 +5,9 @@ import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.operator.Operator;
+
 import java.io.Serializable;
+import java.net.URI;
 
 /**
  * A dataset abstraction.
@@ -34,15 +36,23 @@ public interface Dataset<T> extends Serializable {
    * (using some extraction function).
    */
   <X> Partitioning<X> getPartitioning();
-  
+
 
   /** Is this a bounded dataset? */
   boolean isBounded();
 
 
+  default void persist(URI uri) throws Exception {
+    persist(getFlow().createOutput(uri));
+  }
+
   /** Persist this dataset. */
   void persist(DataSink<T> sink);
 
+
+  default void checkpoint(URI uri) throws Exception {
+    checkpoint(getFlow().createOutput(uri));
+  }
 
   /** Checkpoint this dataset. */
   void checkpoint(DataSink<T> sink);

@@ -1,17 +1,20 @@
 
 package cz.seznam.euphoria.core.client.flow;
 
+import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.HashPartitioner;
 import cz.seznam.euphoria.core.client.dataset.InputPCollection;
 import cz.seznam.euphoria.core.client.dataset.InputPStream;
 import cz.seznam.euphoria.core.client.dataset.PCollection;
-import cz.seznam.euphoria.core.client.dataset.Partitioning;
-import cz.seznam.euphoria.core.client.io.IORegistry;
-import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioner;
+import cz.seznam.euphoria.core.client.dataset.Partitioning;
+import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.DataSource;
+import cz.seznam.euphoria.core.client.io.IORegistry;
 import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.util.Settings;
+import org.apache.commons.io.output.CountingOutputStream;
+import org.apache.commons.io.output.NullOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,8 +30,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.apache.commons.io.output.CountingOutputStream;
-import org.apache.commons.io.output.NullOutputStream;
 
 /**
  * A dependency graph of operators.
@@ -281,8 +282,17 @@ public class Flow implements Serializable {
     return (PCollection<T>) ret;
   }
 
+  public <T> DataSink<T> createOutput(URI uri) throws Exception {
+    return getSinkFromURI(uri);
+  }
+
   private <T> DataSource<T> getSourceFromURI(URI uri) throws Exception {
     IORegistry registry = IORegistry.get(settings);
     return registry.openSource(uri, settings);
+  }
+
+  private <T> DataSink<T> getSinkFromURI(URI uri) throws Exception {
+    IORegistry registry = IORegistry.get(settings);
+    return registry.openSink(uri, settings);
   }
 }
