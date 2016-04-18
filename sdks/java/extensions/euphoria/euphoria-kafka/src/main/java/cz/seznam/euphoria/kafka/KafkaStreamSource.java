@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -58,28 +57,22 @@ public class KafkaStreamSource implements DataSource<Pair<byte[], byte[]>> {
     }
   }
 
-  enum OffsetReset { NONE, LATEST, EARLIEST }
-
   static final class KafkaPartition implements Partition<Pair<byte[], byte[]>> {
     private final String brokerList;
-    private final String groupId;
     private final String topicId;
     private final int partition;
     private final String host;
-    private final OffsetReset offsetReset;
-    private final String configProperties;
+    private final Settings config;
 
-    KafkaPartition(String brokerList, String groupId, String topicId,
-                   int partition, String host, OffsetReset offsetReset,
-                   String configProperties /* optional */)
+    KafkaPartition(String brokerList, String topicId,
+                   int partition, String host,
+                   Settings config /* optional */)
     {
       this.brokerList = brokerList;
-      this.groupId = groupId;
       this.topicId = topicId;
       this.partition = partition;
       this.host = host;
-      this.offsetReset = offsetReset;
-      this.configProperties = configProperties;
+      this.config = config;
     }
 
     @Override
@@ -90,20 +83,9 @@ public class KafkaStreamSource implements DataSource<Pair<byte[], byte[]>> {
     @Override
     public Reader<Pair<byte[], byte[]>> openReader() throws IOException {
       Consumer<byte[], byte[]> c =
-          KafkaUtils.newConsumer(brokerList, groupId, configProperties);
+          KafkaUtils.newConsumer(brokerList, config);
       TopicPartition tp = new TopicPartition(topicId, partition);
       c.assign(Lists.newArrayList(tp));
-      switch (offsetReset) {
-        case EARLIEST:
-          c.seekToBeginning(tp);
-          break;
-        case LATEST:
-          c.seekToEnd(tp);
-          break;
-        default:
-          // ~ nothing to do
-          break;
-      }
       return new ConsumerReader(c);
     }
   }
@@ -114,60 +96,34 @@ public class KafkaStreamSource implements DataSource<Pair<byte[], byte[]>> {
       String brokers = uri.getAuthority();
       String topic = uri.getPath().substring(1);
 
-      URIParams params = URIParams.of(uri);
-      String groupId = params.getStringParam("group");
-
-      OffsetReset offsetReset = OffsetReset.NONE;
-      switch (params.getStringParam("offset", "").toLowerCase(Locale.ENGLISH)) {
-        case "latest":
-          offsetReset = OffsetReset.LATEST;
-          break;
-        case "earliest":
-          offsetReset = OffsetReset.EARLIEST;
-          break;
-        case "":
-          // ~ nothing to do
-          break;
-        default:
-          LOG.warn("Unknown value for the 'offset' parameter in uri: {}", uri);
-          break;
-      }
-
-      String configResource = params.getStringParam("properties", null);
-      return (DataSource<T>)
-          new KafkaStreamSource(brokers, groupId, topic, offsetReset, configResource);
+      String cname = URIParams.of(uri).getStringParam("cfg", null);
+      Settings cconfig =  cname == null ? null : settings.nested(cname);
+      return (DataSource<T>) new KafkaStreamSource(brokers, topic, cconfig);
     }
   }
 
   // ~ -----------------------------------------------------------------------------
 
   private final String brokerList;
-  private final String groupId;
   private final String topicId;
-  private final OffsetReset offsetReset;
-  private final String configProperties; // ~ optional
+  private final Settings config; // ~ optional
 
-  KafkaStreamSource(
-      String brokerList, String groupId, String topicId,
-      OffsetReset offsetReset, String configProperties)
-  {
+  KafkaStreamSource(String brokerList, String topicId, Settings config) {
     this.brokerList = requireNonNull(brokerList);
-    this.groupId = requireNonNull(groupId);
     this.topicId = requireNonNull(topicId);
-    this.offsetReset = requireNonNull(offsetReset);
-    this.configProperties = configProperties;
+    this.config = config;
   }
 
   @Override
   public List<Partition<Pair<byte[], byte[]>>> getPartitions() {
-    try (Consumer<?, ?> c = KafkaUtils.newConsumer(brokerList, groupId)) {
+    try (Consumer<?, ?> c = KafkaUtils.newConsumer(brokerList, config)) {
       List<PartitionInfo> ps = c.partitionsFor(topicId);
       return ps.stream().map(p ->
           // ~ XXX a leader might not be available (check p.leader().id() == -1)
           // ... fail in this situation
           new KafkaPartition(
-              brokerList, groupId, topicId, p.partition(),
-              p.leader().host(), offsetReset, configProperties))
+              brokerList, topicId, p.partition(),
+              p.leader().host(), config))
           .collect(Collectors.toList());
     }
   }
