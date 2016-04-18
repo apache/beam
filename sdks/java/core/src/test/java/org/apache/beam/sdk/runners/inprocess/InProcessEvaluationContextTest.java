@@ -93,6 +93,8 @@ public class InProcessEvaluationContextTest {
   private Collection<AppliedPTransform<?, ?, ?>> rootTransforms;
   private Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers;
 
+  private BundleFactory bundleFactory;
+
   @Before
   public void setup() {
     InProcessPipelineRunner runner =
@@ -109,6 +111,8 @@ public class InProcessEvaluationContextTest {
     p.traverseTopologically(cVis);
     rootTransforms = cVis.getRootTransforms();
     valueToConsumers = cVis.getValueToConsumers();
+
+    bundleFactory = InProcessBundleFactory.create();
 
     context =
         InProcessEvaluationContext.create(
@@ -393,27 +397,14 @@ public class InProcessEvaluationContextTest {
   }
 
   @Test
-  public void createBundleUnkeyedResultUnkeyed() {
-    CommittedBundle<KV<String, Integer>> newBundle =
-        context
-            .createBundle(InProcessBundle.unkeyed(created).commit(Instant.now()), downstream)
-            .commit(Instant.now());
-    assertThat(newBundle.isKeyed(), is(false));
-  }
-
-  @Test
   public void createBundleKeyedResultPropagatesKey() {
     CommittedBundle<KV<String, Integer>> newBundle =
         context
-            .createBundle(InProcessBundle.keyed(created, "foo").commit(Instant.now()), downstream)
+            .createBundle(
+                bundleFactory.createKeyedBundle(null, "foo", created).commit(Instant.now()),
+                downstream)
             .commit(Instant.now());
-    assertThat(newBundle.isKeyed(), is(true));
     assertThat(newBundle.getKey(), Matchers.<Object>equalTo("foo"));
-  }
-
-  @Test
-  public void createRootBundleUnkeyed() {
-    assertThat(context.createRootBundle(created).commit(Instant.now()).isKeyed(), is(false));
   }
 
   @Test
@@ -421,9 +412,8 @@ public class InProcessEvaluationContextTest {
     CommittedBundle<KV<String, Integer>> keyedBundle =
         context
             .createKeyedBundle(
-                InProcessBundle.unkeyed(created).commit(Instant.now()), "foo", downstream)
+                bundleFactory.createRootBundle(created).commit(Instant.now()), "foo", downstream)
             .commit(Instant.now());
-    assertThat(keyedBundle.isKeyed(), is(true));
     assertThat(keyedBundle.getKey(), Matchers.<Object>equalTo("foo"));
   }
 
