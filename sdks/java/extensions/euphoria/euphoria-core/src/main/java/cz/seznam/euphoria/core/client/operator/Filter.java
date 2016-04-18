@@ -18,7 +18,7 @@ public class Filter<IN, TYPE extends Dataset<IN>>
     Builder(Dataset<IN> input) {
       this.input = input;
     }
-    Filter<IN, Dataset<IN>> by(UnaryPredicate<IN> predicate) {
+    public Filter<IN, Dataset<IN>> by(UnaryPredicate<IN> predicate) {
       Flow flow = input.getFlow();
       Filter<IN, Dataset<IN>> filter = new Filter<>(flow, input, predicate);
       return flow.add(filter);
