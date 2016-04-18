@@ -7,22 +7,12 @@ import cz.seznam.euphoria.core.client.flow.Flow;
 /**
  * A general stream.
  */
-public abstract class PStream<T> implements Dataset<T> {
-
-  private final Flow flow;
-
+public abstract class PStream<T> extends FlowAwareDataset<T> {
 
   public PStream(Flow flow) {
-    this.flow = flow;
+    super(flow);
   }
-
-  
-  @Override
-  public Flow getFlow() {
-    return flow;
-  }
-
-
+ 
   @Override
   public final boolean isBounded() {
     return false;

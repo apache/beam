@@ -8,6 +8,7 @@ import cz.seznam.euphoria.core.client.operator.Operator;
 
 import java.io.Serializable;
 import java.net.URI;
+import java.util.Collection;
 
 /**
  * A dataset abstraction.
@@ -29,6 +30,13 @@ public interface Dataset<T> extends Serializable {
 
   /** Retrieve operator that produced this dataset (if any). */
   Operator<?, T, ? extends Dataset<T>> getProducer();
+
+  /**
+   * Retrieve collection of consumers of this dataset.
+   * This returns the list of currently known consumers (this can chnage
+   * if another consumer is added to the flow).
+   */
+  Collection<Operator<?, ?, ?>> getConsumers();
 
   /**
    * Retrieve partitioning for this dataset.
