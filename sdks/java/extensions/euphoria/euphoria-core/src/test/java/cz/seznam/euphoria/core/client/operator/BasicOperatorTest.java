@@ -2,24 +2,22 @@
 
 package cz.seznam.euphoria.core.client.operator;
 
-import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
-import cz.seznam.euphoria.core.client.dataset.Windowing;
-import cz.seznam.euphoria.core.client.io.MockBatchDataSourceFactory;
-import cz.seznam.euphoria.core.client.io.TCPLineStreamSource;
-import cz.seznam.euphoria.core.client.io.Writer;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
+import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
 import cz.seznam.euphoria.core.client.dataset.PCollection;
-import cz.seznam.euphoria.core.executor.Executor;
-import cz.seznam.euphoria.core.executor.InMemExecutor;
+import cz.seznam.euphoria.core.client.dataset.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.Collector;
-import cz.seznam.euphoria.core.client.io.DataSink;
+import cz.seznam.euphoria.core.client.io.MockBatchDataSourceFactory;
+import cz.seznam.euphoria.core.client.io.StdoutSink;
+import cz.seznam.euphoria.core.client.io.TCPLineStreamSource;
+import cz.seznam.euphoria.core.executor.Executor;
+import cz.seznam.euphoria.core.executor.InMemExecutor;
 import cz.seznam.euphoria.core.util.Settings;
-import java.io.IOException;
-import java.net.URI;
-
 import org.junit.Ignore;
 import org.junit.Test;
+
+import java.net.URI;
 
 // TODO: Will be moved to euphoria-examples
 /**
@@ -36,6 +34,8 @@ public class BasicOperatorTest {
     Settings settings = new Settings();
     settings.setClass("euphoria.io.datasource.factory.tcp",
         TCPLineStreamSource.Factory.class);
+    settings.setClass("euphoria.io.datasink.factory.stdout",
+        StdoutSink.Factory.class);
 
     Flow flow = Flow.create("Test", settings);
     // let's pretend we have this, this dataset might be stream or batch
@@ -66,7 +66,7 @@ public class BasicOperatorTest {
         .windowBy(Windowing.Time.seconds(5).aggregating())
         .output();
     
-    streamOutput.persist(getSink());
+    streamOutput.persist(URI.create("stdout:///"));
 
     executor.waitForCompletion(flow);
         
@@ -121,6 +121,8 @@ public class BasicOperatorTest {
     Settings settings = new Settings();
     settings.setClass("euphoria.io.datasource.factory.tcp",
         TCPLineStreamSource.Factory.class);
+    settings.setClass("euphoria.io.datasink.factory.stdout",
+        StdoutSink.Factory.class);
 
     Flow flow = Flow.create("Test", settings);
     // let's pretend we have this, this dataset might be stream or batch
@@ -164,40 +166,8 @@ public class BasicOperatorTest {
         .windowBy(Windowing.Time.seconds(1))
         .output();
 
-    
-    output.persist(getSink());
-
+    output.persist(URI.create("stdout:///"));
 
     executor.waitForCompletion(flow);
-
   }
-
-
-  private <T> DataSink<T> getSink() {
-    return new DataSink<T>() {
-      @Override
-      public Writer<T> openWriter(int partitionId) {
-        return new Writer<T>() {
-          @Override
-          public void write(T elem) {
-            System.out.println(elem.toString());
-          }
-
-          @Override
-          public void commit() throws IOException {
-          }
-        };
-      }
-
-      @Override
-      public void commit() throws IOException {
-      }
-
-      @Override
-      public void rollback() {
-      }
-    };
-  }
-
-
 }
