@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 
+import org.apache.beam.sdk.runners.inprocess.InProcessPipelineRunner.BundleSplit;
 import org.apache.beam.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
 import org.apache.beam.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -47,6 +48,7 @@ import org.junit.runners.JUnit4;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 
 /**
  * Tests for {@link InProcessBundleFactory}.
@@ -194,5 +196,74 @@ public class InProcessBundleFactoryTest {
             .commit(Instant.now());
     assertThat(keyedBundle.isKeyed(), is(true));
     assertThat(keyedBundle.getKey(), Matchers.<Object>equalTo("foo"));
+  }
+
+  @Test
+  public void splitOffElementsNoElementsSplit() {
+    runBundleSplitAssert(
+        ImmutableList.of(Integer.MIN_VALUE, Integer.MAX_VALUE, 0, 1, -1, 2),
+        ImmutableList.<Integer>of());
+  }
+
+  @Test
+  public void splitOffElementsAllElementsSplit() {
+    runBundleSplitAssert(ImmutableList.<Integer>of(), ImmutableList.of(1, 2, 3, 4, 5));
+  }
+
+  @SuppressWarnings("unchecked")
+  @Test
+  public void splitOffElementsPartialSplit() {
+    runBundleSplitAssert(ImmutableList.of(1, 2, 4, 8), ImmutableList.of(0, 3, 5, 6, 7));
+  }
+
+  public void runBundleSplitAssert(List<Integer> primaryElems, List<Integer> residualElems) {
+    Instant processingTime = Instant.now();
+    UncommittedBundle<Integer> builder =
+        bundleFactory
+            .createKeyedBundle(null, "foo", created);
+    List<WindowedValue<Integer>> toRetain = new ArrayList<>();
+    for (int i : primaryElems) {
+      WindowedValue<Integer> retainElem = WindowedValue.valueInGlobalWindow(i);
+      builder.add(retainElem);
+      toRetain.add(retainElem);
+    }
+    List<WindowedValue<Integer>> toSplit = new ArrayList<>();
+    for (int i : residualElems) {
+      WindowedValue<Integer> splitElem = WindowedValue.valueInGlobalWindow(i);
+      builder.add(splitElem);
+      toSplit.add(splitElem);
+    }
+    CommittedBundle<Integer> bundle = builder.commit(processingTime);
+
+    BundleSplit<Integer> split = bundle.splitOffElements(toSplit);
+
+    assertThat(split.getPrimary().getElements(), containsInAnyOrder(toRetain.toArray()));
+    assertThat(split.getResidual().getElements(), containsInAnyOrder(toSplit.toArray()));
+
+    assertThat(split.getPrimary().getKey(), Matchers.<Object>equalTo("foo"));
+    assertThat(split.getResidual().getKey(), Matchers.<Object>equalTo("foo"));
+
+    assertThat(split.getPrimary().getPCollection(), equalTo(created));
+    assertThat(split.getResidual().getPCollection(), equalTo(created));
+
+    assertThat(
+        split.getPrimary().getSynchronizedProcessingOutputWatermark(), equalTo(processingTime));
+    assertThat(
+        split.getResidual().getSynchronizedProcessingOutputWatermark(), equalTo(processingTime));
+  }
+
+  @Test
+  public void splitOffElementsToSplitNotInOriginal() {
+    WindowedValue<Integer> missingElement = WindowedValue.valueInGlobalWindow(Integer.MIN_VALUE);
+    CommittedBundle<Integer> bundle =
+        bundleFactory
+            .createRootBundle(created)
+            .add(WindowedValue.valueInGlobalWindow(2))
+            .commit(Instant.now());
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(missingElement.toString());
+    thrown.expectMessage("not contained in this bundle");
+    bundle.splitOffElements(ImmutableList.of(missingElement));
   }
 }

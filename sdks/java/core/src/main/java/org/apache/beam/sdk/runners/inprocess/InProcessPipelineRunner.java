@@ -163,11 +163,35 @@ public class InProcessPipelineRunner
      * timers that fired to produce this bundle.
      */
     Instant getSynchronizedProcessingOutputWatermark();
+
+    /**
+     * Splits this bundle into two {@link CommittedBundle CommittedBundles}, a primary and residual.
+     * The residual bundle will contain all of the elements contained within the elements iterable
+     * argument, while the primary bundle will contain all other elements. The returned bundles will
+     * be otherwise identical to this bundle.
+     */
+    BundleSplit<T> splitOffElements(Iterable<WindowedValue<T>> elements);
+  }
+
+  static interface BundleSplit<T> {
+    /**
+     * Gets the {@link CommittedBundle} containing the primary elements. These elements are
+     * generally those that were successfully processed.
+     */
+    CommittedBundle<T> getPrimary();
+
+    /**
+     * Gets the {@link CommittedBundle} containing the elements that were split off. These elements
+     * are generally those that could not be processed due to side inputs that are not currently
+     * ready.
+     */
+    CommittedBundle<T> getResidual();
   }
 
   /**
    * A {@link PCollectionViewWriter} is responsible for writing contents of a {@link PCollection} to
    * a storage mechanism that can be read from while constructing a {@link PCollectionView}.
+   *
    * @param <ElemT> the type of elements the input {@link PCollection} contains.
    * @param <ViewT> the type of the PCollectionView this writer writes to.
    */

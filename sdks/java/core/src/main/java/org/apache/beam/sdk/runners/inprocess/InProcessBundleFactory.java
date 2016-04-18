@@ -19,6 +19,7 @@ package org.apache.beam.sdk.runners.inprocess;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import org.apache.beam.sdk.runners.inprocess.InProcessPipelineRunner.BundleSplit;
 import org.apache.beam.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
 import org.apache.beam.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -26,8 +27,12 @@ import org.apache.beam.sdk.values.PCollection;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 
 import org.joda.time.Instant;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.annotation.Nullable;
 
@@ -114,7 +119,13 @@ class InProcessBundleFactory implements BundleFactory {
     public CommittedBundle<T> commit(final Instant synchronizedCompletionTime) {
       checkState(!committed, "Can't commit already committed bundle %s", this);
       committed = true;
-      final Iterable<WindowedValue<T>> committedElements = elements.build();
+      final ImmutableList<WindowedValue<T>> committedElements = elements.build();
+      return createCommittedBundle(committedElements, synchronizedCompletionTime);
+    }
+
+    private CommittedBundle<T> createCommittedBundle(
+        List<WindowedValue<T>> elements, final Instant synchronizedCompletionTime) {
+      final List<WindowedValue<T>> committedElements = ImmutableList.copyOf(elements);
       return new CommittedBundle<T>() {
         @Override
         @Nullable
@@ -130,6 +141,33 @@ class InProcessBundleFactory implements BundleFactory {
         @Override
         public Iterable<WindowedValue<T>> getElements() {
           return committedElements;
+        }
+
+        @Override
+        public BundleSplit<T> splitOffElements(Iterable<WindowedValue<T>> elements) {
+          if (Iterables.isEmpty(elements)) {
+            return new SimpleBundleSplit<>(
+                this,
+                createCommittedBundle(
+                    ImmutableList.<WindowedValue<T>>of(), synchronizedCompletionTime));
+          }
+
+          List<WindowedValue<T>> primaryElements = new ArrayList<>();
+          ImmutableList.Builder<WindowedValue<T>> residualElements = ImmutableList.builder();
+          primaryElements.addAll(committedElements);
+          for (WindowedValue<T> element : elements) {
+            if (!primaryElements.remove(element)) {
+              throw new IllegalArgumentException(
+                  String.format(
+                      "Tried to split off element %s from a committed bundle,"
+                          + " but that element is not contained in this bundle.",
+                      element));
+            }
+            residualElements.add(element);
+          }
+          return new SimpleBundleSplit<>(
+              createCommittedBundle(primaryElements, synchronizedCompletionTime),
+              createCommittedBundle(residualElements.build(), synchronizedCompletionTime));
         }
 
         @Override
@@ -152,6 +190,26 @@ class InProcessBundleFactory implements BundleFactory {
               .toString();
         }
       };
+    }
+  }
+
+  private static class SimpleBundleSplit<T> implements BundleSplit<T> {
+    private final CommittedBundle<T> primary;
+    private final CommittedBundle<T> residual;
+
+    public SimpleBundleSplit(CommittedBundle<T> primary, CommittedBundle<T> residual) {
+      this.primary = primary;
+      this.residual = residual;
+    }
+
+    @Override
+    public CommittedBundle<T> getPrimary() {
+      return primary;
+    }
+
+    @Override
+    public CommittedBundle<T> getResidual() {
+      return residual;
     }
   }
 }
