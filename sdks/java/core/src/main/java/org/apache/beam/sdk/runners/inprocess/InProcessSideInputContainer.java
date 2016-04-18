@@ -19,6 +19,7 @@ package org.apache.beam.sdk.runners.inprocess;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import org.apache.beam.sdk.runners.inprocess.InProcessEvaluationContext.ReadyCheckingSideInputReader;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.PCollectionViewWindow;
@@ -44,6 +45,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 
 import javax.annotation.Nullable;
 
@@ -88,11 +90,12 @@ class InProcessSideInputContainer {
   }
 
   /**
-   * Return a view of this {@link InProcessSideInputContainer} that contains only the views in
-   * the provided argument. The returned {@link InProcessSideInputContainer} is unmodifiable without
+   * Return a view of this {@link InProcessSideInputContainer} that contains only the views in the
+   * provided argument. The returned {@link InProcessSideInputContainer} is unmodifiable without
    * casting, but will change as this {@link InProcessSideInputContainer} is modified.
    */
-  public SideInputReader createReaderForViews(Collection<PCollectionView<?>> newContainedViews) {
+  public ReadyCheckingSideInputReader createReaderForViews(
+      Collection<PCollectionView<?>> newContainedViews) {
     if (!containedViews.containsAll(newContainedViews)) {
       Set<PCollectionView<?>> currentlyContained = ImmutableSet.copyOf(containedViews);
       Set<PCollectionView<?>> newRequested = ImmutableSet.copyOf(newContainedViews);
@@ -173,7 +176,7 @@ class InProcessSideInputContainer {
     }
   }
 
-  private final class SideInputContainerSideInputReader implements SideInputReader {
+  private final class SideInputContainerSideInputReader implements ReadyCheckingSideInputReader {
     private final Collection<PCollectionView<?>> readerViews;
 
     private SideInputContainerSideInputReader(Collection<PCollectionView<?>> readerViews) {
@@ -181,33 +184,35 @@ class InProcessSideInputContainer {
     }
 
     @Override
+    public boolean allViewsReadyInWindow(final BoundedWindow elementWindow) {
+      for (PCollectionView<?> view : readerViews) {
+        try {
+          BoundedWindow viewWindow =
+              view.getWindowingStrategyInternal().getWindowFn().getSideInputWindow(elementWindow);
+          Future<Iterable<? extends WindowedValue<?>>> viewContents =
+              getViewFuture(view, viewWindow);
+          if (!viewContents.isDone()) {
+            return false;
+          }
+        } catch (ExecutionException e) {
+          throw new RuntimeException(
+              String.format(
+                  "Exception while checking to see if PCollectionView %s is ready in window %s",
+                  view,
+                  elementWindow),
+              e);
+        }
+      }
+      return true;
+    }
+
+    @Override
     @Nullable
     public <T> T get(final PCollectionView<T> view, final BoundedWindow window) {
       checkArgument(
           readerViews.contains(view), "calling get(PCollectionView) with unknown view: " + view);
-      PCollectionViewWindow<T> windowedView = PCollectionViewWindow.of(view, window);
       try {
-        final SettableFuture<Iterable<? extends WindowedValue<?>>> future =
-            viewByWindows.get(windowedView);
-
-        WindowingStrategy<?, ?> windowingStrategy = view.getWindowingStrategyInternal();
-        evaluationContext.scheduleAfterOutputWouldBeProduced(
-            view, window, windowingStrategy, new Runnable() {
-              @Override
-              public void run() {
-                // The requested window has closed without producing elements, so reflect that in
-                // the PCollectionView. If set has already been called, will do nothing.
-                future.set(Collections.<WindowedValue<?>>emptyList());
-          }
-
-          @Override
-          public String toString() {
-            return MoreObjects.toStringHelper("InProcessSideInputContainerEmptyCallback")
-                .add("view", view)
-                .add("window", window)
-                .toString();
-          }
-        });
+        final Future<Iterable<? extends WindowedValue<?>>> future = getViewFuture(view, window);
         // Safe covariant cast
         @SuppressWarnings("unchecked")
         Iterable<WindowedValue<?>> values = (Iterable<WindowedValue<?>>) future.get();
@@ -218,6 +223,38 @@ class InProcessSideInputContainer {
       } catch (ExecutionException e) {
         throw new RuntimeException(e);
       }
+    }
+
+    /**
+     * Gets the future containing the contents of the provided {@link PCollectionView} in the
+     * provided {@link BoundedWindow}, setting up a callback to populate the future with empty
+     * contents if necessary.
+     */
+    private <T> Future<Iterable<? extends WindowedValue<?>>> getViewFuture(
+        final PCollectionView<T> view, final BoundedWindow window) throws ExecutionException {
+      PCollectionViewWindow<T> windowedView = PCollectionViewWindow.of(view, window);
+      final SettableFuture<Iterable<? extends WindowedValue<?>>> future =
+          viewByWindows.get(windowedView);
+
+      WindowingStrategy<?, ?> windowingStrategy = view.getWindowingStrategyInternal();
+      evaluationContext.scheduleAfterOutputWouldBeProduced(
+          view, window, windowingStrategy, new Runnable() {
+            @Override
+            public void run() {
+              // The requested window has closed without producing elements, so reflect that in
+              // the PCollectionView. If set has already been called, will do nothing.
+              future.set(Collections.<WindowedValue<?>>emptyList());
+        }
+
+        @Override
+        public String toString() {
+          return MoreObjects.toStringHelper("InProcessSideInputContainerEmptyCallback")
+              .add("view", view)
+              .add("window", window)
+              .toString();
+        }
+      });
+      return future;
     }
 
     @Override
