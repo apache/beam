@@ -7,6 +7,8 @@ import cz.seznam.euphoria.core.client.io.Reader;
 import cz.seznam.euphoria.core.client.operator.Pair;
 import lombok.SneakyThrows;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.io.WritableUtils;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.RecordReader;
@@ -74,17 +76,29 @@ class HadoopInputFormatAdapter implements DataSource<Pair<?, ?>> {
           implements Reader<Pair<?, ?>>
   {
     private final RecordReader<?, ?> hadoopReader;
+    private final Configuration conf;
 
-    public HadoopReader(RecordReader<?, ?> hadoopReader) {
+    public HadoopReader(RecordReader<?, ?> hadoopReader, Configuration conf) {
       this.hadoopReader = Objects.requireNonNull(hadoopReader);
+      this.conf = Objects.requireNonNull(conf);
     }
 
     @Override
     @SneakyThrows
     protected Pair<?, ?> computeNext() {
-      return hadoopReader.nextKeyValue() ?
-              Pair.of(hadoopReader.getCurrentKey(), hadoopReader.getCurrentValue()) :
-              endOfData();
+      if (hadoopReader.nextKeyValue()) {
+
+        // ~ cast to Writable (may throw ClassCastException
+        // when input format doesn't support Writables)
+        Writable key = (Writable) hadoopReader.getCurrentKey();
+        Writable value = (Writable) hadoopReader.getCurrentValue();
+
+        // ~ clone Writables since they are reused
+        // between calls to RecordReader#nextKeyValue
+        return Pair.of(WritableUtils.clone(key, conf), WritableUtils.clone(value, conf));
+      } else {
+        return endOfData();
+      }
     }
 
     @Override
@@ -128,7 +142,7 @@ class HadoopInputFormatAdapter implements DataSource<Pair<?, ?>> {
 
       reader.initialize(hadoopSplit, ctx);
 
-      return new HadoopReader(reader);
+      return new HadoopReader(reader, conf);
     }
   }
 
