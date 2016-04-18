@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.io;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.json.JsonFactory;
 import com.google.api.services.bigquery.Bigquery;
@@ -525,7 +526,7 @@ public class BigQueryIO {
       }
 
       /**
-       * Returns the table to write, or {@code null} if reading from a query instead.
+       * Returns the table to read, or {@code null} if reading from a query instead.
        */
       public TableReference getTable() {
         return table;
@@ -930,37 +931,34 @@ public class BigQueryIO {
       public void validate(PCollection<TableRow> input) {
         BigQueryOptions options = input.getPipeline().getOptions().as(BigQueryOptions.class);
 
-        TableReference table = getTable();
-        if (table == null && tableRefFunction == null) {
-          throw new IllegalStateException(
-              "must set the table reference of a BigQueryIO.Write transform");
-        }
-        if (table != null && tableRefFunction != null) {
-          throw new IllegalStateException(
-              "Cannot set both a table reference and a table function for a BigQueryIO.Write "
-                + "transform");
-        }
+        // Exactly one of the table and table reference can be configured.
+        checkState(
+            jsonTableRef != null || tableRefFunction != null,
+            "must set the table reference of a BigQueryIO.Write transform");
+        checkState(
+            jsonTableRef == null || tableRefFunction == null,
+            "Cannot set both a table reference and a table function for a BigQueryIO.Write"
+                + " transform");
 
-        if (createDisposition == CreateDisposition.CREATE_IF_NEEDED && jsonSchema == null) {
-          throw new IllegalArgumentException("CreateDisposition is CREATE_IF_NEEDED, "
-              + "however no schema was provided.");
-        }
+        // Require a schema if creating one or more tables.
+        checkArgument(
+            createDisposition != CreateDisposition.CREATE_IF_NEEDED || jsonSchema != null,
+            "CreateDisposition is CREATE_IF_NEEDED, however no schema was provided.");
 
-        if (table != null && table.getProjectId() == null) {
+        // The user specified a table.
+        if (jsonTableRef != null && validate) {
+          TableReference table = getTable();
+
           // If user does not specify a project we assume the table to be located in the project
-          // that owns the Dataflow job.
-          String projectIdFromOptions = options.getProject();
-          LOG.warn(String.format(BigQueryIO.SET_PROJECT_FROM_OPTIONS_WARNING, table.getDatasetId(),
-              table.getTableId(), projectIdFromOptions));
-          table.setProjectId(projectIdFromOptions);
-        }
+          // configured in BigQueryOptions.
+          if (Strings.isNullOrEmpty(table.getProjectId())) {
+            table.setProjectId(options.getProject());
+          }
 
-        // Check for destination table presence and emptiness for early failure notification.
-        // Note that a presence check can fail if the table or dataset are created by earlier stages
-        // of the pipeline. For these cases the withoutValidation method can be used to disable
-        // the check.
-        // Unfortunately we can't validate anything early if tableRefFunction is specified.
-        if (table != null && validate) {
+          // Check for destination table presence and emptiness for early failure notification.
+          // Note that a presence check can fail when the table or dataset is created by an earlier
+          // stage of the pipeline. For these cases the #withoutValidation method can be used to
+          // disable the check.
           verifyDatasetPresence(options, table);
           if (getCreateDisposition() == BigQueryIO.Write.CreateDisposition.CREATE_NEVER) {
             verifyTablePresence(options, table);
@@ -971,16 +969,16 @@ public class BigQueryIO {
         }
 
         if (options.isStreaming() || tableRefFunction != null) {
-          // We will use BigQuery's streaming write API -- validate support dispositions.
-          if (createDisposition == CreateDisposition.CREATE_NEVER) {
-            throw new IllegalArgumentException("CreateDispostion.CREATE_NEVER is not "
-                + "supported for unbounded PCollections or when using tablespec functions.");
-          }
+          // We will use BigQuery's streaming write API -- validate supported dispositions.
+          checkArgument(
+              createDisposition != CreateDisposition.CREATE_NEVER,
+              "CreateDisposition.CREATE_NEVER is not supported for an unbounded PCollection or when"
+                  + " using a tablespec function.");
 
-          if (writeDisposition == WriteDisposition.WRITE_TRUNCATE) {
-            throw new IllegalArgumentException("WriteDisposition.WRITE_TRUNCATE is not "
-                + "supported for unbounded PCollections or when using tablespec functions.");
-          }
+          checkArgument(
+              writeDisposition != WriteDisposition.WRITE_TRUNCATE,
+              "WriteDisposition.WRITE_TRUNCATE is not supported for an unbounded PCollection or"
+                  + " when using a tablespec function.");
         } else {
           // We will use a BigQuery load job -- validate the temp location.
           String tempLocation = options.getTempLocation();
@@ -1011,13 +1009,17 @@ public class BigQueryIO {
           return input.apply(new StreamWithDeDup(getTable(), tableRefFunction, getSchema()));
         }
 
+        TableReference table = fromJsonString(jsonTableRef, TableReference.class);
+        if (Strings.isNullOrEmpty(table.getProjectId())) {
+          table.setProjectId(options.getProject());
+        }
         String jobIdToken = UUID.randomUUID().toString();
         String tempFilePrefix = options.getTempLocation() + "/BigQuerySinkTemp/" + jobIdToken;
         BigQueryServices bqServices = getBigQueryServices();
         return input.apply("Write", com.google.cloud.dataflow.sdk.io.Write.to(
             new BigQuerySink(
                 jobIdToken,
-                jsonTableRef,
+                table,
                 jsonSchema,
                 getWriteDisposition(),
                 getCreateDisposition(),
@@ -1046,7 +1048,8 @@ public class BigQueryIO {
         return fromJsonString(jsonSchema, TableSchema.class);
       }
 
-      /** Returns the table reference, or {@code null} if a . */
+      /** Returns the table reference, or {@code null}. */
+      @Nullable
       public TableReference getTable() {
         return fromJsonString(jsonTableRef, TableReference.class);
       }
@@ -1085,7 +1088,7 @@ public class BigQueryIO {
 
     public BigQuerySink(
         String jobIdToken,
-        @Nullable String jsonTable,
+        @Nullable TableReference table,
         @Nullable String jsonSchema,
         WriteDisposition writeDisposition,
         CreateDisposition createDisposition,
@@ -1094,7 +1097,13 @@ public class BigQueryIO {
         BigQueryServices bqServices) {
       super(tempFile, ".json");
       this.jobIdToken = checkNotNull(jobIdToken, "jobIdToken");
-      this.jsonTable = jsonTable;
+      if (table == null) {
+        this.jsonTable = null;
+      } else {
+        checkArgument(!Strings.isNullOrEmpty(table.getProjectId()),
+            "Table %s should have a project specified", table);
+        this.jsonTable = toJsonString(table);
+      }
       this.jsonSchema = jsonSchema;
       this.writeDisposition = checkNotNull(writeDisposition, "writeDisposition");
       this.createDisposition = checkNotNull(createDisposition, "createDisposition");
