@@ -36,7 +36,7 @@ public class Settings implements Serializable {
 
   /**
    * Returns a nested view on key/values with the given key prefix. The returned
-   * {@link Settings} instance will shared the underlying storage with its parent,
+   * {@link Settings} instance will share the underlying storage with its parent,
    * and will automatically and transparently strip/add the specified key prefix.
    *
    * @param prefix the key prefix defining the nesting of the view in the parent storage
