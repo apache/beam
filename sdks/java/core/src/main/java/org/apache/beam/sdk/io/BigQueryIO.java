@@ -961,7 +961,7 @@ public class BigQueryIO {
         // of the pipeline. For these cases the withoutValidation method can be used to disable
         // the check.
         // Unfortunately we can't validate anything early if tableRefFunction is specified.
-        if (jsonTableRef != null && validate) {
+        if (table != null && validate) {
           verifyDatasetPresence(options, table);
           if (getCreateDisposition() == BigQueryIO.Write.CreateDisposition.CREATE_NEVER) {
             verifyTablePresence(options, table);
@@ -984,17 +984,17 @@ public class BigQueryIO {
           }
         } else {
           // We will use a BigQuery load job -- validate the temp location.
-        String tempLocation = options.getTempLocation();
+          String tempLocation = options.getTempLocation();
           checkArgument(
               !Strings.isNullOrEmpty(tempLocation),
-            "BigQueryIO.Write needs a GCS temp location to store temp files.");
-        if (testBigQueryServices == null) {
-          try {
-            GcsPath.fromUri(tempLocation);
-          } catch (IllegalArgumentException e) {
+              "BigQueryIO.Write needs a GCS temp location to store temp files.");
+          if (testBigQueryServices == null) {
+            try {
+              GcsPath.fromUri(tempLocation);
+            } catch (IllegalArgumentException e) {
               throw new IllegalArgumentException(
                   String.format(
-                "BigQuery temp location expected a valid 'gs://' path, but was given '%s'",
+                      "BigQuery temp location expected a valid 'gs://' path, but was given '%s'",
                       tempLocation),
                   e);
             }
