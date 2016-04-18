@@ -611,7 +611,10 @@ public class InMemoryWatermarkManagerTest implements Serializable {
         not(laterThan(BoundedWindow.TIMESTAMP_MIN_VALUE)));
 
     CommittedBundle<Integer> createOutput =
-        bundleFactory.createRootBundle(createdInts).commit(new Instant(1250L));
+        bundleFactory.createRootBundle(createdInts)
+            .add(WindowedValue.valueInGlobalWindow(1))
+            .add(WindowedValue.valueInGlobalWindow(2))
+            .commit(new Instant(1250L));
 
     manager.updateWatermarks(null, createdInts.getProducingTransformInternal(), TimerUpdate.empty(),
         Collections.<CommittedBundle<?>>singleton(createOutput), BoundedWindow.TIMESTAMP_MAX_VALUE);
@@ -816,18 +819,26 @@ public class InMemoryWatermarkManagerTest implements Serializable {
   }
 
   @Test
-  public void synchronizedProcessingInputTimeIsHeldToPendingBundleTimes() {
-    CommittedBundle<Integer> created = multiWindowedBundle(createdInts, 1, 2, 3);
-    manager.updateWatermarks(
-        null,
-        createdInts.getProducingTransformInternal(),
-        TimerUpdate.empty(),
-        Collections.<CommittedBundle<?>>singleton(created),
-        new Instant(29_919_235L));
+  public void synchronizedProcessingInputTimeIsHeldToPendingElementTimes() {
+    CommittedBundle<Integer> created = multiWindowedBundle(createdInts, 1, 2);
+    manager.updateWatermarks(null, createdInts.getProducingTransformInternal(), TimerUpdate.empty(),
+        Collections.<CommittedBundle<?>>singleton(created), new Instant(29_919_235L));
 
     Instant upstreamHold = new Instant(2048L);
+    WindowedValue<Integer> filteredElemOne =
+        WindowedValue.of(
+            1,
+            BoundedWindow.TIMESTAMP_MAX_VALUE.minus(100L),
+            ImmutableList.of(
+                GlobalWindow.INSTANCE,
+                new IntervalWindow(new Instant(0), BoundedWindow.TIMESTAMP_MAX_VALUE)),
+            PaneInfo.NO_FIRING);
     CommittedBundle<Integer> filteredBundle =
-        bundleFactory.createKeyedBundle(created, "key", filtered).commit(upstreamHold);
+        bundleFactory
+            .createKeyedBundle(created, "key", filtered)
+            .add(
+                filteredElemOne)
+            .commit(upstreamHold);
     manager.updateWatermarks(
         created,
         filtered.getProducingTransformInternal(),
@@ -841,6 +852,46 @@ public class InMemoryWatermarkManagerTest implements Serializable {
 
     clock.set(BoundedWindow.TIMESTAMP_MAX_VALUE);
     assertThat(downstreamWms.getSynchronizedProcessingInputTime(), equalTo(upstreamHold));
+
+    CommittedBundle<Integer> halfFilteredBundle =
+        bundleFactory
+            .createKeyedBundle(created, "key", filtered)
+            .add(
+                WindowedValue.of(
+                    1,
+                    BoundedWindow.TIMESTAMP_MAX_VALUE.minus(100L),
+                    GlobalWindow.INSTANCE,
+                    PaneInfo.NO_FIRING))
+            .commit(upstreamHold);
+
+    manager.updateWatermarks(
+        halfFilteredBundle,
+        filteredTimesTwo.getProducingTransformInternal(),
+        TimerUpdate.empty(),
+        Collections.<CommittedBundle<?>>emptyList(),
+        BoundedWindow.TIMESTAMP_MAX_VALUE);
+    assertThat(downstreamWms.getSynchronizedProcessingInputTime(), equalTo(upstreamHold));
+
+    CommittedBundle<Integer> otherHalfFilteredBundle =
+        bundleFactory
+            .createKeyedBundle(created, "key", filtered)
+            .add(
+                WindowedValue.of(
+                    1,
+                    BoundedWindow.TIMESTAMP_MAX_VALUE.minus(100L),
+                    new IntervalWindow(new Instant(0), BoundedWindow.TIMESTAMP_MAX_VALUE),
+                    PaneInfo.NO_FIRING))
+            .commit(upstreamHold);
+
+    manager.updateWatermarks(
+        otherHalfFilteredBundle,
+        filteredTimesTwo.getProducingTransformInternal(),
+        TimerUpdate.empty(),
+        Collections.<CommittedBundle<?>>emptyList(),
+        BoundedWindow.TIMESTAMP_MAX_VALUE);
+    assertThat(
+        downstreamWms.getSynchronizedProcessingInputTime(),
+        equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
   }
 
   @Test
