@@ -24,12 +24,12 @@ import java.io.Reader;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 
-public class ExerciseKafkaStreamSource {
+public class ExerciseKafkaSource {
 
   public static void main(String[] args) throws Exception {
     Settings settings = new Settings();
     settings.setClass("euphoria.io.datasource.factory.kafka",
-        KafkaStreamSource.Factory.class);
+        KafkaSource.Factory.class);
     settings.setClass("euphoria.io.datasink.factory.stdout",
         StdoutSink.Factory.class);
     settings.setBoolean("stdout.params.dump-partition-id", true);

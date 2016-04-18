@@ -26,9 +26,9 @@ import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
-public class KafkaStreamSource implements DataSource<Pair<byte[], byte[]>> {
+public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
 
-  private static final Logger LOG = LoggerFactory.getLogger(KafkaStreamSource.class);
+  private static final Logger LOG = LoggerFactory.getLogger(KafkaSource.class);
 
   static final class ConsumerReader
       extends AbstractIterator<Pair<byte[], byte[]>>
@@ -99,7 +99,7 @@ public class KafkaStreamSource implements DataSource<Pair<byte[], byte[]>> {
 
       String cname = URIParams.of(uri).getStringParam("cfg", null);
       Settings cconfig =  cname == null ? null : settings.nested(cname);
-      return (DataSource<T>) new KafkaStreamSource(brokers, topic, cconfig);
+      return (DataSource<T>) new KafkaSource(brokers, topic, cconfig);
     }
   }
 
@@ -109,7 +109,7 @@ public class KafkaStreamSource implements DataSource<Pair<byte[], byte[]>> {
   private final String topicId;
   private final Settings config; // ~ optional
 
-  KafkaStreamSource(String brokerList, String topicId, Settings config) {
+  KafkaSource(String brokerList, String topicId, Settings config) {
     this.brokerList = requireNonNull(brokerList);
     this.topicId = requireNonNull(topicId);
     this.config = config;
