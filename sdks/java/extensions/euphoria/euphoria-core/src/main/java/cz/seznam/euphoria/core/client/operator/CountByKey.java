@@ -1,6 +1,7 @@
 
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.HashPartitioning;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
@@ -13,10 +14,9 @@ import cz.seznam.euphoria.core.client.graph.DAG;
 /**
  * Operator counting elements with same key.
  */
-public class CountByKey<IN, KEY, W extends Window<?, W>,
-    TYPE extends Dataset<Pair<KEY, Long>>>
-    extends StateAwareWindowWiseSingleInputOperator<IN, KEY, Pair<KEY, Long>, W, TYPE,
-        CountByKey<IN, KEY, W, TYPE>> {
+public class CountByKey<IN, KEY, W extends Window<?>, TYPE extends Dataset<Pair<KEY, Long>>>
+    extends StateAwareWindowWiseSingleInputOperator<
+        IN, IN, IN, KEY, Pair<KEY, Long>, W, TYPE, CountByKey<IN, KEY, W, TYPE>> {
 
   public static class Builder1<IN> {
     final Dataset<IN> input;
@@ -34,7 +34,7 @@ public class CountByKey<IN, KEY, W extends Window<?, W>,
       this.input = input;
       this.keyExtractor = keyExtractor;
     }
-    public <W extends Window<?, W>> CountByKey<IN, KEY, W, Dataset<Pair<KEY, Long>>>
+    public <W extends Window<?>> CountByKey<IN, KEY, W, Dataset<Pair<KEY, Long>>>
     windowBy(Windowing<IN, ?, W> windowing) {
       Flow flow = input.getFlow();
       return flow.add(new CountByKey<>(flow, input,

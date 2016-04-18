@@ -12,7 +12,7 @@ import java.util.Set;
 /**
  * A windowing policy of a dataset.
  */
-public interface Windowing<T, KEY, W extends Window<KEY, W>> extends Serializable {
+public interface Windowing<T, KEY, W extends Window<KEY>> extends Serializable {
 
   /** Time windows. */
   final class Time<T>
@@ -21,8 +21,8 @@ public interface Windowing<T, KEY, W extends Window<KEY, W>> extends Serializabl
 
     private boolean aggregating;
 
-    public static class TimeWindow extends AbstractWindow<Void, TimeWindow>
-        implements AlignedWindow<TimeWindow> {
+    public static class TimeWindow extends AbstractWindow<Void>
+        implements AlignedWindow {
 
       private final Time<?> windowing;
       private final long startStamp;
@@ -37,7 +37,7 @@ public interface Windowing<T, KEY, W extends Window<KEY, W>> extends Serializabl
 
       @Override
       public void registerTrigger(final Triggering triggering,
-          final UnaryFunction<TimeWindow, Void> evict) {
+          final UnaryFunction<Window<?>, Void> evict) {
         triggering.scheduleOnce(duration, () -> {
           TimeWindow newWindow = windowing.createNew(triggering, evict);
           if (windowing.aggregating) {
@@ -75,7 +75,7 @@ public interface Windowing<T, KEY, W extends Window<KEY, W>> extends Serializabl
 
     @Override
     public synchronized Set<TimeWindow> allocateWindows(
-        T what, Triggering triggering, UnaryFunction<TimeWindow, Void> evict) {
+        T what, Triggering triggering, UnaryFunction<Window<?>, Void> evict) {
       Set<TimeWindow> ret = new HashSet<>();
       for (TimeWindow w : getActive(null)) {
         // FIXME: need a way to extract stamp from value
@@ -96,7 +96,8 @@ public interface Windowing<T, KEY, W extends Window<KEY, W>> extends Serializabl
     }
 
     // create new window
-    synchronized TimeWindow createNew(Triggering triggering, UnaryFunction<TimeWindow, Void> evict) {
+    synchronized TimeWindow createNew(Triggering triggering,
+        UnaryFunction<Window<?>, Void> evict) {
       return this.addNewWindow(new TimeWindow(
           this, System.currentTimeMillis(), duration), triggering, evict);
     }
@@ -115,12 +116,12 @@ public interface Windowing<T, KEY, W extends Window<KEY, W>> extends Serializabl
       this.count = count;
     }
 
-    public static class CountWindow extends AbstractWindow<Void, CountWindow>
-        implements AlignedWindow<CountWindow> {
+    public static class CountWindow extends AbstractWindow<Void>
+        implements AlignedWindow {
 
       final int maxCount;
       int currentCount = 0;
-      UnaryFunction<CountWindow, Void> evict = null;
+      UnaryFunction<Window<?>, Void> evict = null;
 
       public CountWindow(int maxCount) {
         this.maxCount = maxCount;
@@ -130,14 +131,15 @@ public interface Windowing<T, KEY, W extends Window<KEY, W>> extends Serializabl
 
       @Override
       public void registerTrigger(Triggering triggering,
-          UnaryFunction<CountWindow, Void> evict) {
+          UnaryFunction<Window<?>, Void> evict) {
         this.evict = evict;
       }
     }
 
     @Override
     public Set<CountWindow> allocateWindows(
-        T input, Triggering triggering, UnaryFunction<CountWindow, Void> evict) {
+        T input, Triggering triggering,
+        UnaryFunction<Window<?>, Void> evict) {
       Set<CountWindow> ret = new HashSet<>();
       for (CountWindow w : getActive(null)) {
         if (w.currentCount < count) {
@@ -178,7 +180,8 @@ public interface Windowing<T, KEY, W extends Window<KEY, W>> extends Serializabl
    * Register trigger for all newly created windows.
    * @return the set of windows suitable for given element
    **/
-  Set<W> allocateWindows(T input, Triggering triggering, UnaryFunction<W, Void> evict);
+  Set<W> allocateWindows(T input, Triggering triggering,
+      UnaryFunction<Window<?>, Void> evict);
 
   /** Retrieve currently active set of windows for given key. */
   Set<W> getActive(KEY key);
