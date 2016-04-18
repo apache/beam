@@ -1,9 +1,12 @@
 package cz.seznam.euphoria.core.util;
 
+import cz.seznam.euphoria.core.client.operator.Pair;
+
 import java.io.Serializable;
 import java.net.URI;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
@@ -14,46 +17,78 @@ import static java.util.Objects.requireNonNull;
  */
 public class Settings implements Serializable {
 
-  private Map<String, String> map = new ConcurrentHashMap<>();
+  private final String prefix;
+  private final Map<String, String> map;
 
-  
+
   public Settings() {
+    this(null, new ConcurrentHashMap<>());
   }
 
-  public Settings(Settings conf) {
-    putAll(conf);
+  private Settings(String prefix, Map<String, String> map) {
+    this.prefix = prefix;
+    this.map = map;
   }
 
-  public void putAll(Settings conf) {
-    this.map.putAll(conf.map);
+  private String skey(String key) {
+    return prefix == null ? key : prefix + key;
   }
-  
-  public void putAll(Map<String, String> map) {
-    this.map.putAll(map);
+
+  /**
+   * Returns a nested view on key/values with the given key prefix. The returned
+   * {@link Settings} instance will shared the underlying storage with its parent,
+   * and will automatically and transparently strip/add the specified key prefix.
+   *
+   * @param prefix the key prefix defining the nesting of the view in the parent storage
+   *
+   * @return a "prefixed" view of this settings instance
+   */
+  public Settings nested(String prefix) {
+    if (prefix == null || prefix.isEmpty()) {
+      return this;
+    }
+    if (!prefix.endsWith(".")) {
+      prefix = prefix + ".";
+    }
+    return new Settings(prefix, map);
   }
 
   public Map<String, String> getAll() {
-    return map;
+    if (prefix == null) {
+      return map;
+    }
+    return map.entrySet()
+        .stream()
+        .filter(e -> e.getKey().startsWith(prefix))
+        .map(e -> Pair.of(e.getKey().substring(prefix.length()), e.getValue()))
+        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
   }
-  
+
   public boolean contains(String key) {
-    return map.containsKey(requireNonNull(key));
+    return containsSkey(skey(requireNonNull(key)));
+  }
+
+  private boolean containsSkey(String skey) {
+    return map.containsKey(skey);
   }
 
   // STRING ------------------------------------------------------------------------------
   public void setString(String key, String value) {
-    map.put(requireNonNull(key), requireNonNull(value));
+    map.put(skey(requireNonNull(key)), requireNonNull(value));
   }
 
   public String getString(String key, String def) {
-    return map.containsKey(requireNonNull(key)) ? map.get(key) : def;
+    String skey = skey(requireNonNull(key));
+    return map.containsKey(skey) ? map.get(skey) : def;
   }
-  
+
   public String getString(String key) {
-    if (!contains(key)) {
-      throw new IllegalArgumentException("No value for: " + key);
+    String skey = skey(requireNonNull(key));
+    if (!containsSkey(skey)) {
+      throw new IllegalArgumentException(
+          "No value for: " + key + " (settings prefix: " + prefix + ")");
     }
-    return map.get(key);
+    return map.get(skey);
   }
 
   // BOOL --------------------------------------------------------------------------------

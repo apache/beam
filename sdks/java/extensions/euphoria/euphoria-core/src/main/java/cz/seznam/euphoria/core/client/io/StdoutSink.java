@@ -17,10 +17,8 @@ public class StdoutSink<T> extends DataSink<T> {
   public static class Factory implements DataSinkFactory {
     @Override
     public <T> DataSink<T> get(URI uri, Settings settings) {
-      String cfg = URIParams.of(uri).getStringParam("cfg", null);
-      boolean dumpPartitionId = settings.getBoolean(
-          (cfg != null && !cfg.isEmpty() ? (cfg + ".") : "") + "dump-partition-id",
-          false);
+      settings = settings.nested(URIParams.of(uri).getStringParam("cfg", null));
+      boolean dumpPartitionId = settings.getBoolean("dump-partition-id");
       return new StdoutSink<>(dumpPartitionId);
     }
   }
