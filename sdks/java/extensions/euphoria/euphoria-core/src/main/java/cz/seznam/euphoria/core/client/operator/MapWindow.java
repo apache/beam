@@ -13,8 +13,8 @@ import java.util.Collection;
 /**
  * Operator performing a mapping operation on whole window.
  */
-public class MapWindow<IN, OUT, W extends Window<?, W>, TYPE extends Dataset<OUT>>
-    extends WindowWiseOperator<IN, OUT, W, TYPE> {
+public class MapWindow<IN, OUT, W extends Window<?>, TYPE extends Dataset<OUT>>
+    extends WindowWiseOperator<IN, IN, OUT, W, TYPE> {
 
   public static class Builder1<IN> {
     final Dataset<IN> input;
@@ -32,7 +32,7 @@ public class MapWindow<IN, OUT, W extends Window<?, W>, TYPE extends Dataset<OUT
       this.input = input;
       this.mapper = mapper;
     }
-    public <W extends Window<?, W>> MapWindow<IN, OUT, W, Dataset<OUT>> windowBy(
+    public <W extends Window<?>> MapWindow<IN, OUT, W, Dataset<OUT>> windowBy(
         Windowing<IN, ?, W> windowing) {
       Flow flow = input.getFlow();
       MapWindow<IN, OUT, W, Dataset<OUT>> mapWindow = new MapWindow<>(

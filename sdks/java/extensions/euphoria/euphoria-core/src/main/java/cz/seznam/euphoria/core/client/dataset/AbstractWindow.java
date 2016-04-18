@@ -9,8 +9,7 @@ import java.util.Set;
 /**
  * Abstract window capable of registering states.
  */
-public abstract class AbstractWindow<KEY, W extends AbstractWindow<KEY, W>>
-    implements Window<KEY, W> {
+public abstract class AbstractWindow<KEY> implements Window<KEY> {
 
   final Set<State<?, ?>> states = new HashSet<>();
 

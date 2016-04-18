@@ -1,6 +1,7 @@
 
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.ReduceFunction;
 import cz.seznam.euphoria.core.client.dataset.BatchWindowing;
@@ -22,8 +23,8 @@ import java.util.List;
  * Operator performing state-less aggregation by given reduce function.
  */
 public class ReduceByKey<
-    IN, KEY, VALUE, OUT, W extends Window<?, W>, TYPE extends Dataset<Pair<KEY, OUT>>>
-    extends StateAwareWindowWiseSingleInputOperator<IN, KEY, Pair<KEY, OUT>, W, TYPE,
+    IN, KEY, VALUE, OUT, W extends Window<?>, TYPE extends Dataset<Pair<KEY, OUT>>>
+    extends StateAwareWindowWiseSingleInputOperator<IN, IN, IN, KEY, Pair<KEY, OUT>, W, TYPE,
         ReduceByKey<IN, KEY, VALUE, OUT, W, TYPE>> {
 
   public static class Builder1<IN> {
@@ -85,7 +86,7 @@ public class ReduceByKey<
       this.valueExtractor = valueExtractor;
       this.reducer = reducer;
     }
-    public <W extends Window<?, W>> ReduceByKey<IN, KEY, VALUE, OUT, W, Dataset<Pair<KEY, OUT>>>
+    public <W extends Window<?>> ReduceByKey<IN, KEY, VALUE, OUT, W, Dataset<Pair<KEY, OUT>>>
     windowBy(Windowing<IN, ?, W> windowing) {
       Flow flow = input.getFlow();
       ReduceByKey<IN, KEY, VALUE, OUT, W, Dataset<Pair<KEY, OUT>>>
@@ -256,7 +257,7 @@ public class ReduceByKey<
 
     Flow flow = getFlow();
     Operator<?, ?, ?> reduceState;
-    reduceState = new ReduceStateByKey<IN, KEY, VALUE, Pair<KEY, OUT>,
+    reduceState = new ReduceStateByKey<IN, IN, IN, KEY, VALUE, Pair<KEY, OUT>,
       ReduceState, W, Dataset<Pair<KEY, OUT>>>(
         flow, input, keyExtractor, valueExtractor,
         windowing,

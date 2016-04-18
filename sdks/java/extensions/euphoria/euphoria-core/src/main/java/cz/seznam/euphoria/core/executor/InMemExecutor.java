@@ -1,6 +1,7 @@
 
 package cz.seznam.euphoria.core.executor;
 
+import com.google.common.collect.Iterables;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioner;
@@ -20,10 +21,11 @@ import cz.seznam.euphoria.core.client.io.Reader;
 import cz.seznam.euphoria.core.client.io.Writer;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.Operator;
-import cz.seznam.euphoria.core.client.operator.Pair;
+import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.Repartition;
 import cz.seznam.euphoria.core.client.operator.State;
+import cz.seznam.euphoria.core.client.operator.Union;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,9 +34,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -77,7 +81,8 @@ public class InMemExecutor implements Executor {
       try {
         this.reader = partition.openReader();
       } catch (IOException e) {
-        throw new RuntimeException("Failed to open reader for partition: " + partition);
+        throw new RuntimeException(
+            "Failed to open reader for partition: " + partition, e);
       }
     }
     @Override
@@ -334,8 +339,7 @@ public class InMemExecutor implements Executor {
     
     // OK, we have all inputs, lets execute operations
     for (Operator<?, ?, ?> op : getExecutableOperators(operators)) {
-      List<Supplier<?>> output = execOp(op, context);
-      context.add(op.output(), output);
+      execOp(op, context);      
     }
   }
 
@@ -343,24 +347,24 @@ public class InMemExecutor implements Executor {
    * Execute single operator and return the suppliers for partitions
    * of output.
    */
-  private List<Supplier<?>> execOp(
+  private void execOp(
       Operator<?, ?, ?> op, ExecutionContext context) {
+    final List<Supplier<?>> output;
     if (op instanceof FlatMap) {
-      return execMap((FlatMap<?, ?, ?>) op, context);
+      output = execMap((FlatMap<?, ?, ?>) op, context);
     } else if (op instanceof Repartition) {
-      return execRepartition((Repartition<?, ?>) op, context);
+      output = execRepartition((Repartition<?, ?>) op, context);
     } else if (op instanceof ReduceStateByKey) {
-      return execReduceStateByKey((ReduceStateByKey<?, ?, ?, ?, ?, ?, ?>) op, context);
+      output = execReduceStateByKey((ReduceStateByKey<?, ?, ?, ?, ?, ?, ?, ?, ?>) op, context);
+    } else if (op instanceof Union) {
+      output = execUnion((Union<?, ?>) op, context);
     } else {
       DAG<Operator<?, ?, ?>> basicOps = op.getBasicOps();
-      List<Supplier<?>> output = null;
-      for (Operator<?, ?, ?> bop : getExecutableOperators(basicOps)) {
-        output = execOp(bop, context);
-        context.add(bop.output(), output);
-      }
-      return output;
+      execDAG(basicOps, context);
+      Dataset<?> outputDs = Iterables.getOnlyElement(basicOps.getLeafs()).get().output();
+      output = context.get(outputDs);
     }
-
+    context.add(op.output(), output);
   }
 
 
@@ -368,12 +372,15 @@ public class InMemExecutor implements Executor {
     List<Operator<?, ?, ?>> ret = new ArrayList<>();
     final Collection<DAG.Node<Operator<?, ?, ?>>> roots = dag.getRoots();
     final Queue<DAG.Node<Operator<?, ?, ?>>> unprocessed = new LinkedList<>();
+    final Set<Operator<?, ?, ?>> processed = new HashSet<>();
 
     roots.stream().forEach(unprocessed::add);
     while (!unprocessed.isEmpty()) {
       DAG.Node<Operator<?, ?, ?>> poll = unprocessed.poll();
-      ret.add(poll.get());
-      poll.getChildren().stream().forEach(unprocessed::add);
+      if (processed.add(poll.get())) {
+        ret.add(poll.get());
+        poll.getChildren().stream().forEach(unprocessed::add);
+      }
     }
     return ret;
 
@@ -389,7 +396,8 @@ public class InMemExecutor implements Executor {
     final UnaryFunctor mapper = flatMap.getFunctor();
     for (Supplier<?> s : suppliers) {
       final BlockingQueue<?> blockingQueue = new ArrayBlockingQueue(50);
-      ret.add(QueueSupplier.wrap(blockingQueue));
+      QueueSupplier<?> outputSupplier = QueueSupplier.wrap(blockingQueue);
+      ret.add(outputSupplier);
       final Collector c = QueueCollector.wrap(blockingQueue);
       executor.execute(() -> {
         try {
@@ -470,7 +478,7 @@ public class InMemExecutor implements Executor {
 
   @SuppressWarnings("unchecked")
   private List<Supplier<?>> execReduceStateByKey(
-      ReduceStateByKey<?, ?, ?, ?, ?, ?, ?> reduceStateByKey,
+      ReduceStateByKey<?, ?, ?, ?, ?, ?, ?, ?, ?> reduceStateByKey,
       ExecutionContext context) {
 
     final Dataset<?> input = reduceStateByKey.input();
@@ -509,7 +517,7 @@ public class InMemExecutor implements Executor {
               int partition
                   = (partitioning.getPartitioner().getPartition(key) & Integer.MAX_VALUE)
                   % outputPartitions;
-                repartitioned.get(partition).put(o);
+              repartitioned.get(partition).put(o);
             }
           } catch (EndOfStreamException ex) {
             repartitioned.stream().forEach(
@@ -593,5 +601,17 @@ public class InMemExecutor implements Executor {
     });
     return outputSuppliers;
   }
+
+
+  @SuppressWarnings("unchecked")
+  private List<Supplier<?>> execUnion(
+      Union<?, ?> union, ExecutionContext context) {
+    Collection<Dataset<?>> inputs = (Collection<Dataset<?>>) union.listInputs();
+    List<Supplier<?>> ret = inputs.stream()
+        .flatMap(input -> context.get(input).stream())
+        .collect(Collectors.toList());
+    return ret;
+  }
+
 
 }

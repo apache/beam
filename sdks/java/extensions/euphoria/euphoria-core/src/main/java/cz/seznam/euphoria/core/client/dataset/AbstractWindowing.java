@@ -11,7 +11,7 @@ import java.util.Set;
 /**
  * An abstract state aware windowing.
  */
-public abstract class AbstractWindowing<T, KEY, W extends Window<KEY, W>>
+public abstract class AbstractWindowing<T, KEY, W extends Window<KEY>>
     implements Windowing<T, KEY, W> {
 
   final Map<KEY, Set<W>> activeWindows = new HashMap<>();
@@ -31,7 +31,8 @@ public abstract class AbstractWindowing<T, KEY, W extends Window<KEY, W>>
     activeWindows.get(window.getKey()).remove(window);
   }
 
-  protected W addNewWindow(W window, Triggering triggering, UnaryFunction<W, Void> evict) {
+  protected W addNewWindow(W window, Triggering triggering,
+      UnaryFunction<Window<?>, Void> evict) {
     KEY key = window.getKey();
     Set<W> s = activeWindows.get(key);
     if (s == null) {

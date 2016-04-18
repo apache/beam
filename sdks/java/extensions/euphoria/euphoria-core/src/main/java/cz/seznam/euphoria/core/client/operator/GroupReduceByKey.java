@@ -1,6 +1,7 @@
 
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
 import cz.seznam.euphoria.core.client.dataset.Window;
@@ -18,9 +19,9 @@ import java.util.List;
 /**
  * Reduce by key applied on grouped dataset.
  */
-public class GroupReduceByKey<GROUP_KEY, IN, KEY, VALUE, OUT, W extends Window<?, W>,
+public class GroupReduceByKey<GROUP_KEY, IN, KEY, VALUE, OUT, W extends Window<?>,
     TYPE extends Dataset<Pair<GROUP_KEY, Pair<KEY, OUT>>>>
-    extends StateAwareWindowWiseSingleInputOperator<Pair<GROUP_KEY, IN>, CompositeKey<GROUP_KEY, KEY>,
+    extends StateAwareWindowWiseSingleInputOperator<Pair<GROUP_KEY, IN>, IN, Pair<GROUP_KEY, IN>, CompositeKey<GROUP_KEY, KEY>,
         Pair<GROUP_KEY, Pair<KEY, OUT>>, W, TYPE,
         GroupReduceByKey<GROUP_KEY, IN, KEY, VALUE, OUT, W, TYPE>>{
 
@@ -106,9 +107,9 @@ public class GroupReduceByKey<GROUP_KEY, IN, KEY, VALUE, OUT, W extends Window<?
       this.valueExtractor = valueExtractor;
       this.reducer = reducer;
     }
-    public <W extends Window<?, W>> GroupReduceByKey<GROUP_KEY, IN, KEY,
+    public <W extends Window<?>> GroupReduceByKey<GROUP_KEY, IN, KEY,
         VALUE, OUT, W, Dataset<Pair<GROUP_KEY, Pair<KEY, OUT>>>>
-    windowBy(Windowing<Pair<GROUP_KEY, IN>, ?, W> windowing) {
+    windowBy(Windowing<IN, ?, W> windowing) {
       Flow flow = input.getFlow();
       GroupReduceByKey<GROUP_KEY, IN, KEY,
         VALUE, OUT, W, Dataset<Pair<GROUP_KEY, Pair<KEY, OUT>>>> reduceByKey;
@@ -127,7 +128,7 @@ public class GroupReduceByKey<GROUP_KEY, IN, KEY, VALUE, OUT, W extends Window<?
       Flow flow, Dataset<Pair<GROUP_KEY, IN>> input,
       UnaryFunction<IN, KEY> keyExtractor,
       UnaryFunction<IN, VALUE> valueExtractor,
-      Windowing<Pair<GROUP_KEY, IN>, ?, W> windowing,
+      Windowing<IN, ?, W> windowing,
       ReduceFunction<VALUE, OUT> reducer) {
 
     super("GroupReduceByKey", flow, input,
@@ -187,7 +188,7 @@ public class GroupReduceByKey<GROUP_KEY, IN, KEY, VALUE, OUT, W extends Window<?
   @Override
   public DAG<Operator<?, ?, ?>> getBasicOps() {
     // implements this by ReduceStateByKey
-    ReduceStateByKey<Pair<GROUP_KEY, IN>, CompositeKey<GROUP_KEY, KEY>, VALUE,
+    ReduceStateByKey<Pair<GROUP_KEY, IN>, IN, Pair<GROUP_KEY, IN>, CompositeKey<GROUP_KEY, KEY>, VALUE,
         Pair<GROUP_KEY, Pair<KEY, OUT>>,  ReduceState, W, TYPE> reduceState;
 
     Flow flow = getFlow();

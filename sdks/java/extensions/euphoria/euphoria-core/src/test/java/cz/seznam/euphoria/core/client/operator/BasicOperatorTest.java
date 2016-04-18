@@ -11,6 +11,11 @@ import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.MockBatchDataSourceFactory;
 import cz.seznam.euphoria.core.client.io.StdoutSink;
 import cz.seznam.euphoria.core.client.io.TCPLineStreamSource;
+import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.core.client.flow.Flow;
+import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
+import cz.seznam.euphoria.core.client.io.Collector;
+import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.core.executor.InMemExecutor;
 import cz.seznam.euphoria.core.executor.InMemFileSystem;
@@ -97,8 +102,7 @@ public class BasicOperatorTest {
 
 
     Flow flow = Flow.create("Test", settings);
-    // let's pretend we have this, this dataset might be stream or batch
-    // (don't know and don't care)
+    
     PCollection<String> lines = flow.createBatchInput(new URI("hdfs:///data"));
 
     // expand it to words
@@ -111,7 +115,7 @@ public class BasicOperatorTest {
 
     // reduce it to counts, use windowing, so the output is batch or stream
     // depending on the type of input
-    PCollection<Pair<String, Long>> streamOutput = ReduceByKey
+    PCollection<Pair<String, Long>> output = ReduceByKey
         .of(words)
         .keyBy(Pair::getFirst)
         .valueBy(Pair::getSecond)
@@ -140,8 +144,7 @@ public class BasicOperatorTest {
         StdoutSink.Factory.class);
 
     Flow flow = Flow.create("Test", settings);
-    // let's pretend we have this, this dataset might be stream or batch
-    // (don't know and don't care)
+
     Dataset<String> lines = flow.createInput(new URI("tcp://localhost:8080"));
 
     // get rid of empty lines
@@ -184,5 +187,51 @@ public class BasicOperatorTest {
     output.persist(URI.create("stdout:///"));
 
     executor.waitForCompletion(flow);
+
   }
+
+  @Test
+  @Ignore
+  public void testJoinOnStreams() throws Exception {
+    Settings settings = new Settings();
+    settings.setClass("euphoria.io.datasource.factory.tcp",
+        TCPLineStreamSource.Factory.class);
+    settings.setClass("euphoria.io.datasink.factory.stdout",
+        StdoutSink.Factory.class);
+
+    Flow flow = Flow.create("Test", settings);
+
+    Dataset<String> first = flow.createInput(new URI("tcp://localhost:8080"));
+    Dataset<String> second = flow.createInput(new URI("tcp://localhost:8081"));
+
+    UnaryFunctor<String, Pair<String, Integer>> tokv = (s, c) -> {
+      String[] parts = s.split("\t", 2);
+      if (parts.length == 2) {
+        c.collect(Pair.of(parts[0], Integer.valueOf(parts[1])));
+      }
+    };
+
+    Dataset<Pair<String, Integer>> firstkv = FlatMap.of(first)
+        .by(tokv)
+        .output();
+    Dataset<Pair<String, Integer>> secondkv = FlatMap.of(second)
+        .by(tokv)
+        .output();
+
+    Dataset<Pair<String, Object>> output = Join.of(firstkv, secondkv)
+        .by(Pair::getFirst, Pair::getFirst)
+        .using((l, r, c) -> {
+          c.collect((l == null ? 0 : l.getSecond()) + (r == null ? 0 : r.getSecond()));
+        })
+        .windowBy(Windowing.Time.seconds(10))
+        .outer()
+        .output();
+
+    Map.of(output).by(p -> p.getFirst() + ", " + p.getSecond())
+        .output().persist(URI.create("stdout:///"));
+
+    executor.waitForCompletion(flow);
+
+  }
+
 }

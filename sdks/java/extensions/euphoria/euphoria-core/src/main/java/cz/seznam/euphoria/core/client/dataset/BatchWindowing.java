@@ -15,13 +15,13 @@ public final class BatchWindowing<T>
 
 
   public static class BatchWindow
-      extends AbstractWindow<Void, BatchWindow>
-      implements AlignedWindow<BatchWindow> {
+      extends AbstractWindow<Void>
+      implements AlignedWindow {
 
 
     @Override
     public void registerTrigger(Triggering triggering,
-        UnaryFunction<BatchWindow, Void> evict) {
+        UnaryFunction<Window<?>, Void> evict) {
       // the batch window will end at the end of input stream
     }
 
@@ -38,7 +38,7 @@ public final class BatchWindowing<T>
 
   @Override
   public Set<BatchWindow> allocateWindows(T what, Triggering triggering,
-      UnaryFunction<BatchWindow, Void> evict) {
+      UnaryFunction<Window<?>, Void> evict) {
     // batch windowing has only single window
     return getActive(null);
   }

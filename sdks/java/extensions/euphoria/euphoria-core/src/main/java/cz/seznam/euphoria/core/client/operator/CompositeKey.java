@@ -1,6 +1,8 @@
 
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.client.util.Pair;
+
 /**
  * A composite key for operations applied on groups.
  */

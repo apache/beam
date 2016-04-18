@@ -7,7 +7,7 @@ import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.DataSourceFactory;
 import cz.seznam.euphoria.core.client.io.Partition;
 import cz.seznam.euphoria.core.client.io.Reader;
-import cz.seznam.euphoria.core.client.operator.Pair;
+import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.core.util.URIParams;
 import org.apache.kafka.clients.consumer.Consumer;
