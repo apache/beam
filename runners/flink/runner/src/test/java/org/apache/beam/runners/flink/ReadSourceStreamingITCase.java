@@ -22,20 +22,17 @@ import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.PCollection;
-
 import com.google.common.base.Joiner;
-
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.streaming.util.StreamingProgramTestBase;
 
 /**
- * Reads from a bounded source in batch execution.
+ * Reads from a bounded source in streaming.
  */
-public class ReadSourceITCase extends JavaProgramTestBase {
+public class ReadSourceStreamingITCase extends StreamingProgramTestBase {
 
   protected String resultPath;
 
-  public ReadSourceITCase(){
+  public ReadSourceStreamingITCase(){
   }
 
   private static final String[] EXPECTED_RESULT = new String[] {
@@ -58,18 +55,17 @@ public class ReadSourceITCase extends JavaProgramTestBase {
 
   private static void runProgram(String resultPath) {
 
-    Pipeline p = FlinkTestPipeline.createForBatch();
+    Pipeline p = FlinkTestPipeline.createForStreaming();
 
-    PCollection<String> result = p
-        .apply(CountingInput.upTo(10))
-        .apply(ParDo.of(new DoFn<Long, String>() {
+    p
+      .apply(CountingInput.upTo(10))
+      .apply(ParDo.of(new DoFn<Long, String>() {
           @Override
           public void processElement(ProcessContext c) throws Exception {
             c.output(c.element().toString());
           }
-        }));
-
-    result.apply(TextIO.Write.to(resultPath));
+        }))
+      .apply(TextIO.Write.to(resultPath));
 
     p.run();
   }
