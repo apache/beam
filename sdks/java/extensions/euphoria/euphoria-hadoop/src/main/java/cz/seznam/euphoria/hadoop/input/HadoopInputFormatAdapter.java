@@ -4,7 +4,7 @@ import com.google.common.collect.AbstractIterator;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.Partition;
 import cz.seznam.euphoria.core.client.io.Reader;
-import cz.seznam.euphoria.core.client.operator.Pair;
+import cz.seznam.euphoria.core.client.util.Pair;
 import lombok.SneakyThrows;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Writable;
