@@ -16,81 +16,77 @@ import cz.seznam.euphoria.core.client.io.Collector;
  * Operator reducing state by given reduce function.
  */
 public class ReduceStateByKey<
-    IN, KEY, VALUE, OUT, STATE extends State<VALUE, OUT>,
-    W extends Window<?, W>,
+    IN, WIN, KIN, KEY, VALUE, OUT, STATE extends State<VALUE, OUT>,
+    W extends Window<?>,
     TYPE extends Dataset<OUT>>
-    extends StateAwareWindowWiseSingleInputOperator<IN, KEY, OUT, W, TYPE,
-        ReduceStateByKey<IN, KEY, VALUE, OUT, STATE, W, TYPE>> {
+    extends StateAwareWindowWiseSingleInputOperator<IN, WIN, KIN, KEY, OUT, W, TYPE,
+        ReduceStateByKey<IN, WIN, KIN, KEY, VALUE, OUT, STATE, W, TYPE>> {
 
   public static class Builder1<IN> {
     final Dataset<IN> input;
     Builder1(Dataset<IN> input) {
       this.input = input;
     }
-    public <KEY> Builder2<IN, KEY> keyBy(UnaryFunction<IN, KEY> keyExtractor) {
+    public <KIN, KEY> Builder2<IN, KIN, KEY> keyBy(UnaryFunction<KIN, KEY> keyExtractor) {
       return new Builder2<>(input, keyExtractor);
     }
   }
-  public static class Builder2<IN, KEY> {
+  public static class Builder2<IN, KIN, KEY> {
     final Dataset<IN> input;
-    final UnaryFunction<IN, KEY> keyExtractor;
-    Builder2(Dataset<IN> input, UnaryFunction<IN, KEY> keyExtractor) {
+    final UnaryFunction<KIN, KEY> keyExtractor;
+    Builder2(Dataset<IN> input, UnaryFunction<KIN, KEY> keyExtractor) {
       this.input = input;
       this.keyExtractor = keyExtractor;
     }
-    public <VALUE> Builder3<IN, KEY, VALUE> valueBy(UnaryFunction<IN, VALUE> valueExtractor) {
+    public <VALUE> Builder3<IN, KIN, KEY, VALUE> valueBy(UnaryFunction<KIN, VALUE> valueExtractor) {
       return new Builder3<>(input, keyExtractor, valueExtractor);
     }
-    public <OUT, STATE extends State<IN, OUT>> Builder4<IN, KEY, IN, OUT, STATE> stateFactory(
-        BinaryFunction<KEY, Collector<OUT>, STATE> stateFactory) {
-      return new Builder4<>(input, keyExtractor, e-> e, stateFactory);
-    }
   }
-  public static class Builder3<IN, KEY, VALUE> {
+  public static class Builder3<IN, KIN, KEY, VALUE> {
     final Dataset<IN> input;
-    final UnaryFunction<IN, KEY> keyExtractor;
-    final UnaryFunction<IN, VALUE> valueExtractor;
+    final UnaryFunction<KIN, KEY> keyExtractor;
+    final UnaryFunction<KIN, VALUE> valueExtractor;
     Builder3(Dataset<IN> input,
-        UnaryFunction<IN, KEY> keyExtractor,
-        UnaryFunction<IN, VALUE> valueExtractor) {
+        UnaryFunction<KIN, KEY> keyExtractor,
+        UnaryFunction<KIN, VALUE> valueExtractor) {
       this.input = input;
       this.keyExtractor = keyExtractor;
       this.valueExtractor = valueExtractor;
     }
-    public <OUT, STATE extends State<VALUE, OUT>> Builder4<IN, KEY, VALUE, OUT, STATE> stateFactory(
+    public <OUT, STATE extends State<VALUE, OUT>> Builder4<IN, KIN, KEY, VALUE, OUT, STATE> stateFactory(
         BinaryFunction<KEY, Collector<OUT>, STATE> stateFactory) {
       return new Builder4<>(input, keyExtractor, valueExtractor, stateFactory);
     }
   }
-  public static class Builder4<IN, KEY, VALUE, OUT, STATE extends State<VALUE, OUT>> {
+  public static class Builder4<IN, KIN, KEY, VALUE, OUT, STATE extends State<VALUE, OUT>> {
     final Dataset<IN> input;
-    final UnaryFunction<IN, KEY> keyExtractor;
-    final UnaryFunction<IN, VALUE> valueExtractor;
+    final UnaryFunction<KIN, KEY> keyExtractor;
+    final UnaryFunction<KIN, VALUE> valueExtractor;
     final BinaryFunction<KEY, Collector<OUT>, STATE> stateFactory;
     Builder4(Dataset<IN> input,
-        UnaryFunction<IN, KEY> keyExtractor,
-        UnaryFunction<IN, VALUE> valueExtractor,
+        UnaryFunction<KIN, KEY> keyExtractor,
+        UnaryFunction<KIN, VALUE> valueExtractor,
         BinaryFunction<KEY, Collector<OUT>, STATE> stateFactory) {
       this.input = input;
       this.keyExtractor = keyExtractor;
       this.valueExtractor = valueExtractor;
       this.stateFactory = stateFactory;
     }
-    public Builder5<IN, KEY, VALUE, OUT, STATE> combineStateBy(
+    public Builder5<IN, KIN, KEY, VALUE, OUT, STATE> combineStateBy(
         CombinableReduceFunction<STATE> stateCombiner) {
       return new Builder5<>(input, keyExtractor, valueExtractor, stateFactory,
           stateCombiner);
     }
   }
-  public static class Builder5<IN, KEY, VALUE, OUT, STATE extends State<VALUE, OUT>> {
+  public static class Builder5<IN, KIN, KEY, VALUE, OUT, STATE extends State<VALUE, OUT>> {
     final Dataset<IN> input;
-    final UnaryFunction<IN, KEY> keyExtractor;
-    final UnaryFunction<IN, VALUE> valueExtractor;
+    final UnaryFunction<KIN, KEY> keyExtractor;
+    final UnaryFunction<KIN, VALUE> valueExtractor;
     final BinaryFunction<KEY, Collector<OUT>, STATE> stateFactory;
     final CombinableReduceFunction<STATE> stateCombiner;
     Builder5(Dataset<IN> input,
-        UnaryFunction<IN, KEY> keyExtractor,
-        UnaryFunction<IN, VALUE> valueExtractor,
+        UnaryFunction<KIN, KEY> keyExtractor,
+        UnaryFunction<KIN, VALUE> valueExtractor,
         BinaryFunction<KEY, Collector<OUT>, STATE> stateFactory,
         CombinableReduceFunction<STATE> stateCombiner) {
       this.input = input;
@@ -99,9 +95,9 @@ public class ReduceStateByKey<
       this.stateFactory = stateFactory;
       this.stateCombiner = stateCombiner;
     }
-    public <W extends Window<?, W>> ReduceStateByKey<
-        IN, KEY, VALUE, OUT, STATE, W, Dataset<OUT>> windowBy(
-        Windowing<IN, ?, W> windowing) {
+    public <WIN, W extends Window<?>> ReduceStateByKey<
+        IN, WIN, KIN, KEY, VALUE, OUT, STATE, W, Dataset<OUT>> windowBy(
+        Windowing<WIN, ?, W> windowing) {
       Flow flow = input.getFlow();
       return flow.add(new ReduceStateByKey<>(
           flow, input, keyExtractor, valueExtractor,
@@ -115,15 +111,15 @@ public class ReduceStateByKey<
   }
 
   private final BinaryFunction<KEY, Collector<OUT>, STATE> stateFactory;
-  private final UnaryFunction<IN, VALUE> valueExtractor;
+  private final UnaryFunction<KIN, VALUE> valueExtractor;
   private final CombinableReduceFunction<STATE> stateCombiner;
   private final boolean grouped;
   
   ReduceStateByKey(Flow flow,
       Dataset<IN> input,
-      UnaryFunction<IN, KEY> keyExtractor,
-      UnaryFunction<IN, VALUE> valueExtractor,
-      Windowing<IN, ?, W> windowing,
+      UnaryFunction<KIN, KEY> keyExtractor,
+      UnaryFunction<KIN, VALUE> valueExtractor,
+      Windowing<WIN, ?, W> windowing,
       BinaryFunction<KEY, Collector<OUT>, STATE> stateFactory,
       CombinableReduceFunction<STATE> stateCombiner) {
     super("ReduceStateByKey", flow, input, keyExtractor, windowing);
@@ -139,9 +135,9 @@ public class ReduceStateByKey<
   @SuppressWarnings("unchecked")
   ReduceStateByKey(Flow flow,
       GroupedDataset<Object, IN> groupedInput,
-      UnaryFunction<IN, KEY> keyExtractor,
-      UnaryFunction<IN, VALUE> valueExtractor,
-      Windowing<IN, ?, W> windowing,
+      UnaryFunction<KIN, KEY> keyExtractor,
+      UnaryFunction<KIN, VALUE> valueExtractor,
+      Windowing<WIN, ?, W> windowing,
       BinaryFunction<KEY, Collector<OUT>, STATE> stateFactory,
       CombinableReduceFunction<STATE> stateCombiner) {
     super("ReduceStateByKey", flow, (Dataset) groupedInput, keyExtractor, windowing);
@@ -157,7 +153,7 @@ public class ReduceStateByKey<
     return stateFactory;
   }
 
-  public UnaryFunction<IN, VALUE> getValueExtractor() {
+  public UnaryFunction<KIN, VALUE> getValueExtractor() {
     return valueExtractor;
   }
 

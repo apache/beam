@@ -16,17 +16,16 @@ import java.util.Collections;
  * Operator operating on window level with state information.
  */
 public class StateAwareWindowWiseSingleInputOperator<
-    IN, KEY, OUT, W extends Window<?, W>, TYPE extends Dataset<OUT>,
-    OP extends StateAwareWindowWiseSingleInputOperator<IN, KEY, OUT, W, TYPE, OP>>
-    extends StateAwareWindowWiseOperator<IN, KEY, OUT, W, TYPE, OP>
-    implements StateAware<IN, KEY> {
+    IN, WIN, KIN, KEY, OUT, W extends Window<?>, TYPE extends Dataset<OUT>,
+    OP extends StateAwareWindowWiseSingleInputOperator<IN, WIN, KIN, KEY, OUT, W, TYPE, OP>>
+    extends StateAwareWindowWiseOperator<IN, WIN, KIN, KEY, OUT, W, TYPE, OP> {
 
   protected final Dataset<IN> input;
   private final TYPE output;
 
   protected StateAwareWindowWiseSingleInputOperator(
-          String name, Flow flow, Dataset<IN> input, UnaryFunction<IN, KEY> extractor,
-          Windowing<IN, ?, W> windowing,
+          String name, Flow flow, Dataset<IN> input, UnaryFunction<KIN, KEY> extractor,
+          Windowing<WIN, ?, W> windowing,
           Partitioning<KEY> partitioning) {
     
     super(name, flow, windowing, extractor, partitioning);
@@ -35,8 +34,8 @@ public class StateAwareWindowWiseSingleInputOperator<
   }
 
   protected StateAwareWindowWiseSingleInputOperator(
-      String name, Flow flow, Dataset<IN> input, UnaryFunction<IN, KEY> extractor,
-      Windowing<IN, ?, W> windowing) {
+      String name, Flow flow, Dataset<IN> input, UnaryFunction<KIN, KEY> extractor,
+      Windowing<WIN, ?, W> windowing) {
     this(name, flow, input, extractor, windowing, input.getPartitioning());
   }
 
