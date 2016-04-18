@@ -22,12 +22,14 @@ public class Union<IN, TYPE extends Dataset<IN>>
 
   public static <IN> Union<IN, Dataset<IN>> of(
       Dataset<IN> left, Dataset<IN> right) {
-    return new Union<>(left.getFlow(), left, right);
+    Flow flow = left.getFlow();
+    return flow.add(new Union<>(flow, left, right));
   }
 
   public static <IN> Union<IN, PCollection<IN>> of(
       PCollection<IN> left, PCollection<IN> right) {
-    return new Union<>(left.getFlow(), left, right);
+    Flow flow = left.getFlow();
+    return flow.add(new Union<>(flow, left, right));
   }
 
   final TYPE output;

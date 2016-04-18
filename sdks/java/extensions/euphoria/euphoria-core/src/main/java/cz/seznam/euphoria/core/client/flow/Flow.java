@@ -76,7 +76,8 @@ public class Flow implements Serializable {
   /**
    * Map of datasets to consumers.
    */
-  private final Map<Dataset<?>, Set<Operator<?, ?, ?>>> datasetConsumers = new HashMap<>();
+  private final Map<Dataset<?>, Set<Operator<?, ?, ?>>> datasetConsumers
+      = new HashMap<>();
 
 
   private Flow(String name, Settings settings) {
@@ -136,7 +137,7 @@ public class Flow implements Serializable {
     for (Dataset<IN> d : operator.listInputs()) {
       if (!sources.contains(d) && !outputs.contains(d)) {
         throw new IllegalArgumentException(
-                "Invalid input: All dependencies must already be present in the flow!");
+            "Invalid input: All dependencies must already be present in the flow!");
       }
       Set<Operator<?, ?, ?>> consumers = this.datasetConsumers.get(d);
       if (consumers == null) {
