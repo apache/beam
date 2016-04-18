@@ -135,12 +135,6 @@ public class InProcessPipelineRunner
     PCollection<T> getPCollection();
 
     /**
-     * Returns whether this bundle is keyed. A bundle that is part of a {@link PCollection} that
-     * occurs after a {@link GroupByKey} is keyed by the result of the last {@link GroupByKey}.
-     */
-    boolean isKeyed();
-
-    /**
      * Returns the (possibly null) key that was output in the most recent {@link GroupByKey} in the
      * execution of this bundle.
      */

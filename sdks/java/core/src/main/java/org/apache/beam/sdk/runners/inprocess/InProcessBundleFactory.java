@@ -43,20 +43,18 @@ class InProcessBundleFactory implements BundleFactory {
 
   @Override
   public <T> UncommittedBundle<T> createRootBundle(PCollection<T> output) {
-    return InProcessBundle.unkeyed(output);
+    return InProcessBundle.create(output, null);
   }
 
   @Override
   public <T> UncommittedBundle<T> createBundle(CommittedBundle<?> input, PCollection<T> output) {
-    return input.isKeyed()
-        ? InProcessBundle.keyed(output, input.getKey())
-        : InProcessBundle.unkeyed(output);
+    return InProcessBundle.create(output, input.getKey());
   }
 
   @Override
   public <T> UncommittedBundle<T> createKeyedBundle(
-      CommittedBundle<?> input, Object key, PCollection<T> output) {
-    return InProcessBundle.keyed(output, key);
+      CommittedBundle<?> input, @Nullable Object key, PCollection<T> output) {
+    return InProcessBundle.create(output, key);
   }
 
   /**
@@ -64,32 +62,19 @@ class InProcessBundleFactory implements BundleFactory {
    */
   private static final class InProcessBundle<T> implements UncommittedBundle<T> {
     private final PCollection<T> pcollection;
-    private final boolean keyed;
-    private final Object key;
+    @Nullable private final Object key;
     private boolean committed = false;
     private ImmutableList.Builder<WindowedValue<T>> elements;
 
     /**
-     * Create a new {@link InProcessBundle} for the specified {@link PCollection} without a key.
+     * Create a new {@link InProcessBundle} for the specified {@link PCollection}.
      */
-    public static <T> InProcessBundle<T> unkeyed(PCollection<T> pcollection) {
-      return new InProcessBundle<T>(pcollection, false, null);
+    public static <T> InProcessBundle<T> create(PCollection<T> pcollection, @Nullable Object key) {
+      return new InProcessBundle<T>(pcollection, key);
     }
 
-    /**
-     * Create a new {@link InProcessBundle} for the specified {@link PCollection} with the specified
-     * key.
-     *
-     * <p>See {@link CommittedBundle#getKey()} and {@link CommittedBundle#isKeyed()} for more
-     * information.
-     */
-    public static <T> InProcessBundle<T> keyed(PCollection<T> pcollection, Object key) {
-      return new InProcessBundle<T>(pcollection, true, key);
-    }
-
-    private InProcessBundle(PCollection<T> pcollection, boolean keyed, Object key) {
+    private InProcessBundle(PCollection<T> pcollection, Object key) {
       this.pcollection = pcollection;
-      this.keyed = keyed;
       this.key = key;
       this.elements = ImmutableList.builder();
     }
@@ -120,11 +105,6 @@ class InProcessBundleFactory implements BundleFactory {
         @Nullable
         public Object getKey() {
           return key;
-        }
-
-        @Override
-        public boolean isKeyed() {
-          return keyed;
         }
 
         @Override
