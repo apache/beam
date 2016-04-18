@@ -306,7 +306,7 @@ class ShuffleKeyValuesIterable(observable.ObservableMixin):
     return '%s on %s' % (self.__class__.__name__, self.key)
 
 
-class ShuffleReaderBase(iobase.SourceReader):
+class ShuffleReaderBase(iobase.NativeSourceReader):
   """A base class for grouped and ungrouped shuffle readers."""
 
   def __init__(self, shuffle_source, reader=None):
@@ -415,7 +415,7 @@ class UngroupedShuffleReader(ShuffleReaderBase):
       yield self.value_coder.decode(entry.value)
 
 
-class ShuffleSourceBase(iobase.Source):
+class ShuffleSourceBase(iobase.NativeSource):
   """A base class for grouped and ungrouped shuffle sources."""
 
   def __init__(self, config_bytes, coder, start_position='', end_position=''):

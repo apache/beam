@@ -264,7 +264,7 @@ def _parse_table_reference(table, dataset=None, project=None):
 # BigQuerySource, BigQuerySink.
 
 
-class BigQuerySource(iobase.Source):
+class BigQuerySource(iobase.NativeSource):
   """A source based on a BigQuery table."""
 
   def __init__(self, table=None, dataset=None, project=None, query=None,
@@ -444,7 +444,7 @@ class BigQuerySink(iobase.NativeSink):
 # BigQueryReader, BigQueryWriter.
 
 
-class BigQueryReader(iobase.SourceReader):
+class BigQueryReader(iobase.NativeSourceReader):
   """A reader for a BigQuery source."""
 
   def __init__(self, source, test_bigquery_client=None):

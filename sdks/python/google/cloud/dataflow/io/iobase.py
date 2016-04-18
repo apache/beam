@@ -51,11 +51,17 @@ _minor_fields = ['coder', 'key_coder', 'value_coder',
                  'compression_type']
 
 
-class Source(object):
-  """Generic source."""
+class NativeSource(object):
+  """A source implemented by Dataflow service.
+
+  This class is to be only inherited by sources natively implemented by Cloud
+  Dataflow service, hence should not be sub-classed by users.
+
+  This class is deprecated and should not be used to define new sources.
+  """
 
   def reader(self):
-    """Returns a SourceReader instance associated with this source."""
+    """Returns a NativeSourceReader instance associated with this source."""
     raise NotImplementedError
 
   def __repr__(self):
@@ -65,8 +71,8 @@ class Source(object):
                                               _minor_fields)))
 
 
-class SourceReader(object):
-  """A generic reader for a source."""
+class NativeSourceReader(object):
+  """A reader for a source implemented by Dataflow service."""
 
   def __enter__(self):
     """Opens everything necessary for a reader to function properly."""
@@ -98,12 +104,13 @@ class SourceReader(object):
     """Attempts to split the input in two parts.
 
     The two parts are named the "primary" part and the "residual" part. The
-    current 'SourceReader' keeps processing the primary part, while the
+    current 'NativeSourceReader' keeps processing the primary part, while the
     residual part will be processed elsewhere (e.g. perhaps on a different
     worker).
 
     The primary and residual parts, if concatenated, must represent the
-    same input as the current input of this 'SourceReader' before this call.
+    same input as the current input of this 'NativeSourceReader' before this
+    call.
 
     The boundary between the primary part and the residual part is
     specified in a framework-specific way using 'DynamicSplitRequest' e.g.,
@@ -127,7 +134,7 @@ class SourceReader(object):
 
     Returns:
       'None' if the 'DynamicSplitRequest' cannot be honored (in that
-      case the input represented by this 'SourceReader' stays the same),
+      case the input represented by this 'NativeSourceReader' stays the same),
       or a 'DynamicSplitResult' describing how the input was split into a
       primary and residual part.
     """
@@ -139,7 +146,7 @@ class SourceReader(object):
 
 
 class ReaderProgress(object):
-  """A representation of how far a SourceReader has read through the source."""
+  """A representation of how far a NativeSourceReader has read."""
 
   def __init__(self, position=None, percent_complete=None, remaining_time=None):
 
@@ -179,7 +186,7 @@ class ReaderProgress(object):
 
 
 class ReaderPosition(object):
-  """A representation of position in an iteration through a 'SourceReader'."""
+  """A representation of position in an iteration of a 'NativeSourceReader'."""
 
   def __init__(self, end=None, key=None, byte_offset=None, record_index=None,
                shuffle_position=None, concat_position=None):
@@ -231,7 +238,7 @@ class ConcatPosition(object):
 
 
 class DynamicSplitRequest(object):
-  """Specifies how 'SourceReader.request_dynamic_split' should split the input.
+  """Specifies how 'NativeSourceReader.request_dynamic_split' should split.
   """
 
   def __init__(self, progress):
@@ -290,9 +297,6 @@ class NativeSinkWriter(object):
 
 class RangeTracker(object):
   """A thread-safe helper object for implementing dynamic work rebalancing.
-
-  ``RangeTracker`` can be used for implementing dynamic work rebalancing in
-  position-based subclasses of ``iobase.SourceReader``.
 
   **Usage of the RangeTracker class hierarchy**
 

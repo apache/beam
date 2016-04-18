@@ -18,7 +18,7 @@ import gc
 import logging
 import unittest
 
-from google.cloud.dataflow.io.iobase import Source
+from google.cloud.dataflow.io.iobase import NativeSource
 from google.cloud.dataflow.pipeline import Pipeline
 from google.cloud.dataflow.pipeline import PipelineOptions
 from google.cloud.dataflow.pipeline import PipelineVisitor
@@ -35,7 +35,7 @@ from google.cloud.dataflow.transforms import Read
 from google.cloud.dataflow.transforms.util import assert_that, equal_to
 
 
-class FakeSource(Source):
+class FakeSource(NativeSource):
   """Fake source returning a fixed list of values."""
 
   class _Reader(object):

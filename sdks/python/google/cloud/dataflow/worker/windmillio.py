@@ -49,7 +49,7 @@ class PubSubWindmillSource(pubsub.PubSubSource):
     return PubSubWindmillReader(self)
 
 
-class PubSubWindmillReader(iobase.SourceReader):
+class PubSubWindmillReader(iobase.NativeSourceReader):
   """Internal worker Windmill PubSub reader."""
 
   def __init__(self, source):
@@ -259,7 +259,7 @@ class KeyedWorkItem(observable.ObservableMixin):
     return '<%s %s>' % (self.__class__.__name__, self.key)
 
 
-class WindowingWindmillSource(iobase.Source):
+class WindowingWindmillSource(iobase.NativeSource):
   """Internal worker PubSubSource which reads from Windmill."""
 
   def __init__(self, context, stream_id, coder):
@@ -270,7 +270,7 @@ class WindowingWindmillSource(iobase.Source):
     return WindowingWindmillReader(self)
 
 
-class WindowingWindmillReader(iobase.SourceReader):
+class WindowingWindmillReader(iobase.NativeSourceReader):
   """Internal worker Windmill PubSub reader."""
 
   def __init__(self, source):

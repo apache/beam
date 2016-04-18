@@ -56,7 +56,7 @@ def _gcs_file_copy(from_path, to_path, encoding=''):
 # TextFileSource, TextFileSink.
 
 
-class TextFileSource(iobase.Source):
+class TextFileSource(iobase.NativeSource):
   """A source for a GCS or local text file.
 
   Parses a text file as newline-delimited elements, by default assuming
@@ -250,7 +250,7 @@ class TextFileSink(iobase.NativeSink):
 # TextFileReader, TextMultiFileReader.
 
 
-class TextFileReader(iobase.SourceReader):
+class TextFileReader(iobase.NativeSourceReader):
   """A reader for a text file source."""
 
   def __init__(self, source):
@@ -347,7 +347,7 @@ class TextFileReader(iobase.SourceReader):
       return
 
 
-class TextMultiFileReader(iobase.SourceReader):
+class TextMultiFileReader(iobase.NativeSourceReader):
   """A reader for a multi-file text source."""
 
   def __init__(self, source):

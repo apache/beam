@@ -20,7 +20,7 @@ from google.cloud.dataflow import coders
 from google.cloud.dataflow.io import iobase
 
 
-class InMemorySource(iobase.Source):
+class InMemorySource(iobase.NativeSource):
   """In-memory input source."""
 
   def __init__(
@@ -49,7 +49,7 @@ class InMemorySource(iobase.Source):
     return InMemoryReader(self)
 
 
-class InMemoryReader(iobase.SourceReader):
+class InMemoryReader(iobase.NativeSourceReader):
   """A reader for in-memory source."""
 
   def __init__(self, source):

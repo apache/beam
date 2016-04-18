@@ -22,7 +22,7 @@ from google.cloud.dataflow.io import iobase
 from google.cloud.dataflow.worker import concat_reader
 
 
-class TestSource(iobase.Source):
+class TestSource(iobase.NativeSource):
 
   def __init__(
       self, elements, index_to_fail_reading=-1, fail_reader_at_close=False):
@@ -35,7 +35,7 @@ class TestSource(iobase.Source):
                       self.fail_reader_at_close)
 
 
-class TestReader(iobase.SourceReader):
+class TestReader(iobase.NativeSourceReader):
 
   def __init__(self, elements, index_to_fail_reading, fail_reader_at_close):
     self.elements = elements

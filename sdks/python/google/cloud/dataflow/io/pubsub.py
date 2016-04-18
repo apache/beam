@@ -23,7 +23,7 @@ from google.cloud.dataflow import coders
 from google.cloud.dataflow.io import iobase
 
 
-class PubSubSource(iobase.Source):
+class PubSubSource(iobase.NativeSource):
   """Source for reading from a given Cloud Pub/Sub topic.
 
   Attributes:

@@ -23,7 +23,7 @@ from __future__ import absolute_import
 from google.cloud.dataflow.io import iobase
 
 
-class ConcatSource(iobase.Source):
+class ConcatSource(iobase.NativeSource):
   """A wrapper source class for ConcatReader."""
 
   def __init__(self, sub_sources):
@@ -36,7 +36,7 @@ class ConcatSource(iobase.Source):
     return self.sub_sources == other.sub_sources
 
 
-class ConcatReader(iobase.SourceReader):
+class ConcatReader(iobase.NativeSourceReader):
   """A reader that reads elements from a given set of encoded sources.
 
   Creates readers for sources lazily, i.e. only when elements
