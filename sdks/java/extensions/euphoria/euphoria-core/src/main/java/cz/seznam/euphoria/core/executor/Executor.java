@@ -6,6 +6,7 @@ import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.Repartition;
+import cz.seznam.euphoria.core.client.operator.Union;
 import java.util.Set;
 import java.util.concurrent.Future;
 
@@ -27,7 +28,7 @@ public interface Executor {
   @SuppressWarnings("unchecked")
   static Set<Class<?>> getBasicOps() {
     return Sets.newHashSet(
-        FlatMap.class, Repartition.class, ReduceStateByKey.class);
+        FlatMap.class, Repartition.class, ReduceStateByKey.class, Union.class);
   }
   
 }

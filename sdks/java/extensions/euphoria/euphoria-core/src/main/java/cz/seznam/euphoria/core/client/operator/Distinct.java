@@ -1,7 +1,7 @@
 
 package cz.seznam.euphoria.core.client.operator;
 
-import cz.seznam.euphoria.core.client.dataset.HashPartitioning;
+import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.dataset.PCollection;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
@@ -9,21 +9,22 @@ import cz.seznam.euphoria.core.client.graph.DAG;
 import cz.seznam.euphoria.core.client.dataset.BatchWindowing;
 import cz.seznam.euphoria.core.client.dataset.BatchWindowing.BatchWindow;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
+import cz.seznam.euphoria.core.client.dataset.HashPartitioning;
 import cz.seznam.euphoria.core.client.dataset.Window;
 import cz.seznam.euphoria.core.client.flow.Flow;
 
 /**
  * Operator outputting distinct (based on equals) elements.
  */
-public class Distinct<IN, W extends Window<?, W>, TYPE extends Dataset<IN>>
-    extends StateAwareWindowWiseSingleInputOperator<IN, IN, IN, W, TYPE, Distinct<IN, W, TYPE>> {
+public class Distinct<IN, W extends Window<?>, TYPE extends Dataset<IN>>
+    extends StateAwareWindowWiseSingleInputOperator<IN, IN, IN, IN, IN, W, TYPE, Distinct<IN, W, TYPE>> {
 
   public static class Builder1<IN> {
     Dataset<IN> input;
     Builder1(Dataset<IN> input) {
       this.input = input;
     }
-    public <W extends Window<?, W>> Distinct<IN, W, Dataset<IN>> windowBy(
+    public <W extends Window<?>> Distinct<IN, W, Dataset<IN>> windowBy(
         Windowing<IN, ?, W> windowing) {
       Flow flow = input.getFlow();
       Distinct<IN, W, Dataset<IN>> distinct = new Distinct<>(flow, input, windowing);

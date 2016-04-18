@@ -10,7 +10,7 @@ import java.util.Set;
 /**
  * A bunch of elements joined into window.
  */
-public interface Window<KEY, W extends Window<KEY, W>> extends Serializable {
+public interface Window<KEY> extends Serializable {
 
   /**
    * Retrieve key of this window. Windows are grouped into groups based
@@ -26,7 +26,8 @@ public interface Window<KEY, W extends Window<KEY, W>> extends Serializable {
    * @param triggering the registering service
    * @param evict the callback to be called when the trigger fires
    */
-  void registerTrigger(Triggering triggering, UnaryFunction<W, Void> evict);
+  void registerTrigger(Triggering triggering,
+      UnaryFunction<Window<?>, Void> evict);
 
 
   /**
