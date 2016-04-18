@@ -23,9 +23,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.KvCoderBase;
-import org.apache.beam.sdk.coders.MapCoder;
-import org.apache.beam.sdk.coders.MapCoderBase;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 import com.google.api.client.util.Base64;
@@ -257,12 +254,6 @@ public final class CoderUtils {
       @Override
       public JavaType typeFromId(DatabindContext context, String id) {
         Class<?> clazz = getClassForId(id);
-        if (clazz == KvCoder.class) {
-          clazz = KvCoderBase.class;
-        }
-        if (clazz == MapCoder.class) {
-          clazz = MapCoderBase.class;
-        }
         @SuppressWarnings("rawtypes")
         TypeVariable[] tvs = clazz.getTypeParameters();
         JavaType[] types = new JavaType[tvs.length];
