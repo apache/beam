@@ -3,7 +3,7 @@ package cz.seznam.euphoria.hadoop.input;
 import cz.seznam.euphoria.core.client.dataset.PCollection;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.Collector;
-import cz.seznam.euphoria.core.client.io.PrintStreamSink;
+import cz.seznam.euphoria.core.client.io.StdoutSink;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.Pair;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
@@ -21,6 +21,8 @@ public class ExerciseHadoopInputSource {
     Settings settings = new Settings();
     settings.setClass("euphoria.io.datasource.factory.hdfs",
             HadoopTextFileSourceFactory.class);
+    settings.setClass("euphoria.io.datasink.factory.stdout",
+            StdoutSink.Factory.class);
 
     Flow flow = Flow.create("Test", settings);
 
@@ -50,7 +52,7 @@ public class ExerciseHadoopInputSource {
             .output();
 
     // produce the output
-    wordCount.persist(new PrintStreamSink<>(System.out, true));
+    wordCount.persist(URI.create("stdout:///"));
 
     Executor executor = new InMemExecutor();
     executor.waitForCompletion(flow);

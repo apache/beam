@@ -9,7 +9,7 @@ import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.Collector;
-import cz.seznam.euphoria.core.client.io.PrintStreamSink;
+import cz.seznam.euphoria.core.client.io.StdoutSink;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.Pair;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
@@ -30,6 +30,9 @@ public class ExerciseKafkaStreamSource {
     Settings settings = new Settings();
     settings.setClass("euphoria.io.datasource.factory.kafka",
         KafkaStreamSource.Factory.class);
+    settings.setClass("euphoria.io.datasink.factory.stdout",
+        StdoutSink.Factory.class);
+    settings.setBoolean("stdout.params.dump-partition-id", true);
 
     Flow flow = Flow.create("Test", settings);
 
@@ -79,7 +82,7 @@ public class ExerciseKafkaStreamSource {
         .output();
 
     // produce the output
-    streamOutput.persist(new PrintStreamSink<>(System.out, true));
+    streamOutput.persist(URI.create("stdout:///?cfg=stdout.params"));
 
     Executor executor = new InMemExecutor();
     executor.waitForCompletion(flow);
