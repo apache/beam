@@ -140,7 +140,6 @@ def get_service_credentials():
 
       # The following code uses oauth2client >=2.0.0 functionality and if this
       # is not available due to import errors will use 1.5.2 functionality.
-      # TODO(silviuc): Remove the 1.5.2 when dependencies have been updated.
       try:
         from oauth2client.service_account import ServiceAccountCredentials
         return ServiceAccountCredentials.from_p12_keyfile(
