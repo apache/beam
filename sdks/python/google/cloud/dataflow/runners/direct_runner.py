@@ -27,9 +27,10 @@ import logging
 
 from google.cloud.dataflow import coders
 from google.cloud.dataflow import error
-from google.cloud.dataflow.pvalue import AsIter
-from google.cloud.dataflow.pvalue import AsSingleton
 from google.cloud.dataflow.pvalue import EmptySideInput
+from google.cloud.dataflow.pvalue import IterablePCollectionView
+from google.cloud.dataflow.pvalue import ListPCollectionView
+from google.cloud.dataflow.pvalue import SingletonPCollectionView
 from google.cloud.dataflow.runners.common import DoFnRunner
 from google.cloud.dataflow.runners.common import DoFnState
 from google.cloud.dataflow.runners.runner import PipelineResult
@@ -95,34 +96,42 @@ class DirectPipelineRunner(PipelineRunner):
                                 counter_factory=self._counter_factory)
 
   @skip_if_cached
+  def run_CreatePCollectionView(self, transform_node):
+    transform = transform_node.transform
+    view = transform.view
+    values = self._cache.get_pvalue(transform_node.inputs[0])
+    if isinstance(view, SingletonPCollectionView):
+      has_default, default_value = view._view_options()  # pylint: disable=protected-access
+      if len(values) == 0:  # pylint: disable=g-explicit-length-test
+        if has_default:
+          result = default_value
+        else:
+          result = EmptySideInput()
+      elif len(values) == 1:
+        # TODO(ccy): Figure out whether side inputs should ever be given as
+        # windowed values
+        result = values[0].value
+      else:
+        raise ValueError(("PCollection with more than one element accessed as "
+                          "a singleton view: %s.") % view)
+    elif isinstance(view, IterablePCollectionView):
+      result = [v.value for v in values]
+    elif isinstance(view, ListPCollectionView):
+      result = [v.value for v in values]
+    else:
+      raise NotImplementedError
+
+    self._cache.cache_output(transform_node, result)
+
+  @skip_if_cached
   def run_ParDo(self, transform_node):
     transform = transform_node.transform
     # TODO(gildea): what is the appropriate object to attach the state to?
     context = DoFnProcessContext(label=transform.label,
                                  state=DoFnState(self._counter_factory))
 
-    # Construct the list of values from side-input PCollections that we'll
-    # substitute into the arguments for DoFn methods.
-    def get_side_input_value(si):
-      if isinstance(si, AsSingleton):
-        # User wants one item from the PCollection as side input, or an
-        # EmptySideInput if no value exists.
-        pcoll_vals = self._cache.get_pvalue(si.pvalue)
-        if len(pcoll_vals) == 1:
-          return pcoll_vals[0].value
-        elif len(pcoll_vals) > 1:
-          raise ValueError("PCollection with more than one element "
-                           "accessed as a singleton view.")
-        elif si.default_value != si._NO_DEFAULT:
-          return si.default_value
-        else:
-          # TODO(robertwb): Should be an error like Java.
-          return EmptySideInput()
-      if isinstance(si, AsIter):
-        # User wants the entire PCollection as side input. List permits
-        # repeatable iteration.
-        return [v.value for v in self._cache.get_pvalue(si.pvalue)]
-    side_inputs = [get_side_input_value(e) for e in transform_node.side_inputs]
+    side_inputs = [self._cache.get_pvalue(view)
+                   for view in transform_node.side_inputs]
 
     # TODO(robertwb): Do this type checking inside DoFnRunner to get it on
     # remote workers as well?

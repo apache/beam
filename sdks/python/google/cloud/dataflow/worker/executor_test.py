@@ -19,6 +19,7 @@ import tempfile
 import unittest
 
 from google.cloud.dataflow import coders
+from google.cloud.dataflow import pvalue
 from google.cloud.dataflow.internal import pickler
 from google.cloud.dataflow.internal import util
 from google.cloud.dataflow.io import bigquery
@@ -318,7 +319,8 @@ class ExecutorTest(unittest.TestCase):
             serialized_fn=pickle_with_side_inputs(
                 ptransform.CallableWrapperDoFn(
                     lambda x, side: ['%s:%s' % (x, side)]),
-                tag_and_type=('inmemory', True)),  # True => type is singleton.
+                tag_and_type=('inmemory', pvalue.SingletonPCollectionView,
+                              (False, None))),
             output_tags=['out'], input=(0, 0),
             side_inputs=[
                 maptask.WorkerSideInputSource(
@@ -372,8 +374,7 @@ class ExecutorTest(unittest.TestCase):
             serialized_fn=pickle_with_side_inputs(
                 ptransform.CallableWrapperDoFn(
                     lambda x, side: ['%s:%s' % (x, s) for s in side]),
-                tag_and_type=(
-                    'textfile', False)),  # False => type is collection.
+                tag_and_type=('textfile', pvalue.IterablePCollectionView, ())),
             output_tags=['out'], input=(0, 0),
             side_inputs=[
                 maptask.WorkerSideInputSource(fileio.TextFileSource(
@@ -412,8 +413,8 @@ class ExecutorTest(unittest.TestCase):
               serialized_fn=pickle_with_side_inputs(
                   ptransform.CallableWrapperDoFn(
                       lambda x, side: ['%s:%s' % (x, side)]),
-                  tag_and_type=(
-                      'bigquery', True)),  # True => type is singleton.
+                  tag_and_type=('bigquery', pvalue.SingletonPCollectionView,
+                                (False, None))),
               output_tags=['out'], input=(0, 0),
               side_inputs=[
                   maptask.WorkerSideInputSource(
@@ -454,8 +455,8 @@ class ExecutorTest(unittest.TestCase):
               serialized_fn=pickle_with_side_inputs(
                   ptransform.CallableWrapperDoFn(
                       lambda x, side: ['%s:%s' % (x, s) for s in side]),
-                  tag_and_type=(
-                      'bigquery', False)),  # False => type is collection.
+                  tag_and_type=('bigquery', pvalue.IterablePCollectionView,
+                                ())),
               output_tags=['out'], input=(0, 0),
               side_inputs=[
                   maptask.WorkerSideInputSource(
@@ -491,8 +492,7 @@ class ExecutorTest(unittest.TestCase):
             serialized_fn=pickle_with_side_inputs(
                 ptransform.CallableWrapperDoFn(
                     lambda x, side: ['%s:%s' % (x, s) for s in side]),
-                tag_and_type=(
-                    'sometag', False)),  # False => type is collection.
+                tag_and_type=('sometag', pvalue.IterablePCollectionView, ())),
             output_tags=['out'], input=(0, 0),
             # Note that the two side inputs have the same tag. This is quite
             # common for intermediary PCollections used as side inputs that

@@ -27,8 +27,7 @@ import time
 from google.cloud.dataflow import coders
 from google.cloud.dataflow import pvalue
 from google.cloud.dataflow.internal import pickler
-from google.cloud.dataflow.pvalue import AsSideInput
-from google.cloud.dataflow.pvalue import AsSingleton
+from google.cloud.dataflow.pvalue import PCollectionView
 from google.cloud.dataflow.runners.runner import PipelineResult
 from google.cloud.dataflow.runners.runner import PipelineRunner
 from google.cloud.dataflow.runners.runner import PipelineState
@@ -37,7 +36,6 @@ from google.cloud.dataflow.typehints import typehints
 from google.cloud.dataflow.utils.names import PropertyNames
 from google.cloud.dataflow.utils.names import TransformNames
 from google.cloud.dataflow.utils.options import StandardOptions
-
 from google.cloud.dataflow.internal.clients import dataflow as dataflow_api
 
 
@@ -247,28 +245,6 @@ class DataflowPipelineRunner(PipelineRunner):
       self._cache.cache_output(transform_node, tag, step)
     return step
 
-  def _add_singleton_step(self, label, full_label, tag, input_step):
-    """Creates a CollectionToSingleton step used to handle ParDo side inputs."""
-    # Import here to avoid adding the dependency for local running scenarios.
-    # pylint: disable=g-import-not-at-top
-    from google.cloud.dataflow.internal import apiclient
-    step = apiclient.Step(TransformNames.COLLECTION_TO_SINGLETON, label)
-    self.job.proto.steps.append(step.proto)
-    step.add_property(PropertyNames.USER_NAME, full_label)
-    step.add_property(
-        PropertyNames.PARALLEL_INPUT,
-        {'@type': 'OutputReference',
-         PropertyNames.STEP_NAME: input_step.proto.name,
-         PropertyNames.OUTPUT_NAME: input_step.get_output(tag)})
-    step.encoding = self._get_side_input_encoding(input_step.encoding)
-    step.add_property(
-        PropertyNames.OUTPUT_INFO,
-        [{PropertyNames.USER_NAME: (
-            '%s.%s' % (full_label, PropertyNames.OUTPUT)),
-          PropertyNames.ENCODING: step.encoding,
-          PropertyNames.OUTPUT_NAME: PropertyNames.OUTPUT}])
-    return step
-
   def run_Create(self, transform_node):
     transform = transform_node.transform
     step = self._add_step(TransformNames.CREATE_PCOLLECTION,
@@ -285,6 +261,24 @@ class DataflowPipelineRunner(PipelineRunner):
     # encoding in a WindowedValueCoder.
     step.encoding = self._get_cloud_encoding(
         coders.WindowedValueCoder(element_coder))
+    step.add_property(
+        PropertyNames.OUTPUT_INFO,
+        [{PropertyNames.USER_NAME: (
+            '%s.%s' % (transform_node.full_label, PropertyNames.OUT)),
+          PropertyNames.ENCODING: step.encoding,
+          PropertyNames.OUTPUT_NAME: PropertyNames.OUT}])
+
+  def run_CreatePCollectionView(self, transform_node):
+    step = self._add_step(TransformNames.COLLECTION_TO_SINGLETON,
+                          transform_node.full_label, transform_node)
+    input_tag = transform_node.inputs[0].tag
+    input_step = self._cache.get_pvalue(transform_node.inputs[0])
+    step.add_property(
+        PropertyNames.PARALLEL_INPUT,
+        {'@type': 'OutputReference',
+         PropertyNames.STEP_NAME: input_step.proto.name,
+         PropertyNames.OUTPUT_NAME: input_step.get_output(input_tag)})
+    step.encoding = self._get_side_input_encoding(input_step.encoding)
     step.add_property(
         PropertyNames.OUTPUT_INFO,
         [{PropertyNames.USER_NAME: (
@@ -351,25 +345,22 @@ class DataflowPipelineRunner(PipelineRunner):
     input_tag = transform_node.inputs[0].tag
     input_step = self._cache.get_pvalue(transform_node.inputs[0])
 
-    # Must generate any required steps for side inputs here before creating the
-    # step for the ParDo transform.
+    # Attach side inputs.
     si_dict = {}
     si_tags_and_types = []
     for side_pval in transform_node.side_inputs:
-      assert isinstance(side_pval, AsSideInput)
-      si_label = self._get_unique_step_name()
-      si_full_label = '%s/%s' % (transform_node.full_label, si_label)
-      self._add_singleton_step(
-          si_label, si_full_label, side_pval.pvalue.tag,
-          self._cache.get_pvalue(side_pval.pvalue))
+      assert isinstance(side_pval, PCollectionView)
+      side_input_step = self._cache.get_pvalue(side_pval)
+      si_label = side_input_step.step_name
       si_dict[si_label] = {
           '@type': 'OutputReference',
           PropertyNames.STEP_NAME: si_label,
-          PropertyNames.OUTPUT_NAME: PropertyNames.OUTPUT}
+          PropertyNames.OUTPUT_NAME: PropertyNames.OUT}
       # The label for the side input step will appear as a 'tag' property for
       # the side input source specification. Its type (singleton or iterator)
       # will also be used to read the entire source or just first element.
-      si_tags_and_types.append((si_label, isinstance(side_pval, AsSingleton)))
+      si_tags_and_types.append((si_label, side_pval.__class__,
+                                side_pval._view_options()))  # pylint: disable=protected-access
 
     # Now create the step for the ParDo transform being handled.
     step = self._add_step(

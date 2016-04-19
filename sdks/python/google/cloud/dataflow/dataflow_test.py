@@ -250,19 +250,91 @@ class DataflowTest(unittest.TestCase):
     assert_that(results, matcher(1, a_list, some_pairs))
     pipeline.run()
 
+  def test_as_singleton_without_unique_labels(self):
+    # This should succeed as calling AsSingleton on the same PCollection twice
+    # with the same defaults will return the same PCollectionView.
+    a_list = [2]
+    pipeline = Pipeline('DirectPipelineRunner')
+    main_input = pipeline | Create('main input', [1])
+    side_list = pipeline | Create('side list', a_list)
+    results = main_input | FlatMap(
+        'test',
+        lambda x, s1, s2: [[x, s1, s2]],
+        AsSingleton(side_list), AsSingleton(side_list))
+
+    def  matcher(expected_elem, expected_singleton):
+      def match(actual):
+        [[actual_elem, actual_singleton1, actual_singleton2]] = actual
+        equal_to([expected_elem])([actual_elem])
+        equal_to([expected_singleton])([actual_singleton1])
+        equal_to([expected_singleton])([actual_singleton2])
+      return match
+
+    assert_that(results, matcher(1, 2))
+    pipeline.run()
+
+  def test_as_singleton_with_different_defaults_without_unique_labels(self):
+    # This should fail as AsSingleton with distinct default values should create
+    # distinct PCollectionViews with the same full_label.
+    a_list = [2]
+    pipeline = Pipeline('DirectPipelineRunner')
+    main_input = pipeline | Create('main input', [1])
+    side_list = pipeline | Create('side list', a_list)
+
+    with self.assertRaises(RuntimeError) as e:
+      _ = main_input | FlatMap(
+          'test',
+          lambda x, s1, s2: [[x, s1, s2]],
+          AsSingleton(side_list), AsSingleton(side_list, default_value=3))
+    self.assertTrue(
+        e.exception.message.startswith(
+            'Transform "ViewAsSingleton(side list.None)" does not have a '
+            'stable unique label.'))
+
+  def test_as_singleton_with_different_defaults_with_unique_labels(self):
+    a_list = []
+    pipeline = Pipeline('DirectPipelineRunner')
+    main_input = pipeline | Create('main input', [1])
+    side_list = pipeline | Create('side list', a_list)
+    results = main_input | FlatMap(
+        'test',
+        lambda x, s1, s2: [[x, s1, s2]],
+        AsSingleton('si1', side_list, default_value=2),
+        AsSingleton('si2', side_list, default_value=3))
+
+    def  matcher(expected_elem, expected_singleton1, expected_singleton2):
+      def match(actual):
+        [[actual_elem, actual_singleton1, actual_singleton2]] = actual
+        equal_to([expected_elem])([actual_elem])
+        equal_to([expected_singleton1])([actual_singleton1])
+        equal_to([expected_singleton2])([actual_singleton2])
+      return match
+
+    assert_that(results, matcher(1, 2, 3))
+    pipeline.run()
+
   def test_as_list_without_unique_labels(self):
+    # This should succeed as calling AsList on the same PCollection twice will
+    # return the same PCollectionView.
     a_list = [1, 2, 3]
     pipeline = Pipeline('DirectPipelineRunner')
     main_input = pipeline | Create('main input', [1])
     side_list = pipeline | Create('side list', a_list)
-    with self.assertRaises(RuntimeError) as e:
-      _ = main_input | FlatMap(
-          'test',
-          lambda x, ls1, ls2: [[x, ls1, ls2]],
-          AsList(side_list), AsList(side_list))
-    self.assertTrue(
-        e.exception.message.startswith(
-            'Transform "AsList" does not have a stable unique label.'))
+    results = main_input | FlatMap(
+        'test',
+        lambda x, ls1, ls2: [[x, ls1, ls2]],
+        AsList(side_list), AsList(side_list))
+
+    def  matcher(expected_elem, expected_list):
+      def match(actual):
+        [[actual_elem, actual_list1, actual_list2]] = actual
+        equal_to([expected_elem])([actual_elem])
+        equal_to(expected_list)(actual_list1)
+        equal_to(expected_list)(actual_list2)
+      return match
+
+    assert_that(results, matcher(1, [1, 2, 3]))
+    pipeline.run()
 
   def test_as_list_with_unique_labels(self):
     a_list = [1, 2, 3]
@@ -281,6 +353,9 @@ class DataflowTest(unittest.TestCase):
         equal_to(expected_list)(actual_list1)
         equal_to(expected_list)(actual_list2)
       return match
+
+    assert_that(results, matcher(1, [1, 2, 3]))
+    pipeline.run()
 
   def test_as_dict_with_unique_labels(self):
     some_kvs = [('a', 1), ('b', 2)]

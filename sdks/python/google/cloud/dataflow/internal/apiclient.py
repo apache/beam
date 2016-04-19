@@ -124,6 +124,8 @@ class Step(object):
   """Wrapper for a dataflow Step protobuf."""
 
   def __init__(self, step_kind, step_name):
+    self.step_kind = step_kind
+    self.step_name = step_name
     self.proto = dataflow.Step(kind=step_kind, name=step_name)
     self.proto.properties = {}
 

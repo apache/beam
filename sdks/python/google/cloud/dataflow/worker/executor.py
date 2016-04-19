@@ -22,6 +22,7 @@ import logging
 import random
 
 
+from google.cloud.dataflow import pvalue
 from google.cloud.dataflow.coders import BytesCoder
 from google.cloud.dataflow.coders import TupleCoder
 from google.cloud.dataflow.coders import WindowedValueCoder
@@ -421,7 +422,11 @@ class DoOperation(Operation):
     # Note that for each tag there could be several read operations in the
     # specification. This can happen for instance if the source has been
     # sharded into several files.
-    for side_tag, side_type in tags_and_types:
+    for side_tag, view_class, view_options in tags_and_types:
+      # Note that currently, the implementation of Iterable and List views
+      # are identical. This may change in the future once we allow very large
+      # side input collections.
+      is_singleton = view_class == pvalue.SingletonPCollectionView
       # Using the side_tag in the lambda below will trigger a pylint warning.
       # However in this case it is fine because the lambda is used right away
       # while the variable has the value assigned by the current iteration of
@@ -434,12 +439,18 @@ class DoOperation(Operation):
           op = ReadOperation(si, self.counter_factory)
         else:
           raise NotImplementedError('Unknown side input type: %r' % si)
-        for v in op.side_read_all(singleton=side_type):
+        for v in op.side_read_all(singleton=is_singleton):
           results.append(v)
-          if side_type:
+          if is_singleton:
             break
-      if side_type:
-        yield results[0] if results else EmptySideInput()
+      if is_singleton:
+        has_default, default = view_options
+        if results:
+          yield results[0]
+        elif has_default:
+          yield default
+        else:
+          yield EmptySideInput()
       else:
         yield results
 
