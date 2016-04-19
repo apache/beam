@@ -30,9 +30,11 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Function;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ComparisonChain;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
@@ -209,7 +211,7 @@ public class InMemoryWatermarkManager {
 
     public AppliedPTransformInputWatermark(Collection<? extends Watermark> inputWatermarks) {
       this.inputWatermarks = inputWatermarks;
-      this.pendingElements = TreeMultiset.create(PENDING_ELEMENT_COMPARATOR);
+      this.pendingElements = TreeMultiset.create(new WindowedValueByTimestampComparator());
       this.objectTimers = new HashMap<>();
       currentWatermark = new AtomicReference<>(BoundedWindow.TIMESTAMP_MIN_VALUE);
     }
@@ -623,12 +625,17 @@ public class InMemoryWatermarkManager {
   private static final Ordering<Instant> INSTANT_ORDERING = Ordering.natural();
 
   /**
-   * An ordering that compares windowed values by timestamp, then arbitrarily. This ensures that
-   * {@link WindowedValue WindowedValues} will be sorted by timestamp, while two different
-   * {@link WindowedValue WindowedValues} with the same timestamp are not considered equal.
+   * A function that takes a WindowedValue and returns the exploded representation of that
+   * {@link WindowedValue}.
    */
-  private static final Ordering<WindowedValue<? extends Object>> PENDING_ELEMENT_COMPARATOR =
-      (new WindowedValueByTimestampComparator()).compound(Ordering.arbitrary());
+  private static final Function<WindowedValue<?>, ? extends Iterable<? extends WindowedValue<?>>>
+      EXPLODE_WINDOWS_FN =
+          new Function<WindowedValue<?>, Iterable<? extends WindowedValue<?>>>() {
+            @Override
+            public Iterable<? extends WindowedValue<?>> apply(WindowedValue<?> input) {
+              return input.explodeWindows();
+            }
+          };
 
   /**
    * For each (Object, PriorityQueue) pair in the provided map, remove each Timer that is before the
@@ -1047,13 +1054,17 @@ public class InMemoryWatermarkManager {
     }
 
     private void removePending(CommittedBundle<?> bundle) {
-      inputWatermark.removePendingElements(bundle.getElements());
+      inputWatermark.removePendingElements(elementsFromBundle(bundle));
       synchronizedProcessingInputWatermark.removePending(bundle);
     }
 
     private void addPending(CommittedBundle<?> bundle) {
-      inputWatermark.addPendingElements(bundle.getElements());
+      inputWatermark.addPendingElements(elementsFromBundle(bundle));
       synchronizedProcessingInputWatermark.addPending(bundle);
+    }
+
+    private Iterable<? extends WindowedValue<?>> elementsFromBundle(CommittedBundle<?> bundle) {
+      return FluentIterable.from(bundle.getElements()).transformAndConcat(EXPLODE_WINDOWS_FN);
     }
 
     private Map<Object, FiredTimers> extractFiredTimers() {
@@ -1297,7 +1308,9 @@ public class InMemoryWatermarkManager {
   private static class WindowedValueByTimestampComparator extends Ordering<WindowedValue<?>> {
     @Override
     public int compare(WindowedValue<?> o1, WindowedValue<?> o2) {
-      return o1.getTimestamp().compareTo(o2.getTimestamp());
+      return ComparisonChain.start()
+          .compare(o1.getTimestamp(), o2.getTimestamp())
+          .result();
     }
   }
 
