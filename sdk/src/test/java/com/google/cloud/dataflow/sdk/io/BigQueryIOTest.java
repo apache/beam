@@ -36,6 +36,8 @@ import com.google.cloud.dataflow.sdk.testing.ExpectedLogs;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
+import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
+import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.BigQueryServices;
 import com.google.cloud.dataflow.sdk.util.BigQueryServices.Status;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
@@ -338,7 +340,7 @@ public class BigQueryIOTest {
         new TableRow().set("name", "b").set("number", 2),
         new TableRow().set("name", "c").set("number", 3)))
     .setCoder(TableRowJsonCoder.of())
-    .apply(BigQueryIO.Write.to("project-id:dataset-id.table-id")
+    .apply(BigQueryIO.Write.to("dataset-id.table-id")
         .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
         .withSchema(new TableSchema().setFields(
             ImmutableList.of(
@@ -603,5 +605,41 @@ public class BigQueryIOTest {
     assertEquals("BigQueryIO.Write", BigQueryIO.Write.to("somedataset.sometable").getName());
     assertEquals("ReadMyTable", BigQueryIO.Read.named("ReadMyTable").getName());
     assertEquals("WriteMyTable", BigQueryIO.Write.named("WriteMyTable").getName());
+  }
+
+  @Test
+  public void testWriteValidateFailsCreateNoSchema() {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("no schema was provided");
+    TestPipeline.create()
+        .apply(Create.<TableRow>of())
+        .apply(BigQueryIO.Write
+            .to("dataset.table")
+            .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED));
+  }
+
+  @Test
+  public void testWriteValidateFailsTableAndTableSpec() {
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage("Cannot set both a table reference and a table function");
+    TestPipeline.create()
+        .apply(Create.<TableRow>of())
+        .apply(BigQueryIO.Write
+            .to("dataset.table")
+            .to(new SerializableFunction<BoundedWindow, String>() {
+              @Override
+              public String apply(BoundedWindow input) {
+                return null;
+              }
+            }));
+  }
+
+  @Test
+  public void testWriteValidateFailsNoTableAndNoTableSpec() {
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage("must set the table reference of a BigQueryIO.Write transform");
+    TestPipeline.create()
+        .apply(Create.<TableRow>of())
+        .apply(BigQueryIO.Write.named("name"));
   }
 }
