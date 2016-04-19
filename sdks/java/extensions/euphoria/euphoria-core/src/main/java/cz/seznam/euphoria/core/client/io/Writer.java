@@ -3,39 +3,21 @@ package cz.seznam.euphoria.core.client.io;
 
 import java.io.Closeable;
 import java.io.IOException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Writer for data to a particular partition.
  */
-public abstract class Writer<T> implements Closeable {
-  
-  private static final Logger LOG = LoggerFactory.getLogger(Writer.class);
-  private boolean closed = false;
+public interface Writer<T> extends Closeable {
 
   /** Write element to the output. */
-  public abstract void write(T elem) throws IOException;
+  void write(T elem) throws IOException;
 
   /** Commit the write process. */
-  public abstract void commit() throws IOException;
+  void commit() throws IOException;
 
   /** Rollback the write process. Optional operation. */
-  public void rollback() throws UnsupportedOperationException, IOException {
-    throw new UnsupportedOperationException("Unsupported");
-  }
+  default void rollback() throws IOException {}
 
   @Override
-  public void close() throws IOException {
-    if (closed) return;
-    
-    try {
-      closed = true;
-      rollback();
-    } catch (UnsupportedOperationException ex) {
-      LOG.info("Failed to rollback the operation", ex);
-    }
-  }
-
-
+  void close() throws IOException;
 }

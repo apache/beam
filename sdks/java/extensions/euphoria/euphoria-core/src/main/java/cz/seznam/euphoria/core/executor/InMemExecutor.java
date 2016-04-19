@@ -206,6 +206,7 @@ public class InMemExecutor implements Executor {
     // consume outputs
     for (Dataset<?> o : outputs) {
       DataSink<?> sink = o.getOutputSink();
+      sink.initialize();
       int part = 0;
       for (Supplier s : context.get(o)) {
         final Writer writer = sink.openWriter(part++);
@@ -218,11 +219,23 @@ public class InMemExecutor implements Executor {
             } catch (EndOfStreamException ex) {
               // end of the stream
               writer.commit();
-              writer.close();
+              sink.commit();
               // and terminate the thread
             }
           } catch (IOException ex) {
+            try {
+              writer.rollback();
+              sink.rollback();
+            } catch (IOException ioex) {
+              // swallow exception
+            }
             throw new RuntimeException(ex);
+          } finally {
+            try {
+              writer.close();
+            } catch (IOException ioex) {
+              // swallow exception
+            }
           }
         });
       }

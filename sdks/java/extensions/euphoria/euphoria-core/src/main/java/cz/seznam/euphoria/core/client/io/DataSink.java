@@ -7,15 +7,22 @@ import java.io.Serializable;
 /**
  * Sink for a dataset.
  */
-public abstract class DataSink<T> implements Serializable {
+public interface DataSink<T> extends Serializable {
 
-  /** Open Writer for given partition id (zero based). */
-  public abstract Writer<T> openWriter(int partitionId);
+  /**
+   *  Perform initialization before writing to the sink.
+   *  Called before writing begins. It must be ensured that
+   *  implementation of this method is idempotent (may be called
+   *  more than once in the case of failure/retry).
+   */
+  default void initialize() {}
+
+  /** Open {@link Writer} for given partition id (zero based). */
+  Writer<T> openWriter(int partitionId);
 
   /** Commit all partitions. */
-  public abstract void commit() throws IOException;
+  void commit() throws IOException;
 
   /** Rollback all partitions. */
-  public abstract void rollback();
-
+  void rollback();
 }
