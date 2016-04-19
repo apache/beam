@@ -16,15 +16,20 @@
 package com.google.cloud.dataflow.sdk.runners.inprocess;
 
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessExecutionContext.InProcessStepContext;
+import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
+import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.util.DoFnRunner;
+import com.google.cloud.dataflow.sdk.util.DoFnRunners;
 import com.google.cloud.dataflow.sdk.util.DoFnRunners.OutputManager;
+import com.google.cloud.dataflow.sdk.util.SerializableUtils;
 import com.google.cloud.dataflow.sdk.util.UserCodeException;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.common.CounterSet;
 import com.google.cloud.dataflow.sdk.util.state.CopyOnAccessInMemoryStateInternals;
 import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 
 import java.util.ArrayList;
@@ -34,13 +39,57 @@ import java.util.List;
 import java.util.Map;
 
 class ParDoInProcessEvaluator<T> implements TransformEvaluator<T> {
+  public static <InputT, OutputT> ParDoInProcessEvaluator<InputT> create(
+      InProcessEvaluationContext evaluationContext,
+      CommittedBundle<InputT> inputBundle,
+      AppliedPTransform<PCollection<InputT>, ?, ?> application,
+      DoFn<InputT, OutputT> fn,
+      List<PCollectionView<?>> sideInputs,
+      TupleTag<OutputT> mainOutputTag,
+      List<TupleTag<?>> sideOutputTags,
+      Map<TupleTag<?>, PCollection<?>> outputs) {
+    InProcessExecutionContext executionContext =
+        evaluationContext.getExecutionContext(application, inputBundle.getKey());
+    String stepName = evaluationContext.getStepName(application);
+    InProcessStepContext stepContext =
+        executionContext.getOrCreateStepContext(stepName, stepName, null);
+
+    CounterSet counters = evaluationContext.createCounterSet();
+
+    Map<TupleTag<?>, UncommittedBundle<?>> outputBundles = new HashMap<>();
+    for (Map.Entry<TupleTag<?>, PCollection<?>> outputEntry : outputs.entrySet()) {
+      outputBundles.put(
+          outputEntry.getKey(),
+          evaluationContext.createBundle(inputBundle, outputEntry.getValue()));
+    }
+
+    DoFnRunner<InputT, OutputT> runner =
+        DoFnRunners.createDefault(
+            evaluationContext.getPipelineOptions(),
+            SerializableUtils.clone(fn),
+            evaluationContext.createSideInputReader(sideInputs),
+            BundleOutputManager.create(outputBundles),
+            mainOutputTag,
+            sideOutputTags,
+            stepContext,
+            counters.getAddCounterMutator(),
+            application.getInput().getWindowingStrategy());
+
+    runner.startBundle();
+
+    return new ParDoInProcessEvaluator<>(
+        runner, application, counters, outputBundles.values(), stepContext);
+  }
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+
   private final DoFnRunner<T, ?> fnRunner;
   private final AppliedPTransform<PCollection<T>, ?, ?> transform;
   private final CounterSet counters;
   private final Collection<UncommittedBundle<?>> outputBundles;
   private final InProcessStepContext stepContext;
 
-  public ParDoInProcessEvaluator(
+  private ParDoInProcessEvaluator(
       DoFnRunner<T, ?> fnRunner,
       AppliedPTransform<PCollection<T>, ?, ?> transform,
       CounterSet counters,
