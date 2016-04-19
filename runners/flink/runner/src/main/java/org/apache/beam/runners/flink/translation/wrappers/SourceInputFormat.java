@@ -46,8 +46,8 @@ public class SourceInputFormat<T> implements InputFormat<T, SourceInputSplit<T>>
   private transient PipelineOptions options;
   private final SerializedPipelineOptions serializedOptions;
 
-  private transient BoundedSource.BoundedReader<T> reader = null;
-  private boolean inputAvailable = true;
+  private transient BoundedSource.BoundedReader<T> reader;
+  private boolean inputAvailable = false;
 
   public SourceInputFormat(BoundedSource<T> initialSource, PipelineOptions options) {
     this.initialSource = initialSource;
@@ -135,6 +135,9 @@ public class SourceInputFormat<T> implements InputFormat<T, SourceInputSplit<T>>
 
   @Override
   public void close() throws IOException {
-    reader.close();
+    // TODO null check can be removed once FLINK-3796 is fixed
+    if (reader != null) {
+      reader.close();
+    }
   }
 }
