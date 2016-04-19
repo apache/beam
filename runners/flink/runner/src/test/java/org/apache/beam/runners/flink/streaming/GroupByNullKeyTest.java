@@ -67,12 +67,11 @@ public class GroupByNullKeyTest extends StreamingProgramTestBase implements Seri
     @Override
     public void processElement(ProcessContext c) {
       KV<Integer, String> record = c.element();
-      long now = System.currentTimeMillis();
       int timestamp = record.getKey();
       String userName = record.getValue();
       if (userName != null) {
         // Sets the implicit timestamp field to be used in windowing.
-        c.outputWithTimestamp(userName, new Instant(timestamp + now));
+        c.outputWithTimestamp(userName, new Instant(timestamp));
       }
     }
   }
