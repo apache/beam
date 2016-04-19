@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
+import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.runners.flink.translation.wrappers.SerializableFnAggregatorWrapper;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
@@ -33,15 +34,10 @@ import org.apache.beam.sdk.values.TupleTag;
 
 import com.google.common.collect.ImmutableList;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.util.Collector;
 import org.joda.time.Instant;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -57,28 +53,13 @@ import java.util.Map;
 public class FlinkMultiOutputDoFnFunction<IN, OUT> extends RichMapPartitionFunction<IN, RawUnionValue> {
 
   private final DoFn<IN, OUT> doFn;
-  private transient PipelineOptions options;
+  private final SerializedPipelineOptions serializedPipelineOptions;
   private final Map<TupleTag<?>, Integer> outputMap;
 
   public FlinkMultiOutputDoFnFunction(DoFn<IN, OUT> doFn, PipelineOptions options, Map<TupleTag<?>, Integer> outputMap) {
     this.doFn = doFn;
-    this.options = options;
+    this.serializedPipelineOptions = new SerializedPipelineOptions(options);
     this.outputMap = outputMap;
-  }
-
-  private void writeObject(ObjectOutputStream out)
-      throws IOException, ClassNotFoundException {
-    out.defaultWriteObject();
-    ObjectMapper mapper = new ObjectMapper();
-    mapper.writeValue(out, options);
-  }
-
-  private void readObject(ObjectInputStream in)
-      throws IOException, ClassNotFoundException {
-    in.defaultReadObject();
-    ObjectMapper mapper = new ObjectMapper();
-    options = mapper.readValue(in, PipelineOptions.class);
-
   }
 
   @Override
@@ -129,7 +110,7 @@ public class FlinkMultiOutputDoFnFunction<IN, OUT> extends RichMapPartitionFunct
 
     @Override
     public PipelineOptions getPipelineOptions() {
-      return options;
+      return serializedPipelineOptions.getPipelineOptions();
     }
 
     @Override

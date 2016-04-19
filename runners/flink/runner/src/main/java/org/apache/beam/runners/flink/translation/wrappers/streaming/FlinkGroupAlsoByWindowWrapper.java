@@ -18,6 +18,7 @@
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
+import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.runners.flink.translation.wrappers.SerializableFnAggregatorWrapper;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.AbstractFlinkTimerInternals;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkStateInternals;
@@ -29,7 +30,6 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -104,7 +104,7 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
 
   private static final long serialVersionUID = 1L;
 
-  private transient PipelineOptions options;
+  private SerializedPipelineOptions serializedOptions;
 
   private transient CoderRegistry coderRegistry;
 
@@ -236,7 +236,7 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
                                         Combine.KeyedCombineFn<K, VIN, VACC, VOUT> combiner) {
     Preconditions.checkNotNull(options);
 
-    this.options = Preconditions.checkNotNull(options);
+    this.serializedOptions = new SerializedPipelineOptions(Preconditions.checkNotNull(options));
     this.coderRegistry = Preconditions.checkNotNull(registry);
     this.inputKvCoder = Preconditions.checkNotNull(inputCoder);//(KvCoder<K, VIN>) input.getCoder();
     this.windowingStrategy = Preconditions.checkNotNull(windowingStrategy);//input.getWindowingStrategy();
@@ -477,52 +477,7 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
 
     @Override
     public PipelineOptions getPipelineOptions() {
-      // TODO: PipelineOptions need to be available on the workers.
-      // Ideally they are captured as part of the pipeline.
-      // For now, construct empty options so that StateContexts.createFromComponents
-      // will yield a valid StateContext, which is needed to support the StateContext.window().
-      if (options == null) {
-        options = new PipelineOptions() {
-          @Override
-          public <T extends PipelineOptions> T as(Class<T> kls) {
-            return null;
-          }
-
-          @Override
-          public <T extends PipelineOptions> T cloneAs(Class<T> kls) {
-            return null;
-          }
-
-          @Override
-          public Class<? extends PipelineRunner<?>> getRunner() {
-            return null;
-          }
-
-          @Override
-          public void setRunner(Class<? extends PipelineRunner<?>> kls) {
-
-          }
-
-          @Override
-          public CheckEnabled getStableUniqueNames() {
-            return null;
-          }
-
-          @Override
-          public void setStableUniqueNames(CheckEnabled enabled) {
-          }
-
-          @Override
-          public String getTempLocation() {
-            return null;
-          }
-
-          @Override
-          public void setTempLocation(String tempLocation) {
-          }
-        };
-      }
-      return options;
+      return serializedOptions.getPipelineOptions();
     }
 
     @Override

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming.io;
 
+import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -25,18 +26,12 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.operators.Triggerable;
 import org.joda.time.Instant;
-
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 
 /**
  * A wrapper for Beam's unbounded sources. This class wraps around a source implementing the
@@ -54,15 +49,14 @@ public class UnboundedSourceWrapper<T> extends RichSourceFunction<WindowedValue<
 
   private volatile boolean isRunning = false;
 
-  /** Serialized using custom Java serialization via Jackson */
-  private transient PipelineOptions pipelineOptions;
+  private final SerializedPipelineOptions serializedOptions;
 
   /** Instantiated during runtime **/
   private transient UnboundedSource.UnboundedReader<T> reader;
 
   public UnboundedSourceWrapper(PipelineOptions pipelineOptions, Read.Unbounded<T> transform) {
     this.name = transform.getName();
-    this.pipelineOptions = pipelineOptions;
+    this.serializedOptions = new SerializedPipelineOptions(pipelineOptions);
     this.source = transform.getSource();
   }
 
@@ -91,7 +85,7 @@ public class UnboundedSourceWrapper<T> extends RichSourceFunction<WindowedValue<
 
     isRunning = true;
 
-    reader = source.createReader(pipelineOptions, null);
+    reader = source.createReader(serializedOptions.getPipelineOptions(), null);
 
     boolean inputAvailable = reader.start();
 
@@ -156,18 +150,4 @@ public class UnboundedSourceWrapper<T> extends RichSourceFunction<WindowedValue<
     return System.currentTimeMillis() + watermarkInterval;
   }
 
-
-  // Special serialization of the PipelineOptions necessary to instantiate the reader.
-  private void writeObject(ObjectOutputStream out) throws IOException, ClassNotFoundException {
-    out.defaultWriteObject();
-    ObjectMapper mapper = new ObjectMapper();
-    mapper.writeValue(out, pipelineOptions);
-  }
-
-  // Special deserialization of the PipelineOptions necessary to instantiate the reader.
-  private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-    in.defaultReadObject();
-    ObjectMapper mapper = new ObjectMapper();
-    pipelineOptions = mapper.readValue(in, PipelineOptions.class);
-  }
 }

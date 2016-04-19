@@ -17,11 +17,10 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers;
 
+import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.options.PipelineOptions;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
 import org.apache.flink.api.common.io.InputFormat;
@@ -31,9 +30,7 @@ import org.apache.flink.core.io.InputSplitAssigner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 
 
@@ -47,32 +44,19 @@ public class SourceInputFormat<T> implements InputFormat<T, SourceInputSplit<T>>
   private final BoundedSource<T> initialSource;
 
   private transient PipelineOptions options;
-  private final byte[] serializedOptions;
+  private final SerializedPipelineOptions serializedOptions;
 
   private transient BoundedSource.BoundedReader<T> reader = null;
   private boolean inputAvailable = true;
 
   public SourceInputFormat(BoundedSource<T> initialSource, PipelineOptions options) {
     this.initialSource = initialSource;
-    this.options = options;
-
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    try {
-      new ObjectMapper().writeValue(baos, options);
-      serializedOptions = baos.toByteArray();
-    } catch (Exception e) {
-      throw new RuntimeException("Couldn't serialize PipelineOptions.", e);
-    }
-
+    this.serializedOptions = new SerializedPipelineOptions(options);
   }
 
   @Override
   public void configure(Configuration configuration) {
-    try {
-      options = new ObjectMapper().readValue(serializedOptions, PipelineOptions.class);
-    } catch (IOException e) {
-      throw new RuntimeException("Couldn't deserialize the PipelineOptions.", e);
-    }
+    options = serializedOptions.getPipelineOptions();
   }
 
   @Override
