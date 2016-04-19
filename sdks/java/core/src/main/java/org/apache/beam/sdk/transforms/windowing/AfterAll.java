@@ -44,7 +44,7 @@ public class AfterAll extends OnceTrigger {
    * Returns an {@code AfterAll} {@code Trigger} with the given subtriggers.
    */
   @SafeVarargs
-  public static <W extends BoundedWindow> OnceTrigger of(OnceTrigger... triggers) {
+  public static OnceTrigger of(OnceTrigger... triggers) {
     return new AfterAll(Arrays.<Trigger>asList(triggers));
   }
 

@@ -123,9 +123,9 @@ public class AfterFirstTest {
   public void testShouldFireAfterMerge() throws Exception {
     tester = TriggerTester.forTrigger(
         AfterEach.inOrder(
-            AfterFirst.of(AfterPane.<IntervalWindow>elementCountAtLeast(5),
-                AfterWatermark.<IntervalWindow>pastEndOfWindow()),
-            Repeatedly.forever(AfterPane.<IntervalWindow>elementCountAtLeast(1))),
+            AfterFirst.of(AfterPane.elementCountAtLeast(5),
+                AfterWatermark.pastEndOfWindow()),
+            Repeatedly.forever(AfterPane.elementCountAtLeast(1))),
         Sessions.withGapDuration(Duration.millis(10)));
 
     // Finished the AfterFirst in the first window

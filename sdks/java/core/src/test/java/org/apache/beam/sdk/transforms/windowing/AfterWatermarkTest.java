@@ -84,7 +84,7 @@ public class AfterWatermarkTest {
   @Test
   public void testEarlyAndAtWatermark() throws Exception {
     tester = TriggerTester.forTrigger(
-        AfterWatermark.<IntervalWindow>pastEndOfWindow()
+        AfterWatermark.pastEndOfWindow()
             .withEarlyFirings(mockEarly),
         FixedWindows.of(Duration.millis(100)));
 
@@ -104,7 +104,7 @@ public class AfterWatermarkTest {
   @Test
   public void testAtWatermarkAndLate() throws Exception {
     tester = TriggerTester.forTrigger(
-        AfterWatermark.<IntervalWindow>pastEndOfWindow()
+        AfterWatermark.pastEndOfWindow()
             .withLateFirings(mockLate),
         FixedWindows.of(Duration.millis(100)));
 
@@ -130,7 +130,7 @@ public class AfterWatermarkTest {
   @Test
   public void testEarlyAndAtWatermarkAndLate() throws Exception {
     tester = TriggerTester.forTrigger(
-        AfterWatermark.<IntervalWindow>pastEndOfWindow()
+        AfterWatermark.pastEndOfWindow()
             .withEarlyFirings(mockEarly)
             .withLateFirings(mockLate),
         FixedWindows.of(Duration.millis(100)));
@@ -162,8 +162,8 @@ public class AfterWatermarkTest {
   public void testOnMergeAlreadyFinished() throws Exception {
     tester = TriggerTester.forTrigger(
         AfterEach.inOrder(
-            AfterWatermark.<IntervalWindow>pastEndOfWindow(),
-            Repeatedly.forever(AfterPane.<IntervalWindow>elementCountAtLeast(1))),
+            AfterWatermark.pastEndOfWindow(),
+            Repeatedly.forever(AfterPane.elementCountAtLeast(1))),
         Sessions.withGapDuration(Duration.millis(10)));
 
     tester.injectElements(1);
@@ -209,8 +209,8 @@ public class AfterWatermarkTest {
   public void testOnMergeRewinds() throws Exception {
     tester = TriggerTester.forTrigger(
         AfterEach.inOrder(
-            AfterWatermark.<IntervalWindow>pastEndOfWindow(),
-            Repeatedly.forever(AfterPane.<IntervalWindow>elementCountAtLeast(1))),
+            AfterWatermark.pastEndOfWindow(),
+            Repeatedly.forever(AfterPane.elementCountAtLeast(1))),
         Sessions.withGapDuration(Duration.millis(10)));
 
     tester.injectElements(1);
@@ -255,9 +255,9 @@ public class AfterWatermarkTest {
   @Test
   public void testEarlyAndLateOnMergeAlreadyFinished() throws Exception {
     tester = TriggerTester.forTrigger(
-        AfterWatermark.<IntervalWindow>pastEndOfWindow()
-            .withEarlyFirings(AfterPane.<IntervalWindow>elementCountAtLeast(100))
-            .withLateFirings(AfterPane.<IntervalWindow>elementCountAtLeast(1)),
+        AfterWatermark.pastEndOfWindow()
+            .withEarlyFirings(AfterPane.elementCountAtLeast(100))
+            .withLateFirings(AfterPane.elementCountAtLeast(1)),
         Sessions.withGapDuration(Duration.millis(10)));
 
     tester.injectElements(1);
@@ -302,9 +302,9 @@ public class AfterWatermarkTest {
   @Test
   public void testEarlyAndLateOnMergeRewinds() throws Exception {
     tester = TriggerTester.forTrigger(
-        AfterWatermark.<IntervalWindow>pastEndOfWindow()
-            .withEarlyFirings(AfterPane.<IntervalWindow>elementCountAtLeast(100))
-            .withLateFirings(AfterPane.<IntervalWindow>elementCountAtLeast(1)),
+        AfterWatermark.pastEndOfWindow()
+            .withEarlyFirings(AfterPane.elementCountAtLeast(100))
+            .withLateFirings(AfterPane.elementCountAtLeast(1)),
         Sessions.withGapDuration(Duration.millis(10)));
 
     tester.injectElements(1);

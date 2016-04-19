@@ -110,7 +110,7 @@ public class RepeatedlyTest {
   @Test
   public void testShouldFireAfterMerge() throws Exception {
     tester = TriggerTester.forTrigger(
-        Repeatedly.forever(AfterPane.<IntervalWindow>elementCountAtLeast(2)),
+        Repeatedly.forever(AfterPane.elementCountAtLeast(2)),
         Sessions.withGapDuration(Duration.millis(10)));
 
     tester.injectElements(1);
@@ -132,10 +132,10 @@ public class RepeatedlyTest {
     SimpleTriggerTester<GlobalWindow> tester =
         TriggerTester.forTrigger(
             Repeatedly.forever(
-                AfterFirst.<GlobalWindow>of(
-                    AfterProcessingTime.<GlobalWindow>pastFirstElementInPane()
+                AfterFirst.of(
+                    AfterProcessingTime.pastFirstElementInPane()
                         .plusDelayOf(Duration.standardMinutes(15)),
-                    AfterPane.<GlobalWindow>elementCountAtLeast(5))),
+                    AfterPane.elementCountAtLeast(5))),
             new GlobalWindows());
 
     GlobalWindow window = GlobalWindow.INSTANCE;
@@ -154,10 +154,10 @@ public class RepeatedlyTest {
     SimpleTriggerTester<GlobalWindow> tester =
         TriggerTester.forTrigger(
             Repeatedly.forever(
-                AfterFirst.<GlobalWindow>of(
-                    AfterProcessingTime.<GlobalWindow>pastFirstElementInPane()
+                AfterFirst.of(
+                    AfterProcessingTime.pastFirstElementInPane()
                         .plusDelayOf(Duration.standardMinutes(15)),
-                    AfterPane.<GlobalWindow>elementCountAtLeast(5))),
+                    AfterPane.elementCountAtLeast(5))),
             new GlobalWindows());
 
     GlobalWindow window = GlobalWindow.INSTANCE;
@@ -175,7 +175,7 @@ public class RepeatedlyTest {
   public void testRepeatedlyElementCount() throws Exception {
     SimpleTriggerTester<GlobalWindow> tester =
         TriggerTester.forTrigger(
-            Repeatedly.forever(AfterPane.<GlobalWindow>elementCountAtLeast(5)),
+            Repeatedly.forever(AfterPane.elementCountAtLeast(5)),
             new GlobalWindows());
 
     GlobalWindow window = GlobalWindow.INSTANCE;
@@ -194,7 +194,7 @@ public class RepeatedlyTest {
     SimpleTriggerTester<GlobalWindow> tester =
         TriggerTester.forTrigger(
             Repeatedly.forever(
-                    AfterProcessingTime.<GlobalWindow>pastFirstElementInPane()
+                    AfterProcessingTime.pastFirstElementInPane()
                         .plusDelayOf(Duration.standardMinutes(15))),
             new GlobalWindows());
 

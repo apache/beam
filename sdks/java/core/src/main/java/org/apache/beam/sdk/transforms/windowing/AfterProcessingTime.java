@@ -51,7 +51,7 @@ public class AfterProcessingTime extends AfterDelayFromFirstElement {
    * Creates a trigger that fires when the current processing time passes the processing time
    * at which this trigger saw the first element in a pane.
    */
-  public static <W extends BoundedWindow> AfterProcessingTime pastFirstElementInPane() {
+  public static AfterProcessingTime pastFirstElementInPane() {
     return new AfterProcessingTime(IDENTITY);
   }
 

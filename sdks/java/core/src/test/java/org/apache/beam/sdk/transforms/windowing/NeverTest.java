@@ -41,7 +41,7 @@ public class NeverTest {
   public void setup() throws Exception {
     triggerTester =
         TriggerTester.forTrigger(
-            Never.<IntervalWindow>ever(), FixedWindows.of(Duration.standardMinutes(5)));
+            Never.ever(), FixedWindows.of(Duration.standardMinutes(5)));
   }
 
   @Test

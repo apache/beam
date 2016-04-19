@@ -46,7 +46,7 @@ public class AfterProcessingTimeTest {
     Duration windowDuration = Duration.millis(10);
     SimpleTriggerTester<IntervalWindow> tester = TriggerTester.forTrigger(
         AfterProcessingTime
-            .<IntervalWindow>pastFirstElementInPane()
+            .pastFirstElementInPane()
             .plusDelayOf(Duration.millis(5)),
         FixedWindows.of(windowDuration));
 
@@ -93,7 +93,7 @@ public class AfterProcessingTimeTest {
   public void testClear() throws Exception {
     SimpleTriggerTester<IntervalWindow> tester = TriggerTester.forTrigger(
         AfterProcessingTime
-            .<IntervalWindow>pastFirstElementInPane()
+            .pastFirstElementInPane()
             .plusDelayOf(Duration.millis(5)),
         FixedWindows.of(Duration.millis(10)));
 
@@ -107,7 +107,7 @@ public class AfterProcessingTimeTest {
   public void testAfterProcessingTimeWithMergingWindow() throws Exception {
     SimpleTriggerTester<IntervalWindow> tester = TriggerTester.forTrigger(
         AfterProcessingTime
-            .<IntervalWindow>pastFirstElementInPane()
+            .pastFirstElementInPane()
             .plusDelayOf(Duration.millis(5)),
         Sessions.withGapDuration(Duration.millis(10)));
 
