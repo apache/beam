@@ -119,10 +119,6 @@
               <location>${basedir}/../../sdks/java/javadoc/hamcrest-docs</location>
             </offlineLink>
             <offlineLink>
-              <url>http://fasterxml.github.io/jackson-annotations/javadoc/2.7/</url>
-              <location>${basedir}/../../sdks/java/javadoc/jackson-annotations-docs</location>
-            </offlineLink>
-            <offlineLink>
               <url>http://fasterxml.github.io/jackson-databind/javadoc/2.7/</url>
               <location>${basedir}/../../sdks/java/javadoc/jackson-databind-docs</location>
             </offlineLink>
