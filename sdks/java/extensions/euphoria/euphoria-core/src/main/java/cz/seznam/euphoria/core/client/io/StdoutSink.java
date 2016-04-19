@@ -12,7 +12,7 @@ import java.net.URI;
  * {@link java.lang.System#out}) using the produce element's
  * {@link Object#toString()} implementation.
  */
-public class StdoutSink<T> extends DataSink<T> {
+public class StdoutSink<T> implements DataSink<T> {
 
   public static class Factory implements DataSinkFactory {
     @Override
@@ -23,7 +23,7 @@ public class StdoutSink<T> extends DataSink<T> {
     }
   }
 
-  static abstract class AbstractWriter<T> extends Writer<T> {
+  static abstract class AbstractWriter<T> implements Writer<T> {
     final PrintStream out;
 
     AbstractWriter(PrintStream out) {
@@ -33,6 +33,11 @@ public class StdoutSink<T> extends DataSink<T> {
     @Override
     public void commit() throws IOException {
       out.flush();
+    }
+
+    @Override
+    public void close() throws IOException {
+      out.close();
     }
   }
 
