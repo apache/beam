@@ -798,7 +798,7 @@ public class InMemoryWatermarkManagerTest implements Serializable {
 
     Instant upstreamHold = new Instant(2048L);
     CommittedBundle<Integer> filteredBundle =
-        bundleFactory.createKeyedBundle(null, "key", filtered).commit(upstreamHold);
+        bundleFactory.createKeyedBundle(created, "key", filtered).commit(upstreamHold);
     manager.updateWatermarks(
         created,
         filtered.getProducingTransformInternal(),
