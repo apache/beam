@@ -48,6 +48,7 @@ import java.util.Collections;
 public class EncodabilityEnforcementFactoryTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
   private EncodabilityEnforcementFactory factory = EncodabilityEnforcementFactory.create();
+  private BundleFactory bundleFactory = InProcessBundleFactory.create();
 
   @Test
   public void encodeFailsThrows() {
@@ -59,7 +60,7 @@ public class EncodabilityEnforcementFactoryTest {
 
     WindowedValue<Record> record = WindowedValue.valueInGlobalWindow(new Record());
     CommittedBundle<Record> input =
-        InProcessBundle.unkeyed(unencodable).add(record).commit(Instant.now());
+        bundleFactory.createRootBundle(unencodable).add(record).commit(Instant.now());
     ModelEnforcement<Record> enforcement = factory.forBundle(input, consumer);
 
     thrown.expect(UserCodeException.class);
@@ -78,7 +79,7 @@ public class EncodabilityEnforcementFactoryTest {
     WindowedValue<Record> record = WindowedValue.valueInGlobalWindow(new Record());
 
     CommittedBundle<Record> input =
-        InProcessBundle.unkeyed(unencodable).add(record).commit(Instant.now());
+        bundleFactory.createRootBundle(unencodable).add(record).commit(Instant.now());
     ModelEnforcement<Record> enforcement = factory.forBundle(input, consumer);
 
     thrown.expect(UserCodeException.class);
@@ -105,7 +106,7 @@ public class EncodabilityEnforcementFactoryTest {
             });
 
     CommittedBundle<Record> input =
-        InProcessBundle.unkeyed(unencodable).add(record).commit(Instant.now());
+        bundleFactory.createRootBundle(unencodable).add(record).commit(Instant.now());
     ModelEnforcement<Record> enforcement = factory.forBundle(input, consumer);
 
     thrown.expect(UserCodeException.class);
@@ -129,7 +130,7 @@ public class EncodabilityEnforcementFactoryTest {
     WindowedValue<Record> record = WindowedValue.<Record>valueInGlobalWindow(new Record());
 
     CommittedBundle<Record> input =
-        InProcessBundle.unkeyed(unencodable).add(record).commit(Instant.now());
+        bundleFactory.createRootBundle(unencodable).add(record).commit(Instant.now());
     ModelEnforcement<Record> enforcement = factory.forBundle(input, consumer);
 
     enforcement.beforeElement(record);
@@ -150,7 +151,7 @@ public class EncodabilityEnforcementFactoryTest {
     WindowedValue<Integer> value = WindowedValue.valueInGlobalWindow(1);
 
     CommittedBundle<Integer> input =
-        InProcessBundle.unkeyed(unencodable).add(value).commit(Instant.now());
+        bundleFactory.createRootBundle(unencodable).add(value).commit(Instant.now());
     ModelEnforcement<Integer> enforcement = factory.forBundle(input, consumer);
 
     enforcement.beforeElement(value);
