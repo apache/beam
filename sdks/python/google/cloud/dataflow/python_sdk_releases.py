@@ -33,6 +33,7 @@ See go/dataflow-testing for more information.
 OLDEST_SUPPORTED_PYTHON_SDK = 'python-0.1.4'
 
 RELEASES = [
+    {'name': 'python-0.2.3',},
     {'name': 'python-0.2.2',},
     {'name': 'python-0.2.1',},
     {'name': 'python-0.2.0',},
