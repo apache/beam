@@ -179,7 +179,7 @@ public abstract class WindowedValue<T> {
    * Returns a collection of {@link WindowedValue WindowedValues} identical to this one, except each
    * is in exactly one of the windows that this {@link WindowedValue} is in.
    */
-  public Collection<WindowedValue<T>> explodeWindows() {
+  public Iterable<WindowedValue<T>> explodeWindows() {
     ImmutableList.Builder<WindowedValue<T>> windowedValues = ImmutableList.builder();
     for (BoundedWindow w : getWindows()) {
       windowedValues.add(of(getValue(), getTimestamp(), w, getPane()));
