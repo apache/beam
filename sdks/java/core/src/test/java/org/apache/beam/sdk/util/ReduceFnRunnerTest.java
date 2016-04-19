@@ -500,8 +500,8 @@ public class ReduceFnRunnerTest {
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
         WindowingStrategy.of(FixedWindows.of(Duration.millis(10)))
             .withTrigger(Repeatedly.<IntervalWindow>forever(AfterFirst.<IntervalWindow>of(
-                AfterPane.<IntervalWindow>elementCountAtLeast(2),
-                AfterWatermark.<IntervalWindow>pastEndOfWindow())))
+                AfterPane.elementCountAtLeast(2),
+                AfterWatermark.pastEndOfWindow())))
             .withMode(AccumulationMode.DISCARDING_FIRED_PANES)
             .withAllowedLateness(Duration.millis(100))
             .withClosingBehavior(ClosingBehavior.FIRE_ALWAYS));
@@ -548,12 +548,66 @@ public class ReduceFnRunnerTest {
   }
 
   @Test
+  public void noEmptyPanesFinalIfNonEmpty() throws Exception {
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
+        WindowingStrategy.of(FixedWindows.of(Duration.millis(10)))
+            .withTrigger(Repeatedly.<IntervalWindow>forever(AfterFirst.<IntervalWindow>of(
+                AfterPane.elementCountAtLeast(2),
+                AfterWatermark.pastEndOfWindow())))
+            .withMode(AccumulationMode.ACCUMULATING_FIRED_PANES)
+            .withAllowedLateness(Duration.millis(100))
+            .withClosingBehavior(ClosingBehavior.FIRE_IF_NON_EMPTY));
+
+    tester.advanceInputWatermark(new Instant(0));
+    tester.injectElements(
+        TimestampedValue.of(1, new Instant(1)),
+        TimestampedValue.of(2, new Instant(2)));
+    tester.advanceInputWatermark(new Instant(20));
+    tester.advanceInputWatermark(new Instant(250));
+
+    List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
+    assertThat(output, contains(
+        // Trigger with 2 elements
+        WindowMatchers.isSingleWindowedValue(containsInAnyOrder(1, 2), 1, 0, 10),
+        // Trigger for the empty on time pane
+        WindowMatchers.isSingleWindowedValue(containsInAnyOrder(1, 2), 9, 0, 10)));
+  }
+
+  @Test
+  public void noEmptyPanesFinalAlways() throws Exception {
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
+        WindowingStrategy.of(FixedWindows.of(Duration.millis(10)))
+            .withTrigger(Repeatedly.<IntervalWindow>forever(AfterFirst.<IntervalWindow>of(
+                AfterPane.elementCountAtLeast(2),
+                AfterWatermark.pastEndOfWindow())))
+            .withMode(AccumulationMode.ACCUMULATING_FIRED_PANES)
+            .withAllowedLateness(Duration.millis(100))
+            .withClosingBehavior(ClosingBehavior.FIRE_ALWAYS));
+
+    tester.advanceInputWatermark(new Instant(0));
+    tester.injectElements(
+        TimestampedValue.of(1, new Instant(1)),
+        TimestampedValue.of(2, new Instant(2)));
+    tester.advanceInputWatermark(new Instant(20));
+    tester.advanceInputWatermark(new Instant(250));
+
+    List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
+    assertThat(output, contains(
+        // Trigger with 2 elements
+        WindowMatchers.isSingleWindowedValue(containsInAnyOrder(1, 2), 1, 0, 10),
+        // Trigger for the empty on time pane
+        WindowMatchers.isSingleWindowedValue(containsInAnyOrder(1, 2), 9, 0, 10),
+        // Trigger for the final pane
+        WindowMatchers.isSingleWindowedValue(containsInAnyOrder(1, 2), 9, 0, 10)));
+  }
+
+  @Test
   public void testPaneInfoAllStatesAfterWatermarkAccumulating() throws Exception {
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
         WindowingStrategy.of(FixedWindows.of(Duration.millis(10)))
             .withTrigger(Repeatedly.<IntervalWindow>forever(AfterFirst.<IntervalWindow>of(
-                AfterPane.<IntervalWindow>elementCountAtLeast(2),
-                AfterWatermark.<IntervalWindow>pastEndOfWindow())))
+                AfterPane.elementCountAtLeast(2),
+                AfterWatermark.pastEndOfWindow())))
             .withMode(AccumulationMode.ACCUMULATING_FIRED_PANES)
             .withAllowedLateness(Duration.millis(100))
             .withClosingBehavior(ClosingBehavior.FIRE_ALWAYS));
@@ -604,8 +658,8 @@ public class ReduceFnRunnerTest {
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester = ReduceFnTester.nonCombining(
         WindowingStrategy.of(FixedWindows.of(Duration.millis(10)))
             .withTrigger(
-                Repeatedly.<IntervalWindow>forever(AfterPane.<IntervalWindow>elementCountAtLeast(2))
-                    .orFinally(AfterWatermark.<IntervalWindow>pastEndOfWindow()))
+                Repeatedly.<IntervalWindow>forever(AfterPane.elementCountAtLeast(2))
+                    .orFinally(AfterWatermark.pastEndOfWindow()))
             .withMode(AccumulationMode.DISCARDING_FIRED_PANES)
             .withAllowedLateness(Duration.millis(100))
             .withClosingBehavior(ClosingBehavior.FIRE_ALWAYS));
@@ -890,7 +944,7 @@ public class ReduceFnRunnerTest {
     ReduceFnTester<Integer, Integer, IntervalWindow> tester = ReduceFnTester.combining(
         WindowingStrategy.of(
             SlidingWindows.of(Duration.millis(100)).every(Duration.millis(30)))
-        .withTrigger(AfterWatermark.<IntervalWindow>pastEndOfWindow())
+        .withTrigger(AfterWatermark.pastEndOfWindow())
         .withAllowedLateness(Duration.millis(1000)),
         new Sum.SumIntegerFn().<String>asKeyedFn(), VarIntCoder.of());
 
@@ -1024,7 +1078,7 @@ public class ReduceFnRunnerTest {
                     .<IntervalWindow>forever(
                         AfterProcessingTime.<IntervalWindow>pastFirstElementInPane().plusDelayOf(
                             new Duration(5)))
-                    .orFinally(AfterWatermark.<IntervalWindow>pastEndOfWindow()),
+                    .orFinally(AfterWatermark.pastEndOfWindow()),
                 Repeatedly.<IntervalWindow>forever(
                     AfterProcessingTime.<IntervalWindow>pastFirstElementInPane().plusDelayOf(
                         new Duration(25)))),
@@ -1074,7 +1128,7 @@ public class ReduceFnRunnerTest {
                     .<IntervalWindow>forever(
                         AfterProcessingTime.<IntervalWindow>pastFirstElementInPane().plusDelayOf(
                             new Duration(5)))
-                    .orFinally(AfterWatermark.<IntervalWindow>pastEndOfWindow()),
+                    .orFinally(AfterWatermark.pastEndOfWindow()),
                 Repeatedly.<IntervalWindow>forever(
                     AfterProcessingTime.<IntervalWindow>pastFirstElementInPane().plusDelayOf(
                         new Duration(25)))),
