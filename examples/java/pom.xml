@@ -237,7 +237,7 @@
             </goals>
             <configuration>
               <systemPropertyVariables>
-                <beamTestPipelineOptions>[ "--tempRoot=gs://clouddfe-testing-temp-storage", "--runner=com.google.cloud.dataflow.sdk.testing.TestDataflowPipelineRunner" ]</beamTestPipelineOptions>
+                <beamTestPipelineOptions>[ "--tempRoot=gs://clouddfe-testing-temp-storage", "--runner=org.apache.beam.sdk.testing.TestDataflowPipelineRunner" ]</beamTestPipelineOptions>
               </systemPropertyVariables>
             </configuration>
           </execution>

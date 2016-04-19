@@ -15,9 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.testing;
+package org.apache.beam.sdk.testing;
 
-import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
  * {@link TestPipelineOptions} is a set of options for test pipelines.

@@ -16,18 +16,18 @@
  * limitations under the License.
  */
 
-package com.google.cloud.dataflow.examples;
+package org.apache.beam.examples;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-import com.google.cloud.dataflow.examples.WordCount.WordCountOptions;
-import com.google.cloud.dataflow.sdk.PipelineResult;
-import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
-import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
-import com.google.cloud.dataflow.sdk.testing.TestDataflowPipelineRunner;
-import com.google.cloud.dataflow.sdk.testing.TestPipeline;
-import com.google.cloud.dataflow.sdk.testing.TestPipelineOptions;
+import org.apache.beam.examples.WordCount.WordCountOptions;
+import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.options.DataflowPipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.TestDataflowPipelineRunner;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestPipelineOptions;
 import com.google.common.base.Joiner;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
