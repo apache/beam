@@ -1054,16 +1054,16 @@ public class InMemoryWatermarkManager {
     }
 
     private void removePending(CommittedBundle<?> bundle) {
-      inputWatermark.removePendingElements(bundleElements(bundle));
+      inputWatermark.removePendingElements(elementsFromBundle(bundle));
       synchronizedProcessingInputWatermark.removePending(bundle);
     }
 
     private void addPending(CommittedBundle<?> bundle) {
-      inputWatermark.addPendingElements(bundleElements(bundle));
+      inputWatermark.addPendingElements(elementsFromBundle(bundle));
       synchronizedProcessingInputWatermark.addPending(bundle);
     }
 
-    private Iterable<? extends WindowedValue<?>> bundleElements(CommittedBundle<?> bundle) {
+    private Iterable<? extends WindowedValue<?>> elementsFromBundle(CommittedBundle<?> bundle) {
       return FluentIterable.from(bundle.getElements()).transformAndConcat(EXPLODE_WINDOWS_FN);
     }
 
