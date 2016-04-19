@@ -223,6 +223,7 @@
                   <exclude>org.apache.avro:avro</exclude>
                   <exclude>org.hamcrest:hamcrest-all</exclude>
                   <exclude>org.slf4j:slf4j-api</exclude>
+                  <exclude>org.xerial:snappy-java</exclude>
                 </excludes>
               </artifactSet>
               <filters>
@@ -285,6 +286,7 @@
                     <exclude>org.junit.**</exclude>
                     <exclude>org.slf4j.**</exclude>
                     <exclude>org.w3c.dom.**</exclude>
+                    <exclude>org.xerial.snappy.**</exclude>
                   </excludes>
                 </relocation>
                 <relocation>
@@ -334,6 +336,7 @@
                   <include>joda-time:joda-time</include>
                   <include>org.apache.avro:avro</include>
                   <include>org.slf4j:slf4j-api</include>
+                  <include>org.xerial:snappy-java</include>
                 </includes>
               </artifactSet>
               <filters>
