@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.bigtable;
+package org.apache.beam.sdk.io.gcp.bigtable;
 
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSourcesEqualReferenceSource;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionExhaustive;
@@ -35,7 +35,7 @@ import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.io.bigtable.BigtableIO.BigtableSource;
+import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.testing.ExpectedLogs;

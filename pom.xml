@@ -102,7 +102,6 @@
     <!-- If updating dependencies, please update any relevant javadoc offlineLinks -->
     <avro.version>1.7.7</avro.version>
     <bigquery.version>v2-rev248-1.21.0</bigquery.version>
-    <bigtable.version>0.2.3</bigtable.version>
     <pubsubgrpc.version>0.0.2</pubsubgrpc.version>
     <clouddebugger.version>v2-rev6-1.21.0</clouddebugger.version>
     <dataflow.version>v1b3-rev22-1.21.0</dataflow.version>

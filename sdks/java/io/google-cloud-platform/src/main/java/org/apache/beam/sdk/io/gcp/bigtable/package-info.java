@@ -18,6 +18,6 @@
 /**
  * Defines transforms for reading and writing from Google Cloud Bigtable.
  *
- * @see org.apache.beam.sdk.io.bigtable.BigtableIO
+ * @see org.apache.beam.sdk.io.gcp.bigtable.BigtableIO
  */
-package org.apache.beam.sdk.io.bigtable;
+package org.apache.beam.sdk.io.gcp.bigtable;
