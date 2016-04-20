@@ -43,7 +43,7 @@ public class AfterSynchronizedProcessingTimeTest {
     Duration windowDuration = Duration.millis(10);
     SimpleTriggerTester<IntervalWindow> tester = TriggerTester.forTrigger(
         AfterProcessingTime
-            .<IntervalWindow>pastFirstElementInPane()
+            .pastFirstElementInPane()
             .plusDelayOf(Duration.millis(5)),
         FixedWindows.of(windowDuration));
 
@@ -87,7 +87,7 @@ public class AfterSynchronizedProcessingTimeTest {
     Duration windowDuration = Duration.millis(10);
     SimpleTriggerTester<IntervalWindow> tester = TriggerTester.forTrigger(
         AfterProcessingTime
-            .<IntervalWindow>pastFirstElementInPane()
+            .pastFirstElementInPane()
             .plusDelayOf(Duration.millis(5)),
         Sessions.withGapDuration(windowDuration));
 

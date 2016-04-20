@@ -44,7 +44,7 @@ public class AfterPaneTest {
   @Test
   public void testAfterPaneElementCountFixedWindows() throws Exception {
     tester = TriggerTester.forTrigger(
-        AfterPane.<IntervalWindow>elementCountAtLeast(2),
+        AfterPane.elementCountAtLeast(2),
         FixedWindows.of(Duration.millis(10)));
 
     tester.injectElements(1); // [0, 10)
@@ -65,7 +65,7 @@ public class AfterPaneTest {
   @Test
   public void testClear() throws Exception {
     SimpleTriggerTester<IntervalWindow> tester = TriggerTester.forTrigger(
-        AfterPane.<IntervalWindow>elementCountAtLeast(2),
+        AfterPane.elementCountAtLeast(2),
         FixedWindows.of(Duration.millis(10)));
 
     tester.injectElements(1, 2, 3);
@@ -77,7 +77,7 @@ public class AfterPaneTest {
   @Test
   public void testAfterPaneElementCountSessions() throws Exception {
     tester = TriggerTester.forTrigger(
-        AfterPane.<IntervalWindow>elementCountAtLeast(2),
+        AfterPane.elementCountAtLeast(2),
         Sessions.withGapDuration(Duration.millis(10)));
 
     tester.injectElements(

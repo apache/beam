@@ -38,7 +38,7 @@ public class DefaultTrigger extends Trigger{
   /**
    * Returns the default trigger.
    */
-  public static <W extends BoundedWindow> DefaultTrigger of() {
+  public static DefaultTrigger of() {
     return new DefaultTrigger();
   }
 

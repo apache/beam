@@ -56,7 +56,7 @@ public class AfterEach extends Trigger {
    * Returns an {@code AfterEach} {@code Trigger} with the given subtriggers.
    */
   @SafeVarargs
-  public static <W extends BoundedWindow> Trigger inOrder(Trigger... triggers) {
+  public static Trigger inOrder(Trigger... triggers) {
     return new AfterEach(Arrays.<Trigger>asList(triggers));
   }
 

@@ -47,7 +47,7 @@ public class Repeatedly extends Trigger {
    *
    * @param repeated the trigger to execute repeatedly.
    */
-  public static <W extends BoundedWindow> Repeatedly forever(Trigger repeated) {
+  public static Repeatedly forever(Trigger repeated) {
     return new Repeatedly(repeated);
   }
 

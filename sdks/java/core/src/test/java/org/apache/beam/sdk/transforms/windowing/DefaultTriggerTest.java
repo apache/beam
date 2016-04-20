@@ -42,7 +42,7 @@ public class DefaultTriggerTest {
   @Test
   public void testDefaultTriggerFixedWindows() throws Exception {
     tester = TriggerTester.forTrigger(
-        DefaultTrigger.<IntervalWindow>of(),
+        DefaultTrigger.of(),
         FixedWindows.of(Duration.millis(100)));
 
     tester.injectElements(
@@ -79,7 +79,7 @@ public class DefaultTriggerTest {
   @Test
   public void testDefaultTriggerSlidingWindows() throws Exception {
     tester = TriggerTester.forTrigger(
-        DefaultTrigger.<IntervalWindow>of(),
+        DefaultTrigger.of(),
         SlidingWindows.of(Duration.millis(100)).every(Duration.millis(50)));
 
     tester.injectElements(
@@ -125,7 +125,7 @@ public class DefaultTriggerTest {
   @Test
   public void testDefaultTriggerSessions() throws Exception {
     tester = TriggerTester.forTrigger(
-        DefaultTrigger.<IntervalWindow>of(),
+        DefaultTrigger.of(),
         Sessions.withGapDuration(Duration.millis(100)));
 
     tester.injectElements(

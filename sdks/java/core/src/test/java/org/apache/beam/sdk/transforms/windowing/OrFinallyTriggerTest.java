@@ -47,8 +47,8 @@ public class OrFinallyTriggerTest {
   public void testActualFiresAndFinishes() throws Exception {
     tester = TriggerTester.forTrigger(
         new OrFinallyTrigger(
-            AfterPane.<IntervalWindow>elementCountAtLeast(2),
-            AfterPane.<IntervalWindow>elementCountAtLeast(100)),
+            AfterPane.elementCountAtLeast(2),
+            AfterPane.elementCountAtLeast(100)),
         FixedWindows.of(Duration.millis(100)));
 
     IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(100));
@@ -74,8 +74,8 @@ public class OrFinallyTriggerTest {
   public void testActualFiresOnly() throws Exception {
     tester = TriggerTester.forTrigger(
         new OrFinallyTrigger(
-            Repeatedly.forever(AfterPane.<IntervalWindow>elementCountAtLeast(2)),
-            AfterPane.<IntervalWindow>elementCountAtLeast(100)),
+            Repeatedly.forever(AfterPane.elementCountAtLeast(2)),
+            AfterPane.elementCountAtLeast(100)),
         FixedWindows.of(Duration.millis(100)));
 
     IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(100));
@@ -106,9 +106,9 @@ public class OrFinallyTriggerTest {
   public void testShouldFireAfterMerge() throws Exception {
     tester = TriggerTester.forTrigger(
         AfterEach.inOrder(
-            AfterPane.<IntervalWindow>elementCountAtLeast(5)
-                .orFinally(AfterWatermark.<IntervalWindow>pastEndOfWindow()),
-            Repeatedly.forever(AfterPane.<IntervalWindow>elementCountAtLeast(1))),
+            AfterPane.elementCountAtLeast(5)
+                .orFinally(AfterWatermark.pastEndOfWindow()),
+            Repeatedly.forever(AfterPane.elementCountAtLeast(1))),
         Sessions.withGapDuration(Duration.millis(10)));
 
     // Finished the orFinally in the first window
@@ -144,8 +144,8 @@ public class OrFinallyTriggerTest {
   public void testActualFiresButUntilFinishes() throws Exception {
     tester = TriggerTester.forTrigger(
         new OrFinallyTrigger(
-            Repeatedly.forever(AfterPane.<IntervalWindow>elementCountAtLeast(2)),
-                AfterPane.<IntervalWindow>elementCountAtLeast(3)),
+            Repeatedly.forever(AfterPane.elementCountAtLeast(2)),
+                AfterPane.elementCountAtLeast(3)),
         FixedWindows.of(Duration.millis(10)));
 
     IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(10));

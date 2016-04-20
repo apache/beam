@@ -53,10 +53,10 @@ public class AfterEachTest {
   public void testAfterEachInSequence() throws Exception {
     tester = TriggerTester.forTrigger(
         AfterEach.inOrder(
-            Repeatedly.forever(AfterPane.<IntervalWindow>elementCountAtLeast(2))
-                .orFinally(AfterPane.<IntervalWindow>elementCountAtLeast(3)),
-            Repeatedly.forever(AfterPane.<IntervalWindow>elementCountAtLeast(5))
-                .orFinally(AfterWatermark.<IntervalWindow>pastEndOfWindow())),
+            Repeatedly.forever(AfterPane.elementCountAtLeast(2))
+                .orFinally(AfterPane.elementCountAtLeast(3)),
+            Repeatedly.forever(AfterPane.elementCountAtLeast(5))
+                .orFinally(AfterWatermark.pastEndOfWindow())),
             FixedWindows.of(Duration.millis(10)));
 
     IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(10));

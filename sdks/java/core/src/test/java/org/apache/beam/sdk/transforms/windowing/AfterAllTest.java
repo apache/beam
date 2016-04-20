@@ -43,8 +43,8 @@ public class AfterAllTest {
   public void testT1FiresFirst() throws Exception {
     tester = TriggerTester.forTrigger(
         AfterAll.of(
-            AfterPane.<IntervalWindow>elementCountAtLeast(1),
-            AfterPane.<IntervalWindow>elementCountAtLeast(2)),
+            AfterPane.elementCountAtLeast(1),
+            AfterPane.elementCountAtLeast(2)),
         FixedWindows.of(Duration.millis(100)));
 
     IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(100));
@@ -62,8 +62,8 @@ public class AfterAllTest {
   public void testT2FiresFirst() throws Exception {
     tester = TriggerTester.forTrigger(
         AfterAll.of(
-            AfterPane.<IntervalWindow>elementCountAtLeast(2),
-            AfterPane.<IntervalWindow>elementCountAtLeast(1)),
+            AfterPane.elementCountAtLeast(2),
+            AfterPane.elementCountAtLeast(1)),
         FixedWindows.of(Duration.millis(100)));
 
     IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(100));
@@ -86,9 +86,9 @@ public class AfterAllTest {
     tester = TriggerTester.forTrigger(
         AfterEach.inOrder(
             AfterAll.of(
-                AfterWatermark.<IntervalWindow>pastEndOfWindow(),
-                AfterPane.<IntervalWindow>elementCountAtLeast(1)),
-            Repeatedly.forever(AfterPane.<IntervalWindow>elementCountAtLeast(1))),
+                AfterWatermark.pastEndOfWindow(),
+                AfterPane.elementCountAtLeast(1)),
+            Repeatedly.forever(AfterPane.elementCountAtLeast(1))),
         Sessions.withGapDuration(Duration.millis(10)));
 
     tester.injectElements(1);
