@@ -29,8 +29,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import org.apache.beam.sdk.util.common.Counter.CommitState;
 import org.apache.beam.sdk.util.common.Counter.CounterMean;
-import org.apache.beam.sdk.util.common.Counter.DirtyBit;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -608,13 +608,13 @@ public class CounterTest {
     assertFalse(intMean.isDirty());
     assertFalse(boolAnd.isDirty());
 
-    assertEquals(DirtyBit.COMMITTED, longSum.dirty.get());
-    assertEquals(DirtyBit.COMMITTED, longMean.dirty.get());
-    assertEquals(DirtyBit.COMMITTED, doubleSum.dirty.get());
-    assertEquals(DirtyBit.COMMITTED, doubleMean.dirty.get());
-    assertEquals(DirtyBit.COMMITTED, intSum.dirty.get());
-    assertEquals(DirtyBit.COMMITTED, intMean.dirty.get());
-    assertEquals(DirtyBit.COMMITTED, boolAnd.dirty.get());
+    assertEquals(CommitState.COMMITTED, longSum.commitState.get());
+    assertEquals(CommitState.COMMITTED, longMean.commitState.get());
+    assertEquals(CommitState.COMMITTED, doubleSum.commitState.get());
+    assertEquals(CommitState.COMMITTED, doubleMean.commitState.get());
+    assertEquals(CommitState.COMMITTED, intSum.commitState.get());
+    assertEquals(CommitState.COMMITTED, intMean.commitState.get());
+    assertEquals(CommitState.COMMITTED, boolAnd.commitState.get());
 
     // Test counters are dirty after mutating.
     longSum.addValue(1L);
@@ -633,22 +633,22 @@ public class CounterTest {
     assertTrue(intMean.isDirty());
     assertTrue(boolAnd.isDirty());
 
-    assertEquals(DirtyBit.DIRTY, longSum.dirty.get());
-    assertEquals(DirtyBit.DIRTY, longMean.dirty.get());
-    assertEquals(DirtyBit.DIRTY, doubleSum.dirty.get());
-    assertEquals(DirtyBit.DIRTY, doubleMean.dirty.get());
-    assertEquals(DirtyBit.DIRTY, intSum.dirty.get());
-    assertEquals(DirtyBit.DIRTY, intMean.dirty.get());
-    assertEquals(DirtyBit.DIRTY, boolAnd.dirty.get());
+    assertEquals(CommitState.DIRTY, longSum.commitState.get());
+    assertEquals(CommitState.DIRTY, longMean.commitState.get());
+    assertEquals(CommitState.DIRTY, doubleSum.commitState.get());
+    assertEquals(CommitState.DIRTY, doubleMean.commitState.get());
+    assertEquals(CommitState.DIRTY, intSum.commitState.get());
+    assertEquals(CommitState.DIRTY, intMean.commitState.get());
+    assertEquals(CommitState.DIRTY, boolAnd.commitState.get());
 
     // Test counters are dirty and are COMMITTING.
-    longSum.committing();
-    longMean.committing();
-    doubleSum.committing();
-    doubleMean.committing();
-    intSum.committing();
-    intMean.committing();
-    boolAnd.committing();
+    assertTrue(longSum.committing());
+    assertTrue(longMean.committing());
+    assertTrue(doubleSum.committing());
+    assertTrue(doubleMean.committing());
+    assertTrue(intSum.committing());
+    assertTrue(intMean.committing());
+    assertTrue(boolAnd.committing());
 
     assertTrue(longSum.isDirty());
     assertTrue(longMean.isDirty());
@@ -658,13 +658,13 @@ public class CounterTest {
     assertTrue(intMean.isDirty());
     assertTrue(boolAnd.isDirty());
 
-    assertEquals(DirtyBit.COMMITTING, longSum.dirty.get());
-    assertEquals(DirtyBit.COMMITTING, longMean.dirty.get());
-    assertEquals(DirtyBit.COMMITTING, doubleSum.dirty.get());
-    assertEquals(DirtyBit.COMMITTING, doubleMean.dirty.get());
-    assertEquals(DirtyBit.COMMITTING, intSum.dirty.get());
-    assertEquals(DirtyBit.COMMITTING, intMean.dirty.get());
-    assertEquals(DirtyBit.COMMITTING, boolAnd.dirty.get());
+    assertEquals(CommitState.COMMITTING, longSum.commitState.get());
+    assertEquals(CommitState.COMMITTING, longMean.commitState.get());
+    assertEquals(CommitState.COMMITTING, doubleSum.commitState.get());
+    assertEquals(CommitState.COMMITTING, doubleMean.commitState.get());
+    assertEquals(CommitState.COMMITTING, intSum.commitState.get());
+    assertEquals(CommitState.COMMITTING, intMean.commitState.get());
+    assertEquals(CommitState.COMMITTING, boolAnd.commitState.get());
 
     // Test counters are dirty again after mutating.
     longSum.addValue(1L);
@@ -675,13 +675,13 @@ public class CounterTest {
     intMean.resetMeanToValue(1, 1);
     boolAnd.addValue(true);
 
-    longSum.committed();
-    longMean.committed();
-    doubleSum.committed();
-    doubleMean.committed();
-    intSum.committed();
-    intMean.committed();
-    boolAnd.committed();
+    assertFalse(longSum.committed());
+    assertFalse(longMean.committed());
+    assertFalse(doubleSum.committed());
+    assertFalse(doubleMean.committed());
+    assertFalse(intSum.committed());
+    assertFalse(intMean.committed());
+    assertFalse(boolAnd.committed());
 
     assertTrue(longSum.isDirty());
     assertTrue(longMean.isDirty());
@@ -691,30 +691,30 @@ public class CounterTest {
     assertTrue(intMean.isDirty());
     assertTrue(boolAnd.isDirty());
 
-    assertEquals(DirtyBit.DIRTY, longSum.dirty.get());
-    assertEquals(DirtyBit.DIRTY, longMean.dirty.get());
-    assertEquals(DirtyBit.DIRTY, doubleSum.dirty.get());
-    assertEquals(DirtyBit.DIRTY, doubleMean.dirty.get());
-    assertEquals(DirtyBit.DIRTY, intSum.dirty.get());
-    assertEquals(DirtyBit.DIRTY, intMean.dirty.get());
-    assertEquals(DirtyBit.DIRTY, boolAnd.dirty.get());
+    assertEquals(CommitState.DIRTY, longSum.commitState.get());
+    assertEquals(CommitState.DIRTY, longMean.commitState.get());
+    assertEquals(CommitState.DIRTY, doubleSum.commitState.get());
+    assertEquals(CommitState.DIRTY, doubleMean.commitState.get());
+    assertEquals(CommitState.DIRTY, intSum.commitState.get());
+    assertEquals(CommitState.DIRTY, intMean.commitState.get());
+    assertEquals(CommitState.DIRTY, boolAnd.commitState.get());
 
     // Test counters are not dirty and are COMMITTED.
-    longSum.committing();
-    longMean.committing();
-    doubleSum.committing();
-    doubleMean.committing();
-    intSum.committing();
-    intMean.committing();
-    boolAnd.committing();
+    assertTrue(longSum.committing());
+    assertTrue(longMean.committing());
+    assertTrue(doubleSum.committing());
+    assertTrue(doubleMean.committing());
+    assertTrue(intSum.committing());
+    assertTrue(intMean.committing());
+    assertTrue(boolAnd.committing());
 
-    longSum.committed();
-    longMean.committed();
-    doubleSum.committed();
-    doubleMean.committed();
-    intSum.committed();
-    intMean.committed();
-    boolAnd.committed();
+    assertTrue(longSum.committed());
+    assertTrue(longMean.committed());
+    assertTrue(doubleSum.committed());
+    assertTrue(doubleMean.committed());
+    assertTrue(intSum.committed());
+    assertTrue(intMean.committed());
+    assertTrue(boolAnd.committed());
 
     assertFalse(longSum.isDirty());
     assertFalse(longMean.isDirty());
@@ -724,12 +724,12 @@ public class CounterTest {
     assertFalse(intMean.isDirty());
     assertFalse(boolAnd.isDirty());
 
-    assertEquals(DirtyBit.COMMITTED, longSum.dirty.get());
-    assertEquals(DirtyBit.COMMITTED, longMean.dirty.get());
-    assertEquals(DirtyBit.COMMITTED, doubleSum.dirty.get());
-    assertEquals(DirtyBit.COMMITTED, doubleMean.dirty.get());
-    assertEquals(DirtyBit.COMMITTED, intSum.dirty.get());
-    assertEquals(DirtyBit.COMMITTED, intMean.dirty.get());
-    assertEquals(DirtyBit.COMMITTED, boolAnd.dirty.get());
+    assertEquals(CommitState.COMMITTED, longSum.commitState.get());
+    assertEquals(CommitState.COMMITTED, longMean.commitState.get());
+    assertEquals(CommitState.COMMITTED, doubleSum.commitState.get());
+    assertEquals(CommitState.COMMITTED, doubleMean.commitState.get());
+    assertEquals(CommitState.COMMITTED, intSum.commitState.get());
+    assertEquals(CommitState.COMMITTED, intMean.commitState.get());
+    assertEquals(CommitState.COMMITTED, boolAnd.commitState.get());
   }
 }

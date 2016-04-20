@@ -296,10 +296,10 @@ public abstract class Counter<T> {
   public abstract CounterMean<T> getMean();
 
   /**
-   * DirtyBit represents whether counters' values have been committed to the backend.
+   * CommitState represents whether counters' values have been committed to the backend.
    *
    * <p>Runners can use this information to optimize counters updates.
-   * For example, if counters are not dirty, runners may choose to skip the updates.
+   * For example, if counters are committed, runners may choose to skip the updates.
    *
    * <p>Counters' state transition table:
    * Action\Current State         COMMITTED        DIRTY        COMMITTING
@@ -308,7 +308,7 @@ public abstract class Counter<T> {
    * committed()                  None             None         COMMITTED
    */
   @VisibleForTesting
-  enum DirtyBit {
+  enum CommitState {
     COMMITTED,
     DIRTY,
     COMMITTING,
@@ -318,31 +318,31 @@ public abstract class Counter<T> {
    * Returns if the counter contains non-committed aggregate.
    */
   public boolean isDirty() {
-    return dirty.get() != DirtyBit.COMMITTED;
+    return commitState.get() != CommitState.COMMITTED;
   }
 
   /**
-   * Changes the counter from {@code DirtyBit.DIRTY} to {@code DirtyBit.COMMITTING}.
+   * Changes the counter from {@code CommitState.DIRTY} to {@code CommitState.COMMITTING}.
    */
   public boolean committing() {
-    return dirty.compareAndSet(DirtyBit.DIRTY, DirtyBit.COMMITTING);
+    return commitState.compareAndSet(CommitState.DIRTY, CommitState.COMMITTING);
   }
 
   /**
-   * Changes the counter from {@code DirtyBit.COMMITTING} to {@code DirtyBit.COMMITTED}.
+   * Changes the counter from {@code CommitState.COMMITTING} to {@code CommitState.COMMITTED}.
    */
   public boolean committed() {
-    return dirty.compareAndSet(DirtyBit.COMMITTING, DirtyBit.COMMITTED);
+    return commitState.compareAndSet(CommitState.COMMITTING, CommitState.COMMITTED);
   }
 
   /**
-   * Sets the counter to {@code DirtyBit.DIRTY}.
+   * Sets the counter to {@code CommitState.DIRTY}.
    *
    * <p>It needs to be called at the beginning of {@link #addValue}, {@link #resetToValue},
    * {@link #resetMeanToValue}, and {@link #merge}.
    */
   protected void setDirty() {
-    dirty.set(DirtyBit.DIRTY);
+    commitState.set(CommitState.DIRTY);
   }
 
   /**
@@ -433,13 +433,13 @@ public abstract class Counter<T> {
   /** The kind of aggregation function to apply to this counter. */
   protected final AggregationKind kind;
 
-  /** The dirty bit of this counter. **/
-  protected final AtomicReference<DirtyBit> dirty;
+  /** The commit state of this counter. **/
+  protected final AtomicReference<CommitState> commitState;
 
   protected Counter(CounterName name, AggregationKind kind) {
     this.name = name;
     this.kind = kind;
-    this.dirty = new AtomicReference<>(DirtyBit.COMMITTED);
+    this.commitState = new AtomicReference<>(CommitState.COMMITTED);
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -480,28 +480,31 @@ public abstract class Counter<T> {
 
     @Override
     public LongCounter addValue(Long value) {
-      setDirty();
-      switch (kind) {
-        case SUM:
-          aggregate.addAndGet(value);
-          deltaAggregate.addAndGet(value);
-          break;
-        case MEAN:
-          addToMeanAndSet(value, mean);
-          addToMeanAndSet(value, deltaMean);
-          break;
-        case MAX:
-          maxAndSet(value, aggregate);
-          maxAndSet(value, deltaAggregate);
-          break;
-        case MIN:
-          minAndSet(value, aggregate);
-          minAndSet(value, deltaAggregate);
-          break;
-        default:
-          throw illegalArgumentException();
+      try {
+        switch (kind) {
+          case SUM:
+            aggregate.addAndGet(value);
+            deltaAggregate.addAndGet(value);
+            break;
+          case MEAN:
+            addToMeanAndSet(value, mean);
+            addToMeanAndSet(value, deltaMean);
+            break;
+          case MAX:
+            maxAndSet(value, aggregate);
+            maxAndSet(value, deltaAggregate);
+            break;
+          case MIN:
+            minAndSet(value, aggregate);
+            minAndSet(value, deltaAggregate);
+            break;
+          default:
+            throw illegalArgumentException();
+        }
+        return this;
+      } finally {
+        setDirty();
       }
-      return this;
     }
 
     private void minAndSet(Long value, AtomicLong target) {
@@ -556,28 +559,34 @@ public abstract class Counter<T> {
 
     @Override
     public Counter<Long> resetToValue(Long value) {
-      setDirty();
-      if (kind == MEAN) {
-        throw illegalArgumentException();
+      try {
+        if (kind == MEAN) {
+          throw illegalArgumentException();
+        }
+        aggregate.set(value);
+        deltaAggregate.set(value);
+        return this;
+      } finally {
+        setDirty();
       }
-      aggregate.set(value);
-      deltaAggregate.set(value);
-      return this;
     }
 
     @Override
     public Counter<Long> resetMeanToValue(long elementCount, Long value) {
-      setDirty();
-      if (kind != MEAN) {
-        throw illegalArgumentException();
+      try {
+        if (kind != MEAN) {
+          throw illegalArgumentException();
+        }
+        if (elementCount < 0) {
+          throw new IllegalArgumentException("elementCount must be non-negative");
+        }
+        LongCounterMean counterMean = new LongCounterMean(value, elementCount);
+        mean.set(counterMean);
+        deltaMean.set(counterMean);
+        return this;
+      } finally {
+        setDirty();
       }
-      if (elementCount < 0) {
-        throw new IllegalArgumentException("elementCount must be non-negative");
-      }
-      LongCounterMean counterMean = new LongCounterMean(value, elementCount);
-      mean.set(counterMean);
-      deltaMean.set(counterMean);
-      return this;
     }
 
     @Override
@@ -599,21 +608,24 @@ public abstract class Counter<T> {
 
     @Override
     public Counter<Long> merge(Counter<Long> that) {
-      setDirty();
-      checkArgument(this.isCompatibleWith(that), "Counters %s and %s are incompatible", this, that);
-      switch (kind) {
-        case SUM:
-        case MIN:
-        case MAX:
-          return addValue(that.getAggregate());
-        case MEAN:
-          CounterMean<Long> thisCounterMean = this.getMean();
-          CounterMean<Long> thatCounterMean = that.getMean();
-          return resetMeanToValue(
-              thisCounterMean.getCount() + thatCounterMean.getCount(),
-              thisCounterMean.getAggregate() + thatCounterMean.getAggregate());
-        default:
-          throw illegalArgumentException();
+      try {
+        checkArgument(this.isCompatibleWith(that), "Counters %s and %s are incompatible", this, that);
+        switch (kind) {
+          case SUM:
+          case MIN:
+          case MAX:
+            return addValue(that.getAggregate());
+          case MEAN:
+            CounterMean<Long> thisCounterMean = this.getMean();
+            CounterMean<Long> thatCounterMean = that.getMean();
+            return resetMeanToValue(
+                thisCounterMean.getCount() + thatCounterMean.getCount(),
+                thisCounterMean.getAggregate() + thatCounterMean.getAggregate());
+          default:
+            throw illegalArgumentException();
+        }
+      } finally {
+        setDirty();
       }
     }
 
@@ -679,28 +691,31 @@ public abstract class Counter<T> {
 
     @Override
     public DoubleCounter addValue(Double value) {
-      setDirty();
-      switch (kind) {
-        case SUM:
-          aggregate.addAndGet(value);
-          deltaAggregate.addAndGet(value);
-          break;
-        case MEAN:
-          addToMeanAndSet(value, mean);
-          addToMeanAndSet(value, deltaMean);
-          break;
-        case MAX:
-          maxAndSet(value, aggregate);
-          maxAndSet(value, deltaAggregate);
-          break;
-        case MIN:
-          minAndSet(value, aggregate);
-          minAndSet(value, deltaAggregate);
-          break;
-        default:
-          throw illegalArgumentException();
+      try {
+        switch (kind) {
+          case SUM:
+            aggregate.addAndGet(value);
+            deltaAggregate.addAndGet(value);
+            break;
+          case MEAN:
+            addToMeanAndSet(value, mean);
+            addToMeanAndSet(value, deltaMean);
+            break;
+          case MAX:
+            maxAndSet(value, aggregate);
+            maxAndSet(value, deltaAggregate);
+            break;
+          case MIN:
+            minAndSet(value, aggregate);
+            minAndSet(value, deltaAggregate);
+            break;
+          default:
+            throw illegalArgumentException();
+        }
+        return this;
+      } finally {
+        setDirty();
       }
-      return this;
     }
 
     private void addToMeanAndSet(Double value, AtomicReference<DoubleCounterMean> target) {
@@ -746,28 +761,34 @@ public abstract class Counter<T> {
 
     @Override
     public Counter<Double> resetToValue(Double value) {
-      setDirty();
-      if (kind == MEAN) {
-        throw illegalArgumentException();
+      try {
+        if (kind == MEAN) {
+          throw illegalArgumentException();
+        }
+        aggregate.set(value);
+        deltaAggregate.set(value);
+        return this;
+      } finally {
+        setDirty();
       }
-      aggregate.set(value);
-      deltaAggregate.set(value);
-      return this;
     }
 
     @Override
     public Counter<Double> resetMeanToValue(long elementCount, Double value) {
-      setDirty();
-      if (kind != MEAN) {
-        throw illegalArgumentException();
+      try {
+        if (kind != MEAN) {
+          throw illegalArgumentException();
+        }
+        if (elementCount < 0) {
+          throw new IllegalArgumentException("elementCount must be non-negative");
+        }
+        DoubleCounterMean counterMean = new DoubleCounterMean(value, elementCount);
+        mean.set(counterMean);
+        deltaMean.set(counterMean);
+        return this;
+      } finally {
+        setDirty();
       }
-      if (elementCount < 0) {
-        throw new IllegalArgumentException("elementCount must be non-negative");
-      }
-      DoubleCounterMean counterMean = new DoubleCounterMean(value, elementCount);
-      mean.set(counterMean);
-      deltaMean.set(counterMean);
-      return this;
     }
 
     @Override
@@ -798,21 +819,24 @@ public abstract class Counter<T> {
 
     @Override
     public Counter<Double> merge(Counter<Double> that) {
-      setDirty();
-      checkArgument(this.isCompatibleWith(that), "Counters %s and %s are incompatible", this, that);
-      switch (kind) {
-        case SUM:
-        case MIN:
-        case MAX:
-          return addValue(that.getAggregate());
-        case MEAN:
-          CounterMean<Double> thisCounterMean = this.getMean();
-          CounterMean<Double> thatCounterMean = that.getMean();
-          return resetMeanToValue(
-              thisCounterMean.getCount() + thatCounterMean.getCount(),
-              thisCounterMean.getAggregate() + thatCounterMean.getAggregate());
-        default:
-          throw illegalArgumentException();
+      try {
+        checkArgument(this.isCompatibleWith(that), "Counters %s and %s are incompatible", this, that);
+        switch (kind) {
+          case SUM:
+          case MIN:
+          case MAX:
+            return addValue(that.getAggregate());
+          case MEAN:
+            CounterMean<Double> thisCounterMean = this.getMean();
+            CounterMean<Double> thatCounterMean = that.getMean();
+            return resetMeanToValue(
+                thisCounterMean.getCount() + thatCounterMean.getCount(),
+                thisCounterMean.getAggregate() + thatCounterMean.getAggregate());
+          default:
+            throw illegalArgumentException();
+        }
+      } finally {
+        setDirty();
       }
     }
 
@@ -860,15 +884,18 @@ public abstract class Counter<T> {
 
     @Override
     public BooleanCounter addValue(Boolean value) {
-      setDirty();
-      if (kind.equals(AND) && !value) {
-        aggregate.set(value);
-        deltaAggregate.set(value);
-      } else if (kind.equals(OR) && value) {
-        aggregate.set(value);
-        deltaAggregate.set(value);
+      try {
+        if (kind.equals(AND) && !value) {
+          aggregate.set(value);
+          deltaAggregate.set(value);
+        } else if (kind.equals(OR) && value) {
+          aggregate.set(value);
+          deltaAggregate.set(value);
+        }
+        return this;
+      } finally {
+        setDirty();
       }
-      return this;
     }
 
     @Override
@@ -885,10 +912,13 @@ public abstract class Counter<T> {
 
     @Override
     public Counter<Boolean> resetToValue(Boolean value) {
-      setDirty();
-      aggregate.set(value);
-      deltaAggregate.set(value);
-      return this;
+      try {
+        aggregate.set(value);
+        deltaAggregate.set(value);
+        return this;
+      } finally {
+        setDirty();
+      }
     }
 
     @Override
@@ -914,9 +944,12 @@ public abstract class Counter<T> {
 
     @Override
     public Counter<Boolean> merge(Counter<Boolean> that) {
-      setDirty();
-      checkArgument(this.isCompatibleWith(that), "Counters %s and %s are incompatible", this, that);
-      return addValue(that.getAggregate());
+      try {
+        checkArgument(this.isCompatibleWith(that), "Counters %s and %s are incompatible", this, that);
+        return addValue(that.getAggregate());
+      } finally {
+        setDirty();
+      }
     }
   }
 
@@ -1034,28 +1067,31 @@ public abstract class Counter<T> {
 
     @Override
     public IntegerCounter addValue(Integer value) {
-      setDirty();
-      switch (kind) {
-        case SUM:
-          aggregate.getAndAdd(value);
-          deltaAggregate.getAndAdd(value);
-          break;
-        case MEAN:
-          addToMeanAndSet(value, mean);
-          addToMeanAndSet(value, deltaMean);
-          break;
-        case MAX:
-          maxAndSet(value, aggregate);
-          maxAndSet(value, deltaAggregate);
-          break;
-        case MIN:
-          minAndSet(value, aggregate);
-          minAndSet(value, deltaAggregate);
-          break;
-        default:
-          throw illegalArgumentException();
+      try {
+        switch (kind) {
+          case SUM:
+            aggregate.getAndAdd(value);
+            deltaAggregate.getAndAdd(value);
+            break;
+          case MEAN:
+            addToMeanAndSet(value, mean);
+            addToMeanAndSet(value, deltaMean);
+            break;
+          case MAX:
+            maxAndSet(value, aggregate);
+            maxAndSet(value, deltaAggregate);
+            break;
+          case MIN:
+            minAndSet(value, aggregate);
+            minAndSet(value, deltaAggregate);
+            break;
+          default:
+            throw illegalArgumentException();
+        }
+        return this;
+      } finally {
+        setDirty();
       }
-      return this;
     }
 
     private void addToMeanAndSet(int value, AtomicReference<IntegerCounterMean> target) {
@@ -1101,28 +1137,34 @@ public abstract class Counter<T> {
 
     @Override
     public Counter<Integer> resetToValue(Integer value) {
-      setDirty();
-      if (kind == MEAN) {
-        throw illegalArgumentException();
+      try {
+        if (kind == MEAN) {
+          throw illegalArgumentException();
+        }
+        aggregate.set(value);
+        deltaAggregate.set(value);
+        return this;
+      } finally {
+        setDirty();
       }
-      aggregate.set(value);
-      deltaAggregate.set(value);
-      return this;
     }
 
     @Override
     public Counter<Integer> resetMeanToValue(long elementCount, Integer value) {
-      setDirty();
-      if (kind != MEAN) {
-        throw illegalArgumentException();
+      try {
+        if (kind != MEAN) {
+          throw illegalArgumentException();
+        }
+        if (elementCount < 0) {
+          throw new IllegalArgumentException("elementCount must be non-negative");
+        }
+        IntegerCounterMean counterMean = new IntegerCounterMean(value, elementCount);
+        mean.set(counterMean);
+        deltaMean.set(counterMean);
+        return this;
+      } finally {
+        setDirty();
       }
-      if (elementCount < 0) {
-        throw new IllegalArgumentException("elementCount must be non-negative");
-      }
-      IntegerCounterMean counterMean = new IntegerCounterMean(value, elementCount);
-      mean.set(counterMean);
-      deltaMean.set(counterMean);
-      return this;
     }
 
     @Override
@@ -1153,21 +1195,24 @@ public abstract class Counter<T> {
 
     @Override
     public Counter<Integer> merge(Counter<Integer> that) {
-      setDirty();
-      checkArgument(this.isCompatibleWith(that), "Counters %s and %s are incompatible", this, that);
-      switch (kind) {
-        case SUM:
-        case MIN:
-        case MAX:
-          return addValue(that.getAggregate());
-        case MEAN:
-          CounterMean<Integer> thisCounterMean = this.getMean();
-          CounterMean<Integer> thatCounterMean = that.getMean();
-          return resetMeanToValue(
-              thisCounterMean.getCount() + thatCounterMean.getCount(),
-              thisCounterMean.getAggregate() + thatCounterMean.getAggregate());
-        default:
-          throw illegalArgumentException();
+      try {
+        checkArgument(this.isCompatibleWith(that), "Counters %s and %s are incompatible", this, that);
+        switch (kind) {
+          case SUM:
+          case MIN:
+          case MAX:
+            return addValue(that.getAggregate());
+          case MEAN:
+            CounterMean<Integer> thisCounterMean = this.getMean();
+            CounterMean<Integer> thatCounterMean = that.getMean();
+            return resetMeanToValue(
+                thisCounterMean.getCount() + thatCounterMean.getCount(),
+                thisCounterMean.getAggregate() + thatCounterMean.getAggregate());
+          default:
+            throw illegalArgumentException();
+        }
+      } finally {
+        setDirty();
       }
     }
 
