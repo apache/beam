@@ -205,11 +205,11 @@
               </goals>
             </execution>
           </executions>
-        <configuration>
-          <excludes>
-            <exclude>**/AutoValue_*.java</exclude>
-          </excludes>
-        </configuration>
+          <configuration>
+            <excludes>
+              <exclude>**/AutoValue_*.class</exclude>
+            </excludes>
+          </configuration>
         </plugin>
 
         <plugin>
