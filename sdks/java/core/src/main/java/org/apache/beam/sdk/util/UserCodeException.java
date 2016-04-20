@@ -68,7 +68,7 @@ public class UserCodeException extends RuntimeException {
     int currentStackSize = currentStack.length;
     int throwableStackSize = throwableStack.length;
 
-    if (throwableStack.length == 0) {
+    if (throwableStackSize == 0) {
       // Nothing to truncate.
       return;
     }
