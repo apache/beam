@@ -609,7 +609,8 @@ public abstract class Counter<T> {
     @Override
     public Counter<Long> merge(Counter<Long> that) {
       try {
-        checkArgument(this.isCompatibleWith(that), "Counters %s and %s are incompatible", this, that);
+        checkArgument(
+            this.isCompatibleWith(that), "Counters %s and %s are incompatible", this, that);
         switch (kind) {
           case SUM:
           case MIN:
@@ -820,7 +821,8 @@ public abstract class Counter<T> {
     @Override
     public Counter<Double> merge(Counter<Double> that) {
       try {
-        checkArgument(this.isCompatibleWith(that), "Counters %s and %s are incompatible", this, that);
+        checkArgument(
+            this.isCompatibleWith(that), "Counters %s and %s are incompatible", this, that);
         switch (kind) {
           case SUM:
           case MIN:
@@ -945,7 +947,8 @@ public abstract class Counter<T> {
     @Override
     public Counter<Boolean> merge(Counter<Boolean> that) {
       try {
-        checkArgument(this.isCompatibleWith(that), "Counters %s and %s are incompatible", this, that);
+        checkArgument(
+            this.isCompatibleWith(that), "Counters %s and %s are incompatible", this, that);
         return addValue(that.getAggregate());
       } finally {
         setDirty();
@@ -1196,7 +1199,8 @@ public abstract class Counter<T> {
     @Override
     public Counter<Integer> merge(Counter<Integer> that) {
       try {
-        checkArgument(this.isCompatibleWith(that), "Counters %s and %s are incompatible", this, that);
+        checkArgument(
+            this.isCompatibleWith(that), "Counters %s and %s are incompatible", this, that);
         switch (kind) {
           case SUM:
           case MIN:
