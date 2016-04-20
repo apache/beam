@@ -276,6 +276,11 @@
               </goals>
             </execution>
           </executions>
+        <configuration>
+          <excludes>
+            <exclude>**/AutoValue_*.java</exclude>
+          </excludes>
+        </configuration>
         </plugin>
 
         <!-- Report jacoco coverage to coveralls.io -->
