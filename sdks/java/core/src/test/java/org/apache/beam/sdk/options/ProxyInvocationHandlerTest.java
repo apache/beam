@@ -896,7 +896,6 @@ public class ProxyInvocationHandlerTest {
 
   @Test
   public void testDisplayDataFromDeserializedJson() throws Exception {
-// TODO   PipelineOptionsFactory.register(FooOptions.class);
     FooOptions options = PipelineOptionsFactory.as(FooOptions.class);
     options.setFoo("bar");
     DisplayData data = DisplayData.from(options);
