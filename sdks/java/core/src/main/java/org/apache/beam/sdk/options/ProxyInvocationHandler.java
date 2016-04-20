@@ -301,8 +301,8 @@ class ProxyInvocationHandler implements InvocationHandler {
       if (options.containsKey(jsonOption.getKey())) {
         // Option overwritten since deserialization; don't re-write
         continue;
-        // TODO: Is it worth removing the JSON option for consistency?
       }
+
       HashSet<PipelineOptionSpec> specs = new HashSet<>(optionsMap.get(jsonOption.getKey()));
       if (specs.isEmpty()) {
         builder.add(jsonOption.getKey(), jsonOption.getValue().toString())
@@ -324,7 +324,7 @@ class ProxyInvocationHandler implements InvocationHandler {
   }
 
   /**
-   * Marker interface use when the original {@link PipelineOptions} interface is not available at
+   * Marker interface used when the original {@link PipelineOptions} interface is not available at
    * runtime. This can occur when {@link PipelineOptions} are deserialized from JSON or specified
    * on the command line.
    *
@@ -357,7 +357,7 @@ class ProxyInvocationHandler implements InvocationHandler {
        should always be small (usually 1). */
       List<PipelineOptionSpec> specs = Lists.newArrayList(entry.getValue());
       if (specs.size() < 2) {
-        // Only one known implementing interface, no need to check for inheritence
+        // Only one known implementing interface, no need to check for inheritance
         continue;
       }
 
@@ -370,13 +370,16 @@ class ProxyInvocationHandler implements InvocationHandler {
             optionsMap.remove(entry.getKey(), specs.get(i));
             specs.remove(i);
 
-            // reset iterator indices to increment outer loop.
+            // Removed element at current "i" index. Set iterators to re-evaluate
+            // new "i" element in outer loop.
             i--;
             j = specs.size();
           } else  if (iface2.isAssignableFrom(iface1)) {
             optionsMap.remove(entry.getKey(), specs.get(j));
             specs.remove(j);
 
+            // Removed element at current "j" index. Set iterator to re-evaluate
+            // new "j" element in inner-loop.
             j--;
           }
         }
@@ -539,20 +542,19 @@ class ProxyInvocationHandler implements InvocationHandler {
           serializableOptions.put(entry.getKey(), entry.getValue().getValue());
         }
 
-
         jgen.writeStartObject();
         jgen.writeFieldName("options");
         jgen.writeObject(serializableOptions);
 
-          List<Map<String, Object>> serializedDisplayData = Lists.newArrayList();
-          for (DisplayData.Item item : DisplayData.from(value).items()) {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> serializedItem = MAPPER.convertValue(item, Map.class);
-            serializedDisplayData.add(serializedItem);
-          }
+        List<Map<String, Object>> serializedDisplayData = Lists.newArrayList();
+        for (DisplayData.Item item : DisplayData.from(value).items()) {
+          @SuppressWarnings("unchecked")
+          Map<String, Object> serializedItem = MAPPER.convertValue(item, Map.class);
+          serializedDisplayData.add(serializedItem);
+        }
 
-          jgen.writeFieldName("display_data");
-          jgen.writeObject(serializedDisplayData);
+        jgen.writeFieldName("display_data");
+        jgen.writeObject(serializedDisplayData);
         jgen.writeEndObject();
       }
     }

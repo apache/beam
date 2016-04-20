@@ -88,8 +88,8 @@ public class PipelineOptionsReflectorTest {
         allOf(hasName("foo"), hasClass(SimpleOptions.class))));
     assertThat(props, Matchers.hasItem(
         allOf(hasName("foo"), hasClass(ExtendsSimpleOptions.class))));
-        assertThat(props, Matchers.hasItem(
-            allOf(hasName("bar"), hasClass(ExtendsSimpleOptions.class))));
+    assertThat(props, Matchers.hasItem(
+        allOf(hasName("bar"), hasClass(ExtendsSimpleOptions.class))));
   }
 
   interface ExtendsSimpleOptions extends SimpleOptions {
