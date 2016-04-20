@@ -278,7 +278,7 @@
           </executions>
         <configuration>
           <excludes>
-            <exclude>**/AutoValue_*.java</exclude>
+            <exclude>**/AutoValue_*.class</exclude>
           </excludes>
         </configuration>
         </plugin>
