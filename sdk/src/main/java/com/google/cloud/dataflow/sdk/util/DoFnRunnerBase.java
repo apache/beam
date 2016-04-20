@@ -139,9 +139,8 @@ public abstract class DoFnRunnerBase<InputT, OutputT> implements DoFnRunner<Inpu
     } else {
       // We could modify the windowed value (and the processContext) to
       // avoid repeated allocations, but this is more straightforward.
-      for (BoundedWindow window : elem.getWindows()) {
-        invokeProcessElement(WindowedValue.of(
-            elem.getValue(), elem.getTimestamp(), window, elem.getPane()));
+      for (WindowedValue<InputT> windowedValue : elem.explodeWindows()) {
+        invokeProcessElement(windowedValue);
       }
     }
   }

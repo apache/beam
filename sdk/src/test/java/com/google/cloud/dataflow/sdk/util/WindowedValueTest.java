@@ -16,11 +16,20 @@
 
 package com.google.cloud.dataflow.sdk.util;
 
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.emptyIterable;
+import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertThat;
+
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
+import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
+import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo.Timing;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 
 import org.joda.time.Instant;
 import org.junit.Assert;
@@ -53,5 +62,48 @@ public class WindowedValueTest {
     Assert.assertEquals(value.getValue(), decodedValue.getValue());
     Assert.assertEquals(value.getTimestamp(), decodedValue.getTimestamp());
     Assert.assertArrayEquals(value.getWindows().toArray(), decodedValue.getWindows().toArray());
+  }
+
+  @Test
+  public void testExplodeWindowsInNoWindowsEmptyIterable() {
+    WindowedValue<String> value =
+        WindowedValue.of(
+            "foo", Instant.now(), ImmutableList.<BoundedWindow>of(), PaneInfo.NO_FIRING);
+
+    assertThat(value.explodeWindows(), emptyIterable());
+  }
+
+  @Test
+  public void testExplodeWindowsInOneWindowEquals() {
+    Instant now = Instant.now();
+    BoundedWindow window = new IntervalWindow(now.minus(1000L), now.plus(1000L));
+    WindowedValue<String> value =
+        WindowedValue.of("foo", now, window, PaneInfo.ON_TIME_AND_ONLY_FIRING);
+
+    assertThat(Iterables.getOnlyElement(value.explodeWindows()), equalTo(value));
+  }
+
+  @Test
+  public void testExplodeWindowsManyWindowsMultipleWindowedValues() {
+    Instant now = Instant.now();
+    BoundedWindow centerWindow = new IntervalWindow(now.minus(1000L), now.plus(1000L));
+    BoundedWindow pastWindow = new IntervalWindow(now.minus(1500L), now.plus(500L));
+    BoundedWindow futureWindow = new IntervalWindow(now.minus(500L), now.plus(1500L));
+    BoundedWindow futureFutureWindow = new IntervalWindow(now, now.plus(2000L));
+    PaneInfo pane = PaneInfo.createPane(false, false, Timing.ON_TIME, 3L, 0L);
+    WindowedValue<String> value =
+        WindowedValue.of(
+            "foo",
+            now,
+            ImmutableList.of(pastWindow, centerWindow, futureWindow, futureFutureWindow),
+            pane);
+
+    assertThat(
+        value.explodeWindows(),
+        containsInAnyOrder(
+            WindowedValue.of("foo", now, futureFutureWindow, pane),
+            WindowedValue.of("foo", now, futureWindow, pane),
+            WindowedValue.of("foo", now, centerWindow, pane),
+            WindowedValue.of("foo", now, pastWindow, pane)));
   }
 }

@@ -32,6 +32,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo.PaneInfoCoder
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -170,6 +171,18 @@ public abstract class WindowedValue<T> {
    * Returns the windows of this {@code WindowedValue}.
    */
   public abstract Collection<? extends BoundedWindow> getWindows();
+
+  /**
+   * Returns a collection of {@link WindowedValue WindowedValues} identical to this one, except each
+   * is in exactly one of the windows that this {@link WindowedValue} is in.
+   */
+  public Iterable<WindowedValue<T>> explodeWindows() {
+    ImmutableList.Builder<WindowedValue<T>> windowedValues = ImmutableList.builder();
+    for (BoundedWindow w : getWindows()) {
+      windowedValues.add(of(getValue(), getTimestamp(), w, getPane()));
+    }
+    return windowedValues.build();
+  }
 
   /**
    * Returns the pane of this {@code WindowedValue} in its window.
