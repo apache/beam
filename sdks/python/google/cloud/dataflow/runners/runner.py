@@ -63,7 +63,7 @@ class PipelineRunner(object):
   materialized values in order to reduce footprint.
   """
 
-  def run(self, pipeline, node=None):
+  def run(self, pipeline):
     """Execute the entire pipeline or the sub-DAG reachable from a node."""
 
     # Imported here to avoid circular dependencies.
@@ -82,7 +82,7 @@ class PipelineRunner(object):
           logging.error('Error while visiting %s', transform_node.full_label)
           raise
 
-    pipeline.visit(RunVisitor(self), node=node)
+    pipeline.visit(RunVisitor(self))
 
   def clear(self, pipeline, node=None):
     """Clear all nodes or nodes reachable from node of materialized values.
@@ -228,6 +228,9 @@ class PValueCache(object):
         return []
       else:
         raise
+
+  def get_unwindowed_pvalue(self, pvalue):
+    return [v.value for v in self.get_pvalue(pvalue)]
 
   def clear_pvalue(self, pvalue):
     """Removes a PValue from the cache."""

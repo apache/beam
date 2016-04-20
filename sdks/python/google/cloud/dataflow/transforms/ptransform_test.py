@@ -50,21 +50,21 @@ class PTransformTest(unittest.TestCase):
                      str(PTransform()))
 
     pa = Pipeline('DirectPipelineRunner')
-    pa | df.Create('a_label', [1, 2])
+    res = pa | df.Create('a_label', [1, 2])
     self.assertEqual('<Create(PTransform) label=[a_label]>',
-                     str(pa._nodes[1].producer.transform))
+                     str(res.producer.transform))
 
     pc = Pipeline('DirectPipelineRunner')
-    pc | df.Create('with_inputs', [1, 2])
-    inputs_tr = pc._nodes[1].producer.transform
+    res = pc | df.Create('with_inputs', [1, 2])
+    inputs_tr = res.producer.transform
     inputs_tr.inputs = ('ci',)
     self.assertEqual(
         """<Create(PTransform) label=[with_inputs] inputs=('ci',)>""",
         str(inputs_tr))
 
     pd = Pipeline('DirectPipelineRunner')
-    pd | df.Create('with_sidei', [1, 2])
-    side_tr = pd._nodes[1].producer.transform
+    res = pd | df.Create('with_sidei', [1, 2])
+    side_tr = res.producer.transform
     side_tr.side_inputs = (4,)
     self.assertEqual(
         '<Create(PTransform) label=[with_sidei] side_inputs=(4,)>',

@@ -134,18 +134,6 @@ class PipelineTest(unittest.TestCase):
     self.assertEqual(visitor.enter_composite[1].transform, transform)
     self.assertEqual(visitor.leave_composite[0].transform, transform)
 
-  def test_visit_node_sub_graph(self):
-    pipeline = Pipeline('DirectPipelineRunner')
-    pcoll1 = pipeline | Create('pcoll', [1, 2, 3])
-    pcoll2 = pcoll1 | FlatMap('do1', lambda x: [x + 1])
-    pcoll3 = pcoll2 | FlatMap('do2', lambda x: [x + 1])
-    pcoll4 = pcoll2 | FlatMap('do3', lambda x: [x + 1])
-
-    visitor = PipelineTest.Visitor(visited=[])
-    pipeline.visit(visitor, node=pcoll3)
-    self.assertFalse(pcoll4 in visitor.visited)
-    self.assertEqual(set([pcoll1, pcoll2, pcoll3]), set(visitor.visited))
-
   def test_apply_custom_transform(self):
     pipeline = Pipeline(DirectPipelineRunner())
     pcoll = pipeline | Create('pcoll', [1, 2, 3])

@@ -39,6 +39,7 @@ import operator
 import os
 import sys
 
+from google.cloud.dataflow import coders
 from google.cloud.dataflow import error
 from google.cloud.dataflow import pvalue
 from google.cloud.dataflow import typehints
@@ -82,10 +83,26 @@ class _SetInputPValues(_PValueishTransform):
       return super(_SetInputPValues, self).visit(node, replacements)
 
 
+class _MaterializedDoOutputsTuple(pvalue.DoOutputsTuple):
+  def __init__(self, deferred, pvalue_cache):
+    super(_MaterializedDoOutputsTuple, self).__init__(
+        None, None, deferred._tags, deferred._main_tag)
+    self._deferred = deferred
+    self._pvalue_cache = pvalue_cache
+
+  def __getitem__(self, tag):
+    return self._pvalue_cache.get_unwindowed_pvalue(self._deferred[tag])
+
+
 class _MaterializePValues(_PValueishTransform):
+  def __init__(self, pvalue_cache):
+    self._pvalue_cache = pvalue_cache
+
   def visit(self, node):
-    if isinstance(node, (pvalue.PValue, pvalue.DoOutputsTuple)):
-      return node._get_values()
+    if isinstance(node, pvalue.PValue):
+      return self._pvalue_cache.get_unwindowed_pvalue(node)
+    elif isinstance(node, pvalue.DoOutputsTuple):
+      return _MaterializedDoOutputsTuple(node, self._pvalue_cache)
     else:
       return super(_MaterializePValues, self).visit(node)
 
@@ -396,7 +413,7 @@ class PTransform(WithTypeHints):
       return result
     else:
       p.run()
-      return _MaterializePValues().visit(result)
+      return _MaterializePValues(p.runner._cache).visit(result)
 
   def _extract_input_pvalues(self, pvalueish):
     """Extract all the pvalues contained in the input pvalueish.

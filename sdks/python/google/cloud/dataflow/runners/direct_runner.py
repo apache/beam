@@ -89,8 +89,8 @@ class DirectPipelineRunner(PipelineRunner):
         func(self, pvalue, *args, **kwargs)
     return func_wrapper
 
-  def run(self, pipeline, node=None):
-    super(DirectPipelineRunner, self).run(pipeline, node)
+  def run(self, pipeline):
+    super(DirectPipelineRunner, self).run(pipeline)
     logging.info('Final: Debug counters: %s', self.debug_counters)
     return DirectPipelineResult(state=PipelineState.DONE,
                                 counter_factory=self._counter_factory)

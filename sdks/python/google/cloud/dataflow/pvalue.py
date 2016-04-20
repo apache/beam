@@ -25,8 +25,6 @@ from __future__ import absolute_import
 
 import collections
 
-from google.cloud.dataflow import error
-
 
 class PValue(object):
   """Base class for PCollection.
@@ -51,7 +49,6 @@ class PValue(object):
     self.pipeline = pipeline
     self.tag = tag
     self.element_type = element_type
-    self.pipeline._add_pvalue(self)
     # The AppliedPTransform instance for the application of the PTransform
     # generating this PValue. The field gets initialized when a transform
     # gets applied.
@@ -108,28 +105,6 @@ class PCollection(PValue):
       self._windowing = self.producer.transform.get_windowing(
           self.producer.inputs)
     return self._windowing
-
-  def _get_un_windowed_value(self, values):
-    """Converts an iterable of WindowedValue(s) into underlying values."""
-    for v in values:
-      yield v.value
-
-  # TODO(silviuc): Remove uses of this method and delete it.
-  def _get_values(self):
-
-    def _get_internal(self, runner=None):
-      """Materializes a PValue by executing its subtree of transforms."""
-
-      runner = runner or self.pipeline.runner
-      if not runner:
-        raise error.RunnerError(
-            'get() cannot find a runner to execute pipeline.')
-      runner.run(self.pipeline, node=self)
-      # Internally all values are WindowedValue(s) and we want to return only
-      # the underlying value or values depending on the type of the PValue.
-      return self._get_un_windowed_value(runner.get_pvalue(self))
-
-    return list(_get_internal(self))
 
   def __reduce_ex__(self, unused_version):
     # Pickling a PCollection is almost always the wrong thing to do, but we
@@ -213,23 +188,9 @@ class DoOutputsTuple(object):
     # Transfer the producer from the DoOutputsTuple to the resulting
     # PCollection.
     pcoll.producer = self.producer
+    self.producer.add_output(pcoll, tag)
     self._pcolls[tag] = pcoll
     return pcoll
-
-  def _get_values(self):
-    return ExplicitDoOutputsTuple(self)
-
-
-class ExplicitDoOutputsTuple(DoOutputsTuple):
-  def __init__(self, deferred):
-    super(ExplicitDoOutputsTuple, self).__init__(
-        None, None, deferred._tags, deferred._main_tag)
-    self._deferred = deferred
-
-  def __getitem__(self, tag):
-    pcoll = self._deferred[tag]
-    return pcoll._get_un_windowed_value(
-        self._deferred._pipeline.runner.get_pvalue(pcoll))
 
 
 class SideOutputValue(object):

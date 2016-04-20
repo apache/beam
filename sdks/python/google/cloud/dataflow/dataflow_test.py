@@ -206,11 +206,11 @@ class DataflowTest(unittest.TestCase):
     results = nums | FlatMap(
         'ClassifyNumbers',
         lambda x: [x, SideOutputValue('even' if x % 2 == 0 else 'odd', x)]
-    ).with_outputs('odd', 'even', main='main')
+    ).with_outputs()
     # TODO(silviuc): Revisit this test to check for undeclared side outputs.
     # This should work with .with_outputs() without any tags declared and
     # the results[None] should work also.
-    assert_that(results.main, equal_to([1, 2, 3, 4]))
+    assert_that(results[None], equal_to([1, 2, 3, 4]))
     assert_that(results.odd, equal_to([1, 3]), label='assert:odd')
     assert_that(results.even, equal_to([2, 4]), label='assert:even')
     pipeline.run()
@@ -221,8 +221,8 @@ class DataflowTest(unittest.TestCase):
     results = nums | FlatMap(
         'ClassifyNumbers',
         lambda x: [x, SideOutputValue('even' if x % 2 == 0 else 'odd', x)]
-    ).with_outputs('odd', 'even', main='main')
-    assert_that(results.main, equal_to([1, 3, 5]))
+    ).with_outputs()
+    assert_that(results[None], equal_to([1, 3, 5]))
     assert_that(results.odd, equal_to([1, 3, 5]), label='assert:odd')
     assert_that(results.even, equal_to([]), label='assert:even')
     pipeline.run()

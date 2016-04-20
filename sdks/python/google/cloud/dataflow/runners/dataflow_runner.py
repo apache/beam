@@ -143,15 +143,14 @@ class DataflowPipelineRunner(PipelineRunner):
     runner.result = DataflowPipelineResult(response)
     runner.last_error_msg = last_error_msg
 
-  def run(self, pipeline, node=None):
+  def run(self, pipeline):
     """Remotely executes entire pipeline or parts reachable from node."""
     # Import here to avoid adding the dependency for local running scenarios.
     # pylint: disable=g-import-not-at-top
     from google.cloud.dataflow.internal import apiclient
     self.job = apiclient.Job(pipeline.options)
-    # The superclass's run will trigger a traversal of all reachable nodes
-    # starting from the "node" argument (or entire graph if node is None).
-    super(DataflowPipelineRunner, self).run(pipeline, node)
+    # The superclass's run will trigger a traversal of all reachable nodes.
+    super(DataflowPipelineRunner, self).run(pipeline)
     # Get a Dataflow API client and submit the job.
     standard_options = pipeline.options.view_as(StandardOptions)
     if standard_options.streaming:
