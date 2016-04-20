@@ -25,6 +25,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import org.apache.beam.sdk.values.TypeDescriptor;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.AtomicDouble;
 
 import java.util.Objects;
@@ -295,6 +296,56 @@ public abstract class Counter<T> {
   public abstract CounterMean<T> getMean();
 
   /**
+   * DirtyBit represents whether counters' values have been committed to the backend.
+   *
+   * <p>Runners can use this information to optimize counters updates.
+   * For example, if counters are not dirty, runners may choose to skip the updates.
+   *
+   * <p>Counters' state transition table:
+   * Action\Current State         COMMITTED        DIRTY        COMMITTING
+   * add()                        DIRTY            DIRTY        DIRTY
+   * committing()                 None             COMMITTING   None
+   * committed()                  None             None         COMMITTED
+   */
+  @VisibleForTesting
+  enum DirtyBit {
+    COMMITTED,
+    DIRTY,
+    COMMITTING,
+  }
+
+  /**
+   * Returns if the counter contains non-committed aggregate.
+   */
+  public boolean isDirty() {
+    return dirty.get() != DirtyBit.COMMITTED;
+  }
+
+  /**
+   * Changes the counter from {@code DirtyBit.DIRTY} to {@code DirtyBit.COMMITTING}.
+   */
+  public boolean committing() {
+    return dirty.compareAndSet(DirtyBit.DIRTY, DirtyBit.COMMITTING);
+  }
+
+  /**
+   * Changes the counter from {@code DirtyBit.COMMITTING} to {@code DirtyBit.COMMITTED}.
+   */
+  public boolean committed() {
+    return dirty.compareAndSet(DirtyBit.COMMITTING, DirtyBit.COMMITTED);
+  }
+
+  /**
+   * Sets the counter to {@code DirtyBit.DIRTY}.
+   *
+   * <p>It needs to be called at the beginning of {@link #addValue}, {@link #resetToValue},
+   * {@link #resetMeanToValue}, and {@link #merge}.
+   */
+  protected void setDirty() {
+    dirty.set(DirtyBit.DIRTY);
+  }
+
+  /**
    * Returns a string representation of the Counter. Useful for debugging logs.
    * Example return value: "ElementCount:SUM(15)".
    */
@@ -382,9 +433,13 @@ public abstract class Counter<T> {
   /** The kind of aggregation function to apply to this counter. */
   protected final AggregationKind kind;
 
+  /** The dirty bit of this counter. **/
+  protected final AtomicReference<DirtyBit> dirty;
+
   protected Counter(CounterName name, AggregationKind kind) {
     this.name = name;
     this.kind = kind;
+    this.dirty = new AtomicReference<>(DirtyBit.COMMITTED);
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -425,6 +480,7 @@ public abstract class Counter<T> {
 
     @Override
     public LongCounter addValue(Long value) {
+      setDirty();
       switch (kind) {
         case SUM:
           aggregate.addAndGet(value);
@@ -500,6 +556,7 @@ public abstract class Counter<T> {
 
     @Override
     public Counter<Long> resetToValue(Long value) {
+      setDirty();
       if (kind == MEAN) {
         throw illegalArgumentException();
       }
@@ -510,6 +567,7 @@ public abstract class Counter<T> {
 
     @Override
     public Counter<Long> resetMeanToValue(long elementCount, Long value) {
+      setDirty();
       if (kind != MEAN) {
         throw illegalArgumentException();
       }
@@ -541,6 +599,7 @@ public abstract class Counter<T> {
 
     @Override
     public Counter<Long> merge(Counter<Long> that) {
+      setDirty();
       checkArgument(this.isCompatibleWith(that), "Counters %s and %s are incompatible", this, that);
       switch (kind) {
         case SUM:
@@ -620,6 +679,7 @@ public abstract class Counter<T> {
 
     @Override
     public DoubleCounter addValue(Double value) {
+      setDirty();
       switch (kind) {
         case SUM:
           aggregate.addAndGet(value);
@@ -686,6 +746,7 @@ public abstract class Counter<T> {
 
     @Override
     public Counter<Double> resetToValue(Double value) {
+      setDirty();
       if (kind == MEAN) {
         throw illegalArgumentException();
       }
@@ -696,6 +757,7 @@ public abstract class Counter<T> {
 
     @Override
     public Counter<Double> resetMeanToValue(long elementCount, Double value) {
+      setDirty();
       if (kind != MEAN) {
         throw illegalArgumentException();
       }
@@ -736,6 +798,7 @@ public abstract class Counter<T> {
 
     @Override
     public Counter<Double> merge(Counter<Double> that) {
+      setDirty();
       checkArgument(this.isCompatibleWith(that), "Counters %s and %s are incompatible", this, that);
       switch (kind) {
         case SUM:
@@ -797,6 +860,7 @@ public abstract class Counter<T> {
 
     @Override
     public BooleanCounter addValue(Boolean value) {
+      setDirty();
       if (kind.equals(AND) && !value) {
         aggregate.set(value);
         deltaAggregate.set(value);
@@ -821,6 +885,7 @@ public abstract class Counter<T> {
 
     @Override
     public Counter<Boolean> resetToValue(Boolean value) {
+      setDirty();
       aggregate.set(value);
       deltaAggregate.set(value);
       return this;
@@ -849,6 +914,7 @@ public abstract class Counter<T> {
 
     @Override
     public Counter<Boolean> merge(Counter<Boolean> that) {
+      setDirty();
       checkArgument(this.isCompatibleWith(that), "Counters %s and %s are incompatible", this, that);
       return addValue(that.getAggregate());
     }
@@ -968,6 +1034,7 @@ public abstract class Counter<T> {
 
     @Override
     public IntegerCounter addValue(Integer value) {
+      setDirty();
       switch (kind) {
         case SUM:
           aggregate.getAndAdd(value);
@@ -1034,6 +1101,7 @@ public abstract class Counter<T> {
 
     @Override
     public Counter<Integer> resetToValue(Integer value) {
+      setDirty();
       if (kind == MEAN) {
         throw illegalArgumentException();
       }
@@ -1044,6 +1112,7 @@ public abstract class Counter<T> {
 
     @Override
     public Counter<Integer> resetMeanToValue(long elementCount, Integer value) {
+      setDirty();
       if (kind != MEAN) {
         throw illegalArgumentException();
       }
@@ -1084,6 +1153,7 @@ public abstract class Counter<T> {
 
     @Override
     public Counter<Integer> merge(Counter<Integer> that) {
+      setDirty();
       checkArgument(this.isCompatibleWith(that), "Counters %s and %s are incompatible", this, that);
       switch (kind) {
         case SUM:
