@@ -560,7 +560,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     }
 
     String jobIdToUpdate = null;
-    if (options.getUpdate()) {
+    if (options.isUpdate()) {
       jobIdToUpdate = getJobIdFromName(options.getJobName());
       newJob.setTransformNameMapping(options.getTransformNameMapping());
       newJob.setReplaceJobId(jobIdToUpdate);
@@ -612,7 +612,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     if (jobResult.getClientRequestId() != null && !jobResult.getClientRequestId().isEmpty()
         && !jobResult.getClientRequestId().equals(requestId)) {
       // If updating a job.
-      if (options.getUpdate()) {
+      if (options.isUpdate()) {
         throw new DataflowJobAlreadyUpdatedException(dataflowPipelineJob,
             String.format("The job named %s with id: %s has already been updated into job id: %s "
                 + "and cannot be updated again.",

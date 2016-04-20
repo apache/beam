@@ -76,14 +76,10 @@ public interface DataflowPipelineOptions
   /**
    * Whether to update the currently running pipeline with the same name as this one.
    */
-  @Override
-  @SuppressWarnings("deprecation") // base class member deprecated in favor of this one.
   @Description(
       "If set, replace the existing pipeline with the name specified by --jobName with "
           + "this pipeline, preserving state.")
-  boolean getUpdate();
-  @Override
-  @SuppressWarnings("deprecation") // base class member deprecated in favor of this one.
+  boolean isUpdate();
   void setUpdate(boolean value);
 
   /**
