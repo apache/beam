@@ -391,8 +391,8 @@ public class CombineTest implements Serializable {
         .apply(Sum.integersGlobally())
         .apply(ParDo.of(new FormatPaneInfo()));
 
-    // The elements produced are nondeterministic, but it should certainly have
-    // a final pane with the correct final sum
+    // The actual elements produced are nondeterministic. Could be one, could be two.
+    // But it should certainly have a final element with the correct final sum.
     PAssert.that(output).satisfies(new SerializableFunction<Iterable<String>, Void>() {
       @Override
       public Void apply(Iterable<String> input) {
