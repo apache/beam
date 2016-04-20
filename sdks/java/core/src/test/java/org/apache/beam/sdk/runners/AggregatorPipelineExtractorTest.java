@@ -205,7 +205,7 @@ public class AggregatorPipelineExtractorTest {
     public Object answer(InvocationOnMock invocation) throws Throwable {
       PipelineVisitor visitor = (PipelineVisitor) invocation.getArguments()[0];
       for (TransformTreeNode node : nodes) {
-        visitor.visitTransform(node);
+        visitor.visitPrimitiveTransform(node);
       }
       return null;
     }

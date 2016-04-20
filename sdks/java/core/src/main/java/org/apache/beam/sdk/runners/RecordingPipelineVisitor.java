@@ -30,21 +30,13 @@ import java.util.List;
  *
  * <p>Provided for internal unit tests.
  */
-public class RecordingPipelineVisitor implements Pipeline.PipelineVisitor {
+public class RecordingPipelineVisitor extends Pipeline.PipelineVisitor.Defaults {
 
   public final List<PTransform<?, ?>> transforms = new ArrayList<>();
   public final List<PValue> values = new ArrayList<>();
 
   @Override
-  public void enterCompositeTransform(TransformTreeNode node) {
-  }
-
-  @Override
-  public void leaveCompositeTransform(TransformTreeNode node) {
-  }
-
-  @Override
-  public void visitTransform(TransformTreeNode node) {
+  public void visitPrimitiveTransform(TransformTreeNode node) {
     transforms.add(node.getTransform());
   }
 
