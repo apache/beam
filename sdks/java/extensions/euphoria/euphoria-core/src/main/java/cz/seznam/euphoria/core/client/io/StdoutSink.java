@@ -25,9 +25,13 @@ public class StdoutSink<T> implements DataSink<T> {
 
   static abstract class AbstractWriter<T> implements Writer<T> {
     final PrintStream out;
+    // ~ if 'true' 'out' will be closed, if false 'out' will be
+    // kept open even after this writer is closed
+    final boolean doClose;
 
-    AbstractWriter(PrintStream out) {
+    AbstractWriter(PrintStream out, boolean doClose) {
       this.out = out;
+      this.doClose = doClose;
     }
 
     @Override
@@ -37,13 +41,15 @@ public class StdoutSink<T> implements DataSink<T> {
 
     @Override
     public void close() throws IOException {
-      out.close();
+      if (doClose) {
+        out.close();
+      }
     }
   }
 
   static final class PlainWriter<T> extends AbstractWriter<T> {
-    PlainWriter(PrintStream out) {
-      super(out);
+    PlainWriter(PrintStream out, boolean doClose) {
+      super(out, doClose);
     }
 
     @Override
@@ -56,8 +62,8 @@ public class StdoutSink<T> implements DataSink<T> {
     final int partitionId;
     final StringBuilder buf = new StringBuilder();
 
-    PartitionIdWriter(PrintStream out, int partitionId) {
-      super(out);
+    PartitionIdWriter(PrintStream out, int partitionId, boolean doClose) {
+      super(out, doClose);
       this.partitionId = partitionId;
     }
 
@@ -80,10 +86,12 @@ public class StdoutSink<T> implements DataSink<T> {
 
   @Override
   public Writer<T> openWriter(int partitionId) {
+    // ~ we're specifying the writers _not_ to close
+    // the given PrintStream (stdout here)
     PrintStream out = System.out;
     return dumpPartitionId
-        ? new PartitionIdWriter<>(out, partitionId)
-        : new PlainWriter<>(out);
+        ? new PartitionIdWriter<>(out, partitionId, false)
+        : new PlainWriter<>(out, false);
   }
 
   @Override
