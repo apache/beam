@@ -100,7 +100,7 @@ public class UserCodeExceptionTest {
   public void robustAgainstEmptyStackTrace() {
     RuntimeException runtimeException = new RuntimeException("empty stack");
     runtimeException.setStackTrace(new StackTraceElement[0]);
-    RuntimeException wrapped = UserCodeException.wrapIf(true, runtimeException);
+    RuntimeException wrapped = UserCodeException.wrap(runtimeException);
     assertEquals(runtimeException, wrapped.getCause());
   }
 
