@@ -24,6 +24,8 @@ import cz.seznam.euphoria.core.client.operator.Pair;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.Repartition;
 import cz.seznam.euphoria.core.client.operator.State;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -50,6 +52,7 @@ import java.util.stream.Collectors;
  */
 public class InMemExecutor implements Executor {
 
+  private static final Logger LOG = LoggerFactory.getLogger(InMemExecutor.class);
 
   @FunctionalInterface
   private interface Supplier<T> {
@@ -227,6 +230,7 @@ public class InMemExecutor implements Executor {
               writer.rollback();
               sink.rollback();
             } catch (IOException ioex) {
+              LOG.warn("Something went wrong", ioex);
               // swallow exception
             }
             throw new RuntimeException(ex);
@@ -234,6 +238,7 @@ public class InMemExecutor implements Executor {
             try {
               writer.close();
             } catch (IOException ioex) {
+              LOG.warn("Something went wrong", ioex);
               // swallow exception
             }
           }
