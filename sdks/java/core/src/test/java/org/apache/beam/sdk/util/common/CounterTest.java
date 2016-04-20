@@ -29,8 +29,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import org.apache.beam.sdk.util.common.Counter.CommitState;
 import org.apache.beam.sdk.util.common.Counter.CounterMean;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -587,5 +587,149 @@ public class CounterTest {
     thrown.expectMessage("Counters");
     thrown.expectMessage("are incompatible");
     left.merge(right);
+  }
+
+  @Test
+  public void testDirtyBit() {
+    Counter<Long> longSum = Counter.longs("long-sum", SUM);
+    Counter<Long> longMean = Counter.longs("long-mean", MEAN);
+    Counter<Double> doubleSum = Counter.doubles("double-sum", SUM);
+    Counter<Double> doubleMean = Counter.doubles("double-sum", MEAN);
+    Counter<Integer> intSum = Counter.ints("int-sum", SUM);
+    Counter<Integer> intMean = Counter.ints("int-sum", MEAN);
+    Counter<Boolean> boolAnd = Counter.booleans("and", AND);
+
+    // Test counters are not dirty and are COMMITTED initially.
+    assertFalse(longSum.isDirty());
+    assertFalse(longMean.isDirty());
+    assertFalse(doubleSum.isDirty());
+    assertFalse(doubleMean.isDirty());
+    assertFalse(intSum.isDirty());
+    assertFalse(intMean.isDirty());
+    assertFalse(boolAnd.isDirty());
+
+    assertEquals(CommitState.COMMITTED, longSum.commitState.get());
+    assertEquals(CommitState.COMMITTED, longMean.commitState.get());
+    assertEquals(CommitState.COMMITTED, doubleSum.commitState.get());
+    assertEquals(CommitState.COMMITTED, doubleMean.commitState.get());
+    assertEquals(CommitState.COMMITTED, intSum.commitState.get());
+    assertEquals(CommitState.COMMITTED, intMean.commitState.get());
+    assertEquals(CommitState.COMMITTED, boolAnd.commitState.get());
+
+    // Test counters are dirty after mutating.
+    longSum.addValue(1L);
+    longMean.resetMeanToValue(1L, 1L);
+    doubleSum.addValue(1.0);
+    doubleMean.resetMeanToValue(1L, 1.0);
+    intSum.addValue(1);
+    intMean.resetMeanToValue(1, 1);
+    boolAnd.addValue(true);
+
+    assertTrue(longSum.isDirty());
+    assertTrue(longMean.isDirty());
+    assertTrue(doubleSum.isDirty());
+    assertTrue(doubleMean.isDirty());
+    assertTrue(intSum.isDirty());
+    assertTrue(intMean.isDirty());
+    assertTrue(boolAnd.isDirty());
+
+    assertEquals(CommitState.DIRTY, longSum.commitState.get());
+    assertEquals(CommitState.DIRTY, longMean.commitState.get());
+    assertEquals(CommitState.DIRTY, doubleSum.commitState.get());
+    assertEquals(CommitState.DIRTY, doubleMean.commitState.get());
+    assertEquals(CommitState.DIRTY, intSum.commitState.get());
+    assertEquals(CommitState.DIRTY, intMean.commitState.get());
+    assertEquals(CommitState.DIRTY, boolAnd.commitState.get());
+
+    // Test counters are dirty and are COMMITTING.
+    assertTrue(longSum.committing());
+    assertTrue(longMean.committing());
+    assertTrue(doubleSum.committing());
+    assertTrue(doubleMean.committing());
+    assertTrue(intSum.committing());
+    assertTrue(intMean.committing());
+    assertTrue(boolAnd.committing());
+
+    assertTrue(longSum.isDirty());
+    assertTrue(longMean.isDirty());
+    assertTrue(doubleSum.isDirty());
+    assertTrue(doubleMean.isDirty());
+    assertTrue(intSum.isDirty());
+    assertTrue(intMean.isDirty());
+    assertTrue(boolAnd.isDirty());
+
+    assertEquals(CommitState.COMMITTING, longSum.commitState.get());
+    assertEquals(CommitState.COMMITTING, longMean.commitState.get());
+    assertEquals(CommitState.COMMITTING, doubleSum.commitState.get());
+    assertEquals(CommitState.COMMITTING, doubleMean.commitState.get());
+    assertEquals(CommitState.COMMITTING, intSum.commitState.get());
+    assertEquals(CommitState.COMMITTING, intMean.commitState.get());
+    assertEquals(CommitState.COMMITTING, boolAnd.commitState.get());
+
+    // Test counters are dirty again after mutating.
+    longSum.addValue(1L);
+    longMean.resetMeanToValue(1L, 1L);
+    doubleSum.addValue(1.0);
+    doubleMean.resetMeanToValue(1L, 1.0);
+    intSum.addValue(1);
+    intMean.resetMeanToValue(1, 1);
+    boolAnd.addValue(true);
+
+    assertFalse(longSum.committed());
+    assertFalse(longMean.committed());
+    assertFalse(doubleSum.committed());
+    assertFalse(doubleMean.committed());
+    assertFalse(intSum.committed());
+    assertFalse(intMean.committed());
+    assertFalse(boolAnd.committed());
+
+    assertTrue(longSum.isDirty());
+    assertTrue(longMean.isDirty());
+    assertTrue(doubleSum.isDirty());
+    assertTrue(doubleMean.isDirty());
+    assertTrue(intSum.isDirty());
+    assertTrue(intMean.isDirty());
+    assertTrue(boolAnd.isDirty());
+
+    assertEquals(CommitState.DIRTY, longSum.commitState.get());
+    assertEquals(CommitState.DIRTY, longMean.commitState.get());
+    assertEquals(CommitState.DIRTY, doubleSum.commitState.get());
+    assertEquals(CommitState.DIRTY, doubleMean.commitState.get());
+    assertEquals(CommitState.DIRTY, intSum.commitState.get());
+    assertEquals(CommitState.DIRTY, intMean.commitState.get());
+    assertEquals(CommitState.DIRTY, boolAnd.commitState.get());
+
+    // Test counters are not dirty and are COMMITTED.
+    assertTrue(longSum.committing());
+    assertTrue(longMean.committing());
+    assertTrue(doubleSum.committing());
+    assertTrue(doubleMean.committing());
+    assertTrue(intSum.committing());
+    assertTrue(intMean.committing());
+    assertTrue(boolAnd.committing());
+
+    assertTrue(longSum.committed());
+    assertTrue(longMean.committed());
+    assertTrue(doubleSum.committed());
+    assertTrue(doubleMean.committed());
+    assertTrue(intSum.committed());
+    assertTrue(intMean.committed());
+    assertTrue(boolAnd.committed());
+
+    assertFalse(longSum.isDirty());
+    assertFalse(longMean.isDirty());
+    assertFalse(doubleSum.isDirty());
+    assertFalse(doubleMean.isDirty());
+    assertFalse(intSum.isDirty());
+    assertFalse(intMean.isDirty());
+    assertFalse(boolAnd.isDirty());
+
+    assertEquals(CommitState.COMMITTED, longSum.commitState.get());
+    assertEquals(CommitState.COMMITTED, longMean.commitState.get());
+    assertEquals(CommitState.COMMITTED, doubleSum.commitState.get());
+    assertEquals(CommitState.COMMITTED, doubleMean.commitState.get());
+    assertEquals(CommitState.COMMITTED, intSum.commitState.get());
+    assertEquals(CommitState.COMMITTED, intMean.commitState.get());
+    assertEquals(CommitState.COMMITTED, boolAnd.commitState.get());
   }
 }
