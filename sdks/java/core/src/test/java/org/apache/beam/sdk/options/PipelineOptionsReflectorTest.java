@@ -131,20 +131,19 @@ public class PipelineOptionsReflectorTest {
 
   @Test
   public void testMultipleInputInterfaces() {
-    Set<Class<? extends PipelineOptions>> interfaces = ImmutableSet
-        .<Class<? extends PipelineOptions>>builder()
-        .add(BaseOptions.class)
-        .add(ExtendOptions1.class)
-        .add(ExtendOptions2.class)
-        .build();
+    Set<Class<? extends PipelineOptions>> interfaces =
+        ImmutableSet.<Class<? extends PipelineOptions>>of(
+          BaseOptions.class,
+          ExtendOptions1.class,
+          ExtendOptions2.class);
 
     Set<PipelineOptionSpec> props = PipelineOptionsReflector.getOptionSpecs(interfaces);
 
     assertThat(props, Matchers.hasItem(allOf(hasName("baseOption"), hasClass(BaseOptions.class))));
     assertThat(props, Matchers.hasItem(
         allOf(hasName("extendOption1"), hasClass(ExtendOptions1.class))));
-        assertThat(props, Matchers.hasItem(
-            allOf(hasName("extendOption2"), hasClass(ExtendOptions2.class))));
+    assertThat(props, Matchers.hasItem(
+        allOf(hasName("extendOption2"), hasClass(ExtendOptions2.class))));
   }
 
   interface BaseOptions extends PipelineOptions {
