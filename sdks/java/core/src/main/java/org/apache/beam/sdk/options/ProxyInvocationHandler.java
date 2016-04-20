@@ -324,7 +324,7 @@ class ProxyInvocationHandler implements InvocationHandler {
   }
 
   /**
-   * Marker interface use when the original {@link PipelineOptions} interface is not avaialble at
+   * Marker interface use when the original {@link PipelineOptions} interface is not available at
    * runtime. This can occur when {@link PipelineOptions} are deserialized from JSON or specified
    * on the command line.
    *
@@ -546,7 +546,9 @@ class ProxyInvocationHandler implements InvocationHandler {
 
           List<Map<String, Object>> serializedDisplayData = Lists.newArrayList();
           for (DisplayData.Item item : DisplayData.from(value).items()) {
-            serializedDisplayData.add(MAPPER.convertValue(item, Map.class));
+            @SuppressWarnings("unchecked")
+            Map<String, Object> serializedItem = MAPPER.convertValue(item, Map.class);
+            serializedDisplayData.add(serializedItem);
           }
 
           jgen.writeFieldName("display_data");
