@@ -20,8 +20,10 @@ package org.apache.beam.sdk.transforms;
 import static org.apache.beam.sdk.TestUtils.checkCombineFn;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includes;
+
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
@@ -389,7 +391,17 @@ public class CombineTest implements Serializable {
         .apply(Sum.integersGlobally())
         .apply(ParDo.of(new FormatPaneInfo()));
 
-    PAssert.that(output).containsInAnyOrder("1: false", "2: true");
+    // The elements produced are nondeterministic, but it should certainly have
+    // a final pane with the correct final sum
+    PAssert.that(output).satisfies(new SerializableFunction<Iterable<String>, Void>() {
+      @Override
+      public Void apply(Iterable<String> input) {
+        assertThat(input, hasItem("2: true"));
+        return null;
+      }
+    });
+
+    pipeline.run();
   }
 
   @Test
