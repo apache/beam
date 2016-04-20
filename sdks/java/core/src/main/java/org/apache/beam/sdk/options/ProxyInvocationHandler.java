@@ -324,12 +324,13 @@ class ProxyInvocationHandler implements InvocationHandler {
   }
 
   /**
-   * Marker interface used when the original {@link PipelineOptions} interface is not available at
+   * Marker interface used when the original {@link PipelineOptions} interface is not known at
    * runtime. This can occur when {@link PipelineOptions} are deserialized from JSON or specified
    * on the command line.
    *
-   * To ensure {@link PipelineOptions} type information is available at runtime, register known
-   * interfaces via {@link PipelineOptionsFactory#register(Class)}.
+   * <p>Pipeline authors can ensure {@link PipelineOptions} type information is available at
+   * runtime by explicitly registering {@link PipelineOptions options} interfaces via
+   * {@link PipelineOptionsFactory#register(Class)}.
    */
   interface UnknownPipelineOptions extends PipelineOptions {}
 
@@ -361,7 +362,7 @@ class ProxyInvocationHandler implements InvocationHandler {
         continue;
       }
 
-      for (int i = 0; i < specs.size(); i++) {
+      for (int i = 0; i < specs.size() - 1; i++) {
         Class<?> iface1 = specs.get(i).getDefiningInterface();
         for (int j = i + 1; j < specs.size(); j++) {
           Class<?> iface2 = specs.get(j).getDefiningInterface();
