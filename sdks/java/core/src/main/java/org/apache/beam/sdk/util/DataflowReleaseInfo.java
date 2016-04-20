@@ -34,7 +34,7 @@ public final class DataflowReleaseInfo extends GenericJson {
   private static final Logger LOG = LoggerFactory.getLogger(DataflowReleaseInfo.class);
 
   private static final String DATAFLOW_PROPERTIES_PATH =
-      "/org.apache.beam/sdk/sdk.properties";
+      "/org/apache/beam/sdk/sdk.properties";
 
   private static class LazyInit {
     private static final DataflowReleaseInfo INSTANCE =
@@ -48,7 +48,7 @@ public final class DataflowReleaseInfo extends GenericJson {
     return LazyInit.INSTANCE;
   }
 
-  @Key private String name = "Google Cloud Dataflow Java SDK";
+  @Key private String name = "Apache Beam SDK for Java";
   @Key private String version = "Unknown";
 
   /** Provides the SDK name. */
