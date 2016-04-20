@@ -17,16 +17,21 @@
  */
 package org.apache.beam.sdk.util;
 
+import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
+import org.hamcrest.Description;
+import org.hamcrest.Matcher;
+import org.hamcrest.TypeSafeDiagnosingMatcher;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -67,34 +72,61 @@ public class ApiSurfaceTest {
     }
   }
 
+  @SuppressWarnings("unchecked")
+  private static final Set<Matcher<Class<?>>> ALLOWED_PACKAGES =
+      ImmutableSet.of(
+          inPackage("org.apache.beam"),
+          inPackage("com.google.api.client"),
+          inPackage("com.google.api.services.bigquery"),
+          inPackage("com.google.api.services.dataflow"),
+          inPackage("com.google.api.services.datastore"),
+          inPackage("com.google.api.services.pubsub"),
+          inPackage("com.google.api.services.storage"),
+          inPackage("com.google.auth"),
+          inPackage("com.google.bigtable.v1"),
+          inPackage("com.google.cloud.bigtable.config"),
+          inPackage("com.google.cloud.bigtable.grpc"),
+          inPackage("com.google.protobuf"),
+          inPackage("com.fasterxml.jackson.annotation"),
+          inPackage("io.grpc"),
+          inPackage("org.apache.avro"),
+          inPackage("org.apache.commons.logging"), // via BigTable
+          inPackage("org.hamcrest"), // via DataflowMatchers
+          inPackage("org.codehaus.jackson"), // via Avro
+          inPackage("org.joda.time"),
+          inPackage("org.junit"),
+          inPackage("java"));
+
+  @SuppressWarnings({"rawtypes", "unchecked"})
   private boolean classIsAllowed(Class<?> clazz) {
-    return clazz.getName().startsWith("org.apache.beam")
-        || clazz.getName().startsWith("com.google.api.client.")
-        || clazz.getName().startsWith("com.google.api.services.bigquery.")
-        || clazz.getName().startsWith("com.google.api.services.dataflow.")
-        || clazz.getName().startsWith("com.google.api.services.datastore.")
-        || clazz.getName().startsWith("com.google.api.services.pubsub.")
-        || clazz.getName().startsWith("com.google.api.services.storage.")
-        || clazz.getName().startsWith("com.google.auth.")
-        || clazz.getName().startsWith("com.google.bigtable.v1.")
-        || clazz.getName().startsWith("com.google.cloud.bigtable.config.")
-        || clazz.getName().startsWith("com.google.cloud.bigtable.grpc.")
-        || clazz.getName().startsWith("com.google.protobuf.")
+    // Safe cast inexpressible in Java without rawtypes
+    return anyOf((Iterable) ALLOWED_PACKAGES).matches(clazz);
+  }
 
-        || clazz.getName().startsWith("com.fasterxml.jackson.annotation.")
+  private static final Matcher<Class<?>> inPackage(String packageName) {
+    return new ClassInPackage(packageName);
+  }
 
-        || clazz.getName().startsWith("io.grpc.")
+  private static class ClassInPackage extends TypeSafeDiagnosingMatcher<Class<?>> {
 
-        || clazz.getName().startsWith("org.apache.avro.")
+    private final String packageName;
 
-        // exposed by BigTable - maybe can get away from it
-        || clazz.getName().startsWith("org.apache.commons.logging.")
-        || clazz.getName().startsWith("org.hamcrest") // via DataflowMatchers
-        || clazz.getName().startsWith("org.codehaus.jackson") // via Avro
-        || clazz.getName().startsWith("org.joda.time.")
-        || clazz.getName().startsWith("org.junit.")
+    public ClassInPackage(String packageName) {
+      this.packageName = packageName;
+    }
 
-        || clazz.getName().startsWith("java.");
+    @Override
+    public void describeTo(Description description) {
+      description.appendText("Class in package \"");
+      description.appendText(packageName);
+      description.appendText("\"");
+    }
+
+    @Override
+    protected boolean matchesSafely(Class<?> clazz, Description mismatchDescription) {
+      return clazz.getName().startsWith(packageName + ".");
+    }
+
   }
 
   //////////////////////////////////////////////////////////////////////////////////
