@@ -855,10 +855,11 @@ public class ProxyInvocationHandlerTest {
   @Test
   public void testDisplayDataIncludesExplicitlySetDefaults() {
     HasDefaults options = PipelineOptionsFactory.as(HasDefaults.class);
-    options.setFoo("bar");
+    String defaultValue = options.getFoo();
+    options.setFoo(defaultValue);
 
     DisplayData data = DisplayData.from(options);
-    assertThat(data, hasDisplayItem(hasKey("foo")));
+    assertThat(data, hasDisplayItem("foo", defaultValue));
   }
 
   @Test
