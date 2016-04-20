@@ -35,6 +35,7 @@
   (sources and sinks) to consume and produce data from systems.</description>
 
   <modules>
+    <module>google-cloud-platform</module>
     <module>hdfs</module>
     <module>kafka</module>
   </modules>
