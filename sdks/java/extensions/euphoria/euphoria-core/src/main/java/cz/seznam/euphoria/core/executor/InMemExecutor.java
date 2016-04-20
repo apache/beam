@@ -39,6 +39,7 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.SynchronousQueue;
@@ -203,6 +204,7 @@ public class InMemExecutor implements Executor {
     sources.stream()
         .forEach(d -> context.add(d, createStream(d)));
     List<ExecUnit> units = ExecUnit.split(flow);
+    final List<Future> runningThreads = new ArrayList<>();
     for (ExecUnit unit : units) {
       execUnit(unit, context);
     }
@@ -213,7 +215,7 @@ public class InMemExecutor implements Executor {
       int part = 0;
       for (Supplier s : context.get(o)) {
         final Writer writer = sink.openWriter(part++);
-        executor.execute(() -> {
+        runningThreads.add(executor.submit(() -> {
           try {
             try {
               for (;;) {
@@ -222,13 +224,14 @@ public class InMemExecutor implements Executor {
             } catch (EndOfStreamException ex) {
               // end of the stream
               writer.commit();
-              sink.commit();
               // and terminate the thread
             }
           } catch (IOException ex) {
             try {
               writer.rollback();
               sink.rollback();
+              // propagate exception
+              throw new RuntimeException(ex);
             } catch (IOException ioex) {
               LOG.warn("Something went wrong", ioex);
               // swallow exception
@@ -242,18 +245,32 @@ public class InMemExecutor implements Executor {
               // swallow exception
             }
           }
-        });
+        }));
       }
     }
-    while (executor.getActiveCount() != 0) {
-      try {
-        executor.awaitTermination(1, TimeUnit.SECONDS);
-      } catch (InterruptedException ex) {
-        break;
-      }
-    }
-    return 0;
 
+    // wait for all threads to finish
+    for (Future f : runningThreads) {
+      try {
+        f.get();
+      } catch (InterruptedException e) {
+        break;
+      } catch (ExecutionException e) {
+        throw new RuntimeException(e);
+      }
+    }
+
+    // commit all sinks
+    try {
+      for (Dataset<?> o : outputs) {
+        DataSink<?> s = o.getOutputSink();
+        s.commit();
+      }
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+
+    return 0;
   }
 
   @SuppressWarnings("unchecked")
