@@ -205,6 +205,11 @@
               </goals>
             </execution>
           </executions>
+        <configuration>
+          <excludes>
+            <exclude>**/AutoValue_*.java</exclude>
+          </excludes>
+        </configuration>
         </plugin>
 
         <plugin>
