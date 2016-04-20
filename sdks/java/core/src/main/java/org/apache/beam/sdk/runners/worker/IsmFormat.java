@@ -38,9 +38,7 @@ import org.apache.beam.sdk.util.RandomAccessData;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.PCollection;
 
-import com.google.common.base.MoreObjects;
-import com.google.common.base.MoreObjects.ToStringHelper;
-import com.google.common.base.Objects;
+import com.google.auto.value.AutoValue;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.hash.HashFunction;
@@ -55,7 +53,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import javax.annotation.Nullable;
@@ -121,44 +118,38 @@ public class IsmFormat {
    * keys are used to create a shard id via hashing. See {@link IsmRecordCoder#hash(List)} for
    * further details.
    */
-  public static class IsmRecord<V> {
+  @AutoValue
+  public abstract static class IsmRecord<V> {
+    abstract List<?> keyComponents();
+    @Nullable abstract V value();
+    @Nullable abstract byte[] metadata();
+
+    IsmRecord() {} // Prevent public constructor
+
     /** Returns an IsmRecord with the specified key components and value. */
     public static <V> IsmRecord<V> of(List<?> keyComponents, V value) {
-      checkNotNull(keyComponents);
       checkArgument(!keyComponents.isEmpty(), "Expected non-empty list of key components.");
       checkArgument(!isMetadataKey(keyComponents),
           "Expected key components to not contain metadata key.");
-      return new IsmRecord<>(keyComponents, value, null);
+      return new AutoValue_IsmFormat_IsmRecord<V>(keyComponents, value, null);
     }
 
     public static <V> IsmRecord<V> meta(List<?> keyComponents, byte[] metadata) {
-      checkNotNull(keyComponents);
       checkNotNull(metadata);
       checkArgument(!keyComponents.isEmpty(), "Expected non-empty list of key components.");
       checkArgument(isMetadataKey(keyComponents),
           "Expected key components to contain metadata key.");
-      return new IsmRecord<V>(keyComponents, null, metadata);
-    }
-
-    private final List<?> keyComponents;
-    @Nullable
-    private final V value;
-    @Nullable
-    private final byte[] metadata;
-    private IsmRecord(List<?> keyComponents, V value, byte[] metadata) {
-      this.keyComponents = keyComponents;
-      this.value = value;
-      this.metadata = metadata;
+      return new AutoValue_IsmFormat_IsmRecord<V>(keyComponents, null, metadata);
     }
 
     /** Returns the list of key components. */
     public List<?> getKeyComponents() {
-      return keyComponents;
+      return keyComponents();
     }
 
     /** Returns the key component at the specified index. */
     public Object getKeyComponent(int index) {
-      return keyComponents.get(index);
+      return keyComponents().get(index);
     }
 
     /**
@@ -166,9 +157,9 @@ public class IsmFormat {
      * value record.
      */
     public V getValue() {
-      checkState(!isMetadataKey(keyComponents),
+      checkState(!isMetadataKey(keyComponents()),
           "This is a metadata record and not a value record.");
-      return value;
+      return value();
     }
 
     /**
@@ -176,37 +167,9 @@ public class IsmFormat {
      * metadata record.
      */
     public byte[] getMetadata() {
-      checkState(isMetadataKey(keyComponents),
+      checkState(isMetadataKey(keyComponents()),
           "This is a value record and not a metadata record.");
-      return metadata;
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-      if (!(obj instanceof IsmRecord)) {
-        return false;
-      }
-      IsmRecord<?> other = (IsmRecord<?>) obj;
-      return Objects.equal(keyComponents, other.keyComponents)
-          && Objects.equal(value, other.value)
-          && Arrays.equals(metadata, other.metadata);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hashCode(keyComponents, value, Arrays.hashCode(metadata));
-    }
-
-    @Override
-    public String toString() {
-      ToStringHelper builder = MoreObjects.toStringHelper(IsmRecord.class)
-          .add("keyComponents", keyComponents);
-      if (isMetadataKey(keyComponents)) {
-        builder.add("metadata", metadata);
-      } else {
-        builder.add("value", value);
-      }
-      return builder.toString();
+      return metadata();
     }
   }
 
@@ -589,14 +552,17 @@ public class IsmFormat {
    * A shard descriptor containing shard id, the data block offset, and the index offset for the
    * given shard.
    */
-  public static class IsmShard {
-    private final int id;
-    private final long blockOffset;
-    private final long indexOffset;
+  @AutoValue
+  public abstract static class IsmShard {
+    abstract int id();
+    abstract long blockOffset();
+    abstract long indexOffset();
+
+    IsmShard() {}
 
     /** Returns an IsmShard with the given id, block offset and no index offset. */
     public static IsmShard of(int id, long blockOffset) {
-      IsmShard ismShard = new IsmShard(id, blockOffset, -1);
+      IsmShard ismShard = new AutoValue_IsmFormat_IsmShard(id, blockOffset, -1);
       checkState(id >= 0,
           "%s attempting to be written with negative shard id.",
           ismShard);
@@ -608,7 +574,7 @@ public class IsmFormat {
 
     /** Returns an IsmShard with the given id, block offset, and index offset. */
     public static IsmShard of(int id, long blockOffset, long indexOffset) {
-      IsmShard ismShard = new IsmShard(id, blockOffset, indexOffset);
+      IsmShard ismShard = new AutoValue_IsmFormat_IsmShard(id, blockOffset, indexOffset);
       checkState(id >= 0,
           "%s attempting to be written with negative shard id.",
           ismShard);
@@ -621,20 +587,14 @@ public class IsmFormat {
       return ismShard;
     }
 
-    private IsmShard(int id, long blockOffset, long indexOffset) {
-      this.id = id;
-      this.blockOffset = blockOffset;
-      this.indexOffset = indexOffset;
-    }
-
     /** Return the shard id. */
     public int getId() {
-      return id;
+      return id();
     }
 
     /** Return the absolute position within the Ism file where the data block begins. */
     public long getBlockOffset() {
-      return blockOffset;
+      return blockOffset();
     }
 
     /**
@@ -642,39 +602,14 @@ public class IsmFormat {
      * Throws {@link IllegalStateException} if the index offset was never specified.
      */
     public long getIndexOffset() {
-      checkState(indexOffset >= 0,
+      checkState(indexOffset() >= 0,
             "Unable to fetch index offset because it was never specified.");
-      return indexOffset;
+      return indexOffset();
     }
 
     /** Returns a new IsmShard like this one with the specified index offset. */
     public IsmShard withIndexOffset(long indexOffset) {
-      return of(id, blockOffset, indexOffset);
-    }
-
-    @Override
-    public String toString() {
-      return MoreObjects.toStringHelper(IsmShard.class)
-          .add("id", id)
-          .add("blockOffset", blockOffset)
-          .add("indexOffset", indexOffset)
-          .toString();
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-      if (!(obj instanceof IsmShard)) {
-        return false;
-      }
-      IsmShard other = (IsmShard) obj;
-      return Objects.equal(id, other.id)
-          && Objects.equal(blockOffset, other.blockOffset)
-          && Objects.equal(indexOffset, other.indexOffset);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hashCode(id, blockOffset, indexOffset);
+      return of(id(), blockOffset(), indexOffset);
     }
   }
 
@@ -746,47 +681,13 @@ public class IsmFormat {
    *   <li>number of unshared key bytes (variable length integer coding)</li>
    * </ul>
    */
-  public static class KeyPrefix {
-    private final int sharedKeySize;
-    private final int unsharedKeySize;
+  @AutoValue
+  public abstract static class KeyPrefix {
+    public abstract int getSharedKeySize();
+    public abstract int getUnsharedKeySize();
 
-    public KeyPrefix(int sharedBytes, int unsharedBytes) {
-      this.sharedKeySize = sharedBytes;
-      this.unsharedKeySize = unsharedBytes;
-    }
-
-    public int getSharedKeySize() {
-      return sharedKeySize;
-    }
-
-    public int getUnsharedKeySize() {
-      return unsharedKeySize;
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hashCode(sharedKeySize, unsharedKeySize);
-    }
-
-    @Override
-    public boolean equals(Object other) {
-      if (other == this) {
-        return true;
-      }
-      if (!(other instanceof KeyPrefix)) {
-        return false;
-      }
-      KeyPrefix keyPrefix = (KeyPrefix) other;
-      return sharedKeySize == keyPrefix.sharedKeySize
-          && unsharedKeySize == keyPrefix.unsharedKeySize;
-    }
-
-    @Override
-    public String toString() {
-      return MoreObjects.toStringHelper(this)
-          .add("sharedKeySize", sharedKeySize)
-          .add("unsharedKeySize", unsharedKeySize)
-          .toString();
+    public static KeyPrefix of(int sharedKeySize, int unsharedKeySize) {
+      return new AutoValue_IsmFormat_KeyPrefix(sharedKeySize, unsharedKeySize);
     }
   }
 
@@ -802,14 +703,14 @@ public class IsmFormat {
     @Override
     public void encode(KeyPrefix value, OutputStream outStream, Coder.Context context)
         throws CoderException, IOException {
-      VarInt.encode(value.sharedKeySize, outStream);
-      VarInt.encode(value.unsharedKeySize, outStream);
+      VarInt.encode(value.getSharedKeySize(), outStream);
+      VarInt.encode(value.getUnsharedKeySize(), outStream);
     }
 
     @Override
     public KeyPrefix decode(InputStream inStream, Coder.Context context)
         throws CoderException, IOException {
-      return new KeyPrefix(VarInt.decodeInt(inStream), VarInt.decodeInt(inStream));
+      return KeyPrefix.of(VarInt.decodeInt(inStream), VarInt.decodeInt(inStream));
     }
 
     @Override
@@ -826,7 +727,8 @@ public class IsmFormat {
     public long getEncodedElementByteSize(KeyPrefix value, Coder.Context context)
         throws Exception {
       Preconditions.checkNotNull(value);
-      return VarInt.getLength(value.sharedKeySize) + VarInt.getLength(value.unsharedKeySize);
+      return VarInt.getLength(value.getSharedKeySize())
+          + VarInt.getLength(value.getUnsharedKeySize());
     }
   }
 
@@ -842,60 +744,20 @@ public class IsmFormat {
    *   <li>0x01 (version key as a single byte)</li>
    * </ul>
    */
-  public static class Footer {
-    public static final int LONG_BYTES = 8;
-    public static final int FIXED_LENGTH = 3 * LONG_BYTES + 1;
-    public static final byte VERSION = 2;
+  @AutoValue
+  public abstract static class Footer {
+    static final int LONG_BYTES = 8;
+    static final int FIXED_LENGTH = 3 * LONG_BYTES + 1;
+    static final byte VERSION = 2;
 
-    private final long indexPosition;
-    private final long bloomFilterPosition;
-    private final long numberOfKeys;
+    public abstract byte getVersion();
+    public abstract long getIndexPosition();
+    public abstract long getBloomFilterPosition();
+    public abstract long getNumberOfKeys();
 
-    public Footer(long indexPosition, long bloomFilterPosition, long numberOfKeys) {
-      this.indexPosition = indexPosition;
-      this.bloomFilterPosition = bloomFilterPosition;
-      this.numberOfKeys = numberOfKeys;
-    }
-
-    public long getIndexPosition() {
-      return indexPosition;
-    }
-
-    public long getBloomFilterPosition() {
-      return bloomFilterPosition;
-    }
-
-    public long getNumberOfKeys() {
-      return numberOfKeys;
-    }
-
-    @Override
-    public boolean equals(Object other) {
-      if (other == this) {
-        return true;
-      }
-      if (!(other instanceof Footer)) {
-        return false;
-      }
-      Footer footer = (Footer) other;
-      return indexPosition == footer.indexPosition
-          && bloomFilterPosition == footer.bloomFilterPosition
-          && numberOfKeys == footer.numberOfKeys;
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hashCode(indexPosition, bloomFilterPosition, numberOfKeys);
-    }
-
-    @Override
-    public String toString() {
-      return MoreObjects.toStringHelper(this)
-          .add("version", Footer.VERSION)
-          .add("indexPosition", indexPosition)
-          .add("bloomFilterPosition", bloomFilterPosition)
-          .add("numberOfKeys", numberOfKeys)
-          .toString();
+    public static Footer of(long indexPosition, long bloomFilterPosition, long numberOfKeys) {
+      return new AutoValue_IsmFormat_Footer(
+          VERSION, indexPosition, bloomFilterPosition, numberOfKeys);
     }
   }
 
@@ -912,9 +774,9 @@ public class IsmFormat {
     public void encode(Footer value, OutputStream outStream, Coder.Context context)
         throws CoderException, IOException {
       DataOutputStream dataOut = new DataOutputStream(outStream);
-      dataOut.writeLong(value.indexPosition);
-      dataOut.writeLong(value.bloomFilterPosition);
-      dataOut.writeLong(value.numberOfKeys);
+      dataOut.writeLong(value.getIndexPosition());
+      dataOut.writeLong(value.getBloomFilterPosition());
+      dataOut.writeLong(value.getNumberOfKeys());
       dataOut.write(Footer.VERSION);
     }
 
@@ -922,7 +784,7 @@ public class IsmFormat {
     public Footer decode(InputStream inStream, Coder.Context context)
         throws CoderException, IOException {
       DataInputStream dataIn = new DataInputStream(inStream);
-      Footer footer = new Footer(dataIn.readLong(), dataIn.readLong(), dataIn.readLong());
+      Footer footer = Footer.of(dataIn.readLong(), dataIn.readLong(), dataIn.readLong());
       int version = dataIn.read();
       if (version != Footer.VERSION) {
         throw new IOException("Unknown version " + version + ". "
