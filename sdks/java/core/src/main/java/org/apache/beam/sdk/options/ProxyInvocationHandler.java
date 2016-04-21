@@ -66,7 +66,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
-
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
@@ -165,7 +164,7 @@ class ProxyInvocationHandler implements InvocationHandler {
   }
 
   /**
-   * Track whether options values are explicitly set, or retrieved from deserialized JSON/defaults.
+   * Track whether options values are explicitly set, or retrieved from defaults.
    */
   private static class BoundValue {
     private final Object value;
