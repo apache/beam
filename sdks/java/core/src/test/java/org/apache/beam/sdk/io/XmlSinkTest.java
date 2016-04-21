@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.io;
 
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
@@ -24,6 +27,7 @@ import org.apache.beam.sdk.io.XmlSink.XmlWriteOperation;
 import org.apache.beam.sdk.io.XmlSink.XmlWriter;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 
 import com.google.common.collect.Lists;
 
@@ -42,7 +46,6 @@ import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlType;
@@ -160,6 +163,20 @@ public class XmlSinkTest {
     assertEquals(testFilePrefix, writer.getWriteOperation().baseTemporaryFilename);
     assertEquals(testRootElement, writer.getWriteOperation().getSink().rootElementName);
     assertNotNull(writer.marshaller);
+  }
+
+  @Test
+  public void testDisplayData() {
+    XmlSink.Bound<Integer> sink = XmlSink.write()
+        .toFilenamePrefix("foobar")
+        .withRootElement("bird")
+        .ofRecordClass(Integer.class);
+
+    DisplayData displayData = DisplayData.from(sink);
+
+    assertThat(displayData, hasDisplayItem("fileNamePattern", "foobar-SSSSS-of-NNNNN.xml"));
+    assertThat(displayData, hasDisplayItem("rootElement", "bird"));
+    assertThat(displayData, hasDisplayItem("recordClass", Integer.class));
   }
 
   /**

@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io;
 import org.apache.beam.sdk.io.range.OffsetRangeTracker;
 import org.apache.beam.sdk.io.range.RangeTracker;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 
 import com.google.common.base.Preconditions;
 
@@ -200,6 +201,14 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
    */
   public boolean allowsDynamicSplitting() {
     return true;
+  }
+
+  @Override
+  public void populateDisplayData(DisplayData.Builder builder) {
+    builder
+        .add("minBundleSize", minBundleSize)
+        .addIfNotDefault("startOffset", startOffset, 0)
+        .addIfNotDefault("endOffset", endOffset, Long.MAX_VALUE);
   }
 
   /**

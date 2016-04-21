@@ -21,6 +21,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.AvroUtils;
 import org.apache.beam.sdk.util.AvroUtils.AvroMetadata;
 import org.apache.beam.sdk.values.PCollection;
@@ -292,6 +293,13 @@ public class AvroSource<T> extends BlockBasedSource<T> {
       coder = AvroCoder.of(type, parser.parse(readSchemaString));
     }
     return coder;
+  }
+
+  @Override
+  public void populateDisplayData(DisplayData.Builder builder) {
+    builder
+        .add("filePattern", getFileOrPatternSpec())
+        .addIfNotDefault("minBundleSize", getMinBundleSize(), DEFAULT_MIN_BUNDLE_SIZE);
   }
 
   public String getSchema() {

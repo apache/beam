@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 
 import com.google.common.base.Preconditions;
 import com.google.common.io.ByteStreams;
@@ -318,6 +319,21 @@ public class CompressedSource<T> extends FileBasedSource<T> {
   @Override
   public final boolean producesSortedKeys(PipelineOptions options) throws Exception {
     return sourceDelegate.producesSortedKeys(options);
+  }
+
+  @Override
+  public void populateDisplayData(DisplayData.Builder builder) {
+    builder
+        .include(sourceDelegate)
+        .add("source", sourceDelegate.getClass());
+
+    if (channelFactory instanceof Enum) {
+      // GZIP and BZIP are implemented as enums; Enum classes are anonymous, so use the .name()
+      // value instead
+      builder.add("compressionMode", ((Enum) channelFactory).name());
+    } else {
+      builder.add("compressionMode", channelFactory.getClass());
+    }
   }
 
   /**

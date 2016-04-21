@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.util.StringUtils.approximateSimpleName;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.runners.DirectPipelineRunner;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
@@ -144,6 +145,13 @@ public class Read {
       return "Read(" + approximateSimpleName(source.getClass()) + ")";
     }
 
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      builder
+          .add("source", source.getClass())
+          .include(source);
+    }
+
     static {
       registerDefaultTransformEvaluator();
     }
@@ -249,6 +257,13 @@ public class Read {
     @Override
     public String getKindString() {
       return "Read(" + approximateSimpleName(source.getClass()) + ")";
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      builder
+          .add("source", source.getClass())
+          .include(source);
     }
   }
 }

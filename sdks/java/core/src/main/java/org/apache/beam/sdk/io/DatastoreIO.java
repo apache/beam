@@ -36,6 +36,7 @@ import org.apache.beam.sdk.io.Sink.WriteOperation;
 import org.apache.beam.sdk.io.Sink.Writer;
 import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.AttemptBoundedExponentialBackOff;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.values.PCollection;
@@ -387,6 +388,18 @@ public class DatastoreIO {
     }
 
     @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      builder
+          .addIfNotDefault("host", host, DEFAULT_HOST)
+          .addIfNotNull("dataset", datasetId)
+          .addIfNotNull("namespace", namespace);
+
+      if (query != null) {
+        builder.add("query", query.toString());
+      }
+    }
+
+    @Override
     public String toString() {
       return MoreObjects.toStringHelper(getClass())
           .add("host", host)
@@ -586,6 +599,13 @@ public class DatastoreIO {
     @Override
     public DatastoreWriteOperation createWriteOperation(PipelineOptions options) {
       return new DatastoreWriteOperation(this);
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      builder
+          .addIfNotDefault("host", host, DEFAULT_HOST)
+          .addIfNotNull("dataset", datasetId);
     }
   }
 

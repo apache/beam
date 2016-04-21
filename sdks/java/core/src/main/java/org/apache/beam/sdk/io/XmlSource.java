@@ -21,6 +21,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.JAXBCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 
 import com.google.common.base.Preconditions;
 
@@ -38,7 +39,6 @@ import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.NoSuchElementException;
-
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBElement;
 import javax.xml.bind.JAXBException;
@@ -216,6 +216,19 @@ public class XmlSource<T> extends FileBasedSource<T> {
         "recordElement is null. Use builder method withRecordElement() to set this.");
     Preconditions.checkNotNull(
         recordClass, "recordClass is null. Use builder method withRecordClass() to set this.");
+  }
+
+  @Override
+  public void populateDisplayData(DisplayData.Builder builder) {
+
+    builder
+        .add("filePattern", getFileOrPatternSpec())
+        .addIfNotNull("rootElement", rootElement)
+        .addIfNotNull("recordElement", recordElement)
+        .addIfNotNull("recordClass", recordClass);
+
+    long minBundleSize = getMinBundleSize();
+    builder.addIfNotDefault("minBundleSize", minBundleSize, DEFAULT_MIN_BUNDLE_SIZE);
   }
 
   @Override
