@@ -18,7 +18,7 @@ public class StdoutSink<T> extends DataSink<T> {
     @Override
     public <T> DataSink<T> get(URI uri, Settings settings) {
       settings = settings.nested(URIParams.of(uri).getStringParam("cfg", null));
-      boolean dumpPartitionId = settings.getBoolean("dump-partition-id");
+      boolean dumpPartitionId = settings.getBoolean("dump-partition-id", false);
       return new StdoutSink<>(dumpPartitionId);
     }
   }
