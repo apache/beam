@@ -20,7 +20,6 @@ package org.apache.beam.sdk.util;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import org.apache.beam.sdk.runners.DirectPipelineRunner.ValueWithMetadata;
-import org.apache.beam.sdk.util.common.worker.StateSampler;
 import org.apache.beam.sdk.util.state.InMemoryStateInternals;
 import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.values.TupleTag;
@@ -48,8 +47,7 @@ public class DirectModeExecutionContext
   }
 
   @Override
-  protected StepContext createStepContext(
-      String stepName, String transformName, StateSampler stateSampler) {
+  protected StepContext createStepContext(String stepName, String transformName) {
     return new StepContext(this, stepName, transformName);
   }
 

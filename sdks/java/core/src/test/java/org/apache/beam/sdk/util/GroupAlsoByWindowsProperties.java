@@ -708,7 +708,7 @@ public class GroupAlsoByWindowsProperties {
         outputManager,
         outputTag,
         new ArrayList<TupleTag<?>>(),
-        executionContext.getOrCreateStepContext("GABWStep", "GABWTransform", null),
+        executionContext.getOrCreateStepContext("GABWStep", "GABWTransform"),
         counters.getAddCounterMutator(),
         windowingStrategy);
   }

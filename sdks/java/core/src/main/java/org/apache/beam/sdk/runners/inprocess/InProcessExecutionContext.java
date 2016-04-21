@@ -22,7 +22,6 @@ import org.apache.beam.sdk.runners.inprocess.InMemoryWatermarkManager.TransformW
 import org.apache.beam.sdk.util.BaseExecutionContext;
 import org.apache.beam.sdk.util.ExecutionContext;
 import org.apache.beam.sdk.util.TimerInternals;
-import org.apache.beam.sdk.util.common.worker.StateSampler;
 import org.apache.beam.sdk.util.state.CopyOnAccessInMemoryStateInternals;
 
 /**
@@ -47,8 +46,7 @@ class InProcessExecutionContext
   }
 
   @Override
-  protected InProcessStepContext createStepContext(
-      String stepName, String transformName, StateSampler stateSampler) {
+  protected InProcessStepContext createStepContext(String stepName, String transformName) {
     return new InProcessStepContext(this, stepName, transformName);
   }
 
