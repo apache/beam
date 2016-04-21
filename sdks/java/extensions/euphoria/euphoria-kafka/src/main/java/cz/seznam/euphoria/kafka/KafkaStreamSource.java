@@ -92,6 +92,7 @@ public class KafkaStreamSource implements DataSource<Pair<byte[], byte[]>> {
 
   public static final class Factory implements DataSourceFactory {
     @Override
+    @SuppressWarnings("unchecked")
     public <T> DataSource<T> get(URI uri, Settings settings) {
       String brokers = uri.getAuthority();
       String topic = uri.getPath().substring(1);
