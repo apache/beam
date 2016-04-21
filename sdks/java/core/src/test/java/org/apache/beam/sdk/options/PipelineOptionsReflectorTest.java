@@ -118,13 +118,13 @@ public class PipelineOptionsReflectorTest {
   @Test
   public void testExcludesHiddenInterfaces() {
     Set<PipelineOptionSpec> properties =
-        PipelineOptionsReflector.getOptionSpecs(Hidden.class);
+        PipelineOptionsReflector.getOptionSpecs(HiddenOptions.class);
 
     assertThat(properties, not(hasItem(hasName("foo"))));
   }
 
-  @org.apache.beam.sdk.options.Hidden
-  interface Hidden extends PipelineOptions {
+  @Hidden
+  interface HiddenOptions extends PipelineOptions {
     String getFoo();
     void setFoo(String value);
   }
