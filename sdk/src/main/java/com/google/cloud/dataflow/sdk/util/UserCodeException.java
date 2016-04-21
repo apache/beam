@@ -61,12 +61,16 @@ public class UserCodeException extends RuntimeException {
    * of the current thread.
    */
   private void truncateStackTrace(Throwable t) {
-
     StackTraceElement[] currentStack = Thread.currentThread().getStackTrace();
     StackTraceElement[] throwableStack = t.getStackTrace();
 
     int currentStackSize = currentStack.length;
     int throwableStackSize = throwableStack.length;
+
+    if (throwableStackSize == 0) {
+      // Nothing to truncate.
+      return;
+    }
 
     int commonFrames = 0;
     while (framesEqual(currentStack[currentStackSize - commonFrames - 1],

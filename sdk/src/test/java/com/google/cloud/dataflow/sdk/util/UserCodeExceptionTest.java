@@ -96,6 +96,13 @@ public class UserCodeExceptionTest {
     assertEquals(runtimeException, wrapped);
   }
 
+  @Test
+  public void robustAgainstEmptyStackTrace() {
+    RuntimeException runtimeException = new RuntimeException("empty stack");
+    runtimeException.setStackTrace(new StackTraceElement[0]);
+    RuntimeException wrapped = UserCodeException.wrap(runtimeException);
+    assertEquals(runtimeException, wrapped.getCause());
+  }
 
   private void throwUserCodeException() {
     try {
@@ -173,4 +180,3 @@ public class UserCodeExceptionTest {
     }
   }
 }
-
