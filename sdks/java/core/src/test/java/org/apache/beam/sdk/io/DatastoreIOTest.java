@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io;
 
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+
 import static com.google.api.services.datastore.client.DatastoreHelper.makeKey;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -42,6 +44,7 @@ import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.ExpectedLogs;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.TestCredential;
 
 import com.google.api.services.datastore.DatastoreV1.Entity;
@@ -191,6 +194,22 @@ public class DatastoreIOTest {
   }
 
   @Test
+  public void testSourceDipslayData() {
+  DatastoreIO.Source source = DatastoreIO.source()
+      .withDataset(DATASET)
+      .withQuery(QUERY)
+      .withHost(HOST)
+      .withNamespace(NAMESPACE);
+
+    DisplayData displayData = DisplayData.from(source);
+
+    assertThat(displayData, hasDisplayItem("dataset", DATASET));
+    assertThat(displayData, hasDisplayItem("query", QUERY.toString()));
+    assertThat(displayData, hasDisplayItem("host", HOST));
+    assertThat(displayData, hasDisplayItem("namespace", NAMESPACE));
+  }
+
+  @Test
   public void testSinkDoesNotAllowNullHost() throws Exception {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("host");
@@ -220,6 +239,18 @@ public class DatastoreIOTest {
   public void testSinkValidationSucceedsWithDataset() throws Exception {
     DatastoreIO.Sink sink = DatastoreIO.sink().withDataset(DATASET);
     sink.validate(testPipelineOptions());
+  }
+
+  @Test
+  public void testSinkDipslayData() {
+    DatastoreIO.Sink sink = DatastoreIO.sink()
+        .withDataset(DATASET)
+        .withHost(HOST);
+
+    DisplayData displayData = DisplayData.from(sink);
+
+    assertThat(displayData, hasDisplayItem("dataset", DATASET));
+    assertThat(displayData, hasDisplayItem("host", HOST));
   }
 
   @Test

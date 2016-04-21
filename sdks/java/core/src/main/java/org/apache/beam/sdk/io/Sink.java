@@ -20,6 +20,8 @@ package org.apache.beam.sdk.io;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.PCollection;
 
 import java.io.Serializable;
@@ -121,7 +123,7 @@ import java.io.Serializable;
  * @param <T> the type that will be written to the Sink.
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
-public abstract class Sink<T> implements Serializable {
+public abstract class Sink<T> implements Serializable, HasDisplayData {
   /**
    * Ensures that the sink is valid and can be written to before the write operation begins. One
    * should use {@link com.google.common.base.Preconditions} to implement this method.
@@ -132,6 +134,15 @@ public abstract class Sink<T> implements Serializable {
    * Returns an instance of a {@link WriteOperation} that can write to this Sink.
    */
   public abstract WriteOperation<T, ?> createWriteOperation(PipelineOptions options);
+
+  /**
+   * {@inheritDoc}
+   *
+   * <p>By default, does not register any display data. Implementors may override this method
+   * to provide their own display metadata.
+   */
+  @Override
+  public void populateDisplayData(DisplayData.Builder builder) {}
 
   /**
    * A {@link WriteOperation} defines the process of a parallel write of objects to a Sink.

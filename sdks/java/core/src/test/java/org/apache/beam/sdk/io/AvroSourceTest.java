@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io;
 
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -29,6 +31,7 @@ import org.apache.beam.sdk.io.AvroSource.AvroReader.Seeker;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.SourceTestUtils;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 
 import com.google.common.base.MoreObjects;
 
@@ -506,6 +509,18 @@ public class AvroSourceTest {
       assertEquals(i, s.find(findIn, findIn.length));
       findIn[i] = 1;
     }
+  }
+
+  @Test
+  public void testDisplayData() {
+    AvroSource<Bird> source = AvroSource
+        .from("foobar.txt")
+        .withSchema(Bird.class)
+        .withMinBundleSize(1234);
+
+    DisplayData displayData = DisplayData.from(source);
+    assertThat(displayData, hasDisplayItem("filePattern", "foobar.txt"));
+    assertThat(displayData, hasDisplayItem("minBundleSize", 1234));
   }
 
   /**

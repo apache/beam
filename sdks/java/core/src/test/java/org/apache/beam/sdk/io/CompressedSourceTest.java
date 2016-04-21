@@ -17,9 +17,13 @@
  */
 package org.apache.beam.sdk.io;
 
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includes;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.sdk.Pipeline;
@@ -32,6 +36,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 
 import com.google.common.io.Files;
@@ -330,6 +335,27 @@ public class CompressedSourceTest {
 
     PAssert.that(output).containsInAnyOrder(expected);
     p.run();
+  }
+
+  @Test
+  public void testDisplayData() {
+    ByteSource inputSource = new ByteSource("foobar.txt", 1) {
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        builder.add("foo", "bar");
+      }
+    };
+
+    CompressedSource<?> compressedSource = CompressedSource.from(inputSource);
+    CompressedSource<?> gzipSource = compressedSource.withDecompression(CompressionMode.GZIP);
+
+    DisplayData compressedSourceDisplayData = DisplayData.from(compressedSource);
+    DisplayData gzipDisplayData = DisplayData.from(gzipSource);
+
+    assertThat(compressedSourceDisplayData, hasDisplayItem(hasKey("compressionMode")));
+    assertThat(gzipDisplayData, hasDisplayItem("compressionMode", CompressionMode.GZIP.toString()));
+    assertThat(compressedSourceDisplayData, hasDisplayItem("source", inputSource.getClass()));
+    assertThat(compressedSourceDisplayData, includes(inputSource));
   }
 
   /**
