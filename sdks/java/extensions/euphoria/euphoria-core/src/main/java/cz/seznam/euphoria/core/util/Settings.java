@@ -1,7 +1,6 @@
 package cz.seznam.euphoria.core.util;
 
-import cz.seznam.euphoria.core.client.operator.Pair;
-
+import cz.seznam.euphoria.core.client.util.Pair;
 import java.io.Serializable;
 import java.net.URI;
 import java.util.Map;
