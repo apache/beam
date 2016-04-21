@@ -24,6 +24,7 @@ import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 
+import com.google.auto.value.AutoValue;
 import com.google.common.base.Defaults;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -166,35 +167,27 @@ class ProxyInvocationHandler implements InvocationHandler {
   /**
    * Track whether options values are explicitly set, or retrieved from defaults.
    */
-  private static class BoundValue {
-    private final Object value;
-    private final boolean isDefault;
+  @AutoValue
+  abstract static class BoundValue {
+    abstract Object getValue();
+    abstract boolean isDefault();
 
-    private BoundValue(Object value, boolean isDefault) {
-      this.value = value;
-      this.isDefault = isDefault;
+    private static BoundValue of(Object value, boolean isDefault) {
+      return new AutoValue_ProxyInvocationHandler_BoundValue(value, isDefault);
     }
 
     /**
      * Create a {@link BoundValue} representing an explicitly set option.
      */
     static BoundValue fromExplicitOption(Object value) {
-      return new BoundValue(value, false);
+      return BoundValue.of(value, false);
     }
 
     /**
      * Create a {@link BoundValue} representing a default option value.
      */
     static BoundValue fromDefault(Object value) {
-      return new BoundValue(value, true);
-    }
-
-    Object getValue() {
-      return value;
-    }
-
-    boolean isDefault() {
-      return isDefault;
+      return BoundValue.of(value, true);
     }
   }
 
