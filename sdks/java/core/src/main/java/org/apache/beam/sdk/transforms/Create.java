@@ -451,6 +451,7 @@ public class Create<T> {
         CreateSource<T> source = getCurrentSource();
         index++;
         if (index >= source.allElementsBytes.size()) {
+          next = null;
           return false;
         }
         next =

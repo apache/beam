@@ -158,10 +158,9 @@ public class TransformTreeTest {
         // Pick is a composite, should not be visited here.
         assertThat(transform, not(instanceOf(Sample.SampleAny.class)));
         assertThat(transform, not(instanceOf(Write.Bound.class)));
-        if (transform instanceof Read.Bounded) {
-          assertTrue(
-            node.getEnclosingNode().getTransform() instanceof TextIO.Read.Bound
-                == visited.add(TransformsSeen.READ));
+        if (transform instanceof Read.Bounded 
+            && node.getEnclosingNode().getTransform() instanceof TextIO.Read.Bound) {
+          assertTrue(visited.add(TransformsSeen.READ));
         }
       }
 
