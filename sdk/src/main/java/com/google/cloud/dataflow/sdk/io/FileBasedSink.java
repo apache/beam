@@ -32,6 +32,7 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
@@ -141,6 +142,30 @@ public abstract class FileBasedSink<T> extends Sink<T> {
    */
   @Override
   public abstract FileBasedWriteOperation<T> createWriteOperation(PipelineOptions options);
+
+  @Override
+  public void populateDisplayData(DisplayData.Builder builder) {
+    super.populateDisplayData(builder);
+
+    String fileNamePattern = String.format("%s%s%s",
+        baseOutputFilename, fileNamingTemplate, getFileExtension(extension));
+    builder.add("fileNamePattern", fileNamePattern);
+  }
+
+  /**
+   * Returns the file extension to be used. If the user did not request a file
+   * extension then this method returns the empty string. Otherwise this method
+   * adds a {@code "."} to the beginning of the users extension if one is not present.
+   */
+  private static String getFileExtension(String usersExtension) {
+    if (usersExtension == null || usersExtension.isEmpty()) {
+      return "";
+    }
+    if (usersExtension.startsWith(".")) {
+      return usersExtension;
+    }
+    return "." + usersExtension;
+  }
 
   /**
    * Abstract {@link Sink.WriteOperation} that manages the process of writing to a
@@ -361,21 +386,6 @@ public abstract class FileBasedSink<T> extends Sink<T> {
             baseOutputFilename, fileNamingTemplate, suffix, i, numFiles));
       }
       return destFilenames;
-    }
-
-    /**
-     * Returns the file extension to be used. If the user did not request a file
-     * extension then this method returns the empty string. Otherwise this method
-     * adds a {@code "."} to the beginning of the users extension if one is not present.
-     */
-    private String getFileExtension(String usersExtension) {
-      if (usersExtension == null || usersExtension.isEmpty()) {
-        return "";
-      }
-      if (usersExtension.startsWith(".")) {
-        return usersExtension;
-      }
-      return "." + usersExtension;
     }
 
     /**

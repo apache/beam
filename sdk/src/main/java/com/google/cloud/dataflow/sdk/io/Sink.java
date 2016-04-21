@@ -17,6 +17,8 @@ package com.google.cloud.dataflow.sdk.io;
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
+import com.google.cloud.dataflow.sdk.transforms.display.HasDisplayData;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 
 import java.io.Serializable;
@@ -118,7 +120,7 @@ import java.io.Serializable;
  * @param <T> the type that will be written to the Sink.
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
-public abstract class Sink<T> implements Serializable {
+public abstract class Sink<T> implements Serializable, HasDisplayData {
   /**
    * Ensures that the sink is valid and can be written to before the write operation begins. One
    * should use {@link com.google.common.base.Preconditions} to implement this method.
@@ -129,6 +131,15 @@ public abstract class Sink<T> implements Serializable {
    * Returns an instance of a {@link WriteOperation} that can write to this Sink.
    */
   public abstract WriteOperation<T, ?> createWriteOperation(PipelineOptions options);
+
+  /**
+   * {@inheritDoc}
+   *
+   * <p>By default, does not register any display data. Implementors may override this method
+   * to provide their own display metadata.
+   */
+  @Override
+  public void populateDisplayData(DisplayData.Builder builder) {}
 
   /**
    * A {@link WriteOperation} defines the process of a parallel write of objects to a Sink.

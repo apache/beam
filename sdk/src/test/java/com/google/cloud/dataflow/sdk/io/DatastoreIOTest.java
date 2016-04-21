@@ -17,6 +17,8 @@
 package com.google.cloud.dataflow.sdk.io;
 
 import static com.google.api.services.datastore.client.DatastoreHelper.makeKey;
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
@@ -54,6 +56,7 @@ import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.testing.ExpectedLogs;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.util.TestCredential;
 import com.google.common.collect.Lists;
 
@@ -194,6 +197,22 @@ public class DatastoreIOTest {
   }
 
   @Test
+  public void testSourceDipslayData() {
+  DatastoreIO.Source source = DatastoreIO.source()
+      .withDataset(DATASET)
+      .withQuery(QUERY)
+      .withHost(HOST)
+      .withNamespace(NAMESPACE);
+
+    DisplayData displayData = DisplayData.from(source);
+
+    assertThat(displayData, hasDisplayItem("dataset", DATASET));
+    assertThat(displayData, hasDisplayItem("query", QUERY.toString()));
+    assertThat(displayData, hasDisplayItem("host", HOST));
+    assertThat(displayData, hasDisplayItem("namespace", NAMESPACE));
+  }
+
+  @Test
   public void testSinkDoesNotAllowNullHost() throws Exception {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("host");
@@ -223,6 +242,18 @@ public class DatastoreIOTest {
   public void testSinkValidationSucceedsWithDataset() throws Exception {
     DatastoreIO.Sink sink = DatastoreIO.sink().withDataset(DATASET);
     sink.validate(testPipelineOptions(null));
+  }
+
+  @Test
+  public void testSinkDipslayData() {
+    DatastoreIO.Sink sink = DatastoreIO.sink()
+        .withDataset(DATASET)
+        .withHost(HOST);
+
+    DisplayData displayData = DisplayData.from(sink);
+
+    assertThat(displayData, hasDisplayItem("dataset", DATASET));
+    assertThat(displayData, hasDisplayItem("host", HOST));
   }
 
   @Test

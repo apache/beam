@@ -20,6 +20,7 @@ import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.io.FileBasedSink.FileBasedWriteOperation;
 import com.google.cloud.dataflow.sdk.io.FileBasedSink.FileBasedWriter;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.base.Preconditions;
@@ -218,6 +219,14 @@ public class XmlSink {
     @Override
     public XmlWriteOperation<T> createWriteOperation(PipelineOptions options) {
       return new XmlWriteOperation<>(this);
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder
+          .addIfNotNull("rootElement", rootElementName)
+          .addIfNotNull("recordClass", classToBind);
     }
   }
 

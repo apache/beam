@@ -16,6 +16,9 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
@@ -23,6 +26,7 @@ import com.google.cloud.dataflow.sdk.io.XmlSink.XmlWriteOperation;
 import com.google.cloud.dataflow.sdk.io.XmlSink.XmlWriter;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.common.collect.Lists;
 
 import org.junit.Rule;
@@ -40,7 +44,6 @@ import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlType;
@@ -158,6 +161,20 @@ public class XmlSinkTest {
     assertEquals(testFilePrefix, writer.getWriteOperation().baseTemporaryFilename);
     assertEquals(testRootElement, writer.getWriteOperation().getSink().rootElementName);
     assertNotNull(writer.marshaller);
+  }
+
+  @Test
+  public void testDisplayData() {
+    XmlSink.Bound<Integer> sink = XmlSink.write()
+        .toFilenamePrefix("foobar")
+        .withRootElement("bird")
+        .ofRecordClass(Integer.class);
+
+    DisplayData displayData = DisplayData.from(sink);
+
+    assertThat(displayData, hasDisplayItem("fileNamePattern", "foobar-SSSSS-of-NNNNN.xml"));
+    assertThat(displayData, hasDisplayItem("rootElement", "bird"));
+    assertThat(displayData, hasDisplayItem("recordClass", Integer.class));
   }
 
   /**

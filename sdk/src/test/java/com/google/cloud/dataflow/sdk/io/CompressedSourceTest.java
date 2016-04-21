@@ -16,9 +16,14 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasKey;
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.includes;
+
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
@@ -31,6 +36,7 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.SourceTestUtils;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.io.Files;
 import com.google.common.primitives.Bytes;
@@ -328,6 +334,27 @@ public class CompressedSourceTest {
 
     DataflowAssert.that(output).containsInAnyOrder(expected);
     p.run();
+  }
+
+  @Test
+  public void testDisplayData() {
+    ByteSource inputSource = new ByteSource("foobar.txt", 1) {
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        builder.add("foo", "bar");
+      }
+    };
+
+    CompressedSource<?> compressedSource = CompressedSource.from(inputSource);
+    CompressedSource<?> gzipSource = compressedSource.withDecompression(CompressionMode.GZIP);
+
+    DisplayData compressedSourceDisplayData = DisplayData.from(compressedSource);
+    DisplayData gzipDisplayData = DisplayData.from(gzipSource);
+
+    assertThat(compressedSourceDisplayData, hasDisplayItem(hasKey("compressionMode")));
+    assertThat(gzipDisplayData, hasDisplayItem("compressionMode", CompressionMode.GZIP.toString()));
+    assertThat(compressedSourceDisplayData, hasDisplayItem("source", inputSource.getClass()));
+    assertThat(compressedSourceDisplayData, includes(inputSource));
   }
 
   /**
