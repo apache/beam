@@ -172,7 +172,7 @@ class ProxyInvocationHandler implements InvocationHandler {
   abstract static class BoundValue {
     @Nullable
     abstract Object getValue();
-    
+
     abstract boolean isDefault();
 
     private static BoundValue of(@Nullable Object value, boolean isDefault) {
