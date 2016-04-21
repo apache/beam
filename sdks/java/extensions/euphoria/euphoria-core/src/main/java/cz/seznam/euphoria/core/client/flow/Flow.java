@@ -212,7 +212,7 @@ public class Flow implements Serializable {
     if (consumers != null) {
       return consumers;
     }
-    return Collections.EMPTY_LIST;
+    return new ArrayList<>();
   }
 
 
