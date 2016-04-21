@@ -1,6 +1,8 @@
-"""TODO(jasonkuster): DO NOT SUBMIT without one-line documentation for mergebot.
+"""Mergebot is a script which talks to GitHub and submits all ready pull requests.
 
-TODO(jasonkuster): DO NOT SUBMIT without a detailed description of mergebot.
+Mergebot talks to a specified GitHub project and watches for @mentions for its account.
+Acceptable commands are:
+  @<mergebot-name> merge
 """
 import requests
 import time
