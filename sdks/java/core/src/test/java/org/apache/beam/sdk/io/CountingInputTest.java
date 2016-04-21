@@ -18,6 +18,7 @@
  */
 package org.apache.beam.sdk.io;
 
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
@@ -30,9 +31,11 @@ import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.Min;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.RemoveDuplicates;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 
 import org.joda.time.Duration;
@@ -73,6 +76,13 @@ public class CountingInputTest {
 
     addCountingAsserts(input, numElements);
     p.run();
+  }
+
+  @Test
+  public void testBoundedDisplayData() {
+    PTransform<?, ?> input = CountingInput.upTo(1234);
+    DisplayData displayData = DisplayData.from(input);
+    assertThat(displayData, hasDisplayItem("upTo", 1234));
   }
 
   @Test
@@ -136,6 +146,28 @@ public class CountingInputTest {
     PAssert.thatSingleton(diffs).isEqualTo(0L);
 
     p.run();
+  }
+
+  @Test
+  public void testUnboundedDisplayData() {
+    Duration maxReadTime = Duration.standardHours(5);
+    SerializableFunction<Long, Instant> timestampFn = new SerializableFunction<Long, Instant>() {
+      @Override
+      public Instant apply(Long input) {
+        return Instant.now();
+      }
+    };
+
+    PTransform<?, ?> input = CountingInput.unbounded()
+        .withMaxNumRecords(1234)
+        .withMaxReadTime(maxReadTime)
+        .withTimestampFn(timestampFn);
+
+    DisplayData displayData = DisplayData.from(input);
+
+    assertThat(displayData, hasDisplayItem("maxRecords", 1234));
+    assertThat(displayData, hasDisplayItem("maxReadTime", maxReadTime));
+    assertThat(displayData, hasDisplayItem("timestampFn", timestampFn.getClass()));
   }
 
   /**

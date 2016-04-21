@@ -35,6 +35,7 @@ import org.apache.beam.sdk.io.range.ByteKeyRangeTracker;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
@@ -262,6 +263,21 @@ public class BigtableIO {
     }
 
     @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+
+      builder.add("tableId", tableId);
+
+      if (options != null) {
+        builder.add("bigtableOptions", options.toString());
+      }
+
+      if (filter != null) {
+        builder.add("rowFilter", filter.toString());
+      }
+    }
+
+    @Override
     public String toString() {
       return MoreObjects.toStringHelper(Read.class)
           .add("options", options)
@@ -426,6 +442,17 @@ public class BigtableIO {
     Write withBigtableService(BigtableService bigtableService) {
       checkNotNull(bigtableService, "bigtableService");
       return new Write(options, tableId, bigtableService);
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+
+      builder.add("tableId", tableId);
+
+      if (options != null) {
+        builder.add("bigtableOptions", options.toString());
+      }
     }
 
     @Override
