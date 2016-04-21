@@ -192,11 +192,8 @@ class InProcessSideInputContainer {
           view,
           readerViews);
       try {
-        Future<Iterable<? extends WindowedValue<?>>> viewContents =
-            getViewFuture(view, window);
-        if (!viewContents.isDone()) {
-          return false;
-        }
+        Future<Iterable<? extends WindowedValue<?>>> viewContents = getViewFuture(view, window);
+        return viewContents.isDone();
       } catch (ExecutionException e) {
         throw new RuntimeException(
             String.format(
@@ -205,7 +202,6 @@ class InProcessSideInputContainer {
                 window),
             e);
       }
-      return true;
     }
 
     @Override
