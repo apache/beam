@@ -397,27 +397,39 @@ public class InProcessSideInputContainerTest {
   }
 
   @Test
-  public void allViewsReadyInWindowForSomeNotReadyViewsFalseUntilElements() {
+  public void isReadyForSomeNotReadyViewsFalseUntilElements() {
     container.write(
         mapView,
         ImmutableList.of(
             WindowedValue.of(
                 KV.of("one", 1),
-                FIRST_WINDOW.maxTimestamp().minus(100L),
+                SECOND_WINDOW.maxTimestamp().minus(100L),
                 SECOND_WINDOW,
                 PaneInfo.ON_TIME_AND_ONLY_FIRING)));
 
     ReadyCheckingSideInputReader reader =
         container.createReaderForViews(ImmutableList.of(mapView, singletonView));
+    assertThat(reader.isReady(mapView, FIRST_WINDOW), is(false));
     assertThat(reader.isReady(mapView, SECOND_WINDOW), is(true));
+
     assertThat(reader.isReady(singletonView, SECOND_WINDOW), is(false));
+
+    container.write(
+        mapView,
+        ImmutableList.of(
+            WindowedValue.of(
+                KV.of("too", 2),
+                FIRST_WINDOW.maxTimestamp().minus(100L),
+                FIRST_WINDOW,
+                PaneInfo.ON_TIME_AND_ONLY_FIRING)));
+    assertThat(reader.isReady(mapView, FIRST_WINDOW), is(true));
 
     container.write(
         singletonView,
         ImmutableList.of(
             WindowedValue.of(
                 1.25,
-                FIRST_WINDOW.maxTimestamp().minus(100L),
+                SECOND_WINDOW.maxTimestamp().minus(100L),
                 SECOND_WINDOW,
                 PaneInfo.ON_TIME_AND_ONLY_FIRING)));
     assertThat(reader.isReady(mapView, SECOND_WINDOW), is(true));
@@ -428,7 +440,7 @@ public class InProcessSideInputContainerTest {
   }
 
   @Test
-  public void allViewsReadyInWindowForEmptyWindowTrue() {
+  public void isReadyForEmptyWindowTrue() {
     immediatelyInvokeCallback(mapView, GlobalWindow.INSTANCE);
 
     ReadyCheckingSideInputReader reader =

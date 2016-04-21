@@ -320,8 +320,8 @@ class InProcessEvaluationContext {
   }
 
   /**
-   * Returns a {@link SideInputReader} capable of reading the provided {@link PCollectionView
-   * PCollectionViews}.
+   * Returns a {@link ReadyCheckingSideInputReader} capable of reading the provided
+   * {@link PCollectionView PCollectionViews}.
    *
    * @param sideInputs the {@link PCollectionView PCollectionViews} the result should be able to
    * read
@@ -334,8 +334,8 @@ class InProcessEvaluationContext {
   }
 
   /**
-   * A {@link SideInputReader} that allows callers to check to see if the {@link PCollectionView}
-   * has contents in the specified window.
+   * A {@link SideInputReader} that allows callers to check to see if a {@link PCollectionView} has
+   * had its contents set in a window.
    */
   static interface ReadyCheckingSideInputReader extends SideInputReader {
     /**

@@ -191,17 +191,8 @@ class InProcessSideInputContainer {
               + "Contained views; %s",
           view,
           readerViews);
-      try {
-        Future<Iterable<? extends WindowedValue<?>>> viewContents = getViewFuture(view, window);
-        return viewContents.isDone();
-      } catch (ExecutionException e) {
-        throw new RuntimeException(
-            String.format(
-                "Exception while checking to see if PCollectionView %s is ready in window %s",
-                view,
-                window),
-            e);
-      }
+      Future<Iterable<? extends WindowedValue<?>>> viewContents = getViewFuture(view, window);
+      return viewContents.isDone();
     }
 
     @Override
@@ -229,10 +220,10 @@ class InProcessSideInputContainer {
      * contents if necessary.
      */
     private <T> Future<Iterable<? extends WindowedValue<?>>> getViewFuture(
-        final PCollectionView<T> view, final BoundedWindow window) throws ExecutionException {
+        final PCollectionView<T> view, final BoundedWindow window)  {
       PCollectionViewWindow<T> windowedView = PCollectionViewWindow.of(view, window);
       final SettableFuture<Iterable<? extends WindowedValue<?>>> future =
-          viewByWindows.get(windowedView);
+          viewByWindows.getUnchecked(windowedView);
 
       WindowingStrategy<?, ?> windowingStrategy = view.getWindowingStrategyInternal();
       evaluationContext.scheduleAfterOutputWouldBeProduced(
