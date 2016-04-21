@@ -20,6 +20,8 @@ import static com.google.cloud.dataflow.sdk.TestUtils.INTS_ARRAY;
 import static com.google.cloud.dataflow.sdk.TestUtils.LINES_ARRAY;
 import static com.google.cloud.dataflow.sdk.TestUtils.NO_INTS_ARRAY;
 import static com.google.cloud.dataflow.sdk.TestUtils.NO_LINES_ARRAY;
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -40,6 +42,7 @@ import com.google.cloud.dataflow.sdk.testing.TestDataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.GcsUtil;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
@@ -198,6 +201,20 @@ public class TextIOTest {
     }
   }
 
+  @Test
+  public void testReadDisplayData() {
+    TextIO.Read.Bound<?> read = TextIO.Read
+        .from("foo.*")
+        .withCompressionType(CompressionType.BZIP2)
+        .withoutValidation();
+
+    DisplayData displayData = DisplayData.from(read);
+
+    assertThat(displayData, hasDisplayItem("filePattern", "foo.*"));
+    assertThat(displayData, hasDisplayItem("compressionType", CompressionType.BZIP2.toString()));
+    assertThat(displayData, hasDisplayItem("validation", false));
+  }
+
   <T> void runTestWrite(T[] elems, Coder<T> coder) throws Exception {
     runTestWrite(elems, coder, 1);
   }
@@ -308,6 +325,24 @@ public class TextIOTest {
   @Test
   public void testShardedWrite() throws Exception {
     runTestWrite(LINES_ARRAY, StringUtf8Coder.of(), 5);
+  }
+
+  @Test
+  public void testWriteDisplayData() {
+    TextIO.Write.Bound<?> write = TextIO.Write
+        .to("foo")
+        .withSuffix("bar")
+        .withShardNameTemplate("-SS-of-NN-")
+        .withNumShards(100)
+        .withoutValidation();
+
+    DisplayData displayData = DisplayData.from(write);
+
+    assertThat(displayData, hasDisplayItem("filePrefix", "foo"));
+    assertThat(displayData, hasDisplayItem("fileSuffix", "bar"));
+    assertThat(displayData, hasDisplayItem("shardNameTemplate", "-SS-of-NN-"));
+    assertThat(displayData, hasDisplayItem("numShards", 100));
+    assertThat(displayData, hasDisplayItem("validation", false));
   }
 
   @Test

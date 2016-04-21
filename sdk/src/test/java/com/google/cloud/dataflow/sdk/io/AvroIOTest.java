@@ -16,6 +16,8 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -29,6 +31,7 @@ import com.google.cloud.dataflow.sdk.runners.DirectPipeline;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.base.MoreObjects;
@@ -255,4 +258,34 @@ public class AvroIOTest {
   }
   // TODO: for Write only, test withSuffix,
   // withShardNameTemplate and withoutSharding.
+
+  @Test
+  public void testReadDisplayData() {
+    AvroIO.Read.Bound<?> read = AvroIO.Read.from("foo.*")
+        .withoutValidation();
+
+    DisplayData displayData = DisplayData.from(read);
+    assertThat(displayData, hasDisplayItem("filePattern", "foo.*"));
+    assertThat(displayData, hasDisplayItem("validation", false));
+  }
+
+  @Test
+  public void testWriteDisplayData() {
+    AvroIO.Write.Bound<?> write = AvroIO.Write
+        .to("foo")
+        .withShardNameTemplate("-SS-of-NN-")
+        .withSuffix("bar")
+        .withSchema(GenericClass.class)
+        .withNumShards(100)
+        .withoutValidation();
+
+    DisplayData displayData = DisplayData.from(write);
+
+    assertThat(displayData, hasDisplayItem("filePrefix", "foo"));
+    assertThat(displayData, hasDisplayItem("shardNameTemplate", "-SS-of-NN-"));
+    assertThat(displayData, hasDisplayItem("fileSuffix", "bar"));
+    assertThat(displayData, hasDisplayItem("schema", GenericClass.class));
+    assertThat(displayData, hasDisplayItem("numShards", 100));
+    assertThat(displayData, hasDisplayItem("validation", false));
+  }
 }

@@ -39,6 +39,7 @@ import com.google.cloud.dataflow.sdk.io.range.ByteKeyRangeTracker;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.util.DataflowReleaseInfo;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PBegin;
@@ -260,6 +261,21 @@ public class BigtableIO {
     }
 
     @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+
+      builder.add("tableId", tableId);
+
+      if (options != null) {
+        builder.add("bigtableOptions", options.toString());
+      }
+
+      if (filter != null) {
+        builder.add("rowFilter", filter.toString());
+      }
+    }
+
+    @Override
     public String toString() {
       return MoreObjects.toStringHelper(Read.class)
           .add("options", options)
@@ -424,6 +440,17 @@ public class BigtableIO {
     Write withBigtableService(BigtableService bigtableService) {
       checkNotNull(bigtableService, "bigtableService");
       return new Write(options, tableId, bigtableService);
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+
+      builder.add("tableId", tableId);
+
+      if (options != null) {
+        builder.add("bigtableOptions", options.toString());
+      }
     }
 
     @Override
