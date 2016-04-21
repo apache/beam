@@ -67,6 +67,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
@@ -169,24 +170,26 @@ class ProxyInvocationHandler implements InvocationHandler {
    */
   @AutoValue
   abstract static class BoundValue {
+    @Nullable
     abstract Object getValue();
+    
     abstract boolean isDefault();
 
-    private static BoundValue of(Object value, boolean isDefault) {
+    private static BoundValue of(@Nullable Object value, boolean isDefault) {
       return new AutoValue_ProxyInvocationHandler_BoundValue(value, isDefault);
     }
 
     /**
      * Create a {@link BoundValue} representing an explicitly set option.
      */
-    static BoundValue fromExplicitOption(Object value) {
+    static BoundValue fromExplicitOption(@Nullable Object value) {
       return BoundValue.of(value, false);
     }
 
     /**
      * Create a {@link BoundValue} representing a default option value.
      */
-    static BoundValue fromDefault(Object value) {
+    static BoundValue fromDefault(@Nullable Object value) {
       return BoundValue.of(value, true);
     }
   }
