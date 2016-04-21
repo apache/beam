@@ -341,7 +341,7 @@ class InProcessEvaluationContext {
     /**
      * Returns true if the {@link PCollectionView} is ready in the provided {@link BoundedWindow}.
      */
-    boolean allViewsReadyInWindow(BoundedWindow window);
+    boolean isReady(PCollectionView<?> view, BoundedWindow window);
   }
 
   /**

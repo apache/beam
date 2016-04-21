@@ -184,24 +184,26 @@ class InProcessSideInputContainer {
     }
 
     @Override
-    public boolean allViewsReadyInWindow(final BoundedWindow elementWindow) {
-      for (PCollectionView<?> view : readerViews) {
-        try {
-          BoundedWindow viewWindow =
-              view.getWindowingStrategyInternal().getWindowFn().getSideInputWindow(elementWindow);
-          Future<Iterable<? extends WindowedValue<?>>> viewContents =
-              getViewFuture(view, viewWindow);
-          if (!viewContents.isDone()) {
-            return false;
-          }
-        } catch (ExecutionException e) {
-          throw new RuntimeException(
-              String.format(
-                  "Exception while checking to see if PCollectionView %s is ready in window %s",
-                  view,
-                  elementWindow),
-              e);
+    public boolean isReady(final PCollectionView<?> view, final BoundedWindow window) {
+      checkArgument(
+          readerViews.contains(view),
+          "Tried to check if view %s was ready in a SideInputReader that does not contain it. "
+              + "Contained views; %s",
+          view,
+          readerViews);
+      try {
+        Future<Iterable<? extends WindowedValue<?>>> viewContents =
+            getViewFuture(view, window);
+        if (!viewContents.isDone()) {
+          return false;
         }
+      } catch (ExecutionException e) {
+        throw new RuntimeException(
+            String.format(
+                "Exception while checking to see if PCollectionView %s is ready in window %s",
+                view,
+                window),
+            e);
       }
       return true;
     }

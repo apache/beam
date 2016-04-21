@@ -24,7 +24,6 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.doAnswer;
 
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.runners.inprocess.InProcessEvaluationContext.ReadyCheckingSideInputReader;
@@ -35,12 +34,8 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
-import org.apache.beam.sdk.transforms.windowing.NonMergingWindowFn;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
-import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.PCollectionViews;
 import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -64,7 +59,6 @@ import org.mockito.MockitoAnnotations;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
@@ -123,9 +117,7 @@ public class InProcessSideInputContainerTest {
     pipeline = TestPipeline.create();
 
     PCollection<Integer> create =
-        pipeline
-            .apply("forBaseCollection", Create.<Integer>of(1, 2, 3, 4))
-            .apply(Window.into(new SideInputContainerTestWindowFn()));
+        pipeline.apply("forBaseCollection", Create.<Integer>of(1, 2, 3, 4));
 
     mapView =
         create.apply("forKeyTypes", WithKeys.<String, Integer>of("foo"))
@@ -395,31 +387,30 @@ public class InProcessSideInputContainerTest {
   }
 
   @Test
-  public void allViewsReadyInWindowEmptyReaderTrue() {
+  public void isReadyInEmptyReaderThrows() {
     ReadyCheckingSideInputReader reader =
         container.createReaderForViews(ImmutableList.<PCollectionView<?>>of());
-
-    assertThat(reader.allViewsReadyInWindow(GlobalWindow.INSTANCE), is(true));
-    assertThat(reader.allViewsReadyInWindow(FIRST_WINDOW), is(true));
-    assertThat(reader.allViewsReadyInWindow(SECOND_WINDOW), is(true));
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("does not contain");
+    thrown.expectMessage(ImmutableList.of().toString());
+    reader.isReady(mapView, GlobalWindow.INSTANCE);
   }
 
   @Test
   public void allViewsReadyInWindowForSomeNotReadyViewsFalseUntilElements() {
-    BoundedWindow sideInputWindow =
-        mapView.getWindowingStrategyInternal().getWindowFn().getSideInputWindow(FIRST_WINDOW);
     container.write(
         mapView,
         ImmutableList.of(
             WindowedValue.of(
                 KV.of("one", 1),
                 FIRST_WINDOW.maxTimestamp().minus(100L),
-                sideInputWindow,
+                SECOND_WINDOW,
                 PaneInfo.ON_TIME_AND_ONLY_FIRING)));
 
     ReadyCheckingSideInputReader reader =
         container.createReaderForViews(ImmutableList.of(mapView, singletonView));
-    assertThat(reader.allViewsReadyInWindow(FIRST_WINDOW), is(false));
+    assertThat(reader.isReady(mapView, SECOND_WINDOW), is(true));
+    assertThat(reader.isReady(singletonView, SECOND_WINDOW), is(false));
 
     container.write(
         singletonView,
@@ -429,9 +420,11 @@ public class InProcessSideInputContainerTest {
                 FIRST_WINDOW.maxTimestamp().minus(100L),
                 SECOND_WINDOW,
                 PaneInfo.ON_TIME_AND_ONLY_FIRING)));
-    assertThat(reader.allViewsReadyInWindow(FIRST_WINDOW), is(true));
+    assertThat(reader.isReady(mapView, SECOND_WINDOW), is(true));
+    assertThat(reader.isReady(singletonView, SECOND_WINDOW), is(true));
 
-    assertThat(reader.allViewsReadyInWindow(SECOND_WINDOW), is(false));
+    assertThat(reader.isReady(mapView, GlobalWindow.INSTANCE), is(false));
+    assertThat(reader.isReady(singletonView, GlobalWindow.INSTANCE), is(false));
   }
 
   @Test
@@ -440,10 +433,11 @@ public class InProcessSideInputContainerTest {
 
     ReadyCheckingSideInputReader reader =
         container.createReaderForViews(ImmutableList.of(mapView, singletonView));
-    assertThat(reader.allViewsReadyInWindow(SECOND_WINDOW), is(false));
+    assertThat(reader.isReady(mapView, GlobalWindow.INSTANCE), is(true));
+    assertThat(reader.isReady(singletonView, GlobalWindow.INSTANCE), is(false));
 
     immediatelyInvokeCallback(singletonView, GlobalWindow.INSTANCE);
-    assertThat(reader.allViewsReadyInWindow(SECOND_WINDOW), is(true));
+    assertThat(reader.isReady(singletonView, GlobalWindow.INSTANCE), is(true));
   }
 
   /**
@@ -478,29 +472,5 @@ public class InProcessSideInputContainerTest {
       }
     };
     return Executors.newSingleThreadExecutor().submit(callable);
-  }
-
-  private static class SideInputContainerTestWindowFn
-      extends NonMergingWindowFn<Integer, BoundedWindow> {
-    @Override
-    public boolean isCompatible(WindowFn<?, ?> other) {
-      return false;
-    }
-
-    @Override
-    public Coder<BoundedWindow> windowCoder() {
-      return (Coder) IntervalWindow.getCoder();
-    }
-
-    @Override
-    public BoundedWindow getSideInputWindow(BoundedWindow window) {
-      return window.equals(FIRST_WINDOW) ? SECOND_WINDOW : GlobalWindow.INSTANCE;
-    }
-
-    @Override
-    public Collection<BoundedWindow> assignWindows(WindowFn<Integer, BoundedWindow>.AssignContext c)
-        throws Exception {
-      return null;
-    }
   }
 }
