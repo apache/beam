@@ -77,7 +77,11 @@ class ParDoInProcessEvaluator<T> implements TransformEvaluator<T> {
             counters.getAddCounterMutator(),
             application.getInput().getWindowingStrategy());
 
-    runner.startBundle();
+    try {
+      runner.startBundle();
+    } catch (Exception e) {
+      throw UserCodeException.wrap(e);
+    }
 
     return new ParDoInProcessEvaluator<>(
         runner, application, counters, outputBundles.values(), stepContext);
