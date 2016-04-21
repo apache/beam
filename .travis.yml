@@ -33,4 +33,4 @@ install:
 
 script:
   - travis_retry mvn -B $MAVEN_OVERRIDE install -U
-  - travis_retry travis/test_wordcount.sh
+  - travis_retry tools/travis_wordcount.sh
