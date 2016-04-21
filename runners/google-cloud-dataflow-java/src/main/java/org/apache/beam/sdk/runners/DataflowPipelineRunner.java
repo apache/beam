@@ -89,7 +89,6 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.DataflowReleaseInfo;
 import org.apache.beam.sdk.util.DataflowTransport;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.InstanceBuilder;
@@ -97,6 +96,7 @@ import org.apache.beam.sdk.util.MonitoringUtil;
 import org.apache.beam.sdk.util.PCollectionViews;
 import org.apache.beam.sdk.util.PathValidator;
 import org.apache.beam.sdk.util.PropertyNames;
+import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.util.Reshuffle;
 import org.apache.beam.sdk.util.SystemDoFnInternal;
 import org.apache.beam.sdk.util.ValueWithRecordId;
@@ -507,10 +507,10 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     Job newJob = jobSpecification.getJob();
     newJob.setClientRequestId(requestId);
 
-    String version = DataflowReleaseInfo.getReleaseInfo().getVersion();
+    String version = ReleaseInfo.getReleaseInfo().getVersion();
     System.out.println("Dataflow SDK version: " + version);
 
-    newJob.getEnvironment().setUserAgent(DataflowReleaseInfo.getReleaseInfo());
+    newJob.getEnvironment().setUserAgent(ReleaseInfo.getReleaseInfo());
     // The Dataflow Service may write to the temporary directory directly, so
     // must be verified.
     if (!Strings.isNullOrEmpty(options.getTempLocation())) {
