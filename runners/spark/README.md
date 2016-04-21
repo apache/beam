@@ -93,7 +93,7 @@ Switch to the Spark runner directory:
 Then run the [word count example][wc] from the SDK using a single threaded Spark instance
 in local mode:
 
-    mvn exec:exec -DmainClass=com.google.cloud.dataflow.examples.WordCount \
+    mvn exec:exec -DmainClass=org.apache.beam.examples.WordCount \
       -Dinput=/tmp/kinglear.txt -Doutput=/tmp/out -Drunner=SparkPipelineRunner \
       -DsparkMaster=local
 
@@ -104,7 +104,7 @@ Check the output by running:
 __Note: running examples using `mvn exec:exec` only works for Spark local mode at the
 moment. See the next section for how to run on a cluster.__
 
-[wc]: https://github.com/apache/incubator-beam/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/WordCount.java
+[wc]: https://github.com/apache/incubator-beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WordCount.java
 ## Running on a Cluster
 
 Spark Beam pipelines can be run on a cluster using the `spark-submit` command.
@@ -117,7 +117,7 @@ Then run the word count example using Spark submit with the `yarn-client` master
 (`yarn-cluster` works just as well):
 
     spark-submit \
-      --class com.google.cloud.dataflow.examples.WordCount \
+      --class org.apache.beam.examples.WordCount \
       --master yarn-client \
       target/spark-runner-*-spark-app.jar \
         --inputFile=kinglear.txt --output=out --runner=SparkPipelineRunner --sparkMaster=yarn-client

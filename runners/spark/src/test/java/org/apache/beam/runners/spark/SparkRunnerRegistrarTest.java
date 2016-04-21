@@ -23,6 +23,8 @@ import com.google.common.collect.Lists;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 import java.util.ServiceLoader;
 
@@ -32,12 +34,13 @@ import static org.junit.Assert.fail;
 /**
  * Test {@link SparkRunnerRegistrar}.
  */
+@RunWith(JUnit4.class)
 public class SparkRunnerRegistrarTest {
   @Test
   public void testOptions() {
     assertEquals(
-	    ImmutableList.of(SparkPipelineOptions.class, SparkStreamingPipelineOptions.class),
-    	 new SparkRunnerRegistrar.Options().getPipelineOptions());
+        ImmutableList.of(SparkPipelineOptions.class, SparkStreamingPipelineOptions.class),
+        new SparkRunnerRegistrar.Options().getPipelineOptions());
   }
 
   @Test
@@ -51,7 +54,7 @@ public class SparkRunnerRegistrarTest {
     for (PipelineOptionsRegistrar registrar :
         Lists.newArrayList(ServiceLoader.load(PipelineOptionsRegistrar.class).iterator())) {
       if (registrar instanceof SparkRunnerRegistrar.Options) {
-      	return;
+        return;
       }
     }
     fail("Expected to find " + SparkRunnerRegistrar.Options.class);
@@ -62,7 +65,7 @@ public class SparkRunnerRegistrarTest {
     for (PipelineRunnerRegistrar registrar :
         Lists.newArrayList(ServiceLoader.load(PipelineRunnerRegistrar.class).iterator())) {
       if (registrar instanceof SparkRunnerRegistrar.Runner) {
-      	return;
+        return;
       }
     }
     fail("Expected to find " + SparkRunnerRegistrar.Runner.class);
