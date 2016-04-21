@@ -191,8 +191,7 @@ class InProcessSideInputContainer {
               + "Contained views; %s",
           view,
           readerViews);
-      Future<Iterable<? extends WindowedValue<?>>> viewContents = getViewFuture(view, window);
-      return viewContents.isDone();
+      return getViewFuture(view, window).isDone();
     }
 
     @Override
