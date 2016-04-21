@@ -54,7 +54,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
-
 import javax.annotation.Nullable;
 
 /**
@@ -746,9 +745,9 @@ public class IsmFormat {
    */
   @AutoValue
   public abstract static class Footer {
-    static final int LONG_BYTES = 8;
-    static final int FIXED_LENGTH = 3 * LONG_BYTES + 1;
-    static final byte VERSION = 2;
+    public static final int LONG_BYTES = 8;
+    public static final int FIXED_LENGTH = 3 * LONG_BYTES + 1;
+    public static final byte VERSION = 2;
 
     public abstract byte getVersion();
     public abstract long getIndexPosition();
