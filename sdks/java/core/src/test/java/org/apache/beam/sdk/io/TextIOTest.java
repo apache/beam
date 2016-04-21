@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.TestUtils.INTS_ARRAY;
 import static org.apache.beam.sdk.TestUtils.LINES_ARRAY;
 import static org.apache.beam.sdk.TestUtils.NO_INTS_ARRAY;
 import static org.apache.beam.sdk.TestUtils.NO_LINES_ARRAY;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
@@ -41,6 +42,7 @@ import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.values.PCollection;
@@ -153,6 +155,20 @@ public class TextIOTest {
           p.apply(TextIO.Read.from(file).named("HerRead"));
       assertEquals("HerRead/Read.out", output3.getName());
     }
+  }
+
+  @Test
+  public void testReadDisplayData() {
+    TextIO.Read.Bound<?> read = TextIO.Read
+        .from("foo.*")
+        .withCompressionType(CompressionType.BZIP2)
+        .withoutValidation();
+
+    DisplayData displayData = DisplayData.from(read);
+
+    assertThat(displayData, hasDisplayItem("filePattern", "foo.*"));
+    assertThat(displayData, hasDisplayItem("compressionType", CompressionType.BZIP2.toString()));
+    assertThat(displayData, hasDisplayItem("validation", false));
   }
 
   <T> void runTestWrite(T[] elems, Coder<T> coder) throws Exception {
@@ -272,6 +288,24 @@ public class TextIOTest {
   @Test
   public void testShardedWrite() throws Exception {
     runTestWrite(LINES_ARRAY, StringUtf8Coder.of(), 5);
+  }
+
+  @Test
+  public void testWriteDisplayData() {
+    TextIO.Write.Bound<?> write = TextIO.Write
+        .to("foo")
+        .withSuffix("bar")
+        .withShardNameTemplate("-SS-of-NN-")
+        .withNumShards(100)
+        .withoutValidation();
+
+    DisplayData displayData = DisplayData.from(write);
+
+    assertThat(displayData, hasDisplayItem("filePrefix", "foo"));
+    assertThat(displayData, hasDisplayItem("fileSuffix", "bar"));
+    assertThat(displayData, hasDisplayItem("shardNameTemplate", "-SS-of-NN-"));
+    assertThat(displayData, hasDisplayItem("numShards", 100));
+    assertThat(displayData, hasDisplayItem("validation", false));
   }
 
   @Test

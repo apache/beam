@@ -20,7 +20,10 @@ package org.apache.beam.sdk.io.bigtable;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSourcesEqualReferenceSource;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionExhaustive;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionFails;
-import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionSucceedsAndConsistent;
+import static org.apache.beam.sdk.testing.SourceTestUtils
+    .assertSplitAtFractionSucceedsAndConsistent;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Verify.verifyNotNull;
@@ -39,6 +42,7 @@ import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -407,6 +411,26 @@ public class BigtableIOTest {
     assertSourcesEqualReferenceSource(source, splits, null /* options */);
   }
 
+  @Test
+  public void testReadingDisplayData() {
+    RowFilter rowFilter = RowFilter.newBuilder()
+        .setRowKeyRegexFilter(ByteString.copyFromUtf8("foo.*"))
+        .build();
+
+    BigtableIO.Read read = BigtableIO.read()
+        .withBigtableOptions(BIGTABLE_OPTIONS)
+        .withTableId("fooTable")
+        .withRowFilter(rowFilter);
+
+    DisplayData displayData = DisplayData.from(read);
+
+    assertThat(displayData, hasDisplayItem("tableId", "fooTable"));
+    assertThat(displayData, hasDisplayItem("rowFilter", rowFilter.toString()));
+
+    // BigtableIO adds user-agent to options; assert only on key and not value.
+    assertThat(displayData, hasDisplayItem(hasKey("bigtableOptions")));
+  }
+
   /** Tests that a record gets written to the service and messages are logged. */
   @Test
   public void testWriting() throws Exception {
@@ -461,6 +485,19 @@ public class BigtableIOTest {
     thrown.expectMessage("At least 1 errors occurred writing to Bigtable. First 1 errors:");
     thrown.expectMessage("Error mutating row " + key + " with mutations []: cell value missing");
     p.run();
+  }
+
+  @Test
+  public void testWritingDisplayData() {
+    BigtableIO.Write write = BigtableIO.write()
+        .withTableId("fooTable")
+        .withBigtableOptions(BIGTABLE_OPTIONS);
+
+    DisplayData displayData = DisplayData.from(write);
+
+    assertThat(displayData, hasDisplayItem("tableId", "fooTable"));
+    // BigtableIO adds user-agent to options; assert only on key and not value.
+    assertThat(displayData, hasDisplayItem(hasKey("bigtableOptions")));
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////////
