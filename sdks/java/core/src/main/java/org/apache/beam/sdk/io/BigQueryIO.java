@@ -50,6 +50,8 @@ import org.apache.beam.sdk.util.BigQueryServices.LoadService;
 import org.apache.beam.sdk.util.BigQueryServicesImpl;
 import org.apache.beam.sdk.util.BigQueryTableInserter;
 import org.apache.beam.sdk.util.BigQueryTableRowIterator;
+import org.apache.beam.sdk.util.IOChannelFactory;
+import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.Reshuffle;
@@ -1015,7 +1017,19 @@ public class BigQueryIO {
           table.setProjectId(options.getProject());
         }
         String jobIdToken = UUID.randomUUID().toString();
-        String tempFilePrefix = options.getTempLocation() + "/BigQuerySinkTemp/" + jobIdToken;
+        String tempLocation = options.getTempLocation();
+        String tempFilePrefix;
+        try {
+          IOChannelFactory factory = IOChannelUtils.getFactory(tempLocation);
+          tempFilePrefix = factory.resolve(
+                  factory.resolve(tempLocation, "BigQuerySinkTemp"),
+                  jobIdToken);
+        } catch (IOException e) {
+          throw new RuntimeException(
+              String.format("Failed to resolve BigQuery temp location in %s", tempLocation),
+              e);
+        }
+
         BigQueryServices bqServices = getBigQueryServices();
         return input.apply("Write", org.apache.beam.sdk.io.Write.to(
             new BigQuerySink(
