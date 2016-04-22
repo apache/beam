@@ -320,12 +320,11 @@ class ProxyInvocationHandler implements InvocationHandler {
 
   /**
    * Marker interface used when the original {@link PipelineOptions} interface is not known at
-   * runtime. This can occur when {@link PipelineOptions} are deserialized from JSON or specified
-   * on the command line.
+   * runtime. This can occur if {@link PipelineOptions} are deserialized from JSON.
    *
    * <p>Pipeline authors can ensure {@link PipelineOptions} type information is available at
-   * runtime by explicitly registering {@link PipelineOptions options} interfaces via
-   * {@link PipelineOptionsFactory#register(Class)}.
+   * runtime by registering their {@link PipelineOptions options} interfaces. See the "Registration"
+   * section of {@link PipelineOptions} documentation.
    */
   interface UnknownPipelineOptions extends PipelineOptions {}
 
