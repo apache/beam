@@ -220,15 +220,11 @@ public class XmlSource<T> extends FileBasedSource<T> {
 
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {
-
+    super.populateDisplayData(builder);
     builder
-        .add("filePattern", getFileOrPatternSpec())
         .addIfNotNull("rootElement", rootElement)
         .addIfNotNull("recordElement", recordElement)
         .addIfNotNull("recordClass", recordClass);
-
-    long minBundleSize = getMinBundleSize();
-    builder.addIfNotDefault("minBundleSize", minBundleSize, DEFAULT_MIN_BUNDLE_SIZE);
   }
 
   @Override

@@ -292,8 +292,6 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
             .splitIntoBundles(desiredBundleSizeBytes, options);
       }
     });
-
-
   }
 
   @Override

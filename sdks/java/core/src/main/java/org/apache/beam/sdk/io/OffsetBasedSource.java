@@ -205,6 +205,7 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
 
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {
+    super.populateDisplayData(builder);
     builder
         .add("minBundleSize", minBundleSize)
         .addIfNotDefault("startOffset", startOffset, 0)
