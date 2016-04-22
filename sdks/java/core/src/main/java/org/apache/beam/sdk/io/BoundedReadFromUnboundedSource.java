@@ -228,7 +228,7 @@ class BoundedReadFromUnboundedSource<T> extends PTransform<PInput, PCollection<T
 
       private boolean advanceWithBackoff() throws IOException {
         // Try reading from the source with exponential backoff
-        BackOff backoff = new IntervalBoundedExponentialBackOff(10000, 10);
+        BackOff backoff = new IntervalBoundedExponentialBackOff(10000L, 10L);
         long nextSleep = backoff.nextBackOffMillis();
         while (nextSleep != BackOff.STOP) {
           if (endTime != null && Instant.now().isAfter(endTime)) {
