@@ -296,49 +296,69 @@ public abstract class Counter<T> {
   public abstract CounterMean<T> getMean();
 
   /**
-   * CommitState represents whether counters' values have been committed to the backend.
+   * Represents whether counters' values have been committed to the backend.
    *
    * <p>Runners can use this information to optimize counters updates.
    * For example, if counters are committed, runners may choose to skip the updates.
    *
    * <p>Counters' state transition table:
+   * {@code
    * Action\Current State         COMMITTED        DIRTY        COMMITTING
-   * add()                        DIRTY            DIRTY        DIRTY
+   * addValue()                   DIRTY            DIRTY        DIRTY
    * committing()                 None             COMMITTING   None
    * committed()                  None             None         COMMITTED
+   * }
    */
   @VisibleForTesting
   enum CommitState {
+    /**
+     * There are no local updates that haven't been committed to the backend.
+     */
     COMMITTED,
+    /**
+     * There are local updates that haven't been committed to the backend.
+     */
     DIRTY,
+    /**
+     * Local updates are committing to the backend, but are still pending.
+     */
     COMMITTING,
   }
 
   /**
    * Returns if the counter contains non-committed aggregate.
    */
-  public boolean isDirty() {
+  public synchronized boolean isDirty() {
     return commitState.get() != CommitState.COMMITTED;
   }
 
   /**
    * Changes the counter from {@code CommitState.DIRTY} to {@code CommitState.COMMITTING}.
+   *
+   * @return true if successful. False return indicates that the commit state
+   * was not in {@code CommitState.DIRTY}.
    */
-  public boolean committing() {
+  public synchronized boolean committing() {
     return commitState.compareAndSet(CommitState.DIRTY, CommitState.COMMITTING);
   }
 
   /**
    * Changes the counter from {@code CommitState.COMMITTING} to {@code CommitState.COMMITTED}.
+   *
+   * @return true if successful.
+   *
+   * <p>False return indicates that the counter was updated while the committing is pending.
+   * That counter update might or might not has been committed. The {@code commitState} has to
+   * stay in {@code CommitState.DIRTY}.
    */
-  public boolean committed() {
+  public synchronized boolean committed() {
     return commitState.compareAndSet(CommitState.COMMITTING, CommitState.COMMITTED);
   }
 
   /**
    * Sets the counter to {@code CommitState.DIRTY}.
    *
-   * <p>It needs to be called at the beginning of {@link #addValue}, {@link #resetToValue},
+   * <p>Must be called at the end of {@link #addValue}, {@link #resetToValue},
    * {@link #resetMeanToValue}, and {@link #merge}.
    */
   protected void setDirty() {
@@ -479,7 +499,7 @@ public abstract class Counter<T> {
     }
 
     @Override
-    public LongCounter addValue(Long value) {
+    public synchronized LongCounter addValue(Long value) {
       try {
         switch (kind) {
           case SUM:
@@ -558,7 +578,7 @@ public abstract class Counter<T> {
     }
 
     @Override
-    public Counter<Long> resetToValue(Long value) {
+    public synchronized Counter<Long> resetToValue(Long value) {
       try {
         if (kind == MEAN) {
           throw illegalArgumentException();
@@ -572,7 +592,7 @@ public abstract class Counter<T> {
     }
 
     @Override
-    public Counter<Long> resetMeanToValue(long elementCount, Long value) {
+    public synchronized Counter<Long> resetMeanToValue(long elementCount, Long value) {
       try {
         if (kind != MEAN) {
           throw illegalArgumentException();
@@ -607,7 +627,7 @@ public abstract class Counter<T> {
     }
 
     @Override
-    public Counter<Long> merge(Counter<Long> that) {
+    public synchronized Counter<Long> merge(Counter<Long> that) {
       try {
         checkArgument(
             this.isCompatibleWith(that), "Counters %s and %s are incompatible", this, that);
@@ -691,7 +711,7 @@ public abstract class Counter<T> {
     }
 
     @Override
-    public DoubleCounter addValue(Double value) {
+    public synchronized DoubleCounter addValue(Double value) {
       try {
         switch (kind) {
           case SUM:
@@ -761,7 +781,7 @@ public abstract class Counter<T> {
     }
 
     @Override
-    public Counter<Double> resetToValue(Double value) {
+    public synchronized Counter<Double> resetToValue(Double value) {
       try {
         if (kind == MEAN) {
           throw illegalArgumentException();
@@ -775,7 +795,7 @@ public abstract class Counter<T> {
     }
 
     @Override
-    public Counter<Double> resetMeanToValue(long elementCount, Double value) {
+    public synchronized Counter<Double> resetMeanToValue(long elementCount, Double value) {
       try {
         if (kind != MEAN) {
           throw illegalArgumentException();
@@ -819,7 +839,7 @@ public abstract class Counter<T> {
     }
 
     @Override
-    public Counter<Double> merge(Counter<Double> that) {
+    public synchronized Counter<Double> merge(Counter<Double> that) {
       try {
         checkArgument(
             this.isCompatibleWith(that), "Counters %s and %s are incompatible", this, that);
@@ -885,7 +905,7 @@ public abstract class Counter<T> {
     }
 
     @Override
-    public BooleanCounter addValue(Boolean value) {
+    public synchronized BooleanCounter addValue(Boolean value) {
       try {
         if (kind.equals(AND) && !value) {
           aggregate.set(value);
@@ -913,7 +933,7 @@ public abstract class Counter<T> {
     }
 
     @Override
-    public Counter<Boolean> resetToValue(Boolean value) {
+    public synchronized Counter<Boolean> resetToValue(Boolean value) {
       try {
         aggregate.set(value);
         deltaAggregate.set(value);
@@ -945,7 +965,7 @@ public abstract class Counter<T> {
     }
 
     @Override
-    public Counter<Boolean> merge(Counter<Boolean> that) {
+    public synchronized Counter<Boolean> merge(Counter<Boolean> that) {
       try {
         checkArgument(
             this.isCompatibleWith(that), "Counters %s and %s are incompatible", this, that);
@@ -1069,7 +1089,7 @@ public abstract class Counter<T> {
     }
 
     @Override
-    public IntegerCounter addValue(Integer value) {
+    public synchronized IntegerCounter addValue(Integer value) {
       try {
         switch (kind) {
           case SUM:
@@ -1139,7 +1159,7 @@ public abstract class Counter<T> {
     }
 
     @Override
-    public Counter<Integer> resetToValue(Integer value) {
+    public synchronized Counter<Integer> resetToValue(Integer value) {
       try {
         if (kind == MEAN) {
           throw illegalArgumentException();
@@ -1153,7 +1173,7 @@ public abstract class Counter<T> {
     }
 
     @Override
-    public Counter<Integer> resetMeanToValue(long elementCount, Integer value) {
+    public synchronized Counter<Integer> resetMeanToValue(long elementCount, Integer value) {
       try {
         if (kind != MEAN) {
           throw illegalArgumentException();
@@ -1197,7 +1217,7 @@ public abstract class Counter<T> {
     }
 
     @Override
-    public Counter<Integer> merge(Counter<Integer> that) {
+    public synchronized Counter<Integer> merge(Counter<Integer> that) {
       try {
         checkArgument(
             this.isCompatibleWith(that), "Counters %s and %s are incompatible", this, that);
