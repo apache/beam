@@ -4,6 +4,8 @@ import com.google.common.collect.AbstractIterator;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.Partition;
 import cz.seznam.euphoria.core.client.io.Reader;
+import cz.seznam.euphoria.hadoop.HadoopUtils;
+import cz.seznam.euphoria.hadoop.SerializableWritable;
 import cz.seznam.euphoria.core.client.util.Pair;
 import lombok.SneakyThrows;
 import org.apache.hadoop.conf.Configuration;
@@ -62,6 +64,7 @@ class HadoopInputFormatAdapter implements DataSource<Pair<?, ?>> {
     if (hadoopFormatInstance == null) {
       hadoopFormatInstance = HadoopUtils.instantiateHadoopFormat(
               hadoopFormatCls,
+              InputFormat.class,
               conf.getWritable());
     }
 
@@ -135,9 +138,12 @@ class HadoopInputFormatAdapter implements DataSource<Pair<?, ?>> {
     @Override
     @SneakyThrows
     public Reader<Pair<?, ?>> openReader() throws IOException {
-      TaskAttemptContext ctx = HadoopUtils.createTaskContext(conf);
+      TaskAttemptContext ctx = HadoopUtils.createTaskContext(conf, 0);
       RecordReader<?, ?> reader =
-              HadoopUtils.instantiateHadoopFormat(hadoopFormatCls, conf)
+              HadoopUtils.instantiateHadoopFormat(
+                      hadoopFormatCls,
+                      InputFormat.class,
+                      conf)
                       .createRecordReader(hadoopSplit, ctx);
 
       reader.initialize(hadoopSplit, ctx);

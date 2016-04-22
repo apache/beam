@@ -1,19 +1,19 @@
-package cz.seznam.euphoria.hadoop.input;
+package cz.seznam.euphoria.hadoop;
 
 import cz.seznam.euphoria.core.util.Settings;
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.JobID;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
+import org.apache.hadoop.mapreduce.TaskType;
 import org.apache.hadoop.mapreduce.task.JobContextImpl;
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
 
 import java.util.Map;
 
-class HadoopUtils {
+public class HadoopUtils {
 
   /**
    * Initialize Hadoop {@link Configuration} from Euphoria specific
@@ -28,12 +28,17 @@ class HadoopUtils {
     return conf;
   }
 
-  public static InputFormat<?, ?> instantiateHadoopFormat(
-          Class<? extends InputFormat> cls,
+  public static <T> T instantiateHadoopFormat(
+          Class<? extends T> cls,
+          Class<T> superType,
           Configuration conf)
           throws InstantiationException, IllegalAccessException
   {
-    InputFormat<?,?> inst = cls.newInstance();
+    if (!superType.isAssignableFrom(cls)) {
+      throw new IllegalStateException(cls + " is not a sub-class of " + superType);
+    }
+
+    T inst = cls.newInstance();
     if (inst instanceof Configurable) {
       ((Configurable) inst).setConf(conf);
     }
@@ -46,15 +51,16 @@ class HadoopUtils {
     return new JobContextImpl(conf, new JobID("", 0));
   }
 
-  public static TaskAttemptContext createTaskContext(Configuration conf) {
+  public static TaskAttemptContext createTaskContext(Configuration conf,
+                                                     int taskNumber)
+  {
     // TODO uses some default hard-coded values
-    int taskNumber = 0;
-    int taskAttemptNumber = 0;
-    TaskAttemptID taskAttemptID = TaskAttemptID.forName("attempt_"
-            + 0
-            + "_0000_r_"
-            + String.format("%" + (6 - Integer.toString(taskNumber).length()) + "s", " ")
-            .replace(" ", "0") + Integer.toString(taskNumber) + "_" + taskAttemptNumber);
+    TaskAttemptID taskAttemptID = new TaskAttemptID(
+            "0", // job tracker ID
+            0, // job number,
+            TaskType.REDUCE, // task type,
+            taskNumber, // task ID
+            0); // task attempt
     return new TaskAttemptContextImpl(conf, taskAttemptID);
   }
 }
