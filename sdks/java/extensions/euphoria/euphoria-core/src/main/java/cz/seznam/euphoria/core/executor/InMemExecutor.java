@@ -38,7 +38,6 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -347,17 +346,18 @@ public class InMemExecutor implements Executor {
    * Execute single operator and return the suppliers for partitions
    * of output.
    */
+  @SuppressWarnings("unchecked")
   private void execOp(
       Operator<?, ?, ?> op, ExecutionContext context) {
     final List<Supplier<?>> output;
     if (op instanceof FlatMap) {
-      output = execMap((FlatMap<?, ?, ?>) op, context);
+      output = execMap((FlatMap) op, context);
     } else if (op instanceof Repartition) {
-      output = execRepartition((Repartition<?, ?>) op, context);
+      output = execRepartition((Repartition) op, context);
     } else if (op instanceof ReduceStateByKey) {
-      output = execReduceStateByKey((ReduceStateByKey<?, ?, ?, ?, ?, ?, ?, ?, ?>) op, context);
+      output = execReduceStateByKey((ReduceStateByKey) op, context);
     } else if (op instanceof Union) {
-      output = execUnion((Union<?, ?>) op, context);
+      output = execUnion((Union) op, context);
     } else {
       DAG<Operator<?, ?, ?>> basicOps = op.getBasicOps();
       execDAG(basicOps, context);
@@ -388,7 +388,7 @@ public class InMemExecutor implements Executor {
 
 
   @SuppressWarnings("unchecked")
-  private List<Supplier<?>> execMap(FlatMap<?, ?, ?> flatMap,
+  private List<Supplier<?>> execMap(FlatMap flatMap,
       ExecutionContext context) {
     Dataset<?> input = flatMap.input();
     List<Supplier<?>> suppliers = context.get(input);
@@ -418,7 +418,7 @@ public class InMemExecutor implements Executor {
 
   @SuppressWarnings("unchecked")
   private List<Supplier<?>> execRepartition(
-      Repartition<?, ?> repartition,
+      Repartition repartition,
       ExecutionContext context) {
 
     Partitioning<?> partitioning = repartition.getPartitioning();
@@ -478,7 +478,7 @@ public class InMemExecutor implements Executor {
 
   @SuppressWarnings("unchecked")
   private List<Supplier<?>> execReduceStateByKey(
-      ReduceStateByKey<?, ?, ?, ?, ?, ?, ?, ?, ?> reduceStateByKey,
+      ReduceStateByKey reduceStateByKey,
       ExecutionContext context) {
 
     final Dataset<?> input = reduceStateByKey.input();
@@ -605,7 +605,7 @@ public class InMemExecutor implements Executor {
 
   @SuppressWarnings("unchecked")
   private List<Supplier<?>> execUnion(
-      Union<?, ?> union, ExecutionContext context) {
+      Union union, ExecutionContext context) {
     Collection<Dataset<?>> inputs = (Collection<Dataset<?>>) union.listInputs();
     List<Supplier<?>> ret = inputs.stream()
         .flatMap(input -> context.get(input).stream())
