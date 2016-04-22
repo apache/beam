@@ -84,7 +84,7 @@ public class BoundedReadFromUnboundedSourceTest {
         values.add(kv.getValue());
       }
       if (timeBound) {
-        assertTrue(values.size() > 2);
+        assertTrue(values.size() >= 1);
       } else if (dedup) {
         // Verify that at least some data came through.  The chance of 90% of the input
         // being duplicates is essentially zero.
