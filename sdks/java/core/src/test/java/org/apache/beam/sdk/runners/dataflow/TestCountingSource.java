@@ -164,21 +164,20 @@ public class TestCountingSource
 
     @Override
     public boolean start() {
-      return true;
+      return advance();
     }
 
     @Override
     public boolean advance() {
-      if (current < numMessagesPerShard - 1) {
+      if (current >= numMessagesPerShard) {
+        return false;
+      }
         // If testing dedup, occasionally insert a duplicate value;
         if (dedup && ThreadLocalRandom.current().nextInt(5) == 0) {
           return true;
         }
         current++;
-        return true;
-      } else {
-        return false;
-      }
+      return current < numMessagesPerShard;
     }
 
     @Override
@@ -222,6 +221,8 @@ public class TestCountingSource
         LOG.error("Throwing exception while checkpointing counter");
         throw new RuntimeException("failed during checkpoint");
       }
+      // The checkpoint can assume all records read, including the current, have
+      // been commited.
       return new CounterMark(current);
     }
 
@@ -234,7 +235,12 @@ public class TestCountingSource
   @Override
   public CountingSourceReader createReader(
       PipelineOptions options, @Nullable CounterMark checkpointMark) {
-    return new CountingSourceReader(checkpointMark != null ? checkpointMark.current : 0);
+    if (checkpointMark == null) {
+      LOG.debug("creating reader");
+    } else {
+      LOG.debug("restoring reader from checkpoint with current = {}", checkpointMark.current);
+    }
+    return new CountingSourceReader(checkpointMark != null ? checkpointMark.current : -1);
   }
 
   @Override
