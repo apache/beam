@@ -51,6 +51,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
@@ -342,6 +343,25 @@ public class CreateTest {
     PipelineOptions options = PipelineOptionsFactory.create();
     List<? extends BoundedSource<Integer>> splitSources = source.splitIntoBundles(12, options);
     assertThat(splitSources, hasSize(3));
+    SourceTestUtils.assertSourcesEqualReferenceSource(source, splitSources, options);
+  }
+
+  @Test
+  public void testSourceSplitIntoBundlesVoid() throws Exception {
+    CreateSource<Void> source =
+        CreateSource.fromIterable(
+            Lists.<Void>newArrayList(null, null, null, null, null), VoidCoder.of());
+    PipelineOptions options = PipelineOptionsFactory.create();
+    List<? extends BoundedSource<Void>> splitSources = source.splitIntoBundles(3, options);
+    SourceTestUtils.assertSourcesEqualReferenceSource(source, splitSources, options);
+  }
+
+  @Test
+  public void testSourceSplitIntoBundlesEmpty() throws Exception {
+    CreateSource<Integer> source =
+        CreateSource.fromIterable(ImmutableList.<Integer>of(), BigEndianIntegerCoder.of());
+    PipelineOptions options = PipelineOptionsFactory.create();
+    List<? extends BoundedSource<Integer>> splitSources = source.splitIntoBundles(12, options);
     SourceTestUtils.assertSourcesEqualReferenceSource(source, splitSources, options);
   }
 
