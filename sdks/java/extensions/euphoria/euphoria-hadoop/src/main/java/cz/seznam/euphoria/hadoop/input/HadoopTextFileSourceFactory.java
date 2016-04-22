@@ -3,6 +3,8 @@ package cz.seznam.euphoria.hadoop.input;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.DataSourceFactory;
 import cz.seznam.euphoria.core.util.Settings;
+import cz.seznam.euphoria.hadoop.HadoopUtils;
+import cz.seznam.euphoria.hadoop.SerializableWritable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
