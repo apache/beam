@@ -25,7 +25,7 @@ import org.apache.beam.sdk.runners.DirectPipelineRunner;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.Context;
-
+import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import com.google.auto.service.AutoService;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -194,7 +194,7 @@ import javax.annotation.concurrent.ThreadSafe;
 @JsonSerialize(using = Serializer.class)
 @JsonDeserialize(using = Deserializer.class)
 @ThreadSafe
-public interface PipelineOptions {
+public interface PipelineOptions extends HasDisplayData {
   /**
    * Transforms this object into an object of type {@code <T>} saving each property
    * that has been manipulated. {@code <T>} must extend {@link PipelineOptions}.

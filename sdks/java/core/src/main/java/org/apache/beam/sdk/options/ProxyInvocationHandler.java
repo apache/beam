@@ -19,16 +19,22 @@ package org.apache.beam.sdk.options;
 
 import org.apache.beam.sdk.options.PipelineOptionsFactory.JsonIgnorePredicate;
 import org.apache.beam.sdk.options.PipelineOptionsFactory.Registration;
+import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 
+import com.google.auto.value.AutoValue;
 import com.google.common.base.Defaults;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ClassToInstanceMap;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Multimap;
 import com.google.common.collect.MutableClassToInstanceMap;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -52,6 +58,8 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.lang.reflect.Type;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -59,7 +67,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
-
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
@@ -85,16 +93,26 @@ class ProxyInvocationHandler implements InvocationHandler {
   private final int hashCode = (int) (Math.random() * Integer.MAX_VALUE);
   private final Set<Class<? extends PipelineOptions>> knownInterfaces;
   private final ClassToInstanceMap<PipelineOptions> interfaceToProxyCache;
-  private final Map<String, Object> options;
+  private final Map<String, BoundValue> options;
   private final Map<String, JsonNode> jsonOptions;
   private final Map<String, String> gettersToPropertyNames;
   private final Map<String, String> settersToPropertyNames;
 
   ProxyInvocationHandler(Map<String, Object> options) {
-    this(options, Maps.<String, JsonNode>newHashMap());
+    this(bindOptions(options), Maps.<String, JsonNode>newHashMap());
   }
 
-  private ProxyInvocationHandler(Map<String, Object> options, Map<String, JsonNode> jsonOptions) {
+  private static Map<String, BoundValue> bindOptions(Map<String, Object> inputOptions) {
+    HashMap<String, BoundValue> options = Maps.newHashMap();
+    for (Map.Entry<String, Object> entry : inputOptions.entrySet()) {
+      options.put(entry.getKey(), BoundValue.fromExplicitOption(entry.getValue()));
+    }
+
+    return options;
+  }
+
+  private ProxyInvocationHandler(
+      Map<String, BoundValue> options, Map<String, JsonNode> jsonOptions) {
     this.options = options;
     this.jsonOptions = jsonOptions;
     this.knownInterfaces = new HashSet<>(PipelineOptionsFactory.getRegisteredOptions());
@@ -119,26 +137,61 @@ class ProxyInvocationHandler implements InvocationHandler {
       @SuppressWarnings("unchecked")
       Class<? extends PipelineOptions> clazz = (Class<? extends PipelineOptions>) args[0];
       return cloneAs(proxy, clazz);
+    } else if (args != null && "populateDisplayData".equals(method.getName())
+        && args[0] instanceof DisplayData.Builder) {
+      @SuppressWarnings("unchecked")
+      DisplayData.Builder builder = (DisplayData.Builder) args[0];
+      populateDisplayData(builder);
+      return Void.TYPE;
     }
     String methodName = method.getName();
     synchronized (this) {
-      if (gettersToPropertyNames.keySet().contains(methodName)) {
+      if (gettersToPropertyNames.containsKey(methodName)) {
         String propertyName = gettersToPropertyNames.get(methodName);
         if (!options.containsKey(propertyName)) {
           // Lazy bind the default to the method.
           Object value = jsonOptions.containsKey(propertyName)
               ? getValueFromJson(propertyName, method)
               : getDefault((PipelineOptions) proxy, method);
-          options.put(propertyName, value);
+          options.put(propertyName, BoundValue.fromDefault(value));
         }
-        return options.get(propertyName);
+        return options.get(propertyName).getValue();
       } else if (settersToPropertyNames.containsKey(methodName)) {
-        options.put(settersToPropertyNames.get(methodName), args[0]);
+        options.put(settersToPropertyNames.get(methodName), BoundValue.fromExplicitOption(args[0]));
         return Void.TYPE;
       }
     }
     throw new RuntimeException("Unknown method [" + method + "] invoked with args ["
         + Arrays.toString(args) + "].");
+  }
+
+  /**
+   * Track whether options values are explicitly set, or retrieved from defaults.
+   */
+  @AutoValue
+  abstract static class BoundValue {
+    @Nullable
+    abstract Object getValue();
+
+    abstract boolean isDefault();
+
+    private static BoundValue of(@Nullable Object value, boolean isDefault) {
+      return new AutoValue_ProxyInvocationHandler_BoundValue(value, isDefault);
+    }
+
+    /**
+     * Create a {@link BoundValue} representing an explicitly set option.
+     */
+    static BoundValue fromExplicitOption(@Nullable Object value) {
+      return BoundValue.of(value, false);
+    }
+
+    /**
+     * Create a {@link BoundValue} representing a default option value.
+     */
+    static BoundValue fromDefault(@Nullable Object value) {
+      return BoundValue.of(value, true);
+    }
   }
 
   /**
@@ -210,6 +263,128 @@ class ProxyInvocationHandler implements InvocationHandler {
   }
 
   /**
+   * Populate display data. See {@link HasDisplayData#populateDisplayData}. All explicitly set
+   * pipeline options will be added as display data.
+   */
+  private void populateDisplayData(DisplayData.Builder builder) {
+    Set<PipelineOptionSpec> optionSpecs = PipelineOptionsReflector.getOptionSpecs(knownInterfaces);
+    Multimap<String, PipelineOptionSpec> optionsMap = buildOptionNameToSpecMap(optionSpecs);
+
+    for (Map.Entry<String, BoundValue> option : options.entrySet()) {
+      BoundValue boundValue = option.getValue();
+      if (boundValue.isDefault()) {
+        continue;
+      }
+
+      Object value = boundValue.getValue() == null ? "" : boundValue.getValue();
+      DisplayData.Type type = DisplayData.inferType(value);
+      HashSet<PipelineOptionSpec> specs = new HashSet<>(optionsMap.get(option.getKey()));
+
+      for (PipelineOptionSpec optionSpec : specs) {
+        Class<?> pipelineInterface = optionSpec.getDefiningInterface();
+        if (type != null) {
+          builder.add(option.getKey(), type, value)
+              .withNamespace(pipelineInterface);
+        } else {
+          builder.add(option.getKey(), value.toString())
+              .withNamespace(pipelineInterface);
+        }
+      }
+    }
+
+    for (Map.Entry<String, JsonNode> jsonOption : jsonOptions.entrySet()) {
+      if (options.containsKey(jsonOption.getKey())) {
+        // Option overwritten since deserialization; don't re-write
+        continue;
+      }
+
+      HashSet<PipelineOptionSpec> specs = new HashSet<>(optionsMap.get(jsonOption.getKey()));
+      if (specs.isEmpty()) {
+        builder.add(jsonOption.getKey(), jsonOption.getValue().toString())
+          .withNamespace(UnknownPipelineOptions.class);
+      } else {
+        for (PipelineOptionSpec spec : specs) {
+          Object value = getValueFromJson(jsonOption.getKey(), spec.getGetterMethod());
+          DisplayData.Type type = DisplayData.inferType(value);
+          if (type != null) {
+            builder.add(jsonOption.getKey(), type, value)
+                .withNamespace(spec.getDefiningInterface());
+          } else {
+            builder.add(jsonOption.getKey(), value.toString())
+                .withNamespace(spec.getDefiningInterface());
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Marker interface used when the original {@link PipelineOptions} interface is not known at
+   * runtime. This can occur if {@link PipelineOptions} are deserialized from JSON.
+   *
+   * <p>Pipeline authors can ensure {@link PipelineOptions} type information is available at
+   * runtime by registering their {@link PipelineOptions options} interfaces. See the "Registration"
+   * section of {@link PipelineOptions} documentation.
+   */
+  interface UnknownPipelineOptions extends PipelineOptions {}
+
+  /**
+   * Construct a mapping from an option name to its {@link PipelineOptions} interface(s)
+   * declarations. An option may be declared in multiple interfaces. If it is overridden in a
+   * type hierarchy, only the overriding interface will be included.
+   */
+  private Multimap<String, PipelineOptionSpec> buildOptionNameToSpecMap(
+      Set<PipelineOptionSpec> props) {
+
+    Multimap<String, PipelineOptionSpec> optionsMap = HashMultimap.create();
+    for (PipelineOptionSpec prop : props) {
+      optionsMap.put(prop.getName(), prop);
+    }
+
+    // Filter out overridden options
+    for (Map.Entry<String, Collection<PipelineOptionSpec>> entry : optionsMap.asMap().entrySet()) {
+
+      /* Compare all interfaces for an option pairwise (iface1, iface2) to look for type
+       hierarchies. If one is the base-class of the other, remove it from the output and continue
+       iterating.
+
+       This is an N^2 operation per-option, but the number of interfaces defining an option
+       should always be small (usually 1). */
+      List<PipelineOptionSpec> specs = Lists.newArrayList(entry.getValue());
+      if (specs.size() < 2) {
+        // Only one known implementing interface, no need to check for inheritance
+        continue;
+      }
+
+      for (int i = 0; i < specs.size() - 1; i++) {
+        Class<?> iface1 = specs.get(i).getDefiningInterface();
+        for (int j = i + 1; j < specs.size(); j++) {
+          Class<?> iface2 = specs.get(j).getDefiningInterface();
+
+          if (iface1.isAssignableFrom(iface2)) {
+            optionsMap.remove(entry.getKey(), specs.get(i));
+            specs.remove(i);
+
+            // Removed element at current "i" index. Set iterators to re-evaluate
+            // new "i" element in outer loop.
+            i--;
+            j = specs.size();
+          } else  if (iface2.isAssignableFrom(iface1)) {
+            optionsMap.remove(entry.getKey(), specs.get(j));
+            specs.remove(j);
+
+            // Removed element at current "j" index. Set iterator to re-evaluate
+            // new "j" element in inner-loop.
+            j--;
+          }
+        }
+      }
+    }
+
+    return optionsMap;
+  }
+
+  /**
    * This will output all the currently set values. This is a relatively costly function
    * as it will call {@code toString()} on each object that has been set and format
    * the results in a readable format.
@@ -222,7 +397,9 @@ class ProxyInvocationHandler implements InvocationHandler {
     // Add the options that we received from deserialization
     sortedOptions.putAll(jsonOptions);
     // Override with any programmatically set options.
-    sortedOptions.putAll(options);
+    for (Map.Entry<String, BoundValue> entry : options.entrySet()) {
+      sortedOptions.put(entry.getKey(), entry.getValue().getValue());
+    }
 
     StringBuilder b = new StringBuilder();
     b.append("Current Settings:\n");
@@ -347,7 +524,7 @@ class ProxyInvocationHandler implements InvocationHandler {
         // We first filter out any properties that have been modified since
         // the last serialization of this PipelineOptions and then verify that
         // they are all serializable.
-        Map<String, Object> filteredOptions = Maps.newHashMap(handler.options);
+        Map<String, BoundValue> filteredOptions = Maps.newHashMap(handler.options);
         removeIgnoredOptions(handler.knownInterfaces, filteredOptions);
         ensureSerializable(handler.knownInterfaces, filteredOptions);
 
@@ -356,10 +533,23 @@ class ProxyInvocationHandler implements InvocationHandler {
         // instances that have been modified since the previous serialization.
         Map<String, Object> serializableOptions =
             Maps.<String, Object>newHashMap(handler.jsonOptions);
-        serializableOptions.putAll(filteredOptions);
+        for (Map.Entry<String, BoundValue> entry : filteredOptions.entrySet()) {
+          serializableOptions.put(entry.getKey(), entry.getValue().getValue());
+        }
+
         jgen.writeStartObject();
         jgen.writeFieldName("options");
         jgen.writeObject(serializableOptions);
+
+        List<Map<String, Object>> serializedDisplayData = Lists.newArrayList();
+        for (DisplayData.Item item : DisplayData.from(value).items()) {
+          @SuppressWarnings("unchecked")
+          Map<String, Object> serializedItem = MAPPER.convertValue(item, Map.class);
+          serializedDisplayData.add(serializedItem);
+        }
+
+        jgen.writeFieldName("display_data");
+        jgen.writeObject(serializedDisplayData);
         jgen.writeEndObject();
       }
     }
@@ -369,7 +559,7 @@ class ProxyInvocationHandler implements InvocationHandler {
      * {@link JsonIgnore @JsonIgnore} from the passed in options using the passed in interfaces.
      */
     private void removeIgnoredOptions(
-        Set<Class<? extends PipelineOptions>> interfaces, Map<String, Object> options) {
+        Set<Class<? extends PipelineOptions>> interfaces, Map<String, ?> options) {
       // Find all the method names that are annotated with JSON ignore.
       Set<String> jsonIgnoreMethodNames = FluentIterable.from(
           ReflectHelpers.getClosureOfMethodsOnInterfaces(interfaces))
@@ -394,7 +584,7 @@ class ProxyInvocationHandler implements InvocationHandler {
      * and deserializable.
      */
     private void ensureSerializable(Set<Class<? extends PipelineOptions>> interfaces,
-        Map<String, Object> options) throws IOException {
+        Map<String, BoundValue> options) throws IOException {
       // Construct a map from property name to the return type of the getter.
       Map<String, Type> propertyToReturnType = Maps.newHashMap();
       for (PropertyDescriptor descriptor
@@ -406,16 +596,16 @@ class ProxyInvocationHandler implements InvocationHandler {
       }
 
       // Attempt to serialize and deserialize each property.
-      for (Map.Entry<String, Object> entry : options.entrySet()) {
+      for (Map.Entry<String, BoundValue> entry : options.entrySet()) {
         try {
-          String serializedValue = MAPPER.writeValueAsString(entry.getValue());
+          String serializedValue = MAPPER.writeValueAsString(entry.getValue().getValue());
           JavaType type = MAPPER.getTypeFactory()
               .constructType(propertyToReturnType.get(entry.getKey()));
           MAPPER.readValue(serializedValue, type);
         } catch (Exception e) {
           throw new IOException(String.format(
               "Failed to serialize and deserialize property '%s' with value '%s'",
-              entry.getKey(), entry.getValue()), e);
+              entry.getKey(), entry.getValue().getValue()), e);
         }
       }
     }
@@ -435,7 +625,7 @@ class ProxyInvocationHandler implements InvocationHandler {
         fields.put(field.getKey(), field.getValue());
       }
       PipelineOptions options =
-          new ProxyInvocationHandler(Maps.<String, Object>newHashMap(), fields)
+          new ProxyInvocationHandler(Maps.<String, BoundValue>newHashMap(), fields)
               .as(PipelineOptions.class);
       return options;
     }
