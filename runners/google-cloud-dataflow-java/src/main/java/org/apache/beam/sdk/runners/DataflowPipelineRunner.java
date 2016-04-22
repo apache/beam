@@ -291,7 +291,6 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     String jobName =
         dataflowOptions
             .getJobName()
-            .substring(0, Math.min(dataflowOptions.getJobName().length(), 40))
             .toLowerCase();
     checkArgument(
         jobName.matches("[a-z]([-a-z0-9]*[a-z0-9])?"),
