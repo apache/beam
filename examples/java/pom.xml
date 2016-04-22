@@ -36,6 +36,10 @@
 
   <packaging>jar</packaging>
 
+  <properties>
+    <skipITs>true</skipITs>
+  </properties>
+
   <build>
     <plugins>
       <plugin>
@@ -237,7 +241,8 @@
             </goals>
             <configuration>
               <systemPropertyVariables>
-                <beamTestPipelineOptions>[ "--tempRoot=gs://clouddfe-testing-temp-storage", "--runner=org.apache.beam.sdk.testing.TestDataflowPipelineRunner" ]</beamTestPipelineOptions>
+                <!-- tempRoot is also required to run on any runner. -->
+                <beamTestPipelineOptions>${integrationTestOptions}</beamTestPipelineOptions>
               </systemPropertyVariables>
             </configuration>
           </execution>

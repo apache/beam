@@ -30,15 +30,11 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import com.google.common.base.Joiner;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Map;
 
 /**
  * End-to-end tests of WordCount.
@@ -60,24 +56,12 @@ public class WordCountIT {
     options.setOutput(Joiner.on("/").join(new String[]{options.getTempRoot(),
         options.getJobName(), "output", "results"}));
 
-    ObjectMapper mapper = new ObjectMapper();
-    Map<String, Object> stringOpts = (Map<String, Object>) mapper.readValue(
-        mapper.writeValueAsBytes(options), Map.class).get("options");
-    System.out.println("TestE2EOutput1 - " + stringOpts);
-
-    ArrayList<String> optArrayList = new ArrayList<>();
-    for (Map.Entry<String, Object> entry : stringOpts.entrySet()) {
-      optArrayList.add("--" + entry.getKey() + "=" + entry.getValue());
-    }
-    String[] args = optArrayList.toArray(new String[optArrayList.size()]);
-
-    System.out.println("TestE2EOutput - " + Arrays.toString(args));
-
-    WordCount.main(args);
+    System.out.println(Arrays.toString(TestPipeline.convertToArgs(options)));
+    WordCount.main(TestPipeline.convertToArgs(options));
     PipelineResult result =
         TestDataflowPipelineRunner.getPipelineResultByJobName(options.getJobName());
 
-    assertNotNull(result);
-    assertEquals(PipelineResult.State.DONE, result.getState());
+    assertNotNull("Result was null.", result);
+    assertEquals("Pipeline state was not done.", PipelineResult.State.DONE, result.getState());
   }
 }
