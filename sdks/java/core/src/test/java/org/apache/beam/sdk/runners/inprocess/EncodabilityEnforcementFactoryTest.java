@@ -20,6 +20,7 @@ package org.apache.beam.sdk.runners.inprocess;
 import static org.hamcrest.Matchers.isA;
 
 import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
@@ -54,16 +55,9 @@ public class EncodabilityEnforcementFactoryTest {
 
   @Test
   public void encodeFailsThrows() {
-    TestPipeline p = TestPipeline.create();
-    PCollection<Record> unencodable =
-        p.apply(Create.of(new Record()).withCoder(new RecordNoEncodeCoder()));
-    AppliedPTransform<?, ?, ?> consumer =
-        unencodable.apply(Count.<Record>globally()).getProducingTransformInternal();
-
     WindowedValue<Record> record = WindowedValue.valueInGlobalWindow(new Record());
-    CommittedBundle<Record> input =
-        bundleFactory.createRootBundle(unencodable).add(record).commit(Instant.now());
-    ModelEnforcement<Record> enforcement = factory.forBundle(input, consumer);
+
+    ModelEnforcement<Record> enforcement = createEnforcement(new RecordNoEncodeCoder(), record);
 
     thrown.expect(UserCodeException.class);
     thrown.expectCause(isA(CoderException.class));
@@ -73,16 +67,9 @@ public class EncodabilityEnforcementFactoryTest {
 
   @Test
   public void decodeFailsThrows() {
-    TestPipeline p = TestPipeline.create();
-    PCollection<Record> unencodable =
-        p.apply(Create.of(new Record()).withCoder(new RecordNoDecodeCoder()));
-    AppliedPTransform<?, ?, ?> consumer =
-        unencodable.apply(Count.<Record>globally()).getProducingTransformInternal();
     WindowedValue<Record> record = WindowedValue.valueInGlobalWindow(new Record());
 
-    CommittedBundle<Record> input =
-        bundleFactory.createRootBundle(unencodable).add(record).commit(Instant.now());
-    ModelEnforcement<Record> enforcement = factory.forBundle(input, consumer);
+    ModelEnforcement<Record> enforcement = createEnforcement(new RecordNoDecodeCoder(), record);
 
     thrown.expect(UserCodeException.class);
     thrown.expectCause(isA(CoderException.class));
@@ -92,12 +79,6 @@ public class EncodabilityEnforcementFactoryTest {
 
   @Test
   public void consistentWithEqualsStructuralValueNotEqualThrows() {
-    TestPipeline p = TestPipeline.create();
-    PCollection<Record> unencodable =
-        p.apply(Create.of(new Record()).withCoder(new RecordStructuralValueCoder()));
-    AppliedPTransform<?, ?, ?> consumer =
-        unencodable.apply(Count.<Record>globally()).getProducingTransformInternal();
-
     WindowedValue<Record> record =
         WindowedValue.<Record>valueInGlobalWindow(
             new Record() {
@@ -107,9 +88,8 @@ public class EncodabilityEnforcementFactoryTest {
               }
             });
 
-    CommittedBundle<Record> input =
-        bundleFactory.createRootBundle(unencodable).add(record).commit(Instant.now());
-    ModelEnforcement<Record> enforcement = factory.forBundle(input, consumer);
+    ModelEnforcement<Record> enforcement =
+        createEnforcement(new RecordStructuralValueCoder(), record);
 
     thrown.expect(UserCodeException.class);
     thrown.expectCause(isA(IllegalArgumentException.class));
@@ -141,6 +121,17 @@ public class EncodabilityEnforcementFactoryTest {
         input,
         StepTransformResult.withoutHold(consumer).build(),
         Collections.<CommittedBundle<?>>emptyList());
+  }
+
+  private <T> ModelEnforcement<T> createEnforcement(Coder<T> coder, WindowedValue<T> record) {
+    TestPipeline p = TestPipeline.create();
+    PCollection<T> unencodable = p.apply(Create.<T>of().withCoder(coder));
+    AppliedPTransform<?, ?, ?> consumer =
+        unencodable.apply(Count.<T>globally()).getProducingTransformInternal();
+    CommittedBundle<T> input =
+        bundleFactory.createRootBundle(unencodable).add(record).commit(Instant.now());
+    ModelEnforcement<T> enforcement = factory.forBundle(input, consumer);
+    return enforcement;
   }
 
   @Test

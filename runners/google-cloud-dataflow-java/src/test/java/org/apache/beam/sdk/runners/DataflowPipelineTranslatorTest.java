@@ -751,7 +751,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     assertEquals(2, steps.size());
 
     Step createStep = steps.get(0);
-    assertEquals("CreateCollection", createStep.getKind());
+    assertEquals("ParallelRead", createStep.getKind());
 
     Step collectionToSingletonStep = steps.get(1);
     assertEquals("CollectionToSingleton", collectionToSingletonStep.getKind());
@@ -783,7 +783,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     assertEquals(2, steps.size());
 
     Step createStep = steps.get(0);
-    assertEquals("CreateCollection", createStep.getKind());
+    assertEquals("ParallelRead", createStep.getKind());
 
     Step collectionToSingletonStep = steps.get(1);
     assertEquals("CollectionToSingleton", collectionToSingletonStep.getKind());
