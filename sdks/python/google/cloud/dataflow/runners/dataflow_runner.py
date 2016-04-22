@@ -179,18 +179,20 @@ class DataflowPipelineRunner(PipelineRunner):
             % getattr(self, 'last_error_msg', None), self.result)
     return self.result
 
-  def _get_typehint_based_encoding(self, typehint, window_value=True):
-    """Returns an encoding based on a typehint onject."""
+  def _get_typehint_based_encoding(self, typehint, window_coder):
+    """Returns an encoding based on a typehint object."""
     return self._get_cloud_encoding(self._get_coder(typehint,
-                                                    window_value=window_value))
+                                                    window_coder=window_coder))
 
-  def _get_coder(self, typehint, window_value=True):
-    """Returns a coder based on a typehint onject."""
-    if window_value:
-      coder = coders.registry.get_windowed_coder(typehint)
+  def _get_coder(self, typehint, window_coder):
+    """Returns a coder based on a typehint object."""
+    if window_coder:
+      return coders.WindowedValueCoder(
+          coders.registry.get_coder(typehint),
+          coders.TimestampCoder(),
+          window_coder)
     else:
-      coder = coders.registry.get_coder(typehint)
-    return coder
+      return coders.registry.get_coder(typehint)
 
   def _get_cloud_encoding(self, coder):
     """Returns an encoding based on a coder object."""
@@ -215,16 +217,24 @@ class DataflowPipelineRunner(PipelineRunner):
         'component_encodings': [input_encoding]
     }
 
-  def _get_transform_type_hint(self, transform_node):
-    """Returns the typehint for a applied transform node or a default."""
-    if transform_node.outputs[0].element_type is not None:
+  def _get_encoded_output_coder(self, transform_node, window_value=True):
+    """Returns the cloud encoding of the coder for the output of a transform."""
+    if (len(transform_node.outputs) == 1
+        and transform_node.outputs[0].element_type is not None):
       # TODO(robertwb): Handle type hints for multi-output transforms.
-      return transform_node.outputs[0].element_type
+      element_type = transform_node.outputs[0].element_type
     else:
       # TODO(silviuc): Remove this branch (and assert) when typehints are
       # propagated everywhere. Returning an 'Any' as type hint will trigger
       # usage of the fallback coder (i.e., cPickler).
-      return typehints.Any
+      element_type = typehints.Any
+    if window_value:
+      window_coder = (
+          transform_node.outputs[0].windowing.windowfn.get_window_coder())
+    else:
+      window_coder = None
+    return self._get_typehint_based_encoding(
+        element_type, window_coder=window_coder)
 
   def _add_step(self, step_kind, step_label, transform_node, side_tags=()):
     """Creates a Step object and adds it to the cache."""
@@ -296,8 +306,7 @@ class DataflowPipelineRunner(PipelineRunner):
            PropertyNames.STEP_NAME: input_step.proto.name,
            PropertyNames.OUTPUT_NAME: input_step.get_output(one_input.tag)})
     step.add_property(PropertyNames.INPUTS, inputs)
-    step.encoding = self._get_typehint_based_encoding(
-        self._get_transform_type_hint(transform_node))
+    step.encoding = self._get_encoded_output_coder(transform_node)
     step.add_property(
         PropertyNames.OUTPUT_INFO,
         [{PropertyNames.USER_NAME: (
@@ -306,7 +315,7 @@ class DataflowPipelineRunner(PipelineRunner):
           PropertyNames.OUTPUT_NAME: PropertyNames.OUT}])
 
   def apply_GroupByKey(self, transform, pcoll):
-    coder = self._get_coder(pcoll.element_type or typehints.Any)
+    coder = self._get_coder(pcoll.element_type or typehints.Any, None)
     if not coder.is_kv_coder():
       raise ValueError(('Coder for the GroupByKey operation "%s" is not a '
                         'key-value coder: %s.') % (transform.label,
@@ -327,8 +336,7 @@ class DataflowPipelineRunner(PipelineRunner):
         {'@type': 'OutputReference',
          PropertyNames.STEP_NAME: input_step.proto.name,
          PropertyNames.OUTPUT_NAME: input_step.get_output(input_tag)})
-    step.encoding = self._get_typehint_based_encoding(
-        self._get_transform_type_hint(transform_node))
+    step.encoding = self._get_encoded_output_coder(transform_node)
     step.add_property(
         PropertyNames.OUTPUT_INFO,
         [{PropertyNames.USER_NAME: (
@@ -381,8 +389,7 @@ class DataflowPipelineRunner(PipelineRunner):
     # Using 'out' as a tag will not clash with the name for main since it will
     # be transformed into 'out_out' internally.
     outputs = []
-    step.encoding = self._get_typehint_based_encoding(
-        self._get_transform_type_hint(transform_node))
+    step.encoding = self._get_encoded_output_coder(transform_node)
 
     # Add the main output to the description.
     outputs.append(
@@ -425,10 +432,9 @@ class DataflowPipelineRunner(PipelineRunner):
          PropertyNames.OUTPUT_NAME: input_step.get_output(input_tag)})
     # Note that the accumulator must not have a WindowedValue encoding, while
     # the output of this step does in fact have a WindowedValue encoding.
-    accumulator_encoding = self._get_typehint_based_encoding(
-        self._get_transform_type_hint(transform_node), window_value=False)
-    output_encoding = self._get_typehint_based_encoding(
-        self._get_transform_type_hint(transform_node))
+    accumulator_encoding = self._get_encoded_output_coder(transform_node,
+                                                          window_value=False)
+    output_encoding = self._get_encoded_output_coder(transform_node)
 
     step.encoding = output_encoding
     step.add_property(PropertyNames.ENCODING, accumulator_encoding)

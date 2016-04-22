@@ -26,6 +26,7 @@ from .stream cimport InputStream, OutputStream
 
 
 cdef object loads, dumps, create_InputStream, create_OutputStream
+cdef type WindowedValue
 
 
 cdef class CoderImpl(object):
@@ -72,6 +73,10 @@ cdef class VarIntCoderImpl(StreamCoderImpl):
   cpdef bytes encode(self, value)
 
 
+cdef class SingletonCoderImpl(CoderImpl):
+  cdef object _value
+
+
 cdef class AbstractComponentCoderImpl(StreamCoderImpl):
   cdef tuple _coder_impls
 
@@ -85,12 +90,20 @@ cdef class AbstractComponentCoderImpl(StreamCoderImpl):
 
 
 cdef class TupleCoderImpl(AbstractComponentCoderImpl):
-  """A coder for tuple objects."""
   pass
 
 
-cdef class WindowedValueCoderImpl(AbstractComponentCoderImpl):
+cdef class SequenceCoderImpl(StreamCoderImpl):
+  cdef CoderImpl _elem_coder
+  cpdef _construct_from_sequence(self, values)
+
+
+cdef class TupleSequenceCoderImpl(SequenceCoderImpl):
+  pass
+
+
+cdef class WindowedValueCoderImpl(StreamCoderImpl):
   """A coder for windowed values."""
-  cdef object wrapped_value_coder
-  cdef object timestamp_coder
-  cdef object window_coder
+  cdef CoderImpl _value_coder
+  cdef CoderImpl _timestamp_coder
+  cdef CoderImpl _windows_coder

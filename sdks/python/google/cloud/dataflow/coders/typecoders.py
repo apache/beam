@@ -129,16 +129,6 @@ class CoderRegistry(object):
       coder = self._fallback_coder
     return coder.from_type_hint(typehint, self)
 
-  def get_windowed_coder(self,
-                         typehint,
-                         timestamp_coder=None,
-                         window_coder=None):
-    # Values passed between steps are implicitly WindowedValue objects
-    # with a value as well as windows and so should be coded with a
-    # WindowedValueCoder.
-    return coders.WindowedValueCoder(
-        self.get_coder(typehint), timestamp_coder, window_coder)
-
   def get_custom_type_coder_tuples(self, types):
     """Returns type/coder tuples for all custom types passed in."""
     return [(t, self._coders[t]) for t in types if t in self.custom_types]

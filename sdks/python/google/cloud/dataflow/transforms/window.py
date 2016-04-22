@@ -46,6 +46,7 @@ WindowFn.
 
 from __future__ import absolute_import
 
+from google.cloud.dataflow import coders
 from google.cloud.dataflow.transforms import timeutil
 from google.cloud.dataflow.transforms.timeutil import Duration
 from google.cloud.dataflow.transforms.timeutil import MAX_TIMESTAMP
@@ -104,6 +105,9 @@ class WindowFn(object):
   def merge(self, merge_context):
     """Returns a window that is the result of merging a set of windows."""
     raise NotImplementedError
+
+  def get_window_coder(self):
+    return coders.PickleCoder()
 
   def get_transformed_output_time(self, window, input_timestamp):  # pylint: disable=unused-argument
     """Given input time and output window, returns output time for window.
@@ -263,6 +267,9 @@ class GlobalWindows(WindowFn):
 
   def merge(self, merge_context):
     pass  # No merging.
+
+  def get_window_coder(self):
+    return coders.SingletonCoder(GlobalWindow())
 
   def __hash__(self):
     return hash(type(self))

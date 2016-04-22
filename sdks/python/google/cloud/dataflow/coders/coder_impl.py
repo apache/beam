@@ -16,7 +16,7 @@
 
 The actual encode/decode implementations are split off from coders to
 allow conditional (compiled/pure) implementations, which can be used to
-encode many elements with minimial overhead.
+encode many elements with minimal overhead.
 
 This module may be optionally compiled with Cython, using the corresponding
 coder_impl.pxd file for type hints.
@@ -210,6 +210,26 @@ class VarIntCoderImpl(StreamCoderImpl):
     return StreamCoderImpl.decode(self, encoded)
 
 
+class SingletonCoderImpl(CoderImpl):
+  """A coder that always encodes exactly one value."""
+
+  def __init__(self, value):
+    self._value = value
+
+  def encode_to_stream(self, value, stream, nested):
+    pass
+
+  def decode_from_stream(self, stream, nested):
+    return self._value
+
+  def encode(self, value):
+    b = ''  # avoid byte vs str vs unicode error
+    return b
+
+  def decode(self, encoded):
+    return self._value
+
+
 class AbstractComponentCoderImpl(StreamCoderImpl):
 
   def __init__(self, coder_impls):
@@ -247,20 +267,50 @@ class TupleCoderImpl(AbstractComponentCoderImpl):
     return tuple(components)
 
 
-class WindowedValueCoderImpl(AbstractComponentCoderImpl):
+class SequenceCoderImpl(StreamCoderImpl):
+  """A coder for sequences of known length."""
+
+  def __init__(self, elem_coder):
+    self._elem_coder = elem_coder
+
+  def _construct_from_sequence(self, values):
+    raise NotImplementedError
+
+  def encode_to_stream(self, value, out, nested):
+    # Compatible with Java's IterableLikeCoder.
+    out.write_bigendian_int32(len(value))
+    for elem in value:
+      self._elem_coder.encode_to_stream(elem, out, True)
+
+  def decode_from_stream(self, in_stream, nested):
+    size = in_stream.read_bigendian_int32()
+    return self._construct_from_sequence(
+        [self._elem_coder.decode_from_stream(in_stream, True)
+         for _ in range(size)])
+
+
+class TupleSequenceCoderImpl(SequenceCoderImpl):
+  """A coder for homogeneous tuple objects."""
+
+  def _construct_from_sequence(self, components):
+    return tuple(components)
+
+
+class WindowedValueCoderImpl(StreamCoderImpl):
   """A coder for windowed values."""
 
-  def __init__(self, wrapped_value_coder, timestamp_coder, window_coder):
-    super(WindowedValueCoderImpl, self).__init__(
-        (wrapped_value_coder, timestamp_coder, window_coder))
-    self.wrapped_value_coder = wrapped_value_coder
-    self.timestamp_coder = timestamp_coder
-    self.window_coder = window_coder
+  def __init__(self, value_coder, timestamp_coder, window_coder):
+    self._value_coder = value_coder
+    self._timestamp_coder = timestamp_coder
+    self._windows_coder = TupleSequenceCoderImpl(window_coder)
 
-  def _extract_components(self, value):
-    return [value.value, value.timestamp, value.windows]
+  def encode_to_stream(self, value, out, nested):
+    self._value_coder.encode_to_stream(value.value, out, True)
+    self._timestamp_coder.encode_to_stream(value.timestamp, out, True)
+    self._windows_coder.encode_to_stream(value.windows, out, True)
 
-  def _construct_from_components(self, components):
-    return WindowedValue(components[0],  # value
-                         components[1],  # timestamp
-                         components[2])  # windows
+  def decode_from_stream(self, in_stream, nested):
+    return WindowedValue(
+        self._value_coder.decode_from_stream(in_stream, True),
+        self._timestamp_coder.decode_from_stream(in_stream, True),
+        self._windows_coder.decode_from_stream(in_stream, True))

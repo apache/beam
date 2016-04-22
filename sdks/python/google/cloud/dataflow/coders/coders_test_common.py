@@ -129,6 +129,14 @@ class CodersTest(unittest.TestCase):
                      *[float(2 ** (0.1 * x)) for x in range(-100, 100)])
     self.check_coder(coders.FloatCoder(), float('-Inf'), float('Inf'))
 
+  def test_singleton_coder(self):
+    a = 'anything'
+    b = 'something else'
+    self.check_coder(coders.SingletonCoder(a), a)
+    self.check_coder(coders.SingletonCoder(b), b)
+    self.check_coder(coders.TupleCoder((coders.SingletonCoder(a),
+                                        coders.SingletonCoder(b))), (a, b))
+
   def test_timestamp_coder(self):
     self.check_coder(coders.TimestampCoder(),
                      *[coders.Timestamp(micros=x) for x in range(-100, 100)])
@@ -152,6 +160,13 @@ class CodersTest(unittest.TestCase):
         ((1, 2), 'a'),
         ((-2, 5), u'a\u0101' * 100),
         ((300, 1), 'abc\0' * 5))
+
+  def test_tuple_sequence_coder(self):
+    int_tuple_coder = coders.TupleSequenceCoder(coders.VarIntCoder())
+    self.check_coder(int_tuple_coder, (1, -1, 0), (), tuple(range(1000)))
+    self.check_coder(
+        coders.TupleCoder((coders.VarIntCoder(), int_tuple_coder)),
+        (1, (1, 2, 3)))
 
   def test_base64_pickle_coder(self):
     self.check_coder(coders.Base64PickleCoder(), 'a', 1, 1.5, (1, 2, 3))

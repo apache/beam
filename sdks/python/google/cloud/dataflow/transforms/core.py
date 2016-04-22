@@ -1209,6 +1209,13 @@ class Flatten(PTransform):
       self._check_pcollection(pcoll)
     return pvalue.PCollection(self.pipeline)
 
+  def get_windowing(self, inputs):
+    if not inputs:
+      # TODO(robertwb): Return something compatible with every windowing?
+      return Windowing(window.GlobalWindows())
+    else:
+      return super(Flatten, self).get_windowing(inputs)
+
 
 class Create(PTransform):
   """A transform that creates a PCollection from an iterable."""

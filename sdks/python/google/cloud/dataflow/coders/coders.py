@@ -244,6 +244,19 @@ class TimestampCoder(FastCoder):
     return True
 
 
+class SingletonCoder(FastCoder):
+  """A coder that always encodes exactly one value."""
+
+  def __init__(self, value):
+    self._value = value
+
+  def _create_impl(self):
+    return coder_impl.SingletonCoderImpl(self._value)
+
+  def is_deterministic(self):
+    return True
+
+
 def maybe_dill_dumps(o):
   """Pickle using cPickle or the Dill pickler as a fallback."""
   # We need to use the dill pickler for objects of certain custom classes,
@@ -412,6 +425,29 @@ class TupleCoder(FastCoder):
 
   def __repr__(self):
     return 'TupleCoder[%s]' % ', '.join(str(c) for c in self._coders)
+
+
+class TupleSequenceCoder(FastCoder):
+  """Coder of homogeneous tuple objects."""
+
+  def __init__(self, elem_coder):
+    self._elem_coder = elem_coder
+
+  def _create_impl(self):
+    return coder_impl.TupleSequenceCoderImpl(self._elem_coder.get_impl())
+
+  def is_deterministic(self):
+    return self._elem_coder.is_deterministic()
+
+  @staticmethod
+  def from_type_hint(typehint, registry):
+    return TupleSequenceCoder(registry.get_coder(typehint.inner_type))
+
+  def _get_component_coders(self):
+    return (self._elem_coder,)
+
+  def __repr__(self):
+    return 'TupleSequenceCoder[%r]' % self._elem_coder
 
 
 class WindowCoder(PickleCoder):
