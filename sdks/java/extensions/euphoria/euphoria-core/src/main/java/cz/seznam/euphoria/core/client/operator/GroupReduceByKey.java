@@ -193,7 +193,7 @@ public class GroupReduceByKey<GROUP_KEY, IN, KEY, VALUE, OUT, W extends Window<?
 
     Flow flow = getFlow();
     reduceState = new ReduceStateByKey<>(
-        flow, input, keyExtractor,
+        flow, (GroupedDataset<GROUP_KEY, IN>) input, keyExtractor,
         k -> valueExtractor.apply(k.getSecond()),
         windowing,
         ReduceState::new,
