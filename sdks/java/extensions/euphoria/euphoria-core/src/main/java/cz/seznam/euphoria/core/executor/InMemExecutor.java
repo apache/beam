@@ -204,7 +204,7 @@ public class InMemExecutor implements Executor {
     sources.stream()
         .forEach(d -> context.add(d, createStream(d)));
     List<ExecUnit> units = ExecUnit.split(flow);
-    final List<Future> runningThreads = new ArrayList<>();
+    final List<Future> runningTasks = new ArrayList<>();
     for (ExecUnit unit : units) {
       execUnit(unit, context);
     }
@@ -215,7 +215,7 @@ public class InMemExecutor implements Executor {
       int part = 0;
       for (Supplier s : context.get(o)) {
         final Writer writer = sink.openWriter(part++);
-        runningThreads.add(executor.submit(() -> {
+        runningTasks.add(executor.submit(() -> {
           try {
             try {
               for (;;) {
@@ -229,7 +229,6 @@ public class InMemExecutor implements Executor {
           } catch (IOException ex) {
             try {
               writer.rollback();
-              sink.rollback();
               // propagate exception
               throw new RuntimeException(ex);
             } catch (IOException ioex) {
@@ -249,21 +248,27 @@ public class InMemExecutor implements Executor {
       }
     }
 
+    // extract all processed sinks
+    List<DataSink<?>> sinks = outputs.stream()
+            .map(Dataset::getOutputSink)
+            .collect(Collectors.toList());
+
     // wait for all threads to finish
-    for (Future f : runningThreads) {
+    for (Future f : runningTasks) {
       try {
         f.get();
       } catch (InterruptedException e) {
         break;
       } catch (ExecutionException e) {
+        // when any one of the tasks fails rollback all sinks and fail
+        sinks.forEach(DataSink::rollback);
         throw new RuntimeException(e);
       }
     }
 
     // commit all sinks
     try {
-      for (Dataset<?> o : outputs) {
-        DataSink<?> s = o.getOutputSink();
+      for (DataSink<?> s : sinks) {
         s.commit();
       }
     } catch (IOException e) {
