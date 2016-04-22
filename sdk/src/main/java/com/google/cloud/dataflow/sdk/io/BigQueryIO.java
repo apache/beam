@@ -56,6 +56,8 @@ import com.google.cloud.dataflow.sdk.util.BigQueryServices.LoadService;
 import com.google.cloud.dataflow.sdk.util.BigQueryServicesImpl;
 import com.google.cloud.dataflow.sdk.util.BigQueryTableInserter;
 import com.google.cloud.dataflow.sdk.util.BigQueryTableRowIterator;
+import com.google.cloud.dataflow.sdk.util.IOChannelFactory;
+import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
 import com.google.cloud.dataflow.sdk.util.MimeTypes;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
 import com.google.cloud.dataflow.sdk.util.Reshuffle;
@@ -1014,7 +1016,18 @@ public class BigQueryIO {
           table.setProjectId(options.getProject());
         }
         String jobIdToken = UUID.randomUUID().toString();
-        String tempFilePrefix = options.getTempLocation() + "/BigQuerySinkTemp/" + jobIdToken;
+        String tempLocation = options.getTempLocation();
+        String tempFilePrefix;
+        try {
+          IOChannelFactory factory = IOChannelUtils.getFactory(tempLocation);
+          tempFilePrefix = factory.resolve(
+              factory.resolve(tempLocation, "BigQuerySinkTemp"),
+              jobIdToken);
+        } catch (IOException e) {
+          throw new RuntimeException(
+              String.format("Failed to resolve BigQuery temp location in %s", tempLocation),
+              e);
+        }
         BigQueryServices bqServices = getBigQueryServices();
         return input.apply("Write", com.google.cloud.dataflow.sdk.io.Write.to(
             new BigQuerySink(
