@@ -21,7 +21,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.values.TupleTag;
-import com.google.common.base.Supplier;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -71,18 +70,27 @@ public abstract class BaseExecutionContext<T extends ExecutionContext.StepContex
     final String finalTransformName = transformName;
     return getOrCreateStepContext(
         stepName,
-        new Supplier<T>() {
+        new CreateStepContextFunction<T>() {
           @Override
-          public T get() {
+          public T create() {
             return createStepContext(finalStepName, finalTransformName);
           }
         });
   }
 
-  protected final T getOrCreateStepContext(String stepName, Supplier<T> createContextFunc) {
+  /**
+   * Factory method interface to create an execution context if none exists during
+   * {@link #getOrCreateStepContext(String, CreateStepContextFunction)}.
+   */
+  protected interface CreateStepContextFunction<T extends ExecutionContext.StepContext> {
+    T create();
+  }
+
+  protected final T getOrCreateStepContext(String stepName,
+      CreateStepContextFunction<T> createContextFunc) {
     T context = cachedStepContexts.get(stepName);
     if (context == null) {
-      context = createContextFunc.get();
+      context = createContextFunc.create();
       cachedStepContexts.put(stepName, context);
     }
 
