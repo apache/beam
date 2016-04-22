@@ -144,7 +144,7 @@ public class DataflowPipelineRunnerTest {
   private static void assertValidJob(Job job) {
     assertNull(job.getId());
     assertNull(job.getCurrentState());
-    assertTrue(Pattern.matches("[a-z]([-a-z0-9]{0,38}[a-z0-9])?", job.getName()));
+    assertTrue(Pattern.matches("[a-z]([-a-z0-9]*[a-z0-9])?", job.getName()));
   }
 
   private Pipeline buildDataflowPipeline(DataflowPipelineOptions options) {
@@ -229,17 +229,6 @@ public class DataflowPipelineRunnerTest {
     options.setGcsUtil(buildMockGcsUtil(true /* bucket exists */));
     options.setGcpCredential(new TestCredential());
     return options;
-  }
-
-  @Test
-  public void testFromOptionsWithLongNameTruncates() throws Exception {
-    String longName = "thisnameisreallyquitelonganddoneinordertoforcetruncation";
-    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
-    DataflowPipelineOptions options = buildPipelineOptions(jobCaptor);
-    options.setJobName(longName);
-
-    DataflowPipelineRunner runner = DataflowPipelineRunner.fromOptions(options);
-    assertThat(options.getJobName(), equalTo(longName.substring(0, 40)));
   }
 
   @Test
