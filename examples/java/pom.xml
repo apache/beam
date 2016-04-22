@@ -242,7 +242,7 @@
             <configuration>
               <systemPropertyVariables>
                 <!-- tempRoot is also required to run on any runner. -->
-                <beamTestPipelineOptions>${integrationTestOptions}</beamTestPipelineOptions>
+                <beamTestPipelineOptions>${integrationTestPipelineOptions}</beamTestPipelineOptions>
               </systemPropertyVariables>
             </configuration>
           </execution>
