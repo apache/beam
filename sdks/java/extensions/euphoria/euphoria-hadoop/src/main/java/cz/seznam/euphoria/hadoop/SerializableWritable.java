@@ -1,4 +1,4 @@
-package cz.seznam.euphoria.hadoop.input;
+package cz.seznam.euphoria.hadoop;
 
 import org.apache.hadoop.io.Writable;
 
@@ -10,7 +10,7 @@ import java.io.Serializable;
 /**
  * Decorates {@link Writable} with {@link Serializable} interface.
  */
-class SerializableWritable<W extends Writable> implements Serializable {
+public class SerializableWritable<W extends Writable> implements Serializable {
 
   private W writable;
 

@@ -1,4 +1,4 @@
-package cz.seznam.euphoria.hadoop.input;
+package cz.seznam.euphoria.hadoop;
 
 
 import org.apache.commons.io.output.ByteArrayOutputStream;
