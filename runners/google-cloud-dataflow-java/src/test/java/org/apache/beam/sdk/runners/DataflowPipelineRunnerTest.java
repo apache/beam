@@ -69,9 +69,9 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.DataflowReleaseInfo;
 import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.NoopPathValidator;
+import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.util.TestCredential;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -376,10 +376,10 @@ public class DataflowPipelineRunnerTest {
         cloudDataflowDataset,
         workflowJob.getEnvironment().getDataset());
     assertEquals(
-        DataflowReleaseInfo.getReleaseInfo().getName(),
+        ReleaseInfo.getReleaseInfo().getName(),
         workflowJob.getEnvironment().getUserAgent().get("name"));
     assertEquals(
-        DataflowReleaseInfo.getReleaseInfo().getVersion(),
+        ReleaseInfo.getReleaseInfo().getVersion(),
         workflowJob.getEnvironment().getUserAgent().get("version"));
   }
 

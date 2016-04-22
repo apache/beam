@@ -28,27 +28,27 @@ import java.io.InputStream;
 import java.util.Properties;
 
 /**
- * Utilities for working with the Dataflow distribution.
+ * Utilities for working with release information.
  */
-public final class DataflowReleaseInfo extends GenericJson {
-  private static final Logger LOG = LoggerFactory.getLogger(DataflowReleaseInfo.class);
+public final class ReleaseInfo extends GenericJson {
+  private static final Logger LOG = LoggerFactory.getLogger(ReleaseInfo.class);
 
-  private static final String DATAFLOW_PROPERTIES_PATH =
-      "/org.apache.beam/sdk/sdk.properties";
+  private static final String PROPERTIES_PATH =
+      "/org/apache/beam/sdk/sdk.properties";
 
   private static class LazyInit {
-    private static final DataflowReleaseInfo INSTANCE =
-        new DataflowReleaseInfo(DATAFLOW_PROPERTIES_PATH);
+    private static final ReleaseInfo INSTANCE =
+        new ReleaseInfo(PROPERTIES_PATH);
   }
 
   /**
    * Returns an instance of DataflowReleaseInfo.
    */
-  public static DataflowReleaseInfo getReleaseInfo() {
+  public static ReleaseInfo getReleaseInfo() {
     return LazyInit.INSTANCE;
   }
 
-  @Key private String name = "Google Cloud Dataflow Java SDK";
+  @Key private String name = "Apache Beam SDK for Java";
   @Key private String version = "Unknown";
 
   /** Provides the SDK name. */
@@ -61,11 +61,11 @@ public final class DataflowReleaseInfo extends GenericJson {
     return version;
   }
 
-  private DataflowReleaseInfo(String resourcePath) {
+  private ReleaseInfo(String resourcePath) {
     Properties properties = new Properties();
 
-    InputStream in = DataflowReleaseInfo.class.getResourceAsStream(
-        DATAFLOW_PROPERTIES_PATH);
+    InputStream in = ReleaseInfo.class.getResourceAsStream(
+        PROPERTIES_PATH);
     if (in == null) {
       LOG.warn("Dataflow properties resource not found: {}", resourcePath);
       return;

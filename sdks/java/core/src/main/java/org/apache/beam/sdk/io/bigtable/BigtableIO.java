@@ -35,7 +35,7 @@ import org.apache.beam.sdk.io.range.ByteKeyRangeTracker;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.util.DataflowReleaseInfo;
+import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -978,7 +978,7 @@ public class BigtableIO {
    */
   private static String getUserAgent() {
     String javaVersion = System.getProperty("java.specification.version");
-    DataflowReleaseInfo info = DataflowReleaseInfo.getReleaseInfo();
+    ReleaseInfo info = ReleaseInfo.getReleaseInfo();
     return String.format(
         "%s/%s (%s); %s",
         info.getName(),
