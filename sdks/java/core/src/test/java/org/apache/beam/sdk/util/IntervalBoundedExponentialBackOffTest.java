@@ -41,19 +41,19 @@ public class IntervalBoundedExponentialBackOffTest {
   public void testUsingInvalidInitialInterval() throws Exception {
     exception.expect(IllegalArgumentException.class);
     exception.expectMessage("Initial interval must be greater than zero.");
-    new IntervalBoundedExponentialBackOff(1000, 0L);
+    new IntervalBoundedExponentialBackOff(1000L, 0L);
   }
 
   @Test
   public void testUsingInvalidMaximumInterval() throws Exception {
     exception.expect(IllegalArgumentException.class);
     exception.expectMessage("Maximum interval must be greater than zero.");
-    new IntervalBoundedExponentialBackOff(-1, 10L);
+    new IntervalBoundedExponentialBackOff(-1L, 10L);
   }
 
   @Test
   public void testThatcertainNumberOfAttemptsReachesMaxInterval() throws Exception {
-    IntervalBoundedExponentialBackOff backOff = new IntervalBoundedExponentialBackOff(1000, 500);
+    IntervalBoundedExponentialBackOff backOff = new IntervalBoundedExponentialBackOff(1000L, 500);
     assertThat(backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(249L), lessThan(751L)));
     assertThat(backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(374L), lessThan(1126L)));
     assertThat(backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(500L),
@@ -70,7 +70,7 @@ public class IntervalBoundedExponentialBackOffTest {
 
   @Test
   public void testThatResettingAllowsReuse() throws Exception {
-    IntervalBoundedExponentialBackOff backOff = new IntervalBoundedExponentialBackOff(1000, 500);
+    IntervalBoundedExponentialBackOff backOff = new IntervalBoundedExponentialBackOff(1000L, 500);
     assertThat(backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(249L), lessThan(751L)));
     assertThat(backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(374L), lessThan(1126L)));
     assertThat(backOff.nextBackOffMillis(), allOf(greaterThanOrEqualTo(500L),
@@ -88,7 +88,7 @@ public class IntervalBoundedExponentialBackOffTest {
 
   @Test
   public void testAtMaxInterval() throws Exception {
-    IntervalBoundedExponentialBackOff backOff = new IntervalBoundedExponentialBackOff(1000, 500);
+    IntervalBoundedExponentialBackOff backOff = new IntervalBoundedExponentialBackOff(1000L, 500);
     assertFalse(backOff.atMaxInterval());
     backOff.nextBackOffMillis();
     assertFalse(backOff.atMaxInterval());
