@@ -821,8 +821,12 @@ public class InMemoryWatermarkManagerTest implements Serializable {
   @Test
   public void synchronizedProcessingInputTimeIsHeldToPendingElementTimes() {
     CommittedBundle<Integer> created = multiWindowedBundle(createdInts, 1, 2);
-    manager.updateWatermarks(null, createdInts.getProducingTransformInternal(), TimerUpdate.empty(),
-        Collections.<CommittedBundle<?>>singleton(created), new Instant(29_919_235L));
+    manager.updateWatermarks(
+        null,
+        createdInts.getProducingTransformInternal(),
+        TimerUpdate.empty(),
+        Collections.<CommittedBundle<?>>singleton(created),
+        new Instant(29_919_235L));
 
     Instant upstreamHold = new Instant(2048L);
     WindowedValue<Integer> filteredElemOne =
@@ -836,8 +840,7 @@ public class InMemoryWatermarkManagerTest implements Serializable {
     CommittedBundle<Integer> filteredBundle =
         bundleFactory
             .createKeyedBundle(created, "key", filtered)
-            .add(
-                filteredElemOne)
+            .add(filteredElemOne)
             .commit(upstreamHold);
     manager.updateWatermarks(
         created,
@@ -853,6 +856,7 @@ public class InMemoryWatermarkManagerTest implements Serializable {
     clock.set(BoundedWindow.TIMESTAMP_MAX_VALUE);
     assertThat(downstreamWms.getSynchronizedProcessingInputTime(), equalTo(upstreamHold));
 
+    // Demonstrate that when we remove all of the elements we release the hold.
     CommittedBundle<Integer> halfFilteredBundle =
         bundleFactory
             .createKeyedBundle(created, "key", filtered)

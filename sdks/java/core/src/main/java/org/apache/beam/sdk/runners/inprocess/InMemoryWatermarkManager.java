@@ -385,6 +385,10 @@ public class InMemoryWatermarkManager {
    */
   private static class SynchronizedProcessingTimeInputWatermark implements Watermark {
     private final Collection<? extends Watermark> inputWms;
+    /**
+     * A mapping between all of the pending (value, window) pairs to all synchronized processing
+     * times at which the value was committed.
+     */
     private final ListMultimap<WindowedValue<?>, Instant> pendingValueHolds;
     private final Map<Object, NavigableSet<TimerData>> processingTimers;
     private final Map<Object, NavigableSet<TimerData>> synchronizedProcessingTimers;
@@ -423,8 +427,9 @@ public class InMemoryWatermarkManager {
      * </ul>
      *
      * <p>
-     * Note that this value is not monotonic, but the returned value for the synchronized processing
-     * time must be.
+     * Note that the value of the SynchronizedProcessingTimeInputWatermark represents an upper bound
+     * on the returned SynchronziedProcessingTime and may not be monotonic, but the returned value
+     * for the synchronized processing time must be.
      */
     @Override
     public synchronized WatermarkUpdate refresh() {
@@ -441,9 +446,11 @@ public class InMemoryWatermarkManager {
     }
 
     /**
-     * Add the elements contained within the {@link CommittedBundle bundle} to the collection of
-     * pending elements, holding the {@link SynchronizedProcessingTimeInputWatermark} to the
-     * synchronized processing time the bundle was committed.
+     * Add the provided elements to the collection of pending elements, holding this
+     * {@link SynchronizedProcessingTimeInputWatermark} to the hold.
+     *
+     * @param elements the elements that have been committed and are now pending
+     * @param hold the time at which the elements were originally committed
      */
     public synchronized void addPendingElements(
         Iterable<? extends WindowedValue<?>> elements, Instant hold) {
@@ -453,8 +460,10 @@ public class InMemoryWatermarkManager {
     }
 
     /**
-     * For each element within the {@link CommittedBundle bundle}, remove a single hold for that
-     * element at the synchronized processing time the bundle was committed.
+     * For each element, remove a single hold for that element at the provided hold.
+     *
+     * @param elements the elements that have been processed at this step
+     * @param hold the time at which the elements were originally committed
      */
     public synchronized void removePendingElements(
         Iterable<? extends WindowedValue<?>> elements, Instant hold) {
