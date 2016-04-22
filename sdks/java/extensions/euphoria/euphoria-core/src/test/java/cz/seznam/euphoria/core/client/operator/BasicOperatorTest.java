@@ -13,11 +13,14 @@ import cz.seznam.euphoria.core.client.io.StdoutSink;
 import cz.seznam.euphoria.core.client.io.TCPLineStreamSource;
 import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.core.executor.InMemExecutor;
+import cz.seznam.euphoria.core.executor.InMemFileSystem;
 import cz.seznam.euphoria.core.util.Settings;
 import org.junit.Ignore;
 import org.junit.Test;
 
 import java.net.URI;
+import java.time.Duration;
+import java.util.Arrays;
 
 // TODO: Will be moved to euphoria-examples
 /**
@@ -28,20 +31,33 @@ public class BasicOperatorTest {
   Executor executor = new InMemExecutor();
 
   @Test
-  @Ignore
   public void testWordCountStreamAndBatch() throws Exception {
 
+    InMemFileSystem.get()
+        .reset()
+        .setFile("/tmp/foo.txt", Duration.ofSeconds(1), Arrays.asList(
+          " Anna Pavlovna's drawing room was gradually filling. The highest Petersburg\n",
+          "society was assembled there: people differing widely in age and\n",
+          "character but alike in the social circle to which they belonged. Prince\n",
+          "Vasili's daughter, the beautiful Helene, came to take her father to the\n",
+          "ambassador's entertainment; she wore a ball dress and her badge as maid\n",
+          "of honor. The youthful little Princess Bolkonskaya, known as la femme la\n",
+          " plus seduisante de Petersbourg,* was also there. She had been married\n",
+          "during the previous winter, and being pregnant did not go to any large\n",
+          "gatherings, but only to small receptions. Prince Vasili's son,\n",
+          "Hippolyte, had come with Mortemart, whom he introduced. The Abbe Morio\n",
+          "and many others had also come.\n"
+        ));
+
     Settings settings = new Settings();
-    settings.setClass("euphoria.io.datasource.factory.tcp",
-        TCPLineStreamSource.Factory.class);
+    settings.setClass("euphoria.io.datasource.factory.inmem",
+        InMemFileSystem.Factory.class);
     settings.setClass("euphoria.io.datasink.factory.stdout",
         StdoutSink.Factory.class);
 
     Flow flow = Flow.create("Test", settings);
-    // let's pretend we have this, this dataset might be stream or batch
-    // (don't know and don't care)
-    Dataset<String> lines = flow.createInput(new URI("tcp://localhost:8080"));
-    
+    Dataset<String> lines = flow.createInput(URI.create("inmem:///tmp/foo.txt"));
+
     // expand it to words
     Dataset<Pair<String, Long>> words = FlatMap.of(lines)
         .by((String s, Collector<Pair<String, Long>> c) -> {
@@ -69,7 +85,6 @@ public class BasicOperatorTest {
     streamOutput.persist(URI.create("stdout:///"));
 
     executor.waitForCompletion(flow);
-        
   }
 
   @Test
