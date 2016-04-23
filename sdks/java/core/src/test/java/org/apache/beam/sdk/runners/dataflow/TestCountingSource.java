@@ -155,6 +155,10 @@ public class TestCountingSource
     return dedup;
   }
 
+  /**
+   * Public only so that the checkpoint can be conveyed from {@link #getCheckpointMark()} to
+   * {@link TestCountingSource#createReader(PipelineOptions, CounterMark)} without cast.
+   */
   public class CountingSourceReader extends UnboundedReader<KV<Integer, Integer>> {
     private int current;
 
