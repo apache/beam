@@ -155,7 +155,7 @@ public class TestCountingSource
     return dedup;
   }
 
-  private class CountingSourceReader extends UnboundedReader<KV<Integer, Integer>> {
+  public class CountingSourceReader extends UnboundedReader<KV<Integer, Integer>> {
     private int current;
 
     public CountingSourceReader(int startingPoint) {
@@ -215,7 +215,7 @@ public class TestCountingSource
     }
 
     @Override
-    public CheckpointMark getCheckpointMark() {
+    public CounterMark getCheckpointMark() {
       if (throwOnFirstSnapshot && !thrown) {
         thrown = true;
         LOG.error("Throwing exception while checkpointing counter");
