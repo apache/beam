@@ -36,6 +36,10 @@
 
   <packaging>jar</packaging>
 
+  <properties>
+    <skipITs>true</skipITs>
+  </properties>
+
   <build>
     <plugins>
       <plugin>
@@ -220,6 +224,28 @@
       <plugin>
         <groupId>org.jacoco</groupId>
         <artifactId>jacoco-maven-plugin</artifactId>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <configuration>
+          <useManifestOnlyJar>false</useManifestOnlyJar>
+          <redirectTestOutputToFile>true</redirectTestOutputToFile>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>integration-test</goal>
+              <goal>verify</goal>
+            </goals>
+            <configuration>
+              <systemPropertyVariables>
+                <beamTestPipelineOptions>${integrationTestPipelineOptions}</beamTestPipelineOptions>
+              </systemPropertyVariables>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>

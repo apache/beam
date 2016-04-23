@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.testing;
 
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.DataflowJobExecutionException;
@@ -33,6 +34,7 @@ import org.apache.beam.sdk.values.POutput;
 import com.google.api.services.dataflow.model.JobMessage;
 import com.google.api.services.dataflow.model.JobMetrics;
 import com.google.api.services.dataflow.model.MetricUpdate;
+import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 
@@ -42,7 +44,9 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -56,6 +60,8 @@ import java.util.concurrent.TimeUnit;
 public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> {
   private static final String TENTATIVE_COUNTER = "tentative";
   private static final Logger LOG = LoggerFactory.getLogger(TestDataflowPipelineRunner.class);
+  private static final Map<String, PipelineResult> EXECUTION_RESULTS =
+      new ConcurrentHashMap<String, PipelineResult>();
 
   private final TestDataflowPipelineOptions options;
   private final DataflowPipelineRunner runner;
@@ -72,8 +78,15 @@ public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJ
   public static TestDataflowPipelineRunner fromOptions(
       PipelineOptions options) {
     TestDataflowPipelineOptions dataflowOptions = options.as(TestDataflowPipelineOptions.class);
+    dataflowOptions.setStagingLocation(Joiner.on("/").join(
+        new String[]{dataflowOptions.getTempRoot(),
+          dataflowOptions.getJobName(), "output", "results"}));
 
     return new TestDataflowPipelineRunner(dataflowOptions);
+  }
+
+  public static PipelineResult getPipelineResultByJobName(String jobName) {
+    return EXECUTION_RESULTS.get(jobName);
   }
 
   @Override
@@ -146,6 +159,7 @@ public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJ
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
+    EXECUTION_RESULTS.put(options.getJobName(), job);
     return job;
   }
 
