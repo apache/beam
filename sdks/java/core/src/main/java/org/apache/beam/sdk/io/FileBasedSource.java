@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
 
@@ -271,6 +272,12 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
 
     return files.size() * getExactTotalSizeOfFiles(selectedFiles, ioChannelFactory)
         / selectedFiles.size();
+  }
+
+  @Override
+  public void populateDisplayData(DisplayData.Builder builder) {
+    super.populateDisplayData(builder);
+    builder.add("filePattern", getFileOrPatternSpec());
   }
 
   private ListenableFuture<List<? extends FileBasedSource<T>>> createFutureForFileSplit(

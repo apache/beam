@@ -20,6 +20,8 @@ package org.apache.beam.sdk.io;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 
+import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.joda.time.Instant;
 
 import java.io.IOException;
@@ -52,7 +54,7 @@ import java.util.NoSuchElementException;
  * @param <T> Type of elements read by the source.
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
-public abstract class Source<T> implements Serializable {
+public abstract class Source<T> implements Serializable, HasDisplayData {
   /**
    * Checks that this source is valid, before it can be used in a pipeline.
    *
@@ -65,6 +67,15 @@ public abstract class Source<T> implements Serializable {
    * Returns the default {@code Coder} to use for the data read from this source.
    */
   public abstract Coder<T> getDefaultOutputCoder();
+
+  /**
+   * {@inheritDoc}
+   *
+   * <p>By default, does not register any display data. Implementors may override this method
+   * to provide their own display metadata.
+   */
+  @Override
+  public void populateDisplayData(DisplayData.Builder builder) {}
 
   /**
    * The interface that readers of custom input sources must implement.

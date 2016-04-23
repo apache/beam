@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionE
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionFails;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionSucceedsAndConsistent;
 
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.Matchers.both;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
@@ -34,6 +35,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 
 import com.google.common.collect.ImmutableList;
@@ -823,5 +825,24 @@ public class XmlSourceTest {
 
     PAssert.that(output).containsInAnyOrder(expectedResults);
     p.run();
+  }
+
+  @Test
+  public void testDisplayData() {
+
+
+    XmlSource<?> source = XmlSource
+        .<Integer>from("foo.xml")
+        .withRootElement("bird")
+        .withRecordElement("cat")
+        .withMinBundleSize(1234)
+        .withRecordClass(Integer.class);
+    DisplayData displayData = DisplayData.from(source);
+
+    assertThat(displayData, hasDisplayItem("filePattern", "foo.xml"));
+    assertThat(displayData, hasDisplayItem("rootElement", "bird"));
+    assertThat(displayData, hasDisplayItem("recordElement", "cat"));
+    assertThat(displayData, hasDisplayItem("recordClass", Integer.class));
+    assertThat(displayData, hasDisplayItem("minBundleSize", 1234));
   }
 }
