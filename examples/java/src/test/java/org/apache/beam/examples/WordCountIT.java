@@ -34,8 +34,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-import java.util.Arrays;
-
 /**
  * End-to-end tests of WordCount.
  */
@@ -56,7 +54,6 @@ public class WordCountIT {
     options.setOutput(Joiner.on("/").join(new String[]{options.getTempRoot(),
         options.getJobName(), "output", "results"}));
 
-    System.out.println(Arrays.toString(TestPipeline.convertToArgs(options)));
     WordCount.main(TestPipeline.convertToArgs(options));
     PipelineResult result =
         TestDataflowPipelineRunner.getPipelineResultByJobName(options.getJobName());
