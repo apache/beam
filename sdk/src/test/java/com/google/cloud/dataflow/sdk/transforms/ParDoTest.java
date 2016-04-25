@@ -1534,7 +1534,7 @@ public class ParDoTest implements Serializable {
 
       @Override
       public void populateDisplayData(Builder builder) {
-        builder.add("doFnMetadata", "bar");
+        builder.add(DisplayData.item("doFnMetadata", "bar"));
       }
     };
 
@@ -1557,7 +1557,7 @@ public class ParDoTest implements Serializable {
 
       @Override
       public void populateDisplayData(Builder builder) {
-        builder.add("fnMetadata", "foobar");
+        builder.add(DisplayData.item("fnMetadata", "foobar"));
       }
     };
 
@@ -1576,7 +1576,7 @@ public class ParDoTest implements Serializable {
 
       @Override
       public void populateDisplayData(Builder builder) {
-        builder.add("fnMetadata", "foobar");
+        builder.add(DisplayData.item("fnMetadata", "foobar"));
       }
     };
 

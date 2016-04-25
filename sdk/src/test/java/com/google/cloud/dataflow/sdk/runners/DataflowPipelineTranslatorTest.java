@@ -820,10 +820,10 @@ public class DataflowPipelineTranslatorTest implements Serializable {
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
         builder
-            .add("foo", "bar")
-            .add("foo2", DataflowPipelineTranslatorTest.class)
-            .withLabel("Test Class")
-            .withLinkUrl("http://www.google.com");
+            .add(DisplayData.item("foo", "bar"))
+            .add(DisplayData.item("foo2", DataflowPipelineTranslatorTest.class)
+                .withLabel("Test Class")
+                .withLinkUrl("http://www.google.com"));
       }
     };
 
@@ -835,7 +835,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
-        builder.add("foo3", 1234);
+        builder.add(DisplayData.item("foo3", 1234));
       }
     };
 

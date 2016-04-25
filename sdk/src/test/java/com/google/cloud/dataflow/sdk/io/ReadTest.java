@@ -73,13 +73,13 @@ public class ReadTest implements Serializable{
     SerializableBoundedSource boundedSource = new SerializableBoundedSource() {
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
-        builder.add("foo", "bar");
+        builder.add(DisplayData.item("foo", "bar"));
       }
     };
     SerializableUnboundedSource unboundedSource = new SerializableUnboundedSource() {
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
-        builder.add("foo", "bar");
+        builder.add(DisplayData.item("foo", "bar"));
       }
     };
     Duration maxReadTime = Duration.standardMinutes(2345);
