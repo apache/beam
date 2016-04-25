@@ -21,16 +21,16 @@ import org.apache.beam.sdk.transforms.PTransform;
 
 /**
  * Marker interface for {@link PTransform PTransforms} and components used within
- * {@link PTransform PTransforms} to specify display metadata to be used within UIs and diagnostic
+ * {@link PTransform PTransforms} to specify display data to be used within UIs and diagnostic
  * tools.
  *
- * <p>Display metadata is optional and may be collected during pipeline construction. It should
+ * <p>Display data is optional and may be collected during pipeline construction. It should
  * only be used to informational purposes. Tools and components should not assume that display data
  * will always be collected, or that collected display data will always be displayed.
  */
 public interface HasDisplayData {
   /**
-   * Register display metadata for the given transform or component. Metadata can be registered
+   * Register display data for the given transform or component. Metadata can be registered
    * directly on the provided builder, as well as via included sub-components.
    *
    * <pre>
@@ -49,7 +49,7 @@ public interface HasDisplayData {
    * }
    * </pre>
    *
-   * @param builder The builder to populate with display metadata.
+   * @param builder The builder to populate with display data.
    */
   void populateDisplayData(DisplayData.Builder builder);
 }
