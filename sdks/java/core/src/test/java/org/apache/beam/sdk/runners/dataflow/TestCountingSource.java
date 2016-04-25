@@ -155,7 +155,11 @@ public class TestCountingSource
     return dedup;
   }
 
-  private class CountingSourceReader extends UnboundedReader<KV<Integer, Integer>> {
+  /**
+   * Public only so that the checkpoint can be conveyed from {@link #getCheckpointMark()} to
+   * {@link TestCountingSource#createReader(PipelineOptions, CounterMark)} without cast.
+   */
+  public class CountingSourceReader extends UnboundedReader<KV<Integer, Integer>> {
     private int current;
 
     public CountingSourceReader(int startingPoint) {
@@ -164,21 +168,20 @@ public class TestCountingSource
 
     @Override
     public boolean start() {
-      return true;
+      return advance();
     }
 
     @Override
     public boolean advance() {
-      if (current < numMessagesPerShard - 1) {
-        // If testing dedup, occasionally insert a duplicate value;
-        if (dedup && ThreadLocalRandom.current().nextInt(5) == 0) {
-          return true;
-        }
-        current++;
-        return true;
-      } else {
+      if (current >= numMessagesPerShard) {
         return false;
       }
+      // If testing dedup, occasionally insert a duplicate value;
+      if (current >= 0 && dedup && ThreadLocalRandom.current().nextInt(5) == 0) {
+        return true;
+      }
+      current++;
+      return current < numMessagesPerShard;
     }
 
     @Override
@@ -216,12 +219,14 @@ public class TestCountingSource
     }
 
     @Override
-    public CheckpointMark getCheckpointMark() {
+    public CounterMark getCheckpointMark() {
       if (throwOnFirstSnapshot && !thrown) {
         thrown = true;
         LOG.error("Throwing exception while checkpointing counter");
         throw new RuntimeException("failed during checkpoint");
       }
+      // The checkpoint can assume all records read, including the current, have
+      // been commited.
       return new CounterMark(current);
     }
 
@@ -234,7 +239,12 @@ public class TestCountingSource
   @Override
   public CountingSourceReader createReader(
       PipelineOptions options, @Nullable CounterMark checkpointMark) {
-    return new CountingSourceReader(checkpointMark != null ? checkpointMark.current : 0);
+    if (checkpointMark == null) {
+      LOG.debug("creating reader");
+    } else {
+      LOG.debug("restoring reader from checkpoint with current = {}", checkpointMark.current);
+    }
+    return new CountingSourceReader(checkpointMark != null ? checkpointMark.current : -1);
   }
 
   @Override
