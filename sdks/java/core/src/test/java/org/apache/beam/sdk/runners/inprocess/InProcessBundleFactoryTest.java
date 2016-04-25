@@ -27,6 +27,8 @@ import org.apache.beam.sdk.runners.inprocess.InProcessPipelineRunner.Uncommitted
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.WithKeys;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -97,7 +99,8 @@ public class InProcessBundleFactoryTest {
     createKeyedBundle(new Object());
   }
 
-  private <T> void afterCommitGetElementsShouldHaveAddedElements(Iterable<WindowedValue<T>> elems) {
+  private <T> CommittedBundle<T>
+  afterCommitGetElementsShouldHaveAddedElements(Iterable<WindowedValue<T>> elems) {
     PCollection<T> pcollection = TestPipeline.create().apply(Create.<T>of());
 
     UncommittedBundle<T> bundle = bundleFactory.createRootBundle(pcollection);
@@ -108,7 +111,10 @@ public class InProcessBundleFactoryTest {
     }
     Matcher<Iterable<? extends WindowedValue<T>>> containsMatcher =
         Matchers.<WindowedValue<T>>containsInAnyOrder(expectations);
-    assertThat(bundle.commit(Instant.now()).getElements(), containsMatcher);
+    CommittedBundle<T> committed = bundle.commit(Instant.now());
+    assertThat(committed.getElements(), containsMatcher);
+
+    return committed;
   }
 
   @Test
@@ -123,6 +129,36 @@ public class InProcessBundleFactoryTest {
         WindowedValue.timestampedValueInGlobalWindow(2, new Instant(1000L));
 
     afterCommitGetElementsShouldHaveAddedElements(ImmutableList.of(firstValue, secondValue));
+  }
+
+  @SuppressWarnings("unchecked")
+  @Test
+  public void withElementsShouldReturnIndependentBundle() {
+    WindowedValue<Integer> firstValue = WindowedValue.valueInGlobalWindow(1);
+    WindowedValue<Integer> secondValue =
+        WindowedValue.timestampedValueInGlobalWindow(2, new Instant(1000L));
+
+    CommittedBundle<Integer> committed =
+        afterCommitGetElementsShouldHaveAddedElements(ImmutableList.of(firstValue, secondValue));
+
+    WindowedValue<Integer> firstReplacement =
+        WindowedValue.of(
+            9,
+            new Instant(2048L),
+            new IntervalWindow(new Instant(2044L), Instant.now()),
+            PaneInfo.NO_FIRING);
+    WindowedValue<Integer> secondReplacement =
+        WindowedValue.timestampedValueInGlobalWindow(-1, Instant.now());
+    CommittedBundle<Integer> withed =
+        committed.withElements(ImmutableList.of(firstReplacement, secondReplacement));
+
+    assertThat(withed.getElements(), containsInAnyOrder(firstReplacement, secondReplacement));
+    assertThat(committed.getElements(), containsInAnyOrder(firstValue, secondValue));
+    assertThat(withed.getKey(), equalTo(committed.getKey()));
+    assertThat(withed.getPCollection(), equalTo(committed.getPCollection()));
+    assertThat(
+        withed.getSynchronizedProcessingOutputWatermark(),
+        equalTo(committed.getSynchronizedProcessingOutputWatermark()));
   }
 
   @Test

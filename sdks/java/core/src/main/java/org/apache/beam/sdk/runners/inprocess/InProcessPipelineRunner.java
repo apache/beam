@@ -154,6 +154,19 @@ public class InProcessPipelineRunner
      * timers that fired to produce this bundle.
      */
     Instant getSynchronizedProcessingOutputWatermark();
+
+    /**
+     * Return a new {@link CommittedBundle} that is like this one, except calls to
+     * {@link #getElements()} will return the provided elements. This bundle is unchanged.
+     *
+     * <p>
+     * The value of the {@link #getSynchronizedProcessingOutputWatermark() synchronized processing
+     * output watermark} of the returned {@link CommittedBundle} is equal to the value returned from
+     * the current bundle. This is used to ensure a {@link PTransform} that could not complete
+     * processing on input elements properly holds the synchronized processing time to the
+     * appropriate value.
+     */
+    CommittedBundle<T> withElements(Iterable<WindowedValue<T>> elements);
   }
 
   /**
