@@ -22,7 +22,7 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasNamespace;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasType;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
-import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includes;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.core.StringStartsWith.startsWith;
@@ -129,7 +129,7 @@ public class DisplayDataMatchersTest {
         builder.add("foo", "bar");
       }
     };
-    Matcher<DisplayData> matcher = includes(subComponent);
+    Matcher<DisplayData> matcher = includesDisplayDataFrom(subComponent);
 
     assertFalse(matcher.matches(DisplayData.from(sameKeyDifferentNamespace)));
     assertThat(DisplayData.from(hasSubcomponent), matcher);

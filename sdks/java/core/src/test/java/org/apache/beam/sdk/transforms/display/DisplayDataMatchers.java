@@ -149,22 +149,22 @@ public class DisplayDataMatchers {
     }
   }
 
-  /** @see #includes(HasDisplayData, String) */
-  public static Matcher<DisplayData> includes(HasDisplayData subComponent) {
-    return includes(subComponent, subComponent.getClass());
+  /** @see #includesDisplayDataFrom(HasDisplayData, String) */
+  public static Matcher<DisplayData> includesDisplayDataFrom(HasDisplayData subComponent) {
+    return includesDisplayDataFrom(subComponent, subComponent.getClass());
   }
 
-  /** @see #includes(HasDisplayData, String) */
-  public static Matcher<DisplayData> includes(
+  /** @see #includesDisplayDataFrom(HasDisplayData, String) */
+  public static Matcher<DisplayData> includesDisplayDataFrom(
       HasDisplayData subComponent, Class<? extends HasDisplayData> namespace) {
-    return includes(subComponent, namespace.getName());
+    return includesDisplayDataFrom(subComponent, namespace.getName());
   }
 
   /**
    * Create a matcher that matches if the examined {@link DisplayData} contains all display data
    * registered from the specified subcomponent and namespace.
    */
-  public static Matcher<DisplayData> includes(
+  public static Matcher<DisplayData> includesDisplayDataFrom(
       final HasDisplayData subComponent, final String namespace) {
     return new CustomTypeSafeMatcher<DisplayData>("includes subcomponent") {
       @Override

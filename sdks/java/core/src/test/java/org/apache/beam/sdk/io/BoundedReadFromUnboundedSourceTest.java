@@ -17,7 +17,8 @@
  */
 package org.apache.beam.sdk.io;
 
-import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includes;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
+
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -79,7 +80,7 @@ public class BoundedReadFromUnboundedSourceTest implements Serializable{
     };
 
     BoundedReadFromUnboundedSource<KV<Integer, Integer>> read = Read.from(src).withMaxNumRecords(5);
-    assertThat(DisplayData.from(read), includes(src));
+    assertThat(DisplayData.from(read), includesDisplayDataFrom(src));
   }
 
   private static class Checker

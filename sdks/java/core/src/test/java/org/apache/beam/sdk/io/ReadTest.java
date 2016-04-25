@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includes;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 
@@ -92,11 +92,11 @@ public class ReadTest implements Serializable{
 
     DisplayData boundedDisplayData = DisplayData.from(bounded);
     assertThat(boundedDisplayData, hasDisplayItem("source", boundedSource.getClass()));
-    assertThat(boundedDisplayData, includes(boundedSource));
+    assertThat(boundedDisplayData, includesDisplayDataFrom(boundedSource));
 
     DisplayData unboundedDisplayData = DisplayData.from(unbounded);
     assertThat(unboundedDisplayData, hasDisplayItem("source", unboundedSource.getClass()));
-    assertThat(unboundedDisplayData, includes(unboundedSource));
+    assertThat(unboundedDisplayData, includesDisplayDataFrom(unboundedSource));
     assertThat(unboundedDisplayData, hasDisplayItem("maxRecords", 1234));
     assertThat(unboundedDisplayData, hasDisplayItem("maxReadTime", maxReadTime));
   }

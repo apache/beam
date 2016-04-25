@@ -19,7 +19,8 @@ package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
-import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includes;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
+
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertFalse;
@@ -355,7 +356,7 @@ public class CompressedSourceTest {
     assertThat(compressedSourceDisplayData, hasDisplayItem(hasKey("compressionMode")));
     assertThat(gzipDisplayData, hasDisplayItem("compressionMode", CompressionMode.GZIP.toString()));
     assertThat(compressedSourceDisplayData, hasDisplayItem("source", inputSource.getClass()));
-    assertThat(compressedSourceDisplayData, includes(inputSource));
+    assertThat(compressedSourceDisplayData, includesDisplayDataFrom(inputSource));
   }
 
   /**
