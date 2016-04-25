@@ -79,7 +79,7 @@ public abstract class Operator<IN, OUT, TYPE extends Dataset<OUT>>
       public <X> Partitioning<X> getPartitioning()
       {
         if (Operator.this instanceof PartitioningAware) {
-          // only state operators change the partitioning
+          // only partition aware operators change the partitioning
           PartitioningAware<IN> state = (PartitioningAware<IN>) Operator.this;
           return (Partitioning<X>) state.getPartitioning();
         }

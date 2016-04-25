@@ -94,9 +94,7 @@ public class FlowUnfolderTest {
     assertEquals(FlatMap.class, root.get().getClass());
     // FlatMap is consumed by ReduceStateByKey and the first FlatMap of expanded Join
     assertEquals(2, root.getChildren().size());
-    java.util.Map<
-        Class<? extends Operator>,
-        Node<Operator<?, ?, ?>>> childrenMap;
+    java.util.Map<Class<? extends Operator>, Node<Operator<?, ?, ?>>> childrenMap;
     childrenMap = toClassMap((List) root.getChildren());
     assertTrue(childrenMap.containsKey(FlatMap.class));
     assertTrue(childrenMap.containsKey(ReduceStateByKey.class));

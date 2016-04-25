@@ -29,7 +29,16 @@ class CompositeKey<T0, T1> extends Pair<T0, T1> {
 
   @Override
   public int hashCode() {
-    return getFirst().hashCode() ^ getSecond().hashCode();
+    if (getFirst() != null && getSecond() != null) {
+      return getFirst().hashCode() ^ getSecond().hashCode();
+    }
+    if (getFirst() != null) {
+      return getFirst().hashCode();
+    }
+    if (getSecond() != null) {
+      return getSecond().hashCode();
+    }
+    return 0;
   }
 
 }
