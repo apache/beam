@@ -2,7 +2,10 @@
 package cz.seznam.euphoria.core.client.graph;
 
 import com.google.common.collect.Iterables;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
+import java.util.stream.Collectors;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -33,11 +36,11 @@ public class DAGTest {
   @Test
   public void testGetRoots() {
     DAG<Integer> dag = DAG.of(1, 2, 3);
-    Collection<DAG.Node<Integer>> roots = dag.getRoots();
+    Collection<Node<Integer>> roots = dag.getRoots();
     assertEquals(3, roots.size());
-    assertTrue(roots.contains(new DAG.Node<>(1)));
-    assertTrue(roots.contains(new DAG.Node<>(2)));
-    assertTrue(roots.contains(new DAG.Node<>(3)));
+    assertTrue(roots.contains(new Node<>(1)));
+    assertTrue(roots.contains(new Node<>(2)));
+    assertTrue(roots.contains(new Node<>(3)));
   }
 
   @Test
@@ -50,10 +53,10 @@ public class DAGTest {
     // 6 if a child of 5 and 3
     dag.add(6, 5, 3);
     // 1 and 6 are the leafs
-    Collection<DAG.Node<Integer>> leafs = dag.getLeafs();
+    Collection<Node<Integer>> leafs = dag.getLeafs();
     assertEquals(2, leafs.size());
-    assertTrue(leafs.contains(new DAG.Node<>(1)));
-    assertTrue(leafs.contains(new DAG.Node<>(6)));
+    assertTrue(leafs.contains(new Node<>(1)));
+    assertTrue(leafs.contains(new Node<>(6)));
   }
 
   @Test
@@ -71,47 +74,44 @@ public class DAGTest {
     DAG<Integer> oneSubgraph = dag.parentSubGraph(1);
     
     assertEquals(1, oneSubgraph.size());
-    DAG.Node<Integer> one = Iterables.getOnlyElement(oneSubgraph.getRoots());
+    Node<Integer> one = Iterables.getOnlyElement(oneSubgraph.getRoots());
     assertEquals(new Integer(1), one.get());
     assertEquals(0, one.getParents().size());
     assertEquals(0, one.getChildren().size());
-    assertTrue(oneSubgraph.getLeafs().contains(new DAG.Node<>(1)));
-    assertTrue(oneSubgraph.getRoots().contains(new DAG.Node<>(1)));
+    assertTrue(oneSubgraph.getLeafs().contains(new Node<>(1)));
+    assertTrue(oneSubgraph.getRoots().contains(new Node<>(1)));
 
     // second test the subgraph of leaf 6
     // this graph consists of nodes 2, 3, 4, 5 and 6
     DAG<Integer> sixSubgraph = dag.parentSubGraph(6);
 
     assertEquals(5, sixSubgraph.size());
-    DAG.Node<Integer> six = Iterables.getOnlyElement(sixSubgraph.getLeafs());
+    Node<Integer> six = Iterables.getOnlyElement(sixSubgraph.getLeafs());
     assertEquals(six, sixSubgraph.getNode(6));
     assertEquals(new Integer(6), six.get());
     assertEquals(2, six.getParents().size());
-    assertTrue(six.getParents().contains(new DAG.Node<>(5)));
-    assertTrue(six.getParents().contains(new DAG.Node<>(3)));
-    DAG.Node<Integer> five = sixSubgraph.getNode(5);
+    assertTrue(six.getParents().contains(new Node<>(5)));
+    assertTrue(six.getParents().contains(new Node<>(3)));
+    Node<Integer> five = sixSubgraph.getNode(5);
     assertEquals(2, five.getParents().size());
-    assertTrue(five.getParents().contains(new DAG.Node<>(2)));
-    assertTrue(five.getParents().contains(new DAG.Node<>(4)));
+    assertTrue(five.getParents().contains(new Node<>(2)));
+    assertTrue(five.getParents().contains(new Node<>(4)));
     assertEquals(1, five.getChildren().size());
-    DAG.Node<Integer> four = sixSubgraph.getNode(4);
+    Node<Integer> four = sixSubgraph.getNode(4);
     assertEquals(2, four.getParents().size());
-    assertTrue(four.getParents().contains(new DAG.Node<>(2)));
-    assertTrue(four.getParents().contains(new DAG.Node<>(3)));
+    assertTrue(four.getParents().contains(new Node<>(2)));
+    assertTrue(four.getParents().contains(new Node<>(3)));
     assertEquals(1, four.getChildren().size());
-    DAG.Node<Integer> three = sixSubgraph.getNode(3);
+    Node<Integer> three = sixSubgraph.getNode(3);
     assertEquals(0, three.getParents().size());
     assertEquals(2, three.getChildren().size());
-    assertTrue(three.getChildren().contains(new DAG.Node<>(6)));
-    assertTrue(three.getChildren().contains(new DAG.Node<>(4)));
-    DAG.Node<Integer> two = sixSubgraph.getNode(2);
+    assertTrue(three.getChildren().contains(new Node<>(6)));
+    assertTrue(three.getChildren().contains(new Node<>(4)));
+    Node<Integer> two = sixSubgraph.getNode(2);
     assertEquals(0, two.getParents().size());
     assertEquals(2, two.getChildren().size());
-    assertTrue(two.getChildren().contains(new DAG.Node<>(5)));
-    assertTrue(two.getChildren().contains(new DAG.Node<>(4)));
-
-
-
+    assertTrue(two.getChildren().contains(new Node<>(5)));
+    assertTrue(two.getChildren().contains(new Node<>(4)));
 
     // and last test the subgraph of node 5
     DAG<Integer> fiveSubgraph = dag.parentSubGraph(5);
@@ -121,23 +121,39 @@ public class DAGTest {
     assertEquals(five, fiveSubgraph.getNode(5));
     assertEquals(new Integer(5), five.get());
     assertEquals(2, five.getParents().size());
-    assertTrue(five.getParents().contains(new DAG.Node<>(2)));
-    assertTrue(five.getParents().contains(new DAG.Node<>(4)));
+    assertTrue(five.getParents().contains(new Node<>(2)));
+    assertTrue(five.getParents().contains(new Node<>(4)));
     four = fiveSubgraph.getNode(4);
     assertEquals(2, four.getParents().size());
-    assertTrue(four.getParents().contains(new DAG.Node<>(2)));
-    assertTrue(four.getParents().contains(new DAG.Node<>(3)));
+    assertTrue(four.getParents().contains(new Node<>(2)));
+    assertTrue(four.getParents().contains(new Node<>(3)));
     assertEquals(1, four.getChildren().size());
     three = fiveSubgraph.getNode(3);
     assertEquals(0, three.getParents().size());
     assertEquals(1, three.getChildren().size());
-    assertTrue(three.getChildren().contains(new DAG.Node<>(4)));
+    assertTrue(three.getChildren().contains(new Node<>(4)));
     two = fiveSubgraph.getNode(2);
     assertEquals(0, two.getParents().size());
     assertEquals(2, two.getChildren().size());
-    assertTrue(two.getChildren().contains(new DAG.Node<>(5)));
-    assertTrue(two.getChildren().contains(new DAG.Node<>(4)));
+    assertTrue(two.getChildren().contains(new Node<>(5)));
+    assertTrue(two.getChildren().contains(new Node<>(4)));
 
+  }
+
+
+  @Test
+  public void testBFS() {
+    DAG<Integer> dag = DAG.of(1, 2, 3);
+    // 4 is child of 2 and 3
+    dag.add(4, 2, 3);
+    // 5 is a child of 4 and 2
+    dag.add(5, 4, 2);
+    // 6 if a child of 5 and 3
+    dag.add(6, 5, 3);
+    // 1 and 6 are the leafs
+    List<Integer> bfs = dag.bfs().map(Node::get).collect(Collectors.toList());
+
+    assertEquals(Arrays.asList(1, 2, 3, 4, 5, 6), bfs);
   }
 
 }

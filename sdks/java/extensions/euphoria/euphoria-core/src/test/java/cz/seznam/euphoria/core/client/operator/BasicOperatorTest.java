@@ -182,7 +182,7 @@ public class BasicOperatorTest {
         .windowBy(Windowing.Time.seconds(1))
         .output();
 
-    output.persist(URI.create("stdout:///"));
+    output.persist(URI.create("stdout:///?dump-partition-id=false"));
 
     executor.waitForCompletion(flow);
 
