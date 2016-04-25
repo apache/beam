@@ -1,8 +1,10 @@
 package cz.seznam.euphoria.core.executor;
 
+import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.Partition;
 import cz.seznam.euphoria.core.client.io.Reader;
+import cz.seznam.euphoria.core.client.io.Writer;
 import cz.seznam.euphoria.core.util.Settings;
 import org.junit.Before;
 import org.junit.Test;
@@ -11,6 +13,8 @@ import java.io.IOException;
 import java.net.URI;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -65,6 +69,51 @@ public class InMemFileSystemTest {
     assertEquals(expected, readAll(ps.get(0)));
     long end = System.nanoTime();
     assertTrue(TimeUnit.NANOSECONDS.toMillis(end-start) >= expected.size()*duration.toMillis());
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testGetFile() throws IOException {
+    fs.getFile("/tmp/foo.txt");
+  }
+
+  @Test
+  public void testWriteSingle() throws IOException {
+    InMemFileSystem.SinkFactory factory = new InMemFileSystem.SinkFactory();
+    DataSink<String> ds = factory.get(URI.create("/tmp/foo"), null);
+    Writer<String> wr = ds.openWriter(0);
+    wr.write("hello");
+    wr.write("world");
+    wr.commit();
+    wr.close();
+    ds.commit();
+
+    Collection file = InMemFileSystem.get().getFile("/tmp/foo/0");
+    assertEquals(Arrays.asList("hello", "world"), file);
+  }
+
+  @Test
+  public void testWriteMulti() throws IOException {
+    InMemFileSystem.SinkFactory factory = new InMemFileSystem.SinkFactory();
+    DataSink<String> ds = factory.get(URI.create("/tmp/foo"), null);
+    Writer<String> wr0 = ds.openWriter(0);
+    wr0.write("hello");
+    wr0.write("world");
+    Writer<String> wr1 = ds.openWriter(1);
+    wr1.write("one");
+    wr1.write("two");
+    wr1.write("three");
+
+    wr0.commit();
+    wr0.close();
+    wr1.commit();
+    wr1.close();
+    ds.commit();
+
+    Collection file = InMemFileSystem.get().getFile("/tmp/foo/0");
+    assertEquals(Arrays.asList("hello", "world"), file);
+
+    file = InMemFileSystem.get().getFile("/tmp/foo/1");
+    assertEquals(Arrays.asList("one", "two", "three"), file);
   }
 
   @SuppressWarnings("unchecked")
