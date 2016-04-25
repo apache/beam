@@ -716,6 +716,8 @@ class _NativeWrite(ptransform.PTransform):
   These are sinks that are implemented natively by the Dataflow service
   and hence should not be updated by users. These sinks are processed
   using a Dataflow native write transform.
+
+  Applying this transform results in a ``pvalue.PDone``.
   """
 
   def __init__(self, *args, **kwargs):
@@ -724,8 +726,6 @@ class _NativeWrite(ptransform.PTransform):
     Args:
       *args: A tuple of position arguments.
       **kwargs: A dictionary of keyword arguments.
-    Returns:
-      a ``pvalue.PDone``.
 
     The *args, **kwargs are expected to be (label, sink) or (sink).
     """
@@ -735,7 +735,7 @@ class _NativeWrite(ptransform.PTransform):
 
   def apply(self, pcoll):
     self._check_pcollection(pcoll)
-    return pvalue.PValue(pcoll.pipeline)
+    return pvalue.PDone(pcoll.pipeline)
 
 
 class Read(ptransform.PTransform):
