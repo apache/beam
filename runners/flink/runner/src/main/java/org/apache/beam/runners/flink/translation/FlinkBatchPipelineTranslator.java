@@ -30,7 +30,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * FlinkBatchPipelineTranslator knows how to translate Pipeline objects into Flink Jobs.
- * This is based on {@link org.apache.beam.sdk.runners.DataflowPipelineTranslator}
+ * This is based on {@link org.apache.beam.runners.dataflow.DataflowPipelineTranslator}
  */
 public class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
 
