@@ -342,11 +342,9 @@ public class KafkaIOTest {
   // read any records even from the mock consumer, especially for the first record.
   // This is a helper method to loop until we read a record.
   private static void advanceOnce(UnboundedReader<?> reader) throws IOException {
-    int attempts = 0;
     while (!reader.advance()) {
-      attempts++;
       // very rarely will there be more than one attempts.
-      assertTrue("could not advance() even after 1000 attempts.", attempts < 1000);
+      // in case of a bug we might end up looping forever, and test will fail with a timeout.
     }
   }
 
@@ -365,10 +363,12 @@ public class KafkaIOTest {
     final int numToSkip = 3;
 
     // advance numToSkip elements
-    for (long l = 0; l < numToSkip; ++l) {
-      if (l > 0 || !reader.start()) {
-        advanceOnce(reader);
-      }
+    if (!reader.start()) {
+      advanceOnce(reader);
+    }
+
+    for (long l = 0; l < numToSkip - 1; ++l) {
+      advanceOnce(reader);
     }
 
     // Confirm that we get the expected element in sequence before checkpointing.
@@ -382,12 +382,17 @@ public class KafkaIOTest {
 
     // Confirm that we get the next elements in sequence.
     // This also confirms that Reader interleaves records from each partitions by the reader.
+
+    if (!reader.start()) {
+      advanceOnce(reader);
+    }
+
     for (int i = numToSkip; i < numElements; i++) {
-      if (i > numToSkip || !reader.start()) {
-        advanceOnce(reader);
-      }
       assertEquals(i, (long) reader.getCurrent().getKV().getValue());
       assertEquals(i, reader.getCurrentTimestamp().getMillis());
+      if ((i + 1) < numElements) {
+        advanceOnce(reader);
+      }
     }
   }
 }
