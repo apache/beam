@@ -1066,6 +1066,10 @@ public class BigQueryIO {
       public void populateDisplayData(DisplayData.Builder builder) {
         super.populateDisplayData(builder);
 
+        builder
+            .addIfNotNull("table", jsonTableRef)
+            .addIfNotNull("schema", jsonSchema);
+
         if (tableRefFunction != null) {
           builder.add("tableFn", tableRefFunction.getClass());
         }
@@ -1073,8 +1077,6 @@ public class BigQueryIO {
         builder
             .add("createDisposition", createDisposition.toString())
             .add("writeDisposition", writeDisposition.toString())
-            .addIfNotNull("table", jsonTableRef)
-            .addIfNotNull("schema", jsonSchema)
             .addIfNotDefault("validation", validate, true);
       }
 
