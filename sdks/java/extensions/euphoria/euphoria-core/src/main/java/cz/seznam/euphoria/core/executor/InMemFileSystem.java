@@ -249,15 +249,6 @@ public class InMemFileSystem {
     return String.join("/", steps);
   }
 
-  private String fromCanonicalPath(List<String> parents, String last) {
-    StringJoiner sj = new StringJoiner("/");
-    for (String p : parents) {
-      sj.add(p);
-    }
-    sj.add(last);
-    return sj.toString();
-  }
-
   private List<String> toCanonicalPath(String path) {
     String[] names = path.split("/");
     return Arrays.asList(names)
