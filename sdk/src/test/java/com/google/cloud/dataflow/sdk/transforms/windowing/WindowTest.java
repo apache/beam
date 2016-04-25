@@ -18,7 +18,7 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasKey;
-import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.includes;
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.isOneOf;
@@ -249,7 +249,7 @@ public class WindowTest implements Serializable {
     DisplayData displayData = DisplayData.from(window);
 
     assertThat(displayData, hasDisplayItem("windowFn", windowFn.getClass()));
-    assertThat(displayData, includes(windowFn));
+    assertThat(displayData, includesDisplayDataFrom(windowFn));
 
     assertThat(displayData, hasDisplayItem("trigger", triggerBuilder.toString()));
     assertThat(displayData,

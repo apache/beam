@@ -16,7 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
-import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.includes;
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
@@ -79,7 +79,7 @@ public class BoundedReadFromUnboundedSourceTest implements Serializable{
     };
 
     BoundedReadFromUnboundedSource<KV<Integer, Integer>> read = Read.from(src).withMaxNumRecords(5);
-    assertThat(DisplayData.from(read), includes(src));
+    assertThat(DisplayData.from(read), includesDisplayDataFrom(src));
   }
 
   private static class Checker

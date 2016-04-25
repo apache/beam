@@ -21,7 +21,7 @@ import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatche
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasNamespace;
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasType;
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasValue;
-import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.includes;
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.core.StringStartsWith.startsWith;
 import static org.junit.Assert.assertFalse;
@@ -127,7 +127,7 @@ public class DisplayDataMatchersTest {
         builder.add("foo", "bar");
       }
     };
-    Matcher<DisplayData> matcher = includes(subComponent);
+    Matcher<DisplayData> matcher = includesDisplayDataFrom(subComponent);
 
     assertFalse(matcher.matches(DisplayData.from(sameKeyDifferentNamespace)));
     assertThat(DisplayData.from(hasSubcomponent), matcher);

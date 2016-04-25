@@ -21,7 +21,8 @@ import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatche
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasNamespace;
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasType;
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasValue;
-import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.includes;
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
+
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.everyItem;
@@ -300,7 +301,7 @@ public class DisplayDataTest {
               }
             });
 
-    assertThat(data, includes(subComponent));
+    assertThat(data, includesDisplayDataFrom(subComponent));
   }
 
   @Test
@@ -325,7 +326,7 @@ public class DisplayDataTest {
       }
     });
 
-    assertThat(data, includes(subComponent, namespaceOverride.getClass()));
+    assertThat(data, includesDisplayDataFrom(subComponent, namespaceOverride.getClass()));
   }
 
   @Test
