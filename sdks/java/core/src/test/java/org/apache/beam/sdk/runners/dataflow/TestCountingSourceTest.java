@@ -40,7 +40,8 @@ public class TestCountingSourceTest {
   public void testRespectsCheckpointContract() throws IOException {
     TestCountingSource source = new TestCountingSource(3);
     PipelineOptions options = PipelineOptionsFactory.create();
-    TestCountingSource.CountingSourceReader reader = source.createReader(options, null);
+    TestCountingSource.CountingSourceReader reader =
+        source.createReader(options, null /* no checkpoint */);
     assertTrue(reader.start());
     assertEquals(0L, (long) reader.getCurrent().getValue());
     assertTrue(reader.advance());
