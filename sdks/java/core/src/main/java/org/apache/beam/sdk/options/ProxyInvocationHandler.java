@@ -283,11 +283,11 @@ class ProxyInvocationHandler implements InvocationHandler {
       for (PipelineOptionSpec optionSpec : specs) {
         Class<?> pipelineInterface = optionSpec.getDefiningInterface();
         if (type != null) {
-          builder.add(option.getKey(), type, value)
-              .withNamespace(pipelineInterface);
+          builder.add(DisplayData.item(option.getKey(), type, value)
+              .withNamespace(pipelineInterface));
         } else {
-          builder.add(option.getKey(), value.toString())
-              .withNamespace(pipelineInterface);
+          builder.add(DisplayData.item(option.getKey(), value.toString())
+              .withNamespace(pipelineInterface));
         }
       }
     }
@@ -300,18 +300,18 @@ class ProxyInvocationHandler implements InvocationHandler {
 
       HashSet<PipelineOptionSpec> specs = new HashSet<>(optionsMap.get(jsonOption.getKey()));
       if (specs.isEmpty()) {
-        builder.add(jsonOption.getKey(), jsonOption.getValue().toString())
-          .withNamespace(UnknownPipelineOptions.class);
+        builder.add(DisplayData.item(jsonOption.getKey(), jsonOption.getValue().toString())
+          .withNamespace(UnknownPipelineOptions.class));
       } else {
         for (PipelineOptionSpec spec : specs) {
           Object value = getValueFromJson(jsonOption.getKey(), spec.getGetterMethod());
           DisplayData.Type type = DisplayData.inferType(value);
           if (type != null) {
-            builder.add(jsonOption.getKey(), type, value)
-                .withNamespace(spec.getDefiningInterface());
+            builder.add(DisplayData.item(jsonOption.getKey(), type, value)
+                .withNamespace(spec.getDefiningInterface()));
           } else {
-            builder.add(jsonOption.getKey(), value.toString())
-                .withNamespace(spec.getDefiningInterface());
+            builder.add(DisplayData.item(jsonOption.getKey(), value.toString())
+                .withNamespace(spec.getDefiningInterface()));
           }
         }
       }
@@ -542,7 +542,7 @@ class ProxyInvocationHandler implements InvocationHandler {
         jgen.writeObject(serializableOptions);
 
         List<Map<String, Object>> serializedDisplayData = Lists.newArrayList();
-        for (DisplayData.Item item : DisplayData.from(value).items()) {
+        for (DisplayData.Item<?> item : DisplayData.from(value).items()) {
           @SuppressWarnings("unchecked")
           Map<String, Object> serializedItem = MAPPER.convertValue(item, Map.class);
           serializedDisplayData.add(serializedItem);

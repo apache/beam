@@ -150,8 +150,9 @@ public class CalendarWindows {
       super.populateDisplayData(builder);
 
       builder
-          .add("numDays", number)
-          .addIfNotDefault("startDate", new DateTime(startDate, timeZone).toInstant(),
+          .add(DisplayData.item("numDays", number))
+          .addIfNotDefault(
+              DisplayData.item("startDate", new DateTime(startDate, timeZone).toInstant()),
               new DateTime(DEFAULT_START_DATE, DateTimeZone.UTC).toInstant());
     }
 
@@ -247,8 +248,9 @@ public class CalendarWindows {
       super.populateDisplayData(builder);
 
       builder
-          .add("numMonths", number)
-          .addIfNotDefault("startDate", new DateTime(startDate, timeZone).toInstant(),
+          .add(DisplayData.item("numMonths", number))
+          .addIfNotDefault(
+            DisplayData.item("startDate", new DateTime(startDate, timeZone).toInstant()),
             new DateTime(DEFAULT_START_DATE, DateTimeZone.UTC).toInstant());
     }
 
@@ -353,8 +355,9 @@ public class CalendarWindows {
       super.populateDisplayData(builder);
 
       builder
-          .add("numYears", number)
-          .addIfNotDefault("startDate", new DateTime(startDate, timeZone).toInstant(),
+          .add(DisplayData.item("numYears", number))
+          .addIfNotDefault(
+              DisplayData.item("startDate", new DateTime(startDate, timeZone).toInstant()),
               new DateTime(DEFAULT_START_DATE, DateTimeZone.UTC).toInstant());
     }
 

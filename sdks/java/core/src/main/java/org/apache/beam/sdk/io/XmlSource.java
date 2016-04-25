@@ -222,9 +222,9 @@ public class XmlSource<T> extends FileBasedSource<T> {
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
     builder
-        .addIfNotNull("rootElement", rootElement)
-        .addIfNotNull("recordElement", recordElement)
-        .addIfNotNull("recordClass", recordClass);
+        .addIfNotNull(DisplayData.item("rootElement", rootElement))
+        .addIfNotNull(DisplayData.item("recordElement", recordElement))
+        .addIfNotNull(DisplayData.item("recordClass", recordClass));
   }
 
   @Override

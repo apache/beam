@@ -227,7 +227,7 @@ public class IntraBundleParallelizationTest {
 
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
-        builder.add("foo", "bar");
+        builder.add(DisplayData.item("foo", "bar"));
       }
     };
 

@@ -1053,7 +1053,7 @@ public class CombineFns {
 
     for (int i = 0; i < combineFns.size(); i++) {
       HasDisplayData combineFn = combineFns.get(i);
-      builder.add("combineFn" + (i + 1), combineFn.getClass());
+      builder.add(DisplayData.item("combineFn" + (i + 1), combineFn.getClass()));
       combineFnMap.put(combineFn.getClass(), combineFn);
     }
 

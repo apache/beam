@@ -391,12 +391,12 @@ public class DatastoreIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder
-          .addIfNotDefault("host", host, DEFAULT_HOST)
-          .addIfNotNull("dataset", datasetId)
-          .addIfNotNull("namespace", namespace);
+          .addIfNotDefault(DisplayData.item("host", host), DEFAULT_HOST)
+          .addIfNotNull(DisplayData.item("dataset", datasetId))
+          .addIfNotNull(DisplayData.item("namespace", namespace));
 
       if (query != null) {
-        builder.add("query", query.toString());
+        builder.add(DisplayData.item("query", query.toString()));
       }
     }
 
@@ -606,8 +606,8 @@ public class DatastoreIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder
-          .addIfNotDefault("host", host, DEFAULT_HOST)
-          .addIfNotNull("dataset", datasetId);
+          .addIfNotDefault(DisplayData.item("host", host), DEFAULT_HOST)
+          .addIfNotNull(DisplayData.item("dataset", datasetId));
     }
   }
 

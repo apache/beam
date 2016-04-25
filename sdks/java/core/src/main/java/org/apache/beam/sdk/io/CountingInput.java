@@ -119,7 +119,7 @@ public class CountingInput {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder.add("upTo", numElements);
+      builder.add(DisplayData.item("upTo", numElements));
     }
   }
 
@@ -233,14 +233,14 @@ public class CountingInput {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
 
-      builder.add("timestampFn", timestampFn.getClass());
+      builder.add(DisplayData.item("timestampFn", timestampFn.getClass()));
 
       if (maxReadTime.isPresent()) {
-        builder.add("maxReadTime", maxReadTime.get());
+        builder.add(DisplayData.item("maxReadTime", maxReadTime.get()));
       }
 
       if (maxNumRecords.isPresent()) {
-        builder.add("maxRecords", maxNumRecords.get());
+        builder.add(DisplayData.item("maxRecords", maxNumRecords.get()));
       }
     }
   }

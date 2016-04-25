@@ -75,7 +75,7 @@ public class BoundedReadFromUnboundedSourceTest implements Serializable{
     TestCountingSource src = new TestCountingSource(1234) {
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
-        builder.add("foo", "bar");
+        builder.add(DisplayData.item("foo", "bar"));
       }
     };
 
