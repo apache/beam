@@ -54,7 +54,7 @@ public class BasicOperatorTest {
 
     Settings settings = new Settings();
     settings.setClass("euphoria.io.datasource.factory.inmem",
-        InMemFileSystem.Factory.class);
+        InMemFileSystem.SourceFactory.class);
     settings.setClass("euphoria.io.datasink.factory.stdout",
         StdoutSink.Factory.class);
 

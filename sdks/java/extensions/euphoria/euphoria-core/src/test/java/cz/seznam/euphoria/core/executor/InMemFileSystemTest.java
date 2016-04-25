@@ -69,7 +69,7 @@ public class InMemFileSystemTest {
 
   @SuppressWarnings("unchecked")
   private <T> DataSource<T> openDatasource(String path) {
-    InMemFileSystem.Factory fact = new InMemFileSystem.Factory();
+    InMemFileSystem.SourceFactory fact = new InMemFileSystem.SourceFactory();
     return (DataSource) fact.get(URI.create(path), new Settings());
   }
 
