@@ -33,11 +33,13 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.SortedMultiset;
 import com.google.common.collect.TreeMultiset;
@@ -366,22 +368,28 @@ public class InMemoryWatermarkManager {
    * The input {@link TimeDomain#SYNCHRONIZED_PROCESSING_TIME} hold for an
    * {@link AppliedPTransform}.
    *
-   * <p>At any point, the hold value of an {@link SynchronizedProcessingTimeInputWatermark} is equal
-   * to the minimum across all pending bundles at the {@link AppliedPTransform} and all upstream
-   * {@link TimeDomain#SYNCHRONIZED_PROCESSING_TIME} watermarks. The value of the input
-   * synchronized processing time at any step is equal to the maximum of:
+   * <p>
+   * At any point, the hold value of an {@link SynchronizedProcessingTimeInputWatermark} is equal to
+   * the minimum across all pending elements at the {@link AppliedPTransform} and all upstream
+   * {@link TimeDomain#SYNCHRONIZED_PROCESSING_TIME} watermarks. The value of the input synchronized
+   * processing time at any step is equal to the maximum of:
    * <ul>
-   *   <li>The most recently returned synchronized processing input time
-   *   <li>The minimum of
-   *     <ul>
-   *       <li>The current processing time
-   *       <li>The current synchronized processing time input hold
-   *     </ul>
+   * <li>The most recently returned synchronized processing input time
+   * <li>The minimum of
+   * <ul>
+   * <li>The current processing time
+   * <li>the synchronized processing output timestamp of all currently pending elements</li>
+   * <li>all input {@link PValue} synchronized processing time watermarks</li>
+   * </ul>
    * </ul>
    */
   private static class SynchronizedProcessingTimeInputWatermark implements Watermark {
     private final Collection<? extends Watermark> inputWms;
-    private final Collection<CommittedBundle<?>> pendingBundles;
+    /**
+     * A mapping between all of the pending (value, window) pairs to all synchronized processing
+     * times at which the value was committed.
+     */
+    private final ListMultimap<WindowedValue<?>, Instant> pendingValueHolds;
     private final Map<Object, NavigableSet<TimerData>> processingTimers;
     private final Map<Object, NavigableSet<TimerData>> synchronizedProcessingTimers;
 
@@ -391,7 +399,7 @@ public class InMemoryWatermarkManager {
 
     public SynchronizedProcessingTimeInputWatermark(Collection<? extends Watermark> inputWms) {
       this.inputWms = inputWms;
-      this.pendingBundles = new HashSet<>();
+      this.pendingValueHolds = ArrayListMultimap.create();
       this.processingTimers = new HashMap<>();
       this.synchronizedProcessingTimers = new HashMap<>();
       this.pendingTimers = new PriorityQueue<>();
@@ -410,15 +418,18 @@ public class InMemoryWatermarkManager {
     /**
      * {@inheritDoc}.
      *
-     * <p>When refresh is called, the value of the {@link SynchronizedProcessingTimeInputWatermark}
+     * <p>
+     * When refresh is called, the value of the {@link SynchronizedProcessingTimeInputWatermark}
      * becomes equal to the minimum value of
      * <ul>
-     *   <li>the timestamps of all currently pending bundles</li>
-     *   <li>all input {@link PCollection} synchronized processing time watermarks</li>
+     * <li>the synchronized processing output timestamp of all currently pending elements</li>
+     * <li>all input {@link PCollection} synchronized processing time watermarks</li>
      * </ul>
      *
-     * <p>Note that this value is not monotonic, but the returned value for the synchronized
-     * processing time must be.
+     * <p>
+     * Note that the value of the SynchronizedProcessingTimeInputWatermark represents an upper bound
+     * on the returned SynchronziedProcessingTime and may not be monotonic, but the returned value
+     * for the synchronized processing time must be.
      */
     @Override
     public synchronized WatermarkUpdate refresh() {
@@ -427,22 +438,38 @@ public class InMemoryWatermarkManager {
       for (Watermark input : inputWms) {
         minTime = INSTANT_ORDERING.min(minTime, input.get());
       }
-      for (CommittedBundle<?> bundle : pendingBundles) {
-        // TODO: Track elements in the bundle by the processing time they were output instead of
-        // entire bundles. Requried to support arbitrarily splitting and merging bundles between
-        // steps
-        minTime = INSTANT_ORDERING.min(minTime, bundle.getSynchronizedProcessingOutputWatermark());
+      for (Instant hold : pendingValueHolds.values()) {
+        minTime = INSTANT_ORDERING.min(minTime, hold);
       }
       earliestHold.set(minTime);
       return WatermarkUpdate.fromTimestamps(oldHold, minTime);
     }
 
-    public synchronized void addPending(CommittedBundle<?> bundle) {
-      pendingBundles.add(bundle);
+    /**
+     * Add the provided elements to the collection of pending elements, holding this
+     * {@link SynchronizedProcessingTimeInputWatermark} to the hold.
+     *
+     * @param elements the elements that have been committed and are now pending
+     * @param hold the time at which the elements were originally committed
+     */
+    public synchronized void addPendingElements(
+        Iterable<? extends WindowedValue<?>> elements, Instant hold) {
+      for (WindowedValue<?> pending : elements) {
+        pendingValueHolds.put(pending, hold);
+      }
     }
 
-    public synchronized void removePending(CommittedBundle<?> bundle) {
-      pendingBundles.remove(bundle);
+    /**
+     * For each element, remove a single hold for that element at the provided hold.
+     *
+     * @param elements the elements that have been processed at this step
+     * @param hold the time at which the elements were originally committed
+     */
+    public synchronized void removePendingElements(
+        Iterable<? extends WindowedValue<?>> elements, Instant hold) {
+      for (WindowedValue<?> pending : elements) {
+        pendingValueHolds.remove(pending, hold);
+      }
     }
 
     /**
@@ -1054,13 +1081,17 @@ public class InMemoryWatermarkManager {
     }
 
     private void removePending(CommittedBundle<?> bundle) {
-      inputWatermark.removePendingElements(elementsFromBundle(bundle));
-      synchronizedProcessingInputWatermark.removePending(bundle);
+      Iterable<? extends WindowedValue<?>> elements = elementsFromBundle(bundle);
+      inputWatermark.removePendingElements(elements);
+      synchronizedProcessingInputWatermark.removePendingElements(
+          elements, bundle.getSynchronizedProcessingOutputWatermark());
     }
 
     private void addPending(CommittedBundle<?> bundle) {
-      inputWatermark.addPendingElements(elementsFromBundle(bundle));
-      synchronizedProcessingInputWatermark.addPending(bundle);
+      Iterable<? extends WindowedValue<?>> elements = elementsFromBundle(bundle);
+      inputWatermark.addPendingElements(elements);
+      synchronizedProcessingInputWatermark.addPendingElements(
+          elements, bundle.getSynchronizedProcessingOutputWatermark());
     }
 
     private Iterable<? extends WindowedValue<?>> elementsFromBundle(CommittedBundle<?> bundle) {
