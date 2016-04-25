@@ -29,7 +29,7 @@ public class Filter<IN, TYPE extends Dataset<IN>>
     BuilderBatch(PCollection<IN> input) {
       this.input = input;
     }
-    Filter<IN, PCollection<IN>> by(UnaryPredicate<IN> predicate) {
+    public Filter<IN, PCollection<IN>> by(UnaryPredicate<IN> predicate) {
       Flow flow = input.getFlow();
       return flow.add(new Filter<>(flow, input, predicate));
     }

@@ -8,7 +8,6 @@ import cz.seznam.euphoria.core.client.dataset.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 

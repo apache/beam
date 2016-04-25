@@ -16,9 +16,6 @@ import java.util.Objects;
 public class Union<IN, TYPE extends Dataset<IN>>
         extends Operator<IN, IN, TYPE> {
 
-  final Dataset<IN> left;
-  final Dataset<IN> right;
-
 
   public static <IN> Union<IN, Dataset<IN>> of(
       Dataset<IN> left, Dataset<IN> right) {
@@ -32,6 +29,8 @@ public class Union<IN, TYPE extends Dataset<IN>>
     return flow.add(new Union<>(flow, left, right));
   }
 
+  final Dataset<IN> left;
+  final Dataset<IN> right;
   final TYPE output;
 
   @SuppressWarnings("unchecked")

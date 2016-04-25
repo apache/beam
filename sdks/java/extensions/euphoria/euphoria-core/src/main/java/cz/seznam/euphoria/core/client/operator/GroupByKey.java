@@ -152,7 +152,8 @@ public class GroupByKey<IN, KEY, VALUE, TYPE extends GroupedDataset<KEY, VALUE>>
         });
     Repartition<Pair<KEY, VALUE>, TYPE> repartition = new Repartition<>(
         input.getFlow(), map.output(), repartitionPart, numPartitions);
-    return DAG.of(map, repartition);
+    DAG<Operator<?, ?, ?>> dag = DAG.of(map);
+    return dag.add(repartition, map);
   }
 
 

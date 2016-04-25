@@ -2,17 +2,14 @@
 
 package cz.seznam.euphoria.core.executor;
 
-import com.google.common.collect.Sets;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.graph.DAG;
 import cz.seznam.euphoria.core.client.graph.Node;
 import cz.seznam.euphoria.core.client.operator.Operator;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -32,12 +29,8 @@ public class ExecUnit {
 
   /** Split Flow into series of execution units. */
   public static List<ExecUnit> split(DAG<Operator<?, ?, ?>> unfoldedFlow) {
-    return unfoldedFlow
-        .nodes()
-        .filter(ExecUnit::isOutput)
-        .map(unfoldedFlow::parentSubGraph)
-        .map(ExecUnit::new)
-        .collect(Collectors.toList());
+    // FIXME: what exactly and for is unit?
+    return Arrays.asList(new ExecUnit(unfoldedFlow));
   }
 
 
@@ -49,6 +42,18 @@ public class ExecUnit {
 
   private ExecUnit(DAG<Operator<?, ?, ?>> operators) {
     this.operators = operators;
+  }
+
+
+  /** Retrieve leaf operators. */
+  public Collection<Node<Operator<?, ?, ?>>> getLeafs() {
+    return operators.getLeafs();
+  }
+
+
+  /** Retrieve the DAG of operators. */
+  public DAG<Operator<?, ?, ?>> getDAG() {
+    return operators;
   }
 
 

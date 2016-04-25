@@ -54,8 +54,9 @@ public class DAG<T> {
    * Add new element.
    * If no parents, add this as a root element.
    */
-  public void add(T elem, T... parents) {
+  public DAG<T> add(T elem, T... parents) {
     add(elem, Arrays.asList(parents));
+    return this;
   }
 
 
@@ -63,7 +64,7 @@ public class DAG<T> {
    * Add new element.
    * If no parents, add this as a root element.
    */
-  public void add(T elem, List<T> parents) {
+  public DAG<T> add(T elem, List<T> parents) {
     final Node<T> node;
     if (parents.isEmpty()) {
       roots.add(node = new Node<>(elem));
@@ -78,6 +79,7 @@ public class DAG<T> {
           "Element " + elem + " is already added to the graph.");
     }
     nodeMap.put(elem, node);
+    return this;
   }
 
 

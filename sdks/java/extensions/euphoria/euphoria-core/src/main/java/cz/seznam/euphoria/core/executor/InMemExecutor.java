@@ -33,6 +33,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -46,7 +47,6 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -179,6 +179,9 @@ public class InMemExecutor implements Executor {
     // map of operator inputs to suppliers
     Map<Pair<Operator<?, ?, ?>, Operator<?, ?, ?>>, InputProvider<?>> materializedOutputs
         = Collections.synchronizedMap(new HashMap<>());
+    // already running operators
+    Set<Operator<?, ?, ?>> runningOperators = Collections.synchronizedSet(
+        new HashSet<>());
 
     private boolean containsKey(Pair<Operator<?, ?, ?>, Operator<?, ?, ?>> d) {
       return materializedOutputs.containsKey(d);
@@ -196,11 +199,19 @@ public class InMemExecutor implements Executor {
       Pair<Operator<?, ?, ?>, Operator<?, ?, ?>> edge = Pair.of(source, target);
       InputProvider<?> sup = materializedOutputs.get(edge);
       if (sup == null) {
-        throw new IllegalArgumentException(
-            "Do not have suppliers for given edge (original producer "
-            + source.output().getProducer() + ")");
+        throw new IllegalArgumentException(String.format(
+            "Do not have suppliers for edge %s -> %s (original producer %s )",
+            source, target, source.output().getProducer()));
       }
       return sup;
+    }
+    void markRunning(Operator<?, ?, ?> operator) {
+      if (!this.runningOperators.add(operator)) {
+        throw new IllegalStateException("Twice running the same operator?");
+      }
+    }
+    boolean isRunning(Operator<?, ?, ?> operator) {
+      return runningOperators.contains(operator);
     }
   }
 
@@ -230,7 +241,7 @@ public class InMemExecutor implements Executor {
   @Override
   @SuppressWarnings("unchecked")
   public int waitForCompletion(Flow flow) {
-    ExecutionContext context = new ExecutionContext();
+
 
     // transform the given flow to DAG of basic dag
     DAG<Operator<?, ?, ?>> dag = FlowUnfolder.unfold(flow, Executor.getBasicOps());
@@ -238,61 +249,15 @@ public class InMemExecutor implements Executor {
     final List<Future> runningTasks = new ArrayList<>();
     Collection<Node<Operator<?, ?, ?>>> leafs = dag.getLeafs();
 
-    // create record for each input dataset in context
-    // input datasets are represented as edges with null parent
-    dag.bfs()
-        .flatMap(n -> n.get().listInputs().stream()
-            // take input datasets
-            .filter(i -> i.getProducer() == null)
-            .map(i -> Pair.of(n, i)))
-        .forEach(p -> {
-          Dataset<?> inputDataset = p.getSecond();
-          context.add(
-              null, p.getFirst().get(), createStream(inputDataset.getSource()));
-        });
-
     List<ExecUnit> units = ExecUnit.split(dag);
     for (ExecUnit unit : units) {
+      ExecutionContext context = new ExecutionContext();
+
+      prepareInputsToContext(unit, context);
+
       execUnit(unit, context);
-    }
-    // consume outputs
-    for (Node<Operator<?, ?, ?>> output : leafs) {
-      DataSink<?> sink = output.get().output().getOutputSink();
-      final InputProvider<?> provider = context.get(output.get(), null);
-      int part = 0;
-      for (Supplier<?> s : provider) {
-        final Writer writer = sink.openWriter(part++);
-        runningTasks.add(executor.submit(() -> {
-          try {
-            try {
-              for (;;) {
-                writer.write(s.get());
-              }
-            } catch (EndOfStreamException ex) {
-              // end of the stream
-              writer.commit();
-              // and terminate the thread
-            }
-          } catch (IOException ex) {
-            try {
-              writer.rollback();
-              // propagate exception
-              throw new RuntimeException(ex);
-            } catch (IOException ioex) {
-              LOG.warn("Something went wrong", ioex);
-              // swallow exception
-            }
-            throw new RuntimeException(ex);
-          } finally {
-            try {
-              writer.close();
-            } catch (IOException ioex) {
-              LOG.warn("Something went wrong", ioex);
-              // swallow exception
-            }
-          }
-        }));
-      }
+    
+      runningTasks.addAll(consumeOutputs(unit.getLeafs(), context));
     }
 
     // extract all processed sinks
@@ -326,6 +291,73 @@ public class InMemExecutor implements Executor {
     return 0;
   }
 
+  /** Read all outputs of given nodes and store them using their sinks. */
+  private List<Future> consumeOutputs(
+      Collection<Node<Operator<?, ?, ?>>> leafs,
+      ExecutionContext context)
+  {
+    List<Future> tasks = new ArrayList<>();
+    // consume outputs
+    for (Node<Operator<?, ?, ?>> output : leafs) {
+      DataSink<?> sink = output.get().output().getOutputSink();
+      final InputProvider<?> provider = context.get(output.get(), null);
+      int part = 0;
+      for (Supplier<?> s : provider) {
+        final Writer writer = sink.openWriter(part++);
+        tasks.add(executor.submit(() -> {
+          try {
+            try {
+              for (;;) {
+                writer.write(s.get());
+              }
+            } catch (EndOfStreamException ex) {
+              // end of the stream
+              writer.commit();
+              writer.close();
+              // and terminate the thread
+            }
+          } catch (IOException ex) {
+            try {
+              writer.rollback();
+              // propagate exception
+              throw new RuntimeException(ex);
+            } catch (IOException ioex) {
+              LOG.warn("Something went wrong", ioex);
+              // swallow exception
+            }
+            throw new RuntimeException(ex);
+          } finally {
+            try {
+              writer.close();
+            } catch (IOException ioex) {
+              LOG.warn("Something went wrong", ioex);
+              // swallow exception
+            }
+          }
+        }));
+      }
+    }
+    return tasks;
+  }
+
+
+  private void prepareInputsToContext(ExecUnit unit, ExecutionContext context)
+  {
+    // create record for each input dataset in context
+    // input datasets are represented as edges with null parent
+    unit.getDAG().bfs()
+        .flatMap(n -> n.get().listInputs().stream()
+            // take input datasets
+            .filter(i -> i.getProducer() == null)
+            .map(i -> Pair.of(n, i)))
+        .forEach(p -> {
+          Dataset<?> inputDataset = p.getSecond();
+          context.add(
+              null, p.getFirst().get(), createStream(inputDataset.getSource()));
+        });
+  }
+  
+
   @SuppressWarnings("unchecked")
   private InputProvider<?> createStream(DataSource<?> source) {
     InputProvider ret = new InputProvider();
@@ -337,16 +369,7 @@ public class InMemExecutor implements Executor {
 
 
   private void execUnit(ExecUnit unit, ExecutionContext context) {
-    for (ExecPath path : unit.getPaths()) {
-      execDAG(path.dag(), context);
-    }
-  }
-
-
-  private void execDAG(
-      DAG<Operator<?, ?, ?>> dag, ExecutionContext context) {
-
-    dag.bfs().forEach(n -> execNode(n, context));
+    unit.getDAG().bfs().forEach(n -> execNode(n, context));
   }
 
   /**
@@ -358,6 +381,9 @@ public class InMemExecutor implements Executor {
       Node<Operator<?, ?, ?>> node, ExecutionContext context) {
     Operator<?, ?, ?> op = node.get();
     final InputProvider<?> output;
+    if (context.isRunning(op)) {
+      return;
+    }
     if (op instanceof FlatMap) {
       output = execMap((Node) node, context);
     } else if (op instanceof Repartition) {
@@ -369,6 +395,7 @@ public class InMemExecutor implements Executor {
     } else {
       throw new IllegalStateException("Invalid operator: " + op);
     }
+    context.markRunning(op);
     // store output for each child
     if (node.getChildren().size() > 1) {
       List<List<BlockingQueue<?>>> forkedProviders = new ArrayList<>();
@@ -427,9 +454,8 @@ public class InMemExecutor implements Executor {
     InputProvider<?> ret = new InputProvider<>();
     final UnaryFunctor mapper = flatMap.get().getFunctor();
     for (Supplier<?> s : suppliers) {
-      final BlockingQueue<?> blockingQueue = new ArrayBlockingQueue(50);
-      QueueSupplier<?> outputSupplier = QueueSupplier.wrap(blockingQueue);
-      ret.add((Supplier) outputSupplier);
+      final BlockingQueue<?> blockingQueue = new ArrayBlockingQueue(5000);
+      ret.add((Supplier) QueueSupplier.wrap(blockingQueue));
       final Collector c = QueueCollector.wrap(blockingQueue);
       executor.execute(() -> {
         try {
@@ -465,7 +491,7 @@ public class InMemExecutor implements Executor {
     List<BlockingQueue> outputQueues = new ArrayList<>(numPartitions);
     for (Supplier<?> s : input) {
       BlockingQueue outputQueue = new ArrayBlockingQueue(
-          10 * (input.size() / numPartitions) + 1);
+          5000 * (input.size() / numPartitions) + 1);
       outputQueues.add(outputQueue);
       executor.execute(() -> {
         try {
@@ -541,7 +567,7 @@ public class InMemExecutor implements Executor {
 
     final List<BlockingQueue> repartitioned = new ArrayList(outputPartitions);
     for (int i = 0; i < outputPartitions; i++) {
-      repartitioned.add(new ArrayBlockingQueue(10));
+      repartitioned.add(new ArrayBlockingQueue(5000));
     }
 
     
@@ -578,7 +604,7 @@ public class InMemExecutor implements Executor {
     // consume repartitioned suppliers
     repartitioned.stream().forEach(q -> {
       final Map<Window, Map<Object, State>> windowStates = new HashMap<>();
-      final BlockingQueue output = new ArrayBlockingQueue(10);
+      final BlockingQueue output = new ArrayBlockingQueue(5000);
       final Map<Object, State> aggregatingStates = new HashMap<>();
       final boolean isAggregating = windowing.isAggregating();
       final LocalTriggering triggering = new LocalTriggering();
@@ -595,13 +621,16 @@ public class InMemExecutor implements Executor {
             Object value = valueExtractor.apply(item);
             final Set<Window> itemWindows;
             itemWindows = windowing.allocateWindows(
-               item, triggering, new UnaryFunction<Window, Void>() {
-                 @Override
-                 public Void apply(Window window) {
-                    window.flushAll();
+                item, triggering, new UnaryFunction<Window, Void>() {
+                  @Override
+                  public Void apply(Window window) {
+                    synchronized(window) {
+                      window.flushAll();
+                    }
+                    windowing.close(window);
                     windowStates.remove(window);
                     return null;
-                 }
+                  }
                });
 
             for (Window w : itemWindows) {
@@ -615,7 +644,9 @@ public class InMemExecutor implements Executor {
                 State aggregatingState = aggregatingStates.get(key);
                 if (!isAggregating || aggregatingState == null) {
                   keyState = (State) stateFactory.apply(key, QueueCollector.wrap(output));
-                  w.addState(keyState);
+                  synchronized(w) {
+                    w.addState(keyState);
+                  }
                   if (isAggregating) {
                     aggregatingStates.put(key, keyState);
                   }

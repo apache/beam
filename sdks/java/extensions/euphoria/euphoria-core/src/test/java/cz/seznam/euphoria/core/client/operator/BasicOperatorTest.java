@@ -3,6 +3,7 @@
 package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
+import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
 import cz.seznam.euphoria.core.client.dataset.PCollection;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
@@ -226,7 +227,7 @@ public class BasicOperatorTest {
         .output();
 
     Map.of(output).by(p -> p.getFirst() + ", " + p.getSecond())
-        .output().persist(URI.create("stdout:///"));
+        .output().persist(URI.create("stdout:///?dump-partition-id=false"));
 
     executor.waitForCompletion(flow);
 
