@@ -207,8 +207,10 @@ public class GameStats extends LeaderBoard {
             c -> c.element().getValue()));
     tableConfigure.put("window_start",
         new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>("STRING",
-          c -> { IntervalWindow w = (IntervalWindow) c.window();
-                 return fmt.print(w.start()); }));
+          c -> {
+            IntervalWindow w = (IntervalWindow) c.window();
+            return fmt.print(w.start());
+          }));
     tableConfigure.put("processing_time",
         new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>(
             "STRING", c -> fmt.print(Instant.now())));
@@ -226,8 +228,10 @@ public class GameStats extends LeaderBoard {
         new HashMap<String, WriteWindowedToBigQuery.FieldInfo<Double>>();
     tableConfigure.put("window_start",
         new WriteWindowedToBigQuery.FieldInfo<Double>("STRING",
-          c -> { IntervalWindow w = (IntervalWindow) c.window();
-                 return fmt.print(w.start()); }));
+          c -> {
+            IntervalWindow w = (IntervalWindow) c.window();
+            return fmt.print(w.start());
+          }));
     tableConfigure.put("mean_duration",
         new WriteWindowedToBigQuery.FieldInfo<Double>("FLOAT", c -> c.element()));
     return tableConfigure;
