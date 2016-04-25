@@ -614,6 +614,7 @@ public class DatastoreIO {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
       builder
           .addIfNotDefault("host", host, DEFAULT_HOST)
           .addIfNotNull("dataset", datasetId);

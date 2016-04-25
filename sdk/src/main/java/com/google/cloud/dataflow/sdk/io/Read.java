@@ -146,6 +146,7 @@ public class Read {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
       builder
           .add("source", source.getClass())
           .include(source);
@@ -260,6 +261,7 @@ public class Read {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
       builder
           .add("source", source.getClass())
           .include(source);

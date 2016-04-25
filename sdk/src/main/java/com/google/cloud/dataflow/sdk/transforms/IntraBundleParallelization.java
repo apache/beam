@@ -174,6 +174,7 @@ public class IntraBundleParallelization {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
       builder
           .add("maxParallelism", maxParallelism)
           .add("fn", doFn.getClass())

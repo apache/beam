@@ -146,6 +146,8 @@ public class CalendarWindows {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+
       builder
           .add("numDays", number)
           .addIfNotDefault("startDate", new DateTime(startDate, timeZone).toInstant(),
@@ -241,6 +243,8 @@ public class CalendarWindows {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+
       builder
           .add("numMonths", number)
           .addIfNotDefault("startDate", new DateTime(startDate, timeZone).toInstant(),
@@ -345,6 +349,8 @@ public class CalendarWindows {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+
       builder
           .add("numYears", number)
           .addIfNotDefault("startDate", new DateTime(startDate, timeZone).toInstant(),
