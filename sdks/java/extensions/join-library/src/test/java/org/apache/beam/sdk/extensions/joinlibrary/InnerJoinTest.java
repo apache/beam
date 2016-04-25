@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.contrib.joinlibrary;
+package org.apache.beam.sdk.extensions.joinlibrary;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.PAssert;
@@ -30,11 +30,10 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
-
 /**
- * This test Outer Right Join functionality.
+ * This test Inner Join functionality.
  */
-public class OuterRightJoinTest {
+public class InnerJoinTest {
 
   Pipeline p;
   List<KV<String, Long>> leftListOfKv;
@@ -55,16 +54,16 @@ public class OuterRightJoinTest {
   public void testJoinOneToOneMapping() {
     leftListOfKv.add(KV.of("Key1", 5L));
     leftListOfKv.add(KV.of("Key2", 4L));
-    PCollection<KV<String, Long>> leftCollection = p
-        .apply("CreateLeft", Create.of(leftListOfKv));
+    PCollection<KV<String, Long>> leftCollection =
+        p.apply("CreateLeft", Create.of(leftListOfKv));
 
     listRightOfKv.add(KV.of("Key1", "foo"));
     listRightOfKv.add(KV.of("Key2", "bar"));
-    PCollection<KV<String, String>> rightCollection = p
-        .apply("CreateRight", Create.of(listRightOfKv));
+    PCollection<KV<String, String>> rightCollection =
+        p.apply("CreateRight", Create.of(listRightOfKv));
 
-    PCollection<KV<String, KV<Long, String>>> output = Join.rightOuterJoin(
-      leftCollection, rightCollection, -1L);
+    PCollection<KV<String, KV<Long, String>>> output = Join.innerJoin(
+      leftCollection, rightCollection);
 
     expectedResult.add(KV.of("Key1", KV.of(5L, "foo")));
     expectedResult.add(KV.of("Key2", KV.of(4L, "bar")));
@@ -84,8 +83,8 @@ public class OuterRightJoinTest {
     PCollection<KV<String, String>> rightCollection = p
         .apply("CreateRight", Create.of(listRightOfKv));
 
-    PCollection<KV<String, KV<Long, String>>> output = Join.rightOuterJoin(
-      leftCollection, rightCollection, -1L);
+    PCollection<KV<String, KV<Long, String>>> output = Join.innerJoin(
+      leftCollection, rightCollection);
 
     expectedResult.add(KV.of("Key2", KV.of(4L, "bar")));
     expectedResult.add(KV.of("Key2", KV.of(4L, "gazonk")));
@@ -105,8 +104,8 @@ public class OuterRightJoinTest {
     PCollection<KV<String, String>> rightCollection = p
         .apply("CreateRight", Create.of(listRightOfKv));
 
-    PCollection<KV<String, KV<Long, String>>> output = Join.rightOuterJoin(
-      leftCollection, rightCollection, -1L);
+    PCollection<KV<String, KV<Long, String>>> output = Join.innerJoin(
+      leftCollection, rightCollection);
 
     expectedResult.add(KV.of("Key2", KV.of(4L, "bar")));
     expectedResult.add(KV.of("Key2", KV.of(6L, "bar")));
@@ -116,7 +115,7 @@ public class OuterRightJoinTest {
   }
 
   @Test
-  public void testJoinNoneToOneMapping() {
+  public void testJoinNoneToNoneMapping() {
     leftListOfKv.add(KV.of("Key2", 4L));
     PCollection<KV<String, Long>> leftCollection = p
         .apply("CreateLeft", Create.of(leftListOfKv));
@@ -125,29 +124,20 @@ public class OuterRightJoinTest {
     PCollection<KV<String, String>> rightCollection = p
         .apply("CreateRight", Create.of(listRightOfKv));
 
-    PCollection<KV<String, KV<Long, String>>> output = Join.rightOuterJoin(
-      leftCollection, rightCollection, -1L);
+    PCollection<KV<String, KV<Long, String>>> output = Join.innerJoin(
+      leftCollection, rightCollection);
 
-    expectedResult.add(KV.of("Key3", KV.of(-1L, "bar")));
     PAssert.that(output).containsInAnyOrder(expectedResult);
     p.run();
   }
 
   @Test(expected = NullPointerException.class)
   public void testJoinLeftCollectionNull() {
-    Join.rightOuterJoin(null, p.apply(Create.of(listRightOfKv)), "");
+    Join.innerJoin(null, p.apply(Create.of(listRightOfKv)));
   }
 
   @Test(expected = NullPointerException.class)
   public void testJoinRightCollectionNull() {
-    Join.rightOuterJoin(p.apply(Create.of(leftListOfKv)), null, -1L);
-  }
-
-  @Test(expected = NullPointerException.class)
-  public void testJoinNullValueIsNull() {
-    Join.rightOuterJoin(
-        p.apply("CreateLeft", Create.of(leftListOfKv)),
-        p.apply("CreateRight", Create.of(listRightOfKv)),
-        null);
+    Join.innerJoin(p.apply(Create.of(leftListOfKv)), null);
   }
 }
