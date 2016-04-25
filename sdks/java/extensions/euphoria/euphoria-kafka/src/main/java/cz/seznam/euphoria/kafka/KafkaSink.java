@@ -129,7 +129,7 @@ public class KafkaSink implements DataSink<Pair<byte[], byte[]>> {
     String cacheKey = brokers;
     Producer<byte[], byte[]> producer = PRODUCERS.get(cacheKey);
     if (producer == null) {
-      // ~ ok, let's create a new producer (this may time some time)
+      // ~ ok, let's create a new producer (this may take some time)
       final Producer<byte[], byte[]> p = KafkaUtils.newProducer(brokers, config);
       // ~ now, let's try to store it in our global cache
       final Producer<byte[], byte[]> p1 = PRODUCERS.putIfAbsent(cacheKey, p);
