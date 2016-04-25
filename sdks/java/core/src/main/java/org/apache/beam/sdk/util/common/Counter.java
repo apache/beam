@@ -45,6 +45,14 @@ import javax.annotation.Nullable;
  * <p>Counters compare using value equality of their name, kind, and
  * cumulative value.  Equal counters should have equal toString()s.
  *
+ * <p>After all possible mutations have completed, the reader should check
+ * {@link #isDirty} for every counter, otherwise updates may be lost.
+ *
+ * <p>A counter may become dirty without a corresponding update to the value.
+ * This generally will occur when the calls to {@code addValue()}, {@code committing()},
+ * and {@code committed()} are interleaved such that the value is updated
+ * between the calls to committing and the read of the value.
+ *
  * @param <T> the type of values aggregated by this counter
  */
 public abstract class Counter<T> {
@@ -327,14 +335,6 @@ public abstract class Counter<T> {
 
   /**
    * Returns if the counter contains non-committed aggregate.
-   *
-   * <p>After all possible mutations have completed, the reader should check
-   * {@link #isDirty} for every counter, otherwise updates may be lost.
-   *
-   * <p>A counter may become dirty without a corresponding update to the value.
-   * This generally will occur when the calls to {@code addValue()}, {@code committing()},
-   * and {@code committed()} are interleaved such that the value is updated
-   * between the calls to committing and the read of the value.
    */
   public boolean isDirty() {
     return commitState.get() != CommitState.COMMITTED;
