@@ -1,15 +1,18 @@
 
 package cz.seznam.euphoria.core.client.graph;
 
+import cz.seznam.euphoria.core.client.util.Pair;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -17,57 +20,6 @@ import java.util.stream.Stream;
  * A directed acyclic graph of nodes of type T.
  */
 public class DAG<T> {
-
-  public static final class Node<T> {
-    final List<Node<T>> children = new ArrayList<>();
-    final T value;
-    final List<Node<T>> parents = new ArrayList<>();
-    Node(T value) {
-      this.value = value;
-    }
-    Node(T value, List<Node<T>> parents) {
-      this(value);
-      this.parents.addAll(parents);
-    }
-
-    public List<Node<T>> getParents() {
-      return Collections.unmodifiableList(parents);
-    }
-    public List<Node<T>> getChildren() {
-      return Collections.unmodifiableList(children);
-    }
-    public T get() {
-      return value;
-    }
-
-    /** Make a copy of this node. */
-    Node<T> copy() {
-      Node<T> clone = new Node<>(value, parents);
-      clone.children.addAll(this.children);
-      return clone;
-    }
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public boolean equals(Object obj) {
-      if (obj == this) return true;
-      if (obj instanceof Node) {
-        return ((Node) obj).value.equals(value);
-      }
-      return false;
-    }
-
-    @Override
-    public int hashCode() {
-      return value.hashCode();
-    }
-
-    @Override
-    public String toString() {
-      return "Node(" + value.toString() + ")";
-    }
-
-  }
 
   final List<Node<T>> roots = new ArrayList<>();
   final Map<T, Node<T>> nodeMap = new HashMap<>();
@@ -201,6 +153,43 @@ public class DAG<T> {
     return nodeMap.values().stream().map(n -> n.value);
   }
 
+  /** Retrieve BFS stream of nodes. */
+  public Stream<Node<T>> bfs() {
+    List<Node<T>> ret = new LinkedList<>();
+    Set<Node<T>> closed = new HashSet<>();
+    Queue<Node<T>> open = new LinkedList<>();
+    open.addAll(this.roots);
 
+    while (!open.isEmpty()) {
+      Node<T> next = open.poll();
+      if (!closed.contains(next)) {
+        open.addAll(next.children);
+        ret.add(next);
+        closed.add(next);
+      }
+    }
+
+    return ret.stream();
+  }
+
+
+  @Override
+  public String toString() {
+    // iterate the DAG DFS and write it to string
+    StringBuilder sb = new StringBuilder();
+    LinkedList<Pair<Integer, Node<T>>> open = new LinkedList<>();
+    this.roots.stream().forEach(r -> open.add(Pair.of(0, r)));
+    while (!open.isEmpty()) {
+      Pair<Integer, Node<T>> poll = open.poll();
+      for (int i = 0; i < poll.getFirst(); i++) {
+        sb.append(" ");
+      }
+      sb.append(poll.getSecond().get());
+      sb.append("\n");
+      poll.getSecond().children.stream()
+          .forEach(n -> open.addFirst(Pair.of(poll.getFirst() + 1, n)));
+    }
+    return sb.toString();
+  }
 
 }

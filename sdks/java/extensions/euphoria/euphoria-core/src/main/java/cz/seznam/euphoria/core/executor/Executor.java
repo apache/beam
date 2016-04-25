@@ -4,6 +4,7 @@ package cz.seznam.euphoria.core.executor;
 import com.google.common.collect.Sets;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
+import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.Repartition;
 import cz.seznam.euphoria.core.client.operator.Union;
@@ -26,8 +27,8 @@ public interface Executor {
    * implement them.
    */
   @SuppressWarnings("unchecked")
-  static Set<Class<?>> getBasicOps() {
-    return Sets.newHashSet(
+  static Set<Class<? extends Operator<?, ?, ?>>> getBasicOps() {
+    return (Set) Sets.newHashSet(
         FlatMap.class, Repartition.class, ReduceStateByKey.class, Union.class);
   }
   

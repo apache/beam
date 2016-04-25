@@ -1,6 +1,7 @@
 package cz.seznam.euphoria.core.client.util;
 
 import java.util.Comparator;
+import java.util.Objects;
 
 /**
  * Pair of any types. The pair has to fit in memory and is read-only.
@@ -83,4 +84,23 @@ public class Pair<K, V> implements java.util.Map.Entry<K, V> {
   public V setValue(V value) {
     throw new UnsupportedOperationException("Read-only entry!");
   }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (obj == this) {
+      return true;
+    }
+    if (obj instanceof Pair) {
+      Pair other = (Pair) obj;
+      return Objects.equals(first, other.first) && Objects.equals(second, other.second);
+    }
+    return false;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(first) ^ Objects.hashCode(second);
+  }
+
+
 }

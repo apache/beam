@@ -9,24 +9,24 @@ import cz.seznam.euphoria.core.client.operator.Operator;
  */
 public class ExecPath {
 
-  /** A DAG of operators. */
-  private final DAG<Operator<?, ?, ?>> operators;
+  /** A DAG of dag. */
+  private final DAG<Operator<?, ?, ?>> dag;
   
 
-  private ExecPath(DAG<Operator<?, ?, ?>> operators) {
-    this.operators = operators;
+  private ExecPath(DAG<Operator<?, ?, ?>> dag) {
+    this.dag = dag;
   }
 
 
   /**
    * Create new ExecPath.
    */
-  static ExecPath of(DAG<Operator<?, ?, ?>> operators) {
-    return new ExecPath(operators);
+  static ExecPath of(DAG<Operator<?, ?, ?>> dag) {
+    return new ExecPath(dag);
   }
 
-  public DAG<Operator<?, ?, ?>> operators() {
-    return operators;
+  public DAG<Operator<?, ?, ?>> dag() {
+    return dag;
   }
 
 }

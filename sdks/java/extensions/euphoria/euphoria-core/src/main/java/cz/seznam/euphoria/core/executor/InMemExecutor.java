@@ -1,9 +1,7 @@
 
 package cz.seznam.euphoria.core.executor;
 
-import com.google.common.collect.Iterables;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioner;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.Window;
@@ -13,6 +11,7 @@ import cz.seznam.euphoria.core.client.functional.BinaryFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.graph.DAG;
+import cz.seznam.euphoria.core.client.graph.Node;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.DataSource;
@@ -34,11 +33,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -50,6 +47,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Inmem executor for testing.
@@ -96,6 +94,36 @@ public class InMemExecutor implements Executor {
         throw new EndOfStreamException();
       }
       return this.reader.next();
+    }
+  }
+
+
+  /** Partitioned provider of input data for single operator. */
+  private static final class InputProvider<T> implements Iterable<Supplier<T>> {
+    final List<Supplier<T>> suppliers;
+    InputProvider() {
+      this.suppliers = new ArrayList<>();
+    }
+
+    public int size() {
+      return suppliers.size();
+    }
+
+    public void add(Supplier<T> s) {
+      suppliers.add(s);
+    }
+
+    public Supplier<T> get(int i) {
+      return suppliers.get(i);
+    }
+
+    @Override
+    public Iterator<Supplier<T>> iterator() {
+      return suppliers.iterator();
+    }
+
+    Stream<Supplier<T>> stream() {
+      return suppliers.stream();
     }
   }
 
@@ -147,25 +175,29 @@ public class InMemExecutor implements Executor {
 
 
   private static final class ExecutionContext {
-    Map<Dataset<?>, List<Supplier<?>>> materializedDatasets
+    // map of operator inputs to suppliers
+    Map<Pair<Operator<?, ?, ?>, Operator<?, ?, ?>>, InputProvider<?>> materializedOutputs
         = Collections.synchronizedMap(new HashMap<>());
 
-    private boolean containsKey(Dataset<?> d) {
-      return materializedDatasets.containsKey(d);
+    private boolean containsKey(Pair<Operator<?, ?, ?>, Operator<?, ?, ?>> d) {
+      return materializedOutputs.containsKey(d);
     }
-    void add(Dataset<?> dataset, List<Supplier<?>> partitions) {
-      if (containsKey(dataset)) {
-        throw new IllegalArgumentException("Dataset "
-            + dataset + " is already materialized!");
+    void add(Operator<?, ?, ?> source, Operator<?, ?, ?> target,
+        InputProvider<?> partitions) {
+      Pair<Operator<?, ?, ?>, Operator<?, ?, ?>> edge = Pair.of(source, target);
+      if (containsKey(edge)) {
+        throw new IllegalArgumentException("Dataset for edge "
+            + edge + " is already materialized!");
       }
-      materializedDatasets.put(dataset, partitions);
+      materializedOutputs.put(edge, partitions);
     }
-    List<Supplier<?>> get(Dataset<?> ds) {
-      List<Supplier<?>> sup = materializedDatasets.get(ds);
+    InputProvider<?> get(Operator<?, ?, ?> source, Operator<?, ?, ?> target) {
+      Pair<Operator<?, ?, ?>, Operator<?, ?, ?>> edge = Pair.of(source, target);
+      InputProvider<?> sup = materializedOutputs.get(edge);
       if (sup == null) {
         throw new IllegalArgumentException(
-            "Do not have suppliers for given dataset (original producer "
-            + ds.getProducer() + ")");
+            "Do not have suppliers for given edge (original producer "
+            + source.output().getProducer() + ")");
       }
       return sup;
     }
@@ -198,26 +230,38 @@ public class InMemExecutor implements Executor {
   @SuppressWarnings("unchecked")
   public int waitForCompletion(Flow flow) {
     ExecutionContext context = new ExecutionContext();
-    Collection<Operator<?, ?, ?>> operators = flow.operators();
-    Collection<Dataset<?>> sources = flow.sources();
-    Collection<Dataset<?>> outputs = operators.stream()
-        .map(o -> (Dataset<?>) o.output())
-        .filter(d -> d.getOutputSink() != null)
-        .collect(Collectors.toList());
 
-    sources.stream()
-        .forEach(d -> context.add(d, createStream(d)));
-    List<ExecUnit> units = ExecUnit.split(flow);
+    // transform the given flow to DAG of basic dag
+    DAG<Operator<?, ?, ?>> dag = FlowUnfolder.unfold(flow, Executor.getBasicOps());
+
+    Collection<Operator<?, ?, ?>> operators = flow.operators();
+
     final List<Future> runningTasks = new ArrayList<>();
+    Collection<Node<Operator<?, ?, ?>>> leafs = dag.getLeafs();
+
+    // create record for each input dataset in context
+    // input datasets are represented as edges with null parent
+    dag.bfs()
+        .flatMap(n -> n.get().listInputs().stream()
+            // take input datasets
+            .filter(i -> i.getProducer() == null)
+            .map(i -> Pair.of(n, i)))
+        .forEach(p -> {
+          Dataset<?> inputDataset = p.getSecond();
+          context.add(
+              null, p.getFirst().get(), createStream(inputDataset.getSource()));
+        });
+
+    List<ExecUnit> units = ExecUnit.split(dag);
     for (ExecUnit unit : units) {
       execUnit(unit, context);
     }
     // consume outputs
-    for (Dataset<?> o : outputs) {
-      DataSink<?> sink = o.getOutputSink();
-      sink.initialize();
+    for (Node<Operator<?, ?, ?>> output : leafs) {
+      DataSink<?> sink = output.get().output().getOutputSink();
+      final InputProvider<?> provider = context.get(output.get(), null);
       int part = 0;
-      for (Supplier s : context.get(o)) {
+      for (Supplier<?> s : provider) {
         final Writer writer = sink.openWriter(part++);
         runningTasks.add(executor.submit(() -> {
           try {
@@ -253,8 +297,9 @@ public class InMemExecutor implements Executor {
     }
 
     // extract all processed sinks
-    List<DataSink<?>> sinks = outputs.stream()
-            .map(Dataset::getOutputSink)
+    List<DataSink<?>> sinks = leafs.stream()
+            .map(n -> n.get().output().getOutputSink())
+            .filter(s -> s != null)
             .collect(Collectors.toList());
 
     // wait for all threads to finish
@@ -283,63 +328,26 @@ public class InMemExecutor implements Executor {
   }
 
   @SuppressWarnings("unchecked")
-  private List<Supplier<?>> createStream(Dataset<?> s) {
-    final DataSource<?> source = s.getSource();
-    if (source == null) {
-      throw new IllegalStateException("Can create streams only on inputs.");
-    }
-    return (List) source.getPartitions().stream()
+  private InputProvider<?> createStream(DataSource<?> source) {
+    InputProvider ret = new InputProvider();
+    source.getPartitions().stream()
         .map(PartitionSupplierStream::new)
-        .collect(Collectors.toList());
+        .forEach(ret::add);
+    return ret;
   }
 
 
   private void execUnit(ExecUnit unit, ExecutionContext context) {
     for (ExecPath path : unit.getPaths()) {
-      validateDAG(path.operators());
-      execDAG(path.operators(), context);
+      execDAG(path.dag(), context);
     }
-  }
-
-  /** Validate that this runtime is capable of running this DAG. */
-  private void validateDAG(DAG<Operator<?, ?, ?>> operators) {
-    final Set<Class<?>> supported = Executor.getBasicOps();
-
-    operators.nodes()
-        .filter(o -> !supported.contains(o.getClass()))
-        .map(o -> {
-          DAG<Operator<?, ?, ?>> basicOps = o.getBasicOps();
-          if (basicOps.size() == 1) {
-            // we have to ensure that this is not a self replacement
-            if (basicOps.nodes().findFirst().get().getClass() == o.getClass()) {
-              throw new IllegalStateException("Operator " + o + " does not correctly "
-                  + "define `getBasicOps`, basicOps are " + Executor.getBasicOps());
-            }
-          }
-          return basicOps;
-        })
-        .forEach(this::validateDAG);
   }
 
 
   private void execDAG(
-      DAG<Operator<?, ?, ?>> operators, ExecutionContext context) {
+      DAG<Operator<?, ?, ?>> dag, ExecutionContext context) {
 
-    boolean haveAllInputs = operators.getRoots().stream()
-            .map(DAG.Node::get)
-            .allMatch(o -> o.listInputs()
-                .stream()
-                .allMatch(context::containsKey));
-    
-    if (!haveAllInputs) {
-      throw new IllegalStateException("Cannot execute DAG "
-          + operators + ", missing some inputs!");
-    }
-    
-    // OK, we have all inputs, lets execute operations
-    for (Operator<?, ?, ?> op : getExecutableOperators(operators)) {
-      execOp(op, context);      
-    }
+    dag.bfs().forEach(n -> execNode(n, context));
   }
 
   /**
@@ -347,57 +355,76 @@ public class InMemExecutor implements Executor {
    * of output.
    */
   @SuppressWarnings("unchecked")
-  private void execOp(
-      Operator<?, ?, ?> op, ExecutionContext context) {
-    final List<Supplier<?>> output;
+  private void execNode(
+      Node<Operator<?, ?, ?>> node, ExecutionContext context) {
+    Operator<?, ?, ?> op = node.get();
+    final InputProvider<?> output;
     if (op instanceof FlatMap) {
-      output = execMap((FlatMap) op, context);
+      output = execMap((Node) node, context);
     } else if (op instanceof Repartition) {
-      output = execRepartition((Repartition) op, context);
+      output = execRepartition((Node) node, context);
     } else if (op instanceof ReduceStateByKey) {
-      output = execReduceStateByKey((ReduceStateByKey) op, context);
+      output = execReduceStateByKey((Node) node, context);
     } else if (op instanceof Union) {
-      output = execUnion((Union) op, context);
+      output = execUnion((Node) node, context);
     } else {
-      DAG<Operator<?, ?, ?>> basicOps = op.getBasicOps();
-      execDAG(basicOps, context);
-      Dataset<?> outputDs = Iterables.getOnlyElement(basicOps.getLeafs()).get().output();
-      output = context.get(outputDs);
+      throw new IllegalStateException("Invalid operator: " + op);
     }
-    context.add(op.output(), output);
-  }
-
-
-  private List<Operator<?, ?, ?>> getExecutableOperators(DAG<Operator<?, ?, ?>> dag) {
-    List<Operator<?, ?, ?>> ret = new ArrayList<>();
-    final Collection<DAG.Node<Operator<?, ?, ?>>> roots = dag.getRoots();
-    final Queue<DAG.Node<Operator<?, ?, ?>>> unprocessed = new LinkedList<>();
-    final Set<Operator<?, ?, ?>> processed = new HashSet<>();
-
-    roots.stream().forEach(unprocessed::add);
-    while (!unprocessed.isEmpty()) {
-      DAG.Node<Operator<?, ?, ?>> poll = unprocessed.poll();
-      if (processed.add(poll.get())) {
-        ret.add(poll.get());
-        poll.getChildren().stream().forEach(unprocessed::add);
+    // store output for each child
+    if (node.getChildren().size() > 1) {
+      List<List<BlockingQueue<?>>> forkedProviders = new ArrayList<>();
+      for (Node<Operator<?, ?, ?>> ch : node.getChildren()) {
+        List<BlockingQueue<?>> forkedProviderQueue = new ArrayList<>();
+        InputProvider<?> forkedProvider = new InputProvider<>();
+        forkedProviders.add(forkedProviderQueue);
+        for (int p = 0; p < output.size(); p++) {
+          BlockingQueue<?> queue = new ArrayBlockingQueue<>(5000);
+          forkedProviderQueue.add(queue);
+          forkedProvider.add((Supplier) QueueSupplier.wrap(queue));
+        }
+        context.add(node.get(), ch.get(), forkedProvider);
       }
+      for (int p = 0; p < output.size(); p++) {
+        int partId = p;
+        Supplier<?> partSup = output.get(p);
+        List<BlockingQueue<?>> outputs = forkedProviders.stream()
+            .map(l -> l.get(partId)).collect(Collectors.toList());
+        executor.execute(() -> {
+          // copy the original data to all queues
+          for (;;) {
+            Object next = output.get(partId);
+            for (BlockingQueue ch : outputs) {
+              try {
+                ch.put(next);
+              } catch (InterruptedException ex) {
+                return;
+              }
+            }
+          }
+        });
+
+      }
+
+    } else if (node.getChildren().size() == 1) {
+      context.add(node.get(), node.getChildren().iterator().next().get(), output);
+    } else {
+      context.add(node.get(), null, output);
     }
-    return ret;
 
   }
 
 
   @SuppressWarnings("unchecked")
-  private List<Supplier<?>> execMap(FlatMap flatMap,
+  private InputProvider<?> execMap(Node<FlatMap> flatMap,
       ExecutionContext context) {
-    Dataset<?> input = flatMap.input();
-    List<Supplier<?>> suppliers = context.get(input);
-    List<Supplier<?>> ret = new ArrayList<>(suppliers.size());
-    final UnaryFunctor mapper = flatMap.getFunctor();
+    InputProvider<?> suppliers = context.get(
+        flatMap.getSingleParentOrNull().get(), flatMap.get());
+    InputProvider<?> ret = new InputProvider<>();
+    final UnaryFunctor mapper = flatMap.get().getFunctor();
     for (Supplier<?> s : suppliers) {
       final BlockingQueue<?> blockingQueue = new ArrayBlockingQueue(50);
       QueueSupplier<?> outputSupplier = QueueSupplier.wrap(blockingQueue);
-      ret.add(outputSupplier);
+      ret.add((Supplier) outputSupplier);
       final Collector c = QueueCollector.wrap(blockingQueue);
       executor.execute(() -> {
         try {
@@ -417,14 +444,15 @@ public class InMemExecutor implements Executor {
 
 
   @SuppressWarnings("unchecked")
-  private List<Supplier<?>> execRepartition(
-      Repartition repartition,
+  private InputProvider<?> execRepartition(
+      Node<Repartition> repartition,
       ExecutionContext context) {
 
-    Partitioning<?> partitioning = repartition.getPartitioning();
+    Partitioning<?> partitioning = repartition.get().getPartitioning();
     Partitioner<?> partitioner = partitioning.getPartitioner();
     int numPartitions = partitioning.getNumPartitions();
-    List<Supplier<?>> input = context.get(repartition.input());
+    InputProvider<?> input = context.get(
+        repartition.getSingleParentOrNull().get(), repartition.get());
     if (numPartitions <= 0) {
       throw new IllegalArgumentException("Cannot repartition input to "
           + numPartitions + " partitions");
@@ -444,9 +472,11 @@ public class InMemExecutor implements Executor {
         }
       });
     }
-    return (List) outputQueues.stream()
+    InputProvider<?> ret = new InputProvider<>();
+    outputQueues.stream()
         .map(QueueSupplier::new)
-        .collect(Collectors.toList());
+        .forEach(s -> ret.add((Supplier) s));
+    return ret;
   }
 
   private static final class CompositeKey<A, B> {
@@ -477,14 +507,14 @@ public class InMemExecutor implements Executor {
   }
 
   @SuppressWarnings("unchecked")
-  private List<Supplier<?>> execReduceStateByKey(
-      ReduceStateByKey reduceStateByKey,
+  private InputProvider<?> execReduceStateByKey(
+      Node<ReduceStateByKey> reduceStateByKeyNode,
       ExecutionContext context) {
 
-    final Dataset<?> input = reduceStateByKey.input();
     final UnaryFunction keyExtractor;
+    final ReduceStateByKey<?, ?, ?, ?, ?, ?, ?, ?, ?> reduceStateByKey
+        = reduceStateByKeyNode.get();
     if (reduceStateByKey.isGrouped()) {
-      GroupedDataset grouped = (GroupedDataset) input;
       UnaryFunction reduceKeyExtractor = reduceStateByKey.getKeyExtractor();
       keyExtractor = (UnaryFunction<Pair, CompositeKey>) (Pair p) -> {
         return new CompositeKey(p.getFirst(), reduceKeyExtractor.apply(p));
@@ -493,11 +523,15 @@ public class InMemExecutor implements Executor {
       keyExtractor = reduceStateByKey.getKeyExtractor();
     }
 
+    InputProvider<?> suppliers = context.get(
+        reduceStateByKeyNode.getSingleParentOrNull().get(),
+        reduceStateByKeyNode.get());
+
     final UnaryFunction valueExtractor = reduceStateByKey.getValueExtractor();
     final BinaryFunction stateFactory = reduceStateByKey.getStateFactory();
     final Partitioning partitioning = reduceStateByKey.getPartitioning();
     final int outputPartitions = partitioning.getNumPartitions() > 0
-        ? partitioning.getNumPartitions() : input.getPartitioning().getNumPartitions();
+        ? partitioning.getNumPartitions() : suppliers.size();
     final Windowing windowing = reduceStateByKey.getWindowing();
 
     final List<BlockingQueue> repartitioned = new ArrayList(outputPartitions);
@@ -505,7 +539,7 @@ public class InMemExecutor implements Executor {
       repartitioned.add(new ArrayBlockingQueue(10));
     }
 
-    List<Supplier<?>> suppliers = context.get(input);
+    
     for (Supplier<?> s : suppliers) {
       // read suppliers
       executor.execute(() -> {
@@ -534,7 +568,7 @@ public class InMemExecutor implements Executor {
       });
     }
 
-    List<Supplier<?>> outputSuppliers = new ArrayList<>(repartitioned.size());
+    InputProvider<?> outputSuppliers = new InputProvider<>();
 
     // consume repartitioned suppliers
     repartitioned.stream().forEach(q -> {
@@ -604,12 +638,13 @@ public class InMemExecutor implements Executor {
 
 
   @SuppressWarnings("unchecked")
-  private List<Supplier<?>> execUnion(
-      Union union, ExecutionContext context) {
-    Collection<Dataset<?>> inputs = (Collection<Dataset<?>>) union.listInputs();
-    List<Supplier<?>> ret = inputs.stream()
-        .flatMap(input -> context.get(input).stream())
-        .collect(Collectors.toList());
+  private InputProvider<?> execUnion(
+      Node<Union> union, ExecutionContext context) {
+
+    InputProvider<?> ret = new InputProvider<>();
+    union.getParents().stream()
+        .flatMap(p -> context.get(p.get(), union.get()).stream())
+        .forEach(s -> ret.add((Supplier) s));
     return ret;
   }
 
