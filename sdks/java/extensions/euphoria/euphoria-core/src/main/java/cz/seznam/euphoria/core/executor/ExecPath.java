@@ -9,7 +9,7 @@ import cz.seznam.euphoria.core.client.operator.Operator;
  */
 public class ExecPath {
 
-  /** A DAG of dag. */
+  /** A DAG of operators. */
   private final DAG<Operator<?, ?, ?>> dag;
   
 

@@ -46,6 +46,7 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -234,8 +235,6 @@ public class InMemExecutor implements Executor {
     // transform the given flow to DAG of basic dag
     DAG<Operator<?, ?, ?>> dag = FlowUnfolder.unfold(flow, Executor.getBasicOps());
 
-    Collection<Operator<?, ?, ?>> operators = flow.operators();
-
     final List<Future> runningTasks = new ArrayList<>();
     Collection<Node<Operator<?, ?, ?>>> leafs = dag.getLeafs();
 
@@ -392,11 +391,17 @@ public class InMemExecutor implements Executor {
         executor.execute(() -> {
           // copy the original data to all queues
           for (;;) {
-            Object next = output.get(partId);
             for (BlockingQueue ch : outputs) {
               try {
-                ch.put(next);
+                ch.put(partSup.get());
               } catch (InterruptedException ex) {
+                return;
+              } catch (EndOfStreamException ex) {
+                try {
+                  ch.put(EndOfStream.get());
+                } catch (InterruptedException e) {
+                  // ignore
+                }
                 return;
               }
             }

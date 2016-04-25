@@ -5,6 +5,7 @@ import cz.seznam.euphoria.core.client.util.Pair;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -177,10 +178,10 @@ public class DAG<T> {
   public String toString() {
     // iterate the DAG DFS and write it to string
     StringBuilder sb = new StringBuilder();
-    LinkedList<Pair<Integer, Node<T>>> open = new LinkedList<>();
+    Deque<Pair<Integer, Node<T>>> open = new LinkedList<>();
     this.roots.stream().forEach(r -> open.add(Pair.of(0, r)));
     while (!open.isEmpty()) {
-      Pair<Integer, Node<T>> poll = open.poll();
+      Pair<Integer, Node<T>> poll = open.removeFirst();
       for (int i = 0; i < poll.getFirst(); i++) {
         sb.append(" ");
       }
