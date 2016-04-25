@@ -20,7 +20,7 @@ package org.apache.beam.sdk.transforms;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasType;
-import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includes;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
 import static org.apache.beam.sdk.util.StringUtils.jsonStringToByteArray;
@@ -1549,7 +1549,7 @@ public class ParDoTest implements Serializable {
         hasType(DisplayData.Type.JAVA_CLASS),
         DisplayDataMatchers.hasValue(fn.getClass().getName()))));
 
-    assertThat(displayData, includes(fn));
+    assertThat(displayData, includesDisplayDataFrom(fn));
   }
 
   @Test
@@ -1567,7 +1567,7 @@ public class ParDoTest implements Serializable {
     Bound<String, String> parDo = ParDo.of(fn);
 
     DisplayData displayData = DisplayData.from(parDo);
-    assertThat(displayData, includes(fn));
+    assertThat(displayData, includesDisplayDataFrom(fn));
     assertThat(displayData, hasDisplayItem("fn", fn.getClass()));
   }
 
@@ -1588,7 +1588,7 @@ public class ParDoTest implements Serializable {
             .of(fn);
 
     DisplayData displayData = DisplayData.from(parDo);
-    assertThat(displayData, includes(fn));
+    assertThat(displayData, includesDisplayDataFrom(fn));
     assertThat(displayData, hasDisplayItem("fn", fn.getClass()));
   }
 }
