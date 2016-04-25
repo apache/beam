@@ -39,12 +39,12 @@ public interface HasDisplayData {
    * public void populateDisplayData(DisplayData.Builder builder) {
    *  builder
    *     .include(subComponent)
-   *     .add("minFilter", 42)
-   *     .addIfNotDefault("useTransactions", this.txn, false)
-   *     .add("topic", "projects/myproject/topics/mytopic")
-   *       .withLabel("Pub/Sub Topic")
-   *     .add("serviceInstance", "myservice.com/fizzbang")
-   *       .withLinkUrl("http://www.myservice.com/fizzbang");
+   *     .add(DisplayData.item("minFilter", 42))
+   *     .addIfNotDefault(DisplayData.item("useTransactions", this.txn), false)
+   *     .add(DisplayData.item("topic", "projects/myproject/topics/mytopic")
+   *       .withLabel("Pub/Sub Topic"))
+   *     .add(DisplayData.item("serviceInstance", "myservice.com/fizzbang")
+   *       .withLinkUrl("http://www.myservice.com/fizzbang"));
    * }
    * }
    * </pre>

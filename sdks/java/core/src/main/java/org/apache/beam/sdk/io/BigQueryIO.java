@@ -522,13 +522,13 @@ public class BigQueryIO {
         super.populateDisplayData(builder);
 
         if (table != null) {
-          builder.add("table", toTableSpec(table));
+          builder.add(DisplayData.item("table", toTableSpec(table)));
         }
 
         builder
-            .addIfNotNull("query", query)
-            .addIfNotNull("flattenResults", flattenResults)
-            .addIfNotDefault("validation", validate, true);
+            .addIfNotNull(DisplayData.item("query", query))
+            .addIfNotNull(DisplayData.item("flattenResults", flattenResults))
+            .addIfNotDefault(DisplayData.item("validation", validate), true);
       }
 
       static {
@@ -1067,17 +1067,17 @@ public class BigQueryIO {
         super.populateDisplayData(builder);
 
         builder
-            .addIfNotNull("table", jsonTableRef)
-            .addIfNotNull("schema", jsonSchema);
+            .addIfNotNull(DisplayData.item("table", jsonTableRef))
+            .addIfNotNull(DisplayData.item("schema", jsonSchema));
 
         if (tableRefFunction != null) {
-          builder.add("tableFn", tableRefFunction.getClass());
+          builder.add(DisplayData.item("tableFn", tableRefFunction.getClass()));
         }
 
         builder
-            .add("createDisposition", createDisposition.toString())
-            .add("writeDisposition", writeDisposition.toString())
-            .addIfNotDefault("validation", validate, true);
+            .add(DisplayData.item("createDisposition", createDisposition.toString()))
+            .add(DisplayData.item("writeDisposition", writeDisposition.toString()))
+            .addIfNotDefault(DisplayData.item("validation", validate), true);
       }
 
       /** Returns the create disposition. */

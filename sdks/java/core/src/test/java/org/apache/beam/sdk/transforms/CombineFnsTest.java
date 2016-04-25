@@ -340,8 +340,8 @@ public class  CombineFnsTest {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       builder
-          .add("uniqueKey" + id, value)
-          .add("sharedKey", value);
+          .add(DisplayData.item("uniqueKey" + id, value))
+          .add(DisplayData.item("sharedKey", value));
     }
   }
 

@@ -694,17 +694,17 @@ public class PubsubIO {
         super.populateDisplayData(builder);
 
         builder
-            .addIfNotNull("timestampLabel", timestampLabel)
-            .addIfNotNull("idLabel", idLabel)
-            .addIfNotNull("maxReadTime", maxReadTime)
-            .addIfNotDefault("maxNumRecords", maxNumRecords, 0);
+            .addIfNotNull(DisplayData.item("timestampLabel", timestampLabel))
+            .addIfNotNull(DisplayData.item("idLabel", idLabel))
+            .addIfNotNull(DisplayData.item("maxReadTime", maxReadTime))
+            .addIfNotDefault(DisplayData.item("maxNumRecords", maxNumRecords), 0);
 
         if (topic != null) {
-          builder.add("topic", topic.asPath());
+          builder.add(DisplayData.item("topic", topic.asPath()));
         }
 
         if (subscription != null) {
-          builder.add("subscription", subscription.asPath());
+          builder.add(DisplayData.item("subscription", subscription.asPath()));
         }
       }
 
@@ -998,11 +998,11 @@ public class PubsubIO {
         super.populateDisplayData(builder);
 
         builder
-            .addIfNotNull("timestampLabel", timestampLabel)
-            .addIfNotNull("idLabel", idLabel);
+            .addIfNotNull(DisplayData.item("timestampLabel", timestampLabel))
+            .addIfNotNull(DisplayData.item("idLabel", idLabel));
 
         if (topic != null) {
-          builder.add("topic", topic.asPath());
+          builder.add(DisplayData.item("topic", topic.asPath()));
         }
       }
 

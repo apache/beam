@@ -1416,14 +1416,14 @@ public class Combine {
       DisplayData.Builder builder, HasDisplayData fn, ClassForDisplay fnClass) {
     builder
         .include(fn, fnClass)
-        .add("combineFn", fnClass);
+        .add(DisplayData.item("combineFn", fnClass));
   }
 
   private static void populateGlobalDisplayData(
       DisplayData.Builder builder, int fanout, boolean insertDefault) {
     builder
-        .addIfNotDefault("fanout", fanout, 0)
-        .add("emitDefaultOnEmptyInput", insertDefault);
+        .addIfNotDefault(DisplayData.item("fanout", fanout), 0)
+        .add(DisplayData.item("emitDefaultOnEmptyInput", insertDefault));
   }
 
   /**
@@ -1598,7 +1598,7 @@ public class Combine {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder.add("combineFn", combiner.getClass());
+      builder.add(DisplayData.item("combineFn", combiner.getClass()));
     }
 
     private List<V> mergeToSingleton(Iterable<V> values) {
@@ -2088,7 +2088,7 @@ public class Combine {
       super.populateDisplayData(builder);
 
       Combine.populateDisplayData(builder, fn, fnClass);
-      builder.add("fanoutFn", hotKeyFanout.getClass());
+      builder.add(DisplayData.item("fanoutFn", hotKeyFanout.getClass()));
     }
 
     /**

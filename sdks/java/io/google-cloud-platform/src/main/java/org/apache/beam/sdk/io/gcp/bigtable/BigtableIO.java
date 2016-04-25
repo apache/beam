@@ -266,14 +266,14 @@ public class BigtableIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
 
-      builder.add("tableId", tableId);
+      builder.add(DisplayData.item("tableId", tableId));
 
       if (options != null) {
-        builder.add("bigtableOptions", options.toString());
+        builder.add(DisplayData.item("bigtableOptions", options.toString()));
       }
 
       if (filter != null) {
-        builder.add("rowFilter", filter.toString());
+        builder.add(DisplayData.item("rowFilter", filter.toString()));
       }
     }
 
@@ -448,10 +448,10 @@ public class BigtableIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
 
-      builder.add("tableId", tableId);
+      builder.add(DisplayData.item("tableId", tableId));
 
       if (options != null) {
-        builder.add("bigtableOptions", options.toString());
+        builder.add(DisplayData.item("bigtableOptions", options.toString()));
       }
     }
 
