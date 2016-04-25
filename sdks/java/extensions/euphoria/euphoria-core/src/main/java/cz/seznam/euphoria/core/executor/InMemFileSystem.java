@@ -133,11 +133,9 @@ public class InMemFileSystem {
 
     @Override
     public List<Partition<T>> getPartitions() {
-      ArrayList<Partition<T>> ps = new ArrayList<>(paths.size());
-      for (List<String> path : paths) {
-        ps.add(new FilePartition<T>(path));
-      }
-      return ps;
+      return paths.stream()
+          .map(FilePartition<T>::new)
+          .collect(Collectors.toList());
     }
 
     @Override
