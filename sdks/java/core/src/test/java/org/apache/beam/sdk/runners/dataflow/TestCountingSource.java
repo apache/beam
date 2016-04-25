@@ -176,11 +176,11 @@ public class TestCountingSource
       if (current >= numMessagesPerShard) {
         return false;
       }
-        // If testing dedup, occasionally insert a duplicate value;
-        if (dedup && ThreadLocalRandom.current().nextInt(5) == 0) {
-          return true;
-        }
-        current++;
+      // If testing dedup, occasionally insert a duplicate value;
+      if (current >= 0 && dedup && ThreadLocalRandom.current().nextInt(5) == 0) {
+        return true;
+      }
+      current++;
       return current < numMessagesPerShard;
     }
 
