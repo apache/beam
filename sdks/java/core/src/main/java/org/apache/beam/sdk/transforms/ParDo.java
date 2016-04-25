@@ -808,7 +808,7 @@ public class ParDo {
     /**
      * {@inheritDoc}
      *
-     * <p>{@link ParDo} registers its internal {@link DoFn} as a subcomponent for display metadata.
+     * <p>{@link ParDo} registers its internal {@link DoFn} as a subcomponent for display data.
      * {@link DoFn} implementations can register display data by overriding
      * {@link DoFn#populateDisplayData}.
      */
