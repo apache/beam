@@ -23,37 +23,18 @@
 
   <parent>
     <groupId>org.apache.beam</groupId>
-    <artifactId>sdks-parent</artifactId>
+    <artifactId>java-sdk-parent</artifactId>
     <version>0.1.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>java-sdk-parent</artifactId>
-
+  <artifactId>extensions-parent</artifactId>
   <packaging>pom</packaging>
 
-  <name>Apache Beam :: SDKs :: Java</name>
+  <name>Apache Beam :: SDKs :: Java :: Extensions</name>
 
   <modules>
-    <module>core</module>
-    <module>io</module>
-    <!-- sdks/java/maven-archtypes has several dependencies on the
-         DataflowPipelineRunner. Until these are refactored out or
-         a released artifact exists, we need to modify the build order.
-    <module>maven-archetypes</module> -->
-    <module>extensions</module>
+    <module>join-library</module>
   </modules>
-
-  <profiles>
-    <profile>
-      <id>java8-tests</id>
-      <activation>
-        <jdk>[1.8,)</jdk>
-      </activation>
-      <modules>
-        <module>java8tests</module>
-      </modules>
-    </profile>
-  </profiles>
 
 </project>
