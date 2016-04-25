@@ -4,6 +4,7 @@ Mergebot talks to a specified GitHub project and watches for @mentions for its a
 Acceptable commands are:
   @<mergebot-name> merge
 """
+from subprocess import call
 import requests
 import time
 
@@ -85,29 +86,45 @@ def main():
     time.sleep(60)
 
 def merge(pr):
+  if not set_up():
+    post_error('Error setting up - please try again.', pr)
   # Make temp directory and cd into.
   # Clone repository and configure.
+  clone_success = call(['git', 'clone', '-b', 'master', 'https://github.com/apache/incubator-beam.git', '~/tmp/'], cwd='~/tmp/')
+  call(['git', 'remote', 'add', 'apache', 'https://git-wip-us.apache.org/repos/asf/incubator-beam.git'], cwd='~/tmp/')
+  call(['git', 'remote', 'rename', 'origin', 'github'], cwd='~/tmp/')
+  call(['git', 'config', '--local', '--add', 'remote.github.fetch', '"+refs/pull/*/head:refs/remotes/${SOURCE_REMOTE}/pr/*"'], cwd='~/tmp/')
+  call(['git', 'fetch', '--all'], cwd='~/tmp/')
+  # Clean up fetch
+  initial_checkout = call(['git', 'checkout', '-b', 'finish-pr-{}'.format(pr), 'github/pr/{}'.format(pr)], cwd='~/tmp/')
+  if not initial_checkout == 0:
+    # aah
   # Rebase PR onto main.
-  if not rebase_success:
+  rebase_success = call(['git', 'rebase', 'apache/master'], cwd='~/tmp/')
+  if not rebase_success == 0:
     post_error('Rebase was not successful. Please rebase against main and try again.', pr)
     return False
 
   # Check out target branch to here
+  checkout_success = call(['git', 'checkout', 'apache/master'], cwd='~/tmp/')
   if not checkout_success:
     post_error('Error checking out target branch: master. Please try again.', pr)
     return False
 
   # Merge
+  merge_success = call(['git', 'merge', '--no-ff', '-m', 'This closes #{}'.format(pr), 'finish-pr-{}'.format(pr)], cwd='~/tmp/')
   if not merge_success:
     post_error('Merge was not successful against target branch: master. Please try again.', pr)
     return False
 
   # mvn clean verify
+  mvn_success = call(['mvn', 'clean', 'verify'], cwd='~/tmp/')
   if not mvn_success:
     post_error('mvn clean verify against HEAD + PR#{} failed. Not merging.'.format(pr), pr)
     return False
 
   # git push
+  push_success = call(['git', 'push', 'apache', 'HEAD:master'], cwd='~/tmp/')
   if not push_success:
     post_error('Git push failed. Please try again.', pr)
     return False
@@ -118,8 +135,18 @@ def post_error(content, pr_num):
 
 def post(content, endpoint):
   payload = {"body": content}
-  r = requests.post(endpoint, data=payload)
-  if r.
+  requests.post(endpoint, data=payload)
+
+def set_up():
+  if not call(['mkdir', '~/tmp']) == 0:
+    # call clean up?
+    return False
+  return True
+
+def clean_up():
+  if not call(['rm', '-rf', '~/tmp']) == 0:
+    return False
+  return True
 
 if __name__ == "__main__":
   main()
