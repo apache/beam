@@ -25,6 +25,7 @@ import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner.ValueWithMetadata;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
@@ -313,6 +314,13 @@ public class GroupByKey<K, V>
    */
   static <K, V> KvCoder<K, Iterable<V>> getOutputKvCoder(Coder<KV<K, V>> inputCoder) {
     return KvCoder.of(getKeyCoder(inputCoder), getOutputValueCoder(inputCoder));
+  }
+
+  @Override
+  public void populateDisplayData(DisplayData.Builder builder) {
+    if (fewKeys) {
+      builder.add("fewKeys", true);
+    }
   }
 
   /////////////////////////////////////////////////////////////////////////////

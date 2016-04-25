@@ -119,4 +119,14 @@ public class AfterEachTest {
             trigger1.getContinuationTrigger(), trigger2.getContinuationTrigger())),
         afterEach.getContinuationTrigger());
   }
+
+  @Test
+  public void testToString() {
+    Trigger trigger = AfterEach.inOrder(
+        StubTrigger.named("t1"),
+        StubTrigger.named("t2"),
+        StubTrigger.named("t3"));
+
+    assertEquals("AfterEach.inOrder(t1, t2, t3)", trigger.toString());
+  }
 }

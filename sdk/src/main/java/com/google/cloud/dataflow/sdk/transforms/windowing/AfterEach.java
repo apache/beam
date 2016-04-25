@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.util.ExecutableTrigger;
 
+import com.google.common.base.Joiner;
 import org.joda.time.Instant;
 
 import java.util.Arrays;
@@ -127,6 +128,15 @@ public class AfterEach<W extends BoundedWindow> extends Trigger<W> {
     }
 
     updateFinishedState(context);
+  }
+
+  @Override
+  public String toString() {
+    StringBuilder builder = new StringBuilder("AfterEach.inOrder(");
+    Joiner.on(", ").appendTo(builder, subTriggers);
+    builder.append(")");
+
+    return builder.toString();
   }
 
   private void updateFinishedState(TriggerContext context) {

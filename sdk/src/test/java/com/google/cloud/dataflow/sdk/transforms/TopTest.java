@@ -16,6 +16,9 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
@@ -24,6 +27,7 @@ import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window.Bound;
@@ -230,6 +234,16 @@ public class TopTest {
     assertEquals("Top.PerKey", Top.perKey(1, new IntegerComparator()).getName());
     assertEquals("Smallest.PerKey", Top.<String, Integer>smallestPerKey(1).getName());
     assertEquals("Largest.PerKey", Top.<String, Integer>largestPerKey(2).getName());
+  }
+
+  @Test
+  public void testDisplayData() {
+    Top.Largest<Integer> comparer = new Top.Largest<Integer>();
+    Combine.Globally<Integer, List<Integer>> top = Top.of(1234, comparer);
+    DisplayData displayData = DisplayData.from(top);
+
+    assertThat(displayData, hasDisplayItem("count", 1234));
+    assertThat(displayData, hasDisplayItem("comparer", comparer.getClass()));
   }
 
   private static class OrderByLength implements Comparator<String>, Serializable {

@@ -15,6 +15,9 @@
  */
 package com.google.cloud.dataflow.sdk.transforms;
 
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.includes;
+
 import static org.junit.Assert.assertThat;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
@@ -33,6 +36,7 @@ import com.google.cloud.dataflow.sdk.transforms.CombineFns.CoCombineResult;
 import com.google.cloud.dataflow.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
 import com.google.cloud.dataflow.sdk.transforms.Max.MaxIntegerFn;
 import com.google.cloud.dataflow.sdk.transforms.Min.MinIntegerFn;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
@@ -58,7 +62,7 @@ import java.util.List;
  * Unit tests for {@link CombineFns}.
  */
 @RunWith(JUnit4.class)
-public class CombineFnsTest {
+public class  CombineFnsTest {
   @Rule public ExpectedException expectedException = ExpectedException.none();
 
   @Test
@@ -273,6 +277,69 @@ public class CombineFnsTest {
         KV.of("a", KV.of(4, (String) null)),
         KV.of("b", KV.of(13, (String) null)));
     p.run();
+  }
+
+  @Test
+  public void testComposedCombineDisplayData() {
+    SimpleFunction<String, String> extractFn = new SimpleFunction<String, String>() {
+      @Override
+      public String apply(String input) {
+        return input;
+      }
+    };
+
+    DisplayDataCombineFn combineFn1 = new DisplayDataCombineFn("value1");
+    DisplayDataCombineFn combineFn2 = new DisplayDataCombineFn("value2");
+
+    CombineFns.ComposedCombineFn<String> composedCombine = CombineFns.compose()
+        .with(extractFn, combineFn1, new TupleTag<String>())
+        .with(extractFn, combineFn2, new TupleTag<String>());
+
+    DisplayData displayData = DisplayData.from(composedCombine);
+    assertThat(displayData, hasDisplayItem("combineFn1", combineFn1.getClass()));
+    assertThat(displayData, hasDisplayItem("combineFn2", combineFn2.getClass()));
+
+    String nsBase = DisplayDataCombineFn.class.getName();
+    assertThat(displayData, includes(combineFn1, nsBase + "#1"));
+    assertThat(displayData, includes(combineFn2, nsBase + "#2"));
+  }
+
+  private static class DisplayDataCombineFn extends Combine.CombineFn<String, String, String> {
+    private final String value;
+    private static int i;
+    private final int id;
+
+    DisplayDataCombineFn(String value) {
+      id = ++i;
+      this.value = value;
+    }
+
+    @Override
+    public String createAccumulator() {
+      return null;
+    }
+
+    @Override
+    public String addInput(String accumulator, String input) {
+      return null;
+    }
+
+    @Override
+    public String mergeAccumulators(Iterable<String> accumulators) {
+      return null;
+    }
+
+    @Override
+    public String extractOutput(String accumulator) {
+      return null;
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      builder
+          .add("uniqueKey" + id, value)
+          .add("sharedKey", value);
+    }
   }
 
   private static class UserString implements Serializable {

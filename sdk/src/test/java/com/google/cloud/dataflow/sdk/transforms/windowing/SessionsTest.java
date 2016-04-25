@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import static com.google.cloud.dataflow.sdk.testing.WindowFnTestUtils.runWindowFn;
 import static com.google.cloud.dataflow.sdk.testing.WindowFnTestUtils.set;
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
@@ -26,6 +27,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.testing.WindowFnTestUtils;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.common.collect.ImmutableList;
 
 import org.joda.time.Duration;
@@ -152,5 +154,13 @@ public class SessionsTest {
           ImmutableList.of(
               (List<Long>) ImmutableList.of(1L, 3L),
               (List<Long>) ImmutableList.of(0L, 5L, 10L, 15L, 20L)));
+  }
+
+  @Test
+  public void testDisplayData() {
+    Duration gapDuration = Duration.standardMinutes(234);
+    Sessions session = Sessions.withGapDuration(gapDuration);
+    assertThat(DisplayData.from(session),
+        hasDisplayItem("gapDuration", gapDuration));
   }
 }

@@ -25,6 +25,7 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.RemoveDuplicates;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.util.IntervalBoundedExponentialBackOff;
 import com.google.cloud.dataflow.sdk.util.ValueWithRecordId;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -102,6 +103,16 @@ class BoundedReadFromUnboundedSource<T> extends PTransform<PInput, PCollection<T
   @Override
   public String getKindString() {
     return "Read(" + approximateSimpleName(source.getClass()) + ")";
+  }
+
+  @Override
+  public void populateDisplayData(DisplayData.Builder builder) {
+    // We explicitly do not register base-class data, instead we use the delegate inner source.
+    builder
+        .add("source", source.getClass())
+        .addIfNotDefault("maxRecords", maxNumRecords, Long.MAX_VALUE)
+        .addIfNotNull("maxReadTime", maxReadTime)
+        .include(source);
   }
 
   private static class UnboundedToBoundedSourceAdapter<T>

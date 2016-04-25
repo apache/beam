@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.runners;
 import static com.google.cloud.dataflow.sdk.util.Structs.addObject;
 import static com.google.cloud.dataflow.sdk.util.Structs.getDictionary;
 import static com.google.cloud.dataflow.sdk.util.Structs.getString;
+
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.core.IsInstanceOf.instanceOf;
@@ -198,8 +199,9 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     settings.put("numberOfWorkerHarnessThreads", 0);
     settings.put("experiments", null);
 
-    assertEquals(ImmutableMap.of("options", settings),
-        job.getEnvironment().getSdkPipelineOptions());
+    Map<String, Object> sdkPipelineOptions = job.getEnvironment().getSdkPipelineOptions();
+    assertThat(sdkPipelineOptions, hasKey("options"));
+    assertEquals(settings, sdkPipelineOptions.get("options"));
   }
 
   @Test
@@ -819,8 +821,8 @@ public class DataflowPipelineTranslatorTest implements Serializable {
       public void populateDisplayData(DisplayData.Builder builder) {
         builder
             .add("foo", "bar")
-            .add("foo2", 123)
-            .withLabel("Test Value")
+            .add("foo2", DataflowPipelineTranslatorTest.class)
+            .withLabel("Test Class")
             .withLinkUrl("http://www.google.com");
       }
     };
@@ -833,7 +835,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
-        builder.add("foo3", "barge");
+        builder.add("foo3", 1234);
       }
     };
 
@@ -854,33 +856,50 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     Map<String, Object> parDo2Properties = steps.get(2).getProperties();
     assertThat(parDo1Properties, hasKey("display_data"));
 
+    @SuppressWarnings("unchecked")
     Collection<Map<String, String>> fn1displayData =
             (Collection<Map<String, String>>) parDo1Properties.get("display_data");
+    @SuppressWarnings("unchecked")
     Collection<Map<String, String>> fn2displayData =
             (Collection<Map<String, String>>) parDo2Properties.get("display_data");
 
-    ImmutableSet<ImmutableMap<String, String>> expectedFn1DisplayData = ImmutableSet.of(
-        ImmutableMap.<String, String>builder()
+    ImmutableSet<ImmutableMap<String, Object>> expectedFn1DisplayData = ImmutableSet.of(
+        ImmutableMap.<String, Object>builder()
             .put("key", "foo")
             .put("type", "STRING")
             .put("value", "bar")
             .put("namespace", fn1.getClass().getName())
             .build(),
-        ImmutableMap.<String, String>builder()
+        ImmutableMap.<String, Object>builder()
+            .put("key", "fn")
+            .put("type", "JAVA_CLASS")
+            .put("value", fn1.getClass().getName())
+            .put("shortValue", fn1.getClass().getSimpleName())
+            .put("namespace", parDo1.getClass().getName())
+            .build(),
+        ImmutableMap.<String, Object>builder()
             .put("key", "foo2")
-            .put("type", "INTEGER")
-            .put("value", "123")
+            .put("type", "JAVA_CLASS")
+            .put("value", DataflowPipelineTranslatorTest.class.getName())
+            .put("shortValue", DataflowPipelineTranslatorTest.class.getSimpleName())
             .put("namespace", fn1.getClass().getName())
-            .put("label", "Test Value")
+            .put("label", "Test Class")
             .put("linkUrl", "http://www.google.com")
             .build()
     );
 
-    ImmutableSet<ImmutableMap<String, String>> expectedFn2DisplayData = ImmutableSet.of(
-        ImmutableMap.<String, String>builder()
+    ImmutableSet<ImmutableMap<String, Object>> expectedFn2DisplayData = ImmutableSet.of(
+        ImmutableMap.<String, Object>builder()
+            .put("key", "fn")
+            .put("type", "JAVA_CLASS")
+            .put("value", fn2.getClass().getName())
+            .put("shortValue", fn2.getClass().getSimpleName())
+            .put("namespace", parDo2.getClass().getName())
+            .build(),
+        ImmutableMap.<String, Object>builder()
             .put("key", "foo3")
-            .put("type", "STRING")
-            .put("value", "barge")
+            .put("type", "INTEGER")
+            .put("value", 1234L)
             .put("namespace", fn2.getClass().getName())
             .build()
     );

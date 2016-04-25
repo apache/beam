@@ -17,6 +17,7 @@
 package com.google.cloud.dataflow.sdk.transforms;
 
 import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 
 /**
@@ -98,8 +99,14 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
           c.output(c.element());
         }
       }
+
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        Filter.populateDisplayData(builder, String.format("x < %s", value));
+      }
     });
   }
+
 
   /**
    * Returns a {@code PTransform} that takes an input
@@ -129,6 +136,11 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
         if (c.element().compareTo(value) > 0) {
           c.output(c.element());
         }
+      }
+
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        Filter.populateDisplayData(builder, String.format("x > %s", value));
       }
     });
   }
@@ -162,6 +174,11 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
           c.output(c.element());
         }
       }
+
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        Filter.populateDisplayData(builder, String.format("x ≤ %s", value));
+      }
     });
   }
 
@@ -193,6 +210,11 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
         if (c.element().compareTo(value) >= 0) {
           c.output(c.element());
         }
+      }
+
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        Filter.populateDisplayData(builder, String.format("x ≥ %s", value));
       }
     });
   }
@@ -230,5 +252,10 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
   @Override
   protected Coder<T> getDefaultOutputCoder(PCollection<T> input) {
     return input.getCoder();
+  }
+
+  private static void populateDisplayData(
+      DisplayData.Builder builder, String predicateDescription) {
+    builder.add("predicate", predicateDescription);
   }
 }

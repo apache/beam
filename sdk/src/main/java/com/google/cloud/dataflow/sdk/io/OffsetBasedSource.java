@@ -17,6 +17,7 @@ package com.google.cloud.dataflow.sdk.io;
 import com.google.cloud.dataflow.sdk.io.range.OffsetRangeTracker;
 import com.google.cloud.dataflow.sdk.io.range.RangeTracker;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.common.base.Preconditions;
 
 import org.slf4j.Logger;
@@ -196,6 +197,15 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
    */
   public boolean allowsDynamicSplitting() {
     return true;
+  }
+
+  @Override
+  public void populateDisplayData(DisplayData.Builder builder) {
+    super.populateDisplayData(builder);
+    builder
+        .add("minBundleSize", minBundleSize)
+        .addIfNotDefault("startOffset", startOffset, 0)
+        .addIfNotDefault("endOffset", endOffset, Long.MAX_VALUE);
   }
 
   /**

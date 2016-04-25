@@ -16,6 +16,9 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -24,6 +27,7 @@ import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Partition.PartitionFn;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionList;
 
@@ -136,5 +140,14 @@ public class PartitionTest implements Serializable {
   @Test
   public void testPartitionGetName() {
     assertEquals("Partition", Partition.of(3, new ModFn()).getName());
+  }
+
+  @Test
+  public void testDisplayData() {
+    Partition<?> partition = Partition.of(123, new IdentityFn());
+    DisplayData displayData = DisplayData.from(partition);
+
+    assertThat(displayData, hasDisplayItem("numPartitions", 123));
+    assertThat(displayData, hasDisplayItem("partitionFn", IdentityFn.class));
   }
 }

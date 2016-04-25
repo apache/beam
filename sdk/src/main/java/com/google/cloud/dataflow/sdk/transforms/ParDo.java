@@ -22,6 +22,7 @@ import com.google.cloud.dataflow.sdk.coders.CannotProvideCoderException;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.transforms.display.DisplayData.Builder;
 import com.google.cloud.dataflow.sdk.transforms.windowing.WindowFn;
 import com.google.cloud.dataflow.sdk.util.DirectModeExecutionContext;
@@ -554,7 +555,12 @@ public class ParDo {
    * properties can be set on it first.
    */
   public static <InputT, OutputT> Bound<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
-    return new Unbound().of(fn);
+    return of(fn, fn.getClass());
+  }
+
+  private static <InputT, OutputT> Bound<InputT, OutputT> of(
+          DoFn<InputT, OutputT> fn, Class<?> fnClass) {
+    return new Unbound().of(fn, fnClass);
   }
 
   private static <InputT, OutputT> DoFn<InputT, OutputT>
@@ -577,7 +583,7 @@ public class ParDo {
    */
   @Experimental
   public static <InputT, OutputT> Bound<InputT, OutputT> of(DoFnWithContext<InputT, OutputT> fn) {
-    return of(adapt(fn));
+    return of(adapt(fn), fn.getClass());
   }
 
   /**
@@ -664,8 +670,14 @@ public class ParDo {
      * still be specified.
      */
     public <InputT, OutputT> Bound<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
-      return new Bound<>(name, sideInputs, fn);
+      return of(fn, fn.getClass());
     }
+
+    private <InputT, OutputT> Bound<InputT, OutputT> of(
+        DoFn<InputT, OutputT> fn, Class<?> fnClass) {
+      return new Bound<>(name, sideInputs, fn, fnClass);
+    }
+
 
     /**
      * Returns a new {@link ParDo} {@link PTransform} that's like this
@@ -676,7 +688,7 @@ public class ParDo {
      * still be specified.
      */
     public <InputT, OutputT> Bound<InputT, OutputT> of(DoFnWithContext<InputT, OutputT> fn) {
-      return of(adapt(fn));
+      return of(adapt(fn), fn.getClass());
     }
   }
 
@@ -697,13 +709,16 @@ public class ParDo {
     // Inherits name.
     private final List<PCollectionView<?>> sideInputs;
     private final DoFn<InputT, OutputT> fn;
+    private final Class<?> fnClass;
 
     Bound(String name,
           List<PCollectionView<?>> sideInputs,
-          DoFn<InputT, OutputT> fn) {
+          DoFn<InputT, OutputT> fn,
+          Class<?> fnClass) {
       super(name);
       this.sideInputs = sideInputs;
       this.fn = SerializableUtils.clone(fn);
+      this.fnClass = fnClass;
     }
 
     /**
@@ -714,7 +729,7 @@ public class ParDo {
      * <p>See the discussion of Naming above for more explanation.
      */
     public Bound<InputT, OutputT> named(String name) {
-      return new Bound<>(name, sideInputs, fn);
+      return new Bound<>(name, sideInputs, fn, fnClass);
     }
 
     /**
@@ -742,7 +757,7 @@ public class ParDo {
       ImmutableList.Builder<PCollectionView<?>> builder = ImmutableList.builder();
       builder.addAll(this.sideInputs);
       builder.addAll(sideInputs);
-      return new Bound<>(name, builder.build(), fn);
+      return new Bound<>(name, builder.build(), fn, fnClass);
     }
 
     /**
@@ -756,7 +771,7 @@ public class ParDo {
     public BoundMulti<InputT, OutputT> withOutputTags(TupleTag<OutputT> mainOutputTag,
                                            TupleTagList sideOutputTags) {
       return new BoundMulti<>(
-          name, sideInputs, mainOutputTag, sideOutputTags, fn);
+          name, sideInputs, mainOutputTag, sideOutputTags, fn, fnClass);
     }
 
     @Override
@@ -797,7 +812,7 @@ public class ParDo {
      */
     @Override
     public void populateDisplayData(Builder builder) {
-      builder.include(fn);
+      ParDo.populateDisplayData(builder, fn, fnClass);
     }
 
     public DoFn<InputT, OutputT> getFn() {
@@ -889,8 +904,12 @@ public class ParDo {
      * more properties can still be specified.
      */
     public <InputT> BoundMulti<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
+      return of(fn, fn.getClass());
+    }
+
+    public <InputT> BoundMulti<InputT, OutputT> of(DoFn<InputT, OutputT> fn, Class<?> fnClass) {
       return new BoundMulti<>(
-          name, sideInputs, mainOutputTag, sideOutputTags, fn);
+              name, sideInputs, mainOutputTag, sideOutputTags, fn, fnClass);
     }
 
     /**
@@ -902,7 +921,7 @@ public class ParDo {
      * more properties can still be specified.
      */
     public <InputT> BoundMulti<InputT, OutputT> of(DoFnWithContext<InputT, OutputT> fn) {
-      return of(adapt(fn));
+      return of(adapt(fn), fn.getClass());
     }
   }
 
@@ -924,17 +943,20 @@ public class ParDo {
     private final TupleTag<OutputT> mainOutputTag;
     private final TupleTagList sideOutputTags;
     private final DoFn<InputT, OutputT> fn;
+    private final Class<?> fnClass;
 
     BoundMulti(String name,
                List<PCollectionView<?>> sideInputs,
                TupleTag<OutputT> mainOutputTag,
                TupleTagList sideOutputTags,
-               DoFn<InputT, OutputT> fn) {
+               DoFn<InputT, OutputT> fn,
+               Class<?> fnClass) {
       super(name);
       this.sideInputs = sideInputs;
       this.mainOutputTag = mainOutputTag;
       this.sideOutputTags = sideOutputTags;
       this.fn = SerializableUtils.clone(fn);
+      this.fnClass = fnClass;
     }
 
     /**
@@ -946,7 +968,7 @@ public class ParDo {
      */
     public BoundMulti<InputT, OutputT> named(String name) {
       return new BoundMulti<>(
-          name, sideInputs, mainOutputTag, sideOutputTags, fn);
+          name, sideInputs, mainOutputTag, sideOutputTags, fn, fnClass);
     }
 
     /**
@@ -977,7 +999,7 @@ public class ParDo {
       builder.addAll(sideInputs);
       return new BoundMulti<>(
           name, builder.build(),
-          mainOutputTag, sideOutputTags, fn);
+          mainOutputTag, sideOutputTags, fn, fnClass);
     }
 
 
@@ -1023,6 +1045,11 @@ public class ParDo {
       } else {
         return String.format("ParMultiDo(%s)", StringUtils.approximateSimpleName(clazz));
       }
+    }
+
+    @Override
+    public void populateDisplayData(Builder builder) {
+      ParDo.populateDisplayData(builder, fn, fnClass);
     }
 
     public DoFn<InputT, OutputT> getFn() {
@@ -1229,6 +1256,13 @@ public class ParDo {
           context.getPCollectionView(view));
     }
     return DirectSideInputReader.of(sideInputValues);
+  }
+
+  private static void populateDisplayData(
+      DisplayData.Builder builder, DoFn<?, ?> fn, Class<?> fnClass) {
+    builder
+        .include(fn, fnClass)
+        .add("fn", fnClass);
   }
 
   /**

@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.doNothing;
@@ -334,5 +335,31 @@ public class AfterWatermarkTest {
     // And confirm that advancing the watermark fires again
     tester.advanceInputWatermark(new Instant(15));
     assertTrue(tester.shouldFire(mergedWindow));
+  }
+
+  @Test
+  public void testFromEndOfWindowToString() {
+    Trigger trigger = AfterWatermark.pastEndOfWindow();
+    assertEquals("AfterWatermark.pastEndOfWindow()", trigger.toString());
+  }
+
+  @Test
+  public void testLateFiringsToString() {
+    Trigger trigger = AfterWatermark.pastEndOfWindow()
+        .withLateFirings(StubTrigger.named("t1"))
+        .buildTrigger();
+
+    assertEquals("AfterWatermark.pastEndOfWindow().withLateFirings(t1)", trigger.toString());
+  }
+
+  @Test
+  public void testEarlyAndLateFiringsToString() {
+    Trigger trigger = AfterWatermark.pastEndOfWindow()
+        .withEarlyFirings(StubTrigger.named("t1"))
+        .withLateFirings(StubTrigger.named("t2"))
+        .buildTrigger();
+
+    assertEquals("AfterWatermark.pastEndOfWindow().withEarlyFirings(t1).withLateFirings(t2)",
+        trigger.toString());
   }
 }

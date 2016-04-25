@@ -18,11 +18,15 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import static com.google.cloud.dataflow.sdk.testing.WindowFnTestUtils.runWindowFn;
 import static com.google.cloud.dataflow.sdk.testing.WindowFnTestUtils.set;
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.testing.WindowFnTestUtils;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -189,5 +193,22 @@ public class SlidingWindowsTest {
       WindowFnTestUtils.validateNonInterferingOutputTimes(
           SlidingWindows.of(new Duration(1000)).every(new Duration(500)), timestamp);
     }
+  }
+
+  @Test
+  public void testDisplayData() {
+    Duration windowSize = Duration.standardSeconds(1234);
+    Duration offset = Duration.standardSeconds(2345);
+    Duration period = Duration.standardSeconds(3456);
+
+    SlidingWindows slidingWindowFn = SlidingWindows
+        .of(windowSize)
+        .every(period)
+        .withOffset(offset);
+
+    DisplayData displayData = DisplayData.from(slidingWindowFn);
+    assertThat(displayData, hasDisplayItem("size", windowSize));
+    assertThat(displayData, hasDisplayItem("period", period));
+    assertThat(displayData, hasDisplayItem("offset", offset));
   }
 }

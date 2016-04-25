@@ -42,7 +42,7 @@ public class Repeatedly<W extends BoundedWindow> extends Trigger<W> {
   private static final int REPEATED = 0;
 
   /**
-   * Create a composite trigger that repeatedly executes the trigger {@code toRepeat}, firing each
+   * Create a composite trigger that repeatedly executes the trigger {@code repeated}, firing each
    * time it fires and ignoring any indications to finish.
    *
    * <p>Unless used with {@link Trigger#orFinally} the composite trigger will never finish.
@@ -92,6 +92,11 @@ public class Repeatedly<W extends BoundedWindow> extends Trigger<W> {
       // Reset tree will recursively clear the finished bits, and invoke clear.
       context.forTrigger(getRepeated(context)).trigger().resetTree();
     }
+  }
+
+  @Override
+  public String toString() {
+    return String.format("Repeatedly.forever(%s)", subTriggers.get(REPEATED));
   }
 
   private ExecutableTrigger<W> getRepeated(TriggerContext context) {

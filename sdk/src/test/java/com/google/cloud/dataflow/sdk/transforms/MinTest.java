@@ -16,9 +16,14 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
+
 import static com.google.cloud.dataflow.sdk.TestUtils.checkCombineFn;
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.common.collect.Lists;
 
 import org.junit.Test;
@@ -62,5 +67,13 @@ public class MinTest {
         new Min.MinDoubleFn(),
         Lists.newArrayList(1.0, 2.0, 3.0, 4.0),
         1.0);
+  }
+
+  @Test
+  public void testDisplayData() {
+    Top.Smallest<Integer> comparer = new Top.Smallest<>();
+
+    Combine.Globally<Integer, Integer> min = Min.globally(comparer);
+    assertThat(DisplayData.from(min), hasDisplayItem("comparer", comparer.getClass()));
   }
 }

@@ -23,6 +23,7 @@ import com.google.cloud.dataflow.sdk.coders.IterableCoder;
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.VoidCoder;
 import com.google.cloud.dataflow.sdk.transforms.Combine.CombineFn;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
@@ -151,6 +152,11 @@ public class Sample {
                  .of(new SampleAnyDoFn<>(limit, iterableView)))
           .setCoder(in.getCoder());
     }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      builder.add("sampleSize", limit);
+    }
   }
 
   /**
@@ -186,6 +192,7 @@ public class Sample {
       extends CombineFn<T,
           Top.BoundedHeap<KV<Integer, T>, SerializableComparator<KV<Integer, T>>>,
           Iterable<T>> {
+    private final int sampleSize;
     private final Top.TopCombineFn<KV<Integer, T>, SerializableComparator<KV<Integer, T>>>
         topCombineFn;
     private final Random rand = new Random();
@@ -194,6 +201,8 @@ public class Sample {
       if (sampleSize < 0) {
         throw new IllegalArgumentException("sample size must be >= 0");
       }
+
+      this.sampleSize = sampleSize;
       topCombineFn = new Top.TopCombineFn<KV<Integer, T>, SerializableComparator<KV<Integer, T>>>(
           sampleSize, new KV.OrderByKey<Integer, T>());
     }
@@ -241,6 +250,11 @@ public class Sample {
     public Coder<Iterable<T>> getDefaultOutputCoder(
         CoderRegistry registry, Coder<T> inputCoder) {
       return IterableCoder.of(inputCoder);
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      builder.add("sampleSize", sampleSize);
     }
   }
 }

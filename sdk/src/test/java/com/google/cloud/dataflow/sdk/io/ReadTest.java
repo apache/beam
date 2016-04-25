@@ -16,10 +16,17 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.includes;
+
+import static org.hamcrest.MatcherAssert.assertThat;
+
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.io.UnboundedSource.CheckpointMark;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 
+import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -27,17 +34,17 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.List;
-
 import javax.annotation.Nullable;
 
 /**
  * Tests for {@link Read}.
  */
 @RunWith(JUnit4.class)
-public class ReadTest {
+public class ReadTest implements Serializable{
   @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  public transient ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void failsWhenCustomBoundedSourceIsNotSerializable() {
@@ -59,6 +66,38 @@ public class ReadTest {
   @Test
   public void succeedsWhenCustomUnboundedSourceIsSerializable() {
     Read.from(new SerializableUnboundedSource());
+  }
+
+  @Test
+  public void testDisplayData() {
+    SerializableBoundedSource boundedSource = new SerializableBoundedSource() {
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        builder.add("foo", "bar");
+      }
+    };
+    SerializableUnboundedSource unboundedSource = new SerializableUnboundedSource() {
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        builder.add("foo", "bar");
+      }
+    };
+    Duration maxReadTime = Duration.standardMinutes(2345);
+
+    Read.Bounded<String> bounded = Read.from(boundedSource);
+    BoundedReadFromUnboundedSource<String> unbounded = Read.from(unboundedSource)
+        .withMaxNumRecords(1234)
+        .withMaxReadTime(maxReadTime);
+
+    DisplayData boundedDisplayData = DisplayData.from(bounded);
+    assertThat(boundedDisplayData, hasDisplayItem("source", boundedSource.getClass()));
+    assertThat(boundedDisplayData, includes(boundedSource));
+
+    DisplayData unboundedDisplayData = DisplayData.from(unbounded);
+    assertThat(unboundedDisplayData, hasDisplayItem("source", unboundedSource.getClass()));
+    assertThat(unboundedDisplayData, includes(unboundedSource));
+    assertThat(unboundedDisplayData, hasDisplayItem("maxRecords", 1234));
+    assertThat(unboundedDisplayData, hasDisplayItem("maxReadTime", maxReadTime));
   }
 
   private abstract static class CustomBoundedSource extends BoundedSource<String> {

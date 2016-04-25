@@ -19,6 +19,7 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger.OnceTrigger;
 import com.google.cloud.dataflow.sdk.util.ExecutableTrigger;
+import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 
 import org.joda.time.Instant;
@@ -107,6 +108,15 @@ public class AfterFirst<W extends BoundedWindow> extends OnceTrigger<W> {
         subtrigger.invokeClear(subContext);
       }
     }
+  }
+
+  @Override
+  public String toString() {
+    StringBuilder builder = new StringBuilder("AfterFirst.of(");
+    Joiner.on(", ").appendTo(builder, subTriggers);
+    builder.append(")");
+
+    return builder.toString();
   }
 
   private void updateFinishedStatus(TriggerContext c) {

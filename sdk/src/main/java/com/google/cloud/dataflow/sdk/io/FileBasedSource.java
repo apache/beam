@@ -15,6 +15,7 @@
 package com.google.cloud.dataflow.sdk.io;
 
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.util.IOChannelFactory;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
 import com.google.common.base.Preconditions;
@@ -255,6 +256,12 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
 
     return files.size() * getExactTotalSizeOfFiles(selectedFiles, ioChannelFactory)
         / selectedFiles.size();
+  }
+
+  @Override
+  public void populateDisplayData(DisplayData.Builder builder) {
+    super.populateDisplayData(builder);
+    builder.add("filePattern", getFileOrPatternSpec());
   }
 
   private ListenableFuture<List<? extends FileBasedSource<T>>> createFutureForFileSplit(

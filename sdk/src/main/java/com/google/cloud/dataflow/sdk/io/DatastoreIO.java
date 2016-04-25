@@ -56,6 +56,7 @@ import com.google.cloud.dataflow.sdk.io.Sink.Writer;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineWorkerPoolOptions;
 import com.google.cloud.dataflow.sdk.options.GcpOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.util.AttemptBoundedExponentialBackOff;
 import com.google.cloud.dataflow.sdk.util.RetryHttpRequestInitializer;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -397,6 +398,19 @@ public class DatastoreIO {
     }
 
     @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder
+          .addIfNotDefault("host", host, DEFAULT_HOST)
+          .addIfNotNull("dataset", datasetId)
+          .addIfNotNull("namespace", namespace);
+
+      if (query != null) {
+        builder.add("query", query.toString());
+      }
+    }
+
+    @Override
     public String toString() {
       return MoreObjects.toStringHelper(getClass())
           .add("host", host)
@@ -596,6 +610,13 @@ public class DatastoreIO {
     @Override
     public DatastoreWriteOperation createWriteOperation(PipelineOptions options) {
       return new DatastoreWriteOperation(this);
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      builder
+          .addIfNotDefault("host", host, DEFAULT_HOST)
+          .addIfNotNull("dataset", datasetId);
     }
   }
 

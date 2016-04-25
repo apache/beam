@@ -206,4 +206,10 @@ public class OrFinallyTriggerTest {
             triggerB.getContinuationTrigger().orFinally(triggerA.getContinuationTrigger())),
         bOrFinallyA.getContinuationTrigger());
   }
+
+  @Test
+  public void testToString() {
+    Trigger trigger = StubTrigger.named("t1").orFinally(StubTrigger.named("t2"));
+    assertEquals("t1.orFinally(t2)", trigger.toString());
+  }
 }

@@ -18,6 +18,7 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.JAXBCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.common.base.Preconditions;
 
 import org.codehaus.stax2.XMLInputFactory2;
@@ -34,7 +35,6 @@ import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.NoSuchElementException;
-
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBElement;
 import javax.xml.bind.JAXBException;
@@ -212,6 +212,15 @@ public class XmlSource<T> extends FileBasedSource<T> {
         "recordElement is null. Use builder method withRecordElement() to set this.");
     Preconditions.checkNotNull(
         recordClass, "recordClass is null. Use builder method withRecordClass() to set this.");
+  }
+
+  @Override
+  public void populateDisplayData(DisplayData.Builder builder) {
+    super.populateDisplayData(builder);
+    builder
+        .addIfNotNull("rootElement", rootElement)
+        .addIfNotNull("recordElement", recordElement)
+        .addIfNotNull("recordClass", recordClass);
   }
 
   @Override

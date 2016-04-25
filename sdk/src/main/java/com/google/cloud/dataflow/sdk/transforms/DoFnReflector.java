@@ -21,6 +21,7 @@ import com.google.cloud.dataflow.sdk.transforms.DoFnWithContext.ExtraContextFact
 import com.google.cloud.dataflow.sdk.transforms.DoFnWithContext.FinishBundle;
 import com.google.cloud.dataflow.sdk.transforms.DoFnWithContext.ProcessElement;
 import com.google.cloud.dataflow.sdk.transforms.DoFnWithContext.StartBundle;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.util.UserCodeException;
@@ -648,6 +649,11 @@ public abstract class DoFnReflector {
     @Override
     protected TypeDescriptor<OutputT> getOutputTypeDescriptor() {
       return fn.getOutputTypeDescriptor();
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      fn.populateDisplayData(builder);
     }
 
     private void readObject(java.io.ObjectInputStream in)

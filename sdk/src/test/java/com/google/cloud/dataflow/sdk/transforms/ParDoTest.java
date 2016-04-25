@@ -18,9 +18,12 @@ package com.google.cloud.dataflow.sdk.transforms;
 
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasKey;
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasType;
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.includes;
 import static com.google.cloud.dataflow.sdk.util.SerializableUtils.serializeToByteArray;
 import static com.google.cloud.dataflow.sdk.util.StringUtils.byteArrayToJsonString;
 import static com.google.cloud.dataflow.sdk.util.StringUtils.jsonStringToByteArray;
+import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.isA;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
@@ -44,6 +47,7 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn.RequiresWindowAccess;
 import com.google.cloud.dataflow.sdk.transforms.ParDo.Bound;
 import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.transforms.display.DisplayData.Builder;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.util.IllegalMutationException;
@@ -1522,20 +1526,66 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  public void testIncludesDoFnDisplayData() {
-    Bound<String, String> parDo =
-        ParDo.of(
-            new DoFn<String, String>() {
-              @Override
-              public void processElement(ProcessContext c) {}
+  public void testDoFnDisplayData() {
+    DoFn<String, String> fn = new DoFn<String, String>() {
+      @Override
+      public void processElement(ProcessContext c) {
+      }
 
-              @Override
-              public void populateDisplayData(Builder builder) {
-                builder.add("foo", "bar");
-              }
-            });
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder.add("doFnMetadata", "bar");
+      }
+    };
+
+    Bound<String, String> parDo = ParDo.of(fn);
 
     DisplayData displayData = DisplayData.from(parDo);
-    assertThat(displayData, hasDisplayItem(hasKey("foo")));
+    assertThat(displayData, hasDisplayItem(allOf(
+        hasKey("fn"),
+        hasType(DisplayData.Type.JAVA_CLASS),
+        DisplayDataMatchers.hasValue(fn.getClass().getName()))));
+
+    assertThat(displayData, includes(fn));
+  }
+
+  @Test
+  public void testDoFnWithContextDisplayData() {
+    DoFnWithContext<String, String> fn = new DoFnWithContext<String, String>() {
+      @ProcessElement
+      public void proccessElement(ProcessContext c) {}
+
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder.add("fnMetadata", "foobar");
+      }
+    };
+
+    Bound<String, String> parDo = ParDo.of(fn);
+
+    DisplayData displayData = DisplayData.from(parDo);
+    assertThat(displayData, includes(fn));
+    assertThat(displayData, hasDisplayItem("fn", fn.getClass()));
+  }
+
+  @Test
+  public void testWithOutputTagsDisplayData() {
+    DoFnWithContext<String, String> fn = new DoFnWithContext<String, String>() {
+      @ProcessElement
+      public void proccessElement(ProcessContext c) {}
+
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder.add("fnMetadata", "foobar");
+      }
+    };
+
+    ParDo.BoundMulti parDo = ParDo
+            .withOutputTags(new TupleTag(), TupleTagList.empty())
+            .of(fn);
+
+    DisplayData displayData = DisplayData.from(parDo);
+    assertThat(displayData, includes(fn));
+    assertThat(displayData, hasDisplayItem("fn", fn.getClass()));
   }
 }

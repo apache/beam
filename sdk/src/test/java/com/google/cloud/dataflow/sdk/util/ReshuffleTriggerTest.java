@@ -15,12 +15,14 @@
  */
 package com.google.cloud.dataflow.sdk.util;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.IntervalWindow;
+import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -34,7 +36,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class ReshuffleTriggerTest {
 
-  /** Public so that other tests can instantiate ReshufleTrigger. */
+  /** Public so that other tests can instantiate {@link ReshuffleTrigger}. */
   public static <W extends BoundedWindow> ReshuffleTrigger<W> forTest() {
     return new ReshuffleTrigger<>();
   }
@@ -54,5 +56,11 @@ public class ReshuffleTriggerTest {
     IntervalWindow arbitraryWindow = new IntervalWindow(new Instant(100), new Instant(200));
     tester.fireIfShouldFire(arbitraryWindow);
     assertFalse(tester.isMarkedFinished(arbitraryWindow));
+  }
+
+  @Test
+  public void testToString() {
+    Trigger trigger = new ReshuffleTrigger<>();
+    assertEquals("ReshuffleTrigger()", trigger.toString());
   }
 }

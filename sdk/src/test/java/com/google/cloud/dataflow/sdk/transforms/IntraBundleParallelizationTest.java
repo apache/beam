@@ -17,6 +17,9 @@
 package com.google.cloud.dataflow.sdk.transforms;
 
 import static com.google.cloud.dataflow.sdk.testing.SystemNanoTimeSleeper.sleepMillis;
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.includes;
+
 import static org.hamcrest.Matchers.both;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
@@ -29,6 +32,7 @@ import static org.junit.Assert.fail;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -211,6 +215,29 @@ public class IntraBundleParallelizationTest {
     assertEquals(
         "IntraBundleParallelization",
         IntraBundleParallelization.of(new DelayFn<Integer>()).withMaxParallelism(1).getName());
+  }
+
+  @Test
+  public void testDisplayData() {
+    DoFn<String, String> fn = new DoFn<String, String>() {
+      @Override
+      public void processElement(ProcessContext c) throws Exception {
+      }
+
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        builder.add("foo", "bar");
+      }
+    };
+
+    PTransform<?, ?> transform = IntraBundleParallelization
+        .withMaxParallelism(1234)
+        .of(fn);
+
+    DisplayData displayData = DisplayData.from(transform);
+    assertThat(displayData, includes(fn));
+    assertThat(displayData, hasDisplayItem("fn", fn.getClass()));
+    assertThat(displayData, hasDisplayItem("maxParallelism", 1234));
   }
 
   /**
