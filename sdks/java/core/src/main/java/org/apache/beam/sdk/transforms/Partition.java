@@ -124,6 +124,7 @@ public class Partition<T> extends PTransform<PCollection<T>, PCollectionList<T>>
 
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {
+    super.populateDisplayData(builder);
     builder.include(partitionDoFn);
   }
 
@@ -179,6 +180,7 @@ public class Partition<T> extends PTransform<PCollection<T>, PCollectionList<T>>
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
       builder
           .add("numPartitions", numPartitions)
           .add("partitionFn", partitionFn.getClass());

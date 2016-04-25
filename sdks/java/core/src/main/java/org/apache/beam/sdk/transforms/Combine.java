@@ -515,6 +515,7 @@ public class Combine {
 
         @Override
         public void populateDisplayData(DisplayData.Builder builder) {
+          super.populateDisplayData(builder);
           CombineFn.this.populateDisplayData(builder);
         }
       };
@@ -1193,6 +1194,7 @@ public class Combine {
 
         @Override
         public void populateDisplayData(DisplayData.Builder builder) {
+          super.populateDisplayData(builder);
           KeyedCombineFn.this.populateDisplayData(builder);
         }
       };
@@ -1378,6 +1380,8 @@ public class Combine {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+
       Combine.populateDisplayData(builder, fn, fnClass);
       Combine.populateGlobalDisplayData(builder, fanout, insertDefault);
     }
@@ -1507,6 +1511,8 @@ public class Combine {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+
       Combine.populateDisplayData(builder, fn, fnClass);
       Combine.populateGlobalDisplayData(builder, fanout, insertDefault);
     }
@@ -1591,6 +1597,7 @@ public class Combine {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
       builder.add("combineFn", combiner.getClass());
     }
 
@@ -1772,6 +1779,7 @@ public class Combine {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
       Combine.populateDisplayData(builder, fn, fnClass);
     }
   }
@@ -2077,6 +2085,8 @@ public class Combine {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+
       Combine.populateDisplayData(builder, fn, fnClass);
       builder.add("fanoutFn", hotKeyFanout.getClass());
     }
@@ -2333,6 +2343,7 @@ public class Combine {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
       Combine.populateDisplayData(builder, fn, fnClass);
     }
   }

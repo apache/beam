@@ -277,6 +277,7 @@ public class GroupByKey<K, V>
 
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {
+    super.populateDisplayData(builder);
     if (fewKeys) {
       builder.add("fewKeys", true);
     }
