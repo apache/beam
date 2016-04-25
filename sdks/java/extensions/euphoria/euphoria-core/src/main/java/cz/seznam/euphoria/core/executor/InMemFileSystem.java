@@ -1,10 +1,13 @@
 package cz.seznam.euphoria.core.executor;
 
 import com.google.common.collect.AbstractIterator;
+import cz.seznam.euphoria.core.client.io.DataSink;
+import cz.seznam.euphoria.core.client.io.DataSinkFactory;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.DataSourceFactory;
 import cz.seznam.euphoria.core.client.io.Partition;
 import cz.seznam.euphoria.core.client.io.Reader;
+import cz.seznam.euphoria.core.client.io.Writer;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.util.Settings;
 
@@ -17,9 +20,11 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
@@ -145,6 +150,80 @@ public class InMemFileSystem {
 
   // ~ -----------------------------------------------------------------------------
 
+  public static final class SinkFactory implements DataSinkFactory {
+    @Override
+    public <T> DataSink<T> get(URI uri, Settings settings) {
+      List<String> cpath = InMemFileSystem.get().toCanonicalPath(uri.getPath());
+      return (DataSink<T>) new DirectoryDataSink<>(cpath);
+    }
+  }
+
+  private static final class DirectoryDataSink<T> implements DataSink<T> {
+    private final List<String> path;
+    private final String stagingPath;
+
+    DirectoryDataSink(List<String> path) {
+      this.path = requireNonNull(path);
+      this.stagingPath = UUID.randomUUID().toString();
+    }
+
+    @Override
+    public Writer<T> openWriter(int partitionId) {
+      return new FileWriter<>(this.stagingPath + "/" + partitionId);
+    }
+
+    @Override
+    public void commit() throws IOException {
+      InMemFileSystem fs = InMemFileSystem.get();
+      Directory staging =
+          fs.mkDirectory(Collections.singletonList(this.stagingPath));
+      try {
+        Directory targetDir = fs.mkParent(path);
+        for (Map.Entry<String, File> e : staging.listFiles()) {
+          targetDir.set(e.getKey(), e.getValue());
+        }
+      } finally {
+        fs.remove(this.stagingPath);
+      }
+    }
+
+    @Override
+    public void rollback() {
+      InMemFileSystem.get().remove(stagingPath);
+    }
+  }
+
+  private static final class FileWriter<T> implements Writer<T> {
+    private String path;
+    private List<T> elems = new LinkedList<>();
+
+    FileWriter(String path) {
+      this.path = requireNonNull(path);
+    }
+
+    @Override
+    public void write(T elem) throws IOException {
+      elems.add(elem);
+    }
+
+    @Override
+    public void commit() throws IOException {
+      InMemFileSystem.get().setFile(path, new ArrayList<>(elems));
+    }
+
+    @Override
+    public void rollback() throws IOException {
+      // ~ no-op
+    }
+
+    @Override
+    public void close() throws IOException {
+      // ~ no-op
+    }
+  }
+
+  // ~ -----------------------------------------------------------------------------
+
   private interface DirOrFile {}
 
   private static final class File implements DirOrFile {
@@ -181,6 +260,10 @@ public class InMemFileSystem {
       }
       return fs;
     }
+
+    public void remove(String name) {
+      files.remove(requireNonNull(name));
+    }
   }
 
   private static final InMemFileSystem INSTANCE = new InMemFileSystem();
@@ -207,6 +290,18 @@ public class InMemFileSystem {
     return dirOrFile;
   }
 
+  public void remove(String path) {
+    List<String> cpath = toCanonicalPath(path);
+    if (cpath == null || cpath.isEmpty()) {
+      throw new IllegalArgumentException("Cannot remove directory root: " + path);
+    }
+    Directory dir = getParent(cpath);
+    if (dir == null) {
+      return;
+    }
+    dir.remove(cpath.get(cpath.size() - 1));
+  }
+
   public InMemFileSystem setFile(String path, Collection content) {
     return setFile(path, null, content);
   }
@@ -225,10 +320,52 @@ public class InMemFileSystem {
     return this;
   }
 
-  /** Returns a the parent directory of the given path */
-  private Directory mkParent(List<String> path) {
+  public Collection getFile(String path) {
+    List<String> cpath = toCanonicalPath(path);
+    if (cpath.isEmpty()) {
+      throw new IllegalArgumentException("Invalid path: " + path);
+    }
+    List<String> dirPath = cpath.subList(0, cpath.size() - 1);
+    Directory dir = getParent(dirPath);
+    if (dir == null) {
+      throw new IllegalArgumentException(
+          "No such directory: " + fromCanonicalPath(dirPath));
+    }
+    DirOrFile f = dir.get(cpath.get(cpath.size() - 1));
+    if (f == null) {
+      throw new IllegalArgumentException("No such file: " + path);
+    }
+    if (!(f instanceof File)) {
+      throw new IllegalArgumentException("No a file: " + path);
+    }
+    return ((File) f).storage;
+  }
+
+  private Directory getParent(List<String> path) {
     Directory curr = root.get();
     path = path.subList(0, path.size() - 1);
+    StringBuilder currPath = new StringBuilder();
+    for (String step : path) {
+      currPath.append('/').append(step);
+      DirOrFile dirOrFile = curr.get(step);
+      if (dirOrFile instanceof File) {
+        throw new IllegalArgumentException("Not a directory: " + currPath);
+      }
+      if (dirOrFile == null) {
+        return null;
+      }
+      curr = (Directory) dirOrFile;
+    }
+    return curr;
+  }
+
+  /** Returns a the parent directory of the given path */
+  private Directory mkParent(List<String> path) {
+    return mkDirectory(path.subList(0, path.size() - 1));
+  }
+
+  private Directory mkDirectory(List<String> path) {
+    Directory curr = root.get();
     for (String step : path) {
       DirOrFile dirOrFile = curr.get(step);
       if (dirOrFile == null) {
