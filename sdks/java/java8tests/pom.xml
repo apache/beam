@@ -150,18 +150,21 @@
       <groupId>org.apache.beam</groupId>
       <artifactId>java-sdk-all</artifactId>
       <version>${project.version}</version>
+      <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
       <version>${guava.version}</version>
+      <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>joda-time</groupId>
       <artifactId>joda-time</artifactId>
       <version>${joda.version}</version>
+      <scope>test</scope>
     </dependency>
 
     <dependency>
