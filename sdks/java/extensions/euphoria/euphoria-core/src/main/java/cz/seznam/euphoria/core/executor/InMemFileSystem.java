@@ -27,7 +27,7 @@ import static java.util.Objects.requireNonNull;
 
 public class InMemFileSystem {
 
-  public static final class Factory implements DataSourceFactory {
+  public static final class SourceFactory implements DataSourceFactory {
     @Override
     public <T> DataSource<T> get(URI uri, Settings settings) {
       InMemFileSystem fs = InMemFileSystem.get();
@@ -100,7 +100,7 @@ public class InMemFileSystem {
         }
         return endOfData();
       }
-    } // ~ end of FileReader
+    }
 
     private final List<String> filePath;
 
@@ -119,7 +119,7 @@ public class InMemFileSystem {
       File f = (File) InMemFileSystem.get().getDirOrFile(filePath);
       return new FileReader<>(f.iterate(), f.delay);
     }
-  } // ~ end of FilePartition
+  }
 
   private static final class FilesDataSource<T> implements DataSource<T> {
     private final List<List<String>> paths;
@@ -141,7 +141,7 @@ public class InMemFileSystem {
     public boolean isBounded() {
       return bounded;
     }
-  } // ~ end of SingleFileDataSource
+  }
 
   // ~ -----------------------------------------------------------------------------
 
