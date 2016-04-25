@@ -79,6 +79,7 @@ public class Write {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
       builder
           .add("sink", sink.getClass())
           .include(sink);

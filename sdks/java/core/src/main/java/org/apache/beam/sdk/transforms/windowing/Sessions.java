@@ -100,6 +100,7 @@ public class Sessions extends WindowFn<Object, IntervalWindow> {
 
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {
+    super.populateDisplayData(builder);
     builder.add("gapDuration", gapDuration);
   }
 

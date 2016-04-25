@@ -598,6 +598,7 @@ public class Window {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
       builder
           .add("windowFn", windowFn.getClass())
           .include(windowFn)

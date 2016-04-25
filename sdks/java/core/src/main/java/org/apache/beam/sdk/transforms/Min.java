@@ -208,6 +208,7 @@ public class Min {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
       builder.add("comparer", comparator.getClass());
     }
   }
