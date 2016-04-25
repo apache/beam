@@ -28,11 +28,11 @@ public class FlowUnfolder {
    */
   @SuppressWarnings("unchecked")
   public static DAG<Operator<?, ?, ?>> unfold(Flow flow,
-      Collection<Class<? extends Operator<?, ?, ?>>> operatorClasses)
+      Set<Class<? extends Operator<?, ?, ?>>> operatorClasses)
       throws IllegalArgumentException {
 
     DAG<Operator<?, ?, ?>> dag = toDAG(flow);
-    return translate(dag, operatorClasses.stream().collect(Collectors.toSet()));
+    return translate(dag, (Set) operatorClasses);
   }
 
 
@@ -154,7 +154,7 @@ public class FlowUnfolder {
             resolvedOperators.add(op);
             // get parent operators
             List<Operator<?, ?, ?>> parents = op.listInputs().stream()
-                .map(i -> datasets.get(i))
+                .map(datasets::get)
                 .filter(p -> p != null)
                 .collect(Collectors.toList());
             ret.add(op, parents);
@@ -171,8 +171,6 @@ public class FlowUnfolder {
 
     return ret;
   }
-
-
 
 
 }

@@ -1,6 +1,7 @@
 
 package cz.seznam.euphoria.core.executor;
 
+import com.google.common.collect.Sets;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
@@ -94,7 +95,7 @@ public class FlowUnfolderTest {
     // FlatMap is consumed by ReduceStateByKey and the first FlatMap of expanded Join
     assertEquals(2, root.getChildren().size());
     java.util.Map<
-        Class<? extends Operator<?, ?, ?>>,
+        Class<? extends Operator>,
         Node<Operator<?, ?, ?>>> childrenMap;
     childrenMap = toClassMap((List) root.getChildren());
     assertTrue(childrenMap.containsKey(FlatMap.class));
@@ -124,7 +125,7 @@ public class FlowUnfolderTest {
   @Test(expected = IllegalArgumentException.class)
   @SuppressWarnings("unchecked")
   public void testUnfoldableFlow() {
-    FlowUnfolder.unfold(flow, (List) Arrays.asList(FlatMap.class));
+    FlowUnfolder.unfold(flow, (Set) Sets.newHashSet(FlatMap.class));
   }
 
   private java.util.Map<Class<? extends Operator>, Node<Operator>>
