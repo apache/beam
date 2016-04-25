@@ -101,6 +101,7 @@ class InProcessBundleFactory implements BundleFactory {
           pcollection, key, committedElements, synchronizedCompletionTime);
     }
   }
+
   private static class CommittedInProcessBundle<T> implements CommittedBundle<T> {
     public CommittedInProcessBundle(
         PCollection<T> pcollection,
@@ -147,6 +148,12 @@ class InProcessBundleFactory implements BundleFactory {
           .add("key", key)
           .add("elements", committedElements)
           .toString();
+    }
+
+    @Override
+    public CommittedBundle<T> withElements(Iterable<WindowedValue<T>> elements) {
+      return new CommittedInProcessBundle<>(
+          pcollection, key, ImmutableList.copyOf(elements), synchronizedCompletionTime);
     }
   }
 }
