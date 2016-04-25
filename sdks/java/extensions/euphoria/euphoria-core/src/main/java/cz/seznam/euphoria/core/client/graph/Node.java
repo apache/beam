@@ -16,7 +16,7 @@ public final class Node<T> {
   final List<Node<T>> parents = new ArrayList<>();
 
   @SuppressWarnings("unchecked")
-  private static final Node nullNode = new Node(null);
+  private static final Node NULL_NODE = new Node(null);
 
   Node(T value) {
     this.value = value;
@@ -33,7 +33,7 @@ public final class Node<T> {
 
   public Node<T> getSingleParent() {
     if (parents.size() == 1) {
-      return parents.iterator().next();
+      return parents.get(0);
     }
     throw new IllegalStateException("Asked for single parent while node has parents "
         + parents);
@@ -92,7 +92,7 @@ public final class Node<T> {
   /** A {@b null} node - node with null value, no children and no parents. */
   @SuppressWarnings("unchecked")
   public static <T> Node<T> nullNode() {
-    return nullNode;
+    return NULL_NODE;
   }
 
 }
