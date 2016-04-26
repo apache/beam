@@ -16,7 +16,6 @@
 
 package com.google.cloud.dataflow.sdk.options;
 
-import com.google.api.client.repackaged.com.google.common.base.Objects;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory.JsonIgnorePredicate;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory.Registration;
 import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
@@ -25,6 +24,7 @@ import com.google.cloud.dataflow.sdk.util.InstanceBuilder;
 import com.google.cloud.dataflow.sdk.util.common.ReflectHelpers;
 import com.google.common.base.Defaults;
 import com.google.common.base.Function;
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ClassToInstanceMap;
 import com.google.common.collect.FluentIterable;
@@ -62,6 +62,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
@@ -206,7 +207,7 @@ class ProxyInvocationHandler implements InvocationHandler {
 
     @Override
     public String toString() {
-      return Objects.toStringHelper(BoundValue.class)
+      return MoreObjects.toStringHelper(BoundValue.class)
           .add("value", value)
           .add("isDefault", isDefault)
           .toString();
@@ -214,7 +215,7 @@ class ProxyInvocationHandler implements InvocationHandler {
 
     @Override
     public int hashCode() {
-      return Objects.hashCode(value, isDefault);
+      return Objects.hash(value, isDefault);
     }
 
     @Override
@@ -224,7 +225,8 @@ class ProxyInvocationHandler implements InvocationHandler {
       }
 
       BoundValue that = (BoundValue) obj;
-      return Objects.equal(this.value, that.value) && Objects.equal(this.isDefault, that.isDefault);
+      return
+          Objects.equals(this.value, that.value) && Objects.equals(this.isDefault, that.isDefault);
     }
   }
 
