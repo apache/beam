@@ -179,10 +179,10 @@ public class AfterProcessingTimeTest {
             .plusDelayOf(Duration.standardMinutes(10)))
         .buildTrigger();
 
-    String expected = "AfterWatermark.pastEndOfWindow()" +
-        ".withLateFirings(AfterProcessingTime" +
-          ".pastFirstElementInPane()" +
-          ".plusDelayOf(10 minutes))";
+    String expected = "AfterWatermark.pastEndOfWindow()"
+        + ".withLateFirings(AfterProcessingTime"
+        + ".pastFirstElementInPane()"
+        + ".plusDelayOf(10 minutes))";
 
     assertEquals(expected, trigger.toString());
   }
