@@ -22,7 +22,7 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasNamespace;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasType;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
-import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includes;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
 
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.empty;
@@ -304,7 +304,7 @@ public class DisplayDataTest {
               }
             });
 
-    assertThat(data, includes(subComponent));
+    assertThat(data, includesDisplayDataFrom(subComponent));
   }
 
   @Test
@@ -329,7 +329,7 @@ public class DisplayDataTest {
       }
     });
 
-    assertThat(data, includes(subComponent, namespaceOverride.getClass()));
+    assertThat(data, includesDisplayDataFrom(subComponent, namespaceOverride.getClass()));
   }
 
   @Test

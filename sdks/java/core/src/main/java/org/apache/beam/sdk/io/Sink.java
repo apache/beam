@@ -139,7 +139,7 @@ public abstract class Sink<T> implements Serializable, HasDisplayData {
    * {@inheritDoc}
    *
    * <p>By default, does not register any display data. Implementors may override this method
-   * to provide their own display metadata.
+   * to provide their own display data.
    */
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {}

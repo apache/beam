@@ -44,7 +44,7 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * Static display metadata associated with a pipeline component. Display data is useful for
+ * Static display data associated with a pipeline component. Display data is useful for
  * pipeline runner UIs and diagnostic dashboards to display details about
  * {@link PTransform PTransforms} that make up a pipeline.
  *
@@ -148,41 +148,41 @@ public class DisplayData {
   }
 
   /**
-   * Utility to build up display metadata from a component and its included
+   * Utility to build up display data from a component and its included
    * subcomponents.
    */
   public interface Builder {
     /**
-     * Register display metadata from the specified subcomponent.
+     * Register display data from the specified subcomponent.
      *
      * @see #include(HasDisplayData, String)
      */
     Builder include(HasDisplayData subComponent);
 
     /**
-     * Register display metadata from the specified subcomponent, using the specified namespace.
+     * Register display data from the specified subcomponent, using the specified namespace.
      *
      * @see #include(HasDisplayData, String)
      */
     Builder include(HasDisplayData subComponent, Class<?> namespace);
 
     /**
-     * Register display metadata from the specified subcomponent, using the specified namespace.
+     * Register display data from the specified subcomponent, using the specified namespace.
      *
      * @see #include(HasDisplayData, String)
      */
     Builder include(HasDisplayData subComponent, ClassForDisplay namespace);
 
     /**
-     * Register display metadata from the specified subcomponent, using the specified namespace.
+     * Register display data from the specified subcomponent, using the specified namespace.
      *
-     * <p>For example, a {@link ParDo} transform includes display metadata from the encapsulated
+     * <p>For example, a {@link ParDo} transform includes display data from the encapsulated
      * {@link DoFn}.
      */
     Builder include(HasDisplayData subComponent, String namespace);
 
     /**
-     * Register the given string display metadata. The metadata item will be registered with type
+     * Register the given string display data. The metadata item will be registered with type
      * {@link DisplayData.Type#STRING}, and is identified by the specified key and namespace from
      * the current transform or component.
      */
@@ -203,7 +203,7 @@ public class DisplayData {
     ItemBuilder addIfNotDefault(String key, @Nullable String value, @Nullable String defaultValue);
 
     /**
-     * Register the given numeric display metadata. The metadata item will be registered with type
+     * Register the given numeric display data. The metadata item will be registered with type
      * {@link DisplayData.Type#INTEGER}, and is identified by the specified key and namespace from
      * the current transform or component.
      */
@@ -224,7 +224,7 @@ public class DisplayData {
     ItemBuilder addIfNotDefault(String key, long value, long defaultValue);
 
     /**
-     * Register the given floating point display metadata. The metadata item will be registered with
+     * Register the given floating point display data. The metadata item will be registered with
      * type {@link DisplayData.Type#FLOAT}, and is identified by the specified key and namespace
      * from the current transform or component.
      */
@@ -246,7 +246,7 @@ public class DisplayData {
     ItemBuilder addIfNotDefault(String key, double value, double defaultValue);
 
     /**
-     * Register the given boolean display metadata. The metadata item will be registered with
+     * Register the given boolean display data. The metadata item will be registered with
      * type {@link DisplayData.Type#BOOLEAN}, and is identified by the specified key and namespace
      * from the current transform or component.
      */
@@ -267,7 +267,7 @@ public class DisplayData {
     ItemBuilder addIfNotDefault(String key, boolean value, boolean defaultValue);
 
     /**
-     * Register the given timestamp display metadata. The metadata item will be registered with type
+     * Register the given timestamp display data. The metadata item will be registered with type
      * {@link DisplayData.Type#TIMESTAMP}, and is identified by the specified key and namespace from
      * the current transform or component.
      */
@@ -290,7 +290,7 @@ public class DisplayData {
         String key, @Nullable Instant value, @Nullable Instant defaultValue);
 
     /**
-     * Register the given duration display metadata. The metadata item will be registered with type
+     * Register the given duration display data. The metadata item will be registered with type
      * {@link DisplayData.Type#DURATION}, and is identified by the specified key and namespace from
      * the current transform or component.
      */
@@ -313,14 +313,14 @@ public class DisplayData {
         String key, @Nullable Duration value, @Nullable Duration defaultValue);
 
     /**
-     * Register the given class display metadata. The metadata item will be registered with type
+     * Register the given class display data. The metadata item will be registered with type
      * {@link DisplayData.Type#JAVA_CLASS}, and is identified by the specified key and namespace
      * from the current transform or component.
      */
     ItemBuilder add(String key, Class<?> value);
 
     /**
-     * Register the given class display metadata. The metadata item will be registered with type
+     * Register the given class display data. The metadata item will be registered with type
      * {@link DisplayData.Type#JAVA_CLASS}, and is identified by the specified key and namespace
      * from the current transform or component.
      */
@@ -356,7 +356,7 @@ public class DisplayData {
     ItemBuilder addIfNotDefault(
         String key, @Nullable ClassForDisplay value, @Nullable ClassForDisplay defaultValue);
   /**
-   * Register the given display metadata with the specified type.
+   * Register the given display data with the specified type.
    *
    * <p> The added display data is identified by the specified key and namespace from the current
    * transform or component.
@@ -369,7 +369,7 @@ public class DisplayData {
   }
 
   /**
-   * Utility to append optional fields to display metadata, or register additional display metadata
+   * Utility to append optional fields to display data, or register additional display data
    * items.
    */
   public interface ItemBuilder extends Builder {
@@ -383,7 +383,7 @@ public class DisplayData {
     ItemBuilder withLabel(@Nullable String label);
 
     /**
-     * Add a link URL to the most-recently added display metadata. A link URL is optional and
+     * Add a link URL to the most-recently added display data. A link URL is optional and
      * can be provided to point the reader to additional details about the metadata.
      *
      * <p>Specifying a null value will clear the URL if it was previously defined.
@@ -391,16 +391,16 @@ public class DisplayData {
     ItemBuilder withLinkUrl(@Nullable String url);
 
     /**
-     * Adds an explicit namespace to the most-recently added display metadata. The namespace
-     * and key uniquely identify the display metadata.
+     * Adds an explicit namespace to the most-recently added display data. The namespace
+     * and key uniquely identify the display data.
      *
      * <p>Leaving the namespace unspecified will default to the registering instance's class.
      */
     ItemBuilder withNamespace(Class<?> namespace);
 
     /**
-     * Adds an explicit namespace to the most-recently added display metadata. The namespace
-     * and key uniquely identify the display metadata.
+     * Adds an explicit namespace to the most-recently added display data. The namespace
+     * and key uniquely identify the display data.
      *
      * <p>Leaving the namespace unspecified will default to the registering instance's class.
      */
@@ -408,7 +408,7 @@ public class DisplayData {
   }
 
   /**
-   * A display metadata item. DisplayData items are registered via {@link Builder#add} within
+   * A display data item. DisplayData items are registered via {@link Builder#add} within
    * {@link HasDisplayData#populateDisplayData} implementations. Each metadata item is uniquely
    * identified by the specified key and namespace generated from the registering component's
    * class name.
@@ -456,7 +456,7 @@ public class DisplayData {
     }
 
     /**
-     * Retrieve the {@link DisplayData.Type} of display metadata. All metadata conforms to a
+     * Retrieve the {@link DisplayData.Type} of display data. All metadata conforms to a
      * predefined set of allowed types.
      */
     @JsonGetter("type")
@@ -501,7 +501,7 @@ public class DisplayData {
 
     /**
      * Retrieve the optional link URL for an item. The URL points to an address where the reader
-     * can find additional context for the display metadata.
+     * can find additional context for the display data.
      *
      * <p>If no URL was specified, this will return {@code null}.
      */
@@ -561,11 +561,11 @@ public class DisplayData {
   }
 
   /**
-   * Unique identifier for a display metadata item within a component.
+   * Unique identifier for a display data item within a component.
    * Identifiers are composed of the key they are registered with and a namespace generated from
    * the class of the component which registered the item.
    *
-   * <p>Display metadata registered with the same key from different components will have different
+   * <p>Display data registered with the same key from different components will have different
    * namespaces and thus will both be represented in the composed {@link DisplayData}. If a
    * single component registers multiple metadata items with the same key, only the most recent
    * item will be retained; previous versions are discarded.
@@ -618,7 +618,7 @@ public class DisplayData {
   }
 
   /**
-   * Display metadata type.
+   * Display data type.
    */
   public enum Type {
     STRING {
@@ -689,7 +689,7 @@ public class DisplayData {
     }
 
     /**
-     * Format the display metadata value into a long string representation, and optionally
+     * Format the display data value into a long string representation, and optionally
      * a shorter representation for display.
      *
      * <p>Internal-only. Value objects can be safely cast to the expected Java type.

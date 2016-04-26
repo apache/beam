@@ -363,6 +363,7 @@ public class ApproximateQuantiles {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
       builder
           .add("numQuantiles", numQuantiles)
           .add("comparer", compareFn.getClass());

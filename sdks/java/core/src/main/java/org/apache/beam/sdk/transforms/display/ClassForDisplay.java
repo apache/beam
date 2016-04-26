@@ -23,9 +23,9 @@ import java.io.Serializable;
 import java.util.Objects;
 
 /**
- * Display metadata representing a Java class.
+ * Display data representing a Java class.
  *
- * <p>Java classes can be registered as display metadata via
+ * <p>Java classes can be registered as display data via
  * {@link DisplayData.Builder#add(String, ClassForDisplay)}. {@link ClassForDisplay} is
  * serializable, unlike {@link Class} which can fail to serialize for Java 8 lambda functions.
  */

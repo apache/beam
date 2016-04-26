@@ -317,7 +317,7 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    * {@inheritDoc}
    *
    * <p>By default, does not register any display data. Implementors may override this method
-   * to provide their own display metadata.
+   * to provide their own display data.
    */
   @Override
   public void populateDisplayData(Builder builder) {

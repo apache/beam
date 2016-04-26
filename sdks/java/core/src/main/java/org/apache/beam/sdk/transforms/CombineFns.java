@@ -464,6 +464,7 @@ public class CombineFns {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
       CombineFns.populateDisplayData(builder, combineFns);
     }
   }
@@ -602,6 +603,7 @@ public class CombineFns {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
       CombineFns.populateDisplayData(builder, combineFnWithContexts);
     }
   }
@@ -788,6 +790,7 @@ public class CombineFns {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
       CombineFns.populateDisplayData(builder, keyedCombineFns);
     }
   }
@@ -939,6 +942,7 @@ public class CombineFns {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
       CombineFns.populateDisplayData(builder, keyedCombineFns);
     }
   }
