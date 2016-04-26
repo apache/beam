@@ -20,11 +20,11 @@ import cz.seznam.euphoria.core.client.io.Reader;
 import cz.seznam.euphoria.core.client.io.Writer;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.Operator;
-import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.Repartition;
 import cz.seznam.euphoria.core.client.operator.State;
 import cz.seznam.euphoria.core.client.operator.Union;
+import cz.seznam.euphoria.core.client.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -665,7 +665,11 @@ public class InMemExecutor implements Executor {
         windowStates.values().stream()
             .flatMap(m -> m.values().stream())
             .forEach(State::close);
-        output.add(EndOfStream.get());
+        try {
+          output.put(EndOfStream.get());
+        } catch (InterruptedException e) {
+          throw new RuntimeException(e);
+        }
         triggering.close();
       });
     });
