@@ -16,15 +16,4 @@ class CompositeKey<T0, T1> extends Pair<T0, T1> {
     super(first, second);
   }
 
-  @Override
-  @SuppressWarnings("unchecked")
-  public boolean equals(Object obj) {
-    if (obj instanceof CompositeKey) {
-      CompositeKey other = (CompositeKey) obj;
-      return other.getFirst().equals(getFirst())
-          && other.getSecond().equals(getSecond());
-    }
-    return false;
-  }
-
 }
