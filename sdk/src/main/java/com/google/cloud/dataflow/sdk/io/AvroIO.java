@@ -25,6 +25,7 @@ import com.google.cloud.dataflow.sdk.io.Read.Bounded;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
 import com.google.cloud.dataflow.sdk.util.MimeTypes;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -325,6 +326,14 @@ public class AvroIO {
       }
 
       @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        super.populateDisplayData(builder);
+        builder
+          .addIfNotNull("filePattern", filepattern)
+          .addIfNotDefault("validation", validate, true);
+      }
+
+      @Override
       protected Coder<T> getDefaultOutputCoder() {
         return AvroCoder.of(type, schema);
       }
@@ -465,6 +474,8 @@ public class AvroIO {
      * @param <T> the type of each of the elements of the input PCollection
      */
     public static class Bound<T> extends PTransform<PCollection<T>, PDone> {
+      private static final String DEFAULT_SHARD_TEMPLATE = ShardNameTemplate.INDEX_OF_MAX;
+
       /** The filename to write to. */
       @Nullable
       final String filenamePrefix;
@@ -483,7 +494,7 @@ public class AvroIO {
       final boolean validate;
 
       Bound(Class<T> type) {
-        this(null, null, "", 0, ShardNameTemplate.INDEX_OF_MAX, type, null, true);
+        this(null, null, "", 0, DEFAULT_SHARD_TEMPLATE, type, null, true);
       }
 
       Bound(
@@ -675,6 +686,18 @@ public class AvroIO {
             com.google.cloud.dataflow.sdk.io.Write.to(
                 new AvroSink<>(
                     filenamePrefix, filenameSuffix, shardTemplate, AvroCoder.of(type, schema))));
+      }
+
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        super.populateDisplayData(builder);
+        builder
+            .add("schema", type)
+            .addIfNotNull("filePrefix", filenamePrefix)
+            .addIfNotDefault("shardNameTemplate", shardTemplate, DEFAULT_SHARD_TEMPLATE)
+            .addIfNotDefault("fileSuffix", filenameSuffix, "")
+            .addIfNotDefault("numShards", numShards, 0)
+            .addIfNotDefault("validation", validate, true);
       }
 
       /**
