@@ -17,8 +17,12 @@
  */
 package org.apache.beam.sdk.io;
 
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CoderException;
@@ -32,6 +36,7 @@ import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.BigQueryServices;
 import org.apache.beam.sdk.util.BigQueryServices.Status;
@@ -391,6 +396,24 @@ public class BigQueryIOTest {
   }
 
   @Test
+  public void testBuildSourceDisplayData() {
+    String tableSpec = "project:dataset.tableid";
+
+    BigQueryIO.Read.Bound read = BigQueryIO.Read
+        .from(tableSpec)
+        .fromQuery("myQuery")
+        .withoutResultFlattening()
+        .withoutValidation();
+
+    DisplayData displayData = DisplayData.from(read);
+
+    assertThat(displayData, hasDisplayItem("table", tableSpec));
+    assertThat(displayData, hasDisplayItem("query", "myQuery"));
+    assertThat(displayData, hasDisplayItem("flattenResults", false));
+    assertThat(displayData, hasDisplayItem("validation", false));
+  }
+
+  @Test
   public void testBuildSink() {
     BigQueryIO.Write.Bound bound = BigQueryIO.Write.named("WriteMyTable")
         .to("foo.com:project:somedataset.sometable");
@@ -500,6 +523,29 @@ public class BigQueryIOTest {
     checkWriteObject(
         bound, "foo.com:project", "somedataset", "sometable",
         null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY);
+  }
+
+  @Test
+  public void testBuildSinkDisplayData() {
+    String tableSpec = "project:dataset.table";
+    TableSchema schema = new TableSchema().set("col1", "type1").set("col2", "type2");
+
+    BigQueryIO.Write.Bound write = BigQueryIO.Write
+        .to(tableSpec)
+        .withSchema(schema)
+        .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+        .withWriteDisposition(WriteDisposition.WRITE_APPEND)
+        .withoutValidation();
+
+    DisplayData displayData = DisplayData.from(write);
+
+    assertThat(displayData, hasDisplayItem(hasKey("table")));
+    assertThat(displayData, hasDisplayItem(hasKey("schema")));
+    assertThat(displayData,
+        hasDisplayItem("createDisposition", CreateDisposition.CREATE_IF_NEEDED.toString()));
+    assertThat(displayData,
+        hasDisplayItem("writeDisposition", WriteDisposition.WRITE_APPEND.toString()));
+    assertThat(displayData, hasDisplayItem("validation", false));
   }
 
   private void testWriteValidatesDataset(boolean streaming) {

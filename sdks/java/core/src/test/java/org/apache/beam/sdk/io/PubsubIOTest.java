@@ -17,12 +17,18 @@
  */
 package org.apache.beam.sdk.io;
 
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
+
+import org.apache.beam.sdk.transforms.display.DisplayData;
 
 import com.google.api.client.testing.http.FixedClock;
 import com.google.api.client.util.Clock;
 import com.google.api.services.pubsub.model.PubsubMessage;
 
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
@@ -230,5 +236,43 @@ public class PubsubIOTest {
     thrown.expect(NumberFormatException.class);
     // Year 10000 out of range.
     parseTimestamp("10000-10-29T23:41:41.123999Z");
+  }
+
+  @Test
+  public void testReadDisplayData() {
+    String topic = "projects/project/topics/topic";
+    String subscription = "projects/project/subscriptions/subscription";
+    Duration maxReadTime = Duration.standardMinutes(5);
+    PubsubIO.Read.Bound<String> read = PubsubIO.Read
+        .topic(topic)
+        .subscription(subscription)
+        .timestampLabel("myTimestamp")
+        .idLabel("myId")
+        .maxNumRecords(1234)
+        .maxReadTime(maxReadTime);
+
+    DisplayData displayData = DisplayData.from(read);
+
+    assertThat(displayData, hasDisplayItem("topic", topic));
+    assertThat(displayData, hasDisplayItem("subscription", subscription));
+    assertThat(displayData, hasDisplayItem("timestampLabel", "myTimestamp"));
+    assertThat(displayData, hasDisplayItem("idLabel", "myId"));
+    assertThat(displayData, hasDisplayItem("maxNumRecords", 1234));
+    assertThat(displayData, hasDisplayItem("maxReadTime", maxReadTime));
+  }
+
+  @Test
+  public void testWriteDisplayData() {
+    String topic = "projects/project/topics/topic";
+    PubsubIO.Write.Bound<?> write = PubsubIO.Write
+        .topic(topic)
+        .timestampLabel("myTimestamp")
+        .idLabel("myId");
+
+    DisplayData displayData = DisplayData.from(write);
+
+    assertThat(displayData, hasDisplayItem("topic", topic));
+    assertThat(displayData, hasDisplayItem("timestampLabel", "myTimestamp"));
+    assertThat(displayData, hasDisplayItem("idLabel", "myId"));
   }
 }

@@ -27,6 +27,7 @@ import org.apache.beam.sdk.io.Read.Bounded;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.DirectPipelineRunner;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.values.PCollection;
@@ -339,6 +340,16 @@ public class TextIO {
       }
 
       @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        super.populateDisplayData(builder);
+
+        builder
+            .add("compressionType", compressionType.toString())
+            .addIfNotDefault("validation", validate, true)
+            .addIfNotNull("filePattern", filepattern);
+      }
+
+      @Override
       protected Coder<T> getDefaultOutputCoder() {
         return coder;
       }
@@ -467,6 +478,8 @@ public class TextIO {
      * @param <T> the type of the elements of the input PCollection
      */
     public static class Bound<T> extends PTransform<PCollection<T>, PDone> {
+      private static final String DEFAULT_SHARD_TEMPLATE = ShardNameTemplate.INDEX_OF_MAX;
+
       /** The prefix of each file written, combined with suffix and shardTemplate. */
       @Nullable private final String filenamePrefix;
       /** The suffix of each file written, combined with prefix and shardTemplate. */
@@ -485,7 +498,7 @@ public class TextIO {
       private final boolean validate;
 
       Bound(Coder<T> coder) {
-        this(null, null, "", coder, 0, ShardNameTemplate.INDEX_OF_MAX, true);
+        this(null, null, "", coder, 0, DEFAULT_SHARD_TEMPLATE, true);
       }
 
       private Bound(String name, String filenamePrefix, String filenameSuffix, Coder<T> coder,
@@ -629,6 +642,18 @@ public class TextIO {
         return input.apply("Write", org.apache.beam.sdk.io.Write.to(
             new TextSink<>(
                 filenamePrefix, filenameSuffix, shardTemplate, coder)));
+      }
+
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        super.populateDisplayData(builder);
+
+        builder
+            .addIfNotNull("filePrefix", filenamePrefix)
+            .addIfNotDefault("fileSuffix", filenameSuffix, "")
+            .addIfNotDefault("shardNameTemplate", shardTemplate, DEFAULT_SHARD_TEMPLATE)
+            .addIfNotDefault("validation", validate, true)
+            .addIfNotDefault("numShards", numShards, 0);
       }
 
       /**
