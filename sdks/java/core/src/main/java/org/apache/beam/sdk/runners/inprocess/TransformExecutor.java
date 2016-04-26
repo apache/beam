@@ -27,6 +27,7 @@ import com.google.common.base.Throwables;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -158,9 +159,10 @@ class TransformExecutor<T> implements Callable<InProcessTransformResult> {
       TransformEvaluator<T> evaluator, Collection<ModelEnforcement<T>> enforcements)
       throws Exception {
     InProcessTransformResult result = evaluator.finishBundle();
-    Iterable<? extends CommittedBundle<?>> outputs = onComplete.handleResult(inputBundle, result);
+    Map<? extends CommittedBundle<?>, Collection<AppliedPTransform<?, ?, ?>>> outputs =
+        onComplete.handleResult(inputBundle, result);
     for (ModelEnforcement<T> enforcement : enforcements) {
-      enforcement.afterFinish(inputBundle, result, outputs);
+      enforcement.afterFinish(inputBundle, result, outputs.keySet());
     }
     return result;
   }
