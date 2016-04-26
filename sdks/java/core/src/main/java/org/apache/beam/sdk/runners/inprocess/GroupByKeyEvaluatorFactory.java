@@ -149,7 +149,7 @@ class GroupByKeyEvaluatorFactory implements TransformEvaluatorFactory {
             KeyedWorkItems.elementsWorkItem(key, groupedEntry.getValue());
         UncommittedBundle<KeyedWorkItem<K, V>> bundle =
             evaluationContext.createKeyedBundle(inputBundle, key, application.getOutput());
-        bundle.add(WindowedValue.valueInEmptyWindows(groupedKv));
+        bundle.add(WindowedValue.valueInGlobalWindow(groupedKv));
         resultBuilder.addOutput(bundle);
       }
       return resultBuilder.build();
