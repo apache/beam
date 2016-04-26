@@ -1,16 +1,16 @@
 
 package cz.seznam.euphoria.core.client.operator;
 
-import cz.seznam.euphoria.core.client.util.Pair;
-import cz.seznam.euphoria.core.client.dataset.Partitioning;
-import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
-import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.HashPartitioning;
+import cz.seznam.euphoria.core.client.dataset.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.Window;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
+import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.graph.DAG;
+import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.core.client.util.Sums;
 
 /**
  * Operator for summing of elements by key.
@@ -85,14 +85,7 @@ public class SumByKey<IN, KEY, W extends Window<?>,
   public DAG<Operator<?, ?, ?>> getBasicOps() {
     ReduceByKey<IN, KEY, Long, Long, W, Dataset<Pair<KEY, Long>>> reduceByKey = new ReduceByKey<>(
         input.getFlow(), input,
-        keyExtractor, valueExtractor, windowing,
-          (CombinableReduceFunction<Long>) (Iterable<Long> values) -> {
-          long s = 0;
-          for (Long v : values) {
-            s += v;
-          }
-          return s;
-        });
+        keyExtractor, valueExtractor, windowing, Sums.ofLongs());
     return DAG.of(reduceByKey);
   }
 

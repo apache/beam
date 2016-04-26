@@ -3,18 +3,17 @@
 package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
 import cz.seznam.euphoria.core.client.dataset.PCollection;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
+import cz.seznam.euphoria.core.client.flow.Flow;
+import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
+import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.MockBatchDataSourceFactory;
 import cz.seznam.euphoria.core.client.io.StdoutSink;
 import cz.seznam.euphoria.core.client.io.TCPLineStreamSource;
 import cz.seznam.euphoria.core.client.util.Pair;
-import cz.seznam.euphoria.core.client.flow.Flow;
-import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
-import cz.seznam.euphoria.core.client.io.Collector;
-import cz.seznam.euphoria.core.client.io.DataSink;
+import cz.seznam.euphoria.core.client.util.Sums;
 import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.core.executor.InMemExecutor;
 import cz.seznam.euphoria.core.executor.InMemFileSystem;
@@ -76,13 +75,7 @@ public class BasicOperatorTest {
         .of(words)
         .keyBy(Pair::getFirst)
         .valueBy(Pair::getSecond)
-        .combineBy((Iterable<Long> values) -> {
-          long s = 0;
-          for (Long v : values) {
-            s += v;
-          }
-          return s;
-        })
+        .combineBy(Sums.ofLongs())
         .windowBy(Windowing.Time.seconds(5).aggregating())
         .output();
     
@@ -118,13 +111,7 @@ public class BasicOperatorTest {
         .of(words)
         .keyBy(Pair::getFirst)
         .valueBy(Pair::getSecond)
-        .combineBy((Iterable<Long> values) -> {
-          long s = 0;
-          for (Long v : values) {
-            s += v;
-          }
-          return s;
-        })
+        .combineBy(Sums.ofLongs())
         .output();
 
     executor.waitForCompletion(flow);
