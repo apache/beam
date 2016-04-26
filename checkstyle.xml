@@ -122,6 +122,10 @@ page at http://checkstyle.sourceforge.net/config.html -->
       <property name="severity" value="error"/>
     </module>
 
+    <module name="IllegalImport">
+      <property name="illegalPkgs" value="com.google.api.client.repackaged"/>
+    </module>
+
     <module name="UnusedImports">
       <property name="severity" value="error"/>
       <property name="processJavadoc" value="true"/>
