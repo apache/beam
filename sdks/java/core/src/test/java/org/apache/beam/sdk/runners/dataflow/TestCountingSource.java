@@ -173,7 +173,7 @@ public class TestCountingSource
 
     @Override
     public boolean advance() {
-      if (current >= numMessagesPerShard) {
+      if (current >= numMessagesPerShard - 1) {
         return false;
       }
       // If testing dedup, occasionally insert a duplicate value;
@@ -181,7 +181,7 @@ public class TestCountingSource
         return true;
       }
       current++;
-      return current < numMessagesPerShard;
+      return true;
     }
 
     @Override

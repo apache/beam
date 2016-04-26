@@ -53,4 +53,22 @@ public class TestCountingSourceTest {
     assertEquals(2L, (long) reader.getCurrent().getValue());
     assertFalse(reader.advance());
   }
+
+  @Test
+  public void testCanResumeWithExpandedCount() throws IOException {
+    TestCountingSource source = new TestCountingSource(1);
+    PipelineOptions options = PipelineOptionsFactory.create();
+    TestCountingSource.CountingSourceReader reader =
+        source.createReader(options, null /* no checkpoint */);
+    assertTrue(reader.start());
+    assertEquals(0L, (long) reader.getCurrent().getValue());
+    assertFalse(reader.advance());
+    TestCountingSource.CounterMark checkpoint = reader.getCheckpointMark();
+    checkpoint.finalizeCheckpoint();
+    source = new TestCountingSource(2);
+    reader = source.createReader(options, checkpoint);
+    assertTrue(reader.start());
+    assertEquals(1L, (long) reader.getCurrent().getValue());
+    assertFalse(reader.advance());
+  }
 }
