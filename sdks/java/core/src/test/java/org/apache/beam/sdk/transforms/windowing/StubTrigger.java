@@ -17,7 +17,8 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
-import com.google.api.client.util.Lists;
+import com.google.common.collect.Lists;
+
 import org.joda.time.Instant;
 
 import java.util.List;
