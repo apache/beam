@@ -15,10 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.dataflow.sdk.transforms.display;
+package org.apache.beam.sdk.transforms.display;
 
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.display.ClassForDisplay;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
