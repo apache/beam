@@ -100,7 +100,18 @@ public class Pair<K, V> implements java.util.Map.Entry<K, V> {
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(first) ^ Objects.hashCode(second);
+    if (getFirst() != null && getSecond() != null) {
+      int h = getFirst().hashCode();
+      int shift = Integer.SIZE >> 1;
+      return ((h >> shift) | (h << shift)) ^ getSecond().hashCode();
+    }
+    if (getFirst() != null) {
+      return getFirst().hashCode();
+    }
+    if (getSecond() != null) {
+      return getSecond().hashCode();
+    }
+    return 0;
   }
 
 

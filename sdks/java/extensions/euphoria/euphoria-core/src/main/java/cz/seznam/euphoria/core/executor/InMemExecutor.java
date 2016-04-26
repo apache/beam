@@ -533,7 +533,18 @@ public class InMemExecutor implements Executor {
     }
     @Override
     public int hashCode() {
-      return first.hashCode() ^ second.hashCode();
+      if (first != null && second != null) {
+        int h = first.hashCode();
+        int shift = Integer.SIZE >> 1;
+        return ((h >> shift) | (h << shift)) ^ second.hashCode();
+      }
+      if (first != null) {
+        return first.hashCode();
+      }
+      if (second != null) {
+        return second.hashCode();
+      }
+      return 0;
     }
   }
 
