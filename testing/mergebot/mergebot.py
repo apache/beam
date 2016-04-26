@@ -26,6 +26,8 @@ ISSUES_URL = GITHUB_REPO_URL + '/issues'
 COMMENT_FMT_URL = ISSUES_URL + '/{pr_num}/comments'
 PULLS_URL = GITHUB_REPO_URL + '/pulls'
 
+bot_key = ''
+
 
 def main():
   print('Starting up.')
@@ -35,10 +37,10 @@ def main():
   print('Loaded key file.')
   # Loop: Forever, once per minute.
   while True:
-    poll_github(bot_key)
+    poll_github()
     time.sleep(60)
 
-def poll_github(bot_key):
+def poll_github():
   print('Loading pull requests from Github at {}.'.format(PULLS_URL))
   # Load list of pull requests from Github
   r = requests.get(PULLS_URL, auth=(BOT_NAME, bot_key))
