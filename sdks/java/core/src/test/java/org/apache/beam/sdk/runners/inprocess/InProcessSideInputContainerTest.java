@@ -386,6 +386,10 @@ public class InProcessSideInputContainerTest {
     assertThat(mapFuture.get().isEmpty(), is(true));
   }
 
+  /**
+   * Demonstrates that calling isReady on an empty container throws an
+   * {@link IllegalArgumentException}.
+   */
   @Test
   public void isReadyInEmptyReaderThrows() {
     ReadyCheckingSideInputReader reader =
@@ -396,6 +400,10 @@ public class InProcessSideInputContainerTest {
     reader.isReady(mapView, GlobalWindow.INSTANCE);
   }
 
+  /**
+   * Demonstrates that calling isReady returns false until elements are written to the
+   * {@link PCollectionView}, {@link BoundedWindow} pair, at which point it returns true.
+   */
   @Test
   public void isReadyForSomeNotReadyViewsFalseUntilElements() {
     container.write(

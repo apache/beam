@@ -226,22 +226,7 @@ class InProcessSideInputContainer {
 
       WindowingStrategy<?, ?> windowingStrategy = view.getWindowingStrategyInternal();
       evaluationContext.scheduleAfterOutputWouldBeProduced(
-          view, window, windowingStrategy, new Runnable() {
-            @Override
-            public void run() {
-              // The requested window has closed without producing elements, so reflect that in
-              // the PCollectionView. If set has already been called, will do nothing.
-              future.set(Collections.<WindowedValue<?>>emptyList());
-        }
-
-        @Override
-        public String toString() {
-          return MoreObjects.toStringHelper("InProcessSideInputContainerEmptyCallback")
-              .add("view", view)
-              .add("window", window)
-              .toString();
-        }
-      });
+          view, window, windowingStrategy, new WriteEmptyViewContents(view, window, future));
       return future;
     }
 
@@ -253,6 +238,34 @@ class InProcessSideInputContainer {
     @Override
     public boolean isEmpty() {
       return readerViews.isEmpty();
+    }
+  }
+
+  private static class WriteEmptyViewContents implements Runnable {
+    private final PCollectionView<?> view;
+    private final BoundedWindow window;
+    private final SettableFuture<Iterable<? extends WindowedValue<?>>> future;
+
+    private WriteEmptyViewContents(PCollectionView<?> view, BoundedWindow window,
+        SettableFuture<Iterable<? extends WindowedValue<?>>> future) {
+      this.future = future;
+      this.view = view;
+      this.window = window;
+    }
+
+    @Override
+    public void run() {
+      // The requested window has closed without producing elements, so reflect that in
+      // the PCollectionView. If set has already been called, will do nothing.
+      future.set(Collections.<WindowedValue<?>>emptyList());
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+          .add("view", view)
+          .add("window", window)
+          .toString();
     }
   }
 }
