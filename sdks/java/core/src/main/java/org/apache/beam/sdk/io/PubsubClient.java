@@ -18,7 +18,7 @@
 
 package org.apache.beam.sdk.io;
 
-import com.google.api.client.repackaged.com.google.common.base.Preconditions;
+import static com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -88,7 +88,7 @@ public interface PubsubClient extends AutoCloseable {
 
     public String getV1Beta1Path() {
       String[] splits = path.split("/");
-      Preconditions.checkState(splits.length == 4);
+      checkState(splits.length == 4);
       return String.format("/subscriptions/%s/%s", splits[1], splits[3]);
     }
 
@@ -136,7 +136,7 @@ public interface PubsubClient extends AutoCloseable {
 
     public String getV1Beta1Path() {
       String[] splits = path.split("/");
-      Preconditions.checkState(splits.length == 4);
+      checkState(splits.length == 4);
       return String.format("/topics/%s/%s", splits[1], splits[3]);
     }
 
