@@ -15,7 +15,7 @@
  */
 package com.google.cloud.dataflow.sdk.transforms.windowing;
 
-import com.google.api.client.util.Lists;
+import com.google.common.collect.Lists;
 
 import org.joda.time.Instant;
 
