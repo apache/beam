@@ -101,11 +101,10 @@ import org.apache.beam.sdk.values.PCollection.IsBounded;
  * as the input.
  *
  * <p>If the input {@code PCollection} contains late data (see
- * {@link org.apache.beam.sdk.io.PubsubIO.Read.Bound#timestampLabel}
- * for an example of how this can occur) or the
- * {@link Window#triggering requested TriggerFn} can fire before
- * the watermark, then there may be multiple elements
- * output by a {@code GroupByKey} that correspond to the same key and window.
+ * {@link org.apache.beam.sdk.transforms.windowing.AfterWatermark} for an example of how this can
+ * occur) or the {@link Window#triggering requested TriggerFn} can fire before the watermark, then
+ * there may be multiple elements output by a {@code GroupByKey} that correspond to the same key
+ * and window.
  *
  * <p>If the {@link WindowFn} of the input requires merging, it is not
  * valid to apply another {@code GroupByKey} without first applying a new

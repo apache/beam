@@ -43,7 +43,8 @@ import java.util.NoSuchElementException;
  * </ul>
  *
  * <p>To use this class for supporting your custom input type, derive your class
- * class from it, and override the abstract methods. For an example, see {@link DatastoreIO}.
+ * class from it, and override the abstract methods. For an example, see {@code BigtableIO} in
+ * the <code>google-cloud-platform</code> module.
  *
  * @param <T> Type of records read by the source.
  */
