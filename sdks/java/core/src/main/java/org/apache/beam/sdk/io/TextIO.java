@@ -344,9 +344,9 @@ public class TextIO {
         super.populateDisplayData(builder);
 
         builder
-            .add("compressionType", compressionType.toString())
-            .addIfNotDefault("validation", validate, true)
-            .addIfNotNull("filePattern", filepattern);
+            .add(DisplayData.item("compressionType", compressionType.toString()))
+            .addIfNotDefault(DisplayData.item("validation", validate), true)
+            .addIfNotNull(DisplayData.item("filePattern", filepattern));
       }
 
       @Override
@@ -649,11 +649,13 @@ public class TextIO {
         super.populateDisplayData(builder);
 
         builder
-            .addIfNotNull("filePrefix", filenamePrefix)
-            .addIfNotDefault("fileSuffix", filenameSuffix, "")
-            .addIfNotDefault("shardNameTemplate", shardTemplate, DEFAULT_SHARD_TEMPLATE)
-            .addIfNotDefault("validation", validate, true)
-            .addIfNotDefault("numShards", numShards, 0);
+            .addIfNotNull(DisplayData.item("filePrefix", filenamePrefix))
+            .addIfNotDefault(DisplayData.item("fileSuffix", filenameSuffix), "")
+            .addIfNotDefault(
+                DisplayData.item("shardNameTemplate", shardTemplate),
+                DEFAULT_SHARD_TEMPLATE)
+            .addIfNotDefault(DisplayData.item("validation", validate), true)
+            .addIfNotDefault(DisplayData.item("numShards", numShards), 0);
       }
 
       /**

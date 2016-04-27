@@ -164,7 +164,7 @@ public class WriteTest {
     TestSink sink = new TestSink() {
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
-        builder.add("foo", "bar");
+        builder.add(DisplayData.item("foo", "bar"));
       }
     };
     Write.Bound<String> write = Write.to(sink);

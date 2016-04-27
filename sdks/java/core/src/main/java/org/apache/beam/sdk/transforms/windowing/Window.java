@@ -600,24 +600,24 @@ public class Window {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder
-          .add("windowFn", windowFn.getClass())
+          .add(DisplayData.item("windowFn", windowFn.getClass()))
           .include(windowFn)
-          .addIfNotNull("allowedLateness", allowedLateness);
+          .addIfNotNull(DisplayData.item("allowedLateness", allowedLateness));
 
       if (trigger != null && !(trigger instanceof DefaultTrigger)) {
-        builder.add("trigger", trigger.toString());
+        builder.add(DisplayData.item("trigger", trigger.toString()));
       }
 
       if (mode != null) {
-        builder.add("accumulationMode", mode.toString());
+        builder.add(DisplayData.item("accumulationMode", mode.toString()));
       }
 
       if (closingBehavior != null) {
-        builder.add("closingBehavior", closingBehavior.toString());
+        builder.add(DisplayData.item("closingBehavior", closingBehavior.toString()));
       }
 
       if (outputTimeFn != null) {
-        builder.add("outputTimeFn", outputTimeFn.getClass());
+        builder.add(DisplayData.item("outputTimeFn", outputTimeFn.getClass()));
       }
     }
 

@@ -26,7 +26,7 @@ import java.util.Objects;
  * Display data representing a Java class.
  *
  * <p>Java classes can be registered as display data via
- * {@link DisplayData.Builder#add(String, ClassForDisplay)}. {@link ClassForDisplay} is
+ * {@link DisplayData.Builder#item(String, ClassForDisplay)}. {@link ClassForDisplay} is
  * serializable, unlike {@link Class} which can fail to serialize for Java 8 lambda functions.
  */
 public class ClassForDisplay implements Serializable {
@@ -42,14 +42,15 @@ public class ClassForDisplay implements Serializable {
    * Create a {@link ClassForDisplay} instance representing the specified class.
    */
   public static ClassForDisplay of(Class<?> clazz) {
-    return new ClassForDisplay(checkNotNull(clazz));
+    checkNotNull(clazz, "clazz argument cannot be null");
+    return new ClassForDisplay(clazz);
   }
 
   /**
    * Create a {@link ClassForDisplay} from the class of the specified object instance.
    */
   public static ClassForDisplay fromInstance(Object obj) {
-    checkNotNull(obj);
+    checkNotNull(obj, "obj argument instance cannot be null");
     return new ClassForDisplay(obj.getClass());
   }
 

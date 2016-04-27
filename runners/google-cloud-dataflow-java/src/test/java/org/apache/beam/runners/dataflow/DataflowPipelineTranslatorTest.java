@@ -874,10 +874,10 @@ public class DataflowPipelineTranslatorTest implements Serializable {
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
         builder
-            .add("foo", "bar")
-            .add("foo2", DataflowPipelineTranslatorTest.class)
+            .add(DisplayData.item("foo", "bar"))
+            .add(DisplayData.item("foo2", DataflowPipelineTranslatorTest.class)
                 .withLabel("Test Class")
-                .withLinkUrl("http://www.google.com");
+                .withLinkUrl("http://www.google.com"));
       }
     };
 
@@ -889,7 +889,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
-        builder.add("foo3", 1234);
+        builder.add(DisplayData.item("foo3", 1234));
       }
     };
 
@@ -915,8 +915,10 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     Map<String, Object> parDo2Properties = steps.get(2).getProperties();
     assertThat(parDo1Properties, hasKey("display_data"));
 
+    @SuppressWarnings("unchecked")
     Collection<Map<String, String>> fn1displayData =
             (Collection<Map<String, String>>) parDo1Properties.get("display_data");
+    @SuppressWarnings("unchecked")
     Collection<Map<String, String>> fn2displayData =
             (Collection<Map<String, String>>) parDo2Properties.get("display_data");
 

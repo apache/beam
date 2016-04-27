@@ -331,8 +331,8 @@ public class AvroIO {
       public void populateDisplayData(DisplayData.Builder builder) {
         super.populateDisplayData(builder);
         builder
-          .addIfNotNull("filePattern", filepattern)
-          .addIfNotDefault("validation", validate, true);
+          .addIfNotNull(DisplayData.item("filePattern", filepattern))
+          .addIfNotDefault(DisplayData.item("validation", validate), true);
       }
 
       @Override
@@ -694,12 +694,14 @@ public class AvroIO {
       public void populateDisplayData(DisplayData.Builder builder) {
         super.populateDisplayData(builder);
         builder
-            .add("schema", type)
-            .addIfNotNull("filePrefix", filenamePrefix)
-            .addIfNotDefault("shardNameTemplate", shardTemplate, DEFAULT_SHARD_TEMPLATE)
-            .addIfNotDefault("fileSuffix", filenameSuffix, "")
-            .addIfNotDefault("numShards", numShards, 0)
-            .addIfNotDefault("validation", validate, true);
+            .add(DisplayData.item("schema", type))
+            .addIfNotNull(DisplayData.item("filePrefix", filenamePrefix))
+            .addIfNotDefault(
+                DisplayData.item("shardNameTemplate", shardTemplate),
+                DEFAULT_SHARD_TEMPLATE)
+            .addIfNotDefault(DisplayData.item("fileSuffix", filenameSuffix), "")
+            .addIfNotDefault(DisplayData.item("numShards", numShards), 0)
+            .addIfNotDefault(DisplayData.item("validation", validate), true);
       }
 
       /**

@@ -113,9 +113,9 @@ class BoundedReadFromUnboundedSource<T> extends PTransform<PInput, PCollection<T
   public void populateDisplayData(DisplayData.Builder builder) {
     // We explicitly do not register base-class data, instead we use the delegate inner source.
     builder
-        .add("source", source.getClass())
-        .addIfNotDefault("maxRecords", maxNumRecords, Long.MAX_VALUE)
-        .addIfNotNull("maxReadTime", maxReadTime)
+        .add(DisplayData.item("source", source.getClass()))
+        .addIfNotDefault(DisplayData.item("maxRecords", maxNumRecords), Long.MAX_VALUE)
+        .addIfNotNull(DisplayData.item("maxReadTime", maxReadTime))
         .include(source);
   }
 

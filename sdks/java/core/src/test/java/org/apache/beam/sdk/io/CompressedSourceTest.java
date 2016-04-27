@@ -343,7 +343,7 @@ public class CompressedSourceTest {
     ByteSource inputSource = new ByteSource("foobar.txt", 1) {
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
-        builder.add("foo", "bar");
+        builder.add(DisplayData.item("foo", "bar"));
       }
     };
 

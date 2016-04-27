@@ -701,7 +701,7 @@ public class CombineTest implements Serializable {
     UniqueInts combineFn = new UniqueInts() {
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
-        builder.add("fnMetadata", "foobar");
+        builder.add(DisplayData.item("fnMetadata", "foobar"));
       }
     };
     Combine.Globally<?, ?> combine = Combine.globally(combineFn)

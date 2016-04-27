@@ -87,8 +87,8 @@ public class FixedWindows extends PartitioningWindowFn<Object, IntervalWindow> {
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
     builder
-        .add("size", size)
-        .addIfNotDefault("offset", offset, Duration.ZERO);
+        .add(DisplayData.item("size", size))
+        .addIfNotDefault(DisplayData.item("offset", offset), Duration.ZERO);
   }
 
   @Override
