@@ -39,7 +39,6 @@ public class BasicOperatorTest {
   Executor executor = new InMemExecutor();
 
   @Test
-  @Ignore // ~ TODO currently failing ... repair!
   public void testWordCountStream() throws Exception {
     final InMemFileSystem inmemfs = InMemFileSystem.get();
 
