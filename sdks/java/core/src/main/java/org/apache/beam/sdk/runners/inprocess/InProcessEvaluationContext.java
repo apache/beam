@@ -320,15 +320,28 @@ class InProcessEvaluationContext {
   }
 
   /**
-   * Returns a {@link SideInputReader} capable of reading the provided
+   * Returns a {@link ReadyCheckingSideInputReader} capable of reading the provided
    * {@link PCollectionView PCollectionViews}.
+   *
    * @param sideInputs the {@link PCollectionView PCollectionViews} the result should be able to
-   *                   read
-   * @return a {@link SideInputReader} that can read all of the provided
-   *         {@link PCollectionView PCollectionViews}
+   * read
+   * @return a {@link SideInputReader} that can read all of the provided {@link PCollectionView
+   * PCollectionViews}
    */
-  public SideInputReader createSideInputReader(final List<PCollectionView<?>> sideInputs) {
+  public ReadyCheckingSideInputReader createSideInputReader(
+      final List<PCollectionView<?>> sideInputs) {
     return sideInputContainer.createReaderForViews(sideInputs);
+  }
+
+  /**
+   * A {@link SideInputReader} that allows callers to check to see if a {@link PCollectionView} has
+   * had its contents set in a window.
+   */
+  static interface ReadyCheckingSideInputReader extends SideInputReader {
+    /**
+     * Returns true if the {@link PCollectionView} is ready in the provided {@link BoundedWindow}.
+     */
+    boolean isReady(PCollectionView<?> view, BoundedWindow window);
   }
 
   /**
