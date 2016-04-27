@@ -54,6 +54,26 @@ import javax.annotation.Nullable;
  */
 public class PubsubApiaryClient extends PubsubClient {
 
+  public static final PubsubClientFactory FACTORY = new PubsubClientFactory() {
+    @Override
+    public PubsubClient newClient(
+        @Nullable String timestampLabel, @Nullable String idLabel, PubsubOptions options)
+        throws IOException {
+      Pubsub pubsub = new Builder(
+          Transport.getTransport(),
+          Transport.getJsonFactory(),
+          new ChainingHttpRequestInitializer(
+              options.getGcpCredential(),
+              // Do not log 404. It clutters the output and is possibly even required by the caller.
+              new RetryHttpRequestInitializer(ImmutableList.of(404))))
+          .setRootUrl(options.getPubsubRootUrl())
+          .setApplicationName(options.getAppName())
+          .setGoogleClientRequestInitializer(options.getGoogleApiTrace())
+          .build();
+      return new PubsubApiaryClient(timestampLabel, idLabel, pubsub);
+    }
+  };
+
   /**
    * Label to use for custom timestamps, or {@literal null} if should use Pubsub publish time
    * instead.
@@ -82,22 +102,6 @@ public class PubsubApiaryClient extends PubsubClient {
     this.pubsub = pubsub;
   }
 
-  public static PubsubApiaryClient newClient(
-      @Nullable String timestampLabel, @Nullable String idLabel, PubsubOptions options) {
-    Pubsub pubsub = new Builder(
-        Transport.getTransport(),
-        Transport.getJsonFactory(),
-        new ChainingHttpRequestInitializer(
-            options.getGcpCredential(),
-            // Do not log 404. It clutters the output and is possibly even required by the caller.
-            new RetryHttpRequestInitializer(ImmutableList.of(404))))
-        .setRootUrl(options.getPubsubRootUrl())
-        .setApplicationName(options.getAppName())
-        .setGoogleClientRequestInitializer(options.getGoogleApiTrace())
-        .build();
-    return new PubsubApiaryClient(timestampLabel, idLabel, pubsub);
-  }
-
   @Override
   public void close() {
     // Nothing to close.
@@ -122,7 +126,7 @@ public class PubsubApiaryClient extends PubsubClient {
 
       if (idLabel != null) {
         attributes.put(idLabel,
-            Hashing.murmur3_128().hashBytes(outgoingMessage.elementBytes).toString());
+                       Hashing.murmur3_128().hashBytes(outgoingMessage.elementBytes).toString());
       }
 
       pubsubMessages.add(pubsubMessage);
@@ -162,7 +166,7 @@ public class PubsubApiaryClient extends PubsubClient {
       // Timestamp.
       long timestampMsSinceEpoch =
           extractTimestamp(Clock.SYSTEM, timestampLabel,
-              message.getMessage().getPublishTime(), attributes);
+                           message.getMessage().getPublishTime(), attributes);
 
       // Ack id.
       String ackId = message.getAckId();
@@ -181,7 +185,7 @@ public class PubsubApiaryClient extends PubsubClient {
       }
 
       incomingMessages.add(new IncomingMessage(elementBytes, timestampMsSinceEpoch,
-          requestTimeMsSinceEpoch, ackId, recordId));
+                                               requestTimeMsSinceEpoch, ackId, recordId));
     }
 
     return incomingMessages;

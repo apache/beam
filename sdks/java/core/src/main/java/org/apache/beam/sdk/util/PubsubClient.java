@@ -36,6 +36,25 @@ import javax.annotation.Nullable;
  * An (abstract) helper class for talking to Pubsub via an underlying transport.
  */
 public abstract class PubsubClient implements AutoCloseable {
+
+  /**
+   * Factory for creating clients.
+   */
+  public interface PubsubClientFactory {
+    /**
+     * Construct a new Pubsub client. It should be closed via {@link #close} in order
+     * to ensure tidy cleanup of underlying netty resources. (Or use the try-with-resources
+     * construct since this class is {@link AutoCloseable}). Uses {@code options} to derive
+     * pubsub endpoints and application credentials. If non-{@literal null}, use
+     * {@code timestampLabel} and {@code idLabel} to store custom timestamps/ids within
+     * message metadata.
+     */
+    PubsubClient newClient(
+        @Nullable String timestampLabel,
+        @Nullable String idLabel,
+        PubsubOptions options) throws IOException;
+  }
+
   /**
    * Which underlying transport to use.
    */
@@ -362,25 +381,6 @@ public abstract class PubsubClient implements AutoCloseable {
                               requestTimeMsSinceEpoch,
                               ackId, Arrays.hashCode(recordId));
     }
-  }
-
-  /**
-   * Create a client using the underlying transport.
-   */
-  public static PubsubClient newClient(
-      TransportType transportType,
-      @Nullable String timestampLabel,
-      @Nullable String idLabel,
-      PubsubOptions options) throws IOException {
-    switch (transportType) {
-      case TEST:
-        return PubsubTestClient.newClient();
-      case APIARY:
-        return PubsubApiaryClient.newClient(timestampLabel, idLabel, options);
-      case GRPC:
-        return PubsubGrpcClient.newClient(timestampLabel, idLabel, options);
-    }
-    throw new RuntimeException(); // cases are exhaustive.
   }
 
   /**

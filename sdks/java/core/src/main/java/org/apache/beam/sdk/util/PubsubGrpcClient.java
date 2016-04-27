@@ -79,6 +79,31 @@ public class PubsubGrpcClient extends PubsubClient {
 
   private static final int DEFAULT_TIMEOUT_S = 15;
 
+  public static final PubsubClientFactory FACTORY =
+      new PubsubClientFactory() {
+        @Override
+        public PubsubClient newClient(
+            @Nullable String timestampLabel, @Nullable String idLabel, PubsubOptions options)
+            throws IOException {
+          ManagedChannel channel = NettyChannelBuilder
+              .forAddress(PUBSUB_ADDRESS, PUBSUB_PORT)
+              .negotiationType(NegotiationType.TLS)
+              .sslContext(GrpcSslContexts.forClient().ciphers(null).build())
+              .build();
+          // TODO: GcpOptions needs to support building com.google.auth.oauth2.Credentials from the
+          // various command line options. It currently only supports the older
+          // com.google.api.client.auth.oauth2.Credentials.
+          GoogleCredentials credentials = GoogleCredentials.getApplicationDefault();
+          return new PubsubGrpcClient(timestampLabel,
+                                      idLabel,
+                                      DEFAULT_TIMEOUT_S,
+                                      channel,
+                                      credentials,
+                                      null /* publisher stub */,
+                                      null /* subscriber stub */);
+        }
+      };
+
   /**
    * Timeout for grpc calls (in s).
    */
@@ -132,29 +157,6 @@ public class PubsubGrpcClient extends PubsubClient {
     this.credentials = credentials;
     this.cachedPublisherStub = cachedPublisherStub;
     this.cachedSubscriberStub = cachedSubscriberStub;
-  }
-
-  /**
-   * Construct a new Pubsub grpc client. It should be closed via {@link #close} in order
-   * to ensure tidy cleanup of underlying netty resources. (Or use the try-with-resources
-   * construct since this class is {@link AutoCloseable}). If non-{@literal null}, use
-   * {@code timestampLabel} and {@code idLabel} to store custom timestamps/ids within
-   * message metadata.
-   */
-  public static PubsubGrpcClient newClient(
-      @Nullable String timestampLabel, @Nullable String idLabel, PubsubOptions options)
-      throws IOException {
-    ManagedChannel channel = NettyChannelBuilder
-        .forAddress(PUBSUB_ADDRESS, PUBSUB_PORT)
-        .negotiationType(NegotiationType.TLS)
-        .sslContext(GrpcSslContexts.forClient().ciphers(null).build())
-        .build();
-    // TODO: GcpOptions needs to support building com.google.auth.oauth2.Credentials from the
-    // various command line options. It currently only supports the older
-    // com.google.api.client.auth.oauth2.Credentials.
-    GoogleCredentials credentials = GoogleCredentials.getApplicationDefault();
-    return new PubsubGrpcClient(timestampLabel, idLabel, DEFAULT_TIMEOUT_S, channel, credentials,
-                                null, null);
   }
 
   /**
