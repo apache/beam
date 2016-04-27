@@ -52,14 +52,15 @@ class MultipleOutputParDo(unittest.TestCase):
         '--output=%s' % result_prefix])
 
     expected_char_count = len(''.join(self.SAMPLE_TEXT.split('\n')))
-    with open(result_prefix + '-chars') as f:
+    with open(result_prefix + '-chars-00000-of-00001') as f:
       contents = f.read()
       self.assertEqual(expected_char_count, int(contents))
 
-    short_words = self.get_wordcount_results(result_prefix + '-short-words')
+    short_words = self.get_wordcount_results(
+        result_prefix + '-short-words-00000-of-00001')
     self.assertEqual(sorted(short_words), sorted(self.EXPECTED_SHORT_WORDS))
 
-    words = self.get_wordcount_results(result_prefix + '-words')
+    words = self.get_wordcount_results(result_prefix + '-words-00000-of-00001')
     self.assertEqual(sorted(words), sorted(self.EXPECTED_WORDS))
 
 

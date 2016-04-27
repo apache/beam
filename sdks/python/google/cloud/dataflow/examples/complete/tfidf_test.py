@@ -71,7 +71,8 @@ class TfIdfTest(unittest.TestCase):
         '--output', os.path.join(temp_folder, 'result')])
     # Parse result file and compare.
     results = []
-    with open(os.path.join(temp_folder, 'result')) as result_file:
+    with open(os.path.join(temp_folder,
+                           'result-00000-of-00001')) as result_file:
       for line in result_file:
         match = re.search(EXPECTED_LINE_RE, line)
         logging.info('Result line: %s', line)

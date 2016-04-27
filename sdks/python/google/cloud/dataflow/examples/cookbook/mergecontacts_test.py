@@ -111,7 +111,7 @@ class MergeContactsTest(unittest.TestCase):
         '--output_tsv=%s.tsv' % result_prefix,
         '--output_stats=%s.stats' % result_prefix], assert_results=(2, 1, 3))
 
-    with open('%s.tsv' % result_prefix) as f:
+    with open('%s.tsv-00000-of-00001' % result_prefix) as f:
       contents = f.read()
       self.assertEqual(self.EXPECTED_TSV, self.normalize_tsv_results(contents))
 

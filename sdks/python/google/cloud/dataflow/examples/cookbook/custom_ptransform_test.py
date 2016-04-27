@@ -42,9 +42,9 @@ class CustomCountTest(unittest.TestCase):
     ])
 
     count_implementation(known_args, PipelineOptions(pipeline_args))
-    self.assertEqual(["""(u'CAT', %d)""" % (3 * factor),
-                      """(u'DOG', %d)""" % (2 * factor)],
-                     self.get_output(output_path))
+    self.assertEqual(["(u'CAT', %d)" % (3 * factor),
+                      "(u'DOG', %d)" % (2 * factor)],
+                     self.get_output(output_path + '-00000-of-00001'))
 
   def create_temp_file(self, contents=''):
     with tempfile.NamedTemporaryFile(delete=False) as f:

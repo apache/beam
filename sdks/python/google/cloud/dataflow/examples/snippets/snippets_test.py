@@ -322,9 +322,9 @@ class SnippetsTest(unittest.TestCase):
       f.write(contents)
       return f.name
 
-  def get_output(self, path, sorted_output=True):
+  def get_output(self, path, sorted_output=True, suffix=''):
     lines = []
-    with open(path) as f:
+    with open(path + '-00000-of-00001' + suffix) as f:
       lines = f.readlines()
     if sorted_output:
       return sorted(s.rstrip('\n') for s in lines)
@@ -365,7 +365,7 @@ class SnippetsTest(unittest.TestCase):
     snippets.model_textio({'read': temp_path, 'write': result_path})
     self.assertEqual(
         ['aa', 'bb', 'bb', 'cc', 'cc', 'cc'],
-        self.get_output(result_path))
+        self.get_output(result_path, suffix='.csv'))
 
   def test_model_bigqueryio(self):
     # We cannot test BigQueryIO functionality in unit tests therefore we limit

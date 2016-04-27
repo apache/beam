@@ -27,6 +27,7 @@ import logging
 
 from google.cloud.dataflow import coders
 from google.cloud.dataflow import error
+from google.cloud.dataflow.io import fileio
 from google.cloud.dataflow.pvalue import EmptySideInput
 from google.cloud.dataflow.pvalue import IterablePCollectionView
 from google.cloud.dataflow.pvalue import ListPCollectionView
@@ -234,6 +235,11 @@ class DirectPipelineRunner(PipelineRunner):
   @skip_if_cached
   def run__NativeWrite(self, transform_node):
     sink = transform_node.transform.sink
+    if isinstance(sink, fileio.TextFileSink):
+      assert sink.num_shards in (0, 1)
+      if sink.shard_name_template:
+        sink.file_path += '-00000-of-00001'
+      sink.file_path += sink.file_name_suffix
     sink.pipeline_options = transform_node.inputs[0].pipeline.options
     with sink.writer() as writer:
       for v in self._cache.get_pvalue(transform_node.inputs[0]):

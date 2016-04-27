@@ -30,11 +30,11 @@ class EstimatePiTest(unittest.TestCase):
       return f.name
 
   def test_basics(self):
-    temp_path = self.create_temp_file('not used')
+    temp_path = self.create_temp_file('result')
     estimate_pi.run([
         '--output=%s' % temp_path])
     # Parse result file and compare.
-    with open(temp_path) as result_file:
+    with open(temp_path + '-00000-of-00001') as result_file:
       estimated_pi = json.loads(result_file.readline())[2]
       # Note: Probabilistically speaking this test can fail with a probability
       # that is very small (VERY) given that we run at least 10 million trials.

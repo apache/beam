@@ -39,17 +39,18 @@ class BigShuffleTest(unittest.TestCase):
         '--checksum_output=%s.checksum' % temp_path])
     # Parse result file and compare.
     results = []
-    with open(temp_path + '.result') as result_file:
+    with open(temp_path + '.result-00000-of-00001') as result_file:
       for line in result_file:
         results.append(line.strip())
     expected = self.SAMPLE_TEXT.split('\n')
     self.assertEqual(sorted(results), sorted(expected))
     # Check the checksums
     input_csum = ''
-    with open(temp_path + '.checksum-input') as input_csum_file:
+    with open(temp_path + '.checksum-input-00000-of-00001') as input_csum_file:
       input_csum = input_csum_file.read().strip()
     output_csum = ''
-    with open(temp_path + '.checksum-output') as output_csum_file:
+    with open(temp_path +
+              '.checksum-output-00000-of-00001') as output_csum_file:
       output_csum = output_csum_file.read().strip()
     expected_csum = 'd629c1f6'
     self.assertEqual(input_csum, expected_csum)

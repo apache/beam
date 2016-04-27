@@ -42,7 +42,7 @@ class WordCountTest(unittest.TestCase):
         '--output=%s.result' % temp_path])
     # Parse result file and compare.
     results = []
-    with open(temp_path + '.result') as result_file:
+    with open(temp_path + '.result-00000-of-00001') as result_file:
       for line in result_file:
         match = re.search(r'([a-z]+): ([0-9]+)', line)
         if match is not None:
