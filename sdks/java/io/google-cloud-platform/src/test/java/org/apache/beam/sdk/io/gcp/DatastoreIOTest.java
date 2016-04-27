@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io;
+package org.apache.beam.sdk.io.gcp;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 
@@ -38,8 +38,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
-import org.apache.beam.sdk.io.DatastoreIO.DatastoreReader;
-import org.apache.beam.sdk.io.DatastoreIO.DatastoreWriter;
+import org.apache.beam.sdk.io.gcp.DatastoreIO.DatastoreReader;
+import org.apache.beam.sdk.io.gcp.DatastoreIO.DatastoreWriter;
 import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
