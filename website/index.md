@@ -11,26 +11,69 @@ layout: default
 
 # Apache Beam (incubating)
 
-Apache Beam is an open source, unified model and set of language-specific SDKs for defining data processing workflows that may then be executed on top of a set of supported runners, currently including [Apache Flink](http://flink.apache.org), [Apache Spark](http://spark.apache.org), and [Google Cloud Dataflow](https://cloud.google.com/dataflow).
+Apache Beam is an open source, unified programming model that you can use to create a data processing **pipeline**. You start by building a program that defines the pipeline using one of the open source Beam SDKs. The pipeline is then executed by one of Beam's supported **distributed processing back-ends**, which include [Apache Flink](http://flink.apache.org), [Apache Spark](http://spark.apache.org), and [Google Cloud Dataflow](https://cloud.google.com/dataflow).
 
-## Using Apache Beam
-You can use Beam for nearly any kind of data processing task, including both batch and streaming data processing. Beam provides a unified data model that can represent any size data set, including an unbounded or infinite data set from a continuously updating data source such as Kafka.
+Beam is particularly useful for [Embarrassingly Parallel](http://en.wikipedia.org/wiki/Embarassingly_parallel) data processing tasks, in which the problem can be decomposed into many smaller bundles of data that can be processed independently and in parallel. You can also use Beam for Extract, Transform, and Load (ETL) tasks and pure data integration. These tasks are useful for moving data between different storage media and data sources, transforming data into a more desirable format, or loading data onto a new system.
 
-In particular, Beam pipelines can represent high-volume computations, where the steps in your job need to process an amount of data that exceeds the memory capacity of a cost-effective cluster. Beam is particularly useful for [Embarrassingly Parallel](http://en.wikipedia.org/wiki/Embarassingly_parallel) data processing tasks, in which the problem can be decomposed into many smaller bundles of data that can be processed independently and in parallel.
+## Apache Beam SDKs
 
-You can also use Beam for Extract, Transform, and Load (ETL) tasks and pure data integration. These tasks are useful for moving data between different storage media and data sources, transforming data into a more desirable format, or loading data onto a new system.
+The Beam SDKs provide a unified programming model that can represent and transform data sets of any size, whether the input is a finite data set from a batch data source, or an infinite data set from a streaming data source. The Beam SDKs use the same classes to represent both bounded and unbounded data, and the same transforms to operate on that data. You use the Beam SDK of your choice to build a program that defines your data processing pipeline.
 
-## Programming Model
-Beam provides a simple and [elegant programming model](https://cloud.google.com/dataflow/model/programming-model) to express your data processing jobs. Each job is represented by a data processing pipeline that you create by writing a program with Beam. Each pipeline is an independent entity that reads some input data, performs some transforms on that data to gain useful or actionable intelligence about it, and produces some resulting output data. A pipeline’s transform might include filtering, grouping, comparing, or joining data.
+Beam currently supports the following language-specific SDKs:
 
-Beam provides several useful abstractions that allow you to think about your data processing pipeline in a simple, logical way. Beam simplifies the mechanics of large-scale parallel data processing, freeing you from the need to manage orchestration details such as partitioning your data and coordinating individual workers.
+<table class="table table-condensed">
+<tr>
+  <th>Language</th>
+  <th>SDK Status</th>
+</tr>
+<tr>
+  <td>Java</td>
+  <td>Active Development</td>
+</tr>
+<tr>
+  <td>Python</td>
+  <td>Coming Soon</td>
+</tr>
+<tr>
+  <td>Other</td>
+  <td>TBD</td>
+</tr>
+</table>
 
-## Key Concepts
-* **Simple data representation.** Beam uses a specialized collection class, called PCollection, to represent your pipeline data. This class can represent data sets of virtually unlimited size, including bounded and unbounded data collections.
-* **Powerful data transforms.** Beam provides several core data transforms that you can apply to your data. These transforms, called PTransforms, are generic frameworks that apply functions that you provide across an entire data set.
-* **I/O APIs for a variety of data formats.** Beam provides APIs that let your pipeline read and write data to and from a variety of formats and storage technologies. Your pipeline can read text files, Avro files, and more.
+## Apache Beam Pipeline Runners
 
-See the [programming model documentation](https://cloud.google.com/dataflow/model/programming-model) to learn more about how Beam implements these concepts.
+The Beam Pipeline Runners translate the data processing pipeline you define with your Beam program into the API compatible with the distributed processing back-end of your choice. When you run your Beam program, you'll need to specify the appropriate runner for the back-end where you want to execute your pipeline.
+
+Beam currently supports Runners that work with the following distributed processing back-ends:
+
+<table class="table table-condensed">
+<tr>
+  <th>Runner</th>
+  <th>Status</th>
+</tr>
+<tr>
+  <td>Google Cloud Dataflow</td>
+  <td>In Development</td>
+</tr>
+<tr>
+  <td>Apache Flink</td>
+  <td>In Development</td>
+</tr>
+<tr>
+  <td>Apache Spark</td>
+  <td>In Development</td>
+</tr>
+</table>
+
+**Note:** You can always execute your pipeline locally for testing and debugging purposes.
+
+## Getting Started with Apache Beam
+
+Interested in working with Apache Beam? Great! Here's how to get started:
+
+* If you are interested in using Beam for your data processing tasks, start with the [Beam Programming Guide](/docs/) and [Beam Examples](/docs/).
+* If you're interested in creating a Beam Pipeline Runner for your distributed processing back-end, start with the [Beam Runner Developer's Guide](/docs/).
+* If you're interested in contributing to the Beam SDKs, start with the [Contribution Guide](/contribution-guide/).
 
 <hr>
 <div class="row">
@@ -52,3 +95,4 @@ See the [programming model documentation](https://cloud.google.com/dataflow/mode
 ## Apache Project
 Apache Beam is an [Apache Software Foundation project](http://www.apache.org),
 available under the Apache v2 license.
+
