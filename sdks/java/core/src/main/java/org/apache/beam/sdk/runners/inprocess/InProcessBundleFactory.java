@@ -100,38 +100,63 @@ class InProcessBundleFactory implements BundleFactory {
       checkState(!committed, "Can't commit already committed bundle %s", this);
       committed = true;
       final Iterable<WindowedValue<T>> committedElements = elements.build();
-      return new CommittedBundle<T>() {
-        @Override
-        @Nullable
-        public Object getKey() {
-          return key;
-        }
+      return new CommittedInProcessBundle<>(
+          pcollection, key, committedElements, synchronizedCompletionTime);
+    }
+  }
 
-        @Override
-        public Iterable<WindowedValue<T>> getElements() {
-          return committedElements;
-        }
+  private static class CommittedInProcessBundle<T> implements CommittedBundle<T> {
+    public CommittedInProcessBundle(
+        PCollection<T> pcollection,
+        Object key,
+        Iterable<WindowedValue<T>> committedElements,
+        Instant synchronizedCompletionTime) {
+      this.pcollection = pcollection;
+      this.key = key;
+      this.committedElements = committedElements;
+      this.synchronizedCompletionTime = synchronizedCompletionTime;
+    }
 
-        @Override
-        public PCollection<T> getPCollection() {
-          return pcollection;
-        }
+    private final PCollection<T> pcollection;
+    private final Object key;
+    private final Iterable<WindowedValue<T>> committedElements;
+    private final Instant synchronizedCompletionTime;
 
-        @Override
-        public Instant getSynchronizedProcessingOutputWatermark() {
-          return synchronizedCompletionTime;
-        }
+    @Override
+    @Nullable
+    public Object getKey() {
+      return key;
+    }
 
-        @Override
-        public String toString() {
-          return MoreObjects.toStringHelper(this)
-              .omitNullValues()
-              .add("pcollection", pcollection)
-              .add("key", key)
-              .add("elements", committedElements)
-              .toString();
-        }
-      };
+    @Override
+    public Iterable<WindowedValue<T>> getElements() {
+      return committedElements;
+    }
+
+    @Override
+    public PCollection<T> getPCollection() {
+      return pcollection;
+    }
+
+    @Override
+    public Instant getSynchronizedProcessingOutputWatermark() {
+      return synchronizedCompletionTime;
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+          .omitNullValues()
+          .add("pcollection", pcollection)
+          .add("key", key)
+          .add("elements", committedElements)
+          .toString();
+    }
+
+    @Override
+    public CommittedBundle<T> withElements(Iterable<WindowedValue<T>> elements) {
+      return new CommittedInProcessBundle<>(
+          pcollection, key, ImmutableList.copyOf(elements), synchronizedCompletionTime);
     }
   }
 }
