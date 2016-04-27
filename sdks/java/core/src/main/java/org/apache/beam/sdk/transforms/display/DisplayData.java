@@ -145,7 +145,7 @@ public class DisplayData implements Serializable {
     return builder.toString();
   }
 
-  private static String namespaceOf(ClassForDisplay clazz) {
+  private static String namespaceOf(Class<?> clazz) {
     return clazz.getName();
   }
 
@@ -167,13 +167,6 @@ public class DisplayData implements Serializable {
      * @see #include(HasDisplayData, String)
      */
     Builder include(HasDisplayData subComponent, Class<?> namespace);
-
-    /**
-     * Register display data from the specified subcomponent, using the specified namespace.
-     *
-     * @see #include(HasDisplayData, String)
-     */
-    Builder include(HasDisplayData subComponent, ClassForDisplay namespace);
 
     /**
      * Register display data from the specified subcomponent, using the specified namespace.
@@ -293,12 +286,6 @@ public class DisplayData implements Serializable {
      */
     public Item<T> withNamespace(Class<?> namespace) {
       checkNotNull(namespace, "namespace argument cannot be null");
-      return withNamespace(ClassForDisplay.of(namespace));
-    }
-
-    /** @see #withNamespace(Class) */
-    private Item<T> withNamespace(ClassForDisplay namespace) {
-      checkNotNull(namespace, "namesapce argument cannot be null");
       return withNamespace(namespaceOf(namespace));
     }
 
@@ -378,7 +365,7 @@ public class DisplayData implements Serializable {
     private final String ns;
     private final String key;
 
-    public static Identifier of(ClassForDisplay namespace, String key) {
+    public static Identifier of(Class<?> namespace, String key) {
       return of(namespaceOf(namespace), key);
     }
 
@@ -471,12 +458,7 @@ public class DisplayData implements Serializable {
     JAVA_CLASS {
       @Override
       FormattedItemValue format(Object value) {
-        if (value instanceof Class<?>) {
-          ClassForDisplay classForDisplay = ClassForDisplay.of((Class<?>) value);
-          return format(classForDisplay);
-        }
-
-        ClassForDisplay clazz = checkType(value, ClassForDisplay.class, JAVA_CLASS);
+        Class<?> clazz = checkType(value, Class.class, JAVA_CLASS);
         return new FormattedItemValue(clazz.getName(), clazz.getSimpleName());
       }
     };
@@ -526,7 +508,7 @@ public class DisplayData implements Serializable {
         return  TIMESTAMP;
       } else if (value instanceof Duration) {
         return  DURATION;
-      } else if (value instanceof Class<?> || value instanceof ClassForDisplay) {
+      } else if (value instanceof Class<?>) {
         return  JAVA_CLASS;
       } else if (value instanceof String) {
         return  STRING;
@@ -588,12 +570,6 @@ public class DisplayData implements Serializable {
 
     @Override
     public Builder include(HasDisplayData subComponent, Class<?> namespace) {
-      checkNotNull(namespace, "Input namespace override cannot be null");
-      return include(subComponent, ClassForDisplay.of(namespace));
-    }
-
-    @Override
-    public Builder include(HasDisplayData subComponent, ClassForDisplay namespace) {
       checkNotNull(namespace, "Input namespace override cannot be null");
       return include(subComponent, namespaceOf(namespace));
     }
@@ -718,13 +694,6 @@ public class DisplayData implements Serializable {
    * Create a display item for the specified key and class value.
    */
   public static <T> Item<Class<T>> item(String key, @Nullable Class<T> value) {
-    return item(key, Type.JAVA_CLASS, value);
-  }
-
-  /**
-   * Create a display item for the specified key and class value.
-   */
-  public static Item<ClassForDisplay> item(String key, @Nullable ClassForDisplay value) {
     return item(key, Type.JAVA_CLASS, value);
   }
 

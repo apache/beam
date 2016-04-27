@@ -112,7 +112,7 @@ public class DisplayDataTest {
                 .include(subComponent1)
                 .include(subComponent2)
                 .add(DisplayData.item("minSproggles", 200)
-                  .withLabel("Mimimum Required Sproggles"))
+                  .withLabel("Minimum Required Sproggles"))
                 .add(DisplayData.item("fireLasers", true))
                 .addIfNotDefault(DisplayData.item("startTime", startTime), defaultStartTime)
                 .add(DisplayData.item("timeBomb", Instant.now().plus(Duration.standardDays(1))))
@@ -189,16 +189,18 @@ public class DisplayDataTest {
 
     @SuppressWarnings("unchecked")
     DisplayData.Item<?> item = (DisplayData.Item<?>) data.items().toArray()[0];
-    assertThat(
-        item,
-        Matchers.allOf(
-            hasNamespace(DisplayDataTest.class),
-            hasKey("now"),
-            hasType(DisplayData.Type.TIMESTAMP),
-            hasValue(ISO_FORMATTER.print(value)),
-            hasShortValue(nullValue(String.class)),
-            hasLabel(is("the current instant")),
-            hasUrl(is("http://time.gov"))));
+
+    @SuppressWarnings("unchecked")
+    Matcher<Item<?>> matchesAllOf = Matchers.allOf(
+        hasNamespace(DisplayDataTest.class),
+        hasKey("now"),
+        hasType(DisplayData.Type.TIMESTAMP),
+        hasValue(ISO_FORMATTER.print(value)),
+        hasShortValue(nullValue(String.class)),
+        hasLabel(is("the current instant")),
+        hasUrl(is("http://time.gov")));
+
+    assertThat(item, matchesAllOf);
   }
 
   @Test
@@ -270,13 +272,7 @@ public class DisplayDataTest {
             .addIfNotDefault(DisplayData.item("boolean", true), true)
             .addIfNotDefault(
                 DisplayData.item("Boolean", Boolean.valueOf(true)),
-                Boolean.valueOf(true))
-            .addIfNotDefault(
-                DisplayData.item("Class", DisplayDataTest.class),
-                DisplayDataTest.class)
-            .addIfNotDefault(
-                DisplayData.item("ClassForDisplay", ClassForDisplay.of(DisplayDataTest.class)),
-                ClassForDisplay.of(DisplayDataTest.class));
+                Boolean.valueOf(true));
       }
     });
 
@@ -318,7 +314,7 @@ public class DisplayDataTest {
         builder.addIfNotNull(DisplayData.item("nullItem", (Class<?>) null)
             .withLinkUrl("http://abc")
             .withNamespace(DisplayDataTest.class)
-            .withLabel("Null item shoudl be safe"));
+            .withLabel("Null item should be safe"));
       }
     };
 
@@ -390,10 +386,10 @@ public class DisplayDataTest {
   public void testIdentifierEquality() {
     new EqualsTester()
         .addEqualityGroup(
-            DisplayData.Identifier.of(ClassForDisplay.of(DisplayDataTest.class), "1"),
-            DisplayData.Identifier.of(ClassForDisplay.of(DisplayDataTest.class), "1"))
-        .addEqualityGroup(DisplayData.Identifier.of(ClassForDisplay.of(Object.class), "1"))
-        .addEqualityGroup(DisplayData.Identifier.of(ClassForDisplay.of(DisplayDataTest.class), "2"))
+            DisplayData.Identifier.of(DisplayDataTest.class, "1"),
+            DisplayData.Identifier.of(DisplayDataTest.class, "1"))
+        .addEqualityGroup(DisplayData.Identifier.of(Object.class, "1"))
+        .addEqualityGroup(DisplayData.Identifier.of(DisplayDataTest.class, "2"))
         .testEquals();
   }
 
@@ -617,7 +613,6 @@ public class DisplayDataTest {
                     .add(DisplayData.item("float", 3.14))
                     .add(DisplayData.item("boolean", true))
                     .add(DisplayData.item("java_class", DisplayDataTest.class))
-                    .add(DisplayData.item("java_class2", ClassForDisplay.of(DisplayDataTest.class)))
                     .add(DisplayData.item("timestamp", Instant.now()))
                     .add(DisplayData.item("duration", Duration.standardHours(1)));
               }
@@ -633,9 +628,6 @@ public class DisplayDataTest {
     assertThat(
         items,
         hasItem(allOf(hasKey("java_class"), hasType(DisplayData.Type.JAVA_CLASS))));
-    assertThat(
-        items,
-        hasItem(allOf(hasKey("java_class2"), hasType(DisplayData.Type.JAVA_CLASS))));
     assertThat(
         items,
         hasItem(allOf(hasKey("timestamp"), hasType(DisplayData.Type.TIMESTAMP))));
@@ -731,8 +723,6 @@ public class DisplayDataTest {
     assertEquals(DisplayData.Type.BOOLEAN, DisplayData.inferType(true));
     assertEquals(DisplayData.Type.TIMESTAMP, DisplayData.inferType(Instant.now()));
     assertEquals(DisplayData.Type.DURATION, DisplayData.inferType(Duration.millis(1234)));
-    assertEquals(DisplayData.Type.JAVA_CLASS,
-        DisplayData.inferType(ClassForDisplay.of(DisplayDataTest.class)));
     assertEquals(DisplayData.Type.JAVA_CLASS, DisplayData.inferType(DisplayDataTest.class));
     assertEquals(DisplayData.Type.STRING, DisplayData.inferType("hello world"));
 
@@ -828,7 +818,7 @@ public class DisplayDataTest {
     DisplayData.from(new HasDisplayData() {
         @Override
         public void populateDisplayData(Builder builder) {
-          builder.include(subComponent, (ClassForDisplay) null);
+          builder.include(subComponent, (Class<?>) null);
         }
       });
   }
