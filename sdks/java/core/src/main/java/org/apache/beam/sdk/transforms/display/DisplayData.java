@@ -233,6 +233,8 @@ public class DisplayData {
      * Retrieve the value of the display item. The value is translated from input to
      * {@link DisplayData#item} into a format suitable for display, using
      * {@link Type#format(Object)}.
+     *
+     * <p>The value will only be {@literal null} if the input value during creation was null.
      */
     @JsonGetter("value")
     @Nullable
@@ -243,8 +245,7 @@ public class DisplayData {
      *
      * <p>The short value is an alternative display representation for items having a long display
      * value. For example, the {@link #getValue() value} for {@link Type#JAVA_CLASS} items contains
-     * the full class name with package, while the {@link #getShortValue() short value} contains
-     * just the class name.
+     * the full class name with package, while the short value contains just the class name.
      *
      * A {@link #getValue() value} will be provided for each display item, and some types may also
      * provide a short-value. If a short value is provided, display data consumers may
@@ -278,20 +279,8 @@ public class DisplayData {
     public abstract String getLinkUrl();
 
     private static <T> Item<T> create(String key, Type type, @Nullable T value) {
-      FormattedItemValue formatted = safeFormat(type, value);
+      FormattedItemValue formatted = type.safeFormat(value);
       return of(null, key, type, formatted.getLongValue(), formatted.getShortValue(), null, null);
-    }
-
-    /**
-     * Wrapper for {@link Type#format(Object)}, which checks for null input value and if so returns
-     * a {@link FormattedItemValue} with null values.
-     */
-    private static FormattedItemValue safeFormat(Type type, @Nullable Object value) {
-      if (value == null) {
-        return FormattedItemValue.DEFAULT;
-      }
-
-      return type.format(value);
     }
 
     /**
@@ -346,7 +335,7 @@ public class DisplayData {
      * {@link DisplayData.Item} to the value derived from a specified input.
      */
     private Item<T> withValue(Object value) {
-      FormattedItemValue formatted = safeFormat(getType(), value);
+      FormattedItemValue formatted = getType().safeFormat(value);
       return of(getNamespace(), getKey(), getType(), formatted.getLongValue(),
           formatted.getShortValue(), getLabel(), getLinkUrl());
     }
@@ -504,6 +493,18 @@ public class DisplayData {
      * <p>Internal-only. Value objects can be safely cast to the expected Java type.
      */
     abstract FormattedItemValue format(Object value);
+
+    /**
+     * Safe version of {@link Type#format(Object)}, which checks for null input value and if so
+     * returns a {@link FormattedItemValue} with null value properties.
+     */
+    FormattedItemValue safeFormat(@Nullable Object value) {
+      if (value == null) {
+        return FormattedItemValue.DEFAULT;
+      }
+
+      return format(value);
+    }
 
     @Nullable
     private static Type tryInferFrom(@Nullable Object value) {

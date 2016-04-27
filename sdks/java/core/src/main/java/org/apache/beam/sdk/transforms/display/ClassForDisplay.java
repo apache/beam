@@ -26,7 +26,7 @@ import java.util.Objects;
  * Display data representing a Java class.
  *
  * <p>Java classes can be registered as display data via
- * {@link DisplayData.Builder#add(String, ClassForDisplay)}. {@link ClassForDisplay} is
+ * {@link DisplayData.Builder#item(String, ClassForDisplay)}. {@link ClassForDisplay} is
  * serializable, unlike {@link Class} which can fail to serialize for Java 8 lambda functions.
  */
 public class ClassForDisplay implements Serializable {
