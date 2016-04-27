@@ -163,7 +163,7 @@ import java.io.Serializable;
  * operations that do not save or restore any state.
  *
  * @see <a href=
- * "https://cloud.google.com/dataflow/java-sdk/applying-transforms"
+ * "https://cloud.google.com/dataflow/model/transforms#How-Transforms-Work"
  * >Applying Transformations</a>
  *
  * @param <InputT> the type of the input to this PTransform
