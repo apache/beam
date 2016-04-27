@@ -198,7 +198,7 @@ public class DisplayData {
   }
 
   /**
-   * A display data item. DisplayData items are registered via {@link DisplayData.Builder#add}
+   * A display data item. {@link Item Items} are registered via {@link DisplayData.Builder#add}
    * within {@link HasDisplayData#populateDisplayData} implementations. Each metadata item is
    * uniquely identified by the specified key and namespace generated from the registering
    * component's class name.
