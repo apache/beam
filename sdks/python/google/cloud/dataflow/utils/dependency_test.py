@@ -43,6 +43,11 @@ class SetupTest(unittest.TestCase):
       f.write(contents)
       return f.name
 
+  def populate_requirements_cache(self, requirements_file, cache_dir):
+    _ = requirements_file
+    self.create_temp_file(os.path.join(cache_dir, 'abc.txt'), 'nothing')
+    self.create_temp_file(os.path.join(cache_dir, 'def.txt'), 'nothing')
+
   def test_no_staging_location(self):
     with self.assertRaises(RuntimeError) as cm:
       dependency.stage_job_resources(PipelineOptions())
@@ -98,12 +103,16 @@ class SetupTest(unittest.TestCase):
     self.create_temp_file(
         os.path.join(source_dir, dependency.REQUIREMENTS_FILE), 'nothing')
     self.assertEqual(
-        [dependency.REQUIREMENTS_FILE,
-         names.PICKLED_MAIN_SESSION_FILE],
-        dependency.stage_job_resources(options))
+        sorted([dependency.REQUIREMENTS_FILE, names.PICKLED_MAIN_SESSION_FILE,
+                'abc.txt', 'def.txt']),
+        sorted(dependency.stage_job_resources(
+            options,
+            populate_requirements_cache=self.populate_requirements_cache)))
     self.assertTrue(
         os.path.isfile(
             os.path.join(staging_dir, dependency.REQUIREMENTS_FILE)))
+    self.assertTrue(os.path.isfile(os.path.join(staging_dir, 'abc.txt')))
+    self.assertTrue(os.path.isfile(os.path.join(staging_dir, 'def.txt')))
 
   def test_requirements_file_not_present(self):
     staging_dir = tempfile.mkdtemp()
@@ -112,11 +121,37 @@ class SetupTest(unittest.TestCase):
       options.view_as(GoogleCloudOptions).staging_location = staging_dir
       self.update_options(options)
       options.view_as(SetupOptions).requirements_file = 'nosuchfile'
-      dependency.stage_job_resources(options)
+      dependency.stage_job_resources(
+          options, populate_requirements_cache=self.populate_requirements_cache)
     self.assertEqual(
         cm.exception.message,
         'The file %s cannot be found. It was specified in the '
         '--requirements_file command line option.' % 'nosuchfile')
+
+  def test_with_requirements_file_and_cache(self):
+    staging_dir = tempfile.mkdtemp()
+    source_dir = tempfile.mkdtemp()
+
+    options = PipelineOptions()
+    options.view_as(GoogleCloudOptions).staging_location = staging_dir
+    self.update_options(options)
+    options.view_as(SetupOptions).requirements_file = os.path.join(
+        source_dir, dependency.REQUIREMENTS_FILE)
+    options.view_as(SetupOptions).requirements_cache = os.path.join(
+        tempfile.gettempdir(), 'alternative-cache-dir')
+    self.create_temp_file(
+        os.path.join(source_dir, dependency.REQUIREMENTS_FILE), 'nothing')
+    self.assertEqual(
+        sorted([dependency.REQUIREMENTS_FILE, names.PICKLED_MAIN_SESSION_FILE,
+                'abc.txt', 'def.txt']),
+        sorted(dependency.stage_job_resources(
+            options,
+            populate_requirements_cache=self.populate_requirements_cache)))
+    self.assertTrue(
+        os.path.isfile(
+            os.path.join(staging_dir, dependency.REQUIREMENTS_FILE)))
+    self.assertTrue(os.path.isfile(os.path.join(staging_dir, 'abc.txt')))
+    self.assertTrue(os.path.isfile(os.path.join(staging_dir, 'def.txt')))
 
   def test_with_setup_file(self):
     staging_dir = tempfile.mkdtemp()

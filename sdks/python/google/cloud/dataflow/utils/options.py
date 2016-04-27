@@ -364,10 +364,19 @@ class SetupOptions(PipelineOptions):
         help=
         ('Path to a requirements file containing package dependencies. '
          'Typically it is produced by a pip freeze command. More details: '
-         'https://pip.pypa.io/en/latest/reference/pip_freeze.html. If '
-         'specified, the worker will install the required dependenciesi before'
-         ' running any custom code. Typically the file is named '
-         'requirements.txt.'))
+         'https://pip.pypa.io/en/latest/reference/pip_freeze.html. '
+         'If used, all the packages specified will be downloaded, '
+         'cached (use --requirements_cache to change default location), '
+         'and then staged so that they can be automatically installed in '
+         'workers during startup. The cache is refreshed as needed '
+         'avoiding extra downloads for existing packages. Typically the '
+         'file is named requirements.txt.'))
+    parser.add_argument(
+        '--requirements_cache',
+        default=None,
+        help=
+        ('Path to a folder to cache the packages specified in '
+         'the requirements file using the --requirements_file option.'))
     parser.add_argument(
         '--setup_file',
         default=None,

@@ -198,8 +198,27 @@ def _stage_extra_packages(extra_packages,
   return resources
 
 
-def stage_job_resources(options, file_copy=_dependency_file_copy,
-                        build_setup_args=None, temp_dir=None):
+def _populate_requirements_cache(requirements_file, cache_dir):
+  # The 'pip download' command will not download again if it finds the
+  # tarball with the proper version already present.
+  # It will get the packages downloaded in the order they are presented in
+  # the requirements file and will not download package dependencies.
+  cmd_args = [
+      'pip', 'install', '--download', cache_dir,
+      '-r', requirements_file,
+      # Download from PyPI source distributions.
+      '--no-binary', ':all:']
+  logging.info('Executing command: %s', cmd_args)
+  result = processes.call(cmd_args)
+  if result != 0:
+    raise RuntimeError(
+        'Failed to execute command: %s. Exit code %d',
+        cmd_args, result)
+
+
+def stage_job_resources(
+    options, file_copy=_dependency_file_copy, build_setup_args=None,
+    temp_dir=None, populate_requirements_cache=_populate_requirements_cache):
   """Creates (if needed) and stages job resources to options.staging_location.
 
   Args:
@@ -214,6 +233,8 @@ def stage_job_resources(options, file_copy=_dependency_file_copy,
       testing.
     temp_dir: Temporary folder where the resource building can happen. If None
       then a unique temp directory will be created. Used only for testing.
+    populate_requirements_cache: Callable for populating the requirements cache.
+      Used only for testing.
 
   Returns:
     A list of file names (no paths) for the resources staged. All the files
@@ -247,6 +268,20 @@ def stage_job_resources(options, file_copy=_dependency_file_copy,
                                   REQUIREMENTS_FILE)
     file_copy(setup_options.requirements_file, staged_path)
     resources.append(REQUIREMENTS_FILE)
+    requirements_cache_path = (
+        os.path.join(tempfile.gettempdir(), 'dataflow-requirements-cache')
+        if setup_options.requirements_cache is None
+        else setup_options.requirements_cache)
+    # Populate cache with packages from requirements and stage the files
+    # in the cache.
+    if not os.path.exists(requirements_cache_path):
+      os.makedirs(requirements_cache_path)
+    populate_requirements_cache(
+        setup_options.requirements_file, requirements_cache_path)
+    for pkg in  glob.glob(os.path.join(requirements_cache_path, '*')):
+      file_copy(pkg, utils.path.join(google_cloud_options.staging_location,
+                                     os.path.basename(pkg)))
+      resources.append(os.path.basename(pkg))
 
   # Handle a setup file if present.
   # We will build the setup package locally and then copy it to the staging
