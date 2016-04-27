@@ -17,7 +17,6 @@
  */
 package org.apache.beam.examples.cookbook;
 
-import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.Default;
@@ -43,7 +42,7 @@ import org.apache.beam.sdk.util.gcsfs.GcsPath;
  *
  * <p>To execute this pipeline using the Dataflow service, specify pipeline configuration:
  *   --project=YOUR_PROJECT_ID
- *   --stagingLocation=gs://YOUR_STAGING_DIRECTORY
+ *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
  *   --runner=BlockingDataflowPipelineRunner
  * and an output prefix on GCS:
  *   --output=gs://YOUR_OUTPUT_PREFIX
@@ -69,16 +68,15 @@ public class DeDupExample {
     String getOutput();
     void setOutput(String value);
 
-    /** Returns gs://${STAGING_LOCATION}/"deduped.txt". */
+    /** Returns gs://${TEMP_LOCATION}/"deduped.txt". */
     public static class OutputFactory implements DefaultValueFactory<String> {
       @Override
       public String create(PipelineOptions options) {
-        DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
-        if (dataflowOptions.getStagingLocation() != null) {
-          return GcsPath.fromUri(dataflowOptions.getStagingLocation())
+        if (options.getTempLocation() != null) {
+          return GcsPath.fromUri(options.getTempLocation())
               .resolve("deduped.txt").toString();
         } else {
-          throw new IllegalArgumentException("Must specify --output or --stagingLocation");
+          throw new IllegalArgumentException("Must specify --output or --tempLocation");
         }
       }
     }
