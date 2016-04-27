@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import org.apache.beam.sdk.util.AttemptBoundedExponentialBackOff;
-import org.apache.beam.sdk.util.AvroUtils;
 
 import com.google.api.client.googleapis.services.AbstractGoogleClientRequest;
 import com.google.api.client.util.BackOff;
@@ -255,7 +254,7 @@ public class BigQueryTableRowIterator implements AutoCloseable {
     }
 
     if (fieldSchema.getType().equals("TIMESTAMP")) {
-      return AvroUtils.formatTimestamp((String) v);
+      return BigQueryAvroUtils.formatTimestamp((String) v);
     }
 
     return v;
