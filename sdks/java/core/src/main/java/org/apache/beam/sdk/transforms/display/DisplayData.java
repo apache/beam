@@ -24,6 +24,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -182,17 +183,17 @@ public class DisplayData {
     Builder include(HasDisplayData subComponent, String namespace);
 
     /**
-     * Register the given display data item.
+     * Register the given display item.
      */
     Builder add(Item<?> item);
 
     /**
-     * Register the given string display data if the value is not null.
+     * Register the given display item if the value is not null.
      */
     Builder addIfNotNull(Item<?> item);
 
     /**
-     * Register the given string display data if the value is different than the specified default.
+     * Register the given display item if the value is different than the specified default.
      */
     <T> Builder addIfNotDefault(Item<T> item, @Nullable T defaultValue);
   }
@@ -310,6 +311,8 @@ public class DisplayData {
     /**
      * Set the item {@link Item#getLabel() label}.
      *
+     * <p>Specifying a null value will clear the label if it was previously defined.
+     *
      * <p>This method does not alter the current instance, but instead returns a new {@link Item}
      * with the label set.
      */
@@ -320,6 +323,8 @@ public class DisplayData {
 
     /**
      * Set the item {@link Item#getLinkUrl() link url}.
+     *
+     * <p>Specifying a null value will clear the link url if it was previously defined.
      *
      * <p>This method does not alter the current instance, but instead returns a new {@link Item}
      * with the link url set.
@@ -634,10 +639,9 @@ public class DisplayData {
       }
 
       Identifier id = Identifier.of(item.getNamespace(), item.getKey());
-      if (entries.containsKey(id)) {
-        throw new IllegalArgumentException("DisplayData key already exists. All display data "
-            + "for a component must be registered with a unique key.\nKey: " + id);
-      }
+      Preconditions.checkArgument(!entries.containsKey(id),
+          "Display data key (%s) is not unique within the specified namespace (%s).",
+          item.getKey(), item.getNamespace());
 
       entries.put(id, item);
       return this;
