@@ -17,9 +17,6 @@
  */
 package org.apache.beam.sdk.io;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
-import static com.google.common.base.Preconditions.checkArgument;
-
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
@@ -33,25 +30,15 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.Transport;
+import org.apache.beam.sdk.util.PubsubClient;
+import org.apache.beam.sdk.util.PubsubClient.IncomingMessage;
+import org.apache.beam.sdk.util.PubsubClient.OutgoingMessage;
+import org.apache.beam.sdk.util.PubsubClient.TransportType;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
-
-import com.google.api.client.util.Clock;
-import com.google.api.client.util.DateTime;
-import com.google.api.services.pubsub.Pubsub;
-import com.google.api.services.pubsub.model.AcknowledgeRequest;
-import com.google.api.services.pubsub.model.PublishRequest;
-import com.google.api.services.pubsub.model.PubsubMessage;
-import com.google.api.services.pubsub.model.PullRequest;
-import com.google.api.services.pubsub.model.PullResponse;
-import com.google.api.services.pubsub.model.ReceivedMessage;
-import com.google.api.services.pubsub.model.Subscription;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableMap;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -61,13 +48,10 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import javax.annotation.Nullable;
 
 /**
@@ -140,48 +124,6 @@ public class PubsubIO {
       throw new IllegalArgumentException("Illegal Pubsub object name specified: " + name
           + " Please see Javadoc for naming rules.");
     }
-  }
-
-  /**
-   * Returns the {@link Instant} that corresponds to the timestamp in the supplied
-   * {@link PubsubMessage} under the specified {@code ink label}. See
-   * {@link PubsubIO.Read#timestampLabel(String)} for details about how these messages are
-   * parsed.
-   *
-   * <p>The {@link Clock} parameter is used to virtualize time for testing.
-   *
-   * @throws IllegalArgumentException if the timestamp label is provided, but there is no
-   *     corresponding attribute in the message or the value provided is not a valid timestamp
-   *     string.
-   * @see PubsubIO.Read#timestampLabel(String)
-   */
-  @VisibleForTesting
-  protected static Instant assignMessageTimestamp(
-      PubsubMessage message, @Nullable String label, Clock clock) {
-    if (label == null) {
-      return new Instant(clock.currentTimeMillis());
-    }
-
-    // Extract message attributes, defaulting to empty map if null.
-    Map<String, String> attributes = firstNonNull(
-        message.getAttributes(), ImmutableMap.<String, String>of());
-
-    String timestampStr = attributes.get(label);
-    checkArgument(timestampStr != null && !timestampStr.isEmpty(),
-        "PubSub message is missing a timestamp in label: %s", label);
-
-    long millisSinceEpoch;
-    try {
-      // Try parsing as milliseconds since epoch. Note there is no way to parse a string in
-      // RFC 3339 format here.
-      // Expected IllegalArgumentException if parsing fails; we use that to fall back to RFC 3339.
-      millisSinceEpoch = Long.parseLong(timestampStr);
-    } catch (IllegalArgumentException e) {
-      // Try parsing as RFC3339 string. DateTime.parseRfc3339 will throw an IllegalArgumentException
-      // if parsing fails, and the caller should handle.
-      millisSinceEpoch = DateTime.parseRfc3339(timestampStr).getValue();
-    }
-    return new Instant(millisSinceEpoch);
   }
 
   /**
@@ -742,84 +684,85 @@ public class PubsubIO {
 
       private class PubsubReader extends DoFn<Void, T> {
         private static final int DEFAULT_PULL_SIZE = 100;
+        private static final int ACK_TIMEOUT_SEC = 60;
 
         @Override
         public void processElement(ProcessContext c) throws IOException {
-          Pubsub pubsubClient =
-              Transport.newPubsubClient(c.getPipelineOptions().as(PubsubOptions.class))
-                  .build();
+          try (PubsubClient pubsubClient =
+                   PubsubClient.newClient(TransportType.APIARY,
+                       timestampLabel, idLabel, c.getPipelineOptions().as(PubsubOptions.class))) {
 
-          String subscription;
-          if (getSubscription() == null) {
-            String topic = getTopic().asPath();
-            String[] split = topic.split("/");
-            subscription =
-                "projects/" + split[1] + "/subscriptions/" + split[3] + "_dataflow_"
-                + new Random().nextLong();
-            Subscription subInfo = new Subscription().setAckDeadlineSeconds(60).setTopic(topic);
-            try {
-              pubsubClient.projects().subscriptions().create(subscription, subInfo).execute();
-            } catch (Exception e) {
-              throw new RuntimeException("Failed to create subscription: ", e);
-            }
-          } else {
-            subscription = getSubscription().asPath();
-          }
-
-          Instant endTime = (getMaxReadTime() == null)
-              ? new Instant(Long.MAX_VALUE) : Instant.now().plus(getMaxReadTime());
-
-          List<PubsubMessage> messages = new ArrayList<>();
-
-          Throwable finallyBlockException = null;
-          try {
-            while ((getMaxNumRecords() == 0 || messages.size() < getMaxNumRecords())
-                && Instant.now().isBefore(endTime)) {
-              PullRequest pullRequest = new PullRequest().setReturnImmediately(false);
-              if (getMaxNumRecords() > 0) {
-                pullRequest.setMaxMessages(getMaxNumRecords() - messages.size());
-              } else {
-                pullRequest.setMaxMessages(DEFAULT_PULL_SIZE);
+            PubsubClient.SubscriptionPath subscriptionPath;
+            if (getSubscription() == null) {
+              // Create a randomized subscription derived from the topic name.
+              String subscription = getTopic().topic + "_dataflow_" + new Random().nextLong();
+              subscriptionPath =
+                  PubsubClient.subscriptionPathFromName(getTopic().project, subscription);
+              try {
+                pubsubClient.createSubscription(
+                    PubsubClient.topicPathFromName(getTopic().project, getTopic().topic),
+                    subscriptionPath,
+                    ACK_TIMEOUT_SEC);
+              } catch (Exception e) {
+                throw new RuntimeException("Failed to create subscription: ", e);
               }
+            } else {
+              subscriptionPath = PubsubClient.subscriptionPathFromName(getSubscription().project,
+                  getSubscription().subscription);
+            }
 
-              PullResponse pullResponse =
-                  pubsubClient.projects().subscriptions().pull(subscription, pullRequest).execute();
-              List<String> ackIds = new ArrayList<>();
-              if (pullResponse.getReceivedMessages() != null) {
-                for (ReceivedMessage received : pullResponse.getReceivedMessages()) {
-                  messages.add(received.getMessage());
-                  ackIds.add(received.getAckId());
+            Instant endTime = (getMaxReadTime() == null)
+                              ? new Instant(Long.MAX_VALUE) : Instant.now().plus(getMaxReadTime());
+
+            List<IncomingMessage> messages = new ArrayList<>();
+
+            Throwable finallyBlockException = null;
+            try {
+              while ((getMaxNumRecords() == 0 || messages.size() < getMaxNumRecords())
+                     && Instant.now().isBefore(endTime)) {
+                int batchSize = DEFAULT_PULL_SIZE;
+                if (getMaxNumRecords() > 0) {
+                  batchSize = Math.min(batchSize, getMaxNumRecords() - messages.size());
+                }
+
+                List<IncomingMessage> batchMessages =
+                    pubsubClient.pull(System.currentTimeMillis(), subscriptionPath, batchSize,
+                        false);
+                List<String> ackIds = new ArrayList<>();
+                for (IncomingMessage message : batchMessages) {
+                  messages.add(message);
+                  ackIds.add(message.ackId);
+                }
+                if (ackIds.size() != 0) {
+                  pubsubClient.acknowledge(subscriptionPath, ackIds);
                 }
               }
-
-              if (ackIds.size() != 0) {
-                AcknowledgeRequest ackRequest = new AcknowledgeRequest().setAckIds(ackIds);
-                pubsubClient.projects()
-                    .subscriptions()
-                    .acknowledge(subscription, ackRequest)
-                    .execute();
+            } catch (IOException e) {
+              throw new RuntimeException("Unexpected exception while reading from Pubsub: ", e);
+            } finally {
+              if (getSubscription() == null) {
+                try {
+                  pubsubClient.deleteSubscription(subscriptionPath);
+                } catch (Exception e) {
+                  finallyBlockException =
+                      new RuntimeException("Failed to delete subscription: ", e);
+                  LOG.error("Failed to delete subscription: ", e);
+                }
               }
             }
-          } catch (IOException e) {
-            throw new RuntimeException("Unexpected exception while reading from Pubsub: ", e);
-          } finally {
-            if (getTopic() != null) {
-              try {
-                pubsubClient.projects().subscriptions().delete(subscription).execute();
-              } catch (IOException e) {
-                finallyBlockException = new RuntimeException("Failed to delete subscription: ", e);
-                LOG.error("Failed to delete subscription: ", e);
-              }
+            if (finallyBlockException != null) {
+              Throwables.propagate(finallyBlockException);
             }
           }
           if (finallyBlockException != null) {
             throw new RuntimeException(finallyBlockException);
           }
 
-          for (PubsubMessage message : messages) {
-            c.outputWithTimestamp(
-                CoderUtils.decodeFromByteArray(getCoder(), message.decodeData()),
-                assignMessageTimestamp(message, getTimestampLabel(), Clock.SYSTEM));
+            for (IncomingMessage message : messages) {
+              c.outputWithTimestamp(
+                  CoderUtils.decodeFromByteArray(getCoder(), message.elementBytes),
+                  new Instant(message.timestampMsSinceEpoch));
+            }
           }
         }
       }
@@ -1028,29 +971,22 @@ public class PubsubIO {
 
       private class PubsubWriter extends DoFn<T, Void> {
         private static final int MAX_PUBLISH_BATCH_SIZE = 100;
-        private transient List<PubsubMessage> output;
-        private transient Pubsub pubsubClient;
+        private transient List<OutgoingMessage> output;
+        private transient PubsubClient pubsubClient;
 
         @Override
-        public void startBundle(Context c) {
+        public void startBundle(Context c) throws IOException {
           this.output = new ArrayList<>();
           this.pubsubClient =
-              Transport.newPubsubClient(c.getPipelineOptions().as(PubsubOptions.class))
-                  .build();
+              PubsubClient.newClient(TransportType.APIARY, timestampLabel, idLabel,
+                  c.getPipelineOptions().as(PubsubOptions.class));
         }
 
         @Override
         public void processElement(ProcessContext c) throws IOException {
-          PubsubMessage message =
-              new PubsubMessage().encodeData(CoderUtils.encodeToByteArray(getCoder(), c.element()));
-          if (getTimestampLabel() != null) {
-            Map<String, String> attributes = message.getAttributes();
-            if (attributes == null) {
-              attributes = new HashMap<>();
-              message.setAttributes(attributes);
-            }
-            attributes.put(getTimestampLabel(), String.valueOf(c.timestamp().getMillis()));
-          }
+          OutgoingMessage message =
+              new OutgoingMessage(CoderUtils.encodeToByteArray(getCoder(), c.element()),
+                  c.timestamp().getMillis());
           output.add(message);
 
           if (output.size() >= MAX_PUBLISH_BATCH_SIZE) {
@@ -1063,13 +999,15 @@ public class PubsubIO {
           if (!output.isEmpty()) {
             publish();
           }
+          output = null;
+          pubsubClient.close();
+          pubsubClient = null;
         }
 
         private void publish() throws IOException {
-          PublishRequest publishRequest = new PublishRequest().setMessages(output);
-          pubsubClient.projects().topics()
-              .publish(getTopic().asPath(), publishRequest)
-              .execute();
+          pubsubClient.publish(
+              PubsubClient.topicPathFromName(getTopic().project, getTopic().topic),
+              output);
           output.clear();
         }
       }
