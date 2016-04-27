@@ -15,12 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.io.gcp.util;
 
-import org.apache.beam.sdk.io.BigQueryIO;
-import org.apache.beam.sdk.io.BigQueryIO.Write.CreateDisposition;
-import org.apache.beam.sdk.io.BigQueryIO.Write.WriteDisposition;
+import org.apache.beam.sdk.io.gcp.BigQueryIO;
+import org.apache.beam.sdk.io.gcp.BigQueryIO.Write.CreateDisposition;
+import org.apache.beam.sdk.io.gcp.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.transforms.Aggregator;
+import org.apache.beam.sdk.util.AttemptBoundedExponentialBackOff;
+import org.apache.beam.sdk.util.IntervalBoundedExponentialBackOff;
 
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;

@@ -69,7 +69,7 @@ import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Tests for RetryHttpRequestInitializer.
+ * Tests for {@link RetryHttpRequestInitializer}.
  */
 @RunWith(JUnit4.class)
 public class RetryHttpRequestInitializerTest {
