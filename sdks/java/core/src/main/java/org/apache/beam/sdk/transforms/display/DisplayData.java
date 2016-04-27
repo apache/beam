@@ -39,6 +39,7 @@ import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.ISODateTimeFormat;
 
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
@@ -52,7 +53,7 @@ import java.util.Set;
  * <p>Components specify their display data by implementing the {@link HasDisplayData}
  * interface.
  */
-public class DisplayData {
+public class DisplayData implements Serializable {
   private static final DisplayData EMPTY = new DisplayData(Maps.<Identifier, Item<?>>newHashMap());
   private static final DateTimeFormatter TIMESTAMP_FORMATTER = ISODateTimeFormat.dateTime();
 
@@ -206,7 +207,7 @@ public class DisplayData {
    * within {@link HasDisplayData#populateDisplayData} implementations.
    */
   @AutoValue
-  public abstract static class Item<T> {
+  public abstract static class Item<T> implements Serializable {
 
     /**
      * The namespace for the display item. The namespace defaults to the component which
