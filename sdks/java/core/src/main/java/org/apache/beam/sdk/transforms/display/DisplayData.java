@@ -75,7 +75,7 @@ public class DisplayData {
    * a namespace derived from the component.
    */
   public static DisplayData from(HasDisplayData component) {
-    checkNotNull(component);
+    checkNotNull(component, "Input component cannot be null");
     return InternalBuilder.forRoot(component).build();
   }
 
@@ -291,19 +291,19 @@ public class DisplayData {
      * with the namespace set.
      */
     public Item<T> withNamespace(Class<?> namespace) {
-      checkNotNull(namespace);
+      checkNotNull(namespace, "Input namespace cannot be null");
       return withNamespace(ClassForDisplay.of(namespace));
     }
 
     /** @see #withNamespace(Class) */
     private Item<T> withNamespace(ClassForDisplay namespace) {
-      checkNotNull(namespace);
+      checkNotNull(namespace, "Input namespace cannot be null");
       return withNamespace(namespaceOf(namespace));
     }
 
     /** @see #withNamespace(Class) */
     public Item<T> withNamespace(String namespace) {
-      checkNotNull(namespace);
+      checkNotNull(namespace, "Input component cannot be null");
       return of(
           namespace, getKey(), getType(), getValue(), getShortValue(), getLabel(), getLinkUrl());
     }
@@ -576,26 +576,26 @@ public class DisplayData {
 
     @Override
     public Builder include(HasDisplayData subComponent) {
-      checkNotNull(subComponent);
+      checkNotNull(subComponent, "Input subcomponent cannot be null");
       return include(subComponent, subComponent.getClass());
     }
 
     @Override
     public Builder include(HasDisplayData subComponent, Class<?> namespace) {
-      checkNotNull(namespace);
+      checkNotNull(namespace, "Input namespace override cannot be null");
       return include(subComponent, ClassForDisplay.of(namespace));
     }
 
     @Override
     public Builder include(HasDisplayData subComponent, ClassForDisplay namespace) {
-      checkNotNull(namespace);
+      checkNotNull(namespace, "Input namespace override cannot be null");
       return include(subComponent, namespaceOf(namespace));
     }
 
     @Override
     public Builder include(HasDisplayData subComponent, String namespace) {
-      checkNotNull(subComponent);
-      checkNotNull(namespace);
+      checkNotNull(subComponent, "Input subcomponent cannot be null");
+      checkNotNull(namespace, "Input namespace override cannot be null");
 
       boolean newComponent = visited.add(subComponent);
       if (newComponent) {
@@ -610,19 +610,19 @@ public class DisplayData {
 
     @Override
     public Builder add(Item<?> item) {
-      checkNotNull(item);
+      checkNotNull(item, "Input display item cannot be null");
       return addItemIf(true, item);
     }
 
     @Override
     public Builder addIfNotNull(Item<?> item) {
-      checkNotNull(item);
+      checkNotNull(item, "Input display item cannot be null");
       return addItemIf(item.getValue() != null, item);
     }
 
     @Override
     public <T> Builder addIfNotDefault(Item<T> item, @Nullable T defaultValue) {
-      checkNotNull(item);
+      checkNotNull(item, "Input display item cannot be null");
       Item<T> defaultItem = item.withValue(defaultValue);
       return addItemIf(!Objects.equals(item, defaultItem), item);
     }
@@ -632,8 +632,8 @@ public class DisplayData {
         return this;
       }
 
-      checkNotNull(item);
-      checkNotNull(item.getValue());
+      checkNotNull(item, "Input display item cannot be null");
+      checkNotNull(item.getValue(), "Input display value cannot be null");
       if (item.getNamespace() == null) {
         item = item.withNamespace(latestNs);
       }
@@ -733,8 +733,8 @@ public class DisplayData {
    *  @see Type#inferType(Object)
    */
   public static <T> Item<T> item(String key, Type type, @Nullable T value) {
-    checkNotNull(key);
-    checkNotNull(type);
+    checkNotNull(key, "Input key cannot be null");
+    checkNotNull(type, "Input type cannot be null");
 
     return Item.create(key, type, value);
   }
