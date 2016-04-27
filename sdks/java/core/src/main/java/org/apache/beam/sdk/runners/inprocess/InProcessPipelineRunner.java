@@ -239,7 +239,6 @@ public class InProcessPipelineRunner
     InProcessExecutor executor =
         ExecutorServiceParallelExecutor.create(
             executorService,
-            consumerTrackingVisitor.getValueToConsumers(),
             keyedPValueVisitor.getKeyedPValues(),
             TransformEvaluatorRegistry.defaultRegistry(),
             defaultModelEnforcements(options),

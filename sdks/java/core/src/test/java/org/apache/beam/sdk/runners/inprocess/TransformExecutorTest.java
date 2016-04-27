@@ -487,11 +487,11 @@ public class TransformExecutorTest {
     }
 
     @Override
-    public Iterable<? extends CommittedBundle<?>> handleResult(
+    public Map<CommittedBundle<?>, Collection<AppliedPTransform<?, ?, ?>>> handleResult(
         CommittedBundle<?> inputBundle, InProcessTransformResult result) {
       handledResult = result;
       onMethod.countDown();
-      return Collections.emptyList();
+      return Collections.emptyMap();
     }
 
     @Override

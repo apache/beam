@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.runners.inprocess;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.inprocess.InMemoryWatermarkManager.FiredTimers;
 import org.apache.beam.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
@@ -64,7 +66,6 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
 
   private final ExecutorService executorService;
 
-  private final Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers;
   private final Set<PValue> keyedPValues;
   private final TransformEvaluatorRegistry registry;
   @SuppressWarnings("rawtypes")
@@ -86,26 +87,23 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
 
   public static ExecutorServiceParallelExecutor create(
       ExecutorService executorService,
-      Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers,
       Set<PValue> keyedPValues,
       TransformEvaluatorRegistry registry,
       @SuppressWarnings("rawtypes")
       Map<Class<? extends PTransform>, Collection<ModelEnforcementFactory>> transformEnforcements,
       InProcessEvaluationContext context) {
     return new ExecutorServiceParallelExecutor(
-        executorService, valueToConsumers, keyedPValues, registry, transformEnforcements, context);
+        executorService, keyedPValues, registry, transformEnforcements, context);
   }
 
   private ExecutorServiceParallelExecutor(
       ExecutorService executorService,
-      Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers,
       Set<PValue> keyedPValues,
       TransformEvaluatorRegistry registry,
       @SuppressWarnings("rawtypes")
       Map<Class<? extends PTransform>, Collection<ModelEnforcementFactory>> transformEnforcements,
       InProcessEvaluationContext context) {
     this.executorService = executorService;
-    this.valueToConsumers = valueToConsumers;
     this.keyedPValues = keyedPValues;
     this.registry = registry;
     this.transformEnforcements = transformEnforcements;
@@ -191,10 +189,8 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
     return keyedPValues.contains(pvalue);
   }
 
-  private void scheduleConsumers(CommittedBundle<?> bundle) {
-    for (AppliedPTransform<?, ?, ?> consumer : valueToConsumers.get(bundle.getPCollection())) {
-      scheduleConsumption(consumer, bundle, defaultCompletionCallback);
-    }
+  private void scheduleConsumers(CommittedBundle<?> bundle, AppliedPTransform<?, ?, ?> consumer) {
+    scheduleConsumption(consumer, bundle, defaultCompletionCallback);
   }
 
   @Override
@@ -216,12 +212,16 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
    */
   private class DefaultCompletionCallback implements CompletionCallback {
     @Override
-    public Iterable<? extends CommittedBundle<?>> handleResult(
+    public Map<CommittedBundle<?>, Collection<AppliedPTransform<?, ?, ?>>> handleResult(
         CommittedBundle<?> inputBundle, InProcessTransformResult result) {
-      Iterable<? extends CommittedBundle<?>> resultBundles =
+      Map<CommittedBundle<?>, Collection<AppliedPTransform<?, ?, ?>>> resultBundles =
           evaluationContext.handleResult(inputBundle, Collections.<TimerData>emptyList(), result);
-      for (CommittedBundle<?> outputBundle : resultBundles) {
-        allUpdates.offer(ExecutorUpdate.fromBundle(outputBundle));
+      for (Map.Entry<CommittedBundle<?>, Collection<AppliedPTransform<?, ?, ?>>> output
+          : resultBundles.entrySet()) {
+        CommittedBundle<?> bundle = output.getKey();
+        for (AppliedPTransform<?, ?, ?> consumer : output.getValue()) {
+          allUpdates.offer(ExecutorUpdate.fromBundle(bundle, consumer));
+        }
       }
       return resultBundles;
     }
@@ -246,12 +246,16 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
     }
 
     @Override
-    public Iterable<? extends CommittedBundle<?>> handleResult(
+    public Map<CommittedBundle<?>, Collection<AppliedPTransform<?, ?, ?>>> handleResult(
         CommittedBundle<?> inputBundle, InProcessTransformResult result) {
-      Iterable<? extends CommittedBundle<?>> resultBundles =
+      Map<CommittedBundle<?>, Collection<AppliedPTransform<?, ?, ?>>> resultBundles =
           evaluationContext.handleResult(inputBundle, timers, result);
-      for (CommittedBundle<?> outputBundle : resultBundles) {
-        allUpdates.offer(ExecutorUpdate.fromBundle(outputBundle));
+      for (Map.Entry<CommittedBundle<?>, Collection<AppliedPTransform<?, ?, ?>>> output
+          : resultBundles.entrySet()) {
+        CommittedBundle<?> bundle = output.getKey();
+        for (AppliedPTransform<?, ?, ?> consumer : output.getValue()) {
+          allUpdates.offer(ExecutorUpdate.fromBundle(bundle, consumer));
+        }
       }
       return resultBundles;
     }
@@ -269,23 +273,36 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
    */
   private static class ExecutorUpdate {
     private final Optional<? extends CommittedBundle<?>> bundle;
+    private final Optional<? extends AppliedPTransform<?, ?, ?>> consumer;
     private final Optional<? extends Throwable> throwable;
 
-    public static ExecutorUpdate fromBundle(CommittedBundle<?> bundle) {
-      return new ExecutorUpdate(bundle, null);
+    public static ExecutorUpdate fromBundle(
+        CommittedBundle<?> bundle, AppliedPTransform<?, ?, ?> consumer) {
+      return new ExecutorUpdate(bundle, consumer, null);
     }
 
     public static ExecutorUpdate fromThrowable(Throwable t) {
-      return new ExecutorUpdate(null, t);
+      return new ExecutorUpdate(null, null, t);
     }
 
-    private ExecutorUpdate(CommittedBundle<?> producedBundle, Throwable throwable) {
+    private ExecutorUpdate(
+        CommittedBundle<?> producedBundle,
+        AppliedPTransform<?, ?, ?> consumer,
+        Throwable throwable) {
+      checkArgument((producedBundle == null) == (consumer == null),
+              "The produced bundle and consuming PTransform must either "
+                  + "both be null or neither be null");
       this.bundle = Optional.fromNullable(producedBundle);
+      this.consumer = Optional.fromNullable(consumer);
       this.throwable = Optional.fromNullable(throwable);
     }
 
     public Optional<? extends CommittedBundle<?>> getBundle() {
       return bundle;
+    }
+
+    public Optional<? extends AppliedPTransform<?, ?, ?>> getConsumer() {
+      return consumer;
     }
 
     public Optional<? extends Throwable> getException() {
@@ -344,7 +361,7 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
         while (update != null) {
           LOG.debug("Executor Update: {}", update);
           if (update.getBundle().isPresent()) {
-            scheduleConsumers(update.getBundle().get());
+            scheduleConsumers(update.getBundle().get(), update.getConsumer().get());
           } else if (update.getException().isPresent()) {
             visibleUpdates.offer(VisibleExecutorUpdate.fromThrowable(update.getException().get()));
           }
