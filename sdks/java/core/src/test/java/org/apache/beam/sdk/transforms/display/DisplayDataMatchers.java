@@ -275,6 +275,20 @@ public class DisplayDataMatchers {
   }
 
   /**
+   * Creates a matcher that matches if the examined {@link DisplayData.Item} contains the
+   * specified namespace.
+   */
+  public static Matcher<DisplayData.Item<?>> hasNamespace(String namespace) {
+    return new FeatureMatcher<DisplayData.Item<?>, String>(
+        Matchers.is(namespace), "display item with namespace", "namespace") {
+      @Override
+      protected String featureValueOf(Item<?> actual) {
+        return actual.getNamespace();
+      }
+    };
+  }
+
+  /**
    * Creates a matcher that matches if the examined {@link DisplayData.Item} contains a namespace
    * matching the specified namespace matcher.
    */

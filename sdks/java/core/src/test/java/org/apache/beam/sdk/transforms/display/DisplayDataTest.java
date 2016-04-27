@@ -370,6 +370,39 @@ public class DisplayDataTest {
   }
 
   @Test
+  public void testNamespaceOverrideMultipleLevels() {
+    final HasDisplayData componentA = new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder.add(DisplayData.item("foo", "bar"));
+      }
+    };
+
+    final HasDisplayData componentB = new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder
+            .add(DisplayData.item("foo", "bar"))
+            .include(componentA);
+      }
+    };
+
+    final HasDisplayData componentC = new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder
+            .add(DisplayData.item("foo", "bar"))
+            .include(componentB, "overrideB");
+      }
+    };
+
+    DisplayData data = DisplayData.from(componentC);
+    assertThat(data, hasDisplayItem(hasNamespace(componentC.getClass())));
+    assertThat(data, hasDisplayItem(hasNamespace("overrideB")));
+    assertThat(data, hasDisplayItem(hasNamespace(componentA.getClass())));
+  }
+
+  @Test
   public void testNullNamespaceOverride() {
     thrown.expect(NullPointerException.class);
 
