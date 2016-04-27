@@ -697,6 +697,7 @@
       <version>1.0-rc2</version>
       <optional>true</optional>
     </dependency>
+
     <dependency>
       <groupId>com.google.auto.value</groupId>
       <artifactId>auto-value</artifactId>
