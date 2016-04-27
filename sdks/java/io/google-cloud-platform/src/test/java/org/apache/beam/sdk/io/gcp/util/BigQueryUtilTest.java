@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.io.gcp.util;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.any;
@@ -30,7 +30,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
-import org.apache.beam.sdk.io.BigQueryIO;
+import org.apache.beam.sdk.io.gcp.BigQueryIO;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Sum;
@@ -97,8 +97,7 @@ public class BigQueryUtilTest {
   }
 
   private void onInsertAll(List<List<Long>> errorIndicesSequence) throws Exception {
-    when(mockClient.tabledata())
-        .thenReturn(mockTabledata);
+    when(mockClient.tabledata()).thenReturn(mockTabledata);
 
     final List<TableDataInsertAllResponse> responses = new ArrayList<>();
     for (List<Long> errorIndices : errorIndicesSequence) {

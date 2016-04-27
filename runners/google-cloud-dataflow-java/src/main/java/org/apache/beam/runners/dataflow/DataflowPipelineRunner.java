@@ -56,14 +56,14 @@ import org.apache.beam.sdk.coders.StandardCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.AvroIO;
-import org.apache.beam.sdk.io.BigQueryIO;
 import org.apache.beam.sdk.io.FileBasedSink;
-import org.apache.beam.sdk.io.PubsubIO;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.ShardNameTemplate;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.Write;
+import org.apache.beam.sdk.io.gcp.BigQueryIO;
+import org.apache.beam.sdk.io.gcp.PubsubIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.options.StreamingOptions;
@@ -2311,7 +2311,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
 
   /**
    * Specialized implementation for
-   * {@link org.apache.beam.sdk.io.PubsubIO.Write PubsubIO.Write} for the
+   * {@link PubsubIO.Write PubsubIO.Write} for the
    * Dataflow runner in streaming mode.
    *
    * <p>For internal use only. Subject to change at any time.

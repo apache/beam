@@ -18,7 +18,7 @@
 package org.apache.beam.runners.dataflow.internal;
 
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator;
-import org.apache.beam.sdk.io.BigQueryIO;
+import org.apache.beam.sdk.io.gcp.BigQueryIO;
 import org.apache.beam.sdk.util.PropertyNames;
 
 import com.google.api.services.bigquery.model.TableReference;

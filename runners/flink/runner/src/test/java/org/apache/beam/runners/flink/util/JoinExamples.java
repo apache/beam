@@ -18,7 +18,7 @@
 package org.apache.beam.runners.flink.util;
 
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.io.BigQueryIO;
+import org.apache.beam.sdk.io.gcp.BigQueryIO;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -36,7 +36,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import com.google.api.services.bigquery.model.TableRow;
 
 /**
- * Copied from {@link org.apache.beam.examples.JoinExamples} because the code
+ * Copied from {@link org.apache.beam.examples.cookbook.JoinExamples} because the code
  * is private there.
  */
 public class JoinExamples {
