@@ -17,7 +17,6 @@
  */
 package org.apache.beam.examples;
 
-import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.Default;
@@ -37,9 +36,8 @@ import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
-
 /**
- * An example that counts words in Shakespeare and includes Dataflow best practices.
+ * An example that counts words in Shakespeare and includes Beam best practices.
  *
  * <p>This class, {@link WordCount}, is the second in a series of four successively more detailed
  * 'word count' examples. You may first want to take a look at {@link MinimalWordCount}.
@@ -56,13 +54,13 @@ import org.apache.beam.sdk.values.PCollection;
  *
  * <p>New Concepts:
  * <pre>
- *   1. Executing a Pipeline both locally and using the Dataflow service
+ *   1. Executing a Pipeline both locally and using the selected runner
  *   2. Using ParDo with static DoFns defined out-of-line
  *   3. Building a composite transform
  *   4. Defining your own pipeline options
  * </pre>
  *
- * <p>Concept #1: you can execute this pipeline either locally or using the Dataflow service.
+ * <p>Concept #1: you can execute this pipeline either locally or using the selected runner.
  * These are now command-line options and not hard-coded as they were in the MinimalWordCount
  * example.
  * To execute this pipeline locally, specify general pipeline configuration:
@@ -78,7 +76,7 @@ import org.apache.beam.sdk.values.PCollection;
  * <p>To execute this pipeline using the Dataflow service, specify pipeline configuration:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
- *   --stagingLocation=gs://YOUR_STAGING_DIRECTORY
+ *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
  *   --runner=BlockingDataflowPipelineRunner
  * }
  * </pre>
@@ -173,17 +171,16 @@ public class WordCount {
     void setOutput(String value);
 
     /**
-     * Returns "gs://${YOUR_STAGING_DIRECTORY}/counts.txt" as the default destination.
+     * Returns "gs://${YOUR_TEMP_DIRECTORY}/counts.txt" as the default destination.
      */
     public static class OutputFactory implements DefaultValueFactory<String> {
       @Override
       public String create(PipelineOptions options) {
-        DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
-        if (dataflowOptions.getStagingLocation() != null) {
-          return GcsPath.fromUri(dataflowOptions.getStagingLocation())
+        if (options.getTempLocation() != null) {
+          return GcsPath.fromUri(options.getTempLocation())
               .resolve("counts.txt").toString();
         } else {
-          throw new IllegalArgumentException("Must specify --output or --stagingLocation");
+          throw new IllegalArgumentException("Must specify --output or --tempLocation");
         }
       }
     }

@@ -59,7 +59,7 @@ import java.util.TimeZone;
  * like this:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
- *   --stagingLocation=gs://YOUR_STAGING_DIRECTORY
+ *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
  *   --runner=BlockingDataflowPipelineRunner
  *   --dataset=YOUR-DATASET
  * }

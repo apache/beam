@@ -79,7 +79,7 @@ import java.util.Set;
  * <p>To execute this pipeline using the Dataflow service, specify pipeline configuration:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
- *   --stagingLocation=gs://YOUR_STAGING_DIRECTORY
+ *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
  *   --runner=BlockingDataflowPipelineRunner
  * and an output prefix on GCS:
  *   --output=gs://YOUR_OUTPUT_PREFIX
