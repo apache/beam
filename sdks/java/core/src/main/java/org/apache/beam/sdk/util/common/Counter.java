@@ -249,13 +249,10 @@ public abstract class Counter<T> {
   }
 
   /**
-   * Returns the counter's name.
-   *
-   * @deprecated use {@link #getFlatName}.
+   * Returns the {@link CounterName}.
    */
-  @Deprecated
-  public String getName() {
-    return name.getFlatName();
+  public CounterName getName() {
+    return name;
   }
 
   /**
