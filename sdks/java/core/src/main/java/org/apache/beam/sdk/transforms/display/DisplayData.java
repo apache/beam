@@ -89,7 +89,7 @@ public class DisplayData {
    * public void populateDisplayData(DisplayData.Builder builder) {
    *   Optional<DisplayData.Type> type = DisplayData.inferType(foo);
    *   if (type.isPresent()) {
-   *     builder.add("foo", type.get(), foo);
+   *     builder.add(DisplayData.item("foo", type.get(), foo));
    *   }
    * }
    * }
@@ -198,17 +198,27 @@ public class DisplayData {
   }
 
   /**
-   * A display data item. {@link Item Items} are registered via {@link DisplayData.Builder#add}
-   * within {@link HasDisplayData#populateDisplayData} implementations. Each metadata item is
-   * uniquely identified by the specified key and namespace generated from the registering
-   * component's class name.
+   * {@link Item Items} are the unit of display data. Each item is identified by a given key
+   * and namespace from the component it belongs to.
+   *
+   * <p>{@link Item Items} are registered via {@link DisplayData.Builder#add}
+   * within {@link HasDisplayData#populateDisplayData} implementations.
    */
   @AutoValue
   public abstract static class Item<T> {
 
+    /**
+     * The namespace for the display item. The namespace is generated from the component which
+     * item display item belongs to.
+     */
     @Nullable
+    @JsonGetter("namespace")
     public abstract String getNamespace();
 
+    /**
+     * The key for the display item. Each display item is create with a key and value
+     * via {@link DisplayData#item).
+     */
     @JsonGetter("key")
     public abstract String getKey();
 
@@ -220,18 +230,25 @@ public class DisplayData {
     public abstract Type getType();
 
     /**
-     * Retrieve the value of the metadata item.
+     * Retrieve the value of the display item. The value is translated from input to
+     * {@link DisplayData#item} into a format suitable for display, using
+     * {@link Type#format(Object)}.
      */
     @JsonGetter("value")
     @Nullable
     public abstract Object getValue();
 
     /**
-     * Return the optional short value for an item. Types may provide a short-value to displayed
-     * instead of or in addition to the full {@link Item#getValue() value}.
+     * Return the optional short value for an item, or null if none is provided.
      *
-     * <p>Some display data types will not provide a short value, in which case the return value
-     * will be null.
+     * <p>The short value is an alternative display representation for items having a long display
+     * value. For example, the {@link #getValue() value} for {@link Type#JAVA_CLASS} items contains
+     * the full class name with package, while the {@link #getShortValue() short value} contains
+     * just the class name.
+     *
+     * A {@link #getValue() value} will be provided for each display item, and some types may also
+     * provide a short-value. If a short value is provided, display data consumers may
+     * choose to display it instead of or in addition to the {@link #getValue() value}.
      */
     @JsonGetter("shortValue")
     @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -260,11 +277,15 @@ public class DisplayData {
     @Nullable
     public abstract String getLinkUrl();
 
-    public static <T> Item<T> create(String key, Type type, @Nullable T value) {
+    private static <T> Item<T> create(String key, Type type, @Nullable T value) {
       FormattedItemValue formatted = safeFormat(type, value);
       return of(null, key, type, formatted.getLongValue(), formatted.getShortValue(), null, null);
     }
 
+    /**
+     * Wrapper for {@link Type#format(Object)}, which checks for null input value and if so returns
+     * a {@link FormattedItemValue} with null values.
+     */
     private static FormattedItemValue safeFormat(Type type, @Nullable Object value) {
       if (value == null) {
         return FormattedItemValue.DEFAULT;
@@ -273,32 +294,58 @@ public class DisplayData {
       return type.format(value);
     }
 
+    /**
+     * Set the item {@link Item#getNamespace() namespace} from the given {@link Class}.
+     *
+     * <p>This method does not alter the current instance, but instead returns a new {@link Item}
+     * with the namespace set.
+     */
     public Item<T> withNamespace(Class<?> namespace) {
       checkNotNull(namespace);
       return withNamespace(ClassForDisplay.of(namespace));
     }
 
+    /** @see #withNamespace(Class) */
     private Item<T> withNamespace(ClassForDisplay namespace) {
       checkNotNull(namespace);
       return withNamespace(namespaceOf(namespace));
     }
 
+    /** @see #withNamespace(Class) */
     public Item<T> withNamespace(String namespace) {
       checkNotNull(namespace);
       return of(
           namespace, getKey(), getType(), getValue(), getShortValue(), getLabel(), getLinkUrl());
     }
 
+    /**
+     * Set the item {@link Item#getLabel() label}.
+     *
+     * <p>This method does not alter the current instance, but instead returns a new {@link Item}
+     * with the label set.
+     */
     public Item<T> withLabel(String label) {
       return of(
           getNamespace(), getKey(), getType(), getValue(), getShortValue(), label, getLinkUrl());
     }
 
+    /**
+     * Set the item {@link Item#getLinkUrl() link url}.
+     *
+     * <p>This method does not alter the current instance, but instead returns a new {@link Item}
+     * with the link url set.
+     */
     public Item<T> withLinkUrl(String url) {
       return of(getNamespace(), getKey(), getType(), getValue(), getShortValue(), getLabel(), url);
     }
 
-    public Item<T> withValue(Object value) {
+    /**
+     * Creates a similar item to the current instance but with the specified value.
+     *
+     * <p>This should only be used internally. It is useful to compare the value of a
+     * {@link DisplayData.Item} to the value derived from a specified input.
+     */
+    private Item<T> withValue(Object value) {
       FormattedItemValue formatted = safeFormat(getType(), value);
       return of(getNamespace(), getKey(), getType(), formatted.getLongValue(),
           formatted.getShortValue(), getLabel(), getLinkUrl());
@@ -600,46 +647,86 @@ public class DisplayData {
     }
   }
 
+  /**
+   * Create a display item for the specified key and string value.
+   */
   public static Item<String> item(String key, @Nullable String value) {
     return item(key, Type.STRING, value);
   }
 
+  /**
+   * Create a display item for the specified key and string value.
+   */
   public static Item<Integer> item(String key, @Nullable Integer value) {
     return item(key, Type.INTEGER, value);
   }
 
+  /**
+   * Create a display item for the specified key and string value.
+   */
   public static Item<Long> item(String key, @Nullable Long value) {
     return item(key, Type.INTEGER, value);
   }
 
+  /**
+   * Create a display item for the specified key and string value.
+   */
   public static Item<Float> item(String key, @Nullable Float value) {
     return item(key, Type.FLOAT, value);
   }
 
+  /**
+   * Create a display item for the specified key and string value.
+   */
   public static Item<Double> item(String key, @Nullable Double value) {
     return item(key, Type.FLOAT, value);
   }
 
+  /**
+   * Create a display item for the specified key and string value.
+   */
   public static Item<Boolean> item(String key, @Nullable Boolean value) {
     return item(key, Type.BOOLEAN, value);
   }
 
+  /**
+   * Create a display item for the specified key and string value.
+   */
   public static Item<Instant> item(String key, @Nullable Instant value) {
     return item(key, Type.TIMESTAMP, value);
   }
 
+  /**
+   * Create a display item for the specified key and string value.
+   */
   public static Item<Duration> item(String key, @Nullable Duration value) {
     return item(key, Type.DURATION, value);
   }
 
+  /**
+   * Create a display item for the specified key and string value.
+   */
   public static <T> Item<Class<T>> item(String key, @Nullable Class<T> value) {
     return item(key, Type.JAVA_CLASS, value);
   }
 
+  /**
+   * Create a display item for the specified key and string value.
+   */
   public static Item<ClassForDisplay> item(String key, @Nullable ClassForDisplay value) {
     return item(key, Type.JAVA_CLASS, value);
   }
 
+  /**
+   * Create a display item for the specified key, type, and value. This method should be used
+   * if the type of the input value can only be determined at runtime. Otherwise,
+   * {@link HasDisplayData} implementors should call one of the typed factory methods, such as
+   * {@link #item(String, String)} or {@link #item(String, Integer)}.
+   *
+   * @throws ClassCastException if the value cannot be formatted as the given type.
+   *
+   *  @see Type#inferType(Object)
+   */
   public static <T> Item<T> item(String key, Type type, @Nullable T value) {
     checkNotNull(key);
     checkNotNull(type);
