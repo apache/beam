@@ -55,6 +55,7 @@ public class TestCountingSource
   private final int shardNumber;
   private final boolean dedup;
   private final boolean throwOnFirstSnapshot;
+  private final boolean allowSplitting;
 
   /**
    * We only allow an exception to be thrown from getCheckpointMark
@@ -68,27 +69,36 @@ public class TestCountingSource
   }
 
   public TestCountingSource(int numMessagesPerShard) {
-    this(numMessagesPerShard, 0, false, false);
+    this(numMessagesPerShard, 0, false, false, true);
   }
 
   public TestCountingSource withDedup() {
-    return new TestCountingSource(numMessagesPerShard, shardNumber, true, throwOnFirstSnapshot);
+    return new TestCountingSource(
+        numMessagesPerShard, shardNumber, true, throwOnFirstSnapshot, true);
   }
 
   private TestCountingSource withShardNumber(int shardNumber) {
-    return new TestCountingSource(numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot);
+    return new TestCountingSource(
+        numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot, true);
   }
 
   public TestCountingSource withThrowOnFirstSnapshot(boolean throwOnFirstSnapshot) {
-    return new TestCountingSource(numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot);
+    return new TestCountingSource(
+        numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot, true);
   }
 
-  private TestCountingSource(
-      int numMessagesPerShard, int shardNumber, boolean dedup, boolean throwOnFirstSnapshot) {
+  public TestCountingSource withoutSplitting() {
+    return new TestCountingSource(
+        numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot, false);
+  }
+
+  private TestCountingSource(int numMessagesPerShard, int shardNumber, boolean dedup,
+      boolean throwOnFirstSnapshot, boolean allowSplitting) {
     this.numMessagesPerShard = numMessagesPerShard;
     this.shardNumber = shardNumber;
     this.dedup = dedup;
     this.throwOnFirstSnapshot = throwOnFirstSnapshot;
+    this.allowSplitting = allowSplitting;
   }
 
   public int getShardNumber() {
@@ -99,7 +109,8 @@ public class TestCountingSource
   public List<TestCountingSource> generateInitialSplits(
       int desiredNumSplits, PipelineOptions options) {
     List<TestCountingSource> splits = new ArrayList<>();
-    for (int i = 0; i < desiredNumSplits; i++) {
+    int numSplits = allowSplitting ? desiredNumSplits : 1;
+    for (int i = 0; i < numSplits; i++) {
       splits.add(withShardNumber(i));
     }
     return splits;
@@ -143,7 +154,11 @@ public class TestCountingSource
     return dedup;
   }
 
-  private class CountingSourceReader extends UnboundedReader<KV<Integer, Integer>> {
+  /**
+   * Public only so that the checkpoint can be conveyed from {@link #getCheckpointMark()} to
+   * {@link TestCountingSource#createReader(PipelineOptions, CounterMark)} without cast.
+   */
+  public class CountingSourceReader extends UnboundedReader<KV<Integer, Integer>> {
     private int current;
 
     public CountingSourceReader(int startingPoint) {
@@ -152,21 +167,20 @@ public class TestCountingSource
 
     @Override
     public boolean start() {
-      return true;
+      return advance();
     }
 
     @Override
     public boolean advance() {
-      if (current < numMessagesPerShard - 1) {
-        // If testing dedup, occasionally insert a duplicate value;
-        if (dedup && ThreadLocalRandom.current().nextInt(5) == 0) {
-          return true;
-        }
-        current++;
-        return true;
-      } else {
+      if (current >= numMessagesPerShard - 1) {
         return false;
       }
+      // If testing dedup, occasionally insert a duplicate value;
+      if (current >= 0 && dedup && ThreadLocalRandom.current().nextInt(5) == 0) {
+        return true;
+      }
+      current++;
+      return true;
     }
 
     @Override
@@ -204,12 +218,14 @@ public class TestCountingSource
     }
 
     @Override
-    public CheckpointMark getCheckpointMark() {
+    public CounterMark getCheckpointMark() {
       if (throwOnFirstSnapshot && !thrown) {
         thrown = true;
         LOG.error("Throwing exception while checkpointing counter");
         throw new RuntimeException("failed during checkpoint");
       }
+      // The checkpoint can assume all records read, including the current, have
+      // been commited.
       return new CounterMark(current);
     }
 
@@ -222,7 +238,12 @@ public class TestCountingSource
   @Override
   public CountingSourceReader createReader(
       PipelineOptions options, @Nullable CounterMark checkpointMark) {
-    return new CountingSourceReader(checkpointMark != null ? checkpointMark.current : 0);
+    if (checkpointMark == null) {
+      LOG.debug("creating reader");
+    } else {
+      LOG.debug("restoring reader from checkpoint with current = {}", checkpointMark.current);
+    }
+    return new CountingSourceReader(checkpointMark != null ? checkpointMark.current : -1);
   }
 
   @Override
