@@ -47,10 +47,10 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for {@link GroupByKeyEvaluatorFactory}.
+ * Tests for {@link GroupByKeyOnlyEvaluatorFactory}.
  */
 @RunWith(JUnit4.class)
-public class GroupByKeyEvaluatorFactoryTest {
+public class GroupByKeyOnlyEvaluatorFactoryTest {
   private BundleFactory bundleFactory = InProcessBundleFactory.create();
 
   @Test
@@ -67,7 +67,7 @@ public class GroupByKeyEvaluatorFactoryTest {
     PCollection<KV<String, WindowedValue<Integer>>> kvs =
         values.apply(new ReifyTimestampsAndWindows<String, Integer>());
     PCollection<KeyedWorkItem<String, Integer>> groupedKvs =
-        kvs.apply(new GroupByKeyEvaluatorFactory.InProcessGroupByKeyOnly<String, Integer>());
+        kvs.apply(new GroupByKeyOnlyEvaluatorFactory.InProcessGroupByKeyOnly<String, Integer>());
 
     CommittedBundle<KV<String, WindowedValue<Integer>>> inputBundle =
         bundleFactory.createRootBundle(kvs).commit(Instant.now());
@@ -89,7 +89,7 @@ public class GroupByKeyEvaluatorFactoryTest {
     Coder<String> keyCoder =
         ((KvCoder<String, WindowedValue<Integer>>) kvs.getCoder()).getKeyCoder();
     TransformEvaluator<KV<String, WindowedValue<Integer>>> evaluator =
-        new GroupByKeyEvaluatorFactory()
+        new GroupByKeyOnlyEvaluatorFactory()
             .forApplication(
                 groupedKvs.getProducingTransformInternal(), inputBundle, evaluationContext);
 

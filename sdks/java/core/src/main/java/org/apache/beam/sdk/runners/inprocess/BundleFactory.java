@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.runners.inprocess;
 
-import org.apache.beam.sdk.runners.inprocess.GroupByKeyEvaluatorFactory.InProcessGroupByKeyOnly;
+import org.apache.beam.sdk.runners.inprocess.GroupByKeyOnlyEvaluatorFactory.InProcessGroupByKeyOnly;
 import org.apache.beam.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
 import org.apache.beam.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
 import org.apache.beam.sdk.transforms.PTransform;

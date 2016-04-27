@@ -57,7 +57,7 @@ import java.util.Map;
  * The {@link InProcessPipelineRunner} {@link TransformEvaluatorFactory} for the {@link GroupByKey}
  * {@link PTransform}.
  */
-class GroupByKeyEvaluatorFactory implements TransformEvaluatorFactory {
+class GroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFactory {
   @Override
   public <InputT> TransformEvaluator<InputT> forApplication(
       AppliedPTransform<?, ?, ?> application,
@@ -76,10 +76,10 @@ class GroupByKeyEvaluatorFactory implements TransformEvaluatorFactory {
           application,
       final CommittedBundle<KV<K, V>> inputBundle,
       final InProcessEvaluationContext evaluationContext) {
-    return new GroupByKeyEvaluator<K, V>(evaluationContext, inputBundle, application);
+    return new GroupByKeyOnlyEvaluator<K, V>(evaluationContext, inputBundle, application);
   }
 
-  private static class GroupByKeyEvaluator<K, V>
+  private static class GroupByKeyOnlyEvaluator<K, V>
       implements TransformEvaluator<KV<K, WindowedValue<V>>> {
     private final InProcessEvaluationContext evaluationContext;
 
@@ -91,7 +91,7 @@ class GroupByKeyEvaluatorFactory implements TransformEvaluatorFactory {
     private final Coder<K> keyCoder;
     private Map<GroupingKey<K>, List<WindowedValue<V>>> groupingMap;
 
-    public GroupByKeyEvaluator(
+    public GroupByKeyOnlyEvaluator(
         InProcessEvaluationContext evaluationContext,
         CommittedBundle<KV<K, V>> inputBundle,
         AppliedPTransform<
