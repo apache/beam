@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.transforms;
 
 import static com.google.cloud.dataflow.sdk.TestUtils.checkCombineFn;
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasNamespace;
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
@@ -697,6 +698,21 @@ public class CombineTest implements Serializable {
     assertThat(displayData, hasDisplayItem("emitDefaultOnEmptyInput", true));
     assertThat(displayData, hasDisplayItem("fanout", 1234));
     assertThat(displayData, includesDisplayDataFrom(combineFn));
+  }
+
+  @Test
+  public void testDisplayDataForWrappedFn() {
+    UniqueInts combineFn = new UniqueInts() {
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        builder.add(DisplayData.item("foo", "bar"));
+      }
+    };
+    Combine.PerKey<?, ?, ?> combine = Combine.perKey(combineFn);
+    DisplayData displayData = DisplayData.from(combine);
+
+    assertThat(displayData, hasDisplayItem("combineFn", combineFn.getClass()));
+    assertThat(displayData, hasDisplayItem(hasNamespace(combineFn.getClass())));
   }
 
   ////////////////////////////////////////////////////////////////////////////

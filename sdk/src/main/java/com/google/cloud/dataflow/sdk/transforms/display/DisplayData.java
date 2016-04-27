@@ -18,9 +18,7 @@ package com.google.cloud.dataflow.sdk.transforms.display;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
-import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
@@ -36,6 +34,7 @@ import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.ISODateTimeFormat;
 
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
@@ -49,7 +48,7 @@ import java.util.Set;
  * <p>Components specify their display data by implementing the {@link HasDisplayData}
  * interface.
  */
-public class DisplayData {
+public class DisplayData implements Serializable {
   private static final DisplayData EMPTY = new DisplayData(Maps.<Identifier, Item<?>>newHashMap());
   private static final DateTimeFormatter TIMESTAMP_FORMATTER = ISODateTimeFormat.dateTime();
 
@@ -141,7 +140,7 @@ public class DisplayData {
     return builder.toString();
   }
 
-  private static String namespaceOf(ClassForDisplay clazz) {
+  private static String namespaceOf(Class<?> clazz) {
     return clazz.getName();
   }
 
@@ -151,31 +150,42 @@ public class DisplayData {
    */
   public interface Builder {
     /**
-     * Register display data from the specified subcomponent.
+     * Register display data from the specified subcomponent. For example, a {@link PTransform}
+     * which delegates to a user-provided function can implement {@link HasDisplayData} on the
+     * function and include it from the {@link PTransform}:
      *
-     * @see #include(HasDisplayData, String)
+     * <pre><code>{@literal @Override}
+     * public void populateDisplayData(DisplayData.Builder builder) {
+     *   super.populateDisplayData(builder);
+     *
+     *   builder
+     *     .add(DisplayData.item("userFn", userFn)) // To register the class name of the userFn
+     *     .include(userFn); // To allow the userFn to register additional display data
+     * }
+     * </code></pre>
+     *
+     * Using {@code include(subcomponent)} will associate each of the registered items with the
+     * namespace of the {@code subcomponent} being registered. To register display data in the
+     * current namespace, such as from a base class implementation, use
+     * {@code subcomponent.populateDisplayData(builder)} instead.
+     *
+     * @see HasDisplayData#populateDisplayData(DisplayData.Builder)
      */
     Builder include(HasDisplayData subComponent);
 
     /**
-     * Register display data from the specified subcomponent, using the specified namespace.
+     * Register display data from the specified subcomponent, overriding the namespace of
+     * subcomponent display items with the specified namespace.
      *
-     * @see #include(HasDisplayData, String)
+     * @see #include(HasDisplayData)
      */
     Builder include(HasDisplayData subComponent, Class<?> namespace);
 
     /**
-     * Register display data from the specified subcomponent, using the specified namespace.
+     * Register display data from the specified subcomponent, overriding the namespace of
+     * subcomponent display items with the specified namespace.
      *
-     * @see #include(HasDisplayData, String)
-     */
-    Builder include(HasDisplayData subComponent, ClassForDisplay namespace);
-
-    /**
-     * Register display data from the specified subcomponent, using the specified namespace.
-     *
-     * <p>For example, a {@link ParDo} transform includes display data from the encapsulated
-     * {@link DoFn}.
+     * @see #include(HasDisplayData)
      */
     Builder include(HasDisplayData subComponent, String namespace);
 
@@ -202,7 +212,7 @@ public class DisplayData {
    * <p>{@link Item Items} are registered via {@link DisplayData.Builder#add}
    * within {@link HasDisplayData#populateDisplayData} implementations.
    */
-  public static final class Item<T> {
+  public static final class Item<T> implements Serializable {
     @Nullable private final String namespace;
     private final String key;
     private final Type type;
@@ -309,12 +319,6 @@ public class DisplayData {
      */
     public Item<T> withNamespace(Class<?> namespace) {
       checkNotNull(namespace, "namespace argument cannot be null");
-      return withNamespace(ClassForDisplay.of(namespace));
-    }
-
-    /** @see #withNamespace(Class) */
-    private Item<T> withNamespace(ClassForDisplay namespace) {
-      checkNotNull(namespace, "namesapce argument cannot be null");
       return withNamespace(namespaceOf(namespace));
     }
 
@@ -429,7 +433,7 @@ public class DisplayData {
     private final String ns;
     private final String key;
 
-    public static Identifier of(ClassForDisplay namespace, String key) {
+    public static Identifier of(Class<?> namespace, String key) {
       return of(namespaceOf(namespace), key);
     }
 
@@ -522,12 +526,7 @@ public class DisplayData {
     JAVA_CLASS {
       @Override
       FormattedItemValue format(Object value) {
-        if (value instanceof Class<?>) {
-          ClassForDisplay classForDisplay = ClassForDisplay.of((Class<?>) value);
-          return format(classForDisplay);
-        }
-
-        ClassForDisplay clazz = checkType(value, ClassForDisplay.class, JAVA_CLASS);
+        Class<?> clazz = checkType(value, Class.class, JAVA_CLASS);
         return new FormattedItemValue(clazz.getName(), clazz.getSimpleName());
       }
     };
@@ -577,7 +576,7 @@ public class DisplayData {
         return  TIMESTAMP;
       } else if (value instanceof Duration) {
         return  DURATION;
-      } else if (value instanceof Class<?> || value instanceof ClassForDisplay) {
+      } else if (value instanceof Class<?>) {
         return  JAVA_CLASS;
       } else if (value instanceof String) {
         return  STRING;
@@ -639,12 +638,6 @@ public class DisplayData {
 
     @Override
     public Builder include(HasDisplayData subComponent, Class<?> namespace) {
-      checkNotNull(namespace, "Input namespace override cannot be null");
-      return include(subComponent, ClassForDisplay.of(namespace));
-    }
-
-    @Override
-    public Builder include(HasDisplayData subComponent, ClassForDisplay namespace) {
       checkNotNull(namespace, "Input namespace override cannot be null");
       return include(subComponent, namespaceOf(namespace));
     }
@@ -769,13 +762,6 @@ public class DisplayData {
    * Create a display item for the specified key and class value.
    */
   public static <T> Item<Class<T>> item(String key, @Nullable Class<T> value) {
-    return item(key, Type.JAVA_CLASS, value);
-  }
-
-  /**
-   * Create a display item for the specified key and class value.
-   */
-  public static Item<ClassForDisplay> item(String key, @Nullable ClassForDisplay value) {
     return item(key, Type.JAVA_CLASS, value);
   }
 
