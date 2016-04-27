@@ -98,8 +98,8 @@ public class PAssert {
 
   private static final Logger LOG = LoggerFactory.getLogger(PAssert.class);
 
-  static final String SUCCESS_COUNTER = "PAssertSuccess";
-  static final String FAILURE_COUNTER = "PAssertFailure";
+  public static final String SUCCESS_COUNTER = "PAssertSuccess";
+  public static final String FAILURE_COUNTER = "PAssertFailure";
 
   private static int assertCount = 0;
 
@@ -576,7 +576,7 @@ public class PAssert {
    * <p>This is generally useful for assertion functions that
    * are serializable but whose underlying data may not have a coder.
    */
-  static class OneSideInputAssert<ActualT>
+  public static class OneSideInputAssert<ActualT>
       extends PTransform<PBegin, PDone> implements Serializable {
     private final transient PTransform<PBegin, PCollectionView<ActualT>> createActual;
     private final SerializableFunction<ActualT, Void> checkerFn;
@@ -647,7 +647,7 @@ public class PAssert {
    * are not serializable, but have coders (provided
    * by the underlying {@link PCollection}s).
    */
-  static class TwoSideInputAssert<ActualT, ExpectedT>
+  public static class TwoSideInputAssert<ActualT, ExpectedT>
       extends PTransform<PBegin, PDone> implements Serializable {
 
     private final transient PTransform<PBegin, PCollectionView<ActualT>> createActual;

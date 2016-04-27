@@ -177,8 +177,8 @@
           <windowtitle>Google Cloud Dataflow Java Runner ${project.version}</windowtitle>
           <doctitle>Google Cloud Dataflow Runner for Java, version ${project.version}</doctitle>
 
-          <subpackages>org.apache.beam.sdk</subpackages>
-          <additionalparam>-exclude org.apache.beam.sdk.runners.worker:org.apache.beam.sdk.runners.dataflow:org.apache.beam.sdk.util:org.apache.beam.sdk.runners.inprocess ${dataflow.javadoc_opts}</additionalparam>
+          <subpackages>org.apache.beam.runners.dataflow</subpackages>
+          <additionalparam>-exclude org.apache.beam.sdk.runners.dataflow.internal:org.apache.beam.sdk.runners.dataflow.testing:org.apache.beam.sdk.runners.dataflow.util ${dataflow.javadoc_opts}</additionalparam>
           <use>false</use>
           <quiet>true</quiet>
           <bottom><![CDATA[<br>]]></bottom>

@@ -17,11 +17,11 @@
  */
 package org.apache.beam.runners.flink;
 
+import org.apache.beam.runners.dataflow.DataflowPipelineRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
-import org.apache.beam.sdk.runners.DataflowPipelineRunner;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PInput;
@@ -46,7 +46,7 @@ import java.util.Map;
  * pipeline by first translating them to a Flink Plan and then executing them either locally
  * or on a Flink cluster, depending on the configuration.
  * <p>
- * This is based on {@link org.apache.beam.sdk.runners.DataflowPipelineRunner}.
+ * This is based on {@link org.apache.beam.runners.dataflow.DataflowPipelineRunner}.
  */
 public class FlinkPipelineRunner extends PipelineRunner<FlinkRunnerResult> {
 

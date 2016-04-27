@@ -226,7 +226,7 @@ public final class ZipFiles {
    * @throws IOException the zipping failed, e.g. because the input was not
    *     readable.
    */
-  static void zipDirectory(
+  public static void zipDirectory(
       File sourceDirectory,
       OutputStream outputStream) throws IOException {
     checkNotNull(sourceDirectory);

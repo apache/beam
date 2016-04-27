@@ -17,12 +17,13 @@
  */
 package ${package}.common;
 
-import com.google.api.services.bigquery.model.TableSchema;
-import org.apache.beam.sdk.options.DataflowPipelineOptions;
+import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
+
+import com.google.api.services.bigquery.model.TableSchema;
 
 /**
  * Options that can be used to configure BigQuery tables in Dataflow examples.
