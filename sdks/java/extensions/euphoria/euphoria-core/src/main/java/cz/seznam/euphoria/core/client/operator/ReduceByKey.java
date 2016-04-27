@@ -257,8 +257,7 @@ public class ReduceByKey<
 
     Flow flow = getFlow();
     Operator<?, ?, ?> reduceState;
-    reduceState = new ReduceStateByKey<IN, IN, IN, KEY, VALUE, Pair<KEY, OUT>,
-      ReduceState, W, Dataset<Pair<KEY, OUT>>>(
+    reduceState = new ReduceStateByKey<>(
         flow, input, keyExtractor, valueExtractor,
         windowing,
         ReduceState::new,
