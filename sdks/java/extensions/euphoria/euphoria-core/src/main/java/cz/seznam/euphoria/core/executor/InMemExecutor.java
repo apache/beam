@@ -40,6 +40,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -614,14 +615,15 @@ public class InMemExecutor implements Executor {
 
     // consume repartitioned suppliers
     repartitioned.stream().forEach(q -> {
-      final Map<Window, Map<Object, State>> windowStates = new HashMap<>();
       final BlockingQueue output = new ArrayBlockingQueue(5000);
-      final Map<Object, State> aggregatingStates = new HashMap<>();
-      final boolean isAggregating = windowing.isAggregating();
-      final LocalTriggering triggering = new LocalTriggering();
-
       outputSuppliers.add(QueueSupplier.wrap(output));
+
       executor.execute(() -> {
+        final Map<Window, Map<Object, State>> windowStates = new ConcurrentHashMap<>();
+        final Map<Object, State> aggregatingStates = new HashMap<>();
+        final LocalTriggering triggering = new LocalTriggering();
+        final boolean isAggregating = windowing.isAggregating();
+
         for (;;) {
           try {
             Object item = q.take();
@@ -636,9 +638,8 @@ public class InMemExecutor implements Executor {
                   @Override
                   public Void apply(Window window) {
                     synchronized(window) {
-                      window.flushAll();
+                      windowing.close(window);
                     }
-                    windowing.close(window);
                     windowStates.remove(window);
                     return null;
                   }
