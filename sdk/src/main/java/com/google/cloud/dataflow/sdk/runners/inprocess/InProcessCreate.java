@@ -171,9 +171,9 @@ class InProcessCreate<T> extends ForwardingPTransform<PInput, PCollection<T>> {
     @Override
     public long getBytesPerOffset() {
       if (allElementsBytes.size() == 0) {
-        return 0L;
+        return 1L;
       }
-      return totalSize / allElementsBytes.size();
+      return Math.max(1L, totalSize / allElementsBytes.size());
     }
   }
 
