@@ -75,7 +75,7 @@ public class DisplayData {
    * a namespace derived from the component.
    */
   public static DisplayData from(HasDisplayData component) {
-    checkNotNull(component, "Input component cannot be null");
+    checkNotNull(component, "component argument cannot be null");
     return InternalBuilder.forRoot(component).build();
   }
 
@@ -200,7 +200,7 @@ public class DisplayData {
 
   /**
    * {@link Item Items} are the unit of display data. Each item is identified by a given key
-   * and namespace from the component it belongs to.
+   * and namespace from the component the display item belongs to.
    *
    * <p>{@link Item Items} are registered via {@link DisplayData.Builder#add}
    * within {@link HasDisplayData#populateDisplayData} implementations.
@@ -209,15 +209,15 @@ public class DisplayData {
   public abstract static class Item<T> {
 
     /**
-     * The namespace for the display item. The namespace is generated from the component which
-     * item display item belongs to.
+     * The namespace for the display item. The namespace defaults to the component which
+     * the display item belongs to.
      */
     @Nullable
     @JsonGetter("namespace")
     public abstract String getNamespace();
 
     /**
-     * The key for the display item. Each display item is create with a key and value
+     * The key for the display item. Each display item is created with a key and value
      * via {@link DisplayData#item).
      */
     @JsonGetter("key")
@@ -231,9 +231,9 @@ public class DisplayData {
     public abstract Type getType();
 
     /**
-     * Retrieve the value of the display item. The value is translated from input to
-     * {@link DisplayData#item} into a format suitable for display, using
-     * {@link Type#format(Object)}.
+     * Retrieve the value of the display item. The value is translated from the input to
+     * {@link DisplayData#item} into a format suitable for display. Translation is based on the
+     * item's {@link #getType() type}.
      *
      * <p>The value will only be {@literal null} if the input value during creation was null.
      */
@@ -291,19 +291,19 @@ public class DisplayData {
      * with the namespace set.
      */
     public Item<T> withNamespace(Class<?> namespace) {
-      checkNotNull(namespace, "Input namespace cannot be null");
+      checkNotNull(namespace, "namespace argument cannot be null");
       return withNamespace(ClassForDisplay.of(namespace));
     }
 
     /** @see #withNamespace(Class) */
     private Item<T> withNamespace(ClassForDisplay namespace) {
-      checkNotNull(namespace, "Input namespace cannot be null");
+      checkNotNull(namespace, "namesapce argument cannot be null");
       return withNamespace(namespaceOf(namespace));
     }
 
     /** @see #withNamespace(Class) */
     public Item<T> withNamespace(String namespace) {
-      checkNotNull(namespace, "Input component cannot be null");
+      checkNotNull(namespace, "namespace argument cannot be null");
       return of(
           namespace, getKey(), getType(), getValue(), getShortValue(), getLabel(), getLinkUrl());
     }
@@ -502,10 +502,12 @@ public class DisplayData {
     /**
      * Safe version of {@link Type#format(Object)}, which checks for null input value and if so
      * returns a {@link FormattedItemValue} with null value properties.
+     *
+     * @see #format(Object)
      */
     FormattedItemValue safeFormat(@Nullable Object value) {
       if (value == null) {
-        return FormattedItemValue.DEFAULT;
+        return FormattedItemValue.NULL_VALUES;
       }
 
       return format(value);
@@ -534,7 +536,10 @@ public class DisplayData {
   }
 
   static class FormattedItemValue {
-    static final FormattedItemValue DEFAULT = new FormattedItemValue(null);
+    /**
+     * Default instance which contains null values.
+     */
+    private static final FormattedItemValue NULL_VALUES = new FormattedItemValue(null);
 
     private final Object shortValue;
     private final Object longValue;
@@ -576,7 +581,7 @@ public class DisplayData {
 
     @Override
     public Builder include(HasDisplayData subComponent) {
-      checkNotNull(subComponent, "Input subcomponent cannot be null");
+      checkNotNull(subComponent, "subComponent argument cannot be null");
       return include(subComponent, subComponent.getClass());
     }
 
@@ -594,7 +599,7 @@ public class DisplayData {
 
     @Override
     public Builder include(HasDisplayData subComponent, String namespace) {
-      checkNotNull(subComponent, "Input subcomponent cannot be null");
+      checkNotNull(subComponent, "subComponent argument cannot be null");
       checkNotNull(namespace, "Input namespace override cannot be null");
 
       boolean newComponent = visited.add(subComponent);
@@ -660,63 +665,63 @@ public class DisplayData {
   }
 
   /**
-   * Create a display item for the specified key and string value.
+   * Create a display item for the specified key and integer value.
    */
   public static Item<Integer> item(String key, @Nullable Integer value) {
     return item(key, Type.INTEGER, value);
   }
 
   /**
-   * Create a display item for the specified key and string value.
+   * Create a display item for the specified key and integer value.
    */
   public static Item<Long> item(String key, @Nullable Long value) {
     return item(key, Type.INTEGER, value);
   }
 
   /**
-   * Create a display item for the specified key and string value.
+   * Create a display item for the specified key and floating point value.
    */
   public static Item<Float> item(String key, @Nullable Float value) {
     return item(key, Type.FLOAT, value);
   }
 
   /**
-   * Create a display item for the specified key and string value.
+   * Create a display item for the specified key and floating point value.
    */
   public static Item<Double> item(String key, @Nullable Double value) {
     return item(key, Type.FLOAT, value);
   }
 
   /**
-   * Create a display item for the specified key and string value.
+   * Create a display item for the specified key and boolean value.
    */
   public static Item<Boolean> item(String key, @Nullable Boolean value) {
     return item(key, Type.BOOLEAN, value);
   }
 
   /**
-   * Create a display item for the specified key and string value.
+   * Create a display item for the specified key and timestamp value.
    */
   public static Item<Instant> item(String key, @Nullable Instant value) {
     return item(key, Type.TIMESTAMP, value);
   }
 
   /**
-   * Create a display item for the specified key and string value.
+   * Create a display item for the specified key and duration value.
    */
   public static Item<Duration> item(String key, @Nullable Duration value) {
     return item(key, Type.DURATION, value);
   }
 
   /**
-   * Create a display item for the specified key and string value.
+   * Create a display item for the specified key and class value.
    */
   public static <T> Item<Class<T>> item(String key, @Nullable Class<T> value) {
     return item(key, Type.JAVA_CLASS, value);
   }
 
   /**
-   * Create a display item for the specified key and string value.
+   * Create a display item for the specified key and class value.
    */
   public static Item<ClassForDisplay> item(String key, @Nullable ClassForDisplay value) {
     return item(key, Type.JAVA_CLASS, value);
@@ -733,8 +738,8 @@ public class DisplayData {
    *  @see Type#inferType(Object)
    */
   public static <T> Item<T> item(String key, Type type, @Nullable T value) {
-    checkNotNull(key, "Input key cannot be null");
-    checkNotNull(type, "Input type cannot be null");
+    checkNotNull(key, "key argument cannot be null");
+    checkNotNull(type, "type argument cannot be null");
 
     return Item.create(key, type, value);
   }

@@ -42,7 +42,7 @@ public class ClassForDisplay implements Serializable {
    * Create a {@link ClassForDisplay} instance representing the specified class.
    */
   public static ClassForDisplay of(Class<?> clazz) {
-    checkNotNull(clazz, "Input class cannot be null");
+    checkNotNull(clazz, "clazz argument cannot be null");
     return new ClassForDisplay(clazz);
   }
 
@@ -50,7 +50,7 @@ public class ClassForDisplay implements Serializable {
    * Create a {@link ClassForDisplay} from the class of the specified object instance.
    */
   public static ClassForDisplay fromInstance(Object obj) {
-    checkNotNull(obj, "Input instance cannot be null");
+    checkNotNull(obj, "obj argument instance cannot be null");
     return new ClassForDisplay(obj.getClass());
   }
 
