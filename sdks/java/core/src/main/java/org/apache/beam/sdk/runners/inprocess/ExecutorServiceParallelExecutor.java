@@ -272,8 +272,11 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
    * Used to signal when the executor should be shut down (due to an exception).
    */
   private static class ExecutorUpdate {
+    /** The bundle to be consumed. If present, consumer must also be present. */
     private final Optional<? extends CommittedBundle<?>> bundle;
+    /** The consumer of the bundle. If present, bundle must also be present. */
     private final Optional<? extends AppliedPTransform<?, ?, ?>> consumer;
+
     private final Optional<? extends Throwable> throwable;
 
     public static ExecutorUpdate fromBundle(
@@ -286,9 +289,9 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
     }
 
     private ExecutorUpdate(
-        CommittedBundle<?> producedBundle,
-        AppliedPTransform<?, ?, ?> consumer,
-        Throwable throwable) {
+        @Nullable CommittedBundle<?> producedBundle,
+        @Nullable AppliedPTransform<?, ?, ?> consumer,
+        @Nullable Throwable throwable) {
       checkArgument((producedBundle == null) == (consumer == null),
               "The produced bundle and consuming PTransform must either "
                   + "both be null or neither be null");

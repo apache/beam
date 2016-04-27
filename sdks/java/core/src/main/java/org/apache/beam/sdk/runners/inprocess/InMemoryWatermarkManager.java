@@ -800,7 +800,11 @@ public class InMemoryWatermarkManager {
    *
    * @param completed the input that has completed
    * @param transform the transform that has completed processing the input
-   * @param outputs the bundles the transform has output
+   * @param timerUpdate the timers that fired to produce this update, plus the timers that were
+   *                    added or removed as part of processing this update
+   * @param outputs the CommittedBundles that were output by processing the input bundle, and the
+   *                PTransforms that the bundles will be consumed by. Elements in each output bundle
+   *                become pending on each AppliedPTransform that will consume them
    * @param earliestHold the earliest watermark hold in the transform's state. {@code null} if there
    *                     is no hold
    */
@@ -836,6 +840,14 @@ public class InMemoryWatermarkManager {
    * and removes all deleted timers. Removes all elements consumed by the input bundle from the
    * {@link PTransform PTransforms} collection of pending elements, and adds all elements produced
    * by the {@link PTransform} to the pending queue of each consumer.
+   *
+   * @param input the CommittedBundle that produced this update
+   * @param transform the AppliedPTransform that consumed the input to produce the outputs
+   * @param timerUpdate the timers that fired to produce this update, plus the timers that were
+   *                    added or removed as part of processing this update
+   * @param outputs the CommittedBundles that were output by processing the input bundle, and the
+   *                PTransforms that the bundles will be consumed by. Elements in each output bundle
+   *                become pending on each AppliedPTransform that will consume them
    */
   private void updatePending(
       CommittedBundle<?> input,
