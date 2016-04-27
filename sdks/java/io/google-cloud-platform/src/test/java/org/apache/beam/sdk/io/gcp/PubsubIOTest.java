@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io;
+package org.apache.beam.sdk.io.gcp;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 
@@ -30,6 +30,7 @@ import com.google.api.services.pubsub.model.PubsubMessage;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -50,7 +51,7 @@ public class PubsubIOTest {
 
   @Test
   public void testPubsubIOGetName() {
-    assertEquals("PubsubIO.Read",
+    Assert.assertEquals("PubsubIO.Read",
         PubsubIO.Read.topic("projects/myproject/topics/mytopic").getName());
     assertEquals("PubsubIO.Write",
         PubsubIO.Write.topic("projects/myproject/topics/mytopic").getName());

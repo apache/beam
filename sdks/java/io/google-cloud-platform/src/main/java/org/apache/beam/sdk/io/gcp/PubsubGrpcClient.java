@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.io;
+package org.apache.beam.sdk.io.gcp;
 
 import org.apache.beam.sdk.options.GcpOptions;
 
