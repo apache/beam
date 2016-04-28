@@ -15,11 +15,9 @@
 """In-memory input source."""
 
 import itertools
-import logging
 
 from google.cloud.dataflow import coders
 from google.cloud.dataflow.io import iobase
-from google.cloud.dataflow.io import range_trackers
 
 
 class InMemorySource(iobase.NativeSource):
@@ -55,14 +53,11 @@ class InMemoryReader(iobase.NativeSourceReader):
   """A reader for in-memory source."""
 
   def __init__(self, source):
-    self._source = source
+    self.source = source
 
-    # Index of the last item returned by InMemoryReader.
-    # Initialized to None.
-    self._current_index = None
-
-    self._range_tracker = range_trackers.OffsetRangeTracker(
-        self._source.start_index, self._source.end_index)
+    # Index of the next item to be read by the InMemoryReader.
+    # Starts at source.start_index.
+    self.current_index = source.start_index
 
   def __enter__(self):
     return self
@@ -71,47 +66,21 @@ class InMemoryReader(iobase.NativeSourceReader):
     pass
 
   def __iter__(self):
-    for value in itertools.islice(self._source.elements,
-                                  self._source.start_index,
-                                  self._source.end_index):
-      claimed = False
-      if self._current_index is None:
-        claimed = self._range_tracker.try_return_record_at(
-            True, self._source.start_index)
-      else:
-        claimed = self._range_tracker.try_return_record_at(
-            True, self._current_index + 1)
-
-      if claimed:
-        if self._current_index is None:
-          self._current_index = self._source.start_index
-        else:
-          self._current_index += 1
-
-        yield self._source.coder.decode(value)
-      else:
-        return
+    for value in itertools.islice(self.source.elements,
+                                  self.source.start_index,
+                                  self.source.end_index):
+      self.current_index += 1
+      yield self.source.coder.decode(value)
 
   def get_progress(self):
-    if self._current_index is None:
-      return None
+    if (self.current_index >= self.source.end_index or
+        self.source.start_index >= self.source.end_index):
+      percent_complete = 1
+    elif self.current_index == self.source.start_index:
+      percent_complete = 0
+    else:
+      percent_complete = (
+          float(self.current_index - self.source.start_index) / (
+              self.source.end_index - self.source.start_index))
 
-    return iobase.ReaderProgress(
-        position=iobase.ReaderPosition(record_index=self._current_index))
-
-  def request_dynamic_split(self, dynamic_split_request):
-    assert dynamic_split_request is not None
-    progress = dynamic_split_request.progress
-    split_position = progress.position
-    if split_position is None:
-      logging.debug('InMemory reader only supports split requests that are '
-                    'based on positions. Received : %r', dynamic_split_request)
-
-    index_position = split_position.record_index
-    if index_position is None:
-      logging.debug('InMemory reader only supports split requests that are '
-                    'based on index positions. Received : %r',
-                    dynamic_split_request)
-
-    if self._range_tracker.try_split_at_position(index_position):
-      return iobase.DynamicSplitResultWithPosition(split_position)
+    return iobase.ReaderProgress(percent_complete=percent_complete)
