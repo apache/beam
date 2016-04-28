@@ -58,7 +58,7 @@ public class Distinct<IN, W extends Window<?>, TYPE extends Dataset<IN>>
         windowing,
         (CombinableReduceFunction<Void>) e -> null);
 
-    reduce.partitionBy(getPartitioning());
+    reduce.setPartitioning(getPartitioning());
     Dataset<Pair<IN, Void>> reduced = reduce.output();
     Map<Pair<IN, Void>, IN, Dataset<IN>> format = new Map<>(
         flow, reduced, Pair::getFirst);

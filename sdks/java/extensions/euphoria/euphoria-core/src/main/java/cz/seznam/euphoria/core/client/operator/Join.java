@@ -295,7 +295,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window<?>, TYPE extends Datas
 
     ReduceStateByKey<Either<LEFT, RIGHT>, Either<LEFT, RIGHT>, Either<LEFT, RIGHT>,
         KEY, Either<LEFT, RIGHT>,
-        Pair<KEY, OUT>, JoinState, JoinWindow, Dataset<Pair<KEY, OUT>>> reduce;
+        OUT, JoinState, JoinWindow, Dataset<Pair<KEY, OUT>>> reduce;
 
     reduce = new ReduceStateByKey<>(
               flow,
