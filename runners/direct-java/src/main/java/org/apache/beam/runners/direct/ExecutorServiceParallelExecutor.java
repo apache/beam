@@ -344,6 +344,7 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
   }
 
   private class MonitorRunnable implements Runnable {
+    private final int MAX_UPDATES_PER_CALL = 250;
     private final String runnableName =
         String.format(
             "%s$%s-monitor",
@@ -356,6 +357,7 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
       Thread.currentThread().setName(runnableName);
       try {
         ExecutorUpdate update = allUpdates.poll();
+        int numUpdates = 0;
         // pull all of the pending work off of the queue
         while (update != null) {
           LOG.debug("Executor Update: {}", update);
@@ -364,7 +366,12 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
           } else if (update.getException().isPresent()) {
             visibleUpdates.offer(VisibleExecutorUpdate.fromThrowable(update.getException().get()));
           }
-          update = allUpdates.poll();
+          if (numUpdates >= MAX_UPDATES_PER_CALL) {
+            break;
+          } else {
+            numUpdates++;
+            update = allUpdates.poll();
+          }
         }
         boolean timersFired = fireTimers();
         addWorkIfNecessary(timersFired);
