@@ -149,11 +149,11 @@ class InProcessEvaluationContext {
     Iterable<? extends CommittedBundle<?>> committedBundles =
         commitBundles(result.getOutputBundles());
     // Update watermarks and timers
+    CommittedResult committedResult = CommittedResult.create(result, committedBundles);
     watermarkManager.updateWatermarks(
         completedBundle,
-        result.getTransform(),
         result.getTimerUpdate().withCompletedTimers(completedTimers),
-        committedBundles,
+        committedResult,
         result.getWatermarkHold());
     fireAllAvailableCallbacks();
     // Update counters
@@ -173,7 +173,7 @@ class InProcessEvaluationContext {
         applicationStateInternals.remove(stepAndKey);
       }
     }
-    return CommittedResult.create(result, committedBundles);
+    return committedResult;
   }
 
   private Iterable<? extends CommittedBundle<?>> commitBundles(
