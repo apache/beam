@@ -148,7 +148,8 @@ class InProcessEvaluationContext {
    * @param completedTimers the timers that were delivered to produce the {@code completedBundle},
    *                        or an empty iterable if no timers were delivered
    * @param result the result of evaluating the input bundle
-   * @return the committed bundles contained within the handled {@code result}
+   * @return a mapping between the Committed {@link UncommittedBundle bundles} contained within the
+   * result to each {@link AppliedPTransform} that will consume them
    */
   public synchronized Map<CommittedBundle<?>, Collection<AppliedPTransform<?, ?, ?>>> handleResult(
       @Nullable CommittedBundle<?> completedBundle,
