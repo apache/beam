@@ -65,10 +65,12 @@ public class ReduceByKey<
       this.keyExtractor = keyExtractor;
       this.valueExtractor = valueExtractor;
     }
-    public <OUT> Builder4<IN, KEY, VALUE, OUT> reduceBy(ReduceFunction<VALUE, OUT> reducer) {
+    public <OUT> Builder4<IN, KEY, VALUE, OUT> reduceBy(
+        ReduceFunction<VALUE, OUT> reducer) {
       return new Builder4<>(input, keyExtractor, valueExtractor, reducer);
     }
-    public Builder4<IN, KEY, VALUE, VALUE> combineBy(CombinableReduceFunction<VALUE> reducer) {
+    public Builder4<IN, KEY, VALUE, VALUE> combineBy(
+        CombinableReduceFunction<VALUE> reducer) {
       return new Builder4<>(input, keyExtractor, valueExtractor, reducer);
     }
   }
@@ -185,7 +187,7 @@ public class ReduceByKey<
     super("ReduceByKey", flow, input, keyExtractor, windowing);
     this.reducer = reducer;
     this.valueExtractor = valueExtractor;
-    this.partitionBy(new HashPartitioning<>(
+    this.setPartitioning(new HashPartitioning<>(
         input.getPartitioning().getNumPartitions()));
   }
 
@@ -256,7 +258,7 @@ public class ReduceByKey<
     // this can be implemented using ReduceStateByKey
 
     Flow flow = getFlow();
-    Operator<?, ?, ?> reduceState;
+    ReduceStateByKey<IN, IN, IN, KEY, VALUE, OUT, ReduceState, W, TYPE> reduceState;
     reduceState = new ReduceStateByKey<>(
         flow, input, keyExtractor, valueExtractor,
         windowing,
