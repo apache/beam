@@ -24,7 +24,6 @@ import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.util.IllegalMutationException;
 import org.apache.beam.sdk.util.MutationDetector;
 import org.apache.beam.sdk.util.MutationDetectors;
-import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 
@@ -56,7 +55,7 @@ class ImmutabilityEnforcementFactory implements ModelEnforcementFactory {
     private ImmutabilityCheckingEnforcement(
         CommittedBundle<T> input, AppliedPTransform<?, ?, ?> transform) {
       this.transform = transform;
-      coder = SerializableUtils.clone(input.getPCollection().getCoder());
+      coder = input.getPCollection().getCoder();
       mutationElements = new IdentityHashMap<>();
     }
 

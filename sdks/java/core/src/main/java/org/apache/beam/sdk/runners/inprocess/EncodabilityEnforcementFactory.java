@@ -23,7 +23,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
@@ -47,7 +46,7 @@ class EncodabilityEnforcementFactory implements ModelEnforcementFactory {
     private Coder<T> coder;
 
     public EncodabilityEnforcement(CommittedBundle<T> input) {
-      coder = SerializableUtils.clone(input.getPCollection().getCoder());
+      coder = input.getPCollection().getCoder();
     }
 
     @Override
