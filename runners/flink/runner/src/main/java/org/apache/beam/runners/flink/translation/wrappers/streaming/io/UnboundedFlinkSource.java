@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming.io;
 
+import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -36,6 +37,9 @@ import javax.annotation.Nullable;
 public class UnboundedFlinkSource<T> extends UnboundedSource<T, UnboundedSource.CheckpointMark> {
 
   private final SourceFunction<T> flinkSource;
+
+  /** Coder set during translation */
+  private Coder<T> coder;
 
   public UnboundedFlinkSource(SourceFunction<T> source) {
     flinkSource = Preconditions.checkNotNull(source);
@@ -68,8 +72,12 @@ public class UnboundedFlinkSource<T> extends UnboundedSource<T, UnboundedSource.
 
   @Override
   public Coder<T> getDefaultOutputCoder() {
-    // The coder is specified in the Flink source
-    return null;
+    // The coder derived from the Flink source
+    return coder;
+  }
+
+  public void setCoder(Coder<T> coder) {
+    this.coder = coder;
   }
 
   /**

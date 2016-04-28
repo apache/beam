@@ -20,6 +20,7 @@ package org.apache.beam.runners.flink.translation;
 
 import org.apache.beam.runners.flink.translation.functions.UnionCoder;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
+import org.apache.beam.runners.flink.translation.types.FlinkCoder;
 import org.apache.beam.runners.flink.translation.wrappers.SourceInputFormat;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.FlinkGroupAlsoByWindowWrapper;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.FlinkGroupByKeyWrapper;
@@ -262,9 +263,15 @@ public class FlinkStreamingTransformTranslators {
       DataStream<WindowedValue<T>> source;
       if (transform.getSource().getClass().equals(UnboundedFlinkSource.class)) {
         @SuppressWarnings("unchecked")
-        UnboundedFlinkSource<T> flinkSource = (UnboundedFlinkSource<T>) transform.getSource();
-        source = context.getExecutionEnvironment()
-            .addSource(flinkSource.getFlinkSource())
+        UnboundedFlinkSource<T> flinkSourceFunction = (UnboundedFlinkSource<T>) transform.getSource();
+        DataStream<T> flinkSource = context.getExecutionEnvironment()
+            .addSource(flinkSourceFunction.getFlinkSource());
+
+        flinkSourceFunction.setCoder(
+            new FlinkCoder<T>(flinkSource.getType(),
+              context.getExecutionEnvironment().getConfig()));
+
+        source = flinkSource
             .flatMap(new FlatMapFunction<T, WindowedValue<T>>() {
               @Override
               public void flatMap(T s, Collector<WindowedValue<T>> collector) throws Exception {
