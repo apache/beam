@@ -22,7 +22,6 @@ import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.util.IllegalMutationException;
 import com.google.cloud.dataflow.sdk.util.MutationDetector;
 import com.google.cloud.dataflow.sdk.util.MutationDetectors;
-import com.google.cloud.dataflow.sdk.util.SerializableUtils;
 import com.google.cloud.dataflow.sdk.util.UserCodeException;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 
@@ -54,7 +53,7 @@ class ImmutabilityEnforcementFactory implements ModelEnforcementFactory {
     private ImmutabilityCheckingEnforcement(
         CommittedBundle<T> input, AppliedPTransform<?, ?, ?> transform) {
       this.transform = transform;
-      coder = SerializableUtils.clone(input.getPCollection().getCoder());
+      coder = input.getPCollection().getCoder();
       mutationElements = new IdentityHashMap<>();
     }
 

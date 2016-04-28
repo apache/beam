@@ -21,7 +21,6 @@ import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
-import com.google.cloud.dataflow.sdk.util.SerializableUtils;
 import com.google.cloud.dataflow.sdk.util.UserCodeException;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -45,7 +44,7 @@ class EncodabilityEnforcementFactory implements ModelEnforcementFactory {
     private Coder<T> coder;
 
     public EncodabilityEnforcement(CommittedBundle<T> input) {
-      coder = SerializableUtils.clone(input.getPCollection().getCoder());
+      coder = input.getPCollection().getCoder();
     }
 
     @Override
