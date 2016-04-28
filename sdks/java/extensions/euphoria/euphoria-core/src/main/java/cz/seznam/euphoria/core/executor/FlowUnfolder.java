@@ -9,6 +9,7 @@ import cz.seznam.euphoria.core.client.graph.Node;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.operator.Operator;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -21,6 +22,31 @@ import java.util.stream.Collectors;
  * Unfold {@code Flow} to contain only selected operators.
  */
 public class FlowUnfolder {
+
+  /**
+   * Node added as a producer of inputs. This is fake "operator"
+   * with the same input as output.
+   */
+  public static final class InputOperator<T> extends Operator<T, T, Dataset<T>> {
+
+    private final Dataset<T> ds;
+
+    InputOperator(Dataset<T> ds) {
+      super("InputOperator", ds.getFlow());
+      this.ds = ds;
+    }
+
+    @Override
+    public Collection<Dataset<T>> listInputs() {
+      return Collections.EMPTY_LIST;
+    }
+
+    @Override
+    public Dataset<T> output() {
+      return ds;
+    }
+
+  }
 
   /**
    * Unfold the flow so that it contains only allowed operators.
@@ -43,18 +69,25 @@ public class FlowUnfolder {
   private static DAG<Operator<?, ?, ?>> translate(DAG<Operator<?, ?, ?>> dag,
       Set<Class> allowed) throws IllegalArgumentException {
 
+    // create root nodes for all inputs
     DAG<Operator<?, ?, ?>> ret = DAG.of();
+    
     Map<Dataset<?>, Optional<Operator<?, ?, ?>>> datasetProducents = new HashMap<>();
-    // first initialize all datasets in the original DAG to have empty producents
+
+    // initialize all other datasets in the original DAG to have empty producents
     dag.nodes().flatMap(n -> n.listInputs().stream())
         .forEach(d -> datasetProducents.put(d, Optional.empty()));
     // next, store the real producents, so that datasets with no producents
-    // are stored in 'datasetProcents' without producent
+    // are stored in 'datasetProducents' without producent
     dag.nodes().forEach(n -> datasetProducents.put(n.output(), Optional.of(n)));
 
     // filter the dag to contain only specified operators
     dag.bfs().forEach(n -> {
-      if (allowed.contains((Class) n.get().getClass())) {
+      if (n.get() instanceof InputOperator) {
+        // this is added 'fake' operator node, the operator has by definition no
+        // parents
+        ret.add(n.get());
+      } else if (allowed.contains((Class) n.get().getClass())) {
         List<Operator<?, ?, ?>> parents = getParents(n, datasetProducents);
         ret.add(n.get(), parents);
       } else {
@@ -102,8 +135,8 @@ public class FlowUnfolder {
    * Retrieve parent operators in so far constructed transformed DAG.
    */
   private static List<Operator<?, ?, ?>> getParents(
-      Node<Operator<?, ?, ?>> node, Map<Dataset<?>,
-      Optional<Operator<?, ?, ?>>> datasetProducents) {
+      Node<Operator<?, ?, ?>> node,
+      Map<Dataset<?>, Optional<Operator<?, ?, ?>>> datasetProducents) {
 
     if (node.getParents().isEmpty()) {
       Operator<?, ?, ?> op = node.get();
@@ -138,12 +171,20 @@ public class FlowUnfolder {
   /**
    * Convert a given {@code Flow} to DAG (unconditionally).
    */
+  @SuppressWarnings("unchecked")
   private static DAG<Operator<?, ?, ?>> toDAG(Flow flow) {
     Collection<Operator<?, ?, ?>> operators = flow.operators();
     Set<Operator<?, ?, ?>> resolvedOperators = new HashSet<>();
     Map<Dataset<?>, Operator<?, ?, ?>> datasets = new HashMap<>();
-    flow.sources().stream().forEach(d -> datasets.put(d, null));
-    DAG<Operator<?, ?, ?>> ret = DAG.of();
+    flow.sources().stream().forEach(d -> datasets.put(d, new InputOperator(d)));
+
+    // root nodes
+    List<Operator<?, ?, ?>> roots = datasets.values()
+        .stream()
+        .collect(Collectors.toList());
+
+
+    DAG<Operator<?, ?, ?>> ret = DAG.of((List) roots);
 
     while (resolvedOperators.size() != operators.size()) {
       boolean anyAdded = false;
@@ -155,7 +196,6 @@ public class FlowUnfolder {
             // get parent operators
             List<Operator<?, ?, ?>> parents = op.listInputs().stream()
                 .map(datasets::get)
-                .filter(p -> p != null)
                 .collect(Collectors.toList());
             ret.add(op, parents);
             // add output of the operator to available datasets

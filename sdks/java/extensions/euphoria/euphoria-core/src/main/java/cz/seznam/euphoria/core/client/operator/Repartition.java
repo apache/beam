@@ -24,8 +24,9 @@ public class Repartition<IN, TYPE extends Dataset<IN>>
       return new Builder2<>(input, partitioner);
     }
     public Repartition<IN, TYPE> setNumPartitions(int partitions) {
-      return new Repartition<>(input.getFlow(), input, new HashPartitioner<>(),
-          partitions);
+      Flow flow = input.getFlow();
+      return flow.add(new Repartition<>(flow, input,
+          new HashPartitioner<>(), partitions));
     }
   }
   public static class Builder2<IN, TYPE extends Dataset<IN>> {
@@ -36,7 +37,8 @@ public class Repartition<IN, TYPE extends Dataset<IN>>
       this.partitioner = partitioner;
     }
     public Repartition<IN, TYPE> setNumPartitions(int partitions) {
-      return new Repartition<>(input.getFlow(), input, partitioner, partitions);
+      Flow flow = input.getFlow();
+      return flow.add(new Repartition<>(flow, input, partitioner, partitions));
     }
   }
 
@@ -66,12 +68,6 @@ public class Repartition<IN, TYPE extends Dataset<IN>>
       }
 
     };
-  }
-
-  @Override
-  @SuppressWarnings("unchecked")
-  public TYPE output() {
-    return super.output();
   }
 
   @Override

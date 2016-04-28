@@ -1,8 +1,6 @@
 
 package cz.seznam.euphoria.core.executor;
 
-import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.Partitioner;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.Window;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
@@ -25,6 +23,7 @@ import cz.seznam.euphoria.core.client.operator.Repartition;
 import cz.seznam.euphoria.core.client.operator.State;
 import cz.seznam.euphoria.core.client.operator.Union;
 import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.core.executor.FlowUnfolder.InputOperator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,6 +47,7 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -95,7 +95,8 @@ public class InMemExecutor implements Executor {
         }
         throw new EndOfStreamException();
       }
-      return this.reader.next();
+      T next = this.reader.next();
+      return next;
     }
   }
 
@@ -249,12 +250,15 @@ public class InMemExecutor implements Executor {
 
     final List<Future> runningTasks = new ArrayList<>();
     Collection<Node<Operator<?, ?, ?>>> leafs = dag.getLeafs();
-
+    
     List<ExecUnit> units = ExecUnit.split(dag);
+
+    if (units.isEmpty()) {
+      throw new IllegalArgumentException("Cannot execute empty flow");
+    }
+
     for (ExecUnit unit : units) {
       ExecutionContext context = new ExecutionContext();
-
-      prepareInputsToContext(unit, context);
 
       execUnit(unit, context);
     
@@ -293,6 +297,7 @@ public class InMemExecutor implements Executor {
   }
 
   /** Read all outputs of given nodes and store them using their sinks. */
+  @SuppressWarnings("unchecked")
   private List<Future> consumeOutputs(
       Collection<Node<Operator<?, ?, ?>>> leafs,
       ExecutionContext context)
@@ -340,23 +345,6 @@ public class InMemExecutor implements Executor {
     }
     return tasks;
   }
-
-
-  private void prepareInputsToContext(ExecUnit unit, ExecutionContext context)
-  {
-    // create record for each input dataset in context
-    // input datasets are represented as edges with null parent
-    unit.getDAG().bfs()
-        .flatMap(n -> n.get().listInputs().stream()
-            // take input datasets
-            .filter(i -> i.getProducer() == null)
-            .map(i -> Pair.of(n, i)))
-        .forEach(p -> {
-          Dataset<?> inputDataset = p.getSecond();
-          context.add(
-              null, p.getFirst().get(), createStream(inputDataset.getSource()));
-        });
-  }
   
 
   @SuppressWarnings("unchecked")
@@ -385,7 +373,9 @@ public class InMemExecutor implements Executor {
     if (context.isRunning(op)) {
       return;
     }
-    if (op instanceof FlatMap) {
+    if (op instanceof InputOperator) {
+      output = createStream(op.output().getSource());
+    } else if (op instanceof FlatMap) {
       output = execMap((Node) node, context);
     } else if (op instanceof Repartition) {
       output = execRepartition((Node) node, context);
@@ -480,8 +470,7 @@ public class InMemExecutor implements Executor {
       Node<Repartition> repartition,
       ExecutionContext context) {
 
-    Partitioning<?> partitioning = repartition.get().getPartitioning();
-    Partitioner<?> partitioner = partitioning.getPartitioner();
+    Partitioning partitioning = repartition.get().getPartitioning();
     int numPartitions = partitioning.getNumPartitions();
     InputProvider<?> input = context.get(
         repartition.getSingleParentOrNull().get(), repartition.get());
@@ -489,27 +478,17 @@ public class InMemExecutor implements Executor {
       throw new IllegalArgumentException("Cannot repartition input to "
           + numPartitions + " partitions");
     }
-    List<BlockingQueue> outputQueues = new ArrayList<>(numPartitions);
-    for (Supplier<?> s : input) {
-      BlockingQueue outputQueue = new ArrayBlockingQueue(
-          5000 * (input.size() / numPartitions) + 1);
-      outputQueues.add(outputQueue);
-      executor.execute(() -> {
-        try {
-          for (;;) {
-            outputQueue.put(s.get());
-          }
-        } catch (EndOfStreamException | InterruptedException ex) {
-          outputQueue.add(EndOfStream.get());
-        }
-      });
-    }
+
+    List<BlockingQueue> outputQueues = repartitionSuppliers(
+        input, e -> e, partitioning);
+    
     InputProvider<?> ret = new InputProvider<>();
     outputQueues.stream()
         .map(QueueSupplier::new)
         .forEach(s -> ret.add((Supplier) s));
     return ret;
   }
+
 
   private static final class CompositeKey<A, B> {
     final A first;
@@ -555,8 +534,7 @@ public class InMemExecutor implements Executor {
       ExecutionContext context) {
 
     final UnaryFunction keyExtractor;
-    final ReduceStateByKey<?, ?, ?, ?, ?, ?, ?, ?, ?> reduceStateByKey
-        = reduceStateByKeyNode.get();
+    final ReduceStateByKey reduceStateByKey = reduceStateByKeyNode.get();
     if (reduceStateByKey.isGrouped()) {
       UnaryFunction reduceKeyExtractor = reduceStateByKey.getKeyExtractor();
       keyExtractor = (UnaryFunction<Pair, CompositeKey>) (Pair p) -> {
@@ -573,48 +551,32 @@ public class InMemExecutor implements Executor {
     final UnaryFunction valueExtractor = reduceStateByKey.getValueExtractor();
     final BinaryFunction stateFactory = reduceStateByKey.getStateFactory();
     final Partitioning partitioning = reduceStateByKey.getPartitioning();
-    final int outputPartitions = partitioning.getNumPartitions() > 0
-        ? partitioning.getNumPartitions() : suppliers.size();
     final Windowing windowing = reduceStateByKey.getWindowing();
-
-    final List<BlockingQueue> repartitioned = new ArrayList(outputPartitions);
-    for (int i = 0; i < outputPartitions; i++) {
-      repartitioned.add(new ArrayBlockingQueue(5000));
-    }
-
     
-    for (Supplier<?> s : suppliers) {
-      // read suppliers
-      executor.execute(() -> {
-        try {
-          try {
-            for (;;) {
-              Object o = s.get();
-              Object key = keyExtractor.apply(o);
-              int partition
-                  = (partitioning.getPartitioner().getPartition(key) & Integer.MAX_VALUE)
-                  % outputPartitions;
-              repartitioned.get(partition).put(o);
-            }
-          } catch (EndOfStreamException ex) {
-            repartitioned.stream().forEach(
-                q -> {
-                  try {
-                    q.put(EndOfStream.get());
-                  } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                  }});
-          }
-        } catch (InterruptedException ex) {
-          throw new RuntimeException(ex);
-        }
-      });
-    }
+    List<BlockingQueue> repartitioned = repartitionSuppliers(
+        suppliers, keyExtractor, partitioning);
+
+    return reducePartitionsByState(
+        repartitioned,
+        windowing,
+        keyExtractor,
+        valueExtractor,
+        stateFactory);
+  }
+
+
+  @SuppressWarnings("unchecked")
+  private InputProvider<?> reducePartitionsByState(
+      final List<BlockingQueue> partitions,
+      final Windowing windowing,
+      final UnaryFunction keyExtractor,
+      final UnaryFunction valueExtractor,
+      final BinaryFunction stateFactory) {
 
     InputProvider<?> outputSuppliers = new InputProvider<>();
 
     // consume repartitioned suppliers
-    repartitioned.stream().forEach(q -> {
+    partitions.stream().forEach(q -> {
       final BlockingQueue output = new ArrayBlockingQueue(5000);
       outputSuppliers.add(QueueSupplier.wrap(output));
 
@@ -643,7 +605,7 @@ public class InMemExecutor implements Executor {
                     windowStates.remove(window);
                     return null;
                   }
-               });
+                });
 
             for (Window w : itemWindows) {
               Map<Object, State> keyStates = windowStates.get(w);
@@ -685,10 +647,86 @@ public class InMemExecutor implements Executor {
         triggering.close();
       });
     });
+
     return outputSuppliers;
   }
 
+  @SuppressWarnings("unchecked")
+  private List<BlockingQueue> repartitionSuppliers(
+      InputProvider<?> suppliers,
+      final UnaryFunction keyExtractor,
+      final Partitioning partitioning) {
 
+    final int outputPartitions = partitioning.getNumPartitions() > 0
+        ? partitioning.getNumPartitions() : suppliers.size();
+    final List<BlockingQueue> ret = new ArrayList(outputPartitions);
+    for (int i = 0; i < outputPartitions; i++) {
+      ret.add(new ArrayBlockingQueue(5000));
+    }
+
+    // count running partition readers
+    AtomicInteger running = new AtomicInteger(0);
+
+    for (Supplier s : suppliers) {
+      // read suppliers
+      running.getAndIncrement();
+      executor.execute(() -> {
+        try {
+          try {
+            for (;;) {
+              Object o = s.get();
+              Object key = keyExtractor.apply(o);
+              int partition
+                  = (partitioning.getPartitioner().getPartition(key) & Integer.MAX_VALUE)
+                  % outputPartitions;
+              ret.get(partition).put(o);
+            }
+          } catch (EndOfStreamException ex) {
+            running.getAndDecrement();
+            synchronized (running) {
+              running.notify();
+            }
+          }
+        } catch (InterruptedException ex) {
+          throw new RuntimeException(ex);
+        }
+      });
+    }
+
+    waitForStreamEnds(running, ret);
+
+    return ret;
+  }
+
+
+  // wait until runningTasks is not zero and then send EOF to all output queues
+  @SuppressWarnings("unchecked")
+  private void waitForStreamEnds(
+      AtomicInteger runningTasks, List<BlockingQueue> outputQueues) {
+    // start a new task that will wait for all read partitions to end
+    executor.execute(() -> {
+      while (runningTasks.get() != 0) {
+        try {
+          synchronized (runningTasks) {
+            runningTasks.wait();
+          }
+        } catch (InterruptedException ex) {
+          break;
+        }
+      }
+      System.err.println("Flushing stream to end");
+      // send eof to all outputs
+      for (BlockingQueue queue : outputQueues) {
+        try {
+          queue.put(EndOfStream.get());
+        } catch (InterruptedException ex) {
+          // nop
+        }
+      }
+    });
+  }
+
+  
   @SuppressWarnings("unchecked")
   private InputProvider<?> execUnion(
       Node<Union> union, ExecutionContext context) {
@@ -700,5 +738,11 @@ public class InMemExecutor implements Executor {
     return ret;
   }
 
-
+  /**
+   * Abort execution of all tasks.
+   */
+  public void abort() {
+    executor.shutdownNow();
+  }
+   
 }

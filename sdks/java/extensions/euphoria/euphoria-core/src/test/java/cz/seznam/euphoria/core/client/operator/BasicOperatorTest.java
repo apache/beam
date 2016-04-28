@@ -189,15 +189,15 @@ public class BasicOperatorTest {
         .output();
 
     // calculate all distinct values within each group
-    Dataset<Pair<String, Pair<String, Void>>> reduced = ReduceByKey.of(grouped)
+    Dataset<Pair<CompositeKey<String, String>, Void>> reduced = ReduceByKey.of(grouped)
         .valueBy(e -> (Void) null)
         .combineBy(values -> null)
         .windowBy(Windowing.Time.seconds(1).aggregating())
         .output();
 
     // take distinct tuples
-    Dataset<Pair<String, String>> distinct = Map.of(reduced)
-        .by(p -> Pair.of(p.getFirst(), p.getSecond().getFirst()))
+    Dataset<CompositeKey<String, String>> distinct = Map.of(reduced)
+        .by(Pair::getFirst)
         .output();
 
     // calculate the final distinct values per key

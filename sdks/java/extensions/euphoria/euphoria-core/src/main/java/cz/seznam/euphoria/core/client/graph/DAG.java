@@ -54,7 +54,8 @@ public class DAG<T> {
    * Add new element.
    * If no parents, add this as a root element.
    */
-  public DAG<T> add(T elem, T... parents) {
+  @SafeVarargs
+  public final DAG<T> add(T elem, T... parents) {
     add(elem, Arrays.asList(parents));
     return this;
   }

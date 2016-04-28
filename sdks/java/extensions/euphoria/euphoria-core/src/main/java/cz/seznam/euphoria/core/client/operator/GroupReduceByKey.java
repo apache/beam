@@ -20,9 +20,10 @@ import java.util.List;
  * Reduce by key applied on grouped dataset.
  */
 public class GroupReduceByKey<GROUP_KEY, IN, KEY, VALUE, OUT, W extends Window<?>,
-    TYPE extends Dataset<Pair<GROUP_KEY, Pair<KEY, OUT>>>>
-    extends StateAwareWindowWiseSingleInputOperator<Pair<GROUP_KEY, IN>, IN, Pair<GROUP_KEY, IN>, CompositeKey<GROUP_KEY, KEY>,
-        Pair<GROUP_KEY, Pair<KEY, OUT>>, W, TYPE,
+    TYPE extends Dataset<Pair<CompositeKey<GROUP_KEY, KEY>, OUT>>>
+    extends StateAwareWindowWiseSingleInputOperator<Pair<GROUP_KEY, IN>, IN,
+        Pair<GROUP_KEY, IN>, CompositeKey<GROUP_KEY, KEY>,
+        Pair<CompositeKey<GROUP_KEY, KEY>, OUT>, W, TYPE,
         GroupReduceByKey<GROUP_KEY, IN, KEY, VALUE, OUT, W, TYPE>>{
 
 
@@ -108,11 +109,11 @@ public class GroupReduceByKey<GROUP_KEY, IN, KEY, VALUE, OUT, W extends Window<?
       this.reducer = reducer;
     }
     public <W extends Window<?>> GroupReduceByKey<GROUP_KEY, IN, KEY,
-        VALUE, OUT, W, Dataset<Pair<GROUP_KEY, Pair<KEY, OUT>>>>
+        VALUE, OUT, W, Dataset<Pair<CompositeKey<GROUP_KEY, KEY>, OUT>>>
     windowBy(Windowing<IN, ?, W> windowing) {
       Flow flow = input.getFlow();
       GroupReduceByKey<GROUP_KEY, IN, KEY,
-        VALUE, OUT, W, Dataset<Pair<GROUP_KEY, Pair<KEY, OUT>>>> reduceByKey;
+        VALUE, OUT, W, Dataset<Pair<CompositeKey<GROUP_KEY, KEY>, OUT>>> reduceByKey;
       reduceByKey = new GroupReduceByKey<>(
             flow, input, keyExtractor,
             valueExtractor, windowing, reducer);
@@ -142,14 +143,14 @@ public class GroupReduceByKey<GROUP_KEY, IN, KEY, VALUE, OUT, W extends Window<?
 
   // basic ops implementation
 
-  class ReduceState extends State<VALUE, Pair<GROUP_KEY, Pair<KEY, OUT>>> {
+  class ReduceState extends State<VALUE, Pair<CompositeKey<GROUP_KEY, KEY>, OUT>> {
 
     final List<VALUE> reducableValues = new ArrayList<>();
     final boolean isCombinable = reducer instanceof CombinableReduceFunction;
     CompositeKey<GROUP_KEY, KEY> key;
 
     ReduceState(CompositeKey<GROUP_KEY, KEY> key,
-        Collector<Pair<GROUP_KEY, Pair<KEY, OUT>>> collector) {
+        Collector<Pair<CompositeKey<GROUP_KEY, KEY>, OUT>> collector) {
       super(collector);
       this.key = key;
     }
@@ -164,8 +165,7 @@ public class GroupReduceByKey<GROUP_KEY, IN, KEY, VALUE, OUT, W extends Window<?
     @Override
     @SuppressWarnings("unchecked")
     public void flush() {
-      collector.collect(Pair.of(key.getFirst(),
-          Pair.of(key.getSecond(), reducer.apply(reducableValues))));
+      collector.collect(Pair.of(key, reducer.apply(reducableValues)));
     }
 
     void add(ReduceState other) {
@@ -187,9 +187,10 @@ public class GroupReduceByKey<GROUP_KEY, IN, KEY, VALUE, OUT, W extends Window<?
 
   @Override
   public DAG<Operator<?, ?, ?>> getBasicOps() {
-    // implements this by ReduceStateByKey
-    ReduceStateByKey<Pair<GROUP_KEY, IN>, IN, Pair<GROUP_KEY, IN>, CompositeKey<GROUP_KEY, KEY>, VALUE,
-        Pair<GROUP_KEY, Pair<KEY, OUT>>,  ReduceState, W, TYPE> reduceState;
+    // implement this by ReduceStateByKey
+    ReduceStateByKey<Pair<GROUP_KEY, IN>, IN, Pair<GROUP_KEY, IN>,
+        CompositeKey<GROUP_KEY, KEY>, VALUE,
+        OUT, ReduceState, W, TYPE> reduceState;
 
     Flow flow = getFlow();
     reduceState = new ReduceStateByKey<>(

@@ -18,6 +18,7 @@ import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.Union;
 import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.core.executor.FlowUnfolder.InputOperator;
 import cz.seznam.euphoria.core.util.Settings;
 import java.net.URI;
 import java.util.Arrays;
@@ -77,25 +78,31 @@ public class FlowUnfolderTest {
     Set<Class<? extends Operator<?, ?, ?>>> allowed = new HashSet<>();
     allowed.addAll((List) Arrays.asList(Map.class, ReduceByKey.class, Join.class));
     DAG<Operator<?, ?, ?>> unfolded = FlowUnfolder.unfold(flow, allowed);
-    assertEquals(3, unfolded.size());
+    // there are 4 nodes, one is the input node
+    assertEquals(4, unfolded.size());
   }
 
   @Test
   @SuppressWarnings("unchecked")
   public void testUnfoldBasic() {
     DAG<Operator<?, ?, ?>> unfolded = FlowUnfolder.unfold(flow, Executor.getBasicOps());
+    // InputOperator -> Map
     // Map -> FlatMap
     // ReduceByKey -> ReduceStateByKey
     // Join -> Map, Map, Union, ReduceStateByKey
-    assertEquals(6, unfolded.size());
-    // single root - FlatMap    
+    assertEquals(7, unfolded.size());
+    // single root - InputNode
     assertEquals(1, unfolded.getRoots().size());
     Node<Operator<?, ?, ?>> root = unfolded.getRoots().stream().findFirst().get();
-    assertEquals(FlatMap.class, root.get().getClass());
+    assertEquals(InputOperator.class, root.get().getClass());
+    // single input consumer - FlatMap
+    assertEquals(1, root.getChildren().size());
+    Node<Operator<?, ?, ?>> map = root.getChildren().get(0);
+    assertEquals(FlatMap.class, map.get().getClass());
     // FlatMap is consumed by ReduceStateByKey and the first FlatMap of expanded Join
-    assertEquals(2, root.getChildren().size());
+    assertEquals(2, map.getChildren().size());
     java.util.Map<Class<? extends Operator>, Node<Operator<?, ?, ?>>> childrenMap;
-    childrenMap = toClassMap((List) root.getChildren());
+    childrenMap = toClassMap((List) map.getChildren());
     assertTrue(childrenMap.containsKey(FlatMap.class));
     assertTrue(childrenMap.containsKey(ReduceStateByKey.class));
     // the FlatMap path is then consumed by Union
