@@ -1,0 +1,19 @@
+<project>
+  <!--
+    Contains build resources referenced by sub-projects. It follows the
+    "Multimodule Configuration" described here:
+      https://maven.apache.org/plugins/maven-checkstyle-plugin/examples/multi-module-config.html
+  -->
+  <modelVersion>4.0.0</modelVersion>
+  
+  <parent>
+    <groupId>org.apache.beam</groupId>
+    <artifactId>java-sdk-parent</artifactId>
+    <version>0.1.0-incubating-SNAPSHOT</version>
+    <relativePath>../pom.xml</relativePath>
+  </parent>
+
+  <artifactId>java-build-tools</artifactId>
+
+  <name>Apache Beam :: SDKs :: Java :: Build Tools</name>
+</project>

@@ -35,6 +35,7 @@
   <name>Apache Beam :: SDKs :: Java</name>
 
   <modules>
+    <module>build-tools</module>
     <module>core</module>
     <module>io</module>
     <!-- sdks/java/maven-archtypes has several dependencies on the
