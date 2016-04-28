@@ -79,6 +79,14 @@ public class KeyedWorkItemCoder<K, ElemT> extends StandardCoder<KeyedWorkItem<K,
     this.elemsCoder = IterableCoder.of(FullWindowedValueCoder.of(elemCoder, windowCoder));
   }
 
+  public Coder<K> getKeyCoder() {
+    return keyCoder;
+  }
+
+  public Coder<ElemT> getElementCoder() {
+    return elemCoder;
+  }
+
   @Override
   public void encode(KeyedWorkItem<K, ElemT> value, OutputStream outStream, Coder.Context context)
       throws CoderException, IOException {

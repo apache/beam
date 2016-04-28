@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.runners.inprocess;
 
 import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.runners.inprocess.InProcessGroupByKey.InProcessGroupAlsoByWindow;
+import org.apache.beam.sdk.runners.inprocess.InProcessGroupByKey.InProcessGroupByKeyOnly;
 import org.apache.beam.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Flatten.FlattenPCollectionList;
@@ -44,12 +46,12 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
             .put(Read.Unbounded.class, new UnboundedReadEvaluatorFactory())
             .put(ParDo.Bound.class, new ParDoSingleEvaluatorFactory())
             .put(ParDo.BoundMulti.class, new ParDoMultiEvaluatorFactory())
-            .put(
-                GroupByKeyEvaluatorFactory.InProcessGroupByKeyOnly.class,
-                new GroupByKeyEvaluatorFactory())
             .put(FlattenPCollectionList.class, new FlattenEvaluatorFactory())
             .put(ViewEvaluatorFactory.WriteView.class, new ViewEvaluatorFactory())
             .put(Window.Bound.class, new WindowEvaluatorFactory())
+            // Runner-specific primitives used in expansion of GroupByKey
+            .put(InProcessGroupByKeyOnly.class, new InProcessGroupByKeyOnlyEvaluatorFactory())
+            .put(InProcessGroupAlsoByWindow.class, new InProcessGroupAlsoByWindowEvaluatorFactory())
             .build();
     return new TransformEvaluatorRegistry(primitives);
   }

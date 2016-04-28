@@ -17,7 +17,12 @@
  */
 package org.apache.beam.sdk.runners.inprocess;
 
+import static org.apache.beam.sdk.TestUtils.KvMatcher.isKv;
+import static org.apache.beam.sdk.WindowMatchers.isWindowedValue;
+
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -28,15 +33,14 @@ import org.apache.beam.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBu
 import org.apache.beam.sdk.runners.inprocess.InProcessPipelineRunner.UncommittedBundle;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.util.GroupByKeyViaGroupByKeyOnly.GroupByKeyOnly;
 import org.apache.beam.sdk.util.GroupByKeyViaGroupByKeyOnly.ReifyTimestampsAndWindows;
 import org.apache.beam.sdk.util.KeyedWorkItem;
-import org.apache.beam.sdk.util.KeyedWorkItems;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
 import com.google.common.collect.HashMultiset;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multiset;
 
 import org.hamcrest.BaseMatcher;
@@ -47,10 +51,10 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for {@link GroupByKeyEvaluatorFactory}.
+ * Tests for {@link InProcessGroupByKeyOnlyEvaluatorFactory}.
  */
 @RunWith(JUnit4.class)
-public class GroupByKeyEvaluatorFactoryTest {
+public class InProcessGroupByKeyOnlyEvaluatorFactoryTest {
   private BundleFactory bundleFactory = InProcessBundleFactory.create();
 
   @Test
@@ -66,18 +70,18 @@ public class GroupByKeyEvaluatorFactoryTest {
         p.apply(Create.of(firstFoo, firstBar, secondFoo, firstBaz, secondBar, thirdFoo));
     PCollection<KV<String, WindowedValue<Integer>>> kvs =
         values.apply(new ReifyTimestampsAndWindows<String, Integer>());
-    PCollection<KeyedWorkItem<String, Integer>> groupedKvs =
-        kvs.apply(new GroupByKeyEvaluatorFactory.InProcessGroupByKeyOnly<String, Integer>());
+    PCollection<KV<String, Iterable<WindowedValue<Integer>>>> groupedKvs =
+        kvs.apply(new GroupByKeyOnly<String, WindowedValue<Integer>>());
 
     CommittedBundle<KV<String, WindowedValue<Integer>>> inputBundle =
         bundleFactory.createRootBundle(kvs).commit(Instant.now());
     InProcessEvaluationContext evaluationContext = mock(InProcessEvaluationContext.class);
 
-    UncommittedBundle<KeyedWorkItem<String, Integer>> fooBundle =
+    UncommittedBundle<KV<String, Iterable<WindowedValue<Integer>>>> fooBundle =
         bundleFactory.createKeyedBundle(null, "foo", groupedKvs);
-    UncommittedBundle<KeyedWorkItem<String, Integer>> barBundle =
+    UncommittedBundle<KV<String, Iterable<WindowedValue<Integer>>>> barBundle =
         bundleFactory.createKeyedBundle(null, "bar", groupedKvs);
-    UncommittedBundle<KeyedWorkItem<String, Integer>> bazBundle =
+    UncommittedBundle<KV<String, Iterable<WindowedValue<Integer>>>> bazBundle =
         bundleFactory.createKeyedBundle(null, "baz", groupedKvs);
 
     when(evaluationContext.createKeyedBundle(inputBundle, "foo", groupedKvs)).thenReturn(fooBundle);
@@ -89,7 +93,7 @@ public class GroupByKeyEvaluatorFactoryTest {
     Coder<String> keyCoder =
         ((KvCoder<String, WindowedValue<Integer>>) kvs.getCoder()).getKeyCoder();
     TransformEvaluator<KV<String, WindowedValue<Integer>>> evaluator =
-        new GroupByKeyEvaluatorFactory()
+        new InProcessGroupByKeyOnlyEvaluatorFactory()
             .forApplication(
                 groupedKvs.getProducingTransformInternal(), inputBundle, evaluationContext);
 
@@ -105,32 +109,30 @@ public class GroupByKeyEvaluatorFactoryTest {
     assertThat(
         fooBundle.commit(Instant.now()).getElements(),
         contains(
-            new KeyedWorkItemMatcher<String, Integer>(
-                KeyedWorkItems.elementsWorkItem(
-                    "foo",
-                    ImmutableSet.of(
+            isWindowedValue(
+                isKv(
+                    equalTo("foo"),
+                    containsInAnyOrder(
                         WindowedValue.valueInGlobalWindow(-1),
                         WindowedValue.valueInGlobalWindow(1),
-                        WindowedValue.valueInGlobalWindow(3))),
-                keyCoder)));
+                        WindowedValue.valueInGlobalWindow(3))))));
     assertThat(
         barBundle.commit(Instant.now()).getElements(),
         contains(
-            new KeyedWorkItemMatcher<String, Integer>(
-                KeyedWorkItems.elementsWorkItem(
-                    "bar",
-                    ImmutableSet.of(
+            isWindowedValue(
+                isKv(
+                    equalTo("bar"),
+                    containsInAnyOrder(
                         WindowedValue.valueInGlobalWindow(12),
-                        WindowedValue.valueInGlobalWindow(22))),
-                keyCoder)));
+                        WindowedValue.valueInGlobalWindow(22))))));
+
     assertThat(
         bazBundle.commit(Instant.now()).getElements(),
         contains(
-            new KeyedWorkItemMatcher<String, Integer>(
-                KeyedWorkItems.elementsWorkItem(
-                    "baz",
-                    ImmutableSet.of(WindowedValue.valueInGlobalWindow(Integer.MAX_VALUE))),
-                keyCoder)));
+            isWindowedValue(
+                isKv(
+                    equalTo("baz"),
+                    containsInAnyOrder(WindowedValue.valueInGlobalWindow(Integer.MAX_VALUE))))));
   }
 
   private <K, V> KV<K, WindowedValue<V>> gwValue(KV<K, V> kv) {
@@ -152,6 +154,7 @@ public class GroupByKeyEvaluatorFactoryTest {
       if (item == null || !(item instanceof WindowedValue)) {
         return false;
       }
+      @SuppressWarnings("unchecked")
       WindowedValue<KeyedWorkItem<K, V>> that = (WindowedValue<KeyedWorkItem<K, V>>) item;
       Multiset<WindowedValue<V>> myValues = HashMultiset.create();
       Multiset<WindowedValue<V>> thatValues = HashMultiset.create();

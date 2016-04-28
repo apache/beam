@@ -43,6 +43,11 @@ public class WindowMatchers {
   }
 
   public static <T> Matcher<WindowedValue<? extends T>> isWindowedValue(
+      Matcher<? super T> valueMatcher) {
+    return new WindowedValueMatcher<>(valueMatcher, Matchers.anything(), Matchers.anything());
+  }
+
+  public static <T> Matcher<WindowedValue<? extends T>> isWindowedValue(
       Matcher<? super T> valueMatcher, Matcher<? super Instant> timestampMatcher) {
     return new WindowedValueMatcher<>(valueMatcher, timestampMatcher, Matchers.anything());
   }

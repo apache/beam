@@ -33,6 +33,8 @@ import java.util.Collections;
  * {@link Bound ParDo.Bound} primitive {@link PTransform}.
  */
 class ParDoSingleEvaluatorFactory implements TransformEvaluatorFactory {
+
+
   @Override
   public <T> TransformEvaluator<T> forApplication(
       final AppliedPTransform<?, ?, ?> application,
@@ -45,16 +47,18 @@ class ParDoSingleEvaluatorFactory implements TransformEvaluatorFactory {
   }
 
   private static <InputT, OutputT> ParDoInProcessEvaluator<InputT> createSingleEvaluator(
-      @SuppressWarnings("rawtypes") AppliedPTransform<PCollection<InputT>, PCollection<OutputT>,
-          Bound<InputT, OutputT>> application,
-      CommittedBundle<InputT> inputBundle, InProcessEvaluationContext evaluationContext) {
+      @SuppressWarnings("rawtypes")
+      final AppliedPTransform<PCollection<InputT>, PCollection<OutputT>, Bound<InputT, OutputT>>
+          application,
+      CommittedBundle<InputT> inputBundle,
+      InProcessEvaluationContext evaluationContext) {
     TupleTag<OutputT> mainOutputTag = new TupleTag<>("out");
 
     return ParDoInProcessEvaluator.create(
         evaluationContext,
         inputBundle,
         application,
-        application.getTransform().getFn(),
+        CloningSupplier.forValue(application.getTransform().getFn()),
         application.getTransform().getSideInputs(),
         mainOutputTag,
         Collections.<TupleTag<?>>emptyList(),

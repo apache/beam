@@ -54,7 +54,7 @@ class ParDoMultiEvaluatorFactory implements TransformEvaluatorFactory {
         evaluationContext,
         inputBundle,
         application,
-        fn,
+        CloningSupplier.forValue(fn),
         application.getTransform().getSideInputs(),
         application.getTransform().getMainOutputTag(),
         application.getTransform().getSideOutputTags().getAll(),
