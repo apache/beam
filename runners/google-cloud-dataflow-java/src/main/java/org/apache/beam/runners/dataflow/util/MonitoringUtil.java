@@ -17,11 +17,10 @@
  */
 package org.apache.beam.runners.dataflow.util;
 
-import static org.apache.beam.sdk.util.TimeUtil.fromCloudTime;
+import static org.apache.beam.runners.dataflow.util.TimeUtil.fromCloudTime;
 
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.PipelineResult.State;
-import org.apache.beam.sdk.util.TimeUtil;
 
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.Dataflow.Projects.Jobs.Messages;
