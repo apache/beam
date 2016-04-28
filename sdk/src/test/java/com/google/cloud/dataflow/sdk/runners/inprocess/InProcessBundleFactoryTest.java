@@ -17,7 +17,6 @@ package com.google.cloud.dataflow.sdk.runners.inprocess;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 
@@ -72,7 +71,6 @@ public class InProcessBundleFactoryTest {
 
     CommittedBundle<Integer> bundle = inFlightBundle.commit(Instant.now());
 
-    assertThat(bundle.isKeyed(), is(false));
     assertThat(bundle.getKey(), nullValue());
   }
 
@@ -83,7 +81,6 @@ public class InProcessBundleFactoryTest {
         bundleFactory.createKeyedBundle(null, key, pcollection);
 
     CommittedBundle<Integer> bundle = inFlightBundle.commit(Instant.now());
-    assertThat(bundle.isKeyed(), is(true));
     assertThat(bundle.getKey(), equalTo(key));
   }
 
@@ -162,7 +159,6 @@ public class InProcessBundleFactoryTest {
         bundleFactory
             .createBundle(bundleFactory.createRootBundle(created).commit(Instant.now()), downstream)
             .commit(Instant.now());
-    assertThat(newBundle.isKeyed(), is(false));
   }
 
   @Test
@@ -173,13 +169,7 @@ public class InProcessBundleFactoryTest {
                 bundleFactory.createKeyedBundle(null, "foo", created).commit(Instant.now()),
                 downstream)
             .commit(Instant.now());
-    assertThat(newBundle.isKeyed(), is(true));
     assertThat(newBundle.getKey(), Matchers.<Object>equalTo("foo"));
-  }
-
-  @Test
-  public void createRootBundleUnkeyed() {
-    assertThat(bundleFactory.createRootBundle(created).commit(Instant.now()).isKeyed(), is(false));
   }
 
   @Test
@@ -189,7 +179,6 @@ public class InProcessBundleFactoryTest {
             .createKeyedBundle(
                 bundleFactory.createRootBundle(created).commit(Instant.now()), "foo", downstream)
             .commit(Instant.now());
-    assertThat(keyedBundle.isKeyed(), is(true));
     assertThat(keyedBundle.getKey(), Matchers.<Object>equalTo("foo"));
   }
 }
