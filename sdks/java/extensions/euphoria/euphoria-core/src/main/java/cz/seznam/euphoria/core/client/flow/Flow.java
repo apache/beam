@@ -238,7 +238,13 @@ public class Flow implements Serializable {
    * Create new input dataset.
    */
   public <T> Dataset<T> createInput(URI uri) throws Exception {
-    final DataSource<T> source = getSourceFromURI(uri);
+    return createInput(getSourceFromURI(uri));
+  }
+
+  /**
+   * Create new input dataset.
+   */
+  public <T> Dataset<T> createInput(DataSource<T> source) {
     final Dataset<T> ret;
 
     if (source.isBounded()) {
