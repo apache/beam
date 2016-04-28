@@ -26,6 +26,7 @@ from google.cloud.dataflow import version
 from google.cloud.dataflow.internal.auth import get_service_credentials
 from google.cloud.dataflow.internal.json_value import to_json_value
 from google.cloud.dataflow.io import iobase
+from google.cloud.dataflow.transforms import cy_combiners
 from google.cloud.dataflow.utils import dependency
 from google.cloud.dataflow.utils import retry
 from google.cloud.dataflow.utils.names import PropertyNames
@@ -44,7 +45,7 @@ COMPUTE_API_SERVICE = 'compute.googleapis.com'
 STORAGE_API_SERVICE = 'storage.googleapis.com'
 
 
-def append_counter(status_object, counter, tentative=False):
+def append_counter(status_object, counter, tentative):
   """Appends a counter to the status.
 
   Args:
@@ -55,13 +56,13 @@ def append_counter(status_object, counter, tentative=False):
   logging.debug('Appending counter%s %s',
                 ' (tentative)' if tentative else '',
                 counter)
+  kind, setter = metric_translations[counter.combine_fn.__class__]
   append_metric(
-      status_object, counter.name, counter.total,
-      counter.elements if counter.aggregation_kind == counter.MEAN else None,
-      tentative=tentative)
+      status_object, counter.name, kind, counter.accumulator,
+      setter, tentative=tentative)
 
 
-def append_metric(status_object, metric_name, value1, value2=None,
+def append_metric(status_object, metric_name, kind, value, setter=None,
                   step=None, output_user_name=None, tentative=False,
                   worker_id=None, cumulative=True):
   """Creates and adds a MetricUpdate field to the passed-in protobuf.
@@ -69,8 +70,9 @@ def append_metric(status_object, metric_name, value1, value2=None,
   Args:
     status_object: a work_item_status to which to add this metric
     metric_name: a string naming this metric
-    value1: scalar for a Sum or mean_sum for a Mean
-    value2: mean_count for a Mean aggregation (do not provide for a Sum).
+    kind: dataflow counter kind (e.g. 'sum')
+    value: accumulator value to encode
+    setter: if not None, a lambda to use to update metric_update with value
     step: the name of the associated step
     output_user_name: the user-visible name to use
     tentative: whether this should be labeled as a tentative metric
@@ -103,19 +105,13 @@ def append_metric(status_object, metric_name, value1, value2=None,
       append_to_context('workerId', worker_id)
   if cumulative and is_counter:
     metric_update.cumulative = cumulative
-  if value2 is None:
-    if is_counter:
-      # Counters are distinguished by having a kind; metrics do not.
-      metric_update.kind = 'Sum'
-    metric_update.scalar = to_json_value(value1, with_type=True)
-  elif value2 > 0:
-    metric_update.kind = 'Mean'
-    metric_update.meanSum = to_json_value(value1, with_type=True)
-    metric_update.meanCount = to_json_value(value2, with_type=True)
+  if is_counter:
+    # Counters are distinguished by having a kind; metrics do not.
+    metric_update.kind = kind
+  if setter:
+    setter(value, metric_update)
   else:
-    # A denominator of 0 will raise an error in the service.
-    # What it means is we have nothing to report yet, so don't.
-    pass
+    metric_update.scalar = to_json_value(value, with_type=True)
   logging.debug('Appending metric_update: %s', metric_update)
   status_object.metricUpdates.append(metric_update)
 
@@ -840,3 +836,33 @@ def cloud_position_to_reader_position(cloud_position):
 def approximate_progress_to_dynamic_split_request(approximate_progress):
   return iobase.DynamicSplitRequest(cloud_progress_to_reader_progress(
       approximate_progress))
+
+
+def set_scalar(accumulator, metric_update):
+  metric_update.scalar = to_json_value(accumulator.value, with_type=True)
+
+
+def set_mean(accumulator, metric_update):
+  if accumulator.count:
+    metric_update.meanSum = to_json_value(accumulator.sum, with_type=True)
+    metric_update.meanCount = to_json_value(accumulator.count, with_type=True)
+  else:
+    # A denominator of 0 will raise an error in the service.
+    # What it means is we have nothing to report yet, so don't.
+    metric_update.kind = None
+
+
+# To enable a counter on the service, add it to this dictionary.
+metric_translations = {
+    cy_combiners.CountCombineFn: ('sum', set_scalar),
+    cy_combiners.SumInt64Fn: ('sum', set_scalar),
+    cy_combiners.MinInt64Fn: ('min', set_scalar),
+    cy_combiners.MaxInt64Fn: ('max', set_scalar),
+    cy_combiners.MeanInt64Fn: ('mean', set_mean),
+    cy_combiners.SumFloatFn: ('sum', set_scalar),
+    cy_combiners.MinFloatFn: ('min', set_scalar),
+    cy_combiners.MaxFloatFn: ('max', set_scalar),
+    cy_combiners.MeanFloatFn: ('mean', set_mean),
+    cy_combiners.AllCombineFn: ('and', set_scalar),
+    cy_combiners.AnyCombineFn: ('or', set_scalar),
+}

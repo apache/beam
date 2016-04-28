@@ -18,6 +18,7 @@
 """Counters collect the progress of the Worker for reporting to the service."""
 
 import threading
+from google.cloud.dataflow.transforms import cy_combiners
 
 
 class Counter(object):
@@ -38,65 +39,28 @@ class Counter(object):
     elements: the number of times update() was called
   """
 
-  # Aggregation kinds.  The protocol uses string names, so the values
-  # assigned here are not externally visible.
+  # Handy references to common counters.
+  SUM = cy_combiners.SumInt64Fn()
+  MEAN = cy_combiners.MeanInt64Fn()
 
-  # Numeric:
-  SUM = 1
-  MAX = 2
-  MIN = 3
-  MEAN = 4  # arithmetic mean
-
-  # Boolean
-  AND = 5
-  OR = 6
-
-  _KIND_NAME_MAP = {SUM: 'SUM', MAX: 'MAX', MIN: 'MIN',
-                    MEAN: 'MEAN', AND: 'AND', OR: 'OR'}
-
-  def aggregation_kind_str(self):
-    return self._KIND_NAME_MAP.get(self.aggregation_kind,
-                                   'kind%d' % self.aggregation_kind)
-
-  def __init__(self, name, aggregation_kind):
+  def __init__(self, name, combine_fn):
     """Creates a Counter object.
 
     Args:
       name: the name of this counter.  Typically has three parts:
         "step-output-counter".
-      aggregation_kind: one of the kinds defined by this class.
+      combine_fn: the CombineFn to use for aggregation
     """
     self.name = name
-    self.aggregation_kind = aggregation_kind
-    # optimized update doesn't handle all types
-    assert aggregation_kind == self.SUM or aggregation_kind == self.MEAN
-    self.c_total = 0
-    self.py_total = 0
-    self.elements = 0
+    self.combine_fn = combine_fn
+    self.accumulator = combine_fn.create_accumulator()
+    self._add_input = self.combine_fn.add_input
 
-  def update(self, count):
-    try:
-      self._update_small(count)
-    except OverflowError:
-      self.py_total += count
-    self.elements += 1
-
-  def _update_small(self, delta):
-    new_total = self.c_total + delta  # overflow is checked
-    self.c_total = new_total
-
-  @property
-  def total(self):
-    return self.c_total + self.py_total
+  def update(self, value):
+    self.accumulator = self._add_input(self.accumulator, value)
 
   def value(self):
-    if self.aggregation_kind == self.SUM:
-      return self.total
-    elif self.aggregation_kind == self.MEAN:
-      return float(self.total)/self.elements
-    else:
-      # This can't happen, because we check in __init__
-      raise TypeError('%s.value(): unsupported aggregation_kind' % self)
+    return self.combine_fn.extract_output(self.accumulator)
 
   def __str__(self):
     return '<%s>' % self._str_internal()
@@ -105,33 +69,20 @@ class Counter(object):
     return '<%s at %s>' % (self._str_internal(), hex(id(self)))
 
   def _str_internal(self):
-    return '%s %s %s/%s' % (self.name, self.aggregation_kind_str(),
-                            self.total, self.elements)
+    return '%s %s %s' % (self.name, self.combine_fn.__class__.__name__,
+                         self.value())
 
 
-class AggregatorCounter(Counter):
-  """A Counter that represents a step-specific instance of an Aggregator.
+class AccumulatorCombineFnCounter(Counter):
+  """Counter optimized for a mutating accumulator that holds all the logic."""
 
-  Do not create directly; call CounterFactory.get_aggregator_counter instead.
-  """
+  def __init__(self, name, combine_fn):
+    assert isinstance(combine_fn, cy_combiners.AccumulatorCombineFn)
+    super(AccumulatorCombineFnCounter, self).__init__(name, combine_fn)
+    self._fast_add_input = self.accumulator.add_input
 
-
-class Accumulator(Counter):
-  """An internal Counter that sums.
-
-  Because this class is used only internally (not reported to the
-  Dataflow service), its name is not important.  It is not necessary
-  to supply a name when creating one.
-  """
-
-  def __init__(self, name='unnamed'):
-    """Creates an Accumulator object.
-
-    Args:
-      name: a suggested name-part.  Optional.
-    """
-    super(Accumulator, self).__init__('internal-%s-%x' % (name, id(self)),
-                                      Counter.SUM)
+  def update(self, value):
+    self._fast_add_input(value)
 
 
 # Counters that represent Accumulators have names starting with this
@@ -147,25 +98,28 @@ class CounterFactory(object):
     # Lock to be acquired when accessing the counters map.
     self._lock = threading.Lock()
 
-  def get_counter(self, name, aggregation_kind):
+  def get_counter(self, name, combine_fn):
     """Returns a counter with the requested name.
 
     Passing in the same name will return the same counter; the
-    aggregation_kind must agree.
+    combine_fn must agree.
 
     Args:
       name: the name of this counter.  Typically has three parts:
         "step-output-counter".
-      aggregation_kind: one of the kinds defined by this class.
+      combine_fn: the CombineFn to use for aggregation
     Returns:
       A new or existing counter with the requested name.
     """
     with self._lock:
       counter = self.counters.get(name, None)
       if counter:
-        assert counter.aggregation_kind == aggregation_kind
+        assert counter.combine_fn == combine_fn
       else:
-        counter = Counter(name, aggregation_kind)
+        if isinstance(combine_fn, cy_combiners.AccumulatorCombineFn):
+          counter = AccumulatorCombineFnCounter(name, combine_fn)
+        else:
+          counter = Counter(name, combine_fn)
         self.counters[name] = counter
       return counter
 
@@ -180,17 +134,9 @@ class CounterFactory(object):
     Returns:
       A new or existing counter.
     """
-    with self._lock:
-      name = '%s%s-%s' % (USER_COUNTER_PREFIX, step_name, aggregator.name)
-      aggregation_kind = aggregator.aggregation_kind
-      counter = self.counters.get(name, None)
-      if counter:
-        assert isinstance(counter, AggregatorCounter)
-        assert counter.aggregation_kind == aggregation_kind
-      else:
-        counter = AggregatorCounter(name, aggregation_kind)
-        self.counters[name] = counter
-      return counter
+    return self.get_counter(
+        '%s%s-%s' % (USER_COUNTER_PREFIX, step_name, aggregator.name),
+        aggregator.combine_fn)
 
   def get_counters(self):
     """Returns the current set of counters.

@@ -21,6 +21,7 @@ import itertools
 import random
 
 from google.cloud.dataflow.transforms import core
+from google.cloud.dataflow.transforms import cy_combiners
 from google.cloud.dataflow.transforms import ptransform
 from google.cloud.dataflow.typehints import Any
 from google.cloud.dataflow.typehints import Dict
@@ -80,6 +81,14 @@ class MeanCombineFn(core.CombineFn):
     if count == 0:
       return float('NaN')
     return sum_ / float(count)
+
+  def for_input_type(self, input_type):
+    if input_type is int:
+      return cy_combiners.MeanInt64Fn()
+    elif input_type is float:
+      return cy_combiners.MeanFloatFn()
+    else:
+      return self
 
 
 class Count(object):

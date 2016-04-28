@@ -16,10 +16,12 @@
 # cython: overflowcheck=True
 
 cdef class Counter(object):
-    cdef readonly object name
-    cdef readonly object aggregation_kind
-    cdef long c_total
-    cdef object py_total
-    cdef readonly long elements
+  cdef readonly object name
+  cdef readonly object combine_fn
+  cdef readonly object accumulator
+  cdef readonly object _add_input
+  cpdef bint update(self, value) except -1
 
-    cdef _update_small(self, long delta)
+
+cdef class AccumulatorCombineFnCounter(Counter):
+  cdef readonly object _fast_add_input

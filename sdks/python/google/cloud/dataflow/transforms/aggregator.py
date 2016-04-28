@@ -38,8 +38,7 @@ pipeline.
 
 from __future__ import absolute_import
 
-from google.cloud.dataflow.transforms import combiners
-from google.cloud.dataflow.utils.counters import Counter
+from google.cloud.dataflow.transforms import core
 
 
 class Aggregator(object):
@@ -49,14 +48,12 @@ class Aggregator(object):
     combine_fn: how to combine values input to the aggregation.
       It must be one of these arithmetic functions:
 
-       - Python's built-in sum
-       - Python's built-in min
-       - Python's built-in max
-       - df.Mean()
+       - Python's built-in sum, min, max, any, and all.
+       - df.combiners.MeanCombineFn()
 
-      The default is sum.
+      The default is sum of 64-bit ints.
 
-    type: describes the numeric type that will be accepted as input
+    type: describes the type that will be accepted as input
       for aggregation; by default types appropriate to the combine_fn
       are accepted.
 
@@ -67,13 +64,16 @@ class Aggregator(object):
     complex_counter = df.Aggregator('other-counter', df.Mean(), float)
   """
 
-  def __init__(self,
-               name,
-               combine_fn=sum,
-               input_type=None):  # inferred from combine_fn
+  def __init__(self, name, combine_fn=sum, input_type=int):
+    combine_fn = core.CombineFn.maybe_from_callable(combine_fn).for_input_type(
+        input_type)
+    if not _is_supported_kind(combine_fn):
+      raise ValueError(
+          'combine_fn %r (class %r) '
+          'does not map to a supported aggregation kind'
+          % (combine_fn, combine_fn.__class__))
     self.name = name
     self.combine_fn = combine_fn
-    self.aggregation_kind = self._aggregator_counter_kind(combine_fn)
     self.input_type = input_type
 
   def __str__(self):
@@ -98,30 +98,8 @@ class Aggregator(object):
       combine_call = ' %s%s' % (combine_fn_str, input_arg)
     return 'Aggregator %s%s' % (self.name, combine_call)
 
-  @staticmethod
-  def _aggregator_counter_kind(combine_fn):
-    """Returns the counter aggregation kind for the combine_fn passed in.
 
-    Args:
-      combine_fn: The combining function used in an Aggregator.
-
-    Returns:
-      The aggregation_kind (to use in a Counter) that matches combine_fn.
-
-    Raises:
-      ValueError if the combine_fn doesn't map to any supported
-      aggregation kind.
-    """
-    # We don't have combiner types that implement AND or OR.
-    combine_kind_map = {sum: Counter.SUM, max: Counter.MAX, min: Counter.MIN,
-                        combiners.Mean: Counter.MEAN}
-    try:
-      return combine_kind_map[combine_fn]
-    except KeyError:
-      try:
-        return combine_kind_map[combine_fn.__class__]
-      except KeyError:
-        raise ValueError(
-            'combine_fn %r (class %r) '
-            'does not map to a supported aggregation kind'
-            % (combine_fn, combine_fn.__class__))
+def _is_supported_kind(combine_fn):
+  # pylint: disable=g-import-not-at-top
+  from google.cloud.dataflow.internal.apiclient import metric_translations
+  return combine_fn.__class__ in metric_translations

@@ -341,6 +341,16 @@ class CombineFn(WithTypeHints):
             *args, **kwargs),
         *args, **kwargs)
 
+  def for_input_type(self, input_type):
+    """Returns a specialized implementation of self, if it exists.
+
+    Otherwise, returns self.
+
+    Args:
+      input_type: the type of input elements.
+    """
+    return self
+
   @staticmethod
   def from_callable(fn):
     return CallableWrapperCombineFn(fn)
@@ -430,6 +440,24 @@ class CallableWrapperCombineFn(CombineFn):
       hints = fn_hints.copy()
       hints.set_input_types(*input_args, **input_kwargs)
       return hints
+
+  def for_input_type(self, input_type):
+    # Avoid circular imports.
+    from google.cloud.dataflow.transforms import cy_combiners
+    if self._fn is any:
+      return cy_combiners.AnyCombineFn()
+    elif self._fn is all:
+      return cy_combiners.AllCombineFn()
+    else:
+      known_types = {
+          (sum, int): cy_combiners.SumInt64Fn(),
+          (min, int): cy_combiners.MinInt64Fn(),
+          (max, int): cy_combiners.MaxInt64Fn(),
+          (sum, float): cy_combiners.SumFloatFn(),
+          (min, float): cy_combiners.MinFloatFn(),
+          (max, float): cy_combiners.MaxFloatFn(),
+      }
+    return known_types.get((self._fn, input_type), self)
 
 
 class PartitionFn(WithTypeHints):

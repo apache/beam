@@ -25,7 +25,8 @@ import google.cloud.dataflow as df
 
 empty_line_aggregator = df.Aggregator('emptyLines')
 average_word_size_aggregator = df.Aggregator('averageWordLength',
-                                             df.combiners.Mean())
+                                             df.combiners.MeanCombineFn(),
+                                             float)
 
 
 class WordExtractingDoFn(df.DoFn):
@@ -47,7 +48,7 @@ class WordExtractingDoFn(df.DoFn):
       context.aggregate_to(empty_line_aggregator, 1)
     words = re.findall(r'[A-Za-z\']+', text_line)
     for w in words:
-      context.aggregate_to(average_word_size_aggregator, float(len(w)))
+      context.aggregate_to(average_word_size_aggregator, len(w))
     return words
 
 

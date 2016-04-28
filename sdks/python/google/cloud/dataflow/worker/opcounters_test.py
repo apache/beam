@@ -42,8 +42,7 @@ class ObjectThatDoesNotImplementLen(object):
 class OperationCountersTest(unittest.TestCase):
 
   def verify_counters(self, opcounts, expected_elements):
-    self.assertEqual(expected_elements, opcounts.element_counter.total)
-    self.assertEqual(expected_elements, opcounts.element_counter.elements)
+    self.assertEqual(expected_elements, opcounts.element_counter.value())
 
   def test_update_int(self):
     opcounts = OperationCounters(CounterFactory(), 'some-name',
