@@ -19,9 +19,7 @@ package org.apache.beam.sdk.transforms.display;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Preconditions;
@@ -155,24 +153,45 @@ public class DisplayData implements Serializable {
    */
   public interface Builder {
     /**
-     * Register display data from the specified subcomponent.
+     * Register display data from the specified subcomponent. For example, a {@link PTransform}
+     * which delegates to a user-provided function can implement {@link HasDisplayData} on the
+     * function and include it from the {@link PTransform}:
      *
-     * @see #include(HasDisplayData, String)
+     * <pre><code>{@literal @Override}
+     * public void populateDisplayData(DisplayData.Builder builder) {
+     *   super.populateDisplayData(builder);
+     *
+     *   builder
+     *     .add(DisplayData.item("userFn", userFn)) // To register the class name of the userFn
+     *     .include(userFn); // To allow the userFn to register additional display data
+     * }
+     * </code></pre>
+     *
+     * <p>Including subcomponent display data via
+     * {@code DisplayData.Builder.include(HasDisplayData)} ensures that the
+     * {@link Item#getNamespace() namespace} of registered {@link Item display items}
+     * is properly set to the namespace of the subcomponent. To register display data from a base
+     * class, use {@code super.populateDisplayData(builder)}, which will maintain the namespace of
+     * the current component. In all other cases, {@code builder.include(HasDisplayData)} is the
+     * preferred approach for including display data from other components.
+     *
+     * @see HasDisplayData#populateDisplayData(DisplayData.Builder)
      */
     Builder include(HasDisplayData subComponent);
 
     /**
-     * Register display data from the specified subcomponent, using the specified namespace.
+     * Register display data from the specified subcomponent, overriding the namespace of
+     * subcomponent display items with the specified namespace.
      *
-     * @see #include(HasDisplayData, String)
+     * @see #include(HasDisplayData)
      */
     Builder include(HasDisplayData subComponent, Class<?> namespace);
 
     /**
-     * Register display data from the specified subcomponent, using the specified namespace.
+     * Register display data from the specified subcomponent, overriding the namespace of
+     * subcomponent display items with the specified namespace.
      *
-     * <p>For example, a {@link ParDo} transform includes display data from the encapsulated
-     * {@link DoFn}.
+     * @see #include(HasDisplayData)
      */
     Builder include(HasDisplayData subComponent, String namespace);
 

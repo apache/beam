@@ -17,39 +17,52 @@
  */
 package org.apache.beam.sdk.transforms.display;
 
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.PTransform;
 
 /**
- * Marker interface for {@link PTransform PTransforms} and components used within
- * {@link PTransform PTransforms} to specify display data to be used within UIs and diagnostic
- * tools.
+ * Marker interface for {@link PTransform PTransforms} and components to specify display data used
+ * within UIs and diagnostic tools.
+ *
+ * <p>Display data is registered by overriding
+ * {@link #populateDisplayData(DisplayData.Builder)} in a component which implements
+ * {@code HasDisplayData}. Display data is available for {@link PipelineOptions} and
+ * {@link PTransform} implementations.
+ *
+ * <pre><code>{@literal @Override}
+ * public void populateDisplayData(DisplayData.Builder builder) {
+ *  super.populateDisplayData(builder);
+ *
+ *  builder
+ *     .include(subComponent)
+ *     .add(DisplayData.item("minFilter", 42))
+ *     .addIfNotDefault(DisplayData.item("useTransactions", this.txn), false)
+ *     .add(DisplayData.item("topic", "projects/myproject/topics/mytopic")
+ *       .withLabel("Pub/Sub Topic"))
+ *     .add(DisplayData.item("serviceInstance", "myservice.com/fizzbang")
+ *       .withLinkUrl("http://www.myservice.com/fizzbang"));
+ * }
+ * </code></pre>
  *
  * <p>Display data is optional and may be collected during pipeline construction. It should
- * only be used to informational purposes. Tools and components should not assume that display data
+ * only be used for informational purposes. Tools and components should not assume that display data
  * will always be collected, or that collected display data will always be displayed.
+ *
+ * @see #populateDisplayData(DisplayData.Builder)
  */
 public interface HasDisplayData {
   /**
-   * Register display data for the given transform or component. Metadata can be registered
-   * directly on the provided builder, as well as via included sub-components.
+   * Register display data for the given transform or component.
    *
-   * <pre>
-   * {@code
-   * @Override
-   * public void populateDisplayData(DisplayData.Builder builder) {
-   *  builder
-   *     .include(subComponent)
-   *     .add(DisplayData.item("minFilter", 42))
-   *     .addIfNotDefault(DisplayData.item("useTransactions", this.txn), false)
-   *     .add(DisplayData.item("topic", "projects/myproject/topics/mytopic")
-   *       .withLabel("Pub/Sub Topic"))
-   *     .add(DisplayData.item("serviceInstance", "myservice.com/fizzbang")
-   *       .withLinkUrl("http://www.myservice.com/fizzbang"));
-   * }
-   * }
-   * </pre>
+   * <p>{@code populateDisplayData(DisplayData.Builder)} is invoked by Pipeline runners to collect
+   * display data via {@link DisplayData#from(HasDisplayData)}. Implementations may call
+   * {@code super.populateDisplayData(builder)} in order to register display data from a base class,
+   * but should otherwise use {@link DisplayData.Builder#include(HasDisplayData)} for including
+   * display data from a subcomponent.
    *
    * @param builder The builder to populate with display data.
+   *
+   * @see HasDisplayData
    */
   void populateDisplayData(DisplayData.Builder builder);
 }
