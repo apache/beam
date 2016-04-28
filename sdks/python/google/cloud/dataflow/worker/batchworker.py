@@ -53,6 +53,7 @@ from google.cloud.dataflow.utils import names
 from google.cloud.dataflow.utils import options
 from google.cloud.dataflow.utils import profiler
 from google.cloud.dataflow.utils import retry
+from google.cloud.dataflow.worker import environment
 from google.cloud.dataflow.worker import executor
 from google.cloud.dataflow.worker import logger
 from google.cloud.dataflow.worker import maptask
@@ -301,6 +302,8 @@ class BatchWorker(object):
     self.job_id = properties['job_id']
     self.worker_id = properties['worker_id']
     self.service_path = properties['service_path']
+    # TODO(silviuc): Make sure environment_info_path is always specified.
+    self.environment_info_path = properties.get('environment_info_path', None)
     self.pipeline_options = options.PipelineOptions.from_dictionary(
         sdk_pipeline_options)
     self.capabilities = [self.worker_id, 'remote_source', 'custom_source']
@@ -500,15 +503,25 @@ class BatchWorker(object):
     # happen before they could be reported to the service. If it is not None,
     # worker will use the first work item to report deferred exceptions and
     # fail eventually.
+    # TODO(silviuc): Add the deferred exception mechanism to streaming worker
     deferred_exception_details = None
 
-    logging.info('Loading main session from the staging area...')
-    try:
-      self._load_main_session(self.local_staging_directory)
-    except Exception:  # pylint: disable=broad-except
-      deferred_exception_details = traceback.format_exc()
-      logging.error('Could not load main session: %s',
-                    deferred_exception_details, exc_info=True)
+    if self.environment_info_path is not None:
+      try:
+        environment.check_sdk_compatibility(self.environment_info_path)
+      except Exception:  # pylint: disable=broad-except
+        deferred_exception_details = traceback.format_exc()
+        logging.error('SDK compatibility check failed: %s',
+                      deferred_exception_details, exc_info=True)
+
+    if deferred_exception_details is None:
+      logging.info('Loading main session from the staging area...')
+      try:
+        self._load_main_session(self.local_staging_directory)
+      except Exception:  # pylint: disable=broad-except
+        deferred_exception_details = traceback.format_exc()
+        logging.error('Could not load main session: %s',
+                      deferred_exception_details, exc_info=True)
 
     # Start status HTTP server thread.
     thread = threading.Thread(target=self.status_server)
