@@ -142,7 +142,7 @@ class InProcessEvaluationContext {
    * @param result the result of evaluating the input bundle
    * @return the committed bundles contained within the handled {@code result}
    */
-  public synchronized Iterable<? extends CommittedBundle<?>> handleResult(
+  public synchronized CommittedResult handleResult(
       @Nullable CommittedBundle<?> completedBundle,
       Iterable<TimerData> completedTimers,
       InProcessTransformResult result) {
@@ -173,7 +173,7 @@ class InProcessEvaluationContext {
         applicationStateInternals.remove(stepAndKey);
       }
     }
-    return committedBundles;
+    return CommittedResult.create(result, committedBundles);
   }
 
   private Iterable<? extends CommittedBundle<?>> commitBundles(
