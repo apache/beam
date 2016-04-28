@@ -53,6 +53,11 @@ class PValueTest(unittest.TestCase):
     self.assertEqual(AsList(value), AsList(value))
     self.assertEqual(AsDict(value2), AsDict(value2))
 
+    self.assertNotEqual(AsSingleton(value), AsSingleton(value2))
+    self.assertNotEqual(AsIter(value), AsIter(value2))
+    self.assertNotEqual(AsList(value), AsList(value2))
+    self.assertNotEqual(AsDict(value), AsDict(value2))
+
 
 if __name__ == '__main__':
   unittest.main()

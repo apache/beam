@@ -263,12 +263,12 @@ class ListPCollectionView(PCollectionView):
   pass
 
 
-def _get_cached_view(pcoll, key):
-  return pcoll.pipeline._view_cache.get(key, None)  # pylint: disable=protected-access
+def _get_cached_view(pipeline, key):
+  return pipeline._view_cache.get(key, None)  # pylint: disable=protected-access
 
 
-def _cache_view(pcoll, key, view):
-  pcoll.pipeline._view_cache[key] = view  # pylint: disable=protected-access
+def _cache_view(pipeline, key, view):
+  pipeline._view_cache[key] = view  # pylint: disable=protected-access
 
 
 def can_take_label_as_first_argument(callee):
@@ -333,7 +333,7 @@ def AsSingleton(pcoll, default_value=_SINGLETON_NO_DEFAULT, label=None):  # pyli
     # Massage default value to treat as hash key.
     hashable_default_value = ('id', id(default_value))
   cache_key = (pcoll, AsSingleton, has_default, hashable_default_value)
-  cached_view = _get_cached_view(pcoll, cache_key)
+  cached_view = _get_cached_view(pcoll.pipeline, cache_key)
   if cached_view:
     return cached_view
 
@@ -343,7 +343,7 @@ def AsSingleton(pcoll, default_value=_SINGLETON_NO_DEFAULT, label=None):  # pyli
   from google.cloud.dataflow.transforms import sideinputs  # pylint: disable=g-import-not-at-top
   view = (pcoll | sideinputs.ViewAsSingleton(has_default, default_value,
                                              label=label))
-  _cache_view(pcoll, cache_key, view)
+  _cache_view(pcoll.pipeline, cache_key, view)
   return view
 
 
@@ -365,7 +365,7 @@ def AsIter(pcoll, label=None):  # pylint: disable=invalid-name
 
   # Don't recreate the view if it was already created.
   cache_key = (pcoll, AsIter)
-  cached_view = _get_cached_view(pcoll, cache_key)
+  cached_view = _get_cached_view(pcoll.pipeline, cache_key)
   if cached_view:
     return cached_view
 
@@ -374,7 +374,7 @@ def AsIter(pcoll, label=None):  # pylint: disable=invalid-name
   # depend on pvalue, it lives in this module to reduce user workload.
   from google.cloud.dataflow.transforms import sideinputs  # pylint: disable=g-import-not-at-top
   view = (pcoll | sideinputs.ViewAsIterable(label=label))
-  _cache_view(pcoll, cache_key, view)
+  _cache_view(pcoll.pipeline, cache_key, view)
   return view
 
 
@@ -395,8 +395,8 @@ def AsList(pcoll, label=None):  # pylint: disable=invalid-name
   label = label or _format_view_label(pcoll)
 
   # Don't recreate the view if it was already created.
-  cache_key = AsList
-  cached_view = _get_cached_view(pcoll, cache_key)
+  cache_key = (pcoll, AsList)
+  cached_view = _get_cached_view(pcoll.pipeline, cache_key)
   if cached_view:
     return cached_view
 
@@ -405,7 +405,7 @@ def AsList(pcoll, label=None):  # pylint: disable=invalid-name
   # depend on pvalue, it lives in this module to reduce user workload.
   from google.cloud.dataflow.transforms import sideinputs  # pylint: disable=g-import-not-at-top
   view = (pcoll | sideinputs.ViewAsList(label=label))
-  _cache_view(pcoll, cache_key, view)
+  _cache_view(pcoll.pipeline, cache_key, view)
   return view
 
 
@@ -427,11 +427,12 @@ def AsDict(pcoll, label=None):  # pylint: disable=invalid-name
     A singleton PCollectionView containing the dict as above.
   """
   label = label or _format_view_label(pcoll)
+  singleton_label = 'ToDict(%s)' % label
   combine_label = 'CombineToDict(%s)' % label
 
   # Don't recreate the view if it was already created.
   cache_key = (pcoll, AsDict)
-  cached_view = _get_cached_view(pcoll, cache_key)
+  cached_view = _get_cached_view(pcoll.pipeline, cache_key)
   if cached_view:
     return cached_view
 
@@ -439,8 +440,8 @@ def AsDict(pcoll, label=None):  # pylint: disable=invalid-name
   # implementation of this function requires concepts defined in modules that
   # depend on pvalue, it lives in this module to reduce user workload.
   from google.cloud.dataflow.transforms import combiners  # pylint: disable=g-import-not-at-top
-  view = AsSingleton(label, pcoll | combiners.ToDict(combine_label))
-  _cache_view(pcoll, cache_key, view)
+  view = AsSingleton(singleton_label, pcoll | combiners.ToDict(combine_label))
+  _cache_view(pcoll.pipeline, cache_key, view)
   return view
 
 
