@@ -45,8 +45,8 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
             .put(ParDo.Bound.class, new ParDoSingleEvaluatorFactory())
             .put(ParDo.BoundMulti.class, new ParDoMultiEvaluatorFactory())
             .put(
-                GroupByKeyEvaluatorFactory.InProcessGroupByKeyOnly.class,
-                new GroupByKeyEvaluatorFactory())
+                GroupByKeyOnlyEvaluatorFactory.InProcessGroupByKeyOnly.class,
+                new GroupByKeyOnlyEvaluatorFactory())
             .put(FlattenPCollectionList.class, new FlattenEvaluatorFactory())
             .put(ViewEvaluatorFactory.WriteView.class, new ViewEvaluatorFactory())
             .put(Window.Bound.class, new WindowEvaluatorFactory())

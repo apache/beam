@@ -20,7 +20,7 @@ package org.apache.beam.sdk.runners.inprocess;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.runners.inprocess.GroupByKeyEvaluatorFactory.InProcessGroupByKeyOnly;
+import org.apache.beam.sdk.runners.inprocess.GroupByKeyOnlyEvaluatorFactory.InProcessGroupByKeyOnly;
 import org.apache.beam.sdk.runners.inprocess.InMemoryWatermarkManager.FiredTimers;
 import org.apache.beam.sdk.runners.inprocess.InMemoryWatermarkManager.TransformWatermarks;
 import org.apache.beam.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
