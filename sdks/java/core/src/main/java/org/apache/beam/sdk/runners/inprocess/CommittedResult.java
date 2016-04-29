@@ -7,30 +7,41 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
+ *
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.beam.sdk.runners.inprocess;
 
 import org.apache.beam.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
+
+import com.google.auto.value.AutoValue;
 
 /**
- * A callback for completing a bundle of input.
+ * A {@link InProcessTransformResult} that has been committed.
  */
-interface CompletionCallback {
+@AutoValue
+abstract class CommittedResult {
   /**
-   * Handle a successful result, returning the committed outputs of the result.
+   * Returns the {@link AppliedPTransform} that produced this result.
    */
-  CommittedResult handleResult(
-      CommittedBundle<?> inputBundle, InProcessTransformResult result);
+  public abstract AppliedPTransform<?, ?, ?> getTransform();
 
   /**
-   * Handle a result that terminated abnormally due to the provided {@link Throwable}.
+   * Returns the outputs produced by the transform.
    */
-  void handleThrowable(CommittedBundle<?> inputBundle, Throwable t);
+  public abstract Iterable<? extends CommittedBundle<?>> getOutputs();
+
+  public static CommittedResult create(
+      InProcessTransformResult original, Iterable<? extends CommittedBundle<?>> outputs) {
+    return new AutoValue_CommittedResult(original.getTransform(),
+        outputs);
+  }
 }
