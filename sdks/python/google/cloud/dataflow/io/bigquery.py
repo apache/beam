@@ -814,6 +814,8 @@ class BigQueryWrapper(object):
         value = float(value)
       elif field.type == 'TIMESTAMP':
         value = float(value)
+      elif field.type == 'BYTES':
+        value = value
       else:
         # Note that a schema field object supports also a RECORD type. However
         # when querying, the repeated and/or record fields always come
