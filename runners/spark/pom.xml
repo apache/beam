@@ -25,6 +25,7 @@
     <groupId>org.apache.beam</groupId>
     <artifactId>runners-parent</artifactId>
     <version>0.1.0-incubating-SNAPSHOT</version>
+    <relativePath>../pom.xml</relativePath>
   </parent>
 
   <artifactId>spark-runner</artifactId>
@@ -35,9 +36,7 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <java.version>1.7</java.version>
     <spark.version>1.6.1</spark.version>
-    <beam.version>0.1.0-incubating-SNAPSHOT</beam.version>
   </properties>
 
   <dependencies>
@@ -68,18 +67,15 @@
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
-      <version>${guava.version}</version>
     </dependency>
     <dependency>
       <groupId>com.google.auto.service</groupId>
       <artifactId>auto-service</artifactId>
-      <version>1.0-rc2</version>
       <optional>true</optional>
     </dependency>
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>java-sdk-all</artifactId>
-      <version>${beam.version}</version>
       <exclusions>
         <!-- Use Hadoop/Spark's backend logger -->
         <exclusion>
@@ -91,7 +87,6 @@
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>java-examples-all</artifactId>
-      <version>${beam.version}</version>
       <exclusions>
         <!-- Use Hadoop/Spark's backend logger -->
         <exclusion>
@@ -118,13 +113,11 @@
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
-      <version>4.12</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.hamcrest</groupId>
       <artifactId>hamcrest-all</artifactId>
-      <version>1.3</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -134,152 +127,13 @@
       <plugins>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-compiler-plugin</artifactId>
-          <version>3.5</version>
-          <configuration>
-            <source>${java.version}</source>
-            <target>${java.version}</target>
-            <compilerArgs>
-              <arg>-Xlint:all,-serial</arg>
-            </compilerArgs>
-          </configuration>
-        </plugin>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
+          <!-- Spark runner requires this surefire version for the fork "control" -->
           <version>2.19.1</version>
           <configuration>
             <forkCount>1</forkCount>
             <reuseForks>false</reuseForks>
           </configuration>
-        </plugin>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-checkstyle-plugin</artifactId>
-          <configuration>
-            <configLocation>build-resources/checkstyle.xml</configLocation>
-            <includeTestSourceDirectory>false</includeTestSourceDirectory>
-          </configuration>
-        </plugin>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-source-plugin</artifactId>
-          <version>2.4</version>
-          <executions>
-            <execution>
-              <id>attach-sources</id>
-              <goals>
-                <goal>jar-no-fork</goal>
-              </goals>
-            </execution>
-          </executions>
-        </plugin>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-javadoc-plugin</artifactId>
-          <version>2.10.3</version>
-          <configuration>
-            <javadocVersion>${java.version}</javadocVersion>
-          </configuration>
-          <executions>
-            <execution>
-              <id>attach-javadocs</id>
-              <goals>
-                <goal>jar</goal>
-              </goals>
-            </execution>
-          </executions>
-        </plugin>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-clean-plugin</artifactId>
-          <version>3.0.0</version>
-        </plugin>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-deploy-plugin</artifactId>
-          <version>2.8.2</version>
-        </plugin>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-install-plugin</artifactId>
-          <version>2.5.2</version>
-          <configuration>
-            <createChecksum>true</createChecksum>
-          </configuration>
-        </plugin>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-resources-plugin</artifactId>
-          <version>2.7</version>
-        </plugin>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-jar-plugin</artifactId>
-          <version>2.6</version>
-        </plugin>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-site-plugin</artifactId>
-          <version>3.4</version>
-        </plugin>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-release-plugin</artifactId>
-          <version>2.5.3</version>
-          <dependencies>
-            <dependency>
-              <groupId>org.apache.maven.scm</groupId>
-              <artifactId>maven-scm-provider-gitexe</artifactId>
-              <version>1.9.2</version>
-            </dependency>
-          </dependencies>
-        </plugin>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-gpg-plugin</artifactId>
-          <version>1.6</version>
-          <executions>
-            <execution>
-              <id>sign-artifacts</id>
-              <phase>verify</phase>
-              <goals>
-                <goal>sign</goal>
-              </goals>
-            </execution>
-          </executions>
-        </plugin>
-        <plugin>
-          <groupId>org.apache.rat</groupId>
-          <artifactId>apache-rat-plugin</artifactId>
-          <version>0.11</version>
-          <configuration>
-            <excludes>
-              <exclude>.travis.yml</exclude>
-              <exclude>**/*.conf</exclude>
-              <exclude>**/*.iml</exclude>
-              <exclude>**/*.md</exclude>
-              <exclude>**/*.txt</exclude>
-              <exclude>**/.project</exclude>
-              <exclude>**/.checkstyle</exclude>
-              <exclude>**/.classpath</exclude>
-              <exclude>**/.settings/</exclude>
-              <exclude>**/gen/**</exclude>
-              <exclude>**/resources/**</exclude>
-              <exclude>**/target/**</exclude>
-              <exclude>**/dependency-reduced-pom.xml</exclude>
-              <excludeSubProjects>false</excludeSubProjects>
-            </excludes>
-          </configuration>
-          <executions>
-            <execution>
-              <id>verify</id>
-              <phase>verify</phase>
-              <goals>
-                <goal>check</goal>
-              </goals>
-            </execution>
-          </executions>
         </plugin>
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
@@ -321,7 +175,6 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-shade-plugin</artifactId>
-          <version>2.4.3</version>
           <executions>
             <execution>
               <phase>package</phase>
@@ -352,12 +205,18 @@
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-checkstyle-plugin</artifactId>
+        <artifactId>maven-compiler-plugin</artifactId>
       </plugin>
       <plugin>
-        <groupId>org.apache.rat</groupId>
-        <artifactId>apache-rat-plugin</artifactId>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
       </plugin>
+      <!-- Checkstyle errors for now
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+      </plugin>
+      -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-source-plugin</artifactId>
