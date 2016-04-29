@@ -26,7 +26,6 @@ public class ListDataSink<T> implements DataSink<T> {
   public Writer<T> openWriter(int partitionId) {
 
     final List<T> output = new ArrayList<>();
-    outputs.set(partitionId, output);
 
     return new Writer<T>() {
 
@@ -37,7 +36,7 @@ public class ListDataSink<T> implements DataSink<T> {
 
       @Override
       public void commit() throws IOException{
-        // nop
+        outputs.set(partitionId, output);
       }
 
       @Override
