@@ -1,6 +1,7 @@
 
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.client.dataset.BatchWindowing;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Window;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
@@ -13,8 +14,8 @@ import java.util.Collection;
 /**
  * Operator performing a mapping operation on whole window.
  */
-public class MapWindow<IN, OUT, W extends Window<?>, TYPE extends Dataset<OUT>>
-    extends WindowWiseOperator<IN, IN, OUT, W, TYPE> {
+public class MapWindow<IN, OUT, W extends Window<?>>
+    extends WindowWiseOperator<IN, IN, OUT, W> {
 
   public static class Builder1<IN> {
     final Dataset<IN> input;
@@ -32,13 +33,16 @@ public class MapWindow<IN, OUT, W extends Window<?>, TYPE extends Dataset<OUT>>
       this.input = input;
       this.mapper = mapper;
     }
-    public <W extends Window<?>> MapWindow<IN, OUT, W, Dataset<OUT>> windowBy(
+    public <W extends Window<?>> MapWindow<IN, OUT, W> windowBy(
         Windowing<IN, ?, W> windowing) {
       Flow flow = input.getFlow();
-      MapWindow<IN, OUT, W, Dataset<OUT>> mapWindow = new MapWindow<>(
-          flow, input, windowing);
+      MapWindow<IN, OUT, W> mapWindow = new MapWindow<>(flow, input, windowing);
       return flow.add(mapWindow);
     }
+    public Dataset<OUT> output() {
+      return windowBy(BatchWindowing.get()).output();
+    }
+
   }
 
   public static <IN> Builder1<IN> of(Dataset<IN> input) {
@@ -46,7 +50,7 @@ public class MapWindow<IN, OUT, W extends Window<?>, TYPE extends Dataset<OUT>>
   }
 
   private final Dataset<IN> input;
-  private final TYPE output;
+  private final Dataset<OUT> output;
 
   MapWindow(Flow flow, Dataset<IN> input, Windowing<IN, ?, W> windowing) {
     super("MapWindow", flow, windowing);
@@ -60,7 +64,7 @@ public class MapWindow<IN, OUT, W extends Window<?>, TYPE extends Dataset<OUT>>
   }
 
   @Override
-  public TYPE output() {
+  public Dataset<OUT> output() {
     return output;
   }
 

@@ -2,11 +2,6 @@
 package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.OutputPCollection;
-import cz.seznam.euphoria.core.client.dataset.OutputPStream;
-import cz.seznam.euphoria.core.client.dataset.PCollection;
-import cz.seznam.euphoria.core.client.dataset.PStream;
-import cz.seznam.euphoria.core.client.dataset.Partitioning;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.graph.DAG;
 
@@ -16,8 +11,8 @@ import java.util.Collection;
 /**
  * An operator base class. All operators inherit his class.
  */
-public abstract class Operator<IN, OUT, TYPE extends Dataset<OUT>>
-    implements Output<OUT, TYPE>, Serializable {
+public abstract class Operator<IN, OUT>
+    implements Output<OUT>, Serializable {
   
   /** Name of the operator. */
   private final String name;
@@ -42,7 +37,7 @@ public abstract class Operator<IN, OUT, TYPE extends Dataset<OUT>>
    * Override this method for all non basic operators.
    */
   @SuppressWarnings("unchecked")
-  public DAG<Operator<?, ?, ?>> getBasicOps() {
+  public DAG<Operator<?, ?>> getBasicOps() {
     return DAG.of(this);
   }
 
@@ -54,39 +49,9 @@ public abstract class Operator<IN, OUT, TYPE extends Dataset<OUT>>
    * This is used when creating operator outputs.
    */
   @SuppressWarnings("unchecked")
-  protected final TYPE createOutput(final Dataset<IN> input) {
-    if (input.isBounded()) {
-      return (TYPE) new OutputPCollection<OUT>(input.getFlow(), (Operator<?, OUT, PCollection<OUT>>) this) {
-
-        @Override
-        @SuppressWarnings("unchecked")
-        public <X> Partitioning<X> getPartitioning()
-        {
-          if (Operator.this instanceof PartitioningAware) {
-            // only state operators change the partitioning
-            PartitioningAware<IN> state = (PartitioningAware<IN>) Operator.this;
-            return (Partitioning<X>) state.getPartitioning();
-          }
-          return input.getPartitioning();
-        }
-
-      };
-    }
-    return (TYPE) new OutputPStream<OUT>(input.getFlow(), (Operator<?, OUT, PStream<OUT>>) this) {
-
-      @Override
-      @SuppressWarnings("unchecked")
-      public <X> Partitioning<X> getPartitioning()
-      {
-        if (Operator.this instanceof PartitioningAware) {
-          // only partition aware operators change the partitioning
-          PartitioningAware<IN> state = (PartitioningAware<IN>) Operator.this;
-          return (Partitioning<X>) state.getPartitioning();
-        }
-        return input.getPartitioning();
-      }
-
-    };
+  protected final Dataset<OUT> createOutput(final Dataset<IN> input) {
+    Flow flow = input.getFlow();
+    return Dataset.createOutputFor(flow, input, this);
   }
 
 }

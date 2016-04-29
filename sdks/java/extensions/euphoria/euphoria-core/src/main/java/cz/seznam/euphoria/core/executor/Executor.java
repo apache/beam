@@ -27,7 +27,7 @@ public interface Executor {
    * implement them.
    */
   @SuppressWarnings("unchecked")
-  static Set<Class<? extends Operator<?, ?, ?>>> getBasicOps() {
+  static Set<Class<? extends Operator<?, ?>>> getBasicOps() {
     return (Set) Sets.newHashSet(
         FlatMap.class, Repartition.class, ReduceStateByKey.class, Union.class);
   }

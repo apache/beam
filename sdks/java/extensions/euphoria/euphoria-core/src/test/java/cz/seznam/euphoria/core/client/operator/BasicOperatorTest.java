@@ -2,7 +2,6 @@ package cz.seznam.euphoria.core.client.operator;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
-import cz.seznam.euphoria.core.client.dataset.BatchWindowing;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
@@ -120,7 +119,7 @@ public class BasicOperatorTest {
         StdoutSink.Factory.class);
 
     Flow flow = Flow.create("Test", settings);
-    Dataset<String> lines = flow.createBatchInput(URI.create("inmem:///tmp/foo.txt"));
+    Dataset<String> lines = flow.createInput(URI.create("inmem:///tmp/foo.txt"));
 
     // expand it to words
     Dataset<Pair<String, Long>> words = FlatMap.of(lines)
@@ -137,7 +136,6 @@ public class BasicOperatorTest {
         .keyBy(Pair::getFirst)
         .valueBy(Pair::getSecond)
         .combineBy(Sums.ofLongs())
-        .windowBy(BatchWindowing.get())
         .output();
 
     streamOutput.persist(URI.create("stdout:///"));

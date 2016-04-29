@@ -10,8 +10,7 @@ import java.util.Collection;
 /**
  * Operator with single input.
  */
-public abstract class SingleInputOperator<IN, OUT, TYPE extends Dataset<OUT>>
-    extends Operator<IN, OUT, TYPE> {
+public abstract class SingleInputOperator<IN, OUT> extends Operator<IN, OUT> {
 
   final Dataset<IN> input;
 
