@@ -25,7 +25,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.util.DoFnRunner;
 import org.apache.beam.sdk.util.DoFnRunners;
 import org.apache.beam.sdk.util.DoFnRunners.OutputManager;
-import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.CounterSet;
@@ -33,6 +32,8 @@ import org.apache.beam.sdk.util.state.CopyOnAccessInMemoryStateInternals;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+
+import com.google.common.base.Supplier;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -45,7 +46,7 @@ class ParDoInProcessEvaluator<T> implements TransformEvaluator<T> {
       InProcessEvaluationContext evaluationContext,
       CommittedBundle<InputT> inputBundle,
       AppliedPTransform<PCollection<InputT>, ?, ?> application,
-      DoFn<InputT, OutputT> fn,
+      Supplier<DoFn<InputT, OutputT>> fnSupplier,
       List<PCollectionView<?>> sideInputs,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> sideOutputTags,
@@ -68,7 +69,7 @@ class ParDoInProcessEvaluator<T> implements TransformEvaluator<T> {
     DoFnRunner<InputT, OutputT> runner =
         DoFnRunners.createDefault(
             evaluationContext.getPipelineOptions(),
-            SerializableUtils.clone(fn),
+            fnSupplier.get(),
             evaluationContext.createSideInputReader(sideInputs),
             BundleOutputManager.create(outputBundles),
             mainOutputTag,
