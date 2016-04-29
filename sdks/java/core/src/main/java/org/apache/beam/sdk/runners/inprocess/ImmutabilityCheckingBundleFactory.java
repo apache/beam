@@ -27,7 +27,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.util.IllegalMutationException;
 import org.apache.beam.sdk.util.MutationDetector;
 import org.apache.beam.sdk.util.MutationDetectors;
-import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
@@ -87,7 +86,7 @@ class ImmutabilityCheckingBundleFactory implements BundleFactory {
     public ImmutabilityEnforcingBundle(UncommittedBundle<T> underlying) {
       this.underlying = underlying;
       mutationDetectors = HashMultimap.create();
-      coder = SerializableUtils.clone(getPCollection().getCoder());
+      coder = getPCollection().getCoder();
     }
 
     @Override
