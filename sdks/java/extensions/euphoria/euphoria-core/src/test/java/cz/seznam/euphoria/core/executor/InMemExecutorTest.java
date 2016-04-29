@@ -250,8 +250,6 @@ public class InMemExecutorTest {
       for (Integer c : data) {
         this.collector.collect(Pair.of(key, c));
       }
-      System.out.println(" **** flushed with size " + data.size()
-          + " for key " + this.key);
     }
 
     static SortState combine(Iterable<SortState> others) {

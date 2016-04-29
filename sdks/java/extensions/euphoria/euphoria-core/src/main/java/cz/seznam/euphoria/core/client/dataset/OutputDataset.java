@@ -5,19 +5,24 @@ import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.operator.Operator;
+import java.util.Collection;
 
 /**
  * {@code PCollection} that is output of some operator.
  */
-public abstract class OutputPCollection<T> extends PCollection<T> {
+abstract class OutputDataset<T> implements Dataset<T> {
 
-  private final Operator<?, T, PCollection<T>> producer;
+  private final Flow flow;
+  private final Operator<?, T> producer;
+  private final boolean bounded;
+
   private DataSink<T> outputSink = null;
   private DataSink<T> checkpointSink = null;
 
-  public OutputPCollection(Flow flow, Operator<?, T, PCollection<T>> producer) {
-    super(flow);
+  public OutputDataset(Flow flow, Operator<?, T> producer, boolean bounded) {
+    this.flow = flow;
     this.producer = producer;
+    this.bounded = bounded;
   }
 
   @Override
@@ -26,30 +31,43 @@ public abstract class OutputPCollection<T> extends PCollection<T> {
   }
 
   @Override
-  public Operator<?, T, PCollection<T>> getProducer() {
+  public Operator<?, T> getProducer() {
     return producer;
   }
 
   @Override
-  public void persist(DataSink<T> sink)
-  {
+  public void persist(DataSink<T> sink) {
     outputSink = sink;
   }
 
   @Override
-  public void checkpoint(DataSink<T> sink)
-  {
+  public void checkpoint(DataSink<T> sink) {
     checkpointSink = sink;
   }
 
   @Override
   public DataSink<T> getOutputSink() {
     return outputSink;
-
   }
+
   @Override
   public DataSink<T> getCheckpointSink() {
     return checkpointSink;
+  }
+
+  @Override
+  public Flow getFlow() {
+    return flow;
+  }
+
+  @Override
+  public boolean isBounded() {
+    return bounded;
+  }
+
+  @Override
+  public Collection<Operator<?, ?>> getConsumers() {
+    return flow.getConsumersOf(this);
   }
 
 

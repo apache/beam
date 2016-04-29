@@ -26,28 +26,28 @@ public class ExecUnit {
   /** All outputs of this exec unit. */
   final List<Dataset<?>> outputs = new ArrayList<>();
   /** All dag consisting this exec unit. */
-  final DAG<Operator<?, ?, ?>> operators;
+  final DAG<Operator<?, ?>> operators;
 
   /** Split Flow into series of execution units. */
-  public static List<ExecUnit> split(DAG<Operator<?, ?, ?>> unfoldedFlow) {
+  public static List<ExecUnit> split(DAG<Operator<?, ?>> unfoldedFlow) {
     // FIXME: what exactly and for is unit?
     return Arrays.asList(new ExecUnit(unfoldedFlow));
   }
 
 
-  private ExecUnit(DAG<Operator<?, ?, ?>> operators) {
+  private ExecUnit(DAG<Operator<?, ?>> operators) {
     this.operators = operators;
   }
 
 
   /** Retrieve leaf operators. */
-  public Collection<Node<Operator<?, ?, ?>>> getLeafs() {
+  public Collection<Node<Operator<?, ?>>> getLeafs() {
     return operators.getLeafs();
   }
 
 
   /** Retrieve the DAG of operators. */
-  public DAG<Operator<?, ?, ?>> getDAG() {
+  public DAG<Operator<?, ?>> getDAG() {
     return operators;
   }
 
@@ -66,7 +66,7 @@ public class ExecUnit {
 
   /** Retrieve exec paths for this unit. */
   public Collection<ExecPath> getPaths() {
-    Collection<Node<Operator<?, ?, ?>>> leafs = operators.getLeafs();
+    Collection<Node<Operator<?, ?>>> leafs = operators.getLeafs();
     return leafs.stream()
         .map(l -> ExecPath.of(operators.parentSubGraph(l.get())))
         .collect(Collectors.toList());

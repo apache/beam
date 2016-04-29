@@ -3,9 +3,6 @@ package cz.seznam.euphoria.core.client.flow;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.HashPartitioner;
-import cz.seznam.euphoria.core.client.dataset.InputPCollection;
-import cz.seznam.euphoria.core.client.dataset.InputPStream;
-import cz.seznam.euphoria.core.client.dataset.PCollection;
 import cz.seznam.euphoria.core.client.dataset.Partitioner;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
 import cz.seznam.euphoria.core.client.io.DataSink;
@@ -52,13 +49,13 @@ public class Flow implements Serializable {
   /**
    * A map of {@link Operator} to its symbolic name.
    */
-  private final Map<Operator<?, ?, ?>, String> operatorNames = new HashMap<>();
+  private final Map<Operator<?, ?>, String> operatorNames = new HashMap<>();
 
 
   /**
    * A list of all operators in the flow. The ordering is unspecified.
    */
-  private final List<Operator<?, ?, ?>> operators = new ArrayList<>();
+  private final List<Operator<?, ?>> operators = new ArrayList<>();
 
 
   /**
@@ -76,7 +73,7 @@ public class Flow implements Serializable {
   /**
    * Map of datasets to consumers.
    */
-  private final Map<Dataset<?>, Set<Operator<?, ?, ?>>> datasetConsumers
+  private final Map<Dataset<?>, Set<Operator<?, ?>>> datasetConsumers
       = new HashMap<>();
 
 
@@ -110,8 +107,7 @@ public class Flow implements Serializable {
    *
    * @return instance of the operator
    */
-  public <IN, OUT, TYPE extends Dataset<OUT>, T extends Operator<IN, OUT, TYPE>> T add(
-      T operator) {
+  public <IN, OUT, T extends Operator<IN, OUT>> T add(T operator) {
     return add(operator, null);
   }
 
@@ -124,8 +120,8 @@ public class Flow implements Serializable {
    *
    * @return the added operator
    */
-  <IN, OUT, TYPE extends Dataset<OUT>, T extends Operator<IN, OUT, TYPE>> T add(
-      T operator, String logicalName) {
+  <IN, OUT, T extends Operator<IN, OUT>> T add(T operator, String logicalName) {
+
     operatorNames.put(operator, buildOperatorName(operator, logicalName));
     operators.add(operator);
     outputs.add(operator.output());
@@ -139,7 +135,7 @@ public class Flow implements Serializable {
         throw new IllegalArgumentException(
             "Invalid input: All dependencies must already be present in the flow!");
       }
-      Set<Operator<?, ?, ?>> consumers = this.datasetConsumers.get(d);
+      Set<Operator<?, ?>> consumers = this.datasetConsumers.get(d);
       if (consumers == null) {
         consumers = new HashSet<>();
         this.datasetConsumers.put(d, consumers);
@@ -186,7 +182,7 @@ public class Flow implements Serializable {
    * <p />
    * Note: this is *not* part of client API.
    */
-  public Collection<Operator<?, ?, ?>> operators() {
+  public Collection<Operator<?, ?>> operators() {
     return Collections.unmodifiableList(operators);
   }
 
@@ -207,8 +203,8 @@ public class Flow implements Serializable {
   /**
    * Retrieve currently registered consumers of dataset.
    */
-  public Collection<Operator<?, ?, ?>> getConsumersOf(Dataset<?> dataset) {
-    Set<Operator<?, ?, ?>> consumers = this.datasetConsumers.get(dataset);
+  public Collection<Operator<?, ?>> getConsumersOf(Dataset<?> dataset) {
+    Set<Operator<?, ?>> consumers = this.datasetConsumers.get(dataset);
     if (consumers != null) {
       return consumers;
     }
@@ -247,31 +243,7 @@ public class Flow implements Serializable {
   public <T> Dataset<T> createInput(DataSource<T> source) {
     final Dataset<T> ret;
 
-    if (source.isBounded()) {
-      ret = new InputPCollection<T>(this, source) {
-
-        @Override
-        public <X> Partitioning<X> getPartitioning()
-        {
-          return new Partitioning<X>() {
-
-            @Override
-            public Partitioner<X> getPartitioner()
-            {
-              return new HashPartitioner<>();
-            }
-
-            @Override
-            public int getNumPartitions()
-            {
-              return source.getPartitions().size();
-            }
-
-          };
-        }
-      };
-    } else {
-     ret = new InputPStream<T>(this, source) {
+    ret = new InputDataset<T>(this, source, source.isBounded()) {
 
       @Override
       public <X> Partitioning<X> getPartitioning()
@@ -292,26 +264,12 @@ public class Flow implements Serializable {
 
         };
       }
-
-     };
-    }
+    };
 
     sources.add(ret);
     return ret;
   }
 
-  /**
-   * Create batch input. This will fail if the provided URI doesn't represent
-   * bounded input.
-   */
-  public <T> PCollection<T> createBatchInput(URI uri) throws Exception {
-    Dataset<T> ret = createInput(uri);
-    if (!ret.isBounded()) {
-      throw new IllegalArgumentException(
-          "Cannot create batch input from given URI: " + uri);
-    }
-    return (PCollection<T>) ret;
-  }
 
   public <T> DataSink<T> createOutput(URI uri) throws Exception {
     return getSinkFromURI(uri);

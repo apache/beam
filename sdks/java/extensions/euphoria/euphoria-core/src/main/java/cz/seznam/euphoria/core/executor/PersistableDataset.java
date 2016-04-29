@@ -1,6 +1,7 @@
 
-package cz.seznam.euphoria.core.client.dataset;
+package cz.seznam.euphoria.core.executor;
 
+import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.DataSource;
@@ -12,11 +13,11 @@ import cz.seznam.euphoria.core.client.operator.Operator;
 public abstract class PersistableDataset<T> implements Dataset<T> {
   
   private final Flow flow;
-  private final Operator<?, T, Dataset<T>> producer;
+  private final Operator<?, T> producer;
 
   private DataSink<T> outputSink = null;
   
-  protected PersistableDataset(Flow flow, Operator<?, T, Dataset<T>> producer) {
+  protected PersistableDataset(Flow flow, Operator<?, T> producer) {
     this.flow = flow;
     this.producer = producer;
   }
@@ -32,7 +33,7 @@ public abstract class PersistableDataset<T> implements Dataset<T> {
   }
 
   @Override
-  public Operator<?, T, Dataset<T>> getProducer() {
+  public Operator<?, T> getProducer() {
     return producer;
   }
 

@@ -154,7 +154,7 @@ public class InMemFileSystem {
     @Override
     public <T> DataSink<T> get(URI uri, Settings settings) {
       List<String> cpath = InMemFileSystem.get().toCanonicalPath(uri.getPath());
-      return (DataSink<T>) new DirectoryDataSink<>(cpath);
+      return new DirectoryDataSink<>(cpath);
     }
   }
 
