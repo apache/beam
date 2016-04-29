@@ -1,6 +1,7 @@
 
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.client.dataset.BatchWindowing;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
@@ -18,10 +19,9 @@ import cz.seznam.euphoria.core.client.util.Pair;
  */
 public class ReduceStateByKey<
     IN, WIN, KIN, KEY, VALUE, OUT, STATE extends State<VALUE, Pair<KEY, OUT>>,
-    W extends Window<?>,
-    TYPE extends Dataset<Pair<KEY, OUT>>>
-    extends StateAwareWindowWiseSingleInputOperator<IN, WIN, KIN, KEY, Pair<KEY, OUT>, W, TYPE,
-        ReduceStateByKey<IN, WIN, KIN, KEY, VALUE, OUT, STATE, W, TYPE>> {
+    W extends Window<?>>
+    extends StateAwareWindowWiseSingleInputOperator<IN, WIN, KIN, KEY, Pair<KEY, OUT>, W,
+        ReduceStateByKey<IN, WIN, KIN, KEY, VALUE, OUT, STATE, W>> {
 
   public static class Builder1<IN, KIN> {
     final Dataset<IN> input;
@@ -100,13 +100,17 @@ public class ReduceStateByKey<
       this.stateCombiner = stateCombiner;
     }
     public <WIN, W extends Window<?>> ReduceStateByKey<
-        IN, WIN, KIN, KEY, VALUE, OUT, STATE, W, Dataset<Pair<KEY, OUT>>> windowBy(
+        IN, WIN, KIN, KEY, VALUE, OUT, STATE, W> windowBy(
         Windowing<WIN, ?, W> windowing) {
       Flow flow = input.getFlow();
       return flow.add(new ReduceStateByKey<>(
           flow, input, keyExtractor, valueExtractor,
           windowing, stateFactory, stateCombiner));
     }
+    public Dataset<Pair<KEY, OUT>> output() {
+      return windowBy(BatchWindowing.get()).output();
+    }
+
   }
 
 

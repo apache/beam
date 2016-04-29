@@ -1,13 +1,13 @@
 
-package cz.seznam.euphoria.core.client.dataset;
+package cz.seznam.euphoria.core.executor;
 
+import cz.seznam.euphoria.core.client.dataset.FlowAwareDataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
-import java.util.Collection;
 
 /**
  * A batch dataset.
  */
-public abstract class PCollection<T> extends FlowAwareDataset<T> {
+abstract class PCollection<T> extends FlowAwareDataset<T> {
 
   public PCollection(Flow flow) {
     super(flow);

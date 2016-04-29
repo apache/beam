@@ -179,26 +179,26 @@ public class InMemExecutor implements Executor {
 
   private static final class ExecutionContext {
     // map of operator inputs to suppliers
-    Map<Pair<Operator<?, ?, ?>, Operator<?, ?, ?>>, InputProvider<?>> materializedOutputs
+    Map<Pair<Operator<?, ?>, Operator<?, ?>>, InputProvider<?>> materializedOutputs
         = Collections.synchronizedMap(new HashMap<>());
     // already running operators
-    Set<Operator<?, ?, ?>> runningOperators = Collections.synchronizedSet(
+    Set<Operator<?, ?>> runningOperators = Collections.synchronizedSet(
         new HashSet<>());
 
-    private boolean containsKey(Pair<Operator<?, ?, ?>, Operator<?, ?, ?>> d) {
+    private boolean containsKey(Pair<Operator<?, ?>, Operator<?, ?>> d) {
       return materializedOutputs.containsKey(d);
     }
-    void add(Operator<?, ?, ?> source, Operator<?, ?, ?> target,
+    void add(Operator<?, ?> source, Operator<?, ?> target,
         InputProvider<?> partitions) {
-      Pair<Operator<?, ?, ?>, Operator<?, ?, ?>> edge = Pair.of(source, target);
+      Pair<Operator<?, ?>, Operator<?, ?>> edge = Pair.of(source, target);
       if (containsKey(edge)) {
         throw new IllegalArgumentException("Dataset for edge "
             + edge + " is already materialized!");
       }
       materializedOutputs.put(edge, partitions);
     }
-    InputProvider<?> get(Operator<?, ?, ?> source, Operator<?, ?, ?> target) {
-      Pair<Operator<?, ?, ?>, Operator<?, ?, ?>> edge = Pair.of(source, target);
+    InputProvider<?> get(Operator<?, ?> source, Operator<?, ?> target) {
+      Pair<Operator<?, ?>, Operator<?, ?>> edge = Pair.of(source, target);
       InputProvider<?> sup = materializedOutputs.get(edge);
       if (sup == null) {
         throw new IllegalArgumentException(String.format(
@@ -207,12 +207,12 @@ public class InMemExecutor implements Executor {
       }
       return sup;
     }
-    void markRunning(Operator<?, ?, ?> operator) {
+    void markRunning(Operator<?, ?> operator) {
       if (!this.runningOperators.add(operator)) {
         throw new IllegalStateException("Twice running the same operator?");
       }
     }
-    boolean isRunning(Operator<?, ?, ?> operator) {
+    boolean isRunning(Operator<?, ?> operator) {
       return runningOperators.contains(operator);
     }
   }
@@ -246,11 +246,11 @@ public class InMemExecutor implements Executor {
 
 
     // transform the given flow to DAG of basic dag
-    DAG<Operator<?, ?, ?>> dag = FlowUnfolder.unfold(flow, Executor.getBasicOps());
+    DAG<Operator<?, ?>> dag = FlowUnfolder.unfold(flow, Executor.getBasicOps());
 
     final List<Future> runningTasks = new ArrayList<>();
-    Collection<Node<Operator<?, ?, ?>>> leafs = dag.getLeafs();
-    
+    Collection<Node<Operator<?, ?>>> leafs = dag.getLeafs();
+
     List<ExecUnit> units = ExecUnit.split(dag);
 
     if (units.isEmpty()) {
@@ -299,12 +299,12 @@ public class InMemExecutor implements Executor {
   /** Read all outputs of given nodes and store them using their sinks. */
   @SuppressWarnings("unchecked")
   private List<Future> consumeOutputs(
-      Collection<Node<Operator<?, ?, ?>>> leafs,
+      Collection<Node<Operator<?, ?>>> leafs,
       ExecutionContext context)
   {
     List<Future> tasks = new ArrayList<>();
     // consume outputs
-    for (Node<Operator<?, ?, ?>> output : leafs) {
+    for (Node<Operator<?, ?>> output : leafs) {
       DataSink<?> sink = output.get().output().getOutputSink();
       final InputProvider<?> provider = context.get(output.get(), null);
       int part = 0;
@@ -367,8 +367,8 @@ public class InMemExecutor implements Executor {
    */
   @SuppressWarnings("unchecked")
   private void execNode(
-      Node<Operator<?, ?, ?>> node, ExecutionContext context) {
-    Operator<?, ?, ?> op = node.get();
+      Node<Operator<?, ?>> node, ExecutionContext context) {
+    Operator<?, ?> op = node.get();
     final InputProvider<?> output;
     if (context.isRunning(op)) {
       return;
@@ -390,7 +390,7 @@ public class InMemExecutor implements Executor {
     // store output for each child
     if (node.getChildren().size() > 1) {
       List<List<BlockingQueue<?>>> forkedProviders = new ArrayList<>();
-      for (Node<Operator<?, ?, ?>> ch : node.getChildren()) {
+      for (Node<Operator<?, ?>> ch : node.getChildren()) {
         List<BlockingQueue<?>> forkedProviderQueue = new ArrayList<>();
         InputProvider<?> forkedProvider = new InputProvider<>();
         forkedProviders.add(forkedProviderQueue);

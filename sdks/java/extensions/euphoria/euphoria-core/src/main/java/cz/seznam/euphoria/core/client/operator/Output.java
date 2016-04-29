@@ -6,8 +6,8 @@ import cz.seznam.euphoria.core.client.dataset.Dataset;
 /**
  * Interface for operator. Private.
  */
-public interface Output<T, TYPE extends Dataset<T>> {
+public interface Output<T> {
 
-  TYPE output();
+  Dataset<T> output();
 
 }

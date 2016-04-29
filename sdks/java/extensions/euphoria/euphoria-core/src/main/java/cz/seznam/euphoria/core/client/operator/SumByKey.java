@@ -1,6 +1,7 @@
 
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.client.dataset.BatchWindowing;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.HashPartitioning;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
@@ -15,10 +16,9 @@ import cz.seznam.euphoria.core.client.util.Sums;
 /**
  * Operator for summing of elements by key.
  */
-public class SumByKey<IN, KEY, W extends Window<?>,
-    TYPE extends Dataset<Pair<KEY, Long>>>
-    extends StateAwareWindowWiseSingleInputOperator<IN, IN, IN, KEY, Pair<KEY, Long>, W, TYPE,
-        SumByKey<IN, KEY, W, TYPE>> {
+public class SumByKey<IN, KEY, W extends Window<?>>
+    extends StateAwareWindowWiseSingleInputOperator<IN, IN, IN, KEY, Pair<KEY, Long>, W,
+        SumByKey<IN, KEY, W>> {
 
   public static class Builder1<IN> {
     final Dataset<IN> input;
@@ -39,12 +39,16 @@ public class SumByKey<IN, KEY, W extends Window<?>,
     public Builder3<IN, KEY> valueBy(UnaryFunction<IN, Long> valueExtractor) {
       return new Builder3<>(input, keyExtractor, valueExtractor);
     }
-    public <W extends Window<?>> SumByKey<IN, KEY, W, Dataset<Pair<KEY, Long>>>
+    public <W extends Window<?>> SumByKey<IN, KEY, W>
     windowBy(Windowing<IN, ?, W> windowing) {
       Flow flow = input.getFlow();
       return flow.add(new SumByKey<>(flow, input,
           keyExtractor, e -> 1L, windowing, new HashPartitioning<>()));
     }
+    public Dataset<Pair<KEY, Long>> output() {
+      return windowBy(BatchWindowing.get()).output();
+    }
+
   }
   public static class Builder3<IN, KEY> {
     final Dataset<IN> input;
@@ -56,11 +60,14 @@ public class SumByKey<IN, KEY, W extends Window<?>,
       this.keyExtractor = keyExtractor;
       this.valueExtractor = valueExtractor;
     }
-    public <W extends Window<?>> SumByKey<IN, KEY, W, Dataset<Pair<KEY, Long>>>
+    public <W extends Window<?>> SumByKey<IN, KEY, W>
     windowBy(Windowing<IN, ?, W> windowing) {
       Flow flow = input.getFlow();
       return flow.add(new SumByKey<>(flow, input,
           keyExtractor, valueExtractor, windowing, new HashPartitioning<>()));
+    }
+    public Dataset<Pair<KEY, Long>> output() {
+      return windowBy(BatchWindowing.get()).output();
     }
   }
 
@@ -82,8 +89,8 @@ public class SumByKey<IN, KEY, W extends Window<?>,
   }
 
   @Override
-  public DAG<Operator<?, ?, ?>> getBasicOps() {
-    ReduceByKey<IN, KEY, Long, Long, W, Dataset<Pair<KEY, Long>>> reduceByKey = new ReduceByKey<>(
+  public DAG<Operator<?, ?>> getBasicOps() {
+    ReduceByKey<IN, KEY, Long, Long, W> reduceByKey = new ReduceByKey<>(
         input.getFlow(), input,
         keyExtractor, valueExtractor, windowing, Sums.ofLongs());
     return DAG.of(reduceByKey);
