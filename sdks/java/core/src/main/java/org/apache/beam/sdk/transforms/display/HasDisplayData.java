@@ -56,9 +56,9 @@ public interface HasDisplayData {
    *
    * <p>{@code populateDisplayData(DisplayData.Builder)} is invoked by Pipeline runners to collect
    * display data via {@link DisplayData#from(HasDisplayData)}. Implementations may call
-   * {@code super.populateDisplayData(builder)} in order to register display data from a base class,
-   * but should otherwise use {@link DisplayData.Builder#include(HasDisplayData)} for including
-   * display data from a subcomponent.
+   * {@code super.populateDisplayData(builder)} in order to register display data in the current
+   * namespace, but should otherwise use {@link DisplayData.Builder#include} to use the namespace
+   * of the subcomponent.
    *
    * @param builder The builder to populate with display data.
    *

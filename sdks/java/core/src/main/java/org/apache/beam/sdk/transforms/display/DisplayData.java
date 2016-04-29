@@ -167,13 +167,10 @@ public class DisplayData implements Serializable {
      * }
      * </code></pre>
      *
-     * <p>Including subcomponent display data via
-     * {@code DisplayData.Builder.include(HasDisplayData)} ensures that the
-     * {@link Item#getNamespace() namespace} of registered {@link Item display items}
-     * is properly set to the namespace of the subcomponent. To register display data from a base
-     * class, use {@code super.populateDisplayData(builder)}, which will maintain the namespace of
-     * the current component. In all other cases, {@code builder.include(HasDisplayData)} is the
-     * preferred approach for including display data from other components.
+     * Using {@code include(subcomponent)} will associate each of the registered items with the
+     * namespace of the {@code subcomponent} being registered. To register display data in the
+     * current namespace, such as from a base class implementation, use
+     * {@code super.populateDisplayData(builder)} instead.
      *
      * @see HasDisplayData#populateDisplayData(DisplayData.Builder)
      */
