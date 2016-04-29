@@ -18,15 +18,20 @@
 package org.apache.beam.sdk.runners.inprocess;
 
 import org.apache.beam.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
+
+import java.util.Collection;
+import java.util.Map;
 
 /**
  * A callback for completing a bundle of input.
  */
 interface CompletionCallback {
   /**
-   * Handle a successful result, returning the committed outputs of the result.
+   * Handle a successful result, returning the committed outputs of the result and the transforms
+   * that should consume those outputs.
    */
-  Iterable<? extends CommittedBundle<?>> handleResult(
+  Map<? extends CommittedBundle<?>, Collection<AppliedPTransform<?, ?, ?>>> handleResult(
       CommittedBundle<?> inputBundle, InProcessTransformResult result);
 
   /**
