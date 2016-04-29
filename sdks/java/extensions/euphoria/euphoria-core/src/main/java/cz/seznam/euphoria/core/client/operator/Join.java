@@ -3,6 +3,7 @@ package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.dataset.AbstractWindowing;
+import cz.seznam.euphoria.core.client.dataset.BatchWindowing;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.HashPartitioning;
 import cz.seznam.euphoria.core.client.dataset.Window;
@@ -25,9 +26,10 @@ import java.util.stream.Collectors;
 /**
  * Join two datasets by given key producing single new dataset.
  */
-public class Join<LEFT, RIGHT, KEY, OUT, W extends Window<?>, TYPE extends Dataset<Pair<KEY, OUT>>>
-    extends StateAwareWindowWiseOperator<Object, Either<LEFT, RIGHT>, Either<LEFT, RIGHT>, KEY, Pair<KEY, OUT>, W, TYPE,
-    Join<LEFT, RIGHT, KEY, OUT, W, TYPE>> {
+public class Join<LEFT, RIGHT, KEY, OUT, W extends Window<?>>
+    extends StateAwareWindowWiseOperator<Object, Either<LEFT, RIGHT>,
+    Either<LEFT, RIGHT>, KEY, Pair<KEY, OUT>, W,
+    Join<LEFT, RIGHT, KEY, OUT, W>> {
 
   public static class Builder1<LEFT, RIGHT> {
     final Dataset<LEFT> left;
@@ -77,13 +79,17 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window<?>, TYPE extends Datas
       this.rightKeyExtractor = rightKeyExtractor;
       this.joinFunc = joinFunc;
     }
-    public <W extends Window<?>> Join<LEFT, RIGHT, KEY, OUT, W, Dataset<Pair<KEY, OUT>>>
+    public <W extends Window<?>> Join<LEFT, RIGHT, KEY, OUT, W>
     windowBy(Windowing<Either<LEFT, RIGHT>, ?, W> windowing) {
       Flow flow = left.getFlow();
-      Join<LEFT, RIGHT, KEY, OUT, W, Dataset<Pair<KEY, OUT>>> join = new Join<>(
+      Join<LEFT, RIGHT, KEY, OUT, W> join = new Join<>(
           flow, left, right, windowing, leftKeyExtractor, rightKeyExtractor, joinFunc);
       return flow.add(join);
     }
+    public Dataset<Pair<KEY, OUT>> output() {
+      return windowBy(BatchWindowing.get()).output();
+    }
+
   }
 
   public static <LEFT, RIGHT> Builder1<LEFT, RIGHT> of(
@@ -96,7 +102,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window<?>, TYPE extends Datas
 
   private final Dataset<LEFT> left;
   private final Dataset<RIGHT> right;
-  private final TYPE output;
+  private final Dataset<Pair<KEY, OUT>> output;
   private final BinaryFunctor<LEFT, RIGHT, OUT> functor;
   final UnaryFunction<LEFT, KEY> leftKeyExtractor;
   final UnaryFunction<RIGHT, KEY> rightKeyExtractor;
@@ -122,7 +128,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window<?>, TYPE extends Datas
     this.leftKeyExtractor = leftKeyExtractor;
     this.rightKeyExtractor = rightKeyExtractor;
     this.functor = functor;
-    this.output = (TYPE) createOutput((Dataset) left);
+    this.output = createOutput((Dataset) left);
   }
 
   @Override
@@ -132,13 +138,13 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window<?>, TYPE extends Datas
   }
 
   @Override
-  public TYPE output() {
+  public Dataset<Pair<KEY, OUT>> output() {
     return output;
   }
 
 
   /** Make the join outer join. */
-  public Join<LEFT, RIGHT, KEY, OUT, W, TYPE> outer() {
+  public Join<LEFT, RIGHT, KEY, OUT, W> outer() {
     this.outer = true;
     return this;
   }
@@ -281,21 +287,21 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window<?>, TYPE extends Datas
 
   @Override
   @SuppressWarnings("unchecked")
-  public DAG<Operator<?, ?, ?>> getBasicOps() {
+  public DAG<Operator<?, ?>> getBasicOps() {
 
 
     Flow flow = getFlow();
-    Map<LEFT, Either<LEFT, RIGHT>, Dataset<Either<LEFT, RIGHT>>> leftMap = new Map<>(
+    Map<LEFT, Either<LEFT, RIGHT>> leftMap = new Map<>(
         flow, left, (LEFT e) -> Either.left(e));
-    Map<RIGHT, Either<LEFT, RIGHT>, Dataset<Either<LEFT, RIGHT>>> rightMap = new Map<>(
+    Map<RIGHT, Either<LEFT, RIGHT>> rightMap = new Map<>(
         flow, right, (RIGHT e) -> Either.right(e));
 
-    Union<Either<LEFT, RIGHT>, Dataset<Either<LEFT, RIGHT>>> union = new Union<>(
+    Union<Either<LEFT, RIGHT>> union = new Union<>(
         flow, leftMap.output(), rightMap.output());
 
     ReduceStateByKey<Either<LEFT, RIGHT>, Either<LEFT, RIGHT>, Either<LEFT, RIGHT>,
         KEY, Either<LEFT, RIGHT>,
-        OUT, JoinState, JoinWindow, Dataset<Pair<KEY, OUT>>> reduce;
+        OUT, JoinState, JoinWindow> reduce;
 
     reduce = new ReduceStateByKey<>(
               flow,
@@ -317,7 +323,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window<?>, TYPE extends Datas
               }
         );
 
-    DAG<Operator<?, ?, ?>> dag = DAG.of(leftMap, rightMap);
+    DAG<Operator<?, ?>> dag = DAG.of(leftMap, rightMap);
     dag.add(union, leftMap, rightMap);
     dag.add(reduce, union);
     return dag;

@@ -1,15 +1,6 @@
 package cz.seznam.euphoria.core.client.flow;
 
-import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.operator.Operator;
-
 class Util {
-
-  static <IN, OUT, TYPE extends Dataset<OUT>, OP extends Operator<IN, OUT, TYPE>>
-  OP registerWithFlow(OP op, String logicalName)
-  {
-    return op.getFlow().add(op, logicalName);
-  }
 
   /**
    * Trim string (instead of empty string return null)

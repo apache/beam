@@ -1,21 +1,25 @@
 
-package cz.seznam.euphoria.core.client.dataset;
+package cz.seznam.euphoria.core.client.flow;
 
-import cz.seznam.euphoria.core.client.flow.Flow;
+import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.operator.Operator;
+import java.util.Collection;
 
 /**
  * {@code PCollection} that is input of a {@code Flow}.
  */
-public abstract class InputPCollection<T> extends PCollection<T> {
+abstract class InputDataset<T> implements Dataset<T> {
 
+  private final Flow flow;
   private final DataSource<T> source;
+  private final boolean bounded;
 
-  public InputPCollection(Flow flow, DataSource<T> source) {
-    super(flow);
+  public InputDataset(Flow flow, DataSource<T> source, boolean bounded) {
+    this.flow = flow;
     this.source = source;
+    this.bounded = bounded;
   }
 
   @Override
@@ -24,7 +28,7 @@ public abstract class InputPCollection<T> extends PCollection<T> {
   }
 
   @Override
-  public Operator<?, T, PCollection<T>> getProducer() {
+  public Operator<?, T> getProducer() {
     return null;
   }
 
@@ -37,6 +41,21 @@ public abstract class InputPCollection<T> extends PCollection<T> {
   @Override
   public void checkpoint(DataSink<T> sink) {
     throw new UnsupportedOperationException("Do not checkpoint inputs.");
+  }
+
+  @Override
+  public Flow getFlow() {
+    return flow;
+  }
+
+  @Override
+  public boolean isBounded() {
+    return bounded;
+  }
+
+  @Override
+  public Collection<Operator<?, ?>> getConsumers() {
+    return flow.getConsumersOf(this);
   }
 
 }

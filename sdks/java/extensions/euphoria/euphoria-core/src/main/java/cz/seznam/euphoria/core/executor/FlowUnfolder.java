@@ -27,7 +27,7 @@ public class FlowUnfolder {
    * Node added as a producer of inputs. This is fake "operator"
    * with the same input as output.
    */
-  public static final class InputOperator<T> extends Operator<T, T, Dataset<T>> {
+  public static final class InputOperator<T> extends Operator<T, T> {
 
     private final Dataset<T> ds;
 
@@ -53,11 +53,11 @@ public class FlowUnfolder {
    * Exception is thrown when this is not possible.
    */
   @SuppressWarnings("unchecked")
-  public static DAG<Operator<?, ?, ?>> unfold(Flow flow,
-      Set<Class<? extends Operator<?, ?, ?>>> operatorClasses)
+  public static DAG<Operator<?, ?>> unfold(Flow flow,
+      Set<Class<? extends Operator<?, ?>>> operatorClasses)
       throws IllegalArgumentException {
 
-    DAG<Operator<?, ?, ?>> dag = toDAG(flow);
+    DAG<Operator<?, ?>> dag = toDAG(flow);
     return translate(dag, (Set) operatorClasses);
   }
 
@@ -66,13 +66,13 @@ public class FlowUnfolder {
    * Get rid of unwanted operators in a DAG.
    */
   @SuppressWarnings("unchecked")
-  private static DAG<Operator<?, ?, ?>> translate(DAG<Operator<?, ?, ?>> dag,
+  private static DAG<Operator<?, ?>> translate(DAG<Operator<?, ?>> dag,
       Set<Class> allowed) throws IllegalArgumentException {
 
     // create root nodes for all inputs
-    DAG<Operator<?, ?, ?>> ret = DAG.of();
+    DAG<Operator<?, ?>> ret = DAG.of();
     
-    Map<Dataset<?>, Optional<Operator<?, ?, ?>>> datasetProducents = new HashMap<>();
+    Map<Dataset<?>, Optional<Operator<?, ?>>> datasetProducents = new HashMap<>();
 
     // initialize all other datasets in the original DAG to have empty producents
     dag.nodes().flatMap(n -> n.listInputs().stream())
@@ -88,11 +88,11 @@ public class FlowUnfolder {
         // parents
         ret.add(n.get());
       } else if (allowed.contains((Class) n.get().getClass())) {
-        List<Operator<?, ?, ?>> parents = getParents(n, datasetProducents);
+        List<Operator<?, ?>> parents = getParents(n, datasetProducents);
         ret.add(n.get(), parents);
       } else {
         // this is not allowed operator - replace it
-        DAG<Operator<?, ?, ?>> basicOps = n.get().getBasicOps();
+        DAG<Operator<?, ?>> basicOps = n.get().getBasicOps();
 
         // if basicOps contain only single operator, check it is not the
         // original one - that would mean that we cannot convert given flow
@@ -104,15 +104,15 @@ public class FlowUnfolder {
           }
         }
 
-        DAG<Operator<?, ?, ?>> modified = translate(basicOps, allowed);
+        DAG<Operator<?, ?>> modified = translate(basicOps, allowed);
         
         modified.bfs().forEach(m -> {
-          List<Operator<?, ?, ?>> parents = getParents(m, datasetProducents);
+          List<Operator<?, ?>> parents = getParents(m, datasetProducents);
           ret.add(m.get(), parents);
           datasetProducents.put(m.get().output(), Optional.of(m.get()));
         });
 
-        Operator<?, ?, ?> leaf = Iterables.getOnlyElement(modified.getLeafs()).get();
+        Operator<?, ?> leaf = Iterables.getOnlyElement(modified.getLeafs()).get();
         // we have to link the original output dataset with given replaced operator
         datasetProducents.put(n.get().output(), Optional.of(leaf));
 
@@ -134,13 +134,13 @@ public class FlowUnfolder {
   /**
    * Retrieve parent operators in so far constructed transformed DAG.
    */
-  private static List<Operator<?, ?, ?>> getParents(
-      Node<Operator<?, ?, ?>> node,
-      Map<Dataset<?>, Optional<Operator<?, ?, ?>>> datasetProducents) {
+  private static List<Operator<?, ?>> getParents(
+      Node<Operator<?, ?>> node,
+      Map<Dataset<?>, Optional<Operator<?, ?>>> datasetProducents) {
 
     if (node.getParents().isEmpty()) {
-      Operator<?, ?, ?> op = node.get();
-      List<Operator<?, ?, ?>> parents = op.listInputs()
+      Operator<?, ?> op = node.get();
+      List<Operator<?, ?>> parents = op.listInputs()
           .stream()
           .map(i -> datasetProducents.get(i))
           .filter(o -> {
@@ -172,29 +172,29 @@ public class FlowUnfolder {
    * Convert a given {@code Flow} to DAG (unconditionally).
    */
   @SuppressWarnings("unchecked")
-  private static DAG<Operator<?, ?, ?>> toDAG(Flow flow) {
-    Collection<Operator<?, ?, ?>> operators = flow.operators();
-    Set<Operator<?, ?, ?>> resolvedOperators = new HashSet<>();
-    Map<Dataset<?>, Operator<?, ?, ?>> datasets = new HashMap<>();
+  private static DAG<Operator<?, ?>> toDAG(Flow flow) {
+    Collection<Operator<?, ?>> operators = flow.operators();
+    Set<Operator<?, ?>> resolvedOperators = new HashSet<>();
+    Map<Dataset<?>, Operator<?, ?>> datasets = new HashMap<>();
     flow.sources().stream().forEach(d -> datasets.put(d, new InputOperator(d)));
 
     // root nodes
-    List<Operator<?, ?, ?>> roots = datasets.values()
+    List<Operator<?, ?>> roots = datasets.values()
         .stream()
         .collect(Collectors.toList());
 
 
-    DAG<Operator<?, ?, ?>> ret = DAG.of((List) roots);
+    DAG<Operator<?, ?>> ret = DAG.of((List) roots);
 
     while (resolvedOperators.size() != operators.size()) {
       boolean anyAdded = false;
-      for (Operator<?, ?, ?> op : operators) {
+      for (Operator<?, ?> op : operators) {
         if (!resolvedOperators.contains(op)) {
           if (op.listInputs().stream().allMatch(datasets::containsKey)) {
             // this operator has all inputs available - resolve it
             resolvedOperators.add(op);
             // get parent operators
-            List<Operator<?, ?, ?>> parents = op.listInputs().stream()
+            List<Operator<?, ?>> parents = op.listInputs().stream()
                 .map(datasets::get)
                 .collect(Collectors.toList());
             ret.add(op, parents);

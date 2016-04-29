@@ -4,21 +4,21 @@ package cz.seznam.euphoria.core.client.operator;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
-import cz.seznam.euphoria.core.client.dataset.GroupedOutputPCollection;
-import cz.seznam.euphoria.core.client.dataset.GroupedOutputPStream;
 import cz.seznam.euphoria.core.client.dataset.HashPartitioning;
-import cz.seznam.euphoria.core.client.dataset.PCollection;
 import cz.seznam.euphoria.core.client.dataset.Partitioner;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.graph.DAG;
+import cz.seznam.euphoria.core.client.io.DataSink;
+import cz.seznam.euphoria.core.client.io.DataSource;
+import java.util.Collection;
 
 /**
  * Operator taking input dataset and performs repartition and key extraction.
  */
-public class GroupByKey<IN, KEY, VALUE, TYPE extends GroupedDataset<KEY, VALUE>>
-    extends ElementWiseOperator<IN, Pair<KEY, VALUE>, TYPE>
+public class GroupByKey<IN, KEY, VALUE>
+    extends ElementWiseOperator<IN, Pair<KEY, VALUE>>
     implements PartitioningAware<KEY> {
 
   public static class Builder1<IN>  {
@@ -26,7 +26,7 @@ public class GroupByKey<IN, KEY, VALUE, TYPE extends GroupedDataset<KEY, VALUE>>
     Builder1(Dataset<IN> input) {
       this.input = input;
     }
-    public <KEY> GroupByKey<IN, KEY, IN, GroupedDataset<KEY, IN>> keyBy(
+    public <KEY> GroupByKey<IN, KEY, IN> keyBy(
         UnaryFunction<IN, KEY> keyExtractor) {
       Flow flow = input.getFlow();
       return flow.add(new GroupByKey<>(input.getFlow(), input,
@@ -43,7 +43,7 @@ public class GroupByKey<IN, KEY, VALUE, TYPE extends GroupedDataset<KEY, VALUE>>
       this.input = input;
       this.valueExtractor = valueExtractor;
     }
-    public <KEY> GroupByKey<IN, KEY, VALUE, GroupedDataset<KEY, VALUE>> keyBy(
+    public <KEY> GroupByKey<IN, KEY, VALUE> keyBy(
         UnaryFunction<IN, KEY> keyExtractor) {
       Flow flow = input.getFlow();
       return flow.add(new GroupByKey<>(input.getFlow(), input,
@@ -57,7 +57,7 @@ public class GroupByKey<IN, KEY, VALUE, TYPE extends GroupedDataset<KEY, VALUE>>
 
   private final UnaryFunction<IN, KEY> keyExtractor;
   private final UnaryFunction<IN, VALUE> valueExtractor;
-  private final TYPE decoratedOutput;
+  private final GroupedDataset<KEY, VALUE> decoratedOutput;
 
   private Partitioning<KEY> partitioning = new HashPartitioning<>(
       input.getPartitioning().getNumPartitions());
@@ -74,7 +74,7 @@ public class GroupByKey<IN, KEY, VALUE, TYPE extends GroupedDataset<KEY, VALUE>>
   }
 
   @Override
-  public TYPE output() {
+  public GroupedDataset<KEY, VALUE> output() {
     return decoratedOutput;
   }
 
@@ -83,7 +83,7 @@ public class GroupByKey<IN, KEY, VALUE, TYPE extends GroupedDataset<KEY, VALUE>>
     return partitioning;
   }
 
-  public GroupByKey<IN, KEY, VALUE, TYPE> setPartitioner(Partitioner<KEY> partitioner) {
+  public GroupByKey<IN, KEY, VALUE> setPartitioner(Partitioner<KEY> partitioner) {
     final int currentNumPartitions = partitioning.getNumPartitions();
     partitioning = new Partitioning<KEY>() {
       @Override
@@ -98,7 +98,7 @@ public class GroupByKey<IN, KEY, VALUE, TYPE extends GroupedDataset<KEY, VALUE>>
     return this;
   }
 
-  public GroupByKey<IN, KEY, VALUE, TYPE> setNumPartitions(int numPartitions) {
+  public GroupByKey<IN, KEY, VALUE> setNumPartitions(int numPartitions) {
     final Partitioner<KEY> currentPartitioner = partitioning.getPartitioner();
     partitioning = new Partitioning<KEY>() {
       @Override
@@ -117,28 +117,56 @@ public class GroupByKey<IN, KEY, VALUE, TYPE extends GroupedDataset<KEY, VALUE>>
 
 
   @SuppressWarnings("unchecked")
-  private TYPE groupedDecorate(Dataset<Pair<KEY, VALUE>> output) {
-    if (output instanceof PCollection) {
-      return (TYPE) new GroupedOutputPCollection<KEY, VALUE>(input.getFlow(), (Operator) this) {
-        @Override
-        @SuppressWarnings("unchecked")
-        public <X> Partitioning<X> getPartitioning() {
-          return (Partitioning<X>) GroupByKey.this.getPartitioning();
-        }
-      };
-    }
-    return (TYPE) new GroupedOutputPStream<KEY, VALUE>(input.getFlow(), (Operator) this) {
+  private GroupedDataset<KEY, VALUE> groupedDecorate(Dataset<Pair<KEY, VALUE>> output) {
+    return new GroupedDataset<KEY, VALUE>() {
+
+      @Override
+      public Flow getFlow() {
+        return output.getFlow();
+      }
+
+      @Override
+      public DataSource<Pair<KEY, VALUE>> getSource() {
+        return null;
+      }
+
+      @Override
+      public Operator<?, Pair<KEY, VALUE>> getProducer() {
+        return output.getProducer();
+      }
+
+      @Override
+      public Collection<Operator<?, ?>> getConsumers() {
+        return getFlow().getConsumersOf(this);
+      }
+
       @Override
       public <X> Partitioning<X> getPartitioning() {
-        return (Partitioning<X>) GroupByKey.this.getPartitioning();
-      }     
+        return output.getPartitioning();
+      }
+
+      @Override
+      public boolean isBounded() {
+        return output.isBounded();
+      }
+
+      @Override
+      public void persist(DataSink<Pair<KEY, VALUE>> sink) {
+        output.persist(sink);
+      }
+
+      @Override
+      public void checkpoint(DataSink<Pair<KEY, VALUE>> sink) {
+        output.checkpoint(sink);
+      }
+
     };
   }
 
 
   @Override
   @SuppressWarnings("unchecked")
-  public DAG<Operator<?, ?, ?>> getBasicOps() {
+  public DAG<Operator<?, ?>> getBasicOps() {
     // we can implement this by basically just repartition operator
     int numPartitions = partitioning.getNumPartitions();
     numPartitions = numPartitions > 0
@@ -146,13 +174,13 @@ public class GroupByKey<IN, KEY, VALUE, TYPE extends GroupedDataset<KEY, VALUE>>
     Partitioner<KEY> partitioner = partitioning.getPartitioner();
     Partitioner<Pair<KEY, VALUE>> repartitionPart
         = e -> partitioner.getPartition(e.getFirst());
-    Map<IN, Pair<KEY, VALUE>, Dataset<Pair<KEY, VALUE>>> map = new Map<>(
+    Map<IN, Pair<KEY, VALUE>> map = new Map<>(
         input.getFlow(), input, e -> {
           return Pair.of(keyExtractor.apply(e), valueExtractor.apply(e));
         });
-    Repartition<Pair<KEY, VALUE>, TYPE> repartition = new Repartition<>(
+    Repartition<Pair<KEY, VALUE>> repartition = new Repartition<>(
         input.getFlow(), map.output(), repartitionPart, numPartitions);
-    DAG<Operator<?, ?, ?>> dag = DAG.of(map);
+    DAG<Operator<?, ?>> dag = DAG.of(map);
     return dag.add(repartition, map);
   }
 

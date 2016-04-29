@@ -75,9 +75,9 @@ public class FlowUnfolderTest {
   @Test
   @SuppressWarnings("unchecked")
   public void testUnfoldSimple() {
-    Set<Class<? extends Operator<?, ?, ?>>> allowed = new HashSet<>();
+    Set<Class<? extends Operator<?, ?>>> allowed = new HashSet<>();
     allowed.addAll((List) Arrays.asList(Map.class, ReduceByKey.class, Join.class));
-    DAG<Operator<?, ?, ?>> unfolded = FlowUnfolder.unfold(flow, allowed);
+    DAG<Operator<?, ?>> unfolded = FlowUnfolder.unfold(flow, allowed);
     // there are 4 nodes, one is the input node
     assertEquals(4, unfolded.size());
   }
@@ -85,7 +85,7 @@ public class FlowUnfolderTest {
   @Test
   @SuppressWarnings("unchecked")
   public void testUnfoldBasic() {
-    DAG<Operator<?, ?, ?>> unfolded = FlowUnfolder.unfold(flow, Executor.getBasicOps());
+    DAG<Operator<?, ?>> unfolded = FlowUnfolder.unfold(flow, Executor.getBasicOps());
     // InputOperator -> Map
     // Map -> FlatMap
     // ReduceByKey -> ReduceStateByKey
@@ -93,33 +93,33 @@ public class FlowUnfolderTest {
     assertEquals(7, unfolded.size());
     // single root - InputNode
     assertEquals(1, unfolded.getRoots().size());
-    Node<Operator<?, ?, ?>> root = unfolded.getRoots().stream().findFirst().get();
+    Node<Operator<?, ?>> root = unfolded.getRoots().stream().findFirst().get();
     assertEquals(InputOperator.class, root.get().getClass());
     // single input consumer - FlatMap
     assertEquals(1, root.getChildren().size());
-    Node<Operator<?, ?, ?>> map = root.getChildren().get(0);
+    Node<Operator<?, ?>> map = root.getChildren().get(0);
     assertEquals(FlatMap.class, map.get().getClass());
     // FlatMap is consumed by ReduceStateByKey and the first FlatMap of expanded Join
     assertEquals(2, map.getChildren().size());
-    java.util.Map<Class<? extends Operator>, Node<Operator<?, ?, ?>>> childrenMap;
+    java.util.Map<Class<? extends Operator>, Node<Operator<?, ?>>> childrenMap;
     childrenMap = toClassMap((List) map.getChildren());
     assertTrue(childrenMap.containsKey(FlatMap.class));
     assertTrue(childrenMap.containsKey(ReduceStateByKey.class));
     // the FlatMap path is then consumed by Union
-    Node<Operator<?, ?, ?>> firstFlatMap = childrenMap.get(FlatMap.class);
-    Node<Operator<?, ?, ?>> firstReduceStateByKey = childrenMap.get(
+    Node<Operator<?, ?>> firstFlatMap = childrenMap.get(FlatMap.class);
+    Node<Operator<?, ?>> firstReduceStateByKey = childrenMap.get(
         ReduceStateByKey.class);
 
-    Node<Operator<?, ?, ?>> union =  getOnlyAndValidate(
+    Node<Operator<?, ?>> union =  getOnlyAndValidate(
         firstFlatMap.getChildren(), Union.class);
     // the union has single ReduceStateByKey consumer
-    Node<Operator<?, ?, ?>> secondReduceStateByKey = getOnlyAndValidate(
+    Node<Operator<?, ?>> secondReduceStateByKey = getOnlyAndValidate(
         union.getChildren(), ReduceStateByKey.class);
     // this is the output operator
     assertNotNull(secondReduceStateByKey.get().output().getOutputSink());
     assertEquals(StdoutSink.class,
         secondReduceStateByKey.get().output().getOutputSink().getClass());
-    Node<Operator<?, ?, ?>> secondFlatMap = getOnlyAndValidate(
+    Node<Operator<?, ?>> secondFlatMap = getOnlyAndValidate(
         firstReduceStateByKey.getChildren(), FlatMap.class);
     // the second flatMap is the second input to the union
     assertTrue(union == getOnlyAndValidate(secondFlatMap.getChildren(), Union.class));
@@ -139,11 +139,11 @@ public class FlowUnfolderTest {
         .collect(Collectors.toMap(n -> n.get().getClass(), n -> n));
   }
 
-  private Node<Operator<?, ?, ?>> getOnlyAndValidate(
-      List<Node<Operator<?, ?, ?>>> nodes,
+  private Node<Operator<?, ?>> getOnlyAndValidate(
+      List<Node<Operator<?, ?>>> nodes,
       Class<? extends Operator> childClass) {
     assertEquals(1, nodes.size());
-    Node<Operator<?, ?, ?>> child = nodes.iterator().next();
+    Node<Operator<?, ?>> child = nodes.iterator().next();
     assertEquals(childClass, child.get().getClass());
     return child;
   }

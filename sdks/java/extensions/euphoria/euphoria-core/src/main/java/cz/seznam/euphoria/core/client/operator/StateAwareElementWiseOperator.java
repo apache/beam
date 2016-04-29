@@ -10,8 +10,8 @@ import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 /**
  * Operator working with some state element-wise.
  */
-public class StateAwareElementWiseOperator<IN, KEY, OUT, TYPE extends Dataset<OUT>>
-    extends ElementWiseOperator<IN, OUT, TYPE> implements StateAware<IN, KEY> {
+public class StateAwareElementWiseOperator<IN, KEY, OUT>
+    extends ElementWiseOperator<IN, OUT> implements StateAware<IN, KEY> {
 
   private final UnaryFunction<IN, KEY> keyExtractor;
   private final Partitioning<KEY> partitioning;

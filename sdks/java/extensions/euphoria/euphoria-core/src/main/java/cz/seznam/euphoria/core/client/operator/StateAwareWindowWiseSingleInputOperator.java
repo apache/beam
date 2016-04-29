@@ -15,12 +15,12 @@ import java.util.Collections;
  * Operator operating on window level with state information.
  */
 public class StateAwareWindowWiseSingleInputOperator<
-    IN, WIN, KIN, KEY, OUT, W extends Window<?>, TYPE extends Dataset<OUT>,
-    OP extends StateAwareWindowWiseSingleInputOperator<IN, WIN, KIN, KEY, OUT, W, TYPE, OP>>
-    extends StateAwareWindowWiseOperator<IN, WIN, KIN, KEY, OUT, W, TYPE, OP> {
+    IN, WIN, KIN, KEY, OUT, W extends Window<?>,
+    OP extends StateAwareWindowWiseSingleInputOperator<IN, WIN, KIN, KEY, OUT, W, OP>>
+    extends StateAwareWindowWiseOperator<IN, WIN, KIN, KEY, OUT, W, OP> {
 
   protected final Dataset<IN> input;
-  private final TYPE output;
+  private final Dataset<OUT> output;
 
   protected StateAwareWindowWiseSingleInputOperator(
           String name, Flow flow, Dataset<IN> input, UnaryFunction<KIN, KEY> extractor,
@@ -47,7 +47,7 @@ public class StateAwareWindowWiseSingleInputOperator<
     return input;
   }
 
-  public TYPE output() {
+  public Dataset<OUT> output() {
     return output;
   }
 

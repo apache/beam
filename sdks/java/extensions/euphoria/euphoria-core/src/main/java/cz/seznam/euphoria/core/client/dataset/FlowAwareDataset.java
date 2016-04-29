@@ -22,7 +22,7 @@ public abstract class FlowAwareDataset<T> implements Dataset<T> {
   }
 
   @Override
-  public Collection<Operator<?, ?, ?>> getConsumers() {
+  public Collection<Operator<?, ?>> getConsumers() {
     return flow.getConsumersOf(this);
   }
 

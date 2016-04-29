@@ -10,10 +10,10 @@ import cz.seznam.euphoria.core.client.operator.Operator;
 public class ExecPath {
 
   /** A DAG of operators. */
-  private final DAG<Operator<?, ?, ?>> dag;
+  private final DAG<Operator<?, ?>> dag;
   
 
-  private ExecPath(DAG<Operator<?, ?, ?>> dag) {
+  private ExecPath(DAG<Operator<?, ?>> dag) {
     this.dag = dag;
   }
 
@@ -21,11 +21,11 @@ public class ExecPath {
   /**
    * Create new ExecPath.
    */
-  static ExecPath of(DAG<Operator<?, ?, ?>> dag) {
+  static ExecPath of(DAG<Operator<?, ?>> dag) {
     return new ExecPath(dag);
   }
 
-  public DAG<Operator<?, ?, ?>> dag() {
+  public DAG<Operator<?, ?>> dag() {
     return dag;
   }
 

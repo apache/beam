@@ -8,10 +8,10 @@ import cz.seznam.euphoria.core.client.flow.Flow;
  * Operator working element-wise, with no context between elements.
  * No windowing scheme is needed to be defined on input.
  */
-public abstract class ElementWiseOperator<IN, OUT, TYPE extends Dataset<OUT>>
-    extends SingleInputOperator<IN, OUT, TYPE> {
+public abstract class ElementWiseOperator<IN, OUT>
+    extends SingleInputOperator<IN, OUT> {
 
-  protected final TYPE output;
+  protected final Dataset<OUT> output;
 
   protected ElementWiseOperator(String name, Flow flow, Dataset<IN> input) {
     super(name, flow, input);
@@ -19,7 +19,7 @@ public abstract class ElementWiseOperator<IN, OUT, TYPE extends Dataset<OUT>>
   }
   
   @Override
-  public TYPE output() {
+  public Dataset<OUT> output() {
     return output;
   }
 

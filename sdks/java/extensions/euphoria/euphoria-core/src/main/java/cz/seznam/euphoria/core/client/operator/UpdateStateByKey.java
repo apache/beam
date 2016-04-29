@@ -11,8 +11,8 @@ import java.util.Optional;
 /**
  * Operator that performs the "updateStateByKey" operation on dataset.
  */
-public class UpdateStateByKey<IN, KEY, STATE, OUT, TYPE extends Dataset<OUT>>
-    extends StateAwareElementWiseOperator<IN, KEY, OUT, TYPE> {
+public class UpdateStateByKey<IN, KEY, STATE, OUT>
+    extends StateAwareElementWiseOperator<IN, KEY, OUT> {
 
 
   public static class Builder1<IN> {    
@@ -46,11 +46,11 @@ public class UpdateStateByKey<IN, KEY, STATE, OUT, TYPE extends Dataset<OUT>>
       this.keyExtractor = keyExtractor;
       this.update = update;
     }
-    public <OUT> UpdateStateByKey<IN, KEY, STATE, OUT, Dataset<OUT>> storing(
+    public <OUT> UpdateStateByKey<IN, KEY, STATE, OUT> storing(
         UnaryFunction<STATE, OUT> result) {
 
       Flow flow = input.getFlow();
-      UpdateStateByKey<IN, KEY, STATE, OUT, Dataset<OUT>> updateStateByKey
+      UpdateStateByKey<IN, KEY, STATE, OUT> updateStateByKey
           = new UpdateStateByKey<>(flow, input, keyExtractor, update, result);
       return flow.add(updateStateByKey);
     }

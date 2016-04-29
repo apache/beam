@@ -1,6 +1,7 @@
 
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.client.dataset.BatchWindowing;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
@@ -19,12 +20,11 @@ import java.util.List;
 /**
  * Reduce by key applied on grouped dataset.
  */
-public class GroupReduceByKey<GROUP_KEY, IN, KEY, VALUE, OUT, W extends Window<?>,
-    TYPE extends Dataset<Pair<CompositeKey<GROUP_KEY, KEY>, OUT>>>
+public class GroupReduceByKey<GROUP_KEY, IN, KEY, VALUE, OUT, W extends Window<?>>
     extends StateAwareWindowWiseSingleInputOperator<Pair<GROUP_KEY, IN>, IN,
         Pair<GROUP_KEY, IN>, CompositeKey<GROUP_KEY, KEY>,
-        Pair<CompositeKey<GROUP_KEY, KEY>, OUT>, W, TYPE,
-        GroupReduceByKey<GROUP_KEY, IN, KEY, VALUE, OUT, W, TYPE>>{
+        Pair<CompositeKey<GROUP_KEY, KEY>, OUT>, W,
+        GroupReduceByKey<GROUP_KEY, IN, KEY, VALUE, OUT, W>>{
 
 
   public static class Builder1<GROUP_KEY, IN> {
@@ -109,16 +109,20 @@ public class GroupReduceByKey<GROUP_KEY, IN, KEY, VALUE, OUT, W extends Window<?
       this.reducer = reducer;
     }
     public <W extends Window<?>> GroupReduceByKey<GROUP_KEY, IN, KEY,
-        VALUE, OUT, W, Dataset<Pair<CompositeKey<GROUP_KEY, KEY>, OUT>>>
+        VALUE, OUT, W>
     windowBy(Windowing<IN, ?, W> windowing) {
       Flow flow = input.getFlow();
-      GroupReduceByKey<GROUP_KEY, IN, KEY,
-        VALUE, OUT, W, Dataset<Pair<CompositeKey<GROUP_KEY, KEY>, OUT>>> reduceByKey;
+      GroupReduceByKey<GROUP_KEY, IN, KEY, VALUE, OUT, W> reduceByKey;
       reduceByKey = new GroupReduceByKey<>(
             flow, input, keyExtractor,
             valueExtractor, windowing, reducer);
       return flow.add(reduceByKey);
     }
+    @SuppressWarnings("unchecked")
+    public Dataset<Pair<CompositeKey<GROUP_KEY, KEY>, VALUE>> output() {
+      return windowBy((Windowing) BatchWindowing.get()).output();
+    }
+
   }
 
 
@@ -186,13 +190,13 @@ public class GroupReduceByKey<GROUP_KEY, IN, KEY, VALUE, OUT, W extends Window<?
 
 
   @Override
-  public DAG<Operator<?, ?, ?>> getBasicOps() {
+  public DAG<Operator<?, ?>> getBasicOps() {
     // implement this by ReduceStateByKey
     ReduceStateByKey<Pair<GROUP_KEY, IN>, IN, Pair<GROUP_KEY, IN>,
         CompositeKey<GROUP_KEY, KEY>, VALUE,
-        OUT, ReduceState, W, TYPE> reduceState;
+        OUT, ReduceState, W> reduceState;
 
-    Flow flow = getFlow();
+    Flow flow = input.getFlow();
     reduceState = new ReduceStateByKey<>(
         flow, (GroupedDataset<GROUP_KEY, IN>) input, keyExtractor,
         k -> valueExtractor.apply(k.getSecond()),

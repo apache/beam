@@ -5,6 +5,7 @@ import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.operator.Operator;
+import cz.seznam.euphoria.core.client.operator.PartitioningAware;
 
 import java.io.Serializable;
 import java.net.URI;
@@ -29,14 +30,14 @@ public interface Dataset<T> extends Serializable {
   DataSource<T> getSource();
 
   /** Retrieve operator that produced this dataset (if any). */
-  Operator<?, T, ? extends Dataset<T>> getProducer();
+  Operator<?, T> getProducer();
 
   /**
    * Retrieve collection of consumers of this dataset.
    * This returns the list of currently known consumers (this can chnage
    * if another consumer is added to the flow).
    */
-  Collection<Operator<?, ?, ?>> getConsumers();
+  Collection<Operator<?, ?>> getConsumers();
 
   /**
    * Retrieve partitioning for this dataset.
@@ -74,6 +75,30 @@ public interface Dataset<T> extends Serializable {
   /** Retrieve checkpoint sink for this dataset. */
   default DataSink<T> getCheckpointSink() {
     return null;
+  }
+
+  /** Create output dataset for given operator. */
+  @SuppressWarnings("unchecked")
+  public static <IN, OUT> Dataset<OUT> createOutputFor(
+      Flow flow, Dataset<IN> input, Operator<IN, OUT> op) {
+
+      return new OutputDataset<OUT>(flow, (Operator) op, input.isBounded()) {
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public <X> Partitioning<X> getPartitioning()
+        {
+          if (op instanceof PartitioningAware) {
+            // only state operators change the partitioning
+            PartitioningAware<IN> state = (PartitioningAware<IN>) op;
+            return (Partitioning<X>) state.getPartitioning();
+          }
+          return input.getPartitioning();
+        }
+
+      };
+
+
   }
   
 }
