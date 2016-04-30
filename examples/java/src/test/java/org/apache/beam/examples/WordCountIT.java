@@ -55,10 +55,5 @@ public class WordCountIT {
         options.getJobName(), "output", "results"}));
 
     WordCount.main(TestPipeline.convertToArgs(options));
-    PipelineResult result =
-        TestDataflowPipelineRunner.getPipelineResultByJobName(options.getJobName());
-
-    assertNotNull("Result was null.", result);
-    assertEquals("Pipeline state was not done.", PipelineResult.State.DONE, result.getState());
   }
 }

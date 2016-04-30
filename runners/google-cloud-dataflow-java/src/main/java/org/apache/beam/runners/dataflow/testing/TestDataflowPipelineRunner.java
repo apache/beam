@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.testing;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+
 import org.apache.beam.runners.dataflow.DataflowJobExecutionException;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
 import org.apache.beam.runners.dataflow.DataflowPipelineRunner;
@@ -40,6 +42,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 
+import org.hamcrest.Matcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,8 +65,6 @@ import java.util.concurrent.TimeUnit;
 public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> {
   private static final String TENTATIVE_COUNTER = "tentative";
   private static final Logger LOG = LoggerFactory.getLogger(TestDataflowPipelineRunner.class);
-  private static final Map<String, PipelineResult> EXECUTION_RESULTS =
-      new ConcurrentHashMap<String, PipelineResult>();
 
   private final TestDataflowPipelineOptions options;
   private final DataflowPipelineRunner runner;
@@ -87,10 +88,6 @@ public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJ
     return new TestDataflowPipelineRunner(dataflowOptions);
   }
 
-  public static PipelineResult getPipelineResultByJobName(String jobName) {
-    return EXECUTION_RESULTS.get(jobName);
-  }
-
   @Override
   public DataflowPipelineJob run(Pipeline pipeline) {
     return run(pipeline, runner);
@@ -98,6 +95,7 @@ public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJ
 
   DataflowPipelineJob run(Pipeline pipeline, DataflowPipelineRunner runner) {
 
+    TestPipelineOptions testPipelineOptions = pipeline.getOptions().as(TestPipelineOptions.class);
     final DataflowPipelineJob job;
     try {
       job = runner.run(pipeline);
@@ -107,6 +105,8 @@ public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJ
 
     LOG.info("Running Dataflow job {} with {} expected assertions.",
         job.getJobId(), expectedNumberOfAssertions);
+
+    assertThat(job, testPipelineOptions.getOnCreateMatcher());
 
     CancelWorkflowOnError messageHandler = new CancelWorkflowOnError(
         job, new MonitoringUtil.PrintHandler(options.getJobMessageOutput()));
@@ -151,6 +151,8 @@ public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJ
         throw new AssertionError(messageHandler.getErrorMessage() == null ?
             "The dataflow did not return a failure reason."
             : messageHandler.getErrorMessage());
+      } else {
+        assertThat(job, testPipelineOptions.getOnSuccessMatcher());
       }
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
@@ -161,7 +163,6 @@ public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJ
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
-    EXECUTION_RESULTS.put(options.getJobName(), job);
     return job;
   }
 

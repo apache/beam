@@ -25,21 +25,37 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.util.TestCredential;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Strings;
 import com.google.common.collect.Iterators;
 
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.Version;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.JsonSerializer;
+import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.module.SimpleDeserializers;
+import com.fasterxml.jackson.databind.module.SimpleSerializers;
 
+import org.hamcrest.Matcher;
 import org.junit.experimental.categories.Category;
 
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.Nullable;
 
@@ -82,6 +98,10 @@ import javax.annotation.Nullable;
 public class TestPipeline extends Pipeline {
   private static final String PROPERTY_BEAM_TEST_PIPELINE_OPTIONS = "beamTestPipelineOptions";
   private static final ObjectMapper MAPPER = new ObjectMapper();
+
+  static {
+    MAPPER.registerModule(new IntegrationMatcherStore());
+  }
 
   /**
    * Creates and returns a new test pipeline.
@@ -220,5 +240,79 @@ public class TestPipeline extends Pipeline {
       }
     }
     return firstInstanceAfterTestPipeline;
+  }
+
+  private static class IntegrationMatcherStore extends Module {
+    private static Map<String, Matcher<PipelineResult>> matcherMap = new ConcurrentHashMap<>();
+
+    /**
+     * Adds a matcher to the matcher store, to be retrieved by a TestPipelineRunner during
+     * pipeline execution.
+     *
+     * @param m The matcher to add to the store.
+     * @return Returns a UUID corresponding to the matcher which can be used in e.g.
+     * opts.SetPassVerifier(matcher)
+     */
+    String addMatcher(Matcher<PipelineResult> m) {
+      if (matcherMap == null) {
+        matcherMap = new HashMap<>();
+      }
+      String uid = UUID.randomUUID().toString();
+      matcherMap.put(uid, m);
+      return uid;
+    }
+
+    /**
+     * Retrieves a matcher from the matcher store.
+     *
+     * @param str The UUID of the matcher to return.
+     * @return Returns the matcher corresponding to the string passed, or null if it doesn't exist.
+     */
+    Matcher<PipelineResult> getMatcher(String str) {
+      if (matcherMap == null) {
+        return null;
+      }
+      return matcherMap.get(str);
+    }
+
+    @Override
+    public String getModuleName() {
+      return "IntegrationMatcherStore";
+    }
+
+    @Override
+    public Version version() {
+      return new Version(1, 0, 0, "", null, null);
+    }
+
+    @Override
+    public void setupModule(SetupContext setupContext) {
+      SimpleSerializers ser = new SimpleSerializers();
+      ser.addSerializer(Matcher.class, (JsonSerializer) new MatcherSerializer());
+      SimpleDeserializers des = new SimpleDeserializers();
+      des.addDeserializer(Matcher.class, new MatcherDeserializer());
+      setupContext.addSerializers(ser);
+      setupContext.addDeserializers(des);
+    }
+
+    class MatcherSerializer extends JsonSerializer<Matcher<PipelineResult>> {
+      @Override
+      public void serialize(Matcher<PipelineResult> matcher, JsonGenerator jsonGenerator,
+          SerializerProvider serializerProvider) throws IOException, JsonProcessingException {
+        String uuid = addMatcher(matcher);
+        jsonGenerator.writeString(uuid);
+      }
+    }
+
+    class MatcherDeserializer extends JsonDeserializer<Matcher<PipelineResult>> {
+
+      @Override
+      public Matcher<PipelineResult> deserialize(JsonParser jsonParser,
+          DeserializationContext deserializationContext)
+          throws IOException, JsonProcessingException {
+        String uuid = jsonParser.getText();
+        return getMatcher(uuid);
+      }
+    }
   }
 }
