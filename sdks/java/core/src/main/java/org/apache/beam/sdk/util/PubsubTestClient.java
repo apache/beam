@@ -20,6 +20,7 @@ package org.apache.beam.sdk.util;
 
 import org.apache.beam.sdk.options.PubsubOptions;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
 import java.io.IOException;
@@ -33,55 +34,106 @@ import javax.annotation.Nullable;
 
 /**
  * A (partial) implementation of {@link PubsubClient} for use by unit tests. Only suitable for
- * testing {@link #publish}, {@link #pull}, {@link #acknowledge} and {@link #modifyAckDeadline}.
+ * testing {@link #publish}, {@link #pull}, {@link #acknowledge} and {@link #modifyAckDeadline}
+ * methods.
  */
 public class PubsubTestClient extends PubsubClient {
   public static PubsubClientFactory createFactory(
-      final TopicPath expectedTopic,
-      final Set<OutgoingMessage> remainingExpectedOutgoingMessages,
-      final SubscriptionPath expectedSubscription,
-      final List<IncomingMessage> remainingPendingIncomingMessages,
-      final long ackTimeoutMs) {
+      @Nullable final TopicPath expectedTopic,
+      @Nullable final SubscriptionPath expectedSubscription,
+      final int ackTimeoutSec,
+      @Nullable final Set<OutgoingMessage> expectedOutgoingMessages,
+      @Nullable final List<IncomingMessage> expectedIncomingMessages) {
     return new PubsubClientFactory() {
       @Override
       public PubsubClient newClient(
           @Nullable String timestampLabel, @Nullable String idLabel, PubsubOptions options)
           throws IOException {
-        return new PubsubTestClient(expectedTopic, remainingExpectedOutgoingMessages,
-                                    expectedSubscription, remainingPendingIncomingMessages,
-                                    ackTimeoutMs);
+        return new PubsubTestClient(expectedTopic, expectedSubscription, ackTimeoutSec,
+                                    expectedOutgoingMessages, expectedIncomingMessages);
       }
     };
   }
 
-
+  /**
+   * Only publish calls for this topic are allowed.
+   */
+  @Nullable
   private TopicPath expectedTopic;
+  /**
+   * Only pull calls for this subscription are allowed.
+   */
+  @Nullable
+  private SubscriptionPath expectedSubscription;
+
+  /**
+   * Timeout to simulate.
+   */
+  private int ackTimeoutSec;
+
+  /**
+   * Messages yet to seen in a {@link #publish} call.
+   */
+  @Nullable
   private Set<OutgoingMessage> remainingExpectedOutgoingMessages;
 
-  private SubscriptionPath expectedSubscription;
+  /**
+   * Messages waiting to be received by a {@link #pull} call.
+   */
+  @Nullable
   private List<IncomingMessage> remainingPendingIncomingMessages;
 
-  private long ackTimeoutMs;
+  /**
+   * Messages which have been returned from a {@link #pull} call and
+   * not yet ACKed by an {@link #acknowledge} call.
+   */
   private Map<String, IncomingMessage> pendingAckIncommingMessages;
+
+  /**
+   * When above messages are due to have their ACK deadlines expire.
+   */
   private Map<String, Long> ackDeadline;
 
-  private long currentTimeMsSinceEpoch;
+  /**
+   * Current time.
+   */
+  private long nowMsSinceEpoch;
 
-  private PubsubTestClient(
-      TopicPath expectedTopic,
-      Set<OutgoingMessage> remainingExpectedOutgoingMessages,
-      SubscriptionPath expectedSubscription,
-      List<IncomingMessage> remainingPendingIncomingMessages,
-      long ackTimeoutMs) {
+  @VisibleForTesting
+  PubsubTestClient(
+      @Nullable TopicPath expectedTopic,
+      @Nullable SubscriptionPath expectedSubscription,
+      int ackTimeoutSec,
+      @Nullable Set<OutgoingMessage> expectedOutgoingMessages,
+      @Nullable List<IncomingMessage> expectedIncomingMessages) {
     this.expectedTopic = expectedTopic;
-    this.remainingExpectedOutgoingMessages = remainingExpectedOutgoingMessages;
     this.expectedSubscription = expectedSubscription;
-    this.remainingPendingIncomingMessages = remainingPendingIncomingMessages;
-    this.ackTimeoutMs = ackTimeoutMs;
+    this.ackTimeoutSec = ackTimeoutSec;
+
+    this.remainingExpectedOutgoingMessages = expectedOutgoingMessages;
+    this.remainingPendingIncomingMessages = expectedIncomingMessages;
 
     this.pendingAckIncommingMessages = new HashMap<>();
     this.ackDeadline = new HashMap<>();
-    this.currentTimeMsSinceEpoch = 0;
+    this.nowMsSinceEpoch = Long.MIN_VALUE;
+  }
+
+  /**
+   * Advance wall-clock time to {@code newNowMsSinceEpoch}. This will simulate Pubsub expiring
+   * outstanding ACKs.
+   */
+  public void advanceTo(long newNowMsSinceEpoch) {
+    Preconditions.checkArgument(newNowMsSinceEpoch >= nowMsSinceEpoch);
+    nowMsSinceEpoch = newNowMsSinceEpoch;
+    // Any messages who's ACKs timed out are available for re-pulling.
+    Iterator<Map.Entry<String, Long>> deadlineItr = ackDeadline.entrySet().iterator();
+    while (deadlineItr.hasNext()) {
+      Map.Entry<String, Long> entry = deadlineItr.next();
+      if (entry.getValue() <= nowMsSinceEpoch) {
+        remainingPendingIncomingMessages.add(pendingAckIncommingMessages.remove(entry.getKey()));
+        deadlineItr.remove();
+      }
+    }
   }
 
   @Override
@@ -99,6 +151,8 @@ public class PubsubTestClient extends PubsubClient {
   @Override
   public int publish(
       TopicPath topic, List<OutgoingMessage> outgoingMessages) throws IOException {
+    Preconditions.checkNotNull(expectedTopic);
+    Preconditions.checkNotNull(remainingExpectedOutgoingMessages);
     Preconditions.checkState(topic.equals(expectedTopic));
     for (OutgoingMessage outgoingMessage : outgoingMessages) {
       Preconditions.checkState(remainingExpectedOutgoingMessages.remove(outgoingMessage));
@@ -106,27 +160,15 @@ public class PubsubTestClient extends PubsubClient {
     return outgoingMessages.size();
   }
 
-  private void timeout() {
-    // Any messages who's acks timed out are available for re-pulling.
-    Iterator<Map.Entry<String, Long>> deadlineItr = ackDeadline.entrySet().iterator();
-    while (deadlineItr.hasNext()) {
-      Map.Entry<String, Long> entry = deadlineItr.next();
-      if (entry.getValue() <= currentTimeMsSinceEpoch) {
-        remainingPendingIncomingMessages.add(pendingAckIncommingMessages.remove(entry.getKey()));
-        deadlineItr.remove();
-      }
-    }
-  }
-
-
   @Override
   public List<IncomingMessage> pull(
       long requestTimeMsSinceEpoch, SubscriptionPath subscription, int batchSize,
       boolean returnImmediately) throws IOException {
+    Preconditions.checkState(requestTimeMsSinceEpoch >= nowMsSinceEpoch);
+    Preconditions.checkNotNull(expectedSubscription);
+    Preconditions.checkNotNull(remainingPendingIncomingMessages);
     Preconditions.checkState(subscription.equals(expectedSubscription));
     Preconditions.checkState(returnImmediately);
-
-    timeout();
 
     List<IncomingMessage> incomingMessages = new ArrayList<>();
     Iterator<IncomingMessage> pendItr = remainingPendingIncomingMessages.iterator();
@@ -138,7 +180,8 @@ public class PubsubTestClient extends PubsubClient {
       incomingMessages.add(incomingMessageWithRequestTime);
       pendingAckIncommingMessages.put(incomingMessageWithRequestTime.ackId,
                                       incomingMessageWithRequestTime);
-      ackDeadline.put(incomingMessageWithRequestTime.ackId, requestTimeMsSinceEpoch + ackTimeoutMs);
+      ackDeadline.put(incomingMessageWithRequestTime.ackId,
+                      requestTimeMsSinceEpoch + ackTimeoutSec * 1000);
       if (incomingMessages.size() >= batchSize) {
         break;
       }
@@ -147,10 +190,12 @@ public class PubsubTestClient extends PubsubClient {
   }
 
   @Override
-  public void acknowledge(SubscriptionPath subscription, List<String> ackIds) throws IOException {
+  public void acknowledge(
+      SubscriptionPath subscription,
+      List<String> ackIds) throws IOException {
+    Preconditions.checkNotNull(expectedSubscription);
+    Preconditions.checkNotNull(remainingPendingIncomingMessages);
     Preconditions.checkState(subscription.equals(expectedSubscription));
-
-    timeout();
 
     for (String ackId : ackIds) {
       Preconditions.checkState(ackDeadline.remove(ackId) != null);
@@ -161,13 +206,13 @@ public class PubsubTestClient extends PubsubClient {
   @Override
   public void modifyAckDeadline(
       SubscriptionPath subscription, List<String> ackIds, int deadlineSeconds) throws IOException {
+    Preconditions.checkNotNull(expectedSubscription);
+    Preconditions.checkNotNull(remainingPendingIncomingMessages);
     Preconditions.checkState(subscription.equals(expectedSubscription));
-
-    timeout();
 
     for (String ackId : ackIds) {
       Preconditions.checkState(ackDeadline.remove(ackId) != null);
-      ackDeadline.put(ackId, currentTimeMsSinceEpoch + deadlineSeconds * 1000);
+      ackDeadline.put(ackId, nowMsSinceEpoch + deadlineSeconds * 1000);
       Preconditions.checkState(pendingAckIncommingMessages.containsKey(ackId));
     }
   }
@@ -202,5 +247,10 @@ public class PubsubTestClient extends PubsubClient {
   public List<SubscriptionPath> listSubscriptions(
       ProjectPath project, TopicPath topic) throws IOException {
     throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public int ackDeadlineSeconds(SubscriptionPath subscription) throws IOException {
+    return ackTimeoutSec;
   }
 }

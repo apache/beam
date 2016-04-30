@@ -30,9 +30,11 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.PubsubApiaryClient;
 import org.apache.beam.sdk.util.PubsubClient;
 import org.apache.beam.sdk.util.PubsubClient.IncomingMessage;
 import org.apache.beam.sdk.util.PubsubClient.OutgoingMessage;
+import org.apache.beam.sdk.util.PubsubClient.TopicPath;
 import org.apache.beam.sdk.util.PubsubClient.TransportType;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection;
@@ -65,6 +67,9 @@ import javax.annotation.Nullable;
  */
 public class PubsubIO {
   private static final Logger LOG = LoggerFactory.getLogger(PubsubIO.class);
+
+  /** Factory for creating pubsub client to manage transport. */
+  private static final PubsubClient.PubsubClientFactory FACTORY = PubsubApiaryClient.FACTORY;
 
   /** The default {@link Coder} used to translate to/from Cloud Pub/Sub messages. */
   public static final Coder<String> DEFAULT_PUBSUB_CODER = StringUtf8Coder.of();
@@ -689,26 +694,32 @@ public class PubsubIO {
         @Override
         public void processElement(ProcessContext c) throws IOException {
           try (PubsubClient pubsubClient =
-                   PubsubClient.newClient(TransportType.APIARY,
-                       timestampLabel, idLabel, c.getPipelineOptions().as(PubsubOptions.class))) {
+                   FACTORY.newClient(timestampLabel, idLabel,
+                                     c.getPipelineOptions().as(PubsubOptions.class))) {
 
             PubsubClient.SubscriptionPath subscriptionPath;
             if (getSubscription() == null) {
               // Create a randomized subscription derived from the topic name.
               String subscription = getTopic().topic + "_dataflow_" + new Random().nextLong();
-              subscriptionPath =
-                  PubsubClient.subscriptionPathFromName(getTopic().project, subscription);
+              // The subscription will be registered under this pipeline's project if we know it.
+              // Otherwise we'll fall back to the topic's project.
+              // Note that they don't need to be the same.
+              String project = c.getPipelineOptions().as(PubsubOptions.class).getProject();
+              if (project == null || project.isEmpty()) {
+                project = getTopic().project;
+              }
+              subscriptionPath = PubsubClient.subscriptionPathFromName(project, subscription);
+              TopicPath topicPath =
+                  PubsubClient.topicPathFromName(getTopic().project, getTopic().topic);
               try {
-                pubsubClient.createSubscription(
-                    PubsubClient.topicPathFromName(getTopic().project, getTopic().topic),
-                    subscriptionPath,
-                    ACK_TIMEOUT_SEC);
+                pubsubClient.createSubscription(topicPath, subscriptionPath, ACK_TIMEOUT_SEC);
               } catch (Exception e) {
                 throw new RuntimeException("Failed to create subscription: ", e);
               }
             } else {
-              subscriptionPath = PubsubClient.subscriptionPathFromName(getSubscription().project,
-                  getSubscription().subscription);
+              subscriptionPath =
+                  PubsubClient.subscriptionPathFromName(getSubscription().project,
+                                                        getSubscription().subscription);
             }
 
             Instant endTime = (getMaxReadTime() == null)
@@ -977,9 +988,8 @@ public class PubsubIO {
         @Override
         public void startBundle(Context c) throws IOException {
           this.output = new ArrayList<>();
-          this.pubsubClient =
-              PubsubClient.newClient(TransportType.APIARY, timestampLabel, idLabel,
-                  c.getPipelineOptions().as(PubsubOptions.class));
+          this.pubsubClient = FACTORY.newClient(timestampLabel, idLabel,
+                                                c.getPipelineOptions().as(PubsubOptions.class));
         }
 
         @Override

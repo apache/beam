@@ -192,8 +192,7 @@ public class PubsubApiaryClient extends PubsubClient {
   }
 
   @Override
-  public void acknowledge(SubscriptionPath subscription, List<String> ackIds)
-      throws IOException {
+  public void acknowledge(SubscriptionPath subscription, List<String> ackIds) throws IOException {
     AcknowledgeRequest request = new AcknowledgeRequest().setAckIds(ackIds);
     pubsub.projects()
           .subscriptions()
@@ -284,5 +283,11 @@ public class PubsubApiaryClient extends PubsubClient {
       }
     }
     return subscriptions;
+  }
+
+  @Override
+  public int ackDeadlineSeconds(SubscriptionPath subscription) throws IOException {
+    Subscription response = pubsub.projects().subscriptions().get(subscription.getPath()).execute();
+    return response.getAckDeadlineSeconds();
   }
 }

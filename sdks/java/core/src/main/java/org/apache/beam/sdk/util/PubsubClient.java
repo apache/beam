@@ -407,8 +407,10 @@ public abstract class PubsubClient implements AutoCloseable {
    * @throws IOException
    */
   public abstract List<IncomingMessage> pull(
-      long requestTimeMsSinceEpoch, SubscriptionPath subscription,
-      int batchSize, boolean returnImmediately)
+      long requestTimeMsSinceEpoch,
+      SubscriptionPath subscription,
+      int batchSize,
+      boolean returnImmediately)
       throws IOException;
 
   /**
@@ -426,8 +428,8 @@ public abstract class PubsubClient implements AutoCloseable {
    * @throws IOException
    */
   public abstract void modifyAckDeadline(
-      SubscriptionPath subscription, List<String> ackIds, int deadlineSeconds)
-      throws IOException;
+      SubscriptionPath subscription, List<String> ackIds,
+      int deadlineSeconds) throws IOException;
 
   /**
    * Create {@code topic}.
@@ -472,4 +474,11 @@ public abstract class PubsubClient implements AutoCloseable {
    */
   public abstract List<SubscriptionPath> listSubscriptions(ProjectPath project, TopicPath topic)
       throws IOException;
+
+  /**
+   * Return the ack deadline, in seconds, for {@code subscription}.
+   *
+   * @throws IOException
+   */
+  public abstract int ackDeadlineSeconds(SubscriptionPath subscription) throws IOException;
 }

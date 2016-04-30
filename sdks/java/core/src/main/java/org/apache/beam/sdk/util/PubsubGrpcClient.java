@@ -31,6 +31,7 @@ import com.google.protobuf.Timestamp;
 import com.google.pubsub.v1.AcknowledgeRequest;
 import com.google.pubsub.v1.DeleteSubscriptionRequest;
 import com.google.pubsub.v1.DeleteTopicRequest;
+import com.google.pubsub.v1.GetSubscriptionRequest;
 import com.google.pubsub.v1.ListSubscriptionsRequest;
 import com.google.pubsub.v1.ListSubscriptionsResponse;
 import com.google.pubsub.v1.ListTopicsRequest;
@@ -409,5 +410,15 @@ public class PubsubGrpcClient extends PubsubClient {
       response = subscriberStub().listSubscriptions(request.build());
     }
     return subscriptions;
+  }
+
+  @Override
+  public int ackDeadlineSeconds(SubscriptionPath subscription) throws IOException {
+    GetSubscriptionRequest request =
+        GetSubscriptionRequest.newBuilder()
+                              .setSubscription(subscription.getPath())
+                              .build();
+    Subscription response = subscriberStub().getSubscription(request);
+    return response.getAckDeadlineSeconds();
   }
 }
