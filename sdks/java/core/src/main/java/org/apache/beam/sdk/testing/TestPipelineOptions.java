@@ -17,7 +17,12 @@
  */
 package org.apache.beam.sdk.testing;
 
+import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.hamcrest.BaseMatcher;
+import org.hamcrest.Description;
 
 /**
  * {@link TestPipelineOptions} is a set of options for test pipelines.
@@ -27,4 +32,38 @@ import org.apache.beam.sdk.options.PipelineOptions;
 public interface TestPipelineOptions extends PipelineOptions {
   String getTempRoot();
   void setTempRoot(String value);
+
+  @Default.InstanceFactory(AlwaysPassMatcherFactory.class)
+  SerializableMatcher<PipelineResult> getOnCreateMatcher();
+  void setOnCreateMatcher(SerializableMatcher<PipelineResult> value);
+
+  @Default.InstanceFactory(AlwaysPassMatcherFactory.class)
+  SerializableMatcher<PipelineResult> getOnSuccessMatcher();
+  void setOnSuccessMatcher(SerializableMatcher<PipelineResult> value);
+
+  /**
+   * Factory for {@link PipelineResult} matchers which always pass.
+   */
+  class AlwaysPassMatcherFactory
+      implements DefaultValueFactory<SerializableMatcher<PipelineResult>> {
+    @Override
+    public SerializableMatcher<PipelineResult> create(PipelineOptions options) {
+      return new AlwaysPassMatcher();
+    }
+  }
+
+  /**
+   * Matcher which will always pass.
+   */
+  class AlwaysPassMatcher extends BaseMatcher<PipelineResult>
+      implements SerializableMatcher<PipelineResult> {
+    @Override
+    public boolean matches(Object o) {
+      return true;
+    }
+
+    @Override
+    public void describeTo(Description description) {
+    }
+  }
 }
