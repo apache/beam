@@ -43,7 +43,6 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
-import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
@@ -55,7 +54,8 @@ import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.transforms.windowing.WindowFn.AssignContext;
+import org.apache.beam.sdk.util.GroupByKeyViaGroupByKeyOnly;
+import org.apache.beam.sdk.util.GroupByKeyViaGroupByKeyOnly.GroupByKeyOnly;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -121,8 +121,7 @@ public class FlinkBatchTransformTranslators {
 
     TRANSLATORS.put(Flatten.FlattenPCollectionList.class, new FlattenPCollectionTranslatorBatch());
 
-    // TODO we're currently ignoring windows here but that has to change in the future
-    TRANSLATORS.put(GroupByKey.class, new GroupByKeyTranslatorBatch());
+    TRANSLATORS.put(GroupByKeyViaGroupByKeyOnly.GroupByKeyOnly.class, new GroupByKeyOnlyTranslatorBatch());
 
     TRANSLATORS.put(Window.Bound.class, new WindowBoundTranslatorBatch());
 
@@ -364,12 +363,12 @@ public class FlinkBatchTransformTranslators {
   }
 
   /**
-   * Translates a GroupByKey while ignoring window assignments. Current ignores windows.
+   * Translates a {@link GroupByKeyOnly}, which ignores window assignments.
    */
-  private static class GroupByKeyTranslatorBatch<K, V> implements FlinkBatchPipelineTranslator.BatchTransformTranslator<GroupByKey<K, V>> {
+  private static class GroupByKeyOnlyTranslatorBatch<K, V> implements FlinkBatchPipelineTranslator.BatchTransformTranslator<GroupByKeyOnly<K, V>> {
 
     @Override
-    public void translateNode(GroupByKey<K, V> transform, FlinkBatchTranslationContext context) {
+    public void translateNode(GroupByKeyOnly<K, V> transform, FlinkBatchTranslationContext context) {
       DataSet<KV<K, V>> inputDataSet = context.getInputDataSet(context.getInput(transform));
       GroupReduceFunction<KV<K, V>, KV<K, Iterable<V>>> groupReduceFunction = new FlinkKeyedListAggregationFunction<>();
 
