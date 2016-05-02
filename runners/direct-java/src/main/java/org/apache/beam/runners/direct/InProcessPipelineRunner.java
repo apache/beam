@@ -50,7 +50,6 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 
-import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -256,7 +255,10 @@ public class InProcessPipelineRunner
       } catch (UserCodeException userException) {
         throw new PipelineExecutionException(userException.getCause());
       } catch (Throwable t) {
-        Throwables.propagate(t);
+        if (t instanceof RuntimeException) {
+          throw (RuntimeException) t;
+        }
+        throw new RuntimeException(t);
       }
     }
     return result;

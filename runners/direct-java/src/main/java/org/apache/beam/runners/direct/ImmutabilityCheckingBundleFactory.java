@@ -31,7 +31,6 @@ import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 
-import com.google.api.client.util.Throwables;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.SetMultimap;
 
@@ -100,7 +99,7 @@ class ImmutabilityCheckingBundleFactory implements BundleFactory {
         mutationDetectors.put(
             element, MutationDetectors.forValueWithCoder(element.getValue(), coder));
       } catch (CoderException e) {
-        throw Throwables.propagate(e);
+        throw new RuntimeException(e);
       }
       underlying.add(element);
       return this;

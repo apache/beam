@@ -51,7 +51,6 @@ import com.google.api.services.pubsub.model.PullResponse;
 import com.google.api.services.pubsub.model.ReceivedMessage;
 import com.google.api.services.pubsub.model.Subscription;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 
 import org.joda.time.Duration;
@@ -814,7 +813,7 @@ public class PubsubIO {
             }
           }
           if (finallyBlockException != null) {
-            Throwables.propagate(finallyBlockException);
+            throw new RuntimeException(finallyBlockException);
           }
 
           for (PubsubMessage message : messages) {
