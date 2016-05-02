@@ -48,7 +48,7 @@ public class PubsubClientTest {
 
   private long parse(String timestamp) {
     Map<String, String> map = ImmutableMap.of("myLabel", timestamp);
-    return PubsubClient.extractTimestamp(Clock.SYSTEM, "myLabel", null, map);
+    return PubsubClient.extractTimestamp("myLabel", null, map);
   }
 
   private void roundTripRfc339(String timestamp) {
@@ -60,32 +60,38 @@ public class PubsubClientTest {
   }
 
   @Test
-  public void noTimestampLabelReturnsNow() {
+  public void noTimestampLabelReturnsPubsubPublish() {
     final long time = 987654321L;
-    long timestamp = PubsubClient.extractTimestamp(new FixedClock(time), null, null, null);
+    long timestamp = PubsubClient.extractTimestamp(null, String.valueOf(time), null);
     assertEquals(time, timestamp);
+  }
+
+  @Test
+  public void noTimestampLabelAndInvalidPubsubPublishThrowsError() {
+    thrown.expect(NumberFormatException.class);
+    PubsubClient.extractTimestamp(null, "not-a-date", null);
   }
 
   @Test
   public void timestampLabelWithNullAttributesThrowsError() {
     thrown.expect(RuntimeException.class);
-    thrown.expectMessage("PubSub message is missing a timestamp in label: myLabel");
-    PubsubClient.extractTimestamp(Clock.SYSTEM, "myLabel", null, null);
+    thrown.expectMessage("PubSub message is missing a value for timestamp label myLabel");
+    PubsubClient.extractTimestamp("myLabel", null, null);
   }
 
   @Test
   public void timestampLabelSetWithMissingAttributeThrowsError() {
     thrown.expect(RuntimeException.class);
-    thrown.expectMessage("PubSub message is missing a timestamp in label: myLabel");
+    thrown.expectMessage("PubSub message is missing a value for timestamp label myLabel");
     Map<String, String> map = ImmutableMap.of("otherLabel", "whatever");
-    PubsubClient.extractTimestamp(Clock.SYSTEM, "myLabel", null, map);
+    PubsubClient.extractTimestamp("myLabel", null, map);
   }
 
   @Test
   public void timestampLabelParsesMillisecondsSinceEpoch() {
     long time = 1446162101123L;
     Map<String, String> map = ImmutableMap.of("myLabel", String.valueOf(time));
-    long timestamp = PubsubClient.extractTimestamp(Clock.SYSTEM, "myLabel", null, map);
+    long timestamp = PubsubClient.extractTimestamp("myLabel", null, map);
     assertEquals(time, timestamp);
   }
 

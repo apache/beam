@@ -277,7 +277,7 @@ public class PubsubGrpcClient extends PubsubClient {
                                                + timestampProto.getNanos() / 1000L);
       }
       long timestampMsSinceEpoch =
-          extractTimestamp(Clock.SYSTEM, timestampLabel, pubsubTimestampString, attributes);
+          extractTimestamp(timestampLabel, pubsubTimestampString, attributes);
 
       // Ack id.
       String ackId = message.getAckId();

@@ -165,8 +165,7 @@ public class PubsubApiaryClient extends PubsubClient {
 
       // Timestamp.
       long timestampMsSinceEpoch =
-          extractTimestamp(Clock.SYSTEM, timestampLabel,
-                           message.getMessage().getPublishTime(), attributes);
+          extractTimestamp(timestampLabel, message.getMessage().getPublishTime(), attributes);
 
       // Ack id.
       String ackId = message.getAckId();

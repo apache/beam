@@ -88,33 +88,36 @@ public abstract class PubsubClient implements AutoCloseable {
   }
 
   /**
-   * Return the timestamp to use for a Pubsub message with {@code attributes}:
-   * <ol>
-   * <li> If {@code timestampLabel} is non-{@literal null} then the message attributes
-   * must contain that label, and the value for that label must be recognized as a
-   * ms-since-unix-epoch or RFC3339 time. Return that time as ms-since-unix-epoch or
-   * throw {@link IllegalArgumentException} if not possible.
-   * <li> Otherwise return the current system time according to {@code clock}.
-   * </ol>
-   * <p>
-   * Note  that {@code pubsubTimestamp} is currently ignored, but should be the Pubsub timestamp
-   * extracted from the underlying Pubsub message. This may be used for the message timestamp
-   * instead of the current system time in the future.
+   * Return the timestamp (in ms since unix epoch) to use for a Pubsub message with {@code
+   * attributes} and {@code pubsubTimestamp}.
+   * <p>If {@code timestampLabel} is non-{@literal null} then the message attributes must contain
+   * that label, and the value of that label will be taken as the timestamp.
+   * Otherwise the timestamp will be taken from the Pubsub publish timestamp {@code
+   * pubsubTimestamp}. Throw {@link IllegalArgumentException} if the timestamp cannot be
+   * recognized as a ms-since-unix-epoch or RFC3339 time.
    *
    * @throws IllegalArgumentException
    */
   protected static long extractTimestamp(
-      Clock clock,
       @Nullable String timestampLabel,
       @Nullable String pubsubTimestamp,
       @Nullable Map<String, String> attributes) {
+    Long timestampMsSinceEpoch;
     if (timestampLabel == null) {
-      return clock.currentTimeMillis();
+      timestampMsSinceEpoch = asMsSinceEpoch(pubsubTimestamp);
+      Preconditions.checkArgument(timestampMsSinceEpoch != null,
+                                  "Cannot interpret PubSub publish timestamp: %s",
+                                  pubsubTimestamp);
+    } else {
+      String value = attributes == null ? null : attributes.get(timestampLabel);
+      Preconditions.checkArgument(value != null,
+                                  "PubSub message is missing a value for timestamp label %s",
+                                  timestampLabel);
+      timestampMsSinceEpoch = asMsSinceEpoch(value);
+      Preconditions.checkArgument(timestampMsSinceEpoch != null,
+                                  "Cannot interpret value of label %s as timestamp: %s",
+                                  timestampLabel, value);
     }
-    Long timestampMsSinceEpoch =
-        asMsSinceEpoch(attributes == null ? null : attributes.get(timestampLabel));
-    Preconditions.checkArgument(timestampMsSinceEpoch != null,
-        "PubSub message is missing a timestamp in label: %s", timestampLabel);
     return timestampMsSinceEpoch;
   }
 
@@ -208,7 +211,7 @@ public abstract class PubsubClient implements AutoCloseable {
   public static SubscriptionPath subscriptionPathFromName(
       String projectId, String subscriptionName) {
     return new SubscriptionPath(String.format("projects/%s/subscriptions/%s",
-        projectId, subscriptionName));
+                                              projectId, subscriptionName));
   }
 
   /**
