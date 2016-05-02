@@ -117,6 +117,9 @@ class TransformExecutor<T> implements Callable<InProcessTransformResult> {
       return result;
     } catch (Throwable t) {
       onComplete.handleThrowable(inputBundle, t);
+      if (t instanceof RuntimeException) {
+        throw (RuntimeException) t;
+      }
       throw new RuntimeException(t);
     } finally {
       transformEvaluationState.complete(this);
