@@ -221,7 +221,7 @@ public class IntraBundleParallelization {
       }
 
       if (failure.get() != null) {
-        throw Throwables.propagate(failure.get());
+        throw new RuntimeException(failure.get());
       }
 
       executor.submit(new Runnable() {
@@ -246,7 +246,7 @@ public class IntraBundleParallelization {
       // processElement calls have finished.
       workTickets.acquire(maxParallelism);
       if (failure.get() != null) {
-        throw Throwables.propagate(failure.get());
+        throw new RuntimeException(failure.get());
       }
       doFn.finishBundle(c);
     }

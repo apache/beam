@@ -37,7 +37,6 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.MoreExecutors;
 
 import org.slf4j.Logger;
@@ -275,7 +274,7 @@ public class BigQueryTableInserter {
         Thread.currentThread().interrupt();
         throw new IOException("Interrupted while inserting " + rowsToPublish);
       } catch (ExecutionException e) {
-        Throwables.propagate(e.getCause());
+        throw new RuntimeException(e.getCause());
       }
 
       if (!allErrors.isEmpty() && !backoff.atMaxAttempts()) {

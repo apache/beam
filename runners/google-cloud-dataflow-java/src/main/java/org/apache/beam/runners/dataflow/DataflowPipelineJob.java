@@ -41,7 +41,6 @@ import com.google.api.services.dataflow.model.JobMessage;
 import com.google.api.services.dataflow.model.JobMetrics;
 import com.google.api.services.dataflow.model.MetricUpdate;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Throwables;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -356,7 +355,7 @@ public class DataflowPipelineJob implements PipelineResult {
       if (e instanceof InterruptedException) {
         Thread.currentThread().interrupt();
       }
-      throw Throwables.propagate(e);
+      throw new RuntimeException(e);
     }
   }
 

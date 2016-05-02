@@ -51,7 +51,6 @@ import com.google.api.services.pubsub.Pubsub;
 import com.google.api.services.pubsub.model.Subscription;
 import com.google.api.services.pubsub.model.Topic;
 import com.google.common.base.Strings;
-import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.Uninterruptibles;
@@ -116,7 +115,7 @@ public class DataflowExampleUtils {
       Thread.currentThread().interrupt();
       // Ignore InterruptedException
     }
-    Throwables.propagate(lastException);
+    throw new RuntimeException(lastException);
   }
 
   /**
