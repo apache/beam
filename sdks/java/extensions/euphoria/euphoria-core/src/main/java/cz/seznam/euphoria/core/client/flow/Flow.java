@@ -2,9 +2,7 @@
 package cz.seznam.euphoria.core.client.flow;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.HashPartitioner;
-import cz.seznam.euphoria.core.client.dataset.Partitioner;
-import cz.seznam.euphoria.core.client.dataset.Partitioning;
+import cz.seznam.euphoria.core.client.dataset.Datasets;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.IORegistry;
@@ -241,30 +239,7 @@ public class Flow implements Serializable {
    * Create new input dataset.
    */
   public <T> Dataset<T> createInput(DataSource<T> source) {
-    final Dataset<T> ret;
-
-    ret = new InputDataset<T>(this, source, source.isBounded()) {
-
-      @Override
-      public <X> Partitioning<X> getPartitioning()
-      {
-        return new Partitioning<X>() {
-
-          @Override
-          public Partitioner<X> getPartitioner()
-          {
-            return new HashPartitioner<>();
-          }
-
-          @Override
-          public int getNumPartitions()
-          {
-            return source.getPartitions().size();
-          }
-
-        };
-      }
-    };
+    final Dataset<T> ret = Datasets.createInputFromSource(this, source);
 
     sources.add(ret);
     return ret;

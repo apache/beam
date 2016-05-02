@@ -2,6 +2,7 @@
 package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
+import cz.seznam.euphoria.core.client.dataset.Datasets;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.graph.DAG;
 
@@ -11,8 +12,7 @@ import java.util.Collection;
 /**
  * An operator base class. All operators inherit his class.
  */
-public abstract class Operator<IN, OUT>
-    implements Output<OUT>, Serializable {
+public abstract class Operator<IN, OUT> implements Serializable {
   
   /** Name of the operator. */
   private final String name;
@@ -51,7 +51,12 @@ public abstract class Operator<IN, OUT>
   @SuppressWarnings("unchecked")
   protected final Dataset<OUT> createOutput(final Dataset<IN> input) {
     Flow flow = input.getFlow();
-    return Dataset.createOutputFor(flow, input, this);
+    return Datasets.createOutputFor(flow, input, this);
   }
+
+  /**
+   * Retrieve output dataset.
+   */
+  public abstract Dataset<OUT> output();
 
 }

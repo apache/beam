@@ -76,29 +76,5 @@ public interface Dataset<T> extends Serializable {
   default DataSink<T> getCheckpointSink() {
     return null;
   }
-
-  /** Create output dataset for given operator. */
-  @SuppressWarnings("unchecked")
-  public static <IN, OUT> Dataset<OUT> createOutputFor(
-      Flow flow, Dataset<IN> input, Operator<IN, OUT> op) {
-
-      return new OutputDataset<OUT>(flow, (Operator) op, input.isBounded()) {
-
-        @Override
-        @SuppressWarnings("unchecked")
-        public <X> Partitioning<X> getPartitioning()
-        {
-          if (op instanceof PartitioningAware) {
-            // only state operators change the partitioning
-            PartitioningAware<IN> state = (PartitioningAware<IN>) op;
-            return (Partitioning<X>) state.getPartitioning();
-          }
-          return input.getPartitioning();
-        }
-
-      };
-
-
-  }
   
 }
