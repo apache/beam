@@ -29,7 +29,6 @@ import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollectionView;
 
 import com.google.common.base.MoreObjects;
-import com.google.common.base.Throwables;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -172,7 +171,7 @@ class InProcessSideInputContainer {
         future.set(Collections.<WindowedValue<?>>emptyList());
       }
     } catch (ExecutionException e) {
-      Throwables.propagate(e.getCause());
+      throw new RuntimeException(e.getCause());
     }
   }
 

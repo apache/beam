@@ -23,8 +23,6 @@ import org.apache.beam.runners.direct.InProcessPipelineRunner.CommittedBundle;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.util.WindowedValue;
 
-import com.google.common.base.Throwables;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.Callable;
@@ -119,7 +117,10 @@ class TransformExecutor<T> implements Callable<InProcessTransformResult> {
       return result;
     } catch (Throwable t) {
       onComplete.handleThrowable(inputBundle, t);
-      throw Throwables.propagate(t);
+      if (t instanceof RuntimeException) {
+        throw (RuntimeException) t;
+      }
+      throw new RuntimeException(t);
     } finally {
       transformEvaluationState.complete(this);
     }
