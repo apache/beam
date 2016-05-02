@@ -20,7 +20,6 @@ import static com.google.common.base.Preconditions.checkState;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
 import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
-import com.google.common.base.Throwables;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -116,7 +115,10 @@ class TransformExecutor<T> implements Callable<InProcessTransformResult> {
       return result;
     } catch (Throwable t) {
       onComplete.handleThrowable(inputBundle, t);
-      throw Throwables.propagate(t);
+      if (t instanceof RuntimeException) {
+        throw (RuntimeException) t;
+      }
+      throw new RuntimeException(t);
     } finally {
       transformEvaluationState.complete(this);
     }

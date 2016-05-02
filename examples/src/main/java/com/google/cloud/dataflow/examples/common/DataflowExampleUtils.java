@@ -47,7 +47,6 @@ import com.google.cloud.dataflow.sdk.util.Transport;
 import com.google.cloud.dataflow.sdk.values.PBegin;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.base.Strings;
-import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
@@ -110,7 +109,7 @@ public class DataflowExampleUtils {
     } catch (InterruptedException e) {
       // Ignore InterruptedException
     }
-    Throwables.propagate(lastException);
+    throw new RuntimeException(lastException);
   }
 
   /**

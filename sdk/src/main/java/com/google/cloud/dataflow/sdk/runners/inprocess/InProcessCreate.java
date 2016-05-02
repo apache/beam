@@ -32,7 +32,6 @@ import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.cloud.dataflow.sdk.values.POutput;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
-import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 
 import java.io.IOException;
@@ -91,7 +90,7 @@ class InProcessCreate<T> extends ForwardingPTransform<PInput, PCollection<T>> {
     try {
       source = InMemorySource.fromIterable(original.getElements(), elementCoder);
     } catch (IOException e) {
-      throw Throwables.propagate(e);
+      throw new RuntimeException(e);
     }
     PCollection<T> result = input.getPipeline().apply(Read.from(source));
     result.setCoder(elementCoder);

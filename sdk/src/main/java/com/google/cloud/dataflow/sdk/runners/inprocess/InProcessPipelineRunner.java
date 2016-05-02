@@ -47,7 +47,6 @@ import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.cloud.dataflow.sdk.values.POutput;
 import com.google.cloud.dataflow.sdk.values.PValue;
-import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -239,7 +238,7 @@ public class InProcessPipelineRunner
       } catch (UserCodeException userException) {
         throw new PipelineExecutionException(userException.getCause());
       } catch (Throwable t) {
-        Throwables.propagate(t);
+        throw new RuntimeException(t);
       }
     }
     return result;

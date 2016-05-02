@@ -31,7 +31,6 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
-import com.google.common.base.Throwables;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableListMultimap;
@@ -624,7 +623,7 @@ public class PipelineOptionsFactory {
         COMBINED_CACHE.put(combinedPipelineOptionsInterfaces,
             new Registration<T>(allProxyClass, propertyDescriptors));
       } catch (IntrospectionException e) {
-        throw Throwables.propagate(e);
+        throw new RuntimeException(e);
       }
     }
 
@@ -639,7 +638,7 @@ public class PipelineOptionsFactory {
         INTERFACE_CACHE.put(iface,
             new Registration<T>(proxyClass, propertyDescriptors));
       } catch (IntrospectionException e) {
-        throw Throwables.propagate(e);
+        throw new RuntimeException(e);
       }
     }
     @SuppressWarnings("unchecked")
@@ -1038,7 +1037,7 @@ public class PipelineOptionsFactory {
       methods.add(klass.getMethod("cloneAs", Class.class));
       methods.add(klass.getMethod("populateDisplayData", DisplayData.Builder.class));
     } catch (NoSuchMethodException | SecurityException e) {
-      throw Throwables.propagate(e);
+      throw new RuntimeException(e);
     }
 
     // Verify that there are no methods with the same name with two different return types.

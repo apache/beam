@@ -52,7 +52,6 @@ import com.google.cloud.dataflow.sdk.testing.FastNanoClockAndSleeper;
 import com.google.cloud.dataflow.sdk.util.gcsfs.GcsPath;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadChannel;
 import com.google.cloud.hadoop.util.ClientRequestHelper;
-import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 
 import org.junit.Rule;
@@ -151,7 +150,7 @@ public class GcsUtilTest {
               countDownLatches[currentLatch - 1].countDown();
             }
           } catch (InterruptedException e) {
-            throw Throwables.propagate(e);
+            throw new RuntimeException(e);
           }
         }
       });

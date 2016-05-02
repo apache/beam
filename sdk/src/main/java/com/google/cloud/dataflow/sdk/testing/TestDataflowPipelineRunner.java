@@ -125,7 +125,7 @@ public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJ
                   try {
                     job.cancel();
                   } catch (Exception e) {
-                    throw Throwables.propagate(e);
+                    throw new RuntimeException(e);
                   }
                 }
               }
@@ -149,7 +149,7 @@ public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJ
       }
     } catch (Exception e) {
       Throwables.propagateIfPossible(e);
-      throw Throwables.propagate(e);
+      throw new RuntimeException(e);
     }
     return job;
   }

@@ -16,8 +16,6 @@
 
 package com.google.cloud.dataflow.sdk.testing;
 
-import com.google.common.base.Throwables;
-
 import org.junit.rules.ExternalResource;
 import org.junit.rules.TestRule;
 
@@ -45,7 +43,7 @@ public class RestoreSystemProperties extends ExternalResource implements TestRul
       System.getProperties().clear();
       System.getProperties().load(bais);
     } catch (IOException e) {
-      throw Throwables.propagate(e);
+      throw new RuntimeException(e);
     }
   }
 }
