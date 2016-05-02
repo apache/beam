@@ -17,7 +17,6 @@ package com.google.cloud.dataflow.sdk.runners.inprocess;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.api.client.util.Throwables;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
@@ -98,7 +97,7 @@ class ImmutabilityCheckingBundleFactory implements BundleFactory {
         mutationDetectors.put(
             element, MutationDetectors.forValueWithCoder(element.getValue(), coder));
       } catch (CoderException e) {
-        throw Throwables.propagate(e);
+        throw new RuntimeException(e);
       }
       underlying.add(element);
       return this;
