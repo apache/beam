@@ -1,7 +1,8 @@
 
-package cz.seznam.euphoria.core.client.flow;
+package cz.seznam.euphoria.core.client.dataset;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
+import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.operator.Operator;
