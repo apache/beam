@@ -43,6 +43,7 @@ from google.cloud.dataflow.worker import logger
 from google.cloud.dataflow.worker import maptask
 from google.cloud.dataflow.worker import opcounters
 from google.cloud.dataflow.worker import shuffle
+from google.cloud.dataflow.worker import sideinputs
 
 
 class ReceiverSet(object):
@@ -200,14 +201,6 @@ class ReadOperation(Operation):
         else:
           windowed_value = GlobalWindows.WindowedValue(value)
         self.output(windowed_value)
-
-  def side_read_all(self, singleton=False):
-    # TODO(mairbek): Should we return WindowedValue here?
-    with self.spec.source.reader() as reader:
-      for value in reader:
-        yield value
-        if singleton:
-          return
 
   def request_dynamic_split(self, dynamic_split_request):
     if self._reader is not None:
@@ -423,36 +416,46 @@ class DoOperation(Operation):
     # specification. This can happen for instance if the source has been
     # sharded into several files.
     for side_tag, view_class, view_options in tags_and_types:
-      # Note that currently, the implementation of Iterable and List views
-      # are identical. This may change in the future once we allow very large
-      # side input collections.
-      is_singleton = view_class == pvalue.SingletonPCollectionView
+      sources = []
       # Using the side_tag in the lambda below will trigger a pylint warning.
       # However in this case it is fine because the lambda is used right away
       # while the variable has the value assigned by the current iteration of
       # the for loop.
       # pylint: disable=cell-var-from-loop
-      results = []
       for si in itertools.ifilter(
           lambda o: o.tag == side_tag, self.spec.side_inputs):
-        if isinstance(si, maptask.WorkerSideInputSource):
-          op = ReadOperation(si, self.counter_factory)
-        else:
+        if not isinstance(si, maptask.WorkerSideInputSource):
           raise NotImplementedError('Unknown side input type: %r' % si)
-        for v in op.side_read_all(singleton=is_singleton):
-          results.append(v)
-          if is_singleton:
-            break
-      if is_singleton:
+        sources.append(si.source)
+      iterator_fn = sideinputs.get_iterator_fn_for_sources(sources)
+
+      if view_class == pvalue.SingletonPCollectionView:
         has_default, default = view_options
-        if results:
-          yield results[0]
+        has_result = False
+        result = None
+        for v in iterator_fn():
+          has_result = True
+          result = v
+          break
+        if has_result:
+          yield result
         elif has_default:
           yield default
         else:
           yield EmptySideInput()
+      elif view_class == pvalue.IterablePCollectionView:
+        yield sideinputs.EmulatedIterable(iterator_fn)
+      elif view_class == pvalue.ListPCollectionView:
+        # TODO(ccy): this is not yet suitable for lists that do not fit in
+        # memory on a single machine.
+        yield list(iterator_fn())
+      elif view_class == pvalue.DictPCollectionView:
+        # TODO(ccy): this is not yet suitable for dictionaries that do not fit
+        # in memory on a single machine.
+        yield dict(iterator_fn())
       else:
-        yield results
+        raise NotImplementedError('Unknown PCollectionView type: %s' %
+                                  view_class)
 
   def start(self):
     super(DoOperation, self).start()

@@ -263,6 +263,11 @@ class ListPCollectionView(PCollectionView):
   pass
 
 
+class DictPCollectionView(PCollectionView):
+  """A PCollectionView that can be treated as a dict."""
+  pass
+
+
 def _get_cached_view(pipeline, key):
   return pipeline._view_cache.get(key, None)  # pylint: disable=protected-access
 
@@ -411,24 +416,20 @@ def AsList(pcoll, label=None):  # pylint: disable=invalid-name
 
 @can_take_label_as_first_argument
 def AsDict(pcoll, label=None):  # pylint: disable=invalid-name
-  """Convenience function packaging an entire PCollection as a side input dict.
+  """Create a DictPCollectionView from the elements of input PCollection.
 
-  Intended for use in side-argument specification---the same places where
-  AsSingleton and AsIter are used. Unlike those wrapper classes, AsDict (as
-  implemented) is a function that schedules a Combiner to condense pcoll into a
-  single dict, then wraps the resulting one-element PCollection in AsSingleton.
+  The contents of the given PCollection whose elements are 2-tuples of key and
+  value will be available as a dict-like object in PTransforms that use the
+  returned PCollectionView as a side input.
 
   Args:
-    pcoll: Input pcollection. All elements should be key-value pairs (i.e.
-       2-tuples) with unique keys.
+    pcoll: Input pcollection containing 2-tuples of key and value.
     label: Label to be specified if several AsDict's for the same PCollection.
 
   Returns:
-    A singleton PCollectionView containing the dict as above.
+    A dict PCollectionView containing the dict as above.
   """
   label = label or _format_view_label(pcoll)
-  singleton_label = 'ToDict(%s)' % label
-  combine_label = 'CombineToDict(%s)' % label
 
   # Don't recreate the view if it was already created.
   cache_key = (pcoll, AsDict)
@@ -439,8 +440,8 @@ def AsDict(pcoll, label=None):  # pylint: disable=invalid-name
   # Local import is required due to dependency loop; even though the
   # implementation of this function requires concepts defined in modules that
   # depend on pvalue, it lives in this module to reduce user workload.
-  from google.cloud.dataflow.transforms import combiners  # pylint: disable=g-import-not-at-top
-  view = AsSingleton(singleton_label, pcoll | combiners.ToDict(combine_label))
+  from google.cloud.dataflow.transforms import sideinputs  # pylint: disable=g-import-not-at-top
+  view = (pcoll | sideinputs.ViewAsDict(label=label))
   _cache_view(pcoll.pipeline, cache_key, view)
   return view
 

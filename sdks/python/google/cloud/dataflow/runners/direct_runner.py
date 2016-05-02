@@ -28,6 +28,7 @@ import logging
 from google.cloud.dataflow import coders
 from google.cloud.dataflow import error
 from google.cloud.dataflow.io import fileio
+from google.cloud.dataflow.pvalue import DictPCollectionView
 from google.cloud.dataflow.pvalue import EmptySideInput
 from google.cloud.dataflow.pvalue import IterablePCollectionView
 from google.cloud.dataflow.pvalue import ListPCollectionView
@@ -119,6 +120,8 @@ class DirectPipelineRunner(PipelineRunner):
       result = [v.value for v in values]
     elif isinstance(view, ListPCollectionView):
       result = [v.value for v in values]
+    elif isinstance(view, DictPCollectionView):
+      result = dict(v.value for v in values)
     else:
       raise NotImplementedError
 

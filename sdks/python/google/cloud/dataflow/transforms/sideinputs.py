@@ -115,3 +115,31 @@ class ViewAsList(PTransform):
             | CreatePCollectionView(pvalue.ListPCollectionView(pcoll.pipeline))
             .with_input_types(input_type)
             .with_output_types(output_type))
+
+K = typehints.TypeVariable('K')
+V = typehints.TypeVariable('V')
+@typehints.with_input_types(typehints.Tuple[K, V])
+@typehints.with_output_types(typehints.Dict[K, V])
+class ViewAsDict(PTransform):  # pylint: disable=g-wrong-blank-lines
+  """Transform to view PCollection as a dict PCollectionView.
+
+  Important: this transform is an implementation detail and should not be used
+  directly by pipeline writers. Use pvalue.AsDict(...) instead.
+  """
+
+  def __init__(self, label=None):
+    if label:
+      label = 'ViewAsDict(%s)' % label
+    super(ViewAsDict, self).__init__(label=label)
+
+  def apply(self, pcoll):
+    self._check_pcollection(pcoll)
+    input_type = pcoll.element_type
+    key_type, value_type = (
+        typehints.trivial_inference.key_value_types(input_type))
+    output_type = typehints.Dict[key_type, value_type]
+    return (pcoll
+            | CreatePCollectionView(
+                pvalue.DictPCollectionView(pcoll.pipeline))
+            .with_input_types(input_type)
+            .with_output_types(output_type))

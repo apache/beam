@@ -400,7 +400,9 @@ class ExecutorTest(unittest.TestCase):
       # Setup the reader so it will yield the values in 'side_elements'.
       reader_mock = mock_class.return_value
       reader_mock.__enter__.return_value = reader_mock
-      reader_mock.__iter__.return_value = (x for x in side_elements)
+      # Use a lambda so that multiple readers can be created, each reading the
+      # entirety of the side elements.
+      reader_mock.__iter__.side_effect = lambda: (x for x in side_elements)
 
       pickled_elements = [pickler.dumps(e) for e in elements]
       executor.MapTaskExecutor().execute(make_map_task([
@@ -442,7 +444,9 @@ class ExecutorTest(unittest.TestCase):
       # Setup the reader so it will yield the values in 'side_elements'.
       reader_mock = mock_class.return_value
       reader_mock.__enter__.return_value = reader_mock
-      reader_mock.__iter__.return_value = (x for x in side_elements)
+      # Use a lambda so that multiple readers can be created, each reading the
+      # entirety of the side elements.
+      reader_mock.__iter__.side_effect = lambda: (x for x in side_elements)
 
       executor.MapTaskExecutor().execute(make_map_task([
           maptask.WorkerRead(
