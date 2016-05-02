@@ -52,6 +52,12 @@ import org.apache.beam.sdk.transforms.join.CoGbkResultSchema;
 import org.apache.beam.sdk.transforms.join.CoGroupByKey;
 import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.transforms.windowing.WindowFn.AssignContext;
+import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -78,12 +84,14 @@ import org.apache.flink.api.java.operators.Grouping;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
 import org.apache.flink.api.java.operators.UnsortedGrouping;
 import org.apache.flink.core.fs.Path;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -116,6 +124,8 @@ public class FlinkBatchTransformTranslators {
 
     // TODO we're currently ignoring windows here but that has to change in the future
     TRANSLATORS.put(GroupByKey.class, new GroupByKeyTranslatorBatch());
+
+    TRANSLATORS.put(Window.Bound.class, new WindowBoundTranslatorBatch());
 
     TRANSLATORS.put(ParDo.BoundMulti.class, new ParDoBoundMultiTranslatorBatch());
     TRANSLATORS.put(ParDo.Bound.class, new ParDoBoundTranslatorBatch());
@@ -300,6 +310,31 @@ public class FlinkBatchTransformTranslators {
       DataSet<T> inputDataSet = context.getInputDataSet(input);
 
       inputDataSet.output(new SinkOutputFormat<>(transform, context.getPipelineOptions())).name(name);
+    }
+  }
+
+  public static class WindowBoundTranslatorBatch<T> implements FlinkBatchPipelineTranslator.BatchTransformTranslator<Window.Bound<T>> {
+
+    @Override
+    public void translateNode(Window.Bound<T> transform, FlinkBatchTranslationContext context) {
+      PValue input = context.getInput(transform);
+      DataSet<T> inputDataSet = context.getInputDataSet(input);
+
+      @SuppressWarnings("unchecked")
+      final WindowingStrategy<T, ? extends BoundedWindow> windowingStrategy =
+          (WindowingStrategy<T, ? extends BoundedWindow>)
+              context.getOutput(transform).getWindowingStrategy();
+
+      if (!(windowingStrategy.getWindowFn() instanceof GlobalWindows)) {
+        throw new UnsupportedOperationException(
+            String.format(
+                "In %s: Only %s is currently supported by batch mode; received %s",
+                FlinkBatchPipelineTranslator.class.getName(),
+                GlobalWindows.class.getName(),
+                windowingStrategy.getWindowFn()));
+      }
+
+      context.setOutputDataSet(context.getOutput(transform), inputDataSet);
     }
   }
 
