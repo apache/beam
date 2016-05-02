@@ -20,10 +20,8 @@ package org.apache.beam.sdk.util;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -39,6 +37,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 
 import com.google.common.collect.ImmutableList;
 
+import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
@@ -48,13 +47,16 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Tests for {@link PushbackSideInputDoFnRunner}.
  */
 @RunWith(JUnit4.class)
 public class PushbackSideInputDoFnRunnerTest {
   @Mock private ReadyCheckingSideInputReader reader;
-  @Mock private DoFnRunner<Integer, Integer> underlying;
+  private TestDoFnRunner<Integer, Integer> underlying;
   private PCollectionView<Integer> singletonView;
 
   @Before
@@ -66,6 +68,27 @@ public class PushbackSideInputDoFnRunnerTest {
         created
             .apply(Window.into(new IdentitySideInputWindowFn()))
             .apply(Sum.integersGlobally().asSingletonView());
+
+    underlying = new TestDoFnRunner<>();
+  }
+
+  private PushbackSideInputDoFnRunner<Integer, Integer> createRunner(
+      ImmutableList<PCollectionView<?>> views) {
+    PushbackSideInputDoFnRunner<Integer, Integer> runner =
+        PushbackSideInputDoFnRunner.create(underlying, views, reader);
+    runner.startBundle();
+    return runner;
+  }
+
+  @Test
+  public void startFinishBundleDelegates() {
+    PushbackSideInputDoFnRunner runner =
+        createRunner(ImmutableList.<PCollectionView<?>>of(singletonView));
+
+    assertThat(underlying.started, is(true));
+    assertThat(underlying.finished, is(false));
+    runner.finishBundle();
+    assertThat(underlying.finished, is(true));
   }
 
   @Test
@@ -74,9 +97,7 @@ public class PushbackSideInputDoFnRunnerTest {
         .thenReturn(false);
 
     PushbackSideInputDoFnRunner<Integer, Integer> runner =
-        PushbackSideInputDoFnRunner.create(
-            underlying, ImmutableList.<PCollectionView<?>>of(singletonView), reader);
-    runner.startBundle();
+        createRunner(ImmutableList.<PCollectionView<?>>of(singletonView));
 
     WindowedValue<Integer> oneWindow =
         WindowedValue.of(
@@ -87,7 +108,7 @@ public class PushbackSideInputDoFnRunnerTest {
     Iterable<WindowedValue<Integer>> oneWindowPushback =
         runner.processElementInReadyWindows(oneWindow);
     assertThat(oneWindowPushback, containsInAnyOrder(oneWindow));
-    verify(underlying, never()).processElement(Mockito.any(WindowedValue.class));
+    assertThat(underlying.inputElems, Matchers.<WindowedValue<Integer>>emptyIterable());
   }
 
   @Test
@@ -96,10 +117,8 @@ public class PushbackSideInputDoFnRunnerTest {
         .thenReturn(false);
 
     PushbackSideInputDoFnRunner<Integer, Integer> runner =
-        PushbackSideInputDoFnRunner.create(
-            underlying, ImmutableList.<PCollectionView<?>>of(singletonView), reader);
+        createRunner(ImmutableList.<PCollectionView<?>>of(singletonView));
 
-    runner.startBundle();
     WindowedValue<Integer> multiWindow =
         WindowedValue.of(
             2,
@@ -112,7 +131,7 @@ public class PushbackSideInputDoFnRunnerTest {
     Iterable<WindowedValue<Integer>> multiWindowPushback =
         runner.processElementInReadyWindows(multiWindow);
     assertThat(multiWindowPushback, equalTo(multiWindow.explodeWindows()));
-    verify(underlying, never()).processElement(Mockito.any(WindowedValue.class));
+    assertThat(underlying.inputElems, Matchers.<WindowedValue<Integer>>emptyIterable());
   }
 
   @Test
@@ -126,25 +145,25 @@ public class PushbackSideInputDoFnRunnerTest {
         .thenReturn(true);
 
     PushbackSideInputDoFnRunner<Integer, Integer> runner =
-        PushbackSideInputDoFnRunner.create(
-            underlying, ImmutableList.<PCollectionView<?>>of(singletonView), reader);
-    runner.startBundle();
+        createRunner(ImmutableList.<PCollectionView<?>>of(singletonView));
 
+    IntervalWindow littleWindow = new IntervalWindow(new Instant(-500L), new Instant(0L));
+    IntervalWindow bigWindow =
+        new IntervalWindow(BoundedWindow.TIMESTAMP_MIN_VALUE, new Instant(250L));
     WindowedValue<Integer> multiWindow =
         WindowedValue.of(
             2,
             new Instant(-2),
-            ImmutableList.of(
-                new IntervalWindow(new Instant(-500L), new Instant(0L)),
-                new IntervalWindow(BoundedWindow.TIMESTAMP_MIN_VALUE, new Instant(250L)),
-                GlobalWindow.INSTANCE),
+            ImmutableList.of(littleWindow, bigWindow, GlobalWindow.INSTANCE),
             PaneInfo.NO_FIRING);
     Iterable<WindowedValue<Integer>> multiWindowPushback =
         runner.processElementInReadyWindows(multiWindow);
     assertThat(
         multiWindowPushback,
         containsInAnyOrder(WindowedValue.timestampedValueInGlobalWindow(2, new Instant(-2L))));
-    verify(underlying, times(2)).processElement(Mockito.any(WindowedValue.class));
+    assertThat(underlying.inputElems,
+        containsInAnyOrder(WindowedValue.of(2, new Instant(-2), littleWindow, PaneInfo.NO_FIRING),
+            WindowedValue.of(2, new Instant(-2), bigWindow, PaneInfo.NO_FIRING)));
   }
 
   @Test
@@ -152,10 +171,8 @@ public class PushbackSideInputDoFnRunnerTest {
     when(reader.isReady(Mockito.eq(singletonView), Mockito.any(BoundedWindow.class)))
         .thenReturn(true);
 
-    PushbackSideInputDoFnRunner<Integer, Integer> runner =
-        PushbackSideInputDoFnRunner.create(
-            underlying, ImmutableList.<PCollectionView<?>>of(singletonView), reader);
-    runner.startBundle();
+    ImmutableList<PCollectionView<?>> views = ImmutableList.<PCollectionView<?>>of(singletonView);
+    PushbackSideInputDoFnRunner<Integer, Integer> runner = createRunner(views);
 
     WindowedValue<Integer> multiWindow =
         WindowedValue.of(
@@ -169,17 +186,14 @@ public class PushbackSideInputDoFnRunnerTest {
     Iterable<WindowedValue<Integer>> multiWindowPushback =
         runner.processElementInReadyWindows(multiWindow);
     assertThat(multiWindowPushback, emptyIterable());
-    for (WindowedValue<Integer> explodedValue : multiWindow.explodeWindows()) {
-      verify(underlying).processElement(explodedValue);
-    }
+    assertThat(underlying.inputElems,
+        containsInAnyOrder(ImmutableList.copyOf(multiWindow.explodeWindows()).toArray()));
   }
 
   @Test
   public void processElementNoSideInputs() {
-    PushbackSideInputDoFnRunner<Integer, Integer> runner = PushbackSideInputDoFnRunner.create(
-        underlying,
-        ImmutableList.<PCollectionView<?>>of(),
-        reader);
+    PushbackSideInputDoFnRunner<Integer, Integer> runner =
+        createRunner(ImmutableList.<PCollectionView<?>>of());
 
     WindowedValue<Integer> multiWindow =
         WindowedValue.of(
@@ -193,6 +207,28 @@ public class PushbackSideInputDoFnRunnerTest {
     Iterable<WindowedValue<Integer>> multiWindowPushback =
         runner.processElementInReadyWindows(multiWindow);
     assertThat(multiWindowPushback, emptyIterable());
-    verify(underlying).processElement(multiWindow);
+    assertThat(underlying.inputElems, containsInAnyOrder(multiWindow));
+  }
+
+  private static class TestDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
+    List<WindowedValue<InputT>> inputElems;
+    private boolean started = false;
+    private boolean finished = false;
+
+    @Override
+    public void startBundle() {
+      started = true;
+      inputElems = new ArrayList<>();
+    }
+
+    @Override
+    public void processElement(WindowedValue<InputT> elem) {
+      inputElems.add(elem);
+    }
+
+    @Override
+    public void finishBundle() {
+      finished = true;
+    }
   }
 }
