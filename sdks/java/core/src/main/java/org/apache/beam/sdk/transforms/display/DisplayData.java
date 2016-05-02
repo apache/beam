@@ -170,7 +170,7 @@ public class DisplayData implements Serializable {
      * Using {@code include(subcomponent)} will associate each of the registered items with the
      * namespace of the {@code subcomponent} being registered. To register display data in the
      * current namespace, such as from a base class implementation, use
-     * {@code super.populateDisplayData(builder)} instead.
+     * {@code subcomponent.populateDisplayData(builder)} instead.
      *
      * @see HasDisplayData#populateDisplayData(DisplayData.Builder)
      */
