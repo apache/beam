@@ -72,7 +72,7 @@ public class PubsubApiaryClientTest {
   }
 
   @After
-  public void teardown() {
+  public void teardown() throws IOException {
     client.close();
     client = null;
     mockPubsub = null;

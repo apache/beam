@@ -18,9 +18,10 @@
 
 package org.apache.beam.sdk.util;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import org.apache.beam.sdk.options.PubsubOptions;
 
-import com.google.api.client.util.Clock;
 import com.google.api.services.pubsub.Pubsub;
 import com.google.api.services.pubsub.Pubsub.Builder;
 import com.google.api.services.pubsub.model.AcknowledgeRequest;
@@ -37,7 +38,7 @@ import com.google.api.services.pubsub.model.Subscription;
 import com.google.api.services.pubsub.model.Topic;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.hash.Hashing;
 
@@ -169,13 +170,13 @@ public class PubsubApiaryClient extends PubsubClient {
 
       // Ack id.
       String ackId = message.getAckId();
-      Preconditions.checkState(ackId != null && !ackId.isEmpty());
+      checkState(!Strings.isNullOrEmpty(ackId));
 
       // Record id, if any.
       @Nullable byte[] recordId = null;
       if (idLabel != null && attributes != null) {
         String recordIdString = attributes.get(idLabel);
-        if (recordIdString != null && !recordIdString.isEmpty()) {
+        if (!Strings.isNullOrEmpty(recordIdString)) {
           recordId = recordIdString.getBytes();
         }
       }
@@ -239,7 +240,7 @@ public class PubsubApiaryClient extends PubsubClient {
     }
     List<TopicPath> topics = new ArrayList<>(response.getTopics().size());
     for (Topic topic : response.getTopics()) {
-      topics.add(new TopicPath(topic.getName()));
+      topics.add(topicPathFromPath(topic.getName()));
     }
     return topics;
   }
@@ -278,7 +279,7 @@ public class PubsubApiaryClient extends PubsubClient {
     List<SubscriptionPath> subscriptions = new ArrayList<>(response.getSubscriptions().size());
     for (Subscription subscription : response.getSubscriptions()) {
       if (subscription.getTopic().equals(topic.getPath())) {
-        subscriptions.add(new SubscriptionPath(subscription.getName()));
+        subscriptions.add(subscriptionPathFromPath(subscription.getName()));
       }
     }
     return subscriptions;

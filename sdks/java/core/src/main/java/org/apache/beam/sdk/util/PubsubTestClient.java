@@ -18,10 +18,13 @@
 
 package org.apache.beam.sdk.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
+
 import org.apache.beam.sdk.options.PubsubOptions;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -123,7 +126,7 @@ public class PubsubTestClient extends PubsubClient {
    * outstanding ACKs.
    */
   public void advanceTo(long newNowMsSinceEpoch) {
-    Preconditions.checkArgument(newNowMsSinceEpoch >= nowMsSinceEpoch);
+    checkArgument(newNowMsSinceEpoch >= nowMsSinceEpoch);
     nowMsSinceEpoch = newNowMsSinceEpoch;
     // Any messages who's ACKs timed out are available for re-pulling.
     Iterator<Map.Entry<String, Long>> deadlineItr = ackDeadline.entrySet().iterator();
@@ -139,23 +142,23 @@ public class PubsubTestClient extends PubsubClient {
   @Override
   public void close() {
     if (remainingExpectedOutgoingMessages != null) {
-      Preconditions.checkState(remainingExpectedOutgoingMessages.isEmpty());
+      checkState(remainingExpectedOutgoingMessages.isEmpty());
     }
     if (remainingPendingIncomingMessages != null) {
-      Preconditions.checkState(remainingPendingIncomingMessages.isEmpty());
-      Preconditions.checkState(pendingAckIncommingMessages.isEmpty());
-      Preconditions.checkState(ackDeadline.isEmpty());
+      checkState(remainingPendingIncomingMessages.isEmpty());
+      checkState(pendingAckIncommingMessages.isEmpty());
+      checkState(ackDeadline.isEmpty());
     }
   }
 
   @Override
   public int publish(
       TopicPath topic, List<OutgoingMessage> outgoingMessages) throws IOException {
-    Preconditions.checkNotNull(expectedTopic);
-    Preconditions.checkNotNull(remainingExpectedOutgoingMessages);
-    Preconditions.checkState(topic.equals(expectedTopic));
+    checkNotNull(expectedTopic);
+    checkNotNull(remainingExpectedOutgoingMessages);
+    checkState(topic.equals(expectedTopic));
     for (OutgoingMessage outgoingMessage : outgoingMessages) {
-      Preconditions.checkState(remainingExpectedOutgoingMessages.remove(outgoingMessage));
+      checkState(remainingExpectedOutgoingMessages.remove(outgoingMessage));
     }
     return outgoingMessages.size();
   }
@@ -164,11 +167,11 @@ public class PubsubTestClient extends PubsubClient {
   public List<IncomingMessage> pull(
       long requestTimeMsSinceEpoch, SubscriptionPath subscription, int batchSize,
       boolean returnImmediately) throws IOException {
-    Preconditions.checkState(requestTimeMsSinceEpoch >= nowMsSinceEpoch);
-    Preconditions.checkNotNull(expectedSubscription);
-    Preconditions.checkNotNull(remainingPendingIncomingMessages);
-    Preconditions.checkState(subscription.equals(expectedSubscription));
-    Preconditions.checkState(returnImmediately);
+    checkState(requestTimeMsSinceEpoch >= nowMsSinceEpoch);
+    checkNotNull(expectedSubscription);
+    checkNotNull(remainingPendingIncomingMessages);
+    checkState(subscription.equals(expectedSubscription));
+    checkState(returnImmediately);
 
     List<IncomingMessage> incomingMessages = new ArrayList<>();
     Iterator<IncomingMessage> pendItr = remainingPendingIncomingMessages.iterator();
@@ -193,27 +196,27 @@ public class PubsubTestClient extends PubsubClient {
   public void acknowledge(
       SubscriptionPath subscription,
       List<String> ackIds) throws IOException {
-    Preconditions.checkNotNull(expectedSubscription);
-    Preconditions.checkNotNull(remainingPendingIncomingMessages);
-    Preconditions.checkState(subscription.equals(expectedSubscription));
+    checkNotNull(expectedSubscription);
+    checkNotNull(remainingPendingIncomingMessages);
+    checkState(subscription.equals(expectedSubscription));
 
     for (String ackId : ackIds) {
-      Preconditions.checkState(ackDeadline.remove(ackId) != null);
-      Preconditions.checkState(pendingAckIncommingMessages.remove(ackId) != null);
+      checkState(ackDeadline.remove(ackId) != null);
+      checkState(pendingAckIncommingMessages.remove(ackId) != null);
     }
   }
 
   @Override
   public void modifyAckDeadline(
       SubscriptionPath subscription, List<String> ackIds, int deadlineSeconds) throws IOException {
-    Preconditions.checkNotNull(expectedSubscription);
-    Preconditions.checkNotNull(remainingPendingIncomingMessages);
-    Preconditions.checkState(subscription.equals(expectedSubscription));
+    checkNotNull(expectedSubscription);
+    checkNotNull(remainingPendingIncomingMessages);
+    checkState(subscription.equals(expectedSubscription));
 
     for (String ackId : ackIds) {
-      Preconditions.checkState(ackDeadline.remove(ackId) != null);
+      checkState(ackDeadline.remove(ackId) != null);
       ackDeadline.put(ackId, nowMsSinceEpoch + deadlineSeconds * 1000);
-      Preconditions.checkState(pendingAckIncommingMessages.containsKey(ackId));
+      checkState(pendingAckIncommingMessages.containsKey(ackId));
     }
   }
 

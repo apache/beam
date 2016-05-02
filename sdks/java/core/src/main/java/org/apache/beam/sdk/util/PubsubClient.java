@@ -18,13 +18,16 @@
 
 package org.apache.beam.sdk.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
+
 import org.apache.beam.sdk.options.PubsubOptions;
 
-import com.google.api.client.util.Clock;
 import com.google.api.client.util.DateTime;
 import com.google.common.base.Objects;
-import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
@@ -35,7 +38,7 @@ import javax.annotation.Nullable;
 /**
  * An (abstract) helper class for talking to Pubsub via an underlying transport.
  */
-public abstract class PubsubClient implements AutoCloseable {
+public abstract class PubsubClient implements Closeable {
 
   /**
    * Factory for creating clients.
@@ -56,22 +59,13 @@ public abstract class PubsubClient implements AutoCloseable {
   }
 
   /**
-   * Which underlying transport to use.
-   */
-  public enum TransportType {
-    TEST,
-    APIARY,
-    GRPC;
-  }
-
-  /**
    * Return timestamp as ms-since-unix-epoch corresponding to {@code timestamp}.
    * Return {@literal null} if no timestamp could be found. Throw {@link IllegalArgumentException}
    * if timestamp cannot be recognized.
    */
   @Nullable
   private static Long asMsSinceEpoch(@Nullable String timestamp) {
-    if (timestamp == null || timestamp.isEmpty()) {
+    if (Strings.isNullOrEmpty(timestamp)) {
       return null;
     }
     try {
@@ -103,20 +97,20 @@ public abstract class PubsubClient implements AutoCloseable {
       @Nullable String pubsubTimestamp,
       @Nullable Map<String, String> attributes) {
     Long timestampMsSinceEpoch;
-    if (timestampLabel == null) {
+    if (Strings.isNullOrEmpty(timestampLabel)) {
       timestampMsSinceEpoch = asMsSinceEpoch(pubsubTimestamp);
-      Preconditions.checkArgument(timestampMsSinceEpoch != null,
-                                  "Cannot interpret PubSub publish timestamp: %s",
-                                  pubsubTimestamp);
+      checkArgument(timestampMsSinceEpoch != null,
+                    "Cannot interpret PubSub publish timestamp: %s",
+                    pubsubTimestamp);
     } else {
       String value = attributes == null ? null : attributes.get(timestampLabel);
-      Preconditions.checkArgument(value != null,
-                                  "PubSub message is missing a value for timestamp label %s",
-                                  timestampLabel);
+      checkArgument(value != null,
+                    "PubSub message is missing a value for timestamp label %s",
+                    timestampLabel);
       timestampMsSinceEpoch = asMsSinceEpoch(value);
-      Preconditions.checkArgument(timestampMsSinceEpoch != null,
-                                  "Cannot interpret value of label %s as timestamp: %s",
-                                  timestampLabel, value);
+      checkArgument(timestampMsSinceEpoch != null,
+                    "Cannot interpret value of label %s as timestamp: %s",
+                    timestampLabel, value);
     }
     return timestampMsSinceEpoch;
   }
@@ -127,7 +121,7 @@ public abstract class PubsubClient implements AutoCloseable {
   public static class ProjectPath implements Serializable {
     private final String path;
 
-    public ProjectPath(String path) {
+    ProjectPath(String path) {
       this.path = path;
     }
 
@@ -161,6 +155,10 @@ public abstract class PubsubClient implements AutoCloseable {
     }
   }
 
+  public static ProjectPath projectPathFromPath(String path) {
+    return new ProjectPath(path);
+  }
+
   public static ProjectPath projectPathFromId(String projectId) {
     return new ProjectPath(String.format("projects/%s", projectId));
   }
@@ -171,7 +169,7 @@ public abstract class PubsubClient implements AutoCloseable {
   public static class SubscriptionPath implements Serializable {
     private final String path;
 
-    public SubscriptionPath(String path) {
+    SubscriptionPath(String path) {
       this.path = path;
     }
 
@@ -181,7 +179,7 @@ public abstract class PubsubClient implements AutoCloseable {
 
     public String getV1Beta1Path() {
       String[] splits = path.split("/");
-      Preconditions.checkState(splits.length == 4);
+      checkState(splits.length == 4);
       return String.format("/subscriptions/%s/%s", splits[1], splits[3]);
     }
 
@@ -208,6 +206,10 @@ public abstract class PubsubClient implements AutoCloseable {
     }
   }
 
+  public static SubscriptionPath subscriptionPathFromPath(String path) {
+      return new SubscriptionPath(path);
+  }
+
   public static SubscriptionPath subscriptionPathFromName(
       String projectId, String subscriptionName) {
     return new SubscriptionPath(String.format("projects/%s/subscriptions/%s",
@@ -220,7 +222,7 @@ public abstract class PubsubClient implements AutoCloseable {
   public static class TopicPath implements Serializable {
     private final String path;
 
-    public TopicPath(String path) {
+    TopicPath(String path) {
       this.path = path;
     }
 
@@ -230,7 +232,7 @@ public abstract class PubsubClient implements AutoCloseable {
 
     public String getV1Beta1Path() {
       String[] splits = path.split("/");
-      Preconditions.checkState(splits.length == 4);
+      checkState(splits.length == 4);
       return String.format("/topics/%s/%s", splits[1], splits[3]);
     }
 
@@ -255,6 +257,10 @@ public abstract class PubsubClient implements AutoCloseable {
     public String toString() {
       return path;
     }
+  }
+
+  public static TopicPath topicPathFromPath(String path) {
+    return new TopicPath(path);
   }
 
   public static TopicPath topicPathFromName(String projectId, String topicName) {
@@ -387,10 +393,10 @@ public abstract class PubsubClient implements AutoCloseable {
   }
 
   /**
-   * Gracefully close the underlying transport.
+   * @inheritDoc
    */
   @Override
-  public abstract void close();
+  public abstract void close() throws IOException;
 
   /**
    * Publish {@code outgoingMessages} to Pubsub {@code topic}. Return number of messages

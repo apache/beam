@@ -87,7 +87,7 @@ public class PubsubGrpcClientTest {
   }
 
   @After
-  public void teardown() {
+  public void teardown() throws IOException {
     client.close();
     client = null;
     mockChannel = null;

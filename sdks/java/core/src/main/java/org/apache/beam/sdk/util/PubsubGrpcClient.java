@@ -18,12 +18,12 @@
 
 package org.apache.beam.sdk.util;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import org.apache.beam.sdk.options.PubsubOptions;
 
-import com.google.api.client.util.Clock;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.hash.Hashing;
 import com.google.protobuf.ByteString;
@@ -165,7 +165,14 @@ public class PubsubGrpcClient extends PubsubClient {
    */
   @Override
   public void close() {
-    Preconditions.checkState(publisherChannel != null, "Client has already been closed");
+    if (publisherChannel == null) {
+      // Already closed.
+      return;
+    }
+    cachedPublisherStub = null;
+    cachedSubscriberStub = null;
+    ManagedChannel publisherChannel = this.publisherChannel;
+    this.publisherChannel = null;
     publisherChannel.shutdown();
     if (timeoutSec > 0) {
       try {
@@ -175,16 +182,13 @@ public class PubsubGrpcClient extends PubsubClient {
         Thread.currentThread().interrupt();
       }
     }
-    publisherChannel = null;
-    cachedPublisherStub = null;
-    cachedSubscriberStub = null;
   }
 
   /**
    * Return channel with interceptor for returning credentials.
    */
   private Channel newChannel() throws IOException {
-    Preconditions.checkState(publisherChannel != null, "PubsubGrpcClient has been closed");
+    checkState(publisherChannel != null, "PubsubGrpcClient has been closed");
     ClientAuthInterceptor interceptor =
         new ClientAuthInterceptor(credentials, Executors.newSingleThreadExecutor());
     return ClientInterceptors.intercept(publisherChannel, interceptor);
@@ -281,7 +285,7 @@ public class PubsubGrpcClient extends PubsubClient {
 
       // Ack id.
       String ackId = message.getAckId();
-      Preconditions.checkState(ackId != null && !ackId.isEmpty());
+      checkState(ackId != null && !ackId.isEmpty());
 
       // Record id, if any.
       @Nullable byte[] recordId = null;
@@ -353,7 +357,7 @@ public class PubsubGrpcClient extends PubsubClient {
     List<TopicPath> topics = new ArrayList<>(response.getTopicsCount());
     while (true) {
       for (Topic topic : response.getTopicsList()) {
-        topics.add(new TopicPath(topic.getName()));
+        topics.add(topicPathFromPath(topic.getName()));
       }
       if (response.getNextPageToken().isEmpty()) {
         break;
@@ -400,7 +404,7 @@ public class PubsubGrpcClient extends PubsubClient {
     while (true) {
       for (Subscription subscription : response.getSubscriptionsList()) {
         if (subscription.getTopic().equals(topic.getPath())) {
-          subscriptions.add(new SubscriptionPath(subscription.getName()));
+          subscriptions.add(subscriptionPathFromPath(subscription.getName()));
         }
       }
       if (response.getNextPageToken().isEmpty()) {

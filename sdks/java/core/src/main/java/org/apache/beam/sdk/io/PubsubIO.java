@@ -35,7 +35,6 @@ import org.apache.beam.sdk.util.PubsubClient;
 import org.apache.beam.sdk.util.PubsubClient.IncomingMessage;
 import org.apache.beam.sdk.util.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.util.PubsubClient.TopicPath;
-import org.apache.beam.sdk.util.PubsubClient.TransportType;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -626,8 +625,8 @@ public class PubsubIO {
 
         if (boundedOutput) {
           return input.getPipeline().begin()
-              .apply(Create.of((Void) null)).setCoder(VoidCoder.of())
-              .apply(ParDo.of(new PubsubReader())).setCoder(coder);
+                      .apply(Create.of((Void) null)).setCoder(VoidCoder.of())
+                      .apply(ParDo.of(new PubsubBoundedReader())).setCoder(coder);
         } else {
           return PCollection.<T>createPrimitiveOutputInternal(
                   input.getPipeline(), WindowingStrategy.globalDefault(), IsBounded.UNBOUNDED)
@@ -687,7 +686,14 @@ public class PubsubIO {
         return maxReadTime;
       }
 
-      private class PubsubReader extends DoFn<Void, T> {
+      /**
+       * Default reader when Pubsub subscription has some form of upper bound.
+       * <p>TODO: Consider replacing with BoundedReadFromUnboundedSource on top of upcoming
+       * PubsubUnboundedSource.
+       * <p>NOTE: This is not the implementation used when running on the Google Dataflow hosted
+       * service.
+       */
+      private class PubsubBoundedReader extends DoFn<Void, T> {
         private static final int DEFAULT_PULL_SIZE = 100;
         private static final int ACK_TIMEOUT_SEC = 60;
 
@@ -755,14 +761,12 @@ public class PubsubIO {
                 try {
                   pubsubClient.deleteSubscription(subscriptionPath);
                 } catch (Exception e) {
-                  finallyBlockException =
-                      new RuntimeException("Failed to delete subscription: ", e);
-                  LOG.error("Failed to delete subscription: ", e);
+                  finallyBlockException = e;
                 }
               }
             }
             if (finallyBlockException != null) {
-              Throwables.propagate(finallyBlockException);
+              throw new RuntimeException("Failed to delete subscription: ", finallyBlockException);
             }
           }
           if (finallyBlockException != null) {
@@ -980,6 +984,11 @@ public class PubsubIO {
         return coder;
       }
 
+      /**
+       * Writer to Pubsub which batches messages.
+       * <p>NOTE: This is not the implementation used when running on the Google Dataflow hosted
+       * service.
+       */
       private class PubsubWriter extends DoFn<T, Void> {
         private static final int MAX_PUBLISH_BATCH_SIZE = 100;
         private transient List<OutgoingMessage> output;
