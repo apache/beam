@@ -19,6 +19,7 @@ package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.sdk.TestUtils.checkCombineFn;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasNamespace;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -712,6 +713,21 @@ public class CombineTest implements Serializable {
     assertThat(displayData, hasDisplayItem("emitDefaultOnEmptyInput", true));
     assertThat(displayData, hasDisplayItem("fanout", 1234));
     assertThat(displayData, includesDisplayDataFrom(combineFn));
+  }
+
+  @Test
+  public void testDisplayDataForWrappedFn() {
+    UniqueInts combineFn = new UniqueInts() {
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        builder.add(DisplayData.item("foo", "bar"));
+      }
+    };
+    Combine.PerKey<?, ?, ?> combine = Combine.perKey(combineFn);
+    DisplayData displayData = DisplayData.from(combine);
+
+    assertThat(displayData, hasDisplayItem("combineFn", combineFn.getClass()));
+    assertThat(displayData, hasDisplayItem(hasNamespace(combineFn.getClass())));
   }
 
   ////////////////////////////////////////////////////////////////////////////
