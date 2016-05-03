@@ -17,73 +17,40 @@
  */
 package org.apache.beam.sdk.options;
 
-import com.google.common.base.MoreObjects;
-import com.google.common.base.Objects;
+import com.google.auto.value.AutoValue;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.lang.reflect.Method;
 
 /**
  * For internal use. Specification for an option defined in a {@link PipelineOptions} interface.
  */
-class PipelineOptionSpec {
-  private final Class<? extends PipelineOptions> clazz;
-  private final String name;
-  private final Method getter;
-
+@AutoValue
+abstract class PipelineOptionSpec {
   static PipelineOptionSpec of(Class<? extends PipelineOptions> clazz, String name, Method getter) {
-    return new PipelineOptionSpec(clazz, name, getter);
-  }
-
-  private PipelineOptionSpec(Class<? extends PipelineOptions> clazz, String name, Method getter) {
-    this.clazz = clazz;
-    this.name = name;
-    this.getter = getter;
+    return new AutoValue_PipelineOptionSpec(clazz, name, getter);
   }
 
   /**
    * The {@link PipelineOptions} interface which defines this {@link PipelineOptionSpec}.
    */
-  Class<? extends PipelineOptions> getDefiningInterface() {
-    return clazz;
-  }
+  abstract Class<? extends PipelineOptions> getDefiningInterface();
 
   /**
    * Name of the property.
    */
-  String getName() {
-    return name;
-  }
+  abstract String getName();
 
   /**
    * The getter method for this property.
    */
-  Method getGetterMethod() {
-    return getter;
-  }
+  abstract Method getGetterMethod();
 
-  @Override
-  public String toString() {
-    return MoreObjects.toStringHelper(this)
-        .add("definingInterface", getDefiningInterface())
-        .add("name", getName())
-        .add("getterMethod", getGetterMethod())
-        .toString();
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hashCode(getDefiningInterface(), getName(), getGetterMethod());
-  }
-
-  @Override
-  public boolean equals(Object obj) {
-    if (!(obj instanceof PipelineOptionSpec)) {
-      return false;
-    }
-
-    PipelineOptionSpec that = (PipelineOptionSpec) obj;
-    return Objects.equal(this.getDefiningInterface(), that.getDefiningInterface())
-        && Objects.equal(this.getName(), that.getName())
-        && Objects.equal(this.getGetterMethod(), that.getGetterMethod());
+  /**
+   * Whether the option should be serialized. Uses the {@link JsonIgnore} annotation.
+   */
+  boolean shouldSerialize() {
+    return !getGetterMethod().isAnnotationPresent(JsonIgnore.class);
   }
 }
