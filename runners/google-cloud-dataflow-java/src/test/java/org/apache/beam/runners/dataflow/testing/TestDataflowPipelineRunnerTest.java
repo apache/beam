@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.testing;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
@@ -65,6 +66,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 
 import org.hamcrest.BaseMatcher;
+import org.hamcrest.CustomTypeSafeMatcher;
 import org.hamcrest.Description;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -385,10 +387,11 @@ public class TestDataflowPipelineRunnerTest {
   }
 
   @Test
-  public void testBatchCreateMatcher() throws Exception {
+  public void testBatchOnCreateMatcher() throws Exception {
     Pipeline p = TestPipeline.create(options);
     PCollection<Integer> pc = p.apply(Create.of(1, 2, 3));
     PAssert.that(pc).containsInAnyOrder(1, 2, 3);
+
     final DataflowPipelineJob mockJob = Mockito.mock(DataflowPipelineJob.class);
     when(mockJob.getDataflowClient()).thenReturn(service);
     when(mockJob.getState()).thenReturn(State.DONE);
@@ -400,20 +403,17 @@ public class TestDataflowPipelineRunnerTest {
 
     TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
     p.getOptions().as(TestPipelineOptions.class)
-        .setOnCreateMatcher(new BaseMatcher<PipelineResult>() {
+        .setOnCreateMatcher(new CustomTypeSafeMatcher<PipelineResult>("TestMatcher") {
           @Override
-          public boolean matches(Object o) {
+          protected boolean matchesSafely(PipelineResult pipelineResult) {
             try {
               verify(mockJob, never()).waitToFinish(any(Long.class), any(TimeUnit.class),
                   any(JobMessagesHandler.class));
             } catch (Exception e) {
               return false;
             }
-            return (PipelineResult) o == (PipelineResult) mockJob;
-          }
-
-          @Override
-          public void describeTo(Description description) {
+            assertSame(mockJob, pipelineResult);
+            return true;
           }
         });
 
@@ -423,7 +423,7 @@ public class TestDataflowPipelineRunnerTest {
   }
 
   @Test
-  public void testStreamingCreateMatcher() throws Exception {
+  public void testStreamingOnCreateMatcher() throws Exception {
     options.setStreaming(true);
     Pipeline p = TestPipeline.create(options);
     PCollection<Integer> pc = p.apply(Create.of(1, 2, 3));
@@ -440,23 +440,20 @@ public class TestDataflowPipelineRunnerTest {
 
     TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
     p.getOptions().as(TestPipelineOptions.class)
-        .setOnCreateMatcher(new BaseMatcher<PipelineResult>() {
+        .setOnCreateMatcher(new CustomTypeSafeMatcher<PipelineResult>("TestMatcher") {
           @Override
-          public boolean matches(Object o) {
-            // Assert that job.WaitToFinish has not yet been called
+          protected boolean matchesSafely(PipelineResult pipelineResult) {
             try {
               verify(mockJob, never()).waitToFinish(any(Long.class), any(TimeUnit.class),
                   any(JobMessagesHandler.class));
             } catch (Exception e) {
               return false;
             }
-            return (PipelineResult) o == (PipelineResult) mockJob;
-          }
-
-          @Override
-          public void describeTo(Description description) {
+            assertSame(mockJob, pipelineResult);
+            return true;
           }
         });
+
     when(mockJob.waitToFinish(any(Long.class), any(TimeUnit.class), any(JobMessagesHandler.class)))
         .thenReturn(State.DONE);
 
@@ -466,7 +463,7 @@ public class TestDataflowPipelineRunnerTest {
   }
 
   @Test
-  public void testBatchSuccessMatcherPipelineSuccess() throws Exception {
+  public void testBatchOnSuccessMatcherWhenPipelineSucceeds() throws Exception {
     Pipeline p = TestPipeline.create(options);
     PCollection<Integer> pc = p.apply(Create.of(1, 2, 3));
     PAssert.that(pc).containsInAnyOrder(1, 2, 3);
@@ -482,21 +479,17 @@ public class TestDataflowPipelineRunnerTest {
 
     TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
     p.getOptions().as(TestPipelineOptions.class)
-        .setOnSuccessMatcher(new BaseMatcher<PipelineResult>() {
+        .setOnSuccessMatcher(new CustomTypeSafeMatcher<PipelineResult>("TestMatcher") {
           @Override
-          public boolean matches(Object o) {
-            // Assert that job.WaitToFinish has not yet been called
+          protected boolean matchesSafely(PipelineResult pipelineResult) {
             try {
               verify(mockJob, Mockito.times(1)).waitToFinish(any(Long.class), any(TimeUnit.class),
                   any(JobMessagesHandler.class));
             } catch (Exception e) {
               return false;
             }
-            return (PipelineResult) o == (PipelineResult) mockJob;
-          }
-
-          @Override
-          public void describeTo(Description description) {
+            assertSame(mockJob, pipelineResult);
+            return true;
           }
         });
 
@@ -506,7 +499,7 @@ public class TestDataflowPipelineRunnerTest {
   }
 
   @Test
-  public void testStreamingSuccessMatcherPipelineSuccess() throws Exception {
+  public void testStreamingOnSuccessMatcherWhenPipelineSucceeds() throws Exception {
     options.setStreaming(true);
     Pipeline p = TestPipeline.create(options);
     PCollection<Integer> pc = p.apply(Create.of(1, 2, 3));
@@ -523,23 +516,20 @@ public class TestDataflowPipelineRunnerTest {
 
     TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
     p.getOptions().as(TestPipelineOptions.class)
-        .setOnSuccessMatcher(new BaseMatcher<PipelineResult>() {
+        .setOnSuccessMatcher(new CustomTypeSafeMatcher<PipelineResult>("TestMatcher") {
           @Override
-          public boolean matches(Object o) {
-            // Assert that job.WaitToFinish has not yet been called
+          protected boolean matchesSafely(PipelineResult pipelineResult) {
             try {
               verify(mockJob, Mockito.times(1)).waitToFinish(any(Long.class), any(TimeUnit.class),
                   any(JobMessagesHandler.class));
             } catch (Exception e) {
               return false;
             }
-            return (PipelineResult) o == (PipelineResult) mockJob;
-          }
-
-          @Override
-          public void describeTo(Description description) {
+            assertSame(mockJob, pipelineResult);
+            return true;
           }
         });
+
     when(mockJob.waitToFinish(any(Long.class), any(TimeUnit.class), any(JobMessagesHandler.class)))
         .thenReturn(State.DONE);
 
@@ -549,7 +539,7 @@ public class TestDataflowPipelineRunnerTest {
   }
 
   @Test
-  public void testBatchSuccessMatcherPipelineFailure() throws Exception {
+  public void testBatchOnSuccessMatcherWhenPipelineFails() throws Exception {
     Pipeline p = TestPipeline.create(options);
     PCollection<Integer> pc = p.apply(Create.of(1, 2, 3));
     PAssert.that(pc).containsInAnyOrder(1, 2, 3);
@@ -565,14 +555,11 @@ public class TestDataflowPipelineRunnerTest {
 
     TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
     p.getOptions().as(TestPipelineOptions.class)
-        .setOnSuccessMatcher(new BaseMatcher<PipelineResult>() {
+        .setOnSuccessMatcher(new CustomTypeSafeMatcher<PipelineResult>("TestMatcher") {
           @Override
-          public boolean matches(Object o) {
-            throw new AssertionError("Success matcher shouldn't be called.");
-          }
-
-          @Override
-          public void describeTo(Description description) {
+          protected boolean matchesSafely(PipelineResult pipelineResult) {
+            fail("OnSuccessMatcher should not be called on pipeline failure.");
+            return false;
           }
         });
 
@@ -589,7 +576,7 @@ public class TestDataflowPipelineRunnerTest {
   }
 
   @Test
-  public void testStreamingSuccessMatcherPipelineFailure() throws Exception {
+  public void testStreamingOnSuccessMatcherWhenPipelineFails() throws Exception {
     options.setStreaming(true);
     Pipeline p = TestPipeline.create(options);
     PCollection<Integer> pc = p.apply(Create.of(1, 2, 3));
@@ -606,16 +593,14 @@ public class TestDataflowPipelineRunnerTest {
 
     TestDataflowPipelineRunner runner = (TestDataflowPipelineRunner) p.getRunner();
     p.getOptions().as(TestPipelineOptions.class)
-        .setOnSuccessMatcher(new BaseMatcher<PipelineResult>() {
+        .setOnSuccessMatcher(new CustomTypeSafeMatcher<PipelineResult>("TestMatcher") {
           @Override
-          public boolean matches(Object o) {
-            throw new AssertionError("Success matcher shouldn't be called.");
-          }
-
-          @Override
-          public void describeTo(Description description) {
+          protected boolean matchesSafely(PipelineResult pipelineResult) {
+            fail("OnSuccessMatcher should not be called on pipeline failure.");
+            return false;
           }
         });
+
     when(mockJob.waitToFinish(any(Long.class), any(TimeUnit.class), any(JobMessagesHandler.class)))
         .thenReturn(State.FAILED);
 
