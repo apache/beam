@@ -1781,7 +1781,7 @@ public class Combine {
     public PCollection<KV<K, OutputT>> apply(PCollection<KV<K, InputT>> input) {
       return input
           .apply(GroupByKey.<K, InputT>create(fewKeys))
-          .apply(Combine.<K, InputT, OutputT>groupedValues(fn).withSideInputs(sideInputs));
+          .apply(Combine.groupedValues(fn, fnDisplayData).withSideInputs(sideInputs));
     }
 
     @Override
