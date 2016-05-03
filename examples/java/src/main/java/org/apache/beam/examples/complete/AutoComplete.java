@@ -81,7 +81,7 @@ import java.util.regex.Pattern;
  * specify pipeline configuration:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
- *   --stagingLocation=gs://YOUR_STAGING_DIRECTORY
+ *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
  *   --runner=DataflowPipelineRunner
  *   --inputFile=gs://path/to/input*.txt
  * }</pre>
@@ -90,7 +90,7 @@ import java.util.regex.Pattern;
  * specify pipeline configuration:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
- *   --stagingLocation=gs://YOUR_STAGING_DIRECTORY
+ *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
  *   --runner=DataflowPipelineRunner
  *   --inputFile=gs://YOUR_INPUT_DIRECTORY/*.txt
  *   --streaming

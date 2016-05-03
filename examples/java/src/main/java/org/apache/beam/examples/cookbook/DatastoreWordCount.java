@@ -69,7 +69,7 @@ import javax.annotation.Nullable;
  * }</pre>
  *
  * <p>To run this example using Dataflow service, you must additionally
- * provide either {@literal --stagingLocation} or {@literal --tempLocation}, and
+ * provide either {@literal --tempLocation} or {@literal --tempLocation}, and
  * select one of the Dataflow pipeline runners, eg
  * {@literal --runner=BlockingDataflowPipelineRunner}.
  *

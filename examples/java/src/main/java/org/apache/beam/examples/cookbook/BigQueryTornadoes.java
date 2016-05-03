@@ -60,7 +60,7 @@ import java.util.List;
  * <p>To execute this pipeline using the Dataflow service, specify pipeline configuration:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
- *   --stagingLocation=gs://YOUR_STAGING_DIRECTORY
+ *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
  *   --runner=BlockingDataflowPipelineRunner
  * }
  * </pre>

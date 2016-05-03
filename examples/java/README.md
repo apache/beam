@@ -44,7 +44,7 @@ the same pipeline on fully managed resources in Google Cloud Platform:
     mvn compile exec:java -pl examples \
     -Dexec.mainClass=com.google.cloud.dataflow.examples.WordCount \
     -Dexec.args="--project=<YOUR CLOUD PLATFORM PROJECT ID> \
-    --stagingLocation=<YOUR CLOUD STORAGE LOCATION> \
+    --tempLocation=<YOUR CLOUD STORAGE LOCATION> \
     --runner=BlockingDataflowPipelineRunner"
 
 Make sure to use your project id, not the project number or the descriptive name.
@@ -66,7 +66,7 @@ Platform:
     java -cp examples/target/google-cloud-dataflow-java-examples-all-bundled-<VERSION>.jar \
     com.google.cloud.dataflow.examples.WordCount \
     --project=<YOUR CLOUD PLATFORM PROJECT ID> \
-    --stagingLocation=<YOUR CLOUD STORAGE LOCATION> \
+    --tempLocation=<YOUR CLOUD STORAGE LOCATION> \
     --runner=BlockingDataflowPipelineRunner
 
 Other examples can be run similarly by replacing the `WordCount` class path with the example classpath, e.g.
