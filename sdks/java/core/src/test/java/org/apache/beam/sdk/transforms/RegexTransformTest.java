@@ -17,16 +17,16 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import java.io.Serializable;
-
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+
+import java.io.Serializable;
 
 /**
  * Tests for {@link RegexTransform}.
@@ -44,7 +44,7 @@ public class RegexTransformTest implements Serializable {
     PAssert.that(output).containsInAnyOrder("x", "y", "z");
     p.run();
   }
-  
+
   @Test
   public void testFindGroup() {
     TestPipeline p = TestPipeline.create();
@@ -64,11 +64,11 @@ public class RegexTransformTest implements Serializable {
     PCollection<String> output = p
         .apply(Create.of("a", "b", "c", "d"))
         .apply(RegexTransform.find("[xyz]"));
-    
+
     PAssert.that(output).empty();
     p.run();
   }
-  
+
   @Test
   public void testKVFind() {
     TestPipeline p = TestPipeline.create();
@@ -88,11 +88,11 @@ public class RegexTransformTest implements Serializable {
     PCollection<KV<String, String>> output = p
         .apply(Create.of("x y z"))
         .apply(RegexTransform.findKV("a (b) (c)", 1, 2));
-    
+
     PAssert.that(output).empty();
     p.run();
   }
-  
+
   @Test
   public void testMatches() {
     TestPipeline p = TestPipeline.create();
@@ -112,11 +112,11 @@ public class RegexTransformTest implements Serializable {
     PCollection<String> output = p
         .apply(Create.of("a", "b", "c", "d"))
         .apply(RegexTransform.matches("[xyz]"));
-    
+
     PAssert.that(output).empty();
     p.run();
   }
-  
+
   @Test
   public void testMatchesGroup() {
     TestPipeline p = TestPipeline.create();
@@ -128,7 +128,7 @@ public class RegexTransformTest implements Serializable {
     PAssert.that(output).containsInAnyOrder("xxx", "yyy", "zzz");
     p.run();
   }
-  
+
   @Test
   public void testKVMatches() {
     TestPipeline p = TestPipeline.create();
@@ -148,7 +148,6 @@ public class RegexTransformTest implements Serializable {
     PCollection<KV<String, String>> output = p
         .apply(Create.of("x y z"))
         .apply(RegexTransform.matchesKV("a (b) (c)", 1, 2));
-    
     PAssert.that(output).empty();
     p.run();
   }

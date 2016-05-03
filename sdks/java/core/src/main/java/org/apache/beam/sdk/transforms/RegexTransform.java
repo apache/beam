@@ -1,30 +1,42 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.sdk.transforms;
+
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollection;
 
 /**
  * {@code PTransorm}s to use Regular Expressions to process elements in a
  * {@link PCollection}.
  *
  * <p>
- * {@link RegexTransform#matches()} can be used to see if an entire line matches
- * a Regex. {@link RegexTransform#matchesKV()} can be used to see if an entire
+ * {@link RegexTransform#matches(String, int)} can be used to see if an entire line matches
+ * a Regex. {@link RegexTransform#matchesKV(String, int, int)} can be used to see if an entire
  * line matches a Regex and output certain groups as a {@link KV}.
  * </p>
- *
  * <p>
- * {@link RegexTransform#find()} can be used to see if a portion of a line
- * matches a Regex. {@link RegexTransform#matchesKV()} can be used to see if a
+ * {@link RegexTransform#find(String, int)} can be used to see if a portion of a line
+ * matches a Regex. {@link RegexTransform#matchesKV(String, int, int)} can be used to see if a
  * portion of a line matches a Regex and output certain groups as a {@link KV}.
  * </p>
- *
  * <p>
  * Lines that do not match the Regex will not be output.
  * </p>
@@ -38,7 +50,6 @@ public class RegexTransform {
    * Returns a {@link RegexTransform.Matches} {@link PTransform} that checks if
    * the entire line matches the Regex. Returns the entire line (group 0) as a
    * {@link PCollection}.
-   * 
    * @param regex
    *          The regular expression to run
    */
@@ -50,7 +61,6 @@ public class RegexTransform {
    * Returns a {@link RegexTransform.Matches} {@link PTransform} that checks if
    * the entire line matches the Regex. Returns the group as a
    * {@link PCollection}.
-   * 
    * @param regex
    *          The regular expression to run
    * @param group
@@ -64,7 +74,6 @@ public class RegexTransform {
    * Returns a {@link RegexTransform.MatchesKV} {@link PTransform} that checks
    * if the entire line matches the Regex. Returns the specified groups as the
    * key and value as a {@link PCollection}.
-   * 
    * @param regex
    *          The regular expression to run
    * @param keyGroup
@@ -81,19 +90,17 @@ public class RegexTransform {
    * Returns a {@link RegexTransform.Find} {@link PTransform} that checks if a
    * portion of the line matches the Regex. Returns the entire line (group 0) as
    * a {@link PCollection}.
-   * 
    * @param regex
    *          The regular expression to run
    */
   public static Find find(String regex) {
     return find(regex, 0);
   }
-  
+
   /**
    * Returns a {@link RegexTransform.Find} {@link PTransform} that checks if a
    * portion of the line matches the Regex. Returns the group as a
    * {@link PCollection}.
-   * 
    * @param regex
    *          The regular expression to run
    * @param group
@@ -107,7 +114,6 @@ public class RegexTransform {
    * Returns a {@link RegexTransform.FindKV} {@link PTransform} that checks if a
    * portion of the line matches the Regex. Returns the specified groups as the
    * key and value as a {@link PCollection}.
-   * 
    * @param regex
    *          The regular expression to run
    * @param keyGroup
@@ -133,7 +139,6 @@ public class RegexTransform {
    *
    * <p>
    * Example of use:
-   * 
    * <pre>
    *  {@code
    * PCollection<String> words = ...;
@@ -182,7 +187,6 @@ public class RegexTransform {
    *
    * <p>
    * Example of use:
-   * 
    * <pre>
    *  {@code
    * PCollection<String> words = ...;
@@ -231,7 +235,6 @@ public class RegexTransform {
    *
    * <p>
    * Example of use:
-   * 
    * <pre>
    *  {@code
    * PCollection<String> words = ...;
@@ -279,7 +282,6 @@ public class RegexTransform {
    *
    * <p>
    * Example of use:
-   * 
    * <pre>
    *  {@code
    * PCollection<String> words = ...;
