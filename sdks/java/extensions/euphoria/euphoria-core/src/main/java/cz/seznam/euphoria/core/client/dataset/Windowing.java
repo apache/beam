@@ -1,11 +1,11 @@
 
 package cz.seznam.euphoria.core.client.dataset;
 
-import com.google.common.collect.Sets;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
+import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
-import java.util.HashSet;
+import java.util.Collections;
 import java.util.Set;
 
 
@@ -21,33 +21,50 @@ public interface Windowing<T, KEY, W extends Window<KEY>> extends Serializable {
 
     private boolean aggregating;
 
-    public static class TimeWindow extends AbstractWindow<Void>
-        implements AlignedWindow {
+    public static class TimeWindow
+        extends AbstractWindow<Void>
+        implements AlignedWindow
+    {
+      private final long startMillis;
+      private final long intervalMillis;
 
-      private final Time<?> windowing;
-      private final long startStamp;
-      private final long duration;
-      
-      TimeWindow(Time<?> windowing, long startStamp, long duration) {
-        this.windowing = windowing;
-        this.startStamp = startStamp;
-        this.duration = duration;
+      TimeWindow(long startMillis, long intervalMillis) {
+        this.startMillis = startMillis;
+        this.intervalMillis = intervalMillis;
       }
-
 
       @Override
-      public void registerTrigger(final Triggering triggering,
-          final UnaryFunction<Window<?>, Void> evict) {
-        triggering.scheduleOnce(duration, () -> {
-          TimeWindow newWindow = windowing.createNew(triggering, evict);
-          if (windowing.aggregating) {
-            TimeWindow.this.getStates().stream().forEach(newWindow::addState);
-          }
-          evict.apply(TimeWindow.this);
-        });
+      public boolean equals(Object other) {
+        if (other instanceof TimeWindow) {
+          TimeWindow that = (TimeWindow) other;
+          return this.startMillis == that.startMillis
+              && this.intervalMillis == that.intervalMillis;
+        }
+        return false;
       }
 
-    }
+      @Override
+      public int hashCode() {
+        int result = (int) (startMillis ^ (startMillis >>> 32));
+        result = 31 * result + (int) (intervalMillis ^ (intervalMillis >>> 32));
+        return result;
+      }
+
+      @Override
+      public void registerTrigger(Triggering triggering, UnaryFunction<Window<?>, Void> evict) {
+        LoggerFactory.getLogger(Windowing.class)
+            .info("registering trigger for window: {}", this);
+        triggering.scheduleOnce(this.intervalMillis, () -> evict.apply(this));
+      }
+
+      @Override
+      public String toString() {
+        return "TimeWindow{" +
+            "startMillis=" + startMillis +
+            ", intervalMillis=" + intervalMillis +
+            '}';
+      }
+    } // ~ end of IntervalWindow
 
     public static <T> Time<T> seconds(long seconds) {
       return new Time<>(seconds * 1000);
@@ -74,117 +91,106 @@ public interface Windowing<T, KEY, W extends Window<KEY>> extends Serializable {
     }
 
     @Override
-    public synchronized Set<TimeWindow> allocateWindows(
-        T what, Triggering triggering, UnaryFunction<Window<?>, Void> evict) {
-      Set<TimeWindow> ret = new HashSet<>();
-      for (TimeWindow w : getActive(null)) {
-        // FIXME: need a way to extract stamp from value
-        if (System.currentTimeMillis() - w.startStamp < duration) {
-          // accept this window
-          ret.add(w);
-        }
-      }
-      if (ret.isEmpty()) {
-        return Sets.newHashSet(createNew(triggering, evict));
-      }
-      return ret;
+    public Set<TimeWindow> assignWindows(T input) {
+      long ts = timestampMillis(input);
+      return Collections.singleton(
+          new TimeWindow(ts - (ts + duration) % duration, duration));
+    }
+
+    protected long timestampMillis(T input) {
+      return System.currentTimeMillis();
     }
 
     @Override
     public boolean isAggregating() {
       return aggregating;
     }
-
-    // create new window
-    synchronized TimeWindow createNew(Triggering triggering,
-        UnaryFunction<Window<?>, Void> evict) {
-      return this.addNewWindow(new TimeWindow(
-          this, System.currentTimeMillis(), duration), triggering, evict);
-    }
-
   }
 
+//  final class Count<T>
+//      extends AbstractWindowing<T, Void, Windowing.Count.CountWindow>
+//      implements AlignedWindowing<T, Windowing.Count.CountWindow> {
+//
+//    private final int count;
+//    private boolean aggregating = false;
+//
+//    private Count(int count) {
+//      this.count = count;
+//    }
+//
+//    public static class CountWindow extends AbstractWindow<Void>
+//        implements AlignedWindow {
+//
+//      final int maxCount;
+//      int currentCount = 0;
+//      UnaryFunction<Window<?>, Void> evict = null;
+//
+//      public CountWindow(int maxCount) {
+//        this.maxCount = maxCount;
+//        this.currentCount = 1;
+//      }
+//
+//
+//      @Override
+//      public void registerTrigger(Triggering triggering,
+//          UnaryFunction<Window<?>, Void> evict) {
+//        this.evict = evict;
+//      }
+//    }
+//
+//    @Override
+//    public Set<CountWindow> allocateWindows(
+//        T input, Triggering triggering,
+//        UnaryFunction<Window<?>, Void> evict) {
+//      Set<CountWindow> ret = new HashSet<>();
+//      for (CountWindow w : getActive(null)) {
+//        if (w.currentCount < count) {
+//          w.currentCount++;
+//          ret.add(w);
+//        }
+//      }
+//      if (ret.isEmpty()) {
+//        CountWindow w = new CountWindow(count);
+//        this.addNewWindow(w, triggering, evict);
+//        ret.add(w);
+//      }
+//      return ret;
+//    }
+//
+//
+//    @Override
+//    public boolean isAggregating() {
+//      return aggregating;
+//    }
+//
+//
+//    public static <T> Count<T> of(int count) {
+//      return new Count<>(count);
+//    }
+//
+//    @SuppressWarnings("unchecked")
+//    public <T> Count<T> aggregating() {
+//      this.aggregating = true;
+//      return (Count<T>) this;
+//    }
+//
+//
+//  }
 
-  final class Count<T>
-      extends AbstractWindowing<T, Void, Windowing.Count.CountWindow>
-      implements AlignedWindowing<T, Windowing.Count.CountWindow> {
+  Set<W> assignWindows(T input);
 
-    private final int count;
-    private boolean aggregating = false;
+// XXX to be replaced with assignWindows and mergeWindows
+//  /**
+//   * Allocate and return windows needed for given element.
+//   * Register trigger for all newly created windows.
+//   * @return the set of windows suitable for given element
+//   **/
+//  Set<W> allocateWindows(T input, Triggering triggering,
+//      UnaryFunction<Window<?>, Void> evict);
 
-    private Count(int count) {
-      this.count = count;
-    }
-
-    public static class CountWindow extends AbstractWindow<Void>
-        implements AlignedWindow {
-
-      final int maxCount;
-      int currentCount = 0;
-      UnaryFunction<Window<?>, Void> evict = null;
-
-      public CountWindow(int maxCount) {
-        this.maxCount = maxCount;
-        this.currentCount = 1;
-      }
-
-
-      @Override
-      public void registerTrigger(Triggering triggering,
-          UnaryFunction<Window<?>, Void> evict) {
-        this.evict = evict;
-      }
-    }
-
-    @Override
-    public Set<CountWindow> allocateWindows(
-        T input, Triggering triggering,
-        UnaryFunction<Window<?>, Void> evict) {
-      Set<CountWindow> ret = new HashSet<>();
-      for (CountWindow w : getActive(null)) {
-        if (w.currentCount < count) {
-          w.currentCount++;
-          ret.add(w);
-        }
-      }
-      if (ret.isEmpty()) {
-        CountWindow w = new CountWindow(count);
-        this.addNewWindow(w, triggering, evict);
-        ret.add(w);
-      }
-      return ret;
-    }
-
-
-    @Override
-    public boolean isAggregating() {
-      return aggregating;
-    }
-    
-
-    public static <T> Count<T> of(int count) {
-      return new Count<>(count);
-    }
-
-    @SuppressWarnings("unchecked")
-    public <T> Count<T> aggregating() {
-      this.aggregating = true;
-      return (Count<T>) this;
-    }
-
-
-  }
-
-  /**
-   * Allocate and return windows needed for given element.
-   * Register trigger for all newly created windows.
-   * @return the set of windows suitable for given element
-   **/
-  Set<W> allocateWindows(T input, Triggering triggering,
-      UnaryFunction<Window<?>, Void> evict);
-
-  /** Retrieve currently active set of windows for given key. */
-  Set<W> getActive(KEY key);
+// XXX to be dropped entirely
+//  /** Retrieve currently active set of windows for given key. */
+//  Set<W> getActive(KEY key);
 
   /** Evict given window. */
   void close(W window);

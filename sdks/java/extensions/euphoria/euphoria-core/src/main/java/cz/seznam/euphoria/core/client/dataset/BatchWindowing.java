@@ -3,6 +3,7 @@ package cz.seznam.euphoria.core.client.dataset;
 
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 
+import java.util.Collections;
 import java.util.Set;
 
 /**
@@ -11,13 +12,15 @@ import java.util.Set;
  */
 public final class BatchWindowing<T>
     extends AbstractWindowing<T, Void, BatchWindowing.BatchWindow>
-    implements AlignedWindowing<T, BatchWindowing.BatchWindow> {
-
-
+    implements AlignedWindowing<T, BatchWindowing.BatchWindow>
+{
   public static class BatchWindow
       extends AbstractWindow<Void>
       implements AlignedWindow {
 
+    static final BatchWindow INSTANCE = new BatchWindow();
+
+    private BatchWindow() {}
 
     @Override
     public void registerTrigger(Triggering triggering,
@@ -25,27 +28,28 @@ public final class BatchWindowing<T>
       // the batch window will end at the end of input stream
     }
 
-  }
+    @Override
+    public boolean equals(Object other) {
+      return other instanceof BatchWindow;
+    }
 
-  // batch windowing singleton
-  final static BatchWindowing<?> singleton = new BatchWindowing<>();
-  // window singleton
-  final BatchWindow window = new BatchWindow();
+    @Override
+    public int hashCode() {
+      return 31;
+    }
+  } // ~ end of BatchWindow
 
-  private BatchWindowing() {
-    this.addNewWindow(window, null, null);
-  }
+  private final static BatchWindowing<?> INSTANCE = new BatchWindowing<>();
+  private BatchWindowing() {}
 
   @Override
-  public Set<BatchWindow> allocateWindows(T what, Triggering triggering,
-      UnaryFunction<Window<?>, Void> evict) {
-    // batch windowing has only single window
-    return getActive(null);
+  public Set<BatchWindow> assignWindows(T input) {
+    return Collections.singleton(BatchWindow.INSTANCE);
   }
 
   @SuppressWarnings("unchecked")
   public static <T> BatchWindowing<T> get() {
-    return (BatchWindowing) singleton;
+    return (BatchWindowing) INSTANCE;
   }
 
 }

@@ -38,7 +38,7 @@ public class BasicOperatorTest {
   Executor executor = new InMemExecutor();
 
   @Test
-  public void testWordCountStream() throws Exception {
+  public void testWordCountStreamNonAggregating() throws Exception {
     final InMemFileSystem inmemfs = InMemFileSystem.get();
 
     inmemfs.reset()
@@ -89,6 +89,60 @@ public class BasicOperatorTest {
 
     //  ~ second window
     assertEquals(asList("one-3", "three-1", "two-2"), sublist(f, 4, -1));
+  }
+
+  @Test
+  public void testWordCountStreamAggregating() throws Exception {
+    final InMemFileSystem inmemfs = InMemFileSystem.get();
+
+    inmemfs.reset()
+        .setFile("/tmp/foo.txt", Duration.ofSeconds(2), asList(
+            "one two three four four two two",
+            "one one one two two three"));
+
+    Settings settings = new Settings();
+    settings.setClass("euphoria.io.datasource.factory.inmem",
+        InMemFileSystem.SourceFactory.class);
+    settings.setClass("euphoria.io.datasink.factory.inmem",
+        InMemFileSystem.SinkFactory.class);
+
+    Flow flow = Flow.create("Test", settings);
+    Dataset<String> lines = flow.createInput(URI.create("inmem:///tmp/foo.txt"));
+
+    // expand it to words
+    Dataset<Pair<String, Long>> words = FlatMap.of(lines)
+        .by((String s, Collector<Pair<String, Long>> c) -> {
+          for (String part : s.split(" ")) {
+            c.collect(Pair.of(part, 1L));
+          }})
+        .output();
+
+    // reduce it to counts, use windowing, so the output is batch or stream
+    // depending on the type of input
+    Dataset<Pair<String, Long>> streamOutput = ReduceByKey
+        .of(words)
+        .keyBy(Pair::getFirst)
+        .valueBy(Pair::getSecond)
+        .combineBy(Sums.ofLongs())
+        .windowBy(Windowing.Time.seconds(1).aggregating())
+        .output();
+
+    streamOutput.persist(URI.create("inmem:///tmp/output"));
+
+    executor.waitForCompletion(flow);
+
+    @SuppressWarnings("unchecked")
+    List<Pair<String, Long>> f = new ArrayList<>(inmemfs.getFile("/tmp/output/0"));
+    System.out.println(f);
+
+    // ~ assert the total amount of data produced
+    assertEquals(7, f.size());
+
+    // ~ first window
+    assertEquals(asList("four-2", "one-1", "three-1", "two-3"), sublist(f, 0, 4));
+
+    //  ~ second window
+    assertEquals(asList("one-4", "three-2", "two-5"), sublist(f, 4, -1));
   }
 
   private List<String> sublist(List<Pair<String, Long>> xs, int start, int len) {

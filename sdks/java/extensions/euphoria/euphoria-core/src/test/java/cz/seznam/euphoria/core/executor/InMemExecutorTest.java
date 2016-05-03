@@ -265,51 +265,51 @@ public class InMemExecutorTest {
 
   }
 
-  @Test
-  @Ignore
-  // FIXME: this test is failing right now, we need to rework
-  // the windowing mechanism, will not try to fix this now
-  public void testReduceByKeyWithSortStateAndAggregatingWindow() {
-    Dataset<Integer> ints = flow.createInput(
-        ListDataSource.unbounded(randomInts(100), randomInts(1000)));
-
-    // the key for sort will be the first digit
-    Dataset<Pair<Integer, Integer>> output = ReduceStateByKey.of(ints)
-        .keyBy(i -> (int) String.valueOf(Math.abs(i)).charAt(0) - (int) '0')
-        .valueBy(e -> e)
-        .stateFactory(SortState::new)
-        .combineStateBy(SortState::combine)
-        .windowBy(Windowing.Count.of(100).aggregating())
-        .output();
-
-    // collector of outputs
-    ListDataSink<Pair<Integer, Integer>> outputSink = ListDataSink.get(2);
-
-    output.persist(outputSink);
-
-    executor.waitForCompletion(flow);
-
-    List<List<Pair<Integer, Integer>>> outputs = outputSink.getOutputs();
-    assertEquals(2, outputs.size());
-
-    // read the two partitions and verify that
-    // 1) we have actually (100 + 1100) / 2 * 10 = 5000 elements in both partitions
-    // 2) no key is present in both partitions
-    // 3) the continuous sequence of (key, value) pairs is sorted
-    //    within the same key
-
-    assertEquals(5000, outputs.get(0).size() + outputs.get(1).size());
-
-    Set<Integer> firstKeys = outputs.get(0).stream()
-        .map(Pair::getFirst).distinct()
-        .collect(Collectors.toSet());
-
-    outputs.get(1).forEach(p -> assertFalse(firstKeys.contains(p.getFirst())));
-
-    checkSorted(outputs.get(0));
-    checkSorted(outputs.get(1));
-
-  }
+//  @Test
+//  @Ignore
+//  // FIXME: this test is failing right now, we need to rework
+//  // the windowing mechanism, will not try to fix this now
+//  public void testReduceByKeyWithSortStateAndAggregatingWindow() {
+//    Dataset<Integer> ints = flow.createInput(
+//        ListDataSource.unbounded(randomInts(100), randomInts(1000)));
+//
+//    // the key for sort will be the first digit
+//    Dataset<Pair<Integer, Integer>> output = ReduceStateByKey.of(ints)
+//        .keyBy(i -> (int) String.valueOf(Math.abs(i)).charAt(0) - (int) '0')
+//        .valueBy(e -> e)
+//        .stateFactory(SortState::new)
+//        .combineStateBy(SortState::combine)
+//        .windowBy(Windowing.Count.of(100).aggregating())
+//        .output();
+//
+//    // collector of outputs
+//    ListDataSink<Pair<Integer, Integer>> outputSink = ListDataSink.get(2);
+//
+//    output.persist(outputSink);
+//
+//    executor.waitForCompletion(flow);
+//
+//    List<List<Pair<Integer, Integer>>> outputs = outputSink.getOutputs();
+//    assertEquals(2, outputs.size());
+//
+//    // read the two partitions and verify that
+//    // 1) we have actually (100 + 1100) / 2 * 10 = 5000 elements in both partitions
+//    // 2) no key is present in both partitions
+//    // 3) the continuous sequence of (key, value) pairs is sorted
+//    //    within the same key
+//
+//    assertEquals(5000, outputs.get(0).size() + outputs.get(1).size());
+//
+//    Set<Integer> firstKeys = outputs.get(0).stream()
+//        .map(Pair::getFirst).distinct()
+//        .collect(Collectors.toSet());
+//
+//    outputs.get(1).forEach(p -> assertFalse(firstKeys.contains(p.getFirst())));
+//
+//    checkSorted(outputs.get(0));
+//    checkSorted(outputs.get(1));
+//
+//  }
 
 
   private static void checkSorted(List<Pair<Integer, Integer>> collection) {
