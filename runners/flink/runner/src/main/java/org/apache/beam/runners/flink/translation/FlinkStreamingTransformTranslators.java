@@ -36,6 +36,7 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.Sink;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.Write;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
@@ -257,6 +258,7 @@ public class FlinkStreamingTransformTranslators {
   private static class UnboundedReadSourceTranslator<T> implements FlinkStreamingPipelineTranslator.StreamTransformTranslator<Read.Unbounded<T>> {
 
     @Override
+    @SuppressWarnings("unchecked,rawtypes")
     public void translateNode(Read.Unbounded<T> transform, FlinkStreamingTranslationContext context) {
       PCollection<T> output = context.getOutput(transform);
 
@@ -284,8 +286,16 @@ public class FlinkStreamingTransformTranslators {
               }
             }).assignTimestampsAndWatermarks(new IngestionTimeExtractor<WindowedValue<T>>());
       } else {
-        source = context.getExecutionEnvironment()
-            .addSource(new UnboundedSourceWrapper<>(context.getPipelineOptions(), transform));
+        try {
+          UnboundedSourceWrapper<T, UnboundedSource.CheckpointMark> sourceWrapper =
+              new UnboundedSourceWrapper<>(
+                  context.getPipelineOptions(),
+                  (UnboundedSource) transform.getSource(),
+                  context.getExecutionEnvironment().getParallelism());
+          source = context.getExecutionEnvironment().addSource(sourceWrapper).name(transform.getName());
+        } catch (Exception e) {
+          throw new RuntimeException("Error while translating UnboundedSource: " + transform.getSource(), e);
+        }
       }
 
       context.setOutputDataStream(output, source);
@@ -310,7 +320,9 @@ public class FlinkStreamingTransformTranslators {
       FlinkParDoBoundWrapper<IN, OUT> doFnWrapper = new FlinkParDoBoundWrapper<>(
           context.getPipelineOptions(), windowingStrategy, transform.getFn());
       DataStream<WindowedValue<IN>> inputDataStream = context.getInputDataStream(context.getInput(transform));
-      SingleOutputStreamOperator<WindowedValue<OUT>> outDataStream = inputDataStream.flatMap(doFnWrapper)
+      SingleOutputStreamOperator<WindowedValue<OUT>> outDataStream = inputDataStream
+          .flatMap(doFnWrapper)
+          .name(transform.getName())
           .returns(outputWindowedValueCoder);
 
       context.setOutputDataStream(context.getOutput(transform), outDataStream);
