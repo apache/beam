@@ -950,4 +950,13 @@ public class ProxyInvocationHandlerTest {
     String value = MAPPER.writeValueAsString(options);
     return MAPPER.readValue(value, PipelineOptions.class).as(kls);
   }
+
+  @Test
+  public void testDisplayDataExcludesJsonIgnoreOptions() {
+    IgnoredProperty options = PipelineOptionsFactory.as(IgnoredProperty.class);
+    options.setValue("foobar");
+
+    DisplayData data = DisplayData.from(options);
+    assertThat(data, not(hasDisplayItem(hasKey("value"))));
+  }
 }
