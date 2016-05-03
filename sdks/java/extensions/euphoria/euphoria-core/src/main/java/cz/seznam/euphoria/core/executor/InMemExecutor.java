@@ -565,6 +565,13 @@ public class InMemExecutor implements Executor {
   }
 
 
+  private static final class TriggeredWindow {
+    final Window srcWindow;
+    TriggeredWindow(Window srcWindow) {
+      this.srcWindow = srcWindow;
+    }
+  }
+
   @SuppressWarnings("unchecked")
   private InputProvider<?> reducePartitionsByState(
       final List<BlockingQueue> partitions,
@@ -581,70 +588,92 @@ public class InMemExecutor implements Executor {
       outputSuppliers.add(QueueSupplier.wrap(output));
 
       executor.execute(() -> {
-        final Map<Window, Map<Object, State>> windowStates = new ConcurrentHashMap<>();
-        final Map<Object, State> aggregatingStates = new HashMap<>();
-        final LocalTriggering triggering = new LocalTriggering();
-        final boolean isAggregating = windowing.isAggregating();
+        final Object stateLock = new Object();
+        Map<Window, Pair<Window, Map<Object, State>>> windowStates = new ConcurrentHashMap<>();
+        Map<Object, State> aggregatingKeyStates = new HashMap<>();
 
+        LocalTriggering triggering = new LocalTriggering();
+        UnaryFunction<Window, Void> evictTrigger =
+            (UnaryFunction<Window, Void>) window -> {
+              synchronized (stateLock) {
+                Pair<Window, Map<Object, State>> windowState = windowStates.remove(window);
+                window = windowState.getFirst();
+                LOG.debug("Evicting window: {}", window);
+                // ~ close the window (this will fire out all the keyStates of the
+                // window)
+                windowing.close(window);
+                /*
+                if (windowing.isAggregating()) {
+                  // XXX needs some rule to garbage collect obsolete aggregations
+                }
+                */
+              }
+              return null;
+            };
+
+        // ~ try as long as there is either data to process (qEOS == false)
+        // or we are waiting for some registered triggers to fire
         for (;;) {
           try {
+            // ~ now process incoming data
             Object item = q.take();
             if (item instanceof EndOfStream) {
               break;
             }
-            Object key = keyExtractor.apply(item);
-            Object value = valueExtractor.apply(item);
-            final Set<Window> itemWindows;
-            itemWindows = windowing.allocateWindows(
-                item, triggering, new UnaryFunction<Window, Void>() {
-                  @Override
-                  public Void apply(Window window) {
-                    synchronized(window) {
-                      windowing.close(window);
-                    }
-                    windowStates.remove(window);
-                    return null;
-                  }
-                });
 
-            for (Window w : itemWindows) {
-              Map<Object, State> keyStates = windowStates.get(w);
-              if (keyStates == null) {
-                keyStates = new HashMap<>();
-                windowStates.put(w, keyStates);
-              }
-              State keyState = keyStates.get(key);
-              if (keyState == null) {
-                State aggregatingState = aggregatingStates.get(key);
-                if (!isAggregating || aggregatingState == null) {
-                  keyState = (State) stateFactory.apply(key, QueueCollector.wrap(output));
-                  synchronized(w) {
-                    w.addState(keyState);
-                  }
-                  if (isAggregating) {
-                    aggregatingStates.put(key, keyState);
-                  }
-                } else if (isAggregating) {
-                  keyState = aggregatingState;
+            synchronized (stateLock) {
+              Object itemKey = keyExtractor.apply(item);
+              Object itemValue = valueExtractor.apply(item);
+
+              Set<Window> itemWindows = windowing.assignWindows(item);
+              for (Window itemWindow : itemWindows) {
+                Pair<Window, Map<Object, State>> windowState = windowStates.get(itemWindow);
+                if (windowState == null) {
+                  windowState = Pair.of(itemWindow, new HashMap<>());
+                  windowStates.put(itemWindow, windowState);
+                  // ~ the itemWindow is new; allow it register triggers
+                  itemWindow.registerTrigger(triggering, evictTrigger);
                 }
-                keyStates.put(key, keyState);
+                itemWindow = windowState.getFirst();
+                Map<Object, State> keyStates = windowState.getSecond();
+
+                State keyState = keyStates.get(itemKey);
+                if (keyState == null) {
+                  keyState = windowing.isAggregating()
+                      ? aggregatingKeyStates.get(itemKey)
+                      : null;
+                  if (keyState == null) {
+                    keyState = (State) stateFactory.apply(itemKey, QueueCollector.wrap(output));
+                    itemWindow.addState(keyState);
+                    if (windowing.isAggregating()) {
+                      aggregatingKeyStates.put(itemKey, keyState);
+                    }
+                  } else {
+                    itemWindow.addState(keyState);
+                  }
+                  keyStates.put(itemKey, keyState);
+                }
+                keyState.add(itemValue);
               }
-              keyState.add(value);              
             }
           } catch (InterruptedException ex) {
             throw new RuntimeException(ex);
           }
         }
+        // ~ stop triggers
+        triggering.close();
         // close all states
-        windowStates.values().stream()
-            .flatMap(m -> m.values().stream())
-            .forEach(State::close);
+        synchronized (stateLock) {
+          windowStates.values().stream()
+              .flatMap(m -> m.getSecond().values().stream())
+              .forEach(State::close);
+        }
+        // ~ signal eos further down the channel
         try {
           output.put(EndOfStream.get());
         } catch (InterruptedException e) {
           throw new RuntimeException(e);
         }
-        triggering.close();
       });
     });
 
