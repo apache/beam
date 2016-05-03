@@ -158,7 +158,32 @@ public class UnboundedSourceWrapper<
       }
     }
 
-    if (readers.size() == 1) {
+    if (readers.size() == 0) {
+      // do nothing, but still look busy ...
+      // also, output a Long.MAX_VALUE watermark since we know that we're not
+      // going to emit anything
+      // we can't return here since Flink requires that all operators stay up,
+      // otherwise checkpointing would not work correctly anymore
+      ctx.emitWatermark(new Watermark(Long.MAX_VALUE));
+
+      // wait until this is canceled
+      final Object waitLock = new Object();
+      while (isRunning) {
+        try {
+          // Flink will interrupt us at some point
+          //noinspection SynchronizationOnLocalVariableOrMethodParameter
+          synchronized (waitLock) {
+            waitLock.wait();
+          }
+        }
+        catch (InterruptedException e) {
+          if (!isRunning) {
+            // restore the interrupted state, and fall through the loop
+            Thread.currentThread().interrupt();
+          }
+        }
+      }
+    } else if (readers.size() == 1) {
       // the easy case, we just read from one reader
       UnboundedSource.UnboundedReader<OutputT> reader = readers.get(0);
 
