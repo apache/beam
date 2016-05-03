@@ -28,20 +28,13 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>direct-runner</artifactId>
-
-  <name>Apache Beam :: Runners :: Direct</name>
+  <artifactId>runners-core</artifactId>
+  <name>Apache Beam :: Runners :: Core</name>
+  <description>Beam Runners Core provides utilities to aid runner authors.</description>
 
   <packaging>jar</packaging>
 
   <build>
-    <resources>
-      <resource>
-        <directory>src/main/resources</directory>
-        <filtering>true</filtering>
-      </resource>
-    </resources>
-
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -79,76 +72,16 @@
 
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <executions>
-          <!-- For now, disables integration tests from the SDK as the runner is not ready. -->
-          <execution>
-            <id>runnable-on-service-tests</id>
-            <configuration>
-              <skip>true</skip>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-javadoc-plugin</artifactId>
         <configuration>
-          <windowtitle>Apache Beam Direct Runner ${project.version}</windowtitle>
-          <doctitle>Apache Beam Direct Runner, version ${project.version}</doctitle>
+          <windowtitle>Beam Runners Core utilities ${project.version} API</windowtitle>
+          <doctitle>Beam Runners Core utilities for Java, version ${project.version}</doctitle>
+          <overview>../javadoc/overview.html</overview>
 
-          <subpackages>org.apache.beam.runners.direct</subpackages>
+          <subpackages>org.apache.beam.runners.core</subpackages>
           <use>false</use>
           <quiet>true</quiet>
           <bottom><![CDATA[<br>]]></bottom>
-
-          <offlineLinks>
-            <offlineLink>
-              <url>https://developers.google.com/api-client-library/java/google-api-java-client/reference/1.20.0/</url>
-              <location>${basedir}/../../sdks/java/javadoc/apiclient-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>http://avro.apache.org/docs/1.7.7/api/java/</url>
-              <location>${basedir}/../../sdks/java/javadoc/avro-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>https://developers.google.com/resources/api-libraries/documentation/bigquery/v2/java/latest/</url>
-              <location>${basedir}/../../sdks/java/javadoc/bq-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>https://cloud.google.com/datastore/docs/apis/javadoc/</url>
-              <location>${basedir}/../../sdks/java/javadoc/datastore-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>http://docs.guava-libraries.googlecode.com/git-history/release19/javadoc/</url>
-              <location>${basedir}/../../sdks/java/javadoc/guava-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>http://hamcrest.org/JavaHamcrest/javadoc/1.3/</url>
-              <location>${basedir}/../../sdks/java/javadoc/hamcrest-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>http://fasterxml.github.io/jackson-annotations/javadoc/2.7/</url>
-              <location>${basedir}/../../sdks/java/javadoc/jackson-annotations-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>http://fasterxml.github.io/jackson-databind/javadoc/2.7/</url>
-              <location>${basedir}/../../sdks/java/javadoc/jackson-databind-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>http://www.joda.org/joda-time/apidocs</url>
-              <location>${basedir}/../../sdks/java/javadoc/joda-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>http://junit.sourceforge.net/javadoc/</url>
-              <location>${basedir}/../../sdks/java/javadoc/junit-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>https://developers.google.com/api-client-library/java/google-oauth-java-client/reference/1.20.0/</url>
-              <location>${basedir}/../../sdks/java/javadoc/oauth-docs</location>
-            </offlineLink>
-          </offlineLinks>
         </configuration>
         <executions>
           <execution>
@@ -163,6 +96,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
+        <version>2.4.1</version>
         <executions>
           <!-- In the first phase, we pick dependencies and relocate them. -->
           <execution>
@@ -194,7 +128,11 @@
                      the second relocation. -->
                 <relocation>
                   <pattern>com.google.common</pattern>
-                  <shadedPattern>org.apache.beam.runners.direct.repackaged.com.google.common</shadedPattern>
+                  <shadedPattern>org.apache.beam.sdk.repackaged.com.google.common</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.google.thirdparty</pattern>
+                  <shadedPattern>org.apache.beam.sdk.repackaged.com.google.thirdparty</shadedPattern>
                 </relocation>
               </relocations>
             </configuration>
@@ -236,6 +174,7 @@
         <groupId>org.jacoco</groupId>
         <artifactId>jacoco-maven-plugin</artifactId>
       </plugin>
+
     </plugins>
   </build>
 
@@ -243,108 +182,26 @@
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>java-sdk-all</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>runners-core</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.http-client</groupId>
-      <artifactId>google-http-client</artifactId>
-      <version>${google-clients.version}</version>
-      <exclusions>
-        <!-- Exclude an old version of guava that is being pulled
-             in by a transitive dependency of google-api-client -->
-        <exclusion>
-          <groupId>com.google.guava</groupId>
-          <artifactId>guava-jdk5</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.http-client</groupId>
-      <artifactId>google-http-client-protobuf</artifactId>
-      <scope>runtime</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava-testlib</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>joda-time</groupId>
-      <artifactId>joda-time</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.code.findbugs</groupId>
-      <artifactId>jsr305</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-annotations</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-api</artifactId>
     </dependency>
 
     <!-- build dependencies -->
-    <dependency>
-      <groupId>com.google.auto.service</groupId>
-      <artifactId>auto-service</artifactId>
-      <optional>true</optional>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.auto.value</groupId>
-      <artifactId>auto-value</artifactId>
-      <scope>provided</scope>
-    </dependency>
 
     <!-- test dependencies -->
     <dependency>
       <groupId>org.hamcrest</groupId>
       <artifactId>hamcrest-all</artifactId>
-      <scope>provided</scope>
+      <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
-      <scope>provided</scope>
+      <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-jdk14</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.mockito</groupId>
-      <artifactId>mockito-all</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>java-sdk-all</artifactId>
-      <type>test-jar</type>
       <scope>test</scope>
     </dependency>
   </dependencies>
