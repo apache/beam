@@ -22,6 +22,7 @@ import org.apache.beam.runners.direct.InProcessPipelineRunner.UncommittedBundle;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.CounterSet;
 import org.apache.beam.sdk.util.state.CopyOnAccessInMemoryStateInternals;
 
@@ -43,6 +44,12 @@ public interface InProcessTransformResult {
    * will be committed by the evaluation context as part of completing this result.
    */
   Iterable<? extends UncommittedBundle<?>> getOutputBundles();
+
+  /**
+   * Returns elements that were provided to the {@link TransformEvaluator} as input but were not
+   * processed.
+   */
+  Iterable<? extends WindowedValue<?>> getUnprocessedElements();
 
   /**
    * Returns the {@link CounterSet} used by this {@link PTransform}, or null if this transform did

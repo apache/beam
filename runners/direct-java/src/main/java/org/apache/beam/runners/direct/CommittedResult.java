@@ -23,6 +23,8 @@ import org.apache.beam.sdk.transforms.AppliedPTransform;
 
 import com.google.auto.value.AutoValue;
 
+import javax.annotation.Nullable;
+
 /**
  * A {@link InProcessTransformResult} that has been committed.
  */
@@ -34,13 +36,25 @@ abstract class CommittedResult {
   public abstract AppliedPTransform<?, ?, ?> getTransform();
 
   /**
+   * Returns the {@link CommittedBundle} that contains the input elements that could not be
+   * processed by the evaluation.
+   *
+   * <p>{@code null} if the input bundle was null.
+   */
+  @Nullable
+  public abstract CommittedBundle<?> getUnprocessedInputs();
+
+  /**
    * Returns the outputs produced by the transform.
    */
   public abstract Iterable<? extends CommittedBundle<?>> getOutputs();
 
   public static CommittedResult create(
-      InProcessTransformResult original, Iterable<? extends CommittedBundle<?>> outputs) {
+      InProcessTransformResult original,
+      CommittedBundle<?> unprocessedElements,
+      Iterable<? extends CommittedBundle<?>> outputs) {
     return new AutoValue_CommittedResult(original.getTransform(),
+        unprocessedElements,
         outputs);
   }
 }
