@@ -196,6 +196,12 @@
 
       <dependency>
         <groupId>org.apache.beam</groupId>
+        <artifactId>runners-core</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
         <artifactId>google-cloud-dataflow-java-runner</artifactId>
         <version>${project.version}</version>
       </dependency>
