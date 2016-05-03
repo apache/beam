@@ -20,10 +20,16 @@ import tempfile
 import unittest
 
 import google.cloud.dataflow as df
+from google.cloud.dataflow import io
 from google.cloud.dataflow import pvalue
 from google.cloud.dataflow import typehints
 from google.cloud.dataflow.examples.snippets import snippets
+from google.cloud.dataflow.io import fileio
 from google.cloud.dataflow.utils.options import TypeOptions
+
+
+# Monky-patch to use native sink for file path re-writing.
+io.TextFileSink = fileio.NativeTextFileSink
 
 
 class ParDoTest(unittest.TestCase):
@@ -323,7 +329,6 @@ class SnippetsTest(unittest.TestCase):
       return f.name
 
   def get_output(self, path, sorted_output=True, suffix=''):
-    lines = []
     with open(path + '-00000-of-00001' + suffix) as f:
       lines = f.readlines()
     if sorted_output:

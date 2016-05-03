@@ -20,7 +20,9 @@ import glob
 import logging
 import os
 import re
+import shutil
 import tempfile
+import time
 
 from google.cloud.dataflow import coders
 from google.cloud.dataflow.io import iobase
@@ -147,7 +149,245 @@ class TextFileSource(iobase.NativeSource):
       return TextFileReader(self)
 
 
-class TextFileSink(iobase.NativeSink):
+def TextFileSink(file_path_prefix,     # pylint: disable=invalid-name
+                 append_trailing_newlines=True,
+                 file_name_suffix='',
+                 num_shards=0,
+                 shard_name_template=None,
+                 validate=True,
+                 coder=coders.ToStringCoder()):
+  """Initialize a TextSink.
+
+  Args:
+    file_path_prefix: The file path to write to. The files written will begin
+      with this prefix, followed by a shard identifier (see num_shards), and
+      end in a common extension, if given by file_name_suffix. In most cases,
+      only this argument is specified and num_shards, shard_name_template, and
+      file_name_suffix use default values.
+    append_trailing_newlines: indicate whether this sink should write an
+        additional newline char after writing each element.
+    file_name_suffix: Suffix for the files written.
+    num_shards: The number of files (shards) used for output. If not set, the
+      service will decide on the optimal number of shards.
+      Constraining the number of shards is likely to reduce
+      the performance of a pipeline.  Setting this value is not recommended
+      unless you require a specific number of output files.
+    shard_name_template: A template string containing placeholders for
+      the shard number and shard count. Currently only '' and
+      '-SSSSS-of-NNNNN' are patterns accepted by the service.
+      When constructing a filename for a particular shard number, the
+      upper-case letters 'S' and 'N' are replaced with the 0-padded shard
+      number and shard count respectively.  This argument can be '' in which
+      case it behaves as if num_shards was set to 1 and only one file will be
+      generated. The default pattern used is '-SSSSS-of-NNNNN'.
+    validate: Enable path validation on pipeline creation.
+    coder: Coder used to encode each line.
+
+  Raises:
+    TypeError: if file_path is not a string.
+    ValueError: if shard_name_template is not of expected format.
+
+  Returns:
+    A TextFileSink object usable for writing.
+  """
+  if not isinstance(file_path_prefix, basestring):
+    raise TypeError(
+        'TextFileSink: file_path_prefix must be a string; got %r instead' %
+        file_path_prefix)
+  if not isinstance(file_name_suffix, basestring):
+    raise TypeError(
+        'TextFileSink: file_name_suffix must be a string; got %r instead' %
+        file_name_suffix)
+  if shard_name_template not in (None, '', '-SSSSS-of-NNNNN'):
+    raise ValueError(
+        'The shard_name_template argument must be an empty string or the '
+        'pattern -SSSSS-of-NNNNN instead of %s' % shard_name_template)
+  if shard_name_template == '':  # pylint: disable=g-explicit-bool-comparison
+    num_shards = 1
+
+  if num_shards:
+    return NativeTextFileSink(file_path_prefix,
+                              append_trailing_newlines=append_trailing_newlines,
+                              file_name_suffix=file_name_suffix,
+                              num_shards=num_shards,
+                              shard_name_template=shard_name_template,
+                              validate=validate,
+                              coder=coder)
+  else:
+    return PureTextFileSink(file_path_prefix,
+                            append_trailing_newlines=append_trailing_newlines,
+                            file_name_suffix=file_name_suffix,
+                            coder=coder)
+
+
+class ChannelFactory(object):
+  # TODO(robertwb): Generalize into extensible framework.
+
+  @staticmethod
+  def mkdir(path):
+    if path.startswith('gs://'):
+      return
+    else:
+      try:
+        os.makedirs(path)
+      except OSError as err:
+        raise IOError(err)
+
+  @staticmethod
+  def open(path, mode, mime_type):
+    if path.startswith('gs://'):
+      # pylint: disable=g-import-not-at-top
+      from google.cloud.dataflow.io import gcsio
+      return gcsio.GcsIO().open(path, mode, mime_type)
+    else:
+      return open(path, mode)
+
+  @staticmethod
+  def rename(src, dst):
+    if src.startswith('gs://'):
+      assert dst.startswith('gs://'), dst
+      # pylint: disable=g-import-not-at-top
+      from google.cloud.dataflow.io import gcsio
+      gcsio.GcsIO().rename(src, dst)
+    else:
+      try:
+        os.rename(src, dst)
+      except OSError as err:
+        raise IOError(err)
+
+  @staticmethod
+  def exists(path):
+    if path.startswith('gs://'):
+      # pylint: disable=g-import-not-at-top
+      from google.cloud.dataflow.io import gcsio
+      return gcsio.GcsIO().exists()
+    else:
+      return os.path.exists(path)
+
+  @staticmethod
+  def rmdir(path):
+    if path.startswith('gs://'):
+      # pylint: disable=g-import-not-at-top
+      from google.cloud.dataflow.io import gcsio
+      gcs = gcsio.GcsIO()
+      if not path.endswith('/'):
+        path += '/'
+      # TODO(robertwb): Threadpool?
+      for entry in gcs.glob(path + '*'):
+        gcs.delete(entry)
+    else:
+      try:
+        shutil.rmtree(path)
+      except OSError as err:
+        raise IOError(err)
+
+
+class FileSink(iobase.Sink):
+  """A sink to a GCS or local files.
+
+  To implement a file-based sink, extend this class and override
+  the open_file_writer method for writing a single shard.
+
+  The output of this write is a PCollection of all written shards.
+  """
+  mime_type = 'application/octet-stream'
+
+  def __init__(self, file_path_prefix, coder, file_name_suffix=''):
+    self.file_path_prefix = file_path_prefix
+    self.file_name_suffix = file_name_suffix
+    self.coder = coder
+
+  def open(self, temp_path):
+    return ChannelFactory.open(temp_path, 'wb', self.mime_type)
+
+  def write_record(self, file_handle, value):
+    self.write_encoded_record(file_handle, self.coder.encode(value))
+
+  def write_encoded_record(self, file_handle, encoded_value):
+    raise NotImplementedError
+
+  def close(self, file_handle):
+    if file_handle:
+      file_handle.close()
+
+  def open_file_writer(self, temp_path):
+    return FileSinkWriter(self, temp_path)
+
+  def initialize_write(self):
+    tmp_dir = self.file_path_prefix + self.file_name_suffix + time.strftime(
+        '-temp-%Y-%m-%d_%H-%M-%S')
+    ChannelFactory().mkdir(tmp_dir)
+    return tmp_dir
+
+  def open_writer(self, init_result, uid):
+    return self.open_file_writer(os.path.join(init_result, uid))
+
+  def finalize_write(self, init_result, writer_results):
+    writer_results = sorted(writer_results)
+    num_shards = len(writer_results)
+    # TODO(robertwb): Threadpool?
+    channel_factory = ChannelFactory()
+    for shard_num, shard in enumerate(writer_results):
+      final_name = '%s-%05d-of-%05d%s' % (self.file_path_prefix, shard_num,
+                                          num_shards, self.file_name_suffix)
+      try:
+        channel_factory.rename(shard, final_name)
+      except IOError:
+        # May have already been copied.
+        print shard, final_name, os.path.exists(final_name)
+        if not channel_factory.exists(final_name):
+          raise
+      yield final_name
+    try:
+      channel_factory.rmdir(init_result)
+    except IOError:
+      # May have already been removed.
+      pass
+
+  def __eq__(self, other):
+    # TODO(robertwb): Clean up workitem_test which uses this.
+    # pylint: disable=unidiomatic-typecheck
+    return type(self) == type(other) and self.__dict__ == other.__dict__
+
+
+class FileSinkWriter(iobase.Writer):
+  """A generic writer for FileSink.
+  """
+
+  def __init__(self, sink, temp_shard_path):
+    self.sink = sink
+    self.temp_shard_path = temp_shard_path
+    self.temp_handle = self.sink.open(temp_shard_path)
+
+  def write(self, value):
+    self.sink.write_record(self.temp_handle, value)
+
+  def close(self):
+    self.sink.close(self.temp_handle)
+    return self.temp_shard_path
+
+
+class PureTextFileSink(FileSink):
+  """A sink to a GCS or local text file or files."""
+  mime_type = 'text/plain'
+
+  def __init__(self,
+               file_path_prefix,
+               file_name_suffix='',
+               coder=coders.ToStringCoder(),
+               append_trailing_newlines=True):
+    super(PureTextFileSink, self).__init__(file_path_prefix,
+                                           file_name_suffix=file_name_suffix,
+                                           coder=coder)
+    self.append_trailing_newlines = append_trailing_newlines
+
+  def write_encoded_record(self, file_handle, encoded_value):
+    file_handle.write(encoded_value)
+    if self.append_trailing_newlines:
+      file_handle.write('\n')
+
+
+class NativeTextFileSink(iobase.NativeSink):
   """A sink to a GCS or local text file or files."""
 
   def __init__(self, file_path_prefix,
@@ -157,46 +397,6 @@ class TextFileSink(iobase.NativeSink):
                shard_name_template=None,
                validate=True,
                coder=coders.ToStringCoder()):
-    """Initialize a TextSink.
-
-    Args:
-      file_path_prefix: The file path to write to. The files written will begin
-        with this prefix, followed by a shard identifier (see num_shards), and
-        end in a common extension, if given by file_name_suffix. In most cases,
-        only this argument is specified and num_shards, shard_name_template, and
-        file_name_suffix use default values.
-      append_trailing_newlines: indicate whether this sink should write an
-          additional newline char after writing each element.
-      file_name_suffix: Suffix for the files written.
-      num_shards: The number of files (shards) used for output. If not set, the
-        service will decide on the optimal number of shards.
-        Constraining the number of shards is likely to reduce
-        the performance of a pipeline.  Setting this value is not recommended
-        unless you require a specific number of output files.
-      shard_name_template: A template string containing placeholders for
-        the shard number and shard count. Currently only '' and
-        '-SSSSS-of-NNNNN' are patterns accepted by the service.
-        When constructing a filename for a particular shard number, the
-        upper-case letters 'S' and 'N' are replaced with the 0-padded shard
-        number and shard count respectively.  This argument can be '' in which
-        case it behaves as if num_shards was set to 1 and only one file will be
-        generated. The default pattern used is '-SSSSS-of-NNNNN'.
-      validate: Enable path validation on pipeline creation.
-      coder: Coder used to encode each line.
-
-    Raises:
-      TypeError: if file_path is not a string.
-      ValueError: if shard_name_template is not of expected format.
-    """
-    if not isinstance(file_path_prefix, basestring):
-      raise TypeError(
-          '%s: file_path_prefix must be a string; got %r instead' %
-          (self.__class__.__name__, file_path_prefix))
-    if not isinstance(file_name_suffix, basestring):
-      raise TypeError(
-          '%s: file_name_suffix must be a string; got %r instead' %
-          (self.__class__.__name__, file_name_suffix))
-
     # We initialize a file_path attribute containing just the prefix part for
     # local runner environment. For now, sharding is not supported in the local
     # runner and sharding options (template, num, suffix) are ignored.
@@ -213,13 +413,8 @@ class TextFileSink(iobase.NativeSink):
     self.file_name_suffix = file_name_suffix
     self.num_shards = num_shards
     # TODO(silviuc): Update this when the service supports more patterns.
-    if shard_name_template not in (None, '', '-SSSSS-of-NNNNN'):
-      raise ValueError(
-          'The shard_name_template argument must be an empty string or the '
-          'pattern -SSSSS-of-NNNNN instead of %s' % shard_name_template)
-    self.shard_name_template = (
-        shard_name_template if shard_name_template is not None
-        else '-SSSSS-of-NNNNN')
+    self.shard_name_template = ('-SSSSS-of-NNNNN' if shard_name_template is None
+                                else shard_name_template)
     # TODO(silviuc): Implement sink validation.
     self.validate = validate
 

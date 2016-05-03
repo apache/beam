@@ -15,10 +15,12 @@
 
 """Unit tests for local and GCS sources and sinks."""
 
+import glob
 import logging
 import tempfile
 import unittest
 
+from google.cloud.dataflow import coders
 from google.cloud.dataflow.io import fileio
 from google.cloud.dataflow.io import iobase
 
@@ -322,7 +324,7 @@ class TestTextFileSource(unittest.TestCase):
     self.progress_with_offsets(lines, start_offset=20, end_offset=20)
 
 
-class TestTextFileSink(unittest.TestCase):
+class NativeTestTextFileSink(unittest.TestCase):
 
   def create_temp_file(self):
     temp = tempfile.NamedTemporaryFile(delete=False)
@@ -331,12 +333,66 @@ class TestTextFileSink(unittest.TestCase):
   def test_write_entire_file(self):
     lines = ['First', 'Second', 'Third']
     file_path = self.create_temp_file()
-    sink = fileio.TextFileSink(file_path)
+    sink = fileio.NativeTextFileSink(file_path)
     with sink.writer() as writer:
       for line in lines:
         writer.Write(line)
     with open(file_path, 'r') as f:
       self.assertEqual(f.read().splitlines(), lines)
+
+
+class MyFileSink(fileio.FileSink):
+
+  def open(self, temp_path):
+    file_handle = super(MyFileSink, self).open(temp_path)
+    file_handle.write('[start]')
+    return file_handle
+
+  def write_encoded_record(self, file_handle, encoded_value):
+    file_handle.write('[')
+    file_handle.write(encoded_value)
+    file_handle.write(']')
+
+  def close(self, file_handle):
+    file_handle.write('[end]')
+    file_handle = super(MyFileSink, self).close(file_handle)
+
+
+class TestFileSink(unittest.TestCase):
+
+  def test_file_sink_writing(self):
+    temp_path = tempfile.NamedTemporaryFile().name
+    sink = MyFileSink(temp_path,
+                      file_name_suffix='.foo',
+                      coder=coders.ToStringCoder())
+
+    # Manually invoke the generic Sink API.
+    init_token = sink.initialize_write()
+
+    writer1 = sink.open_writer(init_token, '1')
+    writer1.write('a')
+    writer1.write('b')
+    res1 = writer1.close()
+
+    writer2 = sink.open_writer(init_token, '2')
+    writer2.write('x')
+    writer2.write('y')
+    writer2.write('z')
+    res2 = writer2.close()
+
+    res = list(sink.finalize_write(init_token, [res1, res2]))
+    # Retry the finalize operation (as if the first attempt was lost).
+    res = list(sink.finalize_write(init_token, [res1, res2]))
+
+    # Check the results.
+    shard1 = temp_path + '-00000-of-00002.foo'
+    shard2 = temp_path + '-00001-of-00002.foo'
+    self.assertEqual(res, [shard1, shard2])
+    self.assertEqual(open(shard1).read(), '[start][a][b][end]')
+    self.assertEqual(open(shard2).read(), '[start][x][y][z][end]')
+
+    # Check that any temp files are deleted.
+    self.assertEqual([shard1, shard2], sorted(glob.glob(temp_path + '*')))
 
 
 if __name__ == '__main__':

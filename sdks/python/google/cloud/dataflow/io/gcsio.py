@@ -137,6 +137,53 @@ class GcsIO(object):
         break
     return object_paths
 
+  @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py
+  def delete(self, path):
+    """Deletes the given gcs object.
+
+    Args:
+      path: GCS file path pattern in the form gs://<bucket>/<name>.
+    """
+    bucket, object_path = parse_gcs_path(path)
+    request = storage.StorageObjectsDeleteRequest(bucket=bucket,
+                                                  object=object_path)
+    self.client.objects.Delete(request)
+
+  @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py
+  def rename(self, src, dst):
+    """Renames the given gcs object from src to dst.
+
+    Args:
+      src: GCS file path pattern in the form gs://<bucket>/<name>.
+      dst: GCS file path pattern in the form gs://<bucket>/<name>.
+    """
+    src_bucket, src_path = parse_gcs_path(src)
+    dst_bucket, dst_path = parse_gcs_path(dst)
+    request = storage.StorageObjectsCopyRequest(sourceBucket=src_bucket,
+                                                sourceObject=src_path,
+                                                destinationBucket=dst_bucket,
+                                                destinationObject=dst_path)
+    self.client.objects.Copy(request)
+    request = storage.StorageObjectsDeleteRequest(bucket=src_bucket,
+                                                  object=src_path)
+    self.client.objects.Delete(request)
+
+  @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py
+  def exists(self, path):
+    """Returns whether the given gcs object exists.
+
+    Args:
+      path: GCS file path pattern in the form gs://<bucket>/<name>.
+    """
+    bucket, object_path = parse_gcs_path(path)
+    try:
+      request = storage.StorageObjectsGetRequest(bucket=bucket,
+                                                 object=object_path)
+      self.client.objects.Get(request)  # metadata
+      return True
+    except IOError:
+      return False
+
 
 class GcsBufferedReader(object):
   """A class for reading Google Cloud Storage files."""

@@ -29,6 +29,7 @@ import unittest
 from google.cloud.dataflow import coders
 from google.cloud.dataflow import io
 from google.cloud.dataflow.internal.json_value import to_json_value
+from google.cloud.dataflow.io import fileio
 from google.cloud.dataflow.worker import concat_reader
 from google.cloud.dataflow.worker import inmemory
 from google.cloud.dataflow.worker import maptask
@@ -461,7 +462,7 @@ class WorkItemTest(unittest.TestCase):
                 shuffle_reader_config='opaque',
                 coder=CODER,
                 output_coders=[CODER]),
-            maptask.WorkerWrite(io.TextFileSink(
+            maptask.WorkerWrite(fileio.NativeTextFileSink(
                 file_path_prefix='gs://somefile',
                 append_trailing_newlines=True,
                 coder=CODER), input=(0, 0), output_coders=(CODER,))]))
@@ -478,7 +479,7 @@ class WorkItemTest(unittest.TestCase):
                 shuffle_reader_config='opaque',
                 coder=CODER,
                 output_coders=[CODER]),
-            maptask.WorkerWrite(io.TextFileSink(
+            maptask.WorkerWrite(fileio.NativeTextFileSink(
                 file_path_prefix='gs://somefile',
                 append_trailing_newlines=True,
                 coder=CODER), input=(0, 0), output_coders=(CODER,))]))
@@ -496,7 +497,7 @@ class WorkItemTest(unittest.TestCase):
                               for v in IN_MEMORY_ELEMENTS],
                     coder=CODER),
                 output_coders=[CODER]),
-            maptask.WorkerWrite(io.TextFileSink(
+            maptask.WorkerWrite(fileio.NativeTextFileSink(
                 file_path_prefix='gs://somefile',
                 append_trailing_newlines=True,
                 coder=CODER), input=(0, 0), output_coders=(CODER,))]))

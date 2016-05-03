@@ -238,7 +238,7 @@ class DirectPipelineRunner(PipelineRunner):
   @skip_if_cached
   def run__NativeWrite(self, transform_node):
     sink = transform_node.transform.sink
-    if isinstance(sink, fileio.TextFileSink):
+    if isinstance(sink, fileio.NativeTextFileSink):
       assert sink.num_shards in (0, 1)
       if sink.shard_name_template:
         sink.file_path += '-00000-of-00001'

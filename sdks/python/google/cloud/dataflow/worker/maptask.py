@@ -24,6 +24,7 @@ import collections
 from google.cloud.dataflow import coders
 from google.cloud.dataflow import io
 from google.cloud.dataflow.internal.json_value import from_json_value
+from google.cloud.dataflow.io import fileio
 from google.cloud.dataflow.utils.counters import CounterFactory
 from google.cloud.dataflow.worker import concat_reader
 from google.cloud.dataflow.worker import inmemory
@@ -782,7 +783,7 @@ class WorkerEnvironment(object):
   def _parse_text_sink(specs, codec_specs, unused_context):
     if specs['@type'] == 'TextSink':
       coder = get_coder_from_spec(codec_specs)
-      return io.TextFileSink(
+      return fileio.NativeTextFileSink(
           file_path_prefix=specs['filename']['value'],
           append_trailing_newlines=specs['append_trailing_newlines']['value'],
           coder=coder)
@@ -793,7 +794,7 @@ class WorkerEnvironment(object):
     # advantage that both reading and writing is done through the worker to
     # choose a supported format (text files with one pickled object per line).
     if specs['@type'] == 'AvroSink':
-      return io.TextFileSink(
+      return fileio.NativeTextFileSink(
           specs['filename']['value'],
           append_trailing_newlines=True,
           coder=coders.Base64PickleCoder())

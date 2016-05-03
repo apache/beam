@@ -839,7 +839,8 @@ class WriteImpl(ptransform.PTransform):
     return sink_coll | core.FlatMap(
         'finalize_write',
         lambda sink, init_result, write_results:
-        sink.finalize_write(init_result, write_results),
+        (window.TimestampedValue(v, window.MAX_TIMESTAMP)
+         for v in sink.finalize_write(init_result, write_results) or ()),
         AsSingleton(init_result_coll),
         AsIter(write_result_coll))
 
@@ -856,9 +857,8 @@ class _WriteBundleDoFn(core.DoFn):
   def process(self, context, sink, init_result):
     if self.writer is None:
       self.writer = sink.open_writer(init_result, str(uuid.uuid4()))
-
     self.writer.write(context.element)
 
   def finish_bundle(self, context, *args, **kwargs):
     if self.writer is not None:
-      yield self.writer.close()
+      yield window.TimestampedValue(self.writer.close(), window.MAX_TIMESTAMP)

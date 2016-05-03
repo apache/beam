@@ -59,6 +59,15 @@ def make_map_task(operation_list):
                          ['step-%d' % n for n in xrange(len(operation_list))])
 
 
+def make_text_sink(output_path, input, coder=coders.ToStringCoder()):
+  return maptask.WorkerWrite(
+      fileio.NativeTextFileSink(file_path_prefix=output_path,
+                                append_trailing_newlines=True,
+                                coder=coder),
+      input=input,
+      output_coders=(coder,))
+
+
 class DoFnUsingStartBundle(ptransform.DoFn):
   """A DoFn class defining start_bundle, finish_bundle, and process methods."""
 
@@ -126,12 +135,7 @@ class ExecutorTest(unittest.TestCase):
                            output_coders=[self.OUTPUT_CODER],
                            input=(0, 0),
                            side_inputs=None),
-        maptask.WorkerWrite(
-            fileio.TextFileSink(file_path_prefix=output_path,
-                                append_trailing_newlines=True,
-                                coder=coders.ToStringCoder()),
-            input=(1, 0),
-            output_coders=(coders.ToStringCoder(),))
+        make_text_sink(output_path, input=(1, 0))
     ]))
     with open(output_path) as f:
       self.assertEqual('XYZ: 01234567890123456789\n', f.read())
@@ -154,12 +158,7 @@ class ExecutorTest(unittest.TestCase):
                            output_coders=[self.OUTPUT_CODER],
                            input=(0, 0),
                            side_inputs=None),
-        maptask.WorkerWrite(
-            fileio.TextFileSink(file_path_prefix=output_path,
-                                append_trailing_newlines=True,
-                                coder=coders.ToStringCoder()),
-            input=(1, 0),
-            output_coders=(coders.ToStringCoder(),))
+        make_text_sink(output_path, input=(1, 0))
     ]))
     with open(output_path) as f:
       self.assertEqual('XYZ: 01234567890123456789\n', f.read())
@@ -213,12 +212,7 @@ class ExecutorTest(unittest.TestCase):
                            output_coders=[self.OUTPUT_CODER],
                            input=(0, 0),
                            side_inputs=None),
-        maptask.WorkerWrite(
-            fileio.TextFileSink(file_path_prefix=output_path,
-                                append_trailing_newlines=True,
-                                coder=coders.ToStringCoder()),
-            input=(1, 0),
-            output_coders=(coders.ToStringCoder(),))
+        make_text_sink(output_path, input=(1, 0))
     ]
     shuffle_source_mock = mock.MagicMock()
     shuffle_source_mock.reader().__enter__().__iter__.return_value = [
@@ -237,12 +231,7 @@ class ExecutorTest(unittest.TestCase):
                                            end_shuffle_position='zzz',
                                            coder=self.SHUFFLE_CODER,
                                            output_coders=[self.SHUFFLE_CODER]),
-        maptask.WorkerWrite(
-            fileio.TextFileSink(file_path_prefix=output_path,
-                                append_trailing_newlines=True,
-                                coder=coders.ToStringCoder()),
-            input=(0, 0),
-            output_coders=(coders.ToStringCoder(),))
+        make_text_sink(output_path, input=(0, 0))
     ]
     shuffle_source_mock = mock.MagicMock()
     shuffle_source_mock.reader().__enter__().__iter__.return_value = [1, 2, 3]
@@ -270,12 +259,7 @@ class ExecutorTest(unittest.TestCase):
                            output_coders=[self.OUTPUT_CODER],
                            input=(0, 0),
                            side_inputs=None),
-        maptask.WorkerWrite(
-            fileio.TextFileSink(file_path_prefix=output_path,
-                                append_trailing_newlines=True,
-                                coder=coders.ToStringCoder()),
-            input=(1, 0),
-            output_coders=(coders.ToStringCoder(),))
+        make_text_sink(output_path, input=(1, 0))
     ]))
     with open(output_path) as f:
       self.assertEqual('XYZ: ghi\n', f.read())
@@ -295,12 +279,9 @@ class ExecutorTest(unittest.TestCase):
                 ptransform.CallableWrapperDoFn(lambda x: ['XYZ: %s' % x])),
             output_tags=['out'], input=(0, 0), side_inputs=None,
             output_coders=[self.OUTPUT_CODER]),
-        maptask.WorkerWrite(fileio.TextFileSink(
-            file_path_prefix=output_path,
-            append_trailing_newlines=True,
-            coder=coders.Base64PickleCoder()),
-                            input=(1, 0),
-                            output_coders=(self.OUTPUT_CODER,))]))
+        make_text_sink(
+            output_path, input=(1, 0), coder=coders.Base64PickleCoder())
+    ]))
     with open(output_path) as f:
       self.assertEqual('XYZ: ghi', pickler.loads(f.read().strip()))
 
