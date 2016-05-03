@@ -39,18 +39,16 @@ import javax.annotation.Nullable;
  * An (abstract) helper class for talking to Pubsub via an underlying transport.
  */
 public abstract class PubsubClient implements Closeable {
-
   /**
    * Factory for creating clients.
    */
-  public interface PubsubClientFactory {
+  public interface PubsubClientFactory extends Serializable {
     /**
      * Construct a new Pubsub client. It should be closed via {@link #close} in order
-     * to ensure tidy cleanup of underlying netty resources. (Or use the try-with-resources
-     * construct since this class is {@link AutoCloseable}). Uses {@code options} to derive
-     * pubsub endpoints and application credentials. If non-{@literal null}, use
-     * {@code timestampLabel} and {@code idLabel} to store custom timestamps/ids within
-     * message metadata.
+     * to ensure tidy cleanup of underlying netty resources (or use the try-with-resources
+     * construct). Uses {@code options} to derive pubsub endpoints and application credentials.
+     * If non-{@literal null}, use {@code timestampLabel} and {@code idLabel} to store custom
+     * timestamps/ids within message metadata.
      */
     PubsubClient newClient(
         @Nullable String timestampLabel,
