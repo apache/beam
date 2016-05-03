@@ -267,8 +267,10 @@ public abstract class PubsubClient implements Closeable {
 
   /**
    * A message to be sent to Pubsub.
+   * <p>NOTE: This class is {@link Serializable} only to support the {@link PubsubTestClient}.
+   * Java serialization is never used for non-test clients.
    */
-  public static class OutgoingMessage {
+  public static class OutgoingMessage implements Serializable {
     /**
      * Underlying (encoded) element.
      */
@@ -310,8 +312,10 @@ public abstract class PubsubClient implements Closeable {
 
   /**
    * A message received from Pubsub.
+   * <p>NOTE: This class is {@link Serializable} only to support the {@link PubsubTestClient}.
+   * Java serialization is never used for non-test clients.
    */
-  public static class IncomingMessage {
+  public static class IncomingMessage implements Serializable {
     /**
      * Underlying (encoded) element.
      */
