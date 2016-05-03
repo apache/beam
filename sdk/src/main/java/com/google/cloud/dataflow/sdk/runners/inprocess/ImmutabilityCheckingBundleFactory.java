@@ -25,7 +25,6 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.util.IllegalMutationException;
 import com.google.cloud.dataflow.sdk.util.MutationDetector;
 import com.google.cloud.dataflow.sdk.util.MutationDetectors;
-import com.google.cloud.dataflow.sdk.util.SerializableUtils;
 import com.google.cloud.dataflow.sdk.util.UserCodeException;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -83,7 +82,7 @@ class ImmutabilityCheckingBundleFactory implements BundleFactory {
     public ImmutabilityEnforcingBundle(UncommittedBundle<T> underlying) {
       this.underlying = underlying;
       mutationDetectors = HashMultimap.create();
-      coder = SerializableUtils.clone(getPCollection().getCoder());
+      coder = getPCollection().getCoder();
     }
 
     @Override
