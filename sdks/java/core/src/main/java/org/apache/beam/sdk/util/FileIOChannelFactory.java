@@ -43,6 +43,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.regex.Matcher;
 
+import javax.annotation.Nullable;
+
 /**
  * Implements IOChannelFactory for local files.
  */
@@ -132,5 +134,10 @@ public class FileIOChannelFactory implements IOChannelFactory {
   @Override
   public String resolve(String path, String other) throws IOException {
     return Paths.get(path).resolve(other).toString();
+  }
+  @Nullable
+  @Override
+  public String getBrowseUrl(String path) {
+    return null; // TODO
   }
 }

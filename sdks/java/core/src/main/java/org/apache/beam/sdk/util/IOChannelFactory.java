@@ -23,6 +23,8 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.Collection;
 
+import javax.annotation.Nullable;
+
 /**
  * Defines a factory for working with read and write channels.
  *
@@ -98,5 +100,21 @@ public interface IOChannelFactory {
    * Where the {@code other} path has a root component then resolution is highly implementation
    * dependent and therefore unspecified.
    */
-  public String resolve(String path, String other) throws IOException;
+  String resolve(String path, String other) throws IOException;
+
+  /**
+   * Retrieve a URL where the given {@code path} can be viewed and browsed, or null if browse URLs
+   * are not supported.
+   *
+   * <p>The returned URL should be suitable for a user to enter into a web browser and browse
+   * interactively. If the {@code path} refers to a file or data resource, the URL should
+   * point to a location where the resource can be viewed. If the {@code path} points to a
+   * directory or contains wildcards, the URL should point to a location where the inner resources
+   * can be browsed.
+   *
+   * <p>This method does not validate that a resource exists or is accessible for the given
+   * {@code path}.
+   */
+  @Nullable
+  String getBrowseUrl(String path);
 }

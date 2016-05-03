@@ -27,6 +27,8 @@ import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 
+import javax.annotation.Nullable;
+
 /**
  * Implements IOChannelFactory for GCS.
  */
@@ -83,5 +85,10 @@ public class GcsIOChannelFactory implements IOChannelFactory {
   @Override
   public String resolve(String path, String other) throws IOException {
     return GcsPath.fromUri(path).resolve(other).toString();
+  }
+  @Nullable
+  @Override
+  public String getBrowseUrl(String path) {
+    return GcsPath.fromUri(path).getBrowseUrl();
   }
 }

@@ -36,6 +36,8 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
+import autovalue.shaded.com.google.common.common.collect.ImmutableList;
+
 /**
  * Tests of GcsPath.
  */
@@ -330,5 +332,54 @@ public class GcsPathTest {
     GcsPath a = GcsPath.fromComponents("bucket", "a/b/c/d");
     a.subpath(1, 1); // throws IllegalArgumentException
     Assert.fail();
+  }
+
+  @Test
+  public void testBrowseUrl() {
+    class TestData {
+      String path;
+      String expectedBrowseUrl;
+
+      TestData(String path, String expectedBrowseUrl) {
+        this.path = path;
+        this.expectedBrowseUrl = expectedBrowseUrl;
+      }
+    }
+
+    List<TestData> tests = ImmutableList.<TestData>builder()
+        .add(new TestData(
+            "gs://bucket/a/b/c/object",
+            "https://storage.cloud.google.com/bucket/a/b/c/object"))
+        .add(new TestData(
+            "gs://bucket/",
+            "https://console.cloud.google.com/storage/browser/bucket/"))
+        .add(new TestData(
+            "gs://bucket/subdir/",
+            "https://console.cloud.google.com/storage/browser/bucket/subdir/"))
+        .add(new TestData(
+            "gs://bucket/subdir/*",
+            "https://console.cloud.google.com/storage/browser/bucket/subdir/"))
+        .add(new TestData(
+            "gs://bucket/subdir/foo*",
+            "https://console.cloud.google.com/storage/browser/bucket/subdir/"))
+        .add(new TestData(
+            "gs://bucket/subdir/**/b",
+            "https://console.cloud.google.com/storage/browser/bucket/subdir/"))
+        .add(new TestData(
+            "gs://bucket/subdir/b?",
+            "https://console.cloud.google.com/storage/browser/bucket/subdir/"))
+        .add(new TestData(
+            "gs://bucket/subdir/[bcd]",
+            "https://console.cloud.google.com/storage/browser/bucket/subdir/"))
+        .add(new TestData(
+            "gs://bucket/subdir*/foo",
+            "https://console.cloud.google.com/storage/browser/bucket/"))
+        .build();
+
+    for (TestData test : tests) {
+      GcsPath path = GcsPath.fromUri(test.path);
+      String actual = path.getBrowseUrl();
+      assertEquals(String.format("Browse URL for %s", path), test.expectedBrowseUrl, actual);
+    }
   }
 }

@@ -478,7 +478,6 @@ public class GcsPath implements Path {
   public Iterator<Path> iterator() {
     return new NameIterator(fs, !bucket.isEmpty(), bucketAndObject());
   }
-
   private static class NameIterator implements Iterator<Path> {
     private final FileSystem fs;
     private boolean fullPath;
@@ -599,6 +598,40 @@ public class GcsPath implements Path {
     }
     sb.append(object);
     return sb.toString();
+  }
+
+  private static final Pattern HAS_GLOB = Pattern.compile(".*[\\*\\?\\[\\]].*");
+  /**
+   * @inheritDoc
+   *
+   * @see <a href="https://cloud.google.com/storage/docs/cloud-console#_accessing">
+   *      Accessing Google Cloud Platform Console</a>
+   */
+  public String getBrowseUrl() {
+    // GCS uses different URLs for browsing buckets vs. objects. Object "subdirectories" can
+    // be treated as buckets for browsing.
+    final String bucketPrefix = "https://console.cloud.google.com/storage/browser/";
+    final String objectPrefix = "https://storage.cloud.google.com/";
+
+    // Iterate through path to remove any glob pattern suffix.
+    StringBuilder resourceBuilder = new StringBuilder(bucket).append("/");
+    String[] components = object.split("/");
+    for (int i = 0; i < components.length; i++) {
+      String component = components[i];
+      if (HAS_GLOB.matcher(component).matches()) {
+        break;
+      }
+
+      resourceBuilder.append(component);
+      if (i + 1 < components.length || object.endsWith("/")) {
+        resourceBuilder.append("/");
+      }
+    }
+
+    final boolean isDirectoryPath = resourceBuilder.charAt(resourceBuilder.length() - 1) == '/';
+    String prefix = isDirectoryPath ? bucketPrefix : objectPrefix;
+    resourceBuilder.insert(0, prefix);
+    return resourceBuilder.toString();
   }
 
   @Override
