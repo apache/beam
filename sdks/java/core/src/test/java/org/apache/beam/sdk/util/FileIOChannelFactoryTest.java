@@ -36,6 +36,7 @@ import org.junit.runners.JUnit4;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
 import java.nio.channels.Channels;
@@ -223,5 +224,33 @@ public class FileIOChannelFactoryTest {
     thrown.expect(FileNotFoundException.class);
     factory.getSizeBytes(
         factory.resolve(temporaryFolder.getRoot().getPath(), "non-existent-file"));
+  }
+
+  @Test
+  public void testBrowseUrl() throws IOException {
+    class TestData {
+      String description;
+      String path;
+      String expectedBrowseUrl;
+
+      TestData(String description, String path, String expectedBrowseUrl) {
+        this.description = description;
+        this.path = path;
+        this.expectedBrowseUrl = expectedBrowseUrl;
+      }
+    }
+
+    File file = temporaryFolder.newFile();
+    List<TestData> tests = ImmutableList.<TestData>builder()
+        .add(new TestData("absolute", "/a/b/c", "file:/a/b/c"))
+        .add(new TestData("relative", "a/b/c", new File("").toURI().toString() + "a/b/c"))
+        .add(new TestData("temp path", file.getPath(), file.toURI().toString()))
+        .build();
+
+    for (TestData test : tests) {
+      String actual = factory.getBrowseUrl(test.path);
+      assertEquals(String.format("Browse URL for %s: %s", test.description, test.path),
+          test.expectedBrowseUrl, actual);
+    }
   }
 }

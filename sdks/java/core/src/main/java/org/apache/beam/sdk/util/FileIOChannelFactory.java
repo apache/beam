@@ -138,6 +138,7 @@ public class FileIOChannelFactory implements IOChannelFactory {
   @Nullable
   @Override
   public String getBrowseUrl(String path) {
-    return null; // TODO
+    File file = new File(path);
+    return file.toURI().toString();
   }
 }
