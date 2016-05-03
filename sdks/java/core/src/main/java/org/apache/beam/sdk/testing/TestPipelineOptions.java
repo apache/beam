@@ -21,8 +21,6 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.hamcrest.BaseMatcher;
-import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 
@@ -43,7 +41,11 @@ public interface TestPipelineOptions extends PipelineOptions {
   Matcher<PipelineResult> getOnSuccessMatcher();
   void setOnSuccessMatcher(Matcher<PipelineResult> value);
 
-  public static class AlwaysPassMatcherFactory implements DefaultValueFactory<Matcher<PipelineResult>> {
+  /**
+   * Factory for PipelineResult matchers which always pass.
+   */
+  class AlwaysPassMatcherFactory
+      implements DefaultValueFactory<Matcher<PipelineResult>> {
     @Override
     public Matcher<PipelineResult> create(PipelineOptions options) {
       return Matchers.any(PipelineResult.class);
