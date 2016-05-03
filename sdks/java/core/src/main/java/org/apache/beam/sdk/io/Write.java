@@ -36,6 +36,9 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.UUID;
 
 /**
@@ -52,6 +55,8 @@ import java.util.UUID;
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class Write {
+  private static final Logger LOG = LoggerFactory.getLogger(Write.class);
+
   /**
    * Creates a Write transform that writes to the given Sink.
    */
@@ -144,7 +149,9 @@ public class Write {
             @Override
             public void processElement(ProcessContext c) throws Exception {
               WriteOperation<T, WriteT> writeOperation = c.element();
+              LOG.info("Initializing write operation {}", writeOperation);
               writeOperation.initialize(c.getPipelineOptions());
+              LOG.debug("Done initializing write operation {}", writeOperation);
               // The WriteOperation is also the output of this ParDo, so it can have mutable
               // state.
               c.output(writeOperation);
@@ -172,8 +179,10 @@ public class Write {
               // Lazily initialize the Writer
               if (writer == null) {
                 WriteOperation<T, WriteT> writeOperation = c.sideInput(writeOperationView);
+                LOG.info("Opening writer for write operation {}", writeOperation);
                 writer = writeOperation.createWriter(c.getPipelineOptions());
                 writer.open(UUID.randomUUID().toString());
+                LOG.debug("Done opening writer {} for operation {}", writer, writeOperationView);
               }
               try {
                 writer.write(c.element());
@@ -211,9 +220,12 @@ public class Write {
           .apply("Finalize", ParDo.of(new DoFn<WriteOperation<T, WriteT>, Integer>() {
             @Override
             public void processElement(ProcessContext c) throws Exception {
-              Iterable<WriteT> results = c.sideInput(resultsView);
               WriteOperation<T, WriteT> writeOperation = c.element();
+              LOG.info("Finalizing write operation {}", writeOperation);
+              Iterable<WriteT> results = c.sideInput(resultsView);
+              LOG.debug("Side input initialized to finalize write operation {}", writeOperation);
               writeOperation.finalize(results, c.getPipelineOptions());
+              LOG.debug("Done finalizing write operation {}", writeOperation);
             }
           }).withSideInputs(resultsView));
       return PDone.in(input.getPipeline());
