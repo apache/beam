@@ -74,7 +74,7 @@ public class ApproximateQuantiles {
    * {@code numQuantiles-2} intermediate values, and maximum value, in
    * sorted order, using the given {@code Comparator} to order values.
    * To compute traditional {@code N}-tiles, one should use
-   * {@code ApproximateQuantiles.globally(compareFn, N+1)}.
+   * {@code ApproximateQuantiles.globally(N+1, compareFn)}.
    *
    * <p>If there are fewer input elements than {@code numQuantiles},
    * then the result {@code List} will contain all the input elements,
@@ -86,7 +86,7 @@ public class ApproximateQuantiles {
    * <pre> {@code
    * PCollection<String> pc = ...;
    * PCollection<List<String>> quantiles =
-   *     pc.apply(ApproximateQuantiles.globally(stringCompareFn, 11));
+   *     pc.apply(ApproximateQuantiles.globally(11, stringCompareFn));
    * } </pre>
    *
    * @param <T> the type of the elements in the input {@code PCollection}

@@ -1661,7 +1661,7 @@ public class Combine {
    * <pre> {@code
    * PCollection<KV<String, Double>> salesRecords = ...;
    * PCollection<KV<String, Double>> totalSalesPerPerson =
-   *     salesRecords.apply(Combine.<String, Double>perKey(
+   *     salesRecords.apply(Combine.<String, Double, Double>perKey(
    *         new Sum.SumDoubleFn()));
    * } </pre>
    *
