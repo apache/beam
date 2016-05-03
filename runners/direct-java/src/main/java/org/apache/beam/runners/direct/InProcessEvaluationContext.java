@@ -43,6 +43,7 @@ import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 
@@ -51,6 +52,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Executors;
 
 import javax.annotation.Nullable;
 
@@ -128,7 +130,7 @@ class InProcessEvaluationContext {
     this.applicationStateInternals = new ConcurrentHashMap<>();
     this.mergedCounters = new CounterSet();
 
-    this.callbackExecutor = WatermarkCallbackExecutor.create();
+    this.callbackExecutor = WatermarkCallbackExecutor.create(Executors.newSingleThreadExecutor());
   }
 
   /**
@@ -146,7 +148,7 @@ class InProcessEvaluationContext {
    * @param result the result of evaluating the input bundle
    * @return the committed bundles contained within the handled {@code result}
    */
-  public synchronized CommittedResult handleResult(
+  public CommittedResult handleResult(
       @Nullable CommittedBundle<?> completedBundle,
       Iterable<TimerData> completedTimers,
       InProcessTransformResult result) {
@@ -163,7 +165,6 @@ class InProcessEvaluationContext {
         result.getTimerUpdate().withCompletedTimers(completedTimers),
         committedResult,
         result.getWatermarkHold());
-    fireAllAvailableCallbacks();
     // Update counters
     if (result.getCounters() != null) {
       mergedCounters.merge(result.getCounters());
@@ -359,6 +360,12 @@ class InProcessEvaluationContext {
     return mergedCounters;
   }
 
+  @VisibleForTesting
+  void forceRefresh() {
+    watermarkManager.refreshAll();
+    fireAllAvailableCallbacks();
+  }
+
   /**
    * Extracts all timers that have been fired and have not already been extracted.
    *
@@ -366,6 +373,7 @@ class InProcessEvaluationContext {
    * for each time they are set.
    */
   public Map<AppliedPTransform<?, ?, ?>, Map<Object, FiredTimers>> extractFiredTimers() {
+    forceRefresh();
     Map<AppliedPTransform<?, ?, ?>, Map<Object, FiredTimers>> fired =
         watermarkManager.extractFiredTimers();
     return fired;
