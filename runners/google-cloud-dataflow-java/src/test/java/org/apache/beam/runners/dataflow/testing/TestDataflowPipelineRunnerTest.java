@@ -65,9 +65,7 @@ import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 
-import org.hamcrest.BaseMatcher;
 import org.hamcrest.CustomTypeSafeMatcher;
-import org.hamcrest.Description;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;

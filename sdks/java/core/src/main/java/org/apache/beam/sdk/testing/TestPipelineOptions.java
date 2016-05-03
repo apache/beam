@@ -42,7 +42,7 @@ public interface TestPipelineOptions extends PipelineOptions {
   void setOnSuccessMatcher(Matcher<PipelineResult> value);
 
   /**
-   * Factory for PipelineResult matchers which always pass.
+   * Factory for {@link PipelineResult} matchers which always pass.
    */
   class AlwaysPassMatcherFactory
       implements DefaultValueFactory<Matcher<PipelineResult>> {

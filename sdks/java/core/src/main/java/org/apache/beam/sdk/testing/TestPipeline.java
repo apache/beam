@@ -50,7 +50,6 @@ import org.junit.experimental.categories.Category;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
@@ -241,8 +240,13 @@ public class TestPipeline extends Pipeline {
     return firstInstanceAfterTestPipeline;
   }
 
+  /**
+   * IntegrationMatcherStore is an inner class of TestPipeline which is used for masking the
+   * serialization of Matchers.
+   */
   private static class IntegrationMatcherStore extends Module {
-    private static Map<String, Matcher<PipelineResult>> matcherMap = new ConcurrentHashMap<>();
+    private static final Map<String, Matcher<PipelineResult>> MATCHER_MAP =
+        new ConcurrentHashMap<>();
 
     /**
      * Adds a matcher to the matcher store, to be retrieved by a TestPipelineRunner during
@@ -253,11 +257,8 @@ public class TestPipeline extends Pipeline {
      * opts.SetPassVerifier(matcher)
      */
     String addMatcher(Matcher<PipelineResult> m) {
-      if (matcherMap == null) {
-        matcherMap = new HashMap<>();
-      }
       String uid = UUID.randomUUID().toString();
-      matcherMap.put(uid, m);
+      MATCHER_MAP.put(uid, m);
       return uid;
     }
 
@@ -268,10 +269,7 @@ public class TestPipeline extends Pipeline {
      * @return Returns the matcher corresponding to the string passed, or null if it doesn't exist.
      */
     Matcher<PipelineResult> getMatcher(String str) {
-      if (matcherMap == null) {
-        return null;
-      }
-      return matcherMap.get(str);
+      return MATCHER_MAP.get(str);
     }
 
     @Override
@@ -304,7 +302,6 @@ public class TestPipeline extends Pipeline {
     }
 
     class MatcherDeserializer extends JsonDeserializer<Matcher<PipelineResult>> {
-
       @Override
       public Matcher<PipelineResult> deserialize(JsonParser jsonParser,
           DeserializationContext deserializationContext)
