@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
@@ -108,6 +109,17 @@ extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
       public void processElement(ProcessContext c) {
         c.output(fn.apply(c.element()));
       }
+
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        MapElements.this.populateDisplayData(builder);
+      }
     })).setTypeDescriptorInternal(outputType);
+  }
+
+  @Override
+  public void populateDisplayData(DisplayData.Builder builder) {
+    super.populateDisplayData(builder);
+    builder.add(DisplayData.item("mapFn", fn.getClass()));
   }
 }
