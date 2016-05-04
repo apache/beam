@@ -772,10 +772,6 @@ public class PubsubIO {
             if (finallyBlockException != null) {
               throw new RuntimeException("Failed to delete subscription: ", finallyBlockException);
             }
-          }
-          if (finallyBlockException != null) {
-            throw new RuntimeException(finallyBlockException);
-          }
 
             for (IncomingMessage message : messages) {
               c.outputWithTimestamp(
