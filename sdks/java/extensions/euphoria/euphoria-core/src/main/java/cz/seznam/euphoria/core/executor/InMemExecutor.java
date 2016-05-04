@@ -38,6 +38,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -45,7 +46,6 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -129,12 +129,12 @@ public class InMemExecutor implements Executor {
   }
 
 
-  static final class QueueCollector<T> implements Collector<T> {
+  static class QueueCollector<T> implements Collector<T> {
     static <T> QueueCollector<T> wrap(BlockingQueue<T> queue) {
       return new QueueCollector<>(queue);
     }
     private final BlockingQueue<T> queue;
-    private QueueCollector(BlockingQueue<T> queue) {
+    QueueCollector(BlockingQueue<T> queue) {
       this.queue = queue;
     }
     @Override
@@ -580,11 +580,9 @@ public class InMemExecutor implements Executor {
     }
 
     // count running partition readers
-    AtomicInteger running = new AtomicInteger(0);
+    CountDownLatch workers = new CountDownLatch(suppliers.size());
 
     for (Supplier s : suppliers) {
-      // read suppliers
-      running.getAndIncrement();
       executor.execute(() -> {
         try {
           try {
@@ -597,18 +595,17 @@ public class InMemExecutor implements Executor {
               ret.get(partition).put(o);
             }
           } catch (EndOfStreamException ex) {
-            running.getAndDecrement();
-            synchronized (running) {
-              running.notify();
-            }
+            // ~ no-op
           }
         } catch (InterruptedException ex) {
           throw new RuntimeException(ex);
+        } finally {
+          workers.countDown();
         }
       });
     }
 
-    waitForStreamEnds(running, ret);
+    waitForStreamEnds(workers, ret);
 
     return ret;
   }
@@ -617,20 +614,15 @@ public class InMemExecutor implements Executor {
   // wait until runningTasks is not zero and then send EOF to all output queues
   @SuppressWarnings("unchecked")
   private void waitForStreamEnds(
-      AtomicInteger runningTasks, List<BlockingQueue> outputQueues) {
+      CountDownLatch fire, List<BlockingQueue> outputQueues) {
     // start a new task that will wait for all read partitions to end
     executor.execute(() -> {
-      while (runningTasks.get() != 0) {
-        try {
-          synchronized (runningTasks) {
-            runningTasks.wait();
-          }
-        } catch (InterruptedException ex) {
-          break;
-        }
+      try {
+        fire.await();
+      } catch (InterruptedException ex) {
+        LOG.warn("waiting-for-stream-ends interrupted");
       }
-      System.err.println("Flushing stream to end");
-      // send eof to all outputs
+      // try sending eof to all outputs
       for (BlockingQueue queue : outputQueues) {
         try {
           queue.put(EndOfStream.get());
