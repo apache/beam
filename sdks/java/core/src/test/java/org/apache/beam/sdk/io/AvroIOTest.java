@@ -18,7 +18,11 @@
 package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasLinkUrl;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
 
+import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -28,11 +32,14 @@ import static org.junit.Assert.assertTrue;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.AvroIO.Write.Bound;
+import org.apache.beam.sdk.options.GcsOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.IOChannelUtils;
+import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.PCollection;
 
 import com.google.common.base.MoreObjects;
@@ -42,6 +49,7 @@ import com.google.common.collect.Iterators;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.reflect.Nullable;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -61,6 +69,11 @@ import java.util.Objects;
 public class AvroIOTest {
   @Rule
   public TemporaryFolder tmpFolder = new TemporaryFolder();
+
+  @BeforeClass
+  public static void setUpClass() {
+    IOChannelUtils.registerStandardIOFactories(PipelineOptionsFactory.as(GcsOptions.class));
+  }
 
   @Test
   public void testReadWithoutValidationFlag() throws Exception {
@@ -262,18 +275,24 @@ public class AvroIOTest {
 
   @Test
   public void testReadDisplayData() {
-    AvroIO.Read.Bound<?> read = AvroIO.Read.from("foo.*")
+    String filePattern = "gs://bucket/foo/bar";
+    AvroIO.Read.Bound<?> read = AvroIO.Read.from(filePattern)
         .withoutValidation();
 
     DisplayData displayData = DisplayData.from(read);
-    assertThat(displayData, hasDisplayItem("filePattern", "foo.*"));
     assertThat(displayData, hasDisplayItem("validation", false));
+    assertThat(displayData, hasDisplayItem(allOf(
+        hasKey("filePattern"),
+        hasValue(filePattern),
+        hasLinkUrl(GcsPath.fromUri(filePattern).getBrowseUrl()))));
   }
 
   @Test
   public void testWriteDisplayData() {
+    String filePattern = "gs://bucket/foo/bar";
+
     AvroIO.Write.Bound<?> write = AvroIO.Write
-        .to("foo")
+        .to(filePattern)
         .withShardNameTemplate("-SS-of-NN-")
         .withSuffix("bar")
         .withSchema(GenericClass.class)
@@ -282,7 +301,11 @@ public class AvroIOTest {
 
     DisplayData displayData = DisplayData.from(write);
 
-    assertThat(displayData, hasDisplayItem("filePrefix", "foo"));
+    assertThat(displayData, hasDisplayItem(allOf(
+        hasKey("filePrefix"),
+        hasValue(filePattern),
+        hasLinkUrl(GcsPath.fromUri(filePattern + "*").getBrowseUrl()))));
+
     assertThat(displayData, hasDisplayItem("shardNameTemplate", "-SS-of-NN-"));
     assertThat(displayData, hasDisplayItem("fileSuffix", "bar"));
     assertThat(displayData, hasDisplayItem("schema", GenericClass.class));
