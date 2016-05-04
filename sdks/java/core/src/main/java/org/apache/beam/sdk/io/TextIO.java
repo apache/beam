@@ -28,6 +28,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.DirectPipelineRunner;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.values.PCollection;
@@ -343,10 +344,14 @@ public class TextIO {
       public void populateDisplayData(DisplayData.Builder builder) {
         super.populateDisplayData(builder);
 
+        if (filepattern != null) {
+          builder.add(DisplayData.item("filePattern", filepattern)
+            .withLinkUrl(getBrowseUrl(filepattern)));
+        }
+
         builder
             .add(DisplayData.item("compressionType", compressionType.toString()))
-            .addIfNotDefault(DisplayData.item("validation", validate), true)
-            .addIfNotNull(DisplayData.item("filePattern", filepattern));
+            .addIfNotDefault(DisplayData.item("validation", validate), true);
       }
 
       @Override
@@ -648,8 +653,15 @@ public class TextIO {
       public void populateDisplayData(DisplayData.Builder builder) {
         super.populateDisplayData(builder);
 
+        if (filenamePrefix != null) {
+          // Append wildcard to browseUrl input since this is a filename prefix
+          String browseUrl = getBrowseUrl(filenamePrefix + "*");
+
+          builder.add(DisplayData.item("filePrefix", filenamePrefix)
+            .withLinkUrl(browseUrl));
+        }
+
         builder
-            .addIfNotNull(DisplayData.item("filePrefix", filenamePrefix))
             .addIfNotDefault(DisplayData.item("fileSuffix", filenameSuffix), "")
             .addIfNotDefault(
                 DisplayData.item("shardNameTemplate", shardTemplate),
@@ -742,6 +754,18 @@ public class TextIO {
         !SHARD_OUTPUT_PATTERN.matcher(partialFilePattern).find(),
         "Output name components are not allowed to contain @* or @N patterns: "
         + partialFilePattern);
+  }
+
+  private static String getBrowseUrl(String filePattern) {
+    IOChannelFactory factory;
+    try {
+      factory = IOChannelUtils.getFactory(filePattern);
+    } catch (IOException e) {
+      throw new IllegalStateException(
+          String.format("Invalid filePattern: %s", filePattern), e);
+    }
+
+    return factory.getBrowseUrl(filePattern);
   }
 
   //////////////////////////////////////////////////////////////////////////////
