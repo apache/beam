@@ -2,7 +2,6 @@
 package cz.seznam.euphoria.core.client.dataset;
 
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
-import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.util.Collections;
@@ -54,8 +53,6 @@ public interface Windowing<T, KEY, W extends Window<KEY>> extends Serializable {
 
       @Override
       public void registerTrigger(Triggering triggering, UnaryFunction<Window<?>, Void> evict) {
-        LoggerFactory.getLogger(Windowing.class)
-            .info("registering trigger for window: {}", this);
         triggering.scheduleOnce(this.intervalMillis, () -> evict.apply(this));
       }
 
@@ -112,7 +109,7 @@ public interface Windowing<T, KEY, W extends Window<KEY>> extends Serializable {
   final class Count<T>
       extends AbstractWindowing<T, Void, Windowing.Count.CountWindow>
       implements AlignedWindowing<T, Windowing.Count.CountWindow>,
-                 MergingWindowing<Void, Windowing.Count.CountWindow>
+                 MergingWindowing<T, Void, Windowing.Count.CountWindow>
   {
     private final int size;
     private boolean aggregating = false;
@@ -138,7 +135,6 @@ public interface Windowing<T, KEY, W extends Window<KEY>> extends Serializable {
       }
 
       // ~ no equals/hashCode all instances are considered unique
-
 
       @Override
       public String toString() {

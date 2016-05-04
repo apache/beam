@@ -8,6 +8,8 @@ import cz.seznam.euphoria.core.client.dataset.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.io.Collector;
+import cz.seznam.euphoria.core.client.io.ListDataSink;
+import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.io.StdoutSink;
 import cz.seznam.euphoria.core.client.io.TCPLineStreamSource;
 import cz.seznam.euphoria.core.client.util.Pair;
@@ -28,6 +30,7 @@ import java.util.stream.Collectors;
 
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 // TODO: Will be moved to euphoria-examples
 /**
@@ -155,21 +158,12 @@ public class BasicOperatorTest {
 
   @Test
   public void testWordCountByCountNonAggregating() throws Exception {
-    final InMemFileSystem inmemfs = InMemFileSystem.get();
-
-    inmemfs.reset()
-        .setFile("/tmp/foo.txt", asList(
+    Flow flow = Flow.create("Test");
+    Dataset<String> lines = flow.createInput(ListDataSource.unbounded(
+        asList(
             "one two three four four two two",
-            "one one one two two three four four four four four"));
-
-    Settings settings = new Settings();
-    settings.setClass("euphoria.io.datasource.factory.inmem",
-        InMemFileSystem.SourceFactory.class);
-    settings.setClass("euphoria.io.datasink.factory.inmem",
-        InMemFileSystem.SinkFactory.class);
-
-    Flow flow = Flow.create("Test", settings);
-    Dataset<String> lines = flow.createInput(URI.create("inmem:///tmp/foo.txt"));
+            "one one one two two three four four four four",
+            "four")));
 
     // expand it to words
     Dataset<Pair<String, Long>> words = FlatMap.of(lines)
@@ -181,28 +175,67 @@ public class BasicOperatorTest {
 
     // reduce it to counts, use windowing, so the output is batch or stream
     // depending on the type of input
-    Dataset<Pair<String, Long>> streamOutput = ReduceByKey
+    final ListDataSink<Pair<String, Long>> output = ListDataSink.get(1);
+    ReduceByKey
         .of(words)
         .keyBy(Pair::getFirst)
         .valueBy(Pair::getSecond)
         .combineBy(Sums.ofLongs())
         .windowBy(Windowing.Count.of(3))
-        .output();
-
-    streamOutput.persist(URI.create("inmem:///tmp/output"));
+        .output()
+        .persist(output);
 
     executor.waitForCompletion(flow);
 
-    @SuppressWarnings("unchecked")
-    List<Pair<String, Long>> f = new ArrayList<>(inmemfs.getFile("/tmp/output/0"));
-    System.out.println(f);
+    assertNotNull(output.getOutput(0));
+//    System.out.println(output.getOutput(0));
 
     assertEquals(
-        asList("four-1", "four-3", "four-3",
-               "one-1", "one-3",
-               "three-2",
-               "two-2", "two-3"),
-        sublist(f, 0, -1));
+        asList(
+            "four-1", "four-3", "four-3",
+            "one-1", "one-3",
+            "three-2",
+            "two-2", "two-3"),
+        sublist(output.getOutput(0), 0, -1));
+
+  }
+
+  @Test
+  public void testWordCountByCountAggregating() throws Exception {
+    Flow flow = Flow.create("Test");
+    Dataset<String> input = flow.createInput(ListDataSource.unbounded(
+        asList("one", "two", "three", "four", "four", "two", "two",
+               "one", "one", "one", "two", "two", "three", "four", "four", "four",
+                "four", "four")));
+
+    // expand it to words
+    Dataset<Pair<String, Long>> words = Map.of(input)
+        .by(w -> Pair.of(w, 1L))
+        .output();
+
+    // reduce it to counts, use windowing, so the output is batch or stream
+    // depending on the type of input
+    final ListDataSink<Pair<String, Long>> output = ListDataSink.get(1);
+    ReduceByKey
+        .of(words)
+        .keyBy(Pair::getFirst)
+        .valueBy(Pair::getSecond)
+        .combineBy(Sums.ofLongs())
+        .windowBy(Windowing.Count.of(3).aggregating())
+        .output()
+        .persist(output);
+
+    executor.waitForCompletion(flow);
+
+    assertNotNull(output.getOutput(0));
+//    System.out.println(output.getOutput(0));
+
+    assertEquals(asList(
+        "four-3", "four-6", "four-7",
+        "one-3", "one-4",
+        "three-2",
+        "two-3", "two-5"),
+        sublist(output.getOutput(0), 0, -1));
   }
 
   @Test
