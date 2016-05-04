@@ -21,7 +21,12 @@ import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionE
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionFails;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionSucceedsAndConsistent;
 import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasLinkUrl;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
 
+import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -34,17 +39,21 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.FileBasedSource.FileBasedReader;
 import org.apache.beam.sdk.io.Source.Reader;
+import org.apache.beam.sdk.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
+import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.PCollection;
 
 import com.google.common.collect.ImmutableList;
 
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -75,6 +84,11 @@ public class FileBasedSourceTest {
   Random random = new Random(0L);
 
   @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
+
+  @BeforeClass
+  public static void setUpClass() {
+    IOChannelUtils.registerStandardIOFactories(PipelineOptionsFactory.as(GcsOptions.class));
+  }
 
   /**
    * If {@code splitHeader} is null, this is just a simple line-based reader. Otherwise, the file is
@@ -915,5 +929,15 @@ public class FileBasedSourceTest {
 
     TestFileBasedSource source = new TestFileBasedSource(file.getPath(), 1, 0, file.length(), null);
     assertSplitAtFractionExhaustive(source, options);
+  }
+
+  @Test
+  public void testDisplayData() {
+    String filePattern = "gs://bucket/foo/bar";
+    FileBasedSource<?> source = new TestFileBasedSource(filePattern, 1, null);
+    assertThat(DisplayData.from(source), hasDisplayItem(allOf(
+        hasKey("filePattern"),
+        hasValue(filePattern),
+        hasLinkUrl(GcsPath.fromUri(filePattern).getBrowseUrl()))));
   }
 }

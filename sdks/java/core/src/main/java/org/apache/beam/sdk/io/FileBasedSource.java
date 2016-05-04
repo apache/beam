@@ -277,7 +277,14 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
-    builder.add(DisplayData.item("filePattern", getFileOrPatternSpec()));
+    String fileOrPatternSpec = getFileOrPatternSpec();
+    try {
+      builder.add(DisplayData.item("filePattern", fileOrPatternSpec)
+        .withLinkUrl(IOChannelUtils.getFactory(fileOrPatternSpec).getBrowseUrl(fileOrPatternSpec)));
+    } catch (IOException e) {
+      throw new IllegalStateException(
+          String.format("Invalid file pattern: %s", fileOrPatternSpec), e);
+    }
   }
 
   private ListenableFuture<List<? extends FileBasedSource<T>>> createFutureForFileSplit(
