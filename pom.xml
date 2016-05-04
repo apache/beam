@@ -674,6 +674,9 @@
             <showWarnings>true</showWarnings>
             <!-- Another temp override, to be set to true in due course. -->
             <showDeprecation>false</showDeprecation>
+            <excludes>
+              <exclude>**/package-info.java</exclude>
+            </excludes>
           </configuration>
         </plugin>
 
@@ -689,6 +692,13 @@
               </goals>
             </execution>
           </executions>
+          <configuration>
+            <archive>
+              <manifestEntries>
+                <Build-timestamp>${timestamp}</Build-timestamp>
+              </manifestEntries>
+            </archive>
+          </configuration>
         </plugin>
 
         <plugin>
