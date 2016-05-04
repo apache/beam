@@ -6,6 +6,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Set;
 
 
@@ -105,95 +107,115 @@ public interface Windowing<T, KEY, W extends Window<KEY>> extends Serializable {
     public boolean isAggregating() {
       return aggregating;
     }
-  }
+  } // ~ end of Time
 
-//  final class Count<T>
-//      extends AbstractWindowing<T, Void, Windowing.Count.CountWindow>
-//      implements AlignedWindowing<T, Windowing.Count.CountWindow> {
-//
-//    private final int count;
-//    private boolean aggregating = false;
-//
-//    private Count(int count) {
-//      this.count = count;
-//    }
-//
-//    public static class CountWindow extends AbstractWindow<Void>
-//        implements AlignedWindow {
-//
-//      final int maxCount;
-//      int currentCount = 0;
-//      UnaryFunction<Window<?>, Void> evict = null;
-//
-//      public CountWindow(int maxCount) {
-//        this.maxCount = maxCount;
-//        this.currentCount = 1;
-//      }
-//
-//
-//      @Override
-//      public void registerTrigger(Triggering triggering,
-//          UnaryFunction<Window<?>, Void> evict) {
-//        this.evict = evict;
-//      }
-//    }
-//
-//    @Override
-//    public Set<CountWindow> allocateWindows(
-//        T input, Triggering triggering,
-//        UnaryFunction<Window<?>, Void> evict) {
-//      Set<CountWindow> ret = new HashSet<>();
-//      for (CountWindow w : getActive(null)) {
-//        if (w.currentCount < count) {
-//          w.currentCount++;
-//          ret.add(w);
-//        }
-//      }
-//      if (ret.isEmpty()) {
-//        CountWindow w = new CountWindow(count);
-//        this.addNewWindow(w, triggering, evict);
-//        ret.add(w);
-//      }
-//      return ret;
-//    }
-//
-//
-//    @Override
-//    public boolean isAggregating() {
-//      return aggregating;
-//    }
-//
-//
-//    public static <T> Count<T> of(int count) {
-//      return new Count<>(count);
-//    }
-//
-//    @SuppressWarnings("unchecked")
-//    public <T> Count<T> aggregating() {
-//      this.aggregating = true;
-//      return (Count<T>) this;
-//    }
-//
-//
-//  }
+  final class Count<T>
+      extends AbstractWindowing<T, Void, Windowing.Count.CountWindow>
+      implements AlignedWindowing<T, Windowing.Count.CountWindow>,
+                 MergingWindowing<Void, Windowing.Count.CountWindow>
+  {
+    private final int size;
+    private boolean aggregating = false;
+
+    private Count(int size) {
+      this.size = size;
+    }
+
+    public static class CountWindow extends AbstractWindow<Void>
+        implements AlignedWindow
+    {
+      int currentCount;
+      UnaryFunction<Window<?>, Void> evict = null;
+
+      public CountWindow(int currentCount) {
+        this.currentCount = currentCount;
+      }
+
+      @Override
+      public void registerTrigger(Triggering triggering,
+          UnaryFunction<Window<?>, Void> evict) {
+        this.evict = evict;
+      }
+
+      // ~ no equals/hashCode all instances are considered unique
+
+
+      @Override
+      public String toString() {
+        return "CountWindow { currentCount = " + currentCount + ", identity = " +
+            System.identityHashCode(this) + " }";
+      }
+    } // ~ end of CountWindow
+
+    @Override
+    public Set<CountWindow> assignWindows(T input) {
+      return Collections.singleton(new CountWindow(1));
+    }
+
+    @Override
+    public void mergeWindows(Set<CountWindow> actives,
+                             Merging<Void, CountWindow> merging)
+    {
+      // XXX this will need a rewrite for better efficiency
+
+      Iterator<CountWindow> iter = actives.iterator();
+      CountWindow r = null;
+      while (r == null && iter.hasNext()) {
+        CountWindow w = iter.next();
+        if (w.currentCount < size) {
+          r = w;
+        }
+      }
+      if (r == null) {
+        return;
+      }
+
+      Set<CountWindow> merged = null;
+      iter = actives.iterator();
+      while (iter.hasNext()) {
+        CountWindow w = iter.next();
+        if (r.equals(w)) {
+          continue;
+        }
+        if (r.currentCount + w.currentCount <= size) {
+          r.currentCount += w.currentCount;
+          if (merged == null) {
+            merged = new HashSet<>();
+          }
+          merged.add(w);
+        }
+      }
+      if (merged != null && !merged.isEmpty()) {
+        merged.add(r);
+        merging.onMerge(merged, r);
+        if (r.currentCount >= size) {
+          r.evict.apply(r);
+        }
+      }
+    }
+
+    @Override
+    public boolean isAggregating() {
+      return aggregating;
+    }
+
+    public static <T> Count<T> of(int count) {
+      return new Count<>(count);
+    }
+
+    @SuppressWarnings("unchecked")
+    public <T> Count<T> aggregating() {
+      this.aggregating = true;
+      return (Count<T>) this;
+    }
+  } // ~ end of Count
 
   Set<W> assignWindows(T input);
 
-// XXX to be replaced with assignWindows and mergeWindows
-//  /**
-//   * Allocate and return windows needed for given element.
-//   * Register trigger for all newly created windows.
-//   * @return the set of windows suitable for given element
-//   **/
-//  Set<W> allocateWindows(T input, Triggering triggering,
-//      UnaryFunction<Window<?>, Void> evict);
-
-// XXX to be dropped entirely
-//  /** Retrieve currently active set of windows for given key. */
-//  Set<W> getActive(KEY key);
-
   /** Evict given window. */
-  void close(W window);
+  default void close(W window) {
+    window.flushAll();
+  }
 
   default boolean isAggregating() {
     return false;
