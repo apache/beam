@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.testing;
 
+import com.google.api.client.util.Base64;
+
 import org.apache.beam.sdk.util.SerializableUtils;
 
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -34,8 +36,9 @@ class MatcherSerializer extends JsonSerializer<SerializableMatcher<?>> {
   public void serialize(SerializableMatcher<?> matcher, JsonGenerator jsonGenerator,
       SerializerProvider serializerProvider) throws IOException, JsonProcessingException {
     byte[] out = SerializableUtils.serializeToByteArray(matcher);
+    String encodedString = Base64.encodeBase64String(out);
     jsonGenerator.writeStartObject();
-    jsonGenerator.writeBinaryField("matcher", out);
+    jsonGenerator.writeStringField("matcher", encodedString);
     jsonGenerator.writeEndObject();
   }
 }

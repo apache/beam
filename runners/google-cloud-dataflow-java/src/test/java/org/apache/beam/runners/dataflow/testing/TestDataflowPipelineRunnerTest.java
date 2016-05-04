@@ -80,6 +80,7 @@ import org.mockito.MockitoAnnotations;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
@@ -557,8 +558,9 @@ public class TestDataflowPipelineRunnerTest {
 
   static class TestSuccessMatcher extends BaseMatcher<PipelineResult> implements
       SerializableMatcher<PipelineResult> {
-    DataflowPipelineJob mockJob;
-    int called;
+    private final DataflowPipelineJob mockJob;
+    private final int called;
+
     public TestSuccessMatcher(DataflowPipelineJob job, int times) {
       this.mockJob = job;
       this.called = times;
@@ -567,16 +569,15 @@ public class TestDataflowPipelineRunnerTest {
     @Override
     public boolean matches(Object o) {
       if (!(o instanceof PipelineResult)) {
-        fail();
+        fail(String.format("Expected PipelineResult but received %s", o));
       }
-      PipelineResult other = (PipelineResult) o;
       try {
         verify(mockJob, Mockito.times(called)).waitToFinish(any(Long.class), any(TimeUnit.class),
             any(JobMessagesHandler.class));
-      } catch (Exception e) {
-        return false;
+      } catch (IOException | InterruptedException e) {
+        throw new AssertionError(e);
       }
-      assertSame(mockJob, other);
+      assertSame(mockJob, o);
       return true;
     }
 

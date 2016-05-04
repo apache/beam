@@ -144,7 +144,7 @@ public class TestPipelineTest {
    */
   public static class TestMatcher extends BaseMatcher<PipelineResult>
       implements SerializableMatcher<PipelineResult> {
-    final UUID uuid = UUID.randomUUID();
+    private final UUID uuid = UUID.randomUUID();
     @Override
     public boolean matches(Object o) {
       return true;
