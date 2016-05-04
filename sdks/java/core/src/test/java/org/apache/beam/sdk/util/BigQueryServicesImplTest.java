@@ -24,6 +24,7 @@ import static org.mockito.Mockito.when;
 
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.FastNanoClockAndSleeper;
+import org.apache.beam.sdk.util.BigQueryServicesImpl.JobServiceImpl;
 
 import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.googleapis.json.GoogleJsonError.ErrorInfo;
@@ -40,8 +41,10 @@ import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.ErrorProto;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
+import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatus;
 import com.google.api.services.bigquery.model.TableReference;
+import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.common.collect.ImmutableList;
 
 import org.junit.Before;
@@ -91,11 +94,16 @@ public class BigQueryServicesImplTest {
   }
 
   /**
-   * Tests that {@link BigQueryServicesImpl.LoadServiceImpl#startLoadJob} succeeds.
+   * Tests that {@link BigQueryServicesImpl.JobServiceImpl#startLoadJob} succeeds.
    */
   @Test
   public void testStartLoadJobSucceeds() throws IOException, InterruptedException {
     Job testJob = new Job();
+    JobReference jobRef = new JobReference();
+    jobRef.setJobId("jobId");
+    jobRef.setProjectId("projectId");
+    testJob.setJobReference(jobRef);
+
     when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
     when(response.getStatusCode()).thenReturn(200);
     when(response.getContent()).thenReturn(toStream(testJob));
@@ -108,20 +116,24 @@ public class BigQueryServicesImplTest {
     Sleeper sleeper = new FastNanoClockAndSleeper();
     BackOff backoff = new AttemptBoundedExponentialBackOff(
         5 /* attempts */, 1000 /* initialIntervalMillis */);
-    BigQueryServicesImpl.LoadServiceImpl loadService =
-        new BigQueryServicesImpl.LoadServiceImpl(bigquery);
-    loadService.startLoadJob("jobId", loadConfig, sleeper, backoff);
+    JobServiceImpl.startJob(testJob, new ApiErrorExtractor(), bigquery, sleeper, backoff);
     verify(response, times(1)).getStatusCode();
     verify(response, times(1)).getContent();
     verify(response, times(1)).getContentType();
   }
 
   /**
-   * Tests that {@link BigQueryServicesImpl.LoadServiceImpl#startLoadJob} succeeds
+   * Tests that {@link BigQueryServicesImpl.JobServiceImpl#startLoadJob} succeeds
    * with an already exist job.
    */
   @Test
   public void testStartLoadJobSucceedsAlreadyExists() throws IOException, InterruptedException {
+    Job testJob = new Job();
+    JobReference jobRef = new JobReference();
+    jobRef.setJobId("jobId");
+    jobRef.setProjectId("projectId");
+    testJob.setJobReference(jobRef);
+
     when(response.getStatusCode()).thenReturn(409); // 409 means already exists
 
     TableReference ref = new TableReference();
@@ -132,9 +144,7 @@ public class BigQueryServicesImplTest {
     Sleeper sleeper = new FastNanoClockAndSleeper();
     BackOff backoff = new AttemptBoundedExponentialBackOff(
         5 /* attempts */, 1000 /* initialIntervalMillis */);
-    BigQueryServicesImpl.LoadServiceImpl loadService =
-        new BigQueryServicesImpl.LoadServiceImpl(bigquery);
-    loadService.startLoadJob("jobId", loadConfig, sleeper, backoff);
+    JobServiceImpl.startJob(testJob, new ApiErrorExtractor(), bigquery, sleeper, backoff);
 
     verify(response, times(1)).getStatusCode();
     verify(response, times(1)).getContent();
@@ -142,11 +152,15 @@ public class BigQueryServicesImplTest {
   }
 
   /**
-   * Tests that {@link BigQueryServicesImpl.LoadServiceImpl#startLoadJob} succeeds with a retry.
+   * Tests that {@link BigQueryServicesImpl.JobServiceImpl#startLoadJob} succeeds with a retry.
    */
   @Test
   public void testStartLoadJobRetry() throws IOException, InterruptedException {
     Job testJob = new Job();
+    JobReference jobRef = new JobReference();
+    jobRef.setJobId("jobId");
+    jobRef.setProjectId("projectId");
+    testJob.setJobReference(jobRef);
 
     // First response is 403 rate limited, second response has valid payload.
     when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
@@ -163,19 +177,18 @@ public class BigQueryServicesImplTest {
     Sleeper sleeper = new FastNanoClockAndSleeper();
     BackOff backoff = new AttemptBoundedExponentialBackOff(
         5 /* attempts */, 1000 /* initialIntervalMillis */);
-    BigQueryServicesImpl.LoadServiceImpl loadService =
-        new BigQueryServicesImpl.LoadServiceImpl(bigquery);
-    loadService.startLoadJob("jobId", loadConfig, sleeper, backoff);
+    JobServiceImpl.startJob(testJob, new ApiErrorExtractor(), bigquery, sleeper, backoff);
+
     verify(response, times(2)).getStatusCode();
     verify(response, times(2)).getContent();
     verify(response, times(2)).getContentType();
   }
 
   /**
-   * Tests that {@link BigQueryServicesImpl.LoadServiceImpl#pollJobStatus} succeeds.
+   * Tests that {@link BigQueryServicesImpl.JobServiceImpl#pollJob} succeeds.
    */
   @Test
-  public void testPollJobStatusSucceeds() throws IOException, InterruptedException {
+  public void testPollJobSucceeds() throws IOException, InterruptedException {
     Job testJob = new Job();
     testJob.setStatus(new JobStatus().setState("DONE"));
 
@@ -183,22 +196,22 @@ public class BigQueryServicesImplTest {
     when(response.getStatusCode()).thenReturn(200);
     when(response.getContent()).thenReturn(toStream(testJob));
 
-    BigQueryServicesImpl.LoadServiceImpl loadService =
-        new BigQueryServicesImpl.LoadServiceImpl(bigquery);
-    BigQueryServices.Status status =
-        loadService.pollJobStatus("projectId", "jobId", Sleeper.DEFAULT, BackOff.ZERO_BACKOFF);
+    BigQueryServicesImpl.JobServiceImpl jobService =
+        new BigQueryServicesImpl.JobServiceImpl(bigquery);
+    Job job =
+        jobService.pollJob("projectId", "jobId", Sleeper.DEFAULT, BackOff.ZERO_BACKOFF);
 
-    assertEquals(BigQueryServices.Status.SUCCEEDED, status);
+    assertEquals(testJob, job);
     verify(response, times(1)).getStatusCode();
     verify(response, times(1)).getContent();
     verify(response, times(1)).getContentType();
   }
 
   /**
-   * Tests that {@link BigQueryServicesImpl.LoadServiceImpl#pollJobStatus} fails.
+   * Tests that {@link BigQueryServicesImpl.JobServiceImpl#pollJob} fails.
    */
   @Test
-  public void testPollJobStatusFailed() throws IOException, InterruptedException {
+  public void testPollJobFailed() throws IOException, InterruptedException {
     Job testJob = new Job();
     testJob.setStatus(new JobStatus().setState("DONE").setErrorResult(new ErrorProto()));
 
@@ -206,22 +219,22 @@ public class BigQueryServicesImplTest {
     when(response.getStatusCode()).thenReturn(200);
     when(response.getContent()).thenReturn(toStream(testJob));
 
-    BigQueryServicesImpl.LoadServiceImpl loadService =
-        new BigQueryServicesImpl.LoadServiceImpl(bigquery);
-    BigQueryServices.Status status =
-        loadService.pollJobStatus("projectId", "jobId", Sleeper.DEFAULT, BackOff.ZERO_BACKOFF);
+    BigQueryServicesImpl.JobServiceImpl jobService =
+        new BigQueryServicesImpl.JobServiceImpl(bigquery);
+    Job job =
+        jobService.pollJob("projectId", "jobId", Sleeper.DEFAULT, BackOff.ZERO_BACKOFF);
 
-    assertEquals(BigQueryServices.Status.FAILED, status);
+    assertEquals(testJob, job);
     verify(response, times(1)).getStatusCode();
     verify(response, times(1)).getContent();
     verify(response, times(1)).getContentType();
   }
 
   /**
-   * Tests that {@link BigQueryServicesImpl.LoadServiceImpl#pollJobStatus} returns UNKNOWN.
+   * Tests that {@link BigQueryServicesImpl.JobServiceImpl#pollJob} returns UNKNOWN.
    */
   @Test
-  public void testPollJobStatusUnknown() throws IOException, InterruptedException {
+  public void testPollJobUnknown() throws IOException, InterruptedException {
     Job testJob = new Job();
     testJob.setStatus(new JobStatus());
 
@@ -229,12 +242,12 @@ public class BigQueryServicesImplTest {
     when(response.getStatusCode()).thenReturn(200);
     when(response.getContent()).thenReturn(toStream(testJob));
 
-    BigQueryServicesImpl.LoadServiceImpl loadService =
-        new BigQueryServicesImpl.LoadServiceImpl(bigquery);
-    BigQueryServices.Status status =
-        loadService.pollJobStatus("projectId", "jobId", Sleeper.DEFAULT, BackOff.STOP_BACKOFF);
+    BigQueryServicesImpl.JobServiceImpl jobService =
+        new BigQueryServicesImpl.JobServiceImpl(bigquery);
+    Job job =
+        jobService.pollJob("projectId", "jobId", Sleeper.DEFAULT, BackOff.STOP_BACKOFF);
 
-    assertEquals(BigQueryServices.Status.UNKNOWN, status);
+    assertEquals(null, job);
     verify(response, times(1)).getStatusCode();
     verify(response, times(1)).getContent();
     verify(response, times(1)).getContentType();
