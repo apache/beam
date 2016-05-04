@@ -230,8 +230,21 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
    */
   public abstract static class OffsetBasedReader<T> extends BoundedReader<T> {
     private static final Logger LOG = LoggerFactory.getLogger(OffsetBasedReader.class);
-
     private OffsetBasedSource<T> source;
+
+    /**
+     * Returns true if the last call to {@link #start} or {@link #advance} returned false.
+     */
+    public final boolean isDone() {
+      return rangeTracker.isDone();
+    }
+
+    /**
+     * Returns true if there has been a call to {@link #start}.
+     */
+    public final boolean isStarted() {
+      return rangeTracker.isStarted();
+    }
 
     /** The {@link OffsetRangeTracker} managing the range and current position of the source. */
     private final OffsetRangeTracker rangeTracker;
@@ -266,12 +279,14 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
 
     @Override
     public final boolean start() throws IOException {
-      return startImpl() && rangeTracker.tryReturnRecordAt(isAtSplitPoint(), getCurrentOffset());
+      return startImpl() && rangeTracker.tryReturnRecordAt(isAtSplitPoint(), getCurrentOffset())
+          || rangeTracker.markDone();
     }
 
     @Override
     public final boolean advance() throws IOException {
-      return advanceImpl() && rangeTracker.tryReturnRecordAt(isAtSplitPoint(), getCurrentOffset());
+      return advanceImpl() && rangeTracker.tryReturnRecordAt(isAtSplitPoint(), getCurrentOffset())
+          || rangeTracker.markDone();
     }
 
     /**
@@ -312,6 +327,30 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
     @Override
     public Double getFractionConsumed() {
       return rangeTracker.getFractionConsumed();
+    }
+
+    @Override
+    public long getParallelismConsumed() {
+      return rangeTracker.getSplitPointsProcessed();
+    }
+
+    @Override
+    public long getParallelismRemaining() {
+      if (isDone()) {
+        return 0;
+      }
+      if (!isStarted()) {
+        // Note that even if the current source does not allow splitting, we don't know that
+        // it's non-empty so we return UNKNOWN instead of 1.
+        return BoundedReader.PARALLELISM_UNKNOWN;
+      }
+      if (!getCurrentSource().allowsDynamicSplitting()) {
+        return 1;
+      }
+      if (getCurrentOffset() + 1 >= rangeTracker.getStopPosition()) {
+        return 1;
+      }
+      return super.getParallelismRemaining();
     }
 
     @Override

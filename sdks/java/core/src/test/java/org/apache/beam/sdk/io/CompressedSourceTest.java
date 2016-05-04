@@ -462,11 +462,12 @@ public class CompressedSourceTest {
     private static class ByteReader extends FileBasedReader<Byte> {
       ByteBuffer buff = ByteBuffer.allocate(1);
       Byte current;
-      long offset = -1;
+      long offset;
       ReadableByteChannel channel;
 
       public ByteReader(ByteSource source) {
         super(source);
+        offset = source.getStartOffset() - 1;
       }
 
       @Override

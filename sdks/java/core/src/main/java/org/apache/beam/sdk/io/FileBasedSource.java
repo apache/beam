@@ -489,7 +489,7 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
     }
 
     @Override
-    public FileBasedSource<T> getCurrentSource() {
+    public synchronized FileBasedSource<T> getCurrentSource() {
       return (FileBasedSource<T>) super.getCurrentSource();
     }
 

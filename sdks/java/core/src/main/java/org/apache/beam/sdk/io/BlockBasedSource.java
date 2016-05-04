@@ -211,10 +211,6 @@ public abstract class BlockBasedSource<T> extends FileBasedSource<T> {
         return null;
       }
       Block<T> currentBlock = getCurrentBlock();
-      if (currentBlock == null) {
-        // There is no current block (i.e., the read has not yet begun).
-        return 0.0;
-      }
       long currentBlockOffset = getCurrentBlockOffset();
       long startOffset = getCurrentSource().getStartOffset();
       long endOffset = getCurrentSource().getEndOffset();
@@ -223,11 +219,11 @@ public abstract class BlockBasedSource<T> extends FileBasedSource<T> {
       double fractionAtBlockEnd =
           ((double) (currentBlockOffset + getCurrentBlockSize() - startOffset)
               / (endOffset - startOffset));
+      double blockFraction = (currentBlock == null)
+          ? 0.0 : currentBlock.getFractionOfBlockConsumed();
       return Math.min(
           1.0,
-          fractionAtBlockStart
-          + currentBlock.getFractionOfBlockConsumed()
-            * (fractionAtBlockEnd - fractionAtBlockStart));
+          fractionAtBlockStart + blockFraction * (fractionAtBlockEnd - fractionAtBlockStart));
     }
 
     @Override

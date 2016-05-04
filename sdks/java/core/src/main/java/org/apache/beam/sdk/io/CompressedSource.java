@@ -361,7 +361,9 @@ public class CompressedSource<T> extends FileBasedSource<T> {
 
     private final FileBasedReader<T> readerDelegate;
     private final CompressedSource<T> source;
+    private final boolean splittable;
     private int numRecordsRead;
+    private volatile boolean done = false;
 
     /**
      * Create a {@code CompressedReader} from a {@code CompressedSource} and delegate reader.
@@ -369,6 +371,13 @@ public class CompressedSource<T> extends FileBasedSource<T> {
     public CompressedReader(CompressedSource<T> source, FileBasedReader<T> readerDelegate) {
       super(source);
       this.source = source;
+      boolean splittable;
+      try {
+        splittable = source.isSplittable();
+      } catch (Exception e) {
+        throw new RuntimeException("Unable to tell whether source " + source + " is splittable", e);
+      }
+      this.splittable = splittable;
       this.readerDelegate = readerDelegate;
     }
 
@@ -380,11 +389,32 @@ public class CompressedSource<T> extends FileBasedSource<T> {
       return readerDelegate.getCurrent();
     }
 
+    @Override
+    public final long getParallelismConsumed() {
+      if (splittable) {
+        return readerDelegate.getParallelismConsumed();
+      }
+
+      return done ? 1 : 0;
+    }
+
+    @Override
+    public final long getParallelismRemaining() {
+      if (splittable) {
+        return readerDelegate.getParallelismRemaining();
+      }
+
+      return done ? 0 : 1;
+    }
+
     /**
      * Returns true only for the first record; compressed sources cannot be split.
      */
     @Override
     protected final boolean isAtSplitPoint() {
+      if (splittable) {
+        return readerDelegate.isAtSplitPoint();
+      }
       // We have to return true for the first record, but not for the state before reading it,
       // and not for the state after reading any other record. Hence == rather than >= or <=.
       // This is required because FileBasedReader is intended for readers that can read a range
@@ -418,6 +448,7 @@ public class CompressedSource<T> extends FileBasedSource<T> {
     @Override
     protected final boolean readNextRecord() throws IOException {
       if (!readerDelegate.readNextRecord()) {
+        done = true;
         return false;
       }
       ++numRecordsRead;
@@ -429,7 +460,10 @@ public class CompressedSource<T> extends FileBasedSource<T> {
      */
     @Override
     protected final long getCurrentOffset() {
-      return readerDelegate.getCurrentOffset();
+      if (splittable) {
+        return readerDelegate.getCurrentOffset();
+      }
+      return source.getStartOffset();
     }
   }
 }

@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.io;
 
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.io.range.OffsetRangeTracker;
+import org.apache.beam.sdk.io.range.RangeTracker;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 
@@ -82,14 +84,14 @@ public abstract class BoundedSource<T> extends Source<T> {
    *
    * <h3>Thread safety</h3>
    * All methods will be run from the same thread except {@link #splitAtFraction},
-   * {@link #getFractionConsumed} and {@link #getCurrentSource}, which can be called concurrently
+   * {@link #getFractionConsumed}, {@link #getCurrentSource}, {@link #getParallelismConsumed()},
+   * and {@link #getParallelismRemaining()}, all of which can be called concurrently
    * from a different thread. There will not be multiple concurrent calls to
-   * {@link #splitAtFraction} but there can be for {@link #getFractionConsumed} if
-   * {@link #splitAtFraction} is implemented.
+   * {@link #splitAtFraction}.
    *
-   * <p>If the source does not implement {@link #splitAtFraction}, you do not need to worry about
-   * thread safety. If implemented, it must be safe to call {@link #splitAtFraction} and
-   * {@link #getFractionConsumed} concurrently with other methods.
+   * <p>It must be safe to call {@link #splitAtFraction}, {@link #getFractionConsumed},
+   * {@link #getCurrentSource}, {@link #getParallelismConsumed()}, and
+   * {@link #getParallelismRemaining()} concurrently with other methods.
    *
    * <p>Additionally, a successful {@link #splitAtFraction} call must, by definition, cause
    * {@link #getCurrentSource} to start returning a different value.
@@ -131,6 +133,106 @@ public abstract class BoundedSource<T> extends Source<T> {
      */
     public Double getFractionConsumed() {
       return null;
+    }
+
+    /**
+     * A constant to use as the return value for {@link #getParallelismConsumed()} or
+     * {@link #getParallelismRemaining()} when the exact value is unknown.
+     */
+    public static final long PARALLELISM_UNKNOWN = -1;
+
+    /**
+     * Returns the total amount of parallelism in the consumed (returned and processed) range of
+     * this reader's current {@link BoundedSource} (as would be returned by
+     * {@link #getCurrentSource}). This corresponds to all split point records (see
+     * {@link RangeTracker}) returned by this reader, <em>excluding</em> the current record.
+     *
+     * <p>Consider the following two examples. An input that can be read in parallel down to the
+     * individual records, such as {@link CountingSource#upTo}, is called "perfectly splittable".
+     * Conversely, an example of a non-perfectly splittable input is a block-compressed file format
+     * such as {@link AvroIO}, in which a block of records has to be read as a whole, but different
+     * blocks can be read in parallel.
+     *
+     * <ul>
+     * <li>Any {@link BoundedReader reader} that is unstarted (aka, has never had a call to
+     * {@link #start}) has a consumed parallelism of 0.
+     * <li>Any {@link BoundedReader reader} that has only returned its first element (aka,
+     * has never had a call to {@link #advance}) has a consumed parallelism of 0: the first element
+     * is the current element and is still being processed.
+     * <li>When processing record #30 (starting at 1) out of 50 in a perfectly splittable 50-record
+     * input, this value should be 29.
+     * <li>In a block-compressed value consisting of 5 blocks, the value should stay at 0 until the
+     * first record of the second block is returned; stay at 1 until the first record of the third
+     * block is returned, etc. Once the end-of-file is reached then the fifth block has been
+     * consumed and the value should stay at 5.
+     * <li>For an empty reader (in which the call to {@link #start} returned false), the
+     * consumed parallelism is 0.
+     * <li>For a non-empty, finished reader (in which the call to {@link #start} returned true and
+     * a call to {@link #advance} has returned false), the value returned must be at least 1
+     * and should equal the total parallelism in the source. For the two examples above, the
+     * 50-record file should have a consumed parallelism of 50 and the 5-block file should have
+     * a consumed parallelism of 5.
+     * </ul>
+     *
+     * <p>A reader that is implemented using a {@link RangeTracker} is encouraged to use the
+     * range tracker's ability to count split points to implement this method. See
+     * {@link OffsetBasedSource.OffsetBasedReader} and {@link OffsetRangeTracker} for an example.
+     *
+     * <p>Defaults to {@link #PARALLELISM_UNKNOWN}. Any value less than 0 will be interpreted
+     * as unknown.
+     *
+     * <h3>Thread safety</h3>
+     * See the javadoc on {@link BoundedReader} for information about thread safety.
+     *
+     * @see #getParallelismRemaining()
+     */
+    public long getParallelismConsumed() {
+      return PARALLELISM_UNKNOWN;
+    }
+
+    /**
+     * Returns the total amount of parallelism in the unprocessed part of this reader's current
+     * {@link BoundedSource} (as would be returned by {@link #getCurrentSource}). This corresponds
+     * to all unprocessed split point records (see {@link RangeTracker}), including the current
+     * record, in the remainder part of the source.
+     *
+     * <p>This function should be implemented only <strong>in addition to
+     * {@link #getParallelismConsumed()}</strong> and only if <em>an exact value can be
+     * returned</em>.
+     *
+     * <p>Consider the following two examples. An input that can be read in parallel down to the
+     * individual records, such as {@link CountingSource#upTo}, is called "perfectly splittable".
+     * Conversely, an example of a non-perfectly splittable input is a block-compressed file format
+     * such as {@link AvroIO}, in which a block of records has to be read as a whole, but different
+     * blocks can be read in parallel.
+     *
+     * <ul>
+     * <li>Any {@link BoundedReader reader} for which the last call to {@link #start} or
+     * {@link #advance} has returned true should return a value of at least 1 to indicate the source
+     * that it is currently reading.
+     * <li>A finished reader for which {@link #start} or {@link #advance} has returned false
+     * should return a value of 0.
+     * <li>For any source that cannot be split in general, the reader should return 1.
+     * <li>When processing record #30 (starting at 1) out of 50 in a perfectly splittable 50-record
+     * input, this value should be 21 (20 remaining + 1 current).
+     * <li>If we are reading through block 3 in a block-compressed file consisting of 5 blocks,
+     * this value should be 3 (since blocks 4 and 5 can be processed in parallel by new readers
+     * produced via dynamic work rebalancing, while the current reader remains processing block 3).
+     * <li>If we are reading through the last block in a block-compressed file, or reading or
+     * processing the last record in a perfectly splittable input, this value should be 1: apart
+     * from the current task, no additional remainder can be split off.
+     * </ul>
+     *
+     * <p>Defaults to {@link #PARALLELISM_UNKNOWN}. Any value less than 0 will be interpreted as
+     * unknown.
+     *
+     * <h3>Thread safety</h3>
+     * See the javadoc on {@link BoundedReader} for information about thread safety.
+     *
+     * @see #getParallelismConsumed()
+     */
+    public long getParallelismRemaining() {
+      return PARALLELISM_UNKNOWN;
     }
 
     /**
