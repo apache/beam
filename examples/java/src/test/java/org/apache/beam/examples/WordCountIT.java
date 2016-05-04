@@ -29,6 +29,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.util.Date;
+
 /**
  * End-to-end tests of WordCount.
  */
@@ -38,8 +40,7 @@ public class WordCountIT {
   /**
    * Options for the WordCount Integration Test.
    */
-  public static interface WordCountITOptions extends TestPipelineOptions,
-         WordCountOptions, DataflowPipelineOptions {
+  public interface WordCountITOptions extends TestPipelineOptions, WordCountOptions {
   }
 
   @Test
@@ -47,7 +48,7 @@ public class WordCountIT {
     PipelineOptionsFactory.register(WordCountITOptions.class);
     WordCountITOptions options = TestPipeline.testingPipelineOptions().as(WordCountITOptions.class);
     options.setOutput(Joiner.on("/").join(new String[]{options.getTempRoot(),
-        options.getJobName(), "output", "results"}));
+        String.format("WordCountIT-%tF-%<tH-%<tM-%<tS", new Date()), "output", "results"}));
 
     WordCount.main(TestPipeline.convertToArgs(options));
   }

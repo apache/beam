@@ -17,26 +17,25 @@
  */
 package org.apache.beam.sdk.testing;
 
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import org.hamcrest.Matcher;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonSerializer;
+import com.fasterxml.jackson.databind.SerializerProvider;
+
+import org.apache.beam.sdk.util.SerializableUtils;
 
 import java.io.IOException;
-import java.io.Serializable;
 
 /**
- * A {@link Matcher} that is also {@link Serializable}.
- *
- * <p>Such matchers can be used with {@link PAssert}, which builds Dataflow pipelines
- * such that these matchers may be serialized and executed remotely.
- *
- * <p>To create a {@code SerializableMatcher}, extend {@link org.hamcrest.BaseMatcher}
- * and also implement this interface.
- *
- * @param <T> The type of value matched.
+ * MatcherSerializer is used with Jackson to enable serialization of SerializableMatchers.
  */
-@JsonSerialize(using = MatcherSerializer.class)
-@JsonDeserialize(using = MatcherDeserializer.class)
-public interface SerializableMatcher<T> extends Matcher<T>, Serializable {
+class MatcherSerializer extends JsonSerializer<SerializableMatcher<?>> {
+  @Override
+  public void serialize(SerializableMatcher<?> matcher, JsonGenerator jsonGenerator,
+      SerializerProvider serializerProvider) throws IOException, JsonProcessingException {
+    byte[] out = SerializableUtils.serializeToByteArray(matcher);
+    jsonGenerator.writeStartObject();
+    jsonGenerator.writeBinaryField("matcher", out);
+    jsonGenerator.writeEndObject();
+  }
 }
-
