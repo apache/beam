@@ -140,9 +140,22 @@ public abstract class FileBasedSink<T> extends Sink<T> {
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
 
+    IOChannelFactory factory;
+    try {
+      factory = IOChannelUtils.getFactory(baseOutputFilename);
+    } catch (IOException e) {
+      throw new IllegalStateException(
+          String.format("Unrecognized file name format: %s", baseOutputFilename), e);
+    }
+
+    // Append wildcard to browseUrl input since this is a filename prefix
+    String browseUrl = factory.getBrowseUrl(baseOutputFilename + "*");
+
     String fileNamePattern = String.format("%s%s%s",
         baseOutputFilename, fileNamingTemplate, getFileExtension(extension));
-    builder.add(DisplayData.item("fileNamePattern", fileNamePattern));
+
+    builder.add(DisplayData.item("fileNamePattern", fileNamePattern)
+      .withLinkUrl(browseUrl));
   }
 
   /**

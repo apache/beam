@@ -17,6 +17,12 @@
  */
 package org.apache.beam.sdk.io;
 
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasLinkUrl;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
+
+import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -26,9 +32,14 @@ import static org.junit.Assert.assertTrue;
 import org.apache.beam.sdk.io.FileBasedSink.FileBasedWriteOperation;
 import org.apache.beam.sdk.io.FileBasedSink.FileBasedWriteOperation.TemporaryFileRetention;
 import org.apache.beam.sdk.io.FileBasedSink.FileResult;
+import org.apache.beam.sdk.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.IOChannelUtils;
+import org.apache.beam.sdk.util.gcsfs.GcsPath;
 
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -68,6 +79,11 @@ public class FileBasedSinkTest {
 
   private String getBaseTempFilename() {
     return appendToTempFolder(baseTemporaryFilename);
+  }
+
+  @BeforeClass
+  public static void setUpClass() {
+    IOChannelUtils.registerStandardIOFactories(PipelineOptionsFactory.as(GcsOptions.class));
   }
 
   /**
@@ -395,6 +411,16 @@ public class FileBasedSinkTest {
     expected = new ArrayList<>();
     actual = writeOp.generateDestinationFilenames(0);
     assertEquals(expected, actual);
+  }
+
+  @Test
+  public void testDisplayData() {
+    FileBasedSink<?> sink = new SimpleSink("gs://bucket/foo/", "xml", "bar-NNN");
+    assertThat(DisplayData.from(sink), hasDisplayItem(allOf(
+        hasKey("fileNamePattern"),
+        hasValue("gs://bucket/foo/bar-NNN.xml"),
+        hasLinkUrl(GcsPath.fromUri("gs://bucket/foo/").getBrowseUrl())
+    )));
   }
 
   /**
