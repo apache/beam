@@ -522,6 +522,9 @@ class Sink(object):
   single record from the bundle and ``close()`` which is called once
   at the end of writing a bundle.
 
+  See also ``df.io.fileio.FileSink`` which provides a simpler API for writing
+  sinks that produce files.
+
   **Execution of the Write transform**
 
   ``initialize_write()`` and ``finalize_write()`` are conceptually called once:

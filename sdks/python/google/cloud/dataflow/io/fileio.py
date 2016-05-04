@@ -286,32 +286,54 @@ class FileSink(iobase.Sink):
   """A sink to a GCS or local files.
 
   To implement a file-based sink, extend this class and override
-  the open_file_writer method for writing a single shard.
+  either ``write_record()`` or ``write_encoded_record()``.
+
+  If needed, also overwrite ``open()`` and/or ``close()`` to customize the
+  file handling or write headers and footers.
 
   The output of this write is a PCollection of all written shards.
   """
-  mime_type = 'application/octet-stream'
 
-  def __init__(self, file_path_prefix, coder, file_name_suffix=''):
+  def __init__(self,
+               file_path_prefix,
+               coder,
+               file_name_suffix='',
+               mime_type='application/octet-stream'):
     self.file_path_prefix = file_path_prefix
     self.file_name_suffix = file_name_suffix
     self.coder = coder
+    self.mime_type = mime_type
 
   def open(self, temp_path):
+    """Opens ``temp_path``, returning an opaque file handle object.
+
+    The returned file handle is passed to ``write_[encoded_]record`` and
+    ``close``.
+    """
     return ChannelFactory.open(temp_path, 'wb', self.mime_type)
 
   def write_record(self, file_handle, value):
+    """Writes a single record go the file handle returned by ``open()``.
+
+    By default, calls ``write_encoded_record`` after encoding the record with
+    this sink's Coder.
+    """
     self.write_encoded_record(file_handle, self.coder.encode(value))
 
   def write_encoded_record(self, file_handle, encoded_value):
+    """Writes a single encoded record to the file handle returned by ``open()``.
+    """
     raise NotImplementedError
 
   def close(self, file_handle):
-    if file_handle:
-      file_handle.close()
+    """Finalize and close the file handle returned from ``open()``.
 
-  def open_file_writer(self, temp_path):
-    return FileSinkWriter(self, temp_path)
+    Called after all records are written.
+
+    By default, calls ``file_handle.close()`` iff it is not None.
+    """
+    if file_handle is not None:
+      file_handle.close()
 
   def initialize_write(self):
     tmp_dir = self.file_path_prefix + self.file_name_suffix + time.strftime(
@@ -320,7 +342,7 @@ class FileSink(iobase.Sink):
     return tmp_dir
 
   def open_writer(self, init_result, uid):
-    return self.open_file_writer(os.path.join(init_result, uid))
+    return FileSinkWriter(self, os.path.join(init_result, uid))
 
   def finalize_write(self, init_result, writer_results):
     writer_results = sorted(writer_results)
@@ -351,7 +373,7 @@ class FileSink(iobase.Sink):
 
 
 class FileSinkWriter(iobase.Writer):
-  """A generic writer for FileSink.
+  """The writer for FileSink.
   """
 
   def __init__(self, sink, temp_shard_path):
@@ -369,7 +391,6 @@ class FileSinkWriter(iobase.Writer):
 
 class PureTextFileSink(FileSink):
   """A sink to a GCS or local text file or files."""
-  mime_type = 'text/plain'
 
   def __init__(self,
                file_path_prefix,
@@ -378,7 +399,8 @@ class PureTextFileSink(FileSink):
                append_trailing_newlines=True):
     super(PureTextFileSink, self).__init__(file_path_prefix,
                                            file_name_suffix=file_name_suffix,
-                                           coder=coder)
+                                           coder=coder,
+                                           mime_type='text/plain')
     self.append_trailing_newlines = append_trailing_newlines
 
   def write_encoded_record(self, file_handle, encoded_value):
