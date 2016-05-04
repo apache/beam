@@ -132,19 +132,79 @@
 
   <modules>
     <module>sdks</module>
-    <!-- Expose Dataflow runner as top level module to satisfy dependencies
-         in sdks/java/maven-archetypes and examples/java. Until these are
-         refactored out, we need to modify the build order. -->
+    <!-- Expose Dataflow runner as top level module to satisfy dependencies in sdks/java/maven-archetypes 
+      and examples/java. Until these are refactored out, we need to modify the build order. -->
     <module>runners/google-cloud-dataflow-java</module>
     <module>runners</module>
-    <!-- sdks/java/maven-archetypes has several dependencies on the
-         DataflowPipelineRunner. Until these are refactored out or
-         a released artifact exists, we need to modify the build order. -->
+    <!-- sdks/java/maven-archetypes has several dependencies on the DataflowPipelineRunner. 
+      Until these are refactored out or a released artifact exists, we need to modify the 
+      build order. -->
     <module>sdks/java/maven-archetypes</module>
     <module>examples</module>
   </modules>
 
   <profiles>
+
+    <!-- A global profile defined for all modules for release-level verification. 
+      Slow processes such as building source, javadoc, and test jars should be limited 
+      to this profile. -->
+    <profile>
+      <id>release</id>
+      <build>
+        <pluginManagement>
+          <plugins>
+            <plugin>
+              <groupId>org.apache.maven.plugins</groupId>
+              <artifactId>maven-javadoc-plugin</artifactId>
+              <executions>
+                <execution>
+                  <id>javadoc</id>
+                  <phase>package</phase>
+                  <goals>
+                    <goal>jar</goal>
+                  </goals>
+                </execution>
+              </executions>
+            </plugin>
+
+            <plugin>
+              <groupId>org.apache.maven.plugins</groupId>
+              <artifactId>maven-source-plugin</artifactId>
+              <executions>
+                <execution>
+                  <id>attach-sources</id>
+                  <phase>package</phase>
+                  <goals>
+                    <goal>jar-no-fork</goal>
+                  </goals>
+                </execution>
+                <execution>
+                  <id>attach-test-sources</id>
+                  <phase>package</phase>
+                  <goals>
+                    <goal>test-jar-no-fork</goal>
+                  </goals>
+                </execution>
+              </executions>
+            </plugin>
+
+            <plugin>
+              <groupId>org.apache.maven.plugins</groupId>
+              <artifactId>maven-jar-plugin</artifactId>
+              <executions>
+                <execution>
+                  <id>default-test-jar</id>
+                  <goals>
+                    <goal>test-jar</goal>
+                  </goals>
+                </execution>
+              </executions>
+            </plugin>
+          </plugins>
+        </pluginManagement>
+      </build>
+    </profile>
+
     <profile>
       <id>doclint-java8-disable</id>
       <activation>
@@ -154,6 +214,7 @@
         <dataflow.javadoc_opts>-Xdoclint:-missing</dataflow.javadoc_opts>
       </properties>
     </profile>
+
     <profile>
       <id>src</id>
       <activation>
@@ -329,8 +390,8 @@
         <artifactId>google-api-services-storage</artifactId>
         <version>${storage.version}</version>
         <exclusions>
-          <!-- Exclude an old version of guava that is being pulled
-               in by a transitive dependency of google-api-client -->
+          <!-- Exclude an old version of guava that is being pulled in by a transitive 
+            dependency of google-api-client -->
           <exclusion>
             <groupId>com.google.guava</groupId>
             <artifactId>guava-jdk5</artifactId>
@@ -343,8 +404,8 @@
         <artifactId>google-api-services-datastore-protobuf</artifactId>
         <version>${datastore.version}</version>
         <exclusions>
-          <!-- Exclude an old version of guava that is being pulled
-               in by a transitive dependency of google-api-client -->
+          <!-- Exclude an old version of guava that is being pulled in by a transitive 
+            dependency of google-api-client -->
           <exclusion>
             <groupId>com.google.guava</groupId>
             <artifactId>guava-jdk5</artifactId>
@@ -407,8 +468,8 @@
         <artifactId>google-api-services-dataflow</artifactId>
         <version>${dataflow.version}</version>
         <exclusions>
-          <!-- Exclude an old version of guava that is being pulled
-               in by a transitive dependency of google-api-client -->
+          <!-- Exclude an old version of guava that is being pulled in by a transitive 
+            dependency of google-api-client -->
           <exclusion>
             <groupId>com.google.guava</groupId>
             <artifactId>guava-jdk5</artifactId>
@@ -421,8 +482,8 @@
         <artifactId>google-api-services-clouddebugger</artifactId>
         <version>${clouddebugger.version}</version>
         <exclusions>
-          <!-- Exclude an old version of guava that is being pulled
-               in by a transitive dependency of google-api-client -->
+          <!-- Exclude an old version of guava that is being pulled in by a transitive 
+            dependency of google-api-client -->
           <exclusion>
             <groupId>com.google.guava</groupId>
             <artifactId>guava-jdk5</artifactId>
@@ -490,6 +551,7 @@
         <type>test-jar</type>
         <scope>test</scope>
       </dependency>
+
       <dependency>
         <groupId>org.apache.beam</groupId>
         <artifactId>java-sdk-all</artifactId>
@@ -599,7 +661,7 @@
               <arg>-Xlint:-try</arg>
               <arg>-Xlint:-unchecked</arg>
               <arg>-Xlint:-varargs</arg>
-              <!-- Uncomment the following args to display more warnings.  -->
+              <!-- Uncomment the following args to display more warnings. -->
               <!-- -Xmaxwarns -->
               <!-- 10000 -->
             </compilerArgs>
@@ -620,12 +682,6 @@
                 <goal>jar</goal>
               </goals>
             </execution>
-            <execution>
-              <id>default-test-jar</id>
-              <goals>
-                <goal>test-jar</goal>
-              </goals>
-            </execution>
           </executions>
         </plugin>
 
@@ -633,37 +689,12 @@
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-source-plugin</artifactId>
           <version>2.4</version>
-          <executions>
-            <execution>
-              <id>attach-sources</id>
-              <phase>package</phase>
-              <goals>
-                <goal>jar-no-fork</goal>
-              </goals>
-            </execution>
-            <execution>
-              <id>attach-test-sources</id>
-              <phase>package</phase>
-              <goals>
-                <goal>test-jar-no-fork</goal>
-              </goals>
-            </execution>
-          </executions>
         </plugin>
 
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-javadoc-plugin</artifactId>
           <version>2.10.3</version>
-          <executions>
-            <execution>
-              <id>javadoc</id>
-              <phase>package</phase>
-              <goals>
-                <goal>jar</goal>
-              </goals>
-            </execution>
-          </executions>
         </plugin>
 
         <plugin>
@@ -717,11 +748,11 @@
               </goals>
             </execution>
           </executions>
-        <configuration>
-          <excludes>
-            <exclude>**/AutoValue_*.class</exclude>
-          </excludes>
-        </configuration>
+          <configuration>
+            <excludes>
+              <exclude>**/AutoValue_*.class</exclude>
+            </excludes>
+          </configuration>
         </plugin>
 
         <!-- Report jacoco coverage to coveralls.io -->
@@ -755,8 +786,8 @@
           <version>2.19.1</version>
         </plugin>
 
-        <!-- This plugin's configuration tells the m2e plugin how to import this
-             Maven project into the Eclipse environment. -->
+        <!-- This plugin's configuration tells the m2e plugin how to import this 
+          Maven project into the Eclipse environment. -->
         <plugin>
           <groupId>org.eclipse.m2e</groupId>
           <artifactId>lifecycle-mapping</artifactId>
@@ -790,7 +821,7 @@
                     </goals>
                   </pluginExecutionFilter>
                   <action>
-                    <ignore/>
+                    <ignore />
                   </action>
                 </pluginExecution>
                 <pluginExecution>
@@ -804,7 +835,7 @@
                     </goals>
                   </pluginExecutionFilter>
                   <action>
-                    <ignore/>
+                    <ignore />
                   </action>
                 </pluginExecution>
               </pluginExecutions>
