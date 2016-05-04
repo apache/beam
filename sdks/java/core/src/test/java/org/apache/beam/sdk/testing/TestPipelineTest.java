@@ -139,6 +139,9 @@ public class TestPipelineTest {
     assertEquals(m2, newOpts.getOnSuccessMatcher());
   }
 
+  /**
+   * TestMatcher is a matcher designed for testing matcher serialization/deserialization.
+   */
   public static class TestMatcher extends BaseMatcher<PipelineResult>
       implements SerializableMatcher<PipelineResult> {
     final UUID uuid = UUID.randomUUID();
