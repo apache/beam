@@ -154,6 +154,58 @@ public class BasicOperatorTest {
   }
 
   @Test
+  public void testWordCountByCountNonAggregating() throws Exception {
+    final InMemFileSystem inmemfs = InMemFileSystem.get();
+
+    inmemfs.reset()
+        .setFile("/tmp/foo.txt", asList(
+            "one two three four four two two",
+            "one one one two two three four four four four four"));
+
+    Settings settings = new Settings();
+    settings.setClass("euphoria.io.datasource.factory.inmem",
+        InMemFileSystem.SourceFactory.class);
+    settings.setClass("euphoria.io.datasink.factory.inmem",
+        InMemFileSystem.SinkFactory.class);
+
+    Flow flow = Flow.create("Test", settings);
+    Dataset<String> lines = flow.createInput(URI.create("inmem:///tmp/foo.txt"));
+
+    // expand it to words
+    Dataset<Pair<String, Long>> words = FlatMap.of(lines)
+        .by((String s, Collector<Pair<String, Long>> c) -> {
+          for (String part : s.split(" ")) {
+            c.collect(Pair.of(part, 1L));
+          }})
+        .output();
+
+    // reduce it to counts, use windowing, so the output is batch or stream
+    // depending on the type of input
+    Dataset<Pair<String, Long>> streamOutput = ReduceByKey
+        .of(words)
+        .keyBy(Pair::getFirst)
+        .valueBy(Pair::getSecond)
+        .combineBy(Sums.ofLongs())
+        .windowBy(Windowing.Count.of(3))
+        .output();
+
+    streamOutput.persist(URI.create("inmem:///tmp/output"));
+
+    executor.waitForCompletion(flow);
+
+    @SuppressWarnings("unchecked")
+    List<Pair<String, Long>> f = new ArrayList<>(inmemfs.getFile("/tmp/output/0"));
+    System.out.println(f);
+
+    assertEquals(
+        asList("four-1", "four-3", "four-3",
+               "one-1", "one-3",
+               "three-2",
+               "two-2", "two-3"),
+        sublist(f, 0, -1));
+  }
+
+  @Test
   public void testWordCountBatch() throws Exception {
     final InMemFileSystem inmemfs = InMemFileSystem.get();
 
