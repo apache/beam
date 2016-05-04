@@ -65,8 +65,7 @@ public final class ReleaseInfo extends GenericJson {
    * The version of the packaged artifact for the core Apache Beam Java SDK, or
    * {@link #UNKNOWN_VERSION_STRING} if unknown.
    *
-   * <p>
-   * This should only be unknown if the class is used outside of a built artifact.
+   * <p>This should only be unknown if the class is used outside of a built artifact.
    */
   public String getVersion() {
     return version;
@@ -76,8 +75,7 @@ public final class ReleaseInfo extends GenericJson {
    * The build time of the packaged artifact for the core Apache Beam Java SDK, or {@code null} if
    * unknown.
    *
-   * <p>
-   * This should only be {@code null} if the class is used outside of a built artifact.
+   * <p>This should only be {@code null} if the class is used outside of a built artifact.
    */
   @Nullable
   public String getBuildTimestamp() {
