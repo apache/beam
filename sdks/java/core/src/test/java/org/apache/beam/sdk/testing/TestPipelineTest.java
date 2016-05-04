@@ -21,7 +21,6 @@ import static org.hamcrest.CoreMatchers.startsWith;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.PipelineResult;
@@ -34,9 +33,7 @@ import org.apache.beam.sdk.runners.DirectPipelineRunner;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.hamcrest.BaseMatcher;
-import org.hamcrest.CustomTypeSafeMatcher;
 import org.hamcrest.Description;
-import org.hamcrest.Matcher;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;

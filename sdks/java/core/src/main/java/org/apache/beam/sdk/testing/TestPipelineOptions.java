@@ -52,6 +52,9 @@ public interface TestPipelineOptions extends PipelineOptions {
     }
   }
 
+  /**
+   * Matcher which will always pass.
+   */
   class AlwaysPassMatcher extends BaseMatcher<PipelineResult>
       implements SerializableMatcher<PipelineResult> {
     @Override

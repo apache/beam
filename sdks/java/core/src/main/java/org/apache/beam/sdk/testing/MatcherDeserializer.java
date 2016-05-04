@@ -19,13 +19,13 @@ package org.apache.beam.sdk.testing;
 
 import com.google.api.client.util.Base64;
 
+import org.apache.beam.sdk.util.SerializableUtils;
+
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-
-import org.apache.beam.sdk.util.SerializableUtils;
 
 import java.io.IOException;
 

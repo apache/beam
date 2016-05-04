@@ -21,7 +21,6 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import org.hamcrest.Matcher;
 
-import java.io.IOException;
 import java.io.Serializable;
 
 /**
