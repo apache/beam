@@ -148,7 +148,8 @@ public class BigQueryIOTest {
       }
 
       @Override
-      public Job pollJob(String projectId, String jobId, int maxAttemps) throws InterruptedException {
+      public Job pollJob(String projectId, String jobId, int maxAttemps)
+          throws InterruptedException {
         if (pollJobStatusCallsCount < pollJobStatusReturns.length) {
           Object ret = pollJobStatusReturns[pollJobStatusCallsCount++];
           if (ret instanceof Status) {

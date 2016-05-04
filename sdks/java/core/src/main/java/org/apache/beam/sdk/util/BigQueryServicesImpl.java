@@ -46,7 +46,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class BigQueryServicesImpl implements BigQueryServices {
 
-  // The maximum number of attempts to execute a load job RPC.
+  // The maximum number of attempts to execute a BigQuery RPC.
   private static final int MAX_RPC_ATTEMPTS = 10;
 
   // The initial backoff for executing a BigQuery RPC.
@@ -189,7 +189,8 @@ public class BigQueryServicesImpl implements BigQueryServices {
     }
 
     @Override
-    public Job pollJob(String projectId, String jobId, int maxAttempts) throws InterruptedException {
+    public Job pollJob(String projectId, String jobId, int maxAttempts)
+        throws InterruptedException {
       BackOff backoff = new AttemptBoundedExponentialBackOff(
           maxAttempts, INITIAL_JOB_STATUS_POLL_BACKOFF_MILLIS);
       return pollJob(projectId, jobId, Sleeper.DEFAULT, backoff);

@@ -1171,7 +1171,7 @@ public class BigQueryIO {
       private static final int MAX_RETRY_LOAD_JOBS = 3;
 
       // The maximum number of retries to poll the status of a load job.
-      // It sets to {@code Integer.MAX_VALUE} to block until the BigQuery load job finishes.
+      // It sets to {@code Integer.MAX_VALUE} to block until the BigQuery job finishes.
       private static final int MAX_JOB_STATUS_POLL_RETRIES = Integer.MAX_VALUE;
 
       private final BigQuerySink bigQuerySink;
@@ -1685,7 +1685,7 @@ public class BigQueryIO {
     UNKNOWN,
   }
 
-  private static Status parseStatus(Job job) {
+  private static Status parseStatus(@Nullable Job job) {
     if (job == null) {
       return Status.UNKNOWN;
     }
