@@ -150,14 +150,6 @@
             </offlineLink>
           </offlineLinks>
         </configuration>
-        <executions>
-          <execution>
-            <goals>
-              <goal>jar</goal>
-            </goals>
-            <phase>package</phase>
-          </execution>
-        </executions>
       </plugin>
 
       <plugin>
