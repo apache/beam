@@ -210,6 +210,11 @@ public class CountingSource {
     }
 
     @Override
+    public synchronized long getSplitPointsRemaining() {
+      return Math.max(0, getCurrentSource().getEndOffset() - current);
+    }
+
+    @Override
     public synchronized BoundedCountingSource getCurrentSource()  {
       return (BoundedCountingSource) super.getCurrentSource();
     }

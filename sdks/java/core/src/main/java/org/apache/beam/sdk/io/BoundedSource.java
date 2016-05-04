@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.io;
 
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.io.range.OffsetRangeTracker;
+import org.apache.beam.sdk.io.range.RangeTracker;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 
@@ -26,6 +28,8 @@ import org.joda.time.Instant;
 import java.io.IOException;
 import java.util.List;
 import java.util.NoSuchElementException;
+
+import javax.annotation.Nullable;
 
 /**
  * A {@link Source} that reads a finite amount of input and, because of that, supports
@@ -37,9 +41,16 @@ import java.util.NoSuchElementException;
  * <li>Size estimation: {@link #getEstimatedSizeBytes};
  * <li>Telling whether or not this source produces key/value pairs in sorted order:
  * {@link #producesSortedKeys};
- * <li>The reader ({@link BoundedReader}) supports progress estimation
- * ({@link BoundedReader#getFractionConsumed}) and dynamic splitting
- * ({@link BoundedReader#splitAtFraction}).
+ * <li>The accompanying {@link BoundedReader reader} has additional functionality to enable runners
+ * to dynamically adapt based on runtime conditions.
+ *     <ul>
+ *       <li>Progress estimation ({@link BoundedReader#getFractionConsumed})
+ *       <li>Tracking of parallelism, to determine whether the current source can be split
+ *        ({@link BoundedReader#getSplitPointsConsumed()} and
+ *        {@link BoundedReader#getSplitPointsRemaining()}).
+ *       <li>Dynamic splitting of the current source ({@link BoundedReader#splitAtFraction}).
+ *     </ul>
+ *     </li>
  * </ul>
  *
  * <p>To use this class for supporting your custom input type, derive your class
@@ -82,14 +93,14 @@ public abstract class BoundedSource<T> extends Source<T> {
    *
    * <h3>Thread safety</h3>
    * All methods will be run from the same thread except {@link #splitAtFraction},
-   * {@link #getFractionConsumed} and {@link #getCurrentSource}, which can be called concurrently
+   * {@link #getFractionConsumed}, {@link #getCurrentSource}, {@link #getSplitPointsConsumed()},
+   * and {@link #getSplitPointsRemaining()}, all of which can be called concurrently
    * from a different thread. There will not be multiple concurrent calls to
-   * {@link #splitAtFraction} but there can be for {@link #getFractionConsumed} if
-   * {@link #splitAtFraction} is implemented.
+   * {@link #splitAtFraction}.
    *
-   * <p>If the source does not implement {@link #splitAtFraction}, you do not need to worry about
-   * thread safety. If implemented, it must be safe to call {@link #splitAtFraction} and
-   * {@link #getFractionConsumed} concurrently with other methods.
+   * <p>It must be safe to call {@link #splitAtFraction}, {@link #getFractionConsumed},
+   * {@link #getCurrentSource}, {@link #getSplitPointsConsumed()}, and
+   * {@link #getSplitPointsRemaining()} concurrently with other methods.
    *
    * <p>Additionally, a successful {@link #splitAtFraction} call must, by definition, cause
    * {@link #getCurrentSource} to start returning a different value.
@@ -129,8 +140,123 @@ public abstract class BoundedSource<T> extends Source<T> {
      * methods (including itself), and it is therefore critical for it to be implemented
      * in a thread-safe way.
      */
+    @Nullable
     public Double getFractionConsumed() {
       return null;
+    }
+
+    /**
+     * A constant to use as the return value for {@link #getSplitPointsConsumed()} or
+     * {@link #getSplitPointsRemaining()} when the exact value is unknown.
+     */
+    public static final long SPLIT_POINTS_UNKNOWN = -1;
+
+    /**
+     * Returns the total amount of parallelism in the consumed (returned and processed) range of
+     * this reader's current {@link BoundedSource} (as would be returned by
+     * {@link #getCurrentSource}). This corresponds to all split point records (see
+     * {@link RangeTracker}) returned by this reader, <em>excluding</em> the last split point
+     * returned if the reader is not finished.
+     *
+     * <p>Consider the following examples: (1) An input that can be read in parallel down to the
+     * individual records, such as {@link CountingSource#upTo}, is called "perfectly splittable".
+     * (2) a "block-compressed" file format such as {@link AvroIO}, in which a block of records has
+     * to be read as a whole, but different blocks can be read in parallel. (3) An "unsplittable"
+     * input such as a cursor in a database.
+     *
+     * <ul>
+     * <li>Any {@link BoundedReader reader} that is unstarted (aka, has never had a call to
+     * {@link #start}) has a consumed parallelism of 0. This condition holds independent of whether
+     * the input is splittable.
+     * <li>Any {@link BoundedReader reader} that has only returned its first element (aka,
+     * has never had a call to {@link #advance}) has a consumed parallelism of 0: the first element
+     * is the current element and is still being processed. This condition holds independent of
+     * whether the input is splittable.
+     * <li>For an empty reader (in which the call to {@link #start} returned false), the
+     * consumed parallelism is 0. This condition holds independent of whether the input is
+     * splittable.
+     * <li>For a non-empty, finished reader (in which the call to {@link #start} returned true and
+     * a call to {@link #advance} has returned false), the value returned must be at least 1
+     * and should equal the total parallelism in the source.
+     * <li>For example (1): After returning record #30 (starting at 1) out of 50 in a perfectly
+     * splittable 50-record input, this value should be 29. When finished, the consumed parallelism
+     * should be 50.
+     * <li>For example (2): In a block-compressed value consisting of 5 blocks, the value should
+     * stay at 0 until the first record of the second block is returned; stay at 1 until the first
+     * record of the third block is returned, etc. Only once the end-of-file is reached then the
+     * fifth block has been consumed and the value should stay at 5.
+     * <li>For example (3): For any non-empty unsplittable input, the consumed parallelism is 0
+     * until the reader is finished (because the last call to {@link #advance} returned false, at
+     * which point it becomes 1.
+     * </ul>
+     *
+     * <p>A reader that is implemented using a {@link RangeTracker} is encouraged to use the
+     * range tracker's ability to count split points to implement this method. See
+     * {@link OffsetBasedSource.OffsetBasedReader} and {@link OffsetRangeTracker} for an example.
+     *
+     * <p>Defaults to {@link #SPLIT_POINTS_UNKNOWN}. Any value less than 0 will be interpreted
+     * as unknown.
+     *
+     * <h3>Thread safety</h3>
+     * See the javadoc on {@link BoundedReader} for information about thread safety.
+     *
+     * @see #getSplitPointsRemaining()
+     */
+    public long getSplitPointsConsumed() {
+      return SPLIT_POINTS_UNKNOWN;
+    }
+
+    /**
+     * Returns the total amount of parallelism in the unprocessed part of this reader's current
+     * {@link BoundedSource} (as would be returned by {@link #getCurrentSource}). This corresponds
+     * to all unprocessed split point records (see {@link RangeTracker}), including the last
+     * split point returned, in the remainder part of the source.
+     *
+     * <p>This function should be implemented only <strong>in addition to
+     * {@link #getSplitPointsConsumed()}</strong> and only if <em>an exact value can be
+     * returned</em>.
+     *
+     * <p>Consider the following examples: (1) An input that can be read in parallel down to the
+     * individual records, such as {@link CountingSource#upTo}, is called "perfectly splittable".
+     * (2) a "block-compressed" file format such as {@link AvroIO}, in which a block of records has
+     * to be read as a whole, but different blocks can be read in parallel. (3) An "unsplittable"
+     * input such as a cursor in a database.
+     *
+     * <p>Assume for examples (1) and (2) that the number of records or blocks remaining is known:
+     *
+     * <ul>
+     * <li>Any {@link BoundedReader reader} for which the last call to {@link #start} or
+     * {@link #advance} has returned true should should not return 0, because this reader itself
+     * represents parallelism at least 1. This condition holds independent of whether the input is
+     * splittable.
+     * <li>A finished reader (for which {@link #start} or {@link #advance}) has returned false
+     * should return a value of 0. This condition holds independent of whether the input is
+     * splittable.
+     * <li>For example 1: After returning record #30 (starting at 1) out of 50 in a perfectly
+     * splittable 50-record input, this value should be 21 (20 remaining + 1 current) if the total
+     * number of records is known.
+     * <li>For example 2: After returning a record in block 3 in a block-compressed file
+     * consisting of 5 blocks, this value should be 3 (since blocks 4 and 5 can be processed in
+     * parallel by new readers produced via dynamic work rebalancing, while the current reader
+     * continues processing block 3) if the total number of blocks is known.
+     * <li>For example (3): a reader for any non-empty unsplittable input, should return 1 until
+     * it is finished, at which point it should return 0.
+     * <li>For any reader: After returning the last split point in a file (e.g., the last record
+     * in example (1), the first record in the last block for example (2), or the first record in
+     * the file for example (3), this value should be 1: apart from the current task, no additional
+     * remainder can be split off.
+     * </ul>
+     *
+     * <p>Defaults to {@link #SPLIT_POINTS_UNKNOWN}. Any value less than 0 will be interpreted as
+     * unknown.
+     *
+     * <h3>Thread safety</h3>
+     * See the javadoc on {@link BoundedReader} for information about thread safety.
+     *
+     * @see #getSplitPointsConsumed()
+     */
+    public long getSplitPointsRemaining() {
+      return SPLIT_POINTS_UNKNOWN;
     }
 
     /**
@@ -263,6 +389,7 @@ public abstract class BoundedSource<T> extends Source<T> {
      *
      * <p>By default, returns null to indicate that splitting is not possible.
      */
+    @Nullable
     public BoundedSource<T> splitAtFraction(double fraction) {
       return null;
     }
