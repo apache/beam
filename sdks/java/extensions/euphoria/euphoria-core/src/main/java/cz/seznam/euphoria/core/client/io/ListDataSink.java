@@ -61,4 +61,7 @@ public class ListDataSink<T> implements DataSink<T> {
     return outputs;
   }
 
+  public List<T> getOutput(int partition) {
+    return outputs.get(partition);
+  }
 }

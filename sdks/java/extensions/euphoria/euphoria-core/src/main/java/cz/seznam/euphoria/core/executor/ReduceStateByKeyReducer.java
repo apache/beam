@@ -10,10 +10,7 @@ import cz.seznam.euphoria.core.client.operator.State;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.executor.InMemExecutor.EndOfStream;
 import cz.seznam.euphoria.core.executor.InMemExecutor.QueueCollector;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -23,8 +20,6 @@ import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 
 class ReduceStateByKeyReducer implements Runnable {
-  private static final Logger LOG =
-      LoggerFactory.getLogger(ReduceStateByKeyReducer.class);
 
   private final BlockingQueue input;
   private final BlockingQueue output;
@@ -108,8 +103,6 @@ class ReduceStateByKeyReducer implements Runnable {
       synchronized (stateLock) {
         Pair<Window, Map<Object, State>> windowState = windowStates.remove(window);
         window = windowState.getFirst();
-        LOG.debug("Evicting window state: {} / {}",
-            window, windowState.getSecond().keySet());
 
         // ~ remove the window to be closed from the key->active-windows index
         for (Object key : windowState.getSecond().keySet()) {
@@ -134,7 +127,6 @@ class ReduceStateByKeyReducer implements Runnable {
   private void processInputItem(Object item) {
     Object itemKey = keyExtractor.apply(item);
     Object itemValue = valueExtractor.apply(item);
-    LOG.debug("Processing item (key: {})", itemKey);
 
     Set<Window> itemWindows = windowing.assignWindows(item);
     for (Window itemWindow : itemWindows) {
@@ -171,10 +163,6 @@ class ReduceStateByKeyReducer implements Runnable {
               // into the state of the mergeResult while silently dropping
               // the mergedWindows; mergeResult might be a newly created
               // window or a already existing one
-              if (LOG.isDebugEnabled()) {
-                LOG.debug("itemKey: {} / MergedWindow: {} / MergeResult: {}",
-                    new Object[] {itemKey, mergedWindows, mergeResult});
-              }
 
               // ~ merge the states and register the potentially
               // new window for the key
@@ -182,7 +170,7 @@ class ReduceStateByKeyReducer implements Runnable {
                   getWindowState (mergeResult, itemKey);
               mergeResult = mergeResultState.getFirst();
               State mergedState = combineStates(itemKey, mergedWindows);
-              setWindowAndKeyState(mergeResult, itemKey, mergedState);
+              replaceWindowAndKeyState(mergeResult, itemKey, mergedState);
 
               // ~ now silently deregister the merged windows for the item's key
               Set<Window> activeWindows = activeWindowsPerKey.get(itemKey);
@@ -233,7 +221,7 @@ class ReduceStateByKeyReducer implements Runnable {
   }
 
   private State combineStates(Object itemKey, Set<Window> ws) {
-    Collection<State> states = new ArrayList<>(ws.size());
+    Collection<State> states = new HashSet<>();
     for (Window w : ws) {
       Pair<Window, Map<Object, State>> wStates = windowStates.get(w);
       if (wStates != null) {
@@ -247,10 +235,16 @@ class ReduceStateByKeyReducer implements Runnable {
     return (State) stateCombiner.apply(states);
   }
 
-  private void setWindowAndKeyState(Window window, Object itemKey, State state) {
-    windowStates.get(window).getSecond().put(itemKey, state);
+  private void replaceWindowAndKeyState(Window window, Object itemKey, State newState) {
+    Map<Object, State> keyStates = windowStates.get(window).getSecond();
+    State oldState = keyStates.get(itemKey);
+    if (oldState != null && oldState != newState) {
+      window.getStates().remove(oldState);
+      window.addState(newState);
+    }
+    keyStates.put(itemKey, newState);
     if (windowing.isAggregating()) {
-      aggregatingStatesPerKey.put(itemKey, state);
+      aggregatingStatesPerKey.put(itemKey, newState);
     }
   }
 }
