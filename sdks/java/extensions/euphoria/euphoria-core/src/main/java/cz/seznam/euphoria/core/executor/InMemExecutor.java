@@ -2,10 +2,10 @@
 package cz.seznam.euphoria.core.executor;
 
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
-import cz.seznam.euphoria.core.client.dataset.Window;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.BinaryFunction;
+import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.graph.DAG;
@@ -20,7 +20,6 @@ import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.Repartition;
-import cz.seznam.euphoria.core.client.operator.State;
 import cz.seznam.euphoria.core.client.operator.Union;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.executor.FlowUnfolder.InputOperator;
@@ -39,7 +38,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -64,8 +62,8 @@ public class InMemExecutor implements Executor {
   }
 
   // end of stream signal
-  private static class EndOfStream {
-    private static EndOfStream get() {
+  static class EndOfStream {
+    static EndOfStream get() {
       return new EndOfStream();
     }
   }
@@ -131,12 +129,12 @@ public class InMemExecutor implements Executor {
   }
 
 
-  private static final class QueueCollector<T> implements Collector<T> {
+  static final class QueueCollector<T> implements Collector<T> {
     static <T> QueueCollector<T> wrap(BlockingQueue<T> queue) {
       return new QueueCollector<>(queue);
     }
     private final BlockingQueue<T> queue;
-    QueueCollector(BlockingQueue<T> queue) {
+    private QueueCollector(BlockingQueue<T> queue) {
       this.queue = queue;
     }
     @Override
@@ -552,131 +550,19 @@ public class InMemExecutor implements Executor {
     final BinaryFunction stateFactory = reduceStateByKey.getStateFactory();
     final Partitioning partitioning = reduceStateByKey.getPartitioning();
     final Windowing windowing = reduceStateByKey.getWindowing();
-    
-    List<BlockingQueue> repartitioned = repartitionSuppliers(
-        suppliers, keyExtractor, partitioning);
+    final CombinableReduceFunction stateCombiner = reduceStateByKey.getStateCombiner();
 
-    return reducePartitionsByState(
-        repartitioned,
-        windowing,
-        keyExtractor,
-        valueExtractor,
-        stateFactory);
-  }
-
-
-  private static final class TriggeredWindow {
-    final Window srcWindow;
-    TriggeredWindow(Window srcWindow) {
-      this.srcWindow = srcWindow;
-    }
-  }
-
-  @SuppressWarnings("unchecked")
-  private InputProvider<?> reducePartitionsByState(
-      final List<BlockingQueue> partitions,
-      final Windowing windowing,
-      final UnaryFunction keyExtractor,
-      final UnaryFunction valueExtractor,
-      final BinaryFunction stateFactory) {
+    List<BlockingQueue> repartitioned =
+        repartitionSuppliers(suppliers, keyExtractor, partitioning);
 
     InputProvider<?> outputSuppliers = new InputProvider<>();
-
     // consume repartitioned suppliers
-    partitions.stream().forEach(q -> {
+    repartitioned.stream().forEach(q -> {
       final BlockingQueue output = new ArrayBlockingQueue(5000);
       outputSuppliers.add(QueueSupplier.wrap(output));
-
-      executor.execute(() -> {
-        final Object stateLock = new Object();
-        Map<Window, Pair<Window, Map<Object, State>>> windowStates = new ConcurrentHashMap<>();
-        Map<Object, State> aggregatingKeyStates = new HashMap<>();
-
-        LocalTriggering triggering = new LocalTriggering();
-        UnaryFunction<Window, Void> evictTrigger =
-            (UnaryFunction<Window, Void>) window -> {
-              synchronized (stateLock) {
-                Pair<Window, Map<Object, State>> windowState = windowStates.remove(window);
-                window = windowState.getFirst();
-                LOG.debug("Evicting window: {}", window);
-                // ~ close the window (this will fire out all the keyStates of the
-                // window)
-                windowing.close(window);
-                /*
-                if (windowing.isAggregating()) {
-                  // XXX needs some rule to garbage collect obsolete aggregations
-                }
-                */
-              }
-              return null;
-            };
-
-        // ~ try as long as there is either data to process (qEOS == false)
-        // or we are waiting for some registered triggers to fire
-        for (;;) {
-          try {
-            // ~ now process incoming data
-            Object item = q.take();
-            if (item instanceof EndOfStream) {
-              break;
-            }
-
-            synchronized (stateLock) {
-              Object itemKey = keyExtractor.apply(item);
-              Object itemValue = valueExtractor.apply(item);
-
-              Set<Window> itemWindows = windowing.assignWindows(item);
-              for (Window itemWindow : itemWindows) {
-                Pair<Window, Map<Object, State>> windowState = windowStates.get(itemWindow);
-                if (windowState == null) {
-                  windowState = Pair.of(itemWindow, new HashMap<>());
-                  windowStates.put(itemWindow, windowState);
-                  // ~ the itemWindow is new; allow it register triggers
-                  itemWindow.registerTrigger(triggering, evictTrigger);
-                }
-                itemWindow = windowState.getFirst();
-                Map<Object, State> keyStates = windowState.getSecond();
-
-                State keyState = keyStates.get(itemKey);
-                if (keyState == null) {
-                  keyState = windowing.isAggregating()
-                      ? aggregatingKeyStates.get(itemKey)
-                      : null;
-                  if (keyState == null) {
-                    keyState = (State) stateFactory.apply(itemKey, QueueCollector.wrap(output));
-                    itemWindow.addState(keyState);
-                    if (windowing.isAggregating()) {
-                      aggregatingKeyStates.put(itemKey, keyState);
-                    }
-                  } else {
-                    itemWindow.addState(keyState);
-                  }
-                  keyStates.put(itemKey, keyState);
-                }
-                keyState.add(itemValue);
-              }
-            }
-          } catch (InterruptedException ex) {
-            throw new RuntimeException(ex);
-          }
-        }
-        // ~ stop triggers
-        triggering.close();
-        // close all states
-        synchronized (stateLock) {
-          windowStates.values().stream()
-              .flatMap(m -> m.getSecond().values().stream())
-              .forEach(State::close);
-        }
-        // ~ signal eos further down the channel
-        try {
-          output.put(EndOfStream.get());
-        } catch (InterruptedException e) {
-          throw new RuntimeException(e);
-        }
-      });
+      executor.execute(new ReduceStateByKeyReducer(q, output, windowing,
+          keyExtractor, valueExtractor, stateFactory, stateCombiner));
     });
-
     return outputSuppliers;
   }
 
