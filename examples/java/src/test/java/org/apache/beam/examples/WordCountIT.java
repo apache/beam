@@ -47,7 +47,7 @@ public class WordCountIT {
     PipelineOptionsFactory.register(WordCountITOptions.class);
     WordCountITOptions options = TestPipeline.testingPipelineOptions().as(WordCountITOptions.class);
     options.setOutput(Joiner.on("/").join(new String[]{options.getTempRoot(),
-        String.format("WordCountIT-%tF-%<tH-%<tM-%<tS", new Date()), "output", "results"}));
+        String.format("WordCountIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date()), "output", "results"}));
 
     WordCount.main(TestPipeline.convertToArgs(options));
   }

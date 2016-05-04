@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.testing;
 
-import com.google.api.client.util.Base64;
-
 import org.apache.beam.sdk.util.SerializableUtils;
+
+import com.google.api.client.util.Base64;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonProcessingException;
