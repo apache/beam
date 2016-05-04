@@ -177,7 +177,7 @@ public abstract class PubsubClient implements Closeable {
 
     public String getV1Beta1Path() {
       String[] splits = path.split("/");
-      checkState(splits.length == 4);
+      checkState(splits.length == 4, "Malformed subscription path %s", path);
       return String.format("/subscriptions/%s/%s", splits[1], splits[3]);
     }
 
@@ -230,7 +230,7 @@ public abstract class PubsubClient implements Closeable {
 
     public String getV1Beta1Path() {
       String[] splits = path.split("/");
-      checkState(splits.length == 4);
+      checkState(splits.length == 4, "Malformed topic path %s", path);
       return String.format("/topics/%s/%s", splits[1], splits[3]);
     }
 
@@ -393,12 +393,6 @@ public abstract class PubsubClient implements Closeable {
                               ackId, Arrays.hashCode(recordId));
     }
   }
-
-  /**
-   * @inheritDoc
-   */
-  @Override
-  public abstract void close() throws IOException;
 
   /**
    * Publish {@code outgoingMessages} to Pubsub {@code topic}. Return number of messages

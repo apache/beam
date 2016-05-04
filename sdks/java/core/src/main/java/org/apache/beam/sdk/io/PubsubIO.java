@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
@@ -40,6 +42,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
+
+import com.google.common.base.Strings;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -711,7 +715,7 @@ public class PubsubIO {
               // Otherwise we'll fall back to the topic's project.
               // Note that they don't need to be the same.
               String project = c.getPipelineOptions().as(PubsubOptions.class).getProject();
-              if (project == null || project.isEmpty()) {
+              if (Strings.isNullOrEmpty(project)) {
                 project = getTopic().project;
               }
               subscriptionPath = PubsubClient.subscriptionPathFromName(project, subscription);
@@ -1024,9 +1028,10 @@ public class PubsubIO {
         }
 
         private void publish() throws IOException {
-          pubsubClient.publish(
+          int n = pubsubClient.publish(
               PubsubClient.topicPathFromName(getTopic().project, getTopic().topic),
               output);
+          checkState(n == output.size());
           output.clear();
         }
       }

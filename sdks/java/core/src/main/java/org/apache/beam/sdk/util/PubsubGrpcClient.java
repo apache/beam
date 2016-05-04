@@ -24,6 +24,7 @@ import org.apache.beam.sdk.options.PubsubOptions;
 
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.hash.Hashing;
 import com.google.protobuf.ByteString;
@@ -169,10 +170,14 @@ public class PubsubGrpcClient extends PubsubClient {
       // Already closed.
       return;
     }
+    // Can gc the underlying stubs.
     cachedPublisherStub = null;
     cachedSubscriberStub = null;
+    // Mark the client as having been closed before going further
+    // in case we have an exception from the channel.
     ManagedChannel publisherChannel = this.publisherChannel;
     this.publisherChannel = null;
+    // Gracefully shutdown the channel.
     publisherChannel.shutdown();
     if (timeoutSec > 0) {
       try {
@@ -285,7 +290,7 @@ public class PubsubGrpcClient extends PubsubClient {
 
       // Ack id.
       String ackId = message.getAckId();
-      checkState(ackId != null && !ackId.isEmpty());
+      checkState(!Strings.isNullOrEmpty(ackId));
 
       // Record id, if any.
       @Nullable byte[] recordId = null;

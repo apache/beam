@@ -42,7 +42,6 @@ public class PubsubTestClientTest {
   private static final SubscriptionPath SUBSCRIPTION =
       PubsubClient.subscriptionPathFromName("testProject", "testSubscription");
   private static final long REQ_TIME = 1234L;
-  private static final long PUB_TIME = 3456L;
   private static final long MESSAGE_TIME = 6789L;
   private static final String MESSAGE_ID = "testMessageId";
   private static final String DATA = "testData";
@@ -57,6 +56,7 @@ public class PubsubTestClientTest {
              new PubsubTestClient(null, SUBSCRIPTION, ACK_TIMEOUT_S, null,
                                   Lists.newArrayList(expectedIncomingMessage))) {
       long now = REQ_TIME;
+      client.advanceTo(now);
       List<IncomingMessage> incomingMessages = client.pull(now, SUBSCRIPTION, 1, true);
       assertEquals(1, incomingMessages.size());
       assertEquals(expectedIncomingMessage, incomingMessages.get(0));

@@ -41,19 +41,30 @@ import javax.annotation.Nullable;
  * methods.
  */
 public class PubsubTestClient extends PubsubClient {
-  public static PubsubClientFactory createFactory(
-      @Nullable final TopicPath expectedTopic,
+  public static PubsubClientFactory createFactoryForPublish(
+      final TopicPath expectedTopic,
+      final Set<OutgoingMessage> expectedOutgoingMessages) {
+    return new PubsubClientFactory() {
+      @Override
+      public PubsubClient newClient(
+          @Nullable String timestampLabel, @Nullable String idLabel, PubsubOptions options)
+          throws IOException {
+        return new PubsubTestClient(expectedTopic, null, 0, expectedOutgoingMessages, null);
+      }
+    };
+  }
+
+  public static PubsubClientFactory createFactoryForPull(
       @Nullable final SubscriptionPath expectedSubscription,
       final int ackTimeoutSec,
-      @Nullable final Set<OutgoingMessage> expectedOutgoingMessages,
       @Nullable final List<IncomingMessage> expectedIncomingMessages) {
     return new PubsubClientFactory() {
       @Override
       public PubsubClient newClient(
           @Nullable String timestampLabel, @Nullable String idLabel, PubsubOptions options)
           throws IOException {
-        return new PubsubTestClient(expectedTopic, expectedSubscription, ackTimeoutSec,
-                                    expectedOutgoingMessages, expectedIncomingMessages);
+        return new PubsubTestClient(null, expectedSubscription, ackTimeoutSec,
+                                    null, expectedIncomingMessages);
       }
     };
   }
@@ -126,7 +137,9 @@ public class PubsubTestClient extends PubsubClient {
    * outstanding ACKs.
    */
   public void advanceTo(long newNowMsSinceEpoch) {
-    checkArgument(newNowMsSinceEpoch >= nowMsSinceEpoch);
+    checkArgument(newNowMsSinceEpoch >= nowMsSinceEpoch,
+                  "Cannot advance time backwards from %d to %d", nowMsSinceEpoch,
+                  newNowMsSinceEpoch);
     nowMsSinceEpoch = newNowMsSinceEpoch;
     // Any messages who's ACKs timed out are available for re-pulling.
     Iterator<Map.Entry<String, Long>> deadlineItr = ackDeadline.entrySet().iterator();
@@ -142,23 +155,33 @@ public class PubsubTestClient extends PubsubClient {
   @Override
   public void close() {
     if (remainingExpectedOutgoingMessages != null) {
-      checkState(remainingExpectedOutgoingMessages.isEmpty());
+      checkState(this.remainingExpectedOutgoingMessages.isEmpty(),
+                 "Failed to pull %d messages", this.remainingExpectedOutgoingMessages.size());
+      remainingExpectedOutgoingMessages = null;
     }
     if (remainingPendingIncomingMessages != null) {
-      checkState(remainingPendingIncomingMessages.isEmpty());
-      checkState(pendingAckIncommingMessages.isEmpty());
-      checkState(ackDeadline.isEmpty());
+      checkState(remainingPendingIncomingMessages.isEmpty(),
+                 "Failed to publish %d messages", remainingPendingIncomingMessages.size());
+      checkState(pendingAckIncommingMessages.isEmpty(),
+                 "Failed to ACK %d messages", pendingAckIncommingMessages.size());
+      checkState(ackDeadline.isEmpty(),
+                 "Failed to ACK %d messages", ackDeadline.size());
+      remainingPendingIncomingMessages = null;
+      pendingAckIncommingMessages = null;
+      ackDeadline = null;
     }
   }
 
   @Override
   public int publish(
       TopicPath topic, List<OutgoingMessage> outgoingMessages) throws IOException {
-    checkNotNull(expectedTopic);
-    checkNotNull(remainingExpectedOutgoingMessages);
-    checkState(topic.equals(expectedTopic));
+    checkNotNull(expectedTopic, "Missing expected topic");
+    checkNotNull(remainingExpectedOutgoingMessages, "Missing expected outgoing messages");
+    checkState(topic.equals(expectedTopic), "Topic %s does not match expected %s", topic,
+               expectedTopic);
     for (OutgoingMessage outgoingMessage : outgoingMessages) {
-      checkState(remainingExpectedOutgoingMessages.remove(outgoingMessage));
+      checkState(remainingExpectedOutgoingMessages.remove(outgoingMessage),
+                 "Unexpeced outgoing message %s", outgoingMessage);
     }
     return outgoingMessages.size();
   }
@@ -167,11 +190,14 @@ public class PubsubTestClient extends PubsubClient {
   public List<IncomingMessage> pull(
       long requestTimeMsSinceEpoch, SubscriptionPath subscription, int batchSize,
       boolean returnImmediately) throws IOException {
-    checkState(requestTimeMsSinceEpoch >= nowMsSinceEpoch);
-    checkNotNull(expectedSubscription);
-    checkNotNull(remainingPendingIncomingMessages);
-    checkState(subscription.equals(expectedSubscription));
-    checkState(returnImmediately);
+    checkState(requestTimeMsSinceEpoch == nowMsSinceEpoch,
+               "Simulated time %d does not match requset time %d", nowMsSinceEpoch,
+               requestTimeMsSinceEpoch);
+    checkNotNull(expectedSubscription, "Missing expected subscription");
+    checkNotNull(remainingPendingIncomingMessages, "Missing expected incoming messages");
+    checkState(subscription.equals(expectedSubscription),
+               "Subscription %s does not match expected %s", subscription, expectedSubscription);
+    checkState(returnImmediately, "PubsubTestClient only supports returning immediately");
 
     List<IncomingMessage> incomingMessages = new ArrayList<>();
     Iterator<IncomingMessage> pendItr = remainingPendingIncomingMessages.iterator();
@@ -196,27 +222,33 @@ public class PubsubTestClient extends PubsubClient {
   public void acknowledge(
       SubscriptionPath subscription,
       List<String> ackIds) throws IOException {
-    checkNotNull(expectedSubscription);
-    checkNotNull(remainingPendingIncomingMessages);
-    checkState(subscription.equals(expectedSubscription));
+    checkNotNull(expectedSubscription, "Missing expected subscription");
+    checkNotNull(remainingPendingIncomingMessages, "Missing expected incoming messages");
+    checkState(subscription.equals(expectedSubscription),
+               "Subscription %s does not match expected %s", subscription, expectedSubscription);
 
     for (String ackId : ackIds) {
-      checkState(ackDeadline.remove(ackId) != null);
-      checkState(pendingAckIncommingMessages.remove(ackId) != null);
+      checkState(ackDeadline.remove(ackId) != null,
+                 "No message with ACK id %s is outstanding", ackId);
+      checkState(pendingAckIncommingMessages.remove(ackId) != null,
+                 "No message with ACK id %s is outstanding", ackId);
     }
   }
 
   @Override
   public void modifyAckDeadline(
       SubscriptionPath subscription, List<String> ackIds, int deadlineSeconds) throws IOException {
-    checkNotNull(expectedSubscription);
-    checkNotNull(remainingPendingIncomingMessages);
-    checkState(subscription.equals(expectedSubscription));
+    checkNotNull(expectedSubscription, "Missing expected subscription");
+    checkNotNull(remainingPendingIncomingMessages, "Missing expected incoming messages");
+    checkState(subscription.equals(expectedSubscription),
+               "Subscription %s does not match expected %s", subscription, expectedSubscription);
 
     for (String ackId : ackIds) {
-      checkState(ackDeadline.remove(ackId) != null);
+      checkState(ackDeadline.remove(ackId) != null,
+                 "No message with ACK id %s is outstanding", ackId);
+      checkState(pendingAckIncommingMessages.containsKey(ackId),
+                 "No message with ACK id %s is outstanding", ackId);
       ackDeadline.put(ackId, nowMsSinceEpoch + deadlineSeconds * 1000);
-      checkState(pendingAckIncommingMessages.containsKey(ackId));
     }
   }
 
