@@ -23,7 +23,9 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.GroupByKeyViaGroupByKeyOnly;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 
@@ -157,6 +159,12 @@ public class FlinkPipelineRunner extends PipelineRunner<FlinkRunnerResult> {
   @Override
   public <Output extends POutput, Input extends PInput> Output apply(
       PTransform<Input, Output> transform, Input input) {
+
+    // In batch mode, expand GroupByKey to GroupByKeyOnly -> GroupAlsoByWindow
+    if (!options.isStreaming() && transform.getClass().equals(GroupByKey.class)) {
+      return (Output) super.apply(new GroupByKeyViaGroupByKeyOnly((GroupByKey) transform), input);
+    }
+
     return super.apply(transform, input);
   }
 

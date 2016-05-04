@@ -43,7 +43,6 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
-import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
@@ -52,6 +51,12 @@ import org.apache.beam.sdk.transforms.join.CoGbkResultSchema;
 import org.apache.beam.sdk.transforms.join.CoGroupByKey;
 import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.util.GroupByKeyViaGroupByKeyOnly;
+import org.apache.beam.sdk.util.GroupByKeyViaGroupByKeyOnly.GroupByKeyOnly;
+import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -78,12 +83,14 @@ import org.apache.flink.api.java.operators.Grouping;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
 import org.apache.flink.api.java.operators.UnsortedGrouping;
 import org.apache.flink.core.fs.Path;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -114,8 +121,9 @@ public class FlinkBatchTransformTranslators {
 
     TRANSLATORS.put(Flatten.FlattenPCollectionList.class, new FlattenPCollectionTranslatorBatch());
 
-    // TODO we're currently ignoring windows here but that has to change in the future
-    TRANSLATORS.put(GroupByKey.class, new GroupByKeyTranslatorBatch());
+    TRANSLATORS.put(GroupByKeyViaGroupByKeyOnly.GroupByKeyOnly.class, new GroupByKeyOnlyTranslatorBatch());
+
+    TRANSLATORS.put(Window.Bound.class, new WindowBoundTranslatorBatch());
 
     TRANSLATORS.put(ParDo.BoundMulti.class, new ParDoBoundMultiTranslatorBatch());
     TRANSLATORS.put(ParDo.Bound.class, new ParDoBoundTranslatorBatch());
@@ -303,13 +311,64 @@ public class FlinkBatchTransformTranslators {
     }
   }
 
-  /**
-   * Translates a GroupByKey while ignoring window assignments. Current ignores windows.
-   */
-  private static class GroupByKeyTranslatorBatch<K, V> implements FlinkBatchPipelineTranslator.BatchTransformTranslator<GroupByKey<K, V>> {
+  public static class WindowBoundTranslatorBatch<T> implements FlinkBatchPipelineTranslator.BatchTransformTranslator<Window.Bound<T>> {
 
     @Override
-    public void translateNode(GroupByKey<K, V> transform, FlinkBatchTranslationContext context) {
+    public void translateNode(Window.Bound<T> transform, FlinkBatchTranslationContext context) {
+      PValue input = context.getInput(transform);
+      DataSet<T> inputDataSet = context.getInputDataSet(input);
+
+      @SuppressWarnings("unchecked")
+      final WindowingStrategy<T, ? extends BoundedWindow> windowingStrategy =
+          (WindowingStrategy<T, ? extends BoundedWindow>)
+              context.getOutput(transform).getWindowingStrategy();
+
+      final WindowFn<T, ? extends BoundedWindow> windowFn = windowingStrategy.getWindowFn();
+      FlinkDoFnFunction<T, T> doFnWrapper = new FlinkDoFnFunction<>(createWindowAssigner(windowFn), context.getPipelineOptions());
+
+      TypeInformation<T> typeInformation = context.getTypeInfo(context.getOutput(transform));
+      MapPartitionOperator<T, T> outputDataSet = new MapPartitionOperator<T, T>(inputDataSet, typeInformation, doFnWrapper, transform.getName());
+
+      context.setOutputDataSet(context.getOutput(transform), outputDataSet);
+    }
+
+    private static <T, W extends BoundedWindow> DoFn<T, T> createWindowAssigner(final WindowFn<T, W> windowFn) {
+      return new DoFn<T, T>() {
+
+        @Override
+        public void processElement(final ProcessContext c) throws Exception {
+          Collection<W> windows = windowFn.assignWindows(
+              windowFn.new AssignContext() {
+                @Override
+                public T element() {
+                  return c.element();
+                }
+
+                @Override
+                public Instant timestamp() {
+                  return c.timestamp();
+                }
+
+                @Override
+                public Collection<? extends BoundedWindow> windows() {
+                  return c.windowingInternals().windows();
+                }
+              });
+
+          c.windowingInternals().outputWindowedValue(
+              c.element(), c.timestamp(), windows, c.pane());
+        }
+      };
+    }
+  }
+
+  /**
+   * Translates a {@link GroupByKeyOnly}, which ignores window assignments.
+   */
+  private static class GroupByKeyOnlyTranslatorBatch<K, V> implements FlinkBatchPipelineTranslator.BatchTransformTranslator<GroupByKeyOnly<K, V>> {
+
+    @Override
+    public void translateNode(GroupByKeyOnly<K, V> transform, FlinkBatchTranslationContext context) {
       DataSet<KV<K, V>> inputDataSet = context.getInputDataSet(context.getInput(transform));
       GroupReduceFunction<KV<K, V>, KV<K, Iterable<V>>> groupReduceFunction = new FlinkKeyedListAggregationFunction<>();
 
