@@ -61,14 +61,19 @@ import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 
 /**
- * A PTransform which streams messages to pub/sub.
+ * A PTransform which streams messages to Pubsub.
  * <ul>
- * <li>The underlying implementation is just a {@link DoFn} which publishes as a side effect.
+ * <li>The underlying implementation is just a {@link GroupByKey} followed by a {@link ParDo} which
+ * publishes as a side effect. (In the future we want to design and switch to a custom
+ * {@code UnboundedSink} implementation so as to gain access to system watermark and
+ * end-of-pipeline cleanup.)
  * <li>We try to send messages in batches while also limiting send latency.
  * <li>No stats are logged. Rather some counters are used to keep track of elements and batches.
- * <li>Though some background threads are used by the underlying netty system all actual pub/sub
+ * <li>Though some background threads are used by the underlying netty system all actual Pubsub
  * calls are blocking. We rely on the underlying runner to allow multiple {@link DoFn} instances
  * to execute concurrently and hide latency.
+ * <li>A failed work item will cause messages to be resent. Thus we rely on the Pubsub consumer
+ * to dedup messages.
  * </ul>
  */
 public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
@@ -85,7 +90,7 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
   private static final long PUBLISH_BATCH_BYTES = 400000;
 
   /**
-   * Longest delay between receiving a message and pushing it to pub/sub.
+   * Longest delay between receiving a message and pushing it to Pubsub.
    */
   private static final Duration MAX_LATENCY = Duration.standardSeconds(2);
 
@@ -137,13 +142,13 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
   // ================================================================================
 
   /**
-   * Publish messages to pub/sub in batches.
+   * Publish messages to Pubsub in batches.
    */
   private class WriterFn
       extends DoFn<KV<Integer, Iterable<PubsubClient.OutgoingMessage>>, Void> {
 
     /**
-     * Client on which to talk to pub/sub. Null until created by {@link #startBundle}.
+     * Client on which to talk to Pubsub. Null until created by {@link #startBundle}.
      */
     @Nullable
     private transient PubsubClient pubsubClient;
@@ -157,7 +162,7 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
 
     /**
      * BLOCKING
-     * Send {@code messages} as a batch to pub/sub.
+     * Send {@code messages} as a batch to Pubsub.
      */
     private void publishBatch(List<PubsubClient.OutgoingMessage> messages, int bytes)
         throws IOException {
@@ -221,28 +226,26 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
   private final PubsubClientFactory pubsubFactory;
 
   /**
-   * Pub/sub topic to publish to.
+   * Pubsub topic to publish to.
    */
   private final PubsubClient.TopicPath topic;
 
   /**
-   * Coder for elements. Elements are effectively double-encoded: first to a byte array
-   * using this checkpointCoder, then to a base-64 string to conform to pub/sub's payload
-   * conventions.
+   * Coder for elements. It is the responsibility of the underlying Pubsub transport to
+   * re-encode element bytes if necessary, eg as Base64 strings.
    */
   private final Coder<T> elementCoder;
 
   /**
-   * Pub/sub metadata field holding timestamp of each element, or {@literal null} if should use
-   * pub/sub message publish timestamp instead.
+   * Pubsub metadata field holding timestamp of each element, or {@literal null} if should use
+   * Pubsub message publish timestamp instead.
    */
   @Nullable
   private final String timestampLabel;
 
   /**
-   * Pub/sub metadata field holding id for each element, or {@literal null} if need to generate
+   * Pubsub metadata field holding id for each element, or {@literal null} if need to generate
    * a unique id ourselves.
-   * CAUTION: Currently ignored.
    */
   @Nullable
   private final String idLabel;
@@ -290,9 +293,11 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
 
   @Override
   public PDone apply(PCollection<T> input) {
-    String label = "PubsubSink(" + topic.getPath().replace("/", ".") + ")";
+    // TODO: Include topic.getPath() in transform metadata when it is available.
+    String label = "PubsubSink";
     input.apply(
-        Window.<T>into(new GlobalWindows())
+        Window.named(label + ".Window")
+            .<T>into(new GlobalWindows())
             .triggering(
                 Repeatedly.forever(
                     AfterFirst.of(AfterPane.elementCountAtLeast(PUBLISH_BATCH_SIZE),
