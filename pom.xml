@@ -101,15 +101,15 @@
 
     <!-- If updating dependencies, please update any relevant javadoc offlineLinks -->
     <avro.version>1.7.7</avro.version>
-    <bigquery.version>v2-rev292-1.21.0</bigquery.version>
+    <bigquery.version>v2-rev295-1.22.0</bigquery.version>
     <pubsubgrpc.version>0.0.2</pubsubgrpc.version>
-    <clouddebugger.version>v2-rev6-1.21.0</clouddebugger.version>
-    <dataflow.version>v1b3-rev22-1.21.0</dataflow.version>
+    <clouddebugger.version>v2-rev8-1.22.0</clouddebugger.version>
+    <dataflow.version>v1b3-rev26-1.22.0</dataflow.version>
     <dataflow.proto.version>0.5.160222</dataflow.proto.version>
     <datastore.version>v1beta2-rev1-4.0.0</datastore.version>
     <google-auto-service.version>1.0-rc2</google-auto-service.version>
     <google-auto-value.version>1.1</google-auto-value.version>
-    <google-clients.version>1.21.0</google-clients.version>
+    <google-clients.version>1.22.0</google-clients.version>
     <google-cloud-bigdataoss.version>1.4.3</google-cloud-bigdataoss.version>
     <google-cloud-dataflow-java-proto-library-all.version>0.5.160304</google-cloud-dataflow-java-proto-library-all.version>
     <guava.version>19.0</guava.version>
@@ -121,10 +121,10 @@
     <junit.version>4.11</junit.version>
     <mockito.version>1.9.5</mockito.version>
     <protobuf.version>3.0.0-beta-1</protobuf.version>
-    <pubsub.version>v1-rev7-1.21.0</pubsub.version>
+    <pubsub.version>v1-rev10-1.22.0</pubsub.version>
     <slf4j.version>1.7.14</slf4j.version>
     <stax2.version>3.1.4</stax2.version>
-    <storage.version>v1-rev53-1.21.0</storage.version>
+    <storage.version>v1-rev71-1.22.0</storage.version>
     <woodstox.version>4.4.1</woodstox.version>
   </properties>
 
@@ -282,6 +282,30 @@
       <dependency>
         <groupId>com.google.api-client</groupId>
         <artifactId>google-api-client</artifactId>
+        <version>${google-clients.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava-jdk5</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+
+      <dependency>
+        <groupId>com.google.api-client</groupId>
+        <artifactId>google-api-client-jackson2</artifactId>
+        <version>${google-clients.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava-jdk5</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+
+      <dependency>
+        <groupId>com.google.api-client</groupId>
+        <artifactId>google-api-client-java6</artifactId>
         <version>${google-clients.version}</version>
         <exclusions>
           <exclusion>
@@ -460,12 +484,13 @@
 
       <dependency>
         <groupId>com.google.cloud.bigdataoss</groupId>
-        <artifactId>util</artifactId>
+        <artifactId>gcsio</artifactId>
         <version>${google-cloud-bigdataoss.version}</version>
       </dependency>
+
       <dependency>
         <groupId>com.google.cloud.bigdataoss</groupId>
-        <artifactId>gcsio</artifactId>
+        <artifactId>util</artifactId>
         <version>${google-cloud-bigdataoss.version}</version>
       </dependency>
 
