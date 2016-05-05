@@ -1045,21 +1045,26 @@ public class KafkaIO {
       closed.set(true);
       consumerPollThread.shutdown();
       offsetFetcherThread.shutdown();
-      while (true) {
-        // drain unread batch, this unblocks consumer thread. trying this in a loop to
-        // handle a small race where poll thread might try to enqueue after we drain.
+
+      boolean isShutdown = false;
+
+      // Wait for threads to shutdown. Trying this a loop to handle a tiny race where poll thread
+      // might block to enqueue right after availableRecordsQueue.poll() below.
+      while (!isShutdown) {
+
         consumer.wakeup();
-        availableRecordsQueue.poll();
+        offsetConsumer.wakeup();
+        availableRecordsQueue.poll();// drain unread batch, this unblocks consumer thread.
         try {
-          if (consumerPollThread.awaitTermination(10, TimeUnit.SECONDS)
-              && offsetFetcherThread.awaitTermination(10, TimeUnit.SECONDS)) {
-            break; // done
-          }
+          isShutdown = consumerPollThread.awaitTermination(10, TimeUnit.SECONDS)
+              && offsetFetcherThread.awaitTermination(10, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
           throw new RuntimeException(e); // not expected
         }
 
-        LOG.warn("An internal thread is taking a long time to shutdown. will retry.");
+        if (!isShutdown) {
+          LOG.warn("An internal thread is taking a long time to shutdown. will retry.");
+        }
       }
 
       Closeables.close(offsetConsumer, true);
