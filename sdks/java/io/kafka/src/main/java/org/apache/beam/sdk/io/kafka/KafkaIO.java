@@ -818,6 +818,7 @@ public class KafkaIO {
         records = availableRecordsQueue.poll(NEW_RECORDS_POLL_TIMEOUT.getMillis(),
                                              TimeUnit.MILLISECONDS);
       } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
         LOG.warn("{}: Unexpected", this, e);
         return;
       }
@@ -1059,6 +1060,7 @@ public class KafkaIO {
           isShutdown = consumerPollThread.awaitTermination(10, TimeUnit.SECONDS)
               && offsetFetcherThread.awaitTermination(10, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
           throw new RuntimeException(e); // not expected
         }
 
