@@ -126,9 +126,35 @@ public class RegexTransform {
   }
 
   /**
+   * Returns a {@link RegexTransform.ReplaceAll} {@link PTransform} that checks if a
+   * portion of the line matches the Regex and replaces all matches with the replacement
+   * String. Returns the group as a {@link PCollection}.
+   * @param regex
+   *          The regular expression to run
+   * @param replacement
+   *          The string to be substituted for each match
+   */
+  public static ReplaceAll replaceAll(String regex, String replacement) {
+    return new ReplaceAll(regex, replacement);
+  }
+
+  /**
+   * Returns a {@link RegexTransform.ReplaceAll} {@link PTransform} that checks if a
+   * portion of the line matches the Regex and replaces the first match with the replacement
+   * String. Returns the group as a {@link PCollection}.
+   * @param regex
+   *          The regular expression to run
+   * @param replacement
+   *          The string to be substituted for each match
+   */
+  public static ReplaceFirst replaceFirst(String regex, String replacement) {
+    return new ReplaceFirst(regex, replacement);
+  }
+
+  /**
    * {@code RegexTransform.Matches<String>} takes a {@code PCollection<String>}
-   * and returns a {@code PCollection<KV<String, String>>} representing the key
-   * and value extracted from the Regex groups of the input {@code PCollection}
+   * and returns a {@code PCollection<String>} representing the value
+   * extracted from the Regex groups of the input {@code PCollection}
    * to the number of times that element occurs in the input.
    *
    * <p>
@@ -223,8 +249,8 @@ public class RegexTransform {
 
   /**
    * {@code RegexTransform.Find<String>} takes a {@code PCollection<String>} and
-   * returns a {@code PCollection<KV<String, String>>} representing the key and
-   * value extracted from the Regex groups of the input {@code PCollection} to
+   * returns a {@code PCollection<String>} representing the value extracted
+   * from the Regex groups of the input {@code PCollection} to
    * the number of times that element occurs in the input.
    *
    * <p>
@@ -313,6 +339,90 @@ public class RegexTransform {
               }
             }
           }));
+    }
+  }
+  
+  /**
+   * {@code RegexTransform.ReplaceAll<String>} takes a {@code PCollection<String>} and
+   * returns a {@code PCollection<String>} with all Strings that matched the 
+   * Regex being replaced with the replacement string.
+   *
+   * <p>
+   * This transform runs a Regex on the entire input line. If a portion of the
+   * line does not match the Regex, the line will be output without changes. If it does
+   * match a portion of the line, all portions matching the Regex will be replaced 
+   * with the replacement String.
+   *
+   * <p>
+   * Example of use:
+   * <pre>
+   *  {@code
+   * PCollection<String> words = ...;
+   * PCollection<String> values =
+   *     words.apply(RegexTransform.replaceAll("myregex", "myreplacement"));
+   * }
+   * </pre>
+   */
+  public static class ReplaceAll
+      extends PTransform<PCollection<String>, PCollection<String>> {
+    Pattern pattern;
+    String replacement;
+
+    public ReplaceAll(String regex, String replacement) {
+      this.pattern = Pattern.compile(regex);
+      this.replacement = replacement;
+    }
+
+    public PCollection<String> apply(PCollection<String> in) {
+      return in.apply(ParDo.named("ReplaceAllRegex").of(new DoFn<String, String>() {
+        @Override
+        public void processElement(ProcessContext c) throws Exception {
+          Matcher m = pattern.matcher((String) c.element());
+          c.output(m.replaceAll(replacement));
+        }
+      }));
+    }
+  }
+  
+  /**
+   * {@code RegexTransform.ReplaceFirst<String>} takes a {@code PCollection<String>} and
+   * returns a {@code PCollection<String>} with the first Strings that matched the 
+   * Regex being replaced with the replacement string.
+   *
+   * <p>
+   * This transform runs a Regex on the entire input line. If a portion of the
+   * line does not match the Regex, the line will be output without changes. If it does
+   * match a portion of the line, the first portion matching the Regex will be replaced 
+   * with the replacement String.
+   *
+   * <p>
+   * Example of use:
+   * <pre>
+   *  {@code
+   * PCollection<String> words = ...;
+   * PCollection<String> values =
+   *     words.apply(RegexTransform.replaceFirst("myregex", "myreplacement"));
+   * }
+   * </pre>
+   */
+  public static class ReplaceFirst
+      extends PTransform<PCollection<String>, PCollection<String>> {
+    Pattern pattern;
+    String replacement;
+
+    public ReplaceFirst(String regex, String replacement) {
+      this.pattern = Pattern.compile(regex);
+      this.replacement = replacement;
+    }
+
+    public PCollection<String> apply(PCollection<String> in) {
+      return in.apply(ParDo.named("ReplaceAllRegex").of(new DoFn<String, String>() {
+        @Override
+        public void processElement(ProcessContext c) throws Exception {
+          Matcher m = pattern.matcher((String) c.element());
+          c.output(m.replaceFirst(replacement));
+        }
+      }));
     }
   }
 }

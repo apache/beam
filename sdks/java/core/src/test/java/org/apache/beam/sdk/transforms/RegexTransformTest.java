@@ -151,4 +151,52 @@ public class RegexTransformTest implements Serializable {
     PAssert.that(output).empty();
     p.run();
   }
+  
+  @Test
+  public void testReplaceAll() {
+    TestPipeline p = TestPipeline.create();
+
+    PCollection<String> output = p
+        .apply(Create.of("xj", "yj", "zj"))
+        .apply(RegexTransform.replaceAll("[xyz]", "new"));
+
+    PAssert.that(output).containsInAnyOrder("newj", "newj", "newj");
+    p.run();
+  }
+  
+  @Test
+  public void testReplaceAllMixed() {
+    TestPipeline p = TestPipeline.create();
+
+    PCollection<String> output = p
+        .apply(Create.of("abc", "xj", "yj", "zj", "def"))
+        .apply(RegexTransform.replaceAll("[xyz]", "new"));
+
+    PAssert.that(output).containsInAnyOrder("abc", "newj", "newj", "newj", "def");
+    p.run();
+  }
+  
+  @Test
+  public void testReplaceFirst() {
+    TestPipeline p = TestPipeline.create();
+
+    PCollection<String> output = p
+        .apply(Create.of("xjx", "yjy", "zjz"))
+        .apply(RegexTransform.replaceFirst("[xyz]", "new"));
+
+    PAssert.that(output).containsInAnyOrder("newjx", "newjy", "newjz");
+    p.run();
+  }
+  
+  @Test
+  public void testReplaceFirstMixed() {
+    TestPipeline p = TestPipeline.create();
+
+    PCollection<String> output = p
+        .apply(Create.of("abc", "xjx", "yjy", "zjz", "def"))
+        .apply(RegexTransform.replaceFirst("[xyz]", "new"));
+
+    PAssert.that(output).containsInAnyOrder("abc", "newjx", "newjy", "newjz", "def");
+    p.run();
+  }
 }
