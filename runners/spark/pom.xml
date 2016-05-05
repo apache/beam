@@ -37,6 +37,62 @@
     <spark.version>1.6.1</spark.version>
   </properties>
 
+  <profiles>
+    <profile>
+      <id>jacoco</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.jacoco</groupId>
+            <artifactId>jacoco-maven-plugin</artifactId>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+
+    <profile>
+      <!-- This profile adds execution of RunnableOnService integration tests 
+           against a local Spark endpoint. -->
+      <id>runnable-on-service-tests</id>
+      <activation><activeByDefault>false</activeByDefault></activation>
+      <build>
+        <pluginManagement>
+          <plugins>
+            <plugin>
+              <groupId>org.apache.maven.plugins</groupId>
+              <artifactId>maven-surefire-plugin</artifactId>
+              <executions>
+                <execution>
+                  <id>runnable-on-service-tests</id>
+                  <configuration>
+                    <groups>org.apache.beam.sdk.testing.RunnableOnService</groups>
+                    <parallel>none</parallel>
+                    <failIfNoTests>true</failIfNoTests>
+                    <dependenciesToScan>
+                      <dependency>org.apache.beam:java-sdk-all</dependency>
+                    </dependenciesToScan>
+                    <excludes>
+                      org.apache.beam.sdk.io.BoundedReadFromUnboundedSourceTest
+                    </excludes>
+                    <systemPropertyVariables>
+                      <beamTestPipelineOptions>
+                        [
+                          "--runner=org.apache.beam.runners.spark.TestSparkPipelineRunner",
+                          "--streaming=false"
+                        ]
+                      </beamTestPipelineOptions>
+                      <dataflow.spark.test.reuseSparkContext>true</dataflow.spark.test.reuseSparkContext>
+                    </systemPropertyVariables>
+                  </configuration>
+                </execution>
+              </executions>
+            </plugin>
+          </plugins>
+        </pluginManagement>
+      </build>
+    </profile>
+  </profiles>
+
   <dependencies>
     <dependency>
       <groupId>org.apache.spark</groupId>
@@ -122,6 +178,25 @@
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-direct-java</artifactId>
       <version>0.2.0-incubating-SNAPSHOT</version>
+    </dependency>
+
+    <!-- Depend on test jar to scan for RunnableOnService tests -->
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-core</artifactId>
+      <classifier>tests</classifier>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-jdk14</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-all</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -236,42 +311,5 @@
       </plugin>
     </plugins>
   </build>
-
-  <profiles>
-    <profile>
-      <id>jacoco</id>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.jacoco</groupId>
-            <artifactId>jacoco-maven-plugin</artifactId>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-
-    <profile>
-      <id>disable-runnable-on-service-tests</id>
-      <activation>
-        <activeByDefault>true</activeByDefault>
-      </activation>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-surefire-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>runnable-on-service-tests</id>
-                <configuration>
-                  <skip>true</skip>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-  </profiles>
 
 </project>
