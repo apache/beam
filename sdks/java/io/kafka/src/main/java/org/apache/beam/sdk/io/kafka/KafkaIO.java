@@ -796,7 +796,7 @@ public class KafkaIO {
       while (!closed.get()) {
         try {
           ConsumerRecords<byte[], byte[]> records = consumer.poll(KAFKA_POLL_TIMEOUT.getMillis());
-          if (!records.isEmpty()) {
+          if (!records.isEmpty() && !closed.get()) {
             availableRecordsQueue.put(records); // blocks until dequeued.
           }
         } catch (InterruptedException e) {
