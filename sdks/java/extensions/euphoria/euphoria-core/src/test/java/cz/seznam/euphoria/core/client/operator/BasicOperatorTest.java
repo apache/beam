@@ -24,7 +24,6 @@ import org.junit.Test;
 import java.net.URI;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -240,25 +239,12 @@ public class BasicOperatorTest {
 
   @Test
   public void testWordCountBatch() throws Exception {
-    final InMemFileSystem inmemfs = InMemFileSystem.get();
-
-    inmemfs.reset()
-        .setFile("/tmp/foo.txt", asList(
-            "one two three four",
-            "one two three",
-            "one two",
-            "one"));
-
-    Settings settings = new Settings();
-    settings.setClass("euphoria.io.datasource.factory.inmem",
-        InMemFileSystem.SourceFactory.class);
-    settings.setClass("euphoria.io.datasink.factory.inmem",
-        InMemFileSystem.SinkFactory.class);
-    settings.setClass("euphoria.io.datasink.factory.stdout",
-        StdoutSink.Factory.class);
-
-    Flow flow = Flow.create("Test", settings);
-    Dataset<String> lines = flow.createInput(URI.create("inmem:///tmp/foo.txt"));
+    Flow flow = Flow.create("Test");
+    Dataset<String> lines = flow.createInput(ListDataSource.bounded(
+        asList("one two three four",
+               "one two three",
+               "one two",
+               "one")));
 
     // expand it to words
     Dataset<Pair<String, Long>> words = FlatMap.of(lines)
@@ -277,14 +263,14 @@ public class BasicOperatorTest {
         .combineBy(Sums.ofLongs())
         .output();
 
-    streamOutput.persist(URI.create("stdout:///"));
-    streamOutput.persist(URI.create("inmem:///tmp/output"));
+    ListDataSink<Pair<String, Long>> f = ListDataSink.get(1);
+    streamOutput.persist(f);
 
     executor.waitForCompletion(flow);
 
-    @SuppressWarnings("unchecked")
-    Collection<Pair<String, Long>> f = inmemfs.getFile("/tmp/output/0");
-    ImmutableMap<String, Pair<String, Long>> idx = Maps.uniqueIndex(f, Pair::getFirst);
+    assertNotNull(f.getOutput(0));
+    ImmutableMap<String, Pair<String, Long>> idx =
+        Maps.uniqueIndex(f.getOutput(0), Pair::getFirst);
     assertEquals(4, idx.size());
     assertEquals((long) idx.get("one").getValue(), 4L);
     assertEquals((long) idx.get("two").getValue(), 3L);
