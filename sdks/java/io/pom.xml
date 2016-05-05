@@ -35,6 +35,7 @@
   <modules>
     <module>google-cloud-platform</module>
     <module>hdfs</module>
+    <module>jms</module>
     <module>kafka</module>
   </modules>
 
