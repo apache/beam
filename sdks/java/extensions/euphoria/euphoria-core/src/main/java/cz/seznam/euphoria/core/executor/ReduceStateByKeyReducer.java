@@ -115,9 +115,8 @@ class ReduceStateByKeyReducer implements Runnable {
           }
         }
 
-        // ~ close the window (this will fire out all the keyStates of the
-        // window)
-        windowing.close(window);
+        // ~ now flush the states tracked in the window
+        windowState.getSecond().values().stream().forEachOrdered(State::flush);
       }
       return null;
     };
@@ -131,7 +130,6 @@ class ReduceStateByKeyReducer implements Runnable {
     Set<Window> itemWindows = windowing.assignWindows(item);
     for (Window itemWindow : itemWindows) {
       Pair<Window, Map<Object, State>> windowState = getWindowState(itemWindow, itemKey);
-      itemWindow = windowState.getFirst();
       Map<Object, State> keyStates = windowState.getSecond();
 
       State keyState = keyStates.get(itemKey);
@@ -141,12 +139,9 @@ class ReduceStateByKeyReducer implements Runnable {
             : null;
         if (keyState == null) {
           keyState = (State) stateFactory.apply(itemKey, QueueCollector.wrap(output));
-          itemWindow.addState(keyState);
           if (windowing.isAggregating()) {
             aggregatingStatesPerKey.put(itemKey, keyState);
           }
-        } else {
-          itemWindow.addState(keyState);
         }
         keyStates.put(itemKey, keyState);
       }
@@ -237,11 +232,6 @@ class ReduceStateByKeyReducer implements Runnable {
 
   private void replaceWindowAndKeyState(Window window, Object itemKey, State newState) {
     Map<Object, State> keyStates = windowStates.get(window).getSecond();
-    State oldState = keyStates.get(itemKey);
-    if (oldState != null && oldState != newState) {
-      window.getStates().remove(oldState);
-      window.addState(newState);
-    }
     keyStates.put(itemKey, newState);
     if (windowing.isAggregating()) {
       aggregatingStatesPerKey.put(itemKey, newState);

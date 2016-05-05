@@ -2,10 +2,8 @@
 package cz.seznam.euphoria.core.client.dataset;
 
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
-import cz.seznam.euphoria.core.client.operator.State;
 
 import java.io.Serializable;
-import java.util.Set;
 
 /**
  * A bunch of elements joined into window.
@@ -19,7 +17,6 @@ public interface Window<KEY> extends Serializable {
    */
   KEY getKey();
 
-
   /**
    * Register a function to be called by the triggering when a window
    * completion event occurs
@@ -28,25 +25,5 @@ public interface Window<KEY> extends Serializable {
    */
   void registerTrigger(Triggering triggering,
       UnaryFunction<Window<?>, Void> evict);
-
-
-  /**
-   * Add a state to this window.
-   */
-  void addState(State<?, ?> state);
-
-
-  /**
-   * Retrieve all states associated with this window.
-   */
-  Set<State<?, ?>> getStates();
-
-
-  /**
-   * Flush all states.
-   */
-  default void flushAll() {
-    getStates().stream().forEach(State::flush);
-  }
 
 }
