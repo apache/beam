@@ -151,7 +151,7 @@ public class RegexTransformTest implements Serializable {
     PAssert.that(output).empty();
     p.run();
   }
-  
+
   @Test
   public void testReplaceAll() {
     TestPipeline p = TestPipeline.create();
@@ -163,7 +163,7 @@ public class RegexTransformTest implements Serializable {
     PAssert.that(output).containsInAnyOrder("newj", "newj", "newj");
     p.run();
   }
-  
+
   @Test
   public void testReplaceAllMixed() {
     TestPipeline p = TestPipeline.create();
@@ -175,7 +175,7 @@ public class RegexTransformTest implements Serializable {
     PAssert.that(output).containsInAnyOrder("abc", "newj", "newj", "newj", "def");
     p.run();
   }
-  
+
   @Test
   public void testReplaceFirst() {
     TestPipeline p = TestPipeline.create();
@@ -187,7 +187,7 @@ public class RegexTransformTest implements Serializable {
     PAssert.that(output).containsInAnyOrder("newjx", "newjy", "newjz");
     p.run();
   }
-  
+
   @Test
   public void testReplaceFirstMixed() {
     TestPipeline p = TestPipeline.create();

@@ -341,16 +341,16 @@ public class RegexTransform {
           }));
     }
   }
-  
+
   /**
    * {@code RegexTransform.ReplaceAll<String>} takes a {@code PCollection<String>} and
-   * returns a {@code PCollection<String>} with all Strings that matched the 
+   * returns a {@code PCollection<String>} with all Strings that matched the
    * Regex being replaced with the replacement string.
    *
    * <p>
    * This transform runs a Regex on the entire input line. If a portion of the
    * line does not match the Regex, the line will be output without changes. If it does
-   * match a portion of the line, all portions matching the Regex will be replaced 
+   * match a portion of the line, all portions matching the Regex will be replaced
    * with the replacement String.
    *
    * <p>
@@ -383,16 +383,16 @@ public class RegexTransform {
       }));
     }
   }
-  
+
   /**
    * {@code RegexTransform.ReplaceFirst<String>} takes a {@code PCollection<String>} and
-   * returns a {@code PCollection<String>} with the first Strings that matched the 
+   * returns a {@code PCollection<String>} with the first Strings that matched the
    * Regex being replaced with the replacement string.
    *
    * <p>
    * This transform runs a Regex on the entire input line. If a portion of the
    * line does not match the Regex, the line will be output without changes. If it does
-   * match a portion of the line, the first portion matching the Regex will be replaced 
+   * match a portion of the line, the first portion matching the Regex will be replaced
    * with the replacement String.
    *
    * <p>
