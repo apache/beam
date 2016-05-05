@@ -1054,7 +1054,7 @@ public class KafkaIO {
 
         consumer.wakeup();
         offsetConsumer.wakeup();
-        availableRecordsQueue.poll();// drain unread batch, this unblocks consumer thread.
+        availableRecordsQueue.poll(); // drain unread batch, this unblocks consumer thread.
         try {
           isShutdown = consumerPollThread.awaitTermination(10, TimeUnit.SECONDS)
               && offsetFetcherThread.awaitTermination(10, TimeUnit.SECONDS);
