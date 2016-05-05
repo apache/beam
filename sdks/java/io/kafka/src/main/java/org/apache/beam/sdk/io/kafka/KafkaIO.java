@@ -81,6 +81,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.annotation.Nullable;
 
@@ -686,7 +687,7 @@ public class KafkaIO {
     private final ExecutorService consumerPollThread = Executors.newSingleThreadExecutor();
     private final SynchronousQueue<ConsumerRecords<byte[], byte[]>> availableRecordsQueue =
         new SynchronousQueue<>();
-    private volatile boolean closed = false;
+    private AtomicBoolean closed = new AtomicBoolean(false);
 
     // Backlog support :
     // Kafka consumer does not have an API to fetch latest offset for topic. We need to seekToEnd()
@@ -792,7 +793,7 @@ public class KafkaIO {
 
     private void consumerPollLoop() {
       // Read in a loop and enqueue the batch of records, if any, to availableRecordsQueue
-      while (!closed) {
+      while (!closed.get()) {
         try {
           ConsumerRecords<byte[], byte[]> records = consumer.poll(KAFKA_POLL_TIMEOUT.getMillis());
           if (!records.isEmpty()) {
@@ -1041,11 +1042,26 @@ public class KafkaIO {
 
     @Override
     public void close() throws IOException {
-      closed = true;
-      availableRecordsQueue.poll(); // drain unread batch, this unblocks consumer thread.
-      consumer.wakeup();
+      closed.set(true);
       consumerPollThread.shutdown();
       offsetFetcherThread.shutdown();
+      while (true) {
+        // drain unread batch, this unblocks consumer thread. trying this in a loop to
+        // handle a small race where poll thread might try to enqueue after we drain.
+        consumer.wakeup();
+        availableRecordsQueue.poll();
+        try {
+          if (consumerPollThread.awaitTermination(10, TimeUnit.SECONDS)
+              && offsetFetcherThread.awaitTermination(10, TimeUnit.SECONDS)) {
+            break; // done
+          }
+        } catch (InterruptedException e) {
+          throw new RuntimeException(e); // not expected
+        }
+
+        LOG.warn("An internal thread is taking a long time to shutdown. will retry.");
+      }
+
       Closeables.close(offsetConsumer, true);
       Closeables.close(consumer, true);
     }
