@@ -15,7 +15,6 @@ public final class BatchWindowing<T>
     implements AlignedWindowing<T, BatchWindowing.BatchWindow>
 {
   public static class BatchWindow
-      extends AbstractWindow<Void>
       implements AlignedWindow {
 
     static final BatchWindow INSTANCE = new BatchWindow();

@@ -23,7 +23,6 @@ public interface Windowing<T, KEY, W extends Window<KEY>> extends Serializable {
     private boolean aggregating;
 
     public static class TimeWindow
-        extends AbstractWindow<Void>
         implements AlignedWindow
     {
       private final long startMillis;
@@ -118,7 +117,7 @@ public interface Windowing<T, KEY, W extends Window<KEY>> extends Serializable {
       this.size = size;
     }
 
-    public static class CountWindow extends AbstractWindow<Void>
+    public static class CountWindow
         implements AlignedWindow
     {
       int currentCount;
@@ -207,11 +206,6 @@ public interface Windowing<T, KEY, W extends Window<KEY>> extends Serializable {
   } // ~ end of Count
 
   Set<W> assignWindows(T input);
-
-  /** Evict given window. */
-  default void close(W window) {
-    window.flushAll();
-  }
 
   default boolean isAggregating() {
     return false;
