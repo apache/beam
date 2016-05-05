@@ -179,9 +179,11 @@ class DataflowAssertException(Exception):
 def equal_to(expected):
   expected = list(expected)
   def _equal(actual):
-    if sorted(expected) != sorted(actual):
+    sorted_expected = sorted(expected)
+    sorted_actual = sorted(actual)
+    if sorted_expected != sorted_actual:
       raise DataflowAssertException(
-          'Failed assert: %r == %r' % (expected, actual))
+          'Failed assert: %r == %r' % (sorted_expected, sorted_actual))
   return _equal
 
 
