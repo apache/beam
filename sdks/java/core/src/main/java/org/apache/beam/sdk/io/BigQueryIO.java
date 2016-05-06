@@ -1166,6 +1166,15 @@ public class BigQueryIO {
       return new BigQueryWriteOperation(this);
     }
 
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+
+      builder
+          .addIfNotNull(DisplayData.item("schema", jsonSchema))
+          .addIfNotNull(DisplayData.item("tableSpec", jsonTable));
+    }
+
     private static class BigQueryWriteOperation extends FileBasedWriteOperation<TableRow> {
       // The maximum number of retry load jobs.
       private static final int MAX_RETRY_LOAD_JOBS = 3;
@@ -1396,6 +1405,13 @@ public class BigQueryIO {
       uniqueIdsForTableRows.clear();
     }
 
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+
+      builder.addIfNotNull(DisplayData.item("schema", jsonTableSchema));
+    }
+
     public TableReference getOrCreateTable(BigQueryOptions options, String tableSpec)
         throws IOException {
       TableReference tableReference = parseTableSpec(tableSpec);
@@ -1601,6 +1617,16 @@ public class BigQueryIO {
       // BigQuery.
       context.output(KV.of(ShardedKey.of(tableSpec, randomGenerator.nextInt(0, 50)),
           new TableRowInfo(context.element(), uniqueId)));
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+
+      builder.addIfNotNull(DisplayData.item("tableSpec", tableSpec));
+      if (tableRefFunction != null) {
+        builder.add(DisplayData.item("tableFn", tableRefFunction.getClass()));
+      }
     }
 
     private String tableSpecFromWindow(BigQueryOptions options, BoundedWindow window) {
