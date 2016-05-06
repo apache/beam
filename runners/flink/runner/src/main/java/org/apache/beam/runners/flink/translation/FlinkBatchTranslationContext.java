@@ -43,6 +43,13 @@ public class FlinkBatchTranslationContext {
   private final Map<PValue, DataSet<?>> dataSets;
   private final Map<PCollectionView<?>, DataSet<?>> broadcastDataSets;
 
+  /**
+   * For keeping track about which DataSets don't have a successor. We
+   * need to terminate these with a discarding sink because the Beam
+   * model allows dangling operations.
+   */
+  private final Map<PValue, DataSet<?>> danglingDataSets;
+
   private final ExecutionEnvironment env;
   private final PipelineOptions options;
 
@@ -55,10 +62,16 @@ public class FlinkBatchTranslationContext {
     this.options = options;
     this.dataSets = new HashMap<>();
     this.broadcastDataSets = new HashMap<>();
+
+    this.danglingDataSets = new HashMap<>();
   }
   
   // ------------------------------------------------------------------------
-  
+
+  public Map<PValue, DataSet<?>> getDanglingDataSets() {
+    return danglingDataSets;
+  }
+
   public ExecutionEnvironment getExecutionEnvironment() {
     return env;
   }
@@ -69,12 +82,15 @@ public class FlinkBatchTranslationContext {
   
   @SuppressWarnings("unchecked")
   public <T> DataSet<T> getInputDataSet(PValue value) {
+    // assume that the DataSet is used as an input if retrieved here
+    danglingDataSets.remove(value);
     return (DataSet<T>) dataSets.get(value);
   }
 
   public void setOutputDataSet(PValue value, DataSet<?> set) {
     if (!dataSets.containsKey(value)) {
       dataSets.put(value, set);
+      danglingDataSets.put(value, set);
     }
   }
 
