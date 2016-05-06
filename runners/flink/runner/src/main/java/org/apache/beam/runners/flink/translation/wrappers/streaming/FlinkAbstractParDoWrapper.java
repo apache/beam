@@ -197,14 +197,14 @@ public abstract class FlinkAbstractParDoWrapper<IN, OUTDF, OUTFL> extends RichFl
   }
 
   protected void checkTimestamp(WindowedValue<IN> ref, Instant timestamp) {
-    if (timestamp.isBefore(ref.getTimestamp().minus(doFn.getAllowedTimestampSkew()))) {
-      throw new IllegalArgumentException(String.format(
-          "Cannot output with timestamp %s. Output timestamps must be no earlier than the "
-              + "timestamp of the current input (%s) minus the allowed skew (%s). See the "
-              + "DoFn#getAllowedTimestmapSkew() Javadoc for details on changing the allowed skew.",
-          timestamp, ref.getTimestamp(),
-          PeriodFormat.getDefault().print(doFn.getAllowedTimestampSkew().toPeriod())));
-    }
+//    if (timestamp.isBefore(ref.getTimestamp().minus(doFn.getAllowedTimestampSkew()))) {
+//      throw new IllegalArgumentException(String.format(
+//          "Cannot output with timestamp %s. Output timestamps must be no earlier than the "
+//              + "timestamp of the current input (%s) minus the allowed skew (%s). See the "
+//              + "DoFn#getAllowedTimestmapSkew() Javadoc for details on changing the allowed skew.",
+//          timestamp, ref.getTimestamp(),
+//          PeriodFormat.getDefault().print(doFn.getAllowedTimestampSkew().toPeriod())));
+//    }
   }
 
   protected <T> WindowedValue<T> makeWindowedValue(
