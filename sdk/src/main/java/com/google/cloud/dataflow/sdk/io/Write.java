@@ -201,6 +201,11 @@ public class Write {
                 c.output(result);
               }
             }
+
+            @Override
+            public void populateDisplayData(DisplayData.Builder builder) {
+              Write.Bound.this.populateDisplayData(builder);
+            }
           }).withSideInputs(writeOperationView))
           .setCoder(writeOperation.getWriterResultCoder());
 
