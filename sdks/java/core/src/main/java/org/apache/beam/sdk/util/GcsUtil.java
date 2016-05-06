@@ -22,10 +22,16 @@ import org.apache.beam.sdk.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 
+import com.google.api.client.googleapis.batch.BatchRequest;
+import com.google.api.client.googleapis.batch.json.JsonBatchCallback;
+import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import com.google.api.client.http.HttpHeaders;
+import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.storage.Storage;
+import com.google.api.services.storage.StorageRequest;
 import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadChannel;
@@ -47,6 +53,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -55,6 +62,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.NotThreadSafe;
 
 /**
  * Provides operations on GCS.
@@ -76,7 +84,6 @@ public class GcsUtil {
     public GcsUtil create(PipelineOptions options) {
       LOG.debug("Creating new GcsUtil");
       GcsOptions gcsOptions = options.as(GcsOptions.class);
-
       return new GcsUtil(Transport.newStorageClient(gcsOptions).build(),
           gcsOptions.getExecutorService(), gcsOptions.getGcsUploadBufferSizeBytes());
     }
@@ -98,6 +105,11 @@ public class GcsUtil {
   private static final Pattern RECURSIVE_GCS_PATTERN =
       Pattern.compile(".*" + RECURSIVE_WILDCARD + ".*");
 
+  /**
+   * Maximum number of requests permitted in a GCS batch request.
+   */
+  private static final int MAX_REQUESTS_PER_BATCH = 1000;
+
   /////////////////////////////////////////////////////////////////////////////
 
   /** Client for the GCS API. */
@@ -111,6 +123,7 @@ public class GcsUtil {
   // Exposed for testing.
   final ExecutorService executorService;
 
+  private final BatchHelper batchHelper;
   /**
    * Returns true if the given GCS pattern is supported otherwise fails with an
    * exception.
@@ -130,6 +143,8 @@ public class GcsUtil {
     this.storageClient = storageClient;
     this.uploadBufferSizeBytes = uploadBufferSizeBytes;
     this.executorService = executorService;
+    this.batchHelper = new BatchHelper(
+        storageClient.getRequestFactory().getInitializer(), storageClient, MAX_REQUESTS_PER_BATCH);
   }
 
   // Use this only for testing purposes.
@@ -353,6 +368,155 @@ public class GcsUtil {
             String.format("Error while attempting to verify existence of bucket gs://%s",
                 path.getBucket()), e);
      }
+  }
+
+  public void copy(List<String> srcFilenames, List<String> destFilenames) throws IOException {
+    Preconditions.checkArgument(
+        srcFilenames.size() == destFilenames.size(),
+        String.format("Number of source files {} must equal number of destination files {}",
+            srcFilenames.size(), destFilenames.size()));
+    for (int i = 0; i < srcFilenames.size(); i++) {
+      final GcsPath sourcePath = GcsPath.fromUri(srcFilenames.get(i));
+      final GcsPath destPath = GcsPath.fromUri(destFilenames.get(i));
+      LOG.debug("Copying {} to {}", sourcePath, destPath);
+      Storage.Objects.Copy copyObject = storageClient.objects().copy(sourcePath.getBucket(),
+          sourcePath.getObject(), destPath.getBucket(), destPath.getObject(), null);
+      batchHelper.queue(copyObject, new JsonBatchCallback<StorageObject>() {
+        @Override
+        public void onSuccess(StorageObject obj, HttpHeaders responseHeaders) {
+          LOG.debug("Successfully copied {} to {}", sourcePath, destPath);
+        }
+
+        @Override
+        public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders) throws IOException {
+          // Do nothing on item not found.
+          if (!errorExtractor.itemNotFound(e)) {
+            throw new IOException(e.toString());
+          }
+          LOG.debug("{} does not exist.", sourcePath);
+        }
+      });
+    }
+    batchHelper.flush();
+  }
+
+  public void remove(Collection<String> filenames) throws IOException {
+    for (String filename : filenames) {
+      final GcsPath path = GcsPath.fromUri(filename);
+      LOG.debug("Removing: " + path);
+      Storage.Objects.Delete deleteObject =
+          storageClient.objects().delete(path.getBucket(), path.getObject());
+      batchHelper.queue(deleteObject, new JsonBatchCallback<Void>() {
+        @Override
+        public void onSuccess(Void obj, HttpHeaders responseHeaders) throws IOException {
+          LOG.debug("Successfully removed {}", path);
+        }
+
+        @Override
+        public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders) throws IOException {
+          // Do nothing on item not found.
+          if (!errorExtractor.itemNotFound(e)) {
+            throw new IOException(e.toString());
+          }
+          LOG.debug("{} does not exist.", path);
+        }
+      });
+    }
+    batchHelper.flush();
+  }
+
+  /**
+   * BatchHelper abstracts out the logic for the maximum requests per batch for GCS.
+   *
+   * <p>Copy of
+   * https://github.com/GoogleCloudPlatform/bigdata-interop/blob/master/gcs/src/main/java/com/google/cloud/hadoop/gcsio/BatchHelper.java
+   *
+   * <p>Copied to prevent Dataflow from depending on the Hadoop-related dependencies that are not
+   * used in Dataflow.  Hadoop-related dependencies will be removed from the Google Cloud Storage
+   * Connector (https://cloud.google.com/hadoop/google-cloud-storage-connector) so that this project
+   * and others may use the connector without introducing unnecessary dependencies.
+   *
+   * <p>This class is not thread-safe; create a new BatchHelper instance per single-threaded logical
+   * grouping of requests.
+   */
+  @NotThreadSafe
+  private static class BatchHelper {
+    /**
+     * Callback that causes a single StorageRequest to be added to the BatchRequest.
+     */
+    protected static interface QueueRequestCallback {
+      void enqueue() throws IOException;
+    }
+
+    private final List<QueueRequestCallback> pendingBatchEntries;
+    private final BatchRequest batch;
+
+    // Number of requests that can be queued into a single actual HTTP request
+    // before a sub-batch is sent.
+    private final long maxRequestsPerBatch;
+
+    // Flag that indicates whether there is an in-progress flush.
+    private boolean flushing = false;
+
+    /**
+     * Primary constructor, generally accessed only via the inner Factory class.
+     */
+    public BatchHelper(
+        HttpRequestInitializer requestInitializer, Storage gcs, long maxRequestsPerBatch) {
+      this.pendingBatchEntries = new LinkedList<>();
+      this.batch = gcs.batch(requestInitializer);
+      this.maxRequestsPerBatch = maxRequestsPerBatch;
+    }
+
+    /**
+     * Adds an additional request to the batch, and possibly flushes the current contents of the
+     * batch if {@code maxRequestsPerBatch} has been reached.
+     */
+    public <T> void queue(final StorageRequest<T> req, final JsonBatchCallback<T> callback)
+        throws IOException {
+      QueueRequestCallback queueCallback = new QueueRequestCallback() {
+        @Override
+        public void enqueue() throws IOException {
+          req.queue(batch, callback);
+        }
+      };
+      pendingBatchEntries.add(queueCallback);
+
+      flushIfPossibleAndRequired();
+    }
+
+    // Flush our buffer if we have more pending entries than maxRequestsPerBatch
+    private void flushIfPossibleAndRequired() throws IOException {
+      if (pendingBatchEntries.size() > maxRequestsPerBatch) {
+        flushIfPossible();
+      }
+    }
+
+    // Flush our buffer if we are not already in a flush operation and we have data to flush.
+    private void flushIfPossible() throws IOException {
+      if (!flushing && pendingBatchEntries.size() > 0) {
+        flushing = true;
+        try {
+          while (batch.size() < maxRequestsPerBatch && pendingBatchEntries.size() > 0) {
+            QueueRequestCallback head = pendingBatchEntries.remove(0);
+            head.enqueue();
+          }
+
+          batch.execute();
+        } finally {
+          flushing = false;
+        }
+      }
+    }
+
+
+    /**
+     * Sends any currently remaining requests in the batch; should be called at the end of any
+     * series of batched requests to ensure everything has been sent.
+     */
+    public void flush() throws IOException {
+      flushIfPossible();
+    }
   }
 
   /**
