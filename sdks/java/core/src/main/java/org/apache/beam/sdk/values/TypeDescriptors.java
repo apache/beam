@@ -17,11 +17,17 @@
  */
 package org.apache.beam.sdk.values;
 
+import com.google.common.reflect.TypeParameter;
+
 import java.math.BigDecimal;
+import java.util.List;
+import java.util.Set;
 
 /**
  * A utility class containing the Java primitives for
- * {@link TypeDescriptor} equivalents.
+ * {@link TypeDescriptor} equivalents. Also, has methods
+ * for classes that wrap Java primitives like {@link KV},
+ * {@link Set}, {@link List}, and {@link Iterable}.
  */
 public class TypeDescriptors {
   /**
@@ -118,5 +124,132 @@ public class TypeDescriptors {
    */
   public static TypeDescriptor<String> strings() {
     return new TypeDescriptor<String>() {};
+  }
+
+  /**
+   * The {@link TypeDescriptor} for nulls/Void.
+   * This is the equivalent of:
+   * <pre>
+   * new TypeDescriptor&lt;Void&gt;() {};
+   * </pre>
+   * @return A {@link TypeDescriptor} for nulls/Void
+   */
+  public static TypeDescriptor<Void> nulls() {
+    return new TypeDescriptor<Void>() {};
+  }
+
+  /**
+   * The {@link TypeDescriptor} for {@link KV}.
+   * This is the equivalent of:
+   * <pre>
+   * new TypeDescriptor&lt;KV&lt;K,V&gt;&gt;() {};
+   * </pre>
+   * <p>
+   * Example of use:
+   * <pre>
+   * {@code
+   * PCollection<String> words = ...;
+   * PCollection<KV<String, String>> words = words.apply(
+   *            FlatMapElements.via(...)
+   *            .withOutputType(
+   *              TypeDescriptors.kv(TypeDescriptors.strings(), TypeDescriptors.strings())));
+   * }
+   * </pre>
+   * @param key The {@link TypeDescriptor} for the key
+   * @param value The {@link TypeDescriptor} for the value
+   * @return A {@link TypeDescriptor} for {@link KV}
+   */
+  public static <K, V> TypeDescriptor<KV<K, V>>
+    kv(TypeDescriptor<K> key, TypeDescriptor<V> value) {
+    TypeDescriptor<KV<K, V>> typeDescriptor =
+        new TypeDescriptor<KV<K, V>>() {}
+      .<K> where(new TypeParameter<K>() {}, key)
+      .<V> where(new TypeParameter<V>() {}, value);
+
+    return typeDescriptor;
+  }
+
+  /**
+   * The {@link TypeDescriptor} for {@link Set}.
+   * This is the equivalent of:
+   * <pre>
+   * new TypeDescriptor&lt;Set&lt;E&gt;&gt;() {};
+   * </pre>
+   * <p>
+   * Example of use:
+   * <pre>
+   * {@code
+   * PCollection<String> words = ...;
+   * PCollection<Set<String>> words = words.apply(
+   *            FlatMapElements.via(...)
+   *            .withOutputType(TypeDescriptors.sets(TypeDescriptors.strings())));
+   * }
+   * </pre>
+   * @param element The {@link TypeDescriptor} for the set
+   * @return A {@link TypeDescriptor} for {@link Set}
+   */
+  public static <T> TypeDescriptor<Set<T>>
+    sets(TypeDescriptor<T> element) {
+    TypeDescriptor<Set<T>> typeDescriptor =
+        new TypeDescriptor<Set<T>>() {}
+      .<T> where(new TypeParameter<T>() {}, element);
+
+    return typeDescriptor;
+  }
+
+  /**
+   * The {@link TypeDescriptor} for {@link List}.
+   * This is the equivalent of:
+   * <pre>
+   * new TypeDescriptor&lt;List&lt;E&gt;&gt;() {};
+   * </pre>
+   * <p>
+   * Example of use:
+   * <pre>
+   * {@code
+   * PCollection<String> words = ...;
+   * PCollection<List<String>> words = words.apply(
+   *            FlatMapElements.via(...)
+   *            .withOutputType(TypeDescriptors.lists(TypeDescriptors.strings())));
+   * }
+   * </pre>
+   * @param element The {@link TypeDescriptor} for the list
+   * @return A {@link TypeDescriptor} for {@link List}
+   */
+  public static <T> TypeDescriptor<List<T>>
+    lists(TypeDescriptor<T> element) {
+    TypeDescriptor<List<T>> typeDescriptor =
+        new TypeDescriptor<List<T>>() {}
+      .<T> where(new TypeParameter<T>() {}, element);
+
+    return typeDescriptor;
+  }
+
+  /**
+   * The {@link TypeDescriptor} for {@link Iterable}.
+   * This is the equivalent of:
+   * <pre>
+   * new TypeDescriptor&lt;Iterable&lt;E&gt;&gt;() {};
+   * </pre>
+   * <p>
+   * Example of use:
+   * <pre>
+   * {@code
+   * PCollection<String> words = ...;
+   * PCollection<Iterable<String>> words = words.apply(
+   *            FlatMapElements.via(...)
+   *            .withOutputType(TypeDescriptors.iterables(TypeDescriptors.strings())));
+   * }
+   * </pre>
+   * @param iterable The {@link TypeDescriptor} for the iterable
+   * @return A {@link TypeDescriptor} for {@link Iterable}
+   */
+  public static <T> TypeDescriptor<Iterable<T>>
+    iterables(TypeDescriptor<T> iterable) {
+    TypeDescriptor<Iterable<T>> typeDescriptor =
+        new TypeDescriptor<Iterable<T>>() {}
+      .<T> where(new TypeParameter<T>() {}, iterable);
+
+    return typeDescriptor;
   }
 }
