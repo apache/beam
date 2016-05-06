@@ -199,7 +199,7 @@ class ReadOperation(Operation):
         if reader.returns_windowed_values:
           windowed_value = value
         else:
-          windowed_value = GlobalWindows.WindowedValue(value)
+          windowed_value = GlobalWindows.windowed_value(value)
         self.output(windowed_value)
 
   def request_dynamic_split(self, dynamic_split_request):
@@ -289,7 +289,7 @@ class GroupedShuffleReadOperation(Operation):
     with self.shuffle_source.reader() as reader:
       for key, key_values in reader:
         self._reader = reader
-        windowed_value = GlobalWindows.WindowedValue((key, key_values))
+        windowed_value = GlobalWindows.windowed_value((key, key_values))
         self.output(windowed_value, coder=write_coder)
 
   def get_progress(self):
@@ -322,7 +322,7 @@ class UngroupedShuffleReadOperation(Operation):
     with self.shuffle_source.reader() as reader:
       for value in reader:
         self._reader = reader
-        windowed_value = GlobalWindows.WindowedValue(value)
+        windowed_value = GlobalWindows.windowed_value(value)
         self.output(windowed_value, coder=write_coder)
 
   def get_progress(self):

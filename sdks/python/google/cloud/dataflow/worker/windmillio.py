@@ -58,7 +58,7 @@ class PubSubWindmillReader(iobase.NativeSourceReader):
   def __iter__(self):
     for bundle in self.source.context.work_item.message_bundles:
       for message in bundle.messages:
-        yield GlobalWindows.WindowedValue(
+        yield GlobalWindows.windowed_value(
             self.source.coder.decode(message.data),
             timestamp=windmill_to_harness_timestamp(message.timestamp))
 

@@ -200,7 +200,7 @@ class DirectPipelineRunner(PipelineRunner):
                              % wv)
 
     gbk_result = map(
-        GlobalWindows.WindowedValue,
+        GlobalWindows.windowed_value,
         ((key_coder.decode(k), v) for k, v in result_dict.iteritems()))
     self.debug_counters['element_counts'][
         transform_node.full_label] += len(gbk_result)
@@ -209,7 +209,7 @@ class DirectPipelineRunner(PipelineRunner):
   @skip_if_cached
   def run_Create(self, transform_node):
     transform = transform_node.transform
-    create_result = [GlobalWindows.WindowedValue(v) for v in transform.value]
+    create_result = [GlobalWindows.windowed_value(v) for v in transform.value]
     self.debug_counters['element_counts'][
         transform_node.full_label] += len(create_result)
     self._cache.cache_output(transform_node, create_result)
@@ -230,7 +230,7 @@ class DirectPipelineRunner(PipelineRunner):
     source = transform_node.transform.source
     source.pipeline_options = transform_node.inputs[0].pipeline.options
     with source.reader() as reader:
-      read_result = [GlobalWindows.WindowedValue(e) for e in reader]
+      read_result = [GlobalWindows.windowed_value(e) for e in reader]
       self.debug_counters['element_counts'][
           transform_node.full_label] += len(read_result)
       self._cache.cache_output(transform_node, read_result)

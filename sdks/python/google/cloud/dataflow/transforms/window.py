@@ -259,7 +259,7 @@ class GlobalWindows(WindowFn):
   """A windowing function that assigns everything to one global window."""
 
   @classmethod
-  def WindowedValue(cls, value, timestamp=MIN_TIMESTAMP):  # pylint: disable=invalid-name
+  def windowed_value(cls, value, timestamp=MIN_TIMESTAMP):
     return WindowedValue(value, timestamp, [GlobalWindow()])
 
   def assign(self, assign_context):
