@@ -183,25 +183,34 @@ public class WindowTest implements Serializable {
 
   /**
    * Tests that when two elements are combined via a GroupByKey their output timestamp agrees
-   * with the windowing function default, the earlier of the two values.
+   * with the windowing function default, the end of the window.
    */
   @Test
   @Category(RunnableOnService.class)
   public void testOutputTimeFnDefault() {
     Pipeline pipeline = TestPipeline.create();
 
-    pipeline.apply(
-        Create.timestamped(
-            TimestampedValue.of(KV.of(0, "hello"), new Instant(0)),
-            TimestampedValue.of(KV.of(0, "goodbye"), new Instant(10))))
+    pipeline
+        .apply(
+            Create.timestamped(
+                TimestampedValue.of(KV.of(0, "hello"), new Instant(0)),
+                TimestampedValue.of(KV.of(0, "goodbye"), new Instant(10))))
         .apply(Window.<KV<Integer, String>>into(FixedWindows.of(Duration.standardMinutes(10))))
         .apply(GroupByKey.<Integer, String>create())
-        .apply(ParDo.of(new DoFn<KV<Integer, Iterable<String>>, Void>() {
-          @Override
-          public void processElement(ProcessContext c) throws Exception {
-            assertThat(c.timestamp(), equalTo(new Instant(0)));
-          }
-        }));
+        .apply(
+            ParDo.of(
+                new DoFn<KV<Integer, Iterable<String>>, Void>() {
+                  @Override
+                  public void processElement(ProcessContext c) throws Exception {
+                    assertThat(
+                        c.timestamp(),
+                        equalTo(
+                            new IntervalWindow(
+                                    new Instant(0),
+                                    new Instant(0).plus(Duration.standardMinutes(10)))
+                                .maxTimestamp()));
+                  }
+                }));
 
     pipeline.run();
   }

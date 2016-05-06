@@ -64,7 +64,7 @@ public class GroupAlsoByWindowsViaOutputBufferDoFnTest {
 
   @Test
   public void testGroupsElementsIntoSlidingWindows() throws Exception {
-    GroupAlsoByWindowsProperties.groupsElementsIntoSlidingWindows(
+    GroupAlsoByWindowsProperties.groupsElementsIntoSlidingWindowsWithMinTimestamp(
         new BufferingGABWViaOutputBufferDoFnFactory<String, String>(StringUtf8Coder.of()));
   }
 
@@ -89,12 +89,6 @@ public class GroupAlsoByWindowsViaOutputBufferDoFnTest {
   @Test
   public void testGroupsElementsIntoFixedWindowsWithLatestTimestamp() throws Exception {
     GroupAlsoByWindowsProperties.groupsElementsIntoFixedWindowsWithLatestTimestamp(
-        new BufferingGABWViaOutputBufferDoFnFactory<String, String>(StringUtf8Coder.of()));
-  }
-
-  @Test
-  public void testGroupsElementsIntoFixedWindowsWithCustomTimestamp() throws Exception {
-    GroupAlsoByWindowsProperties.groupsElementsIntoFixedWindowsWithCustomTimestamp(
         new BufferingGABWViaOutputBufferDoFnFactory<String, String>(StringUtf8Coder.of()));
   }
 

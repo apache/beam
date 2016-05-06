@@ -201,7 +201,7 @@ public class WindowFnTestUtils {
 
     Instant instant = new Instant(timestamp);
     for (W window : windows) {
-      Instant outputTimestamp = windowFn.getOutputTimeFn().assignOutputTime(instant, window);
+      Instant outputTimestamp = windowFn.getOutputTime(instant, window);
       assertFalse("getOutputTime must be greater than or equal to input timestamp",
           outputTimestamp.isBefore(instant));
       assertFalse("getOutputTime must be less than or equal to the max timestamp",
@@ -232,7 +232,7 @@ public class WindowFnTestUtils {
     Instant instant = new Instant(timestamp);
     Instant endOfPrevious = null;
     for (W window : sortedWindows) {
-      Instant outputTimestamp = windowFn.getOutputTimeFn().assignOutputTime(instant, window);
+      Instant outputTimestamp = windowFn.getOutputTime(instant, window);
       if (endOfPrevious == null) {
         // If this is the first window, the output timestamp can be anything, as long as it is in
         // the valid range.

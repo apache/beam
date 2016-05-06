@@ -412,7 +412,7 @@ public class FlinkGroupAlsoByWindowWrapper<K, VIN, VACC, VOUT>
     FlinkStateInternals<K> stateInternals = perKeyStateInternals.get(key);
     if (stateInternals == null) {
       Coder<? extends BoundedWindow> windowCoder = this.windowingStrategy.getWindowFn().windowCoder();
-      OutputTimeFn<? super BoundedWindow> outputTimeFn = this.windowingStrategy.getWindowFn().getOutputTimeFn();
+      OutputTimeFn<? super BoundedWindow> outputTimeFn = this.windowingStrategy.getOutputTimeFn();
       stateInternals = new FlinkStateInternals<>(key, inputKvCoder.getKeyCoder(), windowCoder, outputTimeFn);
       perKeyStateInternals.put(key, stateInternals);
     }

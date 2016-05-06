@@ -35,7 +35,6 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Combine.KeyedCombineFn;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
@@ -220,9 +219,8 @@ public class CopyOnAccessInMemoryStateInternalsTest {
     CopyOnAccessInMemoryStateInternals<String> underlying =
         CopyOnAccessInMemoryStateInternals.withUnderlying(key, null);
 
-    @SuppressWarnings("unchecked")
-    OutputTimeFn<BoundedWindow> outputTimeFn = (OutputTimeFn<BoundedWindow>)
-        TestPipeline.create().apply(Create.of("foo")).getWindowingStrategy().getOutputTimeFn();
+    OutputTimeFn<BoundedWindow> outputTimeFn =
+        OutputTimeFns.outputAtEarliestInputTimestamp();
 
     StateNamespace namespace = new StateNamespaceForTest("foo");
     StateTag<Object, WatermarkHoldState<BoundedWindow>> stateTag =

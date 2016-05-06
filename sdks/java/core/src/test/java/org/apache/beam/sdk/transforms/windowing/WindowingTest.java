@@ -72,11 +72,12 @@ public class WindowingTest implements Serializable {
     }
     @Override
     public PCollection<String> apply(PCollection<String> in) {
-      return in
-          .apply(Window.named("Window").<String>into(windowFn))
+      return in.apply(
+              Window.named("Window")
+                  .<String>into(windowFn)
+                  .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp()))
           .apply(Count.<String>perElement())
-          .apply(ParDo
-              .named("FormatCounts").of(new FormatCountsDoFn()))
+          .apply(ParDo.named("FormatCounts").of(new FormatCountsDoFn()))
           .setCoder(StringUtf8Coder.of());
     }
   }
