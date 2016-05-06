@@ -26,6 +26,8 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 
+import org.apache.flink.runtime.client.JobExecutionException;
+
 public class TestFlinkPipelineRunner extends PipelineRunner<FlinkRunnerResult> {
 
   private FlinkPipelineRunner delegate;
@@ -55,7 +57,19 @@ public class TestFlinkPipelineRunner extends PipelineRunner<FlinkRunnerResult> {
 
   @Override
   public FlinkRunnerResult run(Pipeline pipeline) {
-    return delegate.run(pipeline);
+    try {
+      return delegate.run(pipeline);
+    } catch (RuntimeException e) {
+      // Special case hack to pull out assertion errors from PAssert; instead there should
+      // probably be a better story along the lines of UserCodeException.
+      if (e.getCause() != null
+          && e.getCause() instanceof JobExecutionException
+          && e.getCause().getCause() instanceof AssertionError) {
+          throw (AssertionError) e.getCause().getCause();
+      } else {
+        throw e;
+      }
+    }
   }
 
   public PipelineOptions getPipelineOptions() {
