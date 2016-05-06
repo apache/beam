@@ -99,6 +99,22 @@
 
     <!-- Test scoped -->
 
+    <dependency>
+      <groupId>org.hamcrest</groupId>
+      <artifactId>hamcrest-all</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-all</artifactId>
+      <scope>test</scope>
+    </dependency>
+
     <!-- Depend on test jar to scan for RunnableOnService tests -->
     <dependency>
       <groupId>org.apache.beam</groupId>
@@ -135,12 +151,6 @@
       <groupId>org.apache.flink</groupId>
       <artifactId>flink-test-utils_2.10</artifactId>
       <version>${flink.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.mockito</groupId>
-      <artifactId>mockito-all</artifactId>
-      <scope>test</scope>
     </dependency>
     <!-- Optional Pipeline Registration -->
     <dependency>
@@ -179,7 +189,7 @@
             </goals>
             <configuration>
               <groups>org.apache.beam.sdk.testing.RunnableOnService</groups>
-              <parallel>all</parallel>
+              <parallel>none</parallel>
               <threadCount>4</threadCount>
               <failIfNoTests>true</failIfNoTests>
               <dependenciesToScan>
@@ -213,7 +223,7 @@
             </goals>
             <configuration>
               <groups>org.apache.beam.sdk.testing.RunnableOnService</groups>
-              <parallel>all</parallel>
+              <parallel>none</parallel>
               <threadCount>4</threadCount>
               <failIfNoTests>true</failIfNoTests>
               <dependenciesToScan>
