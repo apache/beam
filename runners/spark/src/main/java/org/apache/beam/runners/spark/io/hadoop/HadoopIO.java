@@ -17,10 +17,6 @@
  */
 package org.apache.beam.runners.spark.io.hadoop;
 
-import java.util.HashMap;
-import java.util.Map;
-
-import com.google.common.base.Preconditions;
 import org.apache.beam.sdk.io.ShardNameTemplate;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowingStrategy;
@@ -28,14 +24,26 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
+
+import com.google.common.base.Preconditions;
+
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * Spark native HadoopIO.
+ */
 public final class HadoopIO {
 
   private HadoopIO() {
   }
 
+  /**
+   * Read operation from HDFS.
+   */
   public static final class Read {
 
     private Read() {
@@ -46,6 +54,11 @@ public final class HadoopIO {
       return new Bound<>(filepattern, format, key, value);
     }
 
+    /**
+     * A {@link PTransform} reading bounded collection of data from HDFS.
+     * @param <K>
+     * @param <V>
+     */
     public static class Bound<K, V> extends PTransform<PInput, PCollection<KV<K, V>>> {
 
       private final String filepattern;
@@ -95,6 +108,9 @@ public final class HadoopIO {
 
   }
 
+  /**
+   * Write operation on HDFS.
+   */
   public static final class Write {
 
     private Write() {
@@ -105,6 +121,9 @@ public final class HadoopIO {
       return new Bound<>(filenamePrefix, format, key, value);
     }
 
+    /**
+     * A {@link PTransform} writing {@link PCollection} on HDFS.
+     */
     public static class Bound<K, V> extends PTransform<PCollection<KV<K, V>>, PDone> {
 
       /** The filename to write to. */

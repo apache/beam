@@ -33,6 +33,9 @@ import org.junit.Test;
 
 import java.io.Serializable;
 
+/**
+ * DoFN output test.
+ */
 public class DoFnOutputTest implements Serializable {
   @Test
   public void test() throws Exception {

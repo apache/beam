@@ -42,6 +42,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * Simple word count streaming test.
+ */
 public class SimpleStreamingWordCountTest {
 
   private static final String[] WORDS_ARRAY = {
@@ -58,7 +61,7 @@ public class SimpleStreamingWordCountTest {
         PipelineOptionsFactory.as(SparkStreamingPipelineOptions.class);
     options.setAppName(this.getClass().getSimpleName());
     options.setRunner(SparkPipelineRunner.class);
-    options.setTimeout(TEST_TIMEOUT_MSEC);// run for one interval
+    options.setTimeout(TEST_TIMEOUT_MSEC); // run for one interval
     Pipeline p = Pipeline.create(options);
 
     PCollection<String> inputWords =

@@ -18,14 +18,17 @@
 
 package org.apache.beam.runners.spark.io.hadoop;
 
-import java.io.IOException;
-import java.io.OutputStream;
-
 import org.apache.avro.mapreduce.AvroKeyOutputFormat;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
+import java.io.IOException;
+import java.io.OutputStream;
+
+/**
+ * Templated Avro key output format.
+ */
 public class TemplatedAvroKeyOutputFormat<T> extends AvroKeyOutputFormat<T>
     implements ShardNameTemplateAware {
 

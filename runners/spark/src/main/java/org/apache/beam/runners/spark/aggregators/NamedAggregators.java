@@ -18,18 +18,19 @@
 
 package org.apache.beam.runners.spark.aggregators;
 
+import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.transforms.Combine;
+
+import com.google.common.collect.ImmutableList;
+
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.TreeMap;
-
-import com.google.common.collect.ImmutableList;
-import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
-import org.apache.beam.sdk.coders.CannotProvideCoderException;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.transforms.Combine;
 
 /**
  * This class wraps a map of named aggregators. Spark expects that all accumulators be declared
@@ -96,8 +97,10 @@ public class NamedAggregators implements Serializable {
    * so require some casting.
    */
   @SuppressWarnings("unchecked")
-  private static <A, B, C> State<A, B, C> merge(State<?, ?, ?> s1, State<?, ?, ?> s2) {
-    return ((State<A, B, C>) s1).merge((State<A, B, C>) s2);
+  private static <InputT, InterT, OutputT> State<InputT, InterT, OutputT> merge(
+      State<?, ?, ?> s1,
+      State<?, ?, ?> s2) {
+    return ((State<InputT, InterT, OutputT>) s1).merge((State<InputT, InterT, OutputT>) s2);
   }
 
   @Override
@@ -110,38 +113,39 @@ public class NamedAggregators implements Serializable {
   }
 
   /**
-   * @param <IN>    Input data type
-   * @param <INTER> Intermediate data type (useful for averages)
-   * @param <OUT>   Output data type
+   * @param <InputT>    Input data type
+   * @param <InterT> Intermediate data type (useful for averages)
+   * @param <OutputT>   Output data type
    */
-  public interface State<IN, INTER, OUT> extends Serializable {
+  public interface State<InputT, InterT, OutputT> extends Serializable {
     /**
      * @param element new element to update state
      */
-    void update(IN element);
+    void update(InputT element);
 
-    State<IN, INTER, OUT> merge(State<IN, INTER, OUT> other);
+    State<InputT, InterT, OutputT> merge(State<InputT, InterT, OutputT> other);
 
-    INTER current();
+    InterT current();
 
-    OUT render();
+    OutputT render();
 
-    Combine.CombineFn<IN, INTER, OUT> getCombineFn();
+    Combine.CombineFn<InputT, InterT, OutputT> getCombineFn();
   }
 
   /**
    * =&gt; combineFunction in data flow.
    */
-  public static class CombineFunctionState<IN, INTER, OUT> implements State<IN, INTER, OUT> {
+  public static class CombineFunctionState<InputT, InterT, OutpuT>
+      implements State<InputT, InterT, OutpuT> {
 
-    private Combine.CombineFn<IN, INTER, OUT> combineFn;
-    private Coder<IN> inCoder;
+    private Combine.CombineFn<InputT, InterT, OutpuT> combineFn;
+    private Coder<InputT> inCoder;
     private SparkRuntimeContext ctxt;
-    private transient INTER state;
+    private transient InterT state;
 
     public CombineFunctionState(
-        Combine.CombineFn<IN, INTER, OUT> combineFn,
-        Coder<IN> inCoder,
+        Combine.CombineFn<InputT, InterT, OutpuT> combineFn,
+        Coder<InputT> inCoder,
         SparkRuntimeContext ctxt) {
       this.combineFn = combineFn;
       this.inCoder = inCoder;
@@ -150,28 +154,28 @@ public class NamedAggregators implements Serializable {
     }
 
     @Override
-    public void update(IN element) {
+    public void update(InputT element) {
       combineFn.addInput(state, element);
     }
 
     @Override
-    public State<IN, INTER, OUT> merge(State<IN, INTER, OUT> other) {
+    public State<InputT, InterT, OutpuT> merge(State<InputT, InterT, OutpuT> other) {
       this.state = combineFn.mergeAccumulators(ImmutableList.of(current(), other.current()));
       return this;
     }
 
     @Override
-    public INTER current() {
+    public InterT current() {
       return state;
     }
 
     @Override
-    public OUT render() {
+    public OutpuT render() {
       return combineFn.extractOutput(state);
     }
 
     @Override
-    public Combine.CombineFn<IN, INTER, OUT> getCombineFn() {
+    public Combine.CombineFn<InputT, InterT, OutpuT> getCombineFn() {
       return combineFn;
     }
 
@@ -190,8 +194,8 @@ public class NamedAggregators implements Serializable {
     @SuppressWarnings("unchecked")
     private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
       ctxt = (SparkRuntimeContext) ois.readObject();
-      combineFn = (Combine.CombineFn<IN, INTER, OUT>) ois.readObject();
-      inCoder = (Coder<IN>) ois.readObject();
+      combineFn = (Combine.CombineFn<InputT, InterT, OutpuT>) ois.readObject();
+      inCoder = (Coder<InputT>) ois.readObject();
       try {
         state = combineFn.getAccumulatorCoder(ctxt.getCoderRegistry(), inCoder)
             .decode(ois, Coder.Context.NESTED);

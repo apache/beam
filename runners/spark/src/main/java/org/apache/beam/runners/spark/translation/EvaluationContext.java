@@ -20,14 +20,6 @@ package org.apache.beam.runners.spark.translation;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import com.google.common.base.Function;
-import com.google.common.collect.Iterables;
 import org.apache.beam.runners.spark.EvaluationResult;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.sdk.Pipeline;
@@ -46,8 +38,18 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
+
+import com.google.common.base.Function;
+import com.google.common.collect.Iterables;
+
 import org.apache.spark.api.java.JavaRDDLike;
 import org.apache.spark.api.java.JavaSparkContext;
+
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 
 /**
@@ -151,19 +153,19 @@ public class EvaluationContext implements EvaluationResult {
     return currentTransform;
   }
 
-  protected <I extends PInput> I getInput(PTransform<I, ?> transform) {
+  protected <T extends PInput> T getInput(PTransform<T, ?> transform) {
     checkArgument(currentTransform != null && currentTransform.getTransform() == transform,
         "can only be called with current transform");
     @SuppressWarnings("unchecked")
-    I input = (I) currentTransform.getInput();
+    T input = (T) currentTransform.getInput();
     return input;
   }
 
-  protected <O extends POutput> O getOutput(PTransform<?, O> transform) {
+  protected <T extends POutput> T getOutput(PTransform<?, T> transform) {
     checkArgument(currentTransform != null && currentTransform.getTransform() == transform,
         "can only be called with current transform");
     @SuppressWarnings("unchecked")
-    O output = (O) currentTransform.getOutput();
+    T output = (T) currentTransform.getOutput();
     return output;
   }
 

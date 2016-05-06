@@ -35,6 +35,9 @@ import org.junit.Test;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * Empty input test.
+ */
 public class EmptyInputTest {
 
   @Test
@@ -51,6 +54,9 @@ public class EmptyInputTest {
     res.close();
   }
 
+  /**
+   * Concat words serizaliable function used in test.
+   */
   public static class ConcatWords implements SerializableFunction<Iterable<String>, String> {
     @Override
     public String apply(Iterable<String> input) {

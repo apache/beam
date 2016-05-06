@@ -39,6 +39,7 @@ import kafka.server.KafkaServer;
 import kafka.utils.Time;
 
 /**
+ * Embedded Kafka cluster.
  * https://gist.github.com/fjavieralba/7930018
  */
 public class EmbeddedKafkaCluster {
@@ -169,6 +170,9 @@ public class EmbeddedKafkaCluster {
     return "EmbeddedKafkaCluster{" + "brokerList='" + brokerList + "'}";
   }
 
+  /**
+   * Embedded Zookeeper.
+   */
   public static class EmbeddedZookeeper {
     private int port = -1;
     private int tickTime = 500;

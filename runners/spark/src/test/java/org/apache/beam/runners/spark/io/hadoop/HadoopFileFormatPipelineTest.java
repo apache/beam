@@ -47,6 +47,9 @@ import org.junit.rules.TemporaryFolder;
 import java.io.File;
 import java.io.IOException;
 
+/**
+ * Pipeline on the Hadoop file format test.
+ */
 public class HadoopFileFormatPipelineTest {
 
   private File inputFile;
@@ -69,16 +72,21 @@ public class HadoopFileFormatPipelineTest {
     Pipeline p = Pipeline.create(PipelineOptionsFactory.create());
     @SuppressWarnings("unchecked")
     Class<? extends FileInputFormat<IntWritable, Text>> inputFormatClass =
-        (Class<? extends FileInputFormat<IntWritable, Text>>) (Class<?>) SequenceFileInputFormat.class;
-    HadoopIO.Read.Bound<IntWritable,Text> read =
-        HadoopIO.Read.from(inputFile.getAbsolutePath(), inputFormatClass, IntWritable.class, Text.class);
+        (Class<? extends FileInputFormat<IntWritable, Text>>)
+            (Class<?>) SequenceFileInputFormat.class;
+    HadoopIO.Read.Bound<IntWritable, Text> read =
+        HadoopIO.Read.from(inputFile.getAbsolutePath(),
+            inputFormatClass,
+            IntWritable.class,
+            Text.class);
     PCollection<KV<IntWritable, Text>> input = p.apply(read)
         .setCoder(KvCoder.of(WritableCoder.of(IntWritable.class), WritableCoder.of(Text.class)));
     @SuppressWarnings("unchecked")
     Class<? extends FileOutputFormat<IntWritable, Text>> outputFormatClass =
-        (Class<? extends FileOutputFormat<IntWritable, Text>>) (Class<?>) TemplatedSequenceFileOutputFormat.class;
+        (Class<? extends FileOutputFormat<IntWritable, Text>>)
+            (Class<?>) TemplatedSequenceFileOutputFormat.class;
     @SuppressWarnings("unchecked")
-    HadoopIO.Write.Bound<IntWritable,Text> write = HadoopIO.Write.to(outputFile.getAbsolutePath(),
+    HadoopIO.Write.Bound<IntWritable, Text> write = HadoopIO.Write.to(outputFile.getAbsolutePath(),
         outputFormatClass, IntWritable.class, Text.class);
     input.apply(write.withoutSharding());
     EvaluationResult res = SparkPipelineRunner.create().run(p);
@@ -86,7 +94,8 @@ public class HadoopFileFormatPipelineTest {
 
     IntWritable key = new IntWritable();
     Text value = new Text();
-    try (Reader reader = new Reader(new Configuration(), Reader.file(new Path(outputFile.toURI())))) {
+    try (Reader reader = new Reader(new Configuration(),
+        Reader.file(new Path(outputFile.toURI())))) {
       int i = 0;
       while (reader.next(key, value)) {
         assertEquals(i, key.get());

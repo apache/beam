@@ -24,6 +24,9 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PInput;
 
+/**
+ * A {@link PTransform} wrapping another transform.
+ */
 public class SinglePrimitiveOutputPTransform<T> extends PTransform<PInput, PCollection<T>> {
   private PTransform<PInput, PCollection<T>> transform;
 

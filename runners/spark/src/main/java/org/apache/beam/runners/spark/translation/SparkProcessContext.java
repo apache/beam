@@ -18,13 +18,6 @@
 
 package org.apache.beam.runners.spark.translation;
 
-import java.io.IOException;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.Map;
-
-import com.google.common.collect.AbstractIterator;
-import com.google.common.collect.Iterables;
 import org.apache.beam.runners.spark.util.BroadcastHelper;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -40,21 +33,34 @@ import org.apache.beam.sdk.util.state.InMemoryStateInternals;
 import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+
+import com.google.common.collect.AbstractIterator;
+import com.google.common.collect.Iterables;
+
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public abstract class SparkProcessContext<I, O, V> extends DoFn<I, O>.ProcessContext {
+import java.io.IOException;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.Map;
+
+/**
+ * Spark runner process context.
+ */
+public abstract class SparkProcessContext<InputT, OutputT, ValueT>
+    extends DoFn<InputT, OutputT>.ProcessContext {
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkProcessContext.class);
 
-  private final DoFn<I, O> fn;
+  private final DoFn<InputT, OutputT> fn;
   private final SparkRuntimeContext mRuntimeContext;
   private final Map<TupleTag<?>, BroadcastHelper<?>> mSideInputs;
 
-  protected WindowedValue<I> windowedValue;
+  protected WindowedValue<InputT> windowedValue;
 
-  SparkProcessContext(DoFn<I, O> fn,
+  SparkProcessContext(DoFn<InputT, OutputT> fn,
       SparkRuntimeContext runtime,
       Map<TupleTag<?>, BroadcastHelper<?>> sideInputs) {
     fn.super();
@@ -82,9 +88,9 @@ public abstract class SparkProcessContext<I, O, V> extends DoFn<I, O>.ProcessCon
   }
 
   @Override
-  public abstract void output(O output);
+  public abstract void output(OutputT output);
 
-  public abstract void output(WindowedValue<O> output);
+  public abstract void output(WindowedValue<OutputT> output);
 
   @Override
   public <T> void sideOutput(TupleTag<T> tupleTag, T t) {
@@ -104,19 +110,20 @@ public abstract class SparkProcessContext<I, O, V> extends DoFn<I, O>.ProcessCon
   }
 
   @Override
-  public <AI, AO> Aggregator<AI, AO> createAggregatorInternal(
+  public <AggregatprInputT, AggregatorOutputT>
+  Aggregator<AggregatprInputT, AggregatorOutputT> createAggregatorInternal(
       String named,
-      Combine.CombineFn<AI, ?, AO> combineFn) {
+      Combine.CombineFn<AggregatprInputT, ?, AggregatorOutputT> combineFn) {
     return mRuntimeContext.createAggregator(named, combineFn);
   }
 
   @Override
-  public I element() {
+  public InputT element() {
     return windowedValue.getValue();
   }
 
   @Override
-  public void outputWithTimestamp(O output, Instant timestamp) {
+  public void outputWithTimestamp(OutputT output, Instant timestamp) {
     output(WindowedValue.of(output, timestamp,
         windowedValue.getWindows(), windowedValue.getPane()));
   }
@@ -141,8 +148,8 @@ public abstract class SparkProcessContext<I, O, V> extends DoFn<I, O>.ProcessCon
   }
 
   @Override
-  public WindowingInternals<I, O> windowingInternals() {
-    return new WindowingInternals<I, O>() {
+  public WindowingInternals<InputT, OutputT> windowingInternals() {
+    return new WindowingInternals<InputT, OutputT>() {
 
       @Override
       public Collection<? extends BoundedWindow> windows() {
@@ -150,7 +157,7 @@ public abstract class SparkProcessContext<I, O, V> extends DoFn<I, O>.ProcessCon
       }
 
       @Override
-      public void outputWindowedValue(O output, Instant timestamp, Collection<?
+      public void outputWindowedValue(OutputT output, Instant timestamp, Collection<?
           extends BoundedWindow> windows, PaneInfo paneInfo) {
         output(WindowedValue.of(output, timestamp, windows, paneInfo));
       }
@@ -190,33 +197,33 @@ public abstract class SparkProcessContext<I, O, V> extends DoFn<I, O>.ProcessCon
   }
 
   protected abstract void clearOutput();
-  protected abstract Iterator<V> getOutputIterator();
+  protected abstract Iterator<ValueT> getOutputIterator();
 
-  protected Iterable<V> getOutputIterable(final Iterator<WindowedValue<I>> iter,
-      final DoFn<I, O> doFn) {
-    return new Iterable<V>() {
+  protected Iterable<ValueT> getOutputIterable(final Iterator<WindowedValue<InputT>> iter,
+                                               final DoFn<InputT, OutputT> doFn) {
+    return new Iterable<ValueT>() {
       @Override
-      public Iterator<V> iterator() {
+      public Iterator<ValueT> iterator() {
         return new ProcCtxtIterator(iter, doFn);
       }
     };
   }
 
-  private class ProcCtxtIterator extends AbstractIterator<V> {
+  private class ProcCtxtIterator extends AbstractIterator<ValueT> {
 
-    private final Iterator<WindowedValue<I>> inputIterator;
-    private final DoFn<I, O> doFn;
-    private Iterator<V> outputIterator;
+    private final Iterator<WindowedValue<InputT>> inputIterator;
+    private final DoFn<InputT, OutputT> doFn;
+    private Iterator<ValueT> outputIterator;
     private boolean calledFinish;
 
-    ProcCtxtIterator(Iterator<WindowedValue<I>> iterator, DoFn<I, O> doFn) {
+    ProcCtxtIterator(Iterator<WindowedValue<InputT>> iterator, DoFn<InputT, OutputT> doFn) {
       this.inputIterator = iterator;
       this.doFn = doFn;
       this.outputIterator = getOutputIterator();
     }
 
     @Override
-    protected V computeNext() {
+    protected ValueT computeNext() {
       // Process each element from the (input) iterator, which produces, zero, one or more
       // output elements (of type V) in the output iterator. Note that the output
       // collection (and iterator) is reset between each call to processElement, so the
@@ -253,6 +260,9 @@ public abstract class SparkProcessContext<I, O, V> extends DoFn<I, O>.ProcessCon
     }
   }
 
+  /**
+   * Spark process runtime exception.
+   */
   public static class SparkProcessException extends RuntimeException {
     SparkProcessException(Throwable t) {
       super(t);

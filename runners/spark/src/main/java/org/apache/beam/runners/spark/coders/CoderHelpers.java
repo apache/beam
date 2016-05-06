@@ -18,17 +18,20 @@
 
 package org.apache.beam.runners.spark.coders;
 
+import org.apache.beam.runners.spark.util.ByteArray;
+import org.apache.beam.sdk.coders.Coder;
+
+import com.google.common.collect.Iterables;
+
+import org.apache.spark.api.java.function.Function;
+import org.apache.spark.api.java.function.PairFunction;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 
-import com.google.common.collect.Iterables;
-import org.apache.beam.runners.spark.util.ByteArray;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.spark.api.java.function.Function;
-import org.apache.spark.api.java.function.PairFunction;
 import scala.Tuple2;
 
 /**
