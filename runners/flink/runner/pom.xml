@@ -179,8 +179,7 @@
             </goals>
             <configuration>
               <groups>org.apache.beam.sdk.testing.RunnableOnService</groups>
-              <parallel>all</parallel>
-              <threadCount>4</threadCount>
+              <parallel>none</parallel>
               <failIfNoTests>true</failIfNoTests>
               <dependenciesToScan>
                 <dependency>org.apache.beam:java-sdk-all</dependency>
@@ -213,8 +212,7 @@
             </goals>
             <configuration>
               <groups>org.apache.beam.sdk.testing.RunnableOnService</groups>
-              <parallel>all</parallel>
-              <threadCount>4</threadCount>
+              <parallel>none</parallel>
               <failIfNoTests>true</failIfNoTests>
               <dependenciesToScan>
                 <dependency>org.apache.beam:java-sdk-all</dependency>
