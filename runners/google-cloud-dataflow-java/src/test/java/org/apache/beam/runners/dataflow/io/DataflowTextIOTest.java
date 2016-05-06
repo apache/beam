@@ -17,11 +17,21 @@
  */
 package org.apache.beam.runners.dataflow.io;
 
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
+
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.startsWith;
+import static org.junit.Assert.assertThat;
+
 import org.apache.beam.runners.dataflow.DataflowPipelineRunner;
 import org.apache.beam.runners.dataflow.testing.TestDataflowPipelineOptions;
+import org.apache.beam.runners.dataflow.transforms.DataflowDisplayDataEvaluator;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.TestCredential;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
@@ -41,13 +51,13 @@ import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.List;
+import java.util.Set;
 
 /**
  * {@link DataflowPipelineRunner} specific tests for TextIO Read and Write transforms.
  */
 @RunWith(JUnit4.class)
 public class DataflowTextIOTest {
-
   private TestDataflowPipelineOptions buildTestPipelineOptions() {
     TestDataflowPipelineOptions options =
         PipelineOptionsFactory.as(TestDataflowPipelineOptions.class);
@@ -115,5 +125,16 @@ public class DataflowTextIOTest {
 
   private void applyRead(Pipeline pipeline, String path) {
     pipeline.apply("Read(" + path + ")", TextIO.Read.from(path));
+  }
+
+  @Test
+  public void testPrimitiveDisplayData() {
+    DisplayDataEvaluator evaluator = DataflowDisplayDataEvaluator.create();
+
+    TextIO.Write.Bound<?> write = TextIO.Write.to("foobar");
+
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
+    assertThat("TextIO.Write should include the file prefix in its primitive display data",
+        displayData, hasItem(hasDisplayItem(hasValue(startsWith("foobar")))));
   }
 }
