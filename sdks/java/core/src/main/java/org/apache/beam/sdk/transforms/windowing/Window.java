@@ -601,8 +601,13 @@ public class Window {
       super.populateDisplayData(builder);
       builder
           .add(DisplayData.item("windowFn", windowFn.getClass()))
-          .include(windowFn)
-          .addIfNotNull(DisplayData.item("allowedLateness", allowedLateness));
+          .include(windowFn);
+
+      if (allowedLateness != null) {
+        builder.addIfNotDefault(DisplayData.item("allowedLateness", allowedLateness),
+            Duration.millis(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));
+
+      }
 
       if (trigger != null && !(trigger instanceof DefaultTrigger)) {
         builder.add(DisplayData.item("trigger", trigger.toString()));
