@@ -19,7 +19,6 @@ package org.apache.beam.runners.flink.translation;
 
 import org.apache.beam.runners.flink.io.ConsoleIO;
 import org.apache.beam.runners.flink.translation.functions.FlinkCoGroupKeyedListAggregator;
-import org.apache.beam.runners.flink.translation.functions.FlinkCreateFunction;
 import org.apache.beam.runners.flink.translation.functions.FlinkDoFnFunction;
 import org.apache.beam.runners.flink.translation.functions.FlinkKeyedListAggregationFunction;
 import org.apache.beam.runners.flink.translation.functions.FlinkMultiOutputDoFnFunction;
@@ -40,7 +39,6 @@ import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.Write;
 import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -55,8 +53,6 @@ import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.transforms.windowing.WindowFn.AssignContext;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -84,14 +80,10 @@ import org.apache.flink.api.java.operators.Grouping;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
 import org.apache.flink.api.java.operators.UnsortedGrouping;
 import org.apache.flink.core.fs.Path;
-import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.lang.reflect.Field;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -99,7 +91,7 @@ import java.util.Map;
 /**
  * Translators for transforming
  * Dataflow {@link org.apache.beam.sdk.transforms.PTransform}s to
- * Flink {@link org.apache.flink.api.java.DataSet}s
+ * Flink {@link org.apache.flink.api.java.DataSet}s.
  */
 public class FlinkBatchTransformTranslators {
 
@@ -117,8 +109,6 @@ public class FlinkBatchTransformTranslators {
     TRANSLATORS.put(Combine.PerKey.class, new CombinePerKeyTranslatorBatch());
     // we don't need this because we translate the Combine.PerKey directly
     //TRANSLATORS.put(Combine.GroupedValues.class, new CombineGroupedValuesTranslator());
-
-    TRANSLATORS.put(Create.Values.class, new CreateTranslatorBatch());
 
     TRANSLATORS.put(Flatten.FlattenPCollectionList.class, new FlattenPCollectionTranslatorBatch());
 
@@ -521,37 +511,6 @@ public class FlinkBatchTransformTranslators {
       DataSet<T> inputDataSet = context.getInputDataSet(context.getInput(transform));
       PCollectionView<T> input = transform.apply(null);
       context.setSideInputDataSet(input, inputDataSet);
-    }
-  }
-
-  private static class CreateTranslatorBatch<OUT> implements FlinkBatchPipelineTranslator.BatchTransformTranslator<Create.Values<OUT>> {
-
-    @Override
-    public void translateNode(Create.Values<OUT> transform, FlinkBatchTranslationContext context) {
-      TypeInformation<OUT> typeInformation = context.getOutputTypeInfo();
-      Iterable<OUT> elements = transform.getElements();
-
-      // we need to serialize the elements to byte arrays, since they might contain
-      // elements that are not serializable by Java serialization. We deserialize them
-      // in the FlatMap function using the Coder.
-
-      List<byte[]> serializedElements = Lists.newArrayList();
-      Coder<OUT> coder = context.getOutput(transform).getCoder();
-      for (OUT element: elements) {
-        ByteArrayOutputStream bao = new ByteArrayOutputStream();
-        try {
-          coder.encode(element, bao, Coder.Context.OUTER);
-          serializedElements.add(bao.toByteArray());
-        } catch (IOException e) {
-          throw new RuntimeException("Could not serialize Create elements using Coder: " + e);
-        }
-      }
-
-      DataSet<Integer> initDataSet = context.getExecutionEnvironment().fromElements(1);
-      FlinkCreateFunction<Integer, OUT> flatMapFunction = new FlinkCreateFunction<>(serializedElements, coder);
-      FlatMapOperator<Integer, OUT> outputDataSet = new FlatMapOperator<>(initDataSet, typeInformation, flatMapFunction, transform.getName());
-
-      context.setOutputDataSet(context.getOutput(transform), outputDataSet);
     }
   }
 

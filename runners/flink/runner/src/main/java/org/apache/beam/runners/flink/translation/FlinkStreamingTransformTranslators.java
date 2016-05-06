@@ -23,10 +23,9 @@ import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.types.FlinkCoder;
 import org.apache.beam.runners.flink.translation.wrappers.SourceInputFormat;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.FlinkGroupAlsoByWindowWrapper;
-import org.apache.beam.runners.flink.translation.wrappers.streaming.FlinkGroupByKeyWrapper;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.FlinkParDoBoundMultiWrapper;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.FlinkParDoBoundWrapper;
-import org.apache.beam.runners.flink.translation.wrappers.streaming.io.FlinkStreamingCreateFunction;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.KVKeySelector;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.UnboundedFlinkSink;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.UnboundedFlinkSource;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.UnboundedSourceWrapper;
@@ -38,7 +37,6 @@ import org.apache.beam.sdk.io.Sink;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.Write;
 import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -62,7 +60,6 @@ import com.google.common.collect.Lists;
 
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
@@ -74,8 +71,6 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -99,7 +94,6 @@ public class FlinkStreamingTransformTranslators {
 
   // here you can find all the available translators.
   static {
-    TRANSLATORS.put(Create.Values.class, new CreateStreamingTranslator());
     TRANSLATORS.put(Read.Bounded.class, new BoundedReadSourceTranslator());
     TRANSLATORS.put(Read.Unbounded.class, new UnboundedReadSourceTranslator());
     TRANSLATORS.put(ParDo.Bound.class, new ParDoBoundStreamingTranslator());
@@ -121,47 +115,6 @@ public class FlinkStreamingTransformTranslators {
   // --------------------------------------------------------------------------------------------
   //  Transformation Implementations
   // --------------------------------------------------------------------------------------------
-
-  private static class CreateStreamingTranslator<OUT> implements
-      FlinkStreamingPipelineTranslator.StreamTransformTranslator<Create.Values<OUT>> {
-
-    @Override
-    public void translateNode(Create.Values<OUT> transform, FlinkStreamingTranslationContext context) {
-      PCollection<OUT> output = context.getOutput(transform);
-      Iterable<OUT> elements = transform.getElements();
-
-      // we need to serialize the elements to byte arrays, since they might contain
-      // elements that are not serializable by Java serialization. We deserialize them
-      // in the FlatMap function using the Coder.
-
-      List<byte[]> serializedElements = Lists.newArrayList();
-      Coder<OUT> elementCoder = output.getCoder();
-      for (OUT element: elements) {
-        ByteArrayOutputStream bao = new ByteArrayOutputStream();
-        try {
-          elementCoder.encode(element, bao, Coder.Context.OUTER);
-          serializedElements.add(bao.toByteArray());
-        } catch (IOException e) {
-          throw new RuntimeException("Could not serialize Create elements using Coder: " + e);
-        }
-      }
-
-
-      DataStream<Integer> initDataSet = context.getExecutionEnvironment().fromElements(1);
-
-      FlinkStreamingCreateFunction<Integer, OUT> createFunction =
-          new FlinkStreamingCreateFunction<>(serializedElements, elementCoder);
-
-      WindowedValue.ValueOnlyWindowedValueCoder<OUT> windowCoder = WindowedValue.getValueOnlyCoder(elementCoder);
-      TypeInformation<WindowedValue<OUT>> outputType = new CoderTypeInformation<>(windowCoder);
-
-      DataStream<WindowedValue<OUT>> outputDataStream = initDataSet.flatMap(createFunction)
-          .returns(outputType);
-
-      context.setOutputDataStream(output, outputDataStream);
-    }
-  }
-
 
   private static class TextIOWriteBoundStreamingTranslator<T> implements FlinkStreamingPipelineTranslator.StreamTransformTranslator<TextIO.Write.Bound<T>> {
     private static final Logger LOG = LoggerFactory.getLogger(TextIOWriteBoundStreamingTranslator.class);
@@ -382,8 +335,8 @@ public class FlinkStreamingTransformTranslators {
       DataStream<WindowedValue<KV<K, V>>> inputDataStream = context.getInputDataStream(input);
       KvCoder<K, V> inputKvCoder = (KvCoder<K, V>) context.getInput(transform).getCoder();
 
-      KeyedStream<WindowedValue<KV<K, V>>, K> groupByKStream = FlinkGroupByKeyWrapper
-          .groupStreamByKey(inputDataStream, inputKvCoder);
+      KeyedStream<WindowedValue<KV<K, V>>, K> groupByKStream =
+          KVKeySelector.keyBy(inputDataStream, inputKvCoder);
 
       DataStream<WindowedValue<KV<K, Iterable<V>>>> groupedByKNWstream =
           FlinkGroupAlsoByWindowWrapper.createForIterable(context.getPipelineOptions(),
@@ -403,8 +356,8 @@ public class FlinkStreamingTransformTranslators {
       KvCoder<K, VIN> inputKvCoder = (KvCoder<K, VIN>) context.getInput(transform).getCoder();
       KvCoder<K, VOUT> outputKvCoder = (KvCoder<K, VOUT>) context.getOutput(transform).getCoder();
 
-      KeyedStream<WindowedValue<KV<K, VIN>>, K> groupByKStream = FlinkGroupByKeyWrapper
-          .groupStreamByKey(inputDataStream, inputKvCoder);
+      KeyedStream<WindowedValue<KV<K, VIN>>, K> groupByKStream =
+          KVKeySelector.keyBy(inputDataStream, inputKvCoder);
 
       Combine.KeyedCombineFn<K, VIN, VACC, VOUT> combineFn = (Combine.KeyedCombineFn<K, VIN, VACC, VOUT>) transform.getFn();
       DataStream<WindowedValue<KV<K, VOUT>>> groupedByKNWstream =
