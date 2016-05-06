@@ -33,6 +33,7 @@ import org.apache.beam.runners.flink.translation.wrappers.SourceInputFormat;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.AvroIO;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Read;
@@ -63,6 +64,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import com.google.api.client.util.Maps;
 import com.google.common.collect.Lists;
 
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -80,6 +82,7 @@ import org.apache.flink.api.java.operators.Grouping;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
 import org.apache.flink.api.java.operators.UnsortedGrouping;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -490,15 +493,30 @@ public class FlinkBatchTransformTranslators {
   private static class FlattenPCollectionTranslatorBatch<T> implements FlinkBatchPipelineTranslator.BatchTransformTranslator<Flatten.FlattenPCollectionList<T>> {
 
     @Override
+    @SuppressWarnings("unchecked")
     public void translateNode(Flatten.FlattenPCollectionList<T> transform, FlinkBatchTranslationContext context) {
       List<PCollection<T>> allInputs = context.getInput(transform).getAll();
       DataSet<T> result = null;
-      for(PCollection<T> collection : allInputs) {
-        DataSet<T> current = context.getInputDataSet(collection);
-        if (result == null) {
-          result = current;
-        } else {
-          result = result.union(current);
+      if (allInputs.isEmpty()) {
+        // create an empty dummy source to satisfy downstream operations
+        // we cannot create an empty source in Flink, therefore we have to
+        // add the flatMap that simply never forwards the single element
+        DataSource<String> dummySource =
+            context.getExecutionEnvironment().fromElements("dummy");
+        result = dummySource.flatMap(new FlatMapFunction<String, T>() {
+          @Override
+          public void flatMap(String s, Collector<T> collector) throws Exception {
+            // never return anything
+          }
+        }).returns(new CoderTypeInformation<>((Coder<T>) VoidCoder.of()));
+      } else {
+        for (PCollection<T> collection : allInputs) {
+          DataSet<T> current = context.getInputDataSet(collection);
+          if (result == null) {
+            result = current;
+          } else {
+            result = result.union(current);
+          }
         }
       }
       context.setOutputDataSet(context.getOutput(transform), result);
