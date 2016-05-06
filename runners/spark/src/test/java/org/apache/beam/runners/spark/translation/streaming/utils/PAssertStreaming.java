@@ -26,8 +26,9 @@ import org.junit.Assert;
  * success/failure counters.
  */
 public final class PAssertStreaming {
+
   /**
-   * Copied aggregator names from {@link org.apache.beam.sdk.testing.PAssert}
+   * Copied aggregator names from {@link org.apache.beam.sdk.testing.PAssert}.
    */
   static final String SUCCESS_COUNTER = "PAssertSuccess";
   static final String FAILURE_COUNTER = "PAssertFailure";

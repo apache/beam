@@ -17,16 +17,18 @@
  */
 package org.apache.beam.runners.spark.io;
 
-import java.util.Map;
-import java.util.Set;
-
-import com.google.common.base.Preconditions;
-import kafka.serializer.Decoder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
+
+import com.google.common.base.Preconditions;
+
+import java.util.Map;
+import java.util.Set;
+
+import kafka.serializer.Decoder;
 
 /**
  * Read stream from Kafka.
@@ -36,6 +38,9 @@ public final class KafkaIO {
   private KafkaIO() {
   }
 
+  /**
+   * Read operation from Kafka topics.
+   */
   public static final class Read {
 
     private Read() {
@@ -62,6 +67,9 @@ public final class KafkaIO {
       return new Unbound<>(keyDecoder, valueDecoder, key, value, topics, kafkaParams);
     }
 
+    /**
+     * A {@link PTransform} reading from Kafka topics and providing {@link PCollection}.
+     */
     public static class Unbound<K, V> extends PTransform<PInput, PCollection<KV<K, V>>> {
 
       private final Class<? extends Decoder<K>> keyDecoderClass;

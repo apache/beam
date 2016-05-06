@@ -22,6 +22,9 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.serializer.KryoSerializer;
 
+/**
+ * The Spark context factory.
+ */
 public final class SparkContextFactory {
 
   /**

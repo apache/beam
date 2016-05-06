@@ -29,6 +29,9 @@ public final class ConsoleIO {
   private ConsoleIO() {
   }
 
+  /**
+   * Write on the console.
+   */
   public static final class Write {
 
     private Write() {
@@ -42,6 +45,10 @@ public final class ConsoleIO {
       return new Unbound<>(num);
     }
 
+    /**
+     * {@link PTransform} writing {@link PCollection} on the console.
+     * @param <T>
+     */
     public static class Unbound<T> extends PTransform<PCollection<T>, PDone> {
 
       private final int num;

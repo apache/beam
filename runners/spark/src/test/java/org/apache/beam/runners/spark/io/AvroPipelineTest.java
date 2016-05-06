@@ -47,6 +47,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.List;
 
+/**
+ * Avro pipeline test.
+ */
 public class AvroPipelineTest {
 
   private File inputFile;
@@ -82,7 +85,8 @@ public class AvroPipelineTest {
     assertEquals(Lists.newArrayList(savedRecord), records);
   }
 
-  private void populateGenericFile(List<GenericRecord> genericRecords, Schema schema) throws IOException {
+  private void populateGenericFile(List<GenericRecord> genericRecords,
+                                   Schema schema) throws IOException {
     FileOutputStream outputStream = new FileOutputStream(this.inputFile);
     GenericDatumWriter<GenericRecord> genericDatumWriter = new GenericDatumWriter<>(schema);
 

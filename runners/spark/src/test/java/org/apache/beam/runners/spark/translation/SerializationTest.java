@@ -51,8 +51,14 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+/**
+ * Serialization test.
+ */
 public class SerializationTest {
 
+  /**
+   * Simple String holder.
+   */
   public static class StringHolder { // not serializable
     private final String string;
 
@@ -80,12 +86,17 @@ public class SerializationTest {
     }
   }
 
+  /**
+   * Simple String holder with UTF-8 encoding.
+   */
   public static class StringHolderUtf8Coder extends AtomicCoder<StringHolder> {
 
     private final StringUtf8Coder stringUtf8Coder = StringUtf8Coder.of();
 
     @Override
-    public void encode(StringHolder value, OutputStream outStream, Context context) throws IOException {
+    public void encode(StringHolder value,
+                       OutputStream outStream,
+                       Context context) throws IOException {
       stringUtf8Coder.encode(value.toString(), outStream, context);
     }
 
@@ -171,7 +182,8 @@ public class SerializationTest {
     }
   }
 
-  private static class CountWords extends PTransform<PCollection<StringHolder>, PCollection<StringHolder>> {
+  private static class CountWords
+      extends PTransform<PCollection<StringHolder>, PCollection<StringHolder>> {
     @Override
     public PCollection<StringHolder> apply(PCollection<StringHolder> lines) {
 

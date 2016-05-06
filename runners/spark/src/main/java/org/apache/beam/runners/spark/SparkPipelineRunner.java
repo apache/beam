@@ -120,14 +120,14 @@ public final class SparkPipelineRunner extends PipelineRunner<EvaluationResult> 
    */
   @SuppressWarnings("rawtypes")
   @Override
-  public <OT extends POutput, IT extends PInput> OT apply(
-      PTransform<IT, OT> transform, IT input) {
+  public <OutputT extends POutput, InputT extends PInput> OutputT apply(
+      PTransform<InputT, OutputT> transform, InputT input) {
 
     if (transform instanceof GroupByKey) {
-      return (OT) ((PCollection) input).apply(
+      return (OutputT) ((PCollection) input).apply(
           new GroupByKeyViaGroupByKeyOnly((GroupByKey) transform));
     } else if (transform instanceof Create.Values) {
-      return (OT) super.apply(
+      return (OutputT) super.apply(
         new SinglePrimitiveOutputPTransform((Create.Values) transform), input);
     } else {
       return super.apply(transform, input);
@@ -216,6 +216,9 @@ public final class SparkPipelineRunner extends PipelineRunner<EvaluationResult> 
     return new StreamingEvaluationContext(jsc, pipeline, jssc, streamingOptions.getTimeout());
   }
 
+  /**
+   * Evaluator on the pipeline.
+   */
   public abstract static class Evaluator implements Pipeline.PipelineVisitor {
     protected static final Logger LOG = LoggerFactory.getLogger(Evaluator.class);
 
@@ -275,7 +278,7 @@ public final class SparkPipelineRunner extends PipelineRunner<EvaluationResult> 
       doVisitTransform(node);
     }
 
-    protected abstract <PT extends PTransform<? super PInput, POutput>> void
+    protected abstract <TransformT extends PTransform<? super PInput, POutput>> void
         doVisitTransform(TransformTreeNode node);
 
     @Override

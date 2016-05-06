@@ -49,6 +49,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * Number of shards test.
+ */
 public class NumShardsTest {
 
   private static final String[] WORDS_ARRAY = {

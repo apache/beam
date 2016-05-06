@@ -18,10 +18,13 @@
 
 package org.apache.beam.runners.spark.translation;
 
-import java.io.Serializable;
-
 import org.apache.beam.sdk.transforms.PTransform;
 
-public interface TransformEvaluator<PT extends PTransform<?, ?>> extends Serializable {
-  void evaluate(PT transform, EvaluationContext context);
+import java.io.Serializable;
+
+/**
+ * Describe a {@link PTransform} evaluator.
+ */
+public interface TransformEvaluator<TransformT extends PTransform<?, ?>> extends Serializable {
+  void evaluate(TransformT transform, EvaluationContext context);
 }
