@@ -32,6 +32,7 @@ import org.apache.beam.sdk.io.datastore.DatastoreIO;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -413,10 +414,8 @@ public class AutoComplete {
 
   /**
    * Options supported by this class.
-   *
-   * <p>Inherits standard Dataflow configuration options.
    */
-  private static interface Options extends ExampleBigQueryTableOptions {
+  private static interface Options extends ExampleBigQueryTableOptions, StreamingOptions {
     @Description("Input text file")
     @Validation.Required
     String getInputFile();
