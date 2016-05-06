@@ -22,7 +22,6 @@ import org.apache.beam.examples.common.DataflowExampleUtils;
 import org.apache.beam.examples.common.ExampleBigQueryTableOptions;
 import org.apache.beam.examples.common.ExamplePubsubTopicOptions;
 import org.apache.beam.examples.common.PubsubFileInjector;
-import org.apache.beam.runners.dataflow.DataflowPipelineRunner;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -458,9 +457,6 @@ public class TriggerExample {
         .as(TrafficFlowOptions.class);
     options.setStreaming(true);
 
-    // In order to cancel the pipelines automatically,
-    // {@code DataflowPipelineRunner} is forced to be used.
-    options.setRunner(DataflowPipelineRunner.class);
     options.setBigQuerySchema(getSchema());
 
     DataflowExampleUtils dataflowUtils = new DataflowExampleUtils(options);
