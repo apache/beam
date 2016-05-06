@@ -285,11 +285,13 @@ public class WindowTest implements Serializable {
   }
 
   @Test
-  public void testDisplayDataExcludesDefaultTrigger() {
+  public void testDisplayDataExcludesDefaults() {
     Window.Bound<?> window = Window.into(new GlobalWindows())
-        .triggering(DefaultTrigger.of());
+        .triggering(DefaultTrigger.of())
+        .withAllowedLateness(Duration.millis(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));
 
     DisplayData data = DisplayData.from(window);
     assertThat(data, not(hasDisplayItem(hasKey("trigger"))));
+    assertThat(data, not(hasDisplayItem(hasKey("allowedLateness"))));
   }
 }
