@@ -40,6 +40,7 @@ import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.Write;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.CombineFnBase;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -80,6 +81,7 @@ import org.apache.flink.api.java.operators.GroupCombineOperator;
 import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.operators.Grouping;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
+import org.apache.flink.api.java.operators.SingleInputUdfOperator;
 import org.apache.flink.api.java.operators.UnsortedGrouping;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.Collector;
@@ -355,21 +357,20 @@ public class FlinkBatchTransformTranslators {
   private static class CombinePerKeyTranslatorBatch<K, VI, VA, VO> implements FlinkBatchPipelineTranslator.BatchTransformTranslator<Combine.PerKey<K, VI, VO>> {
 
     @Override
+    @SuppressWarnings("unchecked")
     public void translateNode(Combine.PerKey<K, VI, VO> transform, FlinkBatchTranslationContext context) {
       DataSet<KV<K, VI>> inputDataSet = context.getInputDataSet(context.getInput(transform));
 
-      @SuppressWarnings("unchecked")
-      Combine.KeyedCombineFn<K, VI, VA, VO> keyedCombineFn = (Combine.KeyedCombineFn<K, VI, VA, VO>) transform.getFn();
+      CombineFnBase.PerKeyCombineFn<K, VI, VA, VO> combineFn = (CombineFnBase.PerKeyCombineFn<K, VI, VA, VO>) transform.getFn();
 
       KvCoder<K, VI> inputCoder = (KvCoder<K, VI>) context.getInput(transform).getCoder();
 
-      Coder<VA> accumulatorCoder =
-          null;
+      Coder<VA> accumulatorCoder;
+
       try {
-        accumulatorCoder = keyedCombineFn.getAccumulatorCoder(context.getInput(transform).getPipeline().getCoderRegistry(), inputCoder.getKeyCoder(), inputCoder.getValueCoder());
+        accumulatorCoder = combineFn.getAccumulatorCoder(context.getInput(transform).getPipeline().getCoderRegistry(), inputCoder.getKeyCoder(), inputCoder.getValueCoder());
       } catch (CannotProvideCoderException e) {
-        e.printStackTrace();
-        // TODO
+        throw new RuntimeException(e);
       }
 
       TypeInformation<KV<K, VI>> kvCoderTypeInformation = new KvCoderTypeInformation<>(inputCoder);
@@ -377,15 +378,17 @@ public class FlinkBatchTransformTranslators {
 
       Grouping<KV<K, VI>> inputGrouping = new UnsortedGrouping<>(inputDataSet, new Keys.ExpressionKeys<>(new String[]{"key"}, kvCoderTypeInformation));
 
-      FlinkPartialReduceFunction<K, VI, VA> partialReduceFunction = new FlinkPartialReduceFunction<>(keyedCombineFn);
+      FlinkPartialReduceFunction<K, VI, VA> partialReduceFunction = new FlinkPartialReduceFunction<>(combineFn);
 
       // Partially GroupReduce the values into the intermediate format VA (combine)
       GroupCombineOperator<KV<K, VI>, KV<K, VA>> groupCombine =
           new GroupCombineOperator<>(inputGrouping, partialReduceTypeInfo, partialReduceFunction,
               "GroupCombine: " + transform.getName());
 
+      transformSideInputs(transform.getSideInputs(), groupCombine, context);
+
       // Reduce fully to VO
-      GroupReduceFunction<KV<K, VA>, KV<K, VO>> reduceFunction = new FlinkReduceFunction<>(keyedCombineFn);
+      GroupReduceFunction<KV<K, VA>, KV<K, VO>> reduceFunction = new FlinkReduceFunction<>(combineFn);
 
       TypeInformation<KV<K, VO>> reduceTypeInfo = context.getTypeInfo(context.getOutput(transform));
 
@@ -394,6 +397,8 @@ public class FlinkBatchTransformTranslators {
       // Fully reduce the values and create output format VO
       GroupReduceOperator<KV<K, VA>, KV<K, VO>> outputDataSet =
           new GroupReduceOperator<>(intermediateGrouping, reduceTypeInfo, reduceFunction, transform.getName());
+
+      transformSideInputs(transform.getSideInputs(), outputDataSet, context);
 
       context.setOutputDataSet(context.getOutput(transform), outputDataSet);
     }
@@ -532,11 +537,12 @@ public class FlinkBatchTransformTranslators {
     }
   }
 
-  private static void transformSideInputs(List<PCollectionView<?>> sideInputs,
-                                          MapPartitionOperator<?, ?> outputDataSet,
-                                          FlinkBatchTranslationContext context) {
+  private static void transformSideInputs(
+      List<PCollectionView<?>> sideInputs,
+      SingleInputUdfOperator<?, ?, ?> outputDataSet,
+      FlinkBatchTranslationContext context) {
     // get corresponding Flink broadcast DataSets
-    for(PCollectionView<?> input : sideInputs) {
+    for (PCollectionView<?> input : sideInputs) {
       DataSet<?> broadcastSet = context.getSideInputDataSet(input);
       outputDataSet.withBroadcastSet(broadcastSet, input.getTagInternal().getId());
     }
