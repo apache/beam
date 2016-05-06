@@ -594,15 +594,17 @@ class PGBKCVOperation(Operation):
         target = self.key_count * 9 // 10
         old_wkeys = []
         # TODO(robertwb): Use an LRU cache?
-        for old_wkey, old_wvalue in enumerate(self.table.iterkeys()):
+        for old_wkey, old_wvalue in self.table.iteritems():
           old_wkeys.append(old_wkey)  # Can't mutate while iterating.
-          self.output_key(old_wkey, old_wvalue)
+          self.output_key(old_wkey, old_wvalue[0])
           self.key_count -= 1
           if self.key_count <= target:
             break
         for old_wkey in reversed(old_wkeys):
           del self.table[old_wkey]
       self.key_count += 1
+      # We save the accumulator as a one element list so we can efficiently
+      # mutate when new values are added without searching the cache again.
       entry = self.table[wkey] = [self.combine_fn.create_accumulator()]
     entry[0] = self.combine_fn.add_inputs(entry[0], [value])
 
