@@ -1,33 +1,32 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * Copyright (C) 2015 Google Inc.
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
  */
-package org.apache.beam.sdk.transforms.display;
 
-import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.runners.PipelineRunner;
-import org.apache.beam.sdk.runners.TransformTreeNode;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.POutput;
+package com.google.cloud.dataflow.sdk.transforms.display;
 
+import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.coders.Coder;
+import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
+import com.google.cloud.dataflow.sdk.runners.TransformTreeNode;
+import com.google.cloud.dataflow.sdk.transforms.Create;
+import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.cloud.dataflow.sdk.values.POutput;
+import com.google.cloud.dataflow.sdk.values.PValue;
 import com.google.common.collect.Sets;
 
 import java.util.Objects;
@@ -105,8 +104,7 @@ public class DisplayDataEvaluator {
    * Visits {@link PTransform PTransforms} in a pipeline, and collects {@link DisplayData} for
    * each primitive transform under a given composite root.
    */
-  private static class PrimitiveDisplayDataPTransformVisitor
-  extends Pipeline.PipelineVisitor.Defaults {
+  private static class PrimitiveDisplayDataPTransformVisitor implements Pipeline.PipelineVisitor {
     private final PTransform root;
     private final Set<DisplayData> displayData;
     private boolean shouldRecord = false;
@@ -121,12 +119,10 @@ public class DisplayDataEvaluator {
     }
 
     @Override
-    public CompositeBehavior enterCompositeTransform(TransformTreeNode node) {
+    public void enterCompositeTransform(TransformTreeNode node) {
       if (Objects.equals(root, node.getTransform())) {
         shouldRecord = true;
       }
-
-      return CompositeBehavior.ENTER_TRANSFORM;
     }
 
     @Override
@@ -135,12 +131,16 @@ public class DisplayDataEvaluator {
         shouldRecord = false;
       }
     }
-
     @Override
-    public void visitPrimitiveTransform(TransformTreeNode node) {
+    public void visitTransform(TransformTreeNode node) {
       if (shouldRecord) {
         displayData.add(DisplayData.from(node.getTransform()));
       }
+    }
+
+    @Override
+    public void visitValue(PValue value, TransformTreeNode producer) {
+
     }
   }
 }

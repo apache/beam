@@ -21,6 +21,7 @@ import static com.google.cloud.dataflow.sdk.io.BigQueryIO.toJsonString;
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasKey;
 
+import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
@@ -57,6 +58,7 @@ import com.google.cloud.dataflow.sdk.io.BigQueryIO.TransformingSource;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO.Write.CreateDisposition;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO.Write.WriteDisposition;
 import com.google.cloud.dataflow.sdk.options.BigQueryOptions;
+import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
@@ -69,7 +71,9 @@ import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
+import com.google.cloud.dataflow.sdk.transforms.display.DataflowDisplayDataEvaluator;
 import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayDataEvaluator;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.BigQueryServices;
 import com.google.cloud.dataflow.sdk.util.BigQueryServices.DatasetService;
@@ -104,6 +108,7 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Set;
 
 import javax.annotation.Nullable;
 
@@ -581,6 +586,36 @@ public class BigQueryIOTest implements Serializable {
     assertThat(displayData, hasDisplayItem("query", "myQuery"));
     assertThat(displayData, hasDisplayItem("flattenResults", false));
     assertThat(displayData, hasDisplayItem("validation", false));
+  }
+
+  @Test
+  public void testBatchSinkPrimitiveDisplayData() {
+    DataflowPipelineOptions options = DataflowDisplayDataEvaluator.getDefaultOptions();
+    options.setStreaming(false);
+    testSinkPrimitiveDisplayData(options);
+  }
+
+  @Test
+  public void testStreamingSinkPrimitiveDisplayData() {
+    DataflowPipelineOptions options = DataflowDisplayDataEvaluator.getDefaultOptions();
+    options.setStreaming(true);
+    testSinkPrimitiveDisplayData(options);
+  }
+
+  private void testSinkPrimitiveDisplayData(DataflowPipelineOptions options) {
+    DisplayDataEvaluator evaluator = DataflowDisplayDataEvaluator.create(options);
+
+    BigQueryIO.Write.Bound write = BigQueryIO.Write
+        .to("project:dataset.table")
+        .withSchema(new TableSchema().set("col1", "type1").set("col2", "type2"))
+        .withoutValidation();
+
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
+    assertThat("BigQueryIO.Write should include the table spec in its primitive display data",
+        displayData, hasItem(hasDisplayItem(hasKey("tableSpec"))));
+
+    assertThat("BigQueryIO.Write should include the table schema in its primitive display data",
+        displayData, hasItem(hasDisplayItem(hasKey("schema"))));
   }
 
   @Test
