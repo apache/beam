@@ -110,12 +110,13 @@ class OffsetRangeTrackerTest(unittest.TestCase):
     tracker = range_trackers.OffsetRangeTracker(3, 6)
     self.assertEqual(0, tracker.fraction_consumed)
     self.assertTrue(tracker.try_return_record_at(True, 3))
-    self.assertEqual(1.0 / 3, tracker.fraction_consumed)
+    self.assertEqual(0.0, tracker.fraction_consumed)
     self.assertTrue(tracker.try_return_record_at(True, 4))
-    self.assertEqual(2.0 / 3, tracker.fraction_consumed)
+    self.assertEqual(1.0 / 3, tracker.fraction_consumed)
     self.assertTrue(tracker.try_return_record_at(True, 5))
-    self.assertEqual(1.0, tracker.fraction_consumed)
+    self.assertEqual(2.0 / 3, tracker.fraction_consumed)
     self.assertTrue(tracker.try_return_record_at(False, 6))  # non-split-point
+    self.assertEqual(1.0, tracker.fraction_consumed)
     self.assertTrue(tracker.try_return_record_at(False, 7))  # non-split-point
     self.assertFalse(tracker.try_return_record_at(True, 7))
 
@@ -123,12 +124,12 @@ class OffsetRangeTrackerTest(unittest.TestCase):
     tracker = range_trackers.OffsetRangeTracker(100, 200)
     self.assertEqual(0, tracker.fraction_consumed)
     self.assertTrue(tracker.try_return_record_at(True, 110))
-    # Consumed positions through 110 = total 11 positions of 100.
-    self.assertEqual(0.11, tracker.fraction_consumed)
+    # Consumed positions through 110 = total 10 positions of 100 done.
+    self.assertEqual(0.10, tracker.fraction_consumed)
     self.assertTrue(tracker.try_return_record_at(True, 150))
-    self.assertEqual(0.51, tracker.fraction_consumed)
+    self.assertEqual(0.50, tracker.fraction_consumed)
     self.assertTrue(tracker.try_return_record_at(True, 195))
-    self.assertEqual(0.96, tracker.fraction_consumed)
+    self.assertEqual(0.95, tracker.fraction_consumed)
 
   def test_everything_with_unbounded_range(self):
     tracker = range_trackers.OffsetRangeTracker(

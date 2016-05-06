@@ -101,7 +101,7 @@ class OffsetRangeTracker(iobase.RangeTracker):
   @property
   def fraction_consumed(self):
     with self.lock:
-      fraction = ((1.0 * (self.last_record_start - self.start_position + 1) /
+      fraction = ((1.0 * (self.last_record_start - self.start_position) /
                    (self.stop_position - self.start_position)) if
                   self.stop_position != self.start_position else 0.0)
 
