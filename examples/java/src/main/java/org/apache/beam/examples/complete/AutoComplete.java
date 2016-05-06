@@ -20,7 +20,6 @@ package org.apache.beam.examples.complete;
 import org.apache.beam.examples.common.DataflowExampleUtils;
 import org.apache.beam.examples.common.ExampleBigQueryTableOptions;
 import org.apache.beam.examples.common.ExamplePubsubTopicOptions;
-import org.apache.beam.runners.dataflow.DataflowPipelineRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.AvroCoder;
@@ -447,12 +446,6 @@ public class AutoComplete {
 
   public static void main(String[] args) throws IOException {
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
-
-    if (options.isStreaming()) {
-      // In order to cancel the pipelines automatically,
-      // {@literal DataflowPipelineRunner} is forced to be used.
-      options.setRunner(DataflowPipelineRunner.class);
-    }
 
     options.setBigQuerySchema(FormatForBigquery.getSchema());
     DataflowExampleUtils dataflowUtils = new DataflowExampleUtils(options);

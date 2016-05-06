@@ -21,7 +21,6 @@ import org.apache.beam.examples.common.DataflowExampleOptions;
 import org.apache.beam.examples.common.DataflowExampleUtils;
 import org.apache.beam.examples.complete.game.utils.WriteToBigQuery;
 import org.apache.beam.examples.complete.game.utils.WriteWindowedToBigQuery;
-import org.apache.beam.runners.dataflow.DataflowPipelineRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.PubsubIO;
@@ -177,9 +176,6 @@ public class LeaderBoard extends HourlyTeamScore {
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
     // Enforce that this pipeline is always run in streaming mode.
     options.setStreaming(true);
-    // For example purposes, allow the pipeline to be easily cancelled instead of running
-    // continuously.
-    options.setRunner(DataflowPipelineRunner.class);
     DataflowExampleUtils dataflowUtils = new DataflowExampleUtils(options);
     Pipeline pipeline = Pipeline.create(options);
 
