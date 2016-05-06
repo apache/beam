@@ -56,6 +56,7 @@
               </goals>
               <configuration>
                 <groups>org.apache.beam.sdk.testing.RunnableOnService</groups>
+                <excludedGroups>org.apache.beam.sdk.testing.capabilities.RequiresFixedWindows</excludedGroups>
                 <parallel>all</parallel>
                 <threadCount>4</threadCount>
                 <dependenciesToScan>
