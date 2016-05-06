@@ -45,6 +45,7 @@ import org.apache.beam.sdk.runners.DirectPipelineRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.capabilities.RequiresFixedWindows;
 import org.apache.beam.sdk.transforms.DoFn.RequiresWindowAccess;
 import org.apache.beam.sdk.transforms.ParDo.Bound;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -1347,7 +1348,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category({RunnableOnService.class, RequiresFixedWindows.class})
   public void testWindowingInStartAndFinishBundle() {
     Pipeline pipeline = TestPipeline.create();
 
