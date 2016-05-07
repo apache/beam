@@ -98,6 +98,34 @@ public class BoundedReadEvaluatorFactoryTest {
    * elements once.
    */
   @Test
+  public void boundedSourceEvaluatorWithReaderExistingIsEmpty() throws Exception {
+    TransformEvaluator<?> evaluator =
+        factory.forApplication(longs.getProducingTransformInternal(), null, context);
+
+    UncommittedBundle<Long> secondOutput = bundleFactory.createRootBundle(longs);
+    when(context.createRootBundle(longs)).thenReturn(secondOutput);
+    TransformEvaluator<?> secondEvaluator =
+        factory.forApplication(longs.getProducingTransformInternal(), null, context);
+
+    InProcessTransformResult secondResult = secondEvaluator.finishBundle();
+    assertThat(secondResult.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MIN_VALUE));
+    assertThat(secondResult.getOutputBundles(), emptyIterable());
+    assertThat(
+        secondOutput.commit(BoundedWindow.TIMESTAMP_MAX_VALUE).getElements(), emptyIterable());
+
+    UncommittedBundle<Long> output = bundleFactory.createRootBundle(longs);
+    when(context.createRootBundle(longs)).thenReturn(output);
+    InProcessTransformResult result = evaluator.finishBundle();
+    assertThat(result.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
+    Iterable<? extends WindowedValue<Long>> outputElements =
+        output.commit(BoundedWindow.TIMESTAMP_MAX_VALUE).getElements();
+    assertThat(
+        outputElements,
+        containsInAnyOrder(
+            gw(1L), gw(2L), gw(4L), gw(8L), gw(9L), gw(7L), gw(6L), gw(5L), gw(3L), gw(0L)));
+
+  }
+  @Test
   public void boundedSourceInMemoryTransformEvaluatorAfterFinishIsEmpty() throws Exception {
     UncommittedBundle<Long> output = bundleFactory.createRootBundle(longs);
     when(context.createRootBundle(longs)).thenReturn(output);
@@ -118,7 +146,7 @@ public class BoundedReadEvaluatorFactoryTest {
     TransformEvaluator<?> secondEvaluator =
         factory.forApplication(longs.getProducingTransformInternal(), null, context);
     InProcessTransformResult secondResult = secondEvaluator.finishBundle();
-    assertThat(secondResult.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MIN_VALUE));
+    assertThat(secondResult.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
     assertThat(secondResult.getOutputBundles(), emptyIterable());
     assertThat(
         secondOutput.commit(BoundedWindow.TIMESTAMP_MAX_VALUE).getElements(), emptyIterable());

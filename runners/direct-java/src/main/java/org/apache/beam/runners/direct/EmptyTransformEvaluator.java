@@ -29,14 +29,19 @@ import org.apache.beam.sdk.util.WindowedValue;
  * will not affect the watermark.
  */
 final class EmptyTransformEvaluator<T> implements TransformEvaluator<T> {
-  public static <T> TransformEvaluator<T> create(AppliedPTransform<?, ?, ?> transform) {
-    return new EmptyTransformEvaluator<T>(transform);
+  public static <T> TransformEvaluator<T> create(
+      AppliedPTransform<?, ?, ?> transform,
+      ShardWatermarkTracker tracker) {
+    return new EmptyTransformEvaluator<T>(transform, tracker);
   }
 
   private final AppliedPTransform<?, ?, ?> transform;
+  private final ShardWatermarkTracker tracker;
 
-  private EmptyTransformEvaluator(AppliedPTransform<?, ?, ?> transform) {
+  private EmptyTransformEvaluator(
+      AppliedPTransform<?, ?, ?> transform, ShardWatermarkTracker tracker) {
     this.transform = transform;
+    this.tracker = tracker;
   }
 
   @Override
@@ -44,7 +49,7 @@ final class EmptyTransformEvaluator<T> implements TransformEvaluator<T> {
 
   @Override
   public InProcessTransformResult finishBundle() throws Exception {
-    return StepTransformResult.withHold(transform, BoundedWindow.TIMESTAMP_MIN_VALUE)
+    return StepTransformResult.withHold(transform, tracker.getWatermark())
         .build();
   }
 }

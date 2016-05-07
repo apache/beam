@@ -28,6 +28,8 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 
+import com.google.common.collect.ImmutableList;
+
 import java.io.IOException;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
@@ -48,6 +50,8 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
    */
   private final ConcurrentMap<EvaluatorKey, Queue<? extends BoundedReadEvaluator<?>>>
       sourceEvaluators = new ConcurrentHashMap<>();
+  private final ConcurrentMap<EvaluatorKey, ShardWatermarkTracker> sourceWatermarks =
+      new ConcurrentHashMap<>();
 
   @SuppressWarnings({"unchecked", "rawtypes"})
   @Override
@@ -59,26 +63,15 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     return getTransformEvaluator((AppliedPTransform) application, evaluationContext);
   }
 
-  private <OutputT> TransformEvaluator<?> getTransformEvaluator(
-      final AppliedPTransform<?, PCollection<OutputT>, Bounded<OutputT>> transform,
-      final InProcessEvaluationContext evaluationContext) {
-    BoundedReadEvaluator<?> evaluator =
-        getTransformEvaluatorQueue(transform, evaluationContext).poll();
-    if (evaluator == null) {
-      return EmptyTransformEvaluator.create(transform);
-    }
-    return evaluator;
-  }
-
   /**
-   * Get the queue of {@link TransformEvaluator TransformEvaluators} that produce elements for the
-   * provided application of {@link Bounded Read.Bounded}, initializing it if required.
+   * Get a {@link TransformEvaluator} that produce elements for the provided application of
+   * {@link Bounded Read.Bounded}, initializing the queue of evaluators if required.
    *
    * <p>This method is thread-safe, and will only produce new evaluators if no other invocation has
    * already done so.
    */
   @SuppressWarnings("unchecked")
-  private <OutputT> Queue<BoundedReadEvaluator<OutputT>> getTransformEvaluatorQueue(
+  private <OutputT> TransformEvaluator<?> getTransformEvaluator(
       final AppliedPTransform<?, PCollection<OutputT>, Bounded<OutputT>> transform,
       final InProcessEvaluationContext evaluationContext) {
     // Key by the application and the context the evaluation is occurring in (which call to
@@ -89,18 +82,25 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     if (evaluatorQueue == null) {
       evaluatorQueue = new ConcurrentLinkedQueue<>();
       if (sourceEvaluators.putIfAbsent(key, evaluatorQueue) == null) {
-        // If no queue existed in the evaluators, add an evaluator to initialize the evaluator
-        // factory for this transform
+        // We won - initialize the watermark tracker and the queue of evaluators, create an
+        // evaluator, and place it in the queue.
+        ShardWatermarkTracker tracker = ShardWatermarkTracker.create();
         BoundedSource<OutputT> source = transform.getTransform().getSource();
         BoundedReadEvaluator<OutputT> evaluator =
-            new BoundedReadEvaluator<OutputT>(transform, evaluationContext, source);
+            new BoundedReadEvaluator<OutputT>(transform, evaluationContext, source, tracker);
+        tracker.setInitialShards(ImmutableList.of(evaluator));
+        this.sourceWatermarks.put(key, tracker);
         evaluatorQueue.offer(evaluator);
       } else {
         // otherwise return the existing Queue that arrived before us
         evaluatorQueue = (Queue<BoundedReadEvaluator<OutputT>>) sourceEvaluators.get(key);
       }
     }
-    return evaluatorQueue;
+    BoundedReadEvaluator<OutputT> evaluator = evaluatorQueue.poll();
+    if (evaluator == null) {
+      return EmptyTransformEvaluator.create(transform, sourceWatermarks.get(key));
+    }
+    return evaluator;
   }
 
   /**
@@ -120,14 +120,17 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
      * as the source derived from {@link #transform} due to splitting.
      */
     private BoundedSource<OutputT> source;
+    private final ShardWatermarkTracker tracker;
 
     public BoundedReadEvaluator(
         AppliedPTransform<?, PCollection<OutputT>, Bounded<OutputT>> transform,
         InProcessEvaluationContext evaluationContext,
-        BoundedSource<OutputT> source) {
+        BoundedSource<OutputT> source,
+        ShardWatermarkTracker tracker) {
       this.transform = transform;
       this.evaluationContext = evaluationContext;
       this.source = source;
+      this.tracker = tracker;
     }
 
     @Override
@@ -146,7 +149,8 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
                   reader.getCurrent(), reader.getCurrentTimestamp()));
           contentsRemaining = reader.advance();
         }
-        return StepTransformResult.withHold(transform, BoundedWindow.TIMESTAMP_MAX_VALUE)
+        tracker.updateWatermark(this, BoundedWindow.TIMESTAMP_MAX_VALUE);
+        return StepTransformResult.withHold(transform, tracker.getWatermark())
             .addOutput(output)
             .build();
       }
