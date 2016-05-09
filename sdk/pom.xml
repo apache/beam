@@ -482,6 +482,24 @@
       </exclusions>
     </dependency>
 
+    <!-- Override the version of this jar pulled in transitively by the
+         com.google.cloud.bigdataoss jar -->
+    <dependency>
+      <groupId>com.google.api-client</groupId>
+      <artifactId>google-api-client-java6</artifactId>
+      <version>${google-clients.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+
+    <!-- Override the version of this jar pulled in transitively by the
+         com.google.cloud.bigdataoss jar -->
+    <dependency>
+      <groupId>com.google.api-client</groupId>
+      <artifactId>google-api-client-jackson2</artifactId>
+      <version>${google-clients.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+
     <dependency>
       <groupId>com.google.apis</groupId>
       <artifactId>google-api-services-bigquery</artifactId>
