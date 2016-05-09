@@ -214,7 +214,6 @@ public class UnboundedSourceWrapperTest {
             @Override
             public void collect(
                 StreamRecord<WindowedValue<KV<Integer,Integer>>> windowedValueStreamRecord) {
-              System.out.println("SEE FIRST: " + windowedValueStreamRecord);
 
               emittedElements.add(windowedValueStreamRecord.getValue().getValue());
               count++;
@@ -270,7 +269,6 @@ public class UnboundedSourceWrapperTest {
             @Override
             public void collect(
                 StreamRecord<WindowedValue<KV<Integer,Integer>>> windowedValueStreamRecord) {
-              System.out.println("SEE SECOND: " + windowedValueStreamRecord);
               emittedElements.add(windowedValueStreamRecord.getValue().getValue());
               count++;
               if (count >= NUM_ELEMENTS / 2) {

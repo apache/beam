@@ -19,15 +19,23 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming.io;
 
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.ListCoder;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Function;
+import com.google.common.collect.Lists;
 
 import org.apache.commons.io.output.ByteArrayOutputStream;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
@@ -60,7 +68,8 @@ public class UnboundedSourceWrapper<
   /**
    * For snapshot and restore.
    */
-  private final Coder<CheckpointMarkT> checkpointMarkCoder;
+  private final ListCoder<
+      KV<? extends UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT>> checkpointCoder;
 
   /**
    * The split sources. We split them in the constructor to ensure that all parallel
@@ -84,16 +93,22 @@ public class UnboundedSourceWrapper<
    * Make it a field so that we can access it in {@link #trigger(long)} for registering new
    * triggers.
    */
-  private transient StreamingRuntimeContext runtimeContext = null;
+  private transient StreamingRuntimeContext runtimeContext;
 
   /**
    * Make it a field so that we can access it in {@link #trigger(long)} for emitting
    * watermarks.
    */
-  private transient StreamSource.ManualWatermarkContext<WindowedValue<OutputT>> context = null;
+  private transient StreamSource.ManualWatermarkContext<WindowedValue<OutputT>> context;
 
-  private transient byte[] restoredState = null;
+  /**
+   * When restoring from a snapshot we put the restored sources/checkpoint marks here
+   * and open in {@link #open(Configuration)}.
+   */
+  private transient List<
+      KV<? extends UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT>> restoredState;
 
+  @SuppressWarnings("unchecked")
   public UnboundedSourceWrapper(
       PipelineOptions pipelineOptions,
       UnboundedSource<OutputT, CheckpointMarkT> source,
@@ -104,7 +119,12 @@ public class UnboundedSourceWrapper<
       LOG.warn("Source {} requires deduping but Flink runner doesn't support this yet.", source);
     }
 
-    checkpointMarkCoder = source.getCheckpointMarkCoder();
+    Coder<CheckpointMarkT> checkpointMarkCoder = source.getCheckpointMarkCoder();
+    Coder<? extends UnboundedSource<OutputT, CheckpointMarkT>> sourceCoder =
+        SerializableCoder.of(new TypeDescriptor<UnboundedSource<OutputT, CheckpointMarkT>>() {});
+
+    checkpointCoder = (ListCoder) ListCoder.of(KvCoder.of(sourceCoder, checkpointMarkCoder));
+
     // get the splits early. we assume that the generated splits are stable,
     // this is necessary so that the mapping of state to source is correct
     // when restoring
@@ -140,15 +160,27 @@ public class UnboundedSourceWrapper<
 
     readers = new ArrayList<>();
     if (restoredState != null) {
-      // we are restoring from a checkpoint, initialize the readers with the
-      // CheckpointMark. we assume a consistent order in the sources/readers,
-      // so that the order of the CheckpointMarks matches the order of
-      // our readers
-      try (ByteArrayInputStream bais = new ByteArrayInputStream(restoredState)) {
-        for (UnboundedSource<OutputT, CheckpointMarkT> source : localSources) {
-          CheckpointMarkT checkpointMark = checkpointMarkCoder.decode(bais, Coder.Context.OUTER);
-          readers.add(source.createReader(serializedOptions.getPipelineOptions(), checkpointMark));
+
+      // restore the splitSources from the checkpoint to ensure consistent ordering
+      // do it using a transform because otherwise we would have to to
+      // unchecked casts
+      splitSources = Lists.transform(
+          restoredState,
+          new Function<
+              KV<? extends UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT>,
+              UnboundedSource<OutputT, CheckpointMarkT>>() {
+        @Override
+        public UnboundedSource<OutputT, CheckpointMarkT> apply(
+            KV<? extends UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT> input) {
+          return input.getKey();
         }
+      });
+
+      for (KV<? extends UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT> restored:
+          restoredState) {
+        readers.add(
+            restored.getKey().createReader(
+                serializedOptions.getPipelineOptions(), restored.getValue()));
       }
       restoredState = null;
     } else {
@@ -175,8 +207,7 @@ public class UnboundedSourceWrapper<
           synchronized (waitLock) {
             waitLock.wait();
           }
-        }
-        catch (InterruptedException e) {
+        } catch (InterruptedException e) {
           if (!isRunning) {
             // restore the interrupted state, and fall through the loop
             Thread.currentThread().interrupt();
@@ -276,21 +307,36 @@ public class UnboundedSourceWrapper<
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public byte[] snapshotState(long l, long l1) throws Exception {
     try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-      for (UnboundedSource.UnboundedReader<OutputT> reader : readers) {
-        checkpointMarkCoder.encode((CheckpointMarkT) reader.getCheckpointMark(),
-            baos,
-            Coder.Context.OUTER);
+      // we checkpoint the sources along with the CheckpointMarkT to ensure
+      // than we have a correct mapping of checkpoints to sources when
+      // restoring
+      List<KV<? extends UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT>> checkpoints =
+          new ArrayList<>();
+
+      for (int i = 0; i < splitSources.size(); i++) {
+        UnboundedSource<OutputT, CheckpointMarkT> source = splitSources.get(i);
+        UnboundedSource.UnboundedReader<OutputT> reader = readers.get(i);
+
+        @SuppressWarnings("unchecked")
+        CheckpointMarkT mark = (CheckpointMarkT) reader.getCheckpointMark();
+        KV<UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT> kv =
+            KV.of(source, mark);
+        checkpoints.add(kv);
       }
+
+      checkpointCoder.encode(checkpoints, baos, Coder.Context.OUTER);
+
       return baos.toByteArray();
     }
   }
 
   @Override
   public void restoreState(byte[] bytes) throws Exception {
-    this.restoredState = bytes;
+    try (ByteArrayInputStream bais = new ByteArrayInputStream(bytes)) {
+      restoredState = checkpointCoder.decode(bais, Coder.Context.OUTER);
+    }
   }
 
   @Override
