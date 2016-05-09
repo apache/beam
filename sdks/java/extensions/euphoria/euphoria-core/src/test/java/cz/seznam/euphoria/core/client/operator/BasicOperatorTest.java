@@ -343,21 +343,28 @@ public class BasicOperatorTest {
   }
 
   @Test
-  @Ignore
   public void testJoinOnStreams() throws Exception {
+    final InMemFileSystem inmemfs = InMemFileSystem.get();
+
+    inmemfs.reset()
+        .setFile("/tmp/foo.txt", Duration.ofSeconds(2), asList("one 1", "two 1", "one 22"))
+        .setFile("/tmp/bar.txt", Duration.ofSeconds(2), asList("one 10", "two 20"));
+
     Settings settings = new Settings();
-    settings.setClass("euphoria.io.datasource.factory.tcp",
-        TCPLineStreamSource.Factory.class);
+    settings.setClass("euphoria.io.datasource.factory.inmem",
+        InMemFileSystem.SourceFactory.class);
+    settings.setClass("euphoria.io.datasink.factory.inmem",
+        InMemFileSystem.SinkFactory.class);
     settings.setClass("euphoria.io.datasink.factory.stdout",
         StdoutSink.Factory.class);
 
     Flow flow = Flow.create("Test", settings);
 
-    Dataset<String> first = flow.createInput(new URI("tcp://localhost:8080"));
-    Dataset<String> second = flow.createInput(new URI("tcp://localhost:8081"));
+    Dataset<String> first = flow.createInput(new URI("inmem:///tmp/foo.txt"));
+    Dataset<String> second = flow.createInput(new URI("inmem:///tmp/bar.txt"));
 
     UnaryFunctor<String, Pair<String, Integer>> tokv = (s, c) -> {
-      String[] parts = s.split("\t", 2);
+      String[] parts = s.split("[\t ]+", 2);
       if (parts.length == 2) {
         c.collect(Pair.of(parts[0], Integer.valueOf(parts[1])));
       }
@@ -375,15 +382,19 @@ public class BasicOperatorTest {
         .using((l, r, c) -> {
           c.collect((l == null ? 0 : l.getSecond()) + (r == null ? 0 : r.getSecond()));
         })
-        .windowBy(Windowing.Time.seconds(10))
+        .windowBy(Windowing.Time.seconds(1))
         .outer()
         .output();
 
     Map.of(output).by(p -> p.getFirst() + ", " + p.getSecond())
-        .output().persist(URI.create("stdout:///?dump-partition-id=false"));
+        .output().persist(URI.create("inmem:///tmp/output"));
 
     executor.waitForCompletion(flow);
 
+    @SuppressWarnings("unchecked")
+    List<String> f = new ArrayList<>(inmemfs.getFile("/tmp/output/0"));
+
+    assertEquals(asList("one, 11", "two, 21", "one, 22"), f);
   }
 
 }

@@ -12,7 +12,6 @@ import java.util.Set;
  * batch processing.
  */
 public final class BatchWindowing<T>
-    extends AbstractWindowing<T, Void, BatchWindowing.Batch, BatchWindowing.BatchWindow>
     implements AlignedWindowing<T, BatchWindowing.Batch, BatchWindowing.BatchWindow>
 {
   public static final class Batch implements Serializable {
