@@ -1398,11 +1398,11 @@ public class Combine {
 
       final OutputT defaultValue = fn.defaultValue();
       PCollection<OutputT> defaultIfEmpty = maybeEmpty.getPipeline()
-          .apply("CreateVoid", Create.of((Void) null).withCoder(VoidCoder.of()))
+          .apply("CreateVoid", Create.of(1).withCoder(VarIntCoder.of()))
           .apply(ParDo.named("ProduceDefault").withSideInputs(maybeEmptyView).of(
-              new DoFn<Void, OutputT>() {
+              new DoFn<Integer, OutputT>() {
                 @Override
-                public void processElement(DoFn<Void, OutputT>.ProcessContext c) {
+                public void processElement(DoFn<Integer, OutputT>.ProcessContext c) {
                   Iterator<OutputT> combined = c.sideInput(maybeEmptyView).iterator();
                   if (!combined.hasNext()) {
                     c.output(defaultValue);
