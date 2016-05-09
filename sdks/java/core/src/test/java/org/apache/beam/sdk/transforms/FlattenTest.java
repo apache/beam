@@ -30,6 +30,7 @@ import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.SetCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
@@ -128,8 +129,8 @@ public class FlattenTest implements Serializable {
         .apply(View.<String>asIterable());
 
     PCollection<String> output = p
-        .apply(Create.of((Void) null).withCoder(VoidCoder.of()))
-        .apply(ParDo.withSideInputs(view).of(new DoFn<Void, String>() {
+        .apply(Create.of(1).withCoder(VarIntCoder.of()))
+        .apply(ParDo.withSideInputs(view).of(new DoFn<Integer, String>() {
                   @Override
                   public void processElement(ProcessContext c) {
                     for (String side : c.sideInput(view)) {
