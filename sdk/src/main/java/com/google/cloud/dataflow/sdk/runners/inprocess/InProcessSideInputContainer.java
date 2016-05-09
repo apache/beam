@@ -232,11 +232,12 @@ class InProcessSideInputContainer {
     @Override
     @Nullable
     public <T> T get(final PCollectionView<T> view, final BoundedWindow window) {
-      checkArgument(
-          readerViews.contains(view), "calling get(PCollectionView) with unknown view: " + view);
+      checkArgument(readerViews.contains(view),
+          "call to get(PCollectionView) with unknown view: %s",
+          view);
       checkArgument(
           isReady(view, window),
-          "calling get() on a PCollectionView %s that is not ready in window %s",
+          "calling get() on PCollectionView %s that is not ready in window %s",
           view,
           window);
       // Safe covariant cast
