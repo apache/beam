@@ -145,65 +145,6 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window<?, ?>>
     return this;
   }
   
-  // following classes are needed by the implementation of getBasicOps
-  
-//  private class JoinWindow implements Window<Object> {
-//
-//    W joinWindow;
-//
-//    JoinWindow(W joinWindow) {
-//      this.joinWindow = joinWindow;
-//    }
-//
-//
-//    @Override
-//    public void registerTrigger(Triggering triggering,
-//        UnaryFunction<Window<?>, Void> evict) {
-//      joinWindow.registerTrigger(triggering, w -> evict.apply(this));
-//    }
-//
-//
-//    @Override
-//    public Object getGroup() {
-//      return joinWindow.getGroup();
-//    }
-//
-//    @Override
-//    public Set<State<?, ?>> getStates() {
-//      return joinWindow.getStates();
-//    }
-//
-//    @Override
-//    public void addState(State<?, ?> state) {
-//      joinWindow.addState(state);
-//    }
-//
-//  }
-//
-//  private class JoinWindowing
-//      extends AbstractWindowing<Either<LEFT, RIGHT>, Object, JoinWindow>
-//      implements Windowing<Either<LEFT, RIGHT>, Object, JoinWindow> {
-//
-//    final java.util.Map<W, JoinWindow> allocatedWindows = new HashMap<>();
-//
-//    @Override
-//    public Set<JoinWindow> allocateWindows(Either<LEFT, RIGHT> what,
-//        Triggering triggering, UnaryFunction<Window<?>, Void> evict) {
-//      // transform returned windows to joinwindows
-//      Set<W> windows = windowing.allocateWindows(what, triggering, evict);
-//      return windows.stream()
-//          .map(w -> {
-//            JoinWindow allocated = allocatedWindows.get(w);
-//            if (allocated == null) {
-//              allocatedWindows.put(w, allocated = new JoinWindow(w));
-//            }
-//            return allocated;
-//          })
-//          .collect(Collectors.toSet());
-//    }
-//
-//  }
-
   // keeper of state for window
   private class JoinState extends State<Either<LEFT, RIGHT>, Pair<KEY, OUT>> {
 
@@ -219,12 +160,11 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window<?, ?>>
     };
 
     public JoinState(KEY key, Collector<Pair<KEY, OUT>> collector) {
-      super(collector);           
+      super(collector);
       this.key = key;
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public void add(Either<LEFT, RIGHT> element) {
       if (element.isLeft()) {
         leftElements.add(element.left());
@@ -234,7 +174,6 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window<?, ?>>
         emitJoinedElements(element, (Collection) leftElements);
       }
     }
-
 
     @Override
     public void flush() {
@@ -252,6 +191,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window<?, ?>>
           }
         }
       }
+      // ~ JoinState doesn't support "aggregating windowing"
       leftElements.clear();
       rightElements.clear();
     }
@@ -284,46 +224,41 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window<?, ?>>
   @Override
   @SuppressWarnings("unchecked")
   public DAG<Operator<?, ?>> getBasicOps() {
+    Flow flow = getFlow();
+    Map<LEFT, Either<LEFT, RIGHT>> leftMap = new Map<>(flow, left, Either::left);
+    Map<RIGHT, Either<LEFT, RIGHT>> rightMap = new Map<>(flow, right, Either::right);
 
+    Union<Either<LEFT, RIGHT>> union =
+        new Union<>(flow, leftMap.output(), rightMap.output());
 
-//    Flow flow = getFlow();
-//    Map<LEFT, Either<LEFT, RIGHT>> leftMap = new Map<>(
-//        flow, left, (LEFT e) -> Either.left(e));
-//    Map<RIGHT, Either<LEFT, RIGHT>> rightMap = new Map<>(
-//        flow, right, (RIGHT e) -> Either.right(e));
-//
-//    Union<Either<LEFT, RIGHT>> union = new Union<>(
-//        flow, leftMap.output(), rightMap.output());
-//
-//    ReduceStateByKey<Either<LEFT, RIGHT>, Either<LEFT, RIGHT>, Either<LEFT, RIGHT>,
-//        KEY, Either<LEFT, RIGHT>,
-//        OUT, JoinState, JoinWindow> reduce;
-//
-//    reduce = new ReduceStateByKey<>(
-//              flow,
-//              union.output(),
-//              e -> keyExtractor.apply(e),
-//              e -> e,
-//              new JoinWindowing(),
-//              JoinState::new,
-//              (Iterable<JoinState> states) -> {
-//                Iterator<JoinState> iter = states.iterator();
-//                final JoinState first;
-//                if (iter.hasNext()) {
-//                  first = iter.next();
-//                } else {
-//                  // this is strange
-//                  throw new IllegalStateException("Reducing empty states?");
-//                }
-//                return first.merge(iter);
-//              }
-//        );
-//
-//    DAG<Operator<?, ?>> dag = DAG.of(leftMap, rightMap);
-//    dag.add(union, leftMap, rightMap);
-//    dag.add(reduce, union);
-//    return dag;
-    throw new UnsupportedOperationException("NOT YET IMPLEMENTED");
+    ReduceStateByKey<Either<LEFT, RIGHT>, Either<LEFT, RIGHT>, Either<LEFT, RIGHT>,
+        KEY, Either<LEFT, RIGHT>,
+        OUT, JoinState, W> reduce;
+
+    reduce = new ReduceStateByKey<>(
+              flow,
+              union.output(),
+              keyExtractor::apply,
+              e -> e,
+              windowing,
+              JoinState::new,
+              (Iterable<JoinState> states) -> {
+                Iterator<JoinState> iter = states.iterator();
+                final JoinState first;
+                if (iter.hasNext()) {
+                  first = iter.next();
+                } else {
+                  // this is strange
+                  throw new IllegalStateException("Reducing empty states?");
+                }
+                return first.merge(iter);
+              }
+        );
+
+    DAG<Operator<?, ?>> dag = DAG.of(leftMap, rightMap);
+    dag.add(union, leftMap, rightMap);
+    dag.add(reduce, union);
+    return dag;
   }
 
 }
