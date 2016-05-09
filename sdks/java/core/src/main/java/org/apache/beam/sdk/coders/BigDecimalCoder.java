@@ -65,23 +65,17 @@ public class BigDecimalCoder extends AtomicCoder<BigDecimal> {
   @Override
   public BigDecimal decode(InputStream inStream, Context context)
       throws IOException, CoderException {
-    try {
-      DataInputStream dataInputStream = new DataInputStream(inStream);
-      int scale = dataInputStream.readInt();
-      int bigIntBytesSize = dataInputStream.readInt();
+    DataInputStream dataInputStream = new DataInputStream(inStream);
+    int scale = dataInputStream.readInt();
+    int bigIntBytesSize = dataInputStream.readInt();
 
-      byte[] bigIntBytes = new byte[bigIntBytesSize];
-      dataInputStream.readFully(bigIntBytes);
+    byte[] bigIntBytes = new byte[bigIntBytesSize];
+    dataInputStream.readFully(bigIntBytes);
 
-      BigInteger bigInteger = new BigInteger(bigIntBytes);
-      BigDecimal bigDecimal = new BigDecimal(bigInteger, scale);
+    BigInteger bigInteger = new BigInteger(bigIntBytes);
+    BigDecimal bigDecimal = new BigDecimal(bigInteger, scale);
 
-      return bigDecimal;
-    } catch (EOFException | UTFDataFormatException exn) {
-      // These exceptions correspond to decoding problems, so change
-      // what kind of exception they're branded as.
-      throw new CoderException(exn);
-    }
+    return bigDecimal;
   }
 
   /**
