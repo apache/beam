@@ -705,8 +705,9 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     public void copy(List<String> srcFilenames, List<String> destFilenames) throws IOException {
       Preconditions.checkArgument(
           srcFilenames.size() == destFilenames.size(),
-          String.format("Number of source files {} must equal number of destination files {}",
-              srcFilenames.size(), destFilenames.size()));
+          "Number of source files %s must equal number of destination files %s",
+          srcFilenames.size(),
+          destFilenames.size());
       int numFiles = srcFilenames.size();
       for (int i = 0; i < numFiles; i++) {
         String src = srcFilenames.get(i);
