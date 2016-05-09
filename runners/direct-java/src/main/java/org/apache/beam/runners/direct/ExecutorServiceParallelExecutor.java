@@ -54,6 +54,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
 
@@ -344,12 +345,11 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
   }
 
   private class MonitorRunnable implements Runnable {
-    private final int MAX_UPDATES_PER_CALL = 250;
-    private final String runnableName =
-        String.format(
-            "%s$%s-monitor",
-            evaluationContext.getPipelineOptions().getAppName(),
-            ExecutorServiceParallelExecutor.class.getSimpleName());
+    // arbitrary termination condition to ensure progress in the presence of pushback
+    private final long maxTimeProcessingUpdatesNanos = TimeUnit.MILLISECONDS.toNanos(5L);
+    private final String runnableName = String.format("%s$%s-monitor",
+        evaluationContext.getPipelineOptions().getAppName(),
+        ExecutorServiceParallelExecutor.class.getSimpleName());
 
     @Override
     public void run() {
@@ -359,6 +359,7 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
         ExecutorUpdate update = allUpdates.poll();
         int numUpdates = 0;
         // pull all of the pending work off of the queue
+        long updatesStart = System.nanoTime();
         while (update != null) {
           LOG.debug("Executor Update: {}", update);
           if (update.getBundle().isPresent()) {
@@ -366,10 +367,9 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
           } else if (update.getException().isPresent()) {
             visibleUpdates.offer(VisibleExecutorUpdate.fromThrowable(update.getException().get()));
           }
-          if (numUpdates >= MAX_UPDATES_PER_CALL) {
+          if (System.nanoTime() - updatesStart > maxTimeProcessingUpdatesNanos) {
             break;
           } else {
-            numUpdates++;
             update = allUpdates.poll();
           }
         }
