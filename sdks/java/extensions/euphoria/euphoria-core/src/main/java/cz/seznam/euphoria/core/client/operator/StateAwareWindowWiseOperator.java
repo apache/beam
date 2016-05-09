@@ -12,7 +12,7 @@ import cz.seznam.euphoria.core.client.functional.UnaryFunction;
  * Operator with internal state.
  */
 public abstract class StateAwareWindowWiseOperator<
-    IN, WIN, KIN, KEY, OUT, W extends Window<?>,
+    IN, WIN, KIN, KEY, OUT, W extends Window<?, ?>,
     OP extends StateAwareWindowWiseOperator<IN, WIN, KIN, KEY, OUT, W, OP>>
     extends WindowWiseOperator<IN, WIN, OUT, W> implements StateAware<KIN, KEY> {
 
@@ -22,7 +22,7 @@ public abstract class StateAwareWindowWiseOperator<
 
 
   protected StateAwareWindowWiseOperator(
-          String name, Flow flow, Windowing<WIN, ?, W> windowing,
+          String name, Flow flow, Windowing<WIN, ?, ?, W> windowing,
           UnaryFunction<KIN, KEY> keyExtractor,
           Partitioning<KEY> partitioning) {
     

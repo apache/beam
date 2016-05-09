@@ -19,7 +19,7 @@ import cz.seznam.euphoria.core.client.util.Pair;
  */
 public class ReduceStateByKey<
     IN, WIN, KIN, KEY, VALUE, OUT, STATE extends State<VALUE, Pair<KEY, OUT>>,
-    W extends Window<?>>
+    W extends Window<?, ?>>
     extends StateAwareWindowWiseSingleInputOperator<IN, WIN, KIN, KEY, Pair<KEY, OUT>, W,
         ReduceStateByKey<IN, WIN, KIN, KEY, VALUE, OUT, STATE, W>> {
 
@@ -99,9 +99,9 @@ public class ReduceStateByKey<
       this.stateFactory = stateFactory;
       this.stateCombiner = stateCombiner;
     }
-    public <WIN, W extends Window<?>> ReduceStateByKey<
+    public <WIN, W extends Window<?, ?>> ReduceStateByKey<
         IN, WIN, KIN, KEY, VALUE, OUT, STATE, W> windowBy(
-        Windowing<WIN, ?, W> windowing) {
+        Windowing<WIN, ?, ?, W> windowing) {
       Flow flow = input.getFlow();
       return flow.add(new ReduceStateByKey<>(
           flow, input, keyExtractor, valueExtractor,
@@ -127,7 +127,7 @@ public class ReduceStateByKey<
       Dataset<IN> input,
       UnaryFunction<KIN, KEY> keyExtractor,
       UnaryFunction<KIN, VALUE> valueExtractor,
-      Windowing<WIN, ?, W> windowing,
+      Windowing<WIN, ?, ?, W> windowing,
       BinaryFunction<KEY, Collector<Pair<KEY, OUT>>, STATE> stateFactory,
       CombinableReduceFunction<STATE> stateCombiner) {
     super("ReduceStateByKey", flow, input, keyExtractor, windowing);
@@ -146,7 +146,7 @@ public class ReduceStateByKey<
       GroupedDataset<Object, IN> groupedInput,
       UnaryFunction<KIN, KEY> keyExtractor,
       UnaryFunction<KIN, VALUE> valueExtractor,
-      Windowing<WIN, ?, W> windowing,
+      Windowing<WIN, ?, ?, W> windowing,
       BinaryFunction<KEY, Collector<Pair<KEY, OUT>>, STATE> stateFactory,
       CombinableReduceFunction<STATE> stateCombiner) {
     super("ReduceStateByKey", flow, (Dataset) groupedInput, keyExtractor, windowing);

@@ -14,7 +14,7 @@ import java.util.Collection;
 /**
  * Operator performing a mapping operation on whole window.
  */
-public class MapWindow<IN, OUT, W extends Window<?>>
+public class MapWindow<IN, OUT, W extends Window<?, ?>>
     extends WindowWiseOperator<IN, IN, OUT, W> {
 
   public static class Builder1<IN> {
@@ -33,8 +33,8 @@ public class MapWindow<IN, OUT, W extends Window<?>>
       this.input = input;
       this.mapper = mapper;
     }
-    public <W extends Window<?>> MapWindow<IN, OUT, W> windowBy(
-        Windowing<IN, ?, W> windowing) {
+    public <W extends Window<?, ?>> MapWindow<IN, OUT, W> windowBy(
+        Windowing<IN, ?, ?, W> windowing) {
       Flow flow = input.getFlow();
       MapWindow<IN, OUT, W> mapWindow = new MapWindow<>(flow, input, windowing);
       return flow.add(mapWindow);
@@ -52,7 +52,7 @@ public class MapWindow<IN, OUT, W extends Window<?>>
   private final Dataset<IN> input;
   private final Dataset<OUT> output;
 
-  MapWindow(Flow flow, Dataset<IN> input, Windowing<IN, ?, W> windowing) {
+  MapWindow(Flow flow, Dataset<IN> input, Windowing<IN, ?, ?, W> windowing) {
     super("MapWindow", flow, windowing);
     this.input = input;
     this.output = createOutput(input);

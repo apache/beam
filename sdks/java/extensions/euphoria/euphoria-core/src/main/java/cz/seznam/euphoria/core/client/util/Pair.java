@@ -68,8 +68,7 @@ public class Pair<K, V> implements java.util.Map.Entry<K, V> {
 
   @Override
   public String toString() {
-    return String.format("Pair{first='%s', second='%s'}",
-        Objects.toString(first), Objects.toString(second));
+    return "Pair{first='" + first + "', second='" + second + "'}";
   }
 
   // ~ Map.Entry implementation -----------------------------------------------------

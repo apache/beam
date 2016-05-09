@@ -1,49 +1,241 @@
 package cz.seznam.euphoria.core.executor;
 
 import cz.seznam.euphoria.core.client.dataset.MergingWindowing;
+import cz.seznam.euphoria.core.client.dataset.Triggering;
 import cz.seznam.euphoria.core.client.dataset.Window;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
 import cz.seznam.euphoria.core.client.functional.BinaryFunction;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
+import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.operator.State;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.executor.InMemExecutor.EndOfStream;
 import cz.seznam.euphoria.core.executor.InMemExecutor.QueueCollector;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
+import java.util.stream.Collectors;
+
+import static com.google.common.collect.Lists.newArrayList;
+import static java.util.Objects.requireNonNull;
 
 class ReduceStateByKeyReducer implements Runnable {
 
+  private static final class WindowIndex {
+    private final Object group;
+    private final Object label;
+
+    private int hash;
+
+    WindowIndex(Window w) {
+      this.group = w.getGroup();
+      this.label = w.getLabel();
+    }
+
+    Object getGroup() {
+      return group;
+    }
+
+    Object getLabel() {
+      return label;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (obj instanceof WindowIndex) {
+        WindowIndex that = (WindowIndex) obj;
+        return Objects.equals(this.group, that.group)
+            && Objects.equals(this.label, that.label);
+      }
+      return false;
+    }
+
+    static boolean windowsEqual(Window a, Window b) {
+      return Objects.equals(a.getGroup(), b.getGroup())
+          && Objects.equals(a.getLabel(), b.getLabel());
+    }
+
+    @Override
+    public int hashCode() {
+      int h = hash;
+      if (h == 0) {
+        h = Objects.hashCode(this.group) * 31 + Objects.hash(this.label);
+        hash = h;
+      }
+      return h;
+    }
+  } // ~ end of WindowIndex
+
+  private static final class ProcessingState {
+
+    // ~ an index over windows, and the states for each key they containing
+    final Map<WindowIndex, Pair<Window, Map<Object, State>>> wStates
+        = new HashMap<>();
+
+    // ~ an index over (item) keys to their held aggregating state
+    final Map<Object, State> aggregatingStates = new HashMap<>();
+
+    final Collector stateOutput;
+    final BlockingQueue rawOutput;
+    final Triggering triggering;
+    final UnaryFunction<Window, Void> evictFn;
+    final BinaryFunction stateFactory;
+    final CombinableReduceFunction stateCombiner;
+    final boolean aggregating;
+
+    public ProcessingState(
+        BlockingQueue output,
+        Triggering triggering,
+        UnaryFunction<Window, Void> evictFn,
+        BinaryFunction stateFactory,
+        CombinableReduceFunction stateCombiner,
+        boolean aggregating)
+    {
+      this.stateOutput = QueueCollector.wrap(requireNonNull(output));
+      this.rawOutput = output;
+      this.triggering = requireNonNull(triggering);
+      this.evictFn = requireNonNull(evictFn);
+      this.stateFactory = requireNonNull(stateFactory);
+      this.stateCombiner = requireNonNull(stateCombiner);
+      this.aggregating = aggregating;
+    }
+
+    // ~ signal eos further down the output channel
+    public void closeOutput() {
+      try {
+        this.rawOutput.put(EndOfStream.get());
+      } catch (InterruptedException e) {
+        throw new RuntimeException(e);
+      }
+    }
+
+    // ~ evicts the specified window returning states accumulated for it
+    public Collection<State> evictWindow(Window w) {
+      Map<Object, State> wKeyState = wStates.remove(new WindowIndex(w)).getSecond();
+      if (wKeyState == null) {
+        return Collections.emptySet();
+      }
+
+      if (aggregating) {
+        for (Map.Entry<Object, State> e : wKeyState.entrySet()) {
+          State committed = aggregatingStates.get(e.getKey());
+          State state = e.getValue();
+          if (committed != null) {
+                state = (State) stateCombiner.apply(newArrayList(committed, state));
+            e.setValue(state);
+          }
+          aggregatingStates.put(e.getKey(), state);
+        }
+      }
+
+      return wKeyState.values();
+    }
+
+    public Collection<State> evictAllWindows() {
+      List<Window> ws = wStates.values()
+          .stream()
+          .map(Pair::getFirst)
+          .collect(Collectors.toList());
+      List<State> states = newArrayList();
+      for (Window w : ws) {
+        states.addAll(evictWindow(w));
+      }
+      return states;
+    }
+
+    public Pair<Window, State> getWindowState(Window w, Object itemKey) {
+      Pair<Window, Map<Object, State>> wState = getWindowState_(w, false);
+      State state = wState.getSecond().get(itemKey);
+      if (state == null) {
+        state = (State) stateFactory.apply(itemKey, stateOutput);
+        wState.getSecond().put(itemKey, state);
+      }
+      return Pair.of(wState.getFirst(), state);
+    }
+
+    private Pair<Window, Map<Object, State>>
+    getWindowState_(Window w, boolean setWindowInstance)
+    {
+      WindowIndex wIdx = new WindowIndex(w);
+      Pair<Window, Map<Object, State>> wState = wStates.get(wIdx);
+      if (wState == null) {
+        // ~ if no such window yet ... set it up
+        wStates.put(wIdx, wState = Pair.of(w, new HashMap<>()));
+        // ~ give the window a chance to register triggers
+        w.registerTrigger(triggering, evictFn);
+      } else if (setWindowInstance && wState.getFirst() != w) {
+        // ~ identity comparison on purpose
+        wStates.put(wIdx, wState = Pair.of(w, wState.getSecond()));
+      }
+      return wState;
+    }
+
+    public Collection<Window> getActiveWindows(Object windowGroup) {
+      // XXX make this faster!
+      return wStates.values().stream()
+          .map(Pair::getFirst)
+          .filter(w -> Objects.equals(w.getGroup(), windowGroup))
+          .collect(Collectors.toList());
+    }
+
+    public void mergeWindows(Collection<Window> toBeMerged, Window mergeWindow) {
+      // ~ make sure 'mergeWindow' does exist
+      Pair<Window, Map<Object, State>> ws = getWindowState_(mergeWindow, true);
+
+      for (Window toMerge : toBeMerged) {
+        if (WindowIndex.windowsEqual(toMerge, ws.getFirst())) {
+          continue;
+        }
+
+        // ~ remove the toMerge window and merge all
+        // of its keyStates into the mergeWindow
+        Pair<Window, Map<Object, State>> toMergeState =
+            wStates.remove(new WindowIndex(toMerge));
+        if (toMergeState != null) {
+          mergeWindowKeyStates(toMergeState.getSecond(), ws.getSecond());
+        }
+      }
+    }
+
+    private void mergeWindowKeyStates(Map<Object, State> src, Map<Object, State> dst) {
+      List<State> toCombine = new ArrayList<>(2);
+
+      for (Map.Entry<Object, State> s : src.entrySet()) {
+        toCombine.clear();
+
+        State dstKeyState = dst.get(s.getKey());
+        if (dstKeyState == null) {
+          dst.put(s.getKey(), s.getValue());
+
+        } else {
+          toCombine.add(s.getValue());
+          toCombine.add(dstKeyState);
+          dst.put(s.getKey(), (State) stateCombiner.apply(toCombine));
+        }
+      }
+    }
+  } // ~ end of ProcessingState
+
   private final BlockingQueue input;
-  private final BlockingQueue output;
 
   private final Windowing windowing;
   private final UnaryFunction keyExtractor;
   private final UnaryFunction valueExtractor;
-  private final BinaryFunction stateFactory;
-  private final CombinableReduceFunction stateCombiner;
 
-  // ~ the below state is guarded by this mutex (triggers are fired
+  // ~ the state is guarded by itself (triggers are fired
   // from within a separate thread)
-  private final Object stateLock = new Object();
+  private final ProcessingState state;
 
-  // ~ XXX future optimization: might be shared across reducers in the
-  // inmem to reduce the number of threads necessary
-  final LocalTriggering triggering = new LocalTriggering();
-
-  final Map<Window, Pair<Window, Map<Object, State>>> windowStates = new HashMap<>();
-  final Map<Object, Set<Window>> activeWindowsPerKey = new HashMap<>();
-  // XXX needs some rule to garbage collect obsolete aggregations
-  final Map<Object, State> aggregatingStatesPerKey = new HashMap<>();
-
-  final UnaryFunction<Window, Void> evictTrigger;
+  private final LocalTriggering triggering = new LocalTriggering();
 
   ReduceStateByKeyReducer(BlockingQueue input,
                           BlockingQueue output,
@@ -54,14 +246,24 @@ class ReduceStateByKeyReducer implements Runnable {
                           CombinableReduceFunction stateCombiner)
   {
     this.input = input;
-    this.output = output;
     this.windowing = windowing;
     this.keyExtractor = keyExtractor;
     this.valueExtractor = valueExtractor;
-    this.stateFactory = stateFactory;
-    this.stateCombiner = stateCombiner;
+    this.state = new ProcessingState(
+        output, new LocalTriggering(),
+        createEvictTrigger(),
+        stateFactory, stateCombiner, windowing.isAggregating());
+  }
 
-    this.evictTrigger = createEvictTrigger();
+  private UnaryFunction<Window, Void> createEvictTrigger() {
+    return (UnaryFunction<Window, Void>) window -> {
+      Collection<State> evicted;
+      synchronized (state) {
+        evicted = state.evictWindow(window);
+      }
+      evicted.stream().forEachOrdered(State::flush);
+      return null;
+    };
   }
 
   @SuppressWarnings("unchecked")
@@ -75,166 +277,68 @@ class ReduceStateByKeyReducer implements Runnable {
           break;
         }
 
-        synchronized (stateLock) {
-          processInputItem(item);
+        synchronized (state) {
+          processInput(item);
         }
       } catch (InterruptedException ex) {
         throw new RuntimeException(ex);
       }
     }
     // ~ stop triggers
+    // ~ XXX might want to run all pending triggers
     triggering.close();
     // close all states
-    synchronized (stateLock) {
-      windowStates.values().stream()
-          .flatMap(m -> m.getSecond().values().stream())
-          .forEach(State::close);
-    }
-    // ~ signal eos further down the channel
-    try {
-      output.put(EndOfStream.get());
-    } catch (InterruptedException e) {
-      throw new RuntimeException(e);
+    synchronized (state) {
+      state.evictAllWindows().stream().forEachOrdered(State::flush);
+      state.closeOutput();
     }
   }
 
-  private UnaryFunction<Window, Void> createEvictTrigger() {
-    return (UnaryFunction<Window, Void>) window -> {
-      synchronized (stateLock) {
-        Pair<Window, Map<Object, State>> windowState = windowStates.remove(window);
-        window = windowState.getFirst();
-
-        // ~ remove the window to be closed from the key->active-windows index
-        for (Object key : windowState.getSecond().keySet()) {
-          Set<Window> actives = activeWindowsPerKey.get(key);
-          if (actives != null) {
-            actives.remove(window);
-            if (actives.isEmpty()) {
-              activeWindowsPerKey.remove(key);
-            }
-          }
-        }
-
-        // ~ now flush the states tracked in the window
-        windowState.getSecond().values().stream().forEachOrdered(State::flush);
-      }
-      return null;
-    };
-  }
+  Set<Object> seenGroups = new HashSet<>();
 
   @SuppressWarnings("unchecked")
-  private void processInputItem(Object item) {
+  private void processInput(Object item) {
     Object itemKey = keyExtractor.apply(item);
     Object itemValue = valueExtractor.apply(item);
 
+    seenGroups.clear();
     Set<Window> itemWindows = windowing.assignWindows(item);
     for (Window itemWindow : itemWindows) {
-      Pair<Window, Map<Object, State>> windowState = getWindowState(itemWindow, itemKey);
-      Map<Object, State> keyStates = windowState.getSecond();
-
-      State keyState = keyStates.get(itemKey);
-      if (keyState == null) {
-        keyState = windowing.isAggregating()
-            ? aggregatingStatesPerKey.get(itemKey)
-            : null;
-        if (keyState == null) {
-          keyState = (State) stateFactory.apply(itemKey, QueueCollector.wrap(output));
-          if (windowing.isAggregating()) {
-            aggregatingStatesPerKey.put(itemKey, keyState);
-          }
-        }
-        keyStates.put(itemKey, keyState);
-      }
-      keyState.add(itemValue);
+      state.getWindowState(itemWindow, itemKey).getSecond().add(itemValue);
+      seenGroups.add(itemWindow.getGroup());
     }
 
     if (windowing instanceof MergingWindowing) {
-      Set<Window> actives = activeWindowsPerKey.get(itemKey);
-      if (actives != null && !actives.isEmpty()) {
-        ((MergingWindowing) this.windowing).mergeWindows(
-            Collections.unmodifiableSet(actives),
-            (mergedWindows, mergeResult) -> {
-              // ~ take the state of mergedWindows and merge it in
-              // into the state of the mergeResult while silently dropping
-              // the mergedWindows; mergeResult might be a newly created
-              // window or a already existing one
-
-              // ~ merge the states and register the potentially
-              // new window for the key
-              Pair<Window, Map<Object, State>> mergeResultState =
-                  getWindowState (mergeResult, itemKey);
-              mergeResult = mergeResultState.getFirst();
-              State mergedState = combineStates(itemKey, mergedWindows);
-              replaceWindowAndKeyState(mergeResult, itemKey, mergedState);
-
-              // ~ now silently deregister the merged windows for the item's key
-              Set<Window> activeWindows = activeWindowsPerKey.get(itemKey);
-              // ~ activeWindows must now contain at least the mergeResult window
-              assert activeWindows != null && !activeWindows.isEmpty();
-              for (Window merged : (Iterable<Window>) mergedWindows) {
-                if (!merged.equals(mergeResult)) {
-                  // ~ de-activate the window
-                  activeWindows.remove(merged);
-                  // ~ drop it's state for the item's key
-                  Pair<Window, Map<Object, State>> states = windowStates.get(merged);
-                  if (states != null) {
-                    Map<Object, State> keyStates = states.getSecond();
-                    keyStates.remove(itemKey);
-                    if (keyStates.isEmpty()) {
-                      windowStates.remove(merged);
-                    }
-                  }
-                }
+      for (Object group : seenGroups) {
+        Collection<Window> actives = state.getActiveWindows(group);
+        MergingWindowing mwindowing = (MergingWindowing) this.windowing;
+        switch (actives.size()) {
+          case 0:
+            break;
+          case 1: {
+            triggerIfComplete(mwindowing, actives.iterator().next());
+            break;
+          }
+          default: {
+            Collection<Pair<Collection<Window>, Window>> merges
+                = mwindowing.mergeWindows(actives);
+            if (merges != null && !merges.isEmpty()) {
+              for (Pair<Collection<Window>, Window> merge : merges) {
+                state.mergeWindows(merge.getFirst(), merge.getSecond());
+                triggerIfComplete(mwindowing, merge.getSecond());
               }
-            });
-      }
-    }
-  }
-
-  private Pair<Window, Map<Object, State>>
-  getWindowState(Window window, Object itemKey)
-  {
-    Pair<Window, Map<Object, State>> windowState = windowStates.get(window);
-    if (windowState == null) {
-      windowState = Pair.of(window, new HashMap<>());
-      windowStates.put(window, windowState);
-      // ~ track the newly created window as an active one
-      // for the processed item's key
-      setActive(window, itemKey);
-      // ~ the itemWindow is new; allow it register triggers
-      window.registerTrigger(triggering, evictTrigger);
-    }
-    return windowState;
-  }
-
-  private void setActive(Window window, Object itemKey) {
-    Set<Window> actives = activeWindowsPerKey.get(itemKey);
-    if (actives == null) {
-      activeWindowsPerKey.put(itemKey, actives = new HashSet<>());
-    }
-    actives.add(window);
-  }
-
-  private State combineStates(Object itemKey, Set<Window> ws) {
-    Collection<State> states = new HashSet<>();
-    for (Window w : ws) {
-      Pair<Window, Map<Object, State>> wStates = windowStates.get(w);
-      if (wStates != null) {
-        Map<Object, State> keyStates = wStates.getSecond();
-        State keyState = keyStates.get(itemKey);
-        if (keyState != null) {
-          states.add(keyState);
+            }
+            break;
+          }
         }
       }
     }
-    return (State) stateCombiner.apply(states);
   }
 
-  private void replaceWindowAndKeyState(Window window, Object itemKey, State newState) {
-    Map<Object, State> keyStates = windowStates.get(window).getSecond();
-    keyStates.put(itemKey, newState);
-    if (windowing.isAggregating()) {
-      aggregatingStatesPerKey.put(itemKey, newState);
+  @SuppressWarnings("unchecked")
+  private void triggerIfComplete(MergingWindowing windowing, Window w) {
+    if (windowing.isComplete(w)) {
+      state.evictFn.apply(w);
     }
   }
 }

@@ -1,8 +1,9 @@
-
 package cz.seznam.euphoria.core.client.dataset;
 
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 
+import java.io.ObjectStreamException;
+import java.io.Serializable;
 import java.util.Collections;
 import java.util.Set;
 
@@ -11,30 +12,49 @@ import java.util.Set;
  * batch processing.
  */
 public final class BatchWindowing<T>
-    extends AbstractWindowing<T, Void, BatchWindowing.BatchWindow>
-    implements AlignedWindowing<T, BatchWindowing.BatchWindow>
+    extends AbstractWindowing<T, Void, BatchWindowing.Batch, BatchWindowing.BatchWindow>
+    implements AlignedWindowing<T, BatchWindowing.Batch, BatchWindowing.BatchWindow>
 {
+  public static final class Batch implements Serializable {
+    static final Batch INSTANCE = new Batch();
+
+    private Batch() {}
+
+    @Override
+    public boolean equals(Object other) {
+      return other instanceof Batch;
+    }
+
+    @Override
+    public int hashCode() {
+      return Integer.MAX_VALUE;
+    }
+
+    private Object readResolve() throws ObjectStreamException {
+      return INSTANCE;
+    }
+  } // ~ end of Batch
+
   public static class BatchWindow
-      implements AlignedWindow {
+      implements AlignedWindow<Batch> {
 
     static final BatchWindow INSTANCE = new BatchWindow();
 
     private BatchWindow() {}
 
     @Override
+    public Batch getLabel() {
+      return Batch.INSTANCE;
+    }
+
+    @Override
     public void registerTrigger(Triggering triggering,
-        UnaryFunction<Window<?>, Void> evict) {
+        UnaryFunction<Window<?, ?>, Void> evict) {
       // the batch window will end at the end of input stream
     }
 
-    @Override
-    public boolean equals(Object other) {
-      return other instanceof BatchWindow;
-    }
-
-    @Override
-    public int hashCode() {
-      return 31;
+    private Object readResolve() throws ObjectStreamException {
+      return INSTANCE;
     }
   } // ~ end of BatchWindow
 
@@ -51,4 +71,7 @@ public final class BatchWindowing<T>
     return (BatchWindowing) INSTANCE;
   }
 
+  private Object readResolve() throws ObjectStreamException {
+    return INSTANCE;
+  }
 }
