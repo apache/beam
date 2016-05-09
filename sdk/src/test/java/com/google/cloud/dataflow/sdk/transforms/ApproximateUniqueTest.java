@@ -17,7 +17,6 @@
 package com.google.cloud.dataflow.sdk.transforms;
 
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasKey;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
@@ -304,6 +303,6 @@ public class ApproximateUniqueTest implements Serializable {
     DisplayData maxErrorDisplayData = DisplayData.from(specifiedMaxError);
     assertThat(maxErrorDisplayData, hasDisplayItem("maximumEstimationError", 0.1234));
     assertThat("calculated sampleSize should be included", maxErrorDisplayData,
-        hasDisplayItem(hasKey("sampleSize")));
+        hasDisplayItem("sampleSize"));
   }
 }

@@ -1072,6 +1072,11 @@ public class PubsubIO {
               .execute();
           output.clear();
         }
+
+        @Override
+        public void populateDisplayData(DisplayData.Builder builder) {
+          Bound.this.populateDisplayData(builder);
+        }
       }
     }
 

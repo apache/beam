@@ -25,11 +25,11 @@ import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatche
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.startsWith;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.Coder;
@@ -48,6 +48,7 @@ import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.display.DataflowDisplayDataEvaluator;
 import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.transforms.display.DisplayDataEvaluator;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.cloud.dataflow.sdk.util.GcsUtil;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
@@ -359,7 +360,7 @@ public class TextIOTest {
   }
 
   @Test
-  public void testPrimitiveDisplayData() {
+  public void testPrimitiveWriteDisplayData() {
     DisplayDataEvaluator evaluator = DataflowDisplayDataEvaluator.create();
 
     TextIO.Write.Bound<?> write = TextIO.Write.to("foobar");
@@ -367,6 +368,20 @@ public class TextIOTest {
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
     assertThat("TextIO.Write should include the file prefix in its primitive display data",
         displayData, hasItem(hasDisplayItem(hasValue(startsWith("foobar")))));
+  }
+
+  @Test
+  public void testPrimitiveReadDisplayData() {
+    DisplayDataEvaluator evaluator = DataflowDisplayDataEvaluator.create();
+
+    TextIO.Read.Bound<String> read = TextIO.Read
+        .from("foobar")
+        .withoutValidation();
+
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(read);
+    assertThat("TextIO.Read should include the file prefix in its primitive display data",
+        displayData,
+        hasItem(hasDisplayItem(DisplayDataMatchers.hasValue(startsWith("foobar")))));
   }
 
   @Test

@@ -22,7 +22,6 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
-import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
@@ -40,7 +39,7 @@ import java.util.Set;
 public class DisplayDataEvaluatorTest implements Serializable {
 
   @Test
-  public void testDisplayDataForPrimitiveTransforms() {
+  public void testCompositeTransform() {
     PTransform<? super PCollection<String>, ? super POutput> myTransform =
         new PTransform<PCollection<String>, POutput> () {
           @Override
@@ -64,10 +63,29 @@ public class DisplayDataEvaluatorTest implements Serializable {
           }
         };
 
-    DisplayDataEvaluator evaluator = DisplayDataEvaluator.forRunner(DirectPipelineRunner.class);
+    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(myTransform);
 
     assertThat(displayData, not(hasItem(hasDisplayItem("compositeKey", "compositeValue"))));
     assertThat(displayData, hasItem(hasDisplayItem("primitiveKey", "primitiveValue")));
+  }
+
+  @Test
+  public void testPrimitiveTransform() {
+    PTransform<? super PCollection<Integer>, ? super PCollection<Integer>> myTransform = ParDo.of(
+        new DoFn<Integer, Integer>() {
+      @Override
+      public void processElement(ProcessContext c) throws Exception {}
+
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        builder.add(DisplayData.item("foo", "bar"));
+      }
+    });
+
+    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(myTransform);
+
+    assertThat(displayData, hasItem(hasDisplayItem("foo")));
   }
 }

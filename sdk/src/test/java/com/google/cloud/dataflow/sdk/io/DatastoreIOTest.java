@@ -21,6 +21,7 @@ import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatche
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -36,6 +37,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import com.google.api.services.datastore.DatastoreV1;
 import com.google.api.services.datastore.DatastoreV1.Entity;
 import com.google.api.services.datastore.DatastoreV1.EntityResult;
 import com.google.api.services.datastore.DatastoreV1.Key;
@@ -56,8 +58,13 @@ import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.testing.ExpectedLogs;
+import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import com.google.cloud.dataflow.sdk.transforms.display.DataflowDisplayDataEvaluator;
 import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayDataEvaluator;
 import com.google.cloud.dataflow.sdk.util.TestCredential;
+import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.common.collect.Lists;
 
 import org.junit.Before;
@@ -76,6 +83,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Set;
 
 import javax.annotation.Nullable;
 
@@ -213,6 +221,17 @@ public class DatastoreIOTest {
   }
 
   @Test
+  public void testSourcePrimitiveDisplayData() {
+    DisplayDataEvaluator evaluator = DataflowDisplayDataEvaluator.create();
+    PTransform<PInput, ?> read = DatastoreIO.readFrom(
+        "myDataset", DatastoreV1.Query.newBuilder().build());
+
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(read);
+    assertThat("DatastoreIO read should include the dataset in its primitive display data",
+        displayData, hasItem(hasDisplayItem("dataset")));
+  }
+
+  @Test
   public void testSinkDoesNotAllowNullHost() throws Exception {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("host");
@@ -255,6 +274,17 @@ public class DatastoreIOTest {
     assertThat(displayData, hasDisplayItem("dataset", DATASET));
     assertThat(displayData, hasDisplayItem("host", HOST));
   }
+
+  @Test
+  public void testSinkPrimitiveDisplayData() {
+    DisplayDataEvaluator evaluator = DataflowDisplayDataEvaluator.create();
+    PTransform<PCollection<Entity>, ?> write = DatastoreIO.writeTo("myDataset");
+
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
+    assertThat("DatastoreIO write should include the dataset in its primitive display data",
+        displayData, hasItem(hasDisplayItem("dataset")));
+  }
+
 
   @Test
   public void testQuerySplitBasic() throws Exception {

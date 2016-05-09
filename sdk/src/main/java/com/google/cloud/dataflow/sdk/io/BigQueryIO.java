@@ -800,6 +800,12 @@ public class BigQueryIO {
     protected void cleanupTempResource(BigQueryOptions bqOptions) throws Exception {
       // Do nothing.
     }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder.add(DisplayData.item("table", jsonTable));
+    }
   }
 
   /**
@@ -891,6 +897,11 @@ public class BigQueryIO {
       tableService.deleteDataset(tableToRemove.getProjectId(), tableToRemove.getDatasetId());
     }
 
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder.add(DisplayData.item("query", query));
+    }
     private synchronized JobStatistics dryRunQueryIfNeeded(BigQueryOptions bqOptions)
         throws InterruptedException, IOException {
       if (dryRunJobStats.get() == null) {
@@ -1843,7 +1854,7 @@ public class BigQueryIO {
 
       builder
           .addIfNotNull(DisplayData.item("schema", jsonSchema))
-          .addIfNotNull(DisplayData.item("tableSpec", jsonTable));
+          .addIfNotNull(DisplayData.item("table", jsonTable));
     }
 
     private static class BigQueryWriteOperation extends FileBasedWriteOperation<TableRow> {
@@ -2297,7 +2308,7 @@ public class BigQueryIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
 
-      builder.addIfNotNull(DisplayData.item("tableSpec", tableSpec));
+      builder.addIfNotNull(DisplayData.item("table", tableSpec));
       if (tableRefFunction != null) {
         builder.add(DisplayData.item("tableFn", tableRefFunction.getClass()));
       }

@@ -19,9 +19,9 @@ package com.google.cloud.dataflow.sdk.transforms.display;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.PipelineRunner;
 import com.google.cloud.dataflow.sdk.runners.TransformTreeNode;
+import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -39,25 +39,21 @@ public class DisplayDataEvaluator {
   private final PipelineOptions options;
 
   /**
-   * Create a new {@link DisplayDataEvaluator} using the specified {@link PipelineRunner} and
-   * default {@link PipelineOptions}.
+   * Create a new {@link DisplayDataEvaluator} using {@link TestPipeline#testingPipelineOptions()}.
    */
-  public static DisplayDataEvaluator forRunner(Class<? extends PipelineRunner<?>> pipelineRunner) {
-    return forRunner(pipelineRunner, PipelineOptionsFactory.create());
+  public static DisplayDataEvaluator create() {
+    return create(TestPipeline.testingPipelineOptions());
   }
 
   /**
-   * Create a new {@link DisplayDataEvaluator} using the specified {@link PipelineRunner} and
-   * {@link PipelineOptions}.
+   * Create a new {@link DisplayDataEvaluator} using the specified {@link PipelineOptions}.
    */
-  public static DisplayDataEvaluator forRunner(
-      Class<? extends PipelineRunner<?>> pipelineRunner, PipelineOptions pipelineOptions) {
-    return new DisplayDataEvaluator(pipelineRunner, pipelineOptions);
+  public static DisplayDataEvaluator create(PipelineOptions pipelineOptions) {
+    return new DisplayDataEvaluator(pipelineOptions);
   }
 
-  private DisplayDataEvaluator(Class<? extends PipelineRunner<?>> runner, PipelineOptions options) {
+  private DisplayDataEvaluator(PipelineOptions options) {
     this.options = options;
-    this.options.setRunner(runner);
   }
 
   /**
@@ -107,7 +103,7 @@ public class DisplayDataEvaluator {
   private static class PrimitiveDisplayDataPTransformVisitor implements Pipeline.PipelineVisitor {
     private final PTransform root;
     private final Set<DisplayData> displayData;
-    private boolean shouldRecord = false;
+    private boolean inCompositeRoot = false;
 
     PrimitiveDisplayDataPTransformVisitor(PTransform root) {
       this.root = root;
@@ -121,19 +117,19 @@ public class DisplayDataEvaluator {
     @Override
     public void enterCompositeTransform(TransformTreeNode node) {
       if (Objects.equals(root, node.getTransform())) {
-        shouldRecord = true;
+        inCompositeRoot = true;
       }
     }
 
     @Override
     public void leaveCompositeTransform(TransformTreeNode node) {
       if (Objects.equals(root, node.getTransform())) {
-        shouldRecord = false;
+        inCompositeRoot = false;
       }
     }
     @Override
     public void visitTransform(TransformTreeNode node) {
-      if (shouldRecord) {
+      if (inCompositeRoot || Objects.equals(root, node.getTransform())) {
         displayData.add(DisplayData.from(node.getTransform()));
       }
     }

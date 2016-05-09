@@ -916,6 +916,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
   @Test
   public void testCapturesDisplayDataExceptions() throws IOException {
     DataflowPipelineOptions options = buildPipelineOptions();
+    options.setRunner(DataflowPipelineRunner.class);
     DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
     Pipeline pipeline = Pipeline.create(options);
 

@@ -17,11 +17,11 @@
 package com.google.cloud.dataflow.sdk.transforms.display;
 
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasKey;
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasNamespace;
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasType;
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasValue;
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -65,7 +65,7 @@ public class DisplayDataMatchersTest {
 
   @Test
   public void testHasKey() {
-    Matcher<DisplayData> matcher = hasDisplayItem(hasKey("foo"));
+    Matcher<DisplayData> matcher = hasDisplayItem("foo");
 
     assertFalse(matcher.matches(createDisplayDataWithItem("fooz", "bar")));
 

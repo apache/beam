@@ -20,11 +20,10 @@ import static com.google.cloud.dataflow.sdk.testing.SourceTestUtils.assertSource
 import static com.google.cloud.dataflow.sdk.testing.SourceTestUtils.assertSplitAtFractionExhaustive;
 import static com.google.cloud.dataflow.sdk.testing.SourceTestUtils.assertSplitAtFractionFails;
 import static com.google.cloud.dataflow.sdk.testing.SourceTestUtils.assertSplitAtFractionSucceedsAndConsistent;
-
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasKey;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Verify.verifyNotNull;
+
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -424,7 +423,7 @@ public class BigtableIOTest {
     assertThat(displayData, hasDisplayItem("rowFilter", rowFilter.toString()));
 
     // BigtableIO adds user-agent to options; assert only on key and not value.
-    assertThat(displayData, hasDisplayItem(hasKey("bigtableOptions")));
+    assertThat(displayData, hasDisplayItem("bigtableOptions"));
   }
 
   /** Tests that a record gets written to the service and messages are logged. */
@@ -490,10 +489,7 @@ public class BigtableIOTest {
         .withBigtableOptions(BIGTABLE_OPTIONS);
 
     DisplayData displayData = DisplayData.from(write);
-
     assertThat(displayData, hasDisplayItem("tableId", "fooTable"));
-    // BigtableIO adds user-agent to options; assert only on key and not value.
-    assertThat(displayData, hasDisplayItem(hasKey("bigtableOptions")));
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////////
