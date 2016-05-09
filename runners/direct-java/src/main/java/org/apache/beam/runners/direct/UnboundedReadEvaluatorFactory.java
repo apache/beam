@@ -171,7 +171,8 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     private <CheckpointMarkT extends CheckpointMark> UnboundedReader<OutputT> createReader(
-        UnboundedSource<OutputT, CheckpointMarkT> source, PipelineOptions options) {
+        UnboundedSource<OutputT, CheckpointMarkT> source, PipelineOptions options)
+        throws IOException {
       @SuppressWarnings("unchecked")
       CheckpointMarkT mark = (CheckpointMarkT) checkpointMark;
       return source.createReader(options, mark);

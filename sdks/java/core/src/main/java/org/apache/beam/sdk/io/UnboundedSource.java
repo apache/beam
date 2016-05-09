@@ -76,7 +76,7 @@ public abstract class UnboundedSource<
    * checkpoint if present.
    */
   public abstract UnboundedReader<OutputT> createReader(
-      PipelineOptions options, @Nullable CheckpointMarkT checkpointMark);
+      PipelineOptions options, @Nullable CheckpointMarkT checkpointMark) throws IOException;
 
   /**
    * Returns a {@link Coder} for encoding and decoding the checkpoints for this source, or
