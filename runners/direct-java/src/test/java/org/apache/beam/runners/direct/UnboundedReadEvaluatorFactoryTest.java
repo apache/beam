@@ -21,6 +21,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -39,7 +40,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
@@ -136,7 +136,7 @@ public class UnboundedReadEvaluatorFactoryTest {
   }
 
   @Test
-  public void boundedSourceEvaluatorClosesReader() throws Exception {
+  public void evaluatorClosesReader() throws Exception {
     TestUnboundedSource<Long> source =
         new TestUnboundedSource<>(BigEndianLongCoder.of(), 1L, 2L, 3L);
 
@@ -155,7 +155,7 @@ public class UnboundedReadEvaluatorFactoryTest {
   }
 
   @Test
-  public void boundedSourceEvaluatorNoElementsClosesReader() throws Exception {
+  public void evaluatorNoElementsClosesReader() throws Exception {
     TestUnboundedSource<Long> source = new TestUnboundedSource<>(BigEndianLongCoder.of());
 
     TestPipeline p = TestPipeline.create();
@@ -180,15 +180,13 @@ public class UnboundedReadEvaluatorFactoryTest {
    */
   @Test
   public void unboundedSourceWithMultipleSimultaneousEvaluatorsIndependent() throws Exception {
-    UncommittedBundle<Long> secondOutput = bundleFactory.createRootBundle(longs);
-
     TransformEvaluator<?> evaluator =
         factory.forApplication(longs.getProducingTransformInternal(), null, context);
 
     TransformEvaluator<?> secondEvaluator =
         factory.forApplication(longs.getProducingTransformInternal(), null, context);
 
-    InProcessTransformResult secondResult = secondEvaluator.finishBundle();
+    assertThat(secondEvaluator, nullValue());
     InProcessTransformResult result = evaluator.finishBundle();
 
     assertThat(
@@ -198,9 +196,6 @@ public class UnboundedReadEvaluatorFactoryTest {
         containsInAnyOrder(
             tgw(1L), tgw(2L), tgw(4L), tgw(8L), tgw(9L), tgw(7L), tgw(6L), tgw(5L), tgw(3L),
             tgw(0L)));
-
-    assertThat(secondResult.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MIN_VALUE));
-    assertThat(secondOutput.commit(Instant.now()).getElements(), emptyIterable());
   }
 
   /**

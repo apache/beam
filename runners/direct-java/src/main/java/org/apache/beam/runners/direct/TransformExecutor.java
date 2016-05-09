@@ -38,7 +38,7 @@ import javax.annotation.Nullable;
  * <p>A {@link TransformExecutor} that is currently executing also provides access to the thread
  * that it is being executed on.
  */
-class TransformExecutor<T> implements Callable<InProcessTransformResult> {
+class TransformExecutor<T> implements Runnable {
   public static <T> TransformExecutor<T> create(
       TransformEvaluatorFactory factory,
       Iterable<? extends ModelEnforcementFactory> modelEnforcements,
@@ -94,7 +94,7 @@ class TransformExecutor<T> implements Callable<InProcessTransformResult> {
   }
 
   @Override
-  public InProcessTransformResult call() {
+  public void run() {
     checkState(
         thread.compareAndSet(null, Thread.currentThread()),
         "Tried to execute %s for %s on thread %s, but is already executing on thread %s",
@@ -110,11 +110,14 @@ class TransformExecutor<T> implements Callable<InProcessTransformResult> {
       }
       TransformEvaluator<T> evaluator =
           evaluatorFactory.forApplication(transform, inputBundle, evaluationContext);
+      if (evaluator == null) {
+        // Nothing to do
+        return;
+      }
 
       processElements(evaluator, enforcements);
 
       InProcessTransformResult result = finishBundle(evaluator, enforcements);
-      return result;
     } catch (Throwable t) {
       onComplete.handleThrowable(inputBundle, t);
       if (t instanceof RuntimeException) {
