@@ -21,13 +21,13 @@ import static org.junit.Assert.assertEquals;
 
 import com.google.common.reflect.TypeToken;
 
-import java.math.BigDecimal;
-import java.util.List;
-import java.util.Set;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Set;
 
 /**
  * Tests for TypeDescriptors.
