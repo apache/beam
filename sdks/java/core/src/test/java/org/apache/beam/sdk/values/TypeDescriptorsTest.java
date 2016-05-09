@@ -21,17 +21,13 @@ import static org.junit.Assert.assertEquals;
 
 import com.google.common.reflect.TypeToken;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
-
-import java.lang.reflect.Method;
-import java.lang.reflect.TypeVariable;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Set;
+
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /**
  * Tests for TypeDescriptors.
@@ -40,31 +36,31 @@ import java.util.Set;
 public class TypeDescriptorsTest {
   @Test
   public void testTypeDescriptorsIterables() throws Exception {
-    TypeDescriptor<Iterable<String>> descriptor = 
+    TypeDescriptor<Iterable<String>> descriptor =
         TypeDescriptors.iterables(TypeDescriptors.strings());
     TypeToken<Iterable<String>> token = new TypeToken<Iterable<String>>(){};
     assertEquals(token.getType(), descriptor.getType());
   }
-  
+
   @Test
   public void testTypeDescriptorsSets() throws Exception {
-    TypeDescriptor<Set<String>> descriptor = 
+    TypeDescriptor<Set<String>> descriptor =
         TypeDescriptors.sets(TypeDescriptors.strings());
     TypeToken<Set<String>> token = new TypeToken<Set<String>>(){};
     assertEquals(token.getType(), descriptor.getType());
   }
-  
+
   @Test
   public void testTypeDescriptorsKV() throws Exception {
-    TypeDescriptor<KV<String, Integer>> descriptor = 
+    TypeDescriptor<KV<String, Integer>> descriptor =
         TypeDescriptors.kv(TypeDescriptors.strings(), TypeDescriptors.integers());
     TypeToken<KV<String, Integer>> token = new TypeToken<KV<String, Integer>>(){};
     assertEquals(token.getType(), descriptor.getType());
   }
-  
+
   @Test
   public void testTypeDescriptorsLists() throws Exception {
-    TypeDescriptor<List<String>> descriptor = 
+    TypeDescriptor<List<String>> descriptor =
         TypeDescriptors.lists(TypeDescriptors.strings());
     TypeToken<List<String>> token = new TypeToken<List<String>>(){};
     assertEquals(token.getType(), descriptor.getType());
