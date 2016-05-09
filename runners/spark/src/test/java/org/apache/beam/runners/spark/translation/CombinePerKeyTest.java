@@ -42,6 +42,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Combine per key function test.
+ */
 public class CombinePerKeyTest {
 
     private static final List<String> WORDS =

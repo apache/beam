@@ -18,13 +18,16 @@
 
 package org.apache.beam.runners.spark.io.hadoop;
 
-import java.io.IOException;
-
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 
+import java.io.IOException;
+
+/**
+ * Templates text output format.
+ */
 public class TemplatedTextOutputFormat<K, V> extends TextOutputFormat<K, V>
     implements ShardNameTemplateAware {
 

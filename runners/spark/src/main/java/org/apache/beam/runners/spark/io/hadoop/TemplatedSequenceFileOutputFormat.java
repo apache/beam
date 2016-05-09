@@ -18,13 +18,16 @@
 
 package org.apache.beam.runners.spark.io.hadoop;
 
-import java.io.IOException;
-
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 
+import java.io.IOException;
+
+/**
+ * Templated sequence file output format.
+ */
 public class TemplatedSequenceFileOutputFormat<K, V> extends SequenceFileOutputFormat<K, V>
     implements ShardNameTemplateAware {
 

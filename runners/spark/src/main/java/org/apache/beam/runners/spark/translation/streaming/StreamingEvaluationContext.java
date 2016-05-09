@@ -18,13 +18,6 @@
 package org.apache.beam.runners.spark.translation.streaming;
 
 
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Queue;
-import java.util.Set;
-import java.util.concurrent.LinkedBlockingQueue;
-
 import org.apache.beam.runners.spark.translation.EvaluationContext;
 import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
 import org.apache.beam.sdk.Pipeline;
@@ -35,6 +28,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
+
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaRDDLike;
 import org.apache.spark.api.java.JavaSparkContext;
@@ -42,6 +36,13 @@ import org.apache.spark.api.java.function.VoidFunction;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaDStreamLike;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
+
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.Map;
+import java.util.Queue;
+import java.util.Set;
+import java.util.concurrent.LinkedBlockingQueue;
 
 
 /**
@@ -179,11 +180,11 @@ public class StreamingEvaluationContext extends EvaluationContext {
 
   //---------------- override in order to expose in package
   @Override
-  protected <I extends PInput> I getInput(PTransform<I, ?> transform) {
+  protected <InputT extends PInput> InputT getInput(PTransform<InputT, ?> transform) {
     return super.getInput(transform);
   }
   @Override
-  protected <O extends POutput> O getOutput(PTransform<?, O> transform) {
+  protected <OutputT extends POutput> OutputT getOutput(PTransform<?, OutputT> transform) {
     return super.getOutput(transform);
   }
 

@@ -31,6 +31,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.util.ExecutionContext;
+import org.apache.beam.sdk.util.ReadyCheckingSideInputReader;
 import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.TimerInternals.TimerData;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -152,11 +153,11 @@ class InProcessEvaluationContext {
     Iterable<? extends CommittedBundle<?>> committedBundles =
         commitBundles(result.getOutputBundles());
     // Update watermarks and timers
+    CommittedResult committedResult = CommittedResult.create(result, committedBundles);
     watermarkManager.updateWatermarks(
         completedBundle,
-        result.getTransform(),
         result.getTimerUpdate().withCompletedTimers(completedTimers),
-        committedBundles,
+        committedResult,
         result.getWatermarkHold());
     fireAllAvailableCallbacks();
     // Update counters
@@ -176,7 +177,7 @@ class InProcessEvaluationContext {
         applicationStateInternals.remove(stepAndKey);
       }
     }
-    return CommittedResult.create(result, committedBundles);
+    return committedResult;
   }
 
   private Iterable<? extends CommittedBundle<?>> commitBundles(
@@ -333,16 +334,6 @@ class InProcessEvaluationContext {
     return sideInputContainer.createReaderForViews(sideInputs);
   }
 
-  /**
-   * A {@link SideInputReader} that allows callers to check to see if a {@link PCollectionView} has
-   * had its contents set in a window.
-   */
-  static interface ReadyCheckingSideInputReader extends SideInputReader {
-    /**
-     * Returns true if the {@link PCollectionView} is ready in the provided {@link BoundedWindow}.
-     */
-    boolean isReady(PCollectionView<?> view, BoundedWindow window);
-  }
 
   /**
    * Create a {@link CounterSet} for this {@link Pipeline}. The {@link CounterSet} is independent

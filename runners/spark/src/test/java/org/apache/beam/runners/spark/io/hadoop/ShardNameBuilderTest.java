@@ -28,6 +28,9 @@ import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 
+/**
+ * Test on the {@link ShardNameBuilder}.
+ */
 public class ShardNameBuilderTest {
 
   @Test

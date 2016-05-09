@@ -16,13 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.io;
+package org.apache.beam.sdk.util;
 
-import org.apache.beam.sdk.options.GcpOptions;
+import static com.google.common.base.Preconditions.checkState;
 
-import com.google.api.client.util.DateTime;
+import org.apache.beam.sdk.options.PubsubOptions;
+
 import com.google.auth.oauth2.GoogleCredentials;
-import com.google.common.base.Preconditions;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.hash.Hashing;
 import com.google.protobuf.ByteString;
@@ -30,6 +32,7 @@ import com.google.protobuf.Timestamp;
 import com.google.pubsub.v1.AcknowledgeRequest;
 import com.google.pubsub.v1.DeleteSubscriptionRequest;
 import com.google.pubsub.v1.DeleteTopicRequest;
+import com.google.pubsub.v1.GetSubscriptionRequest;
 import com.google.pubsub.v1.ListSubscriptionsRequest;
 import com.google.pubsub.v1.ListSubscriptionsResponse;
 import com.google.pubsub.v1.ListTopicsRequest;
@@ -38,11 +41,13 @@ import com.google.pubsub.v1.ModifyAckDeadlineRequest;
 import com.google.pubsub.v1.PublishRequest;
 import com.google.pubsub.v1.PublishResponse;
 import com.google.pubsub.v1.PublisherGrpc;
+import com.google.pubsub.v1.PublisherGrpc.PublisherBlockingStub;
 import com.google.pubsub.v1.PubsubMessage;
 import com.google.pubsub.v1.PullRequest;
 import com.google.pubsub.v1.PullResponse;
 import com.google.pubsub.v1.ReceivedMessage;
 import com.google.pubsub.v1.SubscriberGrpc;
+import com.google.pubsub.v1.SubscriberGrpc.SubscriberBlockingStub;
 import com.google.pubsub.v1.Subscription;
 import com.google.pubsub.v1.Topic;
 
@@ -56,7 +61,6 @@ import io.grpc.netty.NettyChannelBuilder;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -68,17 +72,44 @@ import javax.annotation.Nullable;
 /**
  * A helper class for talking to Pubsub via grpc.
  */
-public class PubsubGrpcClient implements PubsubClient {
+public class PubsubGrpcClient extends PubsubClient {
   private static final String PUBSUB_ADDRESS = "pubsub.googleapis.com";
   private static final int PUBSUB_PORT = 443;
   private static final List<String> PUBSUB_SCOPES =
       Collections.singletonList("https://www.googleapis.com/auth/pubsub");
   private static final int LIST_BATCH_SIZE = 1000;
 
+  private static final int DEFAULT_TIMEOUT_S = 15;
+
+  public static final PubsubClientFactory FACTORY =
+      new PubsubClientFactory() {
+        @Override
+        public PubsubClient newClient(
+            @Nullable String timestampLabel, @Nullable String idLabel, PubsubOptions options)
+            throws IOException {
+          ManagedChannel channel = NettyChannelBuilder
+              .forAddress(PUBSUB_ADDRESS, PUBSUB_PORT)
+              .negotiationType(NegotiationType.TLS)
+              .sslContext(GrpcSslContexts.forClient().ciphers(null).build())
+              .build();
+          // TODO: GcpOptions needs to support building com.google.auth.oauth2.Credentials from the
+          // various command line options. It currently only supports the older
+          // com.google.api.client.auth.oauth2.Credentials.
+          GoogleCredentials credentials = GoogleCredentials.getApplicationDefault();
+          return new PubsubGrpcClient(timestampLabel,
+                                      idLabel,
+                                      DEFAULT_TIMEOUT_S,
+                                      channel,
+                                      credentials,
+                                      null /* publisher stub */,
+                                      null /* subscriber stub */);
+        }
+      };
+
   /**
    * Timeout for grpc calls (in s).
    */
-  private static final int TIMEOUT_S = 15;
+  private final int timeoutSec;
 
   /**
    * Underlying netty channel, or {@literal null} if closed.
@@ -104,6 +135,7 @@ public class PubsubGrpcClient implements PubsubClient {
   @Nullable
   private final String idLabel;
 
+
   /**
    * Cached stubs, or null if not cached.
    */
@@ -111,35 +143,22 @@ public class PubsubGrpcClient implements PubsubClient {
   private PublisherGrpc.PublisherBlockingStub cachedPublisherStub;
   private SubscriberGrpc.SubscriberBlockingStub cachedSubscriberStub;
 
-  private PubsubGrpcClient(
-      @Nullable String timestampLabel, @Nullable String idLabel,
-      ManagedChannel publisherChannel, GoogleCredentials credentials) {
+  @VisibleForTesting
+  PubsubGrpcClient(
+      @Nullable String timestampLabel,
+      @Nullable String idLabel,
+      int timeoutSec,
+      ManagedChannel publisherChannel,
+      GoogleCredentials credentials,
+      PublisherGrpc.PublisherBlockingStub cachedPublisherStub,
+      SubscriberGrpc.SubscriberBlockingStub cachedSubscriberStub) {
     this.timestampLabel = timestampLabel;
     this.idLabel = idLabel;
+    this.timeoutSec = timeoutSec;
     this.publisherChannel = publisherChannel;
     this.credentials = credentials;
-  }
-
-  /**
-   * Construct a new Pubsub grpc client. It should be closed via {@link #close} in order
-   * to ensure tidy cleanup of underlying netty resources. (Or use the try-with-resources
-   * construct since this class is {@link AutoCloseable}). If non-{@literal null}, use
-   * {@code timestampLabel} and {@code idLabel} to store custom timestamps/ids within
-   * message metadata.
-   */
-  public static PubsubGrpcClient newClient(
-      @Nullable String timestampLabel, @Nullable String idLabel,
-      GcpOptions options) throws IOException {
-    ManagedChannel channel = NettyChannelBuilder
-        .forAddress(PUBSUB_ADDRESS, PUBSUB_PORT)
-        .negotiationType(NegotiationType.TLS)
-        .sslContext(GrpcSslContexts.forClient().ciphers(null).build())
-        .build();
-    // TODO: GcpOptions needs to support building com.google.auth.oauth2.Credentials from the
-    // various command line options. It currently only supports the older
-    // com.google.api.client.auth.oauth2.Credentials.
-    GoogleCredentials credentials = GoogleCredentials.getApplicationDefault();
-    return new PubsubGrpcClient(timestampLabel, idLabel, channel, credentials);
+    this.cachedPublisherStub = cachedPublisherStub;
+    this.cachedSubscriberStub = cachedSubscriberStub;
   }
 
   /**
@@ -147,24 +166,34 @@ public class PubsubGrpcClient implements PubsubClient {
    */
   @Override
   public void close() {
-    Preconditions.checkState(publisherChannel != null, "Client has already been closed");
-    publisherChannel.shutdown();
-    try {
-      publisherChannel.awaitTermination(TIMEOUT_S, TimeUnit.SECONDS);
-    } catch (InterruptedException e) {
-      // Ignore.
-      Thread.currentThread().interrupt();
+    if (publisherChannel == null) {
+      // Already closed.
+      return;
     }
-    publisherChannel = null;
+    // Can gc the underlying stubs.
     cachedPublisherStub = null;
     cachedSubscriberStub = null;
+    // Mark the client as having been closed before going further
+    // in case we have an exception from the channel.
+    ManagedChannel publisherChannel = this.publisherChannel;
+    this.publisherChannel = null;
+    // Gracefully shutdown the channel.
+    publisherChannel.shutdown();
+    if (timeoutSec > 0) {
+      try {
+        publisherChannel.awaitTermination(timeoutSec, TimeUnit.SECONDS);
+      } catch (InterruptedException e) {
+        // Ignore.
+        Thread.currentThread().interrupt();
+      }
+    }
   }
 
   /**
    * Return channel with interceptor for returning credentials.
    */
   private Channel newChannel() throws IOException {
-    Preconditions.checkState(publisherChannel != null, "PubsubGrpcClient has been closed");
+    checkState(publisherChannel != null, "PubsubGrpcClient has been closed");
     ClientAuthInterceptor interceptor =
         new ClientAuthInterceptor(credentials, Executors.newSingleThreadExecutor());
     return ClientInterceptors.intercept(publisherChannel, interceptor);
@@ -173,25 +202,33 @@ public class PubsubGrpcClient implements PubsubClient {
   /**
    * Return a stub for making a publish request with a timeout.
    */
-  private PublisherGrpc.PublisherBlockingStub publisherStub() throws IOException {
+  private PublisherBlockingStub publisherStub() throws IOException {
     if (cachedPublisherStub == null) {
       cachedPublisherStub = PublisherGrpc.newBlockingStub(newChannel());
     }
-    return cachedPublisherStub.withDeadlineAfter(TIMEOUT_S, TimeUnit.SECONDS);
+    if (timeoutSec > 0) {
+      return cachedPublisherStub.withDeadlineAfter(timeoutSec, TimeUnit.SECONDS);
+    } else {
+      return cachedPublisherStub;
+    }
   }
 
   /**
    * Return a stub for making a subscribe request with a timeout.
    */
-  private SubscriberGrpc.SubscriberBlockingStub subscriberStub() throws IOException {
+  private SubscriberBlockingStub subscriberStub() throws IOException {
     if (cachedSubscriberStub == null) {
       cachedSubscriberStub = SubscriberGrpc.newBlockingStub(newChannel());
     }
-    return cachedSubscriberStub.withDeadlineAfter(TIMEOUT_S, TimeUnit.SECONDS);
+    if (timeoutSec > 0) {
+      return cachedSubscriberStub.withDeadlineAfter(timeoutSec, TimeUnit.SECONDS);
+    } else {
+      return cachedSubscriberStub;
+    }
   }
 
   @Override
-  public int publish(TopicPath topic, Iterable<OutgoingMessage> outgoingMessages)
+  public int publish(TopicPath topic, List<OutgoingMessage> outgoingMessages)
       throws IOException {
     PublishRequest.Builder request = PublishRequest.newBuilder()
                                                    .setTopic(topic.getPath());
@@ -208,7 +245,7 @@ public class PubsubGrpcClient implements PubsubClient {
       if (idLabel != null) {
         message.getMutableAttributes()
                .put(idLabel,
-                   Hashing.murmur3_128().hashBytes(outgoingMessage.elementBytes).toString());
+                    Hashing.murmur3_128().hashBytes(outgoingMessage.elementBytes).toString());
       }
 
       request.addMessages(message);
@@ -219,13 +256,14 @@ public class PubsubGrpcClient implements PubsubClient {
   }
 
   @Override
-  public Collection<IncomingMessage> pull(
+  public List<IncomingMessage> pull(
       long requestTimeMsSinceEpoch,
       SubscriptionPath subscription,
-      int batchSize) throws IOException {
+      int batchSize,
+      boolean returnImmediately) throws IOException {
     PullRequest request = PullRequest.newBuilder()
                                      .setSubscription(subscription.getPath())
-                                     .setReturnImmediately(true)
+                                     .setReturnImmediately(returnImmediately)
                                      .setMaxMessages(batchSize)
                                      .build();
     PullResponse response = subscriberStub().pull(request);
@@ -235,41 +273,24 @@ public class PubsubGrpcClient implements PubsubClient {
     List<IncomingMessage> incomingMessages = new ArrayList<>(response.getReceivedMessagesCount());
     for (ReceivedMessage message : response.getReceivedMessagesList()) {
       PubsubMessage pubsubMessage = message.getMessage();
-      Map<String, String> attributes = pubsubMessage.getAttributes();
+      @Nullable Map<String, String> attributes = pubsubMessage.getAttributes();
 
       // Payload.
       byte[] elementBytes = pubsubMessage.getData().toByteArray();
 
       // Timestamp.
-      // Start with Pubsub processing time.
+      String pubsubTimestampString = null;
       Timestamp timestampProto = pubsubMessage.getPublishTime();
-      long timestampMsSinceEpoch = timestampProto.getSeconds() + timestampProto.getNanos() / 1000L;
-      if (timestampLabel != null && attributes != null) {
-        String timestampString = attributes.get(timestampLabel);
-        if (timestampString != null && !timestampString.isEmpty()) {
-          try {
-            // Try parsing as milliseconds since epoch. Note there is no way to parse a
-            // string in RFC 3339 format here.
-            // Expected IllegalArgumentException if parsing fails; we use that to fall back
-            // to RFC 3339.
-            timestampMsSinceEpoch = Long.parseLong(timestampString);
-          } catch (IllegalArgumentException e1) {
-            try {
-              // Try parsing as RFC3339 string. DateTime.parseRfc3339 will throw an
-              // IllegalArgumentException if parsing fails, and the caller should handle.
-              timestampMsSinceEpoch = DateTime.parseRfc3339(timestampString).getValue();
-            } catch (IllegalArgumentException e2) {
-              // Fallback to Pubsub processing time.
-            }
-          }
-        }
-        // else: fallback to Pubsub processing time.
+      if (timestampProto != null) {
+        pubsubTimestampString = String.valueOf(timestampProto.getSeconds()
+                                               + timestampProto.getNanos() / 1000L);
       }
-      // else: fallback to Pubsub processing time.
+      long timestampMsSinceEpoch =
+          extractTimestamp(timestampLabel, pubsubTimestampString, attributes);
 
       // Ack id.
       String ackId = message.getAckId();
-      Preconditions.checkState(ackId != null && !ackId.isEmpty());
+      checkState(!Strings.isNullOrEmpty(ackId));
 
       // Record id, if any.
       @Nullable byte[] recordId = null;
@@ -284,13 +305,13 @@ public class PubsubGrpcClient implements PubsubClient {
       }
 
       incomingMessages.add(new IncomingMessage(elementBytes, timestampMsSinceEpoch,
-          requestTimeMsSinceEpoch, ackId, recordId));
+                                               requestTimeMsSinceEpoch, ackId, recordId));
     }
     return incomingMessages;
   }
 
   @Override
-  public void acknowledge(SubscriptionPath subscription, Iterable<String> ackIds)
+  public void acknowledge(SubscriptionPath subscription, List<String> ackIds)
       throws IOException {
     AcknowledgeRequest request = AcknowledgeRequest.newBuilder()
                                                    .setSubscription(subscription.getPath())
@@ -301,8 +322,7 @@ public class PubsubGrpcClient implements PubsubClient {
 
   @Override
   public void modifyAckDeadline(
-      SubscriptionPath subscription, Iterable<String> ackIds, int
-      deadlineSeconds)
+      SubscriptionPath subscription, List<String> ackIds, int deadlineSeconds)
       throws IOException {
     ModifyAckDeadlineRequest request =
         ModifyAckDeadlineRequest.newBuilder()
@@ -330,7 +350,7 @@ public class PubsubGrpcClient implements PubsubClient {
   }
 
   @Override
-  public Collection<TopicPath> listTopics(ProjectPath project) throws IOException {
+  public List<TopicPath> listTopics(ProjectPath project) throws IOException {
     ListTopicsRequest.Builder request =
         ListTopicsRequest.newBuilder()
                          .setProject(project.getPath())
@@ -342,7 +362,7 @@ public class PubsubGrpcClient implements PubsubClient {
     List<TopicPath> topics = new ArrayList<>(response.getTopicsCount());
     while (true) {
       for (Topic topic : response.getTopicsList()) {
-        topics.add(new TopicPath(topic.getName()));
+        topics.add(topicPathFromPath(topic.getName()));
       }
       if (response.getNextPageToken().isEmpty()) {
         break;
@@ -375,7 +395,7 @@ public class PubsubGrpcClient implements PubsubClient {
   }
 
   @Override
-  public Collection<SubscriptionPath> listSubscriptions(ProjectPath project, TopicPath topic)
+  public List<SubscriptionPath> listSubscriptions(ProjectPath project, TopicPath topic)
       throws IOException {
     ListSubscriptionsRequest.Builder request =
         ListSubscriptionsRequest.newBuilder()
@@ -389,7 +409,7 @@ public class PubsubGrpcClient implements PubsubClient {
     while (true) {
       for (Subscription subscription : response.getSubscriptionsList()) {
         if (subscription.getTopic().equals(topic.getPath())) {
-          subscriptions.add(new SubscriptionPath(subscription.getName()));
+          subscriptions.add(subscriptionPathFromPath(subscription.getName()));
         }
       }
       if (response.getNextPageToken().isEmpty()) {
@@ -399,5 +419,15 @@ public class PubsubGrpcClient implements PubsubClient {
       response = subscriberStub().listSubscriptions(request.build());
     }
     return subscriptions;
+  }
+
+  @Override
+  public int ackDeadlineSeconds(SubscriptionPath subscription) throws IOException {
+    GetSubscriptionRequest request =
+        GetSubscriptionRequest.newBuilder()
+                              .setSubscription(subscription.getPath())
+                              .build();
+    Subscription response = subscriberStub().getSubscription(request);
+    return response.getAckDeadlineSeconds();
   }
 }

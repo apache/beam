@@ -23,6 +23,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -31,6 +32,8 @@ import org.apache.beam.sdk.runners.DirectPipelineRunner;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import org.hamcrest.BaseMatcher;
+import org.hamcrest.Description;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
@@ -38,7 +41,9 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
+import java.util.UUID;
 
 /** Tests for {@link TestPipeline}. */
 @RunWith(JUnit4.class)
@@ -114,6 +119,54 @@ public class TestPipelineTest {
   private static class NestedTester {
     public TestPipeline p() {
       return TestPipeline.create();
+    }
+  }
+
+  @Test
+  public void testMatcherSerializationDeserialization() {
+    TestPipelineOptions opts = PipelineOptionsFactory.as(TestPipelineOptions.class);
+    SerializableMatcher m1 = new TestMatcher();
+    SerializableMatcher m2 = new TestMatcher();
+
+    opts.setOnCreateMatcher(m1);
+    opts.setOnSuccessMatcher(m2);
+
+    String[] arr = TestPipeline.convertToArgs(opts);
+    TestPipelineOptions newOpts = PipelineOptionsFactory.fromArgs(arr)
+        .as(TestPipelineOptions.class);
+
+    assertEquals(m1, newOpts.getOnCreateMatcher());
+    assertEquals(m2, newOpts.getOnSuccessMatcher());
+  }
+
+  /**
+   * TestMatcher is a matcher designed for testing matcher serialization/deserialization.
+   */
+  public static class TestMatcher extends BaseMatcher<PipelineResult>
+      implements SerializableMatcher<PipelineResult> {
+    private final UUID uuid = UUID.randomUUID();
+    @Override
+    public boolean matches(Object o) {
+      return true;
+    }
+
+    @Override
+    public void describeTo(Description description) {
+      description.appendText(String.format("%tL", new Date()));
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (!(obj instanceof TestMatcher)) {
+        return false;
+      }
+      TestMatcher other = (TestMatcher) obj;
+      return other.uuid.equals(uuid);
+    }
+
+    @Override
+    public int hashCode() {
+      return uuid.hashCode();
     }
   }
 }

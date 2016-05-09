@@ -43,9 +43,6 @@ public class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
 
   private int depth = 0;
 
-  /** Composite transform that we want to translate before proceeding with other transforms. */
-  private PTransform<?, ?> currentCompositeTransform;
-
   public FlinkStreamingPipelineTranslator(StreamExecutionEnvironment env, PipelineOptions options) {
     this.streamingContext = new FlinkStreamingTranslationContext(env, options);
   }
@@ -55,47 +52,31 @@ public class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
   // --------------------------------------------------------------------------------------------
 
   @Override
-  public void enterCompositeTransform(TransformTreeNode node) {
+  public CompositeBehavior enterCompositeTransform(TransformTreeNode node) {
     LOG.info(genSpaces(this.depth) + "enterCompositeTransform- " + formatNodeName(node));
 
     PTransform<?, ?> transform = node.getTransform();
-    if (transform != null && currentCompositeTransform == null) {
-
+    if (transform != null) {
       StreamTransformTranslator<?> translator = FlinkStreamingTransformTranslators.getTranslator(transform);
       if (translator != null) {
-        currentCompositeTransform = transform;
+        applyStreamingTransform(transform, node, translator);
+        LOG.info(genSpaces(this.depth) + "translated-" + formatNodeName(node));
+        return CompositeBehavior.DO_NOT_ENTER_TRANSFORM;
       }
     }
     this.depth++;
+    return CompositeBehavior.ENTER_TRANSFORM;
   }
 
   @Override
   public void leaveCompositeTransform(TransformTreeNode node) {
-    PTransform<?, ?> transform = node.getTransform();
-    if (transform != null && currentCompositeTransform == transform) {
-
-      StreamTransformTranslator<?> translator = FlinkStreamingTransformTranslators.getTranslator(transform);
-      if (translator != null) {
-        LOG.info(genSpaces(this.depth) + "doingCompositeTransform- " + formatNodeName(node));
-        applyStreamingTransform(transform, node, translator);
-        currentCompositeTransform = null;
-      } else {
-        throw new IllegalStateException("Attempted to translate composite transform " +
-            "but no translator was found: " + currentCompositeTransform);
-      }
-    }
     this.depth--;
     LOG.info(genSpaces(this.depth) + "leaveCompositeTransform- " + formatNodeName(node));
   }
 
   @Override
-  public void visitTransform(TransformTreeNode node) {
-    LOG.info(genSpaces(this.depth) + "visitTransform- " + formatNodeName(node));
-    if (currentCompositeTransform != null) {
-      // ignore it
-      return;
-    }
-
+  public void visitPrimitiveTransform(TransformTreeNode node) {
+    LOG.info(genSpaces(this.depth) + "visitPrimitiveTransform- " + formatNodeName(node));
     // get the transformation corresponding to hte node we are
     // currently visiting and translate it into its Flink alternative.
 

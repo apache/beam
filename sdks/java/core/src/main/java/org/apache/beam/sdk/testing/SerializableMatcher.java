@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.testing;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import org.hamcrest.Matcher;
 
 import java.io.Serializable;
@@ -32,5 +34,8 @@ import java.io.Serializable;
  *
  * @param <T> The type of value matched.
  */
-interface SerializableMatcher<T> extends Matcher<T>, Serializable {
+@JsonSerialize(using = MatcherSerializer.class)
+@JsonDeserialize(using = MatcherDeserializer.class)
+public interface SerializableMatcher<T> extends Matcher<T>, Serializable {
 }
+

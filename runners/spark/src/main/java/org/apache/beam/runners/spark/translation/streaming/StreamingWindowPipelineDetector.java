@@ -54,12 +54,12 @@ public final class StreamingWindowPipelineDetector extends SparkPipelineRunner.E
 
   // Use the smallest window (fixed or sliding) as Spark streaming's batch duration
   @Override
-  protected <PT extends PTransform<? super PInput, POutput>> void
+  protected <TransformT extends PTransform<? super PInput, POutput>> void
       doVisitTransform(TransformTreeNode node) {
     @SuppressWarnings("unchecked")
-    PT transform = (PT) node.getTransform();
+    TransformT transform = (TransformT) node.getTransform();
     @SuppressWarnings("unchecked")
-    Class<PT> transformClass = (Class<PT>) (Class<?>) transform.getClass();
+    Class<TransformT> transformClass = (Class<TransformT>) (Class<?>) transform.getClass();
     if (transformClass.isAssignableFrom(Window.Bound.class)) {
       WindowFn<?, ?> windowFn = WINDOW_FG.get("windowFn", transform);
       if (windowFn instanceof FixedWindows) {

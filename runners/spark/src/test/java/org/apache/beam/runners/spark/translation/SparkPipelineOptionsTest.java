@@ -24,6 +24,9 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Assert;
 import org.junit.Test;
 
+/**
+ * Simple test on the Spark runner pipeline options.
+ */
 public class SparkPipelineOptionsTest {
   @Test
   public void testDefaultCreateMethod() {

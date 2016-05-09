@@ -17,11 +17,12 @@
  */
 package org.apache.beam.runners.spark.io;
 
-import com.google.common.base.Preconditions;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
+
+import com.google.common.base.Preconditions;
 
 /**
  * Create an input stream from Queue.
@@ -44,6 +45,9 @@ public final class CreateStream<T> {
     return new QueuedValues<>(queuedValues);
   }
 
+  /**
+   * {@link PTransform} for queueing values.
+   */
   public static final class QueuedValues<T> extends PTransform<PInput, PCollection<T>> {
 
     private final Iterable<Iterable<T>> queuedValues;

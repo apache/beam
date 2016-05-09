@@ -348,7 +348,7 @@ public class DataflowPipelineTranslator {
   /**
    * Translates a Pipeline into the Dataflow representation.
    */
-  class Translator implements PipelineVisitor, TranslationContext {
+  class Translator extends PipelineVisitor.Defaults implements TranslationContext {
     /** The Pipeline to translate. */
     private final Pipeline pipeline;
 
@@ -493,16 +493,13 @@ public class DataflowPipelineTranslator {
       return currentTransform;
     }
 
-    @Override
-    public void enterCompositeTransform(TransformTreeNode node) {
-    }
 
     @Override
     public void leaveCompositeTransform(TransformTreeNode node) {
     }
 
     @Override
-    public void visitTransform(TransformTreeNode node) {
+    public void visitPrimitiveTransform(TransformTreeNode node) {
       PTransform<?, ?> transform = node.getTransform();
       TransformTranslator translator =
           getTransformTranslator(transform.getClass());

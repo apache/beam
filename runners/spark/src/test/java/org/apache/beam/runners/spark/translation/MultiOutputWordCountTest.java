@@ -52,6 +52,9 @@ import org.junit.Test;
 
 import java.util.Set;
 
+/**
+ * Multi-output word count test.
+ */
 public class MultiOutputWordCountTest {
 
   private static final TupleTag<String> upper = new TupleTag<>();
@@ -128,6 +131,9 @@ public class MultiOutputWordCountTest {
     }
   }
 
+  /**
+   * Count words {@link PTransform} used in the test.
+   */
   public static class CountWords extends PTransform<PCollection<String>, PCollectionTuple> {
 
     private final PCollectionView<String> regex;

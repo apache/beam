@@ -84,7 +84,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
@@ -820,26 +819,15 @@ public class DataflowPipelineRunnerTest {
   }
 
   /** Records all the composite transforms visited within the Pipeline. */
-  private static class CompositeTransformRecorder implements PipelineVisitor {
+  private static class CompositeTransformRecorder extends PipelineVisitor.Defaults {
     private List<PTransform<?, ?>> transforms = new ArrayList<>();
 
     @Override
-    public void enterCompositeTransform(TransformTreeNode node) {
+    public CompositeBehavior enterCompositeTransform(TransformTreeNode node) {
       if (node.getTransform() != null) {
         transforms.add(node.getTransform());
       }
-    }
-
-    @Override
-    public void leaveCompositeTransform(TransformTreeNode node) {
-    }
-
-    @Override
-    public void visitTransform(TransformTreeNode node) {
-    }
-
-    @Override
-    public void visitValue(PValue value, TransformTreeNode producer) {
+      return CompositeBehavior.ENTER_TRANSFORM;
     }
 
     public List<PTransform<?, ?>> getCompositeTransforms() {

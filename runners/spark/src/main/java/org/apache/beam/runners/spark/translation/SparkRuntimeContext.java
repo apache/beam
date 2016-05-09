@@ -18,15 +18,6 @@
 
 package org.apache.beam.runners.spark.translation;
 
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.ImmutableList;
 import org.apache.beam.runners.spark.aggregators.AggAccumParam;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.sdk.Pipeline;
@@ -41,8 +32,19 @@ import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.Min;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.TypeDescriptor;
+
+import com.google.common.collect.ImmutableList;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.spark.Accumulator;
 import org.apache.spark.api.java.JavaSparkContext;
+
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 
 
 /**
@@ -122,22 +124,22 @@ public class SparkRuntimeContext implements Serializable {
    *
    * @param named     Name of aggregator.
    * @param combineFn Combine function used in aggregation.
-   * @param <IN>      Type of inputs to aggregator.
-   * @param <INTER>   Intermediate data type
-   * @param <OUT>     Type of aggregator outputs.
+   * @param <InputT>      Type of inputs to aggregator.
+   * @param <InterT>   Intermediate data type
+   * @param <OutputT>     Type of aggregator outputs.
    * @return Specified aggregator
    */
-  public synchronized <IN, INTER, OUT> Aggregator<IN, OUT> createAggregator(
+  public synchronized <InputT, InterT, OutputT> Aggregator<InputT, OutputT> createAggregator(
       String named,
-      Combine.CombineFn<? super IN, INTER, OUT> combineFn) {
+      Combine.CombineFn<? super InputT, InterT, OutputT> combineFn) {
     @SuppressWarnings("unchecked")
-    Aggregator<IN, OUT> aggregator = (Aggregator<IN, OUT>) aggregators.get(named);
+    Aggregator<InputT, OutputT> aggregator = (Aggregator<InputT, OutputT>) aggregators.get(named);
     if (aggregator == null) {
       @SuppressWarnings("unchecked")
-      NamedAggregators.CombineFunctionState<IN, INTER, OUT> state =
+      NamedAggregators.CombineFunctionState<InputT, InterT, OutputT> state =
           new NamedAggregators.CombineFunctionState<>(
-              (Combine.CombineFn<IN, INTER, OUT>) combineFn,
-              (Coder<IN>) getCoder(combineFn),
+              (Combine.CombineFn<InputT, InterT, OutputT>) combineFn,
+              (Coder<InputT>) getCoder(combineFn),
               this);
       accum.add(new NamedAggregators(named, state));
       aggregator = new SparkAggregator<>(named, state);
@@ -186,13 +188,14 @@ public class SparkRuntimeContext implements Serializable {
   /**
    * Initialize spark aggregators exactly once.
    *
-   * @param <IN> Type of element fed in to aggregator.
+   * @param <InputT> Type of element fed in to aggregator.
    */
-  private static class SparkAggregator<IN, OUT> implements Aggregator<IN, OUT>, Serializable {
+  private static class SparkAggregator<InputT, OutputT>
+      implements Aggregator<InputT, OutputT>, Serializable {
     private final String name;
-    private final NamedAggregators.State<IN, ?, OUT> state;
+    private final NamedAggregators.State<InputT, ?, OutputT> state;
 
-    SparkAggregator(String name, NamedAggregators.State<IN, ?, OUT> state) {
+    SparkAggregator(String name, NamedAggregators.State<InputT, ?, OutputT> state) {
       this.name = name;
       this.state = state;
     }
@@ -203,12 +206,12 @@ public class SparkRuntimeContext implements Serializable {
     }
 
     @Override
-    public void addValue(IN elem) {
+    public void addValue(InputT elem) {
       state.update(elem);
     }
 
     @Override
-    public Combine.CombineFn<IN, ?, OUT> getCombineFn() {
+    public Combine.CombineFn<InputT, ?, OutputT> getCombineFn() {
       return state.getCombineFn();
     }
   }

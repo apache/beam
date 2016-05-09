@@ -20,7 +20,6 @@ package org.apache.beam.examples.complete;
 import org.apache.beam.examples.common.DataflowExampleUtils;
 import org.apache.beam.examples.common.ExampleBigQueryTableOptions;
 import org.apache.beam.examples.common.ExamplePubsubTopicOptions;
-import org.apache.beam.runners.dataflow.DataflowPipelineRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.BigQueryIO;
@@ -129,9 +128,6 @@ public class StreamingWordExtract {
         .withValidation()
         .as(StreamingWordExtractOptions.class);
     options.setStreaming(true);
-    // In order to cancel the pipelines automatically,
-    // {@literal DataflowPipelineRunner} is forced to be used.
-    options.setRunner(DataflowPipelineRunner.class);
 
     options.setBigQuerySchema(StringToRowConverter.getSchema());
     DataflowExampleUtils dataflowUtils = new DataflowExampleUtils(options);

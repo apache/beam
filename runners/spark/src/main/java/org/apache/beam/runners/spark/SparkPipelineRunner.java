@@ -41,7 +41,6 @@ import org.apache.beam.sdk.util.GroupByKeyViaGroupByKeyOnly;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
-import org.apache.beam.sdk.values.PValue;
 
 import org.apache.spark.SparkException;
 import org.apache.spark.api.java.JavaSparkContext;
@@ -120,14 +119,14 @@ public final class SparkPipelineRunner extends PipelineRunner<EvaluationResult> 
    */
   @SuppressWarnings("rawtypes")
   @Override
-  public <OT extends POutput, IT extends PInput> OT apply(
-      PTransform<IT, OT> transform, IT input) {
+  public <OutputT extends POutput, InputT extends PInput> OutputT apply(
+      PTransform<InputT, OutputT> transform, InputT input) {
 
     if (transform instanceof GroupByKey) {
-      return (OT) ((PCollection) input).apply(
+      return (OutputT) ((PCollection) input).apply(
           new GroupByKeyViaGroupByKeyOnly((GroupByKey) transform));
     } else if (transform instanceof Create.Values) {
-      return (OT) super.apply(
+      return (OutputT) super.apply(
         new SinglePrimitiveOutputPTransform((Create.Values) transform), input);
     } else {
       return super.apply(transform, input);
@@ -216,7 +215,10 @@ public final class SparkPipelineRunner extends PipelineRunner<EvaluationResult> 
     return new StreamingEvaluationContext(jsc, pipeline, jssc, streamingOptions.getTimeout());
   }
 
-  public abstract static class Evaluator implements Pipeline.PipelineVisitor {
+  /**
+   * Evaluator on the pipeline.
+   */
+  public abstract static class Evaluator extends Pipeline.PipelineVisitor.Defaults {
     protected static final Logger LOG = LoggerFactory.getLogger(Evaluator.class);
 
     protected final SparkPipelineTranslator translator;
@@ -225,62 +227,29 @@ public final class SparkPipelineRunner extends PipelineRunner<EvaluationResult> 
       this.translator = translator;
     }
 
-    // Set upon entering a composite node which can be directly mapped to a single
-    // TransformEvaluator.
-    private TransformTreeNode currentTranslatedCompositeNode;
-
-    /**
-     * If true, we're currently inside a subtree of a composite node which directly maps to a
-     * single
-     * TransformEvaluator; children nodes are ignored, and upon post-visiting the translated
-     * composite node, the associated TransformEvaluator will be visited.
-     */
-    private boolean inTranslatedCompositeNode() {
-      return currentTranslatedCompositeNode != null;
-    }
-
     @Override
-    public void enterCompositeTransform(TransformTreeNode node) {
-      if (!inTranslatedCompositeNode() && node.getTransform() != null) {
+    public CompositeBehavior enterCompositeTransform(TransformTreeNode node) {
+      if (node.getTransform() != null) {
         @SuppressWarnings("unchecked")
         Class<PTransform<?, ?>> transformClass =
             (Class<PTransform<?, ?>>) node.getTransform().getClass();
         if (translator.hasTranslation(transformClass)) {
           LOG.info("Entering directly-translatable composite transform: '{}'", node.getFullName());
           LOG.debug("Composite transform class: '{}'", transformClass);
-          currentTranslatedCompositeNode = node;
+          doVisitTransform(node);
+          return CompositeBehavior.DO_NOT_ENTER_TRANSFORM;
         }
       }
+      return CompositeBehavior.ENTER_TRANSFORM;
     }
 
     @Override
-    public void leaveCompositeTransform(TransformTreeNode node) {
-      // NB: We depend on enterCompositeTransform and leaveCompositeTransform providing 'node'
-      // objects for which Object.equals() returns true iff they are the same logical node
-      // within the tree.
-      if (inTranslatedCompositeNode() && node.equals(currentTranslatedCompositeNode)) {
-        LOG.info("Post-visiting directly-translatable composite transform: '{}'",
-                node.getFullName());
-        doVisitTransform(node);
-        currentTranslatedCompositeNode = null;
-      }
-    }
-
-    @Override
-    public void visitTransform(TransformTreeNode node) {
-      if (inTranslatedCompositeNode()) {
-        LOG.info("Skipping '{}'; already in composite transform.", node.getFullName());
-        return;
-      }
+    public void visitPrimitiveTransform(TransformTreeNode node) {
       doVisitTransform(node);
     }
 
-    protected abstract <PT extends PTransform<? super PInput, POutput>> void
+    protected abstract <TransformT extends PTransform<? super PInput, POutput>> void
         doVisitTransform(TransformTreeNode node);
-
-    @Override
-    public void visitValue(PValue value, TransformTreeNode producer) {
-    }
   }
 }
 

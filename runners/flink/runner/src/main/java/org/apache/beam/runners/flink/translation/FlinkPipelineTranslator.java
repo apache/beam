@@ -28,7 +28,7 @@ import org.apache.beam.sdk.Pipeline;
  * a {@link org.apache.flink.streaming.api.datastream.DataStream} (for streaming) or a
  * {@link org.apache.flink.api.java.DataSet} (for batch) one.
  */
-public abstract class FlinkPipelineTranslator implements Pipeline.PipelineVisitor {
+public abstract class FlinkPipelineTranslator extends Pipeline.PipelineVisitor.Defaults {
 
   public void translate(Pipeline pipeline) {
     pipeline.traverseTopologically(this);

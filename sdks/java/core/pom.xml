@@ -15,7 +15,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0"
+<project xmlns="http://maven.apache.org/POM/4.0.0" 
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
@@ -49,6 +49,75 @@
       </resource>
     </resources>
 
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-javadoc-plugin</artifactId>
+          <configuration>
+            <windowtitle>Apache Beam SDK ${project.version} API</windowtitle>
+            <doctitle>Apache Beam SDK for Java, version ${project.version}</doctitle>
+            <overview>../javadoc/overview.html</overview>
+
+            <subpackages>org.apache.beam.sdk</subpackages>
+            <additionalparam>-exclude
+              org.apache.beam.sdk.runners.worker:org.apache.beam.sdk.runners.dataflow:org.apache.beam.sdk.util:org.apache.beam.sdk.runners.inprocess
+              ${dataflow.javadoc_opts}</additionalparam>
+            <use>false</use>
+            <quiet>true</quiet>
+            <bottom><![CDATA[<br>]]></bottom>
+
+            <offlineLinks>
+              <offlineLink>
+                <url>https://developers.google.com/api-client-library/java/google-api-java-client/reference/1.20.0/</url>
+                <location>${basedir}/../javadoc/apiclient-docs</location>
+              </offlineLink>
+              <offlineLink>
+                <url>http://avro.apache.org/docs/1.7.7/api/java/</url>
+                <location>${basedir}/../javadoc/avro-docs</location>
+              </offlineLink>
+              <offlineLink>
+                <url>https://developers.google.com/resources/api-libraries/documentation/bigquery/v2/java/latest/</url>
+                <location>${basedir}/../javadoc/bq-docs</location>
+              </offlineLink>
+              <offlineLink>
+                <url>https://cloud.google.com/datastore/docs/apis/javadoc/</url>
+                <location>${basedir}/../javadoc/datastore-docs</location>
+              </offlineLink>
+              <offlineLink>
+                <url>http://docs.guava-libraries.googlecode.com/git-history/release19/javadoc/</url>
+                <location>${basedir}/../javadoc/guava-docs</location>
+              </offlineLink>
+              <offlineLink>
+                <url>http://hamcrest.org/JavaHamcrest/javadoc/1.3/</url>
+                <location>${basedir}/../javadoc/hamcrest-docs</location>
+              </offlineLink>
+              <offlineLink>
+                <url>http://fasterxml.github.io/jackson-annotations/javadoc/2.7/</url>
+                <location>${basedir}/../javadoc/jackson-annotations-docs</location>
+              </offlineLink>
+              <offlineLink>
+                <url>http://fasterxml.github.io/jackson-databind/javadoc/2.7/</url>
+                <location>${basedir}/../javadoc/jackson-databind-docs</location>
+              </offlineLink>
+              <offlineLink>
+                <url>http://www.joda.org/joda-time/apidocs</url>
+                <location>${basedir}/../javadoc/joda-docs</location>
+              </offlineLink>
+              <offlineLink>
+                <url>http://junit.sourceforge.net/javadoc/</url>
+                <location>${basedir}/../javadoc/junit-docs</location>
+              </offlineLink>
+              <offlineLink>
+                <url>https://developers.google.com/api-client-library/java/google-oauth-java-client/reference/1.20.0/</url>
+                <location>${basedir}/../javadoc/oauth-docs</location>
+              </offlineLink>
+            </offlineLinks>
+          </configuration>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -60,7 +129,9 @@
         <artifactId>maven-dependency-plugin</artifactId>
         <executions>
           <execution>
-            <goals><goal>analyze-only</goal></goals>
+            <goals>
+              <goal>analyze-only</goal>
+            </goals>
             <configuration>
               <failOnWarning>true</failOnWarning>
             </configuration>
@@ -68,8 +139,6 @@
         </executions>
       </plugin>
 
-      <!-- Run CheckStyle pass on transforms, as they are release in
-           source form. -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-checkstyle-plugin</artifactId>
@@ -82,120 +151,22 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>default-jar</id>
-            <goals>
-              <goal>jar</goal>
-            </goals>
-          </execution>
-          <execution>
-            <id>default-test-jar</id>
-            <goals>
-              <goal>test-jar</goal>
-            </goals>
-          </execution>
-        </executions>
       </plugin>
 
       <!-- Source plugin for generating source and test-source JARs. -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-source-plugin</artifactId>
-        <version>2.4</version>
-        <executions>
-          <execution>
-            <id>attach-sources</id>
-            <phase>compile</phase>
-            <goals>
-              <goal>jar</goal>
-            </goals>
-          </execution>
-          <execution>
-            <id>attach-test-sources</id>
-            <phase>test-compile</phase>
-            <goals>
-              <goal>test-jar</goal>
-            </goals>
-          </execution>
-        </executions>
       </plugin>
 
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-javadoc-plugin</artifactId>
-        <configuration>
-          <windowtitle>Google Cloud Dataflow SDK ${project.version} API</windowtitle>
-          <doctitle>Google Cloud Dataflow SDK for Java, version ${project.version}</doctitle>
-          <overview>../javadoc/overview.html</overview>
-
-          <subpackages>org.apache.beam.sdk</subpackages>
-          <additionalparam>-exclude org.apache.beam.sdk.runners.worker:org.apache.beam.sdk.runners.dataflow:org.apache.beam.sdk.util:org.apache.beam.sdk.runners.inprocess ${dataflow.javadoc_opts}</additionalparam>
-          <use>false</use>
-          <quiet>true</quiet>
-          <bottom><![CDATA[<br>]]></bottom>
-
-          <offlineLinks>
-            <offlineLink>
-              <url>https://developers.google.com/api-client-library/java/google-api-java-client/reference/1.20.0/</url>
-              <location>${basedir}/../javadoc/apiclient-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>http://avro.apache.org/docs/1.7.7/api/java/</url>
-              <location>${basedir}/../javadoc/avro-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>https://developers.google.com/resources/api-libraries/documentation/bigquery/v2/java/latest/</url>
-              <location>${basedir}/../javadoc/bq-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>https://cloud.google.com/datastore/docs/apis/javadoc/</url>
-              <location>${basedir}/../javadoc/datastore-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>http://docs.guava-libraries.googlecode.com/git-history/release19/javadoc/</url>
-              <location>${basedir}/../javadoc/guava-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>http://hamcrest.org/JavaHamcrest/javadoc/1.3/</url>
-              <location>${basedir}/../javadoc/hamcrest-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>http://fasterxml.github.io/jackson-annotations/javadoc/2.7/</url>
-              <location>${basedir}/../javadoc/jackson-annotations-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>http://fasterxml.github.io/jackson-databind/javadoc/2.7/</url>
-              <location>${basedir}/../javadoc/jackson-databind-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>http://www.joda.org/joda-time/apidocs</url>
-              <location>${basedir}/../javadoc/joda-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>http://junit.sourceforge.net/javadoc/</url>
-              <location>${basedir}/../javadoc/junit-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>https://developers.google.com/api-client-library/java/google-oauth-java-client/reference/1.20.0/</url>
-              <location>${basedir}/../javadoc/oauth-docs</location>
-            </offlineLink>
-          </offlineLinks>
-        </configuration>
-        <executions>
-          <execution>
-            <goals>
-              <goal>jar</goal>
-            </goals>
-            <phase>package</phase>
-          </execution>
-        </executions>
       </plugin>
 
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
-        <version>2.4.1</version>
         <executions>
           <!-- In the first phase, we pick dependencies and relocate them. -->
           <execution>
@@ -222,9 +193,8 @@
                 </filter>
               </filters>
               <relocations>
-                <!-- TODO: Once ready, change the following pattern to 'com'
-                     only, exclude 'org.apache.beam.**', and remove
-                     the second relocation. -->
+                <!-- TODO: Once ready, change the following pattern to 'com' only, 
+                  exclude 'org.apache.beam.**', and remove the second relocation. -->
                 <relocation>
                   <pattern>com.google.common</pattern>
                   <shadedPattern>org.apache.beam.sdk.repackaged.com.google.common</shadedPattern>
@@ -237,8 +207,8 @@
             </configuration>
           </execution>
 
-          <!-- In the second phase, we pick remaining dependencies and bundle
-               them without repackaging. -->
+          <!-- In the second phase, we pick remaining dependencies and bundle them 
+            without repackaging. -->
           <execution>
             <id>bundle-rest-without-repackaging</id>
             <phase>package</phase>
@@ -278,7 +248,6 @@
       <plugin>
         <groupId>org.apache.avro</groupId>
         <artifactId>avro-maven-plugin</artifactId>
-        <version>${avro.version}</version>
         <executions>
           <execution>
             <id>schemas</id>
@@ -294,14 +263,12 @@
         </executions>
       </plugin>
 
-      <!-- This plugin tells Maven about an additional test-source directory to
-           build, which contains Avro-generated source files. This is not
-           strictly needed for the regular Maven build, but helps certain IDEs
-           automatically find and compile generated code. -->
+      <!-- This plugin tells Maven about an additional test-source directory to build, 
+        which contains Avro-generated source files. This is not strictly needed for the regular 
+        Maven build, but helps certain IDEs automatically find and compile generated code. -->
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>build-helper-maven-plugin</artifactId>
-        <version>1.9.1</version>
         <executions>
           <execution>
             <id>add-test-source</id>
@@ -324,7 +291,6 @@
     <dependency>
       <groupId>io.grpc</groupId>
       <artifactId>grpc-all</artifactId>
-      <version>0.12.0</version>
     </dependency>
 
     <dependency>
@@ -332,8 +298,8 @@
       <artifactId>google-auth-library-oauth2-http</artifactId>
       <version>0.3.1</version>
       <exclusions>
-        <!-- Exclude an old version of guava that is being pulled
-             in by a transitive dependency of google-api-client -->
+        <!-- Exclude an old version of guava that is being pulled in by a transitive 
+          dependency of google-api-client -->
         <exclusion>
           <groupId>com.google.guava</groupId>
           <artifactId>guava-jdk5</artifactId>
@@ -352,8 +318,8 @@
       <artifactId>grpc-pubsub-v1</artifactId>
       <version>${pubsubgrpc.version}</version>
       <exclusions>
-        <!-- Exclude an old version of guava that is being pulled
-             in by a transitive dependency of google-api-client -->
+        <!-- Exclude an old version of guava that is being pulled in by a transitive 
+          dependency of google-api-client -->
         <exclusion>
           <groupId>com.google.guava</groupId>
           <artifactId>guava-jdk5</artifactId>
@@ -364,251 +330,116 @@
     <dependency>
       <groupId>com.google.api-client</groupId>
       <artifactId>google-api-client</artifactId>
-      <version>${google-clients.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>com.google.guava</groupId>
-          <artifactId>guava-jdk5</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
 
     <dependency>
       <groupId>com.google.apis</groupId>
       <artifactId>google-api-services-bigquery</artifactId>
-      <version>${bigquery.version}</version>
-      <exclusions>
-        <!-- Exclude an old version of guava that is being pulled
-             in by a transitive dependency of google-api-client -->
-        <exclusion>
-          <groupId>com.google.guava</groupId>
-          <artifactId>guava-jdk5</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
 
     <dependency>
       <groupId>com.google.apis</groupId>
       <artifactId>google-api-services-pubsub</artifactId>
-      <version>${pubsub.version}</version>
-      <exclusions>
-        <!-- Exclude an old version of guava that is being pulled
-             in by a transitive dependency of google-api-client -->
-        <exclusion>
-          <groupId>com.google.guava</groupId>
-          <artifactId>guava-jdk5</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
 
     <dependency>
       <groupId>com.google.apis</groupId>
       <artifactId>google-api-services-storage</artifactId>
-      <version>${storage.version}</version>
-      <exclusions>
-        <!-- Exclude an old version of guava that is being pulled
-             in by a transitive dependency of google-api-client -->
-        <exclusion>
-          <groupId>com.google.guava</groupId>
-          <artifactId>guava-jdk5</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
 
     <dependency>
       <groupId>com.google.http-client</groupId>
       <artifactId>google-http-client</artifactId>
-      <version>${google-clients.version}</version>
-      <exclusions>
-        <!-- Exclude an old version of guava that is being pulled
-             in by a transitive dependency of google-api-client -->
-        <exclusion>
-          <groupId>com.google.guava</groupId>
-          <artifactId>guava-jdk5</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
 
-    <!-- Required by com.google.apis:google-api-services-datastore-protobuf,
-         but the version they depend on differs from our api-client versions -->
+    <!-- Required by com.google.apis:google-api-services-datastore-protobuf, but 
+      the version they depend on differs from our api-client versions -->
     <dependency>
       <groupId>com.google.http-client</groupId>
       <artifactId>google-http-client-jackson</artifactId>
-      <version>${google-clients.version}</version>
-      <exclusions>
-        <!-- Exclude an old version of guava that is being pulled
-             in by a transitive dependency of google-api-client -->
-        <exclusion>
-          <groupId>com.google.guava</groupId>
-          <artifactId>guava-jdk5</artifactId>
-        </exclusion>
-        <!--  Exclude an old version of jackson-core-asl -->
-        <exclusion>
-           <groupId>org.codehaus.jackson</groupId>
-           <artifactId>jackson-core-asl</artifactId>
-        </exclusion>
-      </exclusions>
       <scope>runtime</scope>
     </dependency>
 
     <dependency>
       <groupId>com.google.http-client</groupId>
       <artifactId>google-http-client-jackson2</artifactId>
-      <version>${google-clients.version}</version>
-      <exclusions>
-        <!-- Exclude an old version of guava that is being pulled
-             in by a transitive dependency of google-api-client -->
-        <exclusion>
-          <groupId>com.google.guava</groupId>
-          <artifactId>guava-jdk5</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
 
     <dependency>
       <groupId>com.google.http-client</groupId>
       <artifactId>google-http-client-protobuf</artifactId>
-      <version>${google-clients.version}</version>
-      <exclusions>
-        <!-- Exclude an old version of guava that is being pulled
-             in by a transitive dependency of google-api-client -->
-        <exclusion>
-          <groupId>com.google.guava</groupId>
-          <artifactId>guava-jdk5</artifactId>
-        </exclusion>
-      </exclusions>
       <scope>runtime</scope>
     </dependency>
 
     <dependency>
       <groupId>com.google.oauth-client</groupId>
       <artifactId>google-oauth-client-java6</artifactId>
-      <version>${google-clients.version}</version>
-      <exclusions>
-        <!-- Exclude an old version of guava that is being pulled
-             in by a transitive dependency of google-api-client -->
-        <exclusion>
-          <groupId>com.google.guava</groupId>
-          <artifactId>guava-jdk5</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
 
     <dependency>
       <groupId>com.google.oauth-client</groupId>
       <artifactId>google-oauth-client</artifactId>
-      <version>${google-clients.version}</version>
-      <exclusions>
-        <!-- Exclude an old version of guava that is being pulled
-             in by a transitive dependency of google-api-client -->
-        <exclusion>
-          <groupId>com.google.guava</groupId>
-          <artifactId>guava-jdk5</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
 
     <dependency>
       <groupId>com.google.apis</groupId>
       <artifactId>google-api-services-datastore-protobuf</artifactId>
-      <version>${datastore.version}</version>
-      <exclusions>
-        <!-- Exclude an old version of guava that is being pulled
-             in by a transitive dependency of google-api-client -->
-        <exclusion>
-          <groupId>com.google.guava</groupId>
-          <artifactId>guava-jdk5</artifactId>
-        </exclusion>
-        <!-- Exclude old version of api client dependencies. -->
-        <exclusion>
-          <groupId>com.google.http-client</groupId>
-          <artifactId>google-http-client</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>com.google.api-client</groupId>
-          <artifactId>google-api-client</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>com.google.oauth-client</groupId>
-          <artifactId>google-oauth-client</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>com.google.http-client</groupId>
-          <artifactId>google-http-client-jackson</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>com.google.http-client</groupId>
-          <artifactId>google-http-client-protobuf</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
 
     <dependency>
       <groupId>com.google.cloud.bigdataoss</groupId>
       <artifactId>gcsio</artifactId>
-      <version>1.4.3</version>
     </dependency>
 
     <dependency>
       <groupId>com.google.cloud.bigdataoss</groupId>
       <artifactId>util</artifactId>
-      <version>1.4.3</version>
     </dependency>
 
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
-      <!-- If updating version, please update the javadoc offlineLink -->
-      <version>${guava.version}</version>
     </dependency>
 
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava-testlib</artifactId>
-      <version>${guava.version}</version>
       <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
-      <version>${protobuf.version}</version>
     </dependency>
 
     <dependency>
       <groupId>com.google.code.findbugs</groupId>
       <artifactId>jsr305</artifactId>
-      <version>${jsr305.version}</version>
     </dependency>
 
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-core</artifactId>
-      <version>${jackson.version}</version>
     </dependency>
 
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-annotations</artifactId>
-      <version>${jackson.version}</version>
     </dependency>
 
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
-      <version>${jackson.version}</version>
     </dependency>
 
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
-      <version>${slf4j.version}</version>
     </dependency>
 
     <dependency>
       <groupId>org.apache.avro</groupId>
       <artifactId>avro</artifactId>
-      <version>${avro.version}</version>
     </dependency>
 
     <dependency>
@@ -626,11 +457,10 @@
     <dependency>
       <groupId>joda-time</groupId>
       <artifactId>joda-time</artifactId>
-      <version>${joda.version}</version>
     </dependency>
 
-    <!--
-    To use org.apache.beam.io.XmlSource:
+    <!-- 
+    To use org.apache.beam.io.XmlSource: 
 
     1. Explicitly declare the following dependency for the stax2 API.
     2. Include a stax2 implementation on the classpath. One example
@@ -658,11 +488,8 @@
       </exclusions>
     </dependency>
 
-    <!--
-    To use org.apache.beam.io.AvroSource with XZ-encoded files,
-    please explicitly declare this dependency to include org.tukaani:xz on
-    the classpath at runtime.
-    -->
+    <!-- To use org.apache.beam.io.AvroSource with XZ-encoded files, please explicitly 
+      declare this dependency to include org.tukaani:xz on the classpath at runtime. -->
     <dependency>
       <groupId>org.tukaani</groupId>
       <artifactId>xz</artifactId>
@@ -675,14 +502,12 @@
     <dependency>
       <groupId>com.google.auto.service</groupId>
       <artifactId>auto-service</artifactId>
-      <version>1.0-rc2</version>
       <optional>true</optional>
     </dependency>
 
     <dependency>
       <groupId>com.google.auto.value</groupId>
       <artifactId>auto-value</artifactId>
-      <version>1.1</version>
       <scope>provided</scope>
     </dependency>
 
@@ -690,35 +515,30 @@
     <dependency>
       <groupId>org.hamcrest</groupId>
       <artifactId>hamcrest-all</artifactId>
-      <version>${hamcrest.version}</version>
       <scope>provided</scope>
     </dependency>
 
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
-      <version>${junit.version}</version>
       <scope>provided</scope>
     </dependency>
 
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-jdk14</artifactId>
-      <version>${slf4j.version}</version>
       <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-all</artifactId>
-      <version>1.10.19</version>
       <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>com.google.cloud.dataflow</groupId>
       <artifactId>google-cloud-dataflow-java-proto-library-all</artifactId>
-      <version>0.5.160304</version>
       <scope>test</scope>
     </dependency>
   </dependencies>

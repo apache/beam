@@ -18,39 +18,42 @@
 
 package org.apache.beam.runners.spark.translation;
 
-import java.util.Iterator;
-import java.util.Map;
+import org.apache.beam.runners.spark.util.BroadcastHelper;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.TupleTag;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.Multimap;
-import org.apache.beam.runners.spark.util.BroadcastHelper;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.TupleTag;
+
 import org.apache.spark.api.java.function.PairFlatMapFunction;
 import org.joda.time.Instant;
+
+import java.util.Iterator;
+import java.util.Map;
+
 import scala.Tuple2;
 
 /**
  * DoFunctions ignore side outputs. MultiDoFunctions deal with side outputs by enriching the
  * underlying data with multiple TupleTags.
  *
- * @param <I> Input type for DoFunction.
- * @param <O> Output type for DoFunction.
+ * @param <InputT> Input type for DoFunction.
+ * @param <OutputT> Output type for DoFunction.
  */
-class MultiDoFnFunction<I, O>
-    implements PairFlatMapFunction<Iterator<WindowedValue<I>>, TupleTag<?>, WindowedValue<?>> {
-  private final DoFn<I, O> mFunction;
+class MultiDoFnFunction<InputT, OutputT>
+    implements PairFlatMapFunction<Iterator<WindowedValue<InputT>>, TupleTag<?>, WindowedValue<?>> {
+  private final DoFn<InputT, OutputT> mFunction;
   private final SparkRuntimeContext mRuntimeContext;
-  private final TupleTag<O> mMainOutputTag;
+  private final TupleTag<OutputT> mMainOutputTag;
   private final Map<TupleTag<?>, BroadcastHelper<?>> mSideInputs;
 
   MultiDoFnFunction(
-      DoFn<I, O> fn,
+      DoFn<InputT, OutputT> fn,
       SparkRuntimeContext runtimeContext,
-      TupleTag<O> mainOutputTag,
+      TupleTag<OutputT> mainOutputTag,
       Map<TupleTag<?>, BroadcastHelper<?>> sideInputs) {
     this.mFunction = fn;
     this.mRuntimeContext = runtimeContext;
@@ -60,29 +63,30 @@ class MultiDoFnFunction<I, O>
 
   @Override
   public Iterable<Tuple2<TupleTag<?>, WindowedValue<?>>>
-      call(Iterator<WindowedValue<I>> iter) throws Exception {
+      call(Iterator<WindowedValue<InputT>> iter) throws Exception {
     ProcCtxt ctxt = new ProcCtxt(mFunction, mRuntimeContext, mSideInputs);
     mFunction.startBundle(ctxt);
     ctxt.setup();
     return ctxt.getOutputIterable(iter, mFunction);
   }
 
-  private class ProcCtxt extends SparkProcessContext<I, O, Tuple2<TupleTag<?>, WindowedValue<?>>> {
+  private class ProcCtxt
+      extends SparkProcessContext<InputT, OutputT, Tuple2<TupleTag<?>, WindowedValue<?>>> {
 
     private final Multimap<TupleTag<?>, WindowedValue<?>> outputs = LinkedListMultimap.create();
 
-    ProcCtxt(DoFn<I, O> fn, SparkRuntimeContext runtimeContext, Map<TupleTag<?>,
+    ProcCtxt(DoFn<InputT, OutputT> fn, SparkRuntimeContext runtimeContext, Map<TupleTag<?>,
         BroadcastHelper<?>> sideInputs) {
       super(fn, runtimeContext, sideInputs);
     }
 
     @Override
-    public synchronized void output(O o) {
+    public synchronized void output(OutputT o) {
       outputs.put(mMainOutputTag, windowedValue.withValue(o));
     }
 
     @Override
-    public synchronized void output(WindowedValue<O> o) {
+    public synchronized void output(WindowedValue<OutputT> o) {
       outputs.put(mMainOutputTag, o);
     }
 
