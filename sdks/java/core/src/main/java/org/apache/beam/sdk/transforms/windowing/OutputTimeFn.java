@@ -61,7 +61,6 @@ public abstract class OutputTimeFn<W extends BoundedWindow> implements Serializa
    * Returns the output timestamp to use for data depending on the given
    * {@code inputTimestamp} in the specified {@code window}.
    *
-   *
    * <p>The result of this method must be between {@code inputTimestamp} and
    * {@code window.maxTimestamp()} (inclusive on both sides).
    *

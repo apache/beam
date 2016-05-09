@@ -22,9 +22,6 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
-import org.apache.beam.sdk.util.WindowingStrategy;
-
-import com.google.common.collect.Ordering;
 
 import org.joda.time.Instant;
 
@@ -136,34 +133,24 @@ public abstract class WindowFn<T, W extends BoundedWindow>
   public abstract W getSideInputWindow(final BoundedWindow window);
 
   /**
-   * @deprecated Implement {@link #getOutputTimeFn} to return one of the appropriate
-   * {@link OutputTimeFns}, or a custom {@link OutputTimeFn} extending
-   * {@link OutputTimeFn.Defaults}.
+   * Returns the output timestamp to use for data depending on the given
+   * {@code inputTimestamp} in the specified {@code window}.
+   *
+   * <p>The result of this method must be between {@code inputTimestamp} and
+   * {@code window.maxTimestamp()} (inclusive on both sides).
+   *
+   * <p>This function must be monotonic across input timestamps. Specifically, if {@code A < B},
+   * then {@code getOutputTime(A, window) <= getOutputTime(B, window)}.
+   *
+   * <p>For a {@link WindowFn} that doesn't produce overlapping windows, this can (and typically
+   * should) just return {@code inputTimestamp}. In the presence of overlapping windows, it is
+   * suggested that the result in later overlapping windows is past the end of earlier windows
+   * so that the later windows don't prevent the watermark from
+   * progressing past the end of the earlier window.
    */
-  @Deprecated
   @Experimental(Kind.OUTPUT_TIME)
   public Instant getOutputTime(Instant inputTimestamp, W window) {
-    return getOutputTimeFn().assignOutputTime(inputTimestamp, window);
-  }
-
-  /**
-   * Provides a default implementation for {@link WindowingStrategy#getOutputTimeFn()}.
-   * See the full specification there.
-   *
-   * <p>If this {@link WindowFn} doesn't produce overlapping windows, this need not (and probably
-   * should not) override any of the default implementations in {@link OutputTimeFn.Defaults}.
-   *
-   * <p>If this {@link WindowFn} does produce overlapping windows that can be predicted here, it is
-   * suggested that the result in later overlapping windows is past the end of earlier windows so
-   * that the later windows don't prevent the watermark from progressing past the end of the earlier
-   * window.
-   *
-   * <p>For example, a timestamp in a sliding window should be moved past the beginning of the next
-   * sliding window. See {@link SlidingWindows#getOutputTimeFn}.
-   */
-  @Experimental(Kind.OUTPUT_TIME)
-  public OutputTimeFn<? super W> getOutputTimeFn() {
-    return new OutputAtEarliestAssignedTimestamp<>(this);
+    return inputTimestamp;
   }
 
   /**
@@ -188,48 +175,5 @@ public abstract class WindowFn<T, W extends BoundedWindow>
    */
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {
-  }
-
-  /**
-   * A compatibility adapter that will return the assigned timestamps according to the
-   * {@link WindowFn}, which was the prior policy. Specifying the assigned output timestamps
-   * on the {@link WindowFn} is now deprecated.
-   */
-  private static class OutputAtEarliestAssignedTimestamp<W extends BoundedWindow>
-      extends OutputTimeFn.Defaults<W> {
-
-    private final WindowFn<?, W> windowFn;
-
-    public OutputAtEarliestAssignedTimestamp(WindowFn<?, W> windowFn) {
-      this.windowFn = windowFn;
-    }
-
-    /**
-     * {@inheritDoc}
-     *
-     * @return the result of {@link WindowFn#getOutputTime windowFn.getOutputTime()}.
-     */
-    @Override
-    @SuppressWarnings("deprecation") // this is an adapter for the deprecated behavior
-    public Instant assignOutputTime(Instant timestamp, W window) {
-      return windowFn.getOutputTime(timestamp, window);
-    }
-
-    @Override
-    public Instant combine(Instant outputTime, Instant otherOutputTime) {
-      return Ordering.natural().min(outputTime, otherOutputTime);
-    }
-
-    /**
-     * {@inheritDoc}
-     *
-     * @return {@code true}. When the {@link OutputTimeFn} is not overridden by {@link WindowFn}
-     *         or {@link WindowingStrategy}, the minimum output timestamp is taken, which depends
-     *         only on the minimum input timestamp by monotonicity of {@link #assignOutputTime}.
-     */
-    @Override
-    public boolean dependsOnlyOnEarliestInputTimestamp() {
-      return true;
-    }
   }
 }

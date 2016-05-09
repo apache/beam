@@ -29,7 +29,6 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
-import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
@@ -123,12 +122,12 @@ public class GroupAlsoByWindowsProperties {
 
     WindowedValue<KV<String, Iterable<String>>> item0 = result.get(0);
     assertThat(item0.getValue().getValue(), containsInAnyOrder("v1", "v2"));
-    assertThat(item0.getTimestamp(), equalTo(new Instant(1)));
+    assertThat(item0.getTimestamp(), equalTo(window(0, 10).maxTimestamp()));
     assertThat(item0.getWindows(), contains(window(0, 10)));
 
     WindowedValue<KV<String, Iterable<String>>> item1 = result.get(1);
     assertThat(item1.getValue().getValue(), contains("v3"));
-    assertThat(item1.getTimestamp(), equalTo(new Instant(13)));
+    assertThat(item1.getTimestamp(), equalTo(window(10, 20).maxTimestamp()));
     assertThat(item1.getWindows(),
         contains(window(10, 20)));
   }
@@ -139,12 +138,13 @@ public class GroupAlsoByWindowsProperties {
    *
    * <p>In the input here, each element occurs in multiple windows.
    */
-  public static void groupsElementsIntoSlidingWindows(
+  public static void groupsElementsIntoSlidingWindowsWithMinTimestamp(
       GroupAlsoByWindowsDoFnFactory<String, String, Iterable<String>> gabwFactory)
           throws Exception {
 
     WindowingStrategy<?, IntervalWindow> windowingStrategy = WindowingStrategy.of(
-        SlidingWindows.of(Duration.millis(20)).every(Duration.millis(10)));
+        SlidingWindows.of(Duration.millis(20)).every(Duration.millis(10)))
+        .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp());
 
     List<WindowedValue<KV<String, Iterable<String>>>> result =
         runGABW(gabwFactory, windowingStrategy, "key",
@@ -271,13 +271,13 @@ public class GroupAlsoByWindowsProperties {
 
     WindowedValue<KV<String, Iterable<String>>> item0 = result.get(0);
     assertThat(item0.getValue().getValue(), containsInAnyOrder("v1", "v3"));
-    assertThat(item0.getTimestamp(), equalTo(new Instant(1)));
+    assertThat(item0.getTimestamp(), equalTo(window(1, 5).maxTimestamp()));
     assertThat(item0.getWindows(),
         contains(window(0, 5)));
 
     WindowedValue<KV<String, Iterable<String>>> item1 = result.get(1);
     assertThat(item1.getValue().getValue(), contains("v2"));
-    assertThat(item1.getTimestamp(), equalTo(new Instant(4)));
+    assertThat(item1.getTimestamp(), equalTo(window(0, 5).maxTimestamp()));
     assertThat(item1.getWindows(),
         contains(window(1, 5)));
   }
@@ -314,13 +314,13 @@ public class GroupAlsoByWindowsProperties {
 
     WindowedValue<KV<String, Iterable<String>>> item0 = result.get(0);
     assertThat(item0.getValue().getValue(), containsInAnyOrder("v1", "v2"));
-    assertThat(item0.getTimestamp(), equalTo(new Instant(0)));
+    assertThat(item0.getTimestamp(), equalTo(window(0, 15).maxTimestamp()));
     assertThat(item0.getWindows(),
         contains(window(0, 15)));
 
     WindowedValue<KV<String, Iterable<String>>> item1 = result.get(1);
     assertThat(item1.getValue().getValue(), contains("v3"));
-    assertThat(item1.getTimestamp(), equalTo(new Instant(15)));
+    assertThat(item1.getTimestamp(), equalTo(window(15, 25).maxTimestamp()));
     assertThat(item1.getWindows(),
         contains(window(15, 25)));
   }
@@ -416,53 +416,6 @@ public class GroupAlsoByWindowsProperties {
     assertThat(item1.getTimestamp(), equalTo(window(10, 20).maxTimestamp()));
     assertThat(item1.getTimestamp(),
         equalTo(Iterables.getOnlyElement(item1.getWindows()).maxTimestamp()));
-  }
-
-  /**
-   * Tests that for a simple sequence of elements on the same key, the given GABW implementation
-   * correctly groups them according to fixed windows and also sets the output timestamp
-   * according to a custom {@link OutputTimeFn}.
-   */
-  public static void groupsElementsIntoFixedWindowsWithCustomTimestamp(
-      GroupAlsoByWindowsDoFnFactory<String, String, Iterable<String>> gabwFactory)
-      throws Exception {
-    WindowingStrategy<?, IntervalWindow> windowingStrategy =
-        WindowingStrategy.of(FixedWindows.of(Duration.millis(10)))
-            .withOutputTimeFn(new OutputTimeFn.Defaults<IntervalWindow>() {
-              @Override
-              public Instant assignOutputTime(Instant inputTimestamp, IntervalWindow window) {
-                return inputTimestamp.isBefore(window.maxTimestamp())
-                    ? inputTimestamp.plus(1) : window.maxTimestamp();
-              }
-
-              @Override
-              public Instant combine(Instant outputTime, Instant otherOutputTime) {
-                return outputTime.isBefore(otherOutputTime) ? outputTime : otherOutputTime;
-              }
-
-              @Override
-              public boolean dependsOnlyOnEarliestInputTimestamp() {
-                return true;
-              }
-            });
-
-    List<WindowedValue<KV<String, Iterable<String>>>> result = runGABW(gabwFactory,
-        windowingStrategy, "key",
-        WindowedValue.of("v1", new Instant(1), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
-        WindowedValue.of("v2", new Instant(2), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
-        WindowedValue.of("v3", new Instant(13), Arrays.asList(window(10, 20)), PaneInfo.NO_FIRING));
-
-    assertThat(result.size(), equalTo(2));
-
-    WindowedValue<KV<String, Iterable<String>>> item0 = result.get(0);
-    assertThat(item0.getValue().getValue(), containsInAnyOrder("v1", "v2"));
-    assertThat(item0.getWindows(), contains(window(0, 10)));
-    assertThat(item0.getTimestamp(), equalTo(new Instant(2)));
-
-    WindowedValue<KV<String, Iterable<String>>> item1 = result.get(1);
-    assertThat(item1.getValue().getValue(), contains("v3"));
-    assertThat(item1.getWindows(), contains(window(10, 20)));
-    assertThat(item1.getTimestamp(), equalTo(new Instant(14)));
   }
 
   /**

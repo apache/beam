@@ -30,6 +30,7 @@ import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
@@ -58,16 +59,19 @@ public class GroupAlsoByWindowTest {
 
   private final WindowingStrategy slidingWindowWithAfterWatermarkTriggerStrategy =
       WindowingStrategy.of(SlidingWindows.of(Duration.standardSeconds(10)).every(Duration.standardSeconds(5)))
+          .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp())
           .withTrigger(AfterWatermark.pastEndOfWindow()).withMode(WindowingStrategy.AccumulationMode.ACCUMULATING_FIRED_PANES);
 
   private final WindowingStrategy sessionWindowingStrategy =
       WindowingStrategy.of(Sessions.withGapDuration(Duration.standardSeconds(2)))
           .withTrigger(Repeatedly.forever(AfterWatermark.pastEndOfWindow()))
           .withMode(WindowingStrategy.AccumulationMode.ACCUMULATING_FIRED_PANES)
+          .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp())
           .withAllowedLateness(Duration.standardSeconds(100));
 
   private final WindowingStrategy fixedWindowingStrategy =
-      WindowingStrategy.of(FixedWindows.of(Duration.standardSeconds(10)));
+      WindowingStrategy.of(FixedWindows.of(Duration.standardSeconds(10)))
+          .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp());
 
   private final WindowingStrategy fixedWindowWithCountTriggerStrategy =
       fixedWindowingStrategy.withTrigger(AfterPane.elementCountAtLeast(5));
@@ -94,6 +98,7 @@ public class GroupAlsoByWindowTest {
   public void testWithLateness() throws Exception {
     WindowingStrategy strategy = WindowingStrategy.of(FixedWindows.of(Duration.standardSeconds(2)))
         .withMode(WindowingStrategy.AccumulationMode.ACCUMULATING_FIRED_PANES)
+        .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp())
         .withAllowedLateness(Duration.millis(1000));
     long initialTime = 0L;
     Pipeline pipeline = FlinkTestPipeline.createForStreaming();
