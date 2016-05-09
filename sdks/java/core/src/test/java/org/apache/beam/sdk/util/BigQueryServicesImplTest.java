@@ -263,8 +263,8 @@ public class BigQueryServicesImplTest {
     when(response.getStatusCode()).thenReturn(200);
     when(response.getContent()).thenReturn(toStream(testTable));
 
-    BigQueryServicesImpl.TableServiceImpl tableService =
-        new BigQueryServicesImpl.TableServiceImpl(bigquery);
+    BigQueryServicesImpl.DatasetServiceImpl tableService =
+        new BigQueryServicesImpl.DatasetServiceImpl(bigquery);
     Table table = tableService.getTable("projectId", "datasetId", "tableId");
 
     assertEquals(testTable, table);

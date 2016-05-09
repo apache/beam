@@ -55,8 +55,8 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.BigQueryServices;
+import org.apache.beam.sdk.util.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.util.BigQueryServices.JobService;
-import org.apache.beam.sdk.util.BigQueryServices.TableService;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
@@ -121,15 +121,15 @@ public class BigQueryIOTest implements Serializable {
 
     private String[] jsonTableRowReturns = new String[0];
     private JobService jobService;
-    private TableService tableService;
+    private DatasetService datasetService;
 
     public FakeBigQueryServices withJobService(JobService jobService) {
       this.jobService = jobService;
       return this;
     }
 
-    public FakeBigQueryServices withTableService(TableService tableService) {
-      this.tableService = tableService;
+    public FakeBigQueryServices withDatasetService(DatasetService datasetService) {
+      this.datasetService = datasetService;
       return this;
     }
 
@@ -144,8 +144,8 @@ public class BigQueryIOTest implements Serializable {
     }
 
     @Override
-    public TableService getTableService(BigQueryOptions bqOptions) {
-      return tableService;
+    public DatasetService getDatasetService(BigQueryOptions bqOptions) {
+      return datasetService;
     }
 
     @Override
@@ -296,7 +296,7 @@ public class BigQueryIOTest implements Serializable {
   @Rule public transient TemporaryFolder testFolder = new TemporaryFolder();
   @Mock public transient BigQueryServices.JobService mockJobService;
   @Mock private transient IOChannelFactory mockIOChannelFactory;
-  @Mock private transient TableService mockTableService;
+  @Mock private transient DatasetService mockDatasetService;
 
   private transient BigQueryOptions bqOptions;
 
@@ -467,7 +467,7 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  public void testCustomSource() {
+  public void testReadFromTable() {
     FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
         .withJobService(
             new FakeJobService().startJobReturns("done", "done"))
@@ -852,7 +852,7 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  public void testBigQuerySource() throws Exception {
+  public void testBigQueryTableSourceThroughJsonAPI() throws Exception {
     FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
         .withJobService(mockJobService)
         .readerReturns(
@@ -891,7 +891,7 @@ public class BigQueryIOTest implements Serializable {
 
     FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
         .withJobService(mockJobService)
-        .withTableService(mockTableService)
+        .withDatasetService(mockDatasetService)
         .readerReturns(
             toJsonString(new TableRow().set("name", "a").set("number", "1")),
             toJsonString(new TableRow().set("name", "b").set("number", "2")),
@@ -916,7 +916,7 @@ public class BigQueryIOTest implements Serializable {
     IOChannelUtils.setIOFactory("mock", mockIOChannelFactory);
     when(mockIOChannelFactory.resolve(anyString(), anyString()))
         .thenReturn("mock://tempLocation/output");
-    when(mockTableService.getTable(anyString(), anyString(), anyString()))
+    when(mockDatasetService.getTable(anyString(), anyString(), anyString()))
         .thenReturn(new Table().setSchema(new TableSchema()));
 
     Assert.assertThat(
@@ -956,7 +956,7 @@ public class BigQueryIOTest implements Serializable {
 
     FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
         .withJobService(mockJobService)
-        .withTableService(mockTableService)
+        .withDatasetService(mockDatasetService)
         .readerReturns(
             toJsonString(new TableRow().set("name", "a").set("number", "1")),
             toJsonString(new TableRow().set("name", "b").set("number", "2")),
@@ -982,7 +982,7 @@ public class BigQueryIOTest implements Serializable {
     IOChannelUtils.setIOFactory("mock", mockIOChannelFactory);
     when(mockIOChannelFactory.resolve(anyString(), anyString()))
         .thenReturn("mock://tempLocation/output");
-    when(mockTableService.getTable(anyString(), anyString(), anyString()))
+    when(mockDatasetService.getTable(anyString(), anyString(), anyString()))
         .thenReturn(new Table().setSchema(new TableSchema()));
 
     Assert.assertThat(
@@ -1002,6 +1002,8 @@ public class BigQueryIOTest implements Serializable {
         .startQueryJob(anyString(), Mockito.<JobConfigurationQuery>any(), Mockito.eq(false));
     Mockito.verify(mockJobService)
         .startExtractJob(anyString(), Mockito.<JobConfigurationExtract>any());
+    Mockito.verify(mockDatasetService)
+        .createDataset(anyString(), anyString(), anyString(), anyString());
   }
 
   @Test

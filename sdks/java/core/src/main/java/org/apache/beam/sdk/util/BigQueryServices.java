@@ -45,12 +45,18 @@ public interface BigQueryServices extends Serializable {
   public JobService getJobService(BigQueryOptions bqOptions);
 
   /**
-   * Returns a real, mock, or fake {@link TableService}.
+   * Returns a real, mock, or fake {@link DatasetService}.
    */
-  public TableService getTableService(BigQueryOptions bqOptions);
+  public DatasetService getDatasetService(BigQueryOptions bqOptions);
 
+  /**
+   * Returns a real, mock, or fake {@link BigQueryJsonReader} to read tables.
+   */
   public BigQueryJsonReader getReaderFromTable(BigQueryOptions bqOptions, TableReference tableRef);
 
+  /**
+   * Returns a real, mock, or fake {@link BigQueryJsonReader} to query tables.
+   */
   public BigQueryJsonReader getReaderFromQuery(
       BigQueryOptions bqOptions, String query, String projectId, @Nullable Boolean flatten);
 
@@ -85,16 +91,19 @@ public interface BigQueryServices extends Serializable {
   }
 
   /**
-   * An interface for the Cloud BigQuery table service.
+   * An interface to get, create and delete Cloud BigQuery datasets and tables.
    */
-  public interface TableService {
+  public interface DatasetService {
     /**
-     * Gets the specified table resource by table ID.
+     * Gets the specified {@link Table} resource by table ID.
      */
     Table getTable(String projectId, String datasetId, String tableId)
         throws InterruptedException, IOException;
 
-    Dataset createDataset(String projectId, String datasetId, String location, String description)
+    /**
+     * Create a {@link Dataset} with the given {@code location} and {@code description}.
+     */
+    void createDataset(String projectId, String datasetId, String location, String description)
         throws IOException, InterruptedException;
   }
 

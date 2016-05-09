@@ -71,8 +71,8 @@ public class BigQueryServicesImpl implements BigQueryServices {
   }
 
   @Override
-  public TableService getTableService(BigQueryOptions options) {
-    return new TableServiceImpl(options);
+  public DatasetService getDatasetService(BigQueryOptions options) {
+    return new DatasetServiceImpl(options);
   }
 
   @Override
@@ -244,18 +244,28 @@ public class BigQueryServicesImpl implements BigQueryServices {
   }
 
   @VisibleForTesting
-  static class TableServiceImpl implements TableService {
+  static class DatasetServiceImpl implements DatasetService {
+    private final ApiErrorExtractor errorExtractor;
     private final Bigquery client;
 
     @VisibleForTesting
-    TableServiceImpl(Bigquery client) {
+    DatasetServiceImpl(Bigquery client) {
+      this.errorExtractor = new ApiErrorExtractor();
       this.client = client;
     }
 
-    private TableServiceImpl(BigQueryOptions bqOptions) {
+    private DatasetServiceImpl(BigQueryOptions bqOptions) {
+      this.errorExtractor = new ApiErrorExtractor();
       this.client = Transport.newBigQueryClient(bqOptions).build();
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Retries the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
+     *
+     * @throws IOException if it exceeds max RPC retries.
+     */
     @Override
     public Table getTable(String projectId, String datasetId, String tableId)
         throws IOException, InterruptedException {
@@ -288,37 +298,52 @@ public class BigQueryServicesImpl implements BigQueryServices {
           lastException);
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Retries the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
+     *
+     * @throws IOException if it exceeds max RPC retries.
+     */
     @Override
-    public Dataset createDataset(
+    public void createDataset(
         String projectId, String datasetId, String location, String description)
         throws IOException, InterruptedException {
       BackOff backoff =
           new AttemptBoundedExponentialBackOff(MAX_RPC_ATTEMPTS, INITIAL_RPC_BACKOFF_MILLIS);
-      return createDataset(projectId, datasetId, location, description, Sleeper.DEFAULT, backoff);
+      createDataset(projectId, datasetId, location, description, Sleeper.DEFAULT, backoff);
     }
 
     @VisibleForTesting
-    Dataset createDataset(
+    void createDataset(
         String projectId,
         String datasetId,
         String location,
         String description,
         Sleeper sleeper,
         BackOff backoff) throws IOException, InterruptedException {
+      DatasetReference datasetRef = new DatasetReference();
+      datasetRef.setProjectId(projectId);
+      datasetRef.setDatasetId(datasetId);
+
+      Dataset dataset = new Dataset();
+      dataset.setDatasetReference(datasetRef);
+      dataset.setLocation(location);
+      dataset.setFriendlyName(location);
+      dataset.setDescription(description);
+
       Exception lastException;
       do {
         try {
-          DatasetReference datasetRef = new DatasetReference();
-          datasetRef.setProjectId(projectId);
-          datasetRef.setDatasetId(datasetId);
-
-          Dataset dataset = new Dataset();
-          dataset.setDatasetReference(datasetRef);
-          dataset.setLocation(location);
-          dataset.setFriendlyName(location);
-          dataset.setDescription(description);
-
-          return client.datasets().insert(projectId, dataset).execute();
+          client.datasets().insert(projectId, dataset).execute();
+          return; // SUCCEEDED
+        } catch (GoogleJsonResponseException e) {
+          if (errorExtractor.itemAlreadyExists(e)) {
+            return; // SUCCEEDED
+          }
+          // ignore and retry
+          LOG.warn("Ignore the error and retry creating the dataset.", e);
+          lastException = e;
         } catch (IOException e) {
           LOG.warn("Ignore the error and retry creating the dataset.", e);
           lastException = e;
@@ -360,10 +385,10 @@ public class BigQueryServicesImpl implements BigQueryServices {
     public boolean start() throws IOException {
       try {
         iterator.open();
-        return true;
+        return iterator.advance();
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
-        throw new RuntimeException(e);
+        throw new RuntimeException("Interrupted during start() operation", e);
       }
     }
 
@@ -373,7 +398,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
         return iterator.advance();
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
-        throw new RuntimeException(e);
+        throw new RuntimeException("Interrupted during advance() operation", e);
       }
     }
 

@@ -31,7 +31,6 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.TableRowJsonCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.io.BigQueryIO.PassThroughThenCleanup.CleanupOperation;
 import org.apache.beam.sdk.io.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.options.BigQueryOptions;
@@ -51,8 +50,8 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.AttemptBoundedExponentialBackOff;
 import org.apache.beam.sdk.util.AvroUtils;
 import org.apache.beam.sdk.util.BigQueryServices;
+import org.apache.beam.sdk.util.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.util.BigQueryServices.JobService;
-import org.apache.beam.sdk.util.BigQueryServices.TableService;
 import org.apache.beam.sdk.util.BigQueryServicesImpl;
 import org.apache.beam.sdk.util.BigQueryTableInserter;
 import org.apache.beam.sdk.util.BigQueryTableRowIterator;
@@ -398,7 +397,13 @@ public class BigQueryIO {
           + " pipeline, This validation can be disabled using #withoutValidation.";
 
       private Bound() {
-        this(null, null, null, true, null, null);
+        this(
+            null /* name */,
+            null /* query */,
+            null /* jsonTableRef */,
+            true /* validate */,
+            null /* flattenResults */,
+            null /* testBigQueryServices */);
       }
 
       private Bound(
@@ -577,18 +582,18 @@ public class BigQueryIO {
           source = BigQueryTableSource.create(
               jobIdToken, jsonTable, extractDestinationDir, bqServices);
         }
-        CleanupOperation cleanupOperation = new CleanupOperation() {
-          @Override
-          void cleanup(PipelineOptions options) throws Exception {
-             IOChannelFactory factory = IOChannelUtils.getFactory(extractDestinationDir);
-             Collection<String> dirMatch = factory.match(extractDestinationDir);
-             if (!dirMatch.isEmpty()) {
-               Collection<String> extractFiles = factory.match(
-                   factory.resolve(extractDestinationDir, "*"));
-               new GcsUtilFactory().create(options).remove(extractFiles);
-             }
-          }
-        };
+        PassThroughThenCleanup.CleanupOperation cleanupOperation =
+            new PassThroughThenCleanup.CleanupOperation() {
+              @Override
+              void cleanup(PipelineOptions options) throws Exception {
+                 IOChannelFactory factory = IOChannelUtils.getFactory(extractDestinationDir);
+                 Collection<String> dirMatch = factory.match(extractDestinationDir);
+                 if (!dirMatch.isEmpty()) {
+                   Collection<String> extractFiles = factory.match(
+                       factory.resolve(extractDestinationDir, "*"));
+                   new GcsUtilFactory().create(options).remove(extractFiles);
+                 }
+              }};
         return input.getPipeline()
             .apply(org.apache.beam.sdk.io.Read.from(source))
             .setCoder(getDefaultOutputCoder())
@@ -675,6 +680,7 @@ public class BigQueryIO {
    * A {@link PTransform} that invokes {@link CleanupOperation} after the input {@link PCollection}
    * has been processed.
    */
+  @VisibleForTesting
   static class PassThroughThenCleanup<T> extends PTransform<PCollection<T>, PCollection<T>> {
 
     private CleanupOperation cleanupOperation;
@@ -687,7 +693,7 @@ public class BigQueryIO {
     public PCollection<T> apply(PCollection<T> input) {
       TupleTag<T> mainOutput = new TupleTag<>();
       TupleTag<Void> cleanupSignal = new TupleTag<>();
-      PCollectionTuple outputs = input.apply(ParDo.of(new IdentityFn())
+      PCollectionTuple outputs = input.apply(ParDo.of(new IdentityFn<T>())
           .withOutputTags(mainOutput, TupleTagList.of(cleanupSignal)));
 
       PCollectionView<Void> cleanupSignalView = outputs.get(cleanupSignal)
@@ -708,9 +714,9 @@ public class BigQueryIO {
       return outputs.get(mainOutput);
     }
 
-    private class IdentityFn extends DoFn<T, T> {
+    private static class IdentityFn<T> extends DoFn<T, T> {
       @Override
-      public void processElement(ProcessContext c) throws Exception {
+      public void processElement(ProcessContext c) {
         c.output(c.element());
       }
     }
@@ -720,6 +726,9 @@ public class BigQueryIO {
     }
   }
 
+  /**
+   * A {@link BigQuerySourceBase} for reading BigQuery tables.
+   */
   @VisibleForTesting
   static class BigQueryTableSource extends BigQuerySourceBase {
 
@@ -761,7 +770,7 @@ public class BigQueryIO {
       if (tableSizeBytes.get() == null) {
         TableReference table = JSON_FACTORY.fromString(jsonTable, TableReference.class);
 
-        Long numBytes = bqServices.getTableService(options.as(BigQueryOptions.class))
+        Long numBytes = bqServices.getDatasetService(options.as(BigQueryOptions.class))
             .getTable(table.getProjectId(), table.getDatasetId(), table.getTableId())
             .getNumBytes();
         tableSizeBytes.compareAndSet(null, numBytes);
@@ -770,6 +779,9 @@ public class BigQueryIO {
     }
   }
 
+  /**
+   * A {@link BigQuerySourceBase} for querying BigQuery tables.
+   */
   @VisibleForTesting
   static class BigQueryQuerySource extends BigQuerySourceBase {
 
@@ -826,7 +838,7 @@ public class BigQueryIO {
           .getQuery()
           .getReferencedTables()
           .get(0);
-      TableService tableService = bqServices.getTableService(bqOptions);
+      DatasetService tableService = bqServices.getDatasetService(bqOptions);
       String location = tableService.getTable(
           dryRunTempTable.getProjectId(),
           dryRunTempTable.getDatasetId(),
@@ -914,7 +926,20 @@ public class BigQueryIO {
     }
   }
 
-  abstract static class BigQuerySourceBase extends BoundedSource<TableRow> {
+  /**
+   * An abstract {@link BoundedSource} to read a table from BigQuery.
+   *
+   * <p>This source uses a BigQuery export job to take a snapshot of the table on GCS, and then
+   * reads in parallel from each produced file. It is implemented by {@link BigQueryTableSource},
+   * and {@link BigQueryQuerySource}, depending on the configuration of the read.
+   * Specifically,
+   * <ul>
+   * <li>{@link BigQueryTableSource} is for reading BigQuery tables</li>
+   * <li>{@link BigQueryQuerySource} is for querying BigQuery tables</li>
+   * </ul>
+   * ...
+   */
+  private abstract static class BigQuerySourceBase extends BoundedSource<TableRow> {
     // The maximum number of attempts to verify temp files.
     private static final int MAX_FILES_VERIFY_ATTEMPTS = 10;
 
@@ -949,7 +974,7 @@ public class BigQueryIO {
       String extractJobId = jobIdToken + "-extract";
       List<String> tempFiles = executeExtract(extractJobId, tableToExtract, jobService);
 
-      TableSchema tableSchema = bqServices.getTableService(bqOptions).getTable(
+      TableSchema tableSchema = bqServices.getDatasetService(bqOptions).getTable(
           tableToExtract.getProjectId(),
           tableToExtract.getDatasetId(),
           tableToExtract.getTableId()).getSchema();
@@ -998,7 +1023,7 @@ public class BigQueryIO {
       List<Long> counts = jobStats.getExtract().getDestinationUriFileCounts();
       if (counts.size() != 1) {
         String errorMessage = (counts.size() == 0 ?
-            "None destination uri file count received." :
+            "No destination uri file count received." :
             String.format("More than one destination uri file count received. First two are %s, %s",
                 counts.get(0), counts.get(1)));
         throw new RuntimeException(errorMessage);
@@ -1045,43 +1070,48 @@ public class BigQueryIO {
       }
       return ImmutableList.copyOf(avroSources);
     }
+
+    protected static class BigQueryReader extends BoundedSource.BoundedReader<TableRow> {
+      private final BigQuerySourceBase source;
+      private final BigQueryServices.BigQueryJsonReader reader;
+
+      private BigQueryReader(
+          BigQuerySourceBase source, BigQueryServices.BigQueryJsonReader reader) {
+        this.source = source;
+        this.reader = reader;
+      }
+
+      @Override
+      public BoundedSource<TableRow> getCurrentSource() {
+        return source;
+      }
+
+      @Override
+      public boolean start() throws IOException {
+        return reader.start();
+      }
+
+      @Override
+      public boolean advance() throws IOException {
+        return reader.advance();
+      }
+
+      @Override
+      public TableRow getCurrent() throws NoSuchElementException {
+        return reader.getCurrent();
+      }
+
+      @Override
+      public void close() throws IOException {
+        reader.close();
+      }
+    }
   }
 
-  private static class BigQueryReader extends BoundedSource.BoundedReader<TableRow> {
-    private final BigQuerySourceBase source;
-    private final BigQueryServices.BigQueryJsonReader reader;
-
-    private BigQueryReader(BigQuerySourceBase source, BigQueryServices.BigQueryJsonReader reader) {
-      this.source = source;
-      this.reader = reader;
-    }
-
-    @Override
-    public BoundedSource<TableRow> getCurrentSource() {
-      return source;
-    }
-
-    @Override
-    public boolean start() throws IOException {
-      return reader.start();
-    }
-
-    @Override
-    public boolean advance() throws IOException {
-      return reader.advance();
-    }
-
-    @Override
-    public TableRow getCurrent() throws NoSuchElementException {
-      return reader.getCurrent();
-    }
-
-    @Override
-    public void close() throws IOException {
-      reader.close();
-    }
-  }
-
+  /**
+   * A {@link BoundedSource} that reads from {@code BoundedSource<T>}
+   * and transforms elements to type {@code V}.
+  */
   @VisibleForTesting
   static class TransformingSource<T, V> extends BoundedSource<V> {
     private final BoundedSource<T> boundedSource;
@@ -1408,8 +1438,15 @@ public class BigQueryIO {
        */
       @Deprecated
       public Bound() {
-        this(null, null, null, null, CreateDisposition.CREATE_IF_NEEDED,
-            WriteDisposition.WRITE_EMPTY, true, null);
+        this(
+            null /* name */,
+            null /* jsonTableRef */,
+            null /* tableRefFunction */,
+            null /* jsonSchema */,
+            CreateDisposition.CREATE_IF_NEEDED,
+            WriteDisposition.WRITE_EMPTY,
+            true /* validate */,
+            null /* testBigQueryServices */);
       }
 
       private Bound(String name, @Nullable String jsonTableRef,
