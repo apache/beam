@@ -37,6 +37,8 @@ import java.util.concurrent.ConcurrentMap;
 
 import javax.annotation.Nullable;
 
+import autovalue.shaded.com.google.common.common.collect.ImmutableList;
+
 /**
  * A {@link TransformEvaluatorFactory} that produces {@link TransformEvaluator TransformEvaluators}
  * for the {@link Unbounded Read.Unbounded} primitive {@link PTransform}.
@@ -49,6 +51,8 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
    */
   private final ConcurrentMap<EvaluatorKey, Queue<? extends UnboundedReadEvaluator<?>>>
       sourceEvaluators = new ConcurrentHashMap<>();
+  private final ConcurrentMap<EvaluatorKey, ShardWatermarkTracker> sourceWatermarks =
+      new ConcurrentHashMap<>();
 
   @SuppressWarnings({"unchecked", "rawtypes"})
   @Override
@@ -57,26 +61,15 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     return getTransformEvaluator((AppliedPTransform) application, evaluationContext);
   }
 
-  private <OutputT> TransformEvaluator<?> getTransformEvaluator(
-      final AppliedPTransform<?, PCollection<OutputT>, Unbounded<OutputT>> transform,
-      final InProcessEvaluationContext evaluationContext) {
-    UnboundedReadEvaluator<?> currentEvaluator =
-        getTransformEvaluatorQueue(transform, evaluationContext).poll();
-    if (currentEvaluator == null) {
-      return EmptyTransformEvaluator.create(transform);
-    }
-    return currentEvaluator;
-  }
-
   /**
-   * Get the queue of {@link TransformEvaluator TransformEvaluators} that produce elements for the
-   * provided application of {@link Unbounded Read.Unbounded}, initializing it if required.
+   * Get a {@link TransformEvaluator} that produces elements for the provided application of
+   * {@link Unbounded Read.Unbounded}, initializing the queue of evaluators if required.
    *
    * <p>This method is thread-safe, and will only produce new evaluators if no other invocation has
    * already done so.
    */
   @SuppressWarnings("unchecked")
-  private <OutputT> Queue<UnboundedReadEvaluator<OutputT>> getTransformEvaluatorQueue(
+  private <OutputT> TransformEvaluator<?> getTransformEvaluator(
       final AppliedPTransform<?, PCollection<OutputT>, Unbounded<OutputT>> transform,
       final InProcessEvaluationContext evaluationContext) {
     // Key by the application and the context the evaluation is occurring in (which call to
@@ -90,17 +83,24 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
       if (sourceEvaluators.putIfAbsent(key, evaluatorQueue) == null) {
         // If no queue existed in the evaluators, add an evaluator to initialize the evaluator
         // factory for this transform
+        ShardWatermarkTracker tracker = ShardWatermarkTracker.create();
         UnboundedSource<OutputT, ?> source = transform.getTransform().getSource();
         UnboundedReadEvaluator<OutputT> evaluator =
             new UnboundedReadEvaluator<OutputT>(
-                transform, evaluationContext, source, evaluatorQueue);
+                transform, evaluationContext, source, tracker, evaluatorQueue);
+        tracker.setInitialShards(ImmutableList.of(evaluator));
+        sourceWatermarks.put(key, tracker);
         evaluatorQueue.offer(evaluator);
       } else {
         // otherwise return the existing Queue that arrived before us
         evaluatorQueue = (Queue<UnboundedReadEvaluator<OutputT>>) sourceEvaluators.get(key);
       }
     }
-    return evaluatorQueue;
+    TransformEvaluator<?> evaluator = evaluatorQueue.poll();
+    if (evaluator == null) {
+      return EmptyTransformEvaluator.create(transform, sourceWatermarks.get(key));
+    }
+    return evaluator;
   }
 
   /**
@@ -124,16 +124,19 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
      */
     private final UnboundedSource<OutputT, ?> source;
     private CheckpointMark checkpointMark;
+    private final ShardWatermarkTracker tracker;
 
     public UnboundedReadEvaluator(
         AppliedPTransform<?, PCollection<OutputT>, Unbounded<OutputT>> transform,
         InProcessEvaluationContext evaluationContext,
         UnboundedSource<OutputT, ?> source,
+        ShardWatermarkTracker tracker,
         Queue<UnboundedReadEvaluator<OutputT>> evaluatorQueue) {
       this.transform = transform;
       this.evaluationContext = evaluationContext;
       this.evaluatorQueue = evaluatorQueue;
       this.source = source;
+      this.tracker = tracker;
       this.checkpointMark = null;
     }
 
@@ -158,8 +161,9 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
         checkpointMark.finalizeCheckpoint();
         // TODO: When exercising create initial splits, make this the minimum watermark across all
         // existing readers
+        tracker.updateWatermark(this, reader.getWatermark());
         StepTransformResult result =
-            StepTransformResult.withHold(transform, reader.getWatermark())
+            StepTransformResult.withHold(transform, tracker.getWatermark())
                 .addOutput(output)
                 .build();
         evaluatorQueue.offer(this);
