@@ -27,7 +27,6 @@ import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StandardCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.transforms.CombineFnBase.AbstractGlobalCombineFn;
 import org.apache.beam.sdk.transforms.CombineFnBase.AbstractPerKeyCombineFn;
 import org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn;
@@ -1354,17 +1353,17 @@ public class Combine {
 
     @Override
     public PCollection<OutputT> apply(PCollection<InputT> input) {
-      PCollection<KV<Void, InputT>> withKeys = input
-          .apply(WithKeys.<Void, InputT>of((Void) null))
-          .setCoder(KvCoder.of(VoidCoder.of(), input.getCoder()));
+      PCollection<KV<Integer, InputT>> withKeys = input
+          .apply(WithKeys.<Integer, InputT>of(1))
+          .setCoder(KvCoder.of(VarIntCoder.of(), input.getCoder()));
 
-      Combine.PerKey<Void, InputT, OutputT> combine =
+      Combine.PerKey<Integer, InputT, OutputT> combine =
           Combine.fewKeys(fn.asKeyedFn(), fnDisplayData);
       if (!sideInputs.isEmpty()) {
         combine = combine.withSideInputs(sideInputs);
       }
 
-      PCollection<KV<Void, OutputT>> combined;
+      PCollection<KV<Integer, OutputT>> combined;
       if (fanout >= 2) {
         combined = withKeys.apply(combine.withHotKeyFanout(fanout));
       } else {
