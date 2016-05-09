@@ -221,12 +221,18 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
       }
     }
 
+<<<<<<< HEAD
     /**
      * Checkpoint the current reader, finalize the previous checkpoint, and update the state of this
      * evaluator.
      */
     private void finishRead() throws IOException {
       final CheckpointMark oldMark = checkpointMark;
+=======
+    private <CheckpointMarkT extends CheckpointMark> UnboundedReader<OutputT> createReader(
+        UnboundedSource<OutputT, CheckpointMarkT> source, PipelineOptions options)
+        throws IOException {
+>>>>>>> 71424df... Add toUnbounded() to get a Unbounded Read from a Bounded Read.
       @SuppressWarnings("unchecked")
       final CheckpointMarkT mark = (CheckpointMarkT) currentReader.getCheckpointMark();
       checkpointMark = mark;

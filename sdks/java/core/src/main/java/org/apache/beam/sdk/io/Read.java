@@ -114,6 +114,15 @@ public class Read {
       return new Bounded<T>(name, source);
     }
 
+    /**
+     * Returns a new {@link UnboundedReadFromBoundedSourceTest}.
+     *
+     * It performs a unbounded read from the given {@link BoundedSource}.
+     */
+    public UnboundedReadFromBoundedSource<T> toUnbounded() {
+      return new UnboundedReadFromBoundedSource<>(source);
+    }
+
     @Override
     protected Coder<T> getDefaultOutputCoder() {
       return source.getDefaultOutputCoder();
