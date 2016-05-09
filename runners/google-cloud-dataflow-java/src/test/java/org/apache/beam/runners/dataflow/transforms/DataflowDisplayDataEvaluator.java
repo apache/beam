@@ -43,6 +43,7 @@ public final class DataflowDisplayDataEvaluator {
   public static DataflowPipelineOptions getDefaultOptions() {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
 
+    options.setRunner(DataflowPipelineRunner.class);
     options.setProject("foobar");
     options.setTempLocation("gs://bucket/tmpLocation");
     options.setFilesToStage(Lists.<String>newArrayList());
@@ -66,6 +67,6 @@ public final class DataflowDisplayDataEvaluator {
    * the {@link DataflowPipelineRunner} with the specified {@code options}.
    */
   public static DisplayDataEvaluator create(DataflowPipelineOptions options) {
-    return DisplayDataEvaluator.forRunner(DataflowPipelineRunner.class, options);
+    return DisplayDataEvaluator.create(options);
   }
 }

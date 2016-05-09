@@ -20,7 +20,7 @@ package org.apache.beam.sdk.io;
 import static org.apache.beam.sdk.io.BigQueryIO.fromJsonString;
 import static org.apache.beam.sdk.io.BigQueryIO.toJsonString;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
@@ -710,8 +710,8 @@ public class BigQueryIOTest implements Serializable {
 
     DisplayData displayData = DisplayData.from(write);
 
-    assertThat(displayData, hasDisplayItem(hasKey("table")));
-    assertThat(displayData, hasDisplayItem(hasKey("schema")));
+    assertThat(displayData, hasDisplayItem("table"));
+    assertThat(displayData, hasDisplayItem("schema"));
     assertThat(displayData,
         hasDisplayItem("createDisposition", CreateDisposition.CREATE_IF_NEEDED.toString()));
     assertThat(displayData,

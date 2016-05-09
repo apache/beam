@@ -834,7 +834,7 @@ public class ProxyInvocationHandlerTest {
     PipelineOptions options = PipelineOptionsFactory.as(HasDefaults.class);
     DisplayData data = DisplayData.from(options);
 
-    assertThat(data, not(hasDisplayItem(hasKey("foo"))));
+    assertThat(data, not(hasDisplayItem("foo")));
   }
 
   interface HasDefaults extends PipelineOptions {
@@ -849,7 +849,7 @@ public class ProxyInvocationHandlerTest {
     assertEquals("bar", options.getFoo());
 
     DisplayData data = DisplayData.from(options);
-    assertThat(data, not(hasDisplayItem(hasKey("foo"))));
+    assertThat(data, not(hasDisplayItem("foo")));
   }
 
   @Test
@@ -958,6 +958,6 @@ public class ProxyInvocationHandlerTest {
     options.setValue("foobar");
 
     DisplayData data = DisplayData.from(options);
-    assertThat(data, not(hasDisplayItem(hasKey("value"))));
+    assertThat(data, not(hasDisplayItem("value")));
   }
 }

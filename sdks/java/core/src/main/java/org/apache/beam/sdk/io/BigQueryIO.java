@@ -802,6 +802,12 @@ public class BigQueryIO {
     protected void cleanupTempResource(BigQueryOptions bqOptions) throws Exception {
       // Do nothing.
     }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder.add(DisplayData.item("table", jsonTable));
+    }
   }
 
   /**
@@ -893,6 +899,11 @@ public class BigQueryIO {
       tableService.deleteDataset(tableToRemove.getProjectId(), tableToRemove.getDatasetId());
     }
 
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder.add(DisplayData.item("query", query));
+    }
     private synchronized JobStatistics dryRunQueryIfNeeded(BigQueryOptions bqOptions)
         throws InterruptedException, IOException {
       if (dryRunJobStats.get() == null) {
