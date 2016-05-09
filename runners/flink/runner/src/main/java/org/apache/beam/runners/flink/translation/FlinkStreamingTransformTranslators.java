@@ -59,6 +59,7 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 
 import com.google.api.client.util.Maps;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
 import org.apache.flink.api.common.functions.FilterFunction;
@@ -359,8 +360,8 @@ public class FlinkStreamingTransformTranslators {
                 }
 
                 @Override
-                public Collection<? extends BoundedWindow> windows() {
-                  return c.windowingInternals().windows();
+                public BoundedWindow window() {
+                  return Iterables.getOnlyElement(c.windowingInternals().windows());
                 }
               });
 

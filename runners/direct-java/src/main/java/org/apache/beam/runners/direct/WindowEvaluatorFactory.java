@@ -29,6 +29,8 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 
+import com.google.common.collect.Iterables;
+
 import org.joda.time.Instant;
 
 import java.util.Collection;
@@ -125,8 +127,8 @@ class WindowEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     @Override
-    public Collection<? extends BoundedWindow> windows() {
-      return value.getWindows();
+    public BoundedWindow window() {
+      return Iterables.getOnlyElement(value.getWindows());
     }
 
   }
