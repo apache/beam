@@ -20,7 +20,6 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
 {
   /** Time windows. */
   final class Time<T>
-      extends AbstractWindowing<T, Void, Windowing.Time.TimeInterval, Windowing.Time.TimeWindow>
       implements AlignedWindowing<T, Windowing.Time.TimeInterval, Windowing.Time.TimeWindow>
   {
     private boolean aggregating;
@@ -124,7 +123,6 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
   } // ~ end of Time
 
   final class Count<T>
-      extends AbstractWindowing<T, Void, Windowing.Count.Counted, Windowing.Count.CountWindow>
       implements AlignedWindowing<T, Windowing.Count.Counted, Windowing.Count.CountWindow>,
                  MergingWindowing<T, Void, Windowing.Count.Counted, Windowing.Count.CountWindow>
   {
