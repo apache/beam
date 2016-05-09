@@ -245,7 +245,7 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
         InputT value = input.getValue();
         Instant timestamp = input.getTimestamp();
         Collection<W> assignedWindows = windowFn.assignWindows(new TestAssignContext<W>(
-            windowFn, value, timestamp, Arrays.asList(GlobalWindow.INSTANCE)));
+            windowFn, value, timestamp, GlobalWindow.INSTANCE));
 
         for (W window : assignedWindows) {
           activeWindows.addActiveForTesting(window);
@@ -401,14 +401,14 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
       extends WindowFn<Object, W>.AssignContext {
     private Object element;
     private Instant timestamp;
-    private Collection<? extends BoundedWindow> windows;
+    private BoundedWindow window;
 
-    public TestAssignContext(WindowFn<Object, W> windowFn, Object element, Instant timestamp,
-        Collection<? extends BoundedWindow> windows) {
+    public TestAssignContext(
+        WindowFn<Object, W> windowFn, Object element, Instant timestamp, BoundedWindow window) {
       windowFn.super();
       this.element = element;
       this.timestamp = timestamp;
-      this.windows = windows;
+      this.window = window;
     }
 
     @Override
@@ -422,8 +422,8 @@ public class TriggerTester<InputT, W extends BoundedWindow> {
     }
 
     @Override
-    public Collection<? extends BoundedWindow> windows() {
-      return windows;
+    public BoundedWindow window() {
+      return window;
     }
   }
 

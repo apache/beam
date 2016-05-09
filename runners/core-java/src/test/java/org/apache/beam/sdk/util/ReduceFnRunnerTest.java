@@ -82,7 +82,6 @@ import org.mockito.MockitoAnnotations;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
@@ -258,7 +257,7 @@ public class ReduceFnRunnerTest {
               }
 
               @Override
-              public Collection<? extends BoundedWindow> windows() {
+              public BoundedWindow window() {
                 throw new UnsupportedOperationException();
               }
             }));

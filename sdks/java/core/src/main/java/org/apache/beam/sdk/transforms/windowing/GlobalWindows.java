@@ -53,11 +53,6 @@ public class GlobalWindows extends NonMergingWindowFn<Object, GlobalWindow> {
   }
 
   @Override
-  public boolean assignsToSingleWindow() {
-    return true;
-  }
-
-  @Override
   public Instant getOutputTime(Instant inputTimestamp, GlobalWindow window) {
     return inputTimestamp;
   }

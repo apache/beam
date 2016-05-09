@@ -254,7 +254,7 @@ public abstract class DoFnRunnerBase<InputT, OutputT> implements DoFnRunner<Inpu
             }
 
             @Override
-            public Collection<? extends BoundedWindow> windows() {
+            public W window() {
               throw new UnsupportedOperationException(
                   "WindowFn attempted to access input windows when none were available");
             }

@@ -245,9 +245,9 @@ public abstract class FlinkAbstractParDoWrapper<IN, OUTDF, OUTFL> extends RichFl
           }
 
           @Override
-          public Collection<? extends BoundedWindow> windows() {
+          public BoundedWindow window() {
             throw new UnsupportedOperationException(
-                "WindowFn attempted to access input windows when none were available");
+                "WindowFn attempted to access input window when none was available");
           }
         });
       } catch (Exception e) {
