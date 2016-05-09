@@ -849,8 +849,6 @@ public class InMemoryWatermarkManager {
       CommittedBundle<?> input,
       TimerUpdate timerUpdate,
       CommittedResult result) {
-    TransformWatermarks completedTransform = transformToWatermarks.get(result.getTransform());
-
     // Newly pending elements must be added before completed elements are removed, as the two
     // do not share a Mutex within this call and thus can be interleaved with external calls to
     // refresh.
@@ -861,6 +859,11 @@ public class InMemoryWatermarkManager {
       }
     }
 
+    TransformWatermarks completedTransform = transformToWatermarks.get(result.getTransform());
+    if (input != null) {
+      // Add the unprocessed inputs
+      completedTransform.addPending(result.getUnprocessedInputs());
+    }
     completedTransform.updateTimers(timerUpdate);
     if (input != null) {
       completedTransform.removePending(input);
