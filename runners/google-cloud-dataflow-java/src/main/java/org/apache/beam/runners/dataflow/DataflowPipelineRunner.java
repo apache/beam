@@ -680,17 +680,18 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
         }
 
         @Override
-        public void visitTransform(TransformTreeNode node) {
+        public void visitPrimitiveTransform(TransformTreeNode node) {
           if (ptransformViewsWithNonDeterministicKeyCoders.contains(node.getTransform())) {
             ptransformViewNamesWithNonDeterministicKeyCoders.add(node.getFullName());
           }
         }
 
         @Override
-        public void enterCompositeTransform(TransformTreeNode node) {
+        public CompositeBehavior enterCompositeTransform(TransformTreeNode node) {
           if (ptransformViewsWithNonDeterministicKeyCoders.contains(node.getTransform())) {
             ptransformViewNamesWithNonDeterministicKeyCoders.add(node.getFullName());
           }
+          return CompositeBehavior.ENTER_TRANSFORM;
         }
 
         @Override

@@ -56,12 +56,13 @@ class KeyedPValueTrackingVisitor implements PipelineVisitor {
   }
 
   @Override
-  public void enterCompositeTransform(TransformTreeNode node) {
+  public CompositeBehavior enterCompositeTransform(TransformTreeNode node) {
     checkState(
         !finalized,
         "Attempted to use a %s that has already been finalized on a pipeline (visiting node %s)",
         KeyedPValueTrackingVisitor.class.getSimpleName(),
         node);
+    return CompositeBehavior.ENTER_TRANSFORM;
   }
 
   @Override
@@ -79,7 +80,7 @@ class KeyedPValueTrackingVisitor implements PipelineVisitor {
   }
 
   @Override
-  public void visitTransform(TransformTreeNode node) {}
+  public void visitPrimitiveTransform(TransformTreeNode node) {}
 
   @Override
   public void visitValue(PValue value, TransformTreeNode producer) {
