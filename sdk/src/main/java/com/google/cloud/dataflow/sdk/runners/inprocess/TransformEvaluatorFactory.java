@@ -30,13 +30,18 @@ public interface TransformEvaluatorFactory {
   /**
    * Create a new {@link TransformEvaluator} for the application of the {@link PTransform}.
    *
-   * Any work that must be done before input elements are processed (such as calling
+   * <p>Any work that must be done before input elements are processed (such as calling
    * {@link DoFn#startBundle(DoFn.Context)}) must be done before the {@link TransformEvaluator} is
    * made available to the caller.
    *
+   * <p>May return null if the application cannot produce an evaluator (for example, it is a
+   * {@link Read} {@link PTransform} where all evaluators are in-use).
+   *
+   * @return An evaluator capable of processing the transform on the bundle, or null if no evaluator
+   * can be constructed.
    * @throws Exception whenever constructing the underlying evaluator throws an exception
    */
-  <InputT> TransformEvaluator<InputT> forApplication(
+  @Nullable <InputT> TransformEvaluator<InputT> forApplication(
       AppliedPTransform<?, ?, ?> application, @Nullable CommittedBundle<?> inputBundle,
       InProcessEvaluationContext evaluationContext) throws Exception;
 }
