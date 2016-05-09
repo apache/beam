@@ -44,6 +44,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.capabilities.RequiresTimestampControl;
 import org.apache.beam.sdk.transforms.Create.Values.CreateSource;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
@@ -233,7 +234,7 @@ public class CreateTest {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category({RunnableOnService.class, RequiresTimestampControl.class})
   public void testCreateTimestamped() {
     Pipeline p = TestPipeline.create();
 
@@ -252,7 +253,7 @@ public class CreateTest {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category({RunnableOnService.class, RequiresTimestampControl.class})
   public void testCreateTimestampedEmpty() {
     Pipeline p = TestPipeline.create();
 
