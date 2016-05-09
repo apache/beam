@@ -22,7 +22,7 @@ import java.util.Iterator;
 /**
  * Join two datasets by given key producing single new dataset.
  */
-public class Join<LEFT, RIGHT, KEY, OUT, W extends Window<?>>
+public class Join<LEFT, RIGHT, KEY, OUT, W extends Window<?, ?>>
     extends StateAwareWindowWiseOperator<Object, Either<LEFT, RIGHT>,
     Either<LEFT, RIGHT>, KEY, Pair<KEY, OUT>, W,
     Join<LEFT, RIGHT, KEY, OUT, W>> {
@@ -75,8 +75,8 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window<?>>
       this.rightKeyExtractor = rightKeyExtractor;
       this.joinFunc = joinFunc;
     }
-    public <W extends Window<?>> Join<LEFT, RIGHT, KEY, OUT, W>
-    windowBy(Windowing<Either<LEFT, RIGHT>, ?, W> windowing) {
+    public <W extends Window<?, ?>> Join<LEFT, RIGHT, KEY, OUT, W>
+    windowBy(Windowing<Either<LEFT, RIGHT>, ?, ?, W> windowing) {
       Flow flow = left.getFlow();
       Join<LEFT, RIGHT, KEY, OUT, W> join = new Join<>(
           flow, left, right, windowing, leftKeyExtractor, rightKeyExtractor, joinFunc);
@@ -108,7 +108,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window<?>>
   @SuppressWarnings("unchecked")
   Join(Flow flow,
       Dataset<LEFT> left, Dataset<RIGHT> right,
-      Windowing<Either<LEFT, RIGHT>, ?, W> windowing,
+      Windowing<Either<LEFT, RIGHT>, ?, ?, W> windowing,
       UnaryFunction<LEFT, KEY> leftKeyExtractor,
       UnaryFunction<RIGHT, KEY> rightKeyExtractor,
       BinaryFunctor<LEFT, RIGHT, OUT> functor) {
@@ -164,8 +164,8 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window<?>>
 //
 //
 //    @Override
-//    public Object getKey() {
-//      return joinWindow.getKey();
+//    public Object getGroup() {
+//      return joinWindow.getGroup();
 //    }
 //
 //    @Override

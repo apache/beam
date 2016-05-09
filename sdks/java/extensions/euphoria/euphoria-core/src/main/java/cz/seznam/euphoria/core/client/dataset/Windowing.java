@@ -2,8 +2,10 @@
 package cz.seznam.euphoria.core.client.dataset;
 
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
+import cz.seznam.euphoria.core.client.util.Pair;
 
 import java.io.Serializable;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -13,30 +15,37 @@ import java.util.Set;
 /**
  * A windowing policy of a dataset.
  */
-public interface Windowing<T, KEY, W extends Window<KEY>> extends Serializable {
-
+public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
+    extends Serializable
+{
   /** Time windows. */
   final class Time<T>
-      extends AbstractWindowing<T, Void, Windowing.Time.TimeWindow>
-      implements AlignedWindowing<T, Windowing.Time.TimeWindow> {
-
+      extends AbstractWindowing<T, Void, Windowing.Time.TimeInterval, Windowing.Time.TimeWindow>
+      implements AlignedWindowing<T, Windowing.Time.TimeInterval, Windowing.Time.TimeWindow>
+  {
     private boolean aggregating;
 
-    public static class TimeWindow
-        implements AlignedWindow
-    {
+    public static final class TimeInterval implements Serializable {
       private final long startMillis;
       private final long intervalMillis;
 
-      TimeWindow(long startMillis, long intervalMillis) {
+      public TimeInterval(long startMillis, long intervalMillis) {
         this.startMillis = startMillis;
         this.intervalMillis = intervalMillis;
       }
 
+      public long getStartMillis() {
+        return startMillis;
+      }
+
+      public long getIntervalMillis() {
+        return intervalMillis;
+      }
+
       @Override
-      public boolean equals(Object other) {
-        if (other instanceof TimeWindow) {
-          TimeWindow that = (TimeWindow) other;
+      public boolean equals(Object o) {
+        if (o instanceof TimeInterval) {
+          TimeInterval that = (TimeInterval) o;
           return this.startMillis == that.startMillis
               && this.intervalMillis == that.intervalMillis;
         }
@@ -49,20 +58,29 @@ public interface Windowing<T, KEY, W extends Window<KEY>> extends Serializable {
         result = 31 * result + (int) (intervalMillis ^ (intervalMillis >>> 32));
         return result;
       }
+    } // ~ end of TimeInterval
 
-      @Override
-      public void registerTrigger(Triggering triggering, UnaryFunction<Window<?>, Void> evict) {
-        triggering.scheduleOnce(this.intervalMillis, () -> evict.apply(this));
+    public static class TimeWindow
+        implements AlignedWindow<TimeInterval>
+    {
+      private final TimeInterval label;
+
+      TimeWindow(long startMillis, long intervalMillis) {
+        this.label = new TimeInterval(startMillis, intervalMillis);
       }
 
       @Override
-      public String toString() {
-        return "TimeWindow{" +
-            "startMillis=" + startMillis +
-            ", intervalMillis=" + intervalMillis +
-            '}';
+      public TimeInterval getLabel() {
+        return label;
       }
-    } // ~ end of IntervalWindow
+
+      @Override
+      public void registerTrigger(
+          Triggering triggering, UnaryFunction<Window<?, ?>, Void> evict)
+      {
+        triggering.scheduleOnce(this.label.getIntervalMillis(), () -> evict.apply(this));
+      }
+    } // ~ end of TimeWindow
 
     public static <T> Time<T> seconds(long seconds) {
       return new Time<>(seconds * 1000);
@@ -82,17 +100,17 @@ public interface Windowing<T, KEY, W extends Window<KEY>> extends Serializable {
       return (Time<T>) this;
     }
 
-    final long duration;
+    final long durationMillis;
 
-    Time(long duration) {
-      this.duration = duration;
+    Time(long durationMillis) {
+      this.durationMillis = durationMillis;
     }
 
     @Override
     public Set<TimeWindow> assignWindows(T input) {
       long ts = timestampMillis(input);
       return Collections.singleton(
-          new TimeWindow(ts - (ts + duration) % duration, duration));
+          new TimeWindow(ts - (ts + durationMillis) % durationMillis, durationMillis));
     }
 
     protected long timestampMillis(T input) {
@@ -106,9 +124,9 @@ public interface Windowing<T, KEY, W extends Window<KEY>> extends Serializable {
   } // ~ end of Time
 
   final class Count<T>
-      extends AbstractWindowing<T, Void, Windowing.Count.CountWindow>
-      implements AlignedWindowing<T, Windowing.Count.CountWindow>,
-                 MergingWindowing<T, Void, Windowing.Count.CountWindow>
+      extends AbstractWindowing<T, Void, Windowing.Count.Counted, Windowing.Count.CountWindow>
+      implements AlignedWindowing<T, Windowing.Count.Counted, Windowing.Count.CountWindow>,
+                 MergingWindowing<T, Void, Windowing.Count.Counted, Windowing.Count.CountWindow>
   {
     private final int size;
     private boolean aggregating = false;
@@ -117,28 +135,35 @@ public interface Windowing<T, KEY, W extends Window<KEY>> extends Serializable {
       this.size = size;
     }
 
-    public static class CountWindow
-        implements AlignedWindow
-    {
-      int currentCount;
-      UnaryFunction<Window<?>, Void> evict = null;
+    public static final class Counted implements Serializable {
+      // ~ no equals/hashCode ... every instance is unique
+    } // ~ end of Counted
 
-      public CountWindow(int currentCount) {
+    public static class CountWindow
+        implements AlignedWindow<Counted>
+    {
+      private final Counted label = new Counted();
+      int currentCount;
+
+      CountWindow(int currentCount) {
         this.currentCount = currentCount;
       }
 
       @Override
-      public void registerTrigger(Triggering triggering,
-          UnaryFunction<Window<?>, Void> evict) {
-        this.evict = evict;
+      public Counted getLabel() {
+        return label;
       }
 
-      // ~ no equals/hashCode all instances are considered unique
+      @Override
+      public void registerTrigger(
+          Triggering triggering, UnaryFunction<Window<?, ?>, Void> evict)
+      {
+      }
 
       @Override
       public String toString() {
-        return "CountWindow { currentCount = " + currentCount + ", identity = " +
-            System.identityHashCode(this) + " }";
+        return "CountWindow { currentCount = " + currentCount + ", label = " +
+            System.identityHashCode(label) + " }";
       }
     } // ~ end of CountWindow
 
@@ -148,11 +173,9 @@ public interface Windowing<T, KEY, W extends Window<KEY>> extends Serializable {
     }
 
     @Override
-    public void mergeWindows(Set<CountWindow> actives,
-                             Merging<Void, CountWindow> merging)
+    public Collection<Pair<Collection<CountWindow>, CountWindow>>
+    mergeWindows(Collection<CountWindow> actives)
     {
-      // XXX this will need a rewrite for better efficiency
-
       Iterator<CountWindow> iter = actives.iterator();
       CountWindow r = null;
       while (r == null && iter.hasNext()) {
@@ -162,17 +185,14 @@ public interface Windowing<T, KEY, W extends Window<KEY>> extends Serializable {
         }
       }
       if (r == null) {
-        return;
+        return null;
       }
 
       Set<CountWindow> merged = null;
       iter = actives.iterator();
       while (iter.hasNext()) {
         CountWindow w = iter.next();
-        if (r.equals(w)) {
-          continue;
-        }
-        if (r.currentCount + w.currentCount <= size) {
+        if (r != w && r.currentCount + w.currentCount <= size) {
           r.currentCount += w.currentCount;
           if (merged == null) {
             merged = new HashSet<>();
@@ -182,11 +202,14 @@ public interface Windowing<T, KEY, W extends Window<KEY>> extends Serializable {
       }
       if (merged != null && !merged.isEmpty()) {
         merged.add(r);
-        merging.onMerge(merged, r);
-        if (r.currentCount >= size) {
-          r.evict.apply(r);
-        }
+        return Collections.singleton(Pair.of(merged, r));
       }
+      return null;
+    }
+
+    @Override
+    public boolean isComplete(CountWindow window) {
+      return window.currentCount >= size;
     }
 
     @Override

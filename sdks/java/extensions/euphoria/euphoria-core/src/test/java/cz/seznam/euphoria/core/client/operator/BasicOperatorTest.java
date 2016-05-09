@@ -26,6 +26,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
@@ -148,39 +149,38 @@ public class BasicOperatorTest {
   }
 
   private List<String> sublist(List<Pair<String, Long>> xs, int start, int len) {
-    return xs.subList(start, len < 0 ? xs.size() : start + len)
+    return sublist(xs, start, len, true);
+  }
+
+  private List<String> sublist(
+      List<Pair<String, Long>> xs, int start, int len, boolean sort)
+  {
+    Stream<String> s = xs.subList(start, len < 0 ? xs.size() : start + len)
         .stream()
-        .map(p -> p.getFirst() + "-" + p.getSecond())
-        .sorted()
-        .collect(Collectors.toList());
+        .map(p -> p.getFirst() + "-" + p.getSecond());
+    if (sort) {
+      s = s.sorted();
+    }
+    return s.collect(Collectors.toList());
   }
 
   @Test
   public void testWordCountByCountNonAggregating() throws Exception {
     Flow flow = Flow.create("Test");
-    Dataset<String> lines = flow.createInput(ListDataSource.unbounded(
-        asList(
-            "one two three four four two two",
-            "one one one two two three four four four four",
-            "four")));
-
-    // expand it to words
-    Dataset<Pair<String, Long>> words = FlatMap.of(lines)
-        .by((String s, Collector<Pair<String, Long>> c) -> {
-          for (String part : s.split(" ")) {
-            c.collect(Pair.of(part, 1L));
-          }})
-        .output();
+    Dataset<String> words = flow.createInput(ListDataSource.unbounded(
+        asList("one",   "two",  "three", "four", "four", "two",
+               "two",   "one",  "one",   "one",  "two",  "two",
+               "three", "three", "four", "four",  "four", "four")));
 
     // reduce it to counts, use windowing, so the output is batch or stream
     // depending on the type of input
     final ListDataSink<Pair<String, Long>> output = ListDataSink.get(1);
     ReduceByKey
         .of(words)
-        .keyBy(Pair::getFirst)
-        .valueBy(Pair::getSecond)
+        .keyBy(w -> w)
+        .valueBy(w -> 1L)
         .combineBy(Sums.ofLongs())
-        .windowBy(Windowing.Count.of(3))
+        .windowBy(Windowing.Count.of(6))
         .output()
         .persist(output);
 
@@ -189,38 +189,38 @@ public class BasicOperatorTest {
     assertNotNull(output.getOutput(0));
 //    System.out.println(output.getOutput(0));
 
+    assertEquals(8, output.getOutput(0).size());
+    // ~ first 6 input elements processed
     assertEquals(
-        asList(
-            "four-1", "four-3", "four-3",
-            "one-1", "one-3",
-            "three-2",
-            "two-2", "two-3"),
-        sublist(output.getOutput(0), 0, -1));
-
+        asList("four-2", "one-1", "three-1", "two-2"),
+        sublist(output.getOutput(0), 0, 4));
+    // ~ seconds 6 input elems
+    assertEquals(
+        asList("one-3", "two-3"),
+        sublist(output.getOutput(0), 4, 2));
+    // ~ third 6 input elems
+    assertEquals(
+        asList("four-4", "three-2"),
+        sublist(output.getOutput(0), 6, -1));
   }
 
   @Test
   public void testWordCountByCountAggregating() throws Exception {
     Flow flow = Flow.create("Test");
-    Dataset<String> input = flow.createInput(ListDataSource.unbounded(
-        asList("one", "two", "three", "four", "four", "two", "two",
-               "one", "one", "one", "two", "two", "three", "four", "four", "four",
-                "four", "four")));
-
-    // expand it to words
-    Dataset<Pair<String, Long>> words = Map.of(input)
-        .by(w -> Pair.of(w, 1L))
-        .output();
+    Dataset<String> words = flow.createInput(ListDataSource.unbounded(
+        asList("one",   "two",  "three", "four", "four", "two",
+               "two",   "one",  "one",   "one",  "two",  "two",
+               "three", "three", "four", "four",  "four", "four")));
 
     // reduce it to counts, use windowing, so the output is batch or stream
     // depending on the type of input
     final ListDataSink<Pair<String, Long>> output = ListDataSink.get(1);
     ReduceByKey
         .of(words)
-        .keyBy(Pair::getFirst)
-        .valueBy(Pair::getSecond)
+        .keyBy(w -> w)
+        .valueBy(w -> 1L)
         .combineBy(Sums.ofLongs())
-        .windowBy(Windowing.Count.of(3).aggregating())
+        .windowBy(Windowing.Count.of(6).aggregating())
         .output()
         .persist(output);
 
@@ -229,12 +229,19 @@ public class BasicOperatorTest {
     assertNotNull(output.getOutput(0));
 //    System.out.println(output.getOutput(0));
 
-    assertEquals(asList(
-        "four-3", "four-6", "four-7",
-        "one-3", "one-4",
-        "three-2",
-        "two-3", "two-5"),
-        sublist(output.getOutput(0), 0, -1));
+    assertEquals(8, output.getOutput(0).size());
+    // ~ first 6 input elements processed
+    assertEquals(
+        asList("four-2", "one-1", "three-1", "two-2"),
+        sublist(output.getOutput(0), 0, 4));
+    // ~ seconds 6 input elems
+    assertEquals(
+        asList("one-4", "two-5"),
+        sublist(output.getOutput(0), 4, 2));
+    // ~ third 6 input elems
+    assertEquals(
+        asList("four-6", "three-3"),
+        sublist(output.getOutput(0), 6, -1));
   }
 
   @Test

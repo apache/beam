@@ -22,7 +22,7 @@ import java.util.List;
  * Operator performing state-less aggregation by given reduce function.
  */
 public class ReduceByKey<
-    IN, KEY, VALUE, OUT, W extends Window<?>>
+    IN, KEY, VALUE, OUT, W extends Window<?, ?>>
     extends StateAwareWindowWiseSingleInputOperator<IN, IN, IN, KEY, Pair<KEY, OUT>, W,
         ReduceByKey<IN, KEY, VALUE, OUT, W>> {
 
@@ -87,8 +87,8 @@ public class ReduceByKey<
       this.valueExtractor = valueExtractor;
       this.reducer = reducer;
     }
-    public <W extends Window<?>> ReduceByKey<IN, KEY, VALUE, OUT, W>
-    windowBy(Windowing<IN, ?, W> windowing) {
+    public <W extends Window<?, ?>> ReduceByKey<IN, KEY, VALUE, OUT, W>
+    windowBy(Windowing<IN, ?, ?, W> windowing) {
       Flow flow = input.getFlow();
       ReduceByKey<IN, KEY, VALUE, OUT, W>
       reduceByKey = new ReduceByKey<>(flow, input, keyExtractor,
@@ -118,7 +118,7 @@ public class ReduceByKey<
       Dataset<IN> input,
       UnaryFunction<IN, KEY> keyExtractor,
       UnaryFunction<IN, VALUE> valueExtractor,
-      Windowing<IN, ?, W> windowing,
+      Windowing<IN, ?, ?, W> windowing,
       ReduceFunction<VALUE, OUT> reducer) {
     super("ReduceByKey", flow, input, keyExtractor, windowing);
     this.reducer = reducer;

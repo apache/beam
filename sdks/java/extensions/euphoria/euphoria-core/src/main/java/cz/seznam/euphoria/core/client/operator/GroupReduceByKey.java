@@ -2,7 +2,6 @@
 package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.client.dataset.BatchWindowing;
-import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
 import cz.seznam.euphoria.core.client.dataset.Window;
@@ -13,6 +12,8 @@ import cz.seznam.euphoria.core.client.functional.ReduceFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.graph.DAG;
 import cz.seznam.euphoria.core.client.io.Collector;
+import cz.seznam.euphoria.core.client.util.Pair;
+
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -20,7 +21,7 @@ import java.util.List;
 /**
  * Reduce by key applied on grouped dataset.
  */
-public class GroupReduceByKey<GROUP_KEY, IN, KEY, VALUE, OUT, W extends Window<?>>
+public class GroupReduceByKey<GROUP_KEY, IN, KEY, VALUE, OUT, W extends Window<?, ?>>
     extends StateAwareWindowWiseSingleInputOperator<Pair<GROUP_KEY, IN>, IN,
         Pair<GROUP_KEY, IN>, CompositeKey<GROUP_KEY, KEY>,
         Pair<CompositeKey<GROUP_KEY, KEY>, OUT>, W,
@@ -108,9 +109,9 @@ public class GroupReduceByKey<GROUP_KEY, IN, KEY, VALUE, OUT, W extends Window<?
       this.valueExtractor = valueExtractor;
       this.reducer = reducer;
     }
-    public <W extends Window<?>> GroupReduceByKey<GROUP_KEY, IN, KEY,
+    public <W extends Window<?, ?>> GroupReduceByKey<GROUP_KEY, IN, KEY,
         VALUE, OUT, W>
-    windowBy(Windowing<IN, ?, W> windowing) {
+    windowBy(Windowing<IN, ?, ?, W> windowing) {
       Flow flow = input.getFlow();
       GroupReduceByKey<GROUP_KEY, IN, KEY, VALUE, OUT, W> reduceByKey;
       reduceByKey = new GroupReduceByKey<>(
@@ -133,7 +134,7 @@ public class GroupReduceByKey<GROUP_KEY, IN, KEY, VALUE, OUT, W extends Window<?
       Flow flow, Dataset<Pair<GROUP_KEY, IN>> input,
       UnaryFunction<IN, KEY> keyExtractor,
       UnaryFunction<IN, VALUE> valueExtractor,
-      Windowing<IN, ?, W> windowing,
+      Windowing<IN, ?, ?, W> windowing,
       ReduceFunction<VALUE, OUT> reducer) {
 
     super("GroupReduceByKey", flow, input,
