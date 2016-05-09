@@ -197,7 +197,8 @@ class BoundedReadFromUnboundedSource<T> extends PTransform<PInput, PCollection<T
     }
 
     @Override
-    public BoundedReader<ValueWithRecordId<T>> createReader(PipelineOptions options) {
+    public BoundedReader<ValueWithRecordId<T>> createReader(PipelineOptions options)
+        throws IOException {
       return new Reader(source.createReader(options, null));
     }
 
