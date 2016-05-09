@@ -16,7 +16,7 @@ import cz.seznam.euphoria.core.client.util.Sums;
 /**
  * Operator for summing of elements by key.
  */
-public class SumByKey<IN, KEY, W extends Window<?>>
+public class SumByKey<IN, KEY, W extends Window<?, ?>>
     extends StateAwareWindowWiseSingleInputOperator<IN, IN, IN, KEY, Pair<KEY, Long>, W,
         SumByKey<IN, KEY, W>> {
 
@@ -39,8 +39,8 @@ public class SumByKey<IN, KEY, W extends Window<?>>
     public Builder3<IN, KEY> valueBy(UnaryFunction<IN, Long> valueExtractor) {
       return new Builder3<>(input, keyExtractor, valueExtractor);
     }
-    public <W extends Window<?>> SumByKey<IN, KEY, W>
-    windowBy(Windowing<IN, ?, W> windowing) {
+    public <W extends Window<?, ?>> SumByKey<IN, KEY, W>
+    windowBy(Windowing<IN, ?, ?, W> windowing) {
       Flow flow = input.getFlow();
       return flow.add(new SumByKey<>(flow, input,
           keyExtractor, e -> 1L, windowing, new HashPartitioning<>()));
@@ -60,8 +60,8 @@ public class SumByKey<IN, KEY, W extends Window<?>>
       this.keyExtractor = keyExtractor;
       this.valueExtractor = valueExtractor;
     }
-    public <W extends Window<?>> SumByKey<IN, KEY, W>
-    windowBy(Windowing<IN, ?, W> windowing) {
+    public <W extends Window<?, ?>> SumByKey<IN, KEY, W>
+    windowBy(Windowing<IN, ?, ?, W> windowing) {
       Flow flow = input.getFlow();
       return flow.add(new SumByKey<>(flow, input,
           keyExtractor, valueExtractor, windowing, new HashPartitioning<>()));
@@ -81,7 +81,7 @@ public class SumByKey<IN, KEY, W extends Window<?>>
       Dataset<IN> input,
       UnaryFunction<IN, KEY> keyExtractor,
       UnaryFunction<IN, Long> valueExtractor,
-      Windowing<IN, ?, W> windowing,
+      Windowing<IN, ?, ?, W> windowing,
       Partitioning<KEY> partitioning) {
 
     super("CountByKey", flow, input, keyExtractor, windowing, partitioning);

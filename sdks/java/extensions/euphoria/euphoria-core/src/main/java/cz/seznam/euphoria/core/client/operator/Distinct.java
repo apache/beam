@@ -14,7 +14,7 @@ import cz.seznam.euphoria.core.client.flow.Flow;
 /**
  * Operator outputting distinct (based on equals) elements.
  */
-public class Distinct<IN, W extends Window<?>>
+public class Distinct<IN, W extends Window<?, ?>>
     extends StateAwareWindowWiseSingleInputOperator<IN, IN, IN, IN, IN, W, Distinct<IN, W>> {
 
   public static class Builder1<IN> {
@@ -22,8 +22,8 @@ public class Distinct<IN, W extends Window<?>>
     Builder1(Dataset<IN> input) {
       this.input = input;
     }
-    public <W extends Window<?>> Distinct<IN, W> windowBy(
-        Windowing<IN, ?, W> windowing) {
+    public <W extends Window<?, ?>> Distinct<IN, W> windowBy(
+        Windowing<IN, ?, ?, W> windowing) {
       Flow flow = input.getFlow();
       Distinct<IN, W> distinct = new Distinct<>(flow, input, windowing);
       return flow.add(distinct);
@@ -38,7 +38,7 @@ public class Distinct<IN, W extends Window<?>>
     return new Builder1<>(input);
   }
 
-  Distinct(Flow flow, Dataset<IN> input, Windowing<IN, ?, W> windowing) {
+  Distinct(Flow flow, Dataset<IN> input, Windowing<IN, ?, ?, W> windowing) {
     super("Distinct", flow, input, e -> e, windowing,  new HashPartitioning<>());
   }
 

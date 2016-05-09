@@ -15,7 +15,7 @@ import cz.seznam.euphoria.core.client.graph.DAG;
 /**
  * Operator counting elements with same key.
  */
-public class CountByKey<IN, KEY, W extends Window<?>>
+public class CountByKey<IN, KEY, W extends Window<?, ?>>
     extends StateAwareWindowWiseSingleInputOperator<
         IN, IN, IN, KEY, Pair<KEY, Long>, W, CountByKey<IN, KEY, W>> {
 
@@ -35,8 +35,8 @@ public class CountByKey<IN, KEY, W extends Window<?>>
       this.input = input;
       this.keyExtractor = keyExtractor;
     }
-    public <W extends Window<?>> CountByKey<IN, KEY, W>
-    windowBy(Windowing<IN, ?, W> windowing) {
+    public <W extends Window<?, ?>> CountByKey<IN, KEY, W>
+    windowBy(Windowing<IN, ?, ?, W> windowing) {
       Flow flow = input.getFlow();
       return flow.add(new CountByKey<>(flow, input,
           keyExtractor, windowing, new HashPartitioning<>()));
@@ -53,7 +53,7 @@ public class CountByKey<IN, KEY, W extends Window<?>>
   CountByKey(Flow flow,
       Dataset<IN> input,
       UnaryFunction<IN, KEY> extractor,
-      Windowing<IN, ?, W> windowing,
+      Windowing<IN, ?, ?, W> windowing,
       Partitioning<KEY> partitioning) {
 
     super("CountByKey", flow, input, extractor, windowing, partitioning);
