@@ -83,7 +83,7 @@ public class FlinkReduceFunction<K, VA, VO>
 
     while (it.hasNext()) {
       current = it.next();
-      combineFnRunner.mergeAccumulators(k,
+      accumulator = combineFnRunner.mergeAccumulators(k,
           ImmutableList.of(accumulator, current.getValue()),
           processContext);
     }
