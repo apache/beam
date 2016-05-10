@@ -72,6 +72,10 @@ public class DisplayData implements Serializable {
    * Collect the {@link DisplayData} from a component. This will traverse all subcomponents
    * specified via {@link Builder#include} in the given component. Data in this component will be in
    * a namespace derived from the component.
+   *
+   * <p>Pipeline runners should call this method in order to collect display data. While it should
+   * be safe to call {@code DisplayData.from} on any component which implements it, runners should
+   * be resilient to exceptions thrown while collecting display data.
    */
   public static DisplayData from(HasDisplayData component) {
     checkNotNull(component, "component argument cannot be null");
