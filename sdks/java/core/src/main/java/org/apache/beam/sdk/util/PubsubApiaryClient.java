@@ -55,11 +55,11 @@ import javax.annotation.Nullable;
  */
 public class PubsubApiaryClient extends PubsubClient {
 
-  public static final PubsubClientFactory FACTORY = new PubsubClientFactory() {
+  private static class PubsubApiaryClientFactory implements PubsubClientFactory {
     @Override
     public PubsubClient newClient(
         @Nullable String timestampLabel, @Nullable String idLabel, PubsubOptions options)
-        throws IOException {
+    throws IOException {
       Pubsub pubsub = new Builder(
           Transport.getTransport(),
           Transport.getJsonFactory(),
@@ -73,7 +73,12 @@ public class PubsubApiaryClient extends PubsubClient {
           .build();
       return new PubsubApiaryClient(timestampLabel, idLabel, pubsub);
     }
-  };
+  }
+
+  /**
+   * Factory for creating Pubsub clients using Apiary transport.
+   */
+  public static final PubsubClientFactory FACTORY = new PubsubApiaryClientFactory();
 
   /**
    * Label to use for custom timestamps, or {@literal null} if should use Pubsub publish time
