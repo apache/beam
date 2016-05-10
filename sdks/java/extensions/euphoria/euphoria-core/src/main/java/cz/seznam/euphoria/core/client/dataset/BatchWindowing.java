@@ -38,6 +38,7 @@ public final class BatchWindowing<T>
       implements AlignedWindow<Batch> {
 
     static final BatchWindow INSTANCE = new BatchWindow();
+    static final Set<BatchWindow> INSTANCE_SET = Collections.singleton(INSTANCE);
 
     private BatchWindow() {}
 
@@ -62,7 +63,7 @@ public final class BatchWindowing<T>
 
   @Override
   public Set<BatchWindow> assignWindows(T input) {
-    return Collections.singleton(BatchWindow.INSTANCE);
+    return BatchWindow.INSTANCE_SET;
   }
 
   @SuppressWarnings("unchecked")
