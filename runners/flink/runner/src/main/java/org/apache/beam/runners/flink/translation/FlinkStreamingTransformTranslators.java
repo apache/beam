@@ -18,7 +18,6 @@
 
 package org.apache.beam.runners.flink.translation;
 
-import org.apache.beam.runners.flink.translation.functions.UnionCoder;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.types.FlinkCoder;
 import org.apache.beam.runners.flink.translation.wrappers.SourceInputFormat;
@@ -46,6 +45,7 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
+import org.apache.beam.sdk.transforms.join.UnionCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -229,29 +229,15 @@ public class FlinkStreamingTransformTranslators {
       BoundedSource<T> boundedSource = transform.getSource();
       PCollection<T> output = context.getOutput(transform);
 
-      Coder<T> defaultOutputCoder = boundedSource.getDefaultOutputCoder();
-      CoderTypeInformation<T> typeInfo = new CoderTypeInformation<>(defaultOutputCoder);
+      TypeInformation<WindowedValue<T>> typeInfo = context.getTypeInfo(output);
 
-      DataStream<T> source = context.getExecutionEnvironment().createInput(
+      DataStream<WindowedValue<T>> source = context.getExecutionEnvironment().createInput(
           new SourceInputFormat<>(
               boundedSource,
               context.getPipelineOptions()),
           typeInfo);
 
-      DataStream<WindowedValue<T>> windowedStream = source.flatMap(
-          new FlatMapFunction<T, WindowedValue<T>>() {
-            @Override
-            public void flatMap(T value, Collector<WindowedValue<T>> out) throws Exception {
-              out.collect(
-                  WindowedValue.of(value,
-                    Instant.now(),
-                    GlobalWindow.INSTANCE,
-                    PaneInfo.NO_FIRING));
-            }
-          })
-          .assignTimestampsAndWatermarks(new IngestionTimeExtractor<WindowedValue<T>>());
-
-      context.setOutputDataStream(output, windowedStream);
+      context.setOutputDataStream(output, source);
     }
   }
 

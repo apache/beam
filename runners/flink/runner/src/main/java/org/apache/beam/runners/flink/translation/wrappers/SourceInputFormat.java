@@ -21,12 +21,16 @@ import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.WindowedValue;
 
 import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplitAssigner;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,10 +39,10 @@ import java.util.List;
 
 
 /**
- * A Flink {@link org.apache.flink.api.common.io.InputFormat} that wraps a
- * Dataflow {@link org.apache.beam.sdk.io.Source}.
+ * Wrapper for executing a {@link Source} as a Flink {@link InputFormat}.
  */
-public class SourceInputFormat<T> implements InputFormat<T, SourceInputSplit<T>> {
+public class SourceInputFormat<T>
+    implements InputFormat<WindowedValue<T>, SourceInputSplit<T>> {
   private static final Logger LOG = LoggerFactory.getLogger(SourceInputFormat.class);
 
   private final BoundedSource<T> initialSource;
@@ -122,12 +126,16 @@ public class SourceInputFormat<T> implements InputFormat<T, SourceInputSplit<T>>
   }
 
   @Override
-  public T nextRecord(T t) throws IOException {
+  public WindowedValue<T> nextRecord(WindowedValue<T> t) throws IOException {
     if (inputAvailable) {
       final T current = reader.getCurrent();
+      final Instant timestamp = reader.getCurrentTimestamp();
       // advance reader to have a record ready next time
       inputAvailable = reader.advance();
-      return current;
+      return WindowedValue.of(
+          current,
+          timestamp,
+          GlobalWindow.INSTANCE, PaneInfo.NO_FIRING);
     }
 
     return null;

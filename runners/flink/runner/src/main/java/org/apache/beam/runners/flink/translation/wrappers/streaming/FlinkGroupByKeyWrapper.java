@@ -18,7 +18,6 @@
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
-import org.apache.beam.runners.flink.translation.types.VoidCoderTypeSerializer;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
@@ -54,7 +53,7 @@ public class FlinkGroupByKeyWrapper {
 
           @Override
           public K getKey(WindowedValue<KV<K, V>> value) throws Exception {
-            return isKeyVoid ? (K) VoidCoderTypeSerializer.VoidValue.INSTANCE :
+            return isKeyVoid ? (K) VoidValue.INSTANCE :
                 value.getValue().getKey();
           }
 
@@ -63,5 +62,12 @@ public class FlinkGroupByKeyWrapper {
             return keyTypeInfo;
           }
         });
+  }
+
+  // special type to return as key for null key
+  public static class VoidValue {
+    private VoidValue() {}
+
+    public static VoidValue INSTANCE = new VoidValue();
   }
 }
