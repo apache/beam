@@ -70,7 +70,7 @@ class ReduceStateByKeyReducer implements Runnable {
 
   private static final class ProcessingState {
 
-    // ~ an index over windows, and the states for each key they containing
+    // ~ an index over windows, and the states for each key they contain
     final Map<WindowIndex, Pair<Window, Map<Object, State>>> wStates
         = new HashMap<>();
 
@@ -123,7 +123,7 @@ class ReduceStateByKeyReducer implements Runnable {
           State committed = aggregatingStates.get(e.getKey());
           State state = e.getValue();
           if (committed != null) {
-                state = (State) stateCombiner.apply(newArrayList(committed, state));
+            state = (State) stateCombiner.apply(newArrayList(committed, state));
             e.setValue(state);
           }
           aggregatingStates.put(e.getKey(), state);
@@ -146,7 +146,7 @@ class ReduceStateByKeyReducer implements Runnable {
     }
 
     public Pair<Window, State> getWindowState(Window w, Object itemKey) {
-      Pair<Window, Map<Object, State>> wState = getWindowState_(w, false);
+      Pair<Window, Map<Object, State>> wState = getWindowKeyStates(w, false);
       State state = wState.getSecond().get(itemKey);
       if (state == null) {
         state = (State) stateFactory.apply(itemKey, stateOutput);
@@ -155,8 +155,11 @@ class ReduceStateByKeyReducer implements Runnable {
       return Pair.of(wState.getFirst(), state);
     }
 
+    // ~ retrieves the keyStates associated with a window
+    // and optionally override the window instance associated
+    // with it
     private Pair<Window, Map<Object, State>>
-    getWindowState_(Window w, boolean setWindowInstance)
+    getWindowKeyStates(Window w, boolean setWindowInstance)
     {
       WindowIndex wIdx = new WindowIndex(w);
       Pair<Window, Map<Object, State>> wState = wStates.get(wIdx);
@@ -182,7 +185,7 @@ class ReduceStateByKeyReducer implements Runnable {
 
     public void mergeWindows(Collection<Window> toBeMerged, Window mergeWindow) {
       // ~ make sure 'mergeWindow' does exist
-      Pair<Window, Map<Object, State>> ws = getWindowState_(mergeWindow, true);
+      Pair<Window, Map<Object, State>> ws = getWindowKeyStates(mergeWindow, true);
 
       for (Window toMerge : toBeMerged) {
         if (WindowIndex.windowsEqual(toMerge, ws.getFirst())) {
@@ -226,7 +229,7 @@ class ReduceStateByKeyReducer implements Runnable {
 
   // ~ the state is guarded by itself (triggers are fired
   // from within a separate thread)
-  private final ProcessingState state;
+  private final ProcessingState processing;
 
   private final LocalTriggering triggering = new LocalTriggering();
 
@@ -242,7 +245,7 @@ class ReduceStateByKeyReducer implements Runnable {
     this.windowing = windowing;
     this.keyExtractor = keyExtractor;
     this.valueExtractor = valueExtractor;
-    this.state = new ProcessingState(
+    this.processing = new ProcessingState(
         output, new LocalTriggering(),
         createEvictTrigger(),
         stateFactory, stateCombiner, windowing.isAggregating());
@@ -251,8 +254,8 @@ class ReduceStateByKeyReducer implements Runnable {
   private UnaryFunction<Window, Void> createEvictTrigger() {
     return (UnaryFunction<Window, Void>) window -> {
       Collection<State> evicted;
-      synchronized (state) {
-        evicted = state.evictWindow(window);
+      synchronized (processing) {
+        evicted = processing.evictWindow(window);
       }
       evicted.stream().forEachOrdered(
           windowing.isAggregating()
@@ -273,7 +276,7 @@ class ReduceStateByKeyReducer implements Runnable {
           break;
         }
 
-        synchronized (state) {
+        synchronized (processing) {
           processInput(item);
         }
       } catch (InterruptedException ex) {
@@ -283,14 +286,15 @@ class ReduceStateByKeyReducer implements Runnable {
     // ~ stop triggers
     triggering.close();
     // close all states
-    synchronized (state) {
+    synchronized (processing) {
       if (windowing.isAggregating()) {
-        state.evictAllWindows().stream().forEachOrdered(State::flush);
-        state.aggregatingStates.values().stream().forEachOrdered(State::close);
+        // XXX
+        processing.evictAllWindows().stream().forEachOrdered(State::flush);
+        processing.aggregatingStates.values().stream().forEachOrdered(State::close);
       } else {
-        state.evictAllWindows().stream().forEachOrdered(s -> {s.flush(); s.close(); });
+        processing.evictAllWindows().stream().forEachOrdered(s -> {s.flush(); s.close(); });
       }
-      state.closeOutput();
+      processing.closeOutput();
     }
   }
 
@@ -304,31 +308,25 @@ class ReduceStateByKeyReducer implements Runnable {
     seenGroups.clear();
     Set<Window> itemWindows = windowing.assignWindows(item);
     for (Window itemWindow : itemWindows) {
-      state.getWindowState(itemWindow, itemKey).getSecond().add(itemValue);
+      processing.getWindowState(itemWindow, itemKey).getSecond().add(itemValue);
       seenGroups.add(itemWindow.getGroup());
     }
 
     if (windowing instanceof MergingWindowing) {
       for (Object group : seenGroups) {
-        Collection<Window> actives = state.getActiveWindows(group);
+        Collection<Window> actives = processing.getActiveWindows(group);
         MergingWindowing mwindowing = (MergingWindowing) this.windowing;
-        switch (actives.size()) {
-          case 0:
-            break;
-          case 1: {
-            triggerIfComplete(mwindowing, actives.iterator().next());
-            break;
-          }
-          default: {
-            Collection<Pair<Collection<Window>, Window>> merges
-                = mwindowing.mergeWindows(actives);
-            if (merges != null && !merges.isEmpty()) {
-              for (Pair<Collection<Window>, Window> merge : merges) {
-                state.mergeWindows(merge.getFirst(), merge.getSecond());
-                triggerIfComplete(mwindowing, merge.getSecond());
-              }
+        if (actives.isEmpty()) {
+          // ~ we've seen the group ... so we must have some actives
+          throw new IllegalStateException("No active windows!");
+        } else {
+          Collection<Pair<Collection<Window>, Window>> merges
+              = mwindowing.mergeWindows(actives);
+          if (merges != null && !merges.isEmpty()) {
+            for (Pair<Collection<Window>, Window> merge : merges) {
+              processing.mergeWindows(merge.getFirst(), merge.getSecond());
+              triggerIfComplete(mwindowing, merge.getSecond());
             }
-            break;
           }
         }
       }
@@ -338,7 +336,7 @@ class ReduceStateByKeyReducer implements Runnable {
   @SuppressWarnings("unchecked")
   private void triggerIfComplete(MergingWindowing windowing, Window w) {
     if (windowing.isComplete(w)) {
-      state.evictFn.apply(w);
+      processing.evictFn.apply(w);
     }
   }
 }

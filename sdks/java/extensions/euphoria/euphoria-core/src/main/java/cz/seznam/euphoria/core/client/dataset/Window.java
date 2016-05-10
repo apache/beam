@@ -5,11 +5,14 @@ import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import java.io.Serializable;
 
 /**
- * A bunch of elements joined into window.
+ * A grouping of input elements for further processing. Within euphoria,
+ * a {@link Windowing} strategy associates each input element with a window
+ * thereby grouping input elements into chunks for further processing in small
+ * (micro-)batches. A window is considered equal to another iff both windows
+ * {@link #getGroup()} and {@link #getLabel()} are equals respectively.
+ *
+ * @see Windowing
  */
-// XXX consider dropping the GROUP type parameter by restricting the type merely to
-// Object only; "groups" are only used by executors, hence, we could avoid one more
-// type parameter in the client api
 public interface Window<GROUP, LABEL> extends Serializable {
 
   /**
