@@ -32,8 +32,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * FlinkBatchPipelineTranslator knows how to translate Pipeline objects into Flink Jobs.
- * This is based on {@link org.apache.beam.runners.dataflow.DataflowPipelineTranslator}
+ * {@link Pipeline.PipelineVisitor} for executing a {@link Pipeline} as a
+ * Flink batch job.
  */
 public class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
 
@@ -77,10 +77,13 @@ public class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
     PTransform<?, ?> transform = node.getTransform();
     if (transform != null && currentCompositeTransform == null) {
 
-      BatchTransformTranslator<?> translator = FlinkBatchTransformTranslators.getTranslator(transform);
+      BatchTransformTranslator<?> translator =
+           FlinkBatchTransformTranslators.getTranslator(transform);
+
       if (translator != null) {
         currentCompositeTransform = transform;
-        if (transform instanceof CoGroupByKey && node.getInput().expand().size() != 2) {
+        if (transform instanceof CoGroupByKey &&
+            node.getInput().expand().size() != 2) {
           // we can only optimize CoGroupByKey for input size 2
           currentCompositeTransform = null;
         }
@@ -94,7 +97,9 @@ public class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
     PTransform<?, ?> transform = node.getTransform();
     if (transform != null && currentCompositeTransform == transform) {
 
-      BatchTransformTranslator<?> translator = FlinkBatchTransformTranslators.getTranslator(transform);
+      BatchTransformTranslator<?> translator =
+          FlinkBatchTransformTranslators.getTranslator(transform);
+
       if (translator != null) {
         LOG.info(genSpaces(this.depth) + "doingCompositeTransform- " + formatNodeName(node));
         applyBatchTransform(transform, node, translator);
@@ -120,10 +125,13 @@ public class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
     // currently visiting and translate it into its Flink alternative.
 
     PTransform<?, ?> transform = node.getTransform();
-    BatchTransformTranslator<?> translator = FlinkBatchTransformTranslators.getTranslator(transform);
+    BatchTransformTranslator<?> translator =
+        FlinkBatchTransformTranslators.getTranslator(transform);
+
     if (translator == null) {
       LOG.info(node.getTransform().getClass().toString());
-      throw new UnsupportedOperationException("The transform " + transform + " is currently not supported.");
+      throw new UnsupportedOperationException(
+          "The transform " + transform + " is currently not supported.");
     }
     applyBatchTransform(transform, node, translator);
   }
@@ -133,7 +141,10 @@ public class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
     // do nothing here
   }
 
-  private <T extends PTransform<?, ?>> void applyBatchTransform(PTransform<?, ?> transform, TransformTreeNode node, BatchTransformTranslator<?> translator) {
+  private <T extends PTransform<?, ?>> void applyBatchTransform(
+      PTransform<?, ?> transform,
+      TransformTreeNode node,
+      BatchTransformTranslator<?> translator) {
 
     @SuppressWarnings("unchecked")
     T typedTransform = (T) transform;
@@ -150,8 +161,8 @@ public class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
   /**
    * A translator of a {@link PTransform}.
    */
-  public interface BatchTransformTranslator<Type extends PTransform> {
-    void translateNode(Type transform, FlinkBatchTranslationContext context);
+  public interface BatchTransformTranslator<TransformT extends PTransform> {
+    void translateNode(TransformT transform, FlinkBatchTranslationContext context);
   }
 
   private static String genSpaces(int n) {
