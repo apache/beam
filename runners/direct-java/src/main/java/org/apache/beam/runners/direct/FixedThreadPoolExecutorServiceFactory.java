@@ -24,13 +24,14 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * A {@link ExecutorServiceFactory} that produces cached thread pools via
- * {@link Executors#newCachedThreadPool()}.
+ * A {@link ExecutorServiceFactory} that produces fixed thread pools via
+ * {@link Executors#newFixedThreadPool(int)}, with the number of threads equal to the available
+ * processors as provided by {@link Runtime#availableProcessors()}.
  */
-class CachedThreadPoolExecutorServiceFactory
+class FixedThreadPoolExecutorServiceFactory
     implements DefaultValueFactory<ExecutorServiceFactory>, ExecutorServiceFactory {
-  private static final CachedThreadPoolExecutorServiceFactory INSTANCE =
-      new CachedThreadPoolExecutorServiceFactory();
+  private static final FixedThreadPoolExecutorServiceFactory INSTANCE =
+      new FixedThreadPoolExecutorServiceFactory();
 
   @Override
   public ExecutorServiceFactory create(PipelineOptions options) {
@@ -39,6 +40,6 @@ class CachedThreadPoolExecutorServiceFactory
 
   @Override
   public ExecutorService create() {
-    return Executors.newCachedThreadPool();
+    return Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
   }
 }
