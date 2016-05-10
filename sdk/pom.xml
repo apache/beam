@@ -459,6 +459,21 @@
     </dependency>
 
     <dependency>
+      <groupId>com.google.auth</groupId>
+      <artifactId>google-auth-library-oauth2-http</artifactId>
+      <version>0.4.0</version>
+      <scope>runtime</scope>
+      <exclusions>
+        <!-- Exclude an old version of guava that is being pulled in by a transitive
+          dependency of google-api-client -->
+        <exclusion>
+          <groupId>com.google.guava</groupId>
+          <artifactId>guava-jdk5</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
       <groupId>com.google.cloud.bigtable</groupId>
       <artifactId>bigtable-protos</artifactId>
       <version>${bigtable.version}</version>
@@ -687,13 +702,13 @@
     <dependency>
       <groupId>com.google.cloud.bigdataoss</groupId>
       <artifactId>gcsio</artifactId>
-      <version>1.4.3</version>
+      <version>1.4.5</version>
     </dependency>
 
     <dependency>
       <groupId>com.google.cloud.bigdataoss</groupId>
       <artifactId>util</artifactId>
-      <version>1.4.3</version>
+      <version>1.4.5</version>
     </dependency>
 
     <dependency>
