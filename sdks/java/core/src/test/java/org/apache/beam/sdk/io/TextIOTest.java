@@ -27,6 +27,7 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasLink
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.core.AllOf.allOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -56,6 +57,7 @@ import org.apache.beam.sdk.values.PDone;
 
 import com.google.common.collect.ImmutableList;
 
+import org.hamcrest.Matchers;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -186,6 +188,27 @@ public class TextIOTest {
         hasLinkUrl(GcsPath.fromUri(filePattern).getBrowseUrl()))));
     assertThat(displayData, hasDisplayItem("compressionType", CompressionType.BZIP2.toString()));
     assertThat(displayData, hasDisplayItem("validation", false));
+  }
+
+  /**
+   * A known file scheme is necessary to construct a link URL for display data.
+   * Verify that a bad file scheme doesn't throw an exception in display data unless
+   * validation is enabled.
+   */
+  @Test
+  public void testDisplayDataResilientToUnknownFileScheme() {
+    DisplayData unvalidatedDisplayData = DisplayData.from(TextIO.Read
+        .from("foo://bar/baz")
+        .withoutValidation());
+    assertThat(unvalidatedDisplayData, hasDisplayItem(Matchers.allOf(
+        hasKey("filePattern"),
+        not(hasLinkUrl())
+    )));
+
+    String validatedScheme = "omg";
+    expectedException.expectMessage(validatedScheme);
+
+    DisplayData.from(TextIO.Read.from(validatedScheme + "://foo/bar"));
   }
 
   <T> void runTestWrite(T[] elems, Coder<T> coder) throws Exception {

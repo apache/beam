@@ -24,6 +24,7 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValu
 
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -52,6 +53,7 @@ import org.apache.avro.reflect.Nullable;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -62,11 +64,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+import autovalue.shaded.com.google.common.common.collect.Lists;
+
 /**
  * Tests for AvroIO Read and Write transforms.
  */
 @RunWith(JUnit4.class)
 public class AvroIOTest {
+  @Rule
+  public ExpectedException thrown = ExpectedException.none();
+
   @Rule
   public TemporaryFolder tmpFolder = new TemporaryFolder();
 
@@ -311,5 +318,26 @@ public class AvroIOTest {
     assertThat(displayData, hasDisplayItem("schema", GenericClass.class));
     assertThat(displayData, hasDisplayItem("numShards", 100));
     assertThat(displayData, hasDisplayItem("validation", false));
+  }
+
+  /**
+   * A known file scheme is necessary to construct a link URL for display data.
+   * Verify that a bad file scheme doesn't throw an exception in display data unless
+   * validation is enabled.
+   */
+  @Test
+  public void testDisplayDataResilientToUnknownFileScheme() {
+    DisplayData unvalidatedDisplayData = DisplayData.from(AvroIO.Write
+        .to("foo://bar/baz")
+        .withoutValidation());
+    assertThat(unvalidatedDisplayData, hasDisplayItem(allOf(
+        hasKey("filePrefix"),
+        not(hasLinkUrl())
+    )));
+
+    String validatedScheme = "omg";
+    thrown.expectMessage(validatedScheme);
+
+    DisplayData.from(AvroIO.Write.to(validatedScheme + "://foo/bar"));
   }
 }

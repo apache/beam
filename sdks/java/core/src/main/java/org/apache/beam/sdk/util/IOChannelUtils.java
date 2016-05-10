@@ -37,6 +37,9 @@ import java.util.regex.Pattern;
  * Provides utilities for creating read and write channels.
  */
 public class IOChannelUtils {
+  // Prevent instances
+  private IOChannelUtils() {}
+
   // TODO: add registration mechanism for adding new schemas.
   private static final Map<String, IOChannelFactory> FACTORY_MAP =
       Collections.synchronizedMap(new HashMap<String, IOChannelFactory>());
@@ -160,13 +163,33 @@ public class IOChannelUtils {
     return sb.toString();
   }
 
+  /**
+   * Query whether an {@link IOChannelFactory} is associated with an input specification.
+   *
+   * <p>To register a new {@link IOChannelFactory}, call {@link #setIOFactory}.
+   */
+  public static boolean hasFactory(String spec) {
+    return tryGetFactory(spec) != null;
+  }
+
   private static final Pattern URI_SCHEME_PATTERN = Pattern.compile(
       "(?<scheme>[a-zA-Z][-a-zA-Z0-9+.]*)://.*");
 
   /**
-   * Returns the IOChannelFactory associated with an input specification.
+   * Returns the {@link IOChannelFactory} associated with an input specification.
+   *
+   * @throws IOException if no {@link IOChannelFactory} is registered to handle the given file spec.
    */
   public static IOChannelFactory getFactory(String spec) throws IOException {
+    IOChannelFactory ioFactory = tryGetFactory(spec);
+    if (ioFactory != null) {
+      return ioFactory;
+    }
+
+    throw new IOException("Unable to find handler for " + spec);
+  }
+
+  private static IOChannelFactory tryGetFactory(String spec) {
     // The spec is almost, but not quite, a URI. In particular,
     // the reserved characters '[', ']', and '?' have meanings that differ
     // from their use in the URI spec. ('*' is not reserved).
@@ -179,12 +202,7 @@ public class IOChannelUtils {
     }
 
     String scheme = matcher.group("scheme");
-    IOChannelFactory ioFactory = FACTORY_MAP.get(scheme);
-    if (ioFactory != null) {
-      return ioFactory;
-    }
-
-    throw new IOException("Unable to find handler for " + spec);
+    return FACTORY_MAP.get(scheme);
   }
 
   /**

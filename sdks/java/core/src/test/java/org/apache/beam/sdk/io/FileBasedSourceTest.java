@@ -28,6 +28,7 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValu
 
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -939,5 +940,14 @@ public class FileBasedSourceTest {
         hasKey("filePattern"),
         hasValue(filePattern),
         hasLinkUrl(GcsPath.fromUri(filePattern).getBrowseUrl()))));
+  }
+
+
+  @Test
+  public void testDisplayDataUnknownFileScheme() {
+    FileBasedSource<?> source = new TestFileBasedSource("unknown://foo.txt", 1, null);
+    assertThat(DisplayData.from(source), hasDisplayItem(allOf(
+        hasKey("filePattern"),
+        not(hasLinkUrl()))));
   }
 }

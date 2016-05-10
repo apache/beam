@@ -24,6 +24,7 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValu
 
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -421,6 +422,14 @@ public class FileBasedSinkTest {
         hasValue("gs://bucket/foo/bar-NNN.xml"),
         hasLinkUrl(GcsPath.fromUri("gs://bucket/foo/").getBrowseUrl())
     )));
+  }
+
+  @Test
+  public void testDisplayDataUnknownFileScheme() {
+    FileBasedSink<?> sink = new SimpleSink("unknown://foo/", "xml", "bar-NNN");
+    assertThat(DisplayData.from(sink), hasDisplayItem(allOf(
+        hasKey("fileNamePattern"),
+        not(hasLinkUrl()))));
   }
 
   /**

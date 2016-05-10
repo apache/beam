@@ -18,8 +18,11 @@
 package org.apache.beam.sdk.util;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 
 import org.junit.Assert;
@@ -30,7 +33,14 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
+import java.util.Collection;
+import java.util.UUID;
+
+import javax.annotation.Nullable;
 
 /**
  * Tests for IOChannelUtils.
@@ -91,5 +101,55 @@ public class IOChannelUtilsTest {
   public void testResolve() throws Exception {
     String expected = tmpFolder.getRoot().toPath().resolve("aa").toString();
     assertEquals(expected, IOChannelUtils.resolve(tmpFolder.getRoot().toString(), "aa"));
+  }
+
+  @Test
+  public void testHasFactory() {
+    assertTrue(IOChannelUtils.hasFactory("no/scheme.txt"));
+
+    String randomScheme = "test" + UUID.randomUUID();
+    String prefixedFile = randomScheme + "://foo/bar.txt";
+    assertFalse(IOChannelUtils.hasFactory(prefixedFile));
+
+    IOChannelUtils.setIOFactory(randomScheme, new StubIOChannelFactory());
+    assertTrue(IOChannelUtils.hasFactory(prefixedFile));
+  }
+
+  private static class StubIOChannelFactory implements IOChannelFactory {
+    @Override
+    public Collection<String> match(String spec) throws IOException {
+      return Lists.newArrayList();
+    }
+
+    @Override
+    public ReadableByteChannel open(String spec) throws IOException {
+      return null;
+    }
+
+    @Override
+    public WritableByteChannel create(String spec, String mimeType) throws IOException {
+      return null;
+    }
+
+    @Override
+    public long getSizeBytes(String spec) throws IOException {
+      return 0;
+    }
+
+    @Override
+    public boolean isReadSeekEfficient(String spec) throws IOException {
+      return false;
+    }
+
+    @Override
+    public String resolve(String path, String other) throws IOException {
+      return null;
+    }
+
+    @Nullable
+    @Override
+    public String getBrowseUrl(String path) {
+      return null;
+    }
   }
 }
