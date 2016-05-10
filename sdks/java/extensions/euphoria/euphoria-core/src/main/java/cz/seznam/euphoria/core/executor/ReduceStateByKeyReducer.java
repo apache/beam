@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static com.google.common.collect.Lists.newArrayList;
@@ -39,14 +40,6 @@ class ReduceStateByKeyReducer implements Runnable {
     WindowIndex(Window w) {
       this.group = w.getGroup();
       this.label = w.getLabel();
-    }
-
-    Object getGroup() {
-      return group;
-    }
-
-    Object getLabel() {
-      return label;
     }
 
     @Override
@@ -180,7 +173,7 @@ class ReduceStateByKeyReducer implements Runnable {
     }
 
     public Collection<Window> getActiveWindows(Object windowGroup) {
-      // XXX make this faster!
+      // XXX make this faster
       return wStates.values().stream()
           .map(Pair::getFirst)
           .filter(w -> Objects.equals(w.getGroup(), windowGroup))
@@ -261,7 +254,10 @@ class ReduceStateByKeyReducer implements Runnable {
       synchronized (state) {
         evicted = state.evictWindow(window);
       }
-      evicted.stream().forEachOrdered(State::flush);
+      evicted.stream().forEachOrdered(
+          windowing.isAggregating()
+            ? State::flush
+            : (Consumer<State>) s -> { s.flush(); s.close(); });
       return null;
     };
   }
@@ -285,11 +281,15 @@ class ReduceStateByKeyReducer implements Runnable {
       }
     }
     // ~ stop triggers
-    // ~ XXX might want to run all pending triggers
     triggering.close();
     // close all states
     synchronized (state) {
-      state.evictAllWindows().stream().forEachOrdered(State::flush);
+      if (windowing.isAggregating()) {
+        state.evictAllWindows().stream().forEachOrdered(State::flush);
+        state.aggregatingStates.values().stream().forEachOrdered(State::close);
+      } else {
+        state.evictAllWindows().stream().forEachOrdered(s -> {s.flush(); s.close(); });
+      }
       state.closeOutput();
     }
   }

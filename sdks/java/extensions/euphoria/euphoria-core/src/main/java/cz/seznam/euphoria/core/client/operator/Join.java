@@ -177,23 +177,31 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window<?, ?>>
 
     @Override
     public void flush() {
+      // ~ no-op; we do all the work already on the fly
+      // and flush any "pending" state _only_ when closing
+      // this state
+    }
+
+    @Override
+    public void close() {
       if (outer) {
-        if (leftElements.isEmpty() ^ rightElements.isEmpty()) {
-          // if just a one collection is empty
-          if (leftElements.isEmpty()) {
-            for (RIGHT elem : rightElements) {
-              functor.apply(null, elem, functorCollector);
-            }
-          } else {
-            for (LEFT elem : leftElements) {
-              functor.apply(elem, null, functorCollector);
-            }
+        flushUnjoinedElems();
+      }
+    }
+
+    private void flushUnjoinedElems() {
+      if (leftElements.isEmpty() ^ rightElements.isEmpty()) {
+        // if just a one collection is empty
+        if (leftElements.isEmpty()) {
+          for (RIGHT elem : rightElements) {
+            functor.apply(null, elem, functorCollector);
+          }
+        } else {
+          for (LEFT elem : leftElements) {
+            functor.apply(elem, null, functorCollector);
           }
         }
       }
-      // ~ JoinState doesn't support "aggregating windowing"
-      leftElements.clear();
-      rightElements.clear();
     }
 
     @SuppressWarnings("unchecked")
@@ -213,12 +221,21 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window<?, ?>>
     JoinState merge(Iterator<JoinState> i) {
       while (i.hasNext()) {
         JoinState state = i.next();
-        leftElements.addAll(state.leftElements);
-        rightElements.addAll(state.rightElements);
+        for (LEFT l : state.leftElements) {
+          for (RIGHT r : this.rightElements) {
+            functor.apply(l, r, functorCollector);
+          }
+        }
+        for (RIGHT r : state.rightElements) {
+          for (LEFT l : this.leftElements) {
+            functor.apply(l, r, functorCollector);
+          }
+        }
+        this.leftElements.addAll(state.leftElements);
+        this.rightElements.addAll(state.rightElements);
       }
       return this;
     }
-
   }
 
   @Override
