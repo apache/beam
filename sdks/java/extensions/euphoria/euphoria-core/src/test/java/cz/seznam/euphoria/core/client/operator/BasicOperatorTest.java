@@ -136,7 +136,7 @@ public class BasicOperatorTest {
 
     @SuppressWarnings("unchecked")
     List<Pair<String, Long>> f = new ArrayList<>(inmemfs.getFile("/tmp/output/0"));
-    System.out.println(f);
+//    System.out.println(f);
 
     // ~ assert the total amount of data produced
     assertEquals(7, f.size());

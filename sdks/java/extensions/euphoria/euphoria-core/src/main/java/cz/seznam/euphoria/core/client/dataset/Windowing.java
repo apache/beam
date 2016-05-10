@@ -6,10 +6,13 @@ import cz.seznam.euphoria.core.client.util.Pair;
 
 import java.io.Serializable;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
+import java.util.stream.Collectors;
+
+import static java.util.Collections.singleton;
+import static java.util.Collections.singletonList;
 
 
 /**
@@ -108,7 +111,7 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
     @Override
     public Set<TimeWindow> assignWindows(T input) {
       long ts = timestampMillis(input);
-      return Collections.singleton(
+      return singleton(
           new TimeWindow(ts - (ts + durationMillis) % durationMillis, durationMillis));
     }
 
@@ -167,7 +170,7 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
 
     @Override
     public Set<CountWindow> assignWindows(T input) {
-      return Collections.singleton(new CountWindow(1));
+      return singleton(new CountWindow(1));
     }
 
     @Override
@@ -183,7 +186,9 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
         }
       }
       if (r == null) {
-        return null;
+        return actives.stream()
+            .map(a -> Pair.of((Collection<CountWindow>) singleton(a), a))
+            .collect(Collectors.toList());
       }
 
       Set<CountWindow> merged = null;
@@ -200,7 +205,7 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
       }
       if (merged != null && !merged.isEmpty()) {
         merged.add(r);
-        return Collections.singleton(Pair.of(merged, r));
+        return singletonList(Pair.of(merged, r));
       }
       return null;
     }
