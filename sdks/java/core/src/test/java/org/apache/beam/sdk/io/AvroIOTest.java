@@ -64,8 +64,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-import autovalue.shaded.com.google.common.common.collect.Lists;
-
 /**
  * Tests for AvroIO Read and Write transforms.
  */
