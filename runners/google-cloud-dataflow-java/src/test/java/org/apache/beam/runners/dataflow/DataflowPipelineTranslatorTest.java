@@ -47,6 +47,7 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.RecordingPipelineVisitor;
+import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -104,6 +105,7 @@ import java.util.Map;
 public class DataflowPipelineTranslatorTest implements Serializable {
 
   @Rule public transient ExpectedException thrown = ExpectedException.none();
+  @Rule public transient ExpectedLogs logs = ExpectedLogs.none(DataflowPipelineTranslator.class);
 
   // A Custom Mockito matcher for an initial Job that checks that all
   // expected fields are set.
@@ -965,5 +967,34 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     assertEquals(expectedFn1DisplayData, ImmutableSet.copyOf(fn1displayData));
     assertEquals(expectedFn2DisplayData, ImmutableSet.copyOf(fn2displayData));
+  }
+
+  @Test
+  public void testResilientToDisplayDataException() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
+    Pipeline pipeline = Pipeline.create(options);
+
+    final RuntimeException displayDataException = new RuntimeException("foobar");
+    pipeline
+        .apply(Create.of(1, 2, 3))
+        .apply(ParDo.of(new DoFn<Integer, Integer>() {
+          @Override
+          public void processElement(ProcessContext c) throws Exception {
+            c.output(c.element());
+          }
+
+          @Override
+          public void populateDisplayData(DisplayData.Builder builder) {
+            throw displayDataException;
+          }
+        }));
+
+    translator.translate(
+        pipeline,
+        (DataflowPipelineRunner) pipeline.getRunner(),
+        Collections.<DataflowPackage>emptyList());
+
+    logs.verifyWarn("Display data will be not be available for this step", displayDataException);
   }
 }

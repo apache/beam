@@ -55,6 +55,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.AppliedCombineFn;
@@ -547,7 +548,7 @@ public class DataflowPipelineTranslator {
       currentStep.setKind(type);
       steps.add(currentStep);
       addInput(PropertyNames.USER_NAME, getFullName(transform));
-      addDisplayData(PropertyNames.DISPLAY_DATA, DisplayData.from(transform));
+      addDisplayData(stepName, transform);
     }
 
     @Override
@@ -725,9 +726,19 @@ public class DataflowPipelineTranslator {
       outputInfoList.add(outputInfo);
     }
 
-    private void addDisplayData(String name, DisplayData displayData) {
+    private void addDisplayData(String stepName, HasDisplayData hasDisplayData) {
+      DisplayData displayData;
+      try {
+        displayData = DisplayData.from(hasDisplayData);
+      } catch (Exception e) {
+        String msg = String.format("Exception thrown while collecting display data for step: %s. "
+            + "Display data will be not be available for this step.", stepName);
+        LOG.warn(msg, e);
+        return;
+      }
+
       List<Map<String, Object>> list = MAPPER.convertValue(displayData, List.class);
-      addList(getProperties(), name, list);
+      addList(getProperties(), PropertyNames.DISPLAY_DATA, list);
     }
 
     @Override
