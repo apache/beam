@@ -972,7 +972,7 @@ public class DisplayDataTest implements Serializable {
    */
   @Test
   @Category(RunnableOnService.class)
-  public void testRunnersResilientToDispalyDataExceptions() {
+  public void testRunnersResilientToDisplayDataExceptions() {
     Pipeline p = TestPipeline.create();
     PCollection<Integer> pCol = p
         .apply(Create.of(1, 2, 3))
