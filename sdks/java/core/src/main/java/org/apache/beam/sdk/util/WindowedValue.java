@@ -64,19 +64,18 @@ public abstract class WindowedValue<T> {
   protected final PaneInfo pane;
 
   /**
-   * Returns a {@code WindowedValue} with the given value, timestamp,
-   * and windows.
+   * Returns a {@code WindowedValue} with the given value, timestamp, and windows.
    */
   public static <T> WindowedValue<T> of(
       T value,
       Instant timestamp,
       Collection<? extends BoundedWindow> windows,
       PaneInfo pane) {
-    Preconditions.checkNotNull(pane);
+    checkNotNull(pane);
+    checkArgument(
+        windows.size() > 0, "Cannot create %s in no windows", WindowedValue.class.getName());
 
-    if (windows.size() == 0 && BoundedWindow.TIMESTAMP_MIN_VALUE.equals(timestamp)) {
-      return valueInEmptyWindows(value, pane);
-    } else if (windows.size() == 1) {
+    if (windows.size() == 1) {
       return of(value, timestamp, windows.iterator().next(), pane);
     } else {
       return new TimestampedValueInMultipleWindows<>(value, timestamp, windows, pane);
@@ -129,22 +128,6 @@ public abstract class WindowedValue<T> {
     } else {
       return new TimestampedValueInGlobalWindow<>(value, timestamp, PaneInfo.NO_FIRING);
     }
-  }
-
-  /**
-   * Returns a {@code WindowedValue} with the given value in no windows, and the default timestamp
-   * and pane.
-   */
-  public static <T> WindowedValue<T> valueInEmptyWindows(T value) {
-    return new ValueInEmptyWindows<T>(value, PaneInfo.NO_FIRING);
-  }
-
-  /**
-   * Returns a {@code WindowedValue} with the given value in no windows, and the default timestamp
-   * and the specified pane.
-   */
-  public static <T> WindowedValue<T> valueInEmptyWindows(T value, PaneInfo pane) {
-    return new ValueInEmptyWindows<T>(value, pane);
   }
 
   private WindowedValue(T value, PaneInfo pane) {

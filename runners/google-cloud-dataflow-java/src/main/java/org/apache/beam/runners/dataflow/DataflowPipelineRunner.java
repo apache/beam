@@ -19,7 +19,7 @@ package org.apache.beam.runners.dataflow;
 
 import static org.apache.beam.sdk.util.StringUtils.approximatePTransformName;
 import static org.apache.beam.sdk.util.StringUtils.approximateSimpleName;
-import static org.apache.beam.sdk.util.WindowedValue.valueInEmptyWindows;
+import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
@@ -1196,7 +1196,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
             // are at a window boundary.
             c.output(IsmRecord.of(
                 ImmutableList.of(previousWindow.get()),
-                valueInEmptyWindows(new TransformedMap<>(WindowedValueToValue.<V>of(), map))));
+                valueInGlobalWindow(new TransformedMap<>(WindowedValueToValue.<V>of(), map))));
             map = new HashMap<>();
           }
 
@@ -1217,7 +1217,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
         // window boundary.
         c.output(IsmRecord.of(
             ImmutableList.of(previousWindow.get()),
-            valueInEmptyWindows(new TransformedMap<>(WindowedValueToValue.<V>of(), map))));
+            valueInGlobalWindow(new TransformedMap<>(WindowedValueToValue.<V>of(), map))));
       }
     }
 
@@ -1685,7 +1685,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
                                                              Iterable<WindowedValue<V>>,
                                                              Iterable<V>>>>of(
                 ImmutableList.of(previousWindow.get()),
-                valueInEmptyWindows(
+                valueInGlobalWindow(
                     new TransformedMap<>(
                         IterableWithWindowedValuesToIterable.<V>of(), resultMap))));
             multimap = HashMultimap.create();
@@ -1706,7 +1706,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
                                                          Iterable<WindowedValue<V>>,
                                                          Iterable<V>>>>of(
             ImmutableList.of(previousWindow.get()),
-            valueInEmptyWindows(
+            valueInGlobalWindow(
                 new TransformedMap<>(IterableWithWindowedValuesToIterable.<V>of(), resultMap))));
       }
     }

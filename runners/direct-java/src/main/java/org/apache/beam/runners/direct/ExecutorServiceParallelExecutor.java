@@ -417,7 +417,7 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
                   evaluationContext
                       .createKeyedBundle(
                           null, keyTimers.getKey(), (PCollection) transform.getInput())
-                      .add(WindowedValue.valueInEmptyWindows(work))
+                      .add(WindowedValue.valueInGlobalWindow(work))
                       .commit(Instant.now());
               scheduleConsumption(transform, bundle, new TimerCompletionCallback(delivery));
               firedTimers = true;
