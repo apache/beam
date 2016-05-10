@@ -23,7 +23,7 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static org.apache.beam.sdk.util.StringUtils.approximatePTransformName;
 import static org.apache.beam.sdk.util.StringUtils.approximateSimpleName;
-import static org.apache.beam.sdk.util.WindowedValue.valueInEmptyWindows;
+import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -1234,7 +1234,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             // are at a window boundary.
             c.output(IsmRecord.of(
                 ImmutableList.of(previousWindow.get()),
-                valueInEmptyWindows(new TransformedMap<>(WindowedValueToValue.<V>of(), map))));
+                valueInGlobalWindow(new TransformedMap<>(WindowedValueToValue.<V>of(), map))));
             map = new HashMap<>();
           }
 
@@ -1255,7 +1255,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         // window boundary.
         c.output(IsmRecord.of(
             ImmutableList.of(previousWindow.get()),
-            valueInEmptyWindows(new TransformedMap<>(WindowedValueToValue.<V>of(), map))));
+            valueInGlobalWindow(new TransformedMap<>(WindowedValueToValue.<V>of(), map))));
       }
     }
 
@@ -1722,7 +1722,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                                                              Iterable<WindowedValue<V>>,
                                                              Iterable<V>>>>of(
                 ImmutableList.of(previousWindow.get()),
-                valueInEmptyWindows(
+                valueInGlobalWindow(
                     new TransformedMap<>(
                         IterableWithWindowedValuesToIterable.<V>of(), resultMap))));
             multimap = HashMultimap.create();
@@ -1743,7 +1743,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                                                          Iterable<WindowedValue<V>>,
                                                          Iterable<V>>>>of(
             ImmutableList.of(previousWindow.get()),
-            valueInEmptyWindows(
+            valueInGlobalWindow(
                 new TransformedMap<>(IterableWithWindowedValuesToIterable.<V>of(), resultMap))));
       }
     }
