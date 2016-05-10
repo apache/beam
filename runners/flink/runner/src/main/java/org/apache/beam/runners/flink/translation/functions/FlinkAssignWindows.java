@@ -17,35 +17,35 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
-import org.apache.beam.sdk.transforms.join.RawUnionValue;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.util.Collector;
 
+import java.util.Collection;
+
 /**
- * A {@link FlatMapFunction} function that filters out those elements that don't belong in this
- * output. We need this to implement MultiOutput ParDo functions in combination with
- * {@link FlinkMultiOutputDoFnFunction}.
+ * Flink {@link FlatMapFunction} for implementing
+ * {@link org.apache.beam.sdk.transforms.windowing.Window.Bound}.
  */
-public class FlinkMultiOutputPruningFunction<T>
-    implements FlatMapFunction<WindowedValue<RawUnionValue>, WindowedValue<T>> {
+public class FlinkAssignWindows<T, W extends BoundedWindow>
+    implements FlatMapFunction<WindowedValue<T>, WindowedValue<T>> {
 
-  private final int ourOutputTag;
+  private final WindowFn<T, W> windowFn;
 
-  public FlinkMultiOutputPruningFunction(int ourOutputTag) {
-    this.ourOutputTag = ourOutputTag;
+  public FlinkAssignWindows(WindowFn<T, W> windowFn) {
+    this.windowFn = windowFn;
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public void flatMap(
-      WindowedValue<RawUnionValue> windowedValue,
-      Collector<WindowedValue<T>> collector) throws Exception {
-    int unionTag = windowedValue.getValue().getUnionTag();
-    if (unionTag == ourOutputTag) {
+      WindowedValue<T> input, Collector<WindowedValue<T>> collector) throws Exception {
+    Collection<W> windows = windowFn.assignWindows(new FlinkAssignContext<>(windowFn, input));
+    for (W window: windows) {
       collector.collect(
-          (WindowedValue<T>) windowedValue.withValue(windowedValue.getValue().getValue()));
+          WindowedValue.of(input.getValue(), input.getTimestamp(), window, input.getPane()));
     }
   }
 }

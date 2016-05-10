@@ -30,6 +30,9 @@ import com.google.common.base.Joiner;
 
 import org.apache.flink.test.util.JavaProgramTestBase;
 
+import java.io.File;
+import java.net.URI;
+
 
 public class AvroITCase extends JavaProgramTestBase {
 
@@ -51,6 +54,15 @@ public class AvroITCase extends JavaProgramTestBase {
     resultPath = getTempDirPath("result");
     tmpPath = getTempDirPath("tmp");
 
+    // need to create the dirs, otherwise Beam sinks don't
+    // work for these tests
+    if (!new File(new URI(tmpPath)).mkdirs()) {
+      throw new RuntimeException("Could not create temp output dir.");
+    }
+
+    if (!new File(new URI(resultPath)).mkdirs()) {
+      throw new RuntimeException("Could not create output dir.");
+    }
   }
 
   @Override
@@ -63,27 +75,25 @@ public class AvroITCase extends JavaProgramTestBase {
     runProgram(tmpPath, resultPath);
   }
 
-  private static void runProgram(String tmpPath, String resultPath) {
+  private static void runProgram(String tmpPath, String resultPath) throws Exception {
     Pipeline p = FlinkTestPipeline.createForBatch();
 
     p
-      .apply(Create.of(
-          new User("Joe", 3, "red"),
-          new User("Mary", 4, "blue"),
-          new User("Mark", 1, "green"),
-          new User("Julia", 5, "purple"))
-        .withCoder(AvroCoder.of(User.class)))
-
-      .apply(AvroIO.Write.to(tmpPath)
-        .withSchema(User.class));
+        .apply(Create.of(
+            new User("Joe", 3, "red"),
+            new User("Mary", 4, "blue"),
+            new User("Mark", 1, "green"),
+            new User("Julia", 5, "purple"))
+            .withCoder(AvroCoder.of(User.class)))
+        .apply(AvroIO.Write.to(new URI(tmpPath).getPath() + "/part")
+            .withSchema(User.class));
 
     p.run();
 
     p = FlinkTestPipeline.createForBatch();
 
     p
-      .apply(AvroIO.Read.from(tmpPath).withSchema(User.class).withoutValidation())
-
+        .apply(AvroIO.Read.from(tmpPath + "/*").withSchema(User.class))
         .apply(ParDo.of(new DoFn<User, String>() {
           @Override
           public void processElement(ProcessContext c) throws Exception {
@@ -92,8 +102,8 @@ public class AvroITCase extends JavaProgramTestBase {
             c.output(result);
           }
         }))
+        .apply(TextIO.Write.to(new URI(resultPath).getPath() + "/part"));
 
-      .apply(TextIO.Write.to(resultPath));
 
     p.run();
   }

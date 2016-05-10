@@ -26,7 +26,9 @@ import org.apache.beam.sdk.transforms.ParDo;
 
 import org.apache.flink.test.util.JavaProgramTestBase;
 
+import java.io.File;
 import java.io.Serializable;
+import java.net.URI;
 
 public class MaybeEmptyTestITCase extends JavaProgramTestBase implements Serializable {
 
@@ -40,6 +42,11 @@ public class MaybeEmptyTestITCase extends JavaProgramTestBase implements Seriali
   @Override
   protected void preSubmit() throws Exception {
     resultPath = getTempDirPath("result");
+    // need to create the dirs, otherwise Beam sinks don't
+    // work for these tests
+    if (!new File(new URI(resultPath)).mkdirs()) {
+      throw new RuntimeException("Could not create output dir.");
+    }
   }
 
   @Override
@@ -59,7 +66,7 @@ public class MaybeEmptyTestITCase extends JavaProgramTestBase implements Seriali
               public void processElement(DoFn<Void, String>.ProcessContext c) {
                 c.output(expected);
               }
-            })).apply(TextIO.Write.to(resultPath));
+            })).apply(TextIO.Write.to(new URI(resultPath).getPath() + "/part"));
     p.run();
   }
 
