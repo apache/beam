@@ -20,6 +20,7 @@ package org.apache.beam.sdk.util;
 import org.apache.beam.sdk.options.BigQueryOptions;
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import com.google.api.client.googleapis.services.AbstractGoogleClientRequest;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.Sleeper;
@@ -105,9 +106,9 @@ public class BigQueryServicesImpl implements BigQueryServices {
     /**
      * {@inheritDoc}
      *
-     * <p>Retries the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
+     * <p> the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
      *
-     * @throws IOException if it exceeds max RPC retries.
+     * @throws IOException if it exceeds max RPC .
      */
     @Override
     public void startLoadJob(
@@ -128,9 +129,9 @@ public class BigQueryServicesImpl implements BigQueryServices {
     /**
      * {@inheritDoc}
      *
-     * <p>Retries the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
+     * <p> the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
      *
-     * @throws IOException if it exceeds max RPC retries.
+     * @throws IOException if it exceeds max RPC .
      */
     @Override
     public void startExtractJob(String jobId, JobConfigurationExtract extractConfig)
@@ -150,9 +151,9 @@ public class BigQueryServicesImpl implements BigQueryServices {
     /**
      * {@inheritDoc}
      *
-     * <p>Retries the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
+     * <p> the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
      *
-     * @throws IOException if it exceeds max RPC retries.
+     * @throws IOException if it exceeds max RPC .
      */
     @Override
     public void startQueryJob(String jobId, JobConfigurationQuery queryConfig, boolean dryRun)
@@ -206,7 +207,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
       } while (nextBackOff(sleeper, backoff));
       throw new IOException(
           String.format(
-              "Unable to insert job: %s, aborting after %d retries.",
+              "Unable to insert job: %s, aborting after %d .",
               jobRef.getJobId(), MAX_RPC_ATTEMPTS),
           lastException);
     }
@@ -238,7 +239,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
           LOG.warn("Ignore the error and retry polling job status.", e);
         }
       } while (nextBackOff(sleeper, backoff));
-      LOG.warn("Unable to poll job status: {}, aborting after reached max retries.", jobId);
+      LOG.warn("Unable to poll job status: {}, aborting after reached max .", jobId);
       return null;
     }
   }
@@ -262,48 +263,51 @@ public class BigQueryServicesImpl implements BigQueryServices {
     /**
      * {@inheritDoc}
      *
-     * <p>Retries the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
+     * <p> the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
      *
-     * @throws IOException if it exceeds max RPC retries.
+     * @throws IOException if it exceeds max RPC .
      */
     @Override
     public Table getTable(String projectId, String datasetId, String tableId)
         throws IOException, InterruptedException {
       BackOff backoff =
           new AttemptBoundedExponentialBackOff(MAX_RPC_ATTEMPTS, INITIAL_RPC_BACKOFF_MILLIS);
-      return getTable(projectId, datasetId, tableId, Sleeper.DEFAULT, backoff);
-    }
-
-    @VisibleForTesting
-    Table getTable(
-        String projectId,
-        String datasetId,
-        String tableId,
-        Sleeper sleeper,
-        BackOff backoff)
-        throws IOException, InterruptedException {
-      Exception lastException = null;
-      do {
-        try {
-          return client.tables().get(projectId, datasetId, tableId).execute();
-        } catch (IOException e) {
-          LOG.warn("Ignore the error and retry getting the table.", e);
-          lastException = e;
-        }
-      } while (nextBackOff(sleeper, backoff));
-      throw new IOException(
+      return executeWithRetries(
+          client.tables().get(projectId, datasetId, tableId),
           String.format(
               "Unable to get table: %s, aborting after %d retries.",
               tableId, MAX_RPC_ATTEMPTS),
-          lastException);
+          Sleeper.DEFAULT,
+          backoff);
     }
 
     /**
      * {@inheritDoc}
      *
-     * <p>Retries the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
+     * <p> the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
      *
-     * @throws IOException if it exceeds max RPC retries.
+     * @throws IOException if it exceeds max RPC .
+     */
+    @Override
+    public void deleteTable(String projectId, String datasetId, String tableId)
+        throws IOException, InterruptedException {
+      BackOff backoff =
+          new AttemptBoundedExponentialBackOff(MAX_RPC_ATTEMPTS, INITIAL_RPC_BACKOFF_MILLIS);
+      executeWithRetries(
+          client.tables().delete(projectId, datasetId, tableId),
+          String.format(
+              "Unable to delete table: %s, aborting after %d retries.",
+              tableId, MAX_RPC_ATTEMPTS),
+          Sleeper.DEFAULT,
+          backoff);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p> the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
+     *
+     * @throws IOException if it exceeds max RPC .
      */
     @Override
     public void createDataset(
@@ -351,9 +355,30 @@ public class BigQueryServicesImpl implements BigQueryServices {
       } while (nextBackOff(sleeper, backoff));
       throw new IOException(
           String.format(
-              "Unable to create dataset: %s, aborting after %d retries.",
+              "Unable to create dataset: %s, aborting after %d .",
               datasetId, MAX_RPC_ATTEMPTS),
           lastException);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p> the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
+     *
+     * @throws IOException if it exceeds max RPC .
+     */
+    @Override
+    public void deleteDataset(String projectId, String datasetId)
+        throws IOException, InterruptedException {
+      BackOff backoff =
+          new AttemptBoundedExponentialBackOff(MAX_RPC_ATTEMPTS, INITIAL_RPC_BACKOFF_MILLIS);
+      executeWithRetries(
+          client.datasets().delete(projectId, datasetId),
+          String.format(
+              "Unable to delete table: %s, aborting after %d retries.",
+              datasetId, MAX_RPC_ATTEMPTS),
+          Sleeper.DEFAULT,
+          backoff);
     }
   }
 
@@ -411,6 +436,27 @@ public class BigQueryServicesImpl implements BigQueryServices {
     public void close() throws IOException {
       iterator.close();
     }
+  }
+
+  @VisibleForTesting
+  static <T> T executeWithRetries(
+      AbstractGoogleClientRequest<T> request,
+      String errorMessage,
+      Sleeper sleeper,
+      BackOff backoff)
+      throws IOException, InterruptedException {
+    Exception lastException = null;
+    do {
+      try {
+        return request.execute();
+      } catch (IOException e) {
+        LOG.warn("Ignore the error and retry the request.", e);
+        lastException = e;
+      }
+    } while (nextBackOff(sleeper, backoff));
+    throw new IOException(
+        errorMessage,
+        lastException);
   }
 
   /**

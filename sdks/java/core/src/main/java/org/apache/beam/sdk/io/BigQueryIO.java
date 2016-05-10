@@ -777,6 +777,11 @@ public class BigQueryIO {
       }
       return tableSizeBytes.get();
     }
+
+    @Override
+    protected void cleanupTempResource(BigQueryOptions bqOptions) throws Exception {
+      // Do nothing.
+    }
   }
 
   /**
@@ -855,6 +860,19 @@ public class BigQueryIO {
       executeQuery(
           queryJobId, query, tableToExtract, flattenResults, bqServices.getJobService(bqOptions));
       return tableToExtract;
+    }
+
+    @Override
+    protected void cleanupTempResource(BigQueryOptions bqOptions) throws Exception {
+      TableReference tableToRemove =
+          JSON_FACTORY.fromString(jsonQueryTempTable, TableReference.class);
+
+      DatasetService tableService = bqServices.getDatasetService(bqOptions);
+      tableService.deleteTable(
+          tableToRemove.getProjectId(),
+          tableToRemove.getDatasetId(),
+          tableToRemove.getTableId());
+      tableService.deleteDataset(tableToRemove.getProjectId(), tableToRemove.getDatasetId());
     }
 
     private synchronized Job dryRunQueryIfNeeded(BigQueryOptions bqOptions) {
@@ -979,11 +997,13 @@ public class BigQueryIO {
           tableToExtract.getDatasetId(),
           tableToExtract.getTableId()).getSchema();
 
+      cleanupTempResource(bqOptions);
       return createSources(tempFiles, tableSchema);
     }
 
-    protected abstract TableReference getTableToExtract(BigQueryOptions bqOptions)
-        throws Exception;
+    protected abstract TableReference getTableToExtract(BigQueryOptions bqOptions) throws Exception;
+
+    protected abstract void cleanupTempResource(BigQueryOptions bqOptions) throws Exception;
 
     @Override
     public boolean producesSortedKeys(PipelineOptions options) throws Exception {

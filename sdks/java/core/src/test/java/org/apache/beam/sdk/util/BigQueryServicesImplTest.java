@@ -256,16 +256,18 @@ public class BigQueryServicesImplTest {
   }
 
   @Test
-  public void testGetTable() throws IOException, InterruptedException {
+  public void testExecuteWithRetries() throws IOException, InterruptedException {
     Table testTable = new Table();
 
     when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
     when(response.getStatusCode()).thenReturn(200);
     when(response.getContent()).thenReturn(toStream(testTable));
 
-    BigQueryServicesImpl.DatasetServiceImpl tableService =
-        new BigQueryServicesImpl.DatasetServiceImpl(bigquery);
-    Table table = tableService.getTable("projectId", "datasetId", "tableId");
+    Table table = BigQueryServicesImpl.executeWithRetries(
+        bigquery.tables().get("projectId", "datasetId", "tableId"),
+        "Failed to get table.",
+        Sleeper.DEFAULT,
+        BackOff.STOP_BACKOFF);
 
     assertEquals(testTable, table);
     verify(response, times(1)).getStatusCode();

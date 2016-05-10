@@ -101,9 +101,24 @@ public interface BigQueryServices extends Serializable {
         throws InterruptedException, IOException;
 
     /**
+     * Deletes the table specified by tableId from the dataset.
+     * If the table contains data, all the data will be deleted.
+     */
+    void deleteTable(String projectId, String datasetId, String tableId)
+        throws IOException, InterruptedException;
+
+    /**
      * Create a {@link Dataset} with the given {@code location} and {@code description}.
      */
     void createDataset(String projectId, String datasetId, String location, String description)
+        throws IOException, InterruptedException;
+
+    /**
+     * Deletes the dataset specified by the datasetId value.
+     *
+     * <p>Before you can delete a dataset, you must delete all its tables.
+     */
+    void deleteDataset(String projectId, String datasetId)
         throws IOException, InterruptedException;
   }
 
