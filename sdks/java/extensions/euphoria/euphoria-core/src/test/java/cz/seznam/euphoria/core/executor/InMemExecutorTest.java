@@ -2,11 +2,13 @@
 package cz.seznam.euphoria.core.executor;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
+import cz.seznam.euphoria.core.client.dataset.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
+import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.Repartition;
 import cz.seznam.euphoria.core.client.operator.State;
 import cz.seznam.euphoria.core.client.operator.Union;
@@ -17,11 +19,16 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /**
  * {@code InMemExecutor} test suite.
@@ -243,9 +250,8 @@ public class InMemExecutorTest {
     @SuppressWarnings("unchecked")
     public void flush() {
       Collections.sort((List) data);
-      for (Integer c : data) {
-        this.collector.collect(Pair.of(key, c));
-      }
+      data.stream().forEachOrdered(
+          c -> this.collector.collect(Pair.of(key, c)));
     }
 
     static SortState combine(Iterable<SortState> others) {
@@ -261,69 +267,85 @@ public class InMemExecutorTest {
 
   }
 
-//  @Test
-//  @Ignore
-//  // FIXME: this test is failing right now, we need to rework
-//  // the windowing mechanism, will not try to fix this now
-//  public void testReduceByKeyWithSortStateAndAggregatingWindow() {
-//    Dataset<Integer> ints = flow.createInput(
-//        ListDataSource.unbounded(randomInts(100), randomInts(1000)));
-//
-//    // the key for sort will be the first digit
-//    Dataset<Pair<Integer, Integer>> output = ReduceStateByKey.of(ints)
-//        .keyBy(i -> (int) String.valueOf(Math.abs(i)).charAt(0) - (int) '0')
-//        .valueBy(e -> e)
-//        .stateFactory(SortState::new)
-//        .combineStateBy(SortState::combine)
-//        .windowBy(Windowing.Count.of(100).aggregating())
-//        .output();
-//
-//    // collector of outputs
-//    ListDataSink<Pair<Integer, Integer>> outputSink = ListDataSink.get(2);
-//
-//    output.persist(outputSink);
-//
-//    executor.waitForCompletion(flow);
-//
-//    List<List<Pair<Integer, Integer>>> outputs = outputSink.getOutputs();
-//    assertEquals(2, outputs.size());
-//
-//    // read the two partitions and verify that
-//    // 1) we have actually (100 + 1100) / 2 * 10 = 5000 elements in both partitions
-//    // 2) no key is present in both partitions
-//    // 3) the continuous sequence of (key, value) pairs is sorted
-//    //    within the same key
-//
-//    assertEquals(5000, outputs.get(0).size() + outputs.get(1).size());
-//
-//    Set<Integer> firstKeys = outputs.get(0).stream()
-//        .map(Pair::getFirst).distinct()
-//        .collect(Collectors.toSet());
-//
-//    outputs.get(1).forEach(p -> assertFalse(firstKeys.contains(p.getFirst())));
-//
-//    checkSorted(outputs.get(0));
-//    checkSorted(outputs.get(1));
-//
-//  }
+  @Test
+  public void testReduceByKeyWithSortStateAndAggregatingWindow() {
+    Dataset<Integer> ints = flow.createInput(
+        ListDataSource.unbounded(
+            reversed(sequenceInts(0, 100)),
+            reversed(sequenceInts(100, 1100))));
 
+    // the key for sort will be the last digit
+    Dataset<Pair<Integer, Integer>> output = ReduceStateByKey.of(ints)
+        .keyBy(i -> (int) i % 10)
+        .valueBy(e -> e)
+        .stateFactory(SortState::new)
+        .combineStateBy(SortState::combine)
+        .windowBy(Windowing.Count.of(100).aggregating())
+        .output();
 
-  private static void checkSorted(List<Pair<Integer, Integer>> collection) {
-    Pair<Integer, Integer> last = null;
-    for (Pair<Integer, Integer> elem : collection) {
-      System.out.println(elem);
+    // collector of outputs
+    ListDataSink<Pair<Integer, Integer>> outputSink = ListDataSink.get(2);
+
+    output.persist(outputSink);
+
+    executor.waitForCompletion(flow);
+
+    List<List<Pair<Integer, Integer>>> outputs = outputSink.getOutputs();
+    assertEquals(2, outputs.size());
+
+    // each partition should have (100 + 200 + 300 + 400 + 500 + 550) = 2050 items
+    assertEquals(2050, outputs.get(0).size());
+    assertEquals(2050, outputs.get(1).size());
+
+    Set<Integer> firstKeys = outputs.get(0).stream()
+        .map(Pair::getFirst).distinct()
+        .collect(Collectors.toSet());
+
+    outputs.get(1).forEach(p -> assertFalse(firstKeys.contains(p.getFirst())));
+
+    int sublistIndex = 0;
+    for (int i = 0; i < 6; i++) {
+      // sublists are of length 100, 200, 300, 400, 500, 550
+      int start = sublistIndex;
+      int sublistLength = (i + 1) * 100 - (i == 5 ? 50 : 0);
+      final List<List<Pair<Integer, Integer>>> sublists;
+      sublists = outputs.stream()
+          .map(l -> l.subList(start, start + sublistLength))
+          .collect(Collectors.toList());
+      sublists.forEach(InMemExecutorTest::checkSorted);
+      sublistIndex += sublistLength;
     }
 
   }
 
 
+  private static void checkSorted(List<Pair<Integer, Integer>> collection) {
+    Pair<Integer, Integer> last = null;
+    for (Pair<Integer, Integer> elem : collection) {
+      if (last != null && (int) last.getFirst() != (int) elem.getFirst()) {
+        last = null;
+      }
+      if (last != null) {
+        assertTrue("Element " + last + " should be less than " + elem,
+            last.getSecond() < elem.getSecond());
+      }
+      last = elem;
+    }
+
+  }
+
+  // reverse given list
+  private static <T> List<T> reversed(List<T> what) {
+    Collections.reverse(what);
+    return what;
+  }
+
+
   // produce random N random ints as list
-  private static List<Integer> randomInts(int count) {
+  private static List<Integer> sequenceInts(int from, int to) {
     List<Integer> ret = new ArrayList<>();
-    // stabilize the random by fixed seed for repeatibility
-    Random rand = new Random(13246546);
-    for (int i = 0; i < count; i++) {
-      ret.add(rand.nextInt());
+    for (int i = from; i < to; i++) {
+      ret.add(i);
     }
     return ret;
   }
