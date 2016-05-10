@@ -197,7 +197,7 @@ public class DatastoreIOTest {
   }
 
   @Test
-  public void testSourceDipslayData() {
+  public void testSourceDisplayData() {
   DatastoreIO.Source source = DatastoreIO.source()
       .withDataset(DATASET)
       .withQuery(QUERY)
@@ -245,7 +245,7 @@ public class DatastoreIOTest {
   }
 
   @Test
-  public void testSinkDipslayData() {
+  public void testSinkDisplayData() {
     DatastoreIO.Sink sink = DatastoreIO.sink()
         .withDataset(DATASET)
         .withHost(HOST);

@@ -38,7 +38,14 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
+import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
+import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
+import com.google.cloud.dataflow.sdk.testing.TestPipeline;
+import com.google.cloud.dataflow.sdk.transforms.Create;
+import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.display.DisplayData.Builder;
 import com.google.cloud.dataflow.sdk.transforms.display.DisplayData.Item;
 import com.google.cloud.dataflow.sdk.values.PCollection;
@@ -59,11 +66,13 @@ import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.ISODateTimeFormat;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -72,8 +81,8 @@ import java.util.regex.Pattern;
  * Tests for {@link DisplayData} class.
  */
 @RunWith(JUnit4.class)
-public class DisplayDataTest {
-  @Rule public ExpectedException thrown = ExpectedException.none();
+public class DisplayDataTest implements Serializable {
+  @Rule public transient ExpectedException thrown = ExpectedException.none();
   private static final DateTimeFormatter ISO_FORMATTER = ISODateTimeFormat.dateTime();
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -953,6 +962,38 @@ public class DisplayDataTest {
     assertThat(json, hasExpectedJson(
         component, "JAVA_CLASS", "class", quoted(DisplayDataTest.class.getName()),
         quoted("DisplayDataTest"), "baz", "http://abc"));
+  }
+
+  /**
+   * Validate that all runners are resilient to exceptions thrown while retrieving display data.
+   */
+  @Test
+  @Category(RunnableOnService.class)
+  public void testRunnersResilientToDisplayDataExceptions() {
+    Pipeline p = TestPipeline.create();
+    PCollection<Integer> pCol = p
+        .apply(Create.of(1, 2, 3))
+        .apply(new IdentityTransform<Integer>() {
+          @Override
+          public void populateDisplayData(Builder builder) {
+            throw new RuntimeException("bug!");
+          }
+        });
+
+    DataflowAssert.that(pCol).containsInAnyOrder(1, 2, 3);
+    p.run();
+  }
+
+  private static class IdentityTransform<T> extends PTransform<PCollection<T>, PCollection<T>> {
+    @Override
+    public PCollection<T> apply(PCollection<T> input) {
+      return input.apply(ParDo.of(new DoFn<T, T>() {
+        @Override
+        public void processElement(DoFn.ProcessContext c) throws Exception {
+          c.output(c.element());
+        }
+      }));
+    }
   }
 
   private String quoted(Object obj) {
