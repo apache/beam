@@ -26,6 +26,7 @@ import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.common.base.MoreObjects;
+import com.google.common.base.Optional;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -208,9 +209,13 @@ class InProcessSideInputContainer {
 
   private final class SideInputContainerSideInputReader implements ReadyCheckingSideInputReader {
     private final Collection<PCollectionView<?>> readerViews;
+    private final LoadingCache<
+        PCollectionViewWindow<?>, Optional<? extends Iterable<? extends WindowedValue<?>>>>
+        viewContents;
 
     private SideInputContainerSideInputReader(Collection<PCollectionView<?>> readerViews) {
       this.readerViews = ImmutableSet.copyOf(readerViews);
+      this.viewContents = CacheBuilder.newBuilder().build(new CurrentViewContentsLoader());
     }
 
     @Override
@@ -221,22 +226,23 @@ class InProcessSideInputContainer {
               + "Contained views; %s",
           view,
           readerViews);
-      return viewByWindows.getUnchecked(PCollectionViewWindow.of(view, window)).get() != null;
+      return viewContents.getUnchecked(PCollectionViewWindow.of(view, window)).isPresent();
     }
 
     @Override
     @Nullable
     public <T> T get(final PCollectionView<T> view, final BoundedWindow window) {
-      checkArgument(readerViews.contains(view),
-          "calling get(PCollectionView) with unknown view: " + view);
-      checkArgument(isReady(view, window),
-          "calling get(PCollectionView) with view %s that is not ready in window %s",
+      checkArgument(
+          readerViews.contains(view), "calling get(PCollectionView) with unknown view: " + view);
+      checkArgument(
+          isReady(view, window),
+          "calling get() on a PCollectionView %s that is not ready in window %s",
           view,
           window);
       // Safe covariant cast
       @SuppressWarnings("unchecked") Iterable<WindowedValue<?>> values =
-          (Iterable<WindowedValue<?>>) viewByWindows
-              .getUnchecked(PCollectionViewWindow.of(view, window)).get();
+          (Iterable<WindowedValue<?>>) viewContents.getUnchecked(PCollectionViewWindow.of(view,
+              window)).get();
       return view.fromIterableInternal(values);
     }
 
@@ -251,4 +257,17 @@ class InProcessSideInputContainer {
     }
   }
 
+  /**
+   * A {@link CacheLoader} that loads the current contents of a {@link PCollectionViewWindow} into
+   * an optional.
+   */
+  private class CurrentViewContentsLoader extends CacheLoader<
+      PCollectionViewWindow<?>, Optional<? extends Iterable<? extends WindowedValue<?>>>> {
+
+    @Override
+    public Optional<? extends Iterable<? extends WindowedValue<?>>>
+        load(PCollectionViewWindow<?> key) {
+      return Optional.fromNullable(viewByWindows.getUnchecked(key).get());
+    }
+  }
 }
