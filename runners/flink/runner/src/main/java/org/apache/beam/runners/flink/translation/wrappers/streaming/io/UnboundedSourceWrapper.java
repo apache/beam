@@ -162,7 +162,7 @@ public class UnboundedSourceWrapper<
     if (restoredState != null) {
 
       // restore the splitSources from the checkpoint to ensure consistent ordering
-      // do it using a transform because otherwise we would have to to
+      // do it using a transform because otherwise we would have to do
       // unchecked casts
       splitSources = Lists.transform(
           restoredState,
@@ -308,26 +308,25 @@ public class UnboundedSourceWrapper<
 
   @Override
   public byte[] snapshotState(long l, long l1) throws Exception {
+    // we checkpoint the sources along with the CheckpointMarkT to ensure
+    // than we have a correct mapping of checkpoints to sources when
+    // restoring
+    List<KV<? extends UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT>> checkpoints =
+        new ArrayList<>();
+
+    for (int i = 0; i < splitSources.size(); i++) {
+      UnboundedSource<OutputT, CheckpointMarkT> source = splitSources.get(i);
+      UnboundedSource.UnboundedReader<OutputT> reader = readers.get(i);
+
+      @SuppressWarnings("unchecked")
+      CheckpointMarkT mark = (CheckpointMarkT) reader.getCheckpointMark();
+      KV<UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT> kv =
+          KV.of(source, mark);
+      checkpoints.add(kv);
+    }
+
     try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-      // we checkpoint the sources along with the CheckpointMarkT to ensure
-      // than we have a correct mapping of checkpoints to sources when
-      // restoring
-      List<KV<? extends UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT>> checkpoints =
-          new ArrayList<>();
-
-      for (int i = 0; i < splitSources.size(); i++) {
-        UnboundedSource<OutputT, CheckpointMarkT> source = splitSources.get(i);
-        UnboundedSource.UnboundedReader<OutputT> reader = readers.get(i);
-
-        @SuppressWarnings("unchecked")
-        CheckpointMarkT mark = (CheckpointMarkT) reader.getCheckpointMark();
-        KV<UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT> kv =
-            KV.of(source, mark);
-        checkpoints.add(kv);
-      }
-
       checkpointCoder.encode(checkpoints, baos, Coder.Context.OUTER);
-
       return baos.toByteArray();
     }
   }
