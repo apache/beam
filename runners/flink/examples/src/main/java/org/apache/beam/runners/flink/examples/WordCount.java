@@ -27,14 +27,21 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Count;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Sum;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TimestampedValue;
+
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 
 public class WordCount {
 
@@ -109,10 +116,25 @@ public class WordCount {
 
     Pipeline p = Pipeline.create(options);
 
-    p.apply(TextIO.Read.named("ReadLines").from(options.getInput()))
+    p.apply(Create.timestamped(
+          TimestampedValue.of("A", new Instant(0)),
+          TimestampedValue.of("A", new Instant(1)),
+          TimestampedValue.of("B C D", new Instant(2)),
+          TimestampedValue.of("B C D", new Instant(11)),
+          TimestampedValue.of("B C D", new Instant(12)),
+          TimestampedValue.of("B C D", new Instant(13)),
+          TimestampedValue.of("B C D", new Instant(14)),
+          TimestampedValue.of("B C D", new Instant(14)),
+          TimestampedValue.of("A A", new Instant(0))))
+        .apply(Window.<String>into(FixedWindows.of(Duration.millis(5))))
         .apply(new CountWords())
         .apply(MapElements.via(new FormatAsTextFn()))
-        .apply(TextIO.Write.named("WriteCounts").to(options.getOutput()));
+        .apply(ParDo.of(new DoFn<String, Void>() {
+          @Override
+          public void processElement(ProcessContext c) throws Exception {
+            System.out.println("SEEING: " + c.window() + ": " + c.element());
+          }
+        }));
 
     p.run();
   }

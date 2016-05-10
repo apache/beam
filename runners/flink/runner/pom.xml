@@ -189,10 +189,6 @@
             </goals>
             <configuration>
               <groups>org.apache.beam.sdk.testing.RunnableOnService</groups>
-              <excludedGroups>
-                org.apache.beam.sdk.testing.capabilities.RequiresFixedWindows,
-                org.apache.beam.sdk.testing.capabilities.RequiresTimestampControl
-              </excludedGroups>
               <parallel>none</parallel>
               <failIfNoTests>true</failIfNoTests>
               <dependenciesToScan>
@@ -206,16 +202,6 @@
                   ]
                 </beamTestPipelineOptions>
               </systemPropertyVariables>
-              <excludes>
-                <!-- Tests that use unsupported windowing -->
-                <exclude>**/org/apache/beam/sdk/transforms/CombineTest.java</exclude>
-                <exclude>**/org/apache/beam/sdk/transforms/GroupByKeyTest.java</exclude>
-                <exclude>**/org/apache/beam/sdk/transforms/ViewTest.java</exclude>
-                <exclude>**/org/apache/beam/sdk/transforms/join/CoGroupByKeyTest.java</exclude>
-                <exclude>**/org/apache/beam/sdk/transforms/windowing/WindowTest.java</exclude>
-                <exclude>**/org/apache/beam/sdk/transforms/windowing/WindowingTest.java</exclude>
-                <exclude>**/org/apache/beam/sdk/util/ReshuffleTest.java</exclude>
-              </excludes>
             </configuration>
           </execution>
           <execution>

@@ -83,7 +83,9 @@ public class CoderTypeInformation<T> extends TypeInformation<T> implements Atomi
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) return false;
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
 
     CoderTypeInformation that = (CoderTypeInformation) o;
 
