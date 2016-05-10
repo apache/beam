@@ -19,6 +19,7 @@
 package org.apache.beam.sdk.io;
 
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -55,6 +56,13 @@ public class PubsubUnboundedSinkTest {
     public void processElement(ProcessContext c) {
       c.outputWithTimestamp(c.element(), new Instant(TIMESTAMP));
     }
+  }
+
+  @Test
+  public void saneCoder() throws Exception {
+    OutgoingMessage message = new OutgoingMessage(DATA.getBytes(), TIMESTAMP);
+    CoderProperties.coderDecodeEncodeEqual(PubsubUnboundedSink.CODER, message);
+    CoderProperties.coderSerializable(PubsubUnboundedSink.CODER);
   }
 
   @Test

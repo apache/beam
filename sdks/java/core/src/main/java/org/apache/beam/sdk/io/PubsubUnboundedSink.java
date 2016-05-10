@@ -18,11 +18,11 @@
 
 package org.apache.beam.sdk.io;
 
-import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.options.PubsubOptions;
@@ -40,11 +40,13 @@ import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.PubsubClient;
+import org.apache.beam.sdk.util.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.util.PubsubClient.PubsubClientFactory;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
 import org.joda.time.Duration;
@@ -97,24 +99,26 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
   /**
    * Coder for conveying outgoing messages between internal stages.
    */
-  private static final Coder<PubsubClient.OutgoingMessage> CODER = new
-      AtomicCoder<PubsubClient.OutgoingMessage>() {
-        @Override
-        public void encode(
-            PubsubClient.OutgoingMessage value, OutputStream outStream, Context context)
-            throws CoderException, IOException {
-          ByteArrayCoder.of().encode(value.elementBytes, outStream, Context.NESTED);
-          BigEndianLongCoder.of().encode(value.timestampMsSinceEpoch, outStream, Context.NESTED);
-        }
+  private static class OutgoingMessageCoder extends CustomCoder<OutgoingMessage> {
+    @Override
+    public void encode(
+        PubsubClient.OutgoingMessage value, OutputStream outStream, Context context)
+        throws CoderException, IOException {
+      ByteArrayCoder.of().encode(value.elementBytes, outStream, Context.NESTED);
+      BigEndianLongCoder.of().encode(value.timestampMsSinceEpoch, outStream, Context.NESTED);
+    }
 
-        @Override
-        public PubsubClient.OutgoingMessage decode(
-            InputStream inStream, Context context) throws CoderException, IOException {
-          byte[] elementBytes = ByteArrayCoder.of().decode(inStream, Context.NESTED);
-          long timestampMsSinceEpoch = BigEndianLongCoder.of().decode(inStream, Context.NESTED);
-          return new PubsubClient.OutgoingMessage(elementBytes, timestampMsSinceEpoch);
-        }
-      };
+    @Override
+    public PubsubClient.OutgoingMessage decode(
+        InputStream inStream, Context context) throws CoderException, IOException {
+      byte[] elementBytes = ByteArrayCoder.of().decode(inStream, Context.NESTED);
+      long timestampMsSinceEpoch = BigEndianLongCoder.of().decode(inStream, Context.NESTED);
+      return new PubsubClient.OutgoingMessage(elementBytes, timestampMsSinceEpoch);
+    }
+  }
+
+  @VisibleForTesting
+  static final Coder<PubsubClient.OutgoingMessage> CODER = new OutgoingMessageCoder();
 
   // ================================================================================
   // ShardFv
@@ -123,9 +127,16 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
   /**
    * Convert elements to messages and shard them.
    */
-  private class ShardFn extends DoFn<T, KV<Integer, PubsubClient.OutgoingMessage>> {
+  private static class ShardFn<T> extends DoFn<T, KV<Integer, PubsubClient.OutgoingMessage>> {
     private final Aggregator<Long, Long> elementCounter =
         createAggregator("elements", new Sum.SumLongFn());
+    private final Coder<T> elementCoder;
+    private final int numShards;
+
+    ShardFn(Coder<T> elementCoder, int numShards) {
+      this.elementCoder = elementCoder;
+      this.numShards = numShards;
+    }
 
     @Override
     public void processElement(ProcessContext c) throws Exception {
@@ -144,8 +155,12 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
   /**
    * Publish messages to Pubsub in batches.
    */
-  private class WriterFn
+  private static class WriterFn
       extends DoFn<KV<Integer, Iterable<PubsubClient.OutgoingMessage>>, Void> {
+    private final PubsubClientFactory pubsubFactory;
+    private final PubsubClient.TopicPath topic;
+    private final String timestampLabel;
+    private final String idLabel;
 
     /**
      * Client on which to talk to Pubsub. Null until created by {@link #startBundle}.
@@ -159,6 +174,14 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
         createAggregator("elements", new Sum.SumLongFn());
     private final Aggregator<Long, Long> byteCounter =
         createAggregator("bytes", new Sum.SumLongFn());
+
+    WriterFn(PubsubClientFactory pubsubFactory, PubsubClient.TopicPath topic,
+             String timestampLabel, String idLabel) {
+      this.pubsubFactory = pubsubFactory;
+      this.topic = topic;
+      this.timestampLabel = timestampLabel;
+      this.idLabel = idLabel;
+    }
 
     /**
      * BLOCKING
@@ -215,13 +238,12 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
     }
   }
 
-
   // ================================================================================
   // PubsubUnboundedSink
   // ================================================================================
 
   /**
-   * Which factor to use for creating Pubsub transport.
+   * Which factory to use for creating Pubsub transport.
    */
   private final PubsubClientFactory pubsubFactory;
 
@@ -294,21 +316,20 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
   @Override
   public PDone apply(PCollection<T> input) {
     // TODO: Include topic.getPath() in transform metadata when it is available.
-    String label = "PubsubSink";
     input.apply(
-        Window.named(label + ".Window")
+        Window.named("PubsubSink.Window")
             .<T>into(new GlobalWindows())
             .triggering(
                 Repeatedly.forever(
                     AfterFirst.of(AfterPane.elementCountAtLeast(PUBLISH_BATCH_SIZE),
                                   AfterProcessingTime.pastFirstElementInPane()
                                                      .plusDelayOf(MAX_LATENCY))))
-            .discardingFiredPanes()
-            .withAllowedLateness(Duration.ZERO))
-         .apply(ParDo.named(label + ".Shard").of(new ShardFn()))
+            .discardingFiredPanes())
+         .apply(ParDo.named("PubsubSink.Shard").of(new ShardFn<T>(elementCoder, numShards)))
          .setCoder(KvCoder.of(VarIntCoder.of(), CODER))
          .apply(GroupByKey.<Integer, PubsubClient.OutgoingMessage>create())
-         .apply(ParDo.named(label + ".Writer").of(new WriterFn()));
+         .apply(ParDo.named("PubsubSink.Writer").of(new WriterFn(pubsubFactory, topic,
+                                                                 timestampLabel, idLabel)));
     return PDone.in(input.getPipeline());
   }
 }
