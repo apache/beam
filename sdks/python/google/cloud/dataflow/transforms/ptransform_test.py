@@ -516,6 +516,16 @@ class PTransformTest(unittest.TestCase):
     self.assertEqual([('k', (['a'], ['b', 'c']))],
                      join_input | df.CoGroupByKey('join'))
 
+  def test_multi_input_ptransform(self):
+    class DisjointUnion(PTransform):
+      def apply(self, pcollections):
+        return (pcollections
+                | df.Flatten()
+                | df.Map(lambda x: (x, None))
+                | df.GroupByKey()
+                | df.Map(lambda (x, _): x))
+    self.assertEqual([1, 2, 3], sorted(([1, 2], [2, 3]) | DisjointUnion()))
+
   def test_apply_to_crazy_pvaluish(self):
     class NestedFlatten(PTransform):
       """A PTransform taking and returning nested PValueish.

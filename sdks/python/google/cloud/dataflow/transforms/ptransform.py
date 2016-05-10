@@ -421,6 +421,8 @@ class PTransform(WithTypeHints):
     Returns pvalueish as well as the flat inputs list as the input may have to
     be copied as inspection may be destructive.
 
+    By default, recursively extracts tuple components and dict values.
+
     Generally only needs to be overriden for multi-input PTransforms.
     """
     # pylint: disable=g-import-not-at-top
@@ -429,7 +431,18 @@ class PTransform(WithTypeHints):
     if isinstance(pvalueish, pipeline.Pipeline):
       pvalueish = pvalue.PBegin(pvalueish)
 
-    return pvalueish, (pvalueish,)
+    def _dict_tuple_leaves(pvalueish):
+      if isinstance(pvalueish, tuple):
+        for a in pvalueish:
+          for p in _dict_tuple_leaves(a):
+            yield p
+      elif isinstance(pvalueish, dict):
+        for a in pvalueish.values():
+          for p in _dict_tuple_leaves(a):
+            yield p
+      else:
+        yield pvalueish
+    return pvalueish, tuple(_dict_tuple_leaves(pvalueish))
 
 
 class ChainedPTransform(PTransform):
