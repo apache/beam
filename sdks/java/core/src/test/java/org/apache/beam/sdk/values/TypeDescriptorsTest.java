@@ -17,100 +17,59 @@
  */
 package org.apache.beam.sdk.values;
 
-import static org.junit.Assert.assertEquals;
+import static org.apache.beam.sdk.values.TypeDescriptors.integers;
+import static org.apache.beam.sdk.values.TypeDescriptors.iterables;
+import static org.apache.beam.sdk.values.TypeDescriptors.kvs;
+import static org.apache.beam.sdk.values.TypeDescriptors.lists;
+import static org.apache.beam.sdk.values.TypeDescriptors.sets;
+import static org.apache.beam.sdk.values.TypeDescriptors.strings;
 
-import com.google.common.reflect.TypeToken;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Set;
 
 /**
- * Tests for TypeDescriptors.
+ * Tests for {@link TypeDescriptors}.
  */
 @RunWith(JUnit4.class)
 public class TypeDescriptorsTest {
   @Test
   public void testTypeDescriptorsIterables() throws Exception {
-    TypeDescriptor<Iterable<String>> descriptor =
-        TypeDescriptors.iterables(TypeDescriptors.strings());
-    TypeToken<Iterable<String>> token = new TypeToken<Iterable<String>>(){};
-    assertEquals(token.getType(), descriptor.getType());
+    TypeDescriptor<Iterable<String>> descriptor = iterables(strings());
+    assertEquals(descriptor, new TypeDescriptor<Iterable<String>>() {});
   }
 
   @Test
   public void testTypeDescriptorsSets() throws Exception {
-    TypeDescriptor<Set<String>> descriptor =
-        TypeDescriptors.sets(TypeDescriptors.strings());
-    TypeToken<Set<String>> token = new TypeToken<Set<String>>(){};
-    assertEquals(token.getType(), descriptor.getType());
+    TypeDescriptor<Set<String>> descriptor = sets(strings());
+    assertEquals(descriptor, new TypeDescriptor<Set<String>>() {});
   }
 
   @Test
   public void testTypeDescriptorsKV() throws Exception {
     TypeDescriptor<KV<String, Integer>> descriptor =
-        TypeDescriptors.kv(TypeDescriptors.strings(), TypeDescriptors.integers());
-    TypeToken<KV<String, Integer>> token = new TypeToken<KV<String, Integer>>(){};
-    assertEquals(token.getType(), descriptor.getType());
+        kvs(strings(), integers());
+    assertEquals(descriptor, new TypeDescriptor<KV<String, Integer>>() {});
   }
 
   @Test
   public void testTypeDescriptorsLists() throws Exception {
-    TypeDescriptor<List<String>> descriptor =
-        TypeDescriptors.lists(TypeDescriptors.strings());
-    TypeToken<List<String>> token = new TypeToken<List<String>>(){};
-    assertEquals(token.getType(), descriptor.getType());
+    TypeDescriptor<List<String>> descriptor = lists(strings());
+    assertEquals(descriptor, new TypeDescriptor<List<String>>() {});
+    assertNotEquals(descriptor, new TypeDescriptor<List<Boolean>>() {});
   }
 
   @Test
-  public void testTypeDescriptorsBoolean() throws Exception {
-    TypeDescriptor<Boolean> descriptor = new TypeDescriptor<Boolean>(){};
-    assertEquals(Boolean.class, descriptor.getRawType());
-  }
-
-  @Test
-  public void testTypeDescriptorsDouble() throws Exception {
-    TypeDescriptor<Double> descriptor = new TypeDescriptor<Double>(){};
-    assertEquals(Double.class, descriptor.getRawType());
-  }
-
-  @Test
-  public void testTypeDescriptorsFloat() throws Exception {
-    TypeDescriptor<Float> descriptor = new TypeDescriptor<Float>(){};
-    assertEquals(Float.class, descriptor.getRawType());
-  }
-
-  @Test
-  public void testTypeDescriptorsInteger() throws Exception {
-    TypeDescriptor<Integer> descriptor = new TypeDescriptor<Integer>(){};
-    assertEquals(Integer.class, descriptor.getRawType());
-  }
-
-  @Test
-  public void testTypeDescriptorsLong() throws Exception {
-    TypeDescriptor<Long> descriptor = new TypeDescriptor<Long>(){};
-    assertEquals(Long.class, descriptor.getRawType());
-  }
-
-  @Test
-  public void testTypeDescriptorsShort() throws Exception {
-    TypeDescriptor<Short> descriptor = new TypeDescriptor<Short>(){};
-    assertEquals(Short.class, descriptor.getRawType());
-  }
-
-  @Test
-  public void testTypeDescriptorsBigDecimal() throws Exception {
-    TypeDescriptor<BigDecimal> descriptor = new TypeDescriptor<BigDecimal>(){};
-    assertEquals(BigDecimal.class, descriptor.getRawType());
-  }
-
-  @Test
-  public void testTypeDescriptorsString() throws Exception {
-    TypeDescriptor<String> descriptor = new TypeDescriptor<String>(){};
-    assertEquals(String.class, descriptor.getRawType());
+  public void testTypeDescriptorsListsOfLists() throws Exception {
+    TypeDescriptor<List<List<String>>> descriptor = lists(lists(strings()));
+    assertEquals(descriptor, new TypeDescriptor<List<List<String>>>() {});
+    assertNotEquals(descriptor, new TypeDescriptor<List<String>>() {});
+    assertNotEquals(descriptor, new TypeDescriptor<List<Boolean>>() {});
   }
 }

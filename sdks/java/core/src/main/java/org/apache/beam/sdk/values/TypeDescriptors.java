@@ -160,7 +160,7 @@ public class TypeDescriptors {
    * @return A {@link TypeDescriptor} for {@link KV}
    */
   public static <K, V> TypeDescriptor<KV<K, V>>
-    kv(TypeDescriptor<K> key, TypeDescriptor<V> value) {
+    kvs(TypeDescriptor<K> key, TypeDescriptor<V> value) {
     TypeDescriptor<KV<K, V>> typeDescriptor =
         new TypeDescriptor<KV<K, V>>() {}
       .<K> where(new TypeParameter<K>() {}, key)
