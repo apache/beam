@@ -29,7 +29,7 @@ import java.util.Collection;
  * A {@link WindowFn} for use during tests that returns the input window for calls to
  * {@link #getSideInputWindow(BoundedWindow)}.
  */
-class IdentitySideInputWindowFn extends NonMergingWindowFn<Integer, BoundedWindow> {
+public class IdentitySideInputWindowFn extends NonMergingWindowFn<Integer, BoundedWindow> {
   @Override
   public Collection<BoundedWindow> assignWindows(WindowFn<Integer, BoundedWindow>.AssignContext c)
       throws Exception {

@@ -32,7 +32,7 @@ import java.util.Set;
  * A {@link DoFnRunner} that can refuse to process elements that are not ready, instead returning
  * them via the {@link #processElementInReadyWindows(WindowedValue)}.
  */
-class PushbackSideInputDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
+public class PushbackSideInputDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
   private final DoFnRunner<InputT, OutputT> underlying;
   private final Collection<PCollectionView<?>> views;
   private final ReadyCheckingSideInputReader sideInputReader;
