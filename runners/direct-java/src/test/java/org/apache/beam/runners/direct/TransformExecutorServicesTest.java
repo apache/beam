@@ -67,8 +67,8 @@ public class TransformExecutorServicesTest {
     parallel.schedule(first);
     parallel.schedule(second);
 
-    verify(first).call();
-    verify(second).call();
+    verify(first).run();
+    verify(second).run();
     assertThat(
         scheduled,
         Matchers.allOf(
@@ -95,10 +95,10 @@ public class TransformExecutorServicesTest {
 
     TransformExecutorService serial = TransformExecutorServices.serial(executorService, scheduled);
     serial.schedule(first);
-    verify(first).call();
+    verify(first).run();
 
     serial.schedule(second);
-    verify(second, never()).call();
+    verify(second, never()).run();
 
     assertThat(scheduled, Matchers.<TransformExecutor<?>, Boolean>hasEntry(first, true));
     assertThat(
@@ -108,7 +108,7 @@ public class TransformExecutorServicesTest {
                 Matchers.<TransformExecutor<?>>equalTo(second), any(Boolean.class))));
 
     serial.complete(first);
-    verify(second).call();
+    verify(second).run();
     assertThat(scheduled, Matchers.<TransformExecutor<?>, Boolean>hasEntry(second, true));
     assertThat(
         scheduled,

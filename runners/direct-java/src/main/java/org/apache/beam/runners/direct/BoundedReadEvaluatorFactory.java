@@ -51,6 +51,7 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
 
   @SuppressWarnings({"unchecked", "rawtypes"})
   @Override
+  @Nullable
   public <InputT> TransformEvaluator<InputT> forApplication(
       AppliedPTransform<?, ?, ?> application,
       @Nullable CommittedBundle<?> inputBundle,
@@ -62,12 +63,7 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
   private <OutputT> TransformEvaluator<?> getTransformEvaluator(
       final AppliedPTransform<?, PCollection<OutputT>, Bounded<OutputT>> transform,
       final InProcessEvaluationContext evaluationContext) {
-    BoundedReadEvaluator<?> evaluator =
-        getTransformEvaluatorQueue(transform, evaluationContext).poll();
-    if (evaluator == null) {
-      return EmptyTransformEvaluator.create(transform);
-    }
-    return evaluator;
+    return getTransformEvaluatorQueue(transform, evaluationContext).poll();
   }
 
   /**
