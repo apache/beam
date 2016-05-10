@@ -166,9 +166,9 @@ public class UnboundedSourceWrapperTest {
           });
     } catch (SuccessException e) {
       // success
-    } catch (Exception e) {
-      fail("We caught " + e);
+      return;
     }
+    fail("Read terminated without producing expected number of outputs");
   }
 
   /**
@@ -202,6 +202,8 @@ public class UnboundedSourceWrapperTest {
 
     final Set<KV<Integer, Integer>> emittedElements = new HashSet<>();
 
+    boolean readFirstBatchOfElements = false;
+
     try {
       sourceOperator.run(checkpointLock,
           new Output<StreamRecord<WindowedValue<KV<Integer, Integer>>>>() {
@@ -229,9 +231,10 @@ public class UnboundedSourceWrapperTest {
           });
     } catch (SuccessException e) {
       // success
-    } catch (Exception e) {
-      fail("We caught " + e);
+      readFirstBatchOfElements = true;
     }
+
+    assertTrue("Did not successfully read first batch of elements.", readFirstBatchOfElements);
 
     // draw a snapshot
     byte[] snapshot = flinkWrapper.snapshotState(0, 0);
@@ -255,6 +258,8 @@ public class UnboundedSourceWrapperTest {
 
     // restore snapshot
     restoredFlinkWrapper.restoreState(snapshot);
+
+    boolean readSecondBatchOfElements = false;
 
     // run again and verify that we see the other elements
     try {
@@ -283,9 +288,10 @@ public class UnboundedSourceWrapperTest {
           });
     } catch (SuccessException e) {
       // success
-    } catch (Exception e) {
-      fail("We caught " + e);
+      readSecondBatchOfElements = true;
     }
+
+    assertTrue("Did not successfully read second batch of elements.", readSecondBatchOfElements);
 
     // verify that we saw all NUM_ELEMENTS elements
     assertTrue(emittedElements.size() == NUM_ELEMENTS);
