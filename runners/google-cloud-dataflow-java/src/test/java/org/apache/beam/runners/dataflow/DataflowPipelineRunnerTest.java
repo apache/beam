@@ -986,7 +986,7 @@ public class DataflowPipelineRunnerTest {
     } catch (UserCodeException e) {
       assertTrue(e.getCause() instanceof IllegalStateException);
       IllegalStateException rootCause = (IllegalStateException) e.getCause();
-      assertThat(rootCause.getMessage(), containsString("Unique keys are expected but found key"));
+      assertThat(rootCause.getMessage(), containsString("found for singleton within window"));
     }
   }
 
