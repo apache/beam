@@ -47,7 +47,7 @@ public class PaneExtractorsTest {
         PaneExtractors.onlyPane();
     Iterable<WindowedValue<Integer>> noFiring =
         ImmutableList.of(
-            WindowedValue.valueInGlobalWindow(9), WindowedValue.valueInEmptyWindows(19));
+            WindowedValue.valueInGlobalWindow(9), WindowedValue.valueInGlobalWindow(19));
     assertThat(extractor.apply(noFiring), containsInAnyOrder(9, 19));
   }
 
