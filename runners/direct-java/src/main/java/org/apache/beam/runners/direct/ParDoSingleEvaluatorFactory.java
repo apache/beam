@@ -19,11 +19,14 @@ package org.apache.beam.runners.direct;
 
 import org.apache.beam.runners.direct.InProcessPipelineRunner.CommittedBundle;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo.Bound;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableMap;
 
 import java.util.Collections;
@@ -33,6 +36,13 @@ import java.util.Collections;
  * {@link Bound ParDo.Bound} primitive {@link PTransform}.
  */
 class ParDoSingleEvaluatorFactory implements TransformEvaluatorFactory {
+  private final LoadingCache<DoFn<?, ?>, ThreadLocal<DoFn<?, ?>>> fnClones;
+
+  public ParDoSingleEvaluatorFactory() {
+    fnClones = CacheBuilder.newBuilder()
+        .build(SerializableCloningThreadLocalCacheLoader.<DoFn<?, ?>>create());
+  }
+
   @Override
   public <T> TransformEvaluator<T> forApplication(
       final AppliedPTransform<?, ?, ?> application,
@@ -44,20 +54,28 @@ class ParDoSingleEvaluatorFactory implements TransformEvaluatorFactory {
     return evaluator;
   }
 
-  private static <InputT, OutputT> ParDoInProcessEvaluator<InputT> createSingleEvaluator(
+  private <InputT, OutputT> TransformEvaluator<InputT> createSingleEvaluator(
       @SuppressWarnings("rawtypes") AppliedPTransform<PCollection<InputT>, PCollection<OutputT>,
           Bound<InputT, OutputT>> application,
       CommittedBundle<InputT> inputBundle, InProcessEvaluationContext evaluationContext) {
     TupleTag<OutputT> mainOutputTag = new TupleTag<>("out");
 
-    return ParDoInProcessEvaluator.create(
-        evaluationContext,
-        inputBundle,
-        application,
-        application.getTransform().getFn(),
-        application.getTransform().getSideInputs(),
-        mainOutputTag,
-        Collections.<TupleTag<?>>emptyList(),
-        ImmutableMap.<TupleTag<?>, PCollection<?>>of(mainOutputTag, application.getOutput()));
+    @SuppressWarnings({"unchecked", "rawtypes"}) ThreadLocal<DoFn<InputT, OutputT>> fnLocal =
+        (ThreadLocal) fnClones.getUnchecked(application.getTransform().getFn());
+    try {
+      ParDoInProcessEvaluator<InputT> parDoEvaluator = ParDoInProcessEvaluator.create(
+          evaluationContext,
+          inputBundle,
+          application,
+          fnLocal.get(),
+          application.getTransform().getSideInputs(),
+          mainOutputTag,
+          Collections.<TupleTag<?>>emptyList(),
+          ImmutableMap.<TupleTag<?>, PCollection<?>>of(mainOutputTag, application.getOutput()));
+      return ThreadLocalInvalidatingTransformEvaluator.wrapping(parDoEvaluator, fnLocal);
+    } catch (Exception e) {
+      fnLocal.remove();
+      throw e;
+    }
   }
 }
