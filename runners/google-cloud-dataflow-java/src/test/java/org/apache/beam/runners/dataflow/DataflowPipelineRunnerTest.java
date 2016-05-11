@@ -41,6 +41,7 @@ import static org.mockito.Mockito.when;
 import org.apache.beam.runners.dataflow.DataflowPipelineRunner.BatchViewAsList;
 import org.apache.beam.runners.dataflow.DataflowPipelineRunner.BatchViewAsMap;
 import org.apache.beam.runners.dataflow.DataflowPipelineRunner.BatchViewAsMultimap;
+import org.apache.beam.runners.dataflow.DataflowPipelineRunner.BatchViewAsSingleton;
 import org.apache.beam.runners.dataflow.DataflowPipelineRunner.TransformedMap;
 import org.apache.beam.runners.dataflow.internal.IsmFormat;
 import org.apache.beam.runners.dataflow.internal.IsmFormat.IsmRecord;
@@ -949,6 +950,44 @@ public class DataflowPipelineRunnerTest {
   @Test
   public void testTextIOSinkUnsupportedInStreaming() throws Exception {
     testUnsupportedSink(TextIO.Write.to("foo"), "TextIO.Write", true);
+  }
+
+  @Test
+  public void testBatchViewAsSingletonToIsmRecord() throws Exception {
+    DoFnTester<KV<Integer, Iterable<KV<GlobalWindow, WindowedValue<String>>>>,
+               IsmRecord<WindowedValue<String>>> doFnTester =
+               DoFnTester.of(
+                   new BatchViewAsSingleton.IsmRecordForSingularValuePerWindowDoFn
+                   <String, GlobalWindow>(GlobalWindow.Coder.INSTANCE));
+
+    assertThat(
+        doFnTester.processBatch(
+            ImmutableList.of(KV.<Integer, Iterable<KV<GlobalWindow, WindowedValue<String>>>>of(
+                0, ImmutableList.of(KV.of(GlobalWindow.INSTANCE, valueInGlobalWindow("a")))))),
+        contains(IsmRecord.of(ImmutableList.of(GlobalWindow.INSTANCE), valueInGlobalWindow("a"))));
+  }
+
+  @Test
+  public void testBatchViewAsSingletonToIsmRecordWithMultipleValuesThrowsException()
+      throws Exception {
+    DoFnTester<KV<Integer, Iterable<KV<GlobalWindow, WindowedValue<String>>>>,
+    IsmRecord<WindowedValue<String>>> doFnTester =
+    DoFnTester.of(
+        new BatchViewAsSingleton.IsmRecordForSingularValuePerWindowDoFn
+        <String, GlobalWindow>(GlobalWindow.Coder.INSTANCE));
+
+    try {
+      doFnTester.processBatch(
+          ImmutableList.of(KV.<Integer, Iterable<KV<GlobalWindow, WindowedValue<String>>>>of(
+              0, ImmutableList.of(
+                  KV.of(GlobalWindow.INSTANCE, valueInGlobalWindow("a")),
+                  KV.of(GlobalWindow.INSTANCE, valueInGlobalWindow("b"))))));
+      fail("Expected UserCodeException");
+    } catch (UserCodeException e) {
+      assertTrue(e.getCause() instanceof IllegalStateException);
+      IllegalStateException rootCause = (IllegalStateException) e.getCause();
+      assertThat(rootCause.getMessage(), containsString("found for singleton within window"));
+    }
   }
 
   @Test
