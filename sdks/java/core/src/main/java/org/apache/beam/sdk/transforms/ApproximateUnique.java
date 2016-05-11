@@ -461,7 +461,9 @@ public class ApproximateUnique {
   private static void populateDisplayData(
       DisplayData.Builder builder, long sampleSize, Double maxEstimationError) {
     builder
-        .add(DisplayData.item("sampleSize", sampleSize))
-        .addIfNotNull(DisplayData.item("maximumEstimationError", maxEstimationError));
+        .add(DisplayData.item("sampleSize", sampleSize)
+          .withLabel("Sample Size"))
+        .addIfNotNull(DisplayData.item("maximumEstimationError", maxEstimationError)
+          .withLabel("Maximum Estimation Error"));
   }
 }

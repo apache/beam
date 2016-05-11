@@ -331,8 +331,10 @@ public class AvroIO {
       public void populateDisplayData(DisplayData.Builder builder) {
         super.populateDisplayData(builder);
         builder
-          .addIfNotNull(DisplayData.item("filePattern", filepattern))
-          .addIfNotDefault(DisplayData.item("validation", validate), true);
+          .addIfNotNull(DisplayData.item("filePattern", filepattern)
+            .withLabel("Input File Pattern"))
+          .addIfNotDefault(DisplayData.item("validation", validate)
+            .withLabel("Validation Enabled"), true);
       }
 
       @Override
@@ -694,14 +696,22 @@ public class AvroIO {
       public void populateDisplayData(DisplayData.Builder builder) {
         super.populateDisplayData(builder);
         builder
-            .add(DisplayData.item("schema", type))
-            .addIfNotNull(DisplayData.item("filePrefix", filenamePrefix))
-            .addIfNotDefault(
-                DisplayData.item("shardNameTemplate", shardTemplate),
+            .add(DisplayData.item("schema", type)
+              .withLabel("Record Schema"))
+            .addIfNotNull(DisplayData.item("filePrefix", filenamePrefix)
+              .withLabel("Output File Prefix"))
+            .addIfNotDefault(DisplayData.item("shardNameTemplate", shardTemplate)
+                .withLabel("Output Shard Name Template"),
                 DEFAULT_SHARD_TEMPLATE)
-            .addIfNotDefault(DisplayData.item("fileSuffix", filenameSuffix), "")
-            .addIfNotDefault(DisplayData.item("numShards", numShards), 0)
-            .addIfNotDefault(DisplayData.item("validation", validate), true);
+            .addIfNotDefault(DisplayData.item("fileSuffix", filenameSuffix)
+                .withLabel("Output File Suffix"),
+                "")
+            .addIfNotDefault(DisplayData.item("numShards", numShards)
+                .withLabel("Maximum Output Shards"),
+                0)
+            .addIfNotDefault(DisplayData.item("validation", validate)
+                .withLabel("Validation Enabled"),
+                true);
       }
 
       /**

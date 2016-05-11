@@ -936,6 +936,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
             .build(),
         ImmutableMap.<String, Object>builder()
             .put("key", "fn")
+            .put("label", "Transform Function")
             .put("type", "JAVA_CLASS")
             .put("value", fn1.getClass().getName())
             .put("shortValue", fn1.getClass().getSimpleName())
@@ -955,6 +956,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     ImmutableSet<ImmutableMap<String, Object>> expectedFn2DisplayData = ImmutableSet.of(
         ImmutableMap.<String, Object>builder()
             .put("key", "fn")
+            .put("label", "Transform Function")
             .put("type", "JAVA_CLASS")
             .put("value", fn2.getClass().getName())
             .put("shortValue", fn2.getClass().getSimpleName())

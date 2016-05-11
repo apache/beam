@@ -1266,7 +1266,8 @@ public class ParDo {
       DisplayData.Builder builder, DoFn<?, ?> fn, Class<?> fnClass) {
     builder
         .include(fn)
-        .add(DisplayData.item("fn", fnClass));
+        .add(DisplayData.item("fn", fnClass)
+          .withLabel("Transform Function"));
   }
 
   /**
