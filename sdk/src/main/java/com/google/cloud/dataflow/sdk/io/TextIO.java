@@ -344,9 +344,12 @@ public class TextIO {
         super.populateDisplayData(builder);
 
         builder
-            .add(DisplayData.item("compressionType", compressionType.toString()))
-            .addIfNotDefault(DisplayData.item("validation", validate), true)
-            .addIfNotNull(DisplayData.item("filePattern", filepattern));
+            .add(DisplayData.item("compressionType", compressionType.toString())
+              .withLabel("Compression Type"))
+            .addIfNotDefault(DisplayData.item("validation", validate)
+              .withLabel("Validation Enabled"), true)
+            .addIfNotNull(DisplayData.item("filePattern", filepattern)
+              .withLabel("File Pattern"));
       }
 
       @Override
@@ -649,13 +652,17 @@ public class TextIO {
         super.populateDisplayData(builder);
 
         builder
-            .addIfNotNull(DisplayData.item("filePrefix", filenamePrefix))
-            .addIfNotDefault(DisplayData.item("fileSuffix", filenameSuffix), "")
-            .addIfNotDefault(
-                DisplayData.item("shardNameTemplate", shardTemplate),
+            .addIfNotNull(DisplayData.item("filePrefix", filenamePrefix)
+              .withLabel("Output File Prefix"))
+            .addIfNotDefault(DisplayData.item("fileSuffix", filenameSuffix)
+              .withLabel("Output Fix Suffix"), "")
+            .addIfNotDefault(DisplayData.item("shardNameTemplate", shardTemplate)
+              .withLabel("Output Shard Name Template"),
                 DEFAULT_SHARD_TEMPLATE)
-            .addIfNotDefault(DisplayData.item("validation", validate), true)
-            .addIfNotDefault(DisplayData.item("numShards", numShards), 0);
+            .addIfNotDefault(DisplayData.item("validation", validate)
+              .withLabel("Validation Enabled"), true)
+            .addIfNotDefault(DisplayData.item("numShards", numShards)
+              .withLabel("Maximum Output Shards"), 0);
       }
 
       /**

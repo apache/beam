@@ -124,7 +124,8 @@ public class Combine {
   }
 
   private static <T> DisplayData.Item<? extends Class<?>> displayDataForFn(T fn) {
-    return DisplayData.item("combineFn", fn.getClass());
+    return DisplayData.item("combineFn", fn.getClass())
+        .withLabel("Combiner");
   }
 
   private static <InputT, OutputT> Globally<InputT, OutputT> globally(
@@ -1425,8 +1426,10 @@ public class Combine {
   private static void populateGlobalDisplayData(
       DisplayData.Builder builder, int fanout, boolean insertDefault) {
     builder
-        .addIfNotDefault(DisplayData.item("fanout", fanout), 0)
-        .add(DisplayData.item("emitDefaultOnEmptyInput", insertDefault));
+        .addIfNotDefault(DisplayData.item("fanout", fanout)
+            .withLabel("Key Fanout Size"), 0)
+        .add(DisplayData.item("emitDefaultOnEmptyInput", insertDefault)
+            .withLabel("Emit Default On Empty Input"));
   }
 
   /**
@@ -1601,7 +1604,8 @@ public class Combine {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder.add(DisplayData.item("combineFn", combiner.getClass()));
+      builder.add(DisplayData.item("combineFn", combiner.getClass())
+        .withLabel("Combiner"));
     }
 
     private List<V> mergeToSingleton(Iterable<V> values) {
@@ -2092,7 +2096,8 @@ public class Combine {
       super.populateDisplayData(builder);
 
       Combine.populateDisplayData(builder, fn, fnDisplayData);
-      builder.add(DisplayData.item("fanoutFn", hotKeyFanout.getClass()));
+      builder.add(DisplayData.item("fanoutFn", hotKeyFanout.getClass())
+        .withLabel("Fanout Function"));
     }
 
     /**

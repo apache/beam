@@ -148,7 +148,8 @@ public class Read {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder
-          .add(DisplayData.item("source", source.getClass()))
+          .add(DisplayData.item("source", source.getClass())
+            .withLabel("Read Source"))
           .include(source);
     }
 
@@ -263,7 +264,8 @@ public class Read {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder
-          .add(DisplayData.item("source", source.getClass()))
+          .add(DisplayData.item("source", source.getClass())
+            .withLabel("Read Source"))
           .include(source);
     }
   }
