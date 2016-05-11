@@ -54,6 +54,12 @@ public abstract class PubsubClient implements Closeable {
         @Nullable String timestampLabel,
         @Nullable String idLabel,
         PubsubOptions options) throws IOException;
+
+    /**
+     * Return the display name for this factory.
+     */
+    @Override
+    String toString();
   }
 
   /**
@@ -205,7 +211,7 @@ public abstract class PubsubClient implements Closeable {
   }
 
   public static SubscriptionPath subscriptionPathFromPath(String path) {
-      return new SubscriptionPath(path);
+    return new SubscriptionPath(path);
   }
 
   public static SubscriptionPath subscriptionPathFromName(
@@ -287,6 +293,12 @@ public abstract class PubsubClient implements Closeable {
     }
 
     @Override
+    public String toString() {
+      return String.format("OutgoingMessage(%db, %dms)",
+                           elementBytes.length, timestampMsSinceEpoch);
+    }
+
+    @Override
     public boolean equals(Object o) {
       if (this == o) {
         return true;
@@ -358,6 +370,12 @@ public abstract class PubsubClient implements Closeable {
     public IncomingMessage withRequestTime(long requestTimeMsSinceEpoch) {
       return new IncomingMessage(elementBytes, timestampMsSinceEpoch, requestTimeMsSinceEpoch,
                                  ackId, recordId);
+    }
+
+    @Override
+    public String toString() {
+      return String.format("IncomingMessage(%db, %dms)",
+                           elementBytes.length, timestampMsSinceEpoch);
     }
 
     @Override

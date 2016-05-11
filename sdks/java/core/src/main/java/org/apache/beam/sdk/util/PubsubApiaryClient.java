@@ -59,7 +59,7 @@ public class PubsubApiaryClient extends PubsubClient {
     @Override
     public PubsubClient newClient(
         @Nullable String timestampLabel, @Nullable String idLabel, PubsubOptions options)
-    throws IOException {
+        throws IOException {
       Pubsub pubsub = new Builder(
           Transport.getTransport(),
           Transport.getJsonFactory(),
@@ -72,6 +72,11 @@ public class PubsubApiaryClient extends PubsubClient {
           .setGoogleClientRequestInitializer(options.getGoogleApiTrace())
           .build();
       return new PubsubApiaryClient(timestampLabel, idLabel, pubsub);
+    }
+
+    @Override
+    public String toString() {
+      return "Apiary";
     }
   }
 

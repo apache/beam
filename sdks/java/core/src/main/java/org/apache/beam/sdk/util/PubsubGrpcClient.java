@@ -87,7 +87,7 @@ public class PubsubGrpcClient extends PubsubClient {
     @Override
     public PubsubClient newClient(
         @Nullable String timestampLabel, @Nullable String idLabel, PubsubOptions options)
-    throws IOException {
+        throws IOException {
       ManagedChannel channel = NettyChannelBuilder
           .forAddress(PUBSUB_ADDRESS, PUBSUB_PORT)
           .negotiationType(NegotiationType.TLS)
@@ -104,6 +104,11 @@ public class PubsubGrpcClient extends PubsubClient {
                                   credentials,
                                   null /* publisher stub */,
                                   null /* subscriber stub */);
+    }
+
+    @Override
+    public String toString() {
+      return "Grpc";
     }
   }
 

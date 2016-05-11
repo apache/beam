@@ -51,6 +51,11 @@ public class PubsubTestClient extends PubsubClient {
           throws IOException {
         return new PubsubTestClient(expectedTopic, null, 0, expectedOutgoingMessages, null);
       }
+
+      @Override
+      public String toString() {
+        return "PublishTestClient";
+      }
     };
   }
 
@@ -65,6 +70,11 @@ public class PubsubTestClient extends PubsubClient {
           throws IOException {
         return new PubsubTestClient(null, expectedSubscription, ackTimeoutSec,
                                     null, expectedIncomingMessages);
+      }
+
+      @Override
+      public String toString() {
+        return "PullTestClient";
       }
     };
   }
