@@ -76,7 +76,7 @@ public class StdoutSink<T> implements DataSink<T> {
       buf.append(System.nanoTime())
           .append(": (")
           .append(Thread.currentThread().getName())
-          .append('[')
+          .append(") [")
           .append(partitionId)
           .append("] (#")
           .append(System.identityHashCode(elem))
