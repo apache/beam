@@ -50,9 +50,7 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -77,7 +75,6 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
   private final InProcessEvaluationContext evaluationContext;
 
   private final LoadingCache<StepAndKey, TransformExecutorService> executorServices;
-  private final ConcurrentMap<TransformExecutor<?>, Boolean> scheduledExecutors;
 
   private final Queue<ExecutorUpdate> allUpdates;
   private final BlockingQueue<VisibleExecutorUpdate> visibleUpdates;
@@ -114,7 +111,6 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
     this.transformEnforcements = transformEnforcements;
     this.evaluationContext = context;
 
-    scheduledExecutors = new ConcurrentHashMap<>();
     // Weak Values allows TransformExecutorServices that are no longer in use to be reclaimed.
     // Executing TransformExecutorServices have a strong reference to their TransformExecutorService
     // which stops the TransformExecutorServices from being prematurely garbage collected
@@ -124,8 +120,7 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
     this.allUpdates = new ConcurrentLinkedQueue<>();
     this.visibleUpdates = new ArrayBlockingQueue<>(20);
 
-    parallelExecutorService =
-        TransformExecutorServices.parallel(executorService, scheduledExecutors);
+    parallelExecutorService = TransformExecutorServices.parallel(executorService);
     defaultCompletionCallback = new DefaultCompletionCallback();
   }
 
@@ -134,7 +129,7 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
     return new CacheLoader<StepAndKey, TransformExecutorService>() {
       @Override
       public TransformExecutorService load(StepAndKey stepAndKey) throws Exception {
-        return TransformExecutorServices.serial(executorService, scheduledExecutors);
+        return TransformExecutorServices.serial(executorService);
       }
     };
   }
@@ -453,48 +448,11 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
       if (firedTimers) {
         return;
       }
-      for (TransformExecutor<?> executor : scheduledExecutors.keySet()) {
-        if (!isExecutorBlocked(executor)) {
-          // We have at least one executor that can proceed without adding additional work
-          return;
-        }
-      }
       // All current TransformExecutors are blocked; add more work from the roots.
       for (AppliedPTransform<?, ?, ?> root : rootNodes) {
         if (!evaluationContext.isDone(root)) {
           scheduleConsumption(root, null, defaultCompletionCallback);
         }
-      }
-    }
-
-    /**
-     * Return true if the provided executor might make more progress if no action is taken.
-     *
-     * <p>May return false even if all executor threads are currently blocked or cleaning up, as
-     * these can cause more work to be scheduled. If this does not occur, after these calls
-     * terminate, future calls will return true if all executors are waiting.
-     */
-    private boolean isExecutorBlocked(TransformExecutor<?> executor) {
-      Thread thread = executor.getThread();
-      if (thread == null) {
-        return false;
-      }
-      switch (thread.getState()) {
-        case TERMINATED:
-          throw new IllegalStateException(String.format(
-              "Unexpectedly encountered a Terminated TransformExecutor %s", executor));
-        case WAITING:
-        case TIMED_WAITING:
-          // The thread is waiting for some external input. Adding more work may cause the thread
-          // to stop waiting (e.g. the thread is waiting on an unbounded side input)
-          return true;
-        case BLOCKED:
-          // The executor is blocked on acquisition of a java monitor. This usually means it is
-          // making a call to the EvaluationContext, but not a model-blocking call - and will
-          // eventually complete, at which point we may reevaluate.
-        default:
-          // NEW and RUNNABLE threads can make progress
-          return false;
       }
     }
   }
