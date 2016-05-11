@@ -17,17 +17,12 @@
  */
 package org.apache.beam.runners.direct;
 
-import static org.hamcrest.Matchers.any;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.google.common.util.concurrent.MoreExecutors;
 
-import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -35,8 +30,6 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -47,12 +40,10 @@ public class TransformExecutorServicesTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   private ExecutorService executorService;
-  private Map<TransformExecutor<?>, Boolean> scheduled;
 
   @Before
   public void setup() {
     executorService = MoreExecutors.newDirectExecutorService();
-    scheduled = new ConcurrentHashMap<>();
   }
 
   @Test
@@ -63,27 +54,15 @@ public class TransformExecutorServicesTest {
     TransformExecutor<Object> second = mock(TransformExecutor.class);
 
     TransformExecutorService parallel =
-        TransformExecutorServices.parallel(executorService, scheduled);
+        TransformExecutorServices.parallel(executorService);
     parallel.schedule(first);
     parallel.schedule(second);
 
     verify(first).run();
     verify(second).run();
-    assertThat(
-        scheduled,
-        Matchers.allOf(
-            Matchers.<TransformExecutor<?>, Boolean>hasEntry(first, true),
-            Matchers.<TransformExecutor<?>, Boolean>hasEntry(second, true)));
 
     parallel.complete(first);
-    assertThat(scheduled, Matchers.<TransformExecutor<?>, Boolean>hasEntry(second, true));
-    assertThat(
-        scheduled,
-        not(
-            Matchers.<TransformExecutor<?>, Boolean>hasEntry(
-                Matchers.<TransformExecutor<?>>equalTo(first), any(Boolean.class))));
     parallel.complete(second);
-    assertThat(scheduled.isEmpty(), is(true));
   }
 
   @Test
@@ -93,28 +72,15 @@ public class TransformExecutorServicesTest {
     @SuppressWarnings("unchecked")
     TransformExecutor<Object> second = mock(TransformExecutor.class);
 
-    TransformExecutorService serial = TransformExecutorServices.serial(executorService, scheduled);
+    TransformExecutorService serial = TransformExecutorServices.serial(executorService);
     serial.schedule(first);
     verify(first).run();
 
     serial.schedule(second);
     verify(second, never()).run();
 
-    assertThat(scheduled, Matchers.<TransformExecutor<?>, Boolean>hasEntry(first, true));
-    assertThat(
-        scheduled,
-        not(
-            Matchers.<TransformExecutor<?>, Boolean>hasEntry(
-                Matchers.<TransformExecutor<?>>equalTo(second), any(Boolean.class))));
-
     serial.complete(first);
     verify(second).run();
-    assertThat(scheduled, Matchers.<TransformExecutor<?>, Boolean>hasEntry(second, true));
-    assertThat(
-        scheduled,
-        not(
-            Matchers.<TransformExecutor<?>, Boolean>hasEntry(
-                Matchers.<TransformExecutor<?>>equalTo(first), any(Boolean.class))));
 
     serial.complete(second);
   }
@@ -126,7 +92,7 @@ public class TransformExecutorServicesTest {
     @SuppressWarnings("unchecked")
     TransformExecutor<Object> second = mock(TransformExecutor.class);
 
-    TransformExecutorService serial = TransformExecutorServices.serial(executorService, scheduled);
+    TransformExecutorService serial = TransformExecutorServices.serial(executorService);
     serial.schedule(first);
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("unexpected currently executing");

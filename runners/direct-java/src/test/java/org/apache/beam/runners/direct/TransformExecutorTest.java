@@ -55,9 +55,7 @@ import org.mockito.MockitoAnnotations;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -79,7 +77,6 @@ public class TransformExecutorTest {
   private BundleFactory bundleFactory;
   @Mock private InProcessEvaluationContext evaluationContext;
   @Mock private TransformEvaluatorRegistry registry;
-  private Map<TransformExecutor<?>, Boolean> scheduled;
 
   @Before
   public void setup() {
@@ -87,9 +84,8 @@ public class TransformExecutorTest {
 
     bundleFactory = InProcessBundleFactory.create();
 
-    scheduled = new HashMap<>();
     transformEvaluationState =
-        TransformExecutorServices.parallel(MoreExecutors.newDirectExecutorService(), scheduled);
+        TransformExecutorServices.parallel(MoreExecutors.newDirectExecutorService());
 
     evaluatorCompleted = new CountDownLatch(1);
     completionCallback = new RegisteringCompletionCallback(evaluatorCompleted);
@@ -135,7 +131,6 @@ public class TransformExecutorTest {
     assertThat(finishCalled.get(), is(true));
     assertThat(completionCallback.handledResult, equalTo(result));
     assertThat(completionCallback.handledThrowable, is(nullValue()));
-    assertThat(scheduled, not(Matchers.<TransformExecutor<?>>hasKey(executor)));
   }
 
   @Test
@@ -184,7 +179,6 @@ public class TransformExecutorTest {
     assertThat(elementsProcessed, containsInAnyOrder(spam, third, foo));
     assertThat(completionCallback.handledResult, equalTo(result));
     assertThat(completionCallback.handledThrowable, is(nullValue()));
-    assertThat(scheduled, not(Matchers.<TransformExecutor<?>>hasKey(executor)));
   }
 
   @Test
@@ -228,7 +222,6 @@ public class TransformExecutorTest {
 
     assertThat(completionCallback.handledResult, is(nullValue()));
     assertThat(completionCallback.handledThrowable, Matchers.<Throwable>equalTo(exception));
-    assertThat(scheduled, not(Matchers.<TransformExecutor<?>>hasKey(executor)));
   }
 
   @Test
@@ -267,7 +260,6 @@ public class TransformExecutorTest {
 
     assertThat(completionCallback.handledResult, is(nullValue()));
     assertThat(completionCallback.handledThrowable, Matchers.<Throwable>equalTo(exception));
-    assertThat(scheduled, not(Matchers.<TransformExecutor<?>>hasKey(executor)));
   }
 
   @Test
