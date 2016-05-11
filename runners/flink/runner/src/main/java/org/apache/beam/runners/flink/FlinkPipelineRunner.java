@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.flink;
 
-import org.apache.beam.runners.dataflow.DataflowPipelineRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -46,7 +45,6 @@ import java.util.Map;
  * pipeline by first translating them to a Flink Plan and then executing them either locally
  * or on a Flink cluster, depending on the configuration.
  * <p>
- * This is based on {@link org.apache.beam.runners.dataflow.DataflowPipelineRunner}.
  */
 public class FlinkPipelineRunner extends PipelineRunner<FlinkRunnerResult> {
 
@@ -80,7 +78,7 @@ public class FlinkPipelineRunner extends PipelineRunner<FlinkRunnerResult> {
 
     if (flinkOptions.getFilesToStage() == null) {
       flinkOptions.setFilesToStage(detectClassPathResourcesToStage(
-          DataflowPipelineRunner.class.getClassLoader()));
+          FlinkPipelineRunner.class.getClassLoader()));
       LOG.info("PipelineOptions.filesToStage was not specified. "
               + "Defaulting to files from the classpath: will stage {} files. "
               + "Enable logging at DEBUG level to see which files will be staged.",
