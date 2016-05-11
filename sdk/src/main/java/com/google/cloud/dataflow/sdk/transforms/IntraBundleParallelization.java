@@ -213,6 +213,7 @@ public class IntraBundleParallelization {
       try {
         workTickets.acquire();
       } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
         throw new RuntimeException("Interrupted while scheduling work", e);
       }
 

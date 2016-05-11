@@ -347,6 +347,9 @@ public class DataflowPipelineJob implements PipelineResult {
     try {
       return BackOffUtils.next(sleeper, backoff);
     } catch (InterruptedException | IOException e) {
+      if (e instanceof InterruptedException) {
+        Thread.currentThread().interrupt();
+      }
       throw new RuntimeException(e);
     }
   }

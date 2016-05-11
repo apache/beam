@@ -1736,6 +1736,9 @@ public class BigQueryIO {
       LOG.info("Number of records read from BigQuery: {}", elems.size());
       context.setPCollection(context.getOutput(transform), elems);
     } catch (IOException | InterruptedException e) {
+      if (e instanceof InterruptedException) {
+        Thread.currentThread().interrupt();
+      }
       throw new RuntimeException(e);
     }
   }

@@ -30,6 +30,7 @@ import com.google.cloud.dataflow.sdk.util.IntervalBoundedExponentialBackOff;
 import com.google.cloud.dataflow.sdk.util.ValueWithRecordId;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PInput;
+import com.google.common.util.concurrent.Uninterruptibles;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -38,7 +39,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
-
+import java.util.concurrent.TimeUnit;
 
 /**
  * {@link PTransform} that reads a bounded amount of data from an {@link UnboundedSource},
@@ -245,9 +246,7 @@ class BoundedReadFromUnboundedSource<T> extends PTransform<PInput, PCollection<T
           if (reader.advance()) {
             return true;
           }
-          try {
-            Thread.sleep(nextSleep);
-          } catch (InterruptedException e) {}
+          Uninterruptibles.sleepUninterruptibly(nextSleep, TimeUnit.MILLISECONDS);
           nextSleep = backoff.nextBackOffMillis();
         }
         finalizeCheckpoint();

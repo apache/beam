@@ -81,6 +81,7 @@ public class IntraBundleParallelizationTest {
       try {
         sleepMillis(DELAY_MS);
       } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
         e.printStackTrace();
         throw new RuntimeException("Interrupted");
       }
