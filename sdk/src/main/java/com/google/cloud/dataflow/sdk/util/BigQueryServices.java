@@ -15,7 +15,10 @@
  */
 package com.google.cloud.dataflow.sdk.util;
 
+import com.google.api.services.bigquery.model.Job;
+import com.google.api.services.bigquery.model.JobConfigurationExtract;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
+import com.google.api.services.bigquery.model.JobConfigurationQuery;
 import com.google.cloud.dataflow.sdk.options.BigQueryOptions;
 
 import java.io.IOException;
@@ -27,33 +30,38 @@ import java.io.Serializable;
 public interface BigQueryServices extends Serializable {
 
   /**
-   * Status of a BigQuery job or request.
+   * Returns a real, mock, or fake {@link JobService}.
    */
-  enum Status {
-    SUCCEEDED,
-    FAILED,
-    UNKNOWN,
-  }
-
-  /**
-   * Returns a real, mock, or fake {@link LoadService}.
-   */
-  public LoadService getLoadService(BigQueryOptions bqOptions);
+  public JobService getJobService(BigQueryOptions bqOptions);
 
   /**
    * An interface for the Cloud BigQuery load service.
    */
-  public interface LoadService {
+  public interface JobService {
     /**
-     * Start a BigQuery load job.
+     * Starts a BigQuery load job.
      */
-    public void startLoadJob(String jobId, JobConfigurationLoad loadConfig)
+    void startLoadJob(String jobId, JobConfigurationLoad loadConfig)
         throws InterruptedException, IOException;
 
     /**
-     * Poll the status of a BigQuery load job.
+     * Start a BigQuery extract job.
      */
-    public Status pollJobStatus(String projectId, String jobId)
+    void startExtractJob(String jobId, JobConfigurationExtract extractConfig)
+        throws InterruptedException, IOException;
+
+    /**
+     * Start a BigQuery extract job.
+     */
+    void startQueryJob(String jobId, JobConfigurationQuery query, boolean dryRun)
+        throws IOException, InterruptedException;
+
+    /**
+     * Waits for the job is Done, and returns the job.
+     *
+     * <p>Returns null if the {@code maxAttempts} retries reached.
+     */
+    Job pollJob(String projectId, String jobId, int maxAttempts)
         throws InterruptedException, IOException;
   }
 }

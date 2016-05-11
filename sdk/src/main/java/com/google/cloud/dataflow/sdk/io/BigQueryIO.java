@@ -22,7 +22,9 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.json.JsonFactory;
 import com.google.api.services.bigquery.Bigquery;
+import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
+import com.google.api.services.bigquery.model.JobStatus;
 import com.google.api.services.bigquery.model.QueryRequest;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
@@ -53,7 +55,7 @@ import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.BigQueryServices;
-import com.google.cloud.dataflow.sdk.util.BigQueryServices.LoadService;
+import com.google.cloud.dataflow.sdk.util.BigQueryServices.JobService;
 import com.google.cloud.dataflow.sdk.util.BigQueryServicesImpl;
 import com.google.cloud.dataflow.sdk.util.BigQueryTableInserter;
 import com.google.cloud.dataflow.sdk.util.BigQueryTableRowIterator;
@@ -74,7 +76,6 @@ import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 
@@ -1042,6 +1043,7 @@ public class BigQueryIO {
               String.format("Failed to resolve BigQuery temp location in %s", tempLocation),
               e);
         }
+
         BigQueryServices bqServices = getBigQueryServices();
         return input.apply("Write", com.google.cloud.dataflow.sdk.io.Write.to(
             new BigQuerySink(
@@ -1166,6 +1168,10 @@ public class BigQueryIO {
       // The maximum number of retry load jobs.
       private static final int MAX_RETRY_LOAD_JOBS = 3;
 
+      // The maximum number of retries to poll the status of a load job.
+      // It sets to {@code Integer.MAX_VALUE} to block until the BigQuery job finishes.
+      private static final int MAX_JOB_STATUS_POLL_RETRIES = Integer.MAX_VALUE;
+
       private final BigQuerySink bigQuerySink;
 
       private BigQueryWriteOperation(BigQuerySink sink) {
@@ -1189,7 +1195,7 @@ public class BigQueryIO {
           }
           if (!tempFiles.isEmpty()) {
               load(
-                  bigQuerySink.bqServices.getLoadService(bqOptions),
+                  bigQuerySink.bqServices.getJobService(bqOptions),
                   bigQuerySink.jobIdToken,
                   fromJsonString(bigQuerySink.jsonTable, TableReference.class),
                   tempFiles,
@@ -1213,7 +1219,7 @@ public class BigQueryIO {
        * <p>If a load job failed, it will try another load job with a different job id.
        */
       private void load(
-          LoadService loadService,
+          JobService jobService,
           String jobIdPrefix,
           TableReference ref,
           List<String> gcsUris,
@@ -1236,8 +1242,9 @@ public class BigQueryIO {
             LOG.info("Previous load jobs failed, retrying.");
           }
           LOG.info("Starting BigQuery load job: {}", jobId);
-          loadService.startLoadJob(jobId, loadConfig);
-          BigQueryServices.Status jobStatus = loadService.pollJobStatus(projectId, jobId);
+          jobService.startLoadJob(jobId, loadConfig);
+          Status jobStatus = parseStatus(
+              jobService.pollJob(projectId, jobId, MAX_JOB_STATUS_POLL_RETRIES));
           switch (jobStatus) {
             case SUCCEEDED:
               return;
@@ -1351,11 +1358,7 @@ public class BigQueryIO {
 
     /** Constructor. */
     StreamingWriteFn(TableSchema schema) {
-      try {
-        jsonTableSchema = JSON_FACTORY.toString(schema);
-      } catch (IOException e) {
-        throw new RuntimeException("Cannot initialize BigQuery streaming writer.", e);
-      }
+      jsonTableSchema = toJsonString(schema);
     }
 
     /** Prepares a target BigQuery table. */
@@ -1461,8 +1464,7 @@ public class BigQueryIO {
     public static <KeyT> ShardedKeyCoder<KeyT> of(
          @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
         List<Coder<KeyT>> components) {
-      Preconditions.checkArgument(components.size() == 1,
-          "Expecting 1 component, got " + components.size());
+      checkArgument(components.size() == 1, "Expecting 1 component, got %s", components.size());
       return of(components.get(0));
     }
 
@@ -1567,7 +1569,7 @@ public class BigQueryIO {
 
     TagWithUniqueIdsAndTable(BigQueryOptions options, TableReference table,
         SerializableFunction<BoundedWindow, TableReference> tableRefFunction) {
-      Preconditions.checkArgument(table == null ^ tableRefFunction == null,
+      checkArgument(table == null ^ tableRefFunction == null,
           "Exactly one of table or tableRefFunction should be set");
       if (table != null) {
         if (table.getProjectId() == null) {
@@ -1669,6 +1671,29 @@ public class BigQueryIO {
       // the BigQueryIO.Write.
 
       return PDone.in(input.getPipeline());
+    }
+  }
+
+  /**
+   * Status of a BigQuery job or request.
+   */
+  enum Status {
+    SUCCEEDED,
+    FAILED,
+    UNKNOWN,
+  }
+
+  private static Status parseStatus(@Nullable Job job) {
+    if (job == null) {
+      return Status.UNKNOWN;
+    }
+    JobStatus status = job.getStatus();
+    if (status.getErrorResult() != null) {
+      return Status.FAILED;
+    } else if (status.getErrors() != null && !status.getErrors().isEmpty()) {
+      return Status.FAILED;
+    } else {
+      return Status.SUCCEEDED;
     }
   }
 

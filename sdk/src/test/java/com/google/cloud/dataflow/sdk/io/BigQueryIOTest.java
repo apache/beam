@@ -19,12 +19,17 @@ package com.google.cloud.dataflow.sdk.io;
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasKey;
 
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
 
 import com.google.api.client.util.Data;
+import com.google.api.services.bigquery.model.ErrorProto;
+import com.google.api.services.bigquery.model.Job;
+import com.google.api.services.bigquery.model.JobConfigurationExtract;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
+import com.google.api.services.bigquery.model.JobConfigurationQuery;
+import com.google.api.services.bigquery.model.JobStatus;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
@@ -32,6 +37,7 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.coders.TableRowJsonCoder;
+import com.google.cloud.dataflow.sdk.io.BigQueryIO.Status;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO.Write.CreateDisposition;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO.Write.WriteDisposition;
 import com.google.cloud.dataflow.sdk.options.BigQueryOptions;
@@ -44,9 +50,9 @@ import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.BigQueryServices;
-import com.google.cloud.dataflow.sdk.util.BigQueryServices.Status;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 
 import org.hamcrest.Matchers;
 import org.junit.Assert;
@@ -64,6 +70,7 @@ import org.mockito.MockitoAnnotations;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
+import java.util.Map;
 
 /**
  * Tests for BigQueryIO.
@@ -71,23 +78,28 @@ import java.io.IOException;
 @RunWith(JUnit4.class)
 public class BigQueryIOTest {
 
+  // Status.UNKNOWN maps to null
+  private static final Map<Status, Job> JOB_STATUS_MAP = ImmutableMap.of(
+      Status.SUCCEEDED, new Job().setStatus(new JobStatus()),
+      Status.FAILED, new Job().setStatus(new JobStatus().setErrorResult(new ErrorProto())));
+
   private static class FakeBigQueryServices implements BigQueryServices {
 
-    private Object[] startLoadJobReturns;
+    private Object[] startJobReturns;
     private Object[] pollJobStatusReturns;
 
     /**
-     * Sets the return values for the mock {@link LoadService#startLoadJob}.
+     * Sets the return values for the mock {@link JobService#startLoadJob}.
      *
      * <p>Throws if the {@link Object} is a {@link Exception}, returns otherwise.
      */
     private FakeBigQueryServices startLoadJobReturns(Object... startLoadJobReturns) {
-      this.startLoadJobReturns = startLoadJobReturns;
+      this.startJobReturns = startLoadJobReturns;
       return this;
     }
 
     /**
-     * Sets the return values for the mock {@link LoadService#pollJobStatus}.
+     * Sets the return values for the mock {@link JobService#pollJobStatus}.
      *
      * <p>Throws if the {@link Object} is a {@link Exception}, returns otherwise.
      */
@@ -97,19 +109,19 @@ public class BigQueryIOTest {
     }
 
     @Override
-    public LoadService getLoadService(BigQueryOptions bqOptions) {
-      return new FakeLoadService(startLoadJobReturns, pollJobStatusReturns);
+    public JobService getJobService(BigQueryOptions bqOptions) {
+      return new FakeLoadService(startJobReturns, pollJobStatusReturns);
     }
 
-    private static class FakeLoadService implements BigQueryServices.LoadService {
+    private static class FakeLoadService implements BigQueryServices.JobService {
 
-      private Object[] startLoadJobReturns;
+      private Object[] startJobReturns;
       private Object[] pollJobStatusReturns;
       private int startLoadJobCallsCount;
       private int pollJobStatusCallsCount;
 
       public FakeLoadService(Object[] startLoadJobReturns, Object[] pollJobStatusReturns) {
-        this.startLoadJobReturns = startLoadJobReturns;
+        this.startJobReturns = startLoadJobReturns;
         this.pollJobStatusReturns = pollJobStatusReturns;
         this.startLoadJobCallsCount = 0;
         this.pollJobStatusCallsCount = 0;
@@ -118,8 +130,42 @@ public class BigQueryIOTest {
       @Override
       public void startLoadJob(String jobId, JobConfigurationLoad loadConfig)
           throws InterruptedException, IOException {
-        if (startLoadJobCallsCount < startLoadJobReturns.length) {
-          Object ret = startLoadJobReturns[startLoadJobCallsCount++];
+        startJob();
+      }
+
+      @Override
+      public void startExtractJob(String jobId, JobConfigurationExtract extractConfig)
+          throws InterruptedException, IOException {
+        startJob();
+      }
+
+      @Override
+      public void startQueryJob(String jobId, JobConfigurationQuery query, boolean dryRun)
+          throws IOException, InterruptedException {
+        startJob();
+      }
+
+      @Override
+      public Job pollJob(String projectId, String jobId, int maxAttemps)
+          throws InterruptedException {
+        if (pollJobStatusCallsCount < pollJobStatusReturns.length) {
+          Object ret = pollJobStatusReturns[pollJobStatusCallsCount++];
+          if (ret instanceof Status) {
+            return JOB_STATUS_MAP.get(ret);
+          } else if (ret instanceof InterruptedException) {
+            throw (InterruptedException) ret;
+          } else {
+            throw new RuntimeException("Unexpected return type: " + ret.getClass());
+          }
+        } else {
+          throw new RuntimeException(
+              "Exceeded expected number of calls: " + pollJobStatusReturns.length);
+        }
+      }
+
+      private void startJob() throws IOException, InterruptedException {
+        if (startLoadJobCallsCount < startJobReturns.length) {
+          Object ret = startJobReturns[startLoadJobCallsCount++];
           if (ret instanceof IOException) {
             throw (IOException) ret;
           } else if (ret instanceof InterruptedException) {
@@ -129,24 +175,7 @@ public class BigQueryIOTest {
           }
         } else {
           throw new RuntimeException(
-              "Exceeded expected number of calls: " + startLoadJobReturns.length);
-        }
-      }
-
-      @Override
-      public Status pollJobStatus(String projectId, String jobId) throws InterruptedException {
-        if (pollJobStatusCallsCount < pollJobStatusReturns.length) {
-          Object ret = pollJobStatusReturns[pollJobStatusCallsCount++];
-          if (ret instanceof Status) {
-            return (Status) ret;
-          } else if (ret instanceof InterruptedException) {
-            throw (InterruptedException) ret;
-          } else {
-            throw new RuntimeException("Unexpected return type: " + ret.getClass());
-          }
-        } else {
-          throw new RuntimeException(
-              "Exceeded expected number of calls: " + pollJobStatusReturns.length);
+              "Exceeded expected number of calls: " + startJobReturns.length);
         }
       }
     }
@@ -158,7 +187,7 @@ public class BigQueryIOTest {
   @Rule
   public TemporaryFolder testFolder = new TemporaryFolder();
   @Mock
-  public BigQueryServices.LoadService mockBqLoadService;
+  public BigQueryServices.JobService mockBqLoadService;
 
   private BigQueryOptions bqOptions;
 
@@ -208,7 +237,6 @@ public class BigQueryIOTest {
     assertEquals(writeDisposition, bound.writeDisposition);
     assertEquals(validate, bound.validate);
   }
-
 
   @Before
   public void setUp() {
