@@ -49,6 +49,7 @@ import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
@@ -258,6 +259,7 @@ public class ReduceFnRunnerTest {
         .of(FixedWindows.of(Duration.millis(10)))
         .withTrigger(mockTrigger)
         .withMode(AccumulationMode.DISCARDING_FIRED_PANES)
+        .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp())
         .withAllowedLateness(Duration.millis(100));
 
     TestOptions options = PipelineOptionsFactory.as(TestOptions.class);
@@ -504,6 +506,7 @@ public class ReduceFnRunnerTest {
                 AfterWatermark.pastEndOfWindow())))
             .withMode(AccumulationMode.DISCARDING_FIRED_PANES)
             .withAllowedLateness(Duration.millis(100))
+            .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp())
             .withClosingBehavior(ClosingBehavior.FIRE_ALWAYS));
 
     tester.advanceInputWatermark(new Instant(0));
@@ -556,6 +559,7 @@ public class ReduceFnRunnerTest {
                 AfterWatermark.pastEndOfWindow())))
             .withMode(AccumulationMode.ACCUMULATING_FIRED_PANES)
             .withAllowedLateness(Duration.millis(100))
+            .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp())
             .withClosingBehavior(ClosingBehavior.FIRE_IF_NON_EMPTY));
 
     tester.advanceInputWatermark(new Instant(0));
@@ -582,6 +586,7 @@ public class ReduceFnRunnerTest {
                 AfterWatermark.pastEndOfWindow())))
             .withMode(AccumulationMode.ACCUMULATING_FIRED_PANES)
             .withAllowedLateness(Duration.millis(100))
+            .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp())
             .withClosingBehavior(ClosingBehavior.FIRE_ALWAYS));
 
     tester.advanceInputWatermark(new Instant(0));
@@ -610,6 +615,7 @@ public class ReduceFnRunnerTest {
                 AfterWatermark.pastEndOfWindow())))
             .withMode(AccumulationMode.ACCUMULATING_FIRED_PANES)
             .withAllowedLateness(Duration.millis(100))
+            .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp())
             .withClosingBehavior(ClosingBehavior.FIRE_ALWAYS));
 
     tester.advanceInputWatermark(new Instant(0));

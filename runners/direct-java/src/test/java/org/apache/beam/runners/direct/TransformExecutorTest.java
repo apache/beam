@@ -130,7 +130,7 @@ public class TransformExecutorTest {
             created.getProducingTransformInternal(),
             completionCallback,
             transformEvaluationState);
-    executor.call();
+    executor.run();
 
     assertThat(finishCalled.get(), is(true));
     assertThat(completionCallback.handledResult, equalTo(result));
@@ -349,7 +349,7 @@ public class TransformExecutorTest {
             completionCallback,
             transformEvaluationState);
 
-    executor.call();
+    executor.run();
     TestEnforcement<?> testEnforcement = enforcement.instance;
     assertThat(
         testEnforcement.beforeElements,
@@ -409,7 +409,7 @@ public class TransformExecutorTest {
             completionCallback,
             transformEvaluationState);
 
-    Future<InProcessTransformResult> task = Executors.newSingleThreadExecutor().submit(executor);
+    Future<?> task = Executors.newSingleThreadExecutor().submit(executor);
     testLatch.await();
     fooBytes.getValue()[0] = 'b';
     evaluatorLatch.countDown();
@@ -468,7 +468,7 @@ public class TransformExecutorTest {
             completionCallback,
             transformEvaluationState);
 
-    Future<InProcessTransformResult> task = Executors.newSingleThreadExecutor().submit(executor);
+    Future<?> task = Executors.newSingleThreadExecutor().submit(executor);
     testLatch.await();
     fooBytes.getValue()[0] = 'b';
     evaluatorLatch.countDown();
@@ -491,7 +491,16 @@ public class TransformExecutorTest {
         CommittedBundle<?> inputBundle, InProcessTransformResult result) {
       handledResult = result;
       onMethod.countDown();
-      return CommittedResult.create(result, Collections.<CommittedBundle<?>>emptyList());
+      @SuppressWarnings("rawtypes") Iterable unprocessedElements =
+          result.getUnprocessedElements() == null ?
+              Collections.emptyList() :
+              result.getUnprocessedElements();
+
+      CommittedBundle<?> unprocessedBundle =
+          inputBundle == null ? null : inputBundle.withElements(unprocessedElements);
+      return CommittedResult.create(result,
+          unprocessedBundle,
+          Collections.<CommittedBundle<?>>emptyList());
     }
 
     @Override

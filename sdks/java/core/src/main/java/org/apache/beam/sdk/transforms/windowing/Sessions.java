@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 
@@ -86,12 +84,6 @@ public class Sessions extends WindowFn<Object, IntervalWindow> {
   @Override
   public IntervalWindow getSideInputWindow(BoundedWindow window) {
     throw new UnsupportedOperationException("Sessions is not allowed in side inputs");
-  }
-
-  @Experimental(Kind.OUTPUT_TIME)
-  @Override
-  public OutputTimeFn<? super IntervalWindow> getOutputTimeFn() {
-    return OutputTimeFns.outputAtEarliestInputTimestamp();
   }
 
   public Duration getGapDuration() {

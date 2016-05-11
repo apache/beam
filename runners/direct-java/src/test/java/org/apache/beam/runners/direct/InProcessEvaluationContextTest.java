@@ -317,7 +317,6 @@ public class InProcessEvaluationContextTest {
             .build();
 
     context.handleResult(null, ImmutableList.<TimerData>of(), result);
-
     // Difficult to demonstrate that we took no action in a multithreaded world; poll for a bit
     // will likely be flaky if this logic is broken
     assertThat(callLatch.await(500L, TimeUnit.MILLISECONDS), is(false));
@@ -325,6 +324,7 @@ public class InProcessEvaluationContextTest {
     InProcessTransformResult finishedResult =
         StepTransformResult.withoutHold(created.getProducingTransformInternal()).build();
     context.handleResult(null, ImmutableList.<TimerData>of(), finishedResult);
+    context.forceRefresh();
     // Obtain the value via blocking call
     assertThat(callLatch.await(1, TimeUnit.SECONDS), is(true));
   }
@@ -336,6 +336,7 @@ public class InProcessEvaluationContextTest {
     context.handleResult(null, ImmutableList.<TimerData>of(), finishedResult);
 
     final CountDownLatch callLatch = new CountDownLatch(1);
+    context.extractFiredTimers();
     Runnable callback =
         new Runnable() {
           @Override
@@ -426,6 +427,7 @@ public class InProcessEvaluationContextTest {
         null,
         ImmutableList.<TimerData>of(),
         StepTransformResult.withoutHold(unbounded.getProducingTransformInternal()).build());
+    context.extractFiredTimers();
     assertThat(context.isDone(unbounded.getProducingTransformInternal()), is(true));
   }
 
@@ -450,6 +452,7 @@ public class InProcessEvaluationContextTest {
         null,
         ImmutableList.<TimerData>of(),
         StepTransformResult.withoutHold(created.getProducingTransformInternal()).build());
+    context.extractFiredTimers();
     assertThat(context.isDone(created.getProducingTransformInternal()), is(true));
   }
 
@@ -482,6 +485,7 @@ public class InProcessEvaluationContextTest {
           ImmutableList.<TimerData>of(),
           StepTransformResult.withoutHold(consumers).build());
     }
+    context.extractFiredTimers();
     assertThat(context.isDone(), is(true));
   }
 
@@ -502,12 +506,14 @@ public class InProcessEvaluationContextTest {
         context.createRootBundle(created).commit(Instant.now()),
         ImmutableList.<TimerData>of(),
         StepTransformResult.withoutHold(downstream.getProducingTransformInternal()).build());
+    context.extractFiredTimers();
     assertThat(context.isDone(), is(false));
 
     context.handleResult(
         context.createRootBundle(created).commit(Instant.now()),
         ImmutableList.<TimerData>of(),
         StepTransformResult.withoutHold(view.getProducingTransformInternal()).build());
+    context.extractFiredTimers();
     assertThat(context.isDone(), is(false));
   }
 

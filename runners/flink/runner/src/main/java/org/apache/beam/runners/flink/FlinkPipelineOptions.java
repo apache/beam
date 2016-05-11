@@ -70,7 +70,7 @@ public interface FlinkPipelineOptions extends PipelineOptions, ApplicationNameOp
   void setFlinkMaster(String value);
 
   @Description("The degree of parallelism to be used when distributing operations onto workers.")
-  @Default.Integer(-1)
+  @Default.InstanceFactory(DefaultParallelismFactory.class)
   Integer getParallelism();
   void setParallelism(Integer value);
 

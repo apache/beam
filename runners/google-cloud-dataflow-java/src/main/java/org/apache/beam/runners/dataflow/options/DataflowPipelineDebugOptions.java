@@ -191,6 +191,18 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
   void setOverrideWindmillBinary(String value);
 
   /**
+   * Custom windmill service endpoint.
+   */
+  @Description("Custom windmill service endpoint.")
+  String getWindmillServiceEndpoint();
+  void setWindmillServiceEndpoint(String value);
+
+  @Description("Port for communicating with a remote windmill service.")
+  @Default.Integer(443)
+  int getWindmillServicePort();
+  void setWindmillServicePort(int value);
+
+  /**
    * Number of threads to use on the Dataflow worker harness. If left unspecified,
    * the Dataflow service will compute an appropriate number of threads to use.
    */

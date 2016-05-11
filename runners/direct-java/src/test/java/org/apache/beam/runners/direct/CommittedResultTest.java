@@ -18,11 +18,14 @@
 
 package org.apache.beam.runners.direct;
 
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -46,6 +49,7 @@ import java.util.List;
 @RunWith(JUnit4.class)
 public class CommittedResultTest implements Serializable {
   private transient TestPipeline p = TestPipeline.create();
+  private transient PCollection<Integer> created = p.apply(Create.of(1, 2));
   private transient AppliedPTransform<?, ?, ?> transform =
       AppliedPTransform.of("foo", p.begin(), PDone.in(p), new PTransform<PBegin, PDone>() {
       });
@@ -55,9 +59,35 @@ public class CommittedResultTest implements Serializable {
   public void getTransformExtractsFromResult() {
     CommittedResult result =
         CommittedResult.create(StepTransformResult.withoutHold(transform).build(),
+            bundleFactory.createRootBundle(created).commit(Instant.now()),
             Collections.<InProcessPipelineRunner.CommittedBundle<?>>emptyList());
 
     assertThat(result.getTransform(), Matchers.<AppliedPTransform<?, ?, ?>>equalTo(transform));
+  }
+
+  @Test
+  public void getUncommittedElementsEqualInput() {
+    InProcessPipelineRunner.CommittedBundle<Integer> bundle =
+        bundleFactory.createRootBundle(created)
+            .add(WindowedValue.valueInGlobalWindow(2))
+            .commit(Instant.now());
+    CommittedResult result =
+        CommittedResult.create(StepTransformResult.withoutHold(transform).build(),
+            bundle,
+            Collections.<InProcessPipelineRunner.CommittedBundle<?>>emptyList());
+
+    assertThat(result.getUnprocessedInputs(),
+        Matchers.<InProcessPipelineRunner.CommittedBundle<?>>equalTo(bundle));
+  }
+
+  @Test
+  public void getUncommittedElementsNull() {
+    CommittedResult result =
+        CommittedResult.create(StepTransformResult.withoutHold(transform).build(),
+            null,
+            Collections.<InProcessPipelineRunner.CommittedBundle<?>>emptyList());
+
+    assertThat(result.getUnprocessedInputs(), nullValue());
   }
 
   @Test
@@ -70,7 +100,9 @@ public class CommittedResultTest implements Serializable {
                 WindowingStrategy.globalDefault(),
                 PCollection.IsBounded.UNBOUNDED)).commit(Instant.now()));
     CommittedResult result =
-        CommittedResult.create(StepTransformResult.withoutHold(transform).build(), outputs);
+        CommittedResult.create(StepTransformResult.withoutHold(transform).build(),
+            bundleFactory.createRootBundle(created).commit(Instant.now()),
+            outputs);
 
     assertThat(result.getOutputs(), Matchers.containsInAnyOrder(outputs.toArray()));
   }

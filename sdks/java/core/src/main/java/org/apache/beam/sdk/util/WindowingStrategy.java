@@ -23,6 +23,7 @@ import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
+import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
@@ -30,8 +31,10 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import com.google.common.base.MoreObjects;
 
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.Objects;
 
 /**
@@ -99,7 +102,7 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         ExecutableTrigger.create(DefaultTrigger.<W>of()), false,
         AccumulationMode.DISCARDING_FIRED_PANES, false,
         DEFAULT_ALLOWED_LATENESS, false,
-        windowFn.getOutputTimeFn(), false,
+        OutputTimeFns.outputAtEndOfWindow(), false,
         ClosingBehavior.FIRE_IF_NON_EMPTY);
   }
 
@@ -182,7 +185,7 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
     // The onus of type correctness falls on the callee.
     @SuppressWarnings("unchecked")
     OutputTimeFn<? super W> newOutputTimeFn = (OutputTimeFn<? super W>)
-        (outputTimeFnSpecified ? outputTimeFn : typedWindowFn.getOutputTimeFn());
+        new CombineWindowFnOutputTimes<W>(outputTimeFn, typedWindowFn);
 
     return new WindowingStrategy<T, W>(
         typedWindowFn,
@@ -223,12 +226,15 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
     @SuppressWarnings("unchecked")
     OutputTimeFn<? super W> typedOutputTimeFn = (OutputTimeFn<? super W>) outputTimeFn;
 
+    OutputTimeFn<? super W> newOutputTimeFn =
+        new CombineWindowFnOutputTimes<W>(typedOutputTimeFn, windowFn);
+
     return new WindowingStrategy<T, W>(
         windowFn,
         trigger, triggerSpecified,
         mode, modeSpecified,
         allowedLateness, allowedLatenessSpecified,
-        typedOutputTimeFn, true,
+        newOutputTimeFn, true,
         closingBehavior);
   }
 
@@ -264,5 +270,48 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
   public int hashCode() {
     return Objects.hash(triggerSpecified, allowedLatenessSpecified, modeSpecified,
         windowFn, trigger, mode, allowedLateness, closingBehavior);
+  }
+
+  /**
+   * An {@link OutputTimeFn} that uses {@link WindowFn#getOutputTime} to assign initial timestamps
+   * but then combines and merges according to a given {@link OutputTimeFn}.
+   *
+   * <ul>
+   *   <li>The {@link WindowFn#getOutputTime} allows adjustments such as that whereby
+   *       {@link SlidingWindows#getOutputTime} moves elements later in time to avoid holding up
+   *       progress downstream.</li>
+   *   <li>Then, when multiple elements are buffered for output, the output timestamp of the
+   *       result is calculated using {@link OutputTimeFn#combine}.</li>
+   *   <li>In the case of a merging {@link WindowFn}, the output timestamp when windows merge
+   *       is calculated using {@link OutputTimeFn#merge}.</li>
+   * </ul>
+   */
+  private static class CombineWindowFnOutputTimes<W extends BoundedWindow>
+      extends OutputTimeFn.Defaults<W> {
+
+    private final OutputTimeFn<? super W> outputTimeFn;
+    private final WindowFn<?, W> windowFn;
+
+    public CombineWindowFnOutputTimes(
+        OutputTimeFn<? super W> outputTimeFn, WindowFn<?, W> windowFn) {
+      this.outputTimeFn = outputTimeFn;
+      this.windowFn = windowFn;
+    }
+
+    @Override
+    public Instant assignOutputTime(Instant inputTimestamp, W window) {
+      return outputTimeFn.merge(
+          window, Collections.singleton(windowFn.getOutputTime(inputTimestamp, window)));
+    }
+
+    @Override
+    public Instant combine(Instant timestamp, Instant otherTimestamp) {
+      return outputTimeFn.combine(timestamp, otherTimestamp);
+    }
+
+    @Override
+    public Instant merge(W newWindow, Iterable<? extends Instant> timestamps) {
+      return outputTimeFn.merge(newWindow, timestamps);
+    }
   }
 }
