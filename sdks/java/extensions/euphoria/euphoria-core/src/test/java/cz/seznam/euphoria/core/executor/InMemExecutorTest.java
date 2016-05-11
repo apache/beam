@@ -307,18 +307,8 @@ public class InMemExecutorTest {
 
     outputs.get(1).forEach(p -> assertFalse(firstKeys.contains(p.getFirst())));
 
-    int sublistIndex = 0;
-    for (int i = 0; i < 6; i++) {
-      // sublists are of length 100, 200, 300, 400, 500, 550
-      int start = sublistIndex;
-      int sublistLength = (i + 1) * 100 - (i == 5 ? 50 : 0);
-      final List<List<Pair<Integer, Integer>>> sublists;
-      sublists = outputs.stream()
-          .map(l -> l.subList(start, start + sublistLength))
-          .collect(Collectors.toList());
-      sublists.forEach(InMemExecutorTest::checkSorted);
-      sublistIndex += sublistLength;
-    }
+    outputs.stream().forEach(
+        p -> checkSortedSublists(p, 100, 200, 300, 400, 500, 550));
 
   }
 
@@ -359,20 +349,27 @@ public class InMemExecutorTest {
 
     outputs.get(1).forEach(p -> assertFalse(firstKeys.contains(p.getFirst())));
 
+    outputs.stream().forEach(
+        p -> checkSortedSublists(p, 100, 100, 100, 100, 100, 50));
+
+
+  }
+
+  private void checkSortedSublists(
+      List<Pair<Integer, Integer>> list, int... lengths) {
+
     int sublistIndex = 0;
-    for (int i = 0; i < 6; i++) {
+    for (int sublistLength : lengths) {
       // sublists are of length 100, 100, 100, 100, 100, 50
       int start = sublistIndex;
-      int sublistLength = 100 - (i == 5 ? 50 : 0);
       final List<List<Pair<Integer, Integer>>> sublists;
-      sublists = outputs.stream()
-          .map(l -> l.subList(start, start + sublistLength))
-          .collect(Collectors.toList());
-      sublists.forEach(InMemExecutorTest::checkSorted);
+      checkSorted(list.subList(start, start + sublistLength));
       sublistIndex += sublistLength;
     }
 
   }
+
+
 
 
   private static class CountWindow<GROUP> implements Window<GROUP, Integer> {
@@ -432,7 +429,6 @@ public class InMemExecutorTest {
             res.size = currentSize;
             ret.add(Pair.of(toMerge, res));
             toMerge = new ArrayList<>();
-            currentSize = 0;
           }
           toMerge.add(w);
           currentSize = w.size;
@@ -449,10 +445,7 @@ public class InMemExecutorTest {
     @Override
     public Set<CountWindow<GROUP>> assignWindows(T input) {
       GROUP g = groupExtractor.apply(input);
-      CountWindow<GROUP> w = new CountWindow<>(g);
-      HashSet<CountWindow<GROUP>> ret = new HashSet<>();
-      ret.add(w);
-      return ret;
+      return Collections.singleton(new CountWindow<>(g));
     }
 
     
