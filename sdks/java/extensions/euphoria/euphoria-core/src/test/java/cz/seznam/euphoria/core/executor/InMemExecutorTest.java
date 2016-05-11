@@ -2,8 +2,12 @@
 package cz.seznam.euphoria.core.executor;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
+import cz.seznam.euphoria.core.client.dataset.MergingWindowing;
+import cz.seznam.euphoria.core.client.dataset.Triggering;
+import cz.seznam.euphoria.core.client.dataset.Window;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
+import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
@@ -21,8 +25,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Random;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -276,7 +280,7 @@ public class InMemExecutorTest {
 
     // the key for sort will be the last digit
     Dataset<Pair<Integer, Integer>> output = ReduceStateByKey.of(ints)
-        .keyBy(i -> (int) i % 10)
+        .keyBy(i -> i % 10)
         .valueBy(e -> e)
         .stateFactory(SortState::new)
         .combineStateBy(SortState::combine)
@@ -319,10 +323,204 @@ public class InMemExecutorTest {
   }
 
 
+  @Test
+  public void testReduceByKeyWithSortStateAndNonAggregatingWindow() {
+    Dataset<Integer> ints = flow.createInput(
+        ListDataSource.unbounded(
+            reversed(sequenceInts(0, 100)),
+            reversed(sequenceInts(100, 1100))));
+
+    // the key for sort will be the last digit
+    Dataset<Pair<Integer, Integer>> output = ReduceStateByKey.of(ints)
+        .keyBy(i -> i % 10)
+        .valueBy(e -> e)
+        .stateFactory(SortState::new)
+        .combineStateBy(SortState::combine)
+        .windowBy(Windowing.Count.of(100))
+        .output();
+
+    // collector of outputs
+    ListDataSink<Pair<Integer, Integer>> outputSink = ListDataSink.get(2);
+
+    output.persist(outputSink);
+
+    executor.waitForCompletion(flow);
+
+    List<List<Pair<Integer, Integer>>> outputs = outputSink.getOutputs();
+    assertEquals(2, outputs.size());
+
+    // each partition should have (100 + 100 + 100 + 100 + 100 + 50) = 550 items
+    assertEquals(550, outputs.get(0).size());
+    assertEquals(550, outputs.get(1).size());
+
+    Set<Integer> firstKeys = outputs.get(0).stream()
+        .map(Pair::getFirst).distinct()
+        .collect(Collectors.toSet());
+
+    outputs.get(1).forEach(p -> assertFalse(firstKeys.contains(p.getFirst())));
+
+    int sublistIndex = 0;
+    for (int i = 0; i < 6; i++) {
+      // sublists are of length 100, 100, 100, 100, 100, 50
+      int start = sublistIndex;
+      int sublistLength = 100 - (i == 5 ? 50 : 0);
+      final List<List<Pair<Integer, Integer>>> sublists;
+      sublists = outputs.stream()
+          .map(l -> l.subList(start, start + sublistLength))
+          .collect(Collectors.toList());
+      sublists.forEach(InMemExecutorTest::checkSorted);
+      sublistIndex += sublistLength;
+    }
+
+  }
+
+
+  private static class CountWindow<GROUP> implements Window<GROUP, Integer> {
+
+    final GROUP group;
+    int size = 1;
+
+    public CountWindow(GROUP group) {
+      this.group = group;
+    }
+
+    @Override
+    public GROUP getGroup() {
+      return group;
+    }
+
+    @Override
+    public Integer getLabel() {
+      return System.identityHashCode(this);
+    }
+
+    @Override
+    public void registerTrigger(
+        Triggering triggering, UnaryFunction<Window<?, ?>, Void> evict) {
+      // nop
+    }
+
+  }
+
+
+  static class UnalignedCountWindowing<T, GROUP> implements
+      MergingWindowing<T, GROUP, Integer, CountWindow<GROUP>> {
+
+    final UnaryFunction<T, GROUP> groupExtractor;
+    final UnaryFunction<GROUP, Integer> size;
+
+    UnalignedCountWindowing(
+        UnaryFunction<T, GROUP> groupExtractor, UnaryFunction<GROUP, Integer> size) {
+      this.groupExtractor = groupExtractor;
+      this.size = size;
+    }
+
+    @Override
+    public Collection<Pair<Collection<CountWindow<GROUP>>, CountWindow<GROUP>>> mergeWindows(
+        Collection<CountWindow<GROUP>> actives) {
+
+      List<Pair<Collection<CountWindow<GROUP>>, CountWindow<GROUP>>> ret = new ArrayList<>();
+      List<CountWindow<GROUP>> toMerge = new ArrayList<>();
+      int currentSize = 0;
+      for (CountWindow<GROUP> w : actives) {
+        if (currentSize + w.size <= size.apply(w.group)) {
+          currentSize += w.size;
+          toMerge.add(w);
+        } else {
+          if (!toMerge.isEmpty()) {
+            CountWindow<GROUP> res = new CountWindow<>(toMerge.get(0).group);
+            res.size = currentSize;
+            ret.add(Pair.of(toMerge, res));
+            toMerge = new ArrayList<>();
+            currentSize = 0;
+          }
+          toMerge.add(w);
+          currentSize = w.size;
+        }
+      }
+      if (!toMerge.isEmpty()) {
+        CountWindow<GROUP> res = new CountWindow<>(toMerge.get(0).group);
+        res.size = currentSize;
+        ret.add(Pair.of(toMerge, res));
+      }
+      return ret;
+    }
+
+    @Override
+    public Set<CountWindow<GROUP>> assignWindows(T input) {
+      GROUP g = groupExtractor.apply(input);
+      CountWindow<GROUP> w = new CountWindow<>(g);
+      HashSet<CountWindow<GROUP>> ret = new HashSet<>();
+      ret.add(w);
+      return ret;
+    }
+
+    
+    @Override
+    public boolean isComplete(CountWindow<GROUP> window) {
+      return window.size == size.apply(window.group);
+    }
+
+
+  }
+
+
+  @Test
+  public void testReduceByKeyWithSortStateAndUnalignedWindow() {
+    Dataset<Integer> ints = flow.createInput(
+        ListDataSource.unbounded(
+            reversed(sequenceInts(0, 100)),
+            reversed(sequenceInts(100, 1100))));
+
+    UnalignedCountWindowing<Integer, Integer> windowing = new UnalignedCountWindowing<>(
+        i -> i % 10, i -> i + 1);
+
+    // the key for sort will be the last digit
+    Dataset<Pair<Integer, Integer>> output = ReduceStateByKey.of(ints)
+        .keyBy(i -> i % 10)
+        .valueBy(e -> e)
+        .stateFactory(SortState::new)
+        .combineStateBy(SortState::combine)
+        .windowBy(windowing)
+        .output();
+
+    // collector of outputs
+    ListDataSink<Pair<Integer, Integer>> outputSink = ListDataSink.get(2);
+
+    output.persist(outputSink);
+
+    executor.waitForCompletion(flow);
+
+    List<List<Pair<Integer, Integer>>> outputs = outputSink.getOutputs();
+    assertEquals(2, outputs.size());
+
+    // each partition should have 550 items
+    assertEquals(550, outputs.get(0).size());
+    assertEquals(550, outputs.get(1).size());
+
+    Set<Integer> firstKeys = outputs.get(0).stream()
+        .map(Pair::getFirst).distinct()
+        .collect(Collectors.toSet());
+
+    outputs.get(1).forEach(p -> assertFalse(firstKeys.contains(p.getFirst())));
+
+    // each partition is now constructed so that there is exactly (N + 1)
+    // sorted elements in a row, N is the element key
+    // then key *might* get switched
+
+    outputs.forEach(this::checkKeyAlignedSortedList);
+
+  }
+
+
   private static void checkSorted(List<Pair<Integer, Integer>> collection) {
     Pair<Integer, Integer> last = null;
+    Set<Integer> passedKeys = new HashSet<>();
     for (Pair<Integer, Integer> elem : collection) {
       if (last != null && (int) last.getFirst() != (int) elem.getFirst()) {
+        assertTrue("Each key should be in the sequence in single continuous block. Key "
+            + last.getFirst() + " was seen multiple times. The sequence is not properly sorted",
+            passedKeys.add(last.getFirst()));
         last = null;
       }
       if (last != null) {
@@ -330,6 +528,42 @@ public class InMemExecutorTest {
             last.getSecond() < elem.getSecond());
       }
       last = elem;
+    }
+
+  }
+
+
+  private void checkKeyAlignedSortedList(List<Pair<Integer, Integer>> list) {
+
+    Integer lastKey = null;
+    int lastValue = -1;
+    int sortedInRow = 0;
+    Set<Integer> finishedKeys = new HashSet<>();
+
+    for (Pair<Integer, Integer> p : list) {
+      assertFalse("Received already closed key "
+          + p.getFirst(), finishedKeys.contains(p.getFirst()));
+      if (lastKey != null) {
+        if (lastKey != (int) p.getFirst() || sortedInRow == lastKey + 1) {
+          // we have switch in keys, check that N + 1 elements arrived
+          // if not, this means that this key can never arrive again (we reached
+          // end of the input)
+          boolean isComplete = sortedInRow == lastKey + 1;
+          if (!isComplete) {
+            finishedKeys.add(lastKey);
+          }
+          sortedInRow = 0;
+        } else {
+          assertTrue("Key " + lastKey + " is not properly sorted. Have "
+              + sortedInRow + " sorted elements so far, last value is "
+              + lastValue + ", but the new one is " +  p.getValue(),
+              lastValue < p.getValue());
+        }
+      }
+
+      lastKey = p.getFirst();
+      lastValue = p.getSecond();
+      sortedInRow++;
     }
 
   }
