@@ -29,6 +29,7 @@ import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.Trigger;
 import com.google.cloud.dataflow.sdk.util.ExecutionContext;
+import com.google.cloud.dataflow.sdk.util.ReadyCheckingSideInputReader;
 import com.google.cloud.dataflow.sdk.util.SideInputReader;
 import com.google.cloud.dataflow.sdk.util.TimerInternals.TimerData;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
@@ -328,17 +329,6 @@ class InProcessEvaluationContext {
   public ReadyCheckingSideInputReader createSideInputReader(
       final List<PCollectionView<?>> sideInputs) {
     return sideInputContainer.createReaderForViews(sideInputs);
-  }
-
-  /**
-   * A {@link SideInputReader} that allows callers to check to see if a {@link PCollectionView} has
-   * had its contents set in a window.
-   */
-  interface ReadyCheckingSideInputReader extends SideInputReader {
-    /**
-     * Returns true if the {@link PCollectionView} is ready in the provided {@link BoundedWindow}.
-     */
-    boolean isReady(PCollectionView<?> view, BoundedWindow window);
   }
 
   /**

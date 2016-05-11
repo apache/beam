@@ -24,7 +24,6 @@ import static org.mockito.Mockito.doAnswer;
 
 import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
-import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessEvaluationContext.ReadyCheckingSideInputReader;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.Mean;
@@ -35,6 +34,7 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo;
 import com.google.cloud.dataflow.sdk.transforms.windowing.PaneInfo.Timing;
 import com.google.cloud.dataflow.sdk.util.PCollectionViews;
+import com.google.cloud.dataflow.sdk.util.ReadyCheckingSideInputReader;
 import com.google.cloud.dataflow.sdk.util.SideInputReader;
 import com.google.cloud.dataflow.sdk.util.WindowedValue;
 import com.google.cloud.dataflow.sdk.util.WindowingStrategy;
