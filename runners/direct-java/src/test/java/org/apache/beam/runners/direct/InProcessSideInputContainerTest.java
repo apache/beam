@@ -22,6 +22,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.doAnswer;
 
 import org.apache.beam.sdk.coders.KvCoder;
@@ -61,8 +62,10 @@ import org.mockito.stubbing.Answer;
 
 import java.util.Map;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Tests for {@link InProcessSideInputContainer}.
@@ -194,46 +197,12 @@ public class InProcessSideInputContainerTest {
    * there is data in the pane.
    */
   @Test
-  public void getBlocksUntilPaneAvailable() throws Exception {
-    BoundedWindow window =
-        new BoundedWindow() {
-          @Override
-          public Instant maxTimestamp() {
-            return new Instant(1024L);
-          }
-        };
-    Future<Double> singletonFuture =
-        getFutureOfView(
-            container.createReaderForViews(ImmutableList.<PCollectionView<?>>of(singletonView)),
-            singletonView,
-            window);
+  public void getNotReadyThrows() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("not ready");
 
-    WindowedValue<Double> singletonValue =
-        WindowedValue.of(4.75, new Instant(475L), window, PaneInfo.ON_TIME_AND_ONLY_FIRING);
-
-    assertThat(singletonFuture.isDone(), is(false));
-    container.write(singletonView, ImmutableList.<WindowedValue<?>>of(singletonValue));
-    assertThat(singletonFuture.get(), equalTo(4.75));
-  }
-
-  @Test
-  public void withPCollectionViewsWithPutInOriginalReturnsContents() throws Exception {
-    BoundedWindow window = new BoundedWindow() {
-      @Override
-      public Instant maxTimestamp() {
-        return new Instant(1024L);
-      }
-    };
-    SideInputReader newReader =
-        container.createReaderForViews(ImmutableList.<PCollectionView<?>>of(singletonView));
-    Future<Double> singletonFuture = getFutureOfView(newReader, singletonView, window);
-
-    WindowedValue<Double> singletonValue =
-        WindowedValue.of(24.125, new Instant(475L), window, PaneInfo.ON_TIME_AND_ONLY_FIRING);
-
-    assertThat(singletonFuture.isDone(), is(false));
-    container.write(singletonView, ImmutableList.<WindowedValue<?>>of(singletonValue));
-    assertThat(singletonFuture.get(), equalTo(24.125));
+    container.createReaderForViews(ImmutableList.<PCollectionView<?>>of(mapView))
+        .get(mapView, GlobalWindow.INSTANCE);
   }
 
   @Test
@@ -448,15 +417,20 @@ public class InProcessSideInputContainerTest {
   }
 
   @Test
-  public void isReadyForEmptyWindowTrue() {
+  public void isReadyForEmptyWindowTrue() throws Exception {
+    CountDownLatch onComplete = new CountDownLatch(1);
     immediatelyInvokeCallback(mapView, GlobalWindow.INSTANCE);
+    CountDownLatch latch = invokeLatchedCallback(singletonView, GlobalWindow.INSTANCE, onComplete);
 
     ReadyCheckingSideInputReader reader =
         container.createReaderForViews(ImmutableList.of(mapView, singletonView));
     assertThat(reader.isReady(mapView, GlobalWindow.INSTANCE), is(true));
     assertThat(reader.isReady(singletonView, GlobalWindow.INSTANCE), is(false));
 
-    immediatelyInvokeCallback(singletonView, GlobalWindow.INSTANCE);
+    latch.countDown();
+    if (!onComplete.await(1500L, TimeUnit.MILLISECONDS)) {
+      fail("Callback to set empty values did not complete!");
+    }
     assertThat(reader.isReady(singletonView, GlobalWindow.INSTANCE), is(true));
   }
 
@@ -481,6 +455,45 @@ public class InProcessSideInputContainerTest {
             Mockito.eq(window),
             Mockito.eq(view.getWindowingStrategyInternal()),
             Mockito.any(Runnable.class));
+  }
+
+  /**
+   * When a callAfterWindowCloses with the specified view's producing transform, window, and
+   * windowing strategy is invoked, start a thread that will invoke the callback after the returned
+   * {@link CountDownLatch} is counted down once.
+   */
+  private CountDownLatch invokeLatchedCallback(
+      PCollectionView<?> view, BoundedWindow window, final CountDownLatch onComplete) {
+    final CountDownLatch runLatch = new CountDownLatch(1);
+    doAnswer(
+        new Answer<Void>() {
+          @Override
+          public Void answer(InvocationOnMock invocation) throws Throwable {
+            Object callback = invocation.getArguments()[3];
+            final Runnable callbackRunnable = (Runnable) callback;
+            Executors.newSingleThreadExecutor().submit(new Runnable() {
+              public void run() {
+                try {
+                  if (!runLatch.await(1500L, TimeUnit.MILLISECONDS)) {
+                    fail("Run latch didn't count down within timeout");
+                  }
+                  callbackRunnable.run();
+                  onComplete.countDown();
+                } catch (InterruptedException e) {
+                  fail("Unexpectedly interrupted while waiting for latch to be counted down");
+                }
+              }
+            });
+            return null;
+          }
+        })
+        .when(context)
+        .scheduleAfterOutputWouldBeProduced(
+            Mockito.eq(view),
+            Mockito.eq(window),
+            Mockito.eq(view.getWindowingStrategyInternal()),
+            Mockito.any(Runnable.class));
+    return runLatch;
   }
 
   private <ValueT> Future<ValueT> getFutureOfView(final SideInputReader myReader,
