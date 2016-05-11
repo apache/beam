@@ -18,8 +18,8 @@ public class StdoutSink<T> implements DataSink<T> {
     @Override
     public <T> DataSink<T> get(URI uri, Settings settings) {
       settings = settings.nested(URIParams.of(uri).getStringParam("cfg", null));
-      boolean dumpPartitionId = settings.getBoolean("dump-partition-id", false);
-      return new StdoutSink<>(dumpPartitionId);
+      boolean debug = settings.getBoolean("debug", false);
+      return new StdoutSink<>(debug);
     }
   }
 
@@ -58,11 +58,11 @@ public class StdoutSink<T> implements DataSink<T> {
     }
   }
 
-  static final class PartitionIdWriter<T> extends AbstractWriter<T> {
+  static final class DebugWriter<T> extends AbstractWriter<T> {
     final int partitionId;
     final StringBuilder buf = new StringBuilder();
 
-    PartitionIdWriter(PrintStream out, int partitionId, boolean doClose) {
+    DebugWriter(PrintStream out, int partitionId, boolean doClose) {
       super(out, doClose);
       this.partitionId = partitionId;
     }
@@ -73,15 +73,23 @@ public class StdoutSink<T> implements DataSink<T> {
       // avoid messing up the output with concurrent threads trying
       // to do the same
       buf.setLength(0);
-      buf.append('[').append(partitionId).append("]: ").append(elem);
+      buf.append(System.nanoTime())
+          .append(": (")
+          .append(Thread.currentThread().getName())
+          .append('[')
+          .append(partitionId)
+          .append("] (#")
+          .append(System.identityHashCode(elem))
+          .append("): ")
+          .append(elem);
       out.println(buf);
     }
   }
 
-  private final boolean dumpPartitionId;
+  private final boolean debug;
 
-  StdoutSink(boolean dumpPartitionId) {
-    this.dumpPartitionId = dumpPartitionId;
+  StdoutSink(boolean debug) {
+    this.debug = debug;
   }
 
   @Override
@@ -89,8 +97,8 @@ public class StdoutSink<T> implements DataSink<T> {
     // ~ we're specifying the writers _not_ to close
     // the given PrintStream (stdout here)
     PrintStream out = System.out;
-    return dumpPartitionId
-        ? new PartitionIdWriter<>(out, partitionId, false)
+    return debug
+        ? new DebugWriter<>(out, partitionId, false)
         : new PlainWriter<>(out, false);
   }
 
