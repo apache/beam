@@ -643,17 +643,23 @@ public class PubsubIO {
         super.populateDisplayData(builder);
 
         builder
-            .addIfNotNull(DisplayData.item("timestampLabel", timestampLabel))
-            .addIfNotNull(DisplayData.item("idLabel", idLabel))
-            .addIfNotNull(DisplayData.item("maxReadTime", maxReadTime))
-            .addIfNotDefault(DisplayData.item("maxNumRecords", maxNumRecords), 0);
+            .addIfNotNull(DisplayData.item("timestampLabel", timestampLabel)
+              .withLabel("Timestamp Label Attribute"))
+            .addIfNotNull(DisplayData.item("idLabel", idLabel)
+              .withLabel("ID Label Attribute"))
+            .addIfNotNull(DisplayData.item("maxReadTime", maxReadTime)
+              .withLabel("Maximum Read Time"))
+            .addIfNotDefault(DisplayData.item("maxNumRecords", maxNumRecords)
+              .withLabel("Maximum Read Records"), 0);
 
         if (topic != null) {
-          builder.add(DisplayData.item("topic", topic.asPath()));
+          builder.add(DisplayData.item("topic", topic.asPath())
+            .withLabel("Pubsub Topic"));
         }
 
         if (subscription != null) {
-          builder.add(DisplayData.item("subscription", subscription.asPath()));
+          builder.add(DisplayData.item("subscription", subscription.asPath())
+            .withLabel("Pubsub Subscription"));
         }
       }
 
@@ -955,11 +961,14 @@ public class PubsubIO {
         super.populateDisplayData(builder);
 
         builder
-            .addIfNotNull(DisplayData.item("timestampLabel", timestampLabel))
-            .addIfNotNull(DisplayData.item("idLabel", idLabel));
+            .addIfNotNull(DisplayData.item("timestampLabel", timestampLabel)
+              .withLabel("Timestamp Label Attribute"))
+            .addIfNotNull(DisplayData.item("idLabel", idLabel)
+              .withLabel("ID Label Attribute"));
 
         if (topic != null) {
-          builder.add(DisplayData.item("topic", topic.asPath()));
+          builder.add(DisplayData.item("topic", topic.asPath())
+            .withLabel("Pubsub Topic"));
         }
       }
 

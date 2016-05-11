@@ -182,8 +182,10 @@ public class Partition<T> extends PTransform<PCollection<T>, PCollectionList<T>>
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder
-          .add(DisplayData.item("numPartitions", numPartitions))
-          .add(DisplayData.item("partitionFn", partitionFn.getClass()));
+          .add(DisplayData.item("numPartitions", numPartitions)
+            .withLabel("Partition Count"))
+          .add(DisplayData.item("partitionFn", partitionFn.getClass())
+            .withLabel("Partition Function"));
     }
   }
 }

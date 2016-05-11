@@ -120,6 +120,7 @@ extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
-    builder.add(DisplayData.item("mapFn", fn.getClass()));
+    builder.add(DisplayData.item("mapFn", fn.getClass())
+      .withLabel("Map Function"));
   }
 }
