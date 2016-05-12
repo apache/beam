@@ -28,7 +28,6 @@ import org.apache.beam.runners.spark.translation.TransformEvaluator;
 import org.apache.beam.runners.spark.translation.TransformTranslator;
 import org.apache.beam.runners.spark.translation.WindowingHelpers;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.AvroIO;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -129,18 +128,7 @@ public final class StreamingTransformTranslator {
         StreamingEvaluationContext sec = (StreamingEvaluationContext) context;
         Iterable<T> elems = transform.getElements();
         Coder<T> coder = sec.getOutput(transform).getCoder();
-        if (coder != VoidCoder.of()) {
-          // actual create
-          sec.setOutputRDDFromValues(transform, elems, coder);
-        } else {
-          // fake create as an input
-          // creates a stream with a single batch containing a single null element
-          // to invoke following transformations once
-          // to support PAssert
-          sec.setDStreamFromQueue(transform,
-              Collections.<Iterable<Void>>singletonList(Collections.singletonList((Void) null)),
-              (Coder<Void>) coder);
-        }
+        sec.setDStreamFromQueue(transform, Collections.singletonList(elems), coder);
       }
     };
   }
