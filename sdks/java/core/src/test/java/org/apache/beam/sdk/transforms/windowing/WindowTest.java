@@ -272,16 +272,17 @@ public class WindowTest implements Serializable {
 
   @Test
   public void testDisplayDataExcludesUnspecifiedProperties() {
-    Window.Bound<?> window = Window.into(new GlobalWindows());
-
-    DisplayData displayData = DisplayData.from(window);
-    assertThat(displayData, not(hasDisplayItem(hasKey(isOneOf(
+    Window.Bound<?> onlyHasAccumulationMode = Window.named("foobar").discardingFiredPanes();
+    assertThat(DisplayData.from(onlyHasAccumulationMode), not(hasDisplayItem(hasKey(isOneOf(
+        "windowFn",
         "trigger",
         "outputTimeFn",
-        "accumulationMode",
         "allowedLateness",
         "closingBehavior")))));
 
+    Window.Bound<?> noAccumulationMode = Window.into(new GlobalWindows());
+    assertThat(DisplayData.from(noAccumulationMode),
+        not(hasDisplayItem(hasKey("accumulationMode"))));
   }
 
   @Test
