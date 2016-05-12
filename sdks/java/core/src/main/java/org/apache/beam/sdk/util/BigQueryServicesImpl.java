@@ -33,6 +33,7 @@ import com.google.api.services.bigquery.model.JobConfigurationExtract;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobConfigurationQuery;
 import com.google.api.services.bigquery.model.JobReference;
+import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.JobStatus;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
@@ -112,16 +113,11 @@ public class BigQueryServicesImpl implements BigQueryServices {
      */
     @Override
     public void startLoadJob(
-        String jobId,
+        JobReference jobRef,
         JobConfigurationLoad loadConfig) throws InterruptedException, IOException {
-      Job job = new Job();
-      JobReference jobRef = new JobReference();
-      jobRef.setProjectId(loadConfig.getDestinationTable().getProjectId());
-      jobRef.setJobId(jobId);
-      job.setJobReference(jobRef);
-      JobConfiguration jobConfig = new JobConfiguration();
-      jobConfig.setLoad(loadConfig);
-      job.setConfiguration(jobConfig);
+      Job job = new Job()
+          .setJobReference(jobRef)
+          .setConfiguration(new JobConfiguration().setLoad(loadConfig));
 
       startJob(job, errorExtractor, client);
     }
@@ -134,16 +130,12 @@ public class BigQueryServicesImpl implements BigQueryServices {
      * @throws IOException if it exceeds max RPC .
      */
     @Override
-    public void startExtractJob(String jobId, JobConfigurationExtract extractConfig)
+    public void startExtractJob(JobReference jobRef, JobConfigurationExtract extractConfig)
         throws InterruptedException, IOException {
-      Job job = new Job();
-      JobReference jobRef = new JobReference();
-      jobRef.setProjectId(extractConfig.getSourceTable().getProjectId());
-      jobRef.setJobId(jobId);
-      job.setJobReference(jobRef);
-      JobConfiguration jobConfig = new JobConfiguration();
-      jobConfig.setExtract(extractConfig);
-      job.setConfiguration(jobConfig);
+      Job job = new Job()
+          .setJobReference(jobRef)
+          .setConfiguration(
+              new JobConfiguration().setExtract(extractConfig));
 
       startJob(job, errorExtractor, client);
     }
@@ -156,17 +148,12 @@ public class BigQueryServicesImpl implements BigQueryServices {
      * @throws IOException if it exceeds max RPC .
      */
     @Override
-    public void startQueryJob(String jobId, JobConfigurationQuery queryConfig, boolean dryRun)
+    public void startQueryJob(JobReference jobRef, JobConfigurationQuery queryConfig)
         throws IOException, InterruptedException {
-      Job job = new Job();
-      JobReference jobRef = new JobReference();
-      jobRef.setProjectId(queryConfig.getDestinationTable().getProjectId());
-      jobRef.setJobId(jobId);
-      job.setJobReference(jobRef);
-      JobConfiguration jobConfig = new JobConfiguration();
-      jobConfig.setQuery(queryConfig);
-      jobConfig.setDryRun(dryRun);
-      job.setConfiguration(jobConfig);
+      Job job = new Job()
+          .setJobReference(jobRef)
+          .setConfiguration(
+              new JobConfiguration().setQuery(queryConfig));
 
       startJob(job, errorExtractor, client);
     }
@@ -213,22 +200,21 @@ public class BigQueryServicesImpl implements BigQueryServices {
     }
 
     @Override
-    public Job pollJob(String projectId, String jobId, int maxAttempts)
+    public Job pollJob(JobReference jobRef, int maxAttempts)
         throws InterruptedException {
       BackOff backoff = new AttemptBoundedExponentialBackOff(
           maxAttempts, INITIAL_JOB_STATUS_POLL_BACKOFF_MILLIS);
-      return pollJob(projectId, jobId, Sleeper.DEFAULT, backoff);
+      return pollJob(jobRef, Sleeper.DEFAULT, backoff);
     }
 
     @VisibleForTesting
     Job pollJob(
-        String projectId,
-        String jobId,
+        JobReference jobRef,
         Sleeper sleeper,
         BackOff backoff) throws InterruptedException {
       do {
         try {
-          Job job = client.jobs().get(projectId, jobId).execute();
+          Job job = client.jobs().get(jobRef.getProjectId(), jobRef.getJobId()).execute();
           JobStatus status = job.getStatus();
           if (status != null && status.getState() != null && status.getState().equals("DONE")) {
             return job;
@@ -239,8 +225,27 @@ public class BigQueryServicesImpl implements BigQueryServices {
           LOG.warn("Ignore the error and retry polling job status.", e);
         }
       } while (nextBackOff(sleeper, backoff));
-      LOG.warn("Unable to poll job status: {}, aborting after reached max .", jobId);
+      LOG.warn("Unable to poll job status: {}, aborting after reached max .", jobRef.getJobId());
       return null;
+    }
+
+    @Override
+    public JobStatistics dryRunQuery(String projectId, String query)
+        throws InterruptedException, IOException {
+      Job job = new Job()
+          .setConfiguration(new JobConfiguration()
+              .setQuery(new JobConfigurationQuery()
+                  .setQuery(query))
+              .setDryRun(true));
+      BackOff backoff =
+          new AttemptBoundedExponentialBackOff(MAX_RPC_ATTEMPTS, INITIAL_RPC_BACKOFF_MILLIS);
+      return executeWithRetries(
+          client.jobs().insert(projectId, job),
+          String.format(
+              "Unable to dry run query: %s, aborting after %d retries.",
+              query, MAX_RPC_ATTEMPTS),
+          Sleeper.DEFAULT,
+          backoff).getStatistics();
     }
   }
 

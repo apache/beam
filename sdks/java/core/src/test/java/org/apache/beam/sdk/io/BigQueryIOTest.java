@@ -25,6 +25,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.when;
 
 import org.apache.beam.sdk.Pipeline;
@@ -68,6 +69,7 @@ import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationExtract;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobConfigurationQuery;
+import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.JobStatistics2;
 import com.google.api.services.bigquery.model.JobStatistics4;
@@ -105,6 +107,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 
 import javax.annotation.Nullable;
+import javax.print.attribute.standard.Destination;
 
 /**
  * Tests for BigQueryIO.
@@ -237,25 +240,25 @@ public class BigQueryIOTest implements Serializable {
     }
 
     @Override
-    public void startLoadJob(String jobId, JobConfigurationLoad loadConfig)
+    public void startLoadJob(JobReference jobRef, JobConfigurationLoad loadConfig)
         throws InterruptedException, IOException {
       startJob();
     }
 
     @Override
-    public void startExtractJob(String jobId, JobConfigurationExtract extractConfig)
+    public void startExtractJob(JobReference jobRef, JobConfigurationExtract extractConfig)
         throws InterruptedException, IOException {
       startJob();
     }
 
     @Override
-    public void startQueryJob(String jobId, JobConfigurationQuery query, boolean dryRun)
+    public void startQueryJob(JobReference jobRef, JobConfigurationQuery query)
         throws IOException, InterruptedException {
       startJob();
     }
 
     @Override
-    public Job pollJob(String projectId, String jobId, int maxAttempts)
+    public Job pollJob(JobReference jobRef, int maxAttempts)
         throws InterruptedException {
       if (pollJobStatusCallsCount < pollJobReturns.length) {
         Object ret = pollJobReturns[pollJobStatusCallsCount++];
@@ -288,6 +291,12 @@ public class BigQueryIOTest implements Serializable {
         throw new RuntimeException(
             "Exceeded expected number of calls: " + startJobReturns.length);
       }
+    }
+
+    @Override
+    public JobStatistics dryRunQuery(String projectId, String query)
+        throws InterruptedException, IOException {
+      throw new UnsupportedOperationException();
     }
   }
 
@@ -908,7 +917,7 @@ public class BigQueryIOTest implements Serializable {
         new TableRow().set("name", "b").set("number", "2"),
         new TableRow().set("name", "c").set("number", "3"));
 
-    when(mockJobService.pollJob(anyString(), anyString(), Mockito.anyInt()))
+    when(mockJobService.pollJob(Mockito.<JobReference>any(), Mockito.anyInt()))
         .thenReturn(extractJob);
     PipelineOptions options = PipelineOptionsFactory.create();
     options.setTempLocation("mock://tempLocation");
@@ -931,7 +940,7 @@ public class BigQueryIOTest implements Serializable {
     assertThat(actual, CoreMatchers.instanceOf(TransformingSource.class));
 
     Mockito.verify(mockJobService)
-        .startExtractJob(anyString(), Mockito.<JobConfigurationExtract>any());
+        .startExtractJob(Mockito.<JobReference>any(), Mockito.<JobConfigurationExtract>any());
   }
 
   @Test
@@ -964,9 +973,10 @@ public class BigQueryIOTest implements Serializable {
 
     String jobIdToken = "testJobIdToken";
     String extractDestinationDir = "mock://tempLocation";
-    String jsonTable = toJsonString(BigQueryIO.parseTableSpec("project.data_set.table_name"));
+    TableReference destinationTable = BigQueryIO.parseTableSpec("project.data_set.table_name");
+    String jsonDestinationTable = toJsonString(destinationTable);
     BoundedSource<TableRow> bqSource = BigQueryQuerySource.create(
-        jobIdToken, "query", jsonTable, true /* flattenResults */,
+        jobIdToken, "query", jsonDestinationTable, true /* flattenResults */,
         extractDestinationDir, fakeBqServices);
 
     List<TableRow> expected = ImmutableList.of(
@@ -977,13 +987,28 @@ public class BigQueryIOTest implements Serializable {
     PipelineOptions options = PipelineOptionsFactory.create();
     options.setTempLocation(extractDestinationDir);
 
-    when(mockJobService.pollJob(anyString(), anyString(), Mockito.anyInt()))
-        .thenReturn(queryJob, extractJob);
+    TableReference queryTable = new TableReference()
+        .setProjectId("testProejct")
+        .setDatasetId("testDataset")
+        .setTableId("testTable");
+    when(mockJobService.dryRunQuery(anyString(), anyString()))
+        .thenReturn(new JobStatistics().setQuery(
+            new JobStatistics2()
+                .setTotalBytesProcessed(100L)
+                .setReferencedTables(ImmutableList.of(queryTable))));
+    when(mockDatasetService.getTable(
+        eq(queryTable.getProjectId()), eq(queryTable.getDatasetId()), eq(queryTable.getTableId())))
+        .thenReturn(new Table().setSchema(new TableSchema()));
+    when(mockDatasetService.getTable(
+        eq(destinationTable.getProjectId()),
+        eq(destinationTable.getDatasetId()),
+        eq(destinationTable.getTableId())))
+        .thenReturn(new Table().setSchema(new TableSchema()));
     IOChannelUtils.setIOFactory("mock", mockIOChannelFactory);
     when(mockIOChannelFactory.resolve(anyString(), anyString()))
         .thenReturn("mock://tempLocation/output");
-    when(mockDatasetService.getTable(anyString(), anyString(), anyString()))
-        .thenReturn(new Table().setSchema(new TableSchema()));
+    when(mockJobService.pollJob(Mockito.<JobReference>any(), Mockito.anyInt()))
+        .thenReturn(extractJob);
 
     Assert.assertThat(
         SourceTestUtils.readFromSource(bqSource, options),
@@ -997,11 +1022,10 @@ public class BigQueryIOTest implements Serializable {
     assertThat(actual, CoreMatchers.instanceOf(TransformingSource.class));
 
     Mockito.verify(mockJobService)
-        .startQueryJob(anyString(), Mockito.<JobConfigurationQuery>any(), Mockito.eq(true));
+        .startQueryJob(
+            Mockito.<JobReference>any(), Mockito.<JobConfigurationQuery>any());
     Mockito.verify(mockJobService)
-        .startQueryJob(anyString(), Mockito.<JobConfigurationQuery>any(), Mockito.eq(false));
-    Mockito.verify(mockJobService)
-        .startExtractJob(anyString(), Mockito.<JobConfigurationExtract>any());
+        .startExtractJob(Mockito.<JobReference>any(), Mockito.<JobConfigurationExtract>any());
     Mockito.verify(mockDatasetService)
         .createDataset(anyString(), anyString(), anyString(), anyString());
   }

@@ -24,6 +24,8 @@ import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationExtract;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobConfigurationQuery;
+import com.google.api.services.bigquery.model.JobReference;
+import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
@@ -67,18 +69,18 @@ public interface BigQueryServices extends Serializable {
     /**
      * Start a BigQuery load job.
      */
-    void startLoadJob(String jobId, JobConfigurationLoad loadConfig)
+    void startLoadJob(JobReference jobRef, JobConfigurationLoad loadConfig)
         throws InterruptedException, IOException;
     /**
      * Start a BigQuery extract job.
      */
-    void startExtractJob(String jobId, JobConfigurationExtract extractConfig)
+    void startExtractJob(JobReference jobRef, JobConfigurationExtract extractConfig)
         throws InterruptedException, IOException;
 
     /**
      * Start a BigQuery query job.
      */
-    void startQueryJob(String jobId, JobConfigurationQuery query, boolean dryRun)
+    void startQueryJob(JobReference jobRef, JobConfigurationQuery query)
         throws IOException, InterruptedException;
 
     /**
@@ -86,7 +88,13 @@ public interface BigQueryServices extends Serializable {
      *
      * <p>Returns null if the {@code maxAttempts} retries reached.
      */
-    Job pollJob(String projectId, String jobId, int maxAttempts)
+    Job pollJob(JobReference jobRef, int maxAttempts)
+        throws InterruptedException, IOException;
+
+    /**
+     * Dry runs the query in the given project.
+     */
+    JobStatistics dryRunQuery(String projectId, String query)
         throws InterruptedException, IOException;
   }
 

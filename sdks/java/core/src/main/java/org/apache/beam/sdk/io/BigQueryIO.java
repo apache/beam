@@ -82,6 +82,7 @@ import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationExtract;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobConfigurationQuery;
+import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.JobStatus;
 import com.google.api.services.bigquery.model.QueryRequest;
@@ -536,7 +537,7 @@ public class BigQueryIO {
 
       @Override
       public PCollection<TableRow> apply(PInput input) {
-        String uuid = UUID.randomUUID().toString();
+        String uuid = randomUUIDString();
         String jobIdToken = "beam_job_" + uuid;
         String queryTempDatasetId = "temp_dataset_" + uuid;
         String queryTempTableId = "temp_table_" + uuid;
@@ -804,7 +805,7 @@ public class BigQueryIO {
     private final String query;
     private final String jsonQueryTempTable;
     private final Boolean flattenResults;
-    private transient AtomicReference<Job> dryRunJobRef;
+    private transient AtomicReference<JobStatistics> dryRunJobStats;
 
     private BigQueryQuerySource(
         String jobIdToken,
@@ -817,14 +818,13 @@ public class BigQueryIO {
       this.query = checkNotNull(query, "query");
       this.jsonQueryTempTable = checkNotNull(jsonQueryTempTable, "jsonQueryTempTable");
       this.flattenResults = checkNotNull(flattenResults, "flattenResults");
-      this.dryRunJobRef = new AtomicReference<>();
+      this.dryRunJobStats = new AtomicReference<>();
     }
 
     @Override
     public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
       BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
-      return dryRunQueryIfNeeded(bqOptions)
-          .getStatistics().getTotalBytesProcessed();
+      return dryRunQueryIfNeeded(bqOptions).getTotalBytesProcessed();
     }
 
     @Override
@@ -839,7 +839,6 @@ public class BigQueryIO {
         throws IOException, InterruptedException {
       // 1. Find the location of the query.
       TableReference dryRunTempTable = dryRunQueryIfNeeded(bqOptions)
-          .getStatistics()
           .getQuery()
           .getReferencedTables()
           .get(0);
@@ -875,43 +874,15 @@ public class BigQueryIO {
       tableService.deleteDataset(tableToRemove.getProjectId(), tableToRemove.getDatasetId());
     }
 
-    private synchronized Job dryRunQueryIfNeeded(BigQueryOptions bqOptions) {
-      if (dryRunJobRef.get() == null) {
+    private synchronized JobStatistics dryRunQueryIfNeeded(BigQueryOptions bqOptions)
+        throws InterruptedException, IOException {
+      if (dryRunJobStats.get() == null) {
         String projectId = bqOptions.getProject();
-        try {
-          String dryRunJobId = jobIdToken + "-dryRunQuery";
-          Job dryRunJob = dryRunQuery(
-              projectId, dryRunJobId, query, flattenResults, bqServices.getJobService(bqOptions));
-          dryRunJobRef.compareAndSet(null, dryRunJob);
-        } catch (IOException | InterruptedException e) {
-          if (e instanceof InterruptedException) {
-            Thread.currentThread().interrupt();
-          }
-          throw new RuntimeException("Failed to dry run query.", e);
-        }
+        JobStatistics jobStats =
+            bqServices.getJobService(bqOptions).dryRunQuery(projectId, query);
+        dryRunJobStats.compareAndSet(null, jobStats);
       }
-      return dryRunJobRef.get();
-    }
-
-    private static Job dryRunQuery(
-        String projectId,
-        String jobId,
-        String query,
-        boolean flattenResults,
-        JobService jobService) throws InterruptedException, IOException {
-      JobConfigurationQuery queryConfig = new JobConfigurationQuery();
-      queryConfig
-          .setQuery(query)
-          .setCreateDisposition("CREATE_IF_NEEDED")
-          .setFlattenResults(flattenResults)
-          .setPriority("BATCH")
-          .setWriteDisposition("WRITE_EMPTY");
-      jobService.startQueryJob(jobId, queryConfig, true /* dryRun */);
-      Job job = jobService.pollJob(projectId, jobId, QUERY_DRY_RUN_POLL_MAX_RETRIES);
-      if (parseStatus(job) != Status.SUCCEEDED) {
-        throw new IOException("Query job failed: " + jobId);
-      }
-      return job;
+      return dryRunJobStats.get();
     }
 
     private static void executeQuery(
@@ -920,6 +891,9 @@ public class BigQueryIO {
         TableReference destinationTable,
         boolean flattenResults,
         JobService jobService) throws IOException, InterruptedException {
+      JobReference jobRef = new JobReference()
+          .setProjectId(destinationTable.getProjectId())
+          .setJobId(jobId);
       JobConfigurationQuery queryConfig = new JobConfigurationQuery();
       queryConfig
           .setQuery(query)
@@ -929,9 +903,8 @@ public class BigQueryIO {
           .setFlattenResults(flattenResults)
           .setPriority("BATCH")
           .setWriteDisposition("WRITE_EMPTY");
-      jobService.startQueryJob(jobId, queryConfig, false /* dryRun */);
-      Job job = jobService.pollJob(
-          destinationTable.getProjectId(), jobId, JOB_POLL_MAX_RETRIES);
+      jobService.startQueryJob(jobRef, queryConfig);
+      Job job = jobService.pollJob(jobRef, JOB_POLL_MAX_RETRIES);
       if (parseStatus(job) != Status.SUCCEEDED) {
         throw new IOException("Query job failed: " + jobId);
       }
@@ -940,7 +913,7 @@ public class BigQueryIO {
 
     private void readObject(ObjectInputStream in) throws ClassNotFoundException, IOException {
       in.defaultReadObject();
-      dryRunJobRef = new AtomicReference<>();
+      dryRunJobStats = new AtomicReference<>();
     }
   }
 
@@ -963,9 +936,6 @@ public class BigQueryIO {
 
     // The maximum number of retries to poll a BigQuery job.
     protected static final int JOB_POLL_MAX_RETRIES = Integer.MAX_VALUE;
-
-    // The maximum number of retries to poll a dry run query job.
-    protected static final int QUERY_DRY_RUN_POLL_MAX_RETRIES = 10;
 
     // The initial backoff for verifying temp files.
     private static final long INITIAL_FILES_VERIFY_BACKOFF_MILLIS = TimeUnit.SECONDS.toMillis(1);
@@ -1023,6 +993,10 @@ public class BigQueryIO {
     private List<String> executeExtract(
         String jobId, TableReference table, JobService jobService)
             throws InterruptedException, IOException {
+      JobReference jobRef = new JobReference()
+          .setProjectId(table.getProjectId())
+          .setJobId(jobId);
+
       String destinationUri = String.format("%s/%s", extractDestinationDir, "*.avro");
       JobConfigurationExtract extract = new JobConfigurationExtract();
       extract.setSourceTable(table);
@@ -1030,9 +1004,9 @@ public class BigQueryIO {
       extract.setDestinationUris(ImmutableList.of(destinationUri));
 
       LOG.info("Starting BigQuery extract job: {}", jobId);
-      jobService.startExtractJob(jobId, extract);
+      jobService.startExtractJob(jobRef, extract);
       Job job =
-          jobService.pollJob(table.getProjectId(), jobId, JOB_POLL_MAX_RETRIES);
+          jobService.pollJob(jobRef, JOB_POLL_MAX_RETRIES);
       if (parseStatus(job) != Status.SUCCEEDED) {
         throw new IOException(String.format(
             "Extract job %s failed, status: %s",
@@ -1698,7 +1672,7 @@ public class BigQueryIO {
         if (Strings.isNullOrEmpty(table.getProjectId())) {
           table.setProjectId(options.getProject());
         }
-        String jobIdToken = UUID.randomUUID().toString();
+        String jobIdToken = randomUUIDString();
         String tempLocation = options.getTempLocation();
         String tempFilePrefix;
         try {
@@ -1910,9 +1884,12 @@ public class BigQueryIO {
             LOG.info("Previous load jobs failed, retrying.");
           }
           LOG.info("Starting BigQuery load job: {}", jobId);
-          jobService.startLoadJob(jobId, loadConfig);
+          JobReference jobRef = new JobReference()
+              .setProjectId(projectId)
+              .setJobId(jobId);
+          jobService.startLoadJob(jobRef, loadConfig);
           Status jobStatus =
-              parseStatus(jobService.pollJob(projectId, jobId, LOAD_JOB_POLL_MAX_RETRIES));
+              parseStatus(jobService.pollJob(jobRef, LOAD_JOB_POLL_MAX_RETRIES));
           switch (jobStatus) {
             case SUCCEEDED:
               return;
@@ -2391,6 +2368,13 @@ public class BigQueryIO {
           String.format("Cannot deserialize %s from a JSON string: %s.", clazz, json),
           e);
     }
+  }
+
+  /**
+   * Returns a randomUUID string without {@code '-'}.
+   */
+  private static String randomUUIDString() {
+    return UUID.randomUUID().toString().replaceAll("-", "");
   }
 
   /////////////////////////////////////////////////////////////////////////////
