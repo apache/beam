@@ -15,6 +15,7 @@
  */
 package com.google.cloud.dataflow.sdk.runners.inprocess;
 
+import com.google.auto.value.AutoValue;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InMemoryWatermarkManager.FiredTimers;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
@@ -33,6 +34,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -45,10 +47,9 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
 
@@ -71,7 +72,6 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
   private final InProcessEvaluationContext evaluationContext;
 
   private final LoadingCache<StepAndKey, TransformExecutorService> executorServices;
-  private final ConcurrentMap<TransformExecutor<?>, Boolean> scheduledExecutors;
 
   private final Queue<ExecutorUpdate> allUpdates;
   private final BlockingQueue<VisibleExecutorUpdate> visibleUpdates;
@@ -108,7 +108,6 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
     this.transformEnforcements = transformEnforcements;
     this.evaluationContext = context;
 
-    scheduledExecutors = new ConcurrentHashMap<>();
     // Weak Values allows TransformExecutorServices that are no longer in use to be reclaimed.
     // Executing TransformExecutorServices have a strong reference to their TransformExecutorService
     // which stops the TransformExecutorServices from being prematurely garbage collected
@@ -118,8 +117,7 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
     this.allUpdates = new ConcurrentLinkedQueue<>();
     this.visibleUpdates = new ArrayBlockingQueue<>(20);
 
-    parallelExecutorService =
-        TransformExecutorServices.parallel(executorService, scheduledExecutors);
+    parallelExecutorService = TransformExecutorServices.parallel(executorService);
     defaultCompletionCallback = new DefaultCompletionCallback();
   }
 
@@ -128,7 +126,7 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
     return new CacheLoader<StepAndKey, TransformExecutorService>() {
       @Override
       public TransformExecutorService load(StepAndKey stepAndKey) throws Exception {
-        return TransformExecutorServices.serial(executorService, scheduledExecutors);
+        return TransformExecutorServices.serial(executorService);
       }
     };
   }
@@ -188,8 +186,9 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
     return keyedPValues.contains(pvalue);
   }
 
-  private void scheduleConsumers(CommittedBundle<?> bundle) {
-    for (AppliedPTransform<?, ?, ?> consumer : valueToConsumers.get(bundle.getPCollection())) {
+  private void scheduleConsumers(ExecutorUpdate update) {
+    CommittedBundle<?> bundle = update.getBundle().get();
+    for (AppliedPTransform<?, ?, ?> consumer : update.getConsumers()) {
       scheduleConsumption(consumer, bundle, defaultCompletionCallback);
     }
   }
@@ -207,25 +206,50 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
   }
 
   /**
-   * The default {@link CompletionCallback}. The default completion callback is used to complete
-   * transform evaluations that are triggered due to the arrival of elements from an upstream
-   * transform, or for a source transform.
+   * The base implementation of {@link CompletionCallback} that provides implementations for
+   * {@link #handleResult(CommittedBundle, InProcessTransformResult)} and
+   * {@link #handleThrowable(CommittedBundle, Throwable)}, given an implementation of
+   * {@link #getCommittedResult(CommittedBundle, InProcessTransformResult)}.
    */
-  private class DefaultCompletionCallback implements CompletionCallback {
+  private abstract class CompletionCallbackBase implements CompletionCallback {
+    protected abstract CommittedResult getCommittedResult(
+        CommittedBundle<?> inputBundle,
+        InProcessTransformResult result);
+
     @Override
-    public CommittedResult handleResult(
+    public final CommittedResult handleResult(
         CommittedBundle<?> inputBundle, InProcessTransformResult result) {
-      CommittedResult committedResult =
-          evaluationContext.handleResult(inputBundle, Collections.<TimerData>emptyList(), result);
+      CommittedResult committedResult = getCommittedResult(inputBundle, result);
       for (CommittedBundle<?> outputBundle : committedResult.getOutputs()) {
-        allUpdates.offer(ExecutorUpdate.fromBundle(outputBundle));
+        allUpdates.offer(ExecutorUpdate.fromBundle(outputBundle,
+            valueToConsumers.get(outputBundle.getPCollection())));
+      }
+      CommittedBundle<?> unprocessedInputs = committedResult.getUnprocessedInputs();
+      if (unprocessedInputs != null && !Iterables.isEmpty(unprocessedInputs.getElements())) {
+        allUpdates.offer(ExecutorUpdate.fromBundle(unprocessedInputs,
+            Collections.<AppliedPTransform<?, ?, ?>>singleton(committedResult.getTransform())));
       }
       return committedResult;
     }
 
     @Override
-    public void handleThrowable(CommittedBundle<?> inputBundle, Throwable t) {
+    public final void handleThrowable(CommittedBundle<?> inputBundle, Throwable t) {
       allUpdates.offer(ExecutorUpdate.fromThrowable(t));
+    }
+  }
+
+  /**
+   * The default {@link CompletionCallback}. The default completion callback is used to complete
+   * transform evaluations that are triggered due to the arrival of elements from an upstream
+   * transform, or for a source transform.
+   */
+  private class DefaultCompletionCallback extends CompletionCallbackBase {
+    @Override
+    public CommittedResult getCommittedResult(
+        CommittedBundle<?> inputBundle, InProcessTransformResult result) {
+      return evaluationContext.handleResult(inputBundle,
+          Collections.<TimerData>emptyList(),
+          result);
     }
   }
 
@@ -235,7 +259,7 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
    * timers used to create the input to the {@link InProcessEvaluationContext evaluation context}
    * as part of the result.
    */
-  private class TimerCompletionCallback implements CompletionCallback {
+  private class TimerCompletionCallback extends CompletionCallbackBase {
     private final Iterable<TimerData> timers;
 
     private TimerCompletionCallback(Iterable<TimerData> timers) {
@@ -243,19 +267,9 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
     }
 
     @Override
-    public CommittedResult handleResult(
+    public CommittedResult getCommittedResult(
         CommittedBundle<?> inputBundle, InProcessTransformResult result) {
-      CommittedResult committedResult =
-          evaluationContext.handleResult(inputBundle, timers, result);
-      for (CommittedBundle<?> outputBundle : committedResult.getOutputs()) {
-        allUpdates.offer(ExecutorUpdate.fromBundle(outputBundle));
-      }
-      return committedResult;
-    }
-
-    @Override
-    public void handleThrowable(CommittedBundle<?> inputBundle, Throwable t) {
-      allUpdates.offer(ExecutorUpdate.fromThrowable(t));
+          return evaluationContext.handleResult(inputBundle, timers, result);
     }
   }
 
@@ -264,38 +278,36 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
    *
    * Used to signal when the executor should be shut down (due to an exception).
    */
-  private static class ExecutorUpdate {
-    private final Optional<? extends CommittedBundle<?>> bundle;
-    private final Optional<? extends Throwable> throwable;
-
-    public static ExecutorUpdate fromBundle(CommittedBundle<?> bundle) {
-      return new ExecutorUpdate(bundle, null);
+  @AutoValue
+  abstract static class ExecutorUpdate {
+    public static ExecutorUpdate fromBundle(
+        CommittedBundle<?> bundle,
+        Collection<AppliedPTransform<?, ?, ?>> consumers) {
+      return new AutoValue_ExecutorServiceParallelExecutor_ExecutorUpdate(
+          Optional.of(bundle),
+          consumers,
+          Optional.<Throwable>absent());
     }
 
     public static ExecutorUpdate fromThrowable(Throwable t) {
-      return new ExecutorUpdate(null, t);
+      return new AutoValue_ExecutorServiceParallelExecutor_ExecutorUpdate(
+          Optional.<CommittedBundle<?>>absent(),
+          Collections.<AppliedPTransform<?, ?, ?>>emptyList(),
+          Optional.of(t));
     }
 
-    private ExecutorUpdate(CommittedBundle<?> producedBundle, Throwable throwable) {
-      this.bundle = Optional.fromNullable(producedBundle);
-      this.throwable = Optional.fromNullable(throwable);
-    }
+    /**
+     * Returns the bundle that produced this update.
+     */
+    public abstract Optional<? extends CommittedBundle<?>> getBundle();
 
-    public Optional<? extends CommittedBundle<?>> getBundle() {
-      return bundle;
-    }
+    /**
+     * Returns the transforms to process the bundle. If nonempty, {@link #getBundle()} will return
+     * a present {@link Optional}.
+     */
+    public abstract Collection<AppliedPTransform<?, ?, ?>> getConsumers();
 
-    public Optional<? extends Throwable> getException() {
-      return throwable;
-    }
-
-    @Override
-    public String toString() {
-      return MoreObjects.toStringHelper(ExecutorUpdate.class)
-          .add("bundle", bundle)
-          .add("exception", throwable)
-          .toString();
-    }
+    public abstract Optional<? extends Throwable> getException();
   }
 
   /**
@@ -325,11 +337,11 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
   }
 
   private class MonitorRunnable implements Runnable {
-    private final String runnableName =
-        String.format(
-            "%s$%s-monitor",
-            evaluationContext.getPipelineOptions().getAppName(),
-            ExecutorServiceParallelExecutor.class.getSimpleName());
+    // arbitrary termination condition to ensure progress in the presence of pushback
+    private final long maxTimeProcessingUpdatesNanos = TimeUnit.MILLISECONDS.toNanos(5L);
+    private final String runnableName = String.format("%s$%s-monitor",
+        evaluationContext.getPipelineOptions().getAppName(),
+        ExecutorServiceParallelExecutor.class.getSimpleName());
 
     @Override
     public void run() {
@@ -337,15 +349,21 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
       Thread.currentThread().setName(runnableName);
       try {
         ExecutorUpdate update = allUpdates.poll();
+        int numUpdates = 0;
         // pull all of the pending work off of the queue
+        long updatesStart = System.nanoTime();
         while (update != null) {
           LOG.debug("Executor Update: {}", update);
           if (update.getBundle().isPresent()) {
-            scheduleConsumers(update.getBundle().get());
+            scheduleConsumers(update);
           } else if (update.getException().isPresent()) {
             visibleUpdates.offer(VisibleExecutorUpdate.fromThrowable(update.getException().get()));
           }
-          update = allUpdates.poll();
+          if (System.nanoTime() - updatesStart > maxTimeProcessingUpdatesNanos) {
+            break;
+          } else {
+            update = allUpdates.poll();
+          }
         }
         boolean timersFired = fireTimers();
         addWorkIfNecessary(timersFired);
@@ -427,48 +445,11 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
       if (firedTimers) {
         return;
       }
-      for (TransformExecutor<?> executor : scheduledExecutors.keySet()) {
-        if (!isExecutorBlocked(executor)) {
-          // We have at least one executor that can proceed without adding additional work
-          return;
-        }
-      }
       // All current TransformExecutors are blocked; add more work from the roots.
       for (AppliedPTransform<?, ?, ?> root : rootNodes) {
         if (!evaluationContext.isDone(root)) {
           scheduleConsumption(root, null, defaultCompletionCallback);
         }
-      }
-    }
-
-    /**
-     * Return true if the provided executor might make more progress if no action is taken.
-     *
-     * <p>May return false even if all executor threads are currently blocked or cleaning up, as
-     * these can cause more work to be scheduled. If this does not occur, after these calls
-     * terminate, future calls will return true if all executors are waiting.
-     */
-    private boolean isExecutorBlocked(TransformExecutor<?> executor) {
-      Thread thread = executor.getThread();
-      if (thread == null) {
-        return false;
-      }
-      switch (thread.getState()) {
-        case TERMINATED:
-          throw new IllegalStateException(String.format(
-              "Unexpectedly encountered a Terminated TransformExecutor %s", executor));
-        case WAITING:
-        case TIMED_WAITING:
-          // The thread is waiting for some external input. Adding more work may cause the thread
-          // to stop waiting (e.g. the thread is waiting on an unbounded side input)
-          return true;
-        case BLOCKED:
-          // The executor is blocked on acquisition of a java monitor. This usually means it is
-          // making a call to the EvaluationContext, but not a model-blocking call - and will
-          // eventually complete, at which point we may reevaluate.
-        default:
-          // NEW and RUNNABLE threads can make progress
-          return false;
       }
     }
   }

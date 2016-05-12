@@ -17,7 +17,6 @@ package com.google.cloud.dataflow.sdk.runners.inprocess;
 
 import com.google.common.base.MoreObjects;
 
-import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
@@ -35,18 +34,16 @@ final class TransformExecutorServices {
    * Returns an EvaluationState that evaluates {@link TransformExecutor TransformExecutors} in
    * parallel.
    */
-  public static TransformExecutorService parallel(
-      ExecutorService executor, Map<TransformExecutor<?>, Boolean> scheduled) {
-    return new ParallelEvaluationState(executor, scheduled);
+  public static TransformExecutorService parallel(ExecutorService executor) {
+    return new ParallelEvaluationState(executor);
   }
 
   /**
    * Returns an EvaluationState that evaluates {@link TransformExecutor TransformExecutors} in
    * serial.
    */
-  public static TransformExecutorService serial(
-      ExecutorService executor, Map<TransformExecutor<?>, Boolean> scheduled) {
-    return new SerialEvaluationState(executor, scheduled);
+  public static TransformExecutorService serial(ExecutorService executor) {
+    return new SerialEvaluationState(executor);
   }
 
   /**
@@ -58,23 +55,18 @@ final class TransformExecutorServices {
    */
   private static class ParallelEvaluationState implements TransformExecutorService {
     private final ExecutorService executor;
-    private final Map<TransformExecutor<?>, Boolean> scheduled;
 
-    private ParallelEvaluationState(
-        ExecutorService executor, Map<TransformExecutor<?>, Boolean> scheduled) {
+    private ParallelEvaluationState(ExecutorService executor) {
       this.executor = executor;
-      this.scheduled = scheduled;
     }
 
     @Override
     public void schedule(TransformExecutor<?> work) {
       executor.submit(work);
-      scheduled.put(work, true);
     }
 
     @Override
     public void complete(TransformExecutor<?> completed) {
-      scheduled.remove(completed);
     }
   }
 
@@ -88,14 +80,11 @@ final class TransformExecutorServices {
    */
   private static class SerialEvaluationState implements TransformExecutorService {
     private final ExecutorService executor;
-    private final Map<TransformExecutor<?>, Boolean> scheduled;
 
     private AtomicReference<TransformExecutor<?>> currentlyEvaluating;
     private final Queue<TransformExecutor<?>> workQueue;
 
-    private SerialEvaluationState(
-        ExecutorService executor, Map<TransformExecutor<?>, Boolean> scheduled) {
-      this.scheduled = scheduled;
+    private SerialEvaluationState(ExecutorService executor) {
       this.executor = executor;
       this.currentlyEvaluating = new AtomicReference<>();
       this.workQueue = new ConcurrentLinkedQueue<>();
@@ -120,7 +109,6 @@ final class TransformExecutorServices {
                 + " but could not complete due to unexpected currently executing "
                 + currentlyEvaluating.get());
       }
-      scheduled.remove(completed);
       updateCurrentlyEvaluating();
     }
 
@@ -131,7 +119,6 @@ final class TransformExecutorServices {
           TransformExecutor<?> newWork = workQueue.poll();
           if (newWork != null) {
             if (currentlyEvaluating.compareAndSet(null, newWork)) {
-              scheduled.put(newWork, true);
               executor.submit(newWork);
             } else {
               workQueue.offer(newWork);
