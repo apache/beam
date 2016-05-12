@@ -150,6 +150,9 @@ public class InProcessEvaluationContextTest {
         WindowedValue.of(
             4444, new Instant(8677L), second, PaneInfo.createPane(false, true, Timing.LATE, 1, 1));
     viewWriter.add(Collections.singleton(overrittenSecondValue));
+    assertThat(reader.get(view, second), containsInAnyOrder(2));
+    // The cached value is served in the earlier reader
+    reader = context.createSideInputReader(ImmutableList.<PCollectionView<?>>of(view));
     assertThat(reader.get(view, second), containsInAnyOrder(4444));
   }
 
