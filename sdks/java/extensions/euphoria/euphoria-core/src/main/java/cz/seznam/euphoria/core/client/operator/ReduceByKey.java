@@ -87,8 +87,8 @@ public class ReduceByKey<
       this.valueExtractor = valueExtractor;
       this.reducer = reducer;
     }
-    public <W extends Window<?, ?>> ReduceByKey<IN, KEY, VALUE, OUT, W>
-    windowBy(Windowing<IN, ?, ?, W> windowing) {
+    public <G, L, W extends Window<G, L>> ReduceByKey<IN, KEY, VALUE, OUT, W>
+    windowBy(Windowing<IN, G, L, W> windowing) {
       Flow flow = input.getFlow();
       ReduceByKey<IN, KEY, VALUE, OUT, W>
       reduceByKey = new ReduceByKey<>(flow, input, keyExtractor,

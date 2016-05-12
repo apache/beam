@@ -13,6 +13,7 @@ import java.util.stream.Collectors;
 
 import static java.util.Collections.singleton;
 import static java.util.Collections.singletonList;
+import static java.util.Objects.requireNonNull;
 
 
 /**
@@ -22,10 +23,34 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
     extends Serializable
 {
   /** Time windows. */
-  final class Time<T>
+  class Time<T>
       implements AlignedWindowing<T, Windowing.Time.TimeInterval, Windowing.Time.TimeWindow>
   {
-    private boolean aggregating;
+    @FunctionalInterface
+    public interface EventTimeFn<T> extends Serializable {
+
+      /**
+       * Returns the event time of the given event in millis since epoch.
+       */
+      long getEventTime(T event);
+
+    }
+
+    public static final class ProcessingTime<T> implements EventTimeFn<T> {
+      private static final ProcessingTime INSTANCE = new ProcessingTime();
+
+      // ~ suppressing the warning is safe due to the returned
+      // object not relying on the generic information in any way
+      @SuppressWarnings("unchecked")
+      public static <T> EventTimeFn<T> get() {
+        return INSTANCE;
+      }
+
+      @Override
+      public long getEventTime(T event) {
+        return System.currentTimeMillis();
+      }
+    } // ~ end of ProcessingTime
 
     public static final class TimeInterval implements Serializable {
       private final long startMillis;
@@ -84,39 +109,67 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
       }
     } // ~ end of TimeWindow
 
-    public static <T> Time<T> seconds(long seconds) {
-      return new Time<>(seconds * 1000);
+    // ~  an untyped variant of the Time windowing; does not dependent
+    // on the input elements type
+    public static class UTime<T> extends Time<T> {
+      UTime(long durationMillis, boolean aggregating) {
+        super(durationMillis, aggregating, ProcessingTime.get());
+      }
+
+      @SuppressWarnings("unchecked")
+      public <T> Time<T> aggregating() {
+        // ~ the uncheck cast is ok: eventTimeFn is
+        // ProcessingTime which is independent of <T>
+        return new Time<>(super.durationMillis, true, (EventTimeFn) super.eventTimeFn);
+      }
     }
 
-    public static <T> Time<T> minutes(long minutes) {
-      return new Time<>(minutes * 1000 * 60);
-    }
+    // ~ a typed variant of the Time windowing; depends on the type of
+    // input elements
+    public static class TTime<T> extends Time<T> {
+      TTime(long durationMillis,
+            boolean aggregating,
+            EventTimeFn<T> eventTimeFn)
+      {
+        super(durationMillis, aggregating, eventTimeFn);
+      }
 
-    public static <T> Time<T> hours(long hours) {
-      return new Time<>(hours * 1000 * 60 * 60);
-    }
-
-    @SuppressWarnings("unchecked")
-    public <T> Time<T> aggregating() {
-      this.aggregating = true;
-      return (Time<T>) this;
-    }
+      public TTime<T> aggregating() {
+        return new TTime<>(super.durationMillis, true, super.eventTimeFn);
+      }
+    } // ~ end of EventTimeBased
 
     final long durationMillis;
+    final boolean aggregating;
+    final EventTimeFn<T> eventTimeFn;
 
-    Time(long durationMillis) {
+    public static <T> UTime<T> seconds(long seconds) {
+      return new UTime<>(seconds * 1000, false);
+    }
+
+    public static <T> UTime<T> minutes(long minutes) {
+      return new UTime<>(minutes * 1000 * 60, false);
+    }
+
+    public static <T> UTime<T> hours(long hours) {
+      return new UTime<>(hours * 1000 * 60 * 60, false);
+    }
+
+    public <T> TTime<T> using(EventTimeFn<T> fn) {
+      return new TTime<>(this.durationMillis, this.aggregating, requireNonNull(fn));
+    }
+
+    Time(long durationMillis, boolean aggregating, EventTimeFn<T> eventTimeFn) {
       this.durationMillis = durationMillis;
+      this.aggregating = aggregating;
+      this.eventTimeFn = eventTimeFn;
     }
 
     @Override
     public Set<TimeWindow> assignWindows(T input) {
-      long ts = timestampMillis(input);
+      long ts = eventTimeFn.getEventTime(input);
       return singleton(
           new TimeWindow(ts - (ts + durationMillis) % durationMillis, durationMillis));
-    }
-
-    protected long timestampMillis(T input) {
-      return System.currentTimeMillis();
     }
 
     @Override
