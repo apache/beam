@@ -18,5 +18,18 @@ public class Sums {
     return SUMS_OF_LONG;
   }
 
+  private static final CombinableReduceFunction<Integer> SUMS_OF_INT =
+      (CombinableReduceFunction<Integer>) xs -> {
+        int ret = 0;
+        for (Integer x : xs) {
+          ret += x;
+        }
+        return ret;
+      };
+
+  public static CombinableReduceFunction<Integer> ofInts() {
+    return SUMS_OF_INT;
+  }
+
   private Sums() {}
 }
