@@ -306,11 +306,7 @@ public class AvroIOTest {
 
     DisplayData displayData = DisplayData.from(write);
 
-    assertThat(displayData, hasDisplayItem(allOf(
-        hasKey("filePrefix"),
-        hasValue(filePattern),
-        hasLinkUrl(GcsPath.fromUri(filePattern + "*").getBrowseUrl()))));
-
+    assertThat(displayData, hasDisplayItem("filePrefix", filePattern));
     assertThat(displayData, hasDisplayItem("shardNameTemplate", "-SS-of-NN-"));
     assertThat(displayData, hasDisplayItem("fileSuffix", "bar"));
     assertThat(displayData, hasDisplayItem("schema", GenericClass.class));

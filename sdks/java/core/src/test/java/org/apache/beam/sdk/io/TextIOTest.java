@@ -342,10 +342,7 @@ public class TextIOTest {
 
     DisplayData displayData = DisplayData.from(write);
 
-    assertThat(displayData, hasDisplayItem(allOf(
-        hasKey("filePrefix"),
-        hasValue(filePrefix),
-        hasLinkUrl(GcsPath.fromUri(filePrefix + "*").getBrowseUrl()))));
+    assertThat(displayData, hasDisplayItem("filePrefix", filePrefix));
     assertThat(displayData, hasDisplayItem("fileSuffix", "bar"));
     assertThat(displayData, hasDisplayItem("shardNameTemplate", "-SS-of-NN-"));
     assertThat(displayData, hasDisplayItem("numShards", 100));

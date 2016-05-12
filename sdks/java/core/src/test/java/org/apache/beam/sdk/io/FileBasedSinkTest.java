@@ -40,6 +40,8 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 
+import com.google.common.collect.ImmutableList;
+
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -51,6 +53,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileReader;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
@@ -422,6 +425,41 @@ public class FileBasedSinkTest {
         hasValue("gs://bucket/foo/bar-NNN.xml"),
         hasLinkUrl(GcsPath.fromUri("gs://bucket/foo/").getBrowseUrl())
     )));
+  }
+
+  @Test
+  public void testDisplayDataLinkUrl() throws IOException {
+    class TestCase {
+      String prefix;
+      String shardTemplate;
+      String suffix;
+      String expectedBrowsePath;
+
+      TestCase(String prefix, String shardTemplate, String suffix, String expectedBrowsePath) {
+        this.prefix = prefix;
+        this.shardTemplate = shardTemplate;
+        this.suffix = suffix;
+        this.expectedBrowsePath = expectedBrowsePath;
+      }
+    }
+
+    Iterable<TestCase> tests = ImmutableList.<TestCase>builder()
+        .add(new TestCase("gs://bucket/foo/", "bar", ".xml", "gs://bucket/foo/bar.xml"))
+        .add(new TestCase("gs://bucket/foo/", "object-NNN", ".xml", "gs://bucket/foo/"))
+        .add(new TestCase("gs://bucket/foo/", "object-SSS", ".xml", "gs://bucket/foo/"))
+        .add(new TestCase("gs://bucket/foo", "/object-NNN", ".xml", "gs://bucket/foo/"))
+        .add(new TestCase("gs://bucket/foo", "object-NNN", ".xml", "gs://bucket/"))
+        .add(new TestCase("gs://bucket/", "object-NNN", ".xml", "gs://bucket/"))
+        .add(new TestCase("gs://bucket", "/object-NNN", ".xml", "gs://bucket/"))
+        .build();
+
+    for (TestCase test : tests) {
+      FileBasedSink<?> sink = new SimpleSink(test.prefix, test.suffix, test.shardTemplate);
+      String expectedLinkUrl = IOChannelUtils.getFactory(test.expectedBrowsePath)
+          .getBrowseUrl(test.expectedBrowsePath);
+
+      assertThat(DisplayData.from(sink), hasDisplayItem(hasLinkUrl(expectedLinkUrl)));
+    }
   }
 
   @Test

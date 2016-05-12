@@ -653,15 +653,8 @@ public class TextIO {
       public void populateDisplayData(DisplayData.Builder builder) {
         super.populateDisplayData(builder);
 
-        if (filenamePrefix != null) {
-          // Append wildcard to browseUrl input since this is a filename prefix
-          String browseUrl = getBrowseUrl(filenamePrefix + "*", validate);
-
-          builder.add(DisplayData.item("filePrefix", filenamePrefix)
-            .withLinkUrl(browseUrl));
-        }
-
         builder
+            .addIfNotNull(DisplayData.item("filePrefix", filenamePrefix))
             .addIfNotDefault(DisplayData.item("fileSuffix", filenameSuffix), "")
             .addIfNotDefault(
                 DisplayData.item("shardNameTemplate", shardTemplate),

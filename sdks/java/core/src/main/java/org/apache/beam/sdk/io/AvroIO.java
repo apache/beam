@@ -697,19 +697,13 @@ public class AvroIO {
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
         super.populateDisplayData(builder);
-        if (filenamePrefix != null) {
-          // Append wildcard to browseUrl input since this is a prefix
-          // for shardNameTemplate + fileSuffix.
-          String browseUrl = getBrowseUrl(filenamePrefix + "*", validate);
-          builder.add(DisplayData.item("filePrefix", filenamePrefix)
-            .withLinkUrl(browseUrl));
-        }
 
         builder
             .add(DisplayData.item("schema", type))
             .addIfNotDefault(
                 DisplayData.item("shardNameTemplate", shardTemplate),
                 DEFAULT_SHARD_TEMPLATE)
+            .addIfNotNull(DisplayData.item("filePrefix", filenamePrefix))
             .addIfNotDefault(DisplayData.item("fileSuffix", filenameSuffix), "")
             .addIfNotDefault(DisplayData.item("numShards", numShards), 0)
             .addIfNotDefault(DisplayData.item("validation", validate), true);

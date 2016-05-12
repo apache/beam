@@ -140,9 +140,9 @@ public abstract class FileBasedSink<T> extends Sink<T> {
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
 
-    // Append wildcard to browseUrl input since this is a filename prefix
     String browseUrl = null;
-    String browseFilePattern = baseOutputFilename + "*";
+    String browseFilePattern = formatFilePattern(
+        baseOutputFilename, globTemplate(fileNamingTemplate), extension);
     if (IOChannelUtils.hasFactory(browseFilePattern)) {
       IOChannelFactory factory;
       try {
@@ -156,11 +156,17 @@ public abstract class FileBasedSink<T> extends Sink<T> {
       browseUrl = factory.getBrowseUrl(browseFilePattern);
     }
 
-    String fileNamePattern = String.format("%s%s%s",
-        baseOutputFilename, fileNamingTemplate, getFileExtension(extension));
-
+    String fileNamePattern = formatFilePattern(baseOutputFilename, fileNamingTemplate, extension);
     builder.add(DisplayData.item("fileNamePattern", fileNamePattern)
       .withLinkUrl(browseUrl));
+  }
+
+  private static String formatFilePattern(String base, String template, String extension) {
+    return String.format("%s%s%s", base, template, getFileExtension(extension));
+  }
+
+  private static String globTemplate(String fileNamingTemplate) {
+    return fileNamingTemplate.replace('N', '*').replace('S', '*');
   }
 
   /**
