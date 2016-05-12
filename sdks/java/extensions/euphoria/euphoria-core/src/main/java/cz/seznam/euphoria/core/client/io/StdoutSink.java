@@ -14,12 +14,26 @@ import java.net.URI;
  */
 public class StdoutSink<T> implements DataSink<T> {
 
+  static final long START_SYSTEM_NANO_TIME = System.nanoTime();
+
   public static class Factory implements DataSinkFactory {
     @Override
     public <T> DataSink<T> get(URI uri, Settings settings) {
       settings = settings.nested(URIParams.of(uri).getStringParam("cfg", null));
+
+      String discrim = uri.getPath();
+      if (discrim != null) {
+        if (discrim.startsWith("/")) {
+          discrim = discrim.substring(1);
+        }
+        discrim = discrim.trim();
+        if (discrim.isEmpty()) {
+          discrim = null;
+        }
+      }
+
       boolean debug = settings.getBoolean("debug", false);
-      return new StdoutSink<>(debug);
+      return new StdoutSink<>(debug, discrim);
     }
   }
 
@@ -61,10 +75,15 @@ public class StdoutSink<T> implements DataSink<T> {
   static final class DebugWriter<T> extends AbstractWriter<T> {
     final int partitionId;
     final StringBuilder buf = new StringBuilder();
+    final int bufResetPos;
 
-    DebugWriter(PrintStream out, int partitionId, boolean doClose) {
+    DebugWriter(PrintStream out, int partitionId, boolean doClose, String discriminator) {
       super(out, doClose);
       this.partitionId = partitionId;
+      if (discriminator != null && !discriminator.isEmpty()) {
+        buf.append(discriminator).append("> ");
+      }
+      this.bufResetPos = buf.length();
     }
 
     @Override
@@ -72,8 +91,8 @@ public class StdoutSink<T> implements DataSink<T> {
       // ~ make sure to issue only _one_ `out.println()` call to
       // avoid messing up the output with concurrent threads trying
       // to do the same
-      buf.setLength(0);
-      buf.append(System.nanoTime())
+      buf.setLength(bufResetPos);
+      buf.append((System.nanoTime() - START_SYSTEM_NANO_TIME) / 1_000_000_000.0)
           .append(": (")
           .append(Thread.currentThread().getName())
           .append(") [")
@@ -87,9 +106,11 @@ public class StdoutSink<T> implements DataSink<T> {
   }
 
   private final boolean debug;
+  private final String discriminator;
 
-  StdoutSink(boolean debug) {
+  StdoutSink(boolean debug, String discriminator) {
     this.debug = debug;
+    this.discriminator = discriminator;
   }
 
   @Override
@@ -98,7 +119,7 @@ public class StdoutSink<T> implements DataSink<T> {
     // the given PrintStream (stdout here)
     PrintStream out = System.out;
     return debug
-        ? new DebugWriter<>(out, partitionId, false)
+        ? new DebugWriter<>(out, partitionId, false, discriminator)
         : new PlainWriter<>(out, false);
   }
 
