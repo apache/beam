@@ -797,18 +797,19 @@ public class InMemoryWatermarkManager {
    * </pre>.
    *
    * @param completed the input that has completed
-   * @param transform the transform that has completed processing the input
-   * @param outputs the bundles the transform has output
+   * @param timerUpdate the timers that were added, removed, and completed as part of producing
+   *                    this update
+   * @param result the result that was produced by processing the input
    * @param earliestHold the earliest watermark hold in the transform's state. {@code null} if there
    *                     is no hold
    */
   public void updateWatermarks(
       @Nullable CommittedBundle<?> completed,
-      AppliedPTransform<?, ?, ?> transform,
       TimerUpdate timerUpdate,
-      Iterable<? extends CommittedBundle<?>> outputs,
+      CommittedResult result,
       @Nullable Instant earliestHold) {
-    updatePending(completed, transform, timerUpdate, outputs);
+    AppliedPTransform<?, ?, ?> transform = result.getTransform();
+    updatePending(completed, timerUpdate, result);
     TransformWatermarks transformWms = transformToWatermarks.get(transform);
     transformWms.setEventTimeHold(completed == null ? null : completed.getKey(), earliestHold);
     refreshWatermarks(transform);
@@ -843,15 +844,14 @@ public class InMemoryWatermarkManager {
    */
   private void updatePending(
       CommittedBundle<?> input,
-      AppliedPTransform<?, ?, ?> transform,
       TimerUpdate timerUpdate,
-      Iterable<? extends CommittedBundle<?>> outputs) {
-    TransformWatermarks completedTransform = transformToWatermarks.get(transform);
+      CommittedResult result) {
+    TransformWatermarks completedTransform = transformToWatermarks.get(result.getTransform());
 
     // Newly pending elements must be added before completed elements are removed, as the two
     // do not share a Mutex within this call and thus can be interleaved with external calls to
     // refresh.
-    for (CommittedBundle<?> bundle : outputs) {
+    for (CommittedBundle<?> bundle : result.getOutputs()) {
       for (AppliedPTransform<?, ?, ?> consumer : consumers.get(bundle.getPCollection())) {
         TransformWatermarks watermarks = transformToWatermarks.get(consumer);
         watermarks.addPending(bundle);
@@ -862,7 +862,6 @@ public class InMemoryWatermarkManager {
     if (input != null) {
       completedTransform.removePending(input);
     }
-
   }
 
   /**

@@ -15,20 +15,28 @@
  */
 package com.google.cloud.dataflow.sdk.runners.inprocess;
 
+import com.google.auto.value.AutoValue;
 import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner.CommittedBundle;
+import com.google.cloud.dataflow.sdk.transforms.AppliedPTransform;
 
 /**
- * A callback for completing a bundle of input.
+ * A {@link InProcessTransformResult} that has been committed.
  */
-interface CompletionCallback {
+@AutoValue
+abstract class CommittedResult {
   /**
-   * Handle a successful result, returning the committed outputs of the result.
+   * Returns the {@link AppliedPTransform} that produced this result.
    */
-  CommittedResult handleResult(
-      CommittedBundle<?> inputBundle, InProcessTransformResult result);
+  public abstract AppliedPTransform<?, ?, ?> getTransform();
 
   /**
-   * Handle a result that terminated abnormally due to the provided {@link Throwable}.
+   * Returns the outputs produced by the transform.
    */
-  void handleThrowable(CommittedBundle<?> inputBundle, Throwable t);
+  public abstract Iterable<? extends CommittedBundle<?>> getOutputs();
+
+  public static CommittedResult create(
+      InProcessTransformResult original, Iterable<? extends CommittedBundle<?>> outputs) {
+    return new AutoValue_CommittedResult(original.getTransform(),
+        outputs);
+  }
 }

@@ -157,9 +157,9 @@ class TransformExecutor<T> implements Callable<InProcessTransformResult> {
       TransformEvaluator<T> evaluator, Collection<ModelEnforcement<T>> enforcements)
       throws Exception {
     InProcessTransformResult result = evaluator.finishBundle();
-    Iterable<? extends CommittedBundle<?>> outputs = onComplete.handleResult(inputBundle, result);
+    CommittedResult outputs = onComplete.handleResult(inputBundle, result);
     for (ModelEnforcement<T> enforcement : enforcements) {
-      enforcement.afterFinish(inputBundle, result, outputs);
+      enforcement.afterFinish(inputBundle, result, outputs.getOutputs());
     }
     return result;
   }

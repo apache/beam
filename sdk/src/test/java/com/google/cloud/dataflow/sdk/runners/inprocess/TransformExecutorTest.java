@@ -484,11 +484,11 @@ public class TransformExecutorTest {
     }
 
     @Override
-    public Iterable<? extends CommittedBundle<?>> handleResult(
+    public CommittedResult handleResult(
         CommittedBundle<?> inputBundle, InProcessTransformResult result) {
       handledResult = result;
       onMethod.countDown();
-      return Collections.emptyList();
+      return CommittedResult.create(result, Collections.<CommittedBundle<?>>emptyList());
     }
 
     @Override

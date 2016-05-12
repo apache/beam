@@ -213,14 +213,14 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
    */
   private class DefaultCompletionCallback implements CompletionCallback {
     @Override
-    public Iterable<? extends CommittedBundle<?>> handleResult(
+    public CommittedResult handleResult(
         CommittedBundle<?> inputBundle, InProcessTransformResult result) {
-      Iterable<? extends CommittedBundle<?>> resultBundles =
+      CommittedResult committedResult =
           evaluationContext.handleResult(inputBundle, Collections.<TimerData>emptyList(), result);
-      for (CommittedBundle<?> outputBundle : resultBundles) {
+      for (CommittedBundle<?> outputBundle : committedResult.getOutputs()) {
         allUpdates.offer(ExecutorUpdate.fromBundle(outputBundle));
       }
-      return resultBundles;
+      return committedResult;
     }
 
     @Override
@@ -243,14 +243,14 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
     }
 
     @Override
-    public Iterable<? extends CommittedBundle<?>> handleResult(
+    public CommittedResult handleResult(
         CommittedBundle<?> inputBundle, InProcessTransformResult result) {
-      Iterable<? extends CommittedBundle<?>> resultBundles =
+      CommittedResult committedResult =
           evaluationContext.handleResult(inputBundle, timers, result);
-      for (CommittedBundle<?> outputBundle : resultBundles) {
+      for (CommittedBundle<?> outputBundle : committedResult.getOutputs()) {
         allUpdates.offer(ExecutorUpdate.fromBundle(outputBundle));
       }
-      return resultBundles;
+      return committedResult;
     }
 
     @Override

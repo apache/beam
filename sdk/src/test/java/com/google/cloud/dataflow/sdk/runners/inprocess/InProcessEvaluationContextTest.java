@@ -457,7 +457,7 @@ public class InProcessEvaluationContextTest {
 
     UncommittedBundle<Integer> rootBundle = context.createRootBundle(created);
     rootBundle.add(WindowedValue.valueInGlobalWindow(1));
-    Iterable<? extends CommittedBundle<?>> handleResult =
+    CommittedResult handleResult =
         context.handleResult(
             null,
             ImmutableList.<TimerData>of(),
@@ -466,7 +466,7 @@ public class InProcessEvaluationContextTest {
                 .build());
     @SuppressWarnings("unchecked")
     CommittedBundle<Integer> committedBundle =
-        (CommittedBundle<Integer>) Iterables.getOnlyElement(handleResult);
+        (CommittedBundle<Integer>) Iterables.getOnlyElement(handleResult.getOutputs());
     context.handleResult(
         null,
         ImmutableList.<TimerData>of(),
