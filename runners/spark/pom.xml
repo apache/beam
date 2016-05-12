@@ -133,6 +133,11 @@
           <configuration>
             <forkCount>1</forkCount>
             <reuseForks>false</reuseForks>
+            <excludes>
+              <exclude>**/org/apache/beam/runners/spark/translation/streaming/FlattenStreamingTest.java</exclude>
+              <exclude>**/org/apache/beam/runners/spark/translation/streaming/KafkaStreamingTest.java</exclude>
+              <exclude>**/org/apache/beam/runners/spark/translation/streaming/SimpleStreamingWordCountTest.java</exclude>
+            </excludes>
           </configuration>
         </plugin>
         <plugin>
