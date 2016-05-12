@@ -200,8 +200,10 @@ public class BigQueryServicesImplTest {
 
     BigQueryServicesImpl.JobServiceImpl jobService =
         new BigQueryServicesImpl.JobServiceImpl(bigquery);
-    Job job =
-        jobService.pollJob("projectId", "jobId", Sleeper.DEFAULT, BackOff.ZERO_BACKOFF);
+    JobReference jobRef = new JobReference()
+        .setProjectId("projectId")
+        .setJobId("jobId");
+    Job job = jobService.pollJob(jobRef, Sleeper.DEFAULT, BackOff.ZERO_BACKOFF);
 
     assertEquals(testJob, job);
     verify(response, times(1)).getStatusCode();
@@ -223,8 +225,10 @@ public class BigQueryServicesImplTest {
 
     BigQueryServicesImpl.JobServiceImpl jobService =
         new BigQueryServicesImpl.JobServiceImpl(bigquery);
-    Job job =
-        jobService.pollJob("projectId", "jobId", Sleeper.DEFAULT, BackOff.ZERO_BACKOFF);
+    JobReference jobRef = new JobReference()
+        .setProjectId("projectId")
+        .setJobId("jobId");
+    Job job = jobService.pollJob(jobRef, Sleeper.DEFAULT, BackOff.ZERO_BACKOFF);
 
     assertEquals(testJob, job);
     verify(response, times(1)).getStatusCode();
@@ -246,8 +250,10 @@ public class BigQueryServicesImplTest {
 
     BigQueryServicesImpl.JobServiceImpl jobService =
         new BigQueryServicesImpl.JobServiceImpl(bigquery);
-    Job job =
-        jobService.pollJob("projectId", "jobId", Sleeper.DEFAULT, BackOff.STOP_BACKOFF);
+    JobReference jobRef = new JobReference()
+        .setProjectId("projectId")
+        .setJobId("jobId");
+    Job job = jobService.pollJob(jobRef, Sleeper.DEFAULT, BackOff.STOP_BACKOFF);
 
     assertEquals(null, job);
     verify(response, times(1)).getStatusCode();

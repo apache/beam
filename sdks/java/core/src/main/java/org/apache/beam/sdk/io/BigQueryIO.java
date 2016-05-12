@@ -397,6 +397,10 @@ public class BigQueryIO {
           "Validation of query \"%1$s\" failed. If the query depends on an earlier stage of the"
           + " pipeline, This validation can be disabled using #withoutValidation.";
 
+      // The maximum number of retries to poll a BigQuery job in the cleanup phase.
+      // We expect the jobs have already DONE, and don't need a high max retires.
+      private static final int CLEANUP_JOB_POLL_MAX_RETRIES = 10;
+
       private Bound() {
         this(
             null /* name */,
@@ -538,14 +542,12 @@ public class BigQueryIO {
       @Override
       public PCollection<TableRow> apply(PInput input) {
         String uuid = randomUUIDString();
-        String jobIdToken = "beam_job_" + uuid;
-        String queryTempDatasetId = "temp_dataset_" + uuid;
-        String queryTempTableId = "temp_table_" + uuid;
+        final String jobIdToken = "beam_job_" + uuid;
 
         BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
 
         BoundedSource<TableRow> source;
-        BigQueryServices bqServices = getBigQueryServices();
+        final BigQueryServices bqServices = getBigQueryServices();
 
         final String extractDestinationDir;
         String tempLocation = bqOptions.getTempLocation();
@@ -559,6 +561,9 @@ public class BigQueryIO {
 
         if (!Strings.isNullOrEmpty(query)) {
           String projectId = bqOptions.getProject();
+          String queryTempDatasetId = "temp_dataset_" + uuid;
+          String queryTempTableId = "temp_table_" + uuid;
+
           TableReference queryTempTableRef = new TableReference()
               .setProjectId(projectId)
               .setDatasetId(queryTempDatasetId)
@@ -587,13 +592,27 @@ public class BigQueryIO {
             new PassThroughThenCleanup.CleanupOperation() {
               @Override
               void cleanup(PipelineOptions options) throws Exception {
-                 IOChannelFactory factory = IOChannelUtils.getFactory(extractDestinationDir);
-                 Collection<String> dirMatch = factory.match(extractDestinationDir);
-                 if (!dirMatch.isEmpty()) {
-                   Collection<String> extractFiles = factory.match(
-                       factory.resolve(extractDestinationDir, "*"));
-                   new GcsUtilFactory().create(options).remove(extractFiles);
-                 }
+                BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
+
+                JobReference jobRef = new JobReference()
+                    .setProjectId(bqOptions.getProject())
+                    .setJobId(getExtractJobId(jobIdToken));
+                Job extractJob = bqServices.getJobService(bqOptions).pollJob(
+                    jobRef, CLEANUP_JOB_POLL_MAX_RETRIES);
+
+                Collection<String> extractFiles = null;
+                if (extractJob != null) {
+                  extractFiles = getExtractFilePaths(extractDestinationDir, extractJob);
+                } else {
+                  IOChannelFactory factory = IOChannelUtils.getFactory(extractDestinationDir);
+                  Collection<String> dirMatch = factory.match(extractDestinationDir);
+                  if (!dirMatch.isEmpty()) {
+                    extractFiles = factory.match(factory.resolve(extractDestinationDir, "*"));
+                  }
+                }
+                if (extractFiles != null && !extractFiles.isEmpty()) {
+                  new GcsUtilFactory().create(options).remove(extractFiles);
+                }
               }};
         return input.getPipeline()
             .apply(org.apache.beam.sdk.io.Read.from(source))
@@ -959,7 +978,7 @@ public class BigQueryIO {
       BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
       TableReference tableToExtract = getTableToExtract(bqOptions);
       JobService jobService = bqServices.getJobService(bqOptions);
-      String extractJobId = jobIdToken + "-extract";
+      String extractJobId = getExtractJobId(jobIdToken);
       List<String> tempFiles = executeExtract(extractJobId, tableToExtract, jobService);
 
       TableSchema tableSchema = bqServices.getDatasetService(bqOptions).getTable(
@@ -997,40 +1016,23 @@ public class BigQueryIO {
           .setProjectId(table.getProjectId())
           .setJobId(jobId);
 
-      String destinationUri = String.format("%s/%s", extractDestinationDir, "*.avro");
-      JobConfigurationExtract extract = new JobConfigurationExtract();
-      extract.setSourceTable(table);
-      extract.setDestinationFormat("AVRO");
-      extract.setDestinationUris(ImmutableList.of(destinationUri));
+      String destinationUri = getExtractDestinationUri(extractDestinationDir);
+      JobConfigurationExtract extract = new JobConfigurationExtract()
+          .setSourceTable(table)
+          .setDestinationFormat("AVRO")
+          .setDestinationUris(ImmutableList.of(destinationUri));
 
       LOG.info("Starting BigQuery extract job: {}", jobId);
       jobService.startExtractJob(jobRef, extract);
-      Job job =
+      Job extractJob =
           jobService.pollJob(jobRef, JOB_POLL_MAX_RETRIES);
-      if (parseStatus(job) != Status.SUCCEEDED) {
+      if (parseStatus(extractJob) != Status.SUCCEEDED) {
         throw new IOException(String.format(
             "Extract job %s failed, status: %s",
-            job.getJobReference().getJobId(), job.getStatus()));
+            extractJob.getJobReference().getJobId(), extractJob.getStatus()));
       }
 
-      JobStatistics jobStats = job.getStatistics();
-      List<Long> counts = jobStats.getExtract().getDestinationUriFileCounts();
-      if (counts.size() != 1) {
-        String errorMessage = (counts.size() == 0 ?
-            "No destination uri file count received." :
-            String.format("More than one destination uri file count received. First two are %s, %s",
-                counts.get(0), counts.get(1)));
-        throw new RuntimeException(errorMessage);
-      }
-
-      long filesCount = counts.get(0);
-      List<String> tempFiles = Lists.newArrayList();
-      IOChannelFactory factory = IOChannelUtils.getFactory(extractDestinationDir);
-      for (int i = 0; i < filesCount; ++i) {
-        String filePath =
-            factory.resolve(extractDestinationDir, String.format("%012d%s", i, ".avro"));
-        tempFiles.add(filePath);
-      }
+      List<String> tempFiles = getExtractFilePaths(extractDestinationDir, extractJob);
       return ImmutableList.copyOf(tempFiles);
     }
 
@@ -1208,6 +1210,37 @@ public class BigQueryIO {
         return boundedReader.getCurrentTimestamp();
       }
     }
+  }
+
+  private static String getExtractJobId(String jobIdToken) {
+    return jobIdToken + "-extract";
+  }
+
+  private static String getExtractDestinationUri(String extractDestinationDir) {
+    return String.format("%s/%s", extractDestinationDir, "*.avro");
+  }
+
+  private static List<String> getExtractFilePaths(String extractDestinationDir, Job extractJob)
+      throws IOException {
+    JobStatistics jobStats = extractJob.getStatistics();
+    List<Long> counts = jobStats.getExtract().getDestinationUriFileCounts();
+    if (counts.size() != 1) {
+      String errorMessage = (counts.size() == 0 ?
+          "No destination uri file count received." :
+          String.format("More than one destination uri file count received. First two are %s, %s",
+              counts.get(0), counts.get(1)));
+      throw new RuntimeException(errorMessage);
+    }
+    long filesCount = counts.get(0);
+
+    ImmutableList.Builder<String> paths = ImmutableList.builder();
+    IOChannelFactory factory = IOChannelUtils.getFactory(extractDestinationDir);
+    for (long i = 0; i < filesCount; ++i) {
+      String filePath =
+          factory.resolve(extractDestinationDir, String.format("%012d%s", i, ".avro"));
+      paths.add(filePath);
+    }
+    return paths.build();
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -1868,13 +1901,13 @@ public class BigQueryIO {
           @Nullable TableSchema schema,
           WriteDisposition writeDisposition,
           CreateDisposition createDisposition) throws InterruptedException, IOException {
-        JobConfigurationLoad loadConfig = new JobConfigurationLoad();
-        loadConfig.setSourceUris(gcsUris);
-        loadConfig.setDestinationTable(ref);
-        loadConfig.setSchema(schema);
-        loadConfig.setWriteDisposition(writeDisposition.name());
-        loadConfig.setCreateDisposition(createDisposition.name());
-        loadConfig.setSourceFormat("NEWLINE_DELIMITED_JSON");
+        JobConfigurationLoad loadConfig = new JobConfigurationLoad()
+            .setSourceUris(gcsUris)
+            .setDestinationTable(ref)
+            .setSchema(schema)
+            .setWriteDisposition(writeDisposition.name())
+            .setCreateDisposition(createDisposition.name())
+            .setSourceFormat("NEWLINE_DELIMITED_JSON");
 
         boolean retrying = false;
         String projectId = ref.getProjectId();
@@ -2371,7 +2404,9 @@ public class BigQueryIO {
   }
 
   /**
-   * Returns a randomUUID string without {@code '-'}.
+   * Returns a randomUUID string.
+   *
+   * <p>{@code '-'} is removed because BigQuery doesn't allow it in dataset id.
    */
   private static String randomUUIDString() {
     return UUID.randomUUID().toString().replaceAll("-", "");

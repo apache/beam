@@ -107,7 +107,6 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 
 import javax.annotation.Nullable;
-import javax.print.attribute.standard.Destination;
 
 /**
  * Tests for BigQueryIO.
@@ -478,8 +477,9 @@ public class BigQueryIOTest implements Serializable {
   @Test
   public void testReadFromTable() {
     FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
-        .withJobService(
-            new FakeJobService().startJobReturns("done", "done"))
+        .withJobService(new FakeJobService()
+            .startJobReturns("done", "done")
+            .pollJobReturns(Status.UNKNOWN))
         .readerReturns(
             toJsonString(new TableRow().set("name", "a").set("number", 1)),
             toJsonString(new TableRow().set("name", "b").set("number", 2)),

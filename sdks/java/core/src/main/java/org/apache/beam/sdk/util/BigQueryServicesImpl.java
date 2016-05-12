@@ -331,15 +331,15 @@ public class BigQueryServicesImpl implements BigQueryServices {
         String description,
         Sleeper sleeper,
         BackOff backoff) throws IOException, InterruptedException {
-      DatasetReference datasetRef = new DatasetReference();
-      datasetRef.setProjectId(projectId);
-      datasetRef.setDatasetId(datasetId);
+      DatasetReference datasetRef = new DatasetReference()
+          .setProjectId(projectId)
+          .setDatasetId(datasetId);
 
-      Dataset dataset = new Dataset();
-      dataset.setDatasetReference(datasetRef);
-      dataset.setLocation(location);
-      dataset.setFriendlyName(location);
-      dataset.setDescription(description);
+      Dataset dataset = new Dataset()
+          .setDatasetReference(datasetRef)
+          .setLocation(location)
+          .setFriendlyName(location)
+          .setDescription(description);
 
       Exception lastException;
       do {
