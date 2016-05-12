@@ -18,8 +18,8 @@ import java.net.URI;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
+import static cz.seznam.euphoria.core.util.Util.sorted;
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
 
@@ -181,10 +181,6 @@ public class JoinOperatorTest {
         asList("one 1",  "two 1", "one 22",  "one 44"),
         asList("one 10", "two 20", "one 33", "three 55", "one 66"),
         asList("one, 11",  "two, 21", "one, 55", "one, 44", "three, 55", "one, 66"));
-  }
-
-  private static List<String> sorted(List<String> xs) {
-    return xs.stream().sorted().collect(Collectors.toList());
   }
 
 }
