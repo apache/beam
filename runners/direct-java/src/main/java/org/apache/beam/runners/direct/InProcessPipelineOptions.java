@@ -43,13 +43,13 @@ public interface InProcessPipelineOptions extends PipelineOptions, ApplicationNa
    * it cannot enter a state in which it will not schedule additional pending work unless currently
    * scheduled work completes, as this may cause the {@link Pipeline} to cease processing.
    *
-   * <p>Defaults to a {@link CachedThreadPoolExecutorServiceFactory}, which produces instances of
+   * <p>Defaults to a {@link FixedThreadPoolExecutorServiceFactory}, which produces instances of
    * {@link Executors#newCachedThreadPool()}.
    */
   @JsonIgnore
   @Required
   @Hidden
-  @Default.InstanceFactory(CachedThreadPoolExecutorServiceFactory.class)
+  @Default.InstanceFactory(FixedThreadPoolExecutorServiceFactory.class)
   ExecutorServiceFactory getExecutorServiceFactory();
 
   void setExecutorServiceFactory(ExecutorServiceFactory executorService);

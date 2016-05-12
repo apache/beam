@@ -81,11 +81,26 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <executions>
-          <!-- For now, disables integration tests from the SDK as the runner is not ready. -->
           <execution>
             <id>runnable-on-service-tests</id>
+            <phase>integration-test</phase>
+            <goals>
+              <goal>test</goal>
+            </goals>
             <configuration>
-              <skip>true</skip>
+              <groups>org.apache.beam.sdk.testing.RunnableOnService</groups>
+              <parallel>none</parallel>
+              <failIfNoTests>true</failIfNoTests>
+              <dependenciesToScan>
+                <dependency>org.apache.beam:java-sdk-all</dependency>
+              </dependenciesToScan>
+              <systemPropertyVariables>
+                <beamTestPipelineOptions>
+                  [
+                    "--runner=org.apache.beam.runners.direct.InProcessPipelineRunner"
+                  ]
+                </beamTestPipelineOptions>
+              </systemPropertyVariables>
             </configuration>
           </execution>
         </executions>
