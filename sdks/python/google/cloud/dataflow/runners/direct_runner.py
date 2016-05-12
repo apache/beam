@@ -259,3 +259,17 @@ class DirectPipelineResult(PipelineResult):
 
   def aggregated_values(self, aggregator_or_name):
     return self._counter_factory.get_aggregator_values(aggregator_or_name)
+
+
+class EagerPipelineRunner(DirectPipelineRunner):
+
+  is_eager = True
+
+  def __init__(self):
+    super(EagerPipelineRunner, self).__init__()
+    self._seen_transforms = set()
+
+  def run_transform(self, transform):
+    if transform not in self._seen_transforms:
+      self._seen_transforms.add(transform)
+      super(EagerPipelineRunner, self).run_transform(transform)

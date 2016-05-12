@@ -37,6 +37,9 @@ def create_runner(runner_name):
   if runner_name == 'DirectPipelineRunner':
     import google.cloud.dataflow.runners.direct_runner
     return google.cloud.dataflow.runners.direct_runner.DirectPipelineRunner()
+  if runner_name == 'EagerPipelineRunner':
+    import google.cloud.dataflow.runners.direct_runner
+    return google.cloud.dataflow.runners.direct_runner.EagerPipelineRunner()
   elif runner_name in ('DataflowPipelineRunner',
                        'BlockingDataflowPipelineRunner'):
     import google.cloud.dataflow.runners.dataflow_runner
@@ -45,7 +48,7 @@ def create_runner(runner_name):
   else:
     raise RuntimeError(
         'Unexpected pipeline runner: %s. Valid values are '
-        'DirectPipelineRunner, DataflowPipelineRunner, or '
+        'DirectPipelineRunner, DataflowPipelineRunner, EagerPipelineRunner, or '
         'BlockingDataflowPipelineRunner.' % runner_name)
 
 

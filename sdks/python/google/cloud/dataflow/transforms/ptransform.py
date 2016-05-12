@@ -387,7 +387,6 @@ class PTransform(WithTypeHints):
       p = pipeline.Pipeline(
           'DirectPipelineRunner', PipelineOptions(sys.argv))
     else:
-      deferred = True
       if not pipelines:
         if self.pipeline is not None:
           p = self.pipeline
@@ -400,6 +399,7 @@ class PTransform(WithTypeHints):
           if p != pp:
             raise ValueError(
                 'Mixing value from different pipelines not allowed.')
+      deferred = not getattr(p.runner, 'is_eager', False)
     # pylint: disable=g-import-not-at-top
     from google.cloud.dataflow.transforms.core import Create
     # pylint: enable=g-import-not-at-top
