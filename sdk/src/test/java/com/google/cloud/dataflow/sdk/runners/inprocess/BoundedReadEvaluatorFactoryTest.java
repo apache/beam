@@ -19,6 +19,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.when;
 
@@ -114,15 +115,7 @@ public class BoundedReadEvaluatorFactoryTest {
     when(context.createRootBundle(longs)).thenReturn(secondOutput);
     TransformEvaluator<?> secondEvaluator =
         factory.forApplication(longs.getProducingTransformInternal(), null, context);
-    InProcessTransformResult secondResult = secondEvaluator.finishBundle();
-    assertThat(secondResult.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MIN_VALUE));
-    assertThat(secondResult.getOutputBundles(), emptyIterable());
-    assertThat(
-        secondOutput.commit(BoundedWindow.TIMESTAMP_MAX_VALUE).getElements(), emptyIterable());
-    assertThat(
-        outputElements,
-        containsInAnyOrder(
-            gw(1L), gw(2L), gw(4L), gw(8L), gw(9L), gw(7L), gw(6L), gw(5L), gw(3L), gw(0L)));
+    assertThat(secondEvaluator, nullValue());
   }
 
   /**
@@ -140,8 +133,7 @@ public class BoundedReadEvaluatorFactoryTest {
         factory.forApplication(longs.getProducingTransformInternal(), null, context);
     TransformEvaluator<?> secondEvaluator =
         factory.forApplication(longs.getProducingTransformInternal(), null, context);
-
-    InProcessTransformResult secondResult = secondEvaluator.finishBundle();
+    assertThat(secondEvaluator, nullValue());
 
     InProcessTransformResult result = evaluator.finishBundle();
     assertThat(result.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
@@ -152,8 +144,6 @@ public class BoundedReadEvaluatorFactoryTest {
         outputElements,
         containsInAnyOrder(
             gw(1L), gw(2L), gw(4L), gw(8L), gw(9L), gw(7L), gw(6L), gw(5L), gw(3L), gw(0L)));
-    assertThat(secondResult.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MIN_VALUE));
-    assertThat(secondResult.getOutputBundles(), emptyIterable());
     assertThat(
         secondOutput.commit(BoundedWindow.TIMESTAMP_MAX_VALUE).getElements(), emptyIterable());
     assertThat(
