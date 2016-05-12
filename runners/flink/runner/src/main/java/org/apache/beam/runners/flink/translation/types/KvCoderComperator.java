@@ -170,33 +170,6 @@ public class KvCoderComperator <K, V> extends TypeComparator<WindowedValue<KV<K,
     inputWrapper.setInputView(secondSource);
     WindowedValue<KV<K, V>> second = coder.decode(inputWrapper, Coder.Context.NESTED);
     return compare(first, second);
-
-
-//    inputWrapper.setInputView(firstSource);
-//    K firstKey = keyCoder.decode(inputWrapper, Coder.Context.NESTED);
-//    inputWrapper.setInputView(secondSource);
-//    K secondKey = keyCoder.decode(inputWrapper, Coder.Context.NESTED);
-//
-//    try {
-//      buffer1.reset();
-//      buffer2.reset();
-//      keyCoder.encode(firstKey, buffer1, Coder.Context.OUTER);
-//      keyCoder.encode(secondKey, buffer2, Coder.Context.OUTER);
-//      byte[] arr = buffer1.getBuffer();
-//      byte[] arrOther = buffer2.getBuffer();
-//      if (buffer1.size() != buffer2.size()) {
-//        return buffer1.size() - buffer2.size();
-//      }
-//      int len = buffer1.size();
-//      for (int i = 0; i < len; i++) {
-//        if (arr[i] != arrOther[i]) {
-//          return arr[i] - arrOther[i];
-//        }
-//      }
-//      return 0;
-//    } catch (IOException e) {
-//      throw new RuntimeException("Could not compare reference.", e);
-//    }
   }
 
   @Override
