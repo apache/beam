@@ -12,13 +12,17 @@ import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
+import cz.seznam.euphoria.core.client.operator.Map;
+import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.Repartition;
 import cz.seznam.euphoria.core.client.operator.State;
 import cz.seznam.euphoria.core.client.operator.Union;
 import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.core.client.util.Sums;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -30,9 +34,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 /**
  * {@code InMemExecutor} test suite.
@@ -588,4 +590,39 @@ public class InMemExecutorTest {
     assertEquals(firstCopy, secondCopy);
   }
 
+  @Test(timeout = 5000L)
+  public void testInputMultiConsumption() {
+    final int N = 1000;
+    Dataset<Integer> input = flow.createInput(
+        ListDataSource.unbounded(sequenceInts(0, N)));
+
+    // ~ consume the input another time
+    Dataset<Integer> map = Map
+        .of(input)
+        .by(e -> e)
+        .output();
+    ListDataSink<Integer> mapOut = ListDataSink.get(1);
+    map.persist(mapOut);
+
+    Dataset<Pair<Integer, Integer>> sum =
+        ReduceByKey.of(input)
+        .keyBy(e -> 0)
+        .valueBy(e -> e)
+        .reduceBy(Sums.ofInts())
+        .output();
+    ListDataSink<Pair<Integer, Integer>> sumOut = ListDataSink.get(1);
+    sum.persist(sumOut);
+
+    executor.waitForCompletion(flow);
+
+    assertNotNull(sumOut.getOutput(0));
+    assertEquals(1, sumOut.getOutput(0).size());
+    assertEquals(Integer.valueOf((N-1) * N / 2),
+                 sumOut.getOutput(0).get(0).getSecond());
+
+    assertNotNull(mapOut.getOutput(0));
+    assertEquals(N, mapOut.getOutput(0).size());
+    assertEquals(Integer.valueOf((N-1) * N / 2),
+                 mapOut.getOutput(0).stream().reduce((x, y) -> x + y).get());
+  }
 }
