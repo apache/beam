@@ -56,10 +56,9 @@ public abstract class PubsubClient implements Closeable {
         PubsubOptions options) throws IOException;
 
     /**
-     * Return the display name for this factory.
+     * Return the display name for this factory. Eg "Apiary", "gRPC".
      */
-    @Override
-    String toString();
+    String getKind();
   }
 
   /**

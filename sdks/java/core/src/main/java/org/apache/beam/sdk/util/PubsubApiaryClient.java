@@ -75,7 +75,7 @@ public class PubsubApiaryClient extends PubsubClient {
     }
 
     @Override
-    public String toString() {
+    public String getKind() {
       return "Apiary";
     }
   }

@@ -107,7 +107,7 @@ public class PubsubGrpcClient extends PubsubClient {
     }
 
     @Override
-    public String toString() {
+    public String getKind() {
       return "Grpc";
     }
   }

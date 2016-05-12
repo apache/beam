@@ -206,7 +206,7 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
         throws IOException {
       long nowMsSinceEpoch = System.currentTimeMillis();
       int n = pubsubClient.publish(topic, messages);
-      checkState(n == messages.size(), "Attempted to publish %d messaged but %d were successful",
+      checkState(n == messages.size(), "Attempted to publish %d messages but %d were successful",
                  messages.size(), n);
       batchCounter.addValue(1L);
       elementCounter.addValue((long) messages.size());
@@ -255,7 +255,7 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
     public void populateDisplayData(Builder builder) {
       super.populateDisplayData(builder);
       builder.add(DisplayData.item("topic", topic.getPath()));
-      builder.add(DisplayData.item("transport", pubsubFactory.toString()));
+      builder.add(DisplayData.item("transport", pubsubFactory.getKind()));
       builder.addIfNotNull(DisplayData.item("timestampLabel", timestampLabel));
       builder.addIfNotNull(DisplayData.item("idLabel", idLabel));
     }

@@ -53,8 +53,8 @@ public class PubsubTestClient extends PubsubClient {
       }
 
       @Override
-      public String toString() {
-        return "PublishTestClient";
+      public String getKind() {
+        return "PublishTest";
       }
     };
   }
@@ -73,8 +73,8 @@ public class PubsubTestClient extends PubsubClient {
       }
 
       @Override
-      public String toString() {
-        return "PullTestClient";
+      public String getKind() {
+        return "PullTest";
       }
     };
   }
