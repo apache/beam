@@ -16,6 +16,11 @@ events:
   location: Virtual
   type: Technical Deep Dive
   materials:
-  notes: Virtual attendance options will<br>be announced prior to the meeting.
+    - title: Presentation - Beam Community Meeting
+      link: "https://drive.google.com/open?id=17i7SHViboWtLEZw27iabdMisPl987WWxvapJaXg_dEE"
 
-last_updated: 2016/04/14
+    - title: Notes - Beam Community Meeting
+      link: "https://drive.google.com/open?id=1szhEE_pfhEtrQye61jXAidUcMW7oebZCRc2InUe3ou0"
+  notes:
+
+last_updated: 2016/05/16
