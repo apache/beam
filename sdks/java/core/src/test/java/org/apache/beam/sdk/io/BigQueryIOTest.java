@@ -1079,7 +1079,6 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
   public void testPassThroughThenCleanupExecuted() throws Exception {
     Pipeline p = TestPipeline.create();
 
