@@ -373,8 +373,9 @@ public class GcsUtil {
   public void copy(List<String> srcFilenames, List<String> destFilenames) throws IOException {
     Preconditions.checkArgument(
         srcFilenames.size() == destFilenames.size(),
-        String.format("Number of source files {} must equal number of destination files {}",
-            srcFilenames.size(), destFilenames.size()));
+        "Number of source files %s must equal number of destination files %s",
+        srcFilenames.size(),
+        destFilenames.size());
     for (int i = 0; i < srcFilenames.size(); i++) {
       final GcsPath sourcePath = GcsPath.fromUri(srcFilenames.get(i));
       final GcsPath destPath = GcsPath.fromUri(destFilenames.get(i));
