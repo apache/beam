@@ -313,25 +313,4 @@ public class AvroIOTest {
     assertThat(displayData, hasDisplayItem("numShards", 100));
     assertThat(displayData, hasDisplayItem("validation", false));
   }
-
-  /**
-   * A known file scheme is necessary to construct a link URL for display data.
-   * Verify that a bad file scheme doesn't throw an exception in display data unless
-   * validation is enabled.
-   */
-  @Test
-  public void testDisplayDataResilientToUnknownFileScheme() {
-    DisplayData unvalidatedDisplayData = DisplayData.from(AvroIO.Write
-        .to("foo://bar/baz")
-        .withoutValidation());
-    assertThat(unvalidatedDisplayData, hasDisplayItem(allOf(
-        hasKey("filePrefix"),
-        not(hasLinkUrl())
-    )));
-
-    String validatedScheme = "omg";
-    thrown.expectMessage(validatedScheme);
-
-    DisplayData.from(AvroIO.Write.to(validatedScheme + "://foo/bar"));
-  }
 }
