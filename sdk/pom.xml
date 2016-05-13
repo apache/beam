@@ -143,6 +143,33 @@
 
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>InProcessPipelineRunnerTests</id>
+            <phase>integration-test</phase>
+            <goals>
+              <goal>test</goal>
+            </goals>
+            <configuration>
+              <groups>com.google.cloud.dataflow.sdk.testing.RunnableOnService</groups>
+              <parallel>none</parallel>
+              <failIfNoTests>true</failIfNoTests>
+              <systemPropertyVariables>
+                <runIntegrationTestOnService>false</runIntegrationTestOnService>
+                <dataflowOptions>
+                  [
+                  "--runner=InProcessPipelineRunner"
+                  ]
+                </dataflowOptions>
+              </systemPropertyVariables>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-dependency-plugin</artifactId>
         <executions>
           <execution>
