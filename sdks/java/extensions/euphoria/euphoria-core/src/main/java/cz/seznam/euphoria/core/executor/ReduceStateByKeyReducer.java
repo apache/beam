@@ -85,6 +85,9 @@ class ReduceStateByKeyReducer implements Runnable {
     final CombinableReduceFunction stateCombiner;
     final boolean aggregating;
 
+    // ~ are we still actively processing input?
+    private boolean active = true;
+
     public ProcessingState(
         BlockingQueue output,
         Triggering triggering,
@@ -255,6 +258,9 @@ class ReduceStateByKeyReducer implements Runnable {
     return (UnaryFunction<Window, Void>) window -> {
       Collection<State> evicted;
       synchronized (processing) {
+        if (!processing.active) {
+          return null;
+        }
         evicted = processing.evictWindow(window);
       }
       evicted.stream().forEachOrdered(
@@ -287,8 +293,8 @@ class ReduceStateByKeyReducer implements Runnable {
     triggering.close();
     // close all states
     synchronized (processing) {
+      processing.active = false;
       if (windowing.isAggregating()) {
-        // XXX
         processing.evictAllWindows().stream().forEachOrdered(State::flush);
         processing.aggregatingStates.values().stream().forEachOrdered(State::close);
       } else {
