@@ -27,6 +27,7 @@ import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.AtomicCoder;
 import com.google.cloud.dataflow.sdk.coders.CoderException;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
+import com.google.cloud.dataflow.sdk.runners.inprocess.InProcessPipelineRunner;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
@@ -302,7 +303,8 @@ public class DataflowAssertTest implements Serializable {
   private static Throwable runExpectingAssertionFailure(Pipeline pipeline) {
     // Even though this test will succeed or fail adequately whether local or on the service,
     // it results in a different exception depending on the runner.
-    if (pipeline.getRunner() instanceof DirectPipelineRunner) {
+    if (pipeline.getRunner() instanceof DirectPipelineRunner
+        || pipeline.getRunner() instanceof InProcessPipelineRunner) {
       // We cannot use thrown.expect(AssertionError.class) because the AssertionError
       // is first caught by JUnit and causes a test failure.
       try {
