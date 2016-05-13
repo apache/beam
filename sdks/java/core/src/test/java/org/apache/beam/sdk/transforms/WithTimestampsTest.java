@@ -23,6 +23,7 @@ import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.capabilities.RequiresTimestampControl;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -41,6 +42,7 @@ import java.io.Serializable;
  * Tests for {@link WithTimestamps}.
  */
 @RunWith(JUnit4.class)
+@Category(RequiresTimestampControl.class)
 public class WithTimestampsTest implements Serializable {
   @Rule
   public transient ExpectedException thrown = ExpectedException.none();

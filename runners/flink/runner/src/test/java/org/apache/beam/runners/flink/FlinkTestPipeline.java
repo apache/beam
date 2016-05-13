@@ -60,7 +60,7 @@ public class FlinkTestPipeline extends Pipeline {
    * @return The Test Pipeline.
    */
   private static FlinkTestPipeline create(boolean streaming) {
-    FlinkPipelineRunner flinkRunner = FlinkPipelineRunner.createForTest(streaming);
+    TestFlinkPipelineRunner flinkRunner = TestFlinkPipelineRunner.create(streaming);
     return new FlinkTestPipeline(flinkRunner, flinkRunner.getPipelineOptions());
   }
 

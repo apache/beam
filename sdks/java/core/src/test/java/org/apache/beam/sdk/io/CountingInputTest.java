@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
@@ -26,6 +27,7 @@ import org.apache.beam.sdk.io.CountingInput.UnboundedCountingInput;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.capabilities.RequiresTimestampControl;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Max;
@@ -125,7 +127,7 @@ public class CountingInputTest {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category({RunnableOnService.class, RequiresTimestampControl.class})
   public void testUnboundedInputTimestamps() {
     Pipeline p = TestPipeline.create();
     long numElements = 1000;

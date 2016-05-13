@@ -30,6 +30,7 @@ import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.capabilities.RequiresTimestampControl;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -136,7 +137,7 @@ public class CountingSourceTest {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category({RunnableOnService.class, RequiresTimestampControl.class})
   public void testUnboundedSourceTimestamps() {
     Pipeline p = TestPipeline.create();
     long numElements = 1000;

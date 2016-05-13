@@ -22,7 +22,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
@@ -148,7 +148,7 @@ public class Sample {
       PCollectionView<Iterable<T>> iterableView = in.apply(View.<T>asIterable());
       return
           in.getPipeline()
-          .apply(Create.of((Void) null).withCoder(VoidCoder.of()))
+          .apply(Create.of(1).withCoder(VarIntCoder.of()))
           .apply(ParDo
                  .withSideInputs(iterableView)
                  .of(new SampleAnyDoFn<>(limit, iterableView)))
@@ -165,7 +165,7 @@ public class Sample {
   /**
    * A {@link DoFn} that returns up to limit elements from the side input PCollection.
    */
-  private static class SampleAnyDoFn<T> extends DoFn<Void, T> {
+  private static class SampleAnyDoFn<T> extends DoFn<Integer, T> {
     long limit;
     final PCollectionView<Iterable<T>> iterableView;
 

@@ -29,15 +29,18 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TimestampedValue;
 
 import com.google.common.base.Joiner;
+import com.google.common.collect.Lists;
 
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 import java.io.Serializable;
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.Collections;
 
 public class GroupByNullKeyTest extends StreamingProgramTestBase implements Serializable {
 
@@ -61,63 +64,51 @@ public class GroupByNullKeyTest extends StreamingProgramTestBase implements Seri
     compareResultsByLinesInMemory(Joiner.on('\n').join(EXPECTED_RESULT), resultPath);
   }
 
-  public static class ExtractUserAndTimestamp extends DoFn<KV<Integer, String>, String> {
-    private static final long serialVersionUID = 0;
-
-    @Override
-    public void processElement(ProcessContext c) {
-      KV<Integer, String> record = c.element();
-      int timestamp = record.getKey();
-      String userName = record.getValue();
-      if (userName != null) {
-        // Sets the implicit timestamp field to be used in windowing.
-        c.outputWithTimestamp(userName, new Instant(timestamp));
-      }
-    }
-  }
-
   @Override
   protected void testProgram() throws Exception {
 
     Pipeline p = FlinkTestPipeline.createForStreaming();
 
-    PCollection<String> output =
-      p.apply(Create.of(Arrays.asList(
-          KV.<Integer, String>of(0, "user1"),
-          KV.<Integer, String>of(1, "user1"),
-          KV.<Integer, String>of(2, "user1"),
-          KV.<Integer, String>of(10, "user2"),
-          KV.<Integer, String>of(1, "user2"),
-          KV.<Integer, String>of(15000, "user2"),
-          KV.<Integer, String>of(12000, "user2"),
-          KV.<Integer, String>of(25000, "user3"))))
-          .apply(ParDo.of(new ExtractUserAndTimestamp()))
-          .apply(Window.<String>into(FixedWindows.of(Duration.standardHours(1)))
-              .triggering(AfterWatermark.pastEndOfWindow())
-              .withAllowedLateness(Duration.ZERO)
-              .discardingFiredPanes())
+    PCollection<String> output = p
+        .apply(Create.timestamped(
+            TimestampedValue.of("user1", new Instant(0)),
+            TimestampedValue.of("user1", new Instant(1)),
+            TimestampedValue.of("user1", new Instant(2)),
+            TimestampedValue.of("user2", new Instant(10)),
+            TimestampedValue.of("user2", new Instant(1)),
+            TimestampedValue.of("user2", new Instant(15000)),
+            TimestampedValue.of("user2", new Instant(12000)),
+            TimestampedValue.of("user3", new Instant(25000))))
+        .apply(Window.<String>into(FixedWindows.of(Duration.standardHours(1)))
+            .triggering(AfterWatermark.pastEndOfWindow())
+            .withAllowedLateness(Duration.ZERO)
+            .discardingFiredPanes())
 
-          .apply(ParDo.of(new DoFn<String, KV<Void, String>>() {
-            @Override
-            public void processElement(ProcessContext c) throws Exception {
-              String elem = c.element();
-              c.output(KV.<Void, String>of((Void) null, elem));
+        .apply(ParDo.of(new DoFn<String, KV<Void, String>>() {
+          @Override
+          public void processElement(ProcessContext c) throws Exception {
+            String elem = c.element();
+            c.output(KV.<Void, String>of(null, elem));
+          }
+        }))
+        .apply(GroupByKey.<Void, String>create())
+        .apply(ParDo.of(new DoFn<KV<Void, Iterable<String>>, String>() {
+          @Override
+          public void processElement(ProcessContext c) throws Exception {
+            KV<Void, Iterable<String>> elem = c.element();
+            ArrayList<String> strings = Lists.newArrayList(elem.getValue());
+            Collections.sort(strings);
+            StringBuilder str = new StringBuilder();
+            str.append("k: " + elem.getKey() + " v:");
+            for (String v : strings) {
+              str.append(" " + v);
             }
-          }))
-          .apply(GroupByKey.<Void, String>create())
-          .apply(ParDo.of(new DoFn<KV<Void, Iterable<String>>, String>() {
-            @Override
-            public void processElement(ProcessContext c) throws Exception {
-              KV<Void, Iterable<String>> elem = c.element();
-              StringBuilder str = new StringBuilder();
-              str.append("k: " + elem.getKey() + " v:");
-              for (String v : elem.getValue()) {
-                str.append(" " + v);
-              }
-              c.output(str.toString());
-            }
-          }));
+            c.output(str.toString());
+          }
+        }));
+
     output.apply(TextIO.Write.to(resultPath));
+
     p.run();
   }
 }

@@ -18,7 +18,6 @@
 package org.apache.beam.runners.flink.translation.types;
 
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.VoidCoder;
 
 import com.google.common.base.Preconditions;
 
@@ -71,9 +70,6 @@ public class CoderTypeInformation<T> extends TypeInformation<T> implements Atomi
   @Override
   @SuppressWarnings("unchecked")
   public TypeSerializer<T> createSerializer(ExecutionConfig config) {
-    if (coder instanceof VoidCoder) {
-      return (TypeSerializer<T>) new VoidCoderTypeSerializer();
-    }
     return new CoderTypeSerializer<>(coder);
   }
 
@@ -84,7 +80,9 @@ public class CoderTypeInformation<T> extends TypeInformation<T> implements Atomi
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
+    if (this == o) {
+      return true;
+    }
     if (o == null || getClass() != o.getClass()) return false;
 
     CoderTypeInformation that = (CoderTypeInformation) o;
