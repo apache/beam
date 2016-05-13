@@ -16,36 +16,17 @@
 
 package com.google.cloud.dataflow.sdk.io;
 
-import com.google.api.client.googleapis.batch.BatchRequest;
-import com.google.api.client.googleapis.batch.json.JsonBatchCallback;
-import com.google.api.client.googleapis.json.GoogleJsonError;
-import com.google.api.client.http.HttpHeaders;
-import com.google.api.client.http.HttpRequestInitializer;
-import com.google.api.services.storage.Storage;
-import com.google.api.services.storage.StorageRequest;
-import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.SerializableCoder;
-import com.google.cloud.dataflow.sdk.options.GcsOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
-import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
-import com.google.cloud.dataflow.sdk.transforms.PTransform;
-import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
-import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
-import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
-import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.util.FileIOChannelFactory;
 import com.google.cloud.dataflow.sdk.util.GcsIOChannelFactory;
+import com.google.cloud.dataflow.sdk.util.GcsUtil;
+import com.google.cloud.dataflow.sdk.util.GcsUtil.GcsUtilFactory;
 import com.google.cloud.dataflow.sdk.util.IOChannelFactory;
 import com.google.cloud.dataflow.sdk.util.IOChannelUtils;
 import com.google.cloud.dataflow.sdk.util.MimeTypes;
-import com.google.cloud.dataflow.sdk.util.Transport;
-import com.google.cloud.dataflow.sdk.util.gcsfs.GcsPath;
-import com.google.cloud.dataflow.sdk.values.KV;
-import com.google.cloud.dataflow.sdk.values.PCollection;
-import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.common.base.Preconditions;
 
 import org.slf4j.Logger;
@@ -61,10 +42,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.LinkedList;
 import java.util.List;
-
-import javax.annotation.concurrent.NotThreadSafe;
 
 /**
  * Abstract {@link Sink} for file-based output. An implementation of FileBasedSink writes file-based
@@ -618,80 +596,20 @@ public abstract class FileBasedSink<T> extends Sink<T> {
    * GCS file system operations.
    */
   private static class GcsOperations implements FileOperations {
-    private static final Logger LOG = LoggerFactory.getLogger(GcsOperations.class);
-
-    /**
-     * Maximum number of requests permitted in a GCS batch request.
-     */
-    private static final int MAX_REQUESTS_PER_BATCH = 1000;
-
-    private ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
-    private GcsOptions gcsOptions;
-    private Storage gcs;
-    private BatchHelper batchHelper;
+    private final GcsUtil gcsUtil;
 
     public GcsOperations(PipelineOptions options) {
-      gcsOptions = options.as(GcsOptions.class);
-      gcs = Transport.newStorageClient(gcsOptions).build();
-      batchHelper =
-          new BatchHelper(gcs.getRequestFactory().getInitializer(), gcs, MAX_REQUESTS_PER_BATCH);
+      gcsUtil = new GcsUtilFactory().create(options);
     }
 
     @Override
     public void copy(List<String> srcFilenames, List<String> destFilenames) throws IOException {
-      Preconditions.checkArgument(
-          srcFilenames.size() == destFilenames.size(),
-          String.format("Number of source files {} must equal number of destination files {}",
-              srcFilenames.size(), destFilenames.size()));
-      for (int i = 0; i < srcFilenames.size(); i++) {
-        final GcsPath sourcePath = GcsPath.fromUri(srcFilenames.get(i));
-        final GcsPath destPath = GcsPath.fromUri(destFilenames.get(i));
-        LOG.debug("Copying {} to {}", sourcePath, destPath);
-        Storage.Objects.Copy copyObject = gcs.objects().copy(sourcePath.getBucket(),
-            sourcePath.getObject(), destPath.getBucket(), destPath.getObject(), null);
-        batchHelper.queue(copyObject, new JsonBatchCallback<StorageObject>() {
-          @Override
-          public void onSuccess(StorageObject obj, HttpHeaders responseHeaders) {
-            LOG.debug("Successfully copied {} to {}", sourcePath, destPath);
-          }
-
-          @Override
-          public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders) throws IOException {
-            // Do nothing on item not found.
-            if (!errorExtractor.itemNotFound(e)) {
-              throw new IOException(e.toString());
-            }
-            LOG.debug("{} does not exist.", sourcePath);
-          }
-        });
-      }
-      batchHelper.flush();
+      gcsUtil.copy(srcFilenames, destFilenames);
     }
 
     @Override
     public void remove(Collection<String> filenames) throws IOException {
-      for (String filename : filenames) {
-        final GcsPath path = GcsPath.fromUri(filename);
-        LOG.debug("Removing: " + path);
-        Storage.Objects.Delete deleteObject =
-            gcs.objects().delete(path.getBucket(), path.getObject());
-        batchHelper.queue(deleteObject, new JsonBatchCallback<Void>() {
-          @Override
-          public void onSuccess(Void obj, HttpHeaders responseHeaders) throws IOException {
-            LOG.debug("Successfully removed {}", path);
-          }
-
-          @Override
-          public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders) throws IOException {
-            // Do nothing on item not found.
-            if (!errorExtractor.itemNotFound(e)) {
-              throw new IOException(e.toString());
-            }
-            LOG.debug("{} does not exist.", path);
-          }
-        });
-      }
-      batchHelper.flush();
+      gcsUtil.remove(filenames);
     }
   }
 
@@ -741,135 +659,6 @@ public abstract class FileBasedSink<T> extends Sink<T> {
       if (!exists) {
         LOG.debug("{} does not exist.", filename);
       }
-    }
-  }
-
-  /**
-   * BatchHelper abstracts out the logic for the maximum requests per batch for GCS.
-   *
-   * <p>Copy of
-   * https://github.com/GoogleCloudPlatform/bigdata-interop/blob/master/gcs/src/main/java/com/google/cloud/hadoop/gcsio/BatchHelper.java
-   *
-   * <p>Copied to prevent Dataflow from depending on the Hadoop-related dependencies that are not
-   * used in Dataflow.  Hadoop-related dependencies will be removed from the Google Cloud Storage
-   * Connector (https://cloud.google.com/hadoop/google-cloud-storage-connector) so that this project
-   * and others may use the connector without introducing unnecessary dependencies.
-   *
-   * <p>This class is not thread-safe; create a new BatchHelper instance per single-threaded logical
-   * grouping of requests.
-   */
-  @NotThreadSafe
-  private static class BatchHelper {
-    /**
-     * Callback that causes a single StorageRequest to be added to the BatchRequest.
-     */
-    protected static interface QueueRequestCallback {
-      void enqueue() throws IOException;
-    }
-
-    private final List<QueueRequestCallback> pendingBatchEntries;
-    private final BatchRequest batch;
-
-    // Number of requests that can be queued into a single actual HTTP request
-    // before a sub-batch is sent.
-    private final long maxRequestsPerBatch;
-
-    // Flag that indicates whether there is an in-progress flush.
-    private boolean flushing = false;
-
-    /**
-     * Primary constructor, generally accessed only via the inner Factory class.
-     */
-    public BatchHelper(
-        HttpRequestInitializer requestInitializer, Storage gcs, long maxRequestsPerBatch) {
-      this.pendingBatchEntries = new LinkedList<>();
-      this.batch = gcs.batch(requestInitializer);
-      this.maxRequestsPerBatch = maxRequestsPerBatch;
-    }
-
-    /**
-     * Adds an additional request to the batch, and possibly flushes the current contents of the
-     * batch if {@code maxRequestsPerBatch} has been reached.
-     */
-    public <T> void queue(final StorageRequest<T> req, final JsonBatchCallback<T> callback)
-        throws IOException {
-      QueueRequestCallback queueCallback = new QueueRequestCallback() {
-        @Override
-        public void enqueue() throws IOException {
-          req.queue(batch, callback);
-        }
-      };
-      pendingBatchEntries.add(queueCallback);
-
-      flushIfPossibleAndRequired();
-    }
-
-    // Flush our buffer if we have more pending entries than maxRequestsPerBatch
-    private void flushIfPossibleAndRequired() throws IOException {
-      if (pendingBatchEntries.size() > maxRequestsPerBatch) {
-        flushIfPossible();
-      }
-    }
-
-    // Flush our buffer if we are not already in a flush operation and we have data to flush.
-    private void flushIfPossible() throws IOException {
-      if (!flushing && pendingBatchEntries.size() > 0) {
-        flushing = true;
-        try {
-          while (batch.size() < maxRequestsPerBatch && pendingBatchEntries.size() > 0) {
-            QueueRequestCallback head = pendingBatchEntries.remove(0);
-            head.enqueue();
-          }
-
-          batch.execute();
-        } finally {
-          flushing = false;
-        }
-      }
-    }
-
-
-    /**
-     * Sends any currently remaining requests in the batch; should be called at the end of any
-     * series of batched requests to ensure everything has been sent.
-     */
-    public void flush() throws IOException {
-      flushIfPossible();
-    }
-  }
-
-  static class ReshardForWrite<T> extends PTransform<PCollection<T>, PCollection<T>> {
-    @Override
-    public PCollection<T> apply(PCollection<T> input) {
-      return input
-          // TODO: This would need to be adapted to write per-window shards.
-          .apply(Window.<T>into(new GlobalWindows())
-                       .triggering(DefaultTrigger.of())
-                       .discardingFiredPanes())
-          .apply("RandomKey", ParDo.of(
-              new DoFn<T, KV<Long, T>>() {
-                transient long counter, step;
-                @Override
-                public void startBundle(Context c) {
-                  counter = (long) (Math.random() * Long.MAX_VALUE);
-                  step = 1 + 2 * (long) (Math.random() * Long.MAX_VALUE);
-                }
-                @Override
-                public void processElement(ProcessContext c) {
-                  counter += step;
-                  c.output(KV.of(counter, c.element()));
-                }
-              }))
-          .apply(GroupByKey.<Long, T>create())
-          .apply("Ungroup", ParDo.of(
-              new DoFn<KV<Long, Iterable<T>>, T>() {
-                @Override
-                public void processElement(ProcessContext c) {
-                  for (T item : c.element().getValue()) {
-                    c.output(item);
-                  }
-                }
-              }));
     }
   }
 }
