@@ -26,28 +26,18 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
   class Time<T>
       implements AlignedWindowing<T, Windowing.Time.TimeInterval, Windowing.Time.TimeWindow>
   {
-    @FunctionalInterface
-    public interface EventTimeFn<T> extends Serializable {
-
-      /**
-       * Returns the event time of the given event in millis since epoch.
-       */
-      long getEventTime(T event);
-
-    }
-
-    public static final class ProcessingTime<T> implements EventTimeFn<T> {
+    public static final class ProcessingTime<T> implements UnaryFunction<T, Long> {
       private static final ProcessingTime INSTANCE = new ProcessingTime();
 
       // ~ suppressing the warning is safe due to the returned
       // object not relying on the generic information in any way
       @SuppressWarnings("unchecked")
-      public static <T> EventTimeFn<T> get() {
+      public static <T> UnaryFunction<T, Long> get() {
         return INSTANCE;
       }
 
       @Override
-      public long getEventTime(T event) {
+      public Long apply(T what) {
         return System.currentTimeMillis();
       }
     } // ~ end of ProcessingTime
@@ -118,9 +108,9 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
 
       @SuppressWarnings("unchecked")
       public <T> Time<T> aggregating() {
-        // ~ the uncheck cast is ok: eventTimeFn is
+        // ~ the unchecked cast is ok: eventTimeFn is
         // ProcessingTime which is independent of <T>
-        return new Time<>(super.durationMillis, true, (EventTimeFn) super.eventTimeFn);
+        return new Time<>(super.durationMillis, true, (UnaryFunction) super.eventTimeFn);
       }
     }
 
@@ -129,7 +119,7 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
     public static class TTime<T> extends Time<T> {
       TTime(long durationMillis,
             boolean aggregating,
-            EventTimeFn<T> eventTimeFn)
+            UnaryFunction<T, Long> eventTimeFn)
       {
         super(durationMillis, aggregating, eventTimeFn);
       }
@@ -141,7 +131,7 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
 
     final long durationMillis;
     final boolean aggregating;
-    final EventTimeFn<T> eventTimeFn;
+    final UnaryFunction<T, Long> eventTimeFn;
 
     public static <T> UTime<T> seconds(long seconds) {
       return new UTime<>(seconds * 1000, false);
@@ -155,11 +145,11 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
       return new UTime<>(hours * 1000 * 60 * 60, false);
     }
 
-    public <T> TTime<T> using(EventTimeFn<T> fn) {
+    public <T> TTime<T> using(UnaryFunction<T, Long> fn) {
       return new TTime<>(this.durationMillis, this.aggregating, requireNonNull(fn));
     }
 
-    Time(long durationMillis, boolean aggregating, EventTimeFn<T> eventTimeFn) {
+    Time(long durationMillis, boolean aggregating, UnaryFunction<T, Long> eventTimeFn) {
       this.durationMillis = durationMillis;
       this.aggregating = aggregating;
       this.eventTimeFn = eventTimeFn;
@@ -167,7 +157,7 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
 
     @Override
     public Set<TimeWindow> assignWindows(T input) {
-      long ts = eventTimeFn.getEventTime(input);
+      long ts = eventTimeFn.apply(input);
       return singleton(
           new TimeWindow(ts - (ts + durationMillis) % durationMillis, durationMillis));
     }
