@@ -18,30 +18,30 @@
 
 package org.apache.beam.sdk.io;
 
+import static junit.framework.TestCase.assertFalse;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.io.PubsubUnboundedSource.PubsubReader;
+import org.apache.beam.sdk.io.PubsubUnboundedSource.PubsubSource;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.windowing.AfterPane;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
-import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.PubsubClient;
 import org.apache.beam.sdk.util.PubsubClient.IncomingMessage;
 import org.apache.beam.sdk.util.PubsubClient.PubsubClientFactory;
 import org.apache.beam.sdk.util.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.util.PubsubTestClient;
-import org.apache.beam.sdk.values.PCollection;
 
+import com.google.api.client.util.Clock;
 import com.google.common.collect.Lists;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Test PubsubUnboundedSource.
@@ -59,35 +59,33 @@ public class PubsubUnboundedSourceTest {
   private static final String RECORD_ID = "testRecordId";
   private static final int ACK_TIMEOUT_S = 60;
 
-  private static class CheckStamp extends DoFn<String, String> {
-    @Override
-    public void processElement(ProcessContext c) {
-      assertEquals(TIMESTAMP, c.timestamp().getMillis());
-      c.output(c.element());
-    }
-  }
-
   @Test
-  public void receiveOneMessage() {
-    // TODO: DISABLED until TestPipeline/direct runner supports unbounded sources.
-    if (false) {
-      List<IncomingMessage> incoming =
-          Lists.newArrayList(new IncomingMessage(DATA.getBytes(), TIMESTAMP, REQ_TIME, ACK_ID,
-                                                 RECORD_ID.getBytes()));
-      PubsubClientFactory factory =
-          PubsubTestClient.createFactoryForPull(SUBSCRIPTION, ACK_TIMEOUT_S, incoming);
-      PubsubUnboundedSource<String> source =
-          new PubsubUnboundedSource<>(factory, SUBSCRIPTION, StringUtf8Coder.of(), TIMESTAMP_LABEL,
-                                      ID_LABEL);
-      TestPipeline p = TestPipeline.create();
-      PCollection<String> strings =
-          p.apply(source)
-           .apply(Window.<String>into(new GlobalWindows())
-                      .triggering(AfterPane.elementCountAtLeast(1))
-                      .discardingFiredPanes())
-           .apply(ParDo.of(new CheckStamp()));
-      PAssert.that(strings).containsInAnyOrder(DATA);
-      p.run();
-    }
+  public void readOneMessage() throws IOException {
+    List<IncomingMessage> incoming =
+        Lists.newArrayList(new IncomingMessage(DATA.getBytes(), TIMESTAMP, REQ_TIME, ACK_ID,
+                                               RECORD_ID.getBytes()));
+    final AtomicLong now = new AtomicLong(REQ_TIME);
+    Clock clock = new Clock() {
+      @Override
+      public long currentTimeMillis() {
+        return now.get();
+      }
+    };
+    PubsubClientFactory factory =
+        PubsubTestClient.createFactoryForPull(clock, SUBSCRIPTION, ACK_TIMEOUT_S, incoming);
+    PubsubUnboundedSource<String> source =
+        new PubsubUnboundedSource<>(clock, factory, SUBSCRIPTION, StringUtf8Coder.of(),
+                                    TIMESTAMP_LABEL, ID_LABEL);
+    PubsubSource<String> primSource = new PubsubSource<>(source);
+
+    TestPipeline p = TestPipeline.create();
+    PubsubReader<String> reader = primSource.createReader(p.getOptions(), null);
+    PubsubTestClient pubsubClient = (PubsubTestClient) reader.getPubsubClient();
+
+    assertTrue(reader.start());
+    now.addAndGet(55 * 1000);
+    pubsubClient.advance();
+    assertEquals(DATA, reader.getCurrent());
+    assertFalse(reader.advance());
   }
 }

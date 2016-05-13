@@ -300,4 +300,9 @@ public class PubsubApiaryClient extends PubsubClient {
     Subscription response = pubsub.projects().subscriptions().get(subscription.getPath()).execute();
     return response.getAckDeadlineSeconds();
   }
+
+  @Override
+  public boolean isEOF() {
+    return false;
+  }
 }

@@ -18,12 +18,12 @@
 
 package org.apache.beam.sdk.util;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import org.apache.beam.sdk.options.PubsubOptions;
 
+import com.google.api.client.util.Clock;
 import com.google.common.annotations.VisibleForTesting;
 
 import java.io.IOException;
@@ -49,7 +49,7 @@ public class PubsubTestClient extends PubsubClient {
       public PubsubClient newClient(
           @Nullable String timestampLabel, @Nullable String idLabel, PubsubOptions options)
           throws IOException {
-        return new PubsubTestClient(expectedTopic, null, 0, expectedOutgoingMessages, null);
+        return new PubsubTestClient(null, expectedTopic, null, 0, expectedOutgoingMessages, null);
       }
 
       @Override
@@ -60,6 +60,7 @@ public class PubsubTestClient extends PubsubClient {
   }
 
   public static PubsubClientFactory createFactoryForPull(
+      final Clock clock,
       @Nullable final SubscriptionPath expectedSubscription,
       final int ackTimeoutSec,
       @Nullable final List<IncomingMessage> expectedIncomingMessages) {
@@ -68,7 +69,7 @@ public class PubsubTestClient extends PubsubClient {
       public PubsubClient newClient(
           @Nullable String timestampLabel, @Nullable String idLabel, PubsubOptions options)
           throws IOException {
-        return new PubsubTestClient(null, expectedSubscription, ackTimeoutSec,
+        return new PubsubTestClient(clock, null, expectedSubscription, ackTimeoutSec,
                                     null, expectedIncomingMessages);
       }
 
@@ -78,6 +79,12 @@ public class PubsubTestClient extends PubsubClient {
       }
     };
   }
+
+  /**
+   * Clock from which to get current time.
+   */
+  @Nullable
+  private Clock clock;
 
   /**
    * Only publish calls for this topic are allowed.
@@ -118,18 +125,15 @@ public class PubsubTestClient extends PubsubClient {
    */
   private Map<String, Long> ackDeadline;
 
-  /**
-   * Current time.
-   */
-  private long nowMsSinceEpoch;
-
   @VisibleForTesting
   PubsubTestClient(
+      @Nullable Clock clock,
       @Nullable TopicPath expectedTopic,
       @Nullable SubscriptionPath expectedSubscription,
       int ackTimeoutSec,
       @Nullable Set<OutgoingMessage> expectedOutgoingMessages,
       @Nullable List<IncomingMessage> expectedIncomingMessages) {
+    this.clock = clock;
     this.expectedTopic = expectedTopic;
     this.expectedSubscription = expectedSubscription;
     this.ackTimeoutSec = ackTimeoutSec;
@@ -139,23 +143,18 @@ public class PubsubTestClient extends PubsubClient {
 
     this.pendingAckIncommingMessages = new HashMap<>();
     this.ackDeadline = new HashMap<>();
-    this.nowMsSinceEpoch = Long.MIN_VALUE;
   }
 
   /**
-   * Advance wall-clock time to {@code newNowMsSinceEpoch}. This will simulate Pubsub expiring
+   * Track progression of time according to {@link #clock}. This will simulate Pubsub expiring
    * outstanding ACKs.
    */
-  public void advanceTo(long newNowMsSinceEpoch) {
-    checkArgument(newNowMsSinceEpoch >= nowMsSinceEpoch,
-                  "Cannot advance time backwards from %d to %d", nowMsSinceEpoch,
-                  newNowMsSinceEpoch);
-    nowMsSinceEpoch = newNowMsSinceEpoch;
+  public void advance() {
     // Any messages who's ACKs timed out are available for re-pulling.
     Iterator<Map.Entry<String, Long>> deadlineItr = ackDeadline.entrySet().iterator();
     while (deadlineItr.hasNext()) {
       Map.Entry<String, Long> entry = deadlineItr.next();
-      if (entry.getValue() <= nowMsSinceEpoch) {
+      if (entry.getValue() <= clock.currentTimeMillis()) {
         remainingPendingIncomingMessages.add(pendingAckIncommingMessages.remove(entry.getKey()));
         deadlineItr.remove();
       }
@@ -166,16 +165,16 @@ public class PubsubTestClient extends PubsubClient {
   public void close() {
     if (remainingExpectedOutgoingMessages != null) {
       checkState(this.remainingExpectedOutgoingMessages.isEmpty(),
-                 "Failed to pull %d messages", this.remainingExpectedOutgoingMessages.size());
+                 "Failed to pull %s messages", this.remainingExpectedOutgoingMessages.size());
       remainingExpectedOutgoingMessages = null;
     }
     if (remainingPendingIncomingMessages != null) {
       checkState(remainingPendingIncomingMessages.isEmpty(),
-                 "Failed to publish %d messages", remainingPendingIncomingMessages.size());
+                 "Failed to publish %s messages", remainingPendingIncomingMessages.size());
       checkState(pendingAckIncommingMessages.isEmpty(),
-                 "Failed to ACK %d messages", pendingAckIncommingMessages.size());
+                 "Failed to ACK %s messages", pendingAckIncommingMessages.size());
       checkState(ackDeadline.isEmpty(),
-                 "Failed to ACK %d messages", ackDeadline.size());
+                 "Failed to ACK %s messages", ackDeadline.size());
       remainingPendingIncomingMessages = null;
       pendingAckIncommingMessages = null;
       ackDeadline = null;
@@ -200,9 +199,9 @@ public class PubsubTestClient extends PubsubClient {
   public List<IncomingMessage> pull(
       long requestTimeMsSinceEpoch, SubscriptionPath subscription, int batchSize,
       boolean returnImmediately) throws IOException {
-    checkState(requestTimeMsSinceEpoch == nowMsSinceEpoch,
-               "Simulated time %d does not match requset time %d", nowMsSinceEpoch,
-               requestTimeMsSinceEpoch);
+    long now = clock.currentTimeMillis();
+    checkState(requestTimeMsSinceEpoch == now,
+               "Simulated time %s does not match request time %s", now, requestTimeMsSinceEpoch);
     checkNotNull(expectedSubscription, "Missing expected subscription");
     checkNotNull(remainingPendingIncomingMessages, "Missing expected incoming messages");
     checkState(subscription.equals(expectedSubscription),
@@ -258,7 +257,7 @@ public class PubsubTestClient extends PubsubClient {
                  "No message with ACK id %s is outstanding", ackId);
       checkState(pendingAckIncommingMessages.containsKey(ackId),
                  "No message with ACK id %s is outstanding", ackId);
-      ackDeadline.put(ackId, nowMsSinceEpoch + deadlineSeconds * 1000);
+      ackDeadline.put(ackId, clock.currentTimeMillis() + deadlineSeconds * 1000);
     }
   }
 
@@ -297,5 +296,10 @@ public class PubsubTestClient extends PubsubClient {
   @Override
   public int ackDeadlineSeconds(SubscriptionPath subscription) throws IOException {
     return ackTimeoutSec;
+  }
+
+  @Override
+  public boolean isEOF() {
+    return remainingPendingIncomingMessages.isEmpty();
   }
 }
