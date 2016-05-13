@@ -117,8 +117,7 @@ public class WindowingTest {
         20 * 1000,
         Windowing.Time.ProcessingTime.<Pair<Long, String>>get());
 
-    Windowing.Time.EventTimeFn<Pair<Long, Long>> evtf =
-        (Windowing.Time.EventTimeFn<Pair<Long, Long>>) event-> 0;
+    UnaryFunction<Pair<Long, Long>, Long> evtf = event-> 0L;
 
     assertTimeWindowing(
         Windowing.Time.seconds(4).aggregating().using(evtf),
@@ -142,7 +141,7 @@ public class WindowingTest {
   private <T> void assertTimeWindowing(Windowing.Time<T> w,
                                        boolean expectAggregating,
                                        long expectDurationMillis,
-                                       Windowing.Time.EventTimeFn<T> expectedFn)
+                                       UnaryFunction<T, Long> expectedFn)
   {
     assertNotNull(w);
     assertEquals(expectAggregating, w.aggregating);
