@@ -40,14 +40,13 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 
-import com.google.common.collect.ImmutableList;
-
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.junit.runners.Parameterized;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -60,6 +59,7 @@ import java.nio.channels.WritableByteChannel;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -427,36 +427,50 @@ public class FileBasedSinkTest {
     )));
   }
 
-  @Test
-  public void testDisplayDataLinkUrl() throws IOException {
-    class TestCase {
+  @RunWith(Parameterized.class)
+  public static class DisplayDataValidLinkUrl {
+    static class TestCase {
       String prefix;
       String shardTemplate;
       String suffix;
-      String expectedBrowsePath;
 
-      TestCase(String prefix, String shardTemplate, String suffix, String expectedBrowsePath) {
+      TestCase(String prefix, String shardTemplate, String suffix) {
         this.prefix = prefix;
         this.shardTemplate = shardTemplate;
         this.suffix = suffix;
-        this.expectedBrowsePath = expectedBrowsePath;
       }
     }
 
-    Iterable<TestCase> tests = ImmutableList.<TestCase>builder()
-        .add(new TestCase("gs://bucket/foo/", "bar", ".xml", "gs://bucket/foo/bar.xml"))
-        .add(new TestCase("gs://bucket/foo/", "object-NNN", ".xml", "gs://bucket/foo/"))
-        .add(new TestCase("gs://bucket/foo/", "object-SSS", ".xml", "gs://bucket/foo/"))
-        .add(new TestCase("gs://bucket/foo", "/object-NNN", ".xml", "gs://bucket/foo/"))
-        .add(new TestCase("gs://bucket/foo", "object-NNN", ".xml", "gs://bucket/"))
-        .add(new TestCase("gs://bucket/", "object-NNN", ".xml", "gs://bucket/"))
-        .add(new TestCase("gs://bucket", "/object-NNN", ".xml", "gs://bucket/"))
-        .build();
+    @Parameterized.Parameters
+    public static Collection<Object[]> data() {
+      return Arrays.asList(new Object[][]{
+          {new TestCase("gs://bucket/foo/", "bar", ".xml"), "gs://bucket/foo/bar.xml"},
+          {new TestCase("gs://bucket/foo/", "object-NNN", ".xml"), "gs://bucket/foo/"},
+          {new TestCase("gs://bucket/foo/", "object-SSS", ".xml"), "gs://bucket/foo/"},
+          {new TestCase("gs://bucket/foo", "/object-NNN", ".xml"), "gs://bucket/foo/"},
+          {new TestCase("gs://bucket/foo", "object-NNN", ".xml"), "gs://bucket/"},
+          {new TestCase("gs://bucket/", "object-NNN", ".xml"), "gs://bucket/"},
+          {new TestCase("gs://bucket", "/object-NNN", ".xml"), "gs://bucket/"}});
+    }
 
-    for (TestCase test : tests) {
-      FileBasedSink<?> sink = new SimpleSink(test.prefix, test.suffix, test.shardTemplate);
-      String expectedLinkUrl = IOChannelUtils.getFactory(test.expectedBrowsePath)
-          .getBrowseUrl(test.expectedBrowsePath);
+    @BeforeClass
+    public static void setUpClass() {
+      FileBasedSinkTest.setUpClass();
+    }
+
+    private final TestCase input;
+    private final String expectedBrowsePath;
+
+    public DisplayDataValidLinkUrl(TestCase input, String expectedBrowsePath) {
+      this.input = input;
+      this.expectedBrowsePath = expectedBrowsePath;
+    }
+
+    @Test
+    public void test() throws IOException {
+      FileBasedSink<?> sink = new SimpleSink(input.prefix, input.suffix, input.shardTemplate);
+      String expectedLinkUrl = IOChannelUtils.getFactory(expectedBrowsePath)
+          .getBrowseUrl(expectedBrowsePath);
 
       assertThat(DisplayData.from(sink), hasDisplayItem(hasLinkUrl(expectedLinkUrl)));
     }
