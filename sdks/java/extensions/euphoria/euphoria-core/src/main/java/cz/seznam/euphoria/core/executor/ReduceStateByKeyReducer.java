@@ -27,6 +27,7 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static com.google.common.collect.Lists.newArrayList;
+import static com.google.common.collect.Lists.newArrayListWithCapacity;
 import static java.util.Objects.requireNonNull;
 
 class ReduceStateByKeyReducer implements Runnable {
@@ -68,13 +69,46 @@ class ReduceStateByKeyReducer implements Runnable {
     }
   } // ~ end of WindowIndex
 
-  private static final class ProcessingState {
-
+  private static final class WindowStorage {
     // ~ an index over windows, and the states for each key they contain
     final Map<WindowIndex, Pair<Window, Map<Object, State>>> wStates
         = new HashMap<>();
 
+    // ~ removes the given window and returns its key states (possibly null)
+    Pair<Window, Map<Object, State>> removeWindow(WindowIndex id) {
+      return wStates.remove(id);
+    }
+
+    Pair<Window, Map<Object, State>> getWindow(WindowIndex id) {
+      return wStates.get(id);
+    }
+
+    void setWindow(WindowIndex idx, Pair<Window, Map<Object, State>> states) {
+      wStates.put(idx, states);
+    }
+
+    List<Window> getAllWindowsList() {
+      return wStates.values()
+          .stream()
+          .map(Pair::getFirst)
+          .collect(Collectors.toList());
+    }
+
+    List<Window> getAllWindowsList(Object windowGroup) {
+      // XXX make this faster
+      return wStates.values().stream()
+          .map(Pair::getFirst)
+          .filter(w -> Objects.equals(w.getGroup(), windowGroup))
+          .collect(Collectors.toList());
+    }
+  }
+
+  private static final class ProcessingState {
+
+    final WindowStorage wStorage = new WindowStorage();
+
     // ~ an index over (item) keys to their held aggregating state
+    // XXX move to WindowStorage
     final Map<Object, State> aggregatingStates = new HashMap<>();
 
     final Collector stateOutput;
@@ -116,7 +150,8 @@ class ReduceStateByKeyReducer implements Runnable {
 
     // ~ evicts the specified window returning states accumulated for it
     public Collection<State> evictWindow(Window w) {
-      Map<Object, State> wKeyState = wStates.remove(new WindowIndex(w)).getSecond();
+      Map<Object, State> wKeyState =
+          wStorage.removeWindow(new WindowIndex(w)).getSecond();
       if (wKeyState == null) {
         return Collections.emptySet();
       }
@@ -137,11 +172,8 @@ class ReduceStateByKeyReducer implements Runnable {
     }
 
     public Collection<State> evictAllWindows() {
-      List<Window> ws = wStates.values()
-          .stream()
-          .map(Pair::getFirst)
-          .collect(Collectors.toList());
-      List<State> states = newArrayList();
+      List<Window> ws = wStorage.getAllWindowsList();
+      List<State> states = newArrayListWithCapacity(ws.size());
       for (Window w : ws) {
         states.addAll(evictWindow(w));
       }
@@ -165,25 +197,21 @@ class ReduceStateByKeyReducer implements Runnable {
     getWindowKeyStates(Window w, boolean setWindowInstance)
     {
       WindowIndex wIdx = new WindowIndex(w);
-      Pair<Window, Map<Object, State>> wState = wStates.get(wIdx);
+      Pair<Window, Map<Object, State>> wState = wStorage.getWindow(wIdx);
       if (wState == null) {
         // ~ if no such window yet ... set it up
-        wStates.put(wIdx, wState = Pair.of(w, new HashMap<>()));
+        wStorage.setWindow(wIdx, wState = Pair.of(w, new HashMap<>()));
         // ~ give the window a chance to register triggers
         w.registerTrigger(triggering, evictFn);
       } else if (setWindowInstance && wState.getFirst() != w) {
         // ~ identity comparison on purpose
-        wStates.put(wIdx, wState = Pair.of(w, wState.getSecond()));
+        wStorage.setWindow(wIdx, wState = Pair.of(w, wState.getSecond()));
       }
       return wState;
     }
 
     public Collection<Window> getActiveWindows(Object windowGroup) {
-      // XXX make this faster
-      return wStates.values().stream()
-          .map(Pair::getFirst)
-          .filter(w -> Objects.equals(w.getGroup(), windowGroup))
-          .collect(Collectors.toList());
+      return wStorage.getAllWindowsList(windowGroup);
     }
 
     public void mergeWindows(Collection<Window> toBeMerged, Window mergeWindow) {
@@ -198,7 +226,7 @@ class ReduceStateByKeyReducer implements Runnable {
         // ~ remove the toMerge window and merge all
         // of its keyStates into the mergeWindow
         Pair<Window, Map<Object, State>> toMergeState =
-            wStates.remove(new WindowIndex(toMerge));
+            wStorage.removeWindow(new WindowIndex(toMerge));
         if (toMergeState != null) {
           mergeWindowKeyStates(toMergeState.getSecond(), ws.getSecond());
         }
