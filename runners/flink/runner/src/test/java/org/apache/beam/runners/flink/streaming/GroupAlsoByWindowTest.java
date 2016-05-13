@@ -43,6 +43,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -52,7 +53,7 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-public class GroupAlsoByWindowTest {
+public class GroupAlsoByWindowTest extends StreamingMultipleProgramsTestBase {
 
   private final Combine.CombineFn combiner = new Sum.SumIntegerFn();
 
