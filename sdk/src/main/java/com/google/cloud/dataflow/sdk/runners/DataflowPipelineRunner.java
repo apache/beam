@@ -373,6 +373,10 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
         builder.put(View.AsIterable.class, BatchViewAsIterable.class);
       }
       if (options.getExperiments() == null
+          || !options.getExperiments().contains("enable_custom_bigquery_source")) {
+        builder.put(BigQueryIO.Read.Bound.class, BatchBigQueryIONativeRead.class);
+      }
+      if (options.getExperiments() == null
           || !options.getExperiments().contains("enable_custom_bigquery_sink")) {
         builder.put(BigQueryIO.Write.Bound.class, BatchBigQueryIOWrite.class);
       }
@@ -2103,6 +2107,86 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
         validator.validateOutputFilePrefixSupported(sink.getBaseOutputFilename());
       }
       return transform.apply(input);
+    }
+  }
+
+  /**
+   * This {@link PTransform} is used by the {@link DataflowPipelineTranslator} as a way
+   * to provide the native definition of the BigQuery sink.
+   */
+  private static class BatchBigQueryIONativeRead extends PTransform<PInput, PCollection<TableRow>> {
+    private final BigQueryIO.Read.Bound transform;
+    /**
+     * Builds an instance of this class from the overridden transform.
+     */
+    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
+    public BatchBigQueryIONativeRead(
+        DataflowPipelineRunner runner, BigQueryIO.Read.Bound transform) {
+      this.transform = transform;
+    }
+
+    @Override
+    public PCollection<TableRow> apply(PInput input) {
+      return PCollection.<TableRow>createPrimitiveOutputInternal(
+          input.getPipeline(),
+          WindowingStrategy.globalDefault(),
+          IsBounded.BOUNDED)
+          // Force the output's Coder to be what the read is using, and
+          // unchangeable later, to ensure that we read the input in the
+          // format specified by the Read transform.
+          .setCoder(TableRowJsonCoder.of());
+    }
+
+    static {
+      DataflowPipelineTranslator.registerTransformTranslator(
+          BatchBigQueryIONativeRead.class, new BatchBigQueryIONativeReadTranslator());
+    }
+  }
+
+  /**
+   * Implements BigQueryIO Read translation for the Dataflow backend.
+   */
+  public static class BatchBigQueryIONativeReadTranslator
+      implements DataflowPipelineTranslator.TransformTranslator<BatchBigQueryIONativeRead> {
+
+    @Override
+    public void translate(
+        BatchBigQueryIONativeRead transform,
+        DataflowPipelineTranslator.TranslationContext context) {
+      translateWriteHelper(transform, transform.transform, context);
+    }
+
+    private void translateWriteHelper(
+        BatchBigQueryIONativeRead transform,
+        BigQueryIO.Read.Bound originalTransform,
+        TranslationContext context) {
+      // Actual translation.
+      context.addStep(transform, "ParallelRead");
+      context.addInput(PropertyNames.FORMAT, "bigquery");
+      context.addInput(PropertyNames.BIGQUERY_EXPORT_FORMAT, "FORMAT_AVRO");
+
+      if (originalTransform.getQuery() != null) {
+        context.addInput(PropertyNames.BIGQUERY_QUERY, originalTransform.getQuery());
+        context.addInput(
+            PropertyNames.BIGQUERY_FLATTEN_RESULTS, originalTransform.getFlattenResults());
+      } else {
+        TableReference table = originalTransform.getTable();
+        if (table.getProjectId() == null) {
+          // If user does not specify a project we assume the table to be located in the project
+          // that owns the Dataflow job.
+          String projectIdFromOptions = context.getPipelineOptions().getProject();
+          LOG.warn(String.format(BigQueryIO.SET_PROJECT_FROM_OPTIONS_WARNING, table.getDatasetId(),
+              table.getDatasetId(), table.getTableId(), projectIdFromOptions));
+          table.setProjectId(projectIdFromOptions);
+        }
+
+        context.addInput(PropertyNames.BIGQUERY_TABLE, table.getTableId());
+        context.addInput(PropertyNames.BIGQUERY_DATASET, table.getDatasetId());
+        if (table.getProjectId() != null) {
+          context.addInput(PropertyNames.BIGQUERY_PROJECT, table.getProjectId());
+        }
+      }
+      context.addValueOnlyOutput(PropertyNames.OUTPUT, context.getOutput(transform));
     }
   }
 
