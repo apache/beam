@@ -399,7 +399,8 @@ public class InProcessSideInputContainerTest {
                 FIRST_WINDOW.maxTimestamp().minus(100L),
                 FIRST_WINDOW,
                 PaneInfo.ON_TIME_AND_ONLY_FIRING)));
-    assertThat(reader.isReady(mapView, FIRST_WINDOW), is(true));
+    // Cached value is false
+    assertThat(reader.isReady(mapView, FIRST_WINDOW), is(false));
 
     container.write(
         singletonView,
@@ -410,10 +411,15 @@ public class InProcessSideInputContainerTest {
                 SECOND_WINDOW,
                 PaneInfo.ON_TIME_AND_ONLY_FIRING)));
     assertThat(reader.isReady(mapView, SECOND_WINDOW), is(true));
-    assertThat(reader.isReady(singletonView, SECOND_WINDOW), is(true));
+    assertThat(reader.isReady(singletonView, SECOND_WINDOW), is(false));
 
     assertThat(reader.isReady(mapView, GlobalWindow.INSTANCE), is(false));
     assertThat(reader.isReady(singletonView, GlobalWindow.INSTANCE), is(false));
+
+    reader = container.createReaderForViews(ImmutableList.of(mapView, singletonView));
+    assertThat(reader.isReady(mapView, SECOND_WINDOW), is(true));
+    assertThat(reader.isReady(singletonView, SECOND_WINDOW), is(true));
+    assertThat(reader.isReady(mapView, FIRST_WINDOW), is(true));
   }
 
   @Test
@@ -431,6 +437,11 @@ public class InProcessSideInputContainerTest {
     if (!onComplete.await(1500L, TimeUnit.MILLISECONDS)) {
       fail("Callback to set empty values did not complete!");
     }
+    // The cached value was false, so it continues to be true
+    assertThat(reader.isReady(singletonView, GlobalWindow.INSTANCE), is(false));
+
+    // A new reader for the same container gets a fresh look
+    reader = container.createReaderForViews(ImmutableList.of(mapView, singletonView));
     assertThat(reader.isReady(singletonView, GlobalWindow.INSTANCE), is(true));
   }
 

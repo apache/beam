@@ -87,7 +87,7 @@
       <artifactId>flink-avro_2.10</artifactId>
       <version>${flink.version}</version>
     </dependency>
-    <!--- Beam -->
+    <!-- Beam -->
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>java-sdk-all</artifactId>
@@ -110,16 +110,6 @@
       </exclusions>
     </dependency>
 
-    <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>google-cloud-dataflow-java-runner</artifactId>
-      <exclusions>
-        <exclusion>
-          <groupId>org.slf4j</groupId>
-          <artifactId>slf4j-jdk14</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
     <!-- Test scoped -->
     <dependency>
       <groupId>org.apache.beam</groupId>

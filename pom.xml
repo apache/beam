@@ -144,7 +144,6 @@
   </modules>
 
   <profiles>
-
     <!-- A global profile defined for all modules for release-level verification. 
       Slow processes such as building source, javadoc, and test jars should be limited 
       to this profile. -->
@@ -200,6 +199,26 @@
                 </execution>
               </executions>
             </plugin>
+
+            <plugin>
+              <groupId>org.apache.maven.plugins</groupId>
+              <artifactId>maven-assembly-plugin</artifactId>
+              <executions>
+                <execution>
+                  <id>src</id>
+                  <phase>package</phase>
+                  <goals>
+                    <goal>single</goal>
+                  </goals>
+                  <configuration>
+                    <finalName>apache-beam-${project.version}</finalName>
+                    <descriptors>
+                      <descriptor>sdks/java/build-tools/src/main/assembly/src.xml</descriptor>
+                    </descriptors>
+                  </configuration>
+                </execution>
+              </executions>
+            </plugin>
           </plugins>
         </pluginManagement>
       </build>
@@ -213,36 +232,6 @@
       <properties>
         <dataflow.javadoc_opts>-Xdoclint:-missing</dataflow.javadoc_opts>
       </properties>
-    </profile>
-
-    <profile>
-      <id>src</id>
-      <activation>
-        <activeByDefault>false</activeByDefault>
-      </activation>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-assembly-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>src</id>
-                <phase>package</phase>
-                <goals>
-                  <goal>single</goal>
-                </goals>
-                <configuration>
-                  <finalName>apache-beam-${project.version}</finalName>
-                  <descriptors>
-                    <descriptor>sdks/java/src.xml</descriptor>
-                  </descriptors>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
     </profile>
   </profiles>
 
@@ -907,7 +896,7 @@
           <artifactId>maven-release-plugin</artifactId>
           <version>2.5.3</version>
           <configuration>
-            <releaseProfiles>src</releaseProfiles>
+            <releaseProfiles>release</releaseProfiles>
             <preparationGoals>clean install</preparationGoals>
             <goals>deploy</goals>
             <autoVersionSubmodules>true</autoVersionSubmodules>
