@@ -168,15 +168,11 @@ public class FlinkPartialReduceFunction<K, InputT, AccumT, W extends BoundedWind
 
         currentWindow = nextWindow;
         InputT value = nextValue.getValue().getValue();
-        processContext = processContext.forWindowedValue(currentValue);
+        processContext = processContext.forWindowedValue(nextValue);
         accumulator = combineFnRunner.createAccumulator(key, processContext);
         accumulator = combineFnRunner.addInput(key, accumulator, value, processContext);
         windowTimestamp = outputTimeFn.assignOutputTime(nextValue.getTimestamp(), currentWindow);
       }
-
-      // we have to keep track so that we can set the context to the right
-      // windowed value when windows change in the iterable
-      currentValue = nextValue;
     }
 
     // emit the final accumulator

@@ -19,6 +19,7 @@ package org.apache.beam.runners.flink.translation;
 
 import org.apache.beam.runners.flink.translation.functions.FlinkAssignWindows;
 import org.apache.beam.runners.flink.translation.functions.FlinkDoFnFunction;
+import org.apache.beam.runners.flink.translation.functions.FlinkMergingNonShuffleReduceFunction;
 import org.apache.beam.runners.flink.translation.functions.FlinkMergingPartialReduceFunction;
 import org.apache.beam.runners.flink.translation.functions.FlinkMergingReduceFunction;
 import org.apache.beam.runners.flink.translation.functions.FlinkMultiOutputDoFnFunction;
@@ -353,6 +354,7 @@ public class FlinkBatchTransformTranslators {
       FlinkReduceFunction<K, List<InputT>, List<InputT>, ?> reduceFunction;
 
       if (windowingStrategy.getWindowFn().isNonMerging()) {
+        @SuppressWarnings("unchecked")
         WindowingStrategy<?, BoundedWindow> boundedStrategy =
             (WindowingStrategy<?, BoundedWindow>) windowingStrategy;
 
@@ -373,6 +375,8 @@ public class FlinkBatchTransformTranslators {
           throw new UnsupportedOperationException(
               "Merging WindowFn with windows other than IntervalWindow are not supported.");
         }
+
+        @SuppressWarnings("unchecked")
         WindowingStrategy<?, IntervalWindow> intervalStrategy =
             (WindowingStrategy<?, IntervalWindow>) windowingStrategy;
 
@@ -519,74 +523,91 @@ public class FlinkBatchTransformTranslators {
         sideInputStrategies.put(sideInput, sideInput.getWindowingStrategyInternal());
       }
 
-      FlinkPartialReduceFunction<K, InputT, AccumT, ?> partialReduceFunction;
-      FlinkReduceFunction<K, AccumT, OutputT, ?> reduceFunction;
-
       if (windowingStrategy.getWindowFn().isNonMerging()) {
         WindowingStrategy<?, BoundedWindow> boundedStrategy =
             (WindowingStrategy<?, BoundedWindow>) windowingStrategy;
 
-        partialReduceFunction = new FlinkPartialReduceFunction<>(
-            combineFn,
-            boundedStrategy,
-              sideInputStrategies,
-              context.getPipelineOptions());
+        FlinkPartialReduceFunction<K, InputT, AccumT, ?> partialReduceFunction =
+            new FlinkPartialReduceFunction<>(
+                combineFn,
+                boundedStrategy,
+                sideInputStrategies,
+                context.getPipelineOptions());
 
-        reduceFunction = new FlinkReduceFunction<>(
-            combineFn,
-            boundedStrategy,
-            sideInputStrategies,
-            context.getPipelineOptions());
+        FlinkReduceFunction<K, AccumT, OutputT, ?> reduceFunction =
+            new FlinkReduceFunction<>(
+                combineFn,
+                boundedStrategy,
+                sideInputStrategies,
+                context.getPipelineOptions());
+
+        // Partially GroupReduce the values into the intermediate format AccumT (combine)
+        GroupCombineOperator<
+            WindowedValue<KV<K, InputT>>,
+            WindowedValue<KV<K, AccumT>>> groupCombine =
+            new GroupCombineOperator<>(
+                inputGrouping,
+                partialReduceTypeInfo,
+                partialReduceFunction,
+                "GroupCombine: " + transform.getName());
+
+        transformSideInputs(transform.getSideInputs(), groupCombine, context);
+
+        TypeInformation<WindowedValue<KV<K, OutputT>>> reduceTypeInfo =
+            context.getTypeInfo(context.getOutput(transform));
+
+        Grouping<WindowedValue<KV<K, AccumT>>> intermediateGrouping =
+            new UnsortedGrouping<>(
+                groupCombine, new Keys.ExpressionKeys<>(new String[]{"key"}, groupCombine.getType()));
+
+        // Fully reduce the values and create output format OutputT
+        GroupReduceOperator<
+            WindowedValue<KV<K, AccumT>>, WindowedValue<KV<K, OutputT>>> outputDataSet =
+            new GroupReduceOperator<>(
+                intermediateGrouping, reduceTypeInfo, reduceFunction, transform.getName());
+
+        transformSideInputs(transform.getSideInputs(), outputDataSet, context);
+
+        context.setOutputDataSet(context.getOutput(transform), outputDataSet);
 
       } else {
         if (!windowingStrategy.getWindowFn().windowCoder().equals(IntervalWindow.getCoder())) {
           throw new UnsupportedOperationException(
               "Merging WindowFn with windows other than IntervalWindow are not supported.");
         }
+
+        // for merging windows we can't to a pre-shuffle combine step since
+        // elements would not be in their correct windows for side-input access
+
         WindowingStrategy<?, IntervalWindow> intervalStrategy =
             (WindowingStrategy<?, IntervalWindow>) windowingStrategy;
 
-        partialReduceFunction = new FlinkMergingPartialReduceFunction<>(
-            combineFn,
-            intervalStrategy,
-            sideInputStrategies,
-            context.getPipelineOptions());
+        FlinkMergingNonShuffleReduceFunction<K, InputT, AccumT, OutputT, ?> reduceFunction =
+            new FlinkMergingNonShuffleReduceFunction<>(
+                combineFn,
+                intervalStrategy,
+                sideInputStrategies,
+                context.getPipelineOptions());
 
-        reduceFunction = new FlinkMergingReduceFunction<>(
-            combineFn,
-            intervalStrategy,
-            sideInputStrategies,
-            context.getPipelineOptions());
+        TypeInformation<WindowedValue<KV<K, OutputT>>> reduceTypeInfo =
+            context.getTypeInfo(context.getOutput(transform));
+
+        Grouping<WindowedValue<KV<K, InputT>>> grouping =
+            new UnsortedGrouping<>(
+                inputDataSet, new Keys.ExpressionKeys<>(new String[]{"key"}, kvCoderTypeInformation));
+
+        // Fully reduce the values and create output format OutputT
+        GroupReduceOperator<
+            WindowedValue<KV<K, InputT>>, WindowedValue<KV<K, OutputT>>> outputDataSet =
+            new GroupReduceOperator<>(
+                grouping, reduceTypeInfo, reduceFunction, transform.getName());
+
+        transformSideInputs(transform.getSideInputs(), outputDataSet, context);
+
+        context.setOutputDataSet(context.getOutput(transform), outputDataSet);
       }
 
-      // Partially GroupReduce the values into the intermediate format AccumT (combine)
-      GroupCombineOperator<
-          WindowedValue<KV<K, InputT>>,
-          WindowedValue<KV<K, AccumT>>> groupCombine =
-              new GroupCombineOperator<>(
-                  inputGrouping,
-                  partialReduceTypeInfo,
-                  partialReduceFunction,
-                  "GroupCombine: " + transform.getName());
 
-      transformSideInputs(transform.getSideInputs(), groupCombine, context);
-
-      TypeInformation<WindowedValue<KV<K, OutputT>>> reduceTypeInfo =
-          context.getTypeInfo(context.getOutput(transform));
-
-      Grouping<WindowedValue<KV<K, AccumT>>> intermediateGrouping =
-          new UnsortedGrouping<>(
-              groupCombine, new Keys.ExpressionKeys<>(new String[]{"key"}, groupCombine.getType()));
-
-      // Fully reduce the values and create output format OutputT
-      GroupReduceOperator<
-          WindowedValue<KV<K, AccumT>>, WindowedValue<KV<K, OutputT>>> outputDataSet =
-              new GroupReduceOperator<>(
-                  intermediateGrouping, reduceTypeInfo, reduceFunction, transform.getName());
-
-      transformSideInputs(transform.getSideInputs(), outputDataSet, context);
-
-      context.setOutputDataSet(context.getOutput(transform), outputDataSet);
     }
   }
 
