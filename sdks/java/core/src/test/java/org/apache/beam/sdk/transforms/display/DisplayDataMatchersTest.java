@@ -19,6 +19,7 @@ package org.apache.beam.sdk.transforms.display;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasLinkUrl;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasNamespace;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasType;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
@@ -95,6 +96,21 @@ public class DisplayDataMatchersTest {
 
     assertFalse(matcher.matches(createDisplayDataWithItem("foo", "baz")));
     assertThat(createDisplayDataWithItem("foo", "bar"), matcher);
+  }
+
+  @Test
+  public void testHasLinkUrl() {
+    DisplayData displayData = DisplayData.from(new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder.add(DisplayData.item("foo", "bar").withLinkUrl("http://go"));
+      }
+    });
+
+    Matcher<DisplayData> matcher = hasDisplayItem(hasLinkUrl("http://gooooo"));
+    assertFalse(matcher.matches(displayData));
+
+    assertThat(displayData, hasDisplayItem(hasLinkUrl("http://go")));
   }
 
   @Test

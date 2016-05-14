@@ -17,7 +17,14 @@
  */
 package org.apache.beam.sdk.io;
 
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasLinkUrl;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
+
+import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -26,25 +33,33 @@ import static org.junit.Assert.assertTrue;
 import org.apache.beam.sdk.io.FileBasedSink.FileBasedWriteOperation;
 import org.apache.beam.sdk.io.FileBasedSink.FileBasedWriteOperation.TemporaryFileRetention;
 import org.apache.beam.sdk.io.FileBasedSink.FileResult;
+import org.apache.beam.sdk.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.IOChannelUtils;
+import org.apache.beam.sdk.util.gcsfs.GcsPath;
 
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.junit.runners.Parameterized;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileReader;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -68,6 +83,11 @@ public class FileBasedSinkTest {
 
   private String getBaseTempFilename() {
     return appendToTempFolder(baseTemporaryFilename);
+  }
+
+  @BeforeClass
+  public static void setUpClass() {
+    IOChannelUtils.registerStandardIOFactories(PipelineOptionsFactory.as(GcsOptions.class));
   }
 
   /**
@@ -395,6 +415,73 @@ public class FileBasedSinkTest {
     expected = new ArrayList<>();
     actual = writeOp.generateDestinationFilenames(0);
     assertEquals(expected, actual);
+  }
+
+  @Test
+  public void testDisplayData() {
+    FileBasedSink<?> sink = new SimpleSink("gs://bucket/foo/", "xml", "bar-NNN");
+    assertThat(DisplayData.from(sink), hasDisplayItem(allOf(
+        hasKey("fileNamePattern"),
+        hasValue("gs://bucket/foo/bar-NNN.xml"),
+        hasLinkUrl(GcsPath.fromUri("gs://bucket/foo/").getBrowseUrl())
+    )));
+  }
+
+  @RunWith(Parameterized.class)
+  public static class DisplayDataValidLinkUrl {
+    static class TestCase {
+      String prefix;
+      String shardTemplate;
+      String suffix;
+
+      TestCase(String prefix, String shardTemplate, String suffix) {
+        this.prefix = prefix;
+        this.shardTemplate = shardTemplate;
+        this.suffix = suffix;
+      }
+    }
+
+    @Parameterized.Parameters
+    public static Collection<Object[]> data() {
+      return Arrays.asList(new Object[][]{
+          {new TestCase("gs://bucket/foo/", "bar", ".xml"), "gs://bucket/foo/bar.xml"},
+          {new TestCase("gs://bucket/foo/", "object-NNN", ".xml"), "gs://bucket/foo/"},
+          {new TestCase("gs://bucket/foo/", "object-SSS", ".xml"), "gs://bucket/foo/"},
+          {new TestCase("gs://bucket/foo", "/object-NNN", ".xml"), "gs://bucket/foo/"},
+          {new TestCase("gs://bucket/foo", "object-NNN", ".xml"), "gs://bucket/"},
+          {new TestCase("gs://bucket/", "object-NNN", ".xml"), "gs://bucket/"},
+          {new TestCase("gs://bucket", "/object-NNN", ".xml"), "gs://bucket/"}});
+    }
+
+    @BeforeClass
+    public static void setUpClass() {
+      FileBasedSinkTest.setUpClass();
+    }
+
+    private final TestCase input;
+    private final String expectedBrowsePath;
+
+    public DisplayDataValidLinkUrl(TestCase input, String expectedBrowsePath) {
+      this.input = input;
+      this.expectedBrowsePath = expectedBrowsePath;
+    }
+
+    @Test
+    public void test() throws IOException {
+      FileBasedSink<?> sink = new SimpleSink(input.prefix, input.suffix, input.shardTemplate);
+      String expectedLinkUrl = IOChannelUtils.getFactory(expectedBrowsePath)
+          .getBrowseUrl(expectedBrowsePath);
+
+      assertThat(DisplayData.from(sink), hasDisplayItem(hasLinkUrl(expectedLinkUrl)));
+    }
+  }
+
+  @Test
+  public void testDisplayDataUnknownFileScheme() {
+    FileBasedSink<?> sink = new SimpleSink("unknown://foo/", "xml", "bar-NNN");
+    assertThat(DisplayData.from(sink), hasDisplayItem(allOf(
+        hasKey("fileNamePattern"),
+        not(hasLinkUrl()))));
   }
 
   /**

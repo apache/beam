@@ -27,6 +27,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.values.PCollection;
@@ -330,9 +331,12 @@ public class AvroIO {
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
         super.populateDisplayData(builder);
-        builder
-          .addIfNotNull(DisplayData.item("filePattern", filepattern))
-          .addIfNotDefault(DisplayData.item("validation", validate), true);
+        if (filepattern != null) {
+          builder.add(DisplayData.item("filePattern", filepattern)
+            .withLinkUrl(getBrowseUrl(filepattern, validate)));
+        }
+
+        builder.addIfNotDefault(DisplayData.item("validation", validate), true);
       }
 
       @Override
@@ -693,12 +697,13 @@ public class AvroIO {
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
         super.populateDisplayData(builder);
+
         builder
             .add(DisplayData.item("schema", type))
-            .addIfNotNull(DisplayData.item("filePrefix", filenamePrefix))
             .addIfNotDefault(
                 DisplayData.item("shardNameTemplate", shardTemplate),
                 DEFAULT_SHARD_TEMPLATE)
+            .addIfNotNull(DisplayData.item("filePrefix", filenamePrefix))
             .addIfNotDefault(DisplayData.item("fileSuffix", filenameSuffix), "")
             .addIfNotDefault(DisplayData.item("numShards", numShards), 0)
             .addIfNotDefault(DisplayData.item("validation", validate), true);
@@ -758,6 +763,36 @@ public class AvroIO {
         !SHARD_OUTPUT_PATTERN.matcher(partialFilePattern).find(),
         "Output name components are not allowed to contain @* or @N patterns: "
         + partialFilePattern);
+  }
+
+  /**
+   * Retrieve the browse URL for a file pattern.
+   *
+   * @param validate Whether validation errors should cause an exception to throw.
+   * @return The browse URL, or null if the filePattern is invalid and validation is disabled.
+   */
+  @Nullable
+  private static String getBrowseUrl(String filePattern, boolean validate) {
+    if (!IOChannelUtils.hasFactory(filePattern)) {
+      // Browse URLs are only used for display data and shouldn't throw unless validation is
+      // enabled.
+      if (validate) {
+        throw new IllegalStateException(String.format("Invalid filePattern: %s", filePattern));
+      } else {
+        return null;
+      }
+    }
+
+    IOChannelFactory factory;
+    try {
+      factory = IOChannelUtils.getFactory(filePattern);
+    } catch (IOException e) {
+      // hasFactory checked above, should not throw
+      throw new AssertionError(String.format(
+          "Unexpected error while retrieving browse url for file pattern: %s", filePattern), e);
+    }
+
+    return factory.getBrowseUrl(filePattern);
   }
 
   /////////////////////////////////////////////////////////////////////////////

@@ -28,11 +28,13 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.junit.runners.Parameterized;
 
 import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
@@ -330,5 +332,56 @@ public class GcsPathTest {
     GcsPath a = GcsPath.fromComponents("bucket", "a/b/c/d");
     a.subpath(1, 1); // throws IllegalArgumentException
     Assert.fail();
+  }
+
+  @RunWith(Parameterized.class)
+  public static class DisplayDataBrowseUrl {
+
+    @Parameterized.Parameters
+    public static Collection<Object[]> data() {
+      return Arrays.asList(new Object[][]{
+          {
+              "gs://bucket/a/b/c/object",
+              "https://storage.cloud.google.com/bucket/a/b/c/object"},
+          {
+              "gs://bucket/",
+              "https://console.cloud.google.com/storage/browser/bucket/"},
+          {
+              "gs://bucket/subdir/",
+              "https://console.cloud.google.com/storage/browser/bucket/subdir/"},
+          {
+              "gs://bucket/subdir/*",
+              "https://console.cloud.google.com/storage/browser/bucket/subdir/"},
+          {
+              "gs://bucket/subdir/foo*",
+              "https://console.cloud.google.com/storage/browser/bucket/subdir/"},
+          {
+              "gs://bucket/subdir/**/b",
+              "https://console.cloud.google.com/storage/browser/bucket/subdir/"},
+          {
+              "gs://bucket/subdir/b?",
+              "https://console.cloud.google.com/storage/browser/bucket/subdir/"},
+          {
+              "gs://bucket/subdir/[bcd]",
+              "https://console.cloud.google.com/storage/browser/bucket/subdir/"},
+          {
+              "gs://bucket/subdir*/foo",
+              "https://console.cloud.google.com/storage/browser/bucket/"}});
+    }
+
+    private final String input;
+    private final String expected;
+
+    public DisplayDataBrowseUrl(String input, String expected) {
+      this.input = input;
+      this.expected = expected;
+    }
+
+    @Test
+    public void test() {
+      GcsPath path = GcsPath.fromUri(input);
+      String actual = path.getBrowseUrl();
+      assertEquals(String.format("Browse URL for %s", path), expected, actual);
+    }
   }
 }

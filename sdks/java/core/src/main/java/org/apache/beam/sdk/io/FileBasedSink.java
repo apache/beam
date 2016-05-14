@@ -127,9 +127,33 @@ public abstract class FileBasedSink<T> extends Sink<T> {
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
 
-    String fileNamePattern = String.format("%s%s%s",
-        baseOutputFilename, fileNamingTemplate, getFileExtension(extension));
-    builder.add(DisplayData.item("fileNamePattern", fileNamePattern));
+    String browseUrl = null;
+    String browseFilePattern = formatFilePattern(
+        baseOutputFilename, globTemplate(fileNamingTemplate), extension);
+    if (IOChannelUtils.hasFactory(browseFilePattern)) {
+      IOChannelFactory factory;
+      try {
+        factory = IOChannelUtils.getFactory(browseFilePattern);
+      } catch (IOException e) {
+        throw new AssertionError(String.format(
+            "Unexpected error while retrieving browse url for file pattern: %s", browseFilePattern),
+            e);
+      }
+
+      browseUrl = factory.getBrowseUrl(browseFilePattern);
+    }
+
+    String fileNamePattern = formatFilePattern(baseOutputFilename, fileNamingTemplate, extension);
+    builder.add(DisplayData.item("fileNamePattern", fileNamePattern)
+      .withLinkUrl(browseUrl));
+  }
+
+  private static String formatFilePattern(String base, String template, String extension) {
+    return String.format("%s%s%s", base, template, getFileExtension(extension));
+  }
+
+  private static String globTemplate(String fileNamingTemplate) {
+    return fileNamingTemplate.replace('N', '*').replace('S', '*');
   }
 
   /**

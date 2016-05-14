@@ -22,8 +22,13 @@ import static org.apache.beam.sdk.TestUtils.LINES_ARRAY;
 import static org.apache.beam.sdk.TestUtils.NO_INTS_ARRAY;
 import static org.apache.beam.sdk.TestUtils.NO_LINES_ARRAY;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasLinkUrl;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.core.AllOf.allOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -36,6 +41,7 @@ import org.apache.beam.sdk.coders.TextualIntegerCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.TextIO.CompressionType;
 import org.apache.beam.sdk.io.TextIO.TextSource;
+import org.apache.beam.sdk.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
@@ -45,11 +51,14 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.IOChannelUtils;
+import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 
 import com.google.common.collect.ImmutableList;
 
+import org.hamcrest.Matchers;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -78,6 +87,11 @@ import java.util.zip.GZIPOutputStream;
 public class TextIOTest {
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
   @Rule public ExpectedException expectedException = ExpectedException.none();
+
+  @BeforeClass
+  public static void setUpClass() {
+    IOChannelUtils.registerStandardIOFactories(PipelineOptionsFactory.as(GcsOptions.class));
+  }
 
   <T> void runTestRead(T[] expected, Coder<T> coder) throws Exception {
     File tmpFile = tmpFolder.newFile("file.txt");
@@ -159,16 +173,42 @@ public class TextIOTest {
 
   @Test
   public void testReadDisplayData() {
+    String filePattern = "gs://bucket/foo/bar*";
+
     TextIO.Read.Bound<?> read = TextIO.Read
-        .from("foo.*")
+        .from(filePattern)
         .withCompressionType(CompressionType.BZIP2)
         .withoutValidation();
 
     DisplayData displayData = DisplayData.from(read);
 
-    assertThat(displayData, hasDisplayItem("filePattern", "foo.*"));
+    assertThat(displayData, hasDisplayItem(allOf(
+        hasKey("filePattern"),
+        hasValue(filePattern),
+        hasLinkUrl(GcsPath.fromUri(filePattern).getBrowseUrl()))));
     assertThat(displayData, hasDisplayItem("compressionType", CompressionType.BZIP2.toString()));
     assertThat(displayData, hasDisplayItem("validation", false));
+  }
+
+  /**
+   * A known file scheme is necessary to construct a link URL for display data.
+   * Verify that a bad file scheme doesn't throw an exception in display data unless
+   * validation is enabled.
+   */
+  @Test
+  public void testDisplayDataResilientToUnknownFileScheme() {
+    DisplayData unvalidatedDisplayData = DisplayData.from(TextIO.Read
+        .from("foo://bar/baz")
+        .withoutValidation());
+    assertThat(unvalidatedDisplayData, hasDisplayItem(Matchers.allOf(
+        hasKey("filePattern"),
+        not(hasLinkUrl())
+    )));
+
+    String validatedScheme = "omg";
+    expectedException.expectMessage(validatedScheme);
+
+    DisplayData.from(TextIO.Read.from(validatedScheme + "://foo/bar"));
   }
 
   <T> void runTestWrite(T[] elems, Coder<T> coder) throws Exception {
@@ -292,8 +332,9 @@ public class TextIOTest {
 
   @Test
   public void testWriteDisplayData() {
+    String filePrefix = "gs://bucket/foo/thing";
     TextIO.Write.Bound<?> write = TextIO.Write
-        .to("foo")
+        .to(filePrefix)
         .withSuffix("bar")
         .withShardNameTemplate("-SS-of-NN-")
         .withNumShards(100)
@@ -301,7 +342,7 @@ public class TextIOTest {
 
     DisplayData displayData = DisplayData.from(write);
 
-    assertThat(displayData, hasDisplayItem("filePrefix", "foo"));
+    assertThat(displayData, hasDisplayItem("filePrefix", filePrefix));
     assertThat(displayData, hasDisplayItem("fileSuffix", "bar"));
     assertThat(displayData, hasDisplayItem("shardNameTemplate", "-SS-of-NN-"));
     assertThat(displayData, hasDisplayItem("numShards", 100));

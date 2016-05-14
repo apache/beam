@@ -19,6 +19,7 @@ package org.apache.beam.sdk.transforms.display;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasLinkUrl;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasNamespace;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasType;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
@@ -207,7 +208,7 @@ public class DisplayDataTest implements Serializable {
         hasValue(ISO_FORMATTER.print(value)),
         hasShortValue(nullValue(String.class)),
         hasLabel(is("the current instant")),
-        hasUrl(is("http://time.gov")));
+        hasLinkUrl("http://time.gov"));
 
     assertThat(item, matchesAllOf);
   }
@@ -225,7 +226,9 @@ public class DisplayDataTest implements Serializable {
 
     assertThat(
         data,
-        hasDisplayItem(allOf(hasLabel(nullValue(String.class)), hasUrl(nullValue(String.class)))));
+        hasDisplayItem(allOf(
+            hasLabel(nullValue(String.class)),
+            hasLinkUrl(nullValue(String.class)))));
   }
 
   @Test
@@ -1048,16 +1051,6 @@ public class DisplayDataTest implements Serializable {
       @Override
       protected String featureValueOf(DisplayData.Item<?> actual) {
         return actual.getLabel();
-      }
-    };
-  }
-
-  private static Matcher<DisplayData.Item<?>> hasUrl(Matcher<String> urlMatcher) {
-    return new FeatureMatcher<DisplayData.Item<?>, String>(
-        urlMatcher, "display item with url", "URL") {
-      @Override
-      protected String featureValueOf(DisplayData.Item<?> actual) {
-        return actual.getLinkUrl();
       }
     };
   }

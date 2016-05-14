@@ -332,9 +332,36 @@ public class DisplayDataMatchers {
    * Creates a matcher that matches if the examined {@link DisplayData.Item} has the specified
    * value.
    */
-
   public static Matcher<DisplayData.Item<?>> hasValue(Object value) {
     return hasValue(Matchers.is(value));
+  }
+
+  /**
+   * Creates a matcher that matches if the examined {@link DisplayData.Item} contains any link url.
+   */
+  public static Matcher<DisplayData.Item<?>> hasLinkUrl() {
+    return hasLinkUrl(Matchers.not(Matchers.isEmptyOrNullString()));
+  }
+
+  /**
+   * Creates a matcher that matches if the examined {@link DisplayData.Item} has the specified
+   * link url.
+   */
+  public static Matcher<DisplayData.Item<?>> hasLinkUrl(String linkUrl) {
+    return hasLinkUrl(Matchers.is(linkUrl));
+  }
+
+  /**
+   * Creates a matcher that matches if the examined {@link DisplayData.Item} contains a link url
+   * matching the specified value matcher.
+   */
+  public static Matcher<DisplayData.Item<?>> hasLinkUrl(Matcher<String> urlMatcher) {
+    return new FeatureMatcher<DisplayData.Item<?>, String>(urlMatcher, "with link url", "url") {
+      @Override
+      protected String featureValueOf(Item<?> actual) {
+        return actual.getLinkUrl();
+      }
+    };
   }
 
   /**

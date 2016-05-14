@@ -277,7 +277,22 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
-    builder.add(DisplayData.item("filePattern", getFileOrPatternSpec()));
+
+
+    String fileOrPatternSpec = getFileOrPatternSpec();
+    String browseUrl = null;
+    if (IOChannelUtils.hasFactory(fileOrPatternSpec)) {
+      try {
+        browseUrl = IOChannelUtils.getFactory(fileOrPatternSpec).getBrowseUrl(fileOrPatternSpec);
+      } catch (IOException e) {
+        throw new AssertionError(String.format(
+            "Unexpected error while retrieving browse url for file pattern: %s", fileOrPatternSpec),
+            e);
+      }
+    }
+
+    builder.add(DisplayData.item("filePattern", fileOrPatternSpec)
+        .withLinkUrl(browseUrl));
   }
 
   private ListenableFuture<List<? extends FileBasedSource<T>>> createFutureForFileSplit(
