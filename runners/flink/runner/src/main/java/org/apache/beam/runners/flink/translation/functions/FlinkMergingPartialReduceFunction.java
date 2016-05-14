@@ -85,11 +85,9 @@ public class FlinkMergingPartialReduceFunction<K, InputT, AccumT, W extends Inte
     List<WindowedValue<KV<K, InputT>>> sortedInput = Lists.newArrayList();
     for (WindowedValue<KV<K, InputT>> inputValue: elements) {
       for (WindowedValue<KV<K, InputT>> exploded: inputValue.explodeWindows()) {
-        System.out.println("ADDING EXLODE: " + exploded);
         sortedInput.add(exploded);
       }
     }
-    System.out.println("SORTED SIZE: " + sortedInput.size());
     Collections.sort(sortedInput, new Comparator<WindowedValue<KV<K, InputT>>>() {
       @Override
       public int compare(
@@ -148,15 +146,11 @@ public class FlinkMergingPartialReduceFunction<K, InputT, AccumT, W extends Inte
 
         currentWindow = nextWindow;
         InputT value = nextValue.getValue().getValue();
-        processContext = processContext.forWindowedValue(currentValue);
+        processContext = processContext.forWindowedValue(nextValue);
         accumulator = combineFnRunner.createAccumulator(key, processContext);
         accumulator = combineFnRunner.addInput(key, accumulator, value, processContext);
         windowTimestamp = outputTimeFn.assignOutputTime(nextValue.getTimestamp(), currentWindow);
       }
-
-      // we have to keep track so that we can set the context to the right
-      // windowed value when windows change in the iterable
-      currentValue = nextValue;
     }
 
     // emit the final accumulator
