@@ -63,7 +63,7 @@ public class PubsubTestClientTest {
     IncomingMessage expectedIncomingMessage =
         new IncomingMessage(DATA.getBytes(), MESSAGE_TIME, REQ_TIME, ACK_ID, MESSAGE_ID.getBytes());
     try (PubsubTestClient client =
-             new PubsubTestClient(clock, null, SUBSCRIPTION, ACK_TIMEOUT_S, null,
+             new PubsubTestClient(null, null, clock, SUBSCRIPTION, ACK_TIMEOUT_S,
                                   Lists.newArrayList(expectedIncomingMessage),
                                   new HashMap<String, IncomingMessage>(),
                                   new HashMap<String, Long>())) {
@@ -101,8 +101,8 @@ public class PubsubTestClientTest {
   public void publishOneMessage() throws IOException {
     OutgoingMessage expectedOutgoingMessage = new OutgoingMessage(DATA.getBytes(), MESSAGE_TIME);
     try (PubsubTestClient client =
-             new PubsubTestClient(null, TOPIC, null, ACK_TIMEOUT_S,
-                                  Sets.newHashSet(expectedOutgoingMessage), null, null, null)) {
+             new PubsubTestClient(TOPIC, Sets.newHashSet(expectedOutgoingMessage), null, null,
+                                  ACK_TIMEOUT_S, null, null, null)) {
       client.publish(TOPIC, ImmutableList.of(expectedOutgoingMessage));
     }
   }

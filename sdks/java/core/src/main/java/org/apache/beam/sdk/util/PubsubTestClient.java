@@ -48,8 +48,9 @@ public class PubsubTestClient extends PubsubClient {
       public PubsubClient newClient(
           @Nullable String timestampLabel, @Nullable String idLabel, PubsubOptions options)
           throws IOException {
-        return new PubsubTestClient(null, expectedTopic, null, 0, expectedOutgoingMessages, null,
-                                    null, null);
+        return new PubsubTestClient(checkNotNull(expectedTopic),
+                                    checkNotNull(expectedOutgoingMessages), null, null, 0,
+                                    null, null, null);
       }
 
       @Override
@@ -71,9 +72,12 @@ public class PubsubTestClient extends PubsubClient {
       public PubsubClient newClient(
           @Nullable String timestampLabel, @Nullable String idLabel, PubsubOptions options)
           throws IOException {
-        return new PubsubTestClient(clock, null, expectedSubscription, ackTimeoutSec,
-                                    null, expectedIncomingMessages, pendingAckIncomingMessages,
-                                    ackDeadline);
+        return new PubsubTestClient(null, null, checkNotNull(clock),
+                                    checkNotNull(expectedSubscription),
+                                    ackTimeoutSec,
+                                    checkNotNull(expectedIncomingMessages),
+                                    checkNotNull(pendingAckIncomingMessages),
+                                    checkNotNull(ackDeadline));
       }
 
       @Override
@@ -84,88 +88,78 @@ public class PubsubTestClient extends PubsubClient {
   }
 
   /**
-   * Clock from which to get current time.
-   */
-  @Nullable
-  private Clock clock;
-
-  /**
-   * Only publish calls for this topic are allowed.
+   * Publish mode only: Only publish calls for this topic are allowed.
    */
   @Nullable
   private TopicPath expectedTopic;
-  /**
-   * Only pull calls for this subscription are allowed.
-   */
-  @Nullable
-  private SubscriptionPath expectedSubscription;
 
   /**
-   * Timeout to simulate.
-   */
-  private int ackTimeoutSec;
-
-  /**
-   * Messages yet to seen in a {@link #publish} call.
+   * Publish mode only: Messages yet to seen in a {@link #publish} call.
    */
   @Nullable
   private Set<OutgoingMessage> remainingExpectedOutgoingMessages;
 
   /**
-   * Messages waiting to be received by a {@link #pull} call.
+   * Pull mode only: Clock from which to get current time.
+   */
+  @Nullable
+  private Clock clock;
+
+  /**
+   * Pull mode only: Only pull calls for this subscription are allowed.
+   */
+  @Nullable
+  private SubscriptionPath expectedSubscription;
+
+  /**
+   * Pull mode only: Timeout to simulate.
+   */
+  private int ackTimeoutSec;
+
+  /**
+   * Pull mode only: Messages waiting to be received by a {@link #pull} call.
    */
   @Nullable
   private List<IncomingMessage> remainingPendingIncomingMessages;
 
   /**
-   * Messages which have been returned from a {@link #pull} call and
+   * Pull mode only: Messages which have been returned from a {@link #pull} call and
    * not yet ACKed by an {@link #acknowledge} call.
    */
   @Nullable
   private Map<String, IncomingMessage> pendingAckIncomingMessages;
 
   /**
-   * When above messages are due to have their ACK deadlines expire.
+   * Pull mode only: When above messages are due to have their ACK deadlines expire.
    */
   @Nullable
   private Map<String, Long> ackDeadline;
 
   @VisibleForTesting
   PubsubTestClient(
-      @Nullable Clock clock,
       @Nullable TopicPath expectedTopic,
+      @Nullable Set<OutgoingMessage> expectedOutgoingMessages,
+      @Nullable Clock clock,
       @Nullable SubscriptionPath expectedSubscription,
       int ackTimeoutSec,
-      @Nullable Set<OutgoingMessage> expectedOutgoingMessages,
       @Nullable List<IncomingMessage> expectedIncomingMessages,
       @Nullable Map<String, IncomingMessage> pendingAckIncomingMessages,
       @Nullable Map<String, Long> ackDeadline) {
-    this.clock = clock;
     this.expectedTopic = expectedTopic;
+    this.remainingExpectedOutgoingMessages = expectedOutgoingMessages;
+    this.clock = clock;
     this.expectedSubscription = expectedSubscription;
     this.ackTimeoutSec = ackTimeoutSec;
-    this.remainingExpectedOutgoingMessages = expectedOutgoingMessages;
     this.remainingPendingIncomingMessages = expectedIncomingMessages;
     this.pendingAckIncomingMessages = pendingAckIncomingMessages;
     this.ackDeadline = ackDeadline;
   }
 
   /**
-   * Return true if in pull mode, false if in publish mode, and check fail if neither.
+   * Return true if in pull mode, false if in publish mode.
    */
   private boolean inPullMode() {
-    if (expectedSubscription != null) {
-      checkNotNull(clock, "Missing clock in pull mode");
-      checkNotNull(remainingPendingIncomingMessages,
-                   "Missing pending incoming messages in pull mode");
-      checkNotNull(pendingAckIncomingMessages, "Missing pending ack map in pull mode");
-      checkNotNull(ackDeadline, "Missing ack deadline map in pull mode");
-      return true;
-    } else {
-      checkNotNull(expectedTopic, "Missing topic in publish mode");
-      checkNotNull(remainingExpectedOutgoingMessages, "Missing outgoing messages in publish mode");
-      return false;
-    }
+    return expectedSubscription != null;
   }
 
   /**
