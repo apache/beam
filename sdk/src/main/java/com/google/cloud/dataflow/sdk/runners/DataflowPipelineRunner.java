@@ -2175,8 +2175,13 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
           // If user does not specify a project we assume the table to be located in the project
           // that owns the Dataflow job.
           String projectIdFromOptions = context.getPipelineOptions().getProject();
-          LOG.warn(String.format(BigQueryIO.SET_PROJECT_FROM_OPTIONS_WARNING, table.getDatasetId(),
-              table.getDatasetId(), table.getTableId(), projectIdFromOptions));
+          LOG.warn(
+              "No project specified for BigQuery table \"{}.{}\". Assuming it is in \"{}\". If the"
+              + " table is in a different project please specify it as a part of the BigQuery table"
+              + " definition.",
+              table.getDatasetId(),
+              table.getTableId(),
+              projectIdFromOptions);
           table.setProjectId(projectIdFromOptions);
         }
 

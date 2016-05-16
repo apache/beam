@@ -272,7 +272,7 @@ public class BigQueryIO {
 
   private static final Pattern TABLE_SPEC = Pattern.compile(DATASET_TABLE_REGEXP);
 
-  // TODO: make this private and remove improper access from BigQueryIOTranslator.
+  @Deprecated // unused.
   public static final String SET_PROJECT_FROM_OPTIONS_WARNING =
       "No project specified for BigQuery table \"%1$s.%2$s\". Assuming it is in \"%3$s\". If the"
       + " table is in a different project please specify it as a part of the BigQuery table"
