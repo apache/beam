@@ -19,7 +19,9 @@
 package org.apache.beam.sdk.io;
 
 import static junit.framework.TestCase.assertFalse;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -35,6 +37,7 @@ import org.apache.beam.sdk.util.PubsubTestClient;
 
 import com.google.api.client.util.Clock;
 
+import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -43,7 +46,9 @@ import org.junit.runners.JUnit4;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -182,6 +187,74 @@ public class PubsubUnboundedSourceTest {
     // Now ACK the message.
     PubsubCheckpoint<String> checkpoint = reader.getCheckpointMark();
     checkpoint.finalizeCheckpoint();
+    reader.close();
+  }
+
+  private long messageNumToTimestamp(int messageNum) {
+    return TIMESTAMP + messageNum * 100;
+  }
+
+  @Test
+  public void manyMessages() throws IOException {
+    Map<String, Integer> dataToMessageNum = new HashMap<>();
+
+    final int m = 97;
+    final int n = 10000;
+    for (int i = 0; i < n; i++) {
+      // Make the messages timestamps slightly out of order.
+      int messageNum = ((i / m) * m) + (m - 1) - (i % m);
+      String data = String.format("data_%d", messageNum);
+      dataToMessageNum.put(data, messageNum);
+      String recid = String.format("recordid_%d", messageNum);
+      String ackId = String.format("ackid_%d", messageNum);
+      incoming.add(new IncomingMessage(data.getBytes(), messageNumToTimestamp(messageNum), 0,
+                                       ackId, recid.getBytes()));
+    }
+
+    TestPipeline p = TestPipeline.create();
+    PubsubReader<String> reader = primSource.createReader(p.getOptions(), null);
+    PubsubTestClient pubsubClient = (PubsubTestClient) reader.getPubsubClient();
+
+    for (int i = 0; i < n; i++) {
+      if (i == 0) {
+        assertTrue(reader.start());
+      } else {
+        assertTrue(reader.advance());
+      }
+      // We'll checkpoint and ack within the 2min limit.
+      now.addAndGet(30);
+      pubsubClient.advance();
+      String data = reader.getCurrent();
+      Integer messageNum = dataToMessageNum.remove(data);
+      // No duplicate messages.
+      assertNotNull(messageNum);
+      // Preserve timestamp.
+      assertEquals(new Instant(messageNumToTimestamp(messageNum)), reader.getCurrentTimestamp());
+      // Preserve record id.
+      String recid = String.format("recordid_%d", messageNum);
+      assertArrayEquals(recid.getBytes(), reader.getCurrentRecordId());
+
+      if (i % 1000 == 999) {
+        // Estimated watermark can never get ahead of actual outstanding messages.
+        long watermark = reader.getWatermark().getMillis();
+        System.out.printf("**** watermark %d ****\n", watermark);
+        long minOutstandingTimestamp = Long.MAX_VALUE;
+        for (Integer outstandingMessageNum : dataToMessageNum.values()) {
+          minOutstandingTimestamp =
+              Math.min(minOutstandingTimestamp, messageNumToTimestamp(outstandingMessageNum));
+        }
+        assertTrue(watermark <= minOutstandingTimestamp);
+        // Ack messages, but only every other finalization.
+        PubsubCheckpoint<String> checkpoint = reader.getCheckpointMark();
+        if (i % 2000 == 1999) {
+          checkpoint.finalizeCheckpoint();
+        }
+      }
+    }
+    // We are done.
+    assertFalse(reader.advance());
+    // We saw each message exactly once.
+    assertTrue(dataToMessageNum.isEmpty());
     reader.close();
   }
 }

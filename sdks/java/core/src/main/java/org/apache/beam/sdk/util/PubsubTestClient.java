@@ -118,7 +118,7 @@ public class PubsubTestClient extends PubsubClient {
    * Messages which have been returned from a {@link #pull} call and
    * not yet ACKed by an {@link #acknowledge} call.
    */
-  private Map<String, IncomingMessage> pendingAckIncommingMessages;
+  private Map<String, IncomingMessage> pendingAckIncomingMessages;
 
   /**
    * When above messages are due to have their ACK deadlines expire.
@@ -141,7 +141,7 @@ public class PubsubTestClient extends PubsubClient {
     this.remainingExpectedOutgoingMessages = expectedOutgoingMessages;
     this.remainingPendingIncomingMessages = expectedIncomingMessages;
 
-    this.pendingAckIncommingMessages = new HashMap<>();
+    this.pendingAckIncomingMessages = new HashMap<>();
     this.ackDeadline = new HashMap<>();
   }
 
@@ -156,7 +156,7 @@ public class PubsubTestClient extends PubsubClient {
     while (deadlineItr.hasNext()) {
       Map.Entry<String, Long> entry = deadlineItr.next();
       if (entry.getValue() <= clock.currentTimeMillis()) {
-        remainingPendingIncomingMessages.add(pendingAckIncommingMessages.remove(entry.getKey()));
+        remainingPendingIncomingMessages.add(pendingAckIncomingMessages.remove(entry.getKey()));
         deadlineItr.remove();
       }
     }
@@ -172,12 +172,12 @@ public class PubsubTestClient extends PubsubClient {
     if (remainingPendingIncomingMessages != null) {
       checkState(remainingPendingIncomingMessages.isEmpty(),
                  "Failed to publish %s messages", remainingPendingIncomingMessages.size());
-      checkState(pendingAckIncommingMessages.isEmpty(),
-                 "Failed to ACK %s messages", pendingAckIncommingMessages.size());
+      checkState(pendingAckIncomingMessages.isEmpty(),
+                 "Failed to ACK %s messages", pendingAckIncomingMessages.size());
       checkState(ackDeadline.isEmpty(),
                  "Failed to ACK %s messages", ackDeadline.size());
       remainingPendingIncomingMessages = null;
-      pendingAckIncommingMessages = null;
+      pendingAckIncomingMessages = null;
       ackDeadline = null;
     }
   }
@@ -218,8 +218,8 @@ public class PubsubTestClient extends PubsubClient {
       IncomingMessage incomingMessageWithRequestTime =
           incomingMessage.withRequestTime(requestTimeMsSinceEpoch);
       incomingMessages.add(incomingMessageWithRequestTime);
-      pendingAckIncommingMessages.put(incomingMessageWithRequestTime.ackId,
-                                      incomingMessageWithRequestTime);
+      pendingAckIncomingMessages.put(incomingMessageWithRequestTime.ackId,
+                                     incomingMessageWithRequestTime);
       ackDeadline.put(incomingMessageWithRequestTime.ackId,
                       requestTimeMsSinceEpoch + ackTimeoutSec * 1000);
       if (incomingMessages.size() >= batchSize) {
@@ -241,7 +241,7 @@ public class PubsubTestClient extends PubsubClient {
     for (String ackId : ackIds) {
       checkState(ackDeadline.remove(ackId) != null,
                  "No message with ACK id %s is outstanding", ackId);
-      checkState(pendingAckIncommingMessages.remove(ackId) != null,
+      checkState(pendingAckIncomingMessages.remove(ackId) != null,
                  "No message with ACK id %s is outstanding", ackId);
     }
   }
@@ -258,7 +258,7 @@ public class PubsubTestClient extends PubsubClient {
     for (String ackId : ackIds) {
       checkState(ackDeadline.remove(ackId) != null,
                  "No message with ACK id %s is outstanding", ackId);
-      checkState(pendingAckIncommingMessages.containsKey(ackId),
+      checkState(pendingAckIncomingMessages.containsKey(ackId),
                  "No message with ACK id %s is outstanding", ackId);
       ackDeadline.put(ackId, clock.currentTimeMillis() + deadlineSeconds * 1000);
     }
