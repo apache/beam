@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.transforms.display;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasNamespace;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasType;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
@@ -67,7 +66,7 @@ public class DisplayDataMatchersTest {
 
   @Test
   public void testHasKey() {
-    Matcher<DisplayData> matcher = hasDisplayItem(hasKey("foo"));
+    Matcher<DisplayData> matcher = hasDisplayItem("foo");
 
     assertFalse(matcher.matches(createDisplayDataWithItem("fooz", "bar")));
 

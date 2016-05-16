@@ -57,6 +57,14 @@ public class DisplayDataMatchers {
   }
 
   /**
+   * Creates a matcher that matches if the examined {@link DisplayData} contains an item with the
+   * specified key.
+   */
+  public static Matcher<DisplayData> hasDisplayItem(String key) {
+    return hasDisplayItem(hasKey(key));
+  }
+
+  /**
    * Create a matcher that matches if the examined {@link DisplayData} contains an item with the
    * specified key and String value.
    */

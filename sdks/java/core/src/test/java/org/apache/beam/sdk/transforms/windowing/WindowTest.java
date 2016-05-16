@@ -292,7 +292,7 @@ public class WindowTest implements Serializable {
         .withAllowedLateness(Duration.millis(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));
 
     DisplayData data = DisplayData.from(window);
-    assertThat(data, not(hasDisplayItem(hasKey("trigger"))));
-    assertThat(data, not(hasDisplayItem(hasKey("allowedLateness"))));
+    assertThat(data, not(hasDisplayItem("trigger")));
+    assertThat(data, not(hasDisplayItem("allowedLateness")));
   }
 }

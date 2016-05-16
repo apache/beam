@@ -1030,6 +1030,11 @@ public class PubsubIO {
           checkState(n == output.size());
           output.clear();
         }
+
+        @Override
+        public void populateDisplayData(DisplayData.Builder builder) {
+          Bound.this.populateDisplayData(builder);
+        }
       }
     }
 

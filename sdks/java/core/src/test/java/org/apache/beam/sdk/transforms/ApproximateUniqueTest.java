@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -305,6 +304,6 @@ public class ApproximateUniqueTest implements Serializable {
     DisplayData maxErrorDisplayData = DisplayData.from(specifiedMaxError);
     assertThat(maxErrorDisplayData, hasDisplayItem("maximumEstimationError", 0.1234));
     assertThat("calculated sampleSize should be included", maxErrorDisplayData,
-        hasDisplayItem(hasKey("sampleSize")));
+        hasDisplayItem("sampleSize"));
   }
 }
