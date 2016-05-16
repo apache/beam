@@ -656,7 +656,7 @@ public class InMemExecutorTest {
         ListDataSource.unbounded(sequenceInts(0, N)));
 
     // ~ consume the input another time
-    Dataset<Integer> map = Map
+    Dataset<Integer> map = cz.seznam.euphoria.core.client.operator.Map
         .of(input)
         .by(e -> e)
         .output();
