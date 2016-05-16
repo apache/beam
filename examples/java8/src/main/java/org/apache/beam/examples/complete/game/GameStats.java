@@ -44,7 +44,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 
 import org.joda.time.DateTimeZone;
 import org.joda.time.Duration;
@@ -255,7 +255,8 @@ public class GameStats extends LeaderBoard {
     PCollection<KV<String, Integer>> userEvents =
         rawEvents.apply("ExtractUserScore",
           MapElements.via((GameActionInfo gInfo) -> KV.of(gInfo.getUser(), gInfo.getScore()))
-            .withOutputType(new TypeDescriptor<KV<String, Integer>>() {}));
+            .withOutputType(
+                TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.integers())));
 
     // Calculate the total score per user over fixed windows, and
     // cumulative updates for late data.
