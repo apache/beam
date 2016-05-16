@@ -18,8 +18,9 @@
 
 package org.apache.beam.sdk.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import org.apache.beam.sdk.transforms.Combine;
-import com.google.common.base.Preconditions;
 import java.util.Arrays;
 
 /**
@@ -94,12 +95,12 @@ public class MovingFunction {
    * Flush stale values.
    */
   private void flush(long nowMsSinceEpoch) {
-    Preconditions.checkArgument(nowMsSinceEpoch >= 0);
+    checkArgument(nowMsSinceEpoch >= 0, "Only positive timestamps supported");
     if (currentIndex < 0) {
       currentMsSinceEpoch = nowMsSinceEpoch - (nowMsSinceEpoch % sampleUpdateMs);
       currentIndex = 0;
     }
-    Preconditions.checkArgument(nowMsSinceEpoch >= currentMsSinceEpoch);
+    checkArgument(nowMsSinceEpoch >= currentMsSinceEpoch, "Attempting to move backwards");
     int newBuckets =
         Math.min((int) ((nowMsSinceEpoch - currentMsSinceEpoch) / sampleUpdateMs),
                  buckets.length);

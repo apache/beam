@@ -18,6 +18,9 @@
 
 package org.apache.beam.sdk.io;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
+
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -31,6 +34,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
+import org.apache.beam.sdk.transforms.Sum.SumLongFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -44,7 +48,6 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 
 import com.google.api.client.util.Clock;
-import com.google.api.client.util.Preconditions;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -89,7 +92,7 @@ import javax.annotation.Nullable;
  * need to be restored (so that Pubsub will resend those messages promptly).
  * <li>The backlog is determined by each reader using the messages which have been pulled from
  * Pubsub but not yet consumed downstream. The backlog does not take account of any messages queued
- * by Pubsub for the subscription. Unfortunately there is currently no public API to determine
+ * by Pubsub for the subscription. Unfortunately there is currently no API to determine
  * the size of the Pubsub queue's backlog.
  * <li>The subscription must already exist.
  * <li>The subscription timeout is read whenever a reader is started. However it is not
@@ -97,7 +100,7 @@ import javax.annotation.Nullable;
  * <li>We log vital stats every 30 seconds.
  * <li>Though some background threads may be used by the underlying transport all Pubsub calls
  * are blocking. We rely on the underlying runner to allow multiple
- * {@link UnboundedSource.UnboundedReader} instance to execute concurrently and thus hide latency.
+ * {@link UnboundedSource.UnboundedReader} instances to execute concurrently and thus hide latency.
  * </ul>
  */
 public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>> {
@@ -176,6 +179,8 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
    */
   private static final int SCALE_OUT = 4;
 
+  // TODO: Would prefer to use MinLongFn but it is a BinaryCombineFn<Long> rather
+  // than a BinaryCombineLongFn. [BEAM-285]
   private static final Combine.BinaryCombineLongFn MIN =
       new Combine.BinaryCombineLongFn() {
         @Override
@@ -202,19 +207,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
         }
       };
 
-  private static final Combine.BinaryCombineLongFn SUM =
-      new Combine.BinaryCombineLongFn() {
-        @Override
-        public long apply(long left, long right) {
-          return left + right;
-        }
-
-        @Override
-        public long identity() {
-          return 0;
-        }
-      };
-
+  private static final Combine.BinaryCombineLongFn SUM = new SumLongFn();
 
   // ================================================================================
   // Checkpoint
@@ -269,8 +262,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
      */
     @Override
     public void finalizeCheckpoint() throws IOException {
-      Preconditions.checkState(reader != null && safeToAckIds != null,
-                               "Cannot finalize a restored checkpoint");
+      checkState(reader != null && safeToAckIds != null, "Cannot finalize a restored checkpoint");
       // Even if the 'true' active reader has changed since the checkpoint was taken we are
       // fine:
       // - The underlying Pubsub topic will not have changed, so the following ACKs will still
@@ -293,7 +285,8 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
           reader.ackBatch(batchSafeToAckIds);
         }
       } finally {
-        Preconditions.checkState(reader.numInFlightCheckpoints.decrementAndGet() >= 0);
+        checkState(reader.numInFlightCheckpoints.decrementAndGet() >= 0,
+                   "Miscounted in-flight checkpoints");
       }
     }
 
@@ -303,7 +296,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
      * This way Pubsub will send them again promptly.
      */
     public void nackAll(PubsubReader<T> reader) throws IOException {
-      Preconditions.checkState(this.reader == null, "Cannot nackAll on persisting checkpoint");
+      checkState(this.reader == null, "Cannot nackAll on persisting checkpoint");
       List<String> batchYetToAckIds =
           new ArrayList<>(Math.min(notYetReadIds.size(), ACK_BATCH_SIZE));
       for (String ackId : notYetReadIds) {
@@ -617,11 +610,18 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
     }
 
     /**
+     * Return the current time, in ms since epoch.
+     */
+    private long now() {
+      return outer.outer.clock.currentTimeMillis();
+    }
+
+    /**
      * Messages which have been ACKed (via the checkpoint finalize) are no longer in flight.
      * This is only used for flow control and stats.
      */
     private void retire() throws IOException {
-      long nowMsSinceEpoch = outer.outer.clock.currentTimeMillis();
+      long nowMsSinceEpoch = now();
       while (true) {
         List<String> ackIds = ackedIds.poll();
         if (ackIds == null) {
@@ -642,24 +642,26 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
      */
     private void extend() throws IOException {
       while (true) {
-        long nowMsSinceEpoch = outer.outer.clock.currentTimeMillis();
+        long nowMsSinceEpoch = now();
+        List<String> assumeExpired = new ArrayList<>();
         List<String> toBeExtended = new ArrayList<>();
         List<String> toBeExpired = new ArrayList<>();
         // Messages will be in increasing deadline order.
         for (Map.Entry<String, InFlightState> entry : inFlight.entrySet()) {
+          if (entry.getValue().ackDeadlineMsSinceEpoch - (ackTimeoutMs * ACK_SAFETY_PCT) / 100
+              > nowMsSinceEpoch) {
+            // All remaining messages don't need their ACKs to be extended.
+            break;
+          }
+
           if (entry.getValue().ackDeadlineMsSinceEpoch - ACK_TOO_LATE.getMillis()
               < nowMsSinceEpoch) {
             // Pubsub may have already considered this message to have expired.
             // If so it will (eventually) be made available on a future pull request.
             // If this message ends up being committed then it will be considered a duplicate
             // when re-pulled.
-            numLateDeadlines.add(nowMsSinceEpoch, 1);
-          }
-
-          if (entry.getValue().ackDeadlineMsSinceEpoch - (ackTimeoutMs * ACK_SAFETY_PCT) / 100
-              > nowMsSinceEpoch) {
-            // All remaining messages don't need their ACKs to be extended.
-            break;
+            assumeExpired.add(entry.getKey());
+            continue;
           }
 
           if (entry.getValue().requestTimeMsSinceEpoch + PROCESSING_TIMEOUT.getMillis()
@@ -678,9 +680,17 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
           }
         }
 
-        if (toBeExtended.isEmpty() && toBeExpired.isEmpty()) {
+        if (assumeExpired.isEmpty() && toBeExtended.isEmpty() && toBeExpired.isEmpty()) {
           // Nothing to be done.
           return;
+        }
+
+        if (!assumeExpired.isEmpty()) {
+          // If we didn't make the ACK deadline assume expired and no longer in flight.
+          numLateDeadlines.add(nowMsSinceEpoch, assumeExpired.size());
+          for (String ackId : assumeExpired) {
+            inFlight.remove(ackId);
+          }
         }
 
         if (!toBeExpired.isEmpty()) {
@@ -720,7 +730,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
         return;
       }
 
-      long requestTimeMsSinceEpoch = outer.outer.clock.currentTimeMillis();
+      long requestTimeMsSinceEpoch = now();
       long deadlineMsSinceEpoch = requestTimeMsSinceEpoch + ackTimeoutMs;
 
       // Pull the next batch.
@@ -757,7 +767,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
      * Log stats if time to do so.
      */
     private void stats() {
-      long nowMsSinceEpoch = outer.outer.clock.currentTimeMillis();
+      long nowMsSinceEpoch = now();
       if (lastLogTimestampMsSinceEpoch < 0) {
         lastLogTimestampMsSinceEpoch = nowMsSinceEpoch;
         return;
@@ -788,7 +798,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
             (nowMsSinceEpoch - inFlight.get(oldestAckId).requestTimeMsSinceEpoch) + "ms";
       }
 
-      LOG.warn("Pubsub {} has "
+      LOG.info("Pubsub {} has "
                + "{} received messages, "
                + "{} current unread messages, "
                + "{} current unread bytes, "
@@ -878,8 +888,8 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
         return false;
       }
       notYetReadBytes -= current.elementBytes.length;
-      Preconditions.checkState(notYetReadBytes >= 0);
-      long nowMsSinceEpoch = outer.outer.clock.currentTimeMillis();
+      checkState(notYetReadBytes >= 0);
+      long nowMsSinceEpoch = now();
       numReadBytes.add(nowMsSinceEpoch, current.elementBytes.length);
       minReadTimestampMsSinceEpoch.add(nowMsSinceEpoch, current.timestampMsSinceEpoch);
       if (current.timestampMsSinceEpoch < lastWatermarkMsSinceEpoch) {
@@ -947,7 +957,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
       // could cause its estimated watermark to fast forward to current system time. Then when
       // the reader resumes its watermark would be unable to resume tracking.
       // By letting the underlying runner latch we avoid any problems due to localized starvation.
-      long nowMsSinceEpoch = outer.outer.clock.currentTimeMillis();
+      long nowMsSinceEpoch = now();
       long readMin = minReadTimestampMsSinceEpoch.get(nowMsSinceEpoch);
       long unreadMin = minUnreadTimestampMsSinceEpoch.get();
       if (readMin == Long.MAX_VALUE &&
@@ -1159,9 +1169,9 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
       @Nullable String timestampLabel,
       @Nullable String idLabel) {
     this.clock = clock;
-    this.pubsubFactory = Preconditions.checkNotNull(pubsubFactory);
-    this.subscription = Preconditions.checkNotNull(subscription);
-    this.elementCoder = Preconditions.checkNotNull(elementCoder);
+    this.pubsubFactory = checkNotNull(pubsubFactory);
+    this.subscription = checkNotNull(subscription);
+    this.elementCoder = checkNotNull(elementCoder);
     this.timestampLabel = timestampLabel;
     this.idLabel = idLabel;
   }

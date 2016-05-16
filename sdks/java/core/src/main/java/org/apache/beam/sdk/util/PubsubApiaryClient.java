@@ -136,6 +136,8 @@ public class PubsubApiaryClient extends PubsubClient {
       }
 
       if (idLabel != null) {
+        // TODO: The id should be associated with the OutgoingMessage so that it is stable
+        // across retried bundles
         attributes.put(idLabel,
                        Hashing.murmur3_128().hashBytes(outgoingMessage.elementBytes).toString());
       }

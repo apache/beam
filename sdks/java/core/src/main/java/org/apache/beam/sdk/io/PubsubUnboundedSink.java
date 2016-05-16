@@ -147,6 +147,7 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
       elementCounter.addValue(1L);
       byte[] elementBytes = CoderUtils.encodeToByteArray(elementCoder, c.element());
       long timestampMsSinceEpoch = c.timestamp().getMillis();
+      // TODO: A random record id should be assigned here.
       c.output(KV.of(ThreadLocalRandom.current().nextInt(numShards),
                      new OutgoingMessage(elementBytes, timestampMsSinceEpoch)));
     }

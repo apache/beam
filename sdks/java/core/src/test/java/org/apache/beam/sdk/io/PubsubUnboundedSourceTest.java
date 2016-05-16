@@ -23,6 +23,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.PubsubUnboundedSource.PubsubCheckpoint;
 import org.apache.beam.sdk.io.PubsubUnboundedSource.PubsubReader;
 import org.apache.beam.sdk.io.PubsubUnboundedSource.PubsubSource;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -33,13 +34,15 @@ import org.apache.beam.sdk.util.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.util.PubsubTestClient;
 
 import com.google.api.client.util.Clock;
-import com.google.common.collect.Lists;
 
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -59,33 +62,126 @@ public class PubsubUnboundedSourceTest {
   private static final String RECORD_ID = "testRecordId";
   private static final int ACK_TIMEOUT_S = 60;
 
-  @Test
-  public void readOneMessage() throws IOException {
-    List<IncomingMessage> incoming =
-        Lists.newArrayList(new IncomingMessage(DATA.getBytes(), TIMESTAMP, REQ_TIME, ACK_ID,
-                                               RECORD_ID.getBytes()));
-    final AtomicLong now = new AtomicLong(REQ_TIME);
-    Clock clock = new Clock() {
+  private AtomicLong now;
+  private Clock clock;
+  private List<IncomingMessage> incoming;
+  private PubsubSource<String> primSource;
+
+  @Before
+  public void before() {
+    now = new AtomicLong(REQ_TIME);
+    clock = new Clock() {
       @Override
       public long currentTimeMillis() {
         return now.get();
       }
     };
+    incoming = new ArrayList<>();
     PubsubClientFactory factory =
         PubsubTestClient.createFactoryForPull(clock, SUBSCRIPTION, ACK_TIMEOUT_S, incoming);
     PubsubUnboundedSource<String> source =
         new PubsubUnboundedSource<>(clock, factory, SUBSCRIPTION, StringUtf8Coder.of(),
                                     TIMESTAMP_LABEL, ID_LABEL);
-    PubsubSource<String> primSource = new PubsubSource<>(source);
+    primSource = new PubsubSource<>(source);
+  }
 
+  @After
+  public void after() {
+    now = null;
+    clock = null;
+    incoming = null;
+    primSource = null;
+  }
+
+  @Test
+  public void readOneMessage() throws IOException {
+    incoming.add(new IncomingMessage(DATA.getBytes(), TIMESTAMP, REQ_TIME, ACK_ID,
+                                     RECORD_ID.getBytes()));
+    TestPipeline p = TestPipeline.create();
+    PubsubReader<String> reader = primSource.createReader(p.getOptions(), null);
+    // Read one message.
+    assertTrue(reader.start());
+    assertEquals(DATA, reader.getCurrent());
+    assertFalse(reader.advance());
+    // ACK the message.
+    PubsubCheckpoint<String> checkpoint = reader.getCheckpointMark();
+    checkpoint.finalizeCheckpoint();
+    reader.close();
+  }
+
+  @Test
+  public void timeoutAckAndRereadOneMessage() throws IOException {
+    incoming.add(new IncomingMessage(DATA.getBytes(), TIMESTAMP, REQ_TIME, ACK_ID,
+                                     RECORD_ID.getBytes()));
     TestPipeline p = TestPipeline.create();
     PubsubReader<String> reader = primSource.createReader(p.getOptions(), null);
     PubsubTestClient pubsubClient = (PubsubTestClient) reader.getPubsubClient();
-
     assertTrue(reader.start());
-    now.addAndGet(55 * 1000);
+    assertEquals(DATA, reader.getCurrent());
+    // Let the ACK deadline for the above expire.
+    now.addAndGet(65 * 1000);
     pubsubClient.advance();
+    // We'll now receive the same message again.
+    assertTrue(reader.advance());
     assertEquals(DATA, reader.getCurrent());
     assertFalse(reader.advance());
+    // Now ACK the message.
+    PubsubCheckpoint<String> checkpoint = reader.getCheckpointMark();
+    checkpoint.finalizeCheckpoint();
+    reader.close();
+  }
+
+  @Test
+  public void extendAck() throws IOException {
+    incoming.add(new IncomingMessage(DATA.getBytes(), TIMESTAMP, REQ_TIME, ACK_ID,
+                                     RECORD_ID.getBytes()));
+    TestPipeline p = TestPipeline.create();
+    PubsubReader<String> reader = primSource.createReader(p.getOptions(), null);
+    PubsubTestClient pubsubClient = (PubsubTestClient) reader.getPubsubClient();
+    assertTrue(reader.start());
+    assertEquals(DATA, reader.getCurrent());
+    // Extend the ack
+    now.addAndGet(55 * 1000);
+    pubsubClient.advance();
+    assertFalse(reader.advance());
+    // Extend the ack again
+    now.addAndGet(25 * 1000);
+    pubsubClient.advance();
+    assertFalse(reader.advance());
+    // Now ACK the message.
+    PubsubCheckpoint<String> checkpoint = reader.getCheckpointMark();
+    checkpoint.finalizeCheckpoint();
+    reader.close();
+  }
+
+  @Test
+  public void timeoutAckExtensions() throws IOException {
+    incoming.add(new IncomingMessage(DATA.getBytes(), TIMESTAMP, REQ_TIME, ACK_ID,
+                                     RECORD_ID.getBytes()));
+    TestPipeline p = TestPipeline.create();
+    PubsubReader<String> reader = primSource.createReader(p.getOptions(), null);
+    PubsubTestClient pubsubClient = (PubsubTestClient) reader.getPubsubClient();
+    assertTrue(reader.start());
+    assertEquals(DATA, reader.getCurrent());
+    // Extend the ack.
+    now.addAndGet(55 * 1000);
+    pubsubClient.advance();
+    assertFalse(reader.advance());
+    // Let the ack expire.
+    for (int i = 0; i < 3; i++) {
+      now.addAndGet(25 * 1000);
+      pubsubClient.advance();
+      assertFalse(reader.advance());
+    }
+    // Wait for resend.
+    now.addAndGet(25 * 1000);
+    pubsubClient.advance();
+    // Reread the same message.
+    assertTrue(reader.advance());
+    assertEquals(DATA, reader.getCurrent());
+    // Now ACK the message.
+    PubsubCheckpoint<String> checkpoint = reader.getCheckpointMark();
+    checkpoint.finalizeCheckpoint();
+    reader.close();
   }
 }

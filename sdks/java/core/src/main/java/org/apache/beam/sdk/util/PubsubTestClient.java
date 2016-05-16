@@ -150,6 +150,7 @@ public class PubsubTestClient extends PubsubClient {
    * outstanding ACKs.
    */
   public void advance() {
+    checkNotNull(clock, "Missing expected clock");
     // Any messages who's ACKs timed out are available for re-pulling.
     Iterator<Map.Entry<String, Long>> deadlineItr = ackDeadline.entrySet().iterator();
     while (deadlineItr.hasNext()) {
@@ -199,6 +200,7 @@ public class PubsubTestClient extends PubsubClient {
   public List<IncomingMessage> pull(
       long requestTimeMsSinceEpoch, SubscriptionPath subscription, int batchSize,
       boolean returnImmediately) throws IOException {
+    checkNotNull(clock, "Missing expected clock");
     long now = clock.currentTimeMillis();
     checkState(requestTimeMsSinceEpoch == now,
                "Simulated time %s does not match request time %s", now, requestTimeMsSinceEpoch);
@@ -247,6 +249,7 @@ public class PubsubTestClient extends PubsubClient {
   @Override
   public void modifyAckDeadline(
       SubscriptionPath subscription, List<String> ackIds, int deadlineSeconds) throws IOException {
+    checkNotNull(clock, "Missing expected clock");
     checkNotNull(expectedSubscription, "Missing expected subscription");
     checkNotNull(remainingPendingIncomingMessages, "Missing expected incoming messages");
     checkState(subscription.equals(expectedSubscription),
