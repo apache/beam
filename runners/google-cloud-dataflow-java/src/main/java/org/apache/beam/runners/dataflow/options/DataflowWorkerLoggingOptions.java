@@ -38,7 +38,47 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
    * The set of log levels that can be used on the Dataflow worker.
    */
   public enum Level {
-    DEBUG, ERROR, INFO, TRACE, WARN
+    /**
+     * Special level used to turn off logging.
+     *
+     * @see java.util.logging.Level#OFF
+     */
+    OFF,
+
+    /**
+     * Level for logging error messages.
+     *
+     * @see java.util.logging.Level#SEVERE
+     */
+    ERROR,
+
+    /**
+     * Level for logging warning messages.
+     *
+     * @see java.util.logging.Level#WARNING
+     */
+    WARN,
+
+    /**
+     * Level for logging informational messages.
+     *
+     * @see java.util.logging.Level#INFO
+     */
+    INFO,
+
+    /**
+     * Level for logging diagnostic messages.
+     *
+     * @see java.util.logging.Level#FINE
+     */
+    DEBUG,
+
+    /**
+     * Level for logging tracing messages.
+     *
+     * @see java.util.logging.Level#FINEST
+     */
+    TRACE
   }
 
   /**
@@ -48,6 +88,16 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
   @Default.Enum("INFO")
   Level getDefaultWorkerLogLevel();
   void setDefaultWorkerLogLevel(Level level);
+
+  @Description("Controls the log level of messages printed to System.out")
+  @Default.Enum("INFO")
+  Level getWorkerSystemOutLogLevel();
+  void setWorkerSystemOutLogLevel(Level level);
+
+  @Description("Controls the log level of messages printed to System.err")
+  @Default.Enum("ERROR")
+  Level getWorkerSystemErrLogLevel();
+  void setWorkerSystemErrLogLevel(Level level);
 
   /**
    * This option controls the log levels for specifically named loggers.
