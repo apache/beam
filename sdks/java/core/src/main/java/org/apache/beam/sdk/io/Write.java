@@ -86,7 +86,8 @@ public class Write {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder
-          .add(DisplayData.item("sink", sink.getClass()))
+          .add(DisplayData.item("sink", sink.getClass())
+            .withLabel("Write Sink"))
           .include(sink);
     }
 

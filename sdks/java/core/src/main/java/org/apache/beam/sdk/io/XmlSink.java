@@ -227,8 +227,10 @@ public class XmlSink {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder
-          .addIfNotNull(DisplayData.item("rootElement", rootElementName))
-          .addIfNotNull(DisplayData.item("recordClass", classToBind));
+          .addIfNotNull(DisplayData.item("rootElement", rootElementName)
+            .withLabel("XML Root Element"))
+          .addIfNotNull(DisplayData.item("recordClass", classToBind)
+            .withLabel("XML Record Class"));
     }
   }
 

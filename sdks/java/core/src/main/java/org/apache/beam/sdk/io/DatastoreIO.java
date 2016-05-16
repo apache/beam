@@ -391,12 +391,16 @@ public class DatastoreIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder
-          .addIfNotDefault(DisplayData.item("host", host), DEFAULT_HOST)
-          .addIfNotNull(DisplayData.item("dataset", datasetId))
-          .addIfNotNull(DisplayData.item("namespace", namespace));
+          .addIfNotDefault(DisplayData.item("host", host)
+            .withLabel("Datastore Service"), DEFAULT_HOST)
+          .addIfNotNull(DisplayData.item("dataset", datasetId)
+            .withLabel("Input Dataset"))
+          .addIfNotNull(DisplayData.item("namespace", namespace)
+            .withLabel("App Engine Namespace"));
 
       if (query != null) {
-        builder.add(DisplayData.item("query", query.toString()));
+        builder.add(DisplayData.item("query", query.toString())
+          .withLabel("Query"));
       }
     }
 
@@ -606,8 +610,10 @@ public class DatastoreIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder
-          .addIfNotDefault(DisplayData.item("host", host), DEFAULT_HOST)
-          .addIfNotNull(DisplayData.item("dataset", datasetId));
+          .addIfNotDefault(DisplayData.item("host", host)
+            .withLabel("Datastore Service"), DEFAULT_HOST)
+          .addIfNotNull(DisplayData.item("dataset", datasetId)
+            .withLabel("Output Dataset"));
     }
   }
 

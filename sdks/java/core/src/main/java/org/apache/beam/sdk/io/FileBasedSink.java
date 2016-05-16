@@ -129,7 +129,8 @@ public abstract class FileBasedSink<T> extends Sink<T> {
 
     String fileNamePattern = String.format("%s%s%s",
         baseOutputFilename, fileNamingTemplate, getFileExtension(extension));
-    builder.add(DisplayData.item("fileNamePattern", fileNamePattern));
+    builder.add(DisplayData.item("fileNamePattern", fileNamePattern)
+      .withLabel("File Name Pattern"));
   }
 
   /**
