@@ -12,7 +12,6 @@ import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
-import cz.seznam.euphoria.core.client.operator.Map;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.Repartition;
