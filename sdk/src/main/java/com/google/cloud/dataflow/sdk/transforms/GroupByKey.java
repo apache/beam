@@ -523,8 +523,8 @@ public class GroupByKey<K, V>
         // TODO: Put in better element printing:
         // truncate if too long.
         throw new IllegalArgumentException(
-            "unable to encode key " + key + " of input to " + transform +
-            " using " + keyCoder,
+            "unable to encode key " + key + " of input to " + transform
+            + " using " + keyCoder,
             exn);
       }
       GroupingKey<K> groupingKey = new GroupingKey<>(key, encodedKey);
