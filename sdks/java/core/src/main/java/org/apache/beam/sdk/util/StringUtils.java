@@ -75,8 +75,8 @@ public class StringUtils {
           b = (byte) Integer.parseInt(string.substring(i + 1, i + 3), 16);
         } catch (IndexOutOfBoundsException | NumberFormatException exn) {
           throw new IllegalArgumentException(
-              "not in legal encoded format; " +
-              "substring [" + i + ".." + (i + 2) + "] not in format \"%xx\"",
+              "not in legal encoded format; "
+              + "substring [" + i + ".." + (i + 2) + "] not in format \"%xx\"",
               exn);
         }
         i += 3;

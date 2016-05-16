@@ -484,9 +484,9 @@ public class TransformExecutorTest {
       handledResult = result;
       onMethod.countDown();
       @SuppressWarnings("rawtypes") Iterable unprocessedElements =
-          result.getUnprocessedElements() == null ?
-              Collections.emptyList() :
-              result.getUnprocessedElements();
+          result.getUnprocessedElements() == null
+              ? Collections.emptyList()
+              : result.getUnprocessedElements();
 
       CommittedBundle<?> unprocessedBundle =
           inputBundle == null ? null : inputBundle.withElements(unprocessedElements);

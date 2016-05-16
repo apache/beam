@@ -261,9 +261,9 @@ public class InstanceBuilder<T> {
       throw new RuntimeException("Unable to find constructor for "
           + factoryClass.getName());
 
-    } catch (InvocationTargetException |
-        InstantiationException |
-        IllegalAccessException e) {
+    } catch (InvocationTargetException
+        | InstantiationException
+        | IllegalAccessException e) {
       throw new RuntimeException("Failed to construct instance from "
           + "constructor " + factoryClass.getName(), e);
     }

@@ -173,8 +173,8 @@ public class Partition<T> extends PTransform<PCollection<T>, PCollectionList<T>>
         c.sideOutput(typedTag, input);
       } else {
         throw new IndexOutOfBoundsException(
-            "Partition function returned out of bounds index: " +
-            partition + " not in [0.." + numPartitions + ")");
+            "Partition function returned out of bounds index: "
+            + partition + " not in [0.." + numPartitions + ")");
       }
     }
 

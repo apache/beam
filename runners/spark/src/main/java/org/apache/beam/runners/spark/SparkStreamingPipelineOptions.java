@@ -24,8 +24,8 @@ import org.apache.beam.sdk.options.Description;
  * Options used to configure Spark streaming.
  */
 public interface SparkStreamingPipelineOptions extends SparkPipelineOptions {
-  @Description("Timeout to wait (in msec) for the streaming execution so stop, -1 runs until " +
-          "execution is stopped")
+  @Description("Timeout to wait (in msec) for the streaming execution so stop, -1 runs until "
+          + "execution is stopped")
   @Default.Long(-1)
   Long getTimeout();
 

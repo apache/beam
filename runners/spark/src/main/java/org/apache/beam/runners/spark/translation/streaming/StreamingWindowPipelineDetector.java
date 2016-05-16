@@ -81,8 +81,8 @@ public final class StreamingWindowPipelineDetector extends SparkPipelineRunner.E
     Long durationMillis = duration.getMillis();
     // validate window size
     if (durationMillis < SPARK_MIN_WINDOW.milliseconds()) {
-      throw new IllegalArgumentException("Windowing of size " + durationMillis +
-          "msec is not supported!");
+      throw new IllegalArgumentException("Windowing of size " + durationMillis
+          + "msec is not supported!");
     }
     // choose the smallest duration to be Spark's batch duration, larger ones will be handled
     // as window functions  over the batched-stream

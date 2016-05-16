@@ -156,9 +156,9 @@ class InProcessEvaluationContext {
         commitBundles(result.getOutputBundles());
     // Update watermarks and timers
     CommittedResult committedResult = CommittedResult.create(result,
-        completedBundle == null ?
-            null :
-            completedBundle.withElements((Iterable) result.getUnprocessedElements()),
+        completedBundle == null
+            ? null
+            : completedBundle.withElements((Iterable) result.getUnprocessedElements()),
         committedBundles);
     watermarkManager.updateWatermarks(
         completedBundle,

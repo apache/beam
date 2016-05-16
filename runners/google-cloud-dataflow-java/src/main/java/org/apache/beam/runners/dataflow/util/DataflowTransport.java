@@ -52,8 +52,8 @@ public class DataflowTransport {
   private static ApiComponents apiComponentsFromUrl(String urlString) {
     try {
       URL url = new URL(urlString);
-      String rootUrl = url.getProtocol() + "://" + url.getHost() +
-          (url.getPort() > 0 ? ":" + url.getPort() : "");
+      String rootUrl = url.getProtocol() + "://" + url.getHost()
+          + (url.getPort() > 0 ? ":" + url.getPort() : "");
       return new ApiComponents(rootUrl, url.getPath());
     } catch (MalformedURLException e) {
       throw new RuntimeException("Invalid URL: " + urlString);

@@ -148,9 +148,9 @@ public final class SparkPipelineRunner extends PipelineRunner<EvaluationResult> 
     try {
       // validate streaming configuration
       if (mOptions.isStreaming() && !(mOptions instanceof SparkStreamingPipelineOptions)) {
-        throw new RuntimeException("A streaming job must be configured with " +
-            SparkStreamingPipelineOptions.class.getSimpleName() + ", found " +
-            mOptions.getClass().getSimpleName());
+        throw new RuntimeException("A streaming job must be configured with "
+            + SparkStreamingPipelineOptions.class.getSimpleName() + ", found "
+            + mOptions.getClass().getSimpleName());
       }
       LOG.info("Executing pipeline using the SparkPipelineRunner.");
       JavaSparkContext jsc = SparkContextFactory.getSparkContext(mOptions
@@ -195,8 +195,8 @@ public final class SparkPipelineRunner extends PipelineRunner<EvaluationResult> 
       // Then we find the cause by seeing if it's a user exception (wrapped by our
       // SparkProcessException), or just use the SparkException cause.
       if (e instanceof SparkException && e.getCause() != null) {
-        if (e.getCause() instanceof SparkProcessContext.SparkProcessException &&
-                e.getCause().getCause() != null) {
+        if (e.getCause() instanceof SparkProcessContext.SparkProcessException
+            && e.getCause().getCause() != null) {
           throw new RuntimeException(e.getCause().getCause());
         } else {
           throw new RuntimeException(e.getCause());

@@ -902,8 +902,7 @@ public class DirectPipelineRunner
       LOG.debug("Checking evaluation of {}", value);
       if (value.getProducingTransformInternal() == null) {
         throw new RuntimeException(
-            "internal error: expecting a PValue " +
-            "to have a producingTransform");
+            "internal error: expecting a PValue to have a producingTransform");
       }
       if (!producer.isCompositeNode()) {
         // Verify that primitive transform outputs are already computed.
@@ -918,8 +917,8 @@ public class DirectPipelineRunner
     void setPValue(PValue pvalue, Object contents) {
       if (store.containsKey(pvalue)) {
         throw new IllegalStateException(
-            "internal error: setting the value of " + pvalue +
-            " more than once");
+            "internal error: setting the value of " + pvalue
+            + " more than once");
       }
       store.put(pvalue, contents);
     }
@@ -931,8 +930,8 @@ public class DirectPipelineRunner
     Object getPValue(PValue pvalue) {
       if (!store.containsKey(pvalue)) {
         throw new IllegalStateException(
-            "internal error: getting the value of " + pvalue +
-            " before it has been computed");
+            "internal error: getting the value of " + pvalue
+            + " before it has been computed");
       }
       return store.get(pvalue);
     }
@@ -1247,8 +1246,8 @@ public class DirectPipelineRunner
         // TODO: Put in better element printing:
         // truncate if too long.
         throw new IllegalArgumentException(
-            "unable to encode key " + key + " of input to " + transform +
-            " using " + keyCoder,
+            "unable to encode key " + key + " of input to " + transform
+            + " using " + keyCoder,
             exn);
       }
       GroupingKey<K> groupingKey =

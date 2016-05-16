@@ -1241,9 +1241,9 @@ public class BigQueryIO {
     JobStatistics jobStats = extractJob.getStatistics();
     List<Long> counts = jobStats.getExtract().getDestinationUriFileCounts();
     if (counts.size() != 1) {
-      String errorMessage = (counts.size() == 0 ?
-          "No destination uri file count received." :
-          String.format("More than one destination uri file count received. First two are %s, %s",
+      String errorMessage = (counts.size() == 0
+          ? "No destination uri file count received."
+          : String.format("More than one destination uri file count received. First two are %s, %s",
               counts.get(0), counts.get(1)));
       throw new RuntimeException(errorMessage);
     }
