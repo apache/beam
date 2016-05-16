@@ -63,12 +63,14 @@ import java.io.OutputStream;
 import java.security.GeneralSecurityException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -244,7 +246,8 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
      * from Pubsub but not yet passed downstream at the time of the snapshot.
      * If the checkpoint is for restoring: Same, but recovered from durable storage.
      */
-    private final List<String> notYetReadIds;
+    @VisibleForTesting
+    final List<String> notYetReadIds;
 
     public PubsubCheckpoint(
         @Nullable PubsubReader<T> reader, @Nullable List<String> safeToAckIds,

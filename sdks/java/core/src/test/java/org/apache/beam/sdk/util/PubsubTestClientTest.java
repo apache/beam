@@ -33,6 +33,7 @@ import com.google.common.collect.Sets;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -63,7 +64,9 @@ public class PubsubTestClientTest {
         new IncomingMessage(DATA.getBytes(), MESSAGE_TIME, REQ_TIME, ACK_ID, MESSAGE_ID.getBytes());
     try (PubsubTestClient client =
              new PubsubTestClient(clock, null, SUBSCRIPTION, ACK_TIMEOUT_S, null,
-                                  Lists.newArrayList(expectedIncomingMessage))) {
+                                  Lists.newArrayList(expectedIncomingMessage),
+                                  new HashMap<String, IncomingMessage>(),
+                                  new HashMap<String, Long>())) {
       now.set(REQ_TIME);
       client.advance();
       List<IncomingMessage> incomingMessages = client.pull(now.get(), SUBSCRIPTION, 1, true);
@@ -99,7 +102,7 @@ public class PubsubTestClientTest {
     OutgoingMessage expectedOutgoingMessage = new OutgoingMessage(DATA.getBytes(), MESSAGE_TIME);
     try (PubsubTestClient client =
              new PubsubTestClient(null, TOPIC, null, ACK_TIMEOUT_S,
-                                  Sets.newHashSet(expectedOutgoingMessage), null)) {
+                                  Sets.newHashSet(expectedOutgoingMessage), null, null, null)) {
       client.publish(TOPIC, ImmutableList.of(expectedOutgoingMessage));
     }
   }

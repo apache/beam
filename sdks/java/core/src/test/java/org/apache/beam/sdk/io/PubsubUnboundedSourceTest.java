@@ -28,7 +28,9 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.PubsubUnboundedSource.PubsubCheckpoint;
 import org.apache.beam.sdk.io.PubsubUnboundedSource.PubsubReader;
 import org.apache.beam.sdk.io.PubsubUnboundedSource.PubsubSource;
+import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.PubsubClient;
 import org.apache.beam.sdk.util.PubsubClient.IncomingMessage;
 import org.apache.beam.sdk.util.PubsubClient.PubsubClientFactory;
@@ -82,8 +84,12 @@ public class PubsubUnboundedSourceTest {
       }
     };
     incoming = new ArrayList<>();
+    Map<String, IncomingMessage> pendingAckIncomingMessages = new HashMap<>();
+    Map<String, Long> ackDeadline = new HashMap<>();
+
     PubsubClientFactory factory =
-        PubsubTestClient.createFactoryForPull(clock, SUBSCRIPTION, ACK_TIMEOUT_S, incoming);
+        PubsubTestClient.createFactoryForPull(clock, SUBSCRIPTION, ACK_TIMEOUT_S, incoming,
+                                              pendingAckIncomingMessages, ackDeadline);
     PubsubUnboundedSource<String> source =
         new PubsubUnboundedSource<>(clock, factory, SUBSCRIPTION, StringUtf8Coder.of(),
                                     TIMESTAMP_LABEL, ID_LABEL);
@@ -99,9 +105,16 @@ public class PubsubUnboundedSourceTest {
   }
 
   @Test
+  public void checkpointCoderIsSane() throws Exception {
+    CoderProperties.coderSerializable(primSource.getCheckpointMarkCoder());
+    // Since we only serialize/deserialize the 'notYetReadIds', and we don't want to make
+    // equals on checkpoints ignore those fields, we'll test serialization and deserialization
+    // of checkpoints in multipleReaders below.
+  }
+
+  @Test
   public void readOneMessage() throws IOException {
-    incoming.add(new IncomingMessage(DATA.getBytes(), TIMESTAMP, REQ_TIME, ACK_ID,
-                                     RECORD_ID.getBytes()));
+    incoming.add(new IncomingMessage(DATA.getBytes(), TIMESTAMP, 0, ACK_ID, RECORD_ID.getBytes()));
     TestPipeline p = TestPipeline.create();
     PubsubReader<String> reader = primSource.createReader(p.getOptions(), null);
     // Read one message.
@@ -116,8 +129,7 @@ public class PubsubUnboundedSourceTest {
 
   @Test
   public void timeoutAckAndRereadOneMessage() throws IOException {
-    incoming.add(new IncomingMessage(DATA.getBytes(), TIMESTAMP, REQ_TIME, ACK_ID,
-                                     RECORD_ID.getBytes()));
+    incoming.add(new IncomingMessage(DATA.getBytes(), TIMESTAMP, 0, ACK_ID, RECORD_ID.getBytes()));
     TestPipeline p = TestPipeline.create();
     PubsubReader<String> reader = primSource.createReader(p.getOptions(), null);
     PubsubTestClient pubsubClient = (PubsubTestClient) reader.getPubsubClient();
@@ -138,8 +150,7 @@ public class PubsubUnboundedSourceTest {
 
   @Test
   public void extendAck() throws IOException {
-    incoming.add(new IncomingMessage(DATA.getBytes(), TIMESTAMP, REQ_TIME, ACK_ID,
-                                     RECORD_ID.getBytes()));
+    incoming.add(new IncomingMessage(DATA.getBytes(), TIMESTAMP, 0, ACK_ID, RECORD_ID.getBytes()));
     TestPipeline p = TestPipeline.create();
     PubsubReader<String> reader = primSource.createReader(p.getOptions(), null);
     PubsubTestClient pubsubClient = (PubsubTestClient) reader.getPubsubClient();
@@ -161,8 +172,7 @@ public class PubsubUnboundedSourceTest {
 
   @Test
   public void timeoutAckExtensions() throws IOException {
-    incoming.add(new IncomingMessage(DATA.getBytes(), TIMESTAMP, REQ_TIME, ACK_ID,
-                                     RECORD_ID.getBytes()));
+    incoming.add(new IncomingMessage(DATA.getBytes(), TIMESTAMP, 0, ACK_ID, RECORD_ID.getBytes()));
     TestPipeline p = TestPipeline.create();
     PubsubReader<String> reader = primSource.createReader(p.getOptions(), null);
     PubsubTestClient pubsubClient = (PubsubTestClient) reader.getPubsubClient();
@@ -190,12 +200,59 @@ public class PubsubUnboundedSourceTest {
     reader.close();
   }
 
+  @Test
+  public void multipleReaders() throws IOException {
+    for (int i = 0; i < 2; i++) {
+      String data = String.format("data_%d", i);
+      String ackid = String.format("ackid_%d", i);
+      incoming.add(new IncomingMessage(data.getBytes(), TIMESTAMP, 0, ackid, RECORD_ID.getBytes()));
+    }
+
+    TestPipeline p = TestPipeline.create();
+    PubsubReader<String> reader = primSource.createReader(p.getOptions(), null);
+    PubsubTestClient pubsubClient = (PubsubTestClient) reader.getPubsubClient();
+    // Consume two messages, only read one.
+    assertTrue(reader.start());
+    assertEquals("data_0", reader.getCurrent());
+
+    // Grab checkpoint.
+    PubsubCheckpoint<String> checkpoint = reader.getCheckpointMark();
+    checkpoint.finalizeCheckpoint();
+    assertEquals(1, checkpoint.notYetReadIds.size());
+    assertEquals("ackid_1", checkpoint.notYetReadIds.get(0));
+
+    // Read second message.
+    assertTrue(reader.advance());
+    assertEquals("data_1", reader.getCurrent());
+
+    // Restore from checkpoint.
+    byte[] checkpointBytes =
+        CoderUtils.encodeToByteArray(primSource.getCheckpointMarkCoder(), checkpoint);
+    checkpoint = CoderUtils.decodeFromByteArray(primSource.getCheckpointMarkCoder(),
+                                                checkpointBytes);
+    assertEquals(1, checkpoint.notYetReadIds.size());
+    assertEquals("ackid_1", checkpoint.notYetReadIds.get(0));
+
+    // Re-read second message.
+    reader = primSource.createReader(p.getOptions(), checkpoint);
+    assertTrue(reader.start());
+    assertEquals("data_1", reader.getCurrent());
+
+    // We are done.
+    assertFalse(reader.advance());
+
+    // ACK final message.
+    checkpoint = reader.getCheckpointMark();
+    checkpoint.finalizeCheckpoint();
+    reader.close();
+  }
+
   private long messageNumToTimestamp(int messageNum) {
     return TIMESTAMP + messageNum * 100;
   }
 
   @Test
-  public void manyMessages() throws IOException {
+  public void readManyMessages() throws IOException {
     Map<String, Integer> dataToMessageNum = new HashMap<>();
 
     final int m = 97;
@@ -237,7 +294,6 @@ public class PubsubUnboundedSourceTest {
       if (i % 1000 == 999) {
         // Estimated watermark can never get ahead of actual outstanding messages.
         long watermark = reader.getWatermark().getMillis();
-        System.out.printf("**** watermark %d ****\n", watermark);
         long minOutstandingTimestamp = Long.MAX_VALUE;
         for (Integer outstandingMessageNum : dataToMessageNum.values()) {
           minOutstandingTimestamp =

@@ -28,7 +28,6 @@ import com.google.common.annotations.VisibleForTesting;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -49,7 +48,8 @@ public class PubsubTestClient extends PubsubClient {
       public PubsubClient newClient(
           @Nullable String timestampLabel, @Nullable String idLabel, PubsubOptions options)
           throws IOException {
-        return new PubsubTestClient(null, expectedTopic, null, 0, expectedOutgoingMessages, null);
+        return new PubsubTestClient(null, expectedTopic, null, 0, expectedOutgoingMessages, null,
+                                    null, null);
       }
 
       @Override
@@ -61,16 +61,19 @@ public class PubsubTestClient extends PubsubClient {
 
   public static PubsubClientFactory createFactoryForPull(
       final Clock clock,
-      @Nullable final SubscriptionPath expectedSubscription,
+      final SubscriptionPath expectedSubscription,
       final int ackTimeoutSec,
-      @Nullable final List<IncomingMessage> expectedIncomingMessages) {
+      final List<IncomingMessage> expectedIncomingMessages,
+      final Map<String, IncomingMessage> pendingAckIncomingMessages,
+      final Map<String, Long> ackDeadline) {
     return new PubsubClientFactory() {
       @Override
       public PubsubClient newClient(
           @Nullable String timestampLabel, @Nullable String idLabel, PubsubOptions options)
           throws IOException {
         return new PubsubTestClient(clock, null, expectedSubscription, ackTimeoutSec,
-                                    null, expectedIncomingMessages);
+                                    null, expectedIncomingMessages, pendingAckIncomingMessages,
+                                    ackDeadline);
       }
 
       @Override
@@ -118,11 +121,13 @@ public class PubsubTestClient extends PubsubClient {
    * Messages which have been returned from a {@link #pull} call and
    * not yet ACKed by an {@link #acknowledge} call.
    */
+  @Nullable
   private Map<String, IncomingMessage> pendingAckIncomingMessages;
 
   /**
    * When above messages are due to have their ACK deadlines expire.
    */
+  @Nullable
   private Map<String, Long> ackDeadline;
 
   @VisibleForTesting
@@ -132,25 +137,44 @@ public class PubsubTestClient extends PubsubClient {
       @Nullable SubscriptionPath expectedSubscription,
       int ackTimeoutSec,
       @Nullable Set<OutgoingMessage> expectedOutgoingMessages,
-      @Nullable List<IncomingMessage> expectedIncomingMessages) {
+      @Nullable List<IncomingMessage> expectedIncomingMessages,
+      @Nullable Map<String, IncomingMessage> pendingAckIncomingMessages,
+      @Nullable Map<String, Long> ackDeadline) {
     this.clock = clock;
     this.expectedTopic = expectedTopic;
     this.expectedSubscription = expectedSubscription;
     this.ackTimeoutSec = ackTimeoutSec;
-
     this.remainingExpectedOutgoingMessages = expectedOutgoingMessages;
     this.remainingPendingIncomingMessages = expectedIncomingMessages;
-
-    this.pendingAckIncomingMessages = new HashMap<>();
-    this.ackDeadline = new HashMap<>();
+    this.pendingAckIncomingMessages = pendingAckIncomingMessages;
+    this.ackDeadline = ackDeadline;
   }
 
   /**
+   * Return true if in pull mode, false if in publish mode, and check fail if neither.
+   */
+  private boolean inPullMode() {
+    if (expectedSubscription != null) {
+      checkNotNull(clock, "Missing clock in pull mode");
+      checkNotNull(remainingPendingIncomingMessages,
+                   "Missing pending incoming messages in pull mode");
+      checkNotNull(pendingAckIncomingMessages, "Missing pending ack map in pull mode");
+      checkNotNull(ackDeadline, "Missing ack deadline map in pull mode");
+      return true;
+    } else {
+      checkNotNull(expectedTopic, "Missing topic in publish mode");
+      checkNotNull(remainingExpectedOutgoingMessages, "Missing outgoing messages in publish mode");
+      return false;
+    }
+  }
+
+  /**
+   * For subscription mode only:
    * Track progression of time according to {@link #clock}. This will simulate Pubsub expiring
    * outstanding ACKs.
    */
   public void advance() {
-    checkNotNull(clock, "Missing expected clock");
+    checkState(inPullMode(), "Can only advance in pull mode");
     // Any messages who's ACKs timed out are available for re-pulling.
     Iterator<Map.Entry<String, Long>> deadlineItr = ackDeadline.entrySet().iterator();
     while (deadlineItr.hasNext()) {
@@ -185,8 +209,7 @@ public class PubsubTestClient extends PubsubClient {
   @Override
   public int publish(
       TopicPath topic, List<OutgoingMessage> outgoingMessages) throws IOException {
-    checkNotNull(expectedTopic, "Missing expected topic");
-    checkNotNull(remainingExpectedOutgoingMessages, "Missing expected outgoing messages");
+    checkState(!inPullMode(), "Can only publish in publish mode");
     checkState(topic.equals(expectedTopic), "Topic %s does not match expected %s", topic,
                expectedTopic);
     for (OutgoingMessage outgoingMessage : outgoingMessages) {
@@ -200,12 +223,10 @@ public class PubsubTestClient extends PubsubClient {
   public List<IncomingMessage> pull(
       long requestTimeMsSinceEpoch, SubscriptionPath subscription, int batchSize,
       boolean returnImmediately) throws IOException {
-    checkNotNull(clock, "Missing expected clock");
+    checkState(inPullMode(), "Can only pull in pull mode");
     long now = clock.currentTimeMillis();
     checkState(requestTimeMsSinceEpoch == now,
                "Simulated time %s does not match request time %s", now, requestTimeMsSinceEpoch);
-    checkNotNull(expectedSubscription, "Missing expected subscription");
-    checkNotNull(remainingPendingIncomingMessages, "Missing expected incoming messages");
     checkState(subscription.equals(expectedSubscription),
                "Subscription %s does not match expected %s", subscription, expectedSubscription);
     checkState(returnImmediately, "PubsubTestClient only supports returning immediately");
@@ -233,8 +254,7 @@ public class PubsubTestClient extends PubsubClient {
   public void acknowledge(
       SubscriptionPath subscription,
       List<String> ackIds) throws IOException {
-    checkNotNull(expectedSubscription, "Missing expected subscription");
-    checkNotNull(remainingPendingIncomingMessages, "Missing expected incoming messages");
+    checkState(inPullMode(), "Can only acknowledge in pull mode");
     checkState(subscription.equals(expectedSubscription),
                "Subscription %s does not match expected %s", subscription, expectedSubscription);
 
@@ -249,18 +269,24 @@ public class PubsubTestClient extends PubsubClient {
   @Override
   public void modifyAckDeadline(
       SubscriptionPath subscription, List<String> ackIds, int deadlineSeconds) throws IOException {
-    checkNotNull(clock, "Missing expected clock");
-    checkNotNull(expectedSubscription, "Missing expected subscription");
-    checkNotNull(remainingPendingIncomingMessages, "Missing expected incoming messages");
+    checkState(inPullMode(), "Can only modify ack deadline in pull mode");
     checkState(subscription.equals(expectedSubscription),
                "Subscription %s does not match expected %s", subscription, expectedSubscription);
 
     for (String ackId : ackIds) {
-      checkState(ackDeadline.remove(ackId) != null,
-                 "No message with ACK id %s is outstanding", ackId);
-      checkState(pendingAckIncomingMessages.containsKey(ackId),
-                 "No message with ACK id %s is outstanding", ackId);
-      ackDeadline.put(ackId, clock.currentTimeMillis() + deadlineSeconds * 1000);
+      if (deadlineSeconds > 0) {
+        checkState(ackDeadline.remove(ackId) != null,
+                   "No message with ACK id %s is outstanding", ackId);
+        checkState(pendingAckIncomingMessages.containsKey(ackId),
+                   "No message with ACK id %s is outstanding", ackId);
+        ackDeadline.put(ackId, clock.currentTimeMillis() + deadlineSeconds * 1000);
+      } else {
+        checkState(ackDeadline.remove(ackId) != null,
+                   "No message with ACK id %s is outstanding", ackId);
+        IncomingMessage message = pendingAckIncomingMessages.remove(ackId);
+        checkState(message != null, "No message with ACK id %s is outstanding", ackId);
+        remainingPendingIncomingMessages.add(message);
+      }
     }
   }
 
@@ -303,6 +329,7 @@ public class PubsubTestClient extends PubsubClient {
 
   @Override
   public boolean isEOF() {
+    checkState(inPullMode(), "Can only check EOF in pull mode");
     return remainingPendingIncomingMessages.isEmpty();
   }
 }
