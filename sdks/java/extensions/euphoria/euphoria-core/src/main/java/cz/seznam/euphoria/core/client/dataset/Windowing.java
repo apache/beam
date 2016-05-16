@@ -283,7 +283,7 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
       private final long startTime;
       private final long duration;
 
-      public SlidingWindow(long startTime, long duration) {
+      private SlidingWindow(long startTime, long duration) {
         this.startTime = startTime;
         this.duration = duration;
       }
