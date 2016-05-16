@@ -334,7 +334,7 @@ public class AvroIO {
           .addIfNotNull(DisplayData.item("filePattern", filepattern)
             .withLabel("Input File Pattern"))
           .addIfNotDefault(DisplayData.item("validation", validate)
-            .withLabel("Validate Paths"), true);
+            .withLabel("Validation Enabled"), true);
       }
 
       @Override
@@ -707,10 +707,10 @@ public class AvroIO {
                 .withLabel("Output File Suffix"),
                 "")
             .addIfNotDefault(DisplayData.item("numShards", numShards)
-                .withLabel("Maximum Shard Count"),
+                .withLabel("Maximum Output Shards"),
                 0)
             .addIfNotDefault(DisplayData.item("validation", validate)
-                .withLabel("Validate Paths"),
+                .withLabel("Validation Enabled"),
                 true);
       }
 

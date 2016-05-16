@@ -135,6 +135,23 @@ public class PubsubIO {
   }
 
   /**
+   * Populate common {@link DisplayData} between Pubsub source and sink.
+   */
+  private static void populateCommonDisplayData(DisplayData.Builder builder,
+      String timestampLabel, String idLabel, PubsubTopic topic) {
+    builder
+        .addIfNotNull(DisplayData.item("timestampLabel", timestampLabel)
+            .withLabel("Timestamp Label Attribute"))
+        .addIfNotNull(DisplayData.item("idLabel", idLabel)
+            .withLabel("ID Label Attribute"));
+
+    if (topic != null) {
+      builder.add(DisplayData.item("topic", topic.asPath())
+          .withLabel("Pubsub Topic"));
+    }
+  }
+
+  /**
    * Class representing a Cloud Pub/Sub Subscription.
    */
   public static class PubsubSubscription implements Serializable {
@@ -641,21 +658,13 @@ public class PubsubIO {
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
         super.populateDisplayData(builder);
+        populateCommonDisplayData(builder, timestampLabel, idLabel, topic);
 
         builder
-            .addIfNotNull(DisplayData.item("timestampLabel", timestampLabel)
-              .withLabel("Timestamp Label Attribute"))
-            .addIfNotNull(DisplayData.item("idLabel", idLabel)
-              .withLabel("ID Label Attribute"))
             .addIfNotNull(DisplayData.item("maxReadTime", maxReadTime)
               .withLabel("Maximum Read Time"))
             .addIfNotDefault(DisplayData.item("maxNumRecords", maxNumRecords)
               .withLabel("Maximum Read Records"), 0);
-
-        if (topic != null) {
-          builder.add(DisplayData.item("topic", topic.asPath())
-            .withLabel("Pubsub Topic"));
-        }
 
         if (subscription != null) {
           builder.add(DisplayData.item("subscription", subscription.asPath())
@@ -959,17 +968,7 @@ public class PubsubIO {
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
         super.populateDisplayData(builder);
-
-        builder
-            .addIfNotNull(DisplayData.item("timestampLabel", timestampLabel)
-              .withLabel("Timestamp Label Attribute"))
-            .addIfNotNull(DisplayData.item("idLabel", idLabel)
-              .withLabel("ID Label Attribute"));
-
-        if (topic != null) {
-          builder.add(DisplayData.item("topic", topic.asPath())
-            .withLabel("Pubsub Topic"));
-        }
+        populateCommonDisplayData(builder, timestampLabel, idLabel, topic);
       }
 
       @Override

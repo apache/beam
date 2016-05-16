@@ -641,7 +641,7 @@ public class BigQueryIO {
             .addIfNotNull(DisplayData.item("flattenResults", flattenResults)
               .withLabel("Flatten Query Results"))
             .addIfNotDefault(DisplayData.item("validation", validate)
-              .withLabel("Validate Paths"),
+              .withLabel("Validation Enabled"),
                 true);
       }
 
@@ -1774,7 +1774,7 @@ public class BigQueryIO {
             .add(DisplayData.item("writeDisposition", writeDisposition.toString())
               .withLabel("Table WriteDisposition"))
             .addIfNotDefault(DisplayData.item("validation", validate)
-              .withLabel("Validate Paths"), true);
+              .withLabel("Validation Enabled"), true);
       }
 
       /** Returns the create disposition. */

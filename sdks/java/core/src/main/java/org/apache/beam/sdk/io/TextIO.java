@@ -347,7 +347,7 @@ public class TextIO {
             .add(DisplayData.item("compressionType", compressionType.toString())
               .withLabel("Compression Type"))
             .addIfNotDefault(DisplayData.item("validation", validate)
-              .withLabel("Validate Paths"), true)
+              .withLabel("Validation Enabled"), true)
             .addIfNotNull(DisplayData.item("filePattern", filepattern)
               .withLabel("File Pattern"));
       }
@@ -660,9 +660,9 @@ public class TextIO {
               .withLabel("Output Shard Name Template"),
                 DEFAULT_SHARD_TEMPLATE)
             .addIfNotDefault(DisplayData.item("validation", validate)
-              .withLabel("Validate Paths"), true)
+              .withLabel("Validation Enabled"), true)
             .addIfNotDefault(DisplayData.item("numShards", numShards)
-              .withLabel("Maximum Shard Count"), 0);
+              .withLabel("Maximum Output Shards"), 0);
       }
 
       /**
