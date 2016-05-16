@@ -274,6 +274,86 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
     }
   } // ~ end of Count
 
+
+  public static final class TimeSliding<T>
+      implements AlignedWindowing<T, Long, TimeSliding.SlidingWindow> {
+
+    public static class SlidingWindow implements AlignedWindow<Long> {
+
+      private final long startTime;
+      private final long duration;
+
+      public SlidingWindow(long startTime, long duration) {
+        this.startTime = startTime;
+        this.duration = duration;
+      }
+
+      @Override
+      public Long getLabel() {
+        return startTime;
+      }
+
+      @Override
+      public void registerTrigger(
+          Triggering triggering, UnaryFunction<Window<?, ?>, Void> evict) {
+        long now = System.currentTimeMillis();
+        triggering.scheduleOnce(duration - (now - startTime),
+            () -> evict.apply(this));
+      }
+
+      @Override
+      public boolean equals(Object obj) {
+        if (obj == this) return true;
+        if (obj instanceof SlidingWindow) {
+          SlidingWindow other = (SlidingWindow) obj;
+          return other.startTime == startTime;
+        }
+        return false;
+      }
+
+      @Override
+      public int hashCode() {
+        return (int) (startTime ^ (startTime >>> Integer.SIZE));
+      }
+
+
+    }
+
+    public static <T> TimeSliding<T> of(long duration, long step) {
+      return new TimeSliding<>(duration, step);
+    }
+
+    private final long duration;
+    private final long step;
+    private final int stepsPerWindow;
+
+    private TimeSliding(long duration, long step) {
+      this.duration = duration;
+      this.step = step;
+
+      if (duration % step != 0) {
+        throw new IllegalArgumentException(
+            "This time sliding window can manage only aligned sliding windows");
+      }
+      stepsPerWindow = (int) (duration / step);
+    }
+
+
+    @Override
+    public Set<SlidingWindow> assignWindows(T input) {
+      long now = System.currentTimeMillis() - duration + step;
+      long boundary = now / step * step;
+      Set<SlidingWindow> ret = new HashSet<>();
+      for (int i = 0; i < stepsPerWindow; i++) {
+        ret.add(new SlidingWindow(boundary, duration));
+        boundary += step;
+      }
+      return ret;
+    }
+
+
+  }
+
   Set<W> assignWindows(T input);
 
   default boolean isAggregating() {

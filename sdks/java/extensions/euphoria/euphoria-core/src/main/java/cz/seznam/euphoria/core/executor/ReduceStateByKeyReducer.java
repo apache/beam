@@ -201,6 +201,7 @@ class ReduceStateByKeyReducer implements Runnable {
       return wStorage.getAllWindowsList(windowGroup);
     }
 
+    @SuppressWarnings("unchecked")
     public void mergeWindows(Collection<Window> toBeMerged, Window mergeWindow) {
       // ~ make sure 'mergeWindow' does exist
       Pair<Window, Map<Object, State>> ws = getWindowKeyStates(mergeWindow, true);
@@ -342,14 +343,13 @@ class ReduceStateByKeyReducer implements Runnable {
         if (actives.isEmpty()) {
           // ~ we've seen the group ... so we must have some actives
           throw new IllegalStateException("No active windows!");
-        } else {
-          Collection<Pair<Collection<Window>, Window>> merges
-              = mwindowing.mergeWindows(actives);
-          if (merges != null && !merges.isEmpty()) {
-            for (Pair<Collection<Window>, Window> merge : merges) {
-              processing.mergeWindows(merge.getFirst(), merge.getSecond());
-              triggerIfComplete(mwindowing, merge.getSecond());
-            }
+        }
+        Collection<Pair<Collection<Window>, Window>> merges
+            = mwindowing.mergeWindows(actives);
+        if (merges != null && !merges.isEmpty()) {
+          for (Pair<Collection<Window>, Window> merge : merges) {
+            processing.mergeWindows(merge.getFirst(), merge.getSecond());
+            triggerIfComplete(mwindowing, merge.getSecond());
           }
         }
       }
