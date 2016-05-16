@@ -407,19 +407,24 @@ public class InMemExecutor implements Executor {
         executor.execute(() -> {
           // copy the original data to all queues
           for (;;) {
-            for (BlockingQueue ch : outputs) {
-              try {
-                ch.put(partSup.get());
-              } catch (InterruptedException ex) {
-                return;
-              } catch (EndOfStreamException ex) {
+            try {
+              Object item = partSup.get();
+              for (BlockingQueue ch : outputs) {
+                try {
+                  ch.put(item);
+                } catch (InterruptedException ex) {
+                  return;
+                }
+              }
+            } catch (EndOfStreamException ex) {
+              for (BlockingQueue ch : outputs) {
                 try {
                   ch.put(EndOfStream.get());
                 } catch (InterruptedException e) {
                   // ignore
                 }
-                return;
               }
+              return;
             }
           }
         });

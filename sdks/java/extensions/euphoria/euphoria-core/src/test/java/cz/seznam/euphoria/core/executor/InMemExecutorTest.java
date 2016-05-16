@@ -22,7 +22,6 @@ import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -665,8 +664,8 @@ public class InMemExecutorTest {
     ListDataSink<Integer> mapOut = ListDataSink.get(1);
     map.persist(mapOut);
 
-    Dataset<Pair<Integer, Integer>> sum =
-        ReduceByKey.of(input)
+    Dataset<Pair<Integer, Integer>> sum = ReduceByKey
+        .of(input)
         .keyBy(e -> 0)
         .valueBy(e -> e)
         .reduceBy(Sums.ofInts())
