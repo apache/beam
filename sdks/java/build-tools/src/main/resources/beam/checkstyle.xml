@@ -389,6 +389,16 @@ page at http://checkstyle.sourceforge.net/config.html -->
       <property name="severity" value="error"/>
     </module>
 
+    <module name="OperatorWrap">
+      <!-- Checks that operators like + and ? appear at newlines rather than
+           at the end of the previous line.
+      -->
+      <property name="option" value="NL"/>
+      <property name="tokens" value="BAND, BOR, BSR, BXOR, DIV, EQUAL,
+        GE, GT, LAND, LE, LITERAL_INSTANCEOF, LOR, LT, MINUS, MOD,
+        NOT_EQUAL, PLUS, QUESTION, SL, SR, STAR "/>
+    </module>
+
     <module name="ParenPad">
       <!-- Checks that there is no whitespace before close parens or after
            open parens.

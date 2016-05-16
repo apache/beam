@@ -94,8 +94,8 @@ public abstract class SparkProcessContext<InputT, OutputT, ValueT>
 
   @Override
   public <T> void sideOutput(TupleTag<T> tupleTag, T t) {
-    String message = "sideOutput is an unsupported operation for doFunctions, use a " +
-        "MultiDoFunction instead.";
+    String message = "sideOutput is an unsupported operation for doFunctions, use a "
+        + "MultiDoFunction instead.";
     LOG.warn(message);
     throw new UnsupportedOperationException(message);
   }
@@ -103,8 +103,8 @@ public abstract class SparkProcessContext<InputT, OutputT, ValueT>
   @Override
   public <T> void sideOutputWithTimestamp(TupleTag<T> tupleTag, T t, Instant instant) {
     String message =
-        "sideOutputWithTimestamp is an unsupported operation for doFunctions, use a " +
-            "MultiDoFunction instead.";
+        "sideOutputWithTimestamp is an unsupported operation for doFunctions, use a "
+            + "MultiDoFunction instead.";
     LOG.warn(message);
     throw new UnsupportedOperationException(message);
   }

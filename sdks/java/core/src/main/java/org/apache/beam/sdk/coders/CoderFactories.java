@@ -96,11 +96,11 @@ public final class CoderFactories {
       try {
         return (Coder) factoryMethod.invoke(
             null /* static */, componentCoders.toArray());
-      } catch (IllegalAccessException |
-               IllegalArgumentException |
-               InvocationTargetException |
-               NullPointerException |
-               ExceptionInInitializerError exn) {
+      } catch (IllegalAccessException
+           | IllegalArgumentException
+           | InvocationTargetException
+           | NullPointerException
+           | ExceptionInInitializerError exn) {
         throw new IllegalStateException(
             "error when invoking Coder factory method " + factoryMethod,
             exn);

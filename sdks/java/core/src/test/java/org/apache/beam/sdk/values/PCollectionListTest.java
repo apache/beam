@@ -41,8 +41,8 @@ public class PCollectionListTest {
       assertThat(
           exn.toString(),
           containsString(
-              "must either have a non-empty list of PCollections, " +
-              "or must first call empty(Pipeline)"));
+              "must either have a non-empty list of PCollections, "
+              + "or must first call empty(Pipeline)"));
     }
   }
 }

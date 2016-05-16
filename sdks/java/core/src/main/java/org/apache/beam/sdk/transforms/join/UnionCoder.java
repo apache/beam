@@ -60,8 +60,8 @@ class UnionCoder extends StandardCoder<RawUnionValue> {
     int index = union.getUnionTag();
     if (index < 0 || index >= elementCoders.size()) {
       throw new IllegalArgumentException(
-          "union value index " + index + " not in range [0.." +
-          (elementCoders.size() - 1) + "]");
+          "union value index " + index + " not in range [0.."
+          + (elementCoders.size() - 1) + "]");
     }
     return index;
   }

@@ -941,8 +941,8 @@ public class KafkaIO {
           curTimestamp = source.timestampFn.apply(record);
           curRecord = record;
 
-          int recordSize = (rawRecord.key() == null ? 0 : rawRecord.key().length) +
-              (rawRecord.value() == null ? 0 : rawRecord.value().length);
+          int recordSize = (rawRecord.key() == null ? 0 : rawRecord.key().length)
+              + (rawRecord.value() == null ? 0 : rawRecord.value().length);
           pState.recordConsumed(offset, recordSize);
           return true;
 
@@ -993,8 +993,8 @@ public class KafkaIO {
         return initialWatermark;
       }
 
-      return source.watermarkFn.isPresent() ?
-          source.watermarkFn.get().apply(curRecord) : curTimestamp;
+      return source.watermarkFn.isPresent()
+          ? source.watermarkFn.get().apply(curRecord) : curTimestamp;
     }
 
     @Override

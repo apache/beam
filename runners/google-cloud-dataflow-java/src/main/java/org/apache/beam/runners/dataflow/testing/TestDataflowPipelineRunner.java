@@ -144,8 +144,8 @@ public class TestDataflowPipelineRunner extends PipelineRunner<DataflowPipelineJ
         throw new IllegalStateException(
             "The dataflow did not output a success or failure metric.");
       } else if (!result.get()) {
-        throw new AssertionError(messageHandler.getErrorMessage() == null ?
-            "The dataflow did not return a failure reason."
+        throw new AssertionError(messageHandler.getErrorMessage() == null
+            ? "The dataflow did not return a failure reason."
             : messageHandler.getErrorMessage());
       } else {
         assertThat(job, testPipelineOptions.getOnSuccessMatcher());
