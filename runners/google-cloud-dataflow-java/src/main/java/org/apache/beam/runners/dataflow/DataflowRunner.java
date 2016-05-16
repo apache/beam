@@ -60,6 +60,7 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.AvroIO;
 import org.apache.beam.sdk.io.BigQueryIO;
+import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.PubsubIO;
 import org.apache.beam.sdk.io.PubsubUnboundedSink;
@@ -67,6 +68,7 @@ import org.apache.beam.sdk.io.PubsubUnboundedSource;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.ShardNameTemplate;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.io.UnboundedReadFromBoundedSource;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.Write;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -353,11 +355,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       builder.put(View.AsIterable.class, StreamingViewAsIterable.class);
       builder.put(Write.Bound.class, StreamingWrite.class);
       builder.put(Read.Unbounded.class, StreamingUnboundedRead.class);
-      builder.put(Read.Bounded.class, UnsupportedIO.class);
-      builder.put(AvroIO.Read.Bound.class, UnsupportedIO.class);
+      builder.put(Read.Bounded.class, StreamingBoundedRead.class);
       builder.put(AvroIO.Write.Bound.class, UnsupportedIO.class);
       builder.put(BigQueryIO.Read.Bound.class, UnsupportedIO.class);
-      builder.put(TextIO.Read.Bound.class, UnsupportedIO.class);
       builder.put(TextIO.Write.Bound.class, UnsupportedIO.class);
       builder.put(Window.Bound.class, AssignWindows.class);
       // In streaming mode must use either the custom Pubsub unbounded source/sink or
@@ -2620,6 +2620,37 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                   c.output(c.element().getValue().getValue());
                 }
               }));
+    }
+  }
+
+  /**
+   * Specialized implementation for
+   * {@link org.apache.beam.sdk.io.Read.Bounded Read.Bounded} for the
+   * Dataflow runner in streaming mode.
+   */
+  private static class StreamingBoundedRead<T> extends PTransform<PInput, PCollection<T>> {
+    private final BoundedSource<T> source;
+
+    /**
+      * Builds an instance of this class from the overridden transform.
+      */
+    @SuppressWarnings("unused") // used via reflection in DataflowPipelineRunner#apply()
+    public StreamingBoundedRead(DataflowPipelineRunner runner, Read.Bounded<T> transform) {
+      this.source = transform.getSource();
+    }
+
+    @Override
+    protected Coder<T> getDefaultOutputCoder() {
+      return source.getDefaultOutputCoder();
+    }
+
+    @Override
+    public final PCollection<T> apply(PInput input) {
+      source.validate();
+
+      return Pipeline
+          .applyTransform(input, new UnboundedReadFromBoundedSource<>(source))
+          .setIsBoundedInternal(IsBounded.BOUNDED);
     }
   }
 
