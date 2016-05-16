@@ -179,6 +179,9 @@ public class OffsetRangeTracker implements RangeTracker<Long> {
     if (stopOffset == OFFSET_INFINITY) {
       return 0.0;
     }
+    if (lastRecordStart >= stopOffset) {
+      return 1.0;
+    }
     // E.g., when reading [3, 6) and lastRecordStart is 4, that means we consumed 3,4 of 3,4,5
     // which is (4 - 3 + 1) / (6 - 3) = 67%.
     // Also, clamp to at most 1.0 because the last consumed position can extend past the

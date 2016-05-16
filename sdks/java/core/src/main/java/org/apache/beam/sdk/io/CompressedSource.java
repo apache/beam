@@ -362,8 +362,7 @@ public class CompressedSource<T> extends FileBasedSource<T> {
     private final FileBasedReader<T> readerDelegate;
     private final CompressedSource<T> source;
     private final boolean splittable;
-    private int numRecordsRead;
-    private volatile boolean done = false;
+    private volatile int numRecordsRead;
 
     /**
      * Create a {@code CompressedReader} from a {@code CompressedSource} and delegate reader.
@@ -395,7 +394,7 @@ public class CompressedSource<T> extends FileBasedSource<T> {
         return readerDelegate.getParallelismConsumed();
       }
 
-      return done ? 1 : 0;
+      return (isDone() && numRecordsRead > 0) ? 1 : 0;
     }
 
     @Override
@@ -404,7 +403,7 @@ public class CompressedSource<T> extends FileBasedSource<T> {
         return readerDelegate.getParallelismRemaining();
       }
 
-      return done ? 0 : 1;
+      return isDone() ? 0 : 1;
     }
 
     /**
@@ -448,7 +447,6 @@ public class CompressedSource<T> extends FileBasedSource<T> {
     @Override
     protected final boolean readNextRecord() throws IOException {
       if (!readerDelegate.readNextRecord()) {
-        done = true;
         return false;
       }
       ++numRecordsRead;
