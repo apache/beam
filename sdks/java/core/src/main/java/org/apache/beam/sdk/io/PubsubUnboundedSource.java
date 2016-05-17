@@ -49,6 +49,7 @@ import org.apache.beam.sdk.values.PCollection;
 
 import com.google.api.client.util.Clock;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Charsets;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
@@ -102,6 +103,9 @@ import javax.annotation.Nullable;
  * are blocking. We rely on the underlying runner to allow multiple
  * {@link UnboundedSource.UnboundedReader} instances to execute concurrently and thus hide latency.
  * </ul>
+ *
+ * <p>NOTE: This is not the implementation used when running on the Google Dataflow hosted
+ * service.
  */
 public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>> {
   private static final Logger LOG = LoggerFactory.getLogger(PubsubUnboundedSource.class);
@@ -292,6 +296,17 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
     }
 
     /**
+     * Return current time according to {@code reader}.
+     */
+    private static long now(PubsubReader reader) {
+      if (reader.outer.outer.clock == null) {
+        return System.currentTimeMillis();
+      } else {
+        return reader.outer.outer.clock.currentTimeMillis();
+      }
+    }
+
+    /**
      * BLOCKING
      * NACK all messages which have been read from Pubsub but not passed downstream.
      * This way Pubsub will send them again promptly.
@@ -303,13 +318,13 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
       for (String ackId : notYetReadIds) {
         batchYetToAckIds.add(ackId);
         if (batchYetToAckIds.size() >= ACK_BATCH_SIZE) {
-          long nowMsSinceEpoch = reader.outer.outer.clock.currentTimeMillis();
+          long nowMsSinceEpoch = now(reader);
           reader.nackBatch(nowMsSinceEpoch, batchYetToAckIds);
           batchYetToAckIds.clear();
         }
       }
       if (!batchYetToAckIds.isEmpty()) {
-        long nowMsSinceEpoch = reader.outer.outer.clock.currentTimeMillis();
+        long nowMsSinceEpoch = now(reader);
         reader.nackBatch(nowMsSinceEpoch, batchYetToAckIds);
       }
     }
@@ -614,7 +629,11 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
      * Return the current time, in ms since epoch.
      */
     private long now() {
-      return outer.outer.clock.currentTimeMillis();
+      if (outer.outer.clock == null) {
+        return System.currentTimeMillis();
+      } else {
+        return outer.outer.clock.currentTimeMillis();
+      }
     }
 
     /**
@@ -928,7 +947,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
       if (current == null) {
         throw new NoSuchElementException();
       }
-      return current.recordId;
+      return current.recordId.getBytes(Charsets.UTF_8);
     }
 
     @Override
@@ -1124,8 +1143,9 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
   // ================================================================================
 
   /**
-   * Clock to use for all timekeeping.
+   * For testing only: Clock to use for all timekeeping. If {@literal null} use system clock.
    */
+  @Nullable
   private Clock clock;
 
   /**
@@ -1159,10 +1179,8 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
   @Nullable
   private final String idLabel;
 
-  /**
-   * Construct an unbounded source to consume from the Pubsub {@code subscription}.
-   */
-  public PubsubUnboundedSource(
+  @VisibleForTesting
+  PubsubUnboundedSource(
       Clock clock,
       PubsubClientFactory pubsubFactory,
       SubscriptionPath subscription,
@@ -1175,6 +1193,18 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
     this.elementCoder = checkNotNull(elementCoder);
     this.timestampLabel = timestampLabel;
     this.idLabel = idLabel;
+  }
+
+  /**
+   * Construct an unbounded source to consume from the Pubsub {@code subscription}.
+   */
+  public PubsubUnboundedSource(
+      PubsubClientFactory pubsubFactory,
+      SubscriptionPath subscription,
+      Coder<T> elementCoder,
+      @Nullable String timestampLabel,
+      @Nullable String idLabel) {
+    this(null, pubsubFactory, subscription, elementCoder, timestampLabel, idLabel);
   }
 
   public PubsubClient.SubscriptionPath getSubscription() {

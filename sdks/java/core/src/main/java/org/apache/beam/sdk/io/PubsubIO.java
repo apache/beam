@@ -714,8 +714,10 @@ public class PubsubIO {
 
       /**
        * Default reader when Pubsub subscription has some form of upper bound.
+       *
        * <p>TODO: Consider replacing with BoundedReadFromUnboundedSource on top of upcoming
        * PubsubUnboundedSource.
+       *
        * <p>NOTE: This is not the implementation used when running on the Google Dataflow hosted
        * service.
        */
@@ -801,6 +803,11 @@ public class PubsubIO {
                   new Instant(message.timestampMsSinceEpoch));
             }
           }
+        }
+
+        @Override
+        public void populateDisplayData(DisplayData.Builder builder) {
+          Bound.this.populateDisplayData(builder);
         }
       }
     }
@@ -1013,6 +1020,7 @@ public class PubsubIO {
 
       /**
        * Writer to Pubsub which batches messages from bounded collections.
+       *
        * <p>NOTE: This is not the implementation used when running on the Google Dataflow hosted
        * service.
        */
@@ -1024,15 +1032,17 @@ public class PubsubIO {
         @Override
         public void startBundle(Context c) throws IOException {
           this.output = new ArrayList<>();
-          this.pubsubClient = FACTORY.newClient(timestampLabel, idLabel,
+          // NOTE: idLabel is ignored.
+          this.pubsubClient = FACTORY.newClient(timestampLabel, null,
                                                 c.getPipelineOptions().as(PubsubOptions.class));
         }
 
         @Override
         public void processElement(ProcessContext c) throws IOException {
+          // NOTE: The record id is always null.
           OutgoingMessage message =
               new OutgoingMessage(CoderUtils.encodeToByteArray(getCoder(), c.element()),
-                  c.timestamp().getMillis());
+                                  c.timestamp().getMillis(), null);
           output.add(message);
 
           if (output.size() >= MAX_PUBLISH_BATCH_SIZE) {

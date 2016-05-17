@@ -61,7 +61,7 @@ public class PubsubTestClientTest {
       }
     };
     IncomingMessage expectedIncomingMessage =
-        new IncomingMessage(DATA.getBytes(), MESSAGE_TIME, REQ_TIME, ACK_ID, MESSAGE_ID.getBytes());
+        new IncomingMessage(DATA.getBytes(), MESSAGE_TIME, REQ_TIME, ACK_ID, MESSAGE_ID);
     try (PubsubTestClientFactory factory =
              PubsubTestClient.createFactoryForPull(clock, SUBSCRIPTION, ACK_TIMEOUT_S,
                                                    Lists.newArrayList(expectedIncomingMessage))) {
@@ -99,9 +99,12 @@ public class PubsubTestClientTest {
 
   @Test
   public void publishOneMessage() throws IOException {
-    OutgoingMessage expectedOutgoingMessage = new OutgoingMessage(DATA.getBytes(), MESSAGE_TIME);
-    try (PubsubTestClientFactory factory = PubsubTestClient.createFactoryForPublish(TOPIC, Sets
-        .newHashSet(expectedOutgoingMessage))) {
+    OutgoingMessage expectedOutgoingMessage =
+        new OutgoingMessage(DATA.getBytes(), MESSAGE_TIME, MESSAGE_ID);
+    try (PubsubTestClientFactory factory =
+             PubsubTestClient.createFactoryForPublish(TOPIC,
+                                                      Sets.newHashSet(expectedOutgoingMessage),
+                                                      ImmutableList.<OutgoingMessage>of())) {
       try (PubsubTestClient client = (PubsubTestClient) factory.newClient(null, null, null)) {
         client.publish(TOPIC, ImmutableList.of(expectedOutgoingMessage));
       }

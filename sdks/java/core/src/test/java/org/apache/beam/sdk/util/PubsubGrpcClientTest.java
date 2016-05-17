@@ -28,7 +28,6 @@ import org.apache.beam.sdk.util.PubsubClient.TopicPath;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.hash.Hashing;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Timestamp;
 import com.google.pubsub.v1.PublishRequest;
@@ -70,8 +69,7 @@ public class PubsubGrpcClientTest {
   private static final String ID_LABEL = "id";
   private static final String MESSAGE_ID = "testMessageId";
   private static final String DATA = "testData";
-  private static final String CUSTOM_ID =
-      Hashing.murmur3_128().hashBytes(DATA.getBytes()).toString();
+  private static final String RECORD_ID = "testRecordId";
   private static final String ACK_ID = "testAckId";
 
   @Before
@@ -118,7 +116,7 @@ public class PubsubGrpcClientTest {
                      .putAllAttributes(
                          ImmutableMap.of(TIMESTAMP_LABEL,
                                          String.valueOf(MESSAGE_TIME),
-                                         ID_LABEL, CUSTOM_ID))
+                                         ID_LABEL, RECORD_ID))
                      .build();
     ReceivedMessage expectedReceivedMessage =
         ReceivedMessage.newBuilder()
@@ -136,7 +134,7 @@ public class PubsubGrpcClientTest {
     IncomingMessage actualMessage = acutalMessages.get(0);
     assertEquals(ACK_ID, actualMessage.ackId);
     assertEquals(DATA, new String(actualMessage.elementBytes));
-    assertEquals(CUSTOM_ID, new String(actualMessage.recordId));
+    assertEquals(RECORD_ID, actualMessage.recordId);
     assertEquals(REQ_TIME, actualMessage.requestTimeMsSinceEpoch);
     assertEquals(MESSAGE_TIME, actualMessage.timestampMsSinceEpoch);
   }
@@ -149,7 +147,7 @@ public class PubsubGrpcClientTest {
                      .setData(ByteString.copyFrom(DATA.getBytes()))
                      .putAllAttributes(
                          ImmutableMap.of(TIMESTAMP_LABEL, String.valueOf(MESSAGE_TIME),
-                                         ID_LABEL, CUSTOM_ID))
+                                         ID_LABEL, RECORD_ID))
                      .build();
     PublishRequest expectedRequest =
         PublishRequest.newBuilder()
@@ -163,7 +161,7 @@ public class PubsubGrpcClientTest {
                        .build();
     Mockito.when(mockPublisherStub.publish(expectedRequest))
            .thenReturn(expectedResponse);
-    OutgoingMessage actualMessage = new OutgoingMessage(DATA.getBytes(), MESSAGE_TIME);
+    OutgoingMessage actualMessage = new OutgoingMessage(DATA.getBytes(), MESSAGE_TIME, RECORD_ID);
     int n = client.publish(TOPIC, ImmutableList.of(actualMessage));
     assertEquals(1, n);
   }

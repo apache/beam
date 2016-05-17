@@ -26,6 +26,8 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.options.PubsubOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
@@ -52,6 +54,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.hash.Hashing;
 
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -62,6 +65,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 import javax.annotation.Nullable;
@@ -81,6 +85,9 @@ import javax.annotation.Nullable;
  * <li>A failed bundle will cause messages to be resent. Thus we rely on the Pubsub consumer
  * to dedup messages.
  * </ul>
+ *
+ * <p>NOTE: This is not the implementation used when running on the Google Dataflow hosted
+ * service.
  */
 public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
   private static final Logger LOG = LoggerFactory.getLogger(PubsubUnboundedSink.class);
@@ -104,12 +111,16 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
    * Coder for conveying outgoing messages between internal stages.
    */
   private static class OutgoingMessageCoder extends CustomCoder<OutgoingMessage> {
+    private static final NullableCoder<String> RECORD_ID_CODER =
+        NullableCoder.of(StringUtf8Coder.of());
+
     @Override
     public void encode(
         OutgoingMessage value, OutputStream outStream, Context context)
         throws CoderException, IOException {
       ByteArrayCoder.of().encode(value.elementBytes, outStream, Context.NESTED);
       BigEndianLongCoder.of().encode(value.timestampMsSinceEpoch, outStream, Context.NESTED);
+      RECORD_ID_CODER.encode(value.recordId, outStream, Context.NESTED);
     }
 
     @Override
@@ -117,12 +128,30 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
         InputStream inStream, Context context) throws CoderException, IOException {
       byte[] elementBytes = ByteArrayCoder.of().decode(inStream, Context.NESTED);
       long timestampMsSinceEpoch = BigEndianLongCoder.of().decode(inStream, Context.NESTED);
-      return new OutgoingMessage(elementBytes, timestampMsSinceEpoch);
+      @Nullable String recordId = RECORD_ID_CODER.decode(inStream, Context.NESTED);
+      return new OutgoingMessage(elementBytes, timestampMsSinceEpoch, recordId);
     }
   }
 
   @VisibleForTesting
   static final Coder<OutgoingMessage> CODER = new OutgoingMessageCoder();
+
+  // ================================================================================
+  // RecordIdMethod
+  // ================================================================================
+
+  /**
+   * Specify how record ids are to be generated.
+   */
+  @VisibleForTesting
+  enum RecordIdMethod {
+    /** Leave null. */
+    NONE,
+    /** Generate randomly. */
+    RANDOM,
+    /** Generate deterministically. For testing only. */
+    DETERMINISTIC
+  }
 
   // ================================================================================
   // ShardFn
@@ -136,10 +165,12 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
         createAggregator("elements", new Sum.SumLongFn());
     private final Coder<T> elementCoder;
     private final int numShards;
+    private final RecordIdMethod recordIdMethod;
 
-    ShardFn(Coder<T> elementCoder, int numShards) {
+    ShardFn(Coder<T> elementCoder, int numShards, RecordIdMethod recordIdMethod) {
       this.elementCoder = elementCoder;
       this.numShards = numShards;
+      this.recordIdMethod = recordIdMethod;
     }
 
     @Override
@@ -147,9 +178,23 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
       elementCounter.addValue(1L);
       byte[] elementBytes = CoderUtils.encodeToByteArray(elementCoder, c.element());
       long timestampMsSinceEpoch = c.timestamp().getMillis();
-      // TODO: A random record id should be assigned here.
+      @Nullable String recordId = null;
+      switch (recordIdMethod) {
+        case NONE:
+          break;
+        case DETERMINISTIC:
+          recordId = Hashing.murmur3_128().hashBytes(elementBytes).toString();
+          break;
+        case RANDOM:
+          // Since these elements go through a GroupByKey, any  failures while sending to
+          // Pubsub will be retried without falling back and generating a new record id.
+          // Thus even though we may send the same message to Pubsub twice, it is guaranteed
+          // to have the same record id.
+          recordId = UUID.randomUUID().toString();
+          break;
+      }
       c.output(KV.of(ThreadLocalRandom.current().nextInt(numShards),
-                     new OutgoingMessage(elementBytes, timestampMsSinceEpoch)));
+                     new OutgoingMessage(elementBytes, timestampMsSinceEpoch, recordId)));
     }
 
     @Override
@@ -319,6 +364,12 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
    */
   private final Duration maxLatency;
 
+  /**
+   * How record ids should be generated for each record (if {@link #idLabel} is non-{@literal
+   * null}).
+   */
+  private final RecordIdMethod recordIdMethod;
+
   @VisibleForTesting
   PubsubUnboundedSink(
       PubsubClientFactory pubsubFactory,
@@ -329,7 +380,8 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
       int numShards,
       int publishBatchSize,
       int publishBatchBytes,
-      Duration maxLatency) {
+      Duration maxLatency,
+      RecordIdMethod recordIdMethod) {
     this.pubsubFactory = pubsubFactory;
     this.topic = topic;
     this.elementCoder = elementCoder;
@@ -339,6 +391,7 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
     this.publishBatchSize = publishBatchSize;
     this.publishBatchBytes = publishBatchBytes;
     this.maxLatency = maxLatency;
+    this.recordIdMethod = idLabel == null ? RecordIdMethod.NONE : recordIdMethod;
   }
 
   public PubsubUnboundedSink(
@@ -349,7 +402,8 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
       String idLabel,
       int numShards) {
     this(pubsubFactory, topic, elementCoder, timestampLabel, idLabel, numShards,
-         DEFAULT_PUBLISH_BATCH_SIZE, DEFAULT_PUBLISH_BATCH_BYTES, DEFAULT_MAX_LATENCY);
+         DEFAULT_PUBLISH_BATCH_SIZE, DEFAULT_PUBLISH_BATCH_BYTES, DEFAULT_MAX_LATENCY,
+         RecordIdMethod.RANDOM);
   }
 
   public TopicPath getTopic() {
@@ -382,7 +436,7 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
                                                      .plusDelayOf(maxLatency))))
             .discardingFiredPanes())
          .apply(ParDo.named("PubsubUnboundedSink.Shard")
-                     .of(new ShardFn<T>(elementCoder, numShards)))
+                     .of(new ShardFn<T>(elementCoder, numShards, recordIdMethod)))
          .setCoder(KvCoder.of(VarIntCoder.of(), CODER))
          .apply(GroupByKey.<Integer, OutgoingMessage>create())
          .apply(ParDo.named("PubsubUnboundedSink.Writer")

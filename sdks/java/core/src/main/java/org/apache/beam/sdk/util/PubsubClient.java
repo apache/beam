@@ -286,11 +286,18 @@ public abstract class PubsubClient implements Closeable {
      */
     public final long timestampMsSinceEpoch;
 
-    // TODO: Support a record id.
+    /**
+     * If using an id label, the record id to associate with this record's metadata so the receiver
+     * can reject duplicates. Otherwise {@literal null}.
+     */
+    @Nullable
+    public final String recordId;
 
-    public OutgoingMessage(byte[] elementBytes, long timestampMsSinceEpoch) {
+    public OutgoingMessage(
+        byte[] elementBytes, long timestampMsSinceEpoch, @Nullable String recordId) {
       this.elementBytes = elementBytes;
       this.timestampMsSinceEpoch = timestampMsSinceEpoch;
+      this.recordId = recordId;
     }
 
     @Override
@@ -310,16 +317,14 @@ public abstract class PubsubClient implements Closeable {
 
       OutgoingMessage that = (OutgoingMessage) o;
 
-      if (timestampMsSinceEpoch != that.timestampMsSinceEpoch) {
-        return false;
-      }
-      return Arrays.equals(elementBytes, that.elementBytes);
-
+      return Arrays.equals(elementBytes, that.elementBytes)
+             && timestampMsSinceEpoch == that.timestampMsSinceEpoch
+             && Objects.equal(recordId, that.recordId);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hashCode(Arrays.hashCode(elementBytes), timestampMsSinceEpoch);
+      return Objects.hashCode(Arrays.hashCode(elementBytes), timestampMsSinceEpoch, recordId);
     }
   }
 
@@ -353,14 +358,14 @@ public abstract class PubsubClient implements Closeable {
     /**
      * Id to pass to the runner to distinguish this message from all others.
      */
-    public final byte[] recordId;
+    public final String recordId;
 
     public IncomingMessage(
         byte[] elementBytes,
         long timestampMsSinceEpoch,
         long requestTimeMsSinceEpoch,
         String ackId,
-        byte[] recordId) {
+        String recordId) {
       this.elementBytes = elementBytes;
       this.timestampMsSinceEpoch = timestampMsSinceEpoch;
       this.requestTimeMsSinceEpoch = requestTimeMsSinceEpoch;
@@ -390,26 +395,18 @@ public abstract class PubsubClient implements Closeable {
 
       IncomingMessage that = (IncomingMessage) o;
 
-      if (timestampMsSinceEpoch != that.timestampMsSinceEpoch) {
-        return false;
-      }
-      if (requestTimeMsSinceEpoch != that.requestTimeMsSinceEpoch) {
-        return false;
-      }
-      if (!Arrays.equals(elementBytes, that.elementBytes)) {
-        return false;
-      }
-      if (!ackId.equals(that.ackId)) {
-        return false;
-      }
-      return Arrays.equals(recordId, that.recordId);
+      return timestampMsSinceEpoch == that.timestampMsSinceEpoch
+             && requestTimeMsSinceEpoch == that.requestTimeMsSinceEpoch
+             && Arrays.equals(elementBytes, that.elementBytes)
+             && ackId.equals(that.ackId)
+             && recordId.equals(that.recordId);
     }
 
     @Override
     public int hashCode() {
       return Objects.hashCode(Arrays.hashCode(elementBytes), timestampMsSinceEpoch,
                               requestTimeMsSinceEpoch,
-                              ackId, Arrays.hashCode(recordId));
+                              ackId, recordId);
     }
   }
 
@@ -507,7 +504,7 @@ public abstract class PubsubClient implements Closeable {
   public abstract int ackDeadlineSeconds(SubscriptionPath subscription) throws IOException;
 
   /**
-   * Return {@literal true} if {@link pull} will always return empty list. Actual clients
+   * Return {@literal true} if {@link #pull} will always return empty list. Actual clients
    * will return {@literal false}. Test clients may return {@literal true} to signal that all
    * expected messages have been pulled and the test may complete.
    */

@@ -93,7 +93,7 @@ public class PubsubUnboundedSourceTest {
 
   private void setupOneMessage() {
     setupOneMessage(ImmutableList.of(
-        new IncomingMessage(DATA.getBytes(), TIMESTAMP, 0, ACK_ID, RECORD_ID.getBytes())));
+        new IncomingMessage(DATA.getBytes(), TIMESTAMP, 0, ACK_ID, RECORD_ID)));
   }
 
   @After
@@ -211,7 +211,7 @@ public class PubsubUnboundedSourceTest {
     for (int i = 0; i < 2; i++) {
       String data = String.format("data_%d", i);
       String ackid = String.format("ackid_%d", i);
-      incoming.add(new IncomingMessage(data.getBytes(), TIMESTAMP, 0, ackid, RECORD_ID.getBytes()));
+      incoming.add(new IncomingMessage(data.getBytes(), TIMESTAMP, 0, ackid, RECORD_ID));
     }
     setupOneMessage(incoming);
     TestPipeline p = TestPipeline.create();
@@ -272,7 +272,7 @@ public class PubsubUnboundedSourceTest {
       String recid = String.format("recordid_%d", messageNum);
       String ackId = String.format("ackid_%d", messageNum);
       incoming.add(new IncomingMessage(data.getBytes(), messageNumToTimestamp(messageNum), 0,
-                                       ackId, recid.getBytes()));
+                                       ackId, recid));
     }
     setupOneMessage(incoming);
 

@@ -19,6 +19,7 @@
 package org.apache.beam.sdk.io;
 
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.PubsubUnboundedSink.RecordIdMethod;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -31,7 +32,7 @@ import org.apache.beam.sdk.util.PubsubTestClient;
 import org.apache.beam.sdk.util.PubsubTestClient.PubsubTestClientFactory;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Sets;
+import com.google.common.hash.Hashing;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -41,9 +42,7 @@ import org.junit.runners.JUnit4;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 /**
  * Test PubsubUnboundedSink.
@@ -55,6 +54,7 @@ public class PubsubUnboundedSinkTest {
   private static final long TIMESTAMP = 1234L;
   private static final String TIMESTAMP_LABEL = "timestamp";
   private static final String ID_LABEL = "id";
+  private static final int NUM_SHARDS = 10;
 
   private static class Stamp extends DoFn<String, String> {
     @Override
@@ -63,22 +63,30 @@ public class PubsubUnboundedSinkTest {
     }
   }
 
+  private String getRecordId(String data) {
+    return Hashing.murmur3_128().hashBytes(data.getBytes()).toString();
+  }
+
   @Test
   public void saneCoder() throws Exception {
-    OutgoingMessage message = new OutgoingMessage(DATA.getBytes(), TIMESTAMP);
+    OutgoingMessage message = new OutgoingMessage(DATA.getBytes(), TIMESTAMP, getRecordId(DATA));
     CoderProperties.coderDecodeEncodeEqual(PubsubUnboundedSink.CODER, message);
     CoderProperties.coderSerializable(PubsubUnboundedSink.CODER);
   }
 
   @Test
   public void sendOneMessage() throws IOException {
-    Set<OutgoingMessage> outgoing =
-        Sets.newHashSet(new OutgoingMessage(DATA.getBytes(), TIMESTAMP));
+    List<OutgoingMessage> outgoing =
+        ImmutableList.of(new OutgoingMessage(DATA.getBytes(), TIMESTAMP, getRecordId(DATA)));
+    int batchSize = 1;
+    int batchBytes = 1;
     try (PubsubTestClientFactory factory =
-             PubsubTestClient.createFactoryForPublish(TOPIC, outgoing)) {
+             PubsubTestClient.createFactoryForPublish(TOPIC, outgoing,
+                                                      ImmutableList.<OutgoingMessage>of())) {
       PubsubUnboundedSink<String> sink =
           new PubsubUnboundedSink<>(factory, TOPIC, StringUtf8Coder.of(), TIMESTAMP_LABEL, ID_LABEL,
-                                    10);
+                                    NUM_SHARDS, batchSize, batchBytes, Duration.standardSeconds(2),
+                                    RecordIdMethod.DETERMINISTIC);
       TestPipeline p = TestPipeline.create();
       p.apply(Create.of(ImmutableList.of(DATA)))
        .apply(ParDo.of(new Stamp()))
@@ -91,20 +99,22 @@ public class PubsubUnboundedSinkTest {
 
   @Test
   public void sendMoreThanOneBatchByNumMessages() throws IOException {
-    Set<OutgoingMessage> outgoing = new HashSet<>();
+    List<OutgoingMessage> outgoing = new ArrayList<>();
     List<String> data = new ArrayList<>();
     int batchSize = 2;
     int batchBytes = 1000;
     for (int i = 0; i < batchSize * 10; i++) {
       String str = String.valueOf(i);
-      outgoing.add(new OutgoingMessage(str.getBytes(), TIMESTAMP));
+      outgoing.add(new OutgoingMessage(str.getBytes(), TIMESTAMP, getRecordId(str)));
       data.add(str);
     }
     try (PubsubTestClientFactory factory =
-             PubsubTestClient.createFactoryForPublish(TOPIC, outgoing)) {
+             PubsubTestClient.createFactoryForPublish(TOPIC, outgoing,
+                                                      ImmutableList.<OutgoingMessage>of())) {
       PubsubUnboundedSink<String> sink =
           new PubsubUnboundedSink<>(factory, TOPIC, StringUtf8Coder.of(), TIMESTAMP_LABEL, ID_LABEL,
-                                    10, batchSize, batchBytes, Duration.standardSeconds(2));
+                                    NUM_SHARDS, batchSize, batchBytes, Duration.standardSeconds(2),
+                                    RecordIdMethod.DETERMINISTIC);
       TestPipeline p = TestPipeline.create();
       p.apply(Create.of(data))
        .apply(ParDo.of(new Stamp()))
@@ -117,7 +127,7 @@ public class PubsubUnboundedSinkTest {
 
   @Test
   public void sendMoreThanOneBatchByByteSize() throws IOException {
-    Set<OutgoingMessage> outgoing = new HashSet<>();
+    List<OutgoingMessage> outgoing = new ArrayList<>();
     List<String> data = new ArrayList<>();
     int batchSize = 100;
     int batchBytes = 10;
@@ -128,15 +138,17 @@ public class PubsubUnboundedSinkTest {
         sb.append(String.valueOf(n));
       }
       String str = sb.toString();
-      outgoing.add(new OutgoingMessage(str.getBytes(), TIMESTAMP));
+      outgoing.add(new OutgoingMessage(str.getBytes(), TIMESTAMP, getRecordId(str)));
       data.add(str);
       n += str.length();
     }
     try (PubsubTestClientFactory factory =
-             PubsubTestClient.createFactoryForPublish(TOPIC, outgoing)) {
+             PubsubTestClient.createFactoryForPublish(TOPIC, outgoing,
+                                                      ImmutableList.<OutgoingMessage>of())) {
       PubsubUnboundedSink<String> sink =
           new PubsubUnboundedSink<>(factory, TOPIC, StringUtf8Coder.of(), TIMESTAMP_LABEL, ID_LABEL,
-                                    10, batchSize, batchBytes, Duration.standardSeconds(2));
+                                    NUM_SHARDS, batchSize, batchBytes, Duration.standardSeconds(2),
+                                    RecordIdMethod.DETERMINISTIC);
       TestPipeline p = TestPipeline.create();
       p.apply(Create.of(data))
        .apply(ParDo.of(new Stamp()))
