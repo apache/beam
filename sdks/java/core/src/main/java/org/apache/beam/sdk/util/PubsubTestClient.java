@@ -18,16 +18,18 @@
 
 package org.apache.beam.sdk.util;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import org.apache.beam.sdk.options.PubsubOptions;
 
 import com.google.api.client.util.Clock;
-import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -37,249 +39,307 @@ import javax.annotation.Nullable;
 /**
  * A (partial) implementation of {@link PubsubClient} for use by unit tests. Only suitable for
  * testing {@link #publish}, {@link #pull}, {@link #acknowledge} and {@link #modifyAckDeadline}
- * methods.
+ * methods. Relies on statics to mimic the Pubsub service, though we try to hide that.
  */
 public class PubsubTestClient extends PubsubClient {
-  public static PubsubClientFactory createFactoryForPublish(
+  /**
+   * Mimic the state of the simulated Pubsub 'service'.
+   *
+   * Note that the {@link PubsubTestClientFactory} is serialized/deserialized even when running
+   * test
+   * pipelines. Meanwhile it is valid for multiple {@link PubsubTestClient}s to be created from
+   * the same client factory and run in parallel. Thus we can't enforce aliasing of the following
+   * data structures over all clients and must resort to a static.
+   */
+  private static class State {
+    /**
+     * True if has been primed for a test but not yet validated.
+     */
+    boolean isActive;
+
+    /**
+     * Publish mode only: Only publish calls for this topic are allowed.
+     */
+    @Nullable
+    TopicPath expectedTopic;
+
+    /**
+     * Publish mode only: Messages yet to seen in a {@link #publish} call.
+     */
+    @Nullable
+    Set<OutgoingMessage> remainingExpectedOutgoingMessages;
+
+    /**
+     * Pull mode only: Clock from which to get current time.
+     */
+    @Nullable
+    Clock clock;
+
+    /**
+     * Pull mode only: Only pull calls for this subscription are allowed.
+     */
+    @Nullable
+    SubscriptionPath expectedSubscription;
+
+    /**
+     * Pull mode only: Timeout to simulate.
+     */
+    int ackTimeoutSec;
+
+    /**
+     * Pull mode only: Messages waiting to be received by a {@link #pull} call.
+     */
+    @Nullable
+    List<IncomingMessage> remainingPendingIncomingMessages;
+
+    /**
+     * Pull mode only: Messages which have been returned from a {@link #pull} call and
+     * not yet ACKed by an {@link #acknowledge} call.
+     */
+    @Nullable
+    Map<String, IncomingMessage> pendingAckIncomingMessages;
+
+    /**
+     * Pull mode only: When above messages are due to have their ACK deadlines expire.
+     */
+    @Nullable
+    Map<String, Long> ackDeadline;
+  }
+
+  private static final State STATE = new State();
+
+  /** Closing the factory will validate all expected messages were processed. */
+  public interface PubsubTestClientFactory extends PubsubClientFactory, Closeable {
+  }
+
+  /**
+   * Return a factory for testing publishers. Only one factory may be in-flight at a time.
+   * The factory must be closed when the test is complete, at which point final validation will
+   * occur.
+   */
+  public static PubsubTestClientFactory createFactoryForPublish(
       final TopicPath expectedTopic,
-      final Set<OutgoingMessage> expectedOutgoingMessages) {
-    return new PubsubClientFactory() {
+      final Iterable<OutgoingMessage> expectedOutgoingMessages) {
+    synchronized (STATE) {
+      checkState(!STATE.isActive, "Test still in flight");
+      STATE.expectedTopic = expectedTopic;
+      STATE.remainingExpectedOutgoingMessages = Sets.newHashSet(expectedOutgoingMessages);
+      STATE.isActive = true;
+    }
+    return new PubsubTestClientFactory() {
       @Override
       public PubsubClient newClient(
           @Nullable String timestampLabel, @Nullable String idLabel, PubsubOptions options)
           throws IOException {
-        return new PubsubTestClient(checkNotNull(expectedTopic),
-                                    checkNotNull(expectedOutgoingMessages), null, null, 0,
-                                    null, null, null);
+        return new PubsubTestClient();
       }
 
       @Override
       public String getKind() {
         return "PublishTest";
       }
+
+      @Override
+      public void close() {
+        synchronized (STATE) {
+          checkState(STATE.isActive, "No test still in flight");
+          checkState(STATE.remainingExpectedOutgoingMessages.isEmpty(),
+                     "Still waiting for %s messages to be published",
+                     STATE.remainingExpectedOutgoingMessages.size());
+          STATE.isActive = false;
+          STATE.remainingExpectedOutgoingMessages = null;
+        }
+      }
     };
   }
 
-  public static PubsubClientFactory createFactoryForPull(
+  /**
+   * Return a factory for testing subscribers. Only one factory may be in-flight at a time.
+   * The factory must be closed when the test in complete
+   */
+  public static PubsubTestClientFactory createFactoryForPull(
       final Clock clock,
       final SubscriptionPath expectedSubscription,
       final int ackTimeoutSec,
-      final List<IncomingMessage> expectedIncomingMessages,
-      final Map<String, IncomingMessage> pendingAckIncomingMessages,
-      final Map<String, Long> ackDeadline) {
-    return new PubsubClientFactory() {
+      final Iterable<IncomingMessage> expectedIncomingMessages) {
+    synchronized (STATE) {
+      checkState(!STATE.isActive, "Test still in flight");
+      STATE.clock = clock;
+      STATE.expectedSubscription = expectedSubscription;
+      STATE.ackTimeoutSec = ackTimeoutSec;
+      STATE.remainingPendingIncomingMessages = Lists.newArrayList(expectedIncomingMessages);
+      STATE.pendingAckIncomingMessages = new HashMap<>();
+      STATE.ackDeadline = new HashMap<>();
+      STATE.isActive = true;
+    }
+    return new PubsubTestClientFactory() {
       @Override
       public PubsubClient newClient(
           @Nullable String timestampLabel, @Nullable String idLabel, PubsubOptions options)
           throws IOException {
-        return new PubsubTestClient(null, null, checkNotNull(clock),
-                                    checkNotNull(expectedSubscription),
-                                    ackTimeoutSec,
-                                    checkNotNull(expectedIncomingMessages),
-                                    checkNotNull(pendingAckIncomingMessages),
-                                    checkNotNull(ackDeadline));
+        return new PubsubTestClient();
       }
 
       @Override
       public String getKind() {
         return "PullTest";
       }
+
+      @Override
+      public void close() {
+        synchronized (STATE) {
+          checkState(STATE.isActive, "No test still in flight");
+          checkState(STATE.remainingPendingIncomingMessages.isEmpty(),
+                     "Still waiting for %s messages to be pulled",
+                     STATE.remainingPendingIncomingMessages.size());
+          checkState(STATE.pendingAckIncomingMessages.isEmpty(),
+                     "Still waiting for %s messages to be ACKed",
+                     STATE.pendingAckIncomingMessages.size());
+          checkState(STATE.ackDeadline.isEmpty(),
+                     "Still waiting for %s messages to be ACKed",
+                     STATE.ackDeadline.size());
+          STATE.isActive = false;
+          STATE.remainingPendingIncomingMessages = null;
+          STATE.pendingAckIncomingMessages = null;
+          STATE.ackDeadline = null;
+        }
+      }
     };
   }
 
   /**
-   * Publish mode only: Only publish calls for this topic are allowed.
+   * Return true if in pull mode.
    */
-  @Nullable
-  private TopicPath expectedTopic;
-
-  /**
-   * Publish mode only: Messages yet to seen in a {@link #publish} call.
-   */
-  @Nullable
-  private Set<OutgoingMessage> remainingExpectedOutgoingMessages;
-
-  /**
-   * Pull mode only: Clock from which to get current time.
-   */
-  @Nullable
-  private Clock clock;
-
-  /**
-   * Pull mode only: Only pull calls for this subscription are allowed.
-   */
-  @Nullable
-  private SubscriptionPath expectedSubscription;
-
-  /**
-   * Pull mode only: Timeout to simulate.
-   */
-  private int ackTimeoutSec;
-
-  /**
-   * Pull mode only: Messages waiting to be received by a {@link #pull} call.
-   */
-  @Nullable
-  private List<IncomingMessage> remainingPendingIncomingMessages;
-
-  /**
-   * Pull mode only: Messages which have been returned from a {@link #pull} call and
-   * not yet ACKed by an {@link #acknowledge} call.
-   */
-  @Nullable
-  private Map<String, IncomingMessage> pendingAckIncomingMessages;
-
-  /**
-   * Pull mode only: When above messages are due to have their ACK deadlines expire.
-   */
-  @Nullable
-  private Map<String, Long> ackDeadline;
-
-  @VisibleForTesting
-  PubsubTestClient(
-      @Nullable TopicPath expectedTopic,
-      @Nullable Set<OutgoingMessage> expectedOutgoingMessages,
-      @Nullable Clock clock,
-      @Nullable SubscriptionPath expectedSubscription,
-      int ackTimeoutSec,
-      @Nullable List<IncomingMessage> expectedIncomingMessages,
-      @Nullable Map<String, IncomingMessage> pendingAckIncomingMessages,
-      @Nullable Map<String, Long> ackDeadline) {
-    this.expectedTopic = expectedTopic;
-    this.remainingExpectedOutgoingMessages = expectedOutgoingMessages;
-    this.clock = clock;
-    this.expectedSubscription = expectedSubscription;
-    this.ackTimeoutSec = ackTimeoutSec;
-    this.remainingPendingIncomingMessages = expectedIncomingMessages;
-    this.pendingAckIncomingMessages = pendingAckIncomingMessages;
-    this.ackDeadline = ackDeadline;
+  private boolean inPullMode() {
+    checkState(STATE.isActive, "No test is active");
+    return STATE.expectedSubscription != null;
   }
 
   /**
-   * Return true if in pull mode, false if in publish mode.
+   * Return true if in publish mode.
    */
-  private boolean inPullMode() {
-    return expectedSubscription != null;
+  private boolean inPublishMode() {
+    checkState(STATE.isActive, "No test is active");
+    return STATE.expectedTopic != null;
   }
 
   /**
    * For subscription mode only:
-   * Track progression of time according to {@link #clock}. This will simulate Pubsub expiring
+   * Track progression of time according to the {@link Clock} passed . This will simulate Pubsub
+   * expiring
    * outstanding ACKs.
    */
   public void advance() {
-    checkState(inPullMode(), "Can only advance in pull mode");
-    // Any messages who's ACKs timed out are available for re-pulling.
-    Iterator<Map.Entry<String, Long>> deadlineItr = ackDeadline.entrySet().iterator();
-    while (deadlineItr.hasNext()) {
-      Map.Entry<String, Long> entry = deadlineItr.next();
-      if (entry.getValue() <= clock.currentTimeMillis()) {
-        remainingPendingIncomingMessages.add(pendingAckIncomingMessages.remove(entry.getKey()));
-        deadlineItr.remove();
+    synchronized (STATE) {
+      checkState(inPullMode(), "Can only advance in pull mode");
+      // Any messages who's ACKs timed out are available for re-pulling.
+      Iterator<Map.Entry<String, Long>> deadlineItr = STATE.ackDeadline.entrySet().iterator();
+      while (deadlineItr.hasNext()) {
+        Map.Entry<String, Long> entry = deadlineItr.next();
+        if (entry.getValue() <= STATE.clock.currentTimeMillis()) {
+          STATE.remainingPendingIncomingMessages.add(
+              STATE.pendingAckIncomingMessages.remove(entry.getKey()));
+          deadlineItr.remove();
+        }
       }
     }
   }
 
   @Override
   public void close() {
-    if (remainingExpectedOutgoingMessages != null) {
-      checkState(this.remainingExpectedOutgoingMessages.isEmpty(),
-                 "Failed to pull %s messages", this.remainingExpectedOutgoingMessages.size());
-      remainingExpectedOutgoingMessages = null;
-    }
-    if (remainingPendingIncomingMessages != null) {
-      checkState(remainingPendingIncomingMessages.isEmpty(),
-                 "Failed to publish %s messages", remainingPendingIncomingMessages.size());
-      checkState(pendingAckIncomingMessages.isEmpty(),
-                 "Failed to ACK %s messages", pendingAckIncomingMessages.size());
-      checkState(ackDeadline.isEmpty(),
-                 "Failed to ACK %s messages", ackDeadline.size());
-      remainingPendingIncomingMessages = null;
-      pendingAckIncomingMessages = null;
-      ackDeadline = null;
-    }
   }
 
   @Override
   public int publish(
       TopicPath topic, List<OutgoingMessage> outgoingMessages) throws IOException {
-    checkState(!inPullMode(), "Can only publish in publish mode");
-    checkState(topic.equals(expectedTopic), "Topic %s does not match expected %s", topic,
-               expectedTopic);
-    for (OutgoingMessage outgoingMessage : outgoingMessages) {
-      checkState(remainingExpectedOutgoingMessages.remove(outgoingMessage),
-                 "Unexpeced outgoing message %s", outgoingMessage);
+    synchronized (STATE) {
+      checkState(inPublishMode(), "Can only publish in publish mode");
+      checkState(topic.equals(STATE.expectedTopic), "Topic %s does not match expected %s", topic,
+                 STATE.expectedTopic);
+      for (OutgoingMessage outgoingMessage : outgoingMessages) {
+        checkState(STATE.remainingExpectedOutgoingMessages.remove(outgoingMessage),
+                   "Unexpected outgoing message %s", outgoingMessage);
+      }
+      return outgoingMessages.size();
     }
-    return outgoingMessages.size();
   }
 
   @Override
   public List<IncomingMessage> pull(
       long requestTimeMsSinceEpoch, SubscriptionPath subscription, int batchSize,
       boolean returnImmediately) throws IOException {
-    checkState(inPullMode(), "Can only pull in pull mode");
-    long now = clock.currentTimeMillis();
-    checkState(requestTimeMsSinceEpoch == now,
-               "Simulated time %s does not match request time %s", now, requestTimeMsSinceEpoch);
-    checkState(subscription.equals(expectedSubscription),
-               "Subscription %s does not match expected %s", subscription, expectedSubscription);
-    checkState(returnImmediately, "PubsubTestClient only supports returning immediately");
+    synchronized (STATE) {
+      checkState(inPullMode(), "Can only pull in pull mode");
+      long now = STATE.clock.currentTimeMillis();
+      checkState(requestTimeMsSinceEpoch == now,
+                 "Simulated time %s does not match request time %s", now, requestTimeMsSinceEpoch);
+      checkState(subscription.equals(STATE.expectedSubscription),
+                 "Subscription %s does not match expected %s", subscription,
+                 STATE.expectedSubscription);
+      checkState(returnImmediately, "Pull only supported if returning immediately");
 
-    List<IncomingMessage> incomingMessages = new ArrayList<>();
-    Iterator<IncomingMessage> pendItr = remainingPendingIncomingMessages.iterator();
-    while (pendItr.hasNext()) {
-      IncomingMessage incomingMessage = pendItr.next();
-      pendItr.remove();
-      IncomingMessage incomingMessageWithRequestTime =
-          incomingMessage.withRequestTime(requestTimeMsSinceEpoch);
-      incomingMessages.add(incomingMessageWithRequestTime);
-      pendingAckIncomingMessages.put(incomingMessageWithRequestTime.ackId,
-                                     incomingMessageWithRequestTime);
-      ackDeadline.put(incomingMessageWithRequestTime.ackId,
-                      requestTimeMsSinceEpoch + ackTimeoutSec * 1000);
-      if (incomingMessages.size() >= batchSize) {
-        break;
+      List<IncomingMessage> incomingMessages = new ArrayList<>();
+      Iterator<IncomingMessage> pendItr = STATE.remainingPendingIncomingMessages.iterator();
+      while (pendItr.hasNext()) {
+        IncomingMessage incomingMessage = pendItr.next();
+        pendItr.remove();
+        IncomingMessage incomingMessageWithRequestTime =
+            incomingMessage.withRequestTime(requestTimeMsSinceEpoch);
+        incomingMessages.add(incomingMessageWithRequestTime);
+        STATE.pendingAckIncomingMessages.put(incomingMessageWithRequestTime.ackId,
+                                             incomingMessageWithRequestTime);
+        STATE.ackDeadline.put(incomingMessageWithRequestTime.ackId,
+                              requestTimeMsSinceEpoch + STATE.ackTimeoutSec * 1000);
+        if (incomingMessages.size() >= batchSize) {
+          break;
+        }
       }
+      return incomingMessages;
     }
-    return incomingMessages;
   }
 
   @Override
   public void acknowledge(
       SubscriptionPath subscription,
       List<String> ackIds) throws IOException {
-    checkState(inPullMode(), "Can only acknowledge in pull mode");
-    checkState(subscription.equals(expectedSubscription),
-               "Subscription %s does not match expected %s", subscription, expectedSubscription);
+    synchronized (STATE) {
+      checkState(inPullMode(), "Can only acknowledge in pull mode");
+      checkState(subscription.equals(STATE.expectedSubscription),
+                 "Subscription %s does not match expected %s", subscription,
+                 STATE.expectedSubscription);
 
-    for (String ackId : ackIds) {
-      checkState(ackDeadline.remove(ackId) != null,
-                 "No message with ACK id %s is outstanding", ackId);
-      checkState(pendingAckIncomingMessages.remove(ackId) != null,
-                 "No message with ACK id %s is outstanding", ackId);
+      for (String ackId : ackIds) {
+        checkState(STATE.ackDeadline.remove(ackId) != null,
+                   "No message with ACK id %s is waiting for an ACK", ackId);
+        checkState(STATE.pendingAckIncomingMessages.remove(ackId) != null,
+                   "No message with ACK id %s is waiting for an ACK", ackId);
+      }
     }
   }
 
   @Override
   public void modifyAckDeadline(
       SubscriptionPath subscription, List<String> ackIds, int deadlineSeconds) throws IOException {
-    checkState(inPullMode(), "Can only modify ack deadline in pull mode");
-    checkState(subscription.equals(expectedSubscription),
-               "Subscription %s does not match expected %s", subscription, expectedSubscription);
+    synchronized (STATE) {
+      checkState(inPullMode(), "Can only modify ack deadline in pull mode");
+      checkState(subscription.equals(STATE.expectedSubscription),
+                 "Subscription %s does not match expected %s", subscription,
+                 STATE.expectedSubscription);
 
-    for (String ackId : ackIds) {
-      if (deadlineSeconds > 0) {
-        checkState(ackDeadline.remove(ackId) != null,
-                   "No message with ACK id %s is outstanding", ackId);
-        checkState(pendingAckIncomingMessages.containsKey(ackId),
-                   "No message with ACK id %s is outstanding", ackId);
-        ackDeadline.put(ackId, clock.currentTimeMillis() + deadlineSeconds * 1000);
-      } else {
-        checkState(ackDeadline.remove(ackId) != null,
-                   "No message with ACK id %s is outstanding", ackId);
-        IncomingMessage message = pendingAckIncomingMessages.remove(ackId);
-        checkState(message != null, "No message with ACK id %s is outstanding", ackId);
-        remainingPendingIncomingMessages.add(message);
+      for (String ackId : ackIds) {
+        if (deadlineSeconds > 0) {
+          checkState(STATE.ackDeadline.remove(ackId) != null,
+                     "No message with ACK id %s is waiting for an ACK", ackId);
+          checkState(STATE.pendingAckIncomingMessages.containsKey(ackId),
+                     "No message with ACK id %s is waiting for an ACK", ackId);
+          STATE.ackDeadline.put(ackId, STATE.clock.currentTimeMillis() + deadlineSeconds * 1000);
+        } else {
+          checkState(STATE.ackDeadline.remove(ackId) != null,
+                     "No message with ACK id %s is waiting for an ACK", ackId);
+          IncomingMessage message = STATE.pendingAckIncomingMessages.remove(ackId);
+          checkState(message != null, "No message with ACK id %s is waiting for an ACK", ackId);
+          STATE.remainingPendingIncomingMessages.add(message);
+        }
       }
     }
   }
@@ -318,12 +378,16 @@ public class PubsubTestClient extends PubsubClient {
 
   @Override
   public int ackDeadlineSeconds(SubscriptionPath subscription) throws IOException {
-    return ackTimeoutSec;
+    synchronized (STATE) {
+      return STATE.ackTimeoutSec;
+    }
   }
 
   @Override
   public boolean isEOF() {
-    checkState(inPullMode(), "Can only check EOF in pull mode");
-    return remainingPendingIncomingMessages.isEmpty();
+    synchronized (STATE) {
+      checkState(inPullMode(), "Can only check EOF in pull mode");
+      return STATE.remainingPendingIncomingMessages.isEmpty();
+    }
   }
 }

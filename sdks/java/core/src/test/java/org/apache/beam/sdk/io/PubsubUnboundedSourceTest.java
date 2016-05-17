@@ -19,9 +19,11 @@
 package org.apache.beam.sdk.io;
 
 import static junit.framework.TestCase.assertFalse;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -33,15 +35,15 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.PubsubClient;
 import org.apache.beam.sdk.util.PubsubClient.IncomingMessage;
-import org.apache.beam.sdk.util.PubsubClient.PubsubClientFactory;
 import org.apache.beam.sdk.util.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.util.PubsubTestClient;
+import org.apache.beam.sdk.util.PubsubTestClient.PubsubTestClientFactory;
 
 import com.google.api.client.util.Clock;
+import com.google.common.collect.ImmutableList;
 
 import org.joda.time.Instant;
 import org.junit.After;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -71,11 +73,10 @@ public class PubsubUnboundedSourceTest {
 
   private AtomicLong now;
   private Clock clock;
-  private List<IncomingMessage> incoming;
+  private PubsubTestClientFactory factory;
   private PubsubSource<String> primSource;
 
-  @Before
-  public void before() {
+  private void setupOneMessage(Iterable<IncomingMessage> incoming) {
     now = new AtomicLong(REQ_TIME);
     clock = new Clock() {
       @Override
@@ -83,29 +84,30 @@ public class PubsubUnboundedSourceTest {
         return now.get();
       }
     };
-    incoming = new ArrayList<>();
-    Map<String, IncomingMessage> pendingAckIncomingMessages = new HashMap<>();
-    Map<String, Long> ackDeadline = new HashMap<>();
-
-    PubsubClientFactory factory =
-        PubsubTestClient.createFactoryForPull(clock, SUBSCRIPTION, ACK_TIMEOUT_S, incoming,
-                                              pendingAckIncomingMessages, ackDeadline);
+    factory = PubsubTestClient.createFactoryForPull(clock, SUBSCRIPTION, ACK_TIMEOUT_S, incoming);
     PubsubUnboundedSource<String> source =
         new PubsubUnboundedSource<>(clock, factory, SUBSCRIPTION, StringUtf8Coder.of(),
                                     TIMESTAMP_LABEL, ID_LABEL);
     primSource = new PubsubSource<>(source);
   }
 
+  private void setupOneMessage() {
+    setupOneMessage(ImmutableList.of(
+        new IncomingMessage(DATA.getBytes(), TIMESTAMP, 0, ACK_ID, RECORD_ID.getBytes())));
+  }
+
   @After
-  public void after() {
+  public void after() throws IOException {
+    factory.close();
     now = null;
     clock = null;
-    incoming = null;
     primSource = null;
+    factory = null;
   }
 
   @Test
   public void checkpointCoderIsSane() throws Exception {
+    setupOneMessage(ImmutableList.<IncomingMessage>of());
     CoderProperties.coderSerializable(primSource.getCheckpointMarkCoder());
     // Since we only serialize/deserialize the 'notYetReadIds', and we don't want to make
     // equals on checkpoints ignore those fields, we'll test serialization and deserialization
@@ -114,9 +116,10 @@ public class PubsubUnboundedSourceTest {
 
   @Test
   public void readOneMessage() throws IOException {
-    incoming.add(new IncomingMessage(DATA.getBytes(), TIMESTAMP, 0, ACK_ID, RECORD_ID.getBytes()));
+    setupOneMessage();
     TestPipeline p = TestPipeline.create();
     PubsubReader<String> reader = primSource.createReader(p.getOptions(), null);
+    PubsubTestClient pubsubClient = (PubsubTestClient) reader.getPubsubClient();
     // Read one message.
     assertTrue(reader.start());
     assertEquals(DATA, reader.getCurrent());
@@ -129,7 +132,7 @@ public class PubsubUnboundedSourceTest {
 
   @Test
   public void timeoutAckAndRereadOneMessage() throws IOException {
-    incoming.add(new IncomingMessage(DATA.getBytes(), TIMESTAMP, 0, ACK_ID, RECORD_ID.getBytes()));
+    setupOneMessage();
     TestPipeline p = TestPipeline.create();
     PubsubReader<String> reader = primSource.createReader(p.getOptions(), null);
     PubsubTestClient pubsubClient = (PubsubTestClient) reader.getPubsubClient();
@@ -150,10 +153,11 @@ public class PubsubUnboundedSourceTest {
 
   @Test
   public void extendAck() throws IOException {
-    incoming.add(new IncomingMessage(DATA.getBytes(), TIMESTAMP, 0, ACK_ID, RECORD_ID.getBytes()));
+    setupOneMessage();
     TestPipeline p = TestPipeline.create();
     PubsubReader<String> reader = primSource.createReader(p.getOptions(), null);
     PubsubTestClient pubsubClient = (PubsubTestClient) reader.getPubsubClient();
+    // Pull the first message but don't take a checkpoint for it.
     assertTrue(reader.start());
     assertEquals(DATA, reader.getCurrent());
     // Extend the ack
@@ -172,10 +176,11 @@ public class PubsubUnboundedSourceTest {
 
   @Test
   public void timeoutAckExtensions() throws IOException {
-    incoming.add(new IncomingMessage(DATA.getBytes(), TIMESTAMP, 0, ACK_ID, RECORD_ID.getBytes()));
+    setupOneMessage();
     TestPipeline p = TestPipeline.create();
     PubsubReader<String> reader = primSource.createReader(p.getOptions(), null);
     PubsubTestClient pubsubClient = (PubsubTestClient) reader.getPubsubClient();
+    // Pull the first message but don't take a checkpoint for it.
     assertTrue(reader.start());
     assertEquals(DATA, reader.getCurrent());
     // Extend the ack.
@@ -202,12 +207,13 @@ public class PubsubUnboundedSourceTest {
 
   @Test
   public void multipleReaders() throws IOException {
+    List<IncomingMessage> incoming = new ArrayList<>();
     for (int i = 0; i < 2; i++) {
       String data = String.format("data_%d", i);
       String ackid = String.format("ackid_%d", i);
       incoming.add(new IncomingMessage(data.getBytes(), TIMESTAMP, 0, ackid, RECORD_ID.getBytes()));
     }
-
+    setupOneMessage(incoming);
     TestPipeline p = TestPipeline.create();
     PubsubReader<String> reader = primSource.createReader(p.getOptions(), null);
     PubsubTestClient pubsubClient = (PubsubTestClient) reader.getPubsubClient();
@@ -257,6 +263,7 @@ public class PubsubUnboundedSourceTest {
 
     final int m = 97;
     final int n = 10000;
+    List<IncomingMessage> incoming = new ArrayList<>();
     for (int i = 0; i < n; i++) {
       // Make the messages timestamps slightly out of order.
       int messageNum = ((i / m) * m) + (m - 1) - (i % m);
@@ -267,6 +274,7 @@ public class PubsubUnboundedSourceTest {
       incoming.add(new IncomingMessage(data.getBytes(), messageNumToTimestamp(messageNum), 0,
                                        ackId, recid.getBytes()));
     }
+    setupOneMessage(incoming);
 
     TestPipeline p = TestPipeline.create();
     PubsubReader<String> reader = primSource.createReader(p.getOptions(), null);
@@ -299,7 +307,7 @@ public class PubsubUnboundedSourceTest {
           minOutstandingTimestamp =
               Math.min(minOutstandingTimestamp, messageNumToTimestamp(outstandingMessageNum));
         }
-        assertTrue(watermark <= minOutstandingTimestamp);
+        assertThat(watermark, lessThanOrEqualTo(minOutstandingTimestamp));
         // Ack messages, but only every other finalization.
         PubsubCheckpoint<String> checkpoint = reader.getCheckpointMark();
         if (i % 2000 == 1999) {
