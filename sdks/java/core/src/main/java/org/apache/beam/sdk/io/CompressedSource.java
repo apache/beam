@@ -32,10 +32,13 @@ import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 import java.io.IOException;
 import java.io.PushbackInputStream;
 import java.io.Serializable;
+import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.util.NoSuchElementException;
 import java.util.zip.GZIPInputStream;
+
+import javax.annotation.concurrent.GuardedBy;
 
 /**
  * A Source that reads from compressed files. A {@code CompressedSources} wraps a delegate
@@ -362,7 +365,11 @@ public class CompressedSource<T> extends FileBasedSource<T> {
     private final FileBasedReader<T> readerDelegate;
     private final CompressedSource<T> source;
     private final boolean splittable;
-    private volatile int numRecordsRead;
+    private final Object progressLock = new Object();
+    @GuardedBy("progressLock")
+    private int numRecordsRead;
+    @GuardedBy("progressLock")
+    private CountingChannel channel;
 
     /**
      * Create a {@code CompressedReader} from a {@code CompressedSource} and delegate reader.
@@ -394,7 +401,9 @@ public class CompressedSource<T> extends FileBasedSource<T> {
         return readerDelegate.getParallelismConsumed();
       }
 
-      return (isDone() && numRecordsRead > 0) ? 1 : 0;
+      synchronized (progressLock) {
+        return (isDone() && numRecordsRead > 0) ? 1 : 0;
+      }
     }
 
     @Override
@@ -420,7 +429,43 @@ public class CompressedSource<T> extends FileBasedSource<T> {
       // of offsets in a file and where the range can be split in parts. CompressedReader,
       // however, is a degenerate case because it cannot be split, but it has to satisfy the
       // semantics of offsets and split points anyway.
-      return numRecordsRead == 1;
+      synchronized (progressLock) {
+        return numRecordsRead == 1;
+      }
+    }
+
+    private static class CountingChannel implements ReadableByteChannel {
+      long count;
+      private final ReadableByteChannel inner;
+
+      public CountingChannel(ReadableByteChannel inner, long count) {
+        this.inner = inner;
+        this.count = count;
+      }
+
+      public long getCount() {
+        return count;
+      }
+
+      @Override
+      public int read(ByteBuffer dst) throws IOException {
+        int bytes = inner.read(dst);
+        if (bytes > 0) {
+          // Avoid the -1 from EOF.
+          count += bytes;
+        }
+        return bytes;
+      }
+
+      @Override
+      public boolean isOpen() {
+        return inner.isOpen();
+      }
+
+      @Override
+      public void close() throws IOException {
+        inner.close();
+      }
     }
 
     /**
@@ -429,6 +474,13 @@ public class CompressedSource<T> extends FileBasedSource<T> {
      */
     @Override
     protected final void startReading(ReadableByteChannel channel) throws IOException {
+      if (!splittable) {
+        synchronized (progressLock) {
+          this.channel = new CountingChannel(channel, getCurrentSource().getStartOffset());
+          channel = this.channel;
+        }
+      }
+
       if (source.getChannelFactory() instanceof FileNameBasedDecompressingChannelFactory) {
         FileNameBasedDecompressingChannelFactory channelFactory =
             (FileNameBasedDecompressingChannelFactory) source.getChannelFactory();
@@ -449,19 +501,36 @@ public class CompressedSource<T> extends FileBasedSource<T> {
       if (!readerDelegate.readNextRecord()) {
         return false;
       }
-      ++numRecordsRead;
+      synchronized (progressLock) {
+        ++numRecordsRead;
+      }
       return true;
     }
 
-    /**
-     * Returns the delegate reader's current offset in the decompressed input.
-     */
+    // Splittable: simply delegates to the inner reader.
+    //
+    // Unsplittable: returns the offset in the input stream that has been read by the input.
+    // these positions are likely to be coarse-grained (in the event of buffering) and
+    // over-estimates (because they reflect the number of bytes read to produce an element, not its
+    // start) but both of these provide better data than e.g., reporting the start of the file.
     @Override
-    protected final long getCurrentOffset() {
+    protected final long getCurrentOffset() throws NoSuchElementException {
       if (splittable) {
         return readerDelegate.getCurrentOffset();
       }
-      return source.getStartOffset();
+      synchronized (progressLock) {
+        if (numRecordsRead <= 1) {
+          // Since the first record is at a split point, it should start at the beginning of the
+          // file. This avoids the bad case where the decompressor read the entire file, which
+          // would cause the file to be treated as empty when returning channel.getCount() as it is
+          // outside the valid range.
+          return 0;
+        }
+        if (channel == null) {
+          throw new NoSuchElementException();
+        }
+        return channel.getCount();
+      }
     }
   }
 }
