@@ -16,6 +16,7 @@
 """Unit tests for local and GCS sources and sinks."""
 
 import glob
+import gzip
 import logging
 import tempfile
 import unittest
@@ -339,6 +340,34 @@ class NativeTestTextFileSink(unittest.TestCase):
         writer.Write(line)
     with open(file_path, 'r') as f:
       self.assertEqual(f.read().splitlines(), lines)
+
+
+class TestPureTextFileSink(unittest.TestCase):
+
+  def setUp(self):
+    self.lines = ['Line %d' % d for d in range(100)]
+    self.path = tempfile.NamedTemporaryFile().name
+
+  def _write_lines(self, sink, lines):
+    f = sink.open(self.path)
+    for line in lines:
+      sink.write_record(f, line)
+    sink.close(f)
+
+  def test_write_text_file(self):
+    sink = fileio.PureTextFileSink(self.path)
+    self._write_lines(sink, self.lines)
+
+    with open(self.path, 'r') as f:
+      self.assertEqual(f.read().splitlines(), self.lines)
+
+  def test_write_gzip_file(self):
+    sink = fileio.PureTextFileSink(
+        self.path, compression_type=fileio.CompressionTypes.DEFLATE)
+    self._write_lines(sink, self.lines)
+
+    with gzip.GzipFile(self.path, 'r') as f:
+      self.assertEqual(f.read().splitlines(), self.lines)
 
 
 class MyFileSink(fileio.FileSink):

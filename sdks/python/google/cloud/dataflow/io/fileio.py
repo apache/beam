@@ -17,6 +17,7 @@
 from __future__ import absolute_import
 
 import glob
+import gzip
 import logging
 import os
 import re
@@ -281,6 +282,31 @@ class ChannelFactory(object):
       except OSError as err:
         raise IOError(err)
 
+  @staticmethod
+  def glob(path):
+    if path.startswith('gs://'):
+      # pylint: disable=g-import-not-at-top
+      from google.cloud.dataflow.io import gcsio
+      return gcsio.GcsIO().glob(path)
+    else:
+      return glob.glob(path)
+
+
+class _CompressionType(object):
+  """Object representing single compression type."""
+
+  def __init__(self, identifier):
+    self.identifier = identifier
+
+  def __eq__(self, other):
+    return self.identifier == other.identifier
+
+
+class CompressionTypes(object):
+  """Enum-like class representing known compression types."""
+  NO_COMPRESSION = _CompressionType(1)  # No compression.
+  DEFLATE = _CompressionType(2)  # 'Deflate' ie gzip compression.
+
 
 class FileSink(iobase.Sink):
   """A sink to a GCS or local files.
@@ -396,12 +422,52 @@ class PureTextFileSink(FileSink):
                file_path_prefix,
                file_name_suffix='',
                coder=coders.ToStringCoder(),
+               compression_type=CompressionTypes.NO_COMPRESSION,
                append_trailing_newlines=True):
+    """Initialize a PureTextFileSink.
+
+    Args:
+      file_path_prefix: The file path to write to. The files written will begin
+        with this prefix, followed by a shard identifier (see num_shards), and
+        end in a common extension, if given by file_name_suffix. In most cases,
+        only this argument is specified and num_shards, shard_name_template, and
+        file_name_suffix use default values.
+      file_name_suffix: Suffix for the files written.
+      coder: Coder used to encode each line.
+      compression_type: Type of compression to use for this sink.
+      append_trailing_newlines: indicate whether this sink should write an
+        additional newline char after writing each element.
+
+    Raises:
+      TypeError: if file_path is not a string or if compression_type is not
+        member of CompressionTypes.
+
+    Returns:
+      A PureTextFileSink object usable for writing.
+    """
+    if not isinstance(compression_type, _CompressionType):
+      raise TypeError('compression_type must be CompressionType object but '
+                      'was %s' % type(compression_type))
+
+    if compression_type == CompressionTypes.DEFLATE:
+      mime_type = 'application/x-gzip'
+    else:
+      mime_type = 'text/plain'
+    self.compression_type = compression_type
+
     super(PureTextFileSink, self).__init__(file_path_prefix,
                                            file_name_suffix=file_name_suffix,
                                            coder=coder,
-                                           mime_type='text/plain')
+                                           mime_type=mime_type)
+
     self.append_trailing_newlines = append_trailing_newlines
+
+  def open(self, temp_path):
+    """Opens ''temp_path'', returning a writeable file object."""
+    fobj = ChannelFactory.open(temp_path, 'wb', self.mime_type)
+    if self.compression_type == CompressionTypes.DEFLATE:
+      return gzip.GzipFile(fileobj=fobj)
+    return fobj
 
   def write_encoded_record(self, file_handle, encoded_value):
     file_handle.write(encoded_value)
@@ -569,12 +635,7 @@ class TextMultiFileReader(iobase.NativeSourceReader):
 
   def __init__(self, source):
     self.source = source
-    if source.is_gcs_source:
-      # pylint: disable=g-import-not-at-top
-      from google.cloud.dataflow.io import gcsio
-      self.file_paths = gcsio.GcsIO().glob(self.source.file_path)
-    else:
-      self.file_paths = glob.glob(self.source.file_path)
+    self.file_paths = ChannelFactory.glob(self.source.file_path)
     if not self.file_paths:
       raise RuntimeError(
           'No files found for path: %s' % self.source.file_path)
