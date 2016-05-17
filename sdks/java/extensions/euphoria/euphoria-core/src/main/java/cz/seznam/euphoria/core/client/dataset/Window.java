@@ -15,6 +15,15 @@ import java.io.Serializable;
  */
 public interface Window<GROUP, LABEL> extends Serializable {
 
+  public static enum TriggerState {
+    /** The trigger has been actived. */
+    ACTIVATED,
+    /** No trigger is associated with this window. */
+    INACTIVE,
+    /** The actual time this trigger should have triggered already passed. */
+    PASSED
+  }
+
   /**
    * Retrieves the key of group this window belongs to. Grouped windows
    * are subject to merging. Windows in different groups will never be
@@ -37,7 +46,8 @@ public interface Window<GROUP, LABEL> extends Serializable {
    * completion event occurs
    * @param triggering the registering service
    * @param evict the callback to be called when the trigger fires
+   * @returns state of the trigger
    */
-  void registerTrigger(
+  TriggerState registerTrigger(
       Triggering triggering, UnaryFunction<Window<?, ?>, Void> evict);
 }

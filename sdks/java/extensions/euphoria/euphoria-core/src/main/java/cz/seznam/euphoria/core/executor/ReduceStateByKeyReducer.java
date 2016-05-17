@@ -252,7 +252,7 @@ class ReduceStateByKeyReducer implements Runnable {
   // from within a separate thread)
   private final ProcessingState processing;
 
-  private final LocalTriggering triggering = new LocalTriggering();
+  private final ProcessingTimeTriggering triggering = new ProcessingTimeTriggering();
 
   ReduceStateByKeyReducer(BlockingQueue input,
                           BlockingQueue output,
@@ -267,7 +267,7 @@ class ReduceStateByKeyReducer implements Runnable {
     this.keyExtractor = keyExtractor;
     this.valueExtractor = valueExtractor;
     this.processing = new ProcessingState(
-        output, new LocalTriggering(),
+        output, new ProcessingTimeTriggering(),
         createEvictTrigger(),
         stateFactory, stateCombiner, windowing.isAggregating());
   }
