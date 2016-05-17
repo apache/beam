@@ -81,8 +81,10 @@ public class Write {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
       builder
-          .add("sink", sink.getClass())
+          .add(DisplayData.item("sink", sink.getClass())
+            .withLabel("Write Sink"))
           .include(sink);
     }
 
@@ -199,6 +201,11 @@ public class Write {
                 WriteT result = writer.close();
                 c.output(result);
               }
+            }
+
+            @Override
+            public void populateDisplayData(DisplayData.Builder builder) {
+              Write.Bound.this.populateDisplayData(builder);
             }
           }).withSideInputs(writeOperationView))
           .setCoder(writeOperation.getWriterResultCoder());

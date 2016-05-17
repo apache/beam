@@ -18,8 +18,11 @@ package com.google.cloud.dataflow.sdk.transforms;
 
 import static com.google.cloud.dataflow.sdk.TestUtils.checkCombineFn;
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.includes;
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasNamespace;
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
 import static com.google.common.base.Preconditions.checkNotNull;
+
+import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
@@ -36,6 +39,7 @@ import com.google.cloud.dataflow.sdk.coders.KvCoder;
 import com.google.cloud.dataflow.sdk.coders.SerializableCoder;
 import com.google.cloud.dataflow.sdk.coders.StandardCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
+import com.google.cloud.dataflow.sdk.coders.VarIntCoder;
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.RunnableOnService;
@@ -43,7 +47,9 @@ import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Combine.KeyedCombineFn;
 import com.google.cloud.dataflow.sdk.transforms.CombineWithContext.Context;
 import com.google.cloud.dataflow.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
+import com.google.cloud.dataflow.sdk.transforms.display.DataflowDisplayDataEvaluator;
 import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayDataEvaluator;
 import com.google.cloud.dataflow.sdk.transforms.windowing.AfterPane;
 import com.google.cloud.dataflow.sdk.transforms.windowing.FixedWindows;
 import com.google.cloud.dataflow.sdk.transforms.windowing.GlobalWindows;
@@ -58,6 +64,7 @@ import com.google.cloud.dataflow.sdk.util.common.ElementByteSizeObserver;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
+import com.google.cloud.dataflow.sdk.values.POutput;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
@@ -686,7 +693,7 @@ public class CombineTest implements Serializable {
     UniqueInts combineFn = new UniqueInts() {
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
-        builder.add("fnMetadata", "foobar");
+        builder.add(DisplayData.item("fnMetadata", "foobar"));
       }
     };
     Combine.Globally<?, ?> combine = Combine.globally(combineFn)
@@ -696,7 +703,37 @@ public class CombineTest implements Serializable {
     assertThat(displayData, hasDisplayItem("combineFn", combineFn.getClass()));
     assertThat(displayData, hasDisplayItem("emitDefaultOnEmptyInput", true));
     assertThat(displayData, hasDisplayItem("fanout", 1234));
-    assertThat(displayData, includes(combineFn));
+    assertThat(displayData, includesDisplayDataFrom(combineFn));
+  }
+
+  @Test
+  public void testDisplayDataForWrappedFn() {
+    UniqueInts combineFn = new UniqueInts() {
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        builder.add(DisplayData.item("foo", "bar"));
+      }
+    };
+    Combine.PerKey<?, ?, ?> combine = Combine.perKey(combineFn);
+    DisplayData displayData = DisplayData.from(combine);
+
+    assertThat(displayData, hasDisplayItem("combineFn", combineFn.getClass()));
+    assertThat(displayData, hasDisplayItem(hasNamespace(combineFn.getClass())));
+  }
+
+  @Test
+  public void testCombinePerKeyPrimitiveDisplayData() {
+    DisplayDataEvaluator evaluator = DataflowDisplayDataEvaluator.create();
+
+    CombineTest.UniqueInts combineFn = new CombineTest.UniqueInts();
+    PTransform<PCollection<KV<Integer, Integer>>, ? extends POutput> combine =
+        Combine.perKey(combineFn);
+
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(combine,
+        KvCoder.of(VarIntCoder.of(), VarIntCoder.of()));
+
+    assertThat("Combine.perKey should include the combineFn in its primitive transform",
+        displayData, hasItem(hasDisplayItem("combineFn", combineFn.getClass())));
   }
 
   ////////////////////////////////////////////////////////////////////////////

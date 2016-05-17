@@ -94,6 +94,7 @@ import com.google.cloud.dataflow.sdk.transforms.SerializableFunction;
 import com.google.cloud.dataflow.sdk.transforms.View;
 import com.google.cloud.dataflow.sdk.transforms.View.CreatePCollectionView;
 import com.google.cloud.dataflow.sdk.transforms.WithKeys;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.transforms.windowing.AfterPane;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.transforms.windowing.DefaultTrigger;
@@ -2137,6 +2138,11 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
           .setCoder(TableRowJsonCoder.of());
     }
 
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      transform.populateDisplayData(builder);
+    }
+
     static {
       DataflowPipelineTranslator.registerTransformTranslator(
           BatchBigQueryIONativeRead.class, new BatchBigQueryIONativeReadTranslator());
@@ -2230,6 +2236,11 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     @Override
     public PDone apply(PCollection<TableRow> input) {
       return PDone.in(input.getPipeline());
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      transform.populateDisplayData(builder);
     }
 
     static {

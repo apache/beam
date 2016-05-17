@@ -17,7 +17,7 @@
 package com.google.cloud.dataflow.sdk.io;
 
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.includes;
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 
@@ -73,13 +73,13 @@ public class ReadTest implements Serializable{
     SerializableBoundedSource boundedSource = new SerializableBoundedSource() {
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
-        builder.add("foo", "bar");
+        builder.add(DisplayData.item("foo", "bar"));
       }
     };
     SerializableUnboundedSource unboundedSource = new SerializableUnboundedSource() {
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
-        builder.add("foo", "bar");
+        builder.add(DisplayData.item("foo", "bar"));
       }
     };
     Duration maxReadTime = Duration.standardMinutes(2345);
@@ -91,11 +91,11 @@ public class ReadTest implements Serializable{
 
     DisplayData boundedDisplayData = DisplayData.from(bounded);
     assertThat(boundedDisplayData, hasDisplayItem("source", boundedSource.getClass()));
-    assertThat(boundedDisplayData, includes(boundedSource));
+    assertThat(boundedDisplayData, includesDisplayDataFrom(boundedSource));
 
     DisplayData unboundedDisplayData = DisplayData.from(unbounded);
     assertThat(unboundedDisplayData, hasDisplayItem("source", unboundedSource.getClass()));
-    assertThat(unboundedDisplayData, includes(unboundedSource));
+    assertThat(unboundedDisplayData, includesDisplayDataFrom(unboundedSource));
     assertThat(unboundedDisplayData, hasDisplayItem("maxRecords", 1234));
     assertThat(unboundedDisplayData, hasDisplayItem("maxReadTime", maxReadTime));
   }

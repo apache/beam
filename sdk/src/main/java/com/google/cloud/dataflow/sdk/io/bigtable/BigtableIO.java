@@ -264,14 +264,17 @@ public class BigtableIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
 
-      builder.add("tableId", tableId);
+      builder.add(DisplayData.item("tableId", tableId)
+        .withLinkUrl("Table ID"));
 
       if (options != null) {
-        builder.add("bigtableOptions", options.toString());
+        builder.add(DisplayData.item("bigtableOptions", options.toString())
+          .withLabel("Bigtable Options"));
       }
 
       if (filter != null) {
-        builder.add("rowFilter", filter.toString());
+        builder.add(DisplayData.item("rowFilter", filter.toString())
+          .withLabel("Table Row Filter"));
       }
     }
 
@@ -446,10 +449,12 @@ public class BigtableIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
 
-      builder.add("tableId", tableId);
+      builder.add(DisplayData.item("tableId", tableId)
+        .withLabel("Table ID"));
 
       if (options != null) {
-        builder.add("bigtableOptions", options.toString());
+        builder.add(DisplayData.item("bigtableOptions", options.toString())
+          .withLabel("Bigtable Options"));
       }
     }
 

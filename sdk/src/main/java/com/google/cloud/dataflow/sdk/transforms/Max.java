@@ -207,7 +207,9 @@ public class Max {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
-      builder.add("comparer", comparator.getClass());
+      super.populateDisplayData(builder);
+      builder.add(DisplayData.item("comparer", comparator.getClass())
+        .withLabel("Record Comparer"));
     }
   }
 

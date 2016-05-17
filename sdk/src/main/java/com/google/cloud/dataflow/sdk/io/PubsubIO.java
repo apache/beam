@@ -184,6 +184,23 @@ public class PubsubIO {
   }
 
   /**
+   * Populate common {@link DisplayData} between Pubsub source and sink.
+   */
+  private static void populateCommonDisplayData(DisplayData.Builder builder,
+      String timestampLabel, String idLabel, PubsubTopic topic) {
+    builder
+        .addIfNotNull(DisplayData.item("timestampLabel", timestampLabel)
+            .withLabel("Timestamp Label Attribute"))
+        .addIfNotNull(DisplayData.item("idLabel", idLabel)
+            .withLabel("ID Label Attribute"));
+
+    if (topic != null) {
+      builder.add(DisplayData.item("topic", topic.asPath())
+          .withLabel("Pubsub Topic"));
+    }
+  }
+
+  /**
    * Class representing a Cloud Pub/Sub Subscription.
    */
   public static class PubsubSubscription implements Serializable {
@@ -691,19 +708,17 @@ public class PubsubIO {
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
         super.populateDisplayData(builder);
+        populateCommonDisplayData(builder, timestampLabel, idLabel, topic);
 
         builder
-            .addIfNotNull("timestampLabel", timestampLabel)
-            .addIfNotNull("idLabel", idLabel)
-            .addIfNotNull("maxReadTime", maxReadTime)
-            .addIfNotDefault("maxNumRecords", maxNumRecords, 0);
-
-        if (topic != null) {
-          builder.add("topic", topic.asPath());
-        }
+            .addIfNotNull(DisplayData.item("maxReadTime", maxReadTime)
+              .withLabel("Maximum Read Time"))
+            .addIfNotDefault(DisplayData.item("maxNumRecords", maxNumRecords)
+              .withLabel("Maximum Read Records"), 0);
 
         if (subscription != null) {
-          builder.add("subscription", subscription.asPath());
+          builder.add(DisplayData.item("subscription", subscription.asPath())
+            .withLabel("Pubsub Subscription"));
         }
       }
 
@@ -995,14 +1010,7 @@ public class PubsubIO {
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
         super.populateDisplayData(builder);
-
-        builder
-            .addIfNotNull("timestampLabel", timestampLabel)
-            .addIfNotNull("idLabel", idLabel);
-
-        if (topic != null) {
-          builder.add("topic", topic.asPath());
-        }
+        populateCommonDisplayData(builder, timestampLabel, idLabel, topic);
       }
 
       @Override
@@ -1071,6 +1079,11 @@ public class PubsubIO {
               .publish(getTopic().asPath(), publishRequest)
               .execute();
           output.clear();
+        }
+
+        @Override
+        public void populateDisplayData(DisplayData.Builder builder) {
+          Bound.this.populateDisplayData(builder);
         }
       }
     }

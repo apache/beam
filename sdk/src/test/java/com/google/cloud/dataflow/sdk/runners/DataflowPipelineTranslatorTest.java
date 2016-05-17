@@ -20,8 +20,11 @@ import static com.google.cloud.dataflow.sdk.util.Structs.addObject;
 import static com.google.cloud.dataflow.sdk.util.Structs.getDictionary;
 import static com.google.cloud.dataflow.sdk.util.Structs.getString;
 
+import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasKey;
+import static org.hamcrest.Matchers.is;
 import static org.hamcrest.core.IsInstanceOf.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -49,6 +52,7 @@ import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineWorkerPoolOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator.TranslationContext;
+import com.google.cloud.dataflow.sdk.testing.ExpectedLogs;
 import com.google.cloud.dataflow.sdk.transforms.Count;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
@@ -101,6 +105,7 @@ import java.util.Map;
 public class DataflowPipelineTranslatorTest implements Serializable {
 
   @Rule public transient ExpectedException thrown = ExpectedException.none();
+  @Rule public transient ExpectedLogs logs = ExpectedLogs.none(DataflowPipelineTranslator.class);
 
   // A Custom Mockito matcher for an initial Job that checks that all
   // expected fields are set.
@@ -689,7 +694,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     pipeline.apply(TextIO.Read.from("gs://bucket/foo**/baz"));
 
     // Check that translation does fail.
-    thrown.expectCause(Matchers.allOf(
+    thrown.expectCause(allOf(
         instanceOf(IllegalArgumentException.class),
         ThrowableMessageMatcher.hasMessage(containsString("Unsupported wildcard usage"))));
     t.translate(pipeline, pipeline.getRunner(), Collections.<DataflowPackage>emptyList());
@@ -820,10 +825,10 @@ public class DataflowPipelineTranslatorTest implements Serializable {
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
         builder
-            .add("foo", "bar")
-            .add("foo2", DataflowPipelineTranslatorTest.class)
-            .withLabel("Test Class")
-            .withLinkUrl("http://www.google.com");
+            .add(DisplayData.item("foo", "bar"))
+            .add(DisplayData.item("foo2", DataflowPipelineTranslatorTest.class)
+                .withLabel("Test Class")
+                .withLinkUrl("http://www.google.com"));
       }
     };
 
@@ -835,7 +840,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
-        builder.add("foo3", 1234);
+        builder.add(DisplayData.item("foo3", 1234));
       }
     };
 
@@ -872,6 +877,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
             .build(),
         ImmutableMap.<String, Object>builder()
             .put("key", "fn")
+            .put("label", "Transform Function")
             .put("type", "JAVA_CLASS")
             .put("value", fn1.getClass().getName())
             .put("shortValue", fn1.getClass().getSimpleName())
@@ -891,6 +897,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     ImmutableSet<ImmutableMap<String, Object>> expectedFn2DisplayData = ImmutableSet.of(
         ImmutableMap.<String, Object>builder()
             .put("key", "fn")
+            .put("label", "Transform Function")
             .put("type", "JAVA_CLASS")
             .put("value", fn2.getClass().getName())
             .put("shortValue", fn2.getClass().getSimpleName())
@@ -906,5 +913,63 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     assertEquals(expectedFn1DisplayData, ImmutableSet.copyOf(fn1displayData));
     assertEquals(expectedFn2DisplayData, ImmutableSet.copyOf(fn2displayData));
+  }
+
+  @Test
+  public void testCapturesDisplayDataExceptions() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setRunner(DataflowPipelineRunner.class);
+    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
+    Pipeline pipeline = Pipeline.create(options);
+
+    final RuntimeException displayDataException = new RuntimeException("foobar");
+    pipeline
+        .apply(Create.of(1, 2, 3))
+        .apply(ParDo.of(new DoFn<Integer, Integer>() {
+          @Override
+          public void processElement(ProcessContext c) throws Exception {
+            c.output(c.element());
+          }
+
+          @Override
+          public void populateDisplayData(DisplayData.Builder builder) {
+            throw displayDataException;
+          }
+        }));
+
+    Job job = translator.translate(
+        pipeline,
+        (DataflowPipelineRunner) pipeline.getRunner(),
+        Collections.<DataflowPackage>emptyList()).getJob();
+
+    String expectedMessage = "Display data will be not be available for this step";
+    logs.verifyWarn(expectedMessage);
+
+    List<Step> steps = job.getSteps();
+    assertEquals("Job should have 2 steps", 2, steps.size());
+
+    @SuppressWarnings("unchecked")
+    Iterable<Map<String, String>> displayData = (Collection<Map<String, String>>) steps.get(1)
+        .getProperties().get("display_data");
+
+    String namespace = DataflowPipelineTranslator.DisplayDataException.class.getName();
+    Assert.assertThat(displayData, Matchers.<Map<String, String>>hasItem(allOf(
+      hasEntry("namespace", namespace),
+      hasEntry("key", "exceptionType"),
+      hasEntry("value", RuntimeException.class.getName()))));
+
+    Assert.assertThat(displayData, Matchers.<Map<String, String>>hasItem(allOf(
+        hasEntry("namespace", namespace),
+        hasEntry("key", "exceptionMessage"),
+        hasEntry(is("value"), Matchers.containsString(expectedMessage)))));
+
+    Assert.assertThat(displayData, Matchers.<Map<String, String>>hasItem(allOf(
+        hasEntry("namespace", namespace),
+        hasEntry("key", "exceptionCause"),
+        hasEntry("value", "foobar"))));
+
+    Assert.assertThat(displayData, Matchers.<Map<String, String>>hasItem(allOf(
+        hasEntry("namespace", namespace),
+        hasEntry("key", "stackTrace"))));
   }
 }

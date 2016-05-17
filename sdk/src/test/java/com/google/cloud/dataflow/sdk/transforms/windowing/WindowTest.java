@@ -18,7 +18,7 @@ package com.google.cloud.dataflow.sdk.transforms.windowing;
 
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasKey;
-import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.includes;
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.isOneOf;
@@ -249,7 +249,7 @@ public class WindowTest implements Serializable {
     DisplayData displayData = DisplayData.from(window);
 
     assertThat(displayData, hasDisplayItem("windowFn", windowFn.getClass()));
-    assertThat(displayData, includes(windowFn));
+    assertThat(displayData, includesDisplayDataFrom(windowFn));
 
     assertThat(displayData, hasDisplayItem("trigger", triggerBuilder.toString()));
     assertThat(displayData,
@@ -262,24 +262,27 @@ public class WindowTest implements Serializable {
 
   @Test
   public void testDisplayDataExcludesUnspecifiedProperties() {
-    Window.Bound<?> window = Window.into(new GlobalWindows());
-
-    DisplayData displayData = DisplayData.from(window);
-    assertThat(displayData, not(hasDisplayItem(hasKey(isOneOf(
+    Window.Bound<?> onlyHasAccumulationMode = Window.named("foobar").discardingFiredPanes();
+    assertThat(DisplayData.from(onlyHasAccumulationMode), not(hasDisplayItem(hasKey(isOneOf(
+        "windowFn",
         "trigger",
         "outputTimeFn",
-        "accumulationMode",
         "allowedLateness",
         "closingBehavior")))));
 
+    Window.Bound<?> noAccumulationMode = Window.into(new GlobalWindows());
+    assertThat(DisplayData.from(noAccumulationMode),
+        not(hasDisplayItem(hasKey("accumulationMode"))));
   }
 
   @Test
-  public void testDisplayDataExcludesDefaultTrigger() {
+  public void testDisplayDataExcludesDefaults() {
     Window.Bound<?> window = Window.into(new GlobalWindows())
-        .triggering(DefaultTrigger.of());
+        .triggering(DefaultTrigger.of())
+        .withAllowedLateness(Duration.millis(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));
 
     DisplayData data = DisplayData.from(window);
-    assertThat(data, not(hasDisplayItem(hasKey("trigger"))));
+    assertThat(data, not(hasDisplayItem("trigger")));
+    assertThat(data, not(hasDisplayItem("allowedLateness")));
   }
 }

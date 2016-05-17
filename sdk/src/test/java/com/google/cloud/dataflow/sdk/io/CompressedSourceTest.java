@@ -17,8 +17,7 @@
 package com.google.cloud.dataflow.sdk.io;
 
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasKey;
-import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.includes;
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
@@ -341,7 +340,7 @@ public class CompressedSourceTest {
     ByteSource inputSource = new ByteSource("foobar.txt", 1) {
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
-        builder.add("foo", "bar");
+        builder.add(DisplayData.item("foo", "bar"));
       }
     };
 
@@ -351,10 +350,10 @@ public class CompressedSourceTest {
     DisplayData compressedSourceDisplayData = DisplayData.from(compressedSource);
     DisplayData gzipDisplayData = DisplayData.from(gzipSource);
 
-    assertThat(compressedSourceDisplayData, hasDisplayItem(hasKey("compressionMode")));
+    assertThat(compressedSourceDisplayData, hasDisplayItem("compressionMode"));
     assertThat(gzipDisplayData, hasDisplayItem("compressionMode", CompressionMode.GZIP.toString()));
     assertThat(compressedSourceDisplayData, hasDisplayItem("source", inputSource.getClass()));
-    assertThat(compressedSourceDisplayData, includes(inputSource));
+    assertThat(compressedSourceDisplayData, includesDisplayDataFrom(inputSource));
   }
 
   /**

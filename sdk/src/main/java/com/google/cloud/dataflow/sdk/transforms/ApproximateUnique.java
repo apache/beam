@@ -214,6 +214,7 @@ public class ApproximateUnique {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
       ApproximateUnique.populateDisplayData(builder, sampleSize, maximumEstimationError);
     }
   }
@@ -287,6 +288,7 @@ public class ApproximateUnique {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
       ApproximateUnique.populateDisplayData(builder, sampleSize, maximumEstimationError);
     }
   }
@@ -457,7 +459,9 @@ public class ApproximateUnique {
   private static void populateDisplayData(
       DisplayData.Builder builder, long sampleSize, Double maxEstimationError) {
     builder
-        .add("sampleSize", sampleSize)
-        .addIfNotNull("maximumEstimationError", maxEstimationError);
+        .add(DisplayData.item("sampleSize", sampleSize)
+          .withLabel("Sample Size"))
+        .addIfNotNull(DisplayData.item("maximumEstimationError", maxEstimationError)
+          .withLabel("Maximum Estimation Error"));
   }
 }

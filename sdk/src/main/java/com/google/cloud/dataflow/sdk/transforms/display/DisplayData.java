@@ -16,12 +16,10 @@
 
 package com.google.cloud.dataflow.sdk.transforms.display;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
-import com.google.cloud.dataflow.sdk.transforms.ParDo;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -36,26 +34,27 @@ import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.ISODateTimeFormat;
 
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
 /**
- * Static display metadata associated with a pipeline component. Display data is useful for
+ * Static display data associated with a pipeline component. Display data is useful for
  * pipeline runner UIs and diagnostic dashboards to display details about
  * {@link PTransform PTransforms} that make up a pipeline.
  *
  * <p>Components specify their display data by implementing the {@link HasDisplayData}
  * interface.
  */
-public class DisplayData {
-  private static final DisplayData EMPTY = new DisplayData(Maps.<Identifier, Item>newHashMap());
+public class DisplayData implements Serializable {
+  private static final DisplayData EMPTY = new DisplayData(Maps.<Identifier, Item<?>>newHashMap());
   private static final DateTimeFormatter TIMESTAMP_FORMATTER = ISODateTimeFormat.dateTime();
 
-  private final ImmutableMap<Identifier, Item> entries;
+  private final ImmutableMap<Identifier, Item<?>> entries;
 
-  private DisplayData(Map<Identifier, Item> entries) {
+  private DisplayData(Map<Identifier, Item<?>> entries) {
     this.entries = ImmutableMap.copyOf(entries);
   }
 
@@ -70,9 +69,13 @@ public class DisplayData {
    * Collect the {@link DisplayData} from a component. This will traverse all subcomponents
    * specified via {@link Builder#include} in the given component. Data in this component will be in
    * a namespace derived from the component.
+   *
+   * <p>Pipeline runners should call this method in order to collect display data. While it should
+   * be safe to call {@code DisplayData.from} on any component which implements it, runners should
+   * be resilient to exceptions thrown while collecting display data.
    */
   public static DisplayData from(HasDisplayData component) {
-    checkNotNull(component);
+    checkNotNull(component, "component argument cannot be null");
     return InternalBuilder.forRoot(component).build();
   }
 
@@ -87,7 +90,7 @@ public class DisplayData {
    * public void populateDisplayData(DisplayData.Builder builder) {
    *   Optional<DisplayData.Type> type = DisplayData.inferType(foo);
    *   if (type.isPresent()) {
-   *     builder.add("foo", type.get(), foo);
+   *     builder.add(DisplayData.item("foo", type.get(), foo));
    *   }
    * }
    * }
@@ -101,11 +104,11 @@ public class DisplayData {
   }
 
   @JsonValue
-  public Collection<Item> items() {
+  public Collection<Item<?>> items() {
     return entries.values();
   }
 
-  public Map<Identifier, Item> asMap() {
+  public Map<Identifier, Item<?>> asMap() {
     return entries;
   }
 
@@ -128,7 +131,7 @@ public class DisplayData {
   public String toString() {
     StringBuilder builder = new StringBuilder();
     boolean isFirstLine = true;
-    for (Item entry : entries.values()) {
+    for (Item<?> entry : entries.values()) {
       if (isFirstLine) {
         isFirstLine = false;
       } else {
@@ -141,345 +144,141 @@ public class DisplayData {
     return builder.toString();
   }
 
-  private static String namespaceOf(ClassForDisplay clazz) {
+  private static String namespaceOf(Class<?> clazz) {
     return clazz.getName();
   }
 
   /**
-   * Utility to build up display metadata from a component and its included
+   * Utility to build up display data from a component and its included
    * subcomponents.
    */
   public interface Builder {
     /**
-     * Register display metadata from the specified subcomponent.
+     * Register display data from the specified subcomponent. For example, a {@link PTransform}
+     * which delegates to a user-provided function can implement {@link HasDisplayData} on the
+     * function and include it from the {@link PTransform}:
      *
-     * @see #include(HasDisplayData, String)
+     * <pre><code>{@literal @Override}
+     * public void populateDisplayData(DisplayData.Builder builder) {
+     *   super.populateDisplayData(builder);
+     *
+     *   builder
+     *     .add(DisplayData.item("userFn", userFn)) // To register the class name of the userFn
+     *     .include(userFn); // To allow the userFn to register additional display data
+     * }
+     * </code></pre>
+     *
+     * Using {@code include(subcomponent)} will associate each of the registered items with the
+     * namespace of the {@code subcomponent} being registered. To register display data in the
+     * current namespace, such as from a base class implementation, use
+     * {@code subcomponent.populateDisplayData(builder)} instead.
+     *
+     * @see HasDisplayData#populateDisplayData(DisplayData.Builder)
      */
     Builder include(HasDisplayData subComponent);
 
     /**
-     * Register display metadata from the specified subcomponent, using the specified namespace.
+     * Register display data from the specified subcomponent, overriding the namespace of
+     * subcomponent display items with the specified namespace.
      *
-     * @see #include(HasDisplayData, String)
+     * @see #include(HasDisplayData)
      */
     Builder include(HasDisplayData subComponent, Class<?> namespace);
 
     /**
-     * Register display metadata from the specified subcomponent, using the specified namespace.
+     * Register display data from the specified subcomponent, overriding the namespace of
+     * subcomponent display items with the specified namespace.
      *
-     * @see #include(HasDisplayData, String)
-     */
-    Builder include(HasDisplayData subComponent, ClassForDisplay namespace);
-
-    /**
-     * Register display metadata from the specified subcomponent, using the specified namespace.
-     *
-     * <p>For example, a {@link ParDo} transform includes display metadata from the encapsulated
-     * {@link DoFn}.
+     * @see #include(HasDisplayData)
      */
     Builder include(HasDisplayData subComponent, String namespace);
 
     /**
-     * Register the given string display metadata. The metadata item will be registered with type
-     * {@link DisplayData.Type#STRING}, and is identified by the specified key and namespace from
-     * the current transform or component.
+     * Register the given display item.
      */
-    ItemBuilder add(String key, String value);
+    Builder add(Item<?> item);
 
     /**
-     * Register the given string display data if the value is not null.
-     *
-     * @see DisplayData.Builder#add(String, String)
+     * Register the given display item if the value is not null.
      */
-    ItemBuilder addIfNotNull(String key, @Nullable String value);
+    Builder addIfNotNull(Item<?> item);
 
     /**
-     * Register the given string display data if the value is different than the specified default.
-     *
-     * @see DisplayData.Builder#add(String, String)
+     * Register the given display item if the value is different than the specified default.
      */
-    ItemBuilder addIfNotDefault(String key, @Nullable String value, @Nullable String defaultValue);
-
-    /**
-     * Register the given numeric display metadata. The metadata item will be registered with type
-     * {@link DisplayData.Type#INTEGER}, and is identified by the specified key and namespace from
-     * the current transform or component.
-     */
-    ItemBuilder add(String key, long value);
-
-    /**
-     * Register the given numeric display data if the value is not null.
-     *
-     * @see DisplayData.Builder#add(String, long)
-     */
-    ItemBuilder addIfNotNull(String key, @Nullable Long value);
-
-    /**
-     * Register the given numeric display data if the value is different than the specified default.
-     *
-     * @see DisplayData.Builder#add(String, long)
-     */
-    ItemBuilder addIfNotDefault(String key, long value, long defaultValue);
-
-    /**
-     * Register the given floating point display metadata. The metadata item will be registered with
-     * type {@link DisplayData.Type#FLOAT}, and is identified by the specified key and namespace
-     * from the current transform or component.
-     */
-    ItemBuilder add(String key, double value);
-
-    /**
-     * Register the given floating point display data if the value is not null.
-     *
-     * @see DisplayData.Builder#add(String, double)
-     */
-    ItemBuilder addIfNotNull(String key, @Nullable Double value);
-
-    /**
-     * Register the given floating point display data if the value is different than the specified
-     * default.
-     *
-     * @see DisplayData.Builder#add(String, double)
-     */
-    ItemBuilder addIfNotDefault(String key, double value, double defaultValue);
-
-    /**
-     * Register the given boolean display metadata. The metadata item will be registered with
-     * type {@link DisplayData.Type#BOOLEAN}, and is identified by the specified key and namespace
-     * from the current transform or component.
-     */
-    ItemBuilder add(String key, boolean value);
-
-    /**
-     * Register the given boolean display data if the value is not null.
-     *
-     * @see DisplayData.Builder#add(String, boolean)
-     */
-    ItemBuilder addIfNotNull(String key, @Nullable Boolean value);
-
-    /**
-     * Register the given boolean display data if the value is different than the specified default.
-     *
-     * @see DisplayData.Builder#add(String, boolean)
-     */
-    ItemBuilder addIfNotDefault(String key, boolean value, boolean defaultValue);
-
-    /**
-     * Register the given timestamp display metadata. The metadata item will be registered with type
-     * {@link DisplayData.Type#TIMESTAMP}, and is identified by the specified key and namespace from
-     * the current transform or component.
-     */
-    ItemBuilder add(String key, Instant value);
-
-    /**
-     * Register the given timestamp display data if the value is not null.
-     *
-     * @see DisplayData.Builder#add(String, Instant)
-     */
-    ItemBuilder addIfNotNull(String key, @Nullable Instant value);
-
-    /**
-     * Register the given timestamp display data if the value is different than the specified
-     * default.
-     *
-     * @see DisplayData.Builder#add(String, Instant)
-     */
-    ItemBuilder addIfNotDefault(
-        String key, @Nullable Instant value, @Nullable Instant defaultValue);
-
-    /**
-     * Register the given duration display metadata. The metadata item will be registered with type
-     * {@link DisplayData.Type#DURATION}, and is identified by the specified key and namespace from
-     * the current transform or component.
-     */
-    ItemBuilder add(String key, Duration value);
-
-    /**
-     * Register the given duration display data if the value is not null.
-     *
-     * @see DisplayData.Builder#add(String, Duration)
-     */
-    ItemBuilder addIfNotNull(String key, @Nullable Duration value);
-
-    /**
-     * Register the given duration display data if the value is different than the specified
-     * default.
-     *
-     * @see DisplayData.Builder#add(String, Duration)
-     */
-    ItemBuilder addIfNotDefault(
-        String key, @Nullable Duration value, @Nullable Duration defaultValue);
-
-    /**
-     * Register the given class display metadata. The metadata item will be registered with type
-     * {@link DisplayData.Type#JAVA_CLASS}, and is identified by the specified key and namespace
-     * from the current transform or component.
-     */
-    ItemBuilder add(String key, Class<?> value);
-
-    /**
-     * Register the given class display metadata. The metadata item will be registered with type
-     * {@link DisplayData.Type#JAVA_CLASS}, and is identified by the specified key and namespace
-     * from the current transform or component.
-     */
-    ItemBuilder add(String key, ClassForDisplay value);
-
-    /**
-     * Register the given class display data if the value is not null.
-     *
-     * @see DisplayData.Builder#add(String, Class)
-     */
-    ItemBuilder addIfNotNull(String key, @Nullable Class<?> value);
-
-    /**
-     * Register the given class display data if the value is not null.
-     *
-     * @see DisplayData.Builder#add(String, ClassForDisplay)
-     */
-    ItemBuilder addIfNotNull(String key, @Nullable ClassForDisplay value);
-
-    /**
-     * Register the given class display data if the value is different than the specified default.
-     *
-     * @see DisplayData.Builder#add(String, Class)
-     */
-    ItemBuilder addIfNotDefault(
-        String key, @Nullable Class<?> value, @Nullable Class<?> defaultValue);
-
-    /**
-     * Register the given class display data if the value is different than the specified default.
-     *
-     * @see DisplayData.Builder#add(String, ClassForDisplay)
-     */
-    ItemBuilder addIfNotDefault(
-        String key, @Nullable ClassForDisplay value, @Nullable ClassForDisplay defaultValue);
-  /**
-   * Register the given display metadata with the specified type.
-   *
-   * <p> The added display data is identified by the specified key and namespace from the current
-   * transform or component.
-   *
-   * @throws ClassCastException if the value cannot be safely cast to the specified type.
-   *
-   * @see DisplayData#inferType(Object)
-   */
-    ItemBuilder add(String key, Type type, Object value);
+    <T> Builder addIfNotDefault(Item<T> item, @Nullable T defaultValue);
   }
 
   /**
-   * Utility to append optional fields to display metadata, or register additional display metadata
-   * items.
+   * {@link Item Items} are the unit of display data. Each item is identified by a given key
+   * and namespace from the component the display item belongs to.
+   *
+   * <p>{@link Item Items} are registered via {@link DisplayData.Builder#add}
+   * within {@link HasDisplayData#populateDisplayData} implementations.
    */
-  public interface ItemBuilder extends Builder {
-    /**
-     * Add a human-readable label to describe the most-recently added metadata field.
-     * A label is optional; if unspecified, UIs should display the metadata key to identify the
-     * display item.
-     *
-     * <p>Specifying a null value will clear the label if it was previously defined.
-     */
-    ItemBuilder withLabel(@Nullable String label);
-
-    /**
-     * Add a link URL to the most-recently added display metadata. A link URL is optional and
-     * can be provided to point the reader to additional details about the metadata.
-     *
-     * <p>Specifying a null value will clear the URL if it was previously defined.
-     */
-    ItemBuilder withLinkUrl(@Nullable String url);
-
-    /**
-     * Adds an explicit namespace to the most-recently added display metadata. The namespace
-     * and key uniquely identify the display metadata.
-     *
-     * <p>Leaving the namespace unspecified will default to the registering instance's class.
-     */
-    ItemBuilder withNamespace(Class<?> namespace);
-
-    /**
-     * Adds an explicit namespace to the most-recently added display metadata. The namespace
-     * and key uniquely identify the display metadata.
-     *
-     * <p>Leaving the namespace unspecified will default to the registering instance's class.
-     */
-    ItemBuilder withNamespace(ClassForDisplay namespace);
-  }
-
-  /**
-   * A display metadata item. DisplayData items are registered via {@link Builder#add} within
-   * {@link HasDisplayData#populateDisplayData} implementations. Each metadata item is uniquely
-   * identified by the specified key and namespace generated from the registering component's
-   * class name.
-   */
-  public static class Item {
+  public static final class Item<T> implements Serializable {
+    @Nullable private final String namespace;
     private final String key;
-    private final String ns;
     private final Type type;
-    private final Object value;
-    private final Object shortValue;
-    private final String label;
-    private final String url;
+    @Nullable private final Object value;
+    @Nullable private final Object shortValue;
+    @Nullable private final String label;
+    @Nullable private final String linkUrl;
 
-    private static Item create(String nsClass, String key, Type type, Object value) {
-      FormattedItemValue formatted = type.format(value);
-      return new Item(
-          nsClass, key, type, formatted.getLongValue(), formatted.getShortValue(), null, null);
-    }
-
-    private Item(
-        String namespace,
-        String key,
-        Type type,
-        Object value,
-        Object shortValue,
-        String url,
-        String label) {
-      this.ns = namespace;
-      this.key = key;
-      this.type = type;
-      this.value = value;
-      this.shortValue = shortValue;
-      this.url = url;
-      this.label = label;
-    }
-
+    /**
+     * The namespace for the display item. The namespace defaults to the component which
+     * the display item belongs to.
+     */
+    @Nullable
     @JsonGetter("namespace")
     public String getNamespace() {
-      return ns;
+      return namespace;
     }
 
+    /**
+     * The key for the display item. Each display item is created with a key and value
+     * via {@link DisplayData#item).
+     */
     @JsonGetter("key")
     public String getKey() {
       return key;
     }
 
     /**
-     * Retrieve the {@link DisplayData.Type} of display metadata. All metadata conforms to a
+     * Retrieve the {@link DisplayData.Type} of display data. All metadata conforms to a
      * predefined set of allowed types.
      */
     @JsonGetter("type")
     public Type getType() {
-      return type;
-    }
+        return type;
+      }
 
     /**
-     * Retrieve the value of the metadata item.
+     * Retrieve the value of the display item. The value is translated from the input to
+     * {@link DisplayData#item} into a format suitable for display. Translation is based on the
+     * item's {@link #getType() type}.
+     *
+     * <p>The value will only be {@literal null} if the input value during creation was null.
      */
     @JsonGetter("value")
+    @Nullable
     public Object getValue() {
       return value;
     }
 
     /**
-     * Return the optional short value for an item. Types may provide a short-value to displayed
-     * instead of or in addition to the full {@link Item#value}.
+     * Return the optional short value for an item, or null if none is provided.
      *
-     * <p>Some display data types will not provide a short value, in which case the return value
-     * will be null.
+     * <p>The short value is an alternative display representation for items having a long display
+     * value. For example, the {@link #getValue() value} for {@link Type#JAVA_CLASS} items contains
+     * the full class name with package, while the short value contains just the class name.
+     *
+     * A {@link #getValue() value} will be provided for each display item, and some types may also
+     * provide a short-value. If a short value is provided, display data consumers may
+     * choose to display it instead of or in addition to the {@link #getValue() value}.
      */
     @JsonGetter("shortValue")
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    @Nullable
     public Object getShortValue() {
       return shortValue;
     }
@@ -499,7 +298,7 @@ public class DisplayData {
 
     /**
      * Retrieve the optional link URL for an item. The URL points to an address where the reader
-     * can find additional context for the display metadata.
+     * can find additional context for the display data.
      *
      * <p>If no URL was specified, this will return {@code null}.
      */
@@ -507,63 +306,129 @@ public class DisplayData {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     @Nullable
     public String getLinkUrl() {
-      return url;
+      return linkUrl;
     }
 
-    @Override
-    public String toString() {
-      return String.format("%s:%s=%s", ns, key, value);
+    private static <T> Item<T> create(String key, Type type, @Nullable T value) {
+      FormattedItemValue formatted = type.safeFormat(value);
+      return new Item<>(
+          null, key, type, formatted.getLongValue(), formatted.getShortValue(), null, null);
     }
 
-    @Override
-    public boolean equals(Object obj) {
-      if (obj instanceof Item) {
-        Item that = (Item) obj;
-        return Objects.equals(this.ns, that.ns)
-            && Objects.equals(this.key, that.key)
-            && Objects.equals(this.type, that.type)
-            && Objects.equals(this.value, that.value)
-            && Objects.equals(this.shortValue, that.shortValue)
-            && Objects.equals(this.label, that.label)
-            && Objects.equals(this.url, that.url);
-      }
+    /**
+     * Set the item {@link Item#getNamespace() namespace} from the given {@link Class}.
+     *
+     * <p>This method does not alter the current instance, but instead returns a new {@link Item}
+     * with the namespace set.
+     */
+    public Item<T> withNamespace(Class<?> namespace) {
+      checkNotNull(namespace, "namespace argument cannot be null");
+      return withNamespace(namespaceOf(namespace));
+    }
 
-      return false;
+    /** @see #withNamespace(Class) */
+    public Item<T> withNamespace(String namespace) {
+      checkNotNull(namespace, "namespace argument cannot be null");
+      return new Item<>(
+          namespace, getKey(), getType(), getValue(), getShortValue(), getLabel(), getLinkUrl());
+    }
+
+    /**
+     * Set the item {@link Item#getLabel() label}.
+     *
+     * <p>Specifying a null value will clear the label if it was previously defined.
+     *
+     * <p>This method does not alter the current instance, but instead returns a new {@link Item}
+     * with the label set.
+     */
+    public Item<T> withLabel(String label) {
+      return new Item<>(
+          getNamespace(), getKey(), getType(), getValue(), getShortValue(), label, getLinkUrl());
+    }
+
+    /**
+     * Set the item {@link Item#getLinkUrl() link url}.
+     *
+     * <p>Specifying a null value will clear the link url if it was previously defined.
+     *
+     * <p>This method does not alter the current instance, but instead returns a new {@link Item}
+     * with the link url set.
+     */
+    public Item<T> withLinkUrl(String url) {
+      return new Item<>(
+          getNamespace(), getKey(), getType(), getValue(), getShortValue(), getLabel(), url);
+    }
+
+    /**
+     * Creates a similar item to the current instance but with the specified value.
+     *
+     * <p>This should only be used internally. It is useful to compare the value of a
+     * {@link DisplayData.Item} to the value derived from a specified input.
+     */
+    private Item<T> withValue(Object value) {
+      FormattedItemValue formatted = getType().safeFormat(value);
+      return new Item<>(getNamespace(), getKey(), getType(), formatted.getLongValue(),
+          formatted.getShortValue(), getLabel(), getLinkUrl());
+    }
+
+    private Item(
+        @Nullable String namespace,
+        String key,
+        Type type,
+        @Nullable Object value,
+        @Nullable Object shortValue,
+        @Nullable String label,
+        @Nullable String linkUrl) {
+      this.namespace = namespace;
+      this.key = checkNotNull(key);
+      this.type = checkNotNull(type);
+      this.value = value;
+      this.shortValue = shortValue;
+      this.label = label;
+      this.linkUrl = linkUrl;
     }
 
     @Override
     public int hashCode() {
       return Objects.hash(
-          this.ns,
-          this.key,
-          this.type,
-          this.value,
-          this.shortValue,
-          this.label,
-          this.url);
+          namespace,
+          key,
+          type,
+          value,
+          shortValue,
+          label,
+          linkUrl
+      );
     }
 
-    private Item withLabel(String label) {
-      return new Item(this.ns, this.key, this.type, this.value, this.shortValue, this.url, label);
+    @Override
+    public boolean equals(Object obj) {
+      if (!(obj instanceof Item)) {
+        return false;
+      }
+
+      Item that = (Item) obj;
+      return Objects.equals(this.namespace, that.namespace)
+          && Objects.equals(this.key, that.key)
+          && Objects.equals(this.type, that.type)
+          && Objects.equals(this.value, that.value)
+          && Objects.equals(this.shortValue, that.shortValue)
+          && Objects.equals(this.label, that.label)
+          && Objects.equals(this.linkUrl, that.linkUrl);
     }
 
-    private Item withUrl(String url) {
-      return new Item(this.ns, this.key, this.type, this.value, this.shortValue, url, this.label);
-    }
-
-    private Item withNamespace(ClassForDisplay nsClass) {
-      String namespace = namespaceOf(nsClass);
-      return new Item(
-          namespace, this.key, this.type, this.value, this.shortValue, this.url, this.label);
+    @Override
+    public String toString() {
+      return String.format("%s:%s=%s", getNamespace(), getKey(), getValue());
     }
   }
 
   /**
-   * Unique identifier for a display metadata item within a component.
+   * Unique identifier for a display data item within a component.
    * Identifiers are composed of the key they are registered with and a namespace generated from
    * the class of the component which registered the item.
    *
-   * <p>Display metadata registered with the same key from different components will have different
+   * <p>Display data registered with the same key from different components will have different
    * namespaces and thus will both be represented in the composed {@link DisplayData}. If a
    * single component registers multiple metadata items with the same key, only the most recent
    * item will be retained; previous versions are discarded.
@@ -572,7 +437,7 @@ public class DisplayData {
     private final String ns;
     private final String key;
 
-    public static Identifier of(ClassForDisplay namespace, String key) {
+    public static Identifier of(Class<?> namespace, String key) {
       return of(namespaceOf(namespace), key);
     }
 
@@ -616,7 +481,7 @@ public class DisplayData {
   }
 
   /**
-   * Display metadata type.
+   * Display data type.
    */
   public enum Type {
     STRING {
@@ -665,12 +530,7 @@ public class DisplayData {
     JAVA_CLASS {
       @Override
       FormattedItemValue format(Object value) {
-        if (value instanceof Class<?>) {
-          ClassForDisplay classForDisplay = ClassForDisplay.of((Class<?>) value);
-          return format(classForDisplay);
-        }
-
-        ClassForDisplay clazz = checkType(value, ClassForDisplay.class, JAVA_CLASS);
+        Class<?> clazz = checkType(value, Class.class, JAVA_CLASS);
         return new FormattedItemValue(clazz.getName(), clazz.getSimpleName());
       }
     };
@@ -687,12 +547,26 @@ public class DisplayData {
     }
 
     /**
-     * Format the display metadata value into a long string representation, and optionally
+     * Format the display data value into a long string representation, and optionally
      * a shorter representation for display.
      *
      * <p>Internal-only. Value objects can be safely cast to the expected Java type.
      */
     abstract FormattedItemValue format(Object value);
+
+    /**
+     * Safe version of {@link Type#format(Object)}, which checks for null input value and if so
+     * returns a {@link FormattedItemValue} with null value properties.
+     *
+     * @see #format(Object)
+     */
+    FormattedItemValue safeFormat(@Nullable Object value) {
+      if (value == null) {
+        return FormattedItemValue.NULL_VALUES;
+      }
+
+      return format(value);
+    }
 
     @Nullable
     private static Type tryInferFrom(@Nullable Object value) {
@@ -706,7 +580,7 @@ public class DisplayData {
         return  TIMESTAMP;
       } else if (value instanceof Duration) {
         return  DURATION;
-      } else if (value instanceof Class<?> || value instanceof ClassForDisplay) {
+      } else if (value instanceof Class<?>) {
         return  JAVA_CLASS;
       } else if (value instanceof String) {
         return  STRING;
@@ -717,6 +591,11 @@ public class DisplayData {
   }
 
   static class FormattedItemValue {
+    /**
+     * Default instance which contains null values.
+     */
+    private static final FormattedItemValue NULL_VALUES = new FormattedItemValue(null);
+
     private final Object shortValue;
     private final Object longValue;
 
@@ -738,14 +617,11 @@ public class DisplayData {
     }
   }
 
-  private static class InternalBuilder implements ItemBuilder {
-    private final Map<Identifier, Item> entries;
+  private static class InternalBuilder implements Builder {
+    private final Map<Identifier, Item<?>> entries;
     private final Set<Object> visited;
 
     private String latestNs;
-
-    @Nullable
-    private Item latestItem;
 
     private InternalBuilder() {
       this.entries = Maps.newHashMap();
@@ -760,28 +636,21 @@ public class DisplayData {
 
     @Override
     public Builder include(HasDisplayData subComponent) {
-      checkNotNull(subComponent);
+      checkNotNull(subComponent, "subComponent argument cannot be null");
       return include(subComponent, subComponent.getClass());
     }
 
     @Override
     public Builder include(HasDisplayData subComponent, Class<?> namespace) {
-      checkNotNull(namespace);
-      return include(subComponent, ClassForDisplay.of(namespace));
-    }
-
-    @Override
-    public Builder include(HasDisplayData subComponent, ClassForDisplay namespace) {
-      checkNotNull(namespace);
+      checkNotNull(namespace, "Input namespace override cannot be null");
       return include(subComponent, namespaceOf(namespace));
     }
 
     @Override
     public Builder include(HasDisplayData subComponent, String namespace) {
-      checkNotNull(subComponent);
-      checkNotNull(namespace);
+      checkNotNull(subComponent, "subComponent argument cannot be null");
+      checkNotNull(namespace, "Input namespace override cannot be null");
 
-      commitLatest();
       boolean newComponent = visited.add(subComponent);
       if (newComponent) {
         String prevNs = this.latestNs;
@@ -794,202 +663,126 @@ public class DisplayData {
     }
 
     @Override
-    public ItemBuilder add(String key, String value) {
-      checkNotNull(value);
-      return addItemIf(true, key, Type.STRING, value);
+    public Builder add(Item<?> item) {
+      checkNotNull(item, "Input display item cannot be null");
+      return addItemIf(true, item);
     }
 
     @Override
-    public ItemBuilder addIfNotNull(String key, @Nullable String value) {
-      return addItemIf(value != null, key, Type.STRING, value);
+    public Builder addIfNotNull(Item<?> item) {
+      checkNotNull(item, "Input display item cannot be null");
+      return addItemIf(item.getValue() != null, item);
     }
 
     @Override
-    public ItemBuilder addIfNotDefault(
-        String key, @Nullable String value, @Nullable String defaultValue) {
-      return addItemIf(!Objects.equals(value, defaultValue), key, Type.STRING, value);
+    public <T> Builder addIfNotDefault(Item<T> item, @Nullable T defaultValue) {
+      checkNotNull(item, "Input display item cannot be null");
+      Item<T> defaultItem = item.withValue(defaultValue);
+      return addItemIf(!Objects.equals(item, defaultItem), item);
     }
 
-    @Override
-    public ItemBuilder add(String key, long value) {
-      return addItemIf(true, key, Type.INTEGER, value);
-    }
-
-    @Override
-    public ItemBuilder addIfNotNull(String key, @Nullable Long value) {
-      return addItemIf(value != null, key, Type.INTEGER, value);
-    }
-
-    @Override
-    public ItemBuilder addIfNotDefault(String key, long value, long defaultValue) {
-      return addItemIf(!Objects.equals(value, defaultValue), key, Type.INTEGER, value);
-    }
-
-    @Override
-    public ItemBuilder add(String key, double value) {
-      return addItemIf(true, key, Type.FLOAT, value);
-    }
-
-    @Override
-    public ItemBuilder addIfNotNull(String key, @Nullable Double value) {
-      return addItemIf(value != null, key, Type.FLOAT, value);
-    }
-
-    @Override
-    public ItemBuilder addIfNotDefault(String key, double value, double defaultValue) {
-      return addItemIf(!Objects.equals(value, defaultValue), key, Type.FLOAT, value);
-    }
-
-    @Override
-    public ItemBuilder add(String key, boolean value) {
-      return addItemIf(true, key, Type.BOOLEAN, value);
-    }
-
-    @Override
-    public ItemBuilder addIfNotNull(String key, @Nullable Boolean value) {
-      return addItemIf(value != null, key, Type.BOOLEAN, value);
-    }
-
-    @Override
-    public ItemBuilder addIfNotDefault(String key, boolean value, boolean defaultValue) {
-      return addItemIf(!Objects.equals(value, defaultValue), key, Type.BOOLEAN, value);
-    }
-
-    @Override
-    public ItemBuilder add(String key, Instant value) {
-      return addItemIf(true, key, Type.TIMESTAMP, value);
-    }
-
-    @Override
-    public ItemBuilder addIfNotNull(String key, @Nullable Instant value) {
-      return addItemIf(value != null, key, Type.TIMESTAMP, value);
-    }
-
-    @Override
-    public ItemBuilder addIfNotDefault(
-        String key, @Nullable Instant value, @Nullable Instant defaultValue) {
-      return addItemIf(!Objects.equals(value, defaultValue), key, Type.TIMESTAMP, value);
-    }
-
-    @Override
-    public ItemBuilder add(String key, Duration value) {
-      return addItemIf(true, key, Type.DURATION, value);
-    }
-
-    @Override
-    public ItemBuilder addIfNotNull(String key, @Nullable Duration value) {
-      return addItemIf(value != null, key, Type.DURATION, value);
-    }
-
-    @Override
-    public ItemBuilder addIfNotDefault(
-        String key, @Nullable Duration value, @Nullable Duration defaultValue) {
-      return addItemIf(!Objects.equals(value, defaultValue), key, Type.DURATION, value);
-    }
-
-    @Override
-    public ItemBuilder add(String key, Class<?> value) {
-      return addItemIf(true, key, Type.JAVA_CLASS, value);
-    }
-
-    @Override
-    public ItemBuilder add(String key, ClassForDisplay value) {
-      checkNotNull(value);
-      return addItemIf(true, key, Type.JAVA_CLASS, value);
-    }
-
-    @Override
-    public ItemBuilder addIfNotNull(String key, @Nullable Class<?> value) {
-      return addItemIf(value != null, key, Type.JAVA_CLASS, value);
-    }
-
-    @Override
-    public ItemBuilder addIfNotNull(String key, @Nullable ClassForDisplay value) {
-      return addItemIf(value != null, key, Type.JAVA_CLASS, value);
-    }
-
-    @Override
-    public ItemBuilder addIfNotDefault(
-        String key, @Nullable Class<?> value, @Nullable Class<?> defaultValue) {
-      return addItemIf(!Objects.equals(value, defaultValue), key, Type.JAVA_CLASS, value);
-    }
-
-    @Override
-    public ItemBuilder addIfNotDefault(
-        String key, @Nullable ClassForDisplay value, @Nullable ClassForDisplay defaultValue) {
-      return addItemIf(!Objects.equals(value, defaultValue), key, Type.JAVA_CLASS, value);
-    }
-
-    @Override
-    public ItemBuilder add(String key, Type type, Object value) {
-      checkNotNull(type);
-      return addItemIf(true, key, type, value);
-    }
-
-    private ItemBuilder addItemIf(boolean condition, String key, Type type, Object value) {
-      checkNotNull(key, "Display data keys cannot be null or empty.");
-      checkArgument(!key.isEmpty(), "Display data keys cannot be null or empty.");
-      commitLatest();
-
-      if (condition) {
-        checkNotNull(value, "Display data values cannot be null. Key: [%s]", key);
-        latestItem = Item.create(latestNs, key, type, value);
+    private Builder addItemIf(boolean condition, Item<?> item) {
+      if (!condition) {
+        return this;
       }
 
-      return this;
-    }
-
-    private void commitLatest() {
-      if (latestItem == null) {
-        return;
+      checkNotNull(item, "Input display item cannot be null");
+      checkNotNull(item.getValue(), "Input display value cannot be null");
+      if (item.getNamespace() == null) {
+        item = item.withNamespace(latestNs);
       }
 
-      Identifier id = Identifier.of(latestItem.getNamespace(), latestItem.getKey());
-      if (entries.containsKey(id)) {
-        throw new IllegalArgumentException("DisplayData key already exists. All display data "
-          + "for a component must be registered with a unique key.\nKey: " + id);
-      }
+      Identifier id = Identifier.of(item.getNamespace(), item.getKey());
+      Preconditions.checkArgument(!entries.containsKey(id),
+          "Display data key (%s) is not unique within the specified namespace (%s).",
+          item.getKey(), item.getNamespace());
 
-      entries.put(id, latestItem);
-      latestItem = null;
-    }
-
-    @Override
-    public ItemBuilder withLabel(@Nullable String label) {
-      if (latestItem != null) {
-        latestItem = latestItem.withLabel(label);
-      }
-
-      return this;
-    }
-
-    @Override
-    public ItemBuilder withLinkUrl(@Nullable String url) {
-      if (latestItem != null) {
-        latestItem = latestItem.withUrl(url);
-      }
-
-      return this;
-    }
-
-    @Override
-    public ItemBuilder withNamespace(Class<?> namespace) {
-      checkNotNull(namespace);
-      return withNamespace(ClassForDisplay.of(namespace));
-    }
-
-    @Override
-    public ItemBuilder withNamespace(ClassForDisplay namespace) {
-      if (latestItem != null) {
-        latestItem = latestItem.withNamespace(namespace);
-      }
-
+      entries.put(id, item);
       return this;
     }
 
     private DisplayData build() {
-      commitLatest();
       return new DisplayData(this.entries);
     }
+  }
+
+  /**
+   * Create a display item for the specified key and string value.
+   */
+  public static Item<String> item(String key, @Nullable String value) {
+    return item(key, Type.STRING, value);
+  }
+
+  /**
+   * Create a display item for the specified key and integer value.
+   */
+  public static Item<Integer> item(String key, @Nullable Integer value) {
+    return item(key, Type.INTEGER, value);
+  }
+
+  /**
+   * Create a display item for the specified key and integer value.
+   */
+  public static Item<Long> item(String key, @Nullable Long value) {
+    return item(key, Type.INTEGER, value);
+  }
+
+  /**
+   * Create a display item for the specified key and floating point value.
+   */
+  public static Item<Float> item(String key, @Nullable Float value) {
+    return item(key, Type.FLOAT, value);
+  }
+
+  /**
+   * Create a display item for the specified key and floating point value.
+   */
+  public static Item<Double> item(String key, @Nullable Double value) {
+    return item(key, Type.FLOAT, value);
+  }
+
+  /**
+   * Create a display item for the specified key and boolean value.
+   */
+  public static Item<Boolean> item(String key, @Nullable Boolean value) {
+    return item(key, Type.BOOLEAN, value);
+  }
+
+  /**
+   * Create a display item for the specified key and timestamp value.
+   */
+  public static Item<Instant> item(String key, @Nullable Instant value) {
+    return item(key, Type.TIMESTAMP, value);
+  }
+
+  /**
+   * Create a display item for the specified key and duration value.
+   */
+  public static Item<Duration> item(String key, @Nullable Duration value) {
+    return item(key, Type.DURATION, value);
+  }
+
+  /**
+   * Create a display item for the specified key and class value.
+   */
+  public static <T> Item<Class<T>> item(String key, @Nullable Class<T> value) {
+    return item(key, Type.JAVA_CLASS, value);
+  }
+
+  /**
+   * Create a display item for the specified key, type, and value. This method should be used
+   * if the type of the input value can only be determined at runtime. Otherwise,
+   * {@link HasDisplayData} implementors should call one of the typed factory methods, such as
+   * {@link #item(String, String)} or {@link #item(String, Integer)}.
+   *
+   * @throws ClassCastException if the value cannot be formatted as the given type.
+   *
+   *  @see Type#inferType(Object)
+   */
+  public static <T> Item<T> item(String key, Type type, @Nullable T value) {
+    checkNotNull(key, "key argument cannot be null");
+    checkNotNull(type, "type argument cannot be null");
+
+    return Item.create(key, type, value);
   }
 }

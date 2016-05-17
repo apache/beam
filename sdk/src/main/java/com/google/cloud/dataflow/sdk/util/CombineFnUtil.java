@@ -102,6 +102,7 @@ public class CombineFnUtil {
         }
         @Override
         public void populateDisplayData(DisplayData.Builder builder) {
+          super.populateDisplayData(builder);
           combineFn.populateDisplayData(builder);
         }
       };

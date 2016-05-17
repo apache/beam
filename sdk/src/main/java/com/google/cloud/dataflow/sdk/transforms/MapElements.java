@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.transforms;
 
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.TypeDescriptor;
 
@@ -107,6 +108,18 @@ extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
       public void processElement(ProcessContext c) {
         c.output(fn.apply(c.element()));
       }
+
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        MapElements.this.populateDisplayData(builder);
+      }
     })).setTypeDescriptorInternal(outputType);
+  }
+
+  @Override
+  public void populateDisplayData(DisplayData.Builder builder) {
+    super.populateDisplayData(builder);
+    builder.add(DisplayData.item("mapFn", fn.getClass())
+      .withLabel("Map Function"));
   }
 }

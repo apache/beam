@@ -218,9 +218,12 @@ public class XmlSource<T> extends FileBasedSource<T> {
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
     builder
-        .addIfNotNull("rootElement", rootElement)
-        .addIfNotNull("recordElement", recordElement)
-        .addIfNotNull("recordClass", recordClass);
+        .addIfNotNull(DisplayData.item("rootElement", rootElement)
+          .withLabel("XML Root Element"))
+        .addIfNotNull(DisplayData.item("recordElement", recordElement)
+          .withLabel("XML Record Element"))
+        .addIfNotNull(DisplayData.item("recordClass", recordClass)
+          .withLabel("XML Record Class"));
   }
 
   @Override

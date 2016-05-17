@@ -629,13 +629,18 @@ public class BigQueryIO {
         TableReference table = getTable();
 
         if (table != null) {
-          builder.add("table", toTableSpec(table));
+          builder.add(DisplayData.item("table", toTableSpec(table))
+            .withLabel("Table"));
         }
 
         builder
-            .addIfNotNull("query", query)
-            .addIfNotNull("flattenResults", flattenResults)
-            .addIfNotDefault("validation", validate, true);
+            .addIfNotNull(DisplayData.item("query", query)
+              .withLabel("Query"))
+            .addIfNotNull(DisplayData.item("flattenResults", flattenResults)
+              .withLabel("Flatten Query Results"))
+            .addIfNotDefault(DisplayData.item("validation", validate)
+              .withLabel("Validation Enabled"),
+                true);
       }
 
       /**
@@ -800,6 +805,12 @@ public class BigQueryIO {
     protected void cleanupTempResource(BigQueryOptions bqOptions) throws Exception {
       // Do nothing.
     }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder.add(DisplayData.item("table", jsonTable));
+    }
   }
 
   /**
@@ -891,6 +902,11 @@ public class BigQueryIO {
       tableService.deleteDataset(tableToRemove.getProjectId(), tableToRemove.getDatasetId());
     }
 
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder.add(DisplayData.item("query", query));
+    }
     private synchronized JobStatistics dryRunQueryIfNeeded(BigQueryOptions bqOptions)
         throws InterruptedException, IOException {
       if (dryRunJobStats.get() == null) {
@@ -1740,17 +1756,23 @@ public class BigQueryIO {
         super.populateDisplayData(builder);
 
         builder
-            .addIfNotNull("table", jsonTableRef)
-            .addIfNotNull("schema", jsonSchema);
+            .addIfNotNull(DisplayData.item("table", jsonTableRef)
+              .withLabel("Table Reference"))
+            .addIfNotNull(DisplayData.item("schema", jsonSchema)
+              .withLabel("Table Schema"));
 
         if (tableRefFunction != null) {
-          builder.add("tableFn", tableRefFunction.getClass());
+          builder.add(DisplayData.item("tableFn", tableRefFunction.getClass())
+            .withLabel("Table Reference Function"));
         }
 
         builder
-            .add("createDisposition", createDisposition.toString())
-            .add("writeDisposition", writeDisposition.toString())
-            .addIfNotDefault("validation", validate, true);
+            .add(DisplayData.item("createDisposition", createDisposition.toString())
+              .withLabel("Table CreateDisposition"))
+            .add(DisplayData.item("writeDisposition", writeDisposition.toString())
+              .withLabel("Table WriteDisposition"))
+            .addIfNotDefault(DisplayData.item("validation", validate)
+              .withLabel("Validation Enabled"), true);
       }
 
       /** Returns the create disposition. */
@@ -1835,6 +1857,17 @@ public class BigQueryIO {
     public FileBasedSink.FileBasedWriteOperation<TableRow> createWriteOperation(
         PipelineOptions options) {
       return new BigQueryWriteOperation(this);
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+
+      builder
+          .addIfNotNull(DisplayData.item("schema", jsonSchema)
+            .withLabel("Table Schema"))
+          .addIfNotNull(DisplayData.item("tableSpec", jsonTable)
+            .withLabel("Table Specification"));
     }
 
     private static class BigQueryWriteOperation extends FileBasedWriteOperation<TableRow> {
@@ -2070,6 +2103,14 @@ public class BigQueryIO {
       uniqueIdsForTableRows.clear();
     }
 
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+
+      builder.addIfNotNull(DisplayData.item("schema", jsonTableSchema)
+        .withLabel("Table Schema"));
+    }
+
     public TableReference getOrCreateTable(BigQueryOptions options, String tableSpec)
         throws IOException {
       TableReference tableReference = parseTableSpec(tableSpec);
@@ -2275,6 +2316,17 @@ public class BigQueryIO {
       // BigQuery.
       context.output(KV.of(ShardedKey.of(tableSpec, randomGenerator.nextInt(0, 50)),
           new TableRowInfo(context.element(), uniqueId)));
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+
+      builder.addIfNotNull(DisplayData.item("table", tableSpec));
+      if (tableRefFunction != null) {
+        builder.add(DisplayData.item("tableFn", tableRefFunction.getClass())
+          .withLabel("Table Reference Function"));
+      }
     }
 
     private String tableSpecFromWindow(BigQueryOptions options, BoundedWindow window) {

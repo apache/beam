@@ -329,8 +329,10 @@ public class AvroIO {
       public void populateDisplayData(DisplayData.Builder builder) {
         super.populateDisplayData(builder);
         builder
-          .addIfNotNull("filePattern", filepattern)
-          .addIfNotDefault("validation", validate, true);
+          .addIfNotNull(DisplayData.item("filePattern", filepattern)
+            .withLabel("Input File Pattern"))
+          .addIfNotDefault(DisplayData.item("validation", validate)
+            .withLabel("Validation Enabled"), true);
       }
 
       @Override
@@ -692,12 +694,22 @@ public class AvroIO {
       public void populateDisplayData(DisplayData.Builder builder) {
         super.populateDisplayData(builder);
         builder
-            .add("schema", type)
-            .addIfNotNull("filePrefix", filenamePrefix)
-            .addIfNotDefault("shardNameTemplate", shardTemplate, DEFAULT_SHARD_TEMPLATE)
-            .addIfNotDefault("fileSuffix", filenameSuffix, "")
-            .addIfNotDefault("numShards", numShards, 0)
-            .addIfNotDefault("validation", validate, true);
+            .add(DisplayData.item("schema", type)
+              .withLabel("Record Schema"))
+            .addIfNotNull(DisplayData.item("filePrefix", filenamePrefix)
+              .withLabel("Output File Prefix"))
+            .addIfNotDefault(DisplayData.item("shardNameTemplate", shardTemplate)
+                .withLabel("Output Shard Name Template"),
+                DEFAULT_SHARD_TEMPLATE)
+            .addIfNotDefault(DisplayData.item("fileSuffix", filenameSuffix)
+                .withLabel("Output File Suffix"),
+                "")
+            .addIfNotDefault(DisplayData.item("numShards", numShards)
+                .withLabel("Maximum Output Shards"),
+                0)
+            .addIfNotDefault(DisplayData.item("validation", validate)
+                .withLabel("Validation Enabled"),
+                true);
       }
 
       /**

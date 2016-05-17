@@ -17,13 +17,12 @@
 package com.google.cloud.dataflow.sdk.transforms.display;
 
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasKey;
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasNamespace;
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasType;
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasValue;
-import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.includes;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.core.StringStartsWith.startsWith;
+import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
+
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 
@@ -60,13 +59,13 @@ public class DisplayDataMatchersTest {
     matcher.describeTo(desc);
     matcher.describeMismatch(DisplayData.none(), mismatchDesc);
 
-    assertThat(desc.toString(), startsWith("display data with item: "));
-    assertThat(mismatchDesc.toString(), containsString("found 0 non-matching item(s)"));
+    assertEquals("DisplayData not an empty collection", desc.toString());
+    assertEquals("DisplayData was <[]>", mismatchDesc.toString());
   }
 
   @Test
   public void testHasKey() {
-    Matcher<DisplayData> matcher = hasDisplayItem(hasKey("foo"));
+    Matcher<DisplayData> matcher = hasDisplayItem("foo");
 
     assertFalse(matcher.matches(createDisplayDataWithItem("fooz", "bar")));
 
@@ -80,7 +79,7 @@ public class DisplayDataMatchersTest {
     DisplayData data = DisplayData.from(new PTransform<PCollection<String>, PCollection<String>>() {
       @Override
       public void populateDisplayData(Builder builder) {
-        builder.add("foo", DisplayDataMatchersTest.class);
+        builder.add(DisplayData.item("foo", DisplayDataMatchersTest.class));
       }
     });
 
@@ -110,7 +109,7 @@ public class DisplayDataMatchersTest {
     final HasDisplayData subComponent = new HasDisplayData() {
       @Override
       public void populateDisplayData(Builder builder) {
-        builder.add("foo", "bar");
+        builder.add(DisplayData.item("foo", "bar"));
       }
     };
     HasDisplayData hasSubcomponent = new HasDisplayData() {
@@ -118,16 +117,16 @@ public class DisplayDataMatchersTest {
       public void populateDisplayData(Builder builder) {
         builder
           .include(subComponent)
-          .add("foo2", "bar2");
+          .add(DisplayData.item("foo2", "bar2"));
       }
     };
     HasDisplayData sameKeyDifferentNamespace = new HasDisplayData() {
       @Override
       public void populateDisplayData(Builder builder) {
-        builder.add("foo", "bar");
+        builder.add(DisplayData.item("foo", "bar"));
       }
     };
-    Matcher<DisplayData> matcher = includes(subComponent);
+    Matcher<DisplayData> matcher = includesDisplayDataFrom(subComponent);
 
     assertFalse(matcher.matches(DisplayData.from(sameKeyDifferentNamespace)));
     assertThat(DisplayData.from(hasSubcomponent), matcher);
@@ -150,7 +149,7 @@ public class DisplayDataMatchersTest {
 
     @Override
     public void populateDisplayData(Builder builder) {
-      builder.add(key, value);
+      builder.add(DisplayData.item(key, value));
     }
   }
 }

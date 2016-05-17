@@ -18,13 +18,16 @@ package com.google.cloud.dataflow.sdk.io;
 
 import static com.google.cloud.dataflow.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 
+import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 import com.google.api.client.testing.http.FixedClock;
 import com.google.api.client.util.Clock;
 import com.google.api.services.pubsub.model.PubsubMessage;
+import com.google.cloud.dataflow.sdk.transforms.display.DataflowDisplayDataEvaluator;
 import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
+import com.google.cloud.dataflow.sdk.transforms.display.DisplayDataEvaluator;
 
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -35,6 +38,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.util.HashMap;
+import java.util.Set;
 
 import javax.annotation.Nullable;
 
@@ -272,5 +276,26 @@ public class PubsubIOTest {
     assertThat(displayData, hasDisplayItem("topic", topic));
     assertThat(displayData, hasDisplayItem("timestampLabel", "myTimestamp"));
     assertThat(displayData, hasDisplayItem("idLabel", "myId"));
+  }
+
+  @Test
+  public void testPrimitiveWriteDisplayData() {
+    DisplayDataEvaluator evaluator = DataflowDisplayDataEvaluator.create();
+    PubsubIO.Write.Bound<?> write = PubsubIO.Write
+        .topic("projects/project/topics/topic");
+
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
+    assertThat("PubsubIO.Write should include the topic in its primitive display data",
+        displayData, hasItem(hasDisplayItem("topic")));
+  }
+
+  @Test
+  public void testPrimitiveReadDisplayData() {
+    DisplayDataEvaluator evaluator = DataflowDisplayDataEvaluator.create();
+    PubsubIO.Read.Bound<String> read = PubsubIO.Read.topic("projects/project/topics/topic");
+
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(read);
+    assertThat("PubsubIO.Read should include the topic in its primitive display data",
+        displayData, hasItem(hasDisplayItem("topic")));
   }
 }

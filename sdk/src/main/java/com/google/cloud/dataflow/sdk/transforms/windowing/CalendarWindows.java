@@ -146,9 +146,14 @@ public class CalendarWindows {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+
       builder
-          .add("numDays", number)
-          .addIfNotDefault("startDate", new DateTime(startDate, timeZone).toInstant(),
+          .add(DisplayData.item("numDays", number)
+            .withLabel("Windows Days"))
+          .addIfNotDefault(
+              DisplayData.item("startDate", new DateTime(startDate, timeZone).toInstant())
+                .withLabel("Window Start Date"),
               new DateTime(DEFAULT_START_DATE, DateTimeZone.UTC).toInstant());
     }
 
@@ -241,9 +246,14 @@ public class CalendarWindows {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+
       builder
-          .add("numMonths", number)
-          .addIfNotDefault("startDate", new DateTime(startDate, timeZone).toInstant(),
+          .add(DisplayData.item("numMonths", number)
+            .withLabel("Window Months"))
+          .addIfNotDefault(
+            DisplayData.item("startDate", new DateTime(startDate, timeZone).toInstant())
+              .withLabel("Window Start Date"),
             new DateTime(DEFAULT_START_DATE, DateTimeZone.UTC).toInstant());
     }
 
@@ -345,9 +355,14 @@ public class CalendarWindows {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+
       builder
-          .add("numYears", number)
-          .addIfNotDefault("startDate", new DateTime(startDate, timeZone).toInstant(),
+          .add(DisplayData.item("numYears", number)
+            .withLabel("Window Years"))
+          .addIfNotDefault(
+              DisplayData.item("startDate", new DateTime(startDate, timeZone).toInstant())
+                .withLabel("Window Start Date"),
               new DateTime(DEFAULT_START_DATE, DateTimeZone.UTC).toInstant());
     }
 

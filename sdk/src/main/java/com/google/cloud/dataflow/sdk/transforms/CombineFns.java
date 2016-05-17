@@ -460,6 +460,7 @@ public class CombineFns {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
       CombineFns.populateDisplayData(builder, combineFns);
     }
   }
@@ -598,6 +599,7 @@ public class CombineFns {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
       CombineFns.populateDisplayData(builder, combineFnWithContexts);
     }
   }
@@ -784,6 +786,7 @@ public class CombineFns {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
       CombineFns.populateDisplayData(builder, keyedCombineFns);
     }
   }
@@ -935,6 +938,7 @@ public class CombineFns {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
       CombineFns.populateDisplayData(builder, keyedCombineFns);
     }
   }
@@ -1138,7 +1142,8 @@ public class CombineFns {
 
     for (int i = 0; i < combineFns.size(); i++) {
       HasDisplayData combineFn = combineFns.get(i);
-      builder.add("combineFn" + (i + 1), combineFn.getClass());
+      builder.add(DisplayData.item("combineFn" + (i + 1), combineFn.getClass())
+        .withLabel("Combine Function"));
       combineFnMap.put(combineFn.getClass(), combineFn);
     }
 

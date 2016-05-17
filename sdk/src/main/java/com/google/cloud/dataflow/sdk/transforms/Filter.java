@@ -102,6 +102,7 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
 
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
+        super.populateDisplayData(builder);
         Filter.populateDisplayData(builder, String.format("x < %s", value));
       }
     });
@@ -140,6 +141,7 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
 
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
+        super.populateDisplayData(builder);
         Filter.populateDisplayData(builder, String.format("x > %s", value));
       }
     });
@@ -177,6 +179,7 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
 
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
+        super.populateDisplayData(builder);
         Filter.populateDisplayData(builder, String.format("x ≤ %s", value));
       }
     });
@@ -214,6 +217,7 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
 
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
+        super.populateDisplayData(builder);
         Filter.populateDisplayData(builder, String.format("x ≥ %s", value));
       }
     });
@@ -256,6 +260,7 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
 
   private static void populateDisplayData(
       DisplayData.Builder builder, String predicateDescription) {
-    builder.add("predicate", predicateDescription);
+    builder.add(DisplayData.item("predicate", predicateDescription)
+      .withLabel("Filter Predicate"));
   }
 }
