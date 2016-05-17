@@ -34,8 +34,7 @@ public final class BatchWindowing<T>
     }
   } // ~ end of Batch
 
-  public static class BatchWindow
-      implements AlignedWindow<Batch> {
+  public static class BatchWindow implements AlignedWindow<Batch> {
 
     static final BatchWindow INSTANCE = new BatchWindow();
     static final Set<BatchWindow> INSTANCE_SET = Collections.singleton(INSTANCE);
@@ -48,9 +47,10 @@ public final class BatchWindowing<T>
     }
 
     @Override
-    public void registerTrigger(Triggering triggering,
+    public TriggerState registerTrigger(Triggering triggering,
         UnaryFunction<Window<?, ?>, Void> evict) {
       // the batch window will end at the end of input stream
+      return TriggerState.INACTIVE;
     }
 
     private Object readResolve() throws ObjectStreamException {
