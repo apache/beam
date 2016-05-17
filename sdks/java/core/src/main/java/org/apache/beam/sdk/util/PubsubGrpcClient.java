@@ -20,6 +20,7 @@ package org.apache.beam.sdk.util;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PubsubOptions;
 
 import com.google.auth.oauth2.GoogleCredentials;
@@ -71,6 +72,9 @@ import javax.annotation.Nullable;
 
 /**
  * A helper class for talking to Pubsub via grpc.
+ *
+ * <p>CAUTION: Currently uses the application default credentials and does not respect any
+ * credentials-related arguments in {@link GcpOptions}.
  */
 public class PubsubGrpcClient extends PubsubClient {
   private static final String PUBSUB_ADDRESS = "pubsub.googleapis.com";
@@ -440,5 +444,10 @@ public class PubsubGrpcClient extends PubsubClient {
                               .build();
     Subscription response = subscriberStub().getSubscription(request);
     return response.getAckDeadlineSeconds();
+  }
+
+  @Override
+  public boolean isEOF() {
+    return false;
   }
 }
