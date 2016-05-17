@@ -136,6 +136,8 @@ public class PubsubApiaryClient extends PubsubClient {
       }
 
       if (idLabel != null) {
+        // TODO: The id should be associated with the OutgoingMessage so that it is stable
+        // across retried bundles
         attributes.put(idLabel,
                        Hashing.murmur3_128().hashBytes(outgoingMessage.elementBytes).toString());
       }
@@ -299,5 +301,10 @@ public class PubsubApiaryClient extends PubsubClient {
   public int ackDeadlineSeconds(SubscriptionPath subscription) throws IOException {
     Subscription response = pubsub.projects().subscriptions().get(subscription.getPath()).execute();
     return response.getAckDeadlineSeconds();
+  }
+
+  @Override
+  public boolean isEOF() {
+    return false;
   }
 }

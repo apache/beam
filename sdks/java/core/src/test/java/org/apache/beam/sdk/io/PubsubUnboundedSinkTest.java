@@ -26,9 +26,9 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.PubsubClient;
 import org.apache.beam.sdk.util.PubsubClient.OutgoingMessage;
-import org.apache.beam.sdk.util.PubsubClient.PubsubClientFactory;
 import org.apache.beam.sdk.util.PubsubClient.TopicPath;
 import org.apache.beam.sdk.util.PubsubTestClient;
+import org.apache.beam.sdk.util.PubsubTestClient.PubsubTestClientFactory;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
@@ -39,6 +39,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -70,25 +71,26 @@ public class PubsubUnboundedSinkTest {
   }
 
   @Test
-  public void sendOneMessage() {
+  public void sendOneMessage() throws IOException {
     Set<OutgoingMessage> outgoing =
         Sets.newHashSet(new OutgoingMessage(DATA.getBytes(), TIMESTAMP));
-    PubsubClientFactory factory =
-        PubsubTestClient.createFactoryForPublish(TOPIC, outgoing);
-    PubsubUnboundedSink<String> sink =
-        new PubsubUnboundedSink<>(factory, TOPIC, StringUtf8Coder.of(), TIMESTAMP_LABEL, ID_LABEL,
-                                  10);
-    TestPipeline p = TestPipeline.create();
-    p.apply(Create.of(ImmutableList.of(DATA)))
-     .apply(ParDo.of(new Stamp()))
-     .apply(sink);
-    // Run the pipeline. The PubsubTestClient will assert fail if the actual published
+    try (PubsubTestClientFactory factory =
+             PubsubTestClient.createFactoryForPublish(TOPIC, outgoing)) {
+      PubsubUnboundedSink<String> sink =
+          new PubsubUnboundedSink<>(factory, TOPIC, StringUtf8Coder.of(), TIMESTAMP_LABEL, ID_LABEL,
+                                    10);
+      TestPipeline p = TestPipeline.create();
+      p.apply(Create.of(ImmutableList.of(DATA)))
+       .apply(ParDo.of(new Stamp()))
+       .apply(sink);
+      p.run();
+    }
+    // The PubsubTestClientFactory will assert fail on close if the actual published
     // message does not match the expected publish message.
-    p.run();
   }
 
   @Test
-  public void sendMoreThanOneBatchByNumMessages() {
+  public void sendMoreThanOneBatchByNumMessages() throws IOException {
     Set<OutgoingMessage> outgoing = new HashSet<>();
     List<String> data = new ArrayList<>();
     int batchSize = 2;
@@ -98,22 +100,23 @@ public class PubsubUnboundedSinkTest {
       outgoing.add(new OutgoingMessage(str.getBytes(), TIMESTAMP));
       data.add(str);
     }
-    PubsubClientFactory factory =
-        PubsubTestClient.createFactoryForPublish(TOPIC, outgoing);
-    PubsubUnboundedSink<String> sink =
-        new PubsubUnboundedSink<>(factory, TOPIC, StringUtf8Coder.of(), TIMESTAMP_LABEL, ID_LABEL,
-                                  10, batchSize, batchBytes, Duration.standardSeconds(2));
-    TestPipeline p = TestPipeline.create();
-    p.apply(Create.of(data))
-     .apply(ParDo.of(new Stamp()))
-     .apply(sink);
-    // Run the pipeline. The PubsubTestClient will assert fail if the actual published
+    try (PubsubTestClientFactory factory =
+             PubsubTestClient.createFactoryForPublish(TOPIC, outgoing)) {
+      PubsubUnboundedSink<String> sink =
+          new PubsubUnboundedSink<>(factory, TOPIC, StringUtf8Coder.of(), TIMESTAMP_LABEL, ID_LABEL,
+                                    10, batchSize, batchBytes, Duration.standardSeconds(2));
+      TestPipeline p = TestPipeline.create();
+      p.apply(Create.of(data))
+       .apply(ParDo.of(new Stamp()))
+       .apply(sink);
+      p.run();
+    }
+    // The PubsubTestClientFactory will assert fail on close if the actual published
     // message does not match the expected publish message.
-    p.run();
   }
 
   @Test
-  public void sendMoreThanOneBatchByByteSize() {
+  public void sendMoreThanOneBatchByByteSize() throws IOException {
     Set<OutgoingMessage> outgoing = new HashSet<>();
     List<String> data = new ArrayList<>();
     int batchSize = 100;
@@ -129,17 +132,18 @@ public class PubsubUnboundedSinkTest {
       data.add(str);
       n += str.length();
     }
-    PubsubClientFactory factory =
-        PubsubTestClient.createFactoryForPublish(TOPIC, outgoing);
-    PubsubUnboundedSink<String> sink =
-        new PubsubUnboundedSink<>(factory, TOPIC, StringUtf8Coder.of(), TIMESTAMP_LABEL, ID_LABEL,
-                                  10, batchSize, batchBytes, Duration.standardSeconds(2));
-    TestPipeline p = TestPipeline.create();
-    p.apply(Create.of(data))
-     .apply(ParDo.of(new Stamp()))
-     .apply(sink);
-    // Run the pipeline. The PubsubTestClient will assert fail if the actual published
+    try (PubsubTestClientFactory factory =
+             PubsubTestClient.createFactoryForPublish(TOPIC, outgoing)) {
+      PubsubUnboundedSink<String> sink =
+          new PubsubUnboundedSink<>(factory, TOPIC, StringUtf8Coder.of(), TIMESTAMP_LABEL, ID_LABEL,
+                                    10, batchSize, batchBytes, Duration.standardSeconds(2));
+      TestPipeline p = TestPipeline.create();
+      p.apply(Create.of(data))
+       .apply(ParDo.of(new Stamp()))
+       .apply(sink);
+      p.run();
+    }
+    // The PubsubTestClientFactory will assert fail on close if the actual published
     // message does not match the expected publish message.
-    p.run();
   }
 }
