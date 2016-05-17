@@ -46,21 +46,8 @@ public class SinkOutputFormat<T> implements OutputFormat<T> {
   private AbstractID uid = new AbstractID();
 
   public SinkOutputFormat(Write.Bound<T> transform, PipelineOptions pipelineOptions) {
-    this.sink = extractSink(transform);
+    this.sink = transform.getSink();
     this.serializedOptions = new SerializedPipelineOptions(pipelineOptions);
-  }
-
-  private Sink<T> extractSink(Write.Bound<T> transform) {
-    // TODO possibly add a getter in the upstream
-    try {
-      Field sinkField = transform.getClass().getDeclaredField("sink");
-      sinkField.setAccessible(true);
-      @SuppressWarnings("unchecked")
-      Sink<T> extractedSink = (Sink<T>) sinkField.get(transform);
-      return extractedSink;
-    } catch (NoSuchFieldException | IllegalAccessException e) {
-      throw new RuntimeException("Could not acquire custom sink field.", e);
-    }
   }
 
   @Override
