@@ -144,9 +144,12 @@ public class SlidingWindows extends NonMergingWindowFn<Object, IntervalWindow> {
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
     builder
-        .add(DisplayData.item("size", size))
-        .add(DisplayData.item("period", period))
-        .add(DisplayData.item("offset", offset));
+        .add(DisplayData.item("size", size)
+          .withLabel("Window Size"))
+        .add(DisplayData.item("period", period)
+          .withLabel("Window Period"))
+        .add(DisplayData.item("offset", offset)
+          .withLabel("Window Start Offset"));
   }
 
   /**

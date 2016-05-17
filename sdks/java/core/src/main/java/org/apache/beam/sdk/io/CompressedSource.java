@@ -326,14 +326,17 @@ public class CompressedSource<T> extends FileBasedSource<T> {
     // We explicitly do not register base-class data, instead we use the delegate inner source.
     builder
         .include(sourceDelegate)
-        .add(DisplayData.item("source", sourceDelegate.getClass()));
+        .add(DisplayData.item("source", sourceDelegate.getClass())
+          .withLabel("Read Source"));
 
     if (channelFactory instanceof Enum) {
       // GZIP and BZIP are implemented as enums; Enum classes are anonymous, so use the .name()
       // value instead
-      builder.add(DisplayData.item("compressionMode", ((Enum) channelFactory).name()));
+      builder.add(DisplayData.item("compressionMode", ((Enum) channelFactory).name())
+        .withLabel("Compression Mode"));
     } else {
-      builder.add(DisplayData.item("compressionMode", channelFactory.getClass()));
+      builder.add(DisplayData.item("compressionMode", channelFactory.getClass())
+        .withLabel("Compression Mode"));
     }
   }
 

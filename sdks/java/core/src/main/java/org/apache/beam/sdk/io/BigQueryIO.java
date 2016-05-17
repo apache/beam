@@ -631,13 +631,18 @@ public class BigQueryIO {
         TableReference table = getTable();
 
         if (table != null) {
-          builder.add(DisplayData.item("table", toTableSpec(table)));
+          builder.add(DisplayData.item("table", toTableSpec(table))
+            .withLabel("Table"));
         }
 
         builder
-            .addIfNotNull(DisplayData.item("query", query))
-            .addIfNotNull(DisplayData.item("flattenResults", flattenResults))
-            .addIfNotDefault(DisplayData.item("validation", validate), true);
+            .addIfNotNull(DisplayData.item("query", query)
+              .withLabel("Query"))
+            .addIfNotNull(DisplayData.item("flattenResults", flattenResults)
+              .withLabel("Flatten Query Results"))
+            .addIfNotDefault(DisplayData.item("validation", validate)
+              .withLabel("Validation Enabled"),
+                true);
       }
 
       /**
@@ -802,6 +807,12 @@ public class BigQueryIO {
     protected void cleanupTempResource(BigQueryOptions bqOptions) throws Exception {
       // Do nothing.
     }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder.add(DisplayData.item("table", jsonTable));
+    }
   }
 
   /**
@@ -893,6 +904,11 @@ public class BigQueryIO {
       tableService.deleteDataset(tableToRemove.getProjectId(), tableToRemove.getDatasetId());
     }
 
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder.add(DisplayData.item("query", query));
+    }
     private synchronized JobStatistics dryRunQueryIfNeeded(BigQueryOptions bqOptions)
         throws InterruptedException, IOException {
       if (dryRunJobStats.get() == null) {
@@ -1742,17 +1758,23 @@ public class BigQueryIO {
         super.populateDisplayData(builder);
 
         builder
-            .addIfNotNull(DisplayData.item("table", jsonTableRef))
-            .addIfNotNull(DisplayData.item("schema", jsonSchema));
+            .addIfNotNull(DisplayData.item("table", jsonTableRef)
+              .withLabel("Table Reference"))
+            .addIfNotNull(DisplayData.item("schema", jsonSchema)
+              .withLabel("Table Schema"));
 
         if (tableRefFunction != null) {
-          builder.add(DisplayData.item("tableFn", tableRefFunction.getClass()));
+          builder.add(DisplayData.item("tableFn", tableRefFunction.getClass())
+            .withLabel("Table Reference Function"));
         }
 
         builder
-            .add(DisplayData.item("createDisposition", createDisposition.toString()))
-            .add(DisplayData.item("writeDisposition", writeDisposition.toString()))
-            .addIfNotDefault(DisplayData.item("validation", validate), true);
+            .add(DisplayData.item("createDisposition", createDisposition.toString())
+              .withLabel("Table CreateDisposition"))
+            .add(DisplayData.item("writeDisposition", writeDisposition.toString())
+              .withLabel("Table WriteDisposition"))
+            .addIfNotDefault(DisplayData.item("validation", validate)
+              .withLabel("Validation Enabled"), true);
       }
 
       /** Returns the create disposition. */
@@ -1844,8 +1866,10 @@ public class BigQueryIO {
       super.populateDisplayData(builder);
 
       builder
-          .addIfNotNull(DisplayData.item("schema", jsonSchema))
-          .addIfNotNull(DisplayData.item("tableSpec", jsonTable));
+          .addIfNotNull(DisplayData.item("schema", jsonSchema)
+            .withLabel("Table Schema"))
+          .addIfNotNull(DisplayData.item("tableSpec", jsonTable)
+            .withLabel("Table Specification"));
     }
 
     private static class BigQueryWriteOperation extends FileBasedWriteOperation<TableRow> {
@@ -2085,7 +2109,8 @@ public class BigQueryIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
 
-      builder.addIfNotNull(DisplayData.item("schema", jsonTableSchema));
+      builder.addIfNotNull(DisplayData.item("schema", jsonTableSchema)
+        .withLabel("Table Schema"));
     }
 
     public TableReference getOrCreateTable(BigQueryOptions options, String tableSpec)
@@ -2301,7 +2326,8 @@ public class BigQueryIO {
 
       builder.addIfNotNull(DisplayData.item("tableSpec", tableSpec));
       if (tableRefFunction != null) {
-        builder.add(DisplayData.item("tableFn", tableRefFunction.getClass()));
+        builder.add(DisplayData.item("tableFn", tableRefFunction.getClass())
+          .withLabel("Table Reference Function"));
       }
     }
 

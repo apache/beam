@@ -207,9 +207,12 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
     builder
-        .addIfNotDefault(DisplayData.item("minBundleSize", minBundleSize), 1L)
-        .addIfNotDefault(DisplayData.item("startOffset", startOffset), 0L)
-        .addIfNotDefault(DisplayData.item("endOffset", endOffset), Long.MAX_VALUE);
+        .addIfNotDefault(DisplayData.item("minBundleSize", minBundleSize)
+            .withLabel("Minimum Bundle Size"), 1L)
+        .addIfNotDefault(DisplayData.item("startOffset", startOffset)
+            .withLabel("Start Read Offset"), 0L)
+        .addIfNotDefault(DisplayData.item("endOffset", endOffset)
+            .withLabel("End Read Offset"), Long.MAX_VALUE);
   }
 
   /**

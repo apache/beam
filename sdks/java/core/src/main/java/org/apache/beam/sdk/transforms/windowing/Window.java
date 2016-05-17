@@ -602,29 +602,35 @@ public class Window {
 
       if (windowFn != null) {
         builder
-            .add(DisplayData.item("windowFn", windowFn.getClass()))
+            .add(DisplayData.item("windowFn", windowFn.getClass())
+              .withLabel("Windowing Function"))
             .include(windowFn);
       }
 
       if (allowedLateness != null) {
-        builder.addIfNotDefault(DisplayData.item("allowedLateness", allowedLateness),
+        builder.addIfNotDefault(DisplayData.item("allowedLateness", allowedLateness)
+              .withLabel("Allowed Lateness"),
             Duration.millis(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));
       }
 
       if (trigger != null && !(trigger instanceof DefaultTrigger)) {
-        builder.add(DisplayData.item("trigger", trigger.toString()));
+        builder.add(DisplayData.item("trigger", trigger.toString())
+          .withLabel("Trigger"));
       }
 
       if (mode != null) {
-        builder.add(DisplayData.item("accumulationMode", mode.toString()));
+        builder.add(DisplayData.item("accumulationMode", mode.toString())
+          .withLabel("Accumulation Mode"));
       }
 
       if (closingBehavior != null) {
-        builder.add(DisplayData.item("closingBehavior", closingBehavior.toString()));
+        builder.add(DisplayData.item("closingBehavior", closingBehavior.toString())
+          .withLabel("Window Closing Behavior"));
       }
 
       if (outputTimeFn != null) {
-        builder.add(DisplayData.item("outputTimeFn", outputTimeFn.getClass()));
+        builder.add(DisplayData.item("outputTimeFn", outputTimeFn.getClass())
+          .withLabel("Output Time Function"));
       }
     }
 

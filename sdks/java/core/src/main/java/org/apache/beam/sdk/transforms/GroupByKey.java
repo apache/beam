@@ -279,7 +279,8 @@ public class GroupByKey<K, V>
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
     if (fewKeys) {
-      builder.add(DisplayData.item("fewKeys", true));
+      builder.add(DisplayData.item("fewKeys", true)
+        .withLabel("Has Few Keys"));
     }
   }
 

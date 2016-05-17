@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow.io;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
 
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertThat;
@@ -39,6 +38,30 @@ import java.util.Set;
  * Unit tests for Dataflow usage of {@link BigQueryIO} transforms.
  */
 public class DataflowBigQueryIOTest {
+  @Test
+  public void testTableSourcePrimitiveDisplayData() {
+    DisplayDataEvaluator evaluator = DataflowDisplayDataEvaluator.create();
+    BigQueryIO.Read.Bound read = BigQueryIO.Read
+        .from("project:dataset.tableId")
+        .withoutValidation();
+
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(read);
+    assertThat("BigQueryIO.Read should include the table spec in its primitive display data",
+        displayData, hasItem(hasDisplayItem("table")));
+  }
+
+  @Test
+  public void testQuerySourcePrimitiveDisplayData() {
+    DisplayDataEvaluator evaluator = DataflowDisplayDataEvaluator.create();
+    BigQueryIO.Read.Bound read = BigQueryIO.Read
+        .fromQuery("foobar")
+        .withoutValidation();
+
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(read);
+    assertThat("BigQueryIO.Read should include the query in its primitive display data",
+        displayData, hasItem(hasDisplayItem("query")));
+  }
+
   @Test
   public void testBatchSinkPrimitiveDisplayData() {
     DataflowPipelineOptions options = DataflowDisplayDataEvaluator.getDefaultOptions();
@@ -63,9 +86,9 @@ public class DataflowBigQueryIOTest {
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
     assertThat("BigQueryIO.Write should include the table spec in its primitive display data",
-        displayData, hasItem(hasDisplayItem(hasKey("tableSpec"))));
+        displayData, hasItem(hasDisplayItem("tableSpec")));
 
     assertThat("BigQueryIO.Write should include the table schema in its primitive display data",
-        displayData, hasItem(hasDisplayItem(hasKey("schema"))));
+        displayData, hasItem(hasDisplayItem("schema")));
   }
 }

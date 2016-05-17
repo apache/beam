@@ -397,8 +397,10 @@ new TopCombineFn<>(count, new Largest<V>()).<K>asKeyedFn())
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder
-          .add(DisplayData.item("count", count))
-          .add(DisplayData.item("comparer", compareFn.getClass()));
+          .add(DisplayData.item("count", count)
+            .withLabel("Top Count"))
+          .add(DisplayData.item("comparer", compareFn.getClass())
+            .withLabel("Record Comparer"));
     }
 
     @Override

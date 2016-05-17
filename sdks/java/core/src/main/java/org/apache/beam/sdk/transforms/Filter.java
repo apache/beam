@@ -261,6 +261,7 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
 
   private static void populateDisplayData(
       DisplayData.Builder builder, String predicateDescription) {
-    builder.add(DisplayData.item("predicate", predicateDescription));
+    builder.add(DisplayData.item("predicate", predicateDescription)
+      .withLabel("Filter Predicate"));
   }
 }

@@ -20,10 +20,8 @@ package org.apache.beam.sdk.io.gcp.bigtable;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSourcesEqualReferenceSource;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionExhaustive;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionFails;
-import static org.apache.beam.sdk.testing.SourceTestUtils
-    .assertSplitAtFractionSucceedsAndConsistent;
+import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionSucceedsAndConsistent;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Verify.verifyNotNull;
@@ -428,7 +426,7 @@ public class BigtableIOTest {
     assertThat(displayData, hasDisplayItem("rowFilter", rowFilter.toString()));
 
     // BigtableIO adds user-agent to options; assert only on key and not value.
-    assertThat(displayData, hasDisplayItem(hasKey("bigtableOptions")));
+    assertThat(displayData, hasDisplayItem("bigtableOptions"));
   }
 
   /** Tests that a record gets written to the service and messages are logged. */
@@ -494,10 +492,7 @@ public class BigtableIOTest {
         .withBigtableOptions(BIGTABLE_OPTIONS);
 
     DisplayData displayData = DisplayData.from(write);
-
     assertThat(displayData, hasDisplayItem("tableId", "fooTable"));
-    // BigtableIO adds user-agent to options; assert only on key and not value.
-    assertThat(displayData, hasDisplayItem(hasKey("bigtableOptions")));
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////////

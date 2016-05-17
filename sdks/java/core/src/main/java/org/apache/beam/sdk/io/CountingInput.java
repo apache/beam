@@ -119,7 +119,8 @@ public class CountingInput {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder.add(DisplayData.item("upTo", numElements));
+      builder.add(DisplayData.item("upTo", numElements)
+        .withLabel("Count Up To"));
     }
   }
 
@@ -233,14 +234,17 @@ public class CountingInput {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
 
-      builder.add(DisplayData.item("timestampFn", timestampFn.getClass()));
+      builder.add(DisplayData.item("timestampFn", timestampFn.getClass())
+        .withLabel("Timestamp Function"));
 
       if (maxReadTime.isPresent()) {
-        builder.add(DisplayData.item("maxReadTime", maxReadTime.get()));
+        builder.add(DisplayData.item("maxReadTime", maxReadTime.get())
+          .withLabel("Maximum Read Time"));
       }
 
       if (maxNumRecords.isPresent()) {
-        builder.add(DisplayData.item("maxRecords", maxNumRecords.get()));
+        builder.add(DisplayData.item("maxRecords", maxNumRecords.get())
+          .withLabel("Maximum Read Records"));
       }
     }
   }

@@ -17,7 +17,8 @@
  */
 package org.apache.beam.sdk.util;
 
-import static com.google.api.client.util.Preconditions.checkNotNull;
+
+import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.client.json.GenericJson;
 import com.google.api.client.util.Key;
