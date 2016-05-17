@@ -817,9 +817,10 @@ public class TextIO {
       private ByteString buffer;
       private int startOfSeparatorInBuffer;
       private int endOfSeparatorInBuffer;
-      private long startOfNextRecord;
-      private boolean eof;
-      private boolean elementIsPresent;
+      private long startOfRecord;
+      private volatile long startOfNextRecord;
+      private volatile boolean eof;
+      private volatile boolean elementIsPresent;
       private T currentValue;
       private ReadableByteChannel inChannel;
 
@@ -834,7 +835,15 @@ public class TextIO {
         if (!elementIsPresent) {
           throw new NoSuchElementException();
         }
-        return startOfNextRecord;
+        return startOfRecord;
+      }
+
+      @Override
+      public long getParallelismRemaining() {
+        if (isStarted() && startOfNextRecord >= getCurrentSource().getEndOffset()) {
+          return isDone() ? 0 : 1;
+        }
+        return super.getParallelismRemaining();
       }
 
       @Override
@@ -912,7 +921,7 @@ public class TextIO {
 
       @Override
       protected boolean readNextRecord() throws IOException {
-        startOfNextRecord += endOfSeparatorInBuffer;
+        startOfRecord = startOfNextRecord;
         findSeparatorBounds();
 
         // If we have reached EOF file and consumed all of the buffer then we know
@@ -923,6 +932,7 @@ public class TextIO {
         }
 
         decodeCurrentElement();
+        startOfNextRecord = startOfRecord + endOfSeparatorInBuffer;
         return true;
       }
 

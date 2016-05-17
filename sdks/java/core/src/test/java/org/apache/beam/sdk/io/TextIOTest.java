@@ -22,10 +22,10 @@ import static org.apache.beam.sdk.TestUtils.LINES_ARRAY;
 import static org.apache.beam.sdk.TestUtils.NO_INTS_ARRAY;
 import static org.apache.beam.sdk.TestUtils.NO_LINES_ARRAY;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
@@ -34,6 +34,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.TextualIntegerCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.TextIO.CompressionType;
 import org.apache.beam.sdk.io.TextIO.TextSource;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -420,6 +421,117 @@ public class TextIOTest {
     assertEquals("TextIO.Read", TextIO.Read.from("somefile").toString());
     assertEquals(
         "ReadMyFile [TextIO.Read]", TextIO.Read.named("ReadMyFile").from("somefile").toString());
+  }
+
+  @Test
+  public void testProgressEmptyFile() throws IOException {
+    try (BoundedReader<String> reader =
+        prepareSource(new byte[0]).createReader(PipelineOptionsFactory.create())) {
+      // Check preconditions before starting.
+      assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
+      assertEquals(0, reader.getParallelismConsumed());
+      assertEquals(BoundedReader.PARALLELISM_UNKNOWN, reader.getParallelismRemaining());
+
+      // Assert empty
+      assertFalse(reader.start());
+
+      // Check postconditions after finishing
+      assertEquals(1.0, reader.getFractionConsumed(), 1e-6);
+      assertEquals(0, reader.getParallelismConsumed());
+      assertEquals(0, reader.getParallelismRemaining());
+    }
+  }
+
+  @Test
+  public void testProgressTextFile() throws IOException {
+    String file = "line1\nline2\nline3";
+    try (BoundedReader<String> reader =
+        prepareSource(file.getBytes()).createReader(PipelineOptionsFactory.create())) {
+      // Check preconditions before starting
+      assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
+      assertEquals(0, reader.getParallelismConsumed());
+      assertEquals(BoundedReader.PARALLELISM_UNKNOWN, reader.getParallelismRemaining());
+
+      // Line 1
+      assertTrue(reader.start());
+      assertEquals(0, reader.getParallelismConsumed());
+      assertEquals(BoundedReader.PARALLELISM_UNKNOWN, reader.getParallelismRemaining());
+
+      // Line 2
+      assertTrue(reader.advance());
+      assertEquals(1, reader.getParallelismConsumed());
+      assertEquals(BoundedReader.PARALLELISM_UNKNOWN, reader.getParallelismRemaining());
+
+      // Line 3
+      assertTrue(reader.advance());
+      assertEquals(2, reader.getParallelismConsumed());
+      assertEquals(1, reader.getParallelismRemaining());
+
+      // Check postconditions after finishing
+      assertFalse(reader.advance());
+      assertEquals(1.0, reader.getFractionConsumed(), 1e-6);
+      assertEquals(3, reader.getParallelismConsumed());
+      assertEquals(0, reader.getParallelismRemaining());
+    }
+  }
+
+  @Test
+  public void testProgressAfterSplitting() throws IOException {
+    String file = "line1\nline2\nline3";
+    BoundedSource source = prepareSource(file.getBytes());
+    BoundedSource remainder;
+
+    // Create the remainder, verifying properties pre- and post-splitting.
+    try (BoundedReader<String> readerOrig = source.createReader(PipelineOptionsFactory.create())) {
+      // Preconditions.
+      assertEquals(0.0, readerOrig.getFractionConsumed(), 1e-6);
+      assertEquals(0, readerOrig.getParallelismConsumed());
+      assertEquals(BoundedReader.PARALLELISM_UNKNOWN, readerOrig.getParallelismRemaining());
+
+      // First record, before splitting.
+      assertTrue(readerOrig.start());
+      assertEquals(0, readerOrig.getParallelismConsumed());
+      assertEquals(BoundedReader.PARALLELISM_UNKNOWN, readerOrig.getParallelismRemaining());
+
+      // Split. 0.1 is in line1, so should now be able to detect last record.
+      remainder = readerOrig.splitAtFraction(0.1);
+      System.err.println(readerOrig.getCurrentSource());
+      assertNotNull(remainder);
+
+      // First record, after splitting.
+      assertEquals(0, readerOrig.getParallelismConsumed());
+      assertEquals(1, readerOrig.getParallelismRemaining());
+
+      // Finish and postconditions.
+      assertFalse(readerOrig.advance());
+      assertEquals(1.0, readerOrig.getFractionConsumed(), 1e-6);
+      assertEquals(1, readerOrig.getParallelismConsumed());
+      assertEquals(0, readerOrig.getParallelismRemaining());
+    }
+
+    // Check the properties of the remainder.
+    try (BoundedReader<String> reader = remainder.createReader(PipelineOptionsFactory.create())) {
+      // Preconditions.
+      assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
+      assertEquals(0, reader.getParallelismConsumed());
+      assertEquals(BoundedReader.PARALLELISM_UNKNOWN, reader.getParallelismRemaining());
+
+      // First record should be line 2.
+      assertTrue(reader.start());
+      assertEquals(0, reader.getParallelismConsumed());
+      assertEquals(BoundedReader.PARALLELISM_UNKNOWN, reader.getParallelismRemaining());
+
+      // Second record is line 3
+      assertTrue(reader.advance());
+      assertEquals(1, reader.getParallelismConsumed());
+      assertEquals(1, reader.getParallelismRemaining());
+
+      // Check postconditions after finishing
+      assertFalse(reader.advance());
+      assertEquals(1.0, reader.getFractionConsumed(), 1e-6);
+      assertEquals(2, reader.getParallelismConsumed());
+      assertEquals(0, reader.getParallelismRemaining());
+    }
   }
 
   @Test
