@@ -397,10 +397,10 @@ public class InMemExecutorTest {
     }
 
     @Override
-    public void registerTrigger(
+    public TriggerState registerTrigger(
         Triggering triggering,
         UnaryFunction<Window<?, ?>, Void> evict) {
-      // nop
+      return TriggerState.INACTIVE;
     }
 
     @Override

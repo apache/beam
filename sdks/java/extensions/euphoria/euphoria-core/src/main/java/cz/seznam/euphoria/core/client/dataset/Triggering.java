@@ -8,11 +8,13 @@ import java.io.Serializable;
  */
 public interface Triggering extends Serializable {
 
-  /** Fire specific trigger on given time. */
-  void scheduleOnce(long duration, Trigger trigger);
-
-  /** Fire specific trigger each timeout milliseconds. */
-  void schedulePeriodic(long timeout, Trigger trigger);
+  /**
+   * Fire specific trigger on given time.
+   * Schedule the given trigger at the given stamp.
+   * The trigger will be fired as close to the time as possible.
+   * @return true if the trigger was activated, false if time of the activation
+   * already passed
+   */
+  boolean scheduleAt(long stamp, Trigger trigger);
   
-
 }

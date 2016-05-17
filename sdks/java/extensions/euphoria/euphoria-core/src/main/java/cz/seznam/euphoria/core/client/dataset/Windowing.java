@@ -78,12 +78,14 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
     } // ~ end of TimeInterval
 
     public static class TimeWindow
-        implements AlignedWindow<TimeInterval>
-    {
+        implements AlignedWindow<TimeInterval> {
+
       private final TimeInterval label;
+      private final long fireStamp;
 
       TimeWindow(long startMillis, long intervalMillis) {
         this.label = new TimeInterval(startMillis, intervalMillis);
+        this.fireStamp = startMillis + intervalMillis;
       }
 
       @Override
@@ -92,10 +94,13 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
       }
 
       @Override
-      public void registerTrigger(
-          Triggering triggering, UnaryFunction<Window<?, ?>, Void> evict)
-      {
-        triggering.scheduleOnce(this.label.getIntervalMillis(), () -> evict.apply(this));
+      public TriggerState registerTrigger(
+          Triggering triggering, UnaryFunction<Window<?, ?>, Void> evict) {
+
+        if (triggering.scheduleAt(this.fireStamp, () -> evict.apply(this))) {
+          return TriggerState.ACTIVATED;
+        }
+        return TriggerState.PASSED;
       }
     } // ~ end of TimeWindow
 
@@ -199,9 +204,9 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
       }
 
       @Override
-      public void registerTrigger(
-          Triggering triggering, UnaryFunction<Window<?, ?>, Void> evict)
-      {
+      public TriggerState registerTrigger(
+          Triggering triggering, UnaryFunction<Window<?, ?>, Void> evict) {
+        return TriggerState.INACTIVE;
       }
 
       @Override
@@ -294,11 +299,13 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
       }
 
       @Override
-      public void registerTrigger(
+      public TriggerState registerTrigger(
           Triggering triggering, UnaryFunction<Window<?, ?>, Void> evict) {
-        long now = System.currentTimeMillis();
-        triggering.scheduleOnce(duration - (now - startTime),
-            () -> evict.apply(this));
+        long scheduleAt = startTime + duration;
+        if (triggering.scheduleAt(scheduleAt, () -> evict.apply(this))) {
+          return TriggerState.ACTIVATED;
+        }
+        return TriggerState.PASSED;
       }
 
       @Override
