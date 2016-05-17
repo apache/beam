@@ -151,8 +151,8 @@ class Injector {
       this.teamName = teamName;
       this.startTimeInMillis = startTimeInMillis;
       // How long until this team is dissolved.
-      this.expirationPeriod = random.nextInt(TEAM_EXPIRATION_TIME_IN_MINS) +
-        BASE_TEAM_EXPIRATION_TIME_IN_MINS;
+      this.expirationPeriod = random.nextInt(TEAM_EXPIRATION_TIME_IN_MINS)
+        + BASE_TEAM_EXPIRATION_TIME_IN_MINS;
       this.robot = robot;
       // Determine the number of team members.
       numMembers = random.nextInt(MEMBERS_PER_TEAM) + BASE_MEMBERS_PER_TEAM;
@@ -204,9 +204,9 @@ class Injector {
     long currTime = System.currentTimeMillis();
     if ((team.getEndTimeInMillis() < currTime) || team.numMembers() == 0) {
       System.out.println("\nteam " + team + " is too old; replacing.");
-      System.out.println("start time: " + team.getStartTimeInMillis() +
-        ", end time: " + team.getEndTimeInMillis() +
-        ", current time:" + currTime);
+      System.out.println("start time: " + team.getStartTimeInMillis()
+        + ", end time: " + team.getEndTimeInMillis()
+        + ", current time:" + currTime);
       removeTeam(index);
       // Add a new team in its stead.
       return (addLiveTeam());

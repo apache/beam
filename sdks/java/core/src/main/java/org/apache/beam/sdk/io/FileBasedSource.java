@@ -326,8 +326,7 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
     } else {
       if (isSplittable()) {
         List<FileBasedSource<T>> splitResults = new ArrayList<>();
-        for (OffsetBasedSource<T> split :
-            super.splitIntoBundles(desiredBundleSizeBytes, options)) {
+        for (OffsetBasedSource<T> split : super.splitIntoBundles(desiredBundleSizeBytes, options)) {
           splitResults.add((FileBasedSource<T>) split);
         }
         return splitResults;

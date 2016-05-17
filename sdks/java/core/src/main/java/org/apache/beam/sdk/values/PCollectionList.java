@@ -98,8 +98,8 @@ public class PCollectionList<T> implements PInput, POutput {
     Iterator<PCollection<T>> pcsIter = pcs.iterator();
     if (!pcsIter.hasNext()) {
       throw new IllegalArgumentException(
-          "must either have a non-empty list of PCollections, " +
-          "or must first call empty(Pipeline)");
+          "must either have a non-empty list of PCollections, "
+          + "or must first call empty(Pipeline)");
     }
     return new PCollectionList<T>(pcsIter.next().getPipeline()).and(pcs);
   }
