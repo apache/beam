@@ -20,11 +20,11 @@ package org.apache.beam.sdk.io;
 import static org.apache.beam.sdk.util.StringUtils.approximateSimpleName;
 
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.coders.StandardCoder;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -119,7 +119,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
     public Reader createReader(PipelineOptions options, Checkpoint<T> checkpoint)
         throws IOException {
       if (checkpoint == null) {
-        return new Reader(null /* residualElements */, boundedSource, options);
+        return new Reader(Lists.<TimestampedValue<T>>newArrayList(), boundedSource, options);
       } else {
         return new Reader(checkpoint.residualElements, checkpoint.residualSource, options);
       }
@@ -151,9 +151,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
       public void finalizeCheckpoint() {}
     }
 
-    private static class CheckpointCoder<T> extends AtomicCoder<Checkpoint<T>> {
-      private final Coder<List<TimestampedValue<T>>> elemsCoder;
-      private final Coder<T> elemCoder;
+    private static class CheckpointCoder<T> extends StandardCoder<Checkpoint<T>> {
 
       @JsonCreator
       public static CheckpointCoder<?> of(
@@ -164,6 +162,8 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
         return new CheckpointCoder<>(components.get(0));
       }
 
+      private final Coder<List<TimestampedValue<T>>> elemsCoder;
+      private final Coder<T> elemCoder;
       @SuppressWarnings("rawtypes")
       private final SerializableCoder<BoundedSource> serializableCoder =
           SerializableCoder.of(BoundedSource.class);
@@ -176,22 +176,30 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
       @Override
       public void encode(Checkpoint<T> value, OutputStream outStream, Context context)
           throws CoderException, IOException {
-        elemsCoder.encode(value.residualElements, outStream, context);
-        serializableCoder.encode(value.residualSource, outStream, context);
+        Context nested = context.nested();
+        elemsCoder.encode(value.residualElements, outStream, nested);
+        serializableCoder.encode(value.residualSource, outStream, nested);
       }
 
       @SuppressWarnings("unchecked")
       @Override
       public Checkpoint<T> decode(InputStream inStream, Context context)
           throws CoderException, IOException {
+        Context nested = context.nested();
         return new Checkpoint<>(
-            elemsCoder.decode(inStream, context),
-            serializableCoder.decode(inStream, context));
+            elemsCoder.decode(inStream, nested),
+            serializableCoder.decode(inStream, nested));
       }
 
       @Override
       public List<Coder<?>> getCoderArguments() {
         return Arrays.<Coder<?>>asList(elemCoder);
+      }
+
+      @Override
+      public void verifyDeterministic() throws NonDeterministicException {
+        serializableCoder.verifyDeterministic();
+        elemsCoder.verifyDeterministic();
       }
     }
 
@@ -204,7 +212,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
 
       private boolean currentElementInList;
       private int currentIndexInList;
-      private BoundedReader<T> reader;
+      private @Nullable BoundedReader<T> reader;
       private boolean done;
 
       public Reader(
@@ -232,6 +240,9 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
         } else {
           done = !advanceInReader();
         }
+        if (done) {
+          close();
+        }
         return !done;
       }
 
@@ -248,7 +259,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
 
       private boolean advanceInReader() throws IOException {
         boolean hasNext;
-        if (boundedSource == null) {
+        if (residualSource == null) {
           hasNext = false;
         } else if (reader == null) {
           reader = residualSource.createReader(options);
@@ -261,15 +272,21 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
 
       @Override
       public void close() throws IOException {
-        reader.close();
+        if (reader != null) {
+          reader.close();
+          residualSource = null;
+          reader = null;
+        }
       }
 
       @Override
       public T getCurrent() throws NoSuchElementException {
         if (currentElementInList) {
           return residualElements.get(currentIndexInList).getValue();
-        } else {
+        } else if (reader != null){
           return reader.getCurrent();
+        } else {
+          throw new NoSuchElementException();
         }
       }
 
@@ -277,8 +294,10 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
       public Instant getCurrentTimestamp() throws NoSuchElementException {
         if (currentElementInList) {
           return residualElements.get(currentIndexInList).getTimestamp();
-        } else {
+        } else if (reader != null){
           return reader.getCurrentTimestamp();
+        } else {
+          throw new NoSuchElementException();
         }
       }
 
@@ -296,7 +315,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
             newResidualElements.add(residualElements.get(currentIndexInList));
           }
           newResidualSource = residualSource;
-        } else {
+        } else if (reader != null) {
           BoundedSource<T> residualSplit = reader.splitAtFraction(reader.getFractionConsumed());
           try {
             while (advanceInReader()) {
@@ -307,6 +326,8 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
             throw new RuntimeException("Failed to read elements from the bounded reader.", e);
           }
           newResidualSource = residualSplit;
+        } else {
+          newResidualSource = residualSource;
         }
         return new Checkpoint<T>(newResidualElements, newResidualSource);
       }
