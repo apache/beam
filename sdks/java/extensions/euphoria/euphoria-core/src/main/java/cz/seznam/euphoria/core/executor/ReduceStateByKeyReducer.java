@@ -105,7 +105,7 @@ class ReduceStateByKeyReducer implements Runnable {
     // ~ are we still actively processing input?
     private boolean active = true;
 
-    public ProcessingState(
+    private ProcessingState(
         BlockingQueue output,
         Triggering triggering,
         UnaryFunction<Window, Void> evictFn,
@@ -189,7 +189,12 @@ class ReduceStateByKeyReducer implements Runnable {
         // ~ if no such window yet ... set it up
         wStorage.setWindow(wState = Pair.of(w, new HashMap<>()));
         // ~ give the window a chance to register triggers
-        w.registerTrigger(triggering, evictFn);
+        Window.TriggerState triggerState = w.registerTrigger(triggering, evictFn);
+        if (triggerState == Window.TriggerState.PASSED) {
+          // the window should have been already triggered
+          // just discard the element, no other option for now
+          // FIXME
+        }
       } else if (setWindowInstance && wState.getFirst() != w) {
         // ~ identity comparison on purpose
         wStorage.setWindow(wState = Pair.of(w, wState.getSecond()));
@@ -252,7 +257,7 @@ class ReduceStateByKeyReducer implements Runnable {
   // from within a separate thread)
   private final ProcessingState processing;
 
-  private final ProcessingTimeTriggering triggering = new ProcessingTimeTriggering();
+  private final Triggering triggering;
 
   ReduceStateByKeyReducer(BlockingQueue input,
                           BlockingQueue output,
@@ -260,14 +265,16 @@ class ReduceStateByKeyReducer implements Runnable {
                           UnaryFunction keyExtractor,
                           UnaryFunction valueExtractor,
                           BinaryFunction stateFactory,
-                          CombinableReduceFunction stateCombiner)
+                          CombinableReduceFunction stateCombiner,
+                          Triggering triggering)
   {
-    this.input = input;
-    this.windowing = windowing;
-    this.keyExtractor = keyExtractor;
-    this.valueExtractor = valueExtractor;
+    this.input = requireNonNull(input);
+    this.windowing = requireNonNull(windowing);
+    this.keyExtractor = requireNonNull(keyExtractor);
+    this.valueExtractor = requireNonNull(valueExtractor);
+    this.triggering = requireNonNull(triggering);
     this.processing = new ProcessingState(
-        output, new ProcessingTimeTriggering(),
+        output, triggering,
         createEvictTrigger(),
         stateFactory, stateCombiner, windowing.isAggregating());
   }
@@ -330,6 +337,7 @@ class ReduceStateByKeyReducer implements Runnable {
     Object itemValue = valueExtractor.apply(item);
 
     seenGroups.clear();
+    windowing.updateTriggering(triggering, item);
     Set<Window> itemWindows = windowing.assignWindows(item);
     for (Window itemWindow : itemWindows) {
       processing.getWindowState(itemWindow, itemKey).getSecond().add(itemValue);

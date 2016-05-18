@@ -16,19 +16,20 @@ public class ListDataSource<T> implements DataSource<T> {
 
   @SuppressWarnings("unchecked")
   @SafeVarargs
-  public static <T> DataSource<T> bounded(List<T>... partitions) {
+  public static <T> ListDataSource<T> bounded(List<T>... partitions) {
     return new ListDataSource<>(Arrays.asList(partitions), true);
   }
 
   @SuppressWarnings("unchecked")
   @SafeVarargs
-  public static <T> DataSource<T> unbounded(List<T>... partitions) {
+  public static <T> ListDataSource<T> unbounded(List<T>... partitions) {
     return new ListDataSource<>(Arrays.asList(partitions), false);
   }
 
 
   final Collection<List<T>> partitions;
   final boolean bounded;
+  long sleepMs = 0;
 
   private ListDataSource(Collection<List<T>> partitions, boolean bounded) {
     this.partitions = partitions;
@@ -63,6 +64,13 @@ public class ListDataSource<T> implements DataSource<T> {
 
             @Override
             public T next() {
+              try {
+                if (sleepMs > 0) {
+                  Thread.sleep(sleepMs);
+                }
+              } catch (InterruptedException ex) {
+                // nop
+              }
               return data.get(pos++);
             }
 
@@ -76,6 +84,14 @@ public class ListDataSource<T> implements DataSource<T> {
   @Override
   public boolean isBounded() {
     return bounded;
+  }
+
+  /**
+   * Set sleep time between emitting of elements.
+   */
+  public ListDataSource<T> setSleepTime(long timeout) {
+    this.sleepMs = timeout;
+    return this;
   }
 
 }
