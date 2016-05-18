@@ -307,6 +307,11 @@ class CompressionTypes(object):
   NO_COMPRESSION = _CompressionType(1)  # No compression.
   DEFLATE = _CompressionType(2)  # 'Deflate' ie gzip compression.
 
+  @staticmethod
+  def valid_compression_type(compression_type):
+    """Returns true for valid compression types, false otherwise."""
+    return isinstance(compression_type, _CompressionType)
+
 
 class FileSink(iobase.Sink):
   """A sink to a GCS or local files.
@@ -445,7 +450,7 @@ class PureTextFileSink(FileSink):
     Returns:
       A PureTextFileSink object usable for writing.
     """
-    if not isinstance(compression_type, _CompressionType):
+    if not CompressionTypes.valid_compression_type(compression_type):
       raise TypeError('compression_type must be CompressionType object but '
                       'was %s' % type(compression_type))
 
