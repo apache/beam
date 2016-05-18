@@ -33,6 +33,7 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 
 /**
@@ -132,6 +133,12 @@ public abstract class PubsubClient implements Closeable {
       return path;
     }
 
+    public String getId() {
+      String[] splits = path.split("/");
+      checkState(splits.length == 1, "Malformed project path %s", path);
+      return splits[1];
+    }
+
     @Override
     public boolean equals(Object o) {
       if (this == o) {
@@ -178,6 +185,12 @@ public abstract class PubsubClient implements Closeable {
 
     public String getPath() {
       return path;
+    }
+
+    public String getName() {
+      String[] splits = path.split("/");
+      checkState(splits.length == 4, "Malformed subscription path %s", path);
+      return splits[3];
     }
 
     public String getV1Beta1Path() {
@@ -231,6 +244,12 @@ public abstract class PubsubClient implements Closeable {
 
     public String getPath() {
       return path;
+    }
+
+    public String getName() {
+      String[] splits = path.split("/");
+      checkState(splits.length == 4, "Malformed topic path %s", path);
+      return splits[3];
     }
 
     public String getV1Beta1Path() {
@@ -317,8 +336,8 @@ public abstract class PubsubClient implements Closeable {
 
       OutgoingMessage that = (OutgoingMessage) o;
 
-      return Arrays.equals(elementBytes, that.elementBytes)
-             && timestampMsSinceEpoch == that.timestampMsSinceEpoch
+      return timestampMsSinceEpoch == that.timestampMsSinceEpoch
+             && Arrays.equals(elementBytes, that.elementBytes)
              && Objects.equal(recordId, that.recordId);
     }
 
@@ -397,9 +416,9 @@ public abstract class PubsubClient implements Closeable {
 
       return timestampMsSinceEpoch == that.timestampMsSinceEpoch
              && requestTimeMsSinceEpoch == that.requestTimeMsSinceEpoch
-             && Arrays.equals(elementBytes, that.elementBytes)
              && ackId.equals(that.ackId)
-             && recordId.equals(that.recordId);
+             && recordId.equals(that.recordId)
+             && Arrays.equals(elementBytes, that.elementBytes);
     }
 
     @Override
@@ -480,6 +499,22 @@ public abstract class PubsubClient implements Closeable {
    */
   public abstract void createSubscription(
       TopicPath topic, SubscriptionPath subscription, int ackDeadlineSeconds) throws IOException;
+
+  /**
+   * Create a random subscription for {@code topic}. Return the {@link SubscriptionPath}. It
+   * is the responsibility of the caller to later delete the subscription.
+   *
+   * @throws IOException
+   */
+  public SubscriptionPath createRandomSubscription(
+      ProjectPath project, TopicPath topic, int ackDeadlineSeconds) throws IOException {
+    // Create a randomized subscription derived from the topic name.
+    String subscriptionName = topic.getName() + "_beam_" + ThreadLocalRandom.current().nextLong();
+    SubscriptionPath subscription =
+        PubsubClient.subscriptionPathFromName(project.getId(), subscriptionName);
+    createSubscription(topic, subscription, ackDeadlineSeconds);
+    return subscription;
+  }
 
   /**
    * Delete {@code subscription}.

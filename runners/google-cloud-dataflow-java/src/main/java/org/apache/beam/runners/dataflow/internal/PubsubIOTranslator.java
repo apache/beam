@@ -51,8 +51,13 @@ public class PubsubIOTranslator {
 
       context.addStep(transform, "ParallelRead");
       context.addInput(PropertyNames.FORMAT, "pubsub");
-      context.addInput(
-          PropertyNames.PUBSUB_SUBSCRIPTION, transform.getSubscription().getV1Beta1Path());
+      if (transform.getTopic() != null) {
+        context.addInput(PropertyNames.PUBSUB_TOPIC, transform.getTopic().getV1Beta1Path());
+      }
+      if (transform.getSubscription() != null) {
+        context.addInput(
+            PropertyNames.PUBSUB_SUBSCRIPTION, transform.getSubscription().getV1Beta1Path());
+      }
       if (transform.getTimestampLabel() != null) {
         context.addInput(PropertyNames.PUBSUB_TIMESTAMP_LABEL, transform.getTimestampLabel());
       }

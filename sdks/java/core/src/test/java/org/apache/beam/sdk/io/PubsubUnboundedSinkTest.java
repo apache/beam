@@ -158,4 +158,8 @@ public class PubsubUnboundedSinkTest {
     // The PubsubTestClientFactory will assert fail on close if the actual published
     // message does not match the expected publish message.
   }
+
+  // TODO: We would like to test that failed Pubsub publish calls cause the already assigned
+  // (and random) record ids to be reused. However that can't be done without the test runnner
+  // supporting retrying bundles.
 }
