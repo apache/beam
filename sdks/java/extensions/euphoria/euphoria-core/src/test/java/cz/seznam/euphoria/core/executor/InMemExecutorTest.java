@@ -13,6 +13,7 @@ import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
+import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.Repartition;
@@ -71,7 +72,7 @@ public class InMemExecutorTest {
             Arrays.asList(4, 5, 6)));
     // repartition even and odd elements to different partitions
     Dataset<Integer> repartitioned = Repartition.of(ints)
-        .partitionBy(e -> e % 2)
+        .setPartitioner(e -> e % 2)
         .setNumPartitions(2)
         .output();
 
@@ -99,7 +100,7 @@ public class InMemExecutorTest {
             Arrays.asList(4, 5, 6)));
     // repartition even and odd elements to different partitions
     Dataset<Integer> repartitioned = Repartition.of(ints)
-        .partitionBy(e -> e % 3)
+        .setPartitioner(e -> e % 3)
         .setNumPartitions(3)
         .output();
 
@@ -127,7 +128,7 @@ public class InMemExecutorTest {
             Arrays.asList(5, 6)));
     // repartition even and odd elements to different partitions
     Dataset<Integer> repartitioned = Repartition.of(ints)
-        .partitionBy(e -> e % 2)
+        .setPartitioner(e -> e % 2)
         .setNumPartitions(2)
         .output();
 
@@ -211,7 +212,7 @@ public class InMemExecutorTest {
 
     // repeat each element N N count
     Dataset<Integer> output = FlatMap.of(ints)
-        .by((Integer e, Collector<Integer> c) -> {
+        .using((Integer e, Collector<Integer> c) -> {
           for (int i = 0; i < e; i++) {
             c.collect(e);
           }
@@ -239,15 +240,12 @@ public class InMemExecutorTest {
    * Simple sort state for tests.
    * This state takes comparable elements and produces sorted sequence.
    */
-  public static class SortState extends State<Integer, Pair<Integer, Integer>> {
+  public static class SortState extends State<Integer, Integer> {
 
     List<Integer> data = new ArrayList<>();
 
-    final Integer key;
-
-    SortState(Integer key, Collector<Pair<Integer, Integer>> c) {
+    SortState(Collector<Integer> c) {
       super(c);
-      this.key = key;
     }
 
     @Override
@@ -260,14 +258,14 @@ public class InMemExecutorTest {
     public void flush() {
       Collections.sort((List) data);
       data.stream().forEachOrdered(
-          c -> this.collector.collect(Pair.of(key, c)));
+          c -> this.collector.collect(c));
     }
 
     static SortState combine(Iterable<SortState> others) {
       SortState ret = null;
       for (SortState s : others) {
         if (ret == null) {
-          ret = new SortState(s.key, s.collector);
+          ret = new SortState(s.collector);
         }
         ret.data.addAll(s.data);
       }
@@ -379,7 +377,7 @@ public class InMemExecutorTest {
 
     final GROUP group;
     final int maxSize;
-    
+
     int size = 1;
 
     public CountWindow(GROUP group, int maxSize) {
@@ -451,7 +449,7 @@ public class InMemExecutorTest {
           List<CountWindow<GROUP>> toMerge = toMergeMap.get(wSize);
           if (!toMerge.isEmpty()) {
             CountWindow<GROUP> res = new CountWindow<>(w.group, currentSize.get());
-            res.size = currentSize.get();            
+            res.size = currentSize.get();
             ret.add(Pair.of(new ArrayList<>(toMerge), res));
             toMerge.clear();
           }
@@ -598,7 +596,7 @@ public class InMemExecutorTest {
       Set<Integer> rest = new HashSet<>(Arrays.asList(
           e.getValue().get(listSize - 1),
           e.getValue().get(listSize - 2)));
-      
+
       List<Integer> core = e.getValue().subList(0, e.getValue().size() - 2);
       int key = e.getKey();
       int total = core.size();
@@ -656,9 +654,9 @@ public class InMemExecutorTest {
         ListDataSource.unbounded(sequenceInts(0, N)));
 
     // ~ consume the input another time
-    Dataset<Integer> map = cz.seznam.euphoria.core.client.operator.Map
+    Dataset<Integer> map = MapElements
         .of(input)
-        .by(e -> e)
+        .using(e -> e)
         .output();
     ListDataSink<Integer> mapOut = ListDataSink.get(1);
     map.persist(mapOut);
