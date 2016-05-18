@@ -28,7 +28,6 @@ import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.runners.DirectPipelineRunner;
 import org.apache.beam.sdk.transforms.Create;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -62,13 +61,13 @@ public class TestPipelineTest {
   public void testCreationOfPipelineOptions() throws Exception {
     ObjectMapper mapper = new ObjectMapper();
     String stringOptions = mapper.writeValueAsString(new String[]{
-      "--runner=DirectPipelineRunner",
+      "--runner=org.apache.beam.sdk.testing.CrashingRunner",
       "--project=testProject"
     });
     System.getProperties().put("beamTestPipelineOptions", stringOptions);
     GcpOptions options =
         TestPipeline.testingPipelineOptions().as(GcpOptions.class);
-    assertEquals(DirectPipelineRunner.class, options.getRunner());
+    assertEquals(CrashingRunner.class, options.getRunner());
     assertEquals(options.getProject(), "testProject");
   }
 
