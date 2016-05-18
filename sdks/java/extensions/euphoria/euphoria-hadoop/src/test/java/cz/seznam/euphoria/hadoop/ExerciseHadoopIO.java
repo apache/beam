@@ -36,7 +36,7 @@ public class ExerciseHadoopIO {
             URI.create("webhdfs://gin.dev/user/fulltext/shakespeare.txt"));
 
     Dataset<Pair<String, Long>> tuples = FlatMap.of(lines)
-            .by((Pair<LongWritable, Text> line, Collector<Pair<String, Long>> out) -> {
+            .using((Pair<LongWritable, Text> line, Collector<Pair<String, Long>> out) -> {
               for (String w : line.getSecond().toString().split(" ")) {
                 out.collect(Pair.of(w, 1L));
               }

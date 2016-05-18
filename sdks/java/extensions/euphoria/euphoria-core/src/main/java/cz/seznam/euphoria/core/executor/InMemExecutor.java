@@ -555,7 +555,7 @@ public class InMemExecutor implements Executor {
         reduceStateByKeyNode.get());
 
     final UnaryFunction valueExtractor = reduceStateByKey.getValueExtractor();
-    final BinaryFunction stateFactory = reduceStateByKey.getStateFactory();
+    final UnaryFunction stateFactory = reduceStateByKey.getStateFactory();
     final Partitioning partitioning = reduceStateByKey.getPartitioning();
     final Windowing windowing = reduceStateByKey.getWindowing();
     final CombinableReduceFunction stateCombiner = reduceStateByKey.getStateCombiner();

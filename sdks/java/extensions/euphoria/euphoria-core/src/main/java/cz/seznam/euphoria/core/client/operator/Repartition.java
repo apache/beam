@@ -1,68 +1,67 @@
 
 package cz.seznam.euphoria.core.client.operator;
 
-import cz.seznam.euphoria.core.client.dataset.HashPartitioner;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioner;
 import cz.seznam.euphoria.core.client.flow.Flow;
+
+import java.util.Objects;
 
 /**
  * Repartition input to some other number of partitions.
  */
 public class Repartition<IN>
     extends ElementWiseOperator<IN, IN>
-    implements PartitioningAware<IN> {
+    implements PartitioningAware<IN>
+{
 
-  public static class Builder1<IN> {
-    final Dataset<IN> input;
-    Builder1(Dataset<IN> input) {
-      this.input = input;
+  public static class OfBuilder {
+    private final String name;
+
+    OfBuilder(String name) {
+      this.name = name;
     }
-    public Builder2<IN> partitionBy(Partitioner<IN> partitioner) {
-      return new Builder2<>(input, partitioner);
-    }
-    public Repartition<IN> setNumPartitions(int partitions) {
-      Flow flow = input.getFlow();
-      return flow.add(new Repartition<>(flow, input,
-          new HashPartitioner<>(), partitions));
-    }
-  }
-  public static class Builder2<IN> {
-    final Dataset<IN> input;
-    final Partitioner<IN> partitioner;
-    Builder2(Dataset<IN> input, Partitioner<IN> partitioner) {
-      this.input = input;
-      this.partitioner = partitioner;
-    }
-    public Repartition<IN> setNumPartitions(int partitions) {
-      Flow flow = input.getFlow();
-      return flow.add(new Repartition<>(flow, input, partitioner, partitions));
+
+    public <IN> OutputBuilder<IN> of(Dataset<IN> input) {
+      return new OutputBuilder<>(name, input);
     }
   }
 
-  public static <IN> Builder1<IN> of(Dataset<IN> input) {
-    return new Builder1<>(input);
+  public static class OutputBuilder<IN> extends PartitioningBuilder<IN, OutputBuilder<IN>> {
+    private final String name;
+    private final Dataset<IN> input;
+    OutputBuilder(String name, Dataset<IN> input) {
+      // initialize default partitioning according to input
+      super(new DefaultPartitioning<>(input.getPartitioning().getNumPartitions()));
+
+      this.name = Objects.requireNonNull(name);
+      this.input = Objects.requireNonNull(input);
+    }
+
+    public Dataset<IN> output() {
+      Flow flow = input.getFlow();
+      Repartition<IN> repartition =
+              new Repartition<>(name, flow, input, getPartitioning());
+      flow.add(repartition);
+      return repartition.output();
+    }
+  }
+
+  public static <IN> OutputBuilder<IN> of(Dataset<IN> input) {
+    return new OutputBuilder<>("Repartition", input);
+  }
+
+  public static OfBuilder named(String name) {
+    return new OfBuilder(name);
   }
 
   private final Partitioning<IN> partitioning;
 
-  Repartition(Flow flow, Dataset<IN> input,
-      final Partitioner<IN> partitioner, final int numPartitions) {
-    super("Repartition", flow, input);
-    this.partitioning = new Partitioning<IN>() {
-
-      @Override
-      public Partitioner<IN> getPartitioner() {
-        return partitioner;
-      }
-
-      @Override
-      public int getNumPartitions() {
-        return numPartitions;
-      }
-
-    };
+  Repartition(String name, Flow flow, Dataset<IN> input,
+      final Partitioning<IN> partitioning) {
+    super(name, flow, input);
+    this.partitioning = partitioning;
   }
 
   @Override

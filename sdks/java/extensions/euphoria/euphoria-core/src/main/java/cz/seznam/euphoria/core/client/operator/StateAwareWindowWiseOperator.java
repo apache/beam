@@ -20,7 +20,6 @@ public abstract class StateAwareWindowWiseOperator<
   protected final UnaryFunction<KIN, KEY> keyExtractor;
   protected Partitioning<KEY> partitioning;
 
-
   protected StateAwareWindowWiseOperator(
           String name, Flow flow, Windowing<WIN, ?, ?, W> windowing,
           UnaryFunction<KIN, KEY> keyExtractor,

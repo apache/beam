@@ -6,7 +6,6 @@ import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
-import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
@@ -60,7 +59,7 @@ public class BasicOperatorTest {
 
     // expand it to words
     Dataset<Pair<String, Long>> words = FlatMap.of(lines)
-        .by((String s, Collector<Pair<String, Long>> c) -> {
+        .using((String s, Collector<Pair<String, Long>> c) -> {
           for (String part : s.split(" ")) {
             c.collect(Pair.of(part, 1L));
           }})
@@ -114,7 +113,7 @@ public class BasicOperatorTest {
 
     // expand it to words
     Dataset<Pair<String, Long>> words = FlatMap.of(lines)
-        .by((String s, Collector<Pair<String, Long>> c) -> {
+        .using((String s, Collector<Pair<String, Long>> c) -> {
           for (String part : s.split(" ")) {
             c.collect(Pair.of(part, 1L));
           }})
@@ -255,7 +254,7 @@ public class BasicOperatorTest {
 
     // expand it to words
     Dataset<Pair<String, Long>> words = FlatMap.of(lines)
-        .by((String s, Collector<Pair<String, Long>> c) -> {
+        .using((String s, Collector<Pair<String, Long>> c) -> {
           for (String part : s.split(" ")) {
             c.collect(Pair.of(part, 1L));
           }})
@@ -305,8 +304,8 @@ public class BasicOperatorTest {
         .output();
 
     // split lines to pairs
-    Dataset<Pair<String, String>> pairs = Map.of(nonempty)
-        .by(s -> {
+    Dataset<Pair<String, String>> pairs = MapElements.of(nonempty)
+        .using(s -> {
           String[] parts = s.split("\t", 2);
           return Pair.of(parts[0], parts[1]);
         })
@@ -314,25 +313,26 @@ public class BasicOperatorTest {
 
     // group all lines by the first element
     GroupedDataset<String, String> grouped = GroupByKey.of(pairs)
-        .valueBy(Pair::getSecond)
-        .keyBy(Pair::getFirst)
+            .keyBy(Pair::getFirst)
+            .valueBy(Pair::getSecond)
         .output();
 
     // calculate all distinct values within each group
     Dataset<Pair<CompositeKey<String, String>, Void>> reduced = ReduceByKey.of(grouped)
+        .keyBy(e -> e)
         .valueBy(e -> (Void) null)
         .combineBy(values -> null)
         .windowBy(Windowing.Time.seconds(1).aggregating())
         .output();
 
     // take distinct tuples
-    Dataset<CompositeKey<String, String>> distinct = Map.of(reduced)
-        .by(Pair::getFirst)
+    Dataset<CompositeKey<String, String>> distinct = MapElements.of(reduced)
+        .using(Pair::getFirst)
         .output();
 
     // calculate the final distinct values per key
     Dataset<Pair<String, Long>> output = CountByKey.of(distinct)
-        .by(Pair::getFirst)
+        .keyBy(Pair::getFirst)
         .windowBy(Windowing.Time.seconds(1))
         .output();
 

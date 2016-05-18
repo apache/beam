@@ -44,7 +44,7 @@ public class ExerciseKafkaSource {
 
     // extract interesting words from the source
     Dataset<Pair<String, Long>> words = FlatMap.of(lines)
-        .by((Pair<byte[], byte[]> p, Collector<Pair<String, Long>> c) -> {
+        .using((Pair<byte[], byte[]> p, Collector<Pair<String, Long>> c) -> {
           Reader data = new InputStreamReader(
               new ByteArrayInputStream(p.getValue()),
               StandardCharsets.UTF_8);

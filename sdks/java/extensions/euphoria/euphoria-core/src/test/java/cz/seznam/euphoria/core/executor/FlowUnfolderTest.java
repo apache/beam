@@ -12,7 +12,7 @@ import cz.seznam.euphoria.core.client.io.MockStreamDataSourceFactory;
 import cz.seznam.euphoria.core.client.io.StdoutSink;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.Join;
-import cz.seznam.euphoria.core.client.operator.Map;
+import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
@@ -53,15 +53,15 @@ public class FlowUnfolderTest {
     flow = Flow.create(getClass().getSimpleName(), settings);
     input = flow.createInput(URI.create("mock:///"));
 
-    Dataset<Object> mapped = Map.of(input).by(e -> e).output();
-    Dataset<Pair<Object, Long>> reduced = (Dataset<Pair<Object, Long>>) ReduceByKey
+    Dataset<Object> mapped = MapElements.of(input).using(e -> e).output();
+    Dataset<Pair<Object, Long>> reduced = ReduceByKey
         .of(mapped)
         .keyBy(e -> e).reduceBy(values -> 1L)
         .windowBy(Windowing.Time.seconds(1))
         .output();
 
     Dataset<Pair<Object, Long>> output = Join.of(mapped, reduced)
-        .by(e -> e, p -> p.getKey())
+        .by(e -> e, Pair::getKey)
         .using((Object l, Pair<Object, Long> r, Collector<Long> c) -> {
           c.collect(r.getSecond());
         })
@@ -76,7 +76,7 @@ public class FlowUnfolderTest {
   @SuppressWarnings("unchecked")
   public void testUnfoldSimple() {
     Set<Class<? extends Operator<?, ?>>> allowed = new HashSet<>();
-    allowed.addAll((List) Arrays.asList(Map.class, ReduceByKey.class, Join.class));
+    allowed.addAll((List) Arrays.asList(MapElements.class, ReduceByKey.class, Join.class));
     DAG<Operator<?, ?>> unfolded = FlowUnfolder.unfold(flow, allowed);
     // there are 4 nodes, one is the input node
     assertEquals(4, unfolded.size());

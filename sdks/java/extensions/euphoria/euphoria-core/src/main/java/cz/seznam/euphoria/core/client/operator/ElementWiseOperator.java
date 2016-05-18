@@ -22,7 +22,4 @@ public abstract class ElementWiseOperator<IN, OUT>
   public Dataset<OUT> output() {
     return output;
   }
-
-
-
 }

@@ -1,9 +1,8 @@
 
 package cz.seznam.euphoria.core.client.operator;
 
-import cz.seznam.euphoria.core.client.dataset.BatchWindowing;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.HashPartitioning;
+import cz.seznam.euphoria.core.client.dataset.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.Window;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
@@ -18,6 +17,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.Objects;
 
 /**
  * Join two datasets by given key producing single new dataset.
@@ -27,73 +27,135 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window<?, ?>>
     Either<LEFT, RIGHT>, KEY, Pair<KEY, OUT>, W,
     Join<LEFT, RIGHT, KEY, OUT, W>> {
 
-  public static class Builder1<LEFT, RIGHT> {
-    final Dataset<LEFT> left;
-    final Dataset<RIGHT> right;
-    Builder1(Dataset<LEFT> left, Dataset<RIGHT> right) {
-      this.left = left;
-      this.right = right;
+  public static class OfBuilder {
+    private final String name;
+
+    OfBuilder(String name) {
+      this.name = name;
     }
-    public <KEY> Builder2<LEFT, RIGHT, KEY> by(
-        UnaryFunction<LEFT, KEY> leftKeyExtractor,
-        UnaryFunction<RIGHT, KEY> rightKeyExtractor) {
-      return new Builder2<>(left, right, leftKeyExtractor, rightKeyExtractor);
+
+    public <LEFT, RIGHT> ByBuilder<LEFT, RIGHT> of(
+            Dataset<LEFT> left, Dataset<RIGHT> right)
+    {
+      if (right.getFlow() != left.getFlow()) {
+        throw new IllegalArgumentException("Pass inputs from the same flow");
+      }
+
+      return new ByBuilder<>(name, left, right);
     }
   }
-  public static class Builder2<LEFT, RIGHT, KEY> {
-    final Dataset<LEFT> left;
-    final Dataset<RIGHT> right;
-    final UnaryFunction<LEFT, KEY> leftKeyExtractor;
-    final UnaryFunction<RIGHT, KEY> rightKeyExtractor;
-    Builder2(Dataset<LEFT> left, Dataset<RIGHT> right,
+
+  public static class ByBuilder<LEFT, RIGHT> {
+    private final String name;
+    private Dataset<LEFT> left;
+    private Dataset<RIGHT> right;
+
+    ByBuilder(String name, Dataset<LEFT> left, Dataset<RIGHT> right) {
+      this.name = Objects.requireNonNull(name);
+      this.left = Objects.requireNonNull(left);
+      this.right = Objects.requireNonNull(right);
+    }
+
+    public <KEY> UsingBuilder<LEFT, RIGHT, KEY> by(
         UnaryFunction<LEFT, KEY> leftKeyExtractor,
-        UnaryFunction<RIGHT, KEY> rightKeyExtractor) {
+        UnaryFunction<RIGHT, KEY> rightKeyExtractor)
+    {
+      return new UsingBuilder<>(name, left, right,
+              leftKeyExtractor, rightKeyExtractor);
+    }
+  }
+
+  public static class UsingBuilder<LEFT, RIGHT, KEY> {
+    private final String name;
+    private final Dataset<LEFT> left;
+    private final Dataset<RIGHT> right;
+    private final UnaryFunction<LEFT, KEY> leftKeyExtractor;
+    private final UnaryFunction<RIGHT, KEY> rightKeyExtractor;
+
+    UsingBuilder(String name,
+                 Dataset<LEFT> left,
+                 Dataset<RIGHT> right,
+                 UnaryFunction<LEFT, KEY> leftKeyExtractor,
+                 UnaryFunction<RIGHT, KEY> rightKeyExtractor)
+    {
+      this.name = name;
       this.left = left;
       this.right = right;
       this.leftKeyExtractor = leftKeyExtractor;
       this.rightKeyExtractor = rightKeyExtractor;
     }
-    public <OUT> Builder3<LEFT, RIGHT, KEY, OUT> using(
-        BinaryFunctor<LEFT, RIGHT, OUT> functor) {
-      return new Builder3<>(
-          left, right, leftKeyExtractor, rightKeyExtractor, functor);
+
+    public <OUT> OutputBuilder<LEFT, RIGHT, KEY, OUT> using(
+            BinaryFunctor<LEFT, RIGHT, OUT> functor)
+    {
+      return new OutputBuilder<>(name, left, right,
+              leftKeyExtractor, rightKeyExtractor, functor);
     }
   }
-  public static class Builder3<LEFT, RIGHT, KEY, OUT> {
-    final Dataset<LEFT> left;
-    final Dataset<RIGHT> right;
-    final UnaryFunction<LEFT, KEY> leftKeyExtractor;
-    final UnaryFunction<RIGHT, KEY> rightKeyExtractor;
-    final BinaryFunctor<LEFT, RIGHT, OUT> joinFunc;
-    Builder3(Dataset<LEFT> left, Dataset<RIGHT> right,
-        UnaryFunction<LEFT, KEY> leftKeyExtractor,
-        UnaryFunction<RIGHT, KEY> rightKeyExtractor,
-        BinaryFunctor<LEFT, RIGHT, OUT> joinFunc) {
-      this.left = left;
-      this.right = right;
-      this.leftKeyExtractor = leftKeyExtractor;
-      this.rightKeyExtractor = rightKeyExtractor;
-      this.joinFunc = joinFunc;
+
+  public static class OutputBuilder<LEFT, RIGHT, KEY, OUT>
+          extends PartitioningBuilder<KEY,  OutputBuilder<LEFT, RIGHT, KEY, OUT>>
+  {
+    private final String name;
+    private final Dataset<LEFT> left;
+    private final Dataset<RIGHT> right;
+    private final UnaryFunction<LEFT, KEY> leftKeyExtractor;
+    private final UnaryFunction<RIGHT, KEY> rightKeyExtractor;
+    private final BinaryFunctor<LEFT, RIGHT, OUT> joinFunc;
+    private Windowing<Either<LEFT, RIGHT>, ?, ?, ?> windowing;
+    private boolean outer;
+
+    OutputBuilder(String name,
+                  Dataset<LEFT> left,
+                  Dataset<RIGHT> right,
+                  UnaryFunction<LEFT, KEY> leftKeyExtractor,
+                  UnaryFunction<RIGHT, KEY> rightKeyExtractor,
+                  BinaryFunctor<LEFT, RIGHT, OUT> joinFunc)
+    {
+      // define default partitioning
+      super(new DefaultPartitioning<>(Math.max(
+              left.getPartitioning().getNumPartitions(),
+              right.getPartitioning().getNumPartitions())));
+
+      this.name = Objects.requireNonNull(name);
+      this.left = Objects.requireNonNull(left);
+      this.right = Objects.requireNonNull(right);
+      this.leftKeyExtractor = Objects.requireNonNull(leftKeyExtractor);
+      this.rightKeyExtractor = Objects.requireNonNull(rightKeyExtractor);
+      this.joinFunc = Objects.requireNonNull(joinFunc);
     }
-    public <W extends Window<?, ?>> Join<LEFT, RIGHT, KEY, OUT, W>
-    windowBy(Windowing<Either<LEFT, RIGHT>, ?, ?, W> windowing) {
-      Flow flow = left.getFlow();
-      Join<LEFT, RIGHT, KEY, OUT, W> join = new Join<>(
-          flow, left, right, windowing, leftKeyExtractor, rightKeyExtractor, joinFunc);
-      return flow.add(join);
-    }
+
     public Dataset<Pair<KEY, OUT>> output() {
-      return windowBy(BatchWindowing.get()).output();
+      Flow flow = left.getFlow();
+      Join<LEFT, RIGHT, KEY, OUT, ?> join = new Join<>(name, flow, left, right,
+              windowing, getPartitioning(),
+              leftKeyExtractor, rightKeyExtractor, joinFunc, outer);
+      flow.add(join);
+
+      return join.output();
     }
 
+    public OutputBuilder<LEFT, RIGHT, KEY, OUT> outer() {
+      this.outer = true;
+      return this;
+    }
+
+    public <W extends Window<?, ?>> OutputBuilder<LEFT, RIGHT, KEY, OUT> windowBy(
+            Windowing<Either<LEFT, RIGHT>, ?, ?, W> windowing)
+    {
+      this.windowing = Objects.requireNonNull(windowing);
+      return this;
+    }
   }
 
-  public static <LEFT, RIGHT> Builder1<LEFT, RIGHT> of(
-      Dataset<LEFT> left, Dataset<RIGHT> right) {
-    if (right.getFlow() != left.getFlow()) {
-      throw new IllegalArgumentException("Pass inputs from the same flow");
-    }
-    return new Builder1<>(left, right);
+  public static <LEFT, RIGHT> ByBuilder<LEFT, RIGHT> of(
+      Dataset<LEFT> left, Dataset<RIGHT> right)
+  {
+    return new OfBuilder("Join").of(left, right);
+  }
+
+  public static OfBuilder named(String name) {
+    return new OfBuilder(name);
   }
 
   private final Dataset<LEFT> left;
@@ -102,29 +164,32 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window<?, ?>>
   private final BinaryFunctor<LEFT, RIGHT, OUT> functor;
   final UnaryFunction<LEFT, KEY> leftKeyExtractor;
   final UnaryFunction<RIGHT, KEY> rightKeyExtractor;
-
-  private boolean outer = false;
+  boolean outer = false;
 
   @SuppressWarnings("unchecked")
-  Join(Flow flow,
+  Join(String name,
+      Flow flow,
       Dataset<LEFT> left, Dataset<RIGHT> right,
       Windowing<Either<LEFT, RIGHT>, ?, ?, W> windowing,
+      Partitioning<KEY> partitioning,
       UnaryFunction<LEFT, KEY> leftKeyExtractor,
       UnaryFunction<RIGHT, KEY> rightKeyExtractor,
-      BinaryFunctor<LEFT, RIGHT, OUT> functor) {
-
-    super("Join", flow, windowing, (Either<LEFT, RIGHT> elem) -> {
+      BinaryFunctor<LEFT, RIGHT, OUT> functor,
+      boolean outer)
+  {
+    super(name, flow, windowing, (Either<LEFT, RIGHT> elem) -> {
       if (elem.isLeft()) {
         return leftKeyExtractor.apply(elem.left());
       }
       return rightKeyExtractor.apply(elem.right());
-    }, new HashPartitioning<>());
+    }, partitioning);
     this.left = left;
     this.right = right;
     this.leftKeyExtractor = leftKeyExtractor;
     this.rightKeyExtractor = rightKeyExtractor;
     this.functor = functor;
     this.output = createOutput((Dataset) left);
+    this.outer = outer;
   }
 
   @Override
@@ -138,33 +203,20 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window<?, ?>>
     return output;
   }
 
-
-  /** Make the join outer join. */
-  public Join<LEFT, RIGHT, KEY, OUT, W> outer() {
-    this.outer = true;
-    return this;
-  }
-  
   // keeper of state for window
-  private class JoinState extends State<Either<LEFT, RIGHT>, Pair<KEY, OUT>> {
+  private class JoinState extends State<Either<LEFT, RIGHT>, OUT> {
 
     // store the elements in memory for this implementation
     final Collection<LEFT> leftElements = new ArrayList<>();
     final Collection<RIGHT> rightElements = new ArrayList<>();
-    final KEY key;
-    final Collector<OUT> functorCollector = new Collector<OUT>() {
-      @Override
-      public void collect(OUT elem) {
-        collector.collect(Pair.of(key, elem));
-      }
-    };
+    final Collector<OUT> functorCollector = collector::collect;
 
-    public JoinState(KEY key, Collector<Pair<KEY, OUT>> collector) {
+    public JoinState(Collector<OUT> collector) {
       super(collector);
-      this.key = key;
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public void add(Either<LEFT, RIGHT> element) {
       if (element.isLeft()) {
         leftElements.add(element.left());
@@ -242,22 +294,29 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window<?, ?>>
   @SuppressWarnings("unchecked")
   public DAG<Operator<?, ?>> getBasicOps() {
     Flow flow = getFlow();
-    Map<LEFT, Either<LEFT, RIGHT>> leftMap = new Map<>(flow, left, Either::left);
-    Map<RIGHT, Either<LEFT, RIGHT>> rightMap = new Map<>(flow, right, Either::right);
 
+    String name = getName() + "::" + "Map-left";
+    MapElements<LEFT, Either<LEFT, RIGHT>> leftMap = new MapElements<>(name, flow, left, Either::left);
+
+    name = getName() + "::" + "Map-right";
+    MapElements<RIGHT, Either<LEFT, RIGHT>> rightMap = new MapElements<>(name, flow, right, Either::right);
+
+    name = getName() + "::" + "Union";
     Union<Either<LEFT, RIGHT>> union =
-        new Union<>(flow, leftMap.output(), rightMap.output());
+        new Union<>(name, flow, leftMap.output(), rightMap.output());
 
     ReduceStateByKey<Either<LEFT, RIGHT>, Either<LEFT, RIGHT>, Either<LEFT, RIGHT>,
-        KEY, Either<LEFT, RIGHT>,
+        KEY, Either<LEFT, RIGHT>, KEY,
         OUT, JoinState, W> reduce;
 
+    name = getName() + "::" + "ReduceStateByKey";
     reduce = new ReduceStateByKey<>(
+              name,
               flow,
               union.output(),
               keyExtractor::apply,
               e -> e,
-              windowing,
+              getWindowing(),
               JoinState::new,
               (Iterable<JoinState> states) -> {
                 Iterator<JoinState> iter = states.iterator();
@@ -269,7 +328,8 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window<?, ?>>
                   throw new IllegalStateException("Reducing empty states?");
                 }
                 return first.merge(iter);
-              }
+              },
+              partitioning
         );
 
     DAG<Operator<?, ?>> dag = DAG.of(leftMap, rightMap);
