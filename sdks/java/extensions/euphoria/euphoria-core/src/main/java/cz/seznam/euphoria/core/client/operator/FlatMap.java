@@ -6,32 +6,71 @@ import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
 
+import java.util.Objects;
+
 /**
  * Flat map operator on dataset.
  */
 public class FlatMap<IN, OUT> extends ElementWiseOperator<IN, OUT> {
-  
-  public static class Builder<IN> {
-    final Dataset<IN> input;
-    Builder(Dataset<IN> input) {
-      this.input = input;
+
+  public static class OfBuilder {
+    private final String name;
+
+    OfBuilder(String name) {
+      this.name = name;
     }
-    public <OUT> FlatMap<IN, OUT> by(UnaryFunctor<IN, OUT> functor) {
-      Flow flow = input.getFlow();
-      FlatMap<IN, OUT> flatMap = new FlatMap<>(
-          input.getFlow(), input, functor);
-      return flow.add(flatMap);
+
+    public <IN> UsingBuilder<IN> of(Dataset<IN> input) {
+      return new UsingBuilder<>(name, input);
     }
   }
 
-  public static <IN> Builder<IN> of(Dataset<IN> input) {
-    return new Builder<>(input);
+  public static class UsingBuilder<IN> {
+    private final String name;
+    private final Dataset<IN> input;
+
+    UsingBuilder(String name, Dataset<IN> input) {
+      this.name = Objects.requireNonNull(name);
+      this.input = Objects.requireNonNull(input);
+    }
+
+    public <OUT> OutputBuilder<IN, OUT> using(UnaryFunctor<IN, OUT> functor) {
+      return new OutputBuilder<>(name, input, functor);
+    }
+  }
+
+  public static class OutputBuilder<IN, OUT> {
+    private final String name;
+    private final Dataset<IN> input;
+    private final UnaryFunctor<IN, OUT> functor;
+
+    OutputBuilder(String name, Dataset<IN> input, UnaryFunctor<IN, OUT> functor) {
+      this.name = name;
+      this.input = input;
+      this.functor = functor;
+    }
+
+    public Dataset<OUT> output() {
+      Flow flow = input.getFlow();
+      FlatMap<IN, OUT> map = new FlatMap<>(name, flow, input, functor);
+      flow.add(map);
+
+      return map.output();
+    }
+  }
+
+  public static <IN> UsingBuilder<IN> of(Dataset<IN> input) {
+    return new UsingBuilder<>("FlatMap", input);
+  }
+
+  public static OfBuilder named(String name) {
+    return new OfBuilder(name);
   }
 
   private final UnaryFunctor<IN, OUT> functor;
 
-  public FlatMap(Flow flow, Dataset<IN> input, UnaryFunctor<IN, OUT> functor) {
-    super("FlatMap", flow, input);
+  FlatMap(String name, Flow flow, Dataset<IN> input, UnaryFunctor<IN, OUT> functor) {
+    super(name, flow, input);
     this.functor = functor;
   }
 

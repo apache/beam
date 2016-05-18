@@ -102,7 +102,7 @@ class ReduceStateByKeyReducer implements Runnable {
     final BlockingQueue rawOutput;
     final Triggering triggering;
     final UnaryFunction<Window, Void> evictFn;
-    final BinaryFunction stateFactory;
+    final UnaryFunction stateFactory;
     final CombinableReduceFunction stateCombiner;
     final boolean aggregating;
 
@@ -118,11 +118,11 @@ class ReduceStateByKeyReducer implements Runnable {
         BlockingQueue output,
         Triggering triggering,
         UnaryFunction<Window, Void> evictFn,
-        BinaryFunction stateFactory,
+        UnaryFunction stateFactory,
         CombinableReduceFunction stateCombiner,
         boolean aggregating,
         boolean isBounded) {
-      
+
       this.stateOutput = QueueCollector.wrap(requireNonNull(output));
       this.rawOutput = output;
       this.triggering = requireNonNull(triggering);
@@ -186,7 +186,10 @@ class ReduceStateByKeyReducer implements Runnable {
       }
       State state = wState.getSecond().get(itemKey);
       if (state == null) {
-        state = (State) stateFactory.apply(itemKey, stateOutput);
+        // ~ collector decorating state output with a key
+        Collector collector =
+                el -> stateOutput.collect(Pair.of(itemKey, el));
+        state = (State) stateFactory.apply(collector);
         wState.getSecond().put(itemKey, state);
       }
       return Pair.of(wState.getFirst(), state);
@@ -197,7 +200,7 @@ class ReduceStateByKeyReducer implements Runnable {
     // with it
     private Pair<Window, Map<Object, State>>
     getWindowKeyStates(Window w, boolean setWindowInstance) {
-      
+
       Pair<Window, Map<Object, State>> wState =
           wStorage.getWindow(w.getGroup(), w.getLabel());
       if (wState == null) {
@@ -282,11 +285,11 @@ class ReduceStateByKeyReducer implements Runnable {
                           Windowing windowing,
                           UnaryFunction keyExtractor,
                           UnaryFunction valueExtractor,
-                          BinaryFunction stateFactory,
+                          UnaryFunction stateFactory,
                           CombinableReduceFunction stateCombiner,
                           Triggering triggering,
                           boolean isBounded) {
-    
+
     this.input = requireNonNull(input);
     this.windowing = requireNonNull(windowing);
     this.keyExtractor = requireNonNull(keyExtractor);
