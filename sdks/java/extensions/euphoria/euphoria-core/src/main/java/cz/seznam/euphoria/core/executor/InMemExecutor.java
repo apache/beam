@@ -2,6 +2,7 @@
 package cz.seznam.euphoria.core.executor;
 
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
+import cz.seznam.euphoria.core.client.dataset.Triggering;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.BinaryFunction;
@@ -233,6 +234,8 @@ public class InMemExecutor implements Executor {
         }
       });
 
+  private Triggering triggering = new ProcessingTimeTriggering();
+
   @Override
   public Future<Integer> submit(Flow flow) {
     throw new UnsupportedOperationException("unsupported");
@@ -298,8 +301,8 @@ public class InMemExecutor implements Executor {
   @SuppressWarnings("unchecked")
   private List<Future> consumeOutputs(
       Collection<Node<Operator<?, ?>>> leafs,
-      ExecutionContext context)
-  {
+      ExecutionContext context) {
+    
     List<Future> tasks = new ArrayList<>();
     // consume outputs
     for (Node<Operator<?, ?>> output : leafs) {
@@ -566,7 +569,8 @@ public class InMemExecutor implements Executor {
       final BlockingQueue output = new ArrayBlockingQueue(5000);
       outputSuppliers.add(QueueSupplier.wrap(output));
       executor.execute(new ReduceStateByKeyReducer(q, output, windowing,
-          keyExtractor, valueExtractor, stateFactory, stateCombiner));
+          keyExtractor, valueExtractor, stateFactory, stateCombiner,
+          SerializableUtils.cloneSerializable(triggering)));
     });
     return outputSuppliers;
   }
@@ -656,5 +660,11 @@ public class InMemExecutor implements Executor {
   public void abort() {
     executor.shutdownNow();
   }
-   
+
+
+  public InMemExecutor setTriggering(Triggering triggering) {
+    this.triggering = triggering;
+    return this;
+  }
+  
 }
