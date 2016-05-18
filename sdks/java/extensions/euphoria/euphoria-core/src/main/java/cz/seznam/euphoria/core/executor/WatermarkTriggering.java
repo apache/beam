@@ -60,7 +60,7 @@ public class WatermarkTriggering implements Triggering {
   @Override
   public void updateProcessed(long stamp) {
     long newWatermark = stamp - watermarkDuration;
-    if (currentWatermark < newWatermark) {      
+    if (currentWatermark < newWatermark) {
       final ArrayList<Map.Entry<Trigger, Long>> active;
       synchronized (this) {
         // reschedule all active triggers

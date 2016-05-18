@@ -694,13 +694,8 @@ public class InMemExecutorTest {
     // generate some small ints, use them as event time and count them
     // in 10s windows
 
-    List<Integer> all = sequenceInts(0, N);
-    List<Integer> even = all.stream().filter(i -> i % 2 == 0).collect(Collectors.toList());
-    List<Integer> odd = all.stream().filter(i -> i % 2 != 0).collect(Collectors.toList());
-
     Dataset<Integer> input = flow.createInput(
-        ListDataSource.unbounded(even, odd)
-            .setSleepTime(2));
+        ListDataSource.unbounded(sequenceInts(0, N)).setSleepTime(2));
 
     // FIXME: there is something wrong with repartition inside
     // the Reduce(State)ByKey - setNumPartitions seems not to work
@@ -715,8 +710,8 @@ public class InMemExecutorTest {
         .output()
         .persist(outputs);
 
-    // watermarking 30000 ms
-    executor.setTriggering(new WatermarkTriggering(30000));
+    // watermarking 100 ms
+    executor.setTriggering(new WatermarkTriggering(100));
     
     // run the executor in separate thread in order to be able to watch
     // the partial results
@@ -731,10 +726,10 @@ public class InMemExecutorTest {
         outputs.getUncommittedOutputs().get(0));
 
 
-    // after one second we should have something about 1000 elements read,
-    // this means we should have at least 80 complete windows
-    assertTrue("Should have at least 80 windows, got "
-        + output.size(), 80 <= output.size());
+    // after one second we should have something about 500 elements read,
+    // this means we should have at least 40 complete windows
+    assertTrue("Should have at least 40 windows, got "
+        + output.size(), 40 <= output.size());
     assertTrue("All but (at most) one window should have size 10",
         output.stream().filter(w -> w.getSecond() != 10).count() <= 1);
 
@@ -749,5 +744,42 @@ public class InMemExecutorTest {
     assertEquals(200, output.size());
     
   }
+
+
+  @Test
+  public void testWithWatermarkAndEventTimeAndDiscarding() throws Exception {
+
+    int N = 2000;
+
+    // generate some small ints, use them as event time and count them
+    // in 10s windows
+
+    Dataset<Integer> input = flow.createInput(
+        ListDataSource.unbounded(
+            reversed(sequenceInts(0, N))).setSleepTime(2));
+
+    // FIXME: there is something wrong with repartition inside
+    // the Reduce(State)ByKey - setNumPartitions seems not to work
+    ListDataSink<Pair<String, Long>> outputs = ListDataSink.get(2);
+
+    ReduceByKey.of(input)
+        .keyBy(e -> "") // reduce all
+        .valueBy(e -> 1L)
+        .combineBy(Sums.ofLongs())
+        .windowBy(Windowing.Time.seconds(10).using(e -> e * 1000L))
+        .setNumPartitions(1)
+        .output()
+        .persist(outputs);
+
+    // watermarking 100 ms
+    executor.setTriggering(new WatermarkTriggering(100));
+
+    executor.waitForCompletion(flow);
+
+    // there should be only one element on output - the first element
+    List<Pair<String, Long>> output = outputs.getOutputs().get(0);
+    assertEquals(1, output.size());
+  }
+
 
 }

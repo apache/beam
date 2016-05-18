@@ -373,7 +373,7 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
    * to move triggering in watermarking processing schemes based on event time.
    */
   default void updateTriggering(Triggering triggering, T input) {
-
+    triggering.updateProcessed(System.currentTimeMillis());
   }
 
   default boolean isAggregating() {
