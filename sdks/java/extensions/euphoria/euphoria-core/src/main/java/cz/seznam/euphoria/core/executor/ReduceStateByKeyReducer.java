@@ -29,8 +29,12 @@ import java.util.stream.Collectors;
 import static com.google.common.collect.Lists.newArrayList;
 import static com.google.common.collect.Lists.newArrayListWithCapacity;
 import static java.util.Objects.requireNonNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class ReduceStateByKeyReducer implements Runnable {
+
+  private static final Logger LOG = LoggerFactory.getLogger(ReduceStateByKeyReducer.class);
 
   private static final class WindowStorage {
     // ~ a mapping of GROUP -> LABEL -> (WINDOW, ITEMKEY -> STATE)
@@ -111,8 +115,8 @@ class ReduceStateByKeyReducer implements Runnable {
         UnaryFunction<Window, Void> evictFn,
         BinaryFunction stateFactory,
         CombinableReduceFunction stateCombiner,
-        boolean aggregating)
-    {
+        boolean aggregating) {
+      
       this.stateOutput = QueueCollector.wrap(requireNonNull(output));
       this.rawOutput = output;
       this.triggering = requireNonNull(triggering);
@@ -169,6 +173,10 @@ class ReduceStateByKeyReducer implements Runnable {
 
     public Pair<Window, State> getWindowState(Window w, Object itemKey) {
       Pair<Window, Map<Object, State>> wState = getWindowKeyStates(w, false);
+      if (wState == null) {
+        // the window is already closed
+        return null;
+      }
       State state = wState.getSecond().get(itemKey);
       if (state == null) {
         state = (State) stateFactory.apply(itemKey, stateOutput);
@@ -181,19 +189,20 @@ class ReduceStateByKeyReducer implements Runnable {
     // and optionally override the window instance associated
     // with it
     private Pair<Window, Map<Object, State>>
-    getWindowKeyStates(Window w, boolean setWindowInstance)
-    {
+    getWindowKeyStates(Window w, boolean setWindowInstance) {
+      
       Pair<Window, Map<Object, State>> wState =
           wStorage.getWindow(w.getGroup(), w.getLabel());
       if (wState == null) {
-        // ~ if no such window yet ... set it up
-        wStorage.setWindow(wState = Pair.of(w, new HashMap<>()));
         // ~ give the window a chance to register triggers
         Window.TriggerState triggerState = w.registerTrigger(triggering, evictFn);
         if (triggerState == Window.TriggerState.PASSED) {
           // the window should have been already triggered
           // just discard the element, no other option for now
-          // FIXME
+          return null;
+        } else {
+          // ~ if no such window yet ... set it up
+          wStorage.setWindow(wState = Pair.of(w, new HashMap<>()));
         }
       } else if (setWindowInstance && wState.getFirst() != w) {
         // ~ identity comparison on purpose
@@ -213,8 +222,7 @@ class ReduceStateByKeyReducer implements Runnable {
 
       for (Window toMerge : toBeMerged) {
         if (Objects.equals(toMerge.getGroup(), ws.getFirst().getGroup())
-            && Objects.equals(toMerge.getLabel(), ws.getFirst().getLabel()))
-        {
+            && Objects.equals(toMerge.getLabel(), ws.getFirst().getLabel())) {
           continue;
         }
 
@@ -266,8 +274,8 @@ class ReduceStateByKeyReducer implements Runnable {
                           UnaryFunction valueExtractor,
                           BinaryFunction stateFactory,
                           CombinableReduceFunction stateCombiner,
-                          Triggering triggering)
-  {
+                          Triggering triggering) {
+    
     this.input = requireNonNull(input);
     this.windowing = requireNonNull(windowing);
     this.keyExtractor = requireNonNull(keyExtractor);
@@ -340,8 +348,14 @@ class ReduceStateByKeyReducer implements Runnable {
     windowing.updateTriggering(triggering, item);
     Set<Window> itemWindows = windowing.assignWindows(item);
     for (Window itemWindow : itemWindows) {
-      processing.getWindowState(itemWindow, itemKey).getSecond().add(itemValue);
-      seenGroups.add(itemWindow.getGroup());
+      Pair<Window, State> windowState = processing.getWindowState(itemWindow, itemKey);
+      if (windowState != null) {
+        windowState.getSecond().add(itemValue);
+        seenGroups.add(itemWindow.getGroup());
+      } else {
+        // window is already closed
+        LOG.trace("Element window {} discarded", itemWindow);
+      }
     }
 
     if (windowing instanceof MergingWindowing) {
