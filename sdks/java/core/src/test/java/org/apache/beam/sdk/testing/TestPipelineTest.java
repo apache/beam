@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.testing;
 
-import static org.hamcrest.CoreMatchers.startsWith;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
@@ -36,6 +36,7 @@ import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -49,6 +50,7 @@ import java.util.UUID;
 @RunWith(JUnit4.class)
 public class TestPipelineTest {
   @Rule public TestRule restoreSystemProperties = new RestoreSystemProperties();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testCreationUsingDefaults() {
@@ -137,6 +139,15 @@ public class TestPipelineTest {
 
     assertEquals(m1, newOpts.getOnCreateMatcher());
     assertEquals(m2, newOpts.getOnSuccessMatcher());
+  }
+
+  @Test
+  public void testRunWithDummyEnvironmentVariableFails() {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Cannot call #run");
+    System.getProperties()
+        .setProperty(TestPipeline.PROPERTY_USE_DEFAULT_DUMMY_RUNNER, Boolean.toString(true));
+    TestPipeline.create().run();
   }
 
   /**
