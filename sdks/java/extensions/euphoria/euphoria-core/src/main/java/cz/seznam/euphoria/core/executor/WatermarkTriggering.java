@@ -4,6 +4,7 @@ package cz.seznam.euphoria.core.executor;
 import cz.seznam.euphoria.core.client.dataset.Trigger;
 import cz.seznam.euphoria.core.client.dataset.Triggering;
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -79,7 +80,7 @@ public class WatermarkTriggering implements Triggering {
   }
 
 
- private void readObject(java.io.ObjectInputStream stream)
+ private void readObject(ObjectInputStream stream)
      throws IOException, ClassNotFoundException {
    stream.defaultReadObject();
    this.timer = new Timer();
