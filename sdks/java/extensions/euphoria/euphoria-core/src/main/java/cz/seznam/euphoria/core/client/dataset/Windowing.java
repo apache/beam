@@ -96,7 +96,7 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
       @Override
       public TriggerState registerTrigger(
           Triggering triggering, UnaryFunction<Window<?, ?>, Void> evict) {
-
+        
         if (triggering.scheduleAt(this.fireStamp, () -> evict.apply(this))) {
           return TriggerState.ACTIVATED;
         }
@@ -165,6 +165,11 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
       long ts = eventTimeFn.apply(input);
       return singleton(
           new TimeWindow(ts - (ts + durationMillis) % durationMillis, durationMillis));
+    }
+
+    @Override
+    public void updateTriggering(Triggering triggering, T input) {
+      triggering.updateProcessed(eventTimeFn.apply(input));
     }
 
     @Override
@@ -362,6 +367,14 @@ public interface Windowing<T, GROUP, LABEL, W extends Window<GROUP, LABEL>>
   }
 
   Set<W> assignWindows(T input);
+
+  /**
+   * Update triggering by given input. This is needed to enable the windowing
+   * to move triggering in watermarking processing schemes based on event time.
+   */
+  default void updateTriggering(Triggering triggering, T input) {
+
+  }
 
   default boolean isAggregating() {
     return false;

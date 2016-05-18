@@ -16,7 +16,7 @@ import java.util.TimerTask;
 public class ProcessingTimeTriggering implements Triggering {
 
   private static final Logger LOG = LoggerFactory.getLogger(ProcessingTimeTriggering.class);
-  Timer timer = new Timer(true);
+  transient Timer timer = new Timer(true);
   
   @Override
   public boolean scheduleAt(long stamp, Trigger trigger) {
