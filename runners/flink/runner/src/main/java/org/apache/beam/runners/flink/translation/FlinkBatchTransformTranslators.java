@@ -558,7 +558,8 @@ public class FlinkBatchTransformTranslators {
 
         Grouping<WindowedValue<KV<K, AccumT>>> intermediateGrouping =
             new UnsortedGrouping<>(
-                groupCombine, new Keys.ExpressionKeys<>(new String[]{"key"}, groupCombine.getType()));
+                groupCombine,
+                new Keys.ExpressionKeys<>(new String[]{"key"}, groupCombine.getType()));
 
         // Fully reduce the values and create output format OutputT
         GroupReduceOperator<
@@ -594,7 +595,8 @@ public class FlinkBatchTransformTranslators {
 
         Grouping<WindowedValue<KV<K, InputT>>> grouping =
             new UnsortedGrouping<>(
-                inputDataSet, new Keys.ExpressionKeys<>(new String[]{"key"}, kvCoderTypeInformation));
+                inputDataSet,
+                new Keys.ExpressionKeys<>(new String[]{"key"}, kvCoderTypeInformation));
 
         // Fully reduce the values and create output format OutputT
         GroupReduceOperator<
