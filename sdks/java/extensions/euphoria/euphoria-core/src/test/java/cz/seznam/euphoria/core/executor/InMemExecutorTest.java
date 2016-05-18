@@ -577,7 +577,6 @@ public class InMemExecutorTest {
           }
           sorted.add(sortedInRow);
           sortedInRow = 0;
-          lastValue = -1;
         }
       }
       lastKey = p.getFirst();
@@ -716,8 +715,8 @@ public class InMemExecutorTest {
         .output()
         .persist(outputs);
 
-    // watermarking 10000 ms
-    executor.setTriggering(new WatermarkTriggering(10000));
+    // watermarking 30000 ms
+    executor.setTriggering(new WatermarkTriggering(30000));
     
     // run the executor in separate thread in order to be able to watch
     // the partial results

@@ -3,6 +3,7 @@ package cz.seznam.euphoria.core.client.io;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -43,7 +44,7 @@ public class ListDataSink<T> implements DataSink<T> {
 
 
   final List<List<T>> outputs = new ArrayList<>();
-  final List<ListWriter> writers = new ArrayList<>();
+  final List<ListWriter> writers = Collections.synchronizedList(new ArrayList<>());
 
   private ListDataSink(int numPartitions) {
     for (int i = 0; i < numPartitions; i++) {
