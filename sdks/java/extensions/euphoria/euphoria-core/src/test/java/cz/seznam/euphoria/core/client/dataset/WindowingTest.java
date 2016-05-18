@@ -3,7 +3,7 @@ package cz.seznam.euphoria.core.client.dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
-import cz.seznam.euphoria.core.client.operator.Map;
+import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
@@ -71,8 +71,8 @@ public class WindowingTest {
     Flow flow = Flow.create("Test", settings);
     Dataset<Item> lines = flow.createInput(new URI("inmem:///tmp/foo.txt"));
 
-    Dataset<Pair<Item, Long>> words = Map.of(lines)
-        .by((UnaryFunction<Item, Pair<Item, Long>>) item -> Pair.of(item, 1L))
+    Dataset<Pair<Item, Long>> words = MapElements.of(lines)
+        .using((UnaryFunction<Item, Pair<Item, Long>>) item -> Pair.of(item, 1L))
         .output();
 
     Dataset<Pair<String, Long>> reduced = ReduceByKey
@@ -85,8 +85,8 @@ public class WindowingTest {
             .using((Pair<Item, Long> x) -> x.getFirst().evtTs))
         .output();
 
-    Dataset<String> mapped = Map.of(reduced)
-        .by(p -> p.getFirst() + "-" + p.getSecond())
+    Dataset<String> mapped = MapElements.of(reduced)
+        .using(p -> p.getFirst() + "-" + p.getSecond())
         .output();
 
     ListDataSink<String> output = ListDataSink.get(1);

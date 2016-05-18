@@ -1,7 +1,10 @@
 
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.client.dataset.Partitioner;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
+
+import java.util.Objects;
 
 /**
  * Operator changing partitioning of a dataset.
@@ -10,5 +13,50 @@ public interface PartitioningAware<KEY> {
 
   /** Retrieve output partitioning. */
   Partitioning<KEY> getPartitioning();
+
+  abstract class PartitioningBuilder<KEY, BUILDER> {
+    private final DefaultPartitioning<KEY> defaultPartitioning;
+    private Partitioning<KEY> partitioning;
+
+    public PartitioningBuilder(DefaultPartitioning<KEY> defaultPartitioning) {
+      this(defaultPartitioning, null);
+    }
+
+    public PartitioningBuilder(DefaultPartitioning<KEY> defaultPartitioning,
+                               Partitioning<KEY> partitioning)
+    {
+      this.defaultPartitioning = Objects.requireNonNull(defaultPartitioning);
+      this.partitioning = partitioning;
+    }
+
+    public PartitioningBuilder(PartitioningBuilder<KEY, ?> other) {
+      this.defaultPartitioning = other.defaultPartitioning;
+      this.partitioning = other.partitioning;
+    }
+
+    Partitioning<KEY> getPartitioning() {
+      if (partitioning == null) {
+        return defaultPartitioning;
+      }
+
+      return partitioning;
+    }
+
+    public BUILDER setPartitioning(Partitioning<KEY> p) {
+      this.partitioning = Objects.requireNonNull(p);
+      return (BUILDER) this;
+    }
+
+    public BUILDER setPartitioner(Partitioner<KEY> p) {
+      this.defaultPartitioning.setPartitioner(p);
+      return (BUILDER) this;
+    }
+
+    public BUILDER setNumPartitions(int numPartitions) {
+      this.defaultPartitioning.setNumPartitions(numPartitions);
+      return (BUILDER) this;
+    }
+  }
+
 
 }

@@ -70,24 +70,23 @@ public class JoinOperatorTest {
     };
 
     Dataset<Pair<String, Integer>> firstkv = FlatMap.of(first)
-        .by(tokv)
+        .using(tokv)
         .output();
     Dataset<Pair<String, Integer>> secondkv = FlatMap.of(second)
-        .by(tokv)
+        .using(tokv)
         .output();
 
-    Join join = Join.of(firstkv, secondkv)
+    Join.OutputBuilder join = Join.of(firstkv, secondkv)
         .by(Pair::getFirst, Pair::getFirst)
-        .using((l, r, c) -> {
-          c.collect((l == null ? 0 : l.getSecond()) + (r == null ? 0 : r.getSecond()));
-        })
+        .using((l, r, c) ->
+                c.collect((l == null ? 0 : l.getSecond()) + (r == null ? 0 : r.getSecond())))
         .windowBy(windowing);
     if (outer) {
       join = join.outer();
     }
     Dataset<Pair<String, Object>> output = join.output();
 
-    Map.of(output).by(p -> p.getFirst() + ", " + p.getSecond())
+    MapElements.of(output).using(p -> p.getFirst() + ", " + p.getSecond())
         .output().persist(URI.create("inmem:///tmp/output"));
 
     executor.waitForCompletion(flow);

@@ -1,66 +1,100 @@
 
 package cz.seznam.euphoria.core.client.operator;
 
-import cz.seznam.euphoria.core.client.dataset.BatchWindowing;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Window;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 
-import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Objects;
 
 /**
  * Operator performing a mapping operation on whole window.
  */
+// TODO Is it basic operator?
 public class MapWindow<IN, OUT, W extends Window<?, ?>>
     extends WindowWiseOperator<IN, IN, OUT, W> {
 
-  public static class Builder1<IN> {
-    final Dataset<IN> input;
-    Builder1(Dataset<IN> input) {
-      this.input = input;
+  public static class OfBuilder {
+    private final String name;
+
+    OfBuilder(String name) {
+      this.name = name;
     }
-    public <OUT> Builder2<IN, OUT>  using(UnaryFunctor<Iterable<IN>, OUT> functor) {
-      return new Builder2<>(input, functor);
+
+    public <IN> UsingBuilder<IN> of(Dataset<IN> input) {
+      return new UsingBuilder<>(name, input);
     }
   }
-  public static class Builder2<IN, OUT> {
-    final Dataset<IN> input;
-    final UnaryFunctor<Iterable<IN>, OUT> mapper;
-    Builder2(Dataset<IN> input, UnaryFunctor<Iterable<IN>, OUT> mapper) {
+
+  public static class UsingBuilder<IN> {
+    private final String name;
+    private final Dataset<IN> input;
+
+    UsingBuilder(String name, Dataset<IN> input) {
+      this.name = Objects.requireNonNull(name);
+      this.input = Objects.requireNonNull(input);
+    }
+
+    public <OUT> OutputBuilder<IN, OUT> using(UnaryFunctor<IN, OUT> functor) {
+      return new OutputBuilder<>(name, input, functor);
+    }
+  }
+
+  public static class OutputBuilder<IN, OUT> {
+    private final String name;
+    private final Dataset<IN> input;
+    private final UnaryFunctor<IN, OUT> functor;
+    private Windowing<IN,?, ?, ?> windowing;
+
+    OutputBuilder(String name, Dataset<IN> input, UnaryFunctor<IN, OUT> functor) {
+      this.name = name;
       this.input = input;
-      this.mapper = mapper;
+      this.functor = functor;
     }
-    public <W extends Window<?, ?>> MapWindow<IN, OUT, W> windowBy(
-        Windowing<IN, ?, ?, W> windowing) {
-      Flow flow = input.getFlow();
-      MapWindow<IN, OUT, W> mapWindow = new MapWindow<>(flow, input, windowing);
-      return flow.add(mapWindow);
-    }
+
     public Dataset<OUT> output() {
-      return windowBy(BatchWindowing.get()).output();
+      Flow flow = input.getFlow();
+      MapWindow<IN, OUT, ?> mapWindow = new MapWindow<>(name, flow, windowing, input, functor);
+      flow.add(mapWindow);
+
+      return mapWindow.output();
     }
 
+    public <W extends Window<?, ?>> OutputBuilder<IN, OUT> windowBy(
+            Windowing<IN,?, ?, W> windowing)
+    {
+      this.windowing = Objects.requireNonNull(windowing);
+      return this;
+    }
   }
 
-  public static <IN> Builder1<IN> of(Dataset<IN> input) {
-    return new Builder1<>(input);
+  public static <IN> UsingBuilder<IN> of(Dataset<IN> input) {
+    return new UsingBuilder<>("MapWindow", input);
+  }
+
+  public static OfBuilder named(String name) {
+    return new OfBuilder(name);
   }
 
   private final Dataset<IN> input;
   private final Dataset<OUT> output;
+  private final UnaryFunctor<IN, OUT> functor;
 
-  MapWindow(Flow flow, Dataset<IN> input, Windowing<IN, ?, ?, W> windowing) {
-    super("MapWindow", flow, windowing);
+  MapWindow(String name, Flow flow, Windowing<IN, ?, ?, W> windowing,
+            Dataset<IN> input, UnaryFunctor<IN, OUT> functor) {
+    super(name, flow, windowing);
     this.input = input;
+    this.functor = functor;
     this.output = createOutput(input);
   }
 
   @Override
   public Collection<Dataset<IN>> listInputs() {
-    return Arrays.asList(input);
+    return Collections.singletonList(input);
   }
 
   @Override

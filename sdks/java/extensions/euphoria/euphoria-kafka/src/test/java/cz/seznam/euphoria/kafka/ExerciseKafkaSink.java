@@ -35,7 +35,7 @@ public class ExerciseKafkaSink {
     Dataset<Pair<byte[], byte[]>> input =
         flow.createInput(URI.create("kafka://ginkafka1.dev:9092/fulltext_robot_logs?cfg=kafka.params"));
     FlatMap.of(input)
-        .by((elem, collector) -> {
+        .using((elem, collector) -> {
           Reader data = new InputStreamReader(
               new ByteArrayInputStream(elem.getValue()),
               StandardCharsets.UTF_8);

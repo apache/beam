@@ -1,165 +1,432 @@
 
 package cz.seznam.euphoria.core.client.operator;
 
-import cz.seznam.euphoria.core.client.dataset.BatchWindowing;
-import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
-import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
-import cz.seznam.euphoria.core.client.dataset.HashPartitioning;
+import cz.seznam.euphoria.core.client.dataset.Partitioner;
+import cz.seznam.euphoria.core.client.dataset.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.Window;
 import cz.seznam.euphoria.core.client.dataset.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
-import cz.seznam.euphoria.core.client.functional.BinaryFunction;
+import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
+import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.util.Pair;
 
+import java.util.Objects;
+
 /**
  * Operator reducing state by given reduce function.
+ *
+ * @param <IN>     Type of input records
+ * @param <KIN>    Type of records entering #keyBy and #valueBy methods
+ * @param <WIN>    Type of input records being windowed
+ * @param <KEY>    Output type of #keyBy method
+ * @param <VALUE>  Output type of #valueBy method
+ * @param <KEYOUT> Type of output key
+ * @param <OUT>    Type of output value
  */
 public class ReduceStateByKey<
-    IN, WIN, KIN, KEY, VALUE, OUT, STATE extends State<VALUE, Pair<KEY, OUT>>,
+    IN, KIN, WIN, KEY, VALUE, KEYOUT, OUT, STATE extends State<VALUE, OUT>,
     W extends Window<?, ?>>
-    extends StateAwareWindowWiseSingleInputOperator<IN, WIN, KIN, KEY, Pair<KEY, OUT>, W,
-        ReduceStateByKey<IN, WIN, KIN, KEY, VALUE, OUT, STATE, W>> {
+    extends StateAwareWindowWiseSingleInputOperator<IN, WIN, KIN, KEY, Pair<KEYOUT, OUT>, W,
+        ReduceStateByKey<IN, KIN, WIN, KEY, VALUE, KEYOUT, OUT, STATE, W>> {
 
-  public static class Builder1<IN, KIN> {
-    final Dataset<IN> input;
-    Builder1(Dataset<IN> input) {
-      this.input = input;
+  public static class OfBuilder {
+    private final String name;
+
+    OfBuilder(String name) {
+      this.name = name;
     }
-    public <KEY> Builder2<IN, KIN, KEY> keyBy(UnaryFunction<KIN, KEY> keyExtractor) {
-      return new Builder2<>(input, keyExtractor);
+
+    public <IN> DatasetBuilder1<IN> of(Dataset<IN> input) {
+      return new DatasetBuilder1<>(name, input);
     }
-  }
-  public static class Builder2<IN, KIN, KEY> {
-    final Dataset<IN> input;
-    final UnaryFunction<KIN, KEY> keyExtractor;
-    Builder2(Dataset<IN> input, UnaryFunction<KIN, KEY> keyExtractor) {
-      this.input = input;
-      this.keyExtractor = keyExtractor;
-    }
-    public <VALUE> Builder3<IN, KIN, KEY, VALUE> valueBy(UnaryFunction<KIN, VALUE> valueExtractor) {
-      return new Builder3<>(input, keyExtractor, valueExtractor);
+
+    public <IN, KIN> GroupedDatasetBuilder1<IN, KIN> of(GroupedDataset<IN, KIN> input) {
+      return new GroupedDatasetBuilder1<>(name, input);
     }
   }
-  public static class Builder3<IN, KIN, KEY, VALUE> {
-    final Dataset<IN> input;
-    final UnaryFunction<KIN, KEY> keyExtractor;
-    final UnaryFunction<KIN, VALUE> valueExtractor;
-    Builder3(Dataset<IN> input,
-        UnaryFunction<KIN, KEY> keyExtractor,
-        UnaryFunction<KIN, VALUE> valueExtractor) {
-      this.input = input;
-      this.keyExtractor = keyExtractor;
-      this.valueExtractor = valueExtractor;
+
+  // builder classes used when input is Dataset<IN> ----------------------
+
+  public static class DatasetBuilder1<IN> {
+    private final String name;
+    private final Dataset<IN> input;
+    DatasetBuilder1(String name, Dataset<IN> input) {
+      this.name = Objects.requireNonNull(name);
+      this.input = Objects.requireNonNull(input);
     }
-    public <OUT, STATE extends State<VALUE, Pair<KEY, OUT>>> Builder4<
-    IN, KIN, KEY, VALUE, OUT, STATE> stateFactory(
-        BinaryFunction<KEY, Collector<Pair<KEY, OUT>>, STATE> stateFactory) {
-      return new Builder4<>(input, keyExtractor, valueExtractor, stateFactory);
+    public <KEY> DatasetBuilder2<IN, KEY> keyBy(UnaryFunction<IN, KEY> keyExtractor) {
+      return new DatasetBuilder2<>(name, input, keyExtractor);
     }
   }
-  public static class Builder4<
-      IN, KIN, KEY, VALUE, OUT, STATE extends State<VALUE, Pair<KEY, OUT>>> {
-    final Dataset<IN> input;
-    final UnaryFunction<KIN, KEY> keyExtractor;
-    final UnaryFunction<KIN, VALUE> valueExtractor;
-    final BinaryFunction<KEY, Collector<Pair<KEY, OUT>>, STATE> stateFactory;
-    Builder4(Dataset<IN> input,
-        UnaryFunction<KIN, KEY> keyExtractor,
-        UnaryFunction<KIN, VALUE> valueExtractor,
-        BinaryFunction<KEY, Collector<Pair<KEY, OUT>>, STATE> stateFactory) {
-      this.input = input;
-      this.keyExtractor = keyExtractor;
-      this.valueExtractor = valueExtractor;
-      this.stateFactory = stateFactory;
+  public static class DatasetBuilder2<IN, KEY> {
+    private final String name;
+    private final Dataset<IN> input;
+    private final UnaryFunction<IN, KEY> keyExtractor;
+    DatasetBuilder2(String name, Dataset<IN> input, UnaryFunction<IN, KEY> keyExtractor) {
+      this.name = Objects.requireNonNull(name);
+      this.input = Objects.requireNonNull(input);
+      this.keyExtractor = Objects.requireNonNull(keyExtractor);
     }
-    public Builder5<IN, KIN, KEY, VALUE, OUT, STATE> combineStateBy(
+    public <VALUE> DatasetBuilder3<IN, KEY, VALUE> valueBy(UnaryFunction<IN, VALUE> valueExtractor) {
+      return new DatasetBuilder3<>(name, input, keyExtractor, valueExtractor);
+    }
+  }
+  public static class DatasetBuilder3<IN, KEY, VALUE> {
+    private final String name;
+    private final Dataset<IN> input;
+    private final UnaryFunction<IN, KEY> keyExtractor;
+    private final UnaryFunction<IN, VALUE> valueExtractor;
+    DatasetBuilder3(String name,
+                    Dataset<IN> input,
+                    UnaryFunction<IN, KEY> keyExtractor,
+                    UnaryFunction<IN, VALUE> valueExtractor)
+    {
+      this.name = Objects.requireNonNull(name);
+      this.input = Objects.requireNonNull(input);
+      this.keyExtractor = Objects.requireNonNull(keyExtractor);
+      this.valueExtractor = Objects.requireNonNull(valueExtractor);
+    }
+    public <OUT, STATE extends State<VALUE, OUT>> DatasetBuilder4<
+            IN, KEY, VALUE, OUT, STATE> stateFactory(
+            UnaryFunction<Collector<OUT>, STATE> stateFactory) {
+      return new DatasetBuilder4<>(name, input, keyExtractor, valueExtractor, stateFactory);
+    }
+  }
+  public static class DatasetBuilder4<
+      IN, KEY, VALUE, OUT, STATE extends State<VALUE, OUT>> {
+    private final String name;
+    private final Dataset<IN> input;
+    private final UnaryFunction<IN, KEY> keyExtractor;
+    private final UnaryFunction<IN, VALUE> valueExtractor;
+    private final UnaryFunction<Collector<OUT>, STATE> stateFactory;
+    DatasetBuilder4(String name,
+                    Dataset<IN> input,
+                    UnaryFunction<IN, KEY> keyExtractor,
+                    UnaryFunction<IN, VALUE> valueExtractor,
+                    UnaryFunction<Collector<OUT>, STATE> stateFactory)
+    {
+      this.name = Objects.requireNonNull(name);
+      this.input = Objects.requireNonNull(input);
+      this.keyExtractor = Objects.requireNonNull(keyExtractor);
+      this.valueExtractor = Objects.requireNonNull(valueExtractor);
+      this.stateFactory = Objects.requireNonNull(stateFactory);
+    }
+    public DatasetBuilder5<IN, KEY, VALUE, OUT, STATE> combineStateBy(
         CombinableReduceFunction<STATE> stateCombiner) {
-      return new Builder5<>(input, keyExtractor, valueExtractor, stateFactory,
-          stateCombiner);
+      return new DatasetBuilder5<>(name, input, keyExtractor, valueExtractor,
+              stateFactory, stateCombiner);
     }
   }
-  public static class Builder5<
-      IN, KIN, KEY, VALUE, OUT, STATE extends State<VALUE, Pair<KEY, OUT>>> {
-    final Dataset<IN> input;
-    final UnaryFunction<KIN, KEY> keyExtractor;
-    final UnaryFunction<KIN, VALUE> valueExtractor;
-    final BinaryFunction<KEY, Collector<Pair<KEY, OUT>>, STATE> stateFactory;
-    final CombinableReduceFunction<STATE> stateCombiner;
-    Builder5(Dataset<IN> input,
-        UnaryFunction<KIN, KEY> keyExtractor,
-        UnaryFunction<KIN, VALUE> valueExtractor,
-        BinaryFunction<KEY, Collector<Pair<KEY, OUT>>, STATE> stateFactory,
-        CombinableReduceFunction<STATE> stateCombiner) {
-      this.input = input;
-      this.keyExtractor = keyExtractor;
-      this.valueExtractor = valueExtractor;
-      this.stateFactory = stateFactory;
-      this.stateCombiner = stateCombiner;
+  public static class DatasetBuilder5<
+      IN, KEY, VALUE, OUT, STATE extends State<VALUE, OUT>>
+          extends PartitioningBuilder<KEY,  DatasetBuilder5<IN, KEY, VALUE, OUT, STATE>>
+  {
+    private final String name;
+    private final Dataset<IN> input;
+    private final UnaryFunction<IN, KEY> keyExtractor;
+    private final UnaryFunction<IN, VALUE> valueExtractor;
+    private final UnaryFunction<Collector<OUT>, STATE> stateFactory;
+    private final CombinableReduceFunction<STATE> stateCombiner;
+
+    DatasetBuilder5(String name,
+                    Dataset<IN> input,
+                    UnaryFunction<IN, KEY> keyExtractor,
+                    UnaryFunction<IN, VALUE> valueExtractor,
+                    UnaryFunction<Collector<OUT>, STATE> stateFactory,
+                    CombinableReduceFunction<STATE> stateCombiner)
+    {
+      // initialize default partitioning according to input
+      super(new DefaultPartitioning<>(input.getPartitioning().getNumPartitions()));
+
+      this.name = Objects.requireNonNull(name);
+      this.input = Objects.requireNonNull(input);
+      this.keyExtractor = Objects.requireNonNull(keyExtractor);
+      this.valueExtractor = Objects.requireNonNull(valueExtractor);
+      this.stateFactory = Objects.requireNonNull(stateFactory);
+      this.stateCombiner = Objects.requireNonNull(stateCombiner);
     }
-    public <WIN, W extends Window<?, ?>> ReduceStateByKey<
-        IN, WIN, KIN, KEY, VALUE, OUT, STATE, W> windowBy(
-        Windowing<WIN, ?, ?, W> windowing) {
-      Flow flow = input.getFlow();
-      return flow.add(new ReduceStateByKey<>(
-          flow, input, keyExtractor, valueExtractor,
-          windowing, stateFactory, stateCombiner));
+    public <WIN, W extends Window<?, ?>> DatasetBuilder6<IN, WIN, KEY, VALUE, OUT,
+                STATE, W> windowBy(Windowing<WIN, ?, ?, W> windowing)
+    {
+      return new DatasetBuilder6<>(name, input, keyExtractor, valueExtractor,
+              stateFactory, stateCombiner, windowing, this);
     }
     public Dataset<Pair<KEY, OUT>> output() {
-      return windowBy(BatchWindowing.get()).output();
+      // use default windowing
+      return new DatasetBuilder6<>(name, input, keyExtractor, valueExtractor,
+              stateFactory, stateCombiner, null, this).output();
+    }
+  }
+
+  public static class DatasetBuilder6<
+          IN, WIN, KEY, VALUE, OUT, STATE extends State<VALUE, OUT>,
+          W extends Window<?, ?>> extends PartitioningBuilder<
+          KEY,
+          DatasetBuilder6<IN, WIN, KEY, VALUE, OUT, STATE, W>>
+  {
+    private final String name;
+    private final Dataset<IN> input;
+    private final UnaryFunction<IN, KEY> keyExtractor;
+    private final UnaryFunction<IN, VALUE> valueExtractor;
+    private final UnaryFunction<Collector<OUT>, STATE> stateFactory;
+    private final CombinableReduceFunction<STATE> stateCombiner;
+    private final Windowing<WIN, ?, ?, W> windowing;
+
+    DatasetBuilder6(String name,
+                    Dataset<IN> input,
+                    UnaryFunction<IN, KEY> keyExtractor,
+                    UnaryFunction<IN, VALUE> valueExtractor,
+                    UnaryFunction<Collector<OUT>, STATE> stateFactory,
+                    CombinableReduceFunction<STATE> stateCombiner,
+                    Windowing<WIN, ?, ?, W> windowing,
+                    PartitioningBuilder<KEY, ?> partitioning)
+    {
+      // initialize partitioning
+      super(partitioning);
+
+      this.name = Objects.requireNonNull(name);
+      this.input = Objects.requireNonNull(input);
+      this.keyExtractor = Objects.requireNonNull(keyExtractor);
+      this.valueExtractor = Objects.requireNonNull(valueExtractor);
+      this.stateFactory = Objects.requireNonNull(stateFactory);
+      this.stateCombiner = Objects.requireNonNull(stateCombiner);
+      this.windowing = windowing; /* may be null */
     }
 
+    public Dataset<Pair<KEY, OUT>> output() {
+      Flow flow = input.getFlow();
+      ReduceStateByKey<IN, IN, WIN, KEY, VALUE, KEY, OUT, STATE, ?> reduceStateByKey =
+              new ReduceStateByKey<>(name, flow, input, keyExtractor, valueExtractor,
+                      windowing, stateFactory, stateCombiner, getPartitioning());
+      flow.add(reduceStateByKey);
+
+      return reduceStateByKey.output();
+    }
   }
 
+  // builder classes used for GroupedDataset<K, V> input -------------------
 
-  public static <IN> Builder1<IN, IN> of(Dataset<IN> input) {
-    return new Builder1<>(input);
+  public static class GroupedDatasetBuilder1<IN, KIN> {
+    private final String name;
+    private final GroupedDataset<IN, KIN> input;
+    GroupedDatasetBuilder1(String name, GroupedDataset<IN, KIN> input) {
+      this.name = Objects.requireNonNull(name);
+      this.input = Objects.requireNonNull(input);
+    }
+    public <KEY> GroupedDatasetBuilder2<IN, KIN, KEY> keyBy(UnaryFunction<KIN, KEY> keyExtractor) {
+      return new GroupedDatasetBuilder2<>(name, input, keyExtractor);
+    }
+  }
+  public static class GroupedDatasetBuilder2<IN, KIN, KEY> {
+    private final String name;
+    private final GroupedDataset<IN, KIN> input;
+    private final UnaryFunction<KIN, KEY> keyExtractor;
+    GroupedDatasetBuilder2(String name, GroupedDataset<IN, KIN> input, UnaryFunction<KIN, KEY> keyExtractor) {
+      this.name = Objects.requireNonNull(name);
+      this.input = Objects.requireNonNull(input);
+      this.keyExtractor = Objects.requireNonNull(keyExtractor);
+    }
+    public <VALUE> GroupedDatasetBuilder3<IN, KIN, KEY, VALUE> valueBy(UnaryFunction<KIN, VALUE> valueExtractor) {
+      return new GroupedDatasetBuilder3<>(name, input, keyExtractor, valueExtractor);
+    }
+  }
+  public static class GroupedDatasetBuilder3<IN, KIN, KEY, VALUE> {
+    private final String name;
+    private final GroupedDataset<IN, KIN> input;
+    private final UnaryFunction<KIN, KEY> keyExtractor;
+    private final UnaryFunction<KIN, VALUE> valueExtractor;
+    GroupedDatasetBuilder3(String name,
+                           GroupedDataset<IN, KIN> input,
+                           UnaryFunction<KIN, KEY> keyExtractor,
+                           UnaryFunction<KIN, VALUE> valueExtractor)
+    {
+      this.name = Objects.requireNonNull(name);
+      this.input = Objects.requireNonNull(input);
+      this.keyExtractor = Objects.requireNonNull(keyExtractor);
+      this.valueExtractor = Objects.requireNonNull(valueExtractor);
+    }
+    public <OUT, STATE extends State<VALUE, OUT>> GroupedDatasetBuilder4<
+            IN, KIN, KEY, VALUE, OUT, STATE> stateFactory(
+            UnaryFunction<Collector<OUT>, STATE> stateFactory) {
+      return new GroupedDatasetBuilder4<>(name, input, keyExtractor, valueExtractor, stateFactory);
+    }
+  }
+  public static class GroupedDatasetBuilder4<
+          IN, KIN, KEY, VALUE, OUT, STATE extends State<VALUE, OUT>> {
+    private final String name;
+    private final GroupedDataset<IN, KIN> input;
+    private final UnaryFunction<KIN, KEY> keyExtractor;
+    private final UnaryFunction<KIN, VALUE> valueExtractor;
+    private final UnaryFunction<Collector<OUT>, STATE> stateFactory;
+    GroupedDatasetBuilder4(String name,
+                           GroupedDataset<IN, KIN> input,
+                           UnaryFunction<KIN, KEY> keyExtractor,
+                           UnaryFunction<KIN, VALUE> valueExtractor,
+                           UnaryFunction<Collector<OUT>, STATE> stateFactory)
+    {
+      this.name = Objects.requireNonNull(name);
+      this.input = Objects.requireNonNull(input);
+      this.keyExtractor = Objects.requireNonNull(keyExtractor);
+      this.valueExtractor = Objects.requireNonNull(valueExtractor);
+      this.stateFactory = Objects.requireNonNull(stateFactory);
+    }
+    public GroupedDatasetBuilder5<IN, KIN, KEY, VALUE, OUT, STATE> combineStateBy(
+            CombinableReduceFunction<STATE> stateCombiner) {
+      return new GroupedDatasetBuilder5<>(name, input, keyExtractor, valueExtractor,
+              stateFactory, stateCombiner);
+    }
+  }
+  public static class GroupedDatasetBuilder5<
+          IN, KIN, KEY, VALUE, OUT, STATE extends State<VALUE, OUT>>
+          extends PartitioningBuilder<KEY, GroupedDatasetBuilder5<IN, KIN, KEY, VALUE, OUT, STATE>>
+  {
+    private final String name;
+    private final GroupedDataset<IN, KIN> input;
+    private final UnaryFunction<KIN, KEY> keyExtractor;
+    private final UnaryFunction<KIN, VALUE> valueExtractor;
+    private final UnaryFunction<Collector<OUT>, STATE> stateFactory;
+    private final CombinableReduceFunction<STATE> stateCombiner;
+    private final DefaultPartitioning<KEY> defaultPartitioning;
+
+    GroupedDatasetBuilder5(String name,
+                           GroupedDataset<IN, KIN> input,
+                           UnaryFunction<KIN, KEY> keyExtractor,
+                           UnaryFunction<KIN, VALUE> valueExtractor,
+                           UnaryFunction<Collector<OUT>, STATE> stateFactory,
+                           CombinableReduceFunction<STATE> stateCombiner)
+    {
+      // define default partitioning
+      super(new DefaultPartitioning<>(input.getPartitioning().getNumPartitions()));
+
+      this.name = Objects.requireNonNull(name);
+      this.input = Objects.requireNonNull(input);
+      this.keyExtractor = Objects.requireNonNull(keyExtractor);
+      this.valueExtractor = Objects.requireNonNull(valueExtractor);
+      this.stateFactory = Objects.requireNonNull(stateFactory);
+      this.stateCombiner = Objects.requireNonNull(stateCombiner);
+
+      // initialize default partitioning according to input
+      this.defaultPartitioning = new DefaultPartitioning<>(
+              input.getPartitioning().getNumPartitions());
+    }
+    public <WIN, W extends Window<?, ?>> GroupedDatasetBuilder6<IN, KIN, WIN, KEY,
+            VALUE, OUT, STATE, W> windowBy(Windowing<WIN, ?, ?, W> windowing)
+    {
+      return new GroupedDatasetBuilder6<>(name, input, keyExtractor, valueExtractor,
+              stateFactory, stateCombiner, windowing, this);
+    }
+    public Dataset<Pair<CompositeKey<IN, KEY>, OUT>> output() {
+      // use default windowing
+      return new GroupedDatasetBuilder6<>(name, input, keyExtractor, valueExtractor,
+              stateFactory, stateCombiner, null, this).output();
+    }
   }
 
-  private final BinaryFunction<KEY, Collector<Pair<KEY, OUT>>, STATE> stateFactory;
+  public static class GroupedDatasetBuilder6<
+          IN, KIN, WIN, KEY, VALUE, OUT, STATE extends State<VALUE, OUT>,
+          W extends Window<?, ?>> extends PartitioningBuilder<
+          KEY,
+          GroupedDatasetBuilder6<IN, KIN, WIN, KEY, VALUE, OUT, STATE, W>>
+  {
+    private final String name;
+    private final GroupedDataset<IN, KIN> input;
+    private final UnaryFunction<KIN, KEY> keyExtractor;
+    private final UnaryFunction<KIN, VALUE> valueExtractor;
+    private final UnaryFunction<Collector<OUT>, STATE> stateFactory;
+    private final CombinableReduceFunction<STATE> stateCombiner;
+    private final Windowing<WIN, ?, ?, W> windowing;
+
+    GroupedDatasetBuilder6(String name,
+                           GroupedDataset<IN, KIN> input,
+                           UnaryFunction<KIN, KEY> keyExtractor,
+                           UnaryFunction<KIN, VALUE> valueExtractor,
+                           UnaryFunction<Collector<OUT>, STATE> stateFactory,
+                           CombinableReduceFunction<STATE> stateCombiner,
+                           Windowing<WIN, ?, ?, W> windowing,
+                           PartitioningBuilder<KEY, ?> partitioning)
+    {
+      // initialize partitioning
+      super(partitioning);
+
+      this.name = Objects.requireNonNull(name);
+      this.input = Objects.requireNonNull(input);
+      this.keyExtractor = Objects.requireNonNull(keyExtractor);
+      this.valueExtractor = Objects.requireNonNull(valueExtractor);
+      this.stateFactory = Objects.requireNonNull(stateFactory);
+      this.stateCombiner = Objects.requireNonNull(stateCombiner);
+      this.windowing = windowing; /* may be null */
+    }
+
+    public Dataset<Pair<CompositeKey<IN, KEY>, OUT>> output() {
+      Flow flow = input.getFlow();
+      ReduceStateByKey<IN, KIN, WIN, KEY, VALUE, CompositeKey<IN, KEY>, OUT, STATE, ?> reduceStateByKey =
+              new ReduceStateByKey<>(name, flow, input, keyExtractor, valueExtractor,
+                      windowing, stateFactory, stateCombiner, getPartitioning());
+      flow.add(reduceStateByKey);
+
+      return reduceStateByKey.output();
+    }
+  }
+
+  // -------------
+
+  public static <IN> DatasetBuilder1<IN> of(Dataset<IN> input) {
+    return new DatasetBuilder1<>("ReduceStateByKey", input);
+  }
+
+  public static <IN, KIN> GroupedDatasetBuilder1<IN, KIN> of(GroupedDataset<IN, KIN> input) {
+    return new GroupedDatasetBuilder1<>("ReduceStateByKey", input);
+  }
+
+  public static OfBuilder named(String name) {
+    return new OfBuilder(name);
+  }
+
+  private final UnaryFunction<Collector<OUT>, STATE> stateFactory;
   private final UnaryFunction<KIN, VALUE> valueExtractor;
   private final CombinableReduceFunction<STATE> stateCombiner;
   private final boolean grouped;
   
-  ReduceStateByKey(Flow flow,
-      Dataset<IN> input,
-      UnaryFunction<KIN, KEY> keyExtractor,
-      UnaryFunction<KIN, VALUE> valueExtractor,
-      Windowing<WIN, ?, ?, W> windowing,
-      BinaryFunction<KEY, Collector<Pair<KEY, OUT>>, STATE> stateFactory,
-      CombinableReduceFunction<STATE> stateCombiner) {
-    super("ReduceStateByKey", flow, input, keyExtractor, windowing);
+  ReduceStateByKey(String name,
+                   Flow flow,
+                   Dataset<IN> input,
+                   UnaryFunction<KIN, KEY> keyExtractor,
+                   UnaryFunction<KIN, VALUE> valueExtractor,
+                   Windowing<WIN, ?, ?, W> windowing,
+                   UnaryFunction<Collector<OUT>, STATE> stateFactory,
+                   CombinableReduceFunction<STATE> stateCombiner,
+                   Partitioning<KEY> partitioning)
+  {
+    super(name, flow, input, keyExtractor, windowing, partitioning);
     this.stateFactory = stateFactory;
     this.valueExtractor = valueExtractor;
     this.stateCombiner = stateCombiner;
-    this.setPartitioning(
-        new HashPartitioning<>(input.getPartitioning().getNumPartitions()));
     this.grouped = false;
   }
 
-
-
   @SuppressWarnings("unchecked")
-  ReduceStateByKey(Flow flow,
-      GroupedDataset<Object, IN> groupedInput,
-      UnaryFunction<KIN, KEY> keyExtractor,
-      UnaryFunction<KIN, VALUE> valueExtractor,
-      Windowing<WIN, ?, ?, W> windowing,
-      BinaryFunction<KEY, Collector<Pair<KEY, OUT>>, STATE> stateFactory,
-      CombinableReduceFunction<STATE> stateCombiner) {
-    super("ReduceStateByKey", flow, (Dataset) groupedInput, keyExtractor, windowing);
+  ReduceStateByKey(String name,
+                   Flow flow,
+                   GroupedDataset<IN, KIN> groupedInput,
+                   UnaryFunction<KIN, KEY> keyExtractor,
+                   UnaryFunction<KIN, VALUE> valueExtractor,
+                   Windowing<WIN, ?, ?, W> windowing,
+                   UnaryFunction<Collector<OUT>, STATE> stateFactory,
+                   CombinableReduceFunction<STATE> stateCombiner,
+                   Partitioning<KEY> partitioning)
+  {
+    super(name, flow, (Dataset) groupedInput, keyExtractor, windowing, partitioning);
     this.stateFactory = stateFactory;
     this.valueExtractor = valueExtractor;
     this.stateCombiner = stateCombiner;
-    this.setPartitioning(
-        new HashPartitioning<>(input.getPartitioning().getNumPartitions()));
     this.grouped = true;
   }
 
 
-  public BinaryFunction<KEY, Collector<Pair<KEY, OUT>>, STATE> getStateFactory() {
+  public UnaryFunction<Collector<OUT>, STATE> getStateFactory() {
     return stateFactory;
   }
 
