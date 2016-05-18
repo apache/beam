@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -65,7 +64,7 @@ public class WithKeysJava8Test {
 
     values.apply("ApplyKeysWithWithKeys", WithKeys.of((String s) -> Integer.valueOf(s)));
 
-    thrown.expect(PipelineExecutionException.class);
+    thrown.expect(IllegalStateException.class);
     thrown.expectMessage("Unable to return a default Coder for ApplyKeysWithWithKeys");
     thrown.expectMessage("Cannot provide a coder for type variable K");
     thrown.expectMessage("the actual type is unknown due to erasure.");
