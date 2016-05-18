@@ -4,6 +4,8 @@ package cz.seznam.euphoria.core.executor;
 
 import cz.seznam.euphoria.core.client.dataset.Trigger;
 import cz.seznam.euphoria.core.client.dataset.Triggering;
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -11,7 +13,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 /**
- * A triggering in local JVM.
+ * A triggering in local JVM based on processing time.
  */
 public class ProcessingTimeTriggering implements Triggering {
 
@@ -42,8 +44,16 @@ public class ProcessingTimeTriggering implements Triggering {
   }
 
 
+  @Override
   public void close() {
     timer.cancel();
   }
+
+ private void readObject(ObjectInputStream stream)
+     throws IOException, ClassNotFoundException {
+   stream.defaultReadObject();
+   this.timer = new Timer();
+ }
+
 
 }
