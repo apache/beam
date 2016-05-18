@@ -16,5 +16,17 @@ public interface Triggering extends Serializable {
    * already passed
    */
   boolean scheduleAt(long stamp, Trigger trigger);
+
+  /**
+   * Update the internal timestamp by processed element (optional operation).
+   */
+  default void updateProcessed(long stamp) {
+    // nop
+  }
+
+  /**
+   * Close all triggers and destroy the triggering.
+   */
+  void close();
   
 }

@@ -50,4 +50,5 @@ public interface Window<GROUP, LABEL> extends Serializable {
    */
   TriggerState registerTrigger(
       Triggering triggering, UnaryFunction<Window<?, ?>, Void> evict);
+
 }
