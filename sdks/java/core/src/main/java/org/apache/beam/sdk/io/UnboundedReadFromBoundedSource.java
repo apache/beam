@@ -199,7 +199,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
     class Reader extends UnboundedReader<T> {
       private final PipelineOptions options;
 
-      private @Nullable final List<TimestampedValue<T>> residualElements;
+      private final List<TimestampedValue<T>> residualElements;
       private @Nullable BoundedSource<T> residualSource;
 
       private boolean currentElementInList;
@@ -208,10 +208,10 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
       private boolean done;
 
       public Reader(
-          @Nullable List<TimestampedValue<T>> residualElements,
+          List<TimestampedValue<T>> residualElements,
           @Nullable BoundedSource<T> residualSource,
           PipelineOptions options) {
-        this.residualElements = residualElements;
+        this.residualElements = Preconditions.checkNotNull(residualElements, "residualElements");
         this.residualSource = residualSource;
         this.options = Preconditions.checkNotNull(options, "options");
         this.currentElementInList = true;
@@ -303,7 +303,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PInput, PColle
               newResidualElements.add(
                   TimestampedValue.of(reader.getCurrent(), reader.getCurrentTimestamp()));
             }
-          } catch (NoSuchElementException | IOException e) {
+          } catch (IOException e) {
             throw new RuntimeException("Failed to read elements from the bounded reader.", e);
           }
           newResidualSource = residualSplit;
