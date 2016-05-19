@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Dynamic work rebalancing for Beam</title>
+  <meta name="description" content="This morning, Eugene and Malo from the Google Cloud Dataflow team posted No shard left behind: dynamic work rebalancing in Google Cloud Dataflow. This articl...">
+
+  <link rel="stylesheet" href="/styles/site.css">
+  <link rel="stylesheet" href="/css/theme.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
+  <script src="/js/bootstrap.min.js"></script>
+  <link rel="canonical" href="http://beam.incubator.apache.org/blog/2016/05/18/splitAtFraction-method.html">
+  <link rel="alternate" type="application/rss+xml" title="Apache Beam (incubating)" href="http://beam.incubator.apache.org/feed.xml">
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-73650088-1', 'auto');
+    ga('send', 'pageview');
+
+  </script>
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
+</head>
+
+
+  <body role="document">
+
+    <nav class="navbar navbar-default navbar-fixed-top">
+  <div class="container">
+    <div class="navbar-header">
+      <a href="/" class="navbar-brand" >
+        <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
+      </a>
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Documentation <span class="caret"></span></a>
+          <ul class="dropdown-menu">
+            <li class="dropdown-header">Guides</li>
+            <li><a href="/getting_started/">Getting Started</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Technical Documentation</li>
+            <li><a href="/capability-matrix/">Capability Matrix</a></li>
+            <li><a href="https://goo.gl/ps8twC">Technical Docs</a></li>
+            <li><a href="https://goo.gl/nk5OM0">Technical Vision</a></li>
+          </ul>
+        </li>
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Community <span class="caret"></span></a>
+          <ul class="dropdown-menu">
+            <li class="dropdown-header">Community</li>
+            <li><a href="/mailing_lists/">Mailing Lists</a></li>
+            <li><a href="/team/">Apache Beam Team</a></li>
+            <li><a href="/public-meetings/">Public Meetings</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Contribute</li>
+            <li><a href="/contribution-guide/">Contribution Guide</a></li>
+            <li><a href="/source_repository/">Source Repository</a></li>
+            <li><a href="/issue_tracking/">Issue Tracking</a></li>
+          </ul>
+        </li>
+        <li><a href="/blog">Blog</a></li>
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Project <span class="caret"></span></a>
+          <ul class="dropdown-menu">
+            <li><a href="/presentation-materials/">Presentation Materials</a></li>
+            <li><a href="/material/">Logos and design</a></li>
+            <li><a href="http://apache.org/licenses/LICENSE-2.0.html">License</a></li>
+          </ul>
+        </li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div>
+</nav>
+
+
+<link rel="stylesheet" href="">
+
+
+    <div class="container" role="main">
+
+      <div class="container">
+        
+
+<article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">Dynamic work rebalancing for Beam</h1>
+    <p class="post-meta"><time datetime="2016-05-18T11:00:00-07:00" itemprop="datePublished">May 18, 2016</time> •  Dan Halperin 
+</p>
+  </header>
+
+  <div class="post-content" itemprop="articleBody">
+    <p>This morning, Eugene and Malo from the Google Cloud Dataflow team posted <a href="https://cloud.google.com/blog/big-data/2016/05/no-shard-left-behind-dynamic-work-rebalancing-in-google-cloud-dataflow"><em>No shard left behind: dynamic work rebalancing in Google Cloud Dataflow</em></a>. This article discusses Cloud Dataflow’s solution to the well-known straggler problem.</p>
+
+<!--more-->
+
+<p>In a large batch processing job with many tasks executing in parallel, some of the tasks – the stragglers – can take a much longer time to complete than others, perhaps due to imperfect splitting of the work into parallel chunks when issuing the job. Typically, waiting for stragglers means that the overall job completes later than it should, and may also reserve too many machines that may be underutilized at the end. Cloud Dataflow’s dynamic work rebalancing can mitigate stragglers in most cases.</p>
+
+<p>What I’d like to highlight for the Apache Beam (incubating) community is that Cloud Dataflow’s dynamic work rebalancing is implemented using <em>runner-specific</em> control logic on top of Beam’s <em>runner-independent</em> <a href="https://github.com/apache/incubator-beam/blob/9fa97fb2491bc784df53fb0f044409dbbc2af3d7/sdks/java/core/src/main/java/org/apache/beam/sdk/io/BoundedSource.java"><code class="highlighter-rouge">BoundedSource API</code></a>. Specifically, to steal work from a straggler, a runner need only call the reader’s <a href="https://github.com/apache/incubator-beam/blob/3edae9b8b4d7afefb5c803c19bb0a1c21ebba89d/sdks/java/core/src/main/java/org/apache/beam/sdk/io/BoundedSource.java#L266"><code class="highlighter-rouge">splitAtFraction method</code></a>. This will generate a new source containing leftover work, and then the runner can pass that source off to another idle worker. As Beam matures, I hope that other runners are interested in figuring out whether these APIs can help them improve performance, implementing dynamic work rebalancing, and collaborating on API changes that will help solve other pain points.</p>
+
+  </div>
+
+</article>
+
+      </div>
+
+
+    <hr>
+  <div class="row">
+      <div class="col-xs-12">
+          <footer>
+              <p class="text-center">&copy; Copyright 2016
+                <a href="http://www.apache.org">The Apache Software Foundation.</a> All Rights Reserved.</p>
+                <p class="text-center"><a href="/privacy_policy">Privacy Policy</a> |
+                <a href="/feed.xml">RSS Feed</a></p>
+          </footer>
+      </div>
+  </div>
+  <!-- container div end -->
+</div>
+
+
+  </body>
+
+</html>
